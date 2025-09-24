@@ -10,14 +10,11 @@ import SwiftUI
 struct ContentView: View {
     @EnvironmentObject private var appModel: AppModel
     @EnvironmentObject private var appState: AppState
+    @EnvironmentObject private var themeManager: ThemeManager
     @State private var showingAddConnection = false
 
     var body: some View {
-        ZStack {
-            GlassBackground(material: .underWindowBackground, blendingMode: .withinWindow)
-                .ignoresSafeArea()
-
-            NavigationSplitView {
+        NavigationSplitView {
                 SidebarView(
                     connections: $appModel.connections,
                     selectedConnectionID: $appModel.selectedConnectionID,
@@ -30,15 +27,15 @@ struct ContentView: View {
                         Task { await appModel.deleteConnection(id: id) }
                     }
                 )
-                .environmentObject(appModel).environmentObject(appState)
+                .environmentObject(appModel)
+                .environmentObject(appState)
                 .navigationTitle("Connections")
                 .frame(minWidth: 220)
                 .navigationSplitViewColumnWidth(min: 280, ideal: 320, max: 400)
             } detail: {
                 if let selected = appModel.selectedConnection,
                    let session = appModel.session {
-                    QueryView(connection: selected, session: session)
-                        .navigationTitle(selected.connectionName).environmentObject(appState)
+                    QueryView(connection: selected, session: session).navigationTitle(selected.connectionName).environmentObject(appState).background(themeManager.windowBackground)
                 } else if let selected = appModel.selectedConnection {
                     VStack(spacing: 24) {
                         VStack(spacing: 12) {
@@ -82,7 +79,7 @@ struct ContentView: View {
                         }
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .navigationTitle(selected.connectionName)
+                    .navigationTitle(selected.connectionName).background(themeManager.windowBackground)
                 } else {
                     VStack(spacing: 24) {
                         VStack(spacing: 12) {
@@ -107,10 +104,30 @@ struct ContentView: View {
                         .controlSize(.large)
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .navigationTitle("Fuzee")
+                    .navigationTitle("Fuzee").background(themeManager.windowBackground)
                 }
+        }
+        .navigationSplitViewStyle(.balanced).background(themeManager.windowBackground)
+        .toolbar {
+            ToolbarItem(placement: .navigation) {
+                Menu {
+                    Button("Add Connection...") {
+                        showingAddConnection = true
+                        appState.showSheet(.connectionEditor)
+                    }
+                    
+                    Divider()
+                    
+                    Button("Settings...") {
+                        NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+                    }.keyboardShortcut(",", modifiers: .command)
+                } label: {
+                    Image(systemName: "ellipsis.circle")
+                        .font(.system(size: 16))
+                }
+                .menuStyle(.borderlessButton)
+                .help("Application Menu")
             }
-            .navigationSplitViewStyle(.balanced)
         }
         .sheet(isPresented: $showingAddConnection) {
             ConnectionEditorView(
@@ -138,5 +155,7 @@ struct ContentView: View {
 
 #Preview {
     ContentView()
-        .environmentObject(AppModel()).environmentObject(AppState())
+        .environmentObject(AppModel())
+        .environmentObject(AppState())
+        .environmentObject(ThemeManager())
 }

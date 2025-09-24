@@ -1,24 +1,42 @@
+//
+//  AppModel.swift
+//  fuzee
+//
+//  Created by Kenneth Berg on 15/09/2025.
+//
+
 import Foundation
 import SwiftUI
 import Combine
 
-@MainActor final class AppModel: ObservableObject {
+/// Manages database connections and operations
+@MainActor
+final class AppModel: ObservableObject {
+    
+    // MARK: - Published Properties
     @Published var connections: [SavedConnection] = []
     @Published var selectedConnectionID: UUID?
     @Published var session: DatabaseSession?
-    @Published var databaseStructure: [String: DatabaseStructure] = [:]
     @Published var connectionStates: [UUID: ConnectionState] = [:]
-
+    @Published var databaseStructure: [String: DatabaseStructure] = [:]
+    
+    // MARK: - Dependencies
     private let store = ConnectionStore()
     private let keychain = KeychainHelper()
     private let dbFactory = PostgresNIOFactory()
-
+    
+    // MARK: - Computed Properties
     var selectedConnection: SavedConnection? {
-        connections.first {
-            $0.id == selectedConnectionID
-        }
+        guard let id = selectedConnectionID else { return nil }
+        return connections.first { $0.id == id }
     }
-
+    
+    // MARK: - Initialization
+    init() {
+        // Initialize with default values - actual loading happens in load()
+    }
+    
+    // MARK: - Connection Management
     func load() async {
         do {
             connections = try await store.load()
@@ -29,123 +47,81 @@ import Combine
             print("Failed to load connections: \(error)")
         }
     }
-
+    
     func upsertConnection(_ connection: SavedConnection, password: String?) async {
         var conn = connection
-        if let password, !password.isEmpty {
+        
+        // Save password to keychain if provided
+        if let password = password, !password.isEmpty {
             if conn.keychainIdentifier == nil {
                 conn.keychainIdentifier = "fuzee.\(conn.id.uuidString)"
             }
-            if let id = conn.keychainIdentifier {
+            
+            if let identifier = conn.keychainIdentifier {
                 do {
-                    try keychain.setPassword(password, account: id)
+                    try keychain.setPassword(password, account: identifier)
                 } catch {
                     print("Keychain set failed: \(error)")
                 }
             }
         }
-
-        if let index = connections.firstIndex(where: {
-            $0.id == conn.id
-        }) {
+        
+        // Update or add connection
+        if let index = connections.firstIndex(where: { $0.id == conn.id }) {
             connections[index] = conn
         } else {
             connections.append(conn)
         }
-
+        
+        // Save to disk
         do {
             try await store.save(connections)
         } catch {
             print("Failed to save connections: \(error)")
         }
     }
-
+    
     func deleteConnection(id: UUID) async {
-        guard let idx = connections.firstIndex(where: {
-            $0.id == id
-        }) else {
-            return
+        guard let connection = connections.first(where: { $0.id == id }) else { return }
+        await deleteConnection(connection)
+    }
+    
+    func deleteConnection(_ connection: SavedConnection) async {
+        // Remove from keychain
+        if let identifier = connection.keychainIdentifier {
+            try? keychain.deletePassword(account: identifier)
         }
-        let conn = connections.remove(at: idx)
-        if let kid = conn.keychainIdentifier {
-            try? keychain.deletePassword(account: kid)
+        
+        // Remove from connections
+        connections.removeAll { $0.id == connection.id }
+        connectionStates.removeValue(forKey: connection.id)
+        databaseStructure.removeValue(forKey: connection.id.uuidString)
+        
+        // Update selection if needed
+        if selectedConnectionID == connection.id {
+            selectedConnectionID = connections.first?.id
         }
-        if selectedConnectionID == id {
-            selectedConnectionID = nil
-            session = nil
-            databaseStructure.removeValue(forKey: id.uuidString)
-        }
-        connectionStates.removeValue(forKey: id)
-
+        
+        // Save changes
         do {
             try await store.save(connections)
         } catch {
-            print("Failed to save after delete: \(error)")
+            print("Failed to save connections: \(error)")
         }
     }
-
-    func testConnection(_ connection: SavedConnection) async -> ConnectionTestResult {
-        connectionStates[connection.id] = .testing
-
-        do {
-            var password: String? = nil
-            if let kid = connection.keychainIdentifier {
-                do {
-                    password = try keychain.getPassword(account: kid)
-                } catch {
-                    print("Keychain getPassword failed: \(error)")
-                }
-            }
-
-            let testSession = try await dbFactory.connect(
-                host: connection.host,
-                port: connection.port,
-                username: connection.username,
-                password: password,
-                database: connection.database,
-                tls: connection.useTLS
-            )
-
-            let result = try await testSession.simpleQuery("SELECT 1 as test")
-            await testSession.close()
-            connectionStates[connection.id] = .connected
-
-            return ConnectionTestResult(
-                success: true,
-                message: "Connection successful",
-                details: "Successfully connected and executed test query."
-            )
-
-        } catch let dbError as DatabaseError {
-            connectionStates[connection.id] = .error(dbError)
-            return ConnectionTestResult(
-                success: false,
-                message: dbError.localizedDescription,
-                details: dbError.recoverySuggestion ?? "Please check your connection settings."
-            )
-        } catch {
-            let dbError = DatabaseError.from(error)
-            connectionStates[connection.id] = .error(dbError)
-            return ConnectionTestResult(
-                success: false,
-                message: "Connection failed",
-                details: error.localizedDescription
-            )
-        }
-    }
-
+    
     func connect(to connection: SavedConnection) async {
         connectionStates[connection.id] = .connecting
-
+        
         do {
-            let password: String? = {
-                if let kid = connection.keychainIdentifier {
-                    return try? keychain.getPassword(account: kid)
-                }
-                return nil
-            }()
-
-            let db = try await dbFactory.connect(
+            // Get password from keychain if needed
+            var password: String?
+            if let identifier = connection.keychainIdentifier {
+                password = try? keychain.getPassword(account: identifier)
+            }
+            
+            // Create connection
+            let newSession = try await dbFactory.connect(
                 host: connection.host,
                 port: connection.port,
                 username: connection.username,
@@ -153,154 +129,155 @@ import Combine
                 database: connection.database,
                 tls: connection.useTLS
             )
-
-            self.session = db
+            
+            // Update state
+            session = newSession
+            selectedConnectionID = connection.id
             connectionStates[connection.id] = .connected
 
-            await updateConnectionInfo(connection)
-            await refreshDatabaseStructure(for: connection)
-
-        } catch let dbError as DatabaseError {
-            connectionStates[connection.id] = .error(dbError)
+            // Load database structure
+            await loadDatabaseStructure(for: connection)
+            
         } catch {
             let dbError = DatabaseError.from(error)
             connectionStates[connection.id] = .error(dbError)
+            print("Connection failed: \(error)")
         }
     }
-
+    
     func disconnect() async {
-        if let connection = selectedConnection {
-            connectionStates[connection.id] = .disconnected
+        if let currentSession = session {
+            await currentSession.close()
+            session = nil
         }
-        await session?.close()
-        session = nil
-    }
 
-    private func updateConnectionInfo(_ connection: SavedConnection) async {
-        guard let session = session else {
-            return
+        // Reset connection states
+        for id in connectionStates.keys {
+            if connectionStates[id]?.isConnected == true {
+                connectionStates[id] = .disconnected
+            }
         }
+
+        // Clear database structures
+        databaseStructure.removeAll()
+    }
+    
+    // MARK: - Query Operations
+    func executeQuery(_ sql: String) async throws -> QueryResultSet {
+        guard let session = session else {
+            throw DatabaseError.connectionFailed("No active connection")
+        }
+        
+        return try await session.simpleQuery(sql)
+    }
+    
+    func executeUpdate(_ sql: String) async throws -> Int {
+        guard let session = session else {
+            throw DatabaseError.connectionFailed("No active connection")
+        }
+        
+        return try await session.executeUpdate(sql)
+    }
+    
+    func listTables() async throws -> [String] {
+        guard let session = session else {
+            throw DatabaseError.connectionFailed("No active connection")
+        }
+        
+        let objects = try await session.listTablesAndViews(schema: "public")
+        return objects.map { $0.name }
+    }
+    
+    // MARK: - Database Structure Loading
+    func loadDatabaseStructure(for connection: SavedConnection) async {
+        guard let session = session else { return }
 
         do {
-            let versionResult = try await session.simpleQuery("SELECT version()")
-            if let versionString = versionResult.rows.first?.first {
-                if let index = connections.firstIndex(where: {
-                    $0.id == connection.id
-                }) {
-                    connections[index].serverVersion = extractVersion(from: versionString!)
-                    try await store.save(connections)
-                }
-            }
-        } catch {
-            print("Failed to get server version: \(error)")
-        }
-    }
+            // Get list of tables and views
+            var objects = try await session.listTablesAndViews(schema: "public")
 
-    private func extractVersion(from versionString: String) -> String {
-        let components = versionString.components(separatedBy: " ")
-        if components.count >= 2 {
-            return components[1]
-        }
-        return "Unknown"
-    }
-
-    private func refreshDatabaseStructure(for connection: SavedConnection) async {
-        guard let session = session else {
-            return
-        }
-
-        do {
-            let databasesResult = try await session.simpleQuery("""
-                SELECT datname FROM pg_database 
-                            WHERE datistemplate = false
-                            ORDER BY datname
-            """)
-
-            var databases: [DatabaseInfo] = []
-
-            for row in databasesResult.rows {
-                guard let dbName = row[0] else {
-                    continue
-                }
-
-                if dbName == connection.database {
-                    let schemas = try await loadSchemasForDatabase(dbName, session: session)
-                    databases.append(DatabaseInfo(name: dbName, schemas: schemas, isSelected: true))
-                } else {
-                    databases.append(DatabaseInfo(name: dbName, schemas: [], isSelected: false))
-                }
+            // For each object, fetch its columns
+            for i in 0..<objects.count {
+                let columns = try await session.getTableSchema(objects[i].name, schemaName: objects[i].schema)
+                objects[i].columns = columns
             }
 
-            let structure = DatabaseStructure(
-                serverVersion: connections.first(where: {
-                    $0.id == connection.id
-                })?.serverVersion,
-                databases: databases
+            // Create database structure
+            let databaseInfo = DatabaseInfo(
+                name: connection.database,
+                objects: objects
             )
 
+            let structure = DatabaseStructure(
+                databases: [databaseInfo]
+            )
+
+            // Store the structure
             databaseStructure[connection.id.uuidString] = structure
 
         } catch {
-            print("Failed to refresh database structure: \(error)")
-            databaseStructure[connection.id.uuidString] = DatabaseStructure(databases: [])
+            print("Failed to load database structure: \(error)")
+            // Create empty structure to stop loading state
+            let emptyStructure = DatabaseStructure(databases: [])
+            databaseStructure[connection.id.uuidString] = emptyStructure
         }
     }
 
-    private func loadSchemasForDatabase(_ databaseName: String, session: DatabaseSession) async throws -> [SchemaInfo] {
-        let schemasResult = try await session.simpleQuery("""
-            SELECT schema_name 
-                    FROM information_schema.schemata
-                    WHERE schema_name NOT IN ('information_schema', 'pg_catalog', 'pg_toast')
-                    ORDER BY schema_name
-        """)
-
-        var schemas: [SchemaInfo] = []
-
-        for row in schemasResult.rows {
-            guard let schemaName = row[0] else {
-                continue
+    // MARK: - Connection Testing
+    func testConnection(_ connection: SavedConnection) async -> ConnectionTestResult {
+        let startTime = Date()
+        
+        do {
+            // Get password from keychain if needed
+            var password: String?
+            if let identifier = connection.keychainIdentifier {
+                password = try? keychain.getPassword(account: identifier)
             }
-
-            let tablesResult = try await session.simpleQuery("""
-                SELECT table_name, table_type 
-                            FROM information_schema.tables
-                            WHERE table_schema = '\(schemaName)'
-                                AND table_type IN ('BASE TABLE', 'VIEW')
-                            ORDER BY table_name
-            """)
-
-            var tables: [TableInfo] = []
-            var views: [ViewInfo] = []
-
-            for tableRow in tablesResult.rows {
-                guard let tableName = tableRow[0], let tableType = tableRow[1] else {
-                    continue
-                }
-
-                if tableType == "BASE TABLE" {
-                    tables.append(TableInfo(name: tableName, schemaName: schemaName))
-                } else if tableType == "VIEW" {
-                    views.append(ViewInfo(name: tableName, schemaName: schemaName))
-                }
-            }
-
-            schemas.append(SchemaInfo(name: schemaName, tables: tables, views: views))
+            
+            // Create a temporary connection for testing
+            let session = try await dbFactory.connect(
+                host: connection.host,
+                port: connection.port,
+                username: connection.username,
+                password: password,
+                database: connection.database,
+                tls: connection.useTLS
+            )
+            
+            // Test with a simple query
+            let _ = try await session.simpleQuery("SELECT 1")
+            
+            // Close the test connection
+            await session.close()
+            
+            let responseTime = Date().timeIntervalSince(startTime)
+            
+            return ConnectionTestResult(
+                isSuccessful: true,
+                message: "Connection successful",
+                responseTime: responseTime,
+                serverVersion: nil
+            )
+            
+        } catch {
+            let responseTime = Date().timeIntervalSince(startTime)
+            let dbError = DatabaseError.from(error)
+            
+            return ConnectionTestResult(
+                isSuccessful: false,
+                message: dbError.errorDescription ?? "Connection failed",
+                responseTime: responseTime,
+                serverVersion: nil
+            )
         }
-
-        return schemas
     }
 }
 
-struct ConnectionTestResult {
-    let success: Bool
-    let message: String
-    let details: String
-}
-
+// MARK: - Supporting Types
 struct DatabaseStructure {
     let serverVersion: String?
     let databases: [DatabaseInfo]
-
+    
     init(serverVersion: String? = nil, databases: [DatabaseInfo] = []) {
         self.serverVersion = serverVersion
         self.databases = databases
@@ -309,46 +286,47 @@ struct DatabaseStructure {
 
 struct DatabaseInfo {
     let name: String
-    let schemas: [SchemaInfo]
-    let isSelected: Bool
-
-    init(name: String, schemas: [SchemaInfo] = [], isSelected: Bool = false) {
+    let objects: [SchemaObjectInfo]
+    
+    init(name: String, objects: [SchemaObjectInfo] = []) {
         self.name = name
-        self.schemas = schemas
-        self.isSelected = isSelected
+        self.objects = objects
+    }
+    
+    var tables: [SchemaObjectInfo] {
+        objects.filter { $0.type == .table }
+    }
+    
+    var views: [SchemaObjectInfo] {
+        objects.filter { $0.type == .view }
     }
 }
 
-struct SchemaInfo {
-    let name: String
-    let tables: [TableInfo]
-    let views: [ViewInfo]
-}
-
-struct TableInfo {
-    let name: String
-    let schemaName: String
-
-    var fullName: String {
-        return "\(schemaName).\(name)"
+// MARK: - Connection Testing Result
+public struct ConnectionTestResult {
+    public let isSuccessful: Bool
+    public let message: String
+    public let responseTime: TimeInterval?
+    public let serverVersion: String?
+    
+    public init(isSuccessful: Bool, message: String, responseTime: TimeInterval? = nil, serverVersion: String? = nil) {
+        self.isSuccessful = isSuccessful
+        self.message = message
+        self.responseTime = responseTime
+        self.serverVersion = serverVersion
     }
-}
-
-struct ViewInfo {
-    let name: String
-    let schemaName: String
-
-    var fullName: String {
-        return "\(schemaName).\(name)"
+    
+    // Compatibility properties for existing code
+    public var success: Bool { isSuccessful }
+    
+    public var details: String {
+        var details: [String] = []
+        if let responseTime = responseTime {
+            details.append("Response time: \(String(format: "%.3f", responseTime))s")
+        }
+        if let serverVersion = serverVersion {
+            details.append("Server version: \(serverVersion)")
+        }
+        return details.isEmpty ? message : details.joined(separator: " • ")
     }
-}
-
-struct SchemaItem {
-    let name: String
-    let type: SchemaItemType
-}
-
-enum SchemaItemType {
-    case table
-    case view
 }

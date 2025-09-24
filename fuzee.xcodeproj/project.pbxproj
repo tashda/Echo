@@ -16,9 +16,22 @@
 		0ADF94952E78B95200E993F8 /* fuzee.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = fuzee.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		0ABCFAF52E83FA1200EA7087 /* Exceptions for "fuzee" folder in "fuzee" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Views/Sidebar/Pages/CodeSidebarView.swift,
+			);
+			target = 0ADF94942E78B95200E993F8 /* fuzee */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		0ADF94972E78B95200E993F8 /* fuzee */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				0ABCFAF52E83FA1200EA7087 /* Exceptions for "fuzee" folder in "fuzee" target */,
+			);
 			path = fuzee;
 			sourceTree = "<group>";
 		};

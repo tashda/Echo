@@ -79,7 +79,7 @@ struct ConnectionEditorView: View {
                                     Spacer()
                                 }
                             }
-                        }.padding(20).background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+                        }.padding(20).background(Color.white, in: RoundedRectangle(cornerRadius: 12))
 
                         // Test Connection Section
                         if let result = testResult {
@@ -87,7 +87,7 @@ struct ConnectionEditorView: View {
                                 Text("Connection Test").font(.headline).fontWeight(.semibold).foregroundStyle(.primary)
 
                                 ConnectionTestResultView(result: result)
-                            }.padding(20).background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+                            }.padding(20).background(Color.white, in: RoundedRectangle(cornerRadius: 12))
                         }
                     }.padding(20)
                 }
@@ -121,7 +121,7 @@ struct ConnectionEditorView: View {
                         onSave(model, password.isEmpty ? nil: password)
                         dismiss()
                     }.buttonStyle(.borderedProminent).controlSize(.large).keyboardShortcut(.return).disabled(!isFormValid)
-                }.padding(20).background(.regularMaterial)
+                }.padding(20).background(Color.white)
             }.navigationTitle(model.connectionName.isEmpty ? "New Connection": "Edit Connection")
         }.frame(width: 520, height: 650)
     }

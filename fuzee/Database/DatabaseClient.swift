@@ -22,7 +22,8 @@ public struct QueryResultSet: Sendable {
     }
 }
 
-public struct ColumnInfo: Sendable {
+public struct ColumnInfo: Sendable, Identifiable {
+    public var id: String { name }
     public let name: String
     public let dataType: String
     public let isPrimaryKey: Bool
@@ -37,6 +38,31 @@ public struct ColumnInfo: Sendable {
         self.maxLength = maxLength
     }
 }
+
+public struct SchemaObjectInfo: Sendable, Identifiable {
+    public enum ObjectType: String, Sendable {
+        case table = "BASE TABLE"
+        case view = "VIEW"
+    }
+
+    public var id: String { fullName }
+    public let name: String
+    public let schema: String
+    public let type: ObjectType
+    public var columns: [ColumnInfo]
+
+    public init(name: String, schema: String, type: ObjectType, columns: [ColumnInfo] = []) {
+        self.name = name
+        self.schema = schema
+        self.type = type
+        self.columns = columns
+    }
+
+    public var fullName: String {
+        "\(schema).\(name)"
+    }
+}
+
 
 public struct FilterCriteria: Sendable {
     public let column: String
@@ -63,7 +89,9 @@ public enum FilterOperator: String, CaseIterable, Sendable {
 }
 
 public struct SortCriteria: Sendable {
+    /// The name of the column to sort by.
     public let column: String
+    /// Whether the sort is ascending (`true`) or descending (`false`)
     public let ascending: Bool
 
     public init(column: String, ascending: Bool) {
@@ -75,7 +103,7 @@ public struct SortCriteria: Sendable {
 public protocol DatabaseSession: Sendable {
     func close() async
     func simpleQuery(_ sql: String) async throws -> QueryResultSet
-    func listTablesAndViews() async throws -> [String]
+    func listTablesAndViews(schema: String?) async throws -> [SchemaObjectInfo]
     // Enhanced query capabilities
     func queryWithPaging(_ sql: String, limit: Int, offset: Int) async throws -> QueryResultSet
     func getTableSchema(_ tableName: String, schemaName: String?) async throws -> [ColumnInfo]
@@ -85,4 +113,3 @@ public protocol DatabaseSession: Sendable {
 public protocol DatabaseFactory {
     func connect(host: String, port: Int, username: String, password: String?, database: String, tls: Bool) async throws -> DatabaseSession
 }
-
