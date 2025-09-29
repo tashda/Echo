@@ -58,19 +58,19 @@ struct KeyboardShortcutHandler: ViewModifier {
     }
 
     private func handleDisconnectFromServer() {
-        guard let activeSession = appModel.activeSession else { return }
+        guard let activeSession = appModel.sessionManager.activeSession else { return }
         Task {
             await appModel.disconnectSession(withID: activeSession.id)
         }
     }
 
     private func handleNewQueryTab() {
-        guard let activeSession = appModel.activeSession else { return }
+        guard let activeSession = appModel.sessionManager.activeSession else { return }
         activeSession.addQueryTab()
     }
 
     private func handleCloseQueryTab() {
-        guard let activeSession = appModel.activeSession,
+        guard let activeSession = appModel.sessionManager.activeSession,
               let activeTabID = activeSession.activeQueryTabID else { return }
         activeSession.closeQueryTab(withID: activeTabID)
     }
@@ -81,13 +81,9 @@ struct KeyboardShortcutHandler: ViewModifier {
     }
 
     private func handleRefreshSchema() {
-        guard let activeSession = appModel.activeSession else { return }
+        guard let activeSession = appModel.sessionManager.activeSession else { return }
         Task {
-            do {
-                activeSession.databaseStructure = try await appModel.loadDatabaseStructureForSession(activeSession)
-            } catch {
-                print("Failed to refresh schema: \(error)")
-            }
+            await appModel.refreshDatabaseStructure(for: activeSession.id)
         }
     }
 }
@@ -160,12 +156,7 @@ struct MenuKeyboardShortcuts: View {
             Button("Refresh Schema") {
                 if let activeSession = appModel.sessionManager.activeSession {
                     Task {
-                        do {
-                            let structure = try await appModel.loadDatabaseStructureForSession(activeSession)
-                            activeSession.databaseStructure = structure
-                        } catch {
-                            print("Failed to refresh schema: \(error)")
-                        }
+                        await appModel.refreshDatabaseStructure(for: activeSession.id)
                     }
                 }
             }

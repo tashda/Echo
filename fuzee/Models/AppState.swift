@@ -15,6 +15,8 @@ import Combine
     @Published var isQueryRunning = false
     @Published var queryHistory: [QueryHistoryItem] = []
     @Published var currentQuery = "SELECT NOW();"
+    @Published var editorFontName = "Menlo"
+    @Published var editorFontSize: CGFloat = 14
 
     // MARK: - Connection State
     @Published var isConnecting = false

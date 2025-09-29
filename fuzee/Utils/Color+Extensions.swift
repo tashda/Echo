@@ -59,7 +59,7 @@ extension Color {
     private var components: (r: CGFloat, g: CGFloat, b: CGFloat, a: CGFloat)? {
         #if os(macOS)
         // On macOS, convert to NSColor in sRGB space to get components.
-        guard let sRGBColor = PlatformColor2(self).usingColorSpace(.sRGB),
+        guard let sRGBColor = PlatformColor(self).usingColorSpace(.sRGB),
               let components = sRGBColor.cgColor.components,
               components.count >= 3 else {
             return nil

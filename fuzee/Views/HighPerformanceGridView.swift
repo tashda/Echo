@@ -100,7 +100,7 @@ struct HighPerformanceGridView: View {
                     }
                     .clipped()
                     #if os(macOS)
-                    .background(Color(PlatformColor2.textBackgroundColor))
+                    .background(Color(PlatformColor.textBackgroundColor))
                                     #else
                 .background(Color(PlatformColor.systemBackground))
                 #endif
@@ -378,7 +378,8 @@ struct HighPerformanceGridView: View {
 
     private func calculateOptimalColumnWidth(columnIndex: Int, column: ColumnInfo) -> CGFloat {
         let headerFont = PlatformFont.systemFont(ofSize: 11, weight: .semibold)
-            let dataFont = PlatformFont.monospacedSystemFont(ofSize: 13, weight: .regular)        let headerWidth = column.name.widthOfString(usingFont: headerFont) + 60
+        let dataFont = PlatformFont.monospacedSystemFont(ofSize: 13, weight: .regular)
+        let headerWidth = column.name.widthOfString(usingFont: headerFont) + 60
 
         // Clarified logic to help with type inference
         let dataWidths = resultSet.rows.prefix(50).compactMap { row -> CGFloat? in

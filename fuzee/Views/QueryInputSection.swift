@@ -77,7 +77,7 @@ struct QueryInputSection: View {
                             .font(.caption)
                             .fontWeight(.medium)
                         
-                        let databaseString = tab.connection.database.map { "/\($0)" } ?? ""
+                        let databaseString = tab.connection.database.isEmpty ? "" : "/\(tab.connection.database)"
                         Text("\(tab.connection.host):\(tab.connection.port)\(databaseString)")
                             .font(.caption2)
                             .foregroundStyle(.secondary)

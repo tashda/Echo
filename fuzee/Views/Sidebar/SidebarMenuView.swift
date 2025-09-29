@@ -1,16 +1,15 @@
 import SwiftUI
 
 struct SidebarMenu: View {
-    let connections: [SavedConnection]
     @Binding var selectedConnectionID: UUID?
-    let databaseStructure: [String: DatabaseStructure]
+    @Binding var selectedIdentityID: UUID?
     @EnvironmentObject var appModel: AppModel
     let onAddConnection: () -> Void
-    let onDeleteConnection: (UUID) -> Void
+
     @State private var selectedNavSection: NavSection = .code
-    
+
     enum NavSection: String, CaseIterable {
-        case folder = "Folder"
+        case folder = "Explorer"
         case bookmark = "Bookmarks"
         case search = "Search"
         case issues = "Issues"
@@ -18,114 +17,82 @@ struct SidebarMenu: View {
         case history = "History"
         case connections = "Connections"
         case database = "Database Administration"
-        
+
         var icon: String {
             switch self {
-            case .folder:
-                return "folder"
-            case .bookmark:
-                return "bookmark"
-            case .search:
-                return "magnifyingglass"
-            case .issues:
-                return "exclamationmark.triangle"
-            case .code:
-                return "curlybraces"
-            case .history:
-                return "clock"
-            case .connections:
-                return "externaldrive"
-            case .database:
-                return "cylinder.split.1x2"
+            case .folder: return "folder"
+            case .bookmark: return "bookmark"
+            case .search: return "magnifyingglass"
+            case .issues: return "exclamationmark.triangle"
+            case .code: return "curlybraces"
+            case .history: return "clock"
+            case .connections: return "externaldrive"
+            case .database: return "cylinder.split.1x2"
             }
         }
-        
+
         var activeIcon: String {
             switch self {
-            case .folder:
-                return "folder.fill"
-            case .bookmark:
-                return "bookmark.fill"
-            case .search:
-                return "magnifyingglass"
-            case .issues:
-                return "exclamationmark.triangle.fill"
-            case .code:
-                return "curlybraces"
-            case .history:
-                return "clock.fill"
-            case .connections:
-                return "externaldrive.fill"
-            case .database:
-                return "cylinder.split.1x2.fill"
+            case .folder: return "folder.fill"
+            case .bookmark: return "bookmark.fill"
+            case .search: return "magnifyingglass"
+            case .issues: return "exclamationmark.triangle.fill"
+            case .code: return "curlybraces"
+            case .history: return "clock.fill"
+            case .connections: return "externaldrive.fill"
+            case .database: return "cylinder.split.1x2.fill"
             }
         }
-        
-        var displayName: String {
-            return rawValue
-        }
+
+        var displayName: String { rawValue }
     }
-    
+
     var body: some View {
         VStack(spacing: 0) {
             // Window controls spacer
             HStack {
-                Spacer()
-                    .frame(width: 78) // Space for traffic light buttons
+                Spacer().frame(width: 78)
                 Spacer()
             }
             .frame(height: 28)
-            
-            // Icon navigation bar - perfectly centered
-            HStack(spacing: 0) {
-                // Center the navigation icons
-                HStack(spacing: 2) {
-                    ForEach(NavSection.allCases, id: \.rawValue) { section in
-                        Button(action: {
-                            withAnimation(.easeInOut(duration: 0.2)) {
-                                selectedNavSection = section
-                            }
-                        }) {
-                            Image(systemName: selectedNavSection == section ? section.activeIcon : section.icon)
-                                .font(.system(size: 15, weight: selectedNavSection == section ? .semibold : .regular))
-                                .foregroundStyle(selectedNavSection == section ? .blue : .secondary)
-                                .frame(width: 28, height: 28)
-                        }
-                        .buttonStyle(.borderless)
-                        .help(section.displayName)
-                    }
-                }
-                .frame(maxWidth: .infinity) // This centers the icons
-                
-                // Add button for connections section - positioned at the right
-                if selectedNavSection == .connections {
-                    Button(action: onAddConnection) {
-                        Image(systemName: "plus")
-                            .font(.system(size: 12, weight: .medium))
-                            .foregroundStyle(.secondary)
-                            .frame(width: 24, height: 24)
-                    }
-                    .buttonStyle(.borderless)
-                    .help("Add Connection")
-                    .padding(.trailing, 12)
-                }
-            }
-            .frame(height: 36)
-            .padding(.horizontal, 12)
-            
-            // Content area with seamless integration
+
+            navigationBar
+                .frame(height: 36)
+                .padding(.horizontal, 12)
+
             contentView
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
-    
+
+    private var navigationBar: some View {
+        HStack(spacing: 0) {
+            HStack(spacing: 2) {
+                ForEach(NavSection.allCases, id: \.rawValue) { section in
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            selectedNavSection = section
+                        }
+                    } label: {
+                        Image(systemName: selectedNavSection == section ? section.activeIcon : section.icon)
+                            .font(.system(size: 15, weight: selectedNavSection == section ? .semibold : .regular))
+                            .foregroundStyle(selectedNavSection == section ? .blue : .secondary)
+                            .frame(width: 28, height: 28)
+                    }
+                    .buttonStyle(.borderless)
+                    .help(section.displayName)
+                }
+            }
+            .frame(maxWidth: .infinity)
+
+        }
+    }
+
     @ViewBuilder
     private var contentView: some View {
         switch selectedNavSection {
-        case .folder:
-            ExplorerSidebarView(
-                selectedConnectionID: $selectedConnectionID
-            )
+        case .folder, .code:
+            ExplorerSidebarView(selectedConnectionID: $selectedConnectionID)
         case .bookmark:
             BookmarksSidebarView(
                 icon: "bookmark.fill",
@@ -144,10 +111,6 @@ struct SidebarMenu: View {
                 title: "Issues",
                 description: "Database connection issues and warnings"
             )
-        case .code:
-            ExplorerSidebarView(
-                selectedConnectionID: $selectedConnectionID
-            )
         case .history:
             HistorySidebarView(
                 icon: "clock.fill",
@@ -156,10 +119,27 @@ struct SidebarMenu: View {
             )
         case .connections:
             ConnectionsSidebarView(
-                connections: connections,
                 selectedConnectionID: $selectedConnectionID,
-                onAddConnection: onAddConnection,
-                onDeleteConnection: onDeleteConnection
+                selectedIdentityID: $selectedIdentityID,
+                onCreateConnection: { folder in
+                    appModel.selectedFolderID = folder?.id
+                    selectedConnectionID = nil
+                    onAddConnection()
+                },
+                onEditConnection: { connection in
+                    appModel.selectedFolderID = connection.folderID
+                    selectedConnectionID = connection.id
+                    onAddConnection()
+                },
+                onConnect: { connection in
+                    connectAndNavigate(to: connection)
+                },
+                onMoveConnection: { connectionID, folderID in
+                    appModel.moveConnection(connectionID, toFolder: folderID)
+                },
+                onMoveFolder: { folderID, parentID in
+                    appModel.moveFolder(folderID, toParent: parentID)
+                }
             )
         case .database:
             DatabaseSidebarView(
@@ -167,6 +147,15 @@ struct SidebarMenu: View {
                 title: "Database",
                 description: "Database administration and management tools"
             )
+        }
+    }
+
+    private func connectAndNavigate(to connection: SavedConnection) {
+        selectedConnectionID = connection.id
+        selectedNavSection = .folder
+
+        Task {
+            await appModel.connect(to: connection)
         }
     }
 }
