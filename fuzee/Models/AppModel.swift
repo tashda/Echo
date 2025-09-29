@@ -19,6 +19,9 @@ final class AppModel: ObservableObject {
     @Published var session: DatabaseSession?
     @Published var connectionStates: [UUID: ConnectionState] = [:]
     @Published var databaseStructure: [String: DatabaseStructure] = [:]
+
+    // MARK: - Session Management
+    @Published var sessionManager = ConnectionSessionManager()
     
     // MARK: - Dependencies
     private let store = ConnectionStore()
@@ -203,9 +206,10 @@ final class AppModel: ObservableObject {
             }
 
             // Create database structure
+            let publicSchema = SchemaInfo(name: "public", objects: objects)
             let databaseInfo = DatabaseInfo(
-                name: connection.database,
-                objects: objects
+                name: connection.database ?? "default",
+                schemas: [publicSchema]
             )
 
             let structure = DatabaseStructure(
@@ -271,34 +275,20 @@ final class AppModel: ObservableObject {
             )
         }
     }
-}
 
-// MARK: - Supporting Types
-struct DatabaseStructure {
-    let serverVersion: String?
-    let databases: [DatabaseInfo]
-    
-    init(serverVersion: String? = nil, databases: [DatabaseInfo] = []) {
-        self.serverVersion = serverVersion
-        self.databases = databases
+    // MARK: - MainActor Query Operations
+    func executeQuery(_ sql: String) async {
+        do {
+            let _ = try await executeQuery(sql)
+        } catch {
+            print("Query execution failed: \(error)")
+        }
     }
-}
 
-struct DatabaseInfo {
-    let name: String
-    let objects: [SchemaObjectInfo]
-    
-    init(name: String, objects: [SchemaObjectInfo] = []) {
-        self.name = name
-        self.objects = objects
-    }
-    
-    var tables: [SchemaObjectInfo] {
-        objects.filter { $0.type == .table }
-    }
-    
-    var views: [SchemaObjectInfo] {
-        objects.filter { $0.type == .view }
+    // MARK: - Session Manager Integration
+    func refreshDatabaseStructure(for sessionID: UUID) async {
+        guard let session = sessionManager.activeSessions.first(where: { $0.id == sessionID }) else { return }
+        await loadDatabaseStructure(for: session.connection)
     }
 }
 
