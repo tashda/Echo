@@ -40,9 +40,12 @@ public struct ColumnInfo: Sendable, Identifiable {
 }
 
 public struct SchemaObjectInfo: Sendable, Identifiable {
-    public enum ObjectType: String, Sendable {
+    public enum ObjectType: String, Sendable, CaseIterable {
         case table = "BASE TABLE"
         case view = "VIEW"
+        case materializedView = "MATERIALIZED VIEW"
+        case function = "FUNCTION"
+        case trigger = "TRIGGER"
     }
 
     public var id: String { fullName }

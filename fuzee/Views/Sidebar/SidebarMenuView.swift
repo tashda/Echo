@@ -8,7 +8,6 @@ struct SidebarMenu: View {
     let onAddConnection: () -> Void
     let onDeleteConnection: (UUID) -> Void
     @State private var selectedNavSection: NavSection = .code
-    @State private var expandedItems: Set<String> = ["Databases"]
     
     enum NavSection: String, CaseIterable {
         case folder = "Folder"
@@ -125,10 +124,7 @@ struct SidebarMenu: View {
         switch selectedNavSection {
         case .folder:
             ExplorerSidebarView(
-                connections: connections,
-                selectedConnectionID: $selectedConnectionID,
-                databaseStructure: databaseStructure,
-                expandedItems: $expandedItems
+                selectedConnectionID: $selectedConnectionID
             )
         case .bookmark:
             BookmarksSidebarView(
@@ -150,10 +146,7 @@ struct SidebarMenu: View {
             )
         case .code:
             ExplorerSidebarView(
-                connections: connections,
-                selectedConnectionID: $selectedConnectionID,
-                databaseStructure: databaseStructure,
-                expandedItems: $expandedItems
+                selectedConnectionID: $selectedConnectionID
             )
         case .history:
             HistorySidebarView(
