@@ -51,12 +51,15 @@ final class ThemeManager: ObservableObject {
     }
 
     // Convenience computed properties for theme-aware styling
+    @Published var showAlternateRowShading: Bool = true
+
+    // Convenience computed properties for theme-aware styling
     var backgroundColor: Color {
-        return Color(NSColor.controlBackgroundColor)
+        Color(NSColor.controlBackgroundColor)
     }
 
     var sidebarBackground: NSVisualEffectView.Material {
-        return .sidebar
+        .sidebar
     }
 
     var windowBackground: Color {

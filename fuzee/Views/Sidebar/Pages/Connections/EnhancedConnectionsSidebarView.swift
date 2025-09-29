@@ -196,7 +196,7 @@ struct FinderStyleConnectionRowView: View {
                 .frame(width: CGFloat(level) * indentPerLevel, height: 1)
 
             HStack(spacing: 8) {
-                Image(systemName: connection.databaseType.imageName)
+                Image(systemName: connection.databaseType.iconName)
                     .resizable()
                     .aspectRatio(contentMode: .fit)
                     .frame(width: iconSize + 4, height: iconSize + 4)
@@ -259,7 +259,7 @@ struct FinderStyleConnectionRowView: View {
         #endif
         .draggable(connection.id.uuidString) {
             HStack(spacing: 4) {
-                Image(connection.databaseType.imageName)
+                Image(connection.databaseType.iconName)
                     .frame(width: 12, height: 12)
                 Text(connection.connectionName)
                     .font(.system(size: 11))

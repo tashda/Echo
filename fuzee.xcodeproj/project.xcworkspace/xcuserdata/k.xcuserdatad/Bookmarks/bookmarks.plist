@@ -12,13 +12,13 @@
 					<key>EndingColumnNumber</key>
 					<string>0</string>
 					<key>EndingLineNumber</key>
-					<string>234</string>
+					<string>170</string>
 					<key>StartingColumnNumber</key>
 					<string>0</string>
 					<key>StartingLineNumber</key>
-					<string>234</string>
+					<string>170</string>
 					<key>Timestamp</key>
-					<string>780705308.149942</string>
+					<string>780859186.007995</string>
 				</dict>
 				<key>rebasable-url</key>
 				<dict>
@@ -36,11 +36,14 @@
 				<key>focused</key>
 				<string></string>
 				<key>leading</key>
-				<string>    }
-}
+				<string>        .onTapGesture(perform: onSelect)
+    }
 </string>
 				<key>trailing</key>
-				<string></string>
+				<string>}
+
+private struct ResizeHandle: View {
+</string>
 			</dict>
 			<key>title</key>
 			<string>Error: Invalid redeclaration of 'cursor'</string>
@@ -55,13 +58,13 @@
 					<key>EndingColumnNumber</key>
 					<string>0</string>
 					<key>EndingLineNumber</key>
-					<string>234</string>
+					<string>170</string>
 					<key>StartingColumnNumber</key>
 					<string>0</string>
 					<key>StartingLineNumber</key>
-					<string>234</string>
+					<string>170</string>
 					<key>Timestamp</key>
-					<string>780705308.149959</string>
+					<string>780859186.0110101</string>
 				</dict>
 				<key>rebasable-url</key>
 				<dict>
@@ -79,14 +82,195 @@
 				<key>focused</key>
 				<string></string>
 				<key>leading</key>
-				<string>    }
-}
+				<string>        .onTapGesture(perform: onSelect)
+    }
 </string>
 				<key>trailing</key>
-				<string></string>
+				<string>}
+
+private struct ResizeHandle: View {
+</string>
 			</dict>
 			<key>title</key>
 			<string>Error: Invalid redeclaration of 'cursor'</string>
+			<key>type</key>
+			<string>bookmark</string>
+		</dict>
+		<dict>
+			<key>destination</key>
+			<dict>
+				<key>location-parameters</key>
+				<dict>
+					<key>EndingColumnNumber</key>
+					<string>25</string>
+					<key>EndingLineNumber</key>
+					<string>197</string>
+					<key>StartingColumnNumber</key>
+					<string>21</string>
+					<key>StartingLineNumber</key>
+					<string>197</string>
+					<key>Timestamp</key>
+					<string>780871334.238987</string>
+				</dict>
+				<key>rebasable-url</key>
+				<dict>
+					<key>base</key>
+					<string>workspace</string>
+					<key>payload</key>
+					<dict>
+						<key>relative-path</key>
+						<string>fuzee/Views/Sidebar/Components/DatabaseObjectBrowserView.swift</string>
+					</dict>
+				</dict>
+			</dict>
+			<key>text-context</key>
+			<dict>
+				<key>focused</key>
+				<string>fill</string>
+				<key>leading</key>
+				<string>            if isPinned &amp;&amp; isExpanded {
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+//                    .</string>
+				<key>trailing</key>
+				<string>(Color.primary.opacity(0.40))
+                    .fill(.ultraThickMaterial)
+            } else {
+</string>
+			</dict>
+			<key>type</key>
+			<string>bookmark</string>
+		</dict>
+		<dict>
+			<key>destination</key>
+			<dict>
+				<key>location-parameters</key>
+				<dict>
+					<key>EndingColumnNumber</key>
+					<string>27</string>
+					<key>EndingLineNumber</key>
+					<string>195</string>
+					<key>StartingColumnNumber</key>
+					<string>17</string>
+					<key>StartingLineNumber</key>
+					<string>195</string>
+					<key>Timestamp</key>
+					<string>780871397.440671</string>
+				</dict>
+				<key>rebasable-url</key>
+				<dict>
+					<key>base</key>
+					<string>workspace</string>
+					<key>payload</key>
+					<dict>
+						<key>relative-path</key>
+						<string>fuzee/Views/Sidebar/Pages/Explorer/ExplorerSidebarView.swift</string>
+					</dict>
+				</dict>
+			</dict>
+			<key>text-context</key>
+			<dict>
+				<key>focused</key>
+				<string>background</string>
+				<key>leading</key>
+				<string>                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+                .</string>
+				<key>trailing</key>
+				<string>(Color.primary.opacity(0.40))
+                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .shadow(color: .black.opacity(0.12), radius: 14, x: 0, y: 6)
+</string>
+			</dict>
+			<key>type</key>
+			<string>bookmark</string>
+		</dict>
+		<dict>
+			<key>destination</key>
+			<dict>
+				<key>location-parameters</key>
+				<dict>
+					<key>EndingColumnNumber</key>
+					<string>0</string>
+					<key>EndingLineNumber</key>
+					<string>354</string>
+					<key>StartingColumnNumber</key>
+					<string>0</string>
+					<key>StartingLineNumber</key>
+					<string>353</string>
+					<key>Timestamp</key>
+					<string>780873249.615087</string>
+				</dict>
+				<key>rebasable-url</key>
+				<dict>
+					<key>base</key>
+					<string>workspace</string>
+					<key>payload</key>
+					<dict>
+						<key>relative-path</key>
+						<string>fuzee/Views/Sidebar/Components/DatabaseObjectBrowserView.swift</string>
+					</dict>
+				</dict>
+			</dict>
+			<key>text-context</key>
+			<dict>
+				<key>focused</key>
+				<string>        .padding(.leading, 24)
+</string>
+				<key>leading</key>
+				<string>            Spacer()
+        }
+</string>
+				<key>trailing</key>
+				<string>    }
+
+    private var highlightBackground: some View {
+</string>
+			</dict>
+			<key>type</key>
+			<string>bookmark</string>
+		</dict>
+		<dict>
+			<key>destination</key>
+			<dict>
+				<key>location-parameters</key>
+				<dict>
+					<key>EndingColumnNumber</key>
+					<string>0</string>
+					<key>EndingLineNumber</key>
+					<string>311</string>
+					<key>StartingColumnNumber</key>
+					<string>0</string>
+					<key>StartingLineNumber</key>
+					<string>310</string>
+					<key>Timestamp</key>
+					<string>780873249.615109</string>
+				</dict>
+				<key>rebasable-url</key>
+				<dict>
+					<key>base</key>
+					<string>workspace</string>
+					<key>payload</key>
+					<dict>
+						<key>relative-path</key>
+						<string>fuzee/Views/Sidebar/Components/DatabaseObjectBrowserView.swift</string>
+					</dict>
+				</dict>
+			</dict>
+			<key>text-context</key>
+			<dict>
+				<key>focused</key>
+				<string>        .padding(.vertical, 6)
+</string>
+				<key>leading</key>
+				<string>        }
+        .padding(.horizontal, 12)
+</string>
+				<key>trailing</key>
+				<string>        .background(highlightBackground)
+        .contentShape(Rectangle())
+        .onTapGesture {
+</string>
+			</dict>
 			<key>type</key>
 			<string>bookmark</string>
 		</dict>

@@ -10,6 +10,9 @@ struct ConnectionConfiguration: Codable, Hashable {
     var database: String
     var username: String
     var keychainIdentifier: String?
+    var credentialSource: CredentialSource = .manual
+    var identityID: UUID?
+    var folderID: UUID?
 
     // Security settings
     var useTLS: Bool = true
@@ -33,6 +36,54 @@ struct ConnectionConfiguration: Codable, Hashable {
 
     var id: UUID = UUID()
 
+    init(
+        connectionName: String,
+        host: String,
+        port: Int,
+        database: String,
+        username: String,
+        keychainIdentifier: String? = nil,
+        credentialSource: CredentialSource = .manual,
+        identityID: UUID? = nil,
+        folderID: UUID? = nil,
+        useTLS: Bool = true,
+        tlsMode: TLSMode = .prefer,
+        verifySSLCertificate: Bool = true,
+        connectionTimeout: TimeInterval = 30,
+        queryTimeout: TimeInterval = 60,
+        maxRetries: Int = 3,
+        applicationName: String = "Fuzee",
+        searchPath: [String] = ["public"],
+        autocommit: Bool = true,
+        useConnectionPooling: Bool = false,
+        maxPoolSize: Int = 10,
+        minPoolSize: Int = 1,
+        id: UUID = UUID()
+    ) {
+        self.connectionName = connectionName
+        self.host = host
+        self.port = port
+        self.database = database
+        self.username = username
+        self.keychainIdentifier = keychainIdentifier
+        self.credentialSource = credentialSource
+        self.identityID = identityID
+        self.folderID = folderID
+        self.useTLS = useTLS
+        self.tlsMode = tlsMode
+        self.verifySSLCertificate = verifySSLCertificate
+        self.connectionTimeout = connectionTimeout
+        self.queryTimeout = queryTimeout
+        self.maxRetries = maxRetries
+        self.applicationName = applicationName
+        self.searchPath = searchPath
+        self.autocommit = autocommit
+        self.useConnectionPooling = useConnectionPooling
+        self.maxPoolSize = maxPoolSize
+        self.minPoolSize = minPoolSize
+        self.id = id
+    }
+
     // Convert to SavedConnection for compatibility
     var asSavedConnection: SavedConnection {
         SavedConnection(
@@ -42,7 +93,10 @@ struct ConnectionConfiguration: Codable, Hashable {
             port: port,
             database: database,
             username: username,
+            credentialSource: credentialSource,
+            identityID: identityID,
             keychainIdentifier: keychainIdentifier,
+            folderID: folderID,
             useTLS: useTLS
         )
     }
@@ -57,6 +111,9 @@ struct ConnectionConfiguration: Codable, Hashable {
             database: savedConnection.database,
             username: savedConnection.username,
             keychainIdentifier: savedConnection.keychainIdentifier,
+            credentialSource: savedConnection.credentialSource,
+            identityID: savedConnection.identityID,
+            folderID: savedConnection.folderID,
             useTLS: savedConnection.useTLS,
             id: savedConnection.id
         )
@@ -157,7 +214,26 @@ struct ConnectionTemplate {
 
 extension ConnectionConfiguration {
     var isValid: Bool {
-        !connectionName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !host.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !database.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !username.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && port > 0 && port <= 65535
+        let trimmedName = connectionName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedHost = host.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedDatabase = database.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedUsername = username.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        let credentialsValid: Bool
+        switch credentialSource {
+        case .manual:
+            credentialsValid = !trimmedUsername.isEmpty
+        case .inherit:
+            credentialsValid = true
+        case .identity:
+            credentialsValid = identityID != nil
+        }
+
+        return !trimmedName.isEmpty &&
+        !trimmedHost.isEmpty &&
+        !trimmedDatabase.isEmpty &&
+        credentialsValid &&
+        port > 0 && port <= 65535
     }
 
     var validationErrors: [String] {
@@ -175,8 +251,12 @@ extension ConnectionConfiguration {
             errors.append("Database name is required")
         }
 
-        if username.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+        if credentialSource == .manual && username.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             errors.append("Username is required")
+        }
+
+        if credentialSource == .identity && identityID == nil {
+            errors.append("Select an identity to use")
         }
 
         if port <= 0 || port > 65535 {

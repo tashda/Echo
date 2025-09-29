@@ -34,8 +34,10 @@ final class ConnectionSession: ObservableObject, Identifiable {
         self.session = session
 
         // Auto-select database if one is saved in the connection
-        if let database = connection.database, !database.isEmpty {
-            self.selectedDatabaseName = database
+        if !connection.database.isEmpty {
+            self.selectedDatabaseName = connection.database
+        } else {
+            self.selectedDatabaseName = nil
         }
     }
 

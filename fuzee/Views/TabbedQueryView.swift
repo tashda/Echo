@@ -4,60 +4,47 @@ struct TabbedQueryView: View {
     @EnvironmentObject private var appModel: AppModel
     @EnvironmentObject private var appState: AppState
     @EnvironmentObject private var themeManager: ThemeManager
-    @State private var splitViewHeight: CGFloat = 0.33 // Query takes 1/3, results take 2/3
+    @State private var splitViewHeight: CGFloat = 0.33
 
     var body: some View {
         VStack(spacing: 0) {
-            // Tab Bar
             tabBar
 
             if let activeTab = appModel.tabManager.activeTab {
-                // Resizable Split View
                 GeometryReader { geometry in
                     let totalHeight = geometry.size.height
                     let queryHeight = totalHeight * splitViewHeight
                     let resultsHeight = totalHeight * (1 - splitViewHeight)
 
                     VStack(spacing: 0) {
-                        // Query Section (Top)
-                        QueryInputSection(
-                            tab: activeTab,
-                            onExecute: { sql in
-                                await streamQuery(tabId: activeTab.id, sql: sql)
-                            }
-                        )
+                        QueryInputSection(tab: activeTab) { sql in
+                            await runQuery(tabId: activeTab.id, sql: sql)
+                        }
                         .frame(height: queryHeight)
 
-                        // Resize Handle
                         ResizeHandle(
                             splitRatio: $splitViewHeight,
                             minRatio: 0.2,
-                            maxRatio: 0.8
+                            maxRatio: 0.8,
+                            availableHeight: totalHeight
                         )
 
-                        // Results Section (Bottom)
                         QueryResultsSection(tab: activeTab)
                             .frame(height: resultsHeight)
                     }
                 }
             } else {
-                // No tabs open
                 ContentUnavailableView {
                     Label("No Query Tabs", systemImage: "doc.text")
                 } description: {
                     Text("Open a connection to start querying")
                 } actions: {
-                    Button("New Tab") {
-                        createNewTab()
-                    }
-                    .buttonStyle(.borderedProminent)
+                    Button("New Tab", action: createNewTab)
+                        .buttonStyle(.borderedProminent)
                 }
             }
         }
-        .onAppear {
-            // Create initial tab if connected
-            createInitialTabIfNeeded()
-        }
+        .onAppear(perform: createInitialTabIfNeeded)
         .onChange(of: appModel.selectedConnection) { _, _ in
             createInitialTabIfNeeded()
         }
@@ -105,25 +92,23 @@ struct TabbedQueryView: View {
         guard appModel.tabManager.tabs.isEmpty,
               let connection = appModel.selectedConnection,
               let activeSession = appModel.sessionManager.activeSession else { return }
-              let session = activeSession.session
 
-        appModel.tabManager.addTab(connection: connection, session: session)
+        appModel.tabManager.addTab(connection: connection, session: activeSession.session)
     }
 
     private func createNewTab() {
         guard let connection = appModel.selectedConnection,
               let activeSession = appModel.sessionManager.activeSession else { return }
-              let session = activeSession.session
 
         let tabNumber = appModel.tabManager.tabs.count + 1
         appModel.tabManager.addTab(
             connection: connection,
-            session: session,
+            session: activeSession.session,
             title: "\(connection.connectionName) \(tabNumber)"
         )
     }
 
-    private func streamQuery(tabId: UUID, sql: String) async {
+    private func runQuery(tabId: UUID, sql: String) async {
         guard let tab = appModel.tabManager.getTab(id: tabId) else { return }
 
         await MainActor.run {
@@ -133,28 +118,13 @@ struct TabbedQueryView: View {
         }
 
         do {
-            let stream = tab.session.streamQuery(sql)
-            for try await event in stream {
-                await MainActor.run {
-                    switch event {
-                    case .columns(let columnInfo):
-                        tab.results = QueryResultSet(columns: columnInfo)
-                    case .row(let rowData):
-                        tab.results?.rows.append(rowData)
-                        tab.updateRowCount(tab.results?.rows.count ?? 0)
-                    case .success(let commandTag):
-                        tab.results?.commandTag = commandTag
-                        tab.results?.totalRowCount = tab.results?.rows.count
-                    }
-                }
-            }
-
+            let result = try await tab.session.simpleQuery(sql)
             await MainActor.run {
+                tab.results = result
                 tab.finishExecution()
                 tab.sql = sql
-                appState.addToQueryHistory(sql, resultCount: tab.results?.rows.count, duration: tab.lastExecutionTime ?? 0)
+                appState.addToQueryHistory(sql, resultCount: result.rows.count, duration: tab.lastExecutionTime ?? 0)
             }
-
         } catch {
             await MainActor.run {
                 tab.errorMessage = error.localizedDescription
@@ -172,7 +142,6 @@ struct TabButton: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            // Connection color indicator
             Circle()
                 .fill(tab.connection.color)
                 .frame(width: 8, height: 8)
@@ -201,36 +170,43 @@ struct TabButton: View {
     }
 }
 
-struct ResizeHandle: View {
+private struct ResizeHandle: View {
     @Binding var splitRatio: CGFloat
     let minRatio: CGFloat
     let maxRatio: CGFloat
+    let availableHeight: CGFloat
+
+    @State private var dragStartRatio: CGFloat = 0
     @State private var isDragging = false
 
     var body: some View {
-        Rectangle()
-            .fill(.separator)
-            .frame(height: 1)
-            .background(
-                Rectangle()
-                    .fill(.clear)
-                    .frame(height: 8)
-                    .contentShape(Rectangle())
-                    #if os(macOS)
-                    .cursor(.resizeUpDown)
-                    #endif
-                    .gesture(
-                        DragGesture()
-                            .onChanged { value in
-                                isDragging = true
-                                let parentHeight: CGFloat = 600 // This should be the parent geometry
-                                let newRatio = splitRatio + (value.translation.height / parentHeight)
-                                splitRatio = min(max(newRatio, minRatio), maxRatio)
-                            }
-                            .onEnded { _ in
-                                isDragging = false
-                            }
-                    )
-            )
+        ZStack {
+            Rectangle()
+                .fill(Color.secondary.opacity(0.15))
+            Capsule()
+                .fill(Color.secondary.opacity(0.35))
+                .frame(width: 60, height: 3)
+        }
+        .frame(height: 8)
+        .background(Color.clear)
+        .gesture(
+            DragGesture(minimumDistance: 0)
+                .onChanged { value in
+                    if !isDragging {
+                        dragStartRatio = splitRatio
+                        isDragging = true
+                    }
+
+                    let delta = value.translation.height / max(availableHeight, 1)
+                    let proposed = dragStartRatio + delta
+                    splitRatio = min(max(proposed, minRatio), maxRatio)
+                }
+                .onEnded { _ in
+                    isDragging = false
+                }
+        )
+        #if os(macOS)
+        .cursor(.resizeUpDown)
+#endif
     }
 }
