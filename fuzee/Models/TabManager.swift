@@ -17,16 +17,18 @@ final class TabManager: ObservableObject {
         activeTabId = tab.id
     }
 
-    func addTab(connection: SavedConnection, session: DatabaseSession, title: String? = nil) {
+    func addTab(connection: SavedConnection, session: DatabaseSession, connectionSessionID: UUID, title: String? = nil) {
         let tab = QueryTab(
             connection: connection,
             session: session,
+            connectionSessionID: connectionSessionID,
             title: title ?? connection.connectionName
         )
         addTab(tab)
     }
 
     func removeTab(withID id: UUID) {
+        objectWillChange.send()
         tabs.removeAll { $0.id == id }
         if activeTabId == id {
             activeTabId = tabs.first?.id
@@ -34,6 +36,7 @@ final class TabManager: ObservableObject {
     }
 
     func closeTab(id: UUID) {
+        objectWillChange.send()
         removeTab(withID: id)
     }
 

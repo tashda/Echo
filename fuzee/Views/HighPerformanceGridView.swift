@@ -16,6 +16,12 @@ struct HighPerformanceGridView: View {
     @State private var sortAscending = true
     @State private var visibleRows: Range<Int> = 0..<50
     @State private var scrollOffset: CGPoint = .zero
+    @State private var cachedSortedRows: [(originalIndex: Int, data: [String?])] = []
+    @State private var cachedRowsFingerprint: Int = 0
+    @State private var cachedSortColumn: String?
+    @State private var cachedSortAscending: Bool = true
+    @State private var anchorCell: CellPosition?
+    @State private var rowSelectionAnchor: Int?
 
     @EnvironmentObject private var themeManager: ThemeManager
 
@@ -30,24 +36,8 @@ struct HighPerformanceGridView: View {
         let column: Int
     }
 
-    var sortedRows: [(originalIndex: Int, data: [String?])] {
-        let enumerated = Array(resultSet.rows.enumerated()).map { (originalIndex: $0.offset, data: $0.element) }
-
-        guard let sortColumn = sortColumn,
-              let columnIndex = resultSet.columns.firstIndex(where: { $0.name == sortColumn }) else {
-            return enumerated
-        }
-
-        return enumerated.sorted { row1, row2 in
-            let value1 = row1.data[safe: columnIndex] ?? ""
-            let value2 = row2.data[safe: columnIndex] ?? ""
-
-            if let num1 = Double(value1 ?? ""), let num2 = Double(value2 ?? "") {
-                return sortAscending ? num1 < num2 : num1 > num2
-            }
-
-            return sortAscending ? (value1 ?? "") < (value2 ?? "") : (value1 ?? "") > (value2 ?? "")
-        }
+    private var rowsFingerprint: Int {
+        fingerprint(for: resultSet.rows)
     }
 
     var totalColumnsWidth: CGFloat {
@@ -55,7 +45,9 @@ struct HighPerformanceGridView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
+        let rows = cachedSortedRows
+
+        return VStack(spacing: 0) {
             controlsHeader
 
             GeometryReader { geometry in
@@ -65,8 +57,8 @@ struct HighPerformanceGridView: View {
                             Section {
                                 // Render only visible rows for performance
                                 ForEach(visibleRows, id: \.self) { displayIndex in
-                                    if displayIndex < sortedRows.count {
-                                        let rowData = sortedRows[displayIndex]
+                                    if displayIndex < rows.count {
+                                        let rowData = rows[displayIndex]
                                         dataRowView(
                                             originalIndex: rowData.originalIndex,
                                             displayIndex: displayIndex,
@@ -81,14 +73,14 @@ struct HighPerformanceGridView: View {
                                 }
 
                                 // Invisible spacer for total height to enable scrolling
-                                if sortedRows.count > visibleRows.upperBound {
+                                if rows.count > visibleRows.upperBound {
                                     Rectangle()
                                         .fill(Color.clear)
                                         .frame(
-                                            height: CGFloat(sortedRows.count - visibleRows.upperBound) * rowHeight
+                                            height: CGFloat(rows.count - visibleRows.upperBound) * rowHeight
                                         )
                                         .onAppear {
-                                            loadMoreRows()
+                                            loadMoreRows(totalRows: rows.count)
                                         }
                                 }
                             } header: {
@@ -99,22 +91,46 @@ struct HighPerformanceGridView: View {
                         .frame(minHeight: geometry.size.height)
                     }
                     .clipped()
+                    .coordinateSpace(name: "HighPerformanceGridScroll")
+                    .background(
+                        GeometryReader { proxy in
+                            let origin = proxy.frame(in: .named("HighPerformanceGridScroll")).origin
+                            let offset = CGPoint(x: -origin.x, y: -origin.y)
+                            Color.clear.preference(key: ScrollOffsetPreferenceKey.self, value: offset)
+                        }
+                    )
                     #if os(macOS)
                     .background(Color(PlatformColor.textBackgroundColor))
                                     #else
                 .background(Color(PlatformColor.systemBackground))
                 #endif
                 .onPreferenceChange(ScrollOffsetPreferenceKey.self) { offset in
-                        updateVisibleRows(for: offset, viewHeight: geometry.size.height)
+                        updateVisibleRows(for: offset, viewHeight: geometry.size.height, totalRows: rows.count)
                     }
                 }
             }
         }
         .onAppear {
             initializeColumnWidths()
+            recomputeSortedRows(resetSelection: true)
+            resetVisibleRows(totalRows: cachedSortedRows.count, resetToTop: true)
         }
         .onChange(of: resultSet.columns.map(\.name)) { _, _ in
-             initializeColumnWidths()
+            initializeColumnWidths()
+            recomputeSortedRows(resetSelection: true)
+            resetVisibleRows(totalRows: cachedSortedRows.count, resetToTop: true)
+        }
+        .onChange(of: rowsFingerprint) { _, _ in
+            recomputeSortedRows(resetSelection: true)
+            resetVisibleRows(totalRows: cachedSortedRows.count, resetToTop: true)
+        }
+        .onChange(of: sortColumn) { _, _ in
+            recomputeSortedRows(resetSelection: false)
+            resetVisibleRows(totalRows: cachedSortedRows.count, resetToTop: false)
+        }
+        .onChange(of: sortAscending) { _, _ in
+            recomputeSortedRows(resetSelection: false)
+            resetVisibleRows(totalRows: cachedSortedRows.count, resetToTop: false)
         }
         #if os(macOS)
         .onCommand(#selector(NSText.copy(_:)), perform: {
@@ -352,9 +368,22 @@ struct HighPerformanceGridView: View {
 
     // MARK: - Performance Methods
 
-    private func updateVisibleRows(for offset: CGPoint, viewHeight: CGFloat) {
-        let startRow = max(0, Int(offset.y / rowHeight) - 10)
-        let endRow = min(sortedRows.count, Int((offset.y + viewHeight) / rowHeight) + 10)
+    private func updateVisibleRows(for offset: CGPoint, viewHeight: CGFloat, totalRows: Int) {
+        let sanitizedTotal = max(totalRows, 0)
+        guard sanitizedTotal > 0 else {
+            if visibleRows != 0..<0 {
+                visibleRows = 0..<0
+            }
+            return
+        }
+
+        let proposedStart = max(0, Int(offset.y / rowHeight) - 10)
+        let maxStart = max(0, sanitizedTotal - 1)
+        let startRow = min(proposedStart, maxStart)
+
+        let proposedEnd = max(startRow, Int((offset.y + viewHeight) / rowHeight) + 10)
+        let clampedEnd = min(sanitizedTotal, proposedEnd)
+        let endRow = max(startRow, clampedEnd)
 
         let newVisibleRows = startRow..<endRow
         if newVisibleRows != visibleRows {
@@ -362,10 +391,18 @@ struct HighPerformanceGridView: View {
         }
     }
 
-    private func loadMoreRows() {
+    private func loadMoreRows(totalRows: Int) {
+        let sanitizedTotal = max(totalRows, 0)
+        guard sanitizedTotal > 0 else {
+            visibleRows = 0..<0
+            return
+        }
+
         let batchSize = 50
-        let newUpperBound = min(sortedRows.count, visibleRows.upperBound + batchSize)
-        visibleRows = visibleRows.lowerBound..<newUpperBound
+        let clampedLower = min(visibleRows.lowerBound, max(0, sanitizedTotal - 1))
+        let proposedUpper = max(clampedLower, visibleRows.upperBound + batchSize)
+        let newUpperBound = min(sanitizedTotal, proposedUpper)
+        visibleRows = clampedLower..<newUpperBound
     }
 
     // MARK: - Helper Methods
@@ -374,6 +411,105 @@ struct HighPerformanceGridView: View {
         columnWidths = resultSet.columns.enumerated().map { index, column in
             calculateOptimalColumnWidth(columnIndex: index, column: column)
         }
+    }
+
+    private func recomputeSortedRows(resetSelection: Bool) {
+        let fingerprint = rowsFingerprint
+        if !resetSelection,
+           cachedRowsFingerprint == fingerprint,
+           cachedSortColumn == sortColumn,
+           cachedSortAscending == sortAscending {
+            return
+        }
+
+        let enumerated = Array(resultSet.rows.enumerated()).map { (originalIndex: $0.offset, data: $0.element) }
+
+        let sortedRows: [(originalIndex: Int, data: [String?])]
+        if let sortColumn,
+           let columnIndex = resultSet.columns.firstIndex(where: { $0.name == sortColumn }) {
+            sortedRows = enumerated.sorted { lhs, rhs in
+                let lhsValue = lhs.data[safe: columnIndex] ?? ""
+                let rhsValue = rhs.data[safe: columnIndex] ?? ""
+
+                if let lhsNumber = Double(lhsValue ?? ""), let rhsNumber = Double(rhsValue ?? "") {
+                    return sortAscending ? lhsNumber < rhsNumber : lhsNumber > rhsNumber
+                }
+
+                return sortAscending ? (lhsValue ?? "") < (rhsValue ?? "") : (lhsValue ?? "") > (rhsValue ?? "")
+            }
+        } else {
+            sortedRows = enumerated
+        }
+
+        cachedSortedRows = sortedRows
+        cachedRowsFingerprint = fingerprint
+        cachedSortColumn = sortColumn
+        cachedSortAscending = sortAscending
+
+        if resetSelection {
+            selectedRows = Set(selectedRows.filter { $0 < resultSet.rows.count })
+
+            let filteredCells = selectedCells.filter { cell in
+                cell.row < resultSet.rows.count && cell.column < resultSet.columns.count
+            }
+            selectedCells = Set(filteredCells)
+
+            if let focusCell = textSelectableCell, !selectedCells.contains(focusCell) {
+                textSelectableCell = nil
+            }
+
+            if let anchor = anchorCell,
+               (anchor.row >= resultSet.rows.count || anchor.column >= resultSet.columns.count) {
+                anchorCell = nil
+            }
+
+            if let anchorRow = rowSelectionAnchor,
+               anchorRow >= resultSet.rows.count {
+                rowSelectionAnchor = nil
+            }
+        }
+    }
+
+    private func resetVisibleRows(totalRows: Int, resetToTop: Bool) {
+        guard totalRows > 0 else {
+            visibleRows = 0..<0
+            return
+        }
+
+        let desiredCount = min(totalRows, max(visibleRows.count, 50))
+        if resetToTop {
+            visibleRows = 0..<desiredCount
+        } else {
+            let lowerBound = min(visibleRows.lowerBound, max(0, totalRows - desiredCount))
+            visibleRows = lowerBound..<min(totalRows, lowerBound + desiredCount)
+        }
+    }
+
+    private func fingerprint(for rows: [[String?]]) -> Int {
+        var hasher = Hasher()
+        hasher.combine(rows.count)
+        for row in rows.prefix(10) {
+            hasher.combine(row.count)
+            for value in row.prefix(4) {
+                hasher.combine(value ?? "")
+            }
+        }
+        return hasher.finalize()
+    }
+
+    private func generateCellSelection(from start: CellPosition, to end: CellPosition) -> Set<CellPosition> {
+        let minRow = min(start.row, end.row)
+        let maxRow = max(start.row, end.row)
+        let minCol = min(start.column, end.column)
+        let maxCol = max(start.column, end.column)
+
+        var selection: Set<CellPosition> = []
+        for row in minRow...maxRow where row < resultSet.rows.count {
+            for column in minCol...maxCol where column < resultSet.columns.count {
+                selection.insert(CellPosition(row: row, column: column))
+            }
+        }
+        return selection
     }
 
     private func calculateOptimalColumnWidth(columnIndex: Int, column: ColumnInfo) -> CGFloat {
@@ -402,6 +538,8 @@ struct HighPerformanceGridView: View {
         selectedCells.removeAll()
         selectedRows.removeAll()
         textSelectableCell = nil
+        anchorCell = nil
+        rowSelectionAnchor = nil
     }
 
     private func selectAllCells() {
@@ -429,15 +567,12 @@ struct HighPerformanceGridView: View {
         var output = ""
         
         if !selectedRows.isEmpty {
-            let sortedSelectedRows = selectedRows.sorted()
             let headers = resultSet.columns.map { $0.name }.joined(separator: "\t")
             output += headers + "\n"
             
-            for rowIndex in sortedSelectedRows {
-                if let rowData = resultSet.rows[safe: rowIndex] {
-                    let line = rowData.map { $0 ?? "NULL" }.joined(separator: "\t")
-                    output += line + "\n"
-                }
+            for row in cachedSortedRows where selectedRows.contains(row.originalIndex) {
+                let line = row.data.map { $0 ?? "NULL" }.joined(separator: "\t")
+                output += line + "\n"
             }
         }
         else if !selectedCells.isEmpty {
@@ -455,13 +590,43 @@ struct HighPerformanceGridView: View {
     }
 
     private func handleCellClick(_ cellPosition: CellPosition) {
+        #if os(macOS)
+        let modifiers = NSApp.currentEvent?.modifierFlags ?? []
+        if modifiers.contains(.shift) {
+            let anchor = anchorCell ?? cellPosition
+            selectedCells = generateCellSelection(from: anchor, to: cellPosition)
+            selectedRows.removeAll()
+            textSelectableCell = nil
+            anchorCell = anchor
+            rowSelectionAnchor = nil
+            return
+        } else if modifiers.contains(.command) {
+            selectedRows.removeAll()
+            textSelectableCell = nil
+            if selectedCells.contains(cellPosition) {
+                selectedCells.remove(cellPosition)
+                if selectedCells.isEmpty {
+                    anchorCell = nil
+                }
+            } else {
+                selectedCells.insert(cellPosition)
+                anchorCell = cellPosition
+            }
+            rowSelectionAnchor = nil
+            return
+        }
+        #endif
+
         textSelectableCell = nil
         selectedRows.removeAll()
-        
+        rowSelectionAnchor = nil
+
         if selectedCells == [cellPosition] {
             selectedCells.removeAll()
+            anchorCell = nil
         } else {
             selectedCells = [cellPosition]
+            anchorCell = cellPosition
         }
     }
 
@@ -469,16 +634,40 @@ struct HighPerformanceGridView: View {
         selectedRows.removeAll()
         selectedCells = [cellPosition]
         textSelectableCell = cellPosition
+        anchorCell = cellPosition
+        rowSelectionAnchor = nil
     }
 
     private func handleRowNumberClick(_ originalIndex: Int) {
         textSelectableCell = nil
         selectedCells.removeAll()
+        anchorCell = nil
 
-        if selectedRows.contains(originalIndex) {
-            selectedRows.remove(originalIndex)
+        #if os(macOS)
+        let modifiers = NSApp.currentEvent?.modifierFlags ?? []
+        if modifiers.contains(.shift) {
+            let anchor = rowSelectionAnchor ?? originalIndex
+            let range = min(anchor, originalIndex)...max(anchor, originalIndex)
+            selectedRows = Set(range)
+            rowSelectionAnchor = anchor
+            return
+        } else if modifiers.contains(.command) {
+            if selectedRows.contains(originalIndex) {
+                selectedRows.remove(originalIndex)
+            } else {
+                selectedRows.insert(originalIndex)
+            }
+            rowSelectionAnchor = originalIndex
+            return
+        }
+        #endif
+
+        if selectedRows == [originalIndex] {
+            selectedRows.removeAll()
+            rowSelectionAnchor = nil
         } else {
             selectedRows = [originalIndex]
+            rowSelectionAnchor = originalIndex
         }
     }
 
@@ -640,7 +829,14 @@ struct HighPerformanceGridView: View {
     }
 
     private func copyRow(_ index: Int, includeHeaders: Bool) {
-        guard let rowData = resultSet.rows[safe: index] else { return }
+        let rowData: [String?]
+        if let sortedRow = cachedSortedRows[safe: index] {
+            rowData = sortedRow.data
+        } else if let originalRow = resultSet.rows[safe: index] {
+            rowData = originalRow
+        } else {
+            return
+        }
         var output = ""
 
         if includeHeaders {

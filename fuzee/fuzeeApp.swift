@@ -24,9 +24,31 @@ struct FuzeeApp: App {
         .windowStyle(.hiddenTitleBar)
         .windowResizability(.contentSize)
         .defaultSize(width: 1200, height: 800)
+#if os(macOS)
+        .commands {
+            QueryCommands(appModel: coordinator.appModel)
+        }
+#endif
 
         Settings {
             SettingsView().environmentObject(ThemeManager.shared)
         }
     }
 }
+
+#if os(macOS)
+@MainActor
+struct QueryCommands: Commands {
+    @ObservedObject var appModel: AppModel
+
+    var body: some Commands {
+        CommandGroup(after: .newItem) {
+            Button("New Query Tab") {
+                appModel.openQueryTab()
+            }
+            .keyboardShortcut("t", modifiers: [.command])
+            .disabled(!appModel.canOpenQueryTab)
+        }
+    }
+}
+#endif

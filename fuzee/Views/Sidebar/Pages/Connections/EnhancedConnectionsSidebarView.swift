@@ -73,7 +73,7 @@ struct EnhancedConnectionsSidebarView: View {
             // Merge drag-expanded folders with manually expanded ones
             for folderId in expandedOnDrag {
                 if !expandedFolders.contains(folderId) {
-                    withAnimation(.easeInOut(duration: 0.25)) {
+                    _ = withAnimation(.easeInOut(duration: 0.25)) {
                         expandedFolders.insert(folderId)
                     }
                 }
@@ -85,7 +85,7 @@ struct EnhancedConnectionsSidebarView: View {
         guard let connectionId = UUID(uuidString: draggedIdString) else { return false }
 
         switch position {
-        case .beforeItem(let itemId), .afterItem(let itemId):
+        case .beforeItem(_), .afterItem(_):
             // For now, just move to root - could implement precise positioning later
             onMoveConnection(connectionId, nil)
         case .intoFolder(let folderId):

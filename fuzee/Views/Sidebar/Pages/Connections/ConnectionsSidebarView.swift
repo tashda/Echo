@@ -1,5 +1,8 @@
 import SwiftUI
 import UniformTypeIdentifiers
+#if os(macOS)
+import AppKit
+#endif
 
 struct ConnectionsSidebarView: View {
     @EnvironmentObject private var appModel: AppModel
@@ -12,6 +15,7 @@ struct ConnectionsSidebarView: View {
     let onConnect: (SavedConnection) -> Void
     let onMoveConnection: (UUID, UUID?) -> Void
     let onMoveFolder: (UUID, UUID?) -> Void
+    let onDuplicateConnection: (SavedConnection) -> Void
 
     @State private var expandedConnectionFolders: Set<UUID> = []
     @State private var expandedIdentityFolders: Set<UUID> = []
@@ -25,7 +29,7 @@ struct ConnectionsSidebarView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            header
+            addToolbar
             Divider()
             List {
                 Section(header: Text("Connections")) {
@@ -35,9 +39,8 @@ struct ConnectionsSidebarView: View {
                 Section(header: Text("Identities")) {
                     identitiesSection
                 }
-
-                authenticationSection
             }
+            .scrollContentBackground(.hidden)
             .listStyle(.sidebar)
         }
         .contextMenu { contextMenuContent() }
@@ -61,23 +64,26 @@ struct ConnectionsSidebarView: View {
         }
     }
 
-    private var header: some View {
-        HStack(spacing: 8) {
-            Text("Connections")
-                .font(.headline)
+    private var addToolbar: some View {
+        HStack {
             Spacer()
             Menu {
                 menuContent()
             } label: {
-                Image(systemName: "plus.circle")
-                    .font(.system(size: 14, weight: .medium))
+                Label("Add new", systemImage: "plus")
+                    .labelStyle(.titleAndIcon)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(
+                        Capsule().fill(Color.secondary.opacity(0.15))
+                    )
             }
             .menuStyle(.borderlessButton)
-            .fixedSize()
+            Spacer()
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-        .background(headerHighlight)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .background(addToolbarHighlight)
         .onDrop(of: [.utf8PlainText], delegate: ConnectionsDropDelegate(
             targetFolderID: nil,
             targetKind: .connections,
@@ -87,7 +93,7 @@ struct ConnectionsSidebarView: View {
         ))
     }
 
-    private var headerHighlight: Color {
+    private var addToolbarHighlight: Color {
         activeDropTarget == DropTarget(folderID: nil, kind: .connections) ? Color.accentColor.opacity(0.12) : .clear
     }
 
@@ -109,6 +115,16 @@ struct ConnectionsSidebarView: View {
             .padding(.vertical, 32)
             .listRowBackground(Color.clear)
         } else {
+            DropInsertionRow(isActive: activeDropTarget == DropTarget(folderID: nil, kind: .connections))
+                .onDrop(of: [.utf8PlainText], delegate: ConnectionsDropDelegate(
+                    targetFolderID: nil,
+                    targetKind: .connections,
+                    activeDropTarget: $activeDropTarget,
+                    onMoveConnection: onMoveConnection,
+                    onMoveFolder: onMoveFolder
+                ))
+                .listRowBackground(Color.clear)
+
             ForEach(connectionItems, id: \.id) { item in
                 ConnectionSidebarItemView(
                     item: item,
@@ -127,10 +143,22 @@ struct ConnectionsSidebarView: View {
                         selectedConnectionID = connection.id
                         onConnect(connection)
                     },
+                    onSelectFolder: { folder in appModel.selectedFolderID = folder.id },
+                    onDuplicate: { connection in onDuplicateConnection(connection) },
                     onMoveConnection: onMoveConnection,
                     onMoveFolder: onMoveFolder
                 )
             }
+
+            DropInsertionRow(isActive: activeDropTarget == DropTarget(folderID: nil, kind: .connections))
+                .onDrop(of: [.utf8PlainText], delegate: ConnectionsDropDelegate(
+                    targetFolderID: nil,
+                    targetKind: .connections,
+                    activeDropTarget: $activeDropTarget,
+                    onMoveConnection: onMoveConnection,
+                    onMoveFolder: onMoveFolder
+                ))
+                .listRowBackground(Color.clear)
         }
     }
 
@@ -152,6 +180,16 @@ struct ConnectionsSidebarView: View {
             .padding(.vertical, 32)
             .listRowBackground(Color.clear)
         } else {
+            DropInsertionRow(isActive: activeDropTarget == DropTarget(folderID: nil, kind: .identities))
+                .onDrop(of: [.utf8PlainText], delegate: ConnectionsDropDelegate(
+                    targetFolderID: nil,
+                    targetKind: .identities,
+                    activeDropTarget: $activeDropTarget,
+                    onMoveConnection: onMoveConnection,
+                    onMoveFolder: onMoveFolder
+                ))
+                .listRowBackground(Color.clear)
+
             ForEach(identityItems) { item in
                 IdentityNodeView(
                     node: item,
@@ -167,21 +205,16 @@ struct ConnectionsSidebarView: View {
                     onDelete: { target in pendingDeletion = target }
                 )
             }
-        }
-    }
 
-    private var authenticationSection: some View {
-        Section("Authentication Methods") {
-            ForEach(AuthenticationMethod.allCases, id: \.self) { method in
-                HStack {
-                    Text(method.displayName)
-                    Spacer()
-                    Text("Coming")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                .padding(.vertical, 2)
-            }
+            DropInsertionRow(isActive: activeDropTarget == DropTarget(folderID: nil, kind: .identities))
+                .onDrop(of: [.utf8PlainText], delegate: ConnectionsDropDelegate(
+                    targetFolderID: nil,
+                    targetKind: .identities,
+                    activeDropTarget: $activeDropTarget,
+                    onMoveConnection: onMoveConnection,
+                    onMoveFolder: onMoveFolder
+                ))
+                .listRowBackground(Color.clear)
         }
     }
 
@@ -189,30 +222,55 @@ struct ConnectionsSidebarView: View {
     private func menuContent() -> some View {
         Section("Connections") {
             Button("New Connection", systemImage: "externaldrive.badge.plus") {
-                onCreateConnection(nil)
+                onCreateConnection(selectedConnectionFolder)
             }
             Button("New Connection Folder", systemImage: "folder.badge.plus") {
-                openFolderCreator(kind: .connections, parent: nil)
+                openFolderCreator(kind: .connections, parent: selectedConnectionFolder)
             }
         }
 
         Section("Identities") {
             Button("New Identity", systemImage: "person.badge.plus") {
-                openIdentityCreator(parent: nil)
+                openIdentityCreator(parent: selectedIdentityFolder)
             }
             Button("New Identity Folder", systemImage: "folder.badge.plus") {
-                openFolderCreator(kind: .identities, parent: nil)
+                let parent = appModel.folders.first(where: { $0.kind == .identities && $0.id == selectedIdentityParentID })
+                openFolderCreator(kind: .identities, parent: parent)
             }
         }
     }
 
     @ViewBuilder
     private func contextMenuContent() -> some View {
-        Button("New Connection") { onCreateConnection(nil) }
-        Button("New Connection Folder") { openFolderCreator(kind: .connections, parent: nil) }
+        Button("New Connection") { onCreateConnection(selectedConnectionFolder) }
+        Button("New Connection Folder") {
+            openFolderCreator(kind: .connections, parent: selectedConnectionFolder)
+        }
         Divider()
-        Button("New Identity") { openIdentityCreator(parent: nil) }
-        Button("New Identity Folder") { openFolderCreator(kind: .identities, parent: nil) }
+        Button("New Identity") { openIdentityCreator(parent: selectedIdentityFolder) }
+        Button("New Identity Folder") {
+            let parent = appModel.folders.first(where: { $0.kind == .identities && $0.id == selectedIdentityParentID })
+            openFolderCreator(kind: .identities, parent: parent)
+        }
+    }
+
+    private var selectedIdentityParentID: UUID? {
+        if let identityID = selectedIdentityID,
+           let identity = appModel.identities.first(where: { $0.id == identityID }) {
+            return identity.folderID
+        }
+        return nil
+    }
+
+    private var selectedIdentityFolder: SavedFolder? {
+        selectedIdentityParentID.flatMap { id in
+            appModel.folders.first { $0.id == id && $0.kind == .identities }
+        }
+    }
+
+    private var selectedConnectionFolder: SavedFolder? {
+        guard let id = appModel.selectedFolderID else { return nil }
+        return appModel.folders.first { $0.id == id && $0.kind == .connections }
     }
 
     private func openFolderCreator(kind: FolderKind, parent: SavedFolder?) {
@@ -305,6 +363,17 @@ private struct DropTarget: Equatable {
     let kind: FolderKind
 }
 
+private struct DropInsertionRow: View {
+    let isActive: Bool
+
+    var body: some View {
+        RoundedRectangle(cornerRadius: 2, style: .continuous)
+            .fill(isActive ? Color.accentColor.opacity(0.6) : Color.clear)
+            .frame(height: isActive ? 6 : 2)
+            .padding(.vertical, 4)
+    }
+}
+
 private struct ConnectionsDropDelegate: DropDelegate {
     let targetFolderID: UUID?
     let targetKind: FolderKind
@@ -332,11 +401,7 @@ private struct ConnectionsDropDelegate: DropDelegate {
             return false
         }
 
-        var result = false
-        let semaphore = DispatchSemaphore(value: 0)
         provider.loadItem(forTypeIdentifier: UTType.utf8PlainText.identifier, options: nil) { item, _ in
-            defer { semaphore.signal() }
-
             let string: String?
             if let data = item as? Data {
                 string = String(data: data, encoding: .utf8)
@@ -355,18 +420,19 @@ private struct ConnectionsDropDelegate: DropDelegate {
 
             switch payload {
             case .connection(let id):
-                if targetKind == .connections {
+                guard targetKind == .connections else { return }
+                DispatchQueue.main.async {
                     onMoveConnection(id, targetFolderID)
-                    result = true
                 }
             case .folder(let id):
-                onMoveFolder(id, targetFolderID)
-                result = true
+                DispatchQueue.main.async {
+                    onMoveFolder(id, targetFolderID)
+                }
             }
         }
-        semaphore.wait()
+
         activeDropTarget = nil
-        return result
+        return true
     }
 }
 
@@ -383,6 +449,8 @@ private struct ConnectionSidebarItemView: View {
     let onEditFolder: (SavedFolder) -> Void
     let onDelete: (DeletionTarget) -> Void
     let onConnect: (SavedConnection) -> Void
+    let onSelectFolder: (SavedFolder) -> Void
+    let onDuplicate: (SavedConnection) -> Void
     let onMoveConnection: (UUID, UUID?) -> Void
     let onMoveFolder: (UUID, UUID?) -> Void
 
@@ -400,6 +468,7 @@ private struct ConnectionSidebarItemView: View {
                     onConnect(connection)
                 },
                 onEdit: { onEditConnection(connection) },
+                onDuplicate: { onDuplicate(connection) },
                 onDelete: { onDelete(.connection(connection)) }
             )
             .onDrag {
@@ -422,7 +491,8 @@ private struct ConnectionSidebarItemView: View {
                 onCreateConnection: { onCreateConnection(folder) },
                 onCreateFolder: { onCreateFolder(folder) },
                 onEdit: { onEditFolder(folder) },
-                onDelete: { onDelete(.folder(folder)) }
+                onDelete: { onDelete(.folder(folder)) },
+                onSelect: { onSelectFolder(folder) }
             ) {
                 ForEach(folder.children, id: \.id) { child in
                     ConnectionSidebarItemView(
@@ -434,12 +504,14 @@ private struct ConnectionSidebarItemView: View {
                         onCreateFolder: onCreateFolder,
                         onEditConnection: onEditConnection,
                         onEditFolder: onEditFolder,
-                        onDelete: onDelete,
-                        onConnect: onConnect,
-                        onMoveConnection: onMoveConnection,
-                        onMoveFolder: onMoveFolder
-                    )
-                }
+                    onDelete: onDelete,
+                    onConnect: onConnect,
+                    onSelectFolder: onSelectFolder,
+                    onDuplicate: onDuplicate,
+                    onMoveConnection: onMoveConnection,
+                    onMoveFolder: onMoveFolder
+                )
+            }
             }
             .onDrag {
                 NSItemProvider(object: DragPayload.folder(folder.id).stringValue as NSString)
@@ -466,16 +538,17 @@ private struct ConnectionFolderRow<Content: View>: View {
     let onCreateFolder: () -> Void
     let onEdit: () -> Void
     let onDelete: () -> Void
+    let onSelect: () -> Void
     @ViewBuilder var content: Content
 
     var body: some View {
         DisclosureGroup(isExpanded: $isExpanded) {
             content
         } label: {
-            HStack(spacing: 12) {
-                RoundedRectangle(cornerRadius: 6, style: .continuous)
-                    .fill(folder.color)
-                    .frame(width: 24, height: 24)
+            HStack(spacing: 10) {
+                Image(systemName: "folder.fill")
+                    .font(.system(size: 20))
+                    .foregroundStyle(folder.color)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(folder.name)
                         .font(.subheadline)
@@ -489,7 +562,10 @@ private struct ConnectionFolderRow<Content: View>: View {
             .contentShape(Rectangle())
         }
         .padding(.vertical, 4)
-        .background(isHighlighted ? Color.accentColor.opacity(0.12) : Color.clear)
+        .background(
+            isHighlighted ? Color.accentColor.opacity(0.12) : Color.clear,
+            in: RoundedRectangle(cornerRadius: 10, style: .continuous)
+        )
         .contextMenu {
             Button("New Connection", systemImage: "externaldrive.badge.plus", action: onCreateConnection)
             Button("New Folder", systemImage: "folder.badge.plus", action: onCreateFolder)
@@ -497,6 +573,7 @@ private struct ConnectionFolderRow<Content: View>: View {
             Button("Edit", systemImage: "square.and.pencil", action: onEdit)
             Button("Delete", systemImage: "trash", role: .destructive, action: onDelete)
         }
+        .simultaneousGesture(TapGesture().onEnded { onSelect() })
     }
 
     private var folderSubtitle: String {
@@ -504,19 +581,19 @@ private struct ConnectionFolderRow<Content: View>: View {
         case .none:
             return "No credentials"
         case .identity:
-            if let identity = folder.identityID.flatMap({ id in appModel?.identities.first(where: { $0.id == id }) }) {
+            if let identity = folder.identityID.flatMap({ id in appModel.identities.first(where: { $0.id == id }) }) {
                 return "Uses identity \(identity.name)"
             }
             return "Identity unavailable"
         case .inherit:
-            if let identity = appModel?.folderIdentity(for: folder.id) {
+            if let identity = appModel.folderIdentity(for: folder.id) {
                 return "Inherits credentials (\(identity.name))"
             }
             return "Inherits credentials"
         }
     }
 
-    @EnvironmentObject private var appModel: AppModel?
+    @EnvironmentObject private var appModel: AppModel
 }
 
 private struct ConnectionRowView: View {
@@ -525,19 +602,24 @@ private struct ConnectionRowView: View {
     let onTap: () -> Void
     let onConnect: () -> Void
     let onEdit: () -> Void
+    let onDuplicate: () -> Void
     let onDelete: () -> Void
 
     @State private var isHovering = false
 
     var body: some View {
         HStack(spacing: 12) {
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .fill(connection.color.opacity(0.2))
-                .frame(width: 28, height: 28)
-                .overlay(
-                    Image(systemName: connection.databaseType.iconName)
-                        .foregroundStyle(connection.color)
-                )
+            ZStack {
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(connection.color.opacity(0.16))
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .stroke(connection.color.opacity(0.4), lineWidth: 1)
+                Image(systemName: connection.databaseType.iconName)
+                    .symbolRenderingMode(.monochrome)
+                    .foregroundStyle(connection.color)
+                    .font(.system(size: 18, weight: .semibold))
+            }
+            .frame(width: 30, height: 30)
             VStack(alignment: .leading, spacing: 2) {
                 Text(connection.connectionName.isEmpty ? "Untitled" : connection.connectionName)
                     .font(.subheadline)
@@ -549,8 +631,18 @@ private struct ConnectionRowView: View {
             Spacer()
             if isHovering {
                 HStack(spacing: 8) {
+                    Button(action: onConnect) {
+                        Image(systemName: "bolt.horizontal.circle")
+                    }
+                    .buttonStyle(.borderless)
+
                     Button(action: onEdit) {
                         Image(systemName: "square.and.pencil")
+                    }
+                    .buttonStyle(.borderless)
+
+                    Button(action: onDuplicate) {
+                        Image(systemName: "plus.square.on.square")
                     }
                     .buttonStyle(.borderless)
 
@@ -564,7 +656,10 @@ private struct ConnectionRowView: View {
         }
         .padding(.vertical, 6)
         .padding(.horizontal, 4)
-        .background(isSelected ? Color.accentColor.opacity(0.15) : Color.clear)
+        .background(
+            isSelected ? Color.accentColor.opacity(0.15) : Color.clear,
+            in: RoundedRectangle(cornerRadius: 10, style: .continuous)
+        )
         .contentShape(Rectangle())
         .onTapGesture(perform: onTap)
         .onTapGesture(count: 2, perform: onConnect)
@@ -577,6 +672,7 @@ private struct ConnectionRowView: View {
             Button("Connect", action: onConnect)
             Divider()
             Button("Edit", action: onEdit)
+            Button("Duplicate", action: onDuplicate)
             Button("Delete", role: .destructive, action: onDelete)
         }
     }
@@ -669,16 +765,20 @@ private struct IdentityFolderRow<Content: View>: View {
         DisclosureGroup(isExpanded: $isExpanded) {
             content
         } label: {
-            HStack(spacing: 10) {
-                RoundedRectangle(cornerRadius: 6, style: .continuous)
-                    .fill(folder.color)
-                    .frame(width: 20, height: 20)
+            HStack(spacing: 9) {
+                Image(systemName: "folder.fill")
+                    .font(.system(size: 18))
+                    .foregroundStyle(folder.color)
                 Text(folder.name)
                     .font(.subheadline)
                 Spacer()
             }
             .padding(.vertical, 4)
         }
+        .background(
+            Color.clear,
+            in: RoundedRectangle(cornerRadius: 10, style: .continuous)
+        )
         .contextMenu {
             Button("New Identity", systemImage: "person.badge.plus", action: onCreateIdentity)
             Button("New Folder", systemImage: "folder.badge.plus", action: onCreateFolder)
@@ -728,7 +828,10 @@ private struct IdentityRowView: View {
         }
         .padding(.vertical, 6)
         .padding(.horizontal, 4)
-        .background(isSelected ? Color.accentColor.opacity(0.15) : Color.clear)
+        .background(
+            isSelected ? Color.accentColor.opacity(0.15) : Color.clear,
+            in: RoundedRectangle(cornerRadius: 10, style: .continuous)
+        )
         .contentShape(Rectangle())
         .onTapGesture(perform: onTap)
         .onHover { hovering in
@@ -741,14 +844,6 @@ private struct IdentityRowView: View {
             Button("Delete", role: .destructive, action: onDelete)
         }
     }
-}
-
-// MARK: - Authentication Methods
-
-private enum AuthenticationMethod: String, CaseIterable {
-    case trust, reject, md5, password, gss, sspi, krb5, ident, pam, ldap, cert
-
-    var displayName: String { rawValue.uppercased() }
 }
 
 // MARK: - Folder & Identity Sheet State
@@ -835,32 +930,20 @@ private struct FolderEditorSheet: View {
         appModel.identities.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
     }
 
+    private var folderColorBinding: Binding<Color> {
+        Binding(
+            get: { Color(hex: selectedColorHex) ?? .accentColor },
+            set: { color in selectedColorHex = color.toHex() ?? selectedColorHex }
+        )
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text(editingFolder == nil ? "New Folder" : "Edit Folder")
                 .font(.title3)
                 .fontWeight(.semibold)
 
-            TextField("Folder Name", text: $name)
-                .textFieldStyle(.roundedBorder)
-
-            colorPalette
-
-            if !isIdentityFolder {
-                credentialPicker
-            }
-
-            if credentialMode == .identity && !availableIdentities.isEmpty {
-                Picker("Identity", selection: Binding<UUID?>(
-                    get: { selectedIdentityID },
-                    set: { selectedIdentityID = $0 }
-                )) {
-                    ForEach(availableIdentities, id: \.id) { identity in
-                        Text(identity.name).tag(UUID?.some(identity.id))
-                    }
-                }
-                .pickerStyle(.menu)
-            }
+            folderForm
 
             Spacer()
 
@@ -885,43 +968,75 @@ private struct FolderEditorSheet: View {
         .frame(minWidth: 320, minHeight: 300)
         .padding()
         .onAppear(perform: configureInitialState)
-    }
-
-    private var colorPalette: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Color")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-            HStack(spacing: 10) {
-                ForEach(Palette.defaults, id: \.self) { hex in
-                    Circle()
-                        .fill(Color(hex: hex) ?? .accentColor)
-                        .frame(width: 24, height: 24)
-                        .overlay(
-                            Circle()
-                                .strokeBorder(hex == selectedColorHex ? Color.primary : Color.clear, lineWidth: 2)
-                        )
-                        .onTapGesture { selectedColorHex = hex }
-                }
+        .onChange(of: credentialMode) { _, newMode in
+            if newMode == .identity && selectedIdentityID == nil {
+                selectedIdentityID = availableIdentities.first?.id
             }
         }
     }
 
-    private var credentialPicker: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Credentials")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-            Picker("Credentials", selection: $credentialMode) {
-                ForEach(FolderCredentialMode.allCases, id: \.self) { mode in
-                    if mode == .inherit, parentFolder == nil {
-                        EmptyView()
-                    } else {
-                        Text(mode.displayName).tag(mode)
+    private var folderForm: some View {
+        VStack(spacing: 14) {
+            FormFieldCard {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Name")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                    TextField("Folder Name", text: $name)
+                        .textFieldStyle(.roundedBorder)
+                }
+            }
+
+            FormFieldCard {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Color")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                    HStack(spacing: 10) {
+                        ForEach(Palette.defaults, id: \.self) { hex in
+                            Circle()
+                                .fill(Color(hex: hex) ?? .accentColor)
+                                .frame(width: 26, height: 26)
+                                .overlay(
+                                    Circle()
+                                        .strokeBorder(hex == selectedColorHex ? Color.primary : Color.clear, lineWidth: 2)
+                                )
+                                .onTapGesture { selectedColorHex = hex }
+                        }
+                        ColorPicker("Custom Color", selection: folderColorBinding, supportsOpacity: false)
+                            .labelsHidden()
+                            .frame(width: 44, height: 28)
                     }
                 }
             }
-            .pickerStyle(.segmented)
+
+            if !isIdentityFolder {
+                FormFieldCard {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Credentials")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                        Picker("Credentials", selection: $credentialMode) {
+                            ForEach(availableCredentialModes, id: \.self) { mode in
+                                Text(mode.displayName).tag(mode)
+                            }
+                        }
+                        .pickerStyle(.segmented)
+
+                        if credentialMode == .identity && !availableIdentities.isEmpty {
+                            Picker("Identity", selection: Binding<UUID?>(
+                                get: { selectedIdentityID },
+                                set: { selectedIdentityID = $0 }
+                            )) {
+                                ForEach(availableIdentities, id: \.id) { identity in
+                                    Text(identity.name).tag(UUID?.some(identity.id))
+                                }
+                            }
+                            .pickerStyle(.menu)
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -941,6 +1056,25 @@ private struct FolderEditorSheet: View {
         if isIdentityFolder {
             credentialMode = .none
         }
+
+        if credentialMode == .identity && selectedIdentityID == nil {
+            selectedIdentityID = availableIdentities.first?.id
+        }
+
+        if !availableCredentialModes.contains(credentialMode) {
+            credentialMode = availableCredentialModes.first ?? .none
+        }
+    }
+
+    private var availableCredentialModes: [FolderCredentialMode] {
+        if isIdentityFolder { return [.none] }
+        if parentFolder == nil {
+            return availableIdentities.isEmpty ? [.none] : [.none, .identity]
+        }
+        if availableIdentities.isEmpty {
+            return [.none, .inherit]
+        }
+        return FolderCredentialMode.allCases
     }
 
     private func saveFolder() {
@@ -987,6 +1121,22 @@ private struct FolderEditorSheet: View {
     }
 }
 
+private struct FormFieldCard<Content: View>: View {
+    @ViewBuilder var content: Content
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            content
+        }
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(Color(NSColor.controlBackgroundColor))
+                .shadow(color: Color.black.opacity(0.05), radius: 6, x: 0, y: 3)
+        )
+    }
+}
+
 private struct IdentityEditorSheet: View {
     @EnvironmentObject private var appModel: AppModel
     @Environment(\.dismiss) private var dismiss
@@ -1015,26 +1165,26 @@ private struct IdentityEditorSheet: View {
                 .font(.title3)
                 .fontWeight(.semibold)
 
-            TextField("Display Name", text: $name)
-                .textFieldStyle(.roundedBorder)
-
-            TextField("Username", text: $username)
-                .textFieldStyle(.roundedBorder)
-
-            SecureField(editingIdentity == nil ? "Password" : "New Password (optional)", text: $password)
-                .textFieldStyle(.roundedBorder)
+            identityForm
 
             if !availableFolders.isEmpty {
-                Picker("Folder", selection: Binding<UUID?>(
-                    get: { selectedFolderID },
-                    set: { selectedFolderID = $0 }
-                )) {
-                    Text("No Folder").tag(UUID?.none)
-                    ForEach(availableFolders, id: \.id) { folder in
-                        Text(folder.name).tag(UUID?.some(folder.id))
+                FormFieldCard {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Folder")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                        Picker("Folder", selection: Binding<UUID?>(
+                            get: { selectedFolderID },
+                            set: { selectedFolderID = $0 }
+                        )) {
+                            Text("No Folder").tag(UUID?.none)
+                            ForEach(availableFolders, id: \.id) { folder in
+                                Text(folder.name).tag(UUID?.some(folder.id))
+                            }
+                        }
+                        .pickerStyle(.menu)
                     }
                 }
-                .pickerStyle(.menu)
             }
 
             Spacer()
@@ -1057,9 +1207,43 @@ private struct IdentityEditorSheet: View {
                     .disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || username.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
         }
-        .frame(minWidth: 320, minHeight: 280)
+        .frame(minWidth: 360, minHeight: 240)
         .padding()
         .onAppear(perform: configureInitialState)
+    }
+
+    private var identityForm: some View {
+        FormFieldCard {
+            VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Name")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                    TextField("Display Name", text: $name)
+                        .textFieldStyle(.roundedBorder)
+                }
+
+                Divider()
+
+                HStack(spacing: 12) {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Username")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                        TextField("Username", text: $username)
+                            .textFieldStyle(.roundedBorder)
+                    }
+
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Password")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                        SecureField(editingIdentity == nil ? "Password" : "New Password (optional)", text: $password)
+                            .textFieldStyle(.roundedBorder)
+                    }
+                }
+            }
+        }
     }
 
     private func configureInitialState() {

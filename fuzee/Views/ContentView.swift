@@ -4,7 +4,7 @@ struct ContentView: View {
     @EnvironmentObject private var appModel: AppModel
     @EnvironmentObject private var appState: AppState
     @EnvironmentObject private var themeManager: ThemeManager
-    @State private var showingAddConnection = false
+    @State private var showingConnectionEditor = false
 
     private var selectedConnection: SavedConnection? { appModel.selectedConnection }
     private var selectedSession: ConnectionSession? {
@@ -13,29 +13,57 @@ struct ContentView: View {
     }
 
     var body: some View {
-        NavigationSplitView {
-            SidebarView(
-                selectedConnectionID: $appModel.selectedConnectionID,
-                selectedIdentityID: $appModel.selectedIdentityID,
-                onAddConnection: {
-                    showingAddConnection = true
-                    appState.showSheet(.connectionEditor)
+        Group {
+            if appState.showInfoSidebar {
+                // 3-column split: sidebar | content | right info sidebar
+                NavigationSplitView {
+                    SidebarView(
+                        selectedConnectionID: $appModel.selectedConnectionID,
+                        selectedIdentityID: $appModel.selectedIdentityID,
+                        onAddConnection: {
+                            showingConnectionEditor = true
+                        }
+                    )
+                    .environmentObject(appModel)
+                    .environmentObject(appState)
+                    .navigationTitle("Connections")
+                    .frame(minWidth: 220)
+                    .navigationSplitViewColumnWidth(min: 280, ideal: 320, max: 400)
+                } content: {
+                    detailContent
+                        .navigationTitle(selectedConnection?.connectionName ?? "Fuzee")
+                        .background(themeManager.windowBackground)
+                } detail: {
+                    InfoSidebarView()
+                        .environmentObject(appModel)
+                        .environmentObject(appState)
                 }
-            )
-            .environmentObject(appModel)
-            .environmentObject(appState)
-            .navigationTitle("Connections")
-            .frame(minWidth: 220)
-            .navigationSplitViewColumnWidth(min: 280, ideal: 320, max: 400)
-        } detail: {
-            detailContent
-                .navigationTitle(selectedConnection?.connectionName ?? "Fuzee")
-                .background(themeManager.windowBackground)
+                .navigationSplitViewStyle(.balanced)
+            } else {
+                // 2-column split: sidebar | content (no right info sidebar)
+                NavigationSplitView {
+                    SidebarView(
+                        selectedConnectionID: $appModel.selectedConnectionID,
+                        selectedIdentityID: $appModel.selectedIdentityID,
+                        onAddConnection: {
+                            showingConnectionEditor = true
+                        }
+                    )
+                    .environmentObject(appModel)
+                    .environmentObject(appState)
+                    .navigationTitle("Connections")
+                    .frame(minWidth: 220)
+                    .navigationSplitViewColumnWidth(min: 280, ideal: 320, max: 400)
+                } detail: {
+                    detailContent
+                        .navigationTitle(selectedConnection?.connectionName ?? "Fuzee")
+                        .background(themeManager.windowBackground)
+                }
+                .navigationSplitViewStyle(.balanced)
+            }
         }
-        .navigationSplitViewStyle(.balanced)
         .background(themeManager.windowBackground)
-        .toolbar { navigationToolbar }
-        .sheet(isPresented: $showingAddConnection) {
+        .sheet(isPresented: $showingConnectionEditor) {
             ConnectionEditorView(
                 connection: selectedConnection,
                 onSave: { connection, password, action in
@@ -47,7 +75,7 @@ struct ContentView: View {
                     }
                 }
             )
-            .frame(minWidth: 420, minHeight: 420)
+            .environmentObject(appModel)
             .environmentObject(appState)
         }
         .task { await appModel.load() }
@@ -55,49 +83,34 @@ struct ContentView: View {
             // Selection changes handled by explicit connect button
         }
         .onChange(of: appState.activeSheet) { _, newSheet in
-            showingAddConnection = (newSheet == .connectionEditor)
+            showingConnectionEditor = (newSheet == .connectionEditor)
         }
     }
 
     @ViewBuilder
     private var detailContent: some View {
         if let connection = selectedConnection, let session = selectedSession {
-            ActiveConnectionView(connection: connection, session: session)
-                .environmentObject(appModel)
-                .environmentObject(appState)
+            if appModel.tabManager.activeTab != nil {
+                TabbedQueryView()
+                    .environmentObject(appModel)
+                    .environmentObject(appState)
+                    .environmentObject(themeManager)
+            } else {
+                ActiveConnectionView(connection: connection, session: session)
+                    .environmentObject(appModel)
+                    .environmentObject(appState)
+            }
         } else if let connection = selectedConnection {
             DisconnectedConnectionView(connection: connection)
                 .environmentObject(appModel)
                 .environmentObject(appState)
         } else {
             NoConnectionSelectedView(onAddConnection: {
-                showingAddConnection = true
-                appState.showSheet(.connectionEditor)
+                showingConnectionEditor = true
             })
         }
     }
 
-    @ToolbarContentBuilder
-    private var navigationToolbar: some ToolbarContent {
-        ToolbarItem(placement: .navigation) {
-            Menu {
-                Button("Add Connection…") {
-                    showingAddConnection = true
-                    appState.showSheet(.connectionEditor)
-                }
-                Divider()
-                Button("Settings…") {
-                    NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
-                }
-                .keyboardShortcut(",", modifiers: .command)
-            } label: {
-                Image(systemName: "ellipsis.circle")
-                    .font(.system(size: 16))
-            }
-            .menuStyle(.borderlessButton)
-            .help("Application Menu")
-        }
-    }
 }
 
 private struct ActiveConnectionView: View {
@@ -109,9 +122,18 @@ private struct ActiveConnectionView: View {
     var body: some View {
         VStack(spacing: 24) {
             VStack(spacing: 12) {
-                Image(systemName: "server.rack")
-                    .font(.system(size: 48))
-                    .foregroundStyle(.secondary)
+                ZStack {
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .fill(connection.color.opacity(0.18))
+                        .frame(width: 84, height: 84)
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .stroke(connection.color.opacity(0.4), lineWidth: 1)
+                        .frame(width: 84, height: 84)
+                    Image(systemName: connection.databaseType.iconName)
+                        .symbolRenderingMode(.monochrome)
+                        .font(.system(size: 40, weight: .medium))
+                        .foregroundStyle(connection.color)
+                }
                 Text("Connected to \(connection.connectionName)")
                     .font(.title2)
                     .fontWeight(.semibold)
@@ -135,6 +157,12 @@ private struct ActiveConnectionView: View {
             .buttonStyle(.bordered)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .contextMenu {
+            Button("Open Query Window") {
+                appModel.openQueryTab(for: session)
+            }
+            .disabled(!appModel.canOpenQueryTab)
+        }
     }
 }
 
@@ -146,9 +174,18 @@ private struct DisconnectedConnectionView: View {
     var body: some View {
         VStack(spacing: 24) {
             VStack(spacing: 12) {
-                Image(systemName: "server.rack")
-                    .font(.system(size: 48))
-                    .foregroundStyle(.secondary)
+                ZStack {
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .fill(connection.color.opacity(0.14))
+                        .frame(width: 84, height: 84)
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .stroke(connection.color.opacity(0.3), lineWidth: 1)
+                        .frame(width: 84, height: 84)
+                    Image(systemName: connection.databaseType.iconName)
+                        .symbolRenderingMode(.monochrome)
+                        .font(.system(size: 40, weight: .medium))
+                        .foregroundStyle(connection.color)
+                }
                 Text("Not Connected")
                     .font(.title2)
                     .fontWeight(.semibold)
@@ -170,7 +207,7 @@ private struct DisconnectedConnectionView: View {
                 .disabled(appState.isConnecting)
 
                 Button("Edit Connection") {
-                    appState.showSheet(.connectionEditor)
+                    appState.showSheet(ActiveSheet.connectionEditor)
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.large)

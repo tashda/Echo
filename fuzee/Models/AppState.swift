@@ -10,13 +10,14 @@ import Combine
     @Published var currentError: DatabaseError?
     @Published var showingError = false
     @Published var activeSheet: ActiveSheet?
+    @Published var showTabOverview = false
+    @Published var showInfoSidebar = false
 
     // MARK: - Query State
     @Published var isQueryRunning = false
     @Published var queryHistory: [QueryHistoryItem] = []
     @Published var currentQuery = "SELECT NOW();"
-    @Published var editorFontName = "Menlo"
-    @Published var editorFontSize: CGFloat = 14
+    @Published var sqlEditorTheme = SQLEditorTheme()
 
     // MARK: - Connection State
     @Published var isConnecting = false
@@ -128,11 +129,19 @@ enum ActiveSheet: String, Identifiable {
 }
 
 struct QueryHistoryItem: Codable, Identifiable {
-    let id = UUID()
+    let id: UUID
     let query: String
     let timestamp: Date
     let resultCount: Int?
     let duration: TimeInterval?
+
+    init(id: UUID = UUID(), query: String, timestamp: Date, resultCount: Int? = nil, duration: TimeInterval? = nil) {
+        self.id = id
+        self.query = query
+        self.timestamp = timestamp
+        self.resultCount = resultCount
+        self.duration = duration
+    }
 
     var formattedTimestamp: String {
         let formatter = DateFormatter()

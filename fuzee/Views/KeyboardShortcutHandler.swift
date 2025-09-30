@@ -65,8 +65,7 @@ struct KeyboardShortcutHandler: ViewModifier {
     }
 
     private func handleNewQueryTab() {
-        guard let activeSession = appModel.sessionManager.activeSession else { return }
-        activeSession.addQueryTab()
+        appModel.openQueryTab()
     }
 
     private func handleCloseQueryTab() {
@@ -116,9 +115,7 @@ struct MenuKeyboardShortcuts: View {
             .hidden()
 
             Button("New Query Tab") {
-                if let activeSession = appModel.sessionManager.activeSession {
-                    activeSession.addQueryTab()
-                }
+                appModel.openQueryTab()
             }
             .keyboardShortcut(
                 shortcutsManager.shortcuts.newQueryTab.keyEquivalent,

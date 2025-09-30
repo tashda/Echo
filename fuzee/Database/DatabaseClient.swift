@@ -97,6 +97,137 @@ public struct SchemaObjectInfo: Sendable, Identifiable, Codable, Hashable {
     }
 }
 
+public struct TableStructureDetails: Sendable, Codable, Hashable {
+    public struct Column: Identifiable, Sendable, Codable, Hashable {
+        public var id: String { name }
+        public var name: String
+        public var dataType: String
+        public var isNullable: Bool
+        public var defaultValue: String?
+        public var generatedExpression: String?
+
+        public init(name: String, dataType: String, isNullable: Bool, defaultValue: String?, generatedExpression: String?) {
+            self.name = name
+            self.dataType = dataType
+            self.isNullable = isNullable
+            self.defaultValue = defaultValue
+            self.generatedExpression = generatedExpression
+        }
+    }
+
+    public struct PrimaryKey: Sendable, Codable, Hashable {
+        public var name: String
+        public var columns: [String]
+
+        public init(name: String, columns: [String]) {
+            self.name = name
+            self.columns = columns
+        }
+    }
+
+    public struct Index: Identifiable, Sendable, Codable, Hashable {
+        public var id: String { name }
+        public var name: String
+        public var columns: [String]
+        public var isUnique: Bool
+
+        public init(name: String, columns: [String], isUnique: Bool) {
+            self.name = name
+            self.columns = columns
+            self.isUnique = isUnique
+        }
+    }
+
+    public struct UniqueConstraint: Identifiable, Sendable, Codable, Hashable {
+        public var id: String { name }
+        public var name: String
+        public var columns: [String]
+
+        public init(name: String, columns: [String]) {
+            self.name = name
+            self.columns = columns
+        }
+    }
+
+    public struct ForeignKey: Identifiable, Sendable, Codable, Hashable {
+        public var id: String { name }
+        public var name: String
+        public var columns: [String]
+        public var referencedSchema: String
+        public var referencedTable: String
+        public var referencedColumns: [String]
+        public var onUpdate: String?
+        public var onDelete: String?
+
+        public init(
+            name: String,
+            columns: [String],
+            referencedSchema: String,
+            referencedTable: String,
+            referencedColumns: [String],
+            onUpdate: String?,
+            onDelete: String?
+        ) {
+            self.name = name
+            self.columns = columns
+            self.referencedSchema = referencedSchema
+            self.referencedTable = referencedTable
+            self.referencedColumns = referencedColumns
+            self.onUpdate = onUpdate
+            self.onDelete = onDelete
+        }
+    }
+
+    public struct Dependency: Identifiable, Sendable, Codable, Hashable {
+        public var id: String { name }
+        public var name: String
+        public var baseColumns: [String]
+        public var referencedTable: String
+        public var referencedColumns: [String]
+        public var onUpdate: String?
+        public var onDelete: String?
+
+        public init(
+            name: String,
+            baseColumns: [String],
+            referencedTable: String,
+            referencedColumns: [String],
+            onUpdate: String?,
+            onDelete: String?
+        ) {
+            self.name = name
+            self.baseColumns = baseColumns
+            self.referencedTable = referencedTable
+            self.referencedColumns = referencedColumns
+            self.onUpdate = onUpdate
+            self.onDelete = onDelete
+        }
+    }
+
+    public var columns: [Column]
+    public var primaryKey: PrimaryKey?
+    public var indexes: [Index]
+    public var uniqueConstraints: [UniqueConstraint]
+    public var foreignKeys: [ForeignKey]
+    public var dependencies: [Dependency]
+
+    public init(
+        columns: [Column] = [],
+        primaryKey: PrimaryKey? = nil,
+        indexes: [Index] = [],
+        uniqueConstraints: [UniqueConstraint] = [],
+        foreignKeys: [ForeignKey] = [],
+        dependencies: [Dependency] = []
+    ) {
+        self.columns = columns
+        self.primaryKey = primaryKey
+        self.indexes = indexes
+        self.uniqueConstraints = uniqueConstraints
+        self.foreignKeys = foreignKeys
+        self.dependencies = dependencies
+    }
+}
+
 public struct FilterCriteria: Sendable {
     public let column: String
     public let `operator`: FilterOperator
@@ -141,8 +272,16 @@ public protocol DatabaseSession: Sendable {
     func getTableSchema(_ tableName: String, schemaName: String?) async throws -> [ColumnInfo]
     func getObjectDefinition(objectName: String, schemaName: String, objectType: SchemaObjectInfo.ObjectType) async throws -> String
     func executeUpdate(_ sql: String) async throws -> Int
+    func getTableStructureDetails(schema: String, table: String) async throws -> TableStructureDetails
 }
 
 public protocol DatabaseFactory {
     func connect(host: String, port: Int, username: String, password: String?, database: String?, tls: Bool) async throws -> DatabaseSession
+}
+
+public protocol DatabaseMetadataSession: DatabaseSession {
+    func loadSchemaInfo(
+        _ schemaName: String,
+        progress: (@Sendable (SchemaObjectInfo.ObjectType, Int, Int) async -> Void)?
+    ) async throws -> SchemaInfo
 }

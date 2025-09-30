@@ -12,6 +12,11 @@ import Combine
 @MainActor
 final class AppModel: ObservableObject {
 
+    enum StructureRefreshScope {
+        case selectedDatabase
+        case full
+    }
+
     // MARK: - Published State
     @Published var connections: [SavedConnection] = []
     @Published var selectedConnectionID: UUID?
@@ -23,6 +28,7 @@ final class AppModel: ObservableObject {
     @Published var sessionManager = ConnectionSessionManager()
     @Published var tabManager = TabManager()
     @Published var pinnedObjectIDs: [String] = []
+    @Published var useServerColorAsAccent: Bool = UserDefaults.standard.bool(forKey: "useServerColorAsAccent")
 
     // MARK: - Dependencies
     private let store = ConnectionStore()
@@ -30,6 +36,7 @@ final class AppModel: ObservableObject {
     private let identityStore = IdentityStore()
     private let keychain = KeychainHelper()
     private let dbFactory = PostgresNIOFactory()
+    private var structureFetcher: DatabaseStructureFetcher { DatabaseStructureFetcher(factory: dbFactory) }
     private var cancellables: Set<AnyCancellable> = []
 
     // MARK: - Computed helpers
@@ -46,6 +53,12 @@ final class AppModel: ObservableObject {
                 if let session = self.sessionManager.activeSessions.first(where: { $0.id == id }) {
                     self.selectedConnectionID = session.connection.id
                 }
+            }
+            .store(in: &cancellables)
+
+        $useServerColorAsAccent
+            .sink { useServerColor in
+                UserDefaults.standard.set(useServerColor, forKey: "useServerColorAsAccent")
             }
             .store(in: &cancellables)
     }
@@ -136,11 +149,75 @@ final class AppModel: ObservableObject {
         }
 
         await persistConnections()
+
+        Task {
+            await preloadStructure(for: updated, overridePassword: password)
+        }
     }
 
     func deleteConnection(id: UUID) async {
         guard let connection = connections.first(where: { $0.id == id }) else { return }
         await deleteConnection(connection)
+    }
+
+    // MARK: - Query Tabs
+
+    var canOpenQueryTab: Bool {
+        sessionManager.activeSession != nil || !sessionManager.activeSessions.isEmpty
+    }
+
+    func openQueryTab(for session: ConnectionSession? = nil, presetQuery: String = "") {
+        guard let targetSession = session
+                ?? sessionManager.activeSession
+                ?? sessionManager.activeSessions.first else { return }
+
+        sessionManager.setActiveSession(targetSession.id)
+        let connection = targetSession.connection
+        let existingCountForConnection = tabManager.tabs.filter { $0.connection.id == connection.id }.count
+
+        let baseTitle: String
+        if connection.connectionName.isEmpty {
+            baseTitle = connection.database.isEmpty ? "Query" : connection.database
+        } else {
+            baseTitle = connection.connectionName
+        }
+
+        let title = "\(baseTitle) \(existingCountForConnection + 1)"
+
+        let newTab = QueryTab(connection: connection, session: targetSession.session, connectionSessionID: targetSession.id, title: title)
+        if !presetQuery.isEmpty {
+            newTab.sql = presetQuery
+        }
+
+        tabManager.addTab(newTab)
+    }
+
+    func openStructureTab(for session: ConnectionSession, object: SchemaObjectInfo) {
+        Task {
+            do {
+                let details = try await session.session.getTableStructureDetails(schema: object.schema, table: object.name)
+                await MainActor { [weak self] in
+                    guard let self else { return }
+                    sessionManager.setActiveSession(session.id)
+                    selectedConnectionID = session.connection.id
+
+                    let baseTitle = "\(object.name) Structure"
+                    let newTab = QueryTab(connection: session.connection, session: session.session, connectionSessionID: session.id, title: baseTitle)
+                    let editor = TableStructureEditorViewModel(
+                        schemaName: object.schema,
+                        tableName: object.name,
+                        details: details,
+                        session: session.session
+                    )
+                    newTab.configureStructureEditor(editor)
+                    tabManager.addTab(newTab)
+                }
+            } catch {
+                await MainActor { [weak self] in
+                    self?.lastError = DatabaseError.from(error)
+                }
+            }
+        }
     }
 
     func deleteConnection(_ connection: SavedConnection) async {
@@ -380,6 +457,37 @@ final class AppModel: ObservableObject {
         Task { await persistFolders() }
     }
 
+    func duplicateConnection(_ connection: SavedConnection) async {
+        var copy = connection
+        copy.id = UUID()
+        copy.connectionName = uniqueDuplicateName(for: connection.connectionName)
+        copy.serverVersion = nil
+        copy.cachedStructure = nil
+        copy.cachedStructureUpdatedAt = nil
+
+        var password: String?
+        if connection.credentialSource == .manual,
+           let identifier = connection.keychainIdentifier,
+           let storedPassword = try? keychain.getPassword(account: identifier) {
+            password = storedPassword
+            copy.keychainIdentifier = nil
+        }
+
+        await upsertConnection(copy, password: password)
+        selectedConnectionID = copy.id
+    }
+
+    private func uniqueDuplicateName(for name: String) -> String {
+        let base = name.isEmpty ? "Untitled" : name
+        var attempt = "\(base) Copy"
+        var counter = 2
+        while connections.contains(where: { $0.connectionName == attempt }) {
+            attempt = "\(base) Copy \(counter)"
+            counter += 1
+        }
+        return attempt
+    }
+
     private func identity(withID id: UUID?) -> SavedIdentity? {
         guard let id else { return nil }
         return identities.first { $0.id == id }
@@ -608,88 +716,88 @@ final class AppModel: ObservableObject {
 
     // MARK: - Database Metadata
     func loadDatabaseStructureForSession(_ connectionSession: ConnectionSession) async throws -> DatabaseStructure {
-        await MainActor.run {
-            connectionSession.structureLoadingState = .loading(progress: nil)
+        connectionSession.structureLoadingState = .loading(progress: 0)
+        connectionSession.structureLoadingMessage = "Preparing update…"
+
+        if connectionSession.databaseStructure == nil {
+            connectionSession.databaseStructure = DatabaseStructure(serverVersion: nil, databases: [])
         }
 
+        if connectionSession.selectedDatabaseName == nil,
+           !connectionSession.connection.database.isEmpty {
+            connectionSession.selectedDatabaseName = connectionSession.connection.database
+        }
+
+        guard let credentials = resolvedCredentials(for: connectionSession.connection) else {
+            connectionSession.structureLoadingState = .failed(message: "Missing credentials")
+            throw DatabaseError.connectionFailed("Missing credentials")
+        }
+
+        let selectedDatabase: String?
+        if let selected = connectionSession.selectedDatabaseName, !selected.isEmpty {
+            selectedDatabase = selected
+        } else if !connectionSession.connection.database.isEmpty {
+            selectedDatabase = connectionSession.connection.database
+        } else {
+            selectedDatabase = nil
+        }
+
+        var interimServerVersion = connectionSession.databaseStructure?.serverVersion
+            ?? connectionSession.connection.cachedStructure?.serverVersion
+            ?? connectionSession.connection.serverVersion
+
         do {
-            var databaseInfos: [DatabaseInfo] = []
-            var databases: [String] = []
-
-            let explicit = connectionSession.connection.database
-            if !explicit.isEmpty {
-                databases = [explicit]
-            } else {
-                databases = try await connectionSession.session.listDatabases()
-            }
-
-            if databases.isEmpty {
-                if !explicit.isEmpty {
-                    databases = [explicit]
-                }
-            }
-
-            let totalDatabases = max(databases.count, 1)
-            let cachedStructure = connectionSession.connection.cachedStructure ?? connectionSession.databaseStructure
-
-            for (databaseIndex, databaseName) in databases.enumerated() {
-                let shouldLoadSchema = (databaseName == connectionSession.selectedDatabaseName) ||
-                    (connectionSession.selectedDatabaseName == nil && databaseIndex == 0) ||
-                    (databases.count == 1)
-
-                if shouldLoadSchema {
+            let structure = try await structureFetcher.fetchStructure(
+                for: connectionSession.connection,
+                credentials: .init(username: credentials.username, password: credentials.password),
+                selectedDatabase: selectedDatabase,
+                reuseSession: connectionSession.session,
+                progressHandler: { progress in
                     await MainActor.run {
-                        if connectionSession.selectedDatabaseName == nil {
-                            connectionSession.selectedDatabaseName = databaseName
+                        connectionSession.structureLoadingState = .loading(progress: progress.fraction)
+                        if let message = progress.message {
+                            connectionSession.structureLoadingMessage = message
                         }
                     }
-
-                    let schemaNames = try await connectionSession.session.listSchemas()
-                    var schemas: [SchemaInfo] = []
-
-                    for (schemaIndex, schemaName) in schemaNames.enumerated() {
-                        let objects = try await connectionSession.session.listTablesAndViews(schema: schemaName)
-                        if !objects.isEmpty {
-                            schemas.append(SchemaInfo(name: schemaName, objects: objects))
+                },
+                databaseHandler: { database, _, _ in
+                    await MainActor.run {
+                        var databases = connectionSession.databaseStructure?.databases ?? []
+                        if let index = databases.firstIndex(where: { $0.name == database.name }) {
+                            databases[index] = database
+                        } else {
+                            databases.append(database)
+                            databases.sort { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
                         }
-
-                        let progress = structureLoadProgress(
-                            databaseIndex: databaseIndex,
-                            schemaIndex: schemaIndex + 1,
-                            totalDatabases: totalDatabases,
-                            totalSchemas: max(schemaNames.count, 1)
+                        connectionSession.databaseStructure = DatabaseStructure(
+                            serverVersion: interimServerVersion,
+                            databases: databases
                         )
-                        await MainActor.run {
-                            connectionSession.structureLoadingState = .loading(progress: progress)
-                        }
                     }
-
-                    databaseInfos.append(DatabaseInfo(name: databaseName, schemas: schemas, schemaCount: schemas.count))
-                } else {
-                    let cachedCount = cachedStructure?.databases.first(where: { $0.name == databaseName })?.schemaCount ?? 0
-                    databaseInfos.append(DatabaseInfo(name: databaseName, schemas: [], schemaCount: cachedCount))
                 }
+            )
 
-                let dbProgress = structureLoadProgress(
-                    databaseIndex: databaseIndex + 1,
-                    schemaIndex: 0,
-                    totalDatabases: totalDatabases,
-                    totalSchemas: 1
-                )
-                await MainActor.run {
-                    connectionSession.structureLoadingState = .loading(progress: dbProgress)
-                }
+            if let serverVersion = structure.serverVersion {
+                interimServerVersion = serverVersion
             }
 
-            let structure = DatabaseStructure(serverVersion: nil, databases: databaseInfos)
-            await MainActor.run {
-                connectionSession.structureLoadingState = .ready
+            connectionSession.databaseStructure = DatabaseStructure(
+                serverVersion: interimServerVersion,
+                databases: structure.databases
+            )
+            connectionSession.structureLoadingState = .ready
+            connectionSession.structureLoadingMessage = nil
+
+            if connectionSession.selectedDatabaseName == nil,
+               !connectionSession.connection.database.isEmpty,
+               let firstDatabase = structure.databases.first?.name {
+                connectionSession.selectedDatabaseName = firstDatabase
             }
+
             return structure
         } catch {
-            await MainActor.run {
-                connectionSession.structureLoadingState = .failed(message: error.localizedDescription)
-            }
+            connectionSession.structureLoadingMessage = error.localizedDescription
+            connectionSession.structureLoadingState = .failed(message: error.localizedDescription)
             throw error
         }
     }
@@ -748,14 +856,82 @@ final class AppModel: ObservableObject {
         await reconnectSession(connectionSession, to: databaseName)
     }
 
-    func refreshDatabaseStructure(for sessionID: UUID) async {
+    func refreshDatabaseStructure(for sessionID: UUID, scope: StructureRefreshScope = .selectedDatabase, databaseOverride: String? = nil) async {
         guard let session = sessionManager.activeSessions.first(where: { $0.id == sessionID }) else { return }
-        do {
-            let structure = try await loadDatabaseStructureForSession(session)
-            session.databaseStructure = structure
-            cacheStructure(structure, for: session.connection.id)
-        } catch {
-            session.structureLoadingState = .failed(message: error.localizedDescription)
+
+        switch scope {
+        case .full:
+            do {
+                let structure = try await loadDatabaseStructureForSession(session)
+                session.databaseStructure = structure
+                cacheStructure(structure, for: session.connection.id)
+            } catch {
+                session.structureLoadingState = .failed(message: error.localizedDescription)
+            }
+
+        case .selectedDatabase:
+            let targetDatabase = databaseOverride ?? (session.selectedDatabaseName?.isEmpty == false
+                ? session.selectedDatabaseName
+                : (session.connection.database.isEmpty ? nil : session.connection.database))
+
+            guard let targetDatabase else {
+                await refreshDatabaseStructure(for: sessionID, scope: .full)
+                return
+            }
+
+            guard let credentials = resolvedCredentials(for: session.connection) else {
+                session.structureLoadingState = .failed(message: "Missing credentials")
+                return
+            }
+
+            session.structureLoadingState = .loading(progress: 0)
+            session.structureLoadingMessage = "Updating \(targetDatabase)…"
+
+            do {
+                let structure = try await structureFetcher.fetchStructure(
+                    for: session.connection,
+                    credentials: .init(username: credentials.username, password: credentials.password),
+                    selectedDatabase: targetDatabase,
+                    reuseSession: session.session,
+                    databaseFilter: [targetDatabase],
+                    progressHandler: { progress in
+                        await MainActor.run {
+                            session.structureLoadingState = .loading(progress: progress.fraction)
+                            if let message = progress.message {
+                                session.structureLoadingMessage = message
+                            }
+                        }
+                    },
+                    databaseHandler: nil
+                )
+
+                let updatedDatabase = structure.databases.first { $0.name == targetDatabase }
+
+                var mergedDatabases = session.databaseStructure?.databases ?? []
+                if let updatedDatabase {
+                    if let index = mergedDatabases.firstIndex(where: { $0.name == updatedDatabase.name }) {
+                        mergedDatabases[index] = updatedDatabase
+                    } else {
+                        mergedDatabases.append(updatedDatabase)
+                        mergedDatabases.sort { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+                    }
+                }
+
+                let updatedStructure = DatabaseStructure(
+                    serverVersion: structure.serverVersion ?? session.databaseStructure?.serverVersion ?? session.connection.serverVersion,
+                    databases: mergedDatabases
+                )
+
+                session.databaseStructure = updatedStructure
+                session.structureLoadingState = .ready
+                session.structureLoadingMessage = nil
+
+                cacheStructure(updatedStructure, for: session.connection.id)
+
+            } catch {
+                session.structureLoadingMessage = error.localizedDescription
+                session.structureLoadingState = .failed(message: error.localizedDescription)
+            }
         }
     }
 
@@ -784,15 +960,27 @@ final class AppModel: ObservableObject {
         updateCachedConnection(id: connectionID) { connection in
             connection.cachedStructure = structure
             connection.cachedStructureUpdatedAt = Date()
+            if let serverVersion = structure.serverVersion {
+                connection.serverVersion = serverVersion
+            }
         }
     }
 
-    private func structureLoadProgress(databaseIndex: Int, schemaIndex: Int, totalDatabases: Int, totalSchemas: Int) -> Double {
-        guard totalDatabases > 0 else { return 0 }
-        let clampedDatabaseIndex = min(max(databaseIndex, 0), totalDatabases)
-        let safeTotalSchemas = max(totalSchemas, 1)
-        let clampedSchemaIndex = min(max(schemaIndex, 0), safeTotalSchemas)
-        let progress = (Double(clampedDatabaseIndex) + (Double(clampedSchemaIndex) / Double(safeTotalSchemas))) / Double(totalDatabases)
-        return min(max(progress, 0), 1)
+    private func preloadStructure(for connection: SavedConnection, overridePassword: String?) async {
+        guard let credentials = resolvedCredentials(for: connection, overridePassword: overridePassword) else {
+            return
+        }
+
+        do {
+            let structure = try await structureFetcher.fetchStructure(
+                for: connection,
+                credentials: .init(username: credentials.username, password: credentials.password),
+                selectedDatabase: connection.database.isEmpty ? nil : connection.database
+            )
+            cacheStructure(structure, for: connection.id)
+        } catch {
+            print("Failed to preload structure for connection \(connection.connectionName): \(error)")
+        }
     }
+
 }

@@ -23,12 +23,11 @@
    - Split view uses `ResizeHandle`; keep interactive handle cross-platform.
 4. **Theming**
    - All theme-dependent colors live in `ThemeManager`; add new toggles (e.g., alternate row shading) there.
-   - Prefer `Color.primary.opacity(...)` for overlays; keep light/dark legible.
 
 ## Build & Tooling
 - The Codex CLI runs in a sandbox; it cannot write to `~/Library/Caches` (Xcode/SwiftPM caches). Builds that need package resolution must be run locally.
 - When editing, keep files ASCII-only unless the file already uses Unicode symbols.
-- Use Swift 6.1 when applicable, always using the latest code and API's.
+
 
 ## Outstanding Tasks / Ideas
 - Reintroduce folder-aware connection management (see `SidebarModels.swift`).

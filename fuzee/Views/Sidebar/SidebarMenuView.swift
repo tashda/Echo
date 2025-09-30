@@ -4,6 +4,7 @@ struct SidebarMenu: View {
     @Binding var selectedConnectionID: UUID?
     @Binding var selectedIdentityID: UUID?
     @EnvironmentObject var appModel: AppModel
+    @EnvironmentObject var appState: AppState
     let onAddConnection: () -> Void
 
     @State private var selectedNavSection: NavSection = .code
@@ -49,16 +50,9 @@ struct SidebarMenu: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Window controls spacer
-            HStack {
-                Spacer().frame(width: 78)
-                Spacer()
-            }
-            .frame(height: 28)
-
             navigationBar
-                .frame(height: 36)
-                .padding(.horizontal, 12)
+                .frame(height: 28)
+                .padding(.top, 8)
 
             contentView
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -67,25 +61,67 @@ struct SidebarMenu: View {
 
     private var navigationBar: some View {
         HStack(spacing: 0) {
-            HStack(spacing: 2) {
-                ForEach(NavSection.allCases, id: \.rawValue) { section in
-                    Button {
-                        withAnimation(.easeInOut(duration: 0.2)) {
-                            selectedNavSection = section
-                        }
-                    } label: {
-                        Image(systemName: selectedNavSection == section ? section.activeIcon : section.icon)
-                            .font(.system(size: 15, weight: selectedNavSection == section ? .semibold : .regular))
-                            .foregroundStyle(selectedNavSection == section ? .blue : .secondary)
-                            .frame(width: 28, height: 28)
-                    }
-                    .buttonStyle(.borderless)
-                    .help(section.displayName)
-                }
-            }
-            .frame(maxWidth: .infinity)
-
+            xcodeStyleSegmentedControl
+                .frame(maxWidth: .infinity)
         }
+    }
+
+    @ViewBuilder
+    private var xcodeStyleSegmentedControl: some View {
+        RoundedRectangle(cornerRadius: 16, style: .continuous)
+            .fill(.primary.opacity(0.04))
+            .overlay(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .stroke(.primary.opacity(0.08), lineWidth: 0.5)
+            )
+            .overlay(
+                HStack(spacing: 0) {
+                    ForEach(Array(NavSection.allCases.enumerated()), id: \.element.rawValue) { index, section in
+                        // Full-height button that fills the space
+                        Button {
+                            withAnimation(.easeInOut(duration: 0.15)) {
+                                selectedNavSection = section
+                            }
+                        } label: {
+                            ZStack {
+                                // Invisible background for full click area
+                                Rectangle()
+                                    .fill(.clear)
+                                    .contentShape(Rectangle())
+
+                                // Icon centered in the area
+                                Image(systemName: selectedNavSection == section ? section.activeIcon : section.icon)
+                                    .font(.system(size: 14, weight: selectedNavSection == section ? .medium : .regular))
+                                    .foregroundStyle(selectedNavSection == section ? .white : .secondary)
+                            }
+                        }
+                        .buttonStyle(.plain)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .fill(.tint)
+                                .opacity(selectedNavSection == section ? 1 : 0)
+                                .animation(.easeInOut(duration: 0.15), value: selectedNavSection == section)
+                        )
+                        .help(section.displayName)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+                        // Divider after each item (except the last)
+                        if index < NavSection.allCases.count - 1 {
+                            let shouldShowDivider = selectedNavSection != section &&
+                                                   selectedNavSection != NavSection.allCases[index + 1]
+                            Rectangle()
+                                .fill(.primary.opacity(0.15))
+                                .frame(width: 0.5)
+                                .padding(.vertical, 6)
+                                .opacity(shouldShowDivider ? 1 : 0)
+                                .animation(.easeInOut(duration: 0.15), value: shouldShowDivider)
+                        }
+                    }
+                }
+                .padding(.horizontal, 3)
+                .padding(.vertical, 3)
+            )
+            .padding(.horizontal, 6)
     }
 
     @ViewBuilder
@@ -139,6 +175,9 @@ struct SidebarMenu: View {
                 },
                 onMoveFolder: { folderID, parentID in
                     appModel.moveFolder(folderID, toParent: parentID)
+                },
+                onDuplicateConnection: { connection in
+                    Task { await appModel.duplicateConnection(connection) }
                 }
             )
         case .database:

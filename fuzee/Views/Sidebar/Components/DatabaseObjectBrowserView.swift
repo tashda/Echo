@@ -182,33 +182,35 @@ private struct StickyHeader: View {
     @State private var isPinned = false
 
     var body: some View {
-        let cornerRadius: CGFloat = isPinned ? 9 : 4
+        let cornerRadius: CGFloat = isPinned ? 10 : 4
 
         HStack {
             Text(title.uppercased())
                 .font(.system(size: 11, weight: .semibold))
                 .foregroundStyle(.secondary)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background {
+                    if isPinned && isExpanded {
+                        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                            .fill(Color(nsColor: .controlBackgroundColor).opacity(0.85))
+                            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+                    } else {
+                        Color.clear
+                    }
+                }
+                .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+                .overlay {
+                    if isPinned && isExpanded {
+                        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                            .strokeBorder(Color.primary.opacity(0.08), lineWidth: 0.5)
+                    }
+                }
+                .shadow(color: (isPinned && isExpanded) ? .black.opacity(0.15) : .clear, radius: 20, x: 0, y: 8)
+                .shadow(color: (isPinned && isExpanded) ? .black.opacity(0.05) : .clear, radius: 2, x: 0, y: 1)
             Spacer()
         }
         .padding(.horizontal, 12)
-        .padding(.vertical, 4)
-        .background {
-            if isPinned && isExpanded {
-                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-//                    .fill(Color.primary.opacity(0.40))
-                    .fill(.ultraThickMaterial)
-            } else {
-                Color.clear
-            }
-        }
-        .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
-        .overlay {
-            if isPinned && isExpanded {
-                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .stroke(Color.primary.opacity(0.08), lineWidth: 0.5)
-            }
-        }
-        .shadow(color: (isPinned && isExpanded) ? .black.opacity(0.16) : .clear, radius: 10, x: 0, y: 5)
         .contentShape(Rectangle())
         .onTapGesture(perform: onToggle)
         .background(
@@ -372,19 +374,35 @@ private struct DatabaseObjectRow: View {
                         .foregroundStyle(.primary)
                         .lineLimit(1)
                     Spacer(minLength: 0)
-                    Text(column.dataType)
+                    Text(formatDataType(column.dataType))
                         .font(.system(size: 10, weight: .medium))
                         .foregroundStyle(.secondary)
-                        .padding(.horizontal, 4)
-                        .padding(.vertical, 1)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
                         .background(Color.primary.opacity(0.08), in: Capsule())
-                        .frame(minWidth: 60, alignment: .trailing)
                 }
                 .padding(.vertical, 1)
+                .padding(.trailing, 12)
             }
         }
         .padding(.bottom, 4)
         .transition(.opacity.combined(with: .scale(scale: 0.95, anchor: .top)))
+    }
+
+    private func formatDataType(_ dataType: String) -> String {
+        var formatted = dataType
+
+        // Replace "with time zone" with "tz"
+        if formatted.contains("with time zone") {
+            formatted = formatted.replacingOccurrences(of: " with time zone", with: "tz")
+        }
+
+        // Remove "without time zone"
+        if formatted.contains("without time zone") {
+            formatted = formatted.replacingOccurrences(of: " without time zone", with: "")
+        }
+
+        return formatted
     }
 
     @ViewBuilder
@@ -399,27 +417,15 @@ private struct DatabaseObjectRow: View {
     private func queryObjectData() {
         let sql = "SELECT * FROM \(object.fullName) LIMIT 100;"
         Task { @MainActor in
-            do {
-                _ = try await appModel.executeQuery(sql)
-            } catch {
-                print("Query failed: \(error)")
-            }
+            guard let session = appModel.sessionManager.sessionForConnection(connection.id) else { return }
+            appModel.openQueryTab(for: session, presetQuery: sql)
         }
     }
 
     private func viewObjectStructure() {
         Task { @MainActor in
             guard let session = appModel.sessionManager.sessionForConnection(connection.id) else { return }
-            do {
-                let definition = try await session.session.getObjectDefinition(
-                    objectName: object.name,
-                    schemaName: object.schema,
-                    objectType: object.type
-                )
-                print(definition)
-            } catch {
-                print("Structure inspection failed: \(error)")
-            }
+            appModel.openStructureTab(for: session, object: object)
         }
     }
 
