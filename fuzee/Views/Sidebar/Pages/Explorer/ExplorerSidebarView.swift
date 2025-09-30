@@ -4,15 +4,17 @@ struct ExplorerSidebarView: View {
     @Binding var selectedConnectionID: UUID?
 
     @EnvironmentObject private var appModel: AppModel
+    @EnvironmentObject private var appState: AppState
 
     @State private var searchText = ""
     @State private var selectedSchemaName: String?
     @State private var expandedObjectGroups: Set<SchemaObjectInfo.ObjectType> = Set(SchemaObjectInfo.ObjectType.allCases)
     @State private var expandedServerIDs: Set<UUID> = []
     @State private var expandedObjectIDs: Set<String> = []
+    @State private var expandedConnectedServerIDs: Set<UUID> = []
     @State private var isHoveringConnectedServers = false
     @State private var connectedServersHeight: CGFloat = 0
-    @State private var showingConnectionPicker = false
+    @State private var knownSessionIDs: Set<UUID> = []
 
     private var sessions: [ConnectionSession] { appModel.sessionManager.sessions }
 
@@ -21,24 +23,30 @@ struct ExplorerSidebarView: View {
         return appModel.sessionManager.sessionForConnection(id)
     }
 
+    private var sessionAccentColor: Color {
+        selectedSession?.connection.color ?? Color.accentColor
+    }
+
     var body: some View {
         ScrollViewReader { proxy in
             ZStack(alignment: .center) {
                 VStack(spacing: 0) {
                     // Sticky top bar when database is selected and not hovering
                     if let session = selectedSession, session.selectedDatabaseName != nil, !isHoveringConnectedServers {
-                        stickyTopBar
+                        stickyTopBar()
                             .transition(.move(edge: .top).combined(with: .opacity))
                     }
 
                     // Main scroll content
                     ScrollView {
-                        LazyVStack(alignment: .leading, spacing: 18, pinnedViews: .sectionHeaders) {
+                        LazyVStack(alignment: .leading, spacing: 10, pinnedViews: .sectionHeaders) {
                             // Connected Servers section (shown when hovering or no database selected)
                             if isHoveringConnectedServers || selectedSession?.selectedDatabaseName == nil {
                                 Section {
+                                    Color.clear.frame(height: 0)
+                                        .id(ExplorerSidebarConstants.connectedServersAnchor)
+
                                     connectedServersList
-                                        .padding(.top, 12)
                                         .background(
                                             GeometryReader { geo in
                                                 Color.clear.onAppear {
@@ -49,6 +57,7 @@ struct ExplorerSidebarView: View {
                                 } header: {
                                     ExplorerSectionHeader(title: "Connected Servers")
                                         .padding(.horizontal, 16)
+                                        .padding(.top, 4)
                                 }
                                 .transition(.opacity.combined(with: .scale(scale: 0.98, anchor: .top)))
                             }
@@ -58,53 +67,45 @@ struct ExplorerSidebarView: View {
                         .padding(.bottom, 24)
                     }
                     .scrollIndicators(.hidden)
+                    .contentShape(Rectangle())
                     .coordinateSpace(name: ExplorerSidebarConstants.scrollCoordinateSpace)
                     .onAppear(perform: syncSelectionWithSessions)
-                    .onChange(of: sessions.map { $0.connection.id }) { _ in
+                    .onChange(of: sessions.map { $0.connection.id }) {
                         syncSelectionWithSessions()
                     }
-                    .onChange(of: selectedConnectionID) { newValue in
+                    .onChange(of: selectedConnectionID) { _, newValue in
                         guard let id = newValue,
                               let session = appModel.sessionManager.sessionForConnection(id) else { return }
                         appModel.sessionManager.setActiveSession(session.id)
                         ensureServerExpanded(for: id)
                         resetFilters()
-                        withAnimation(.easeInOut(duration: 0.35)) {
-                            proxy.scrollTo(ExplorerSidebarConstants.objectsTopAnchor, anchor: .top)
+                        if !isHoveringConnectedServers {
+                            withAnimation(.easeInOut(duration: 0.35)) {
+                                proxy.scrollTo(ExplorerSidebarConstants.objectsTopAnchor, anchor: .top)
+                            }
                         }
                     }
-                    .onChange(of: selectedSession?.selectedDatabaseName ?? "") { _ in
-                        withAnimation(.easeInOut(duration: 0.35)) {
-                            proxy.scrollTo(ExplorerSidebarConstants.objectsTopAnchor, anchor: .top)
+                    .onChange(of: selectedSession?.selectedDatabaseName ?? "") {
+                        let hasDatabase = selectedSession?.selectedDatabaseName != nil
+                        if !hasDatabase {
+                            withAnimation(.easeInOut(duration: 0.3)) {
+                                isHoveringConnectedServers = true
+                            }
+                        } else if !isHoveringConnectedServers {
+                            withAnimation(.easeInOut(duration: 0.35)) {
+                                proxy.scrollTo(ExplorerSidebarConstants.objectsTopAnchor, anchor: .top)
+                            }
                         }
                     }
-                    .onChange(of: selectedSchemaName) { _ in
+                    .onChange(of: selectedSchemaName) {
                         expandedObjectIDs.removeAll()
                         withAnimation(.easeInOut(duration: 0.35)) {
                             proxy.scrollTo(ExplorerSidebarConstants.objectsTopAnchor, anchor: .top)
                         }
                     }
-                    .onChange(of: searchText) { _ in
+                    .onChange(of: searchText) {
                         withAnimation(.easeInOut(duration: 0.25)) {
                             proxy.scrollTo(ExplorerSidebarConstants.objectsTopAnchor, anchor: .top)
-                        }
-                    }
-                    // Hover detection for connected servers
-                    .onContinuousHover { phase in
-                        switch phase {
-                        case .active(let location):
-                            let shouldHover = location.y < connectedServersHeight + 60 // Adding some buffer
-                            if shouldHover != isHoveringConnectedServers {
-                                withAnimation(.easeInOut(duration: 0.3)) {
-                                    isHoveringConnectedServers = shouldHover
-                                }
-                            }
-                        case .ended:
-                            if isHoveringConnectedServers {
-                                withAnimation(.easeInOut(duration: 0.3)) {
-                                    isHoveringConnectedServers = false
-                                }
-                            }
                         }
                     }
                 }
@@ -114,30 +115,62 @@ struct ExplorerSidebarView: View {
             .safeAreaInset(edge: .bottom) {
                 bottomControls
             }
-            .sheet(isPresented: $showingConnectionPicker) {
-                // TODO: Connection picker sheet
-                Text("Connection Picker Coming Soon")
-                    .padding()
-            }
         }
     }
 
     // MARK: - Connection Management
 
     private func connectToSavedConnection(_ connection: SavedConnection) async {
-        // This would integrate with the existing connection logic
-        // For now, we'll show that the intent is there
-        print("Connecting to: \(connection.connectionName)")
+        await MainActor.run {
+            withAnimation(.easeInOut(duration: 0.3)) {
+                isHoveringConnectedServers = true
+            }
+        }
+
+        await appModel.connect(to: connection)
+
+        await MainActor.run {
+            withAnimation(.easeInOut(duration: 0.3)) {
+                expandedConnectedServerIDs.insert(connection.id)
+            }
+            selectedConnectionID = connection.id
+        }
     }
 
     @ViewBuilder
     private var connectedServersList: some View {
         if sessions.isEmpty {
             VStack(spacing: 16) {
-                Button("Connect to Server") {
-                    showingConnectionPicker = true
+                Menu {
+                    Button("New Connection…") {
+                        appState.showSheet(.connectionEditor)
+                    }
+
+                    if !appModel.connections.isEmpty {
+                        Divider()
+                        Menu("Saved Connections") {
+                            savedConnectionsMenuItems(parentID: nil)
+                        }
+                    }
+                } label: {
+                    HStack(spacing: 10) {
+                        Image(systemName: "server.rack")
+                            .font(.system(size: 16, weight: .semibold))
+                        Text("Connect to Server")
+                            .font(.system(size: 14, weight: .semibold))
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
+                    .background(
+                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            .fill(.ultraThinMaterial)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                    .stroke(Color.primary.opacity(0.2), lineWidth: 1)
+                            )
+                    )
                 }
-                .buttonStyle(.borderedProminent)
+                .menuStyle(.borderlessButton)
 
                 VStack(spacing: 12) {
                     Image(systemName: "externaldrive")
@@ -151,116 +184,168 @@ struct ExplorerSidebarView: View {
             .frame(maxWidth: .infinity)
             .padding(.vertical, 32)
         } else {
-            VStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 4) {
                 ForEach(sessions, id: \.connection.id) { session in
                     LiquidGlassServerCard(
                         session: session,
                         isSelected: session.connection.id == selectedConnectionID,
-                        onSelectServer: { selectSession(session) },
-                        onSelectDatabase: { handleDatabaseSelection($0, in: session) }
+                        isExpanded: Binding(
+                            get: { expandedConnectedServerIDs.contains(session.connection.id) },
+                            set: { isExpanded in
+                                if isExpanded {
+                                    expandedConnectedServerIDs.insert(session.connection.id)
+                                } else {
+                                    expandedConnectedServerIDs.remove(session.connection.id)
+                                }
+                            }
+                        ),
+                        onSelectServer: {
+                            let isExpandedNow = expandedConnectedServerIDs.contains(session.connection.id)
+                            withAnimation(.easeInOut(duration: 0.3)) {
+                                if isExpandedNow {
+                                    isHoveringConnectedServers = true
+                                } else if selectedSession?.selectedDatabaseName == nil {
+                                    isHoveringConnectedServers = true
+                                } else {
+                                    isHoveringConnectedServers = false
+                                }
+                            }
+                            if selectedConnectionID != session.connection.id {
+                                selectSession(session)
+                            }
+                        },
+                        onSelectDatabase: { database in
+                            handleDatabaseSelection(database, in: session)
+                        },
+                        onRefresh: {
+                            withAnimation(.easeInOut(duration: 0.3)) {
+                                isHoveringConnectedServers = true
+                                expandedConnectedServerIDs.insert(session.connection.id)
+                            }
+                            Task {
+                                await appModel.refreshDatabaseStructure(for: session.id, scope: .full)
+                            }
+                        },
+                        onDisconnect: {
+                            Task {
+                                await appModel.disconnectSession(withID: session.id)
+                            }
+                        }
                     )
                     .environmentObject(appModel)
                 }
 
-                // Add new server connection button
                 Menu {
-                    // Recent connections from saved connections
+                    Button("New Connection…") {
+                        appState.showSheet(.connectionEditor)
+                    }
+
                     if !appModel.connections.isEmpty {
-                        Section("Saved Connections") {
-                            ForEach(appModel.connections.prefix(5), id: \.id) { connection in
-                                Button {
-                                    Task {
-                                        await connectToSavedConnection(connection)
-                                    }
-                                } label: {
-                                    Label(connection.connectionName, systemImage: connection.databaseType.iconName)
-                                }
-                            }
-                        }
                         Divider()
-                    }
-
-                    Button("New Connection...") {
-                        showingConnectionPicker = true
-                    }
-
-                    Button("Browse Saved Connections...") {
-                        // TODO: Switch to connections tab
+                        Menu("Saved Connections") {
+                            savedConnectionsMenuItems(parentID: nil)
+                        }
                     }
                 } label: {
                     HStack(spacing: 12) {
-                        Image(systemName: "plus.circle.fill")
-                            .font(.system(size: 15, weight: .medium))
-                            .foregroundStyle(.secondary)
+                        Image(systemName: "server.rack")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(sessionAccentColor)
+                            .frame(width: 20, height: 20)
+                            .background(
+                                Circle()
+                                    .fill(sessionAccentColor.opacity(0.18))
+                            )
                         Text("Connect to Server")
-                            .font(.system(size: 13, weight: .medium))
-                            .foregroundStyle(.secondary)
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(.primary)
                         Spacer()
+                        Image(systemName: "chevron.down")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(.secondary)
                     }
-                    .padding(.horizontal, 16)
+                    .padding(.horizontal, 18)
                     .padding(.vertical, 12)
                     .background(
-                        RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .stroke(.quaternary, lineWidth: 1)
-                            .background(
-                                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                    .fill(.ultraThinMaterial)
+                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            .fill(.ultraThinMaterial)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                    .stroke(sessionAccentColor.opacity(0.25), lineWidth: 1)
                             )
                     )
+                    .shadow(color: .black.opacity(0.12), radius: 12, x: 0, y: 6)
                 }
                 .menuStyle(.borderlessButton)
-                .padding(.horizontal, 16)
+                .frame(maxWidth: .infinity)
+                .padding(.horizontal, 12)
             }
-            .padding(.horizontal, 16)
+            .padding(.horizontal, 12)
         }
     }
 
     @ViewBuilder
     private func explorerContent(proxy: ScrollViewProxy) -> some View {
-        if let session = selectedSession {
-            switch session.structureLoadingState {
-            case .ready, .loading:
-                if let structure = session.databaseStructure,
-                   let database = selectedDatabase(in: structure, for: session) {
-                    VStack(spacing: 16) {
-                        Color.clear.frame(height: 0)
-                            .id(ExplorerSidebarConstants.objectsTopAnchor)
+        Group {
+            if let session = selectedSession {
+                switch session.structureLoadingState {
+                case .ready, .loading:
+                    if let structure = session.databaseStructure,
+                       let database = selectedDatabase(in: structure, for: session) {
+                        VStack(spacing: 16) {
+                            Color.clear.frame(height: 0)
+                                .id(ExplorerSidebarConstants.objectsTopAnchor)
 
-                        DatabaseObjectBrowserView(
-                            database: database,
-                            connection: session.connection,
-                            searchText: $searchText,
-                            selectedSchemaName: $selectedSchemaName,
-                            expandedObjectGroups: $expandedObjectGroups,
-                            expandedObjectIDs: $expandedObjectIDs,
-                            coordinateSpaceName: ExplorerSidebarConstants.scrollCoordinateSpace,
-                            scrollTo: { id, anchor in
-                                withAnimation(.easeInOut(duration: 0.3)) {
-                                    proxy.scrollTo(id, anchor: anchor)
+                            DatabaseObjectBrowserView(
+                                database: database,
+                                connection: session.connection,
+                                searchText: $searchText,
+                                selectedSchemaName: $selectedSchemaName,
+                                expandedObjectGroups: $expandedObjectGroups,
+                                expandedObjectIDs: $expandedObjectIDs,
+                                coordinateSpaceName: ExplorerSidebarConstants.scrollCoordinateSpace,
+                                scrollTo: { id, anchor in
+                                    withAnimation(.easeInOut(duration: 0.3)) {
+                                        proxy.scrollTo(id, anchor: anchor)
+                                    }
                                 }
-                            }
-                        )
-                        .environmentObject(appModel)
-                        .padding(.horizontal, 12)
+                            )
+                            .environmentObject(appModel)
+                            .padding(.horizontal, 12)
+                        }
+                    } else if let structure = session.databaseStructure,
+                              !structure.databases.isEmpty {
+                        noDatabaseSelectedView
+                            .padding(.horizontal, 16)
+                            .padding(.top, 24)
+                    } else {
+                        loadingPlaceholder("Preparing database structure…")
+                            .padding(.horizontal, 16)
+                            .padding(.top, 24)
                     }
-                } else {
-                    loadingPlaceholder("Preparing database structure…")
+                case .idle:
+                    loadingPlaceholder("Waiting to load database structure…")
+                        .padding(.horizontal, 16)
+                        .padding(.top, 24)
+                case .failed(let message):
+                    failureView(message: message)
                         .padding(.horizontal, 16)
                         .padding(.top, 24)
                 }
-            case .idle:
-                loadingPlaceholder("Waiting to load database structure…")
+            } else {
+                emptyStateView
                     .padding(.horizontal, 16)
-                    .padding(.top, 24)
-            case .failed(let message):
-                failureView(message: message)
-                    .padding(.horizontal, 16)
-                    .padding(.top, 24)
+                    .padding(.top, 32)
             }
-        } else {
-            emptyStateView
-                .padding(.horizontal, 16)
-                .padding(.top, 32)
+        }
+        .contentShape(Rectangle())
+        .onTapGesture {
+            guard let session = selectedSession, session.selectedDatabaseName != nil else { return }
+            if isHoveringConnectedServers {
+                withAnimation(.easeInOut(duration: 0.25)) {
+                    isHoveringConnectedServers = false
+                }
+            }
         }
     }
 
@@ -301,9 +386,40 @@ struct ExplorerSidebarView: View {
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 12)
-                .background(Color.primary.opacity(0.40))
-                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                .shadow(color: .black.opacity(0.12), radius: 14, x: 0, y: 6)
+                .background(
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .fill(
+                            appModel.useServerColorAsAccent ?
+                            LinearGradient(
+                                gradient: Gradient(colors: [
+                                    Color(nsColor: .controlBackgroundColor).opacity(0.85),
+                                    session.connection.color.opacity(0.08)
+                                ]),
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            ) :
+                            LinearGradient(
+                                gradient: Gradient(colors: [
+                                    Color(nsColor: .controlBackgroundColor).opacity(0.85),
+                                    Color(nsColor: .controlBackgroundColor).opacity(0.85)
+                                ]),
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .strokeBorder(
+                            appModel.useServerColorAsAccent ?
+                            session.connection.color.opacity(0.15) :
+                            Color.primary.opacity(0.08),
+                            lineWidth: 0.5
+                        )
+                )
+                .shadow(color: .black.opacity(0.15), radius: 20, x: 0, y: 8)
+                .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
             }
             .padding(.horizontal, 8)
             .padding(.top, 10)
@@ -316,7 +432,13 @@ struct ExplorerSidebarView: View {
            let match = structure.databases.first(where: { $0.name == selectedName }) {
             return match
         }
-        return structure.databases.first
+
+        if !session.connection.database.isEmpty,
+           let match = structure.databases.first(where: { $0.name == session.connection.database }) {
+            return match
+        }
+
+        return nil
     }
 
     private func selectSession(_ session: ConnectionSession) {
@@ -331,6 +453,10 @@ struct ExplorerSidebarView: View {
             selectedConnectionID = session.connection.id
             ensureServerExpanded(for: session.connection.id)
             resetFilters()
+            withAnimation(.easeInOut(duration: 0.3)) {
+                isHoveringConnectedServers = false
+                expandedConnectedServerIDs.removeAll()
+            }
         }
     }
 
@@ -352,6 +478,13 @@ struct ExplorerSidebarView: View {
         expandedServerIDs = expandedServerIDs.filter { id in
             sessions.contains { $0.connection.id == id }
         }
+
+        let currentIDs = Set(sessions.map { $0.connection.id })
+        if knownSessionIDs.isEmpty && !currentIDs.isEmpty {
+            isHoveringConnectedServers = true
+            expandedConnectedServerIDs.formUnion(currentIDs)
+        }
+        knownSessionIDs = currentIDs
 
         if selectedConnectionID == nil || !sessions.contains(where: { $0.connection.id == selectedConnectionID }) {
             selectedConnectionID = sessions.first?.connection.id
@@ -405,6 +538,22 @@ struct ExplorerSidebarView: View {
         .padding(.vertical, 32)
     }
 
+    private var noDatabaseSelectedView: some View {
+        VStack(spacing: 14) {
+            Image(systemName: "cylinder.split.1x2")
+                .font(.system(size: 28, weight: .semibold))
+                .foregroundStyle(.secondary)
+            Text("Select a Database")
+                .font(.system(size: 15, weight: .semibold))
+            Text("Choose a database from the Currently Connected Servers list to browse schemas and objects.")
+                .font(.system(size: 12))
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: 220)
+        }
+        .padding(.vertical, 32)
+    }
+
     private var emptyStateView: some View {
         VStack(spacing: 16) {
             Image(systemName: "server.rack")
@@ -429,59 +578,228 @@ struct ExplorerSidebarView: View {
     // MARK: - Sticky Top Bar
 
     @ViewBuilder
-    private var stickyTopBar: some View {
+    private func stickyTopBar() -> some View {
         if let session = selectedSession, let databaseName = session.selectedDatabaseName {
-            HStack(spacing: 12) {
-                // Server icon
-                ZStack {
-                    RoundedRectangle(cornerRadius: 6, style: .continuous)
-                        .fill(session.connection.color.opacity(0.15))
-                        .frame(width: 24, height: 24)
-                    Image(systemName: session.connection.databaseType.iconName)
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundStyle(session.connection.color)
-                }
-
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(session.connection.connectionName)
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(.primary)
-                        .lineLimit(1)
-                    Text(databaseName)
-                        .font(.system(size: 10, weight: .medium))
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                }
-
-                Spacer()
-
-                Button {
+            StickyTopBarContent(
+                session: session,
+                databaseName: databaseName,
+                onTap: {
+                    withAnimation(.easeInOut(duration: 0.3)) {
+                        let shouldOpen = !isHoveringConnectedServers
+                        isHoveringConnectedServers = shouldOpen
+                        if shouldOpen {
+                            expandedConnectedServerIDs.insert(session.connection.id)
+                        }
+                    }
+                },
+                onRefresh: {
                     withAnimation(.easeInOut(duration: 0.3)) {
                         isHoveringConnectedServers = true
+                        expandedConnectedServerIDs.insert(session.connection.id)
                     }
-                } label: {
-                    Image(systemName: "chevron.down")
-                        .font(.system(size: 10, weight: .medium))
-                        .foregroundStyle(.secondary)
+                    Task {
+                        await appModel.refreshDatabaseStructure(
+                            for: session.id,
+                            scope: .selectedDatabase,
+                            databaseOverride: session.selectedDatabaseName
+                        )
+                    }
                 }
-                .buttonStyle(.plain)
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 8)
-            .background(.ultraThinMaterial, in: Rectangle())
-            .overlay(
-                Rectangle()
-                    .frame(height: 0.5)
-                    .foregroundStyle(.quaternary),
-                alignment: .bottom
             )
+            .environmentObject(appModel)
         }
+    }
+}
+
+// MARK: - Sticky Top Bar Content
+
+private struct StickyTopBarContent: View {
+    @ObservedObject var session: ConnectionSession
+    let databaseName: String
+    let onTap: () -> Void
+    let onRefresh: () -> Void
+
+    @EnvironmentObject private var appModel: AppModel
+    @State private var isHovered = false
+
+    private var progressValue: Double? {
+        if case .loading(let value) = session.structureLoadingState {
+            return value
+        }
+        return nil
+    }
+
+    private var isUpdating: Bool {
+        if case .loading = session.structureLoadingState {
+            return true
+        }
+        return false
+    }
+
+    private var updateMessage: String {
+        session.structureLoadingMessage ?? "Updating…"
+    }
+
+    var body: some View {
+        Button(action: onTap) {
+            VStack(alignment: .leading, spacing: isUpdating ? 12 : 0) {
+                HStack(spacing: 12) {
+                    // Server logo/icon
+                    if let logoData = session.connection.logo, let nsImage = NSImage(data: logoData) {
+                        Image(nsImage: nsImage)
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(width: 28, height: 28)
+                            .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+                    } else {
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                .fill(session.connection.color.opacity(0.15))
+                                .frame(width: 28, height: 28)
+                            Image(systemName: session.connection.databaseType.iconName)
+                                .font(.system(size: 13, weight: .medium))
+                                .foregroundStyle(session.connection.color)
+                        }
+                    }
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        HStack(spacing: 6) {
+                            Text(session.connection.connectionName)
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(.primary)
+                                .lineLimit(1)
+
+                            if let version = session.connection.serverVersion {
+                                Text("•")
+                                    .font(.system(size: 10, weight: .medium))
+                                    .foregroundStyle(.tertiary)
+                                Text(version)
+                                    .font(.system(size: 10, weight: .medium))
+                                    .foregroundStyle(.tertiary)
+                                    .lineLimit(1)
+                            }
+                        }
+
+                        Text("\(session.connection.username)@\(session.connection.host)")
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+
+                    Spacer()
+
+                    // Refresh button (visible on hover)
+                    if isHovered {
+                        Button(action: {
+                            onRefresh()
+                        }) {
+                            Image(systemName: "arrow.clockwise")
+                                .font(.system(size: 11, weight: .medium))
+                                .foregroundStyle(.secondary)
+                                .frame(width: 24, height: 24)
+                                .background(
+                                    Circle()
+                                        .fill(Color.primary.opacity(0.06))
+                                )
+                        }
+                        .buttonStyle(.plain)
+                        .transition(.scale.combined(with: .opacity))
+                    }
+
+                    // Database bubble with context menu
+                    Text(databaseName)
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundStyle(.primary)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                    .background(
+                        Capsule()
+                            .fill(Color(nsColor: .controlBackgroundColor).opacity(0.6))
+                            .background(.ultraThinMaterial, in: Capsule())
+                    )
+                    .overlay(
+                        Capsule()
+                            .strokeBorder(session.connection.color.opacity(0.2), lineWidth: 0.5)
+                    )
+                    .shadow(color: session.connection.color.opacity(0.1), radius: 4, x: 0, y: 2)
+                    .contextMenu {
+                        if let structure = session.databaseStructure {
+                            ForEach(structure.databases, id: \.name) { database in
+                                Button(database.name) {
+                                    Task { @MainActor in
+                                        await appModel.loadSchemaForDatabase(database.name, connectionSession: session)
+                                    }
+                                }
+                            }
+                        }
+                    }
+            }
+                if isUpdating {
+                    VStack(alignment: .leading, spacing: 4) {
+                        ProgressView(value: min(max(progressValue ?? 0, 0), 1), total: 1)
+                            .progressViewStyle(.linear)
+                            .tint(session.connection.color)
+                        Text(updateMessage)
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundStyle(.secondary)
+                    }
+                    .transition(.opacity.combined(with: .move(edge: .bottom)))
+                }
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, isUpdating ? 16 : 12)
+            .background(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(
+                        appModel.useServerColorAsAccent ?
+                        LinearGradient(
+                            gradient: Gradient(colors: [
+                                Color(nsColor: .controlBackgroundColor).opacity(0.85),
+                                session.connection.color.opacity(0.08)
+                            ]),
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        ) :
+                        LinearGradient(
+                            gradient: Gradient(colors: [
+                                Color(nsColor: .controlBackgroundColor).opacity(0.85),
+                                Color(nsColor: .controlBackgroundColor).opacity(0.85)
+                            ]),
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .strokeBorder(
+                        appModel.useServerColorAsAccent ?
+                        session.connection.color.opacity(0.15) :
+                        Color.primary.opacity(0.08),
+                        lineWidth: 0.5
+                    )
+            )
+            .shadow(color: .black.opacity(0.15), radius: 20, x: 0, y: 8)
+            .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
+            .animation(.easeInOut(duration: 0.2), value: isUpdating)
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering in
+            withAnimation(.easeInOut(duration: 0.2)) {
+                isHovered = hovering
+            }
+        }
+        .padding(.horizontal, 8)
+        .padding(.top, 20)
+        .padding(.bottom, 8)
     }
 }
 
 private enum ExplorerSidebarConstants {
     static let scrollCoordinateSpace = "ExplorerSidebarScrollSpace"
     static let objectsTopAnchor = "ExplorerSidebarObjectsTop"
+    static let connectedServersAnchor = "ExplorerSidebarConnectedServers"
 }
 
 // MARK: - Section Header
@@ -496,8 +814,43 @@ private struct ExplorerSectionHeader: View {
                 .foregroundStyle(.secondary)
             Spacer()
         }
-        .padding(.bottom, 4)
+        .padding(.bottom, 2)
         .background(Color.clear)
+    }
+}
+
+// MARK: - Saved Connections Menu
+
+extension ExplorerSidebarView {
+    private func savedConnectionsMenuItems(parentID: UUID?) -> AnyView {
+        let folders = appModel.folders
+            .filter { $0.kind == .connections && $0.parentFolderID == parentID }
+            .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+
+        let connections = appModel.connections
+            .filter { $0.folderID == parentID }
+            .sorted { $0.connectionName.localizedCaseInsensitiveCompare($1.connectionName) == .orderedAscending }
+
+        return AnyView(
+            Group {
+                ForEach(folders, id: \.id) { folder in
+                    Menu(folder.name) {
+                        savedConnectionsMenuItems(parentID: folder.id)
+                    }
+                }
+
+                ForEach(connections, id: \.id) { connection in
+                    Button(connection.connectionName.isEmpty ? connection.host : connection.connectionName) {
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            isHoveringConnectedServers = true
+                        }
+                        Task {
+                            await connectToSavedConnection(connection)
+                        }
+                    }
+                }
+            }
+        )
     }
 }
 
@@ -553,12 +906,6 @@ private struct SchemaPicker: View {
         .labelsHidden()
         .pickerStyle(.menu)
         .font(.system(size: 11))
-        .padding(.horizontal, 10)
-        .padding(.vertical, 6)
-        .background(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(Color.primary.opacity(0.05))
-        )
     }
 }
 
@@ -567,12 +914,14 @@ private struct SchemaPicker: View {
 private struct LiquidGlassServerCard: View {
     let session: ConnectionSession
     let isSelected: Bool
+    @Binding var isExpanded: Bool
     let onSelectServer: () -> Void
     let onSelectDatabase: (String) -> Void
+    let onRefresh: () -> Void
+    let onDisconnect: () -> Void
 
     @EnvironmentObject private var appModel: AppModel
     @State private var isHovered = false
-    @State private var showingDatabasePicker = false
 
     private var availableDatabases: [DatabaseInfo] {
         if let structure = session.databaseStructure {
@@ -584,141 +933,410 @@ private struct LiquidGlassServerCard: View {
         return []
     }
 
+    private var progressValue: Double? {
+        if case .loading(let value) = session.structureLoadingState {
+            return value
+        }
+        return nil
+    }
+
+    private var isUpdating: Bool {
+        if case .loading = session.structureLoadingState {
+            return true
+        }
+        return false
+    }
+
+    private var shouldShowUpdateIndicator: Bool { isUpdating }
+
     var body: some View {
-        Button {
-            onSelectServer()
-        } label: {
-            HStack(spacing: 12) {
-                // Connection icon with Liquid Glass styling
-                ZStack {
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .fill(.ultraThinMaterial)
-                        .frame(width: 36, height: 36)
-                        .background(
-                            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                .fill(session.connection.color.opacity(0.1))
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                .strokeBorder(session.connection.color.opacity(0.2), lineWidth: 1)
-                        )
-
-                    Image(systemName: session.connection.databaseType.iconName)
-                        .font(.system(size: 16, weight: .medium))
-                        .foregroundStyle(session.connection.color)
+        VStack(spacing: 0) {
+            Button {
+                let targetExpanded = !isExpanded
+                withAnimation(.spring(response: 0.32, dampingFraction: 0.85)) {
+                    isExpanded = targetExpanded
                 }
-                .shadow(color: session.connection.color.opacity(0.2), radius: 4, x: 0, y: 2)
-
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(session.connection.connectionName)
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(.primary)
-                        .lineLimit(1)
-                    Text("\(session.connection.username)@\(session.connection.host)")
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
+                onSelectServer()
+            } label: {
+                cardContent
+            }
+            .buttonStyle(.plain)
+            .onHover { hovering in
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    isHovered = hovering
                 }
-
-                Spacer(minLength: 8)
-
-                // Database selector
-                if let currentDB = session.selectedDatabaseName {
-                    // Currently selected database with context menu
-                    Button {
-                        // This will be handled by context menu
-                    } label: {
-                        HStack(spacing: 6) {
-                            Circle()
-                                .fill(session.connection.color)
-                                .frame(width: 6, height: 6)
-                            Text(currentDB)
-                                .font(.system(size: 11, weight: .medium))
-                                .foregroundStyle(.primary)
-                                .lineLimit(1)
-                        }
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
-                        .background(
-                            Capsule()
-                                .fill(.ultraThinMaterial)
-                                .overlay(
-                                    Capsule()
-                                        .strokeBorder(session.connection.color.opacity(0.3), lineWidth: 0.5)
-                                )
-                        )
-                        .shadow(color: session.connection.color.opacity(0.15), radius: 2, x: 0, y: 1)
-                    }
-                    .buttonStyle(.plain)
-                    .contextMenu {
-                        if !availableDatabases.isEmpty {
-                            ForEach(availableDatabases, id: \.name) { database in
-                                Button(database.name) {
-                                    onSelectDatabase(database.name)
-                                }
-                            }
-                        }
-                    }
-                } else {
-                    // No database selected - show database picker icon
-                    Button {
-                        // Show database picker
-                    } label: {
-                        Image(systemName: "cylinder")
-                            .font(.system(size: 12, weight: .medium))
-                            .foregroundStyle(.tertiary)
-                            .frame(width: 24, height: 24)
-                            .background(
-                                Circle()
-                                    .fill(.ultraThinMaterial)
-                                    .overlay(
-                                        Circle()
-                                            .strokeBorder(.quaternary, lineWidth: 0.5)
-                                    )
-                            )
-                    }
-                    .buttonStyle(.plain)
-                    .contextMenu {
-                        if !availableDatabases.isEmpty {
-                            ForEach(availableDatabases, id: \.name) { database in
-                                Button(database.name) {
-                                    onSelectDatabase(database.name)
-                                }
-                            }
+            }
+            .contextMenu {
+                Button("Refresh") {
+                    onRefresh()
+                }
+                Button("Disconnect") {
+                    onDisconnect()
+                }
+                Divider()
+                if !availableDatabases.isEmpty {
+                    ForEach(availableDatabases, id: \.name) { database in
+                        Button(database.name) {
+                            onSelectDatabase(database.name)
                         }
                     }
                 }
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
+
+            // Expanded database list
+            if isExpanded && !availableDatabases.isEmpty {
+                databaseList
+                    .transition(.opacity.combined(with: .scale(scale: 0.98, anchor: .top)))
+            }
+        }
+        .onChange(of: session.structureLoadingState) { _, newValue in
+            if case .loading = newValue, isSelected, !isExpanded {
+                withAnimation(.spring(response: 0.32, dampingFraction: 0.85)) {
+                    isExpanded = true
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var cardContent: some View {
+        VStack(alignment: .leading, spacing: shouldShowUpdateIndicator ? 12 : 0) {
+            HStack(spacing: 12) {
+                connectionIcon
+                connectionInfo
+                Spacer(minLength: 8)
+                if isHovered || isUpdating {
+                    refreshButton
+                }
+                databaseSelector
+            }
+
+            if shouldShowUpdateIndicator {
+                updatingIndicator
+                    .transition(.opacity.combined(with: .move(edge: .bottom)))
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, shouldShowUpdateIndicator ? 16 : 12)
+        .background(cardBackground)
+        .shadow(color: .black.opacity(0.15), radius: 20, x: 0, y: 8)
+        .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
+        .animation(.easeInOut(duration: 0.2), value: shouldShowUpdateIndicator)
+    }
+
+    @ViewBuilder
+    private var updatingIndicator: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            if let progressValue {
+                ProgressView(value: min(max(progressValue, 0), 1), total: 1)
+                    .progressViewStyle(.linear)
+                    .tint(session.connection.color)
+            } else {
+                ProgressView()
+                    .progressViewStyle(.linear)
+                    .tint(session.connection.color)
+            }
+            Text(session.structureLoadingMessage ?? "Updating…")
+                .font(.system(size: 10, weight: .medium))
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    @ViewBuilder
+    private var connectionIcon: some View {
+        if let logoData = session.connection.logo, let nsImage = NSImage(data: logoData) {
+            Image(nsImage: nsImage)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(width: 28, height: 28)
+                .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+        } else {
+            ZStack {
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .fill(session.connection.color.opacity(0.15))
+                    .frame(width: 28, height: 28)
+                Image(systemName: session.connection.databaseType.iconName)
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(session.connection.color)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var connectionInfo: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            HStack(spacing: 6) {
+                Text(session.connection.connectionName)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+
+                if let version = session.connection.serverVersion {
+                    Text("•")
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundStyle(.tertiary)
+                    Text(version)
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundStyle(.tertiary)
+                        .lineLimit(1)
+                }
+            }
+
+            Text("\(session.connection.username)@\(session.connection.host)")
+                .font(.system(size: 10, weight: .medium))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+        }
+    }
+
+    @ViewBuilder
+    private var databaseSelector: some View {
+        if availableDatabases.count == 1 {
+            // Single database - show as selected bubble
+            if let currentDB = session.selectedDatabaseName {
+                selectedDatabaseBubble(currentDB)
+            }
+        } else if availableDatabases.count > 1 {
+            // Multiple databases - show count badge
+            Menu {
+                ForEach(availableDatabases, id: \.name) { database in
+                    Button(database.name) {
+                        onSelectDatabase(database.name)
+                    }
+                }
+            } label: {
+                HStack(spacing: 4) {
+                    Image(systemName: "cylinder.fill")
+                        .font(.system(size: 9, weight: .medium))
+                    Text("\(availableDatabases.count)")
+                        .font(.system(size: 10, weight: .semibold))
+                }
+                .foregroundStyle(.primary)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 5)
+                .background(
+                    Capsule()
+                        .fill(Color(nsColor: .controlBackgroundColor).opacity(0.6))
+                        .background(.ultraThinMaterial, in: Capsule())
+                )
+                .overlay(
+                    Capsule()
+                        .strokeBorder(session.connection.color.opacity(0.2), lineWidth: 0.5)
+                )
+                .shadow(color: session.connection.color.opacity(0.1), radius: 4, x: 0, y: 2)
+            }
+            .menuStyle(.borderlessButton)
+        }
+    }
+
+    private var refreshButton: some View {
+        Button(action: onRefresh) {
+            Image(systemName: "arrow.clockwise")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(.secondary)
+                .frame(width: 22, height: 22)
+                .background(
+                    Circle()
+                        .fill(Color.primary.opacity(0.08))
+                )
+        }
+        .buttonStyle(.plain)
+    }
+
+    @ViewBuilder
+    private func selectedDatabaseBubble(_ databaseName: String) -> some View {
+        Text(databaseName)
+            .font(.system(size: 10, weight: .medium))
+            .foregroundStyle(.primary)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 5)
             .background(
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(.ultraThinMaterial)
-                    .background(
-                        RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .fill(isSelected ? session.connection.color.opacity(0.08) : Color.clear)
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .strokeBorder(
-                                isSelected ? session.connection.color.opacity(0.3) : .quaternary,
-                                lineWidth: isSelected ? 1 : 0.5
-                            )
-                    )
+                Capsule()
+                    .fill(Color(nsColor: .controlBackgroundColor).opacity(0.6))
+                    .background(.ultraThinMaterial, in: Capsule())
             )
-            .scaleEffect(isHovered ? 1.02 : 1.0)
-            .shadow(
-                color: .black.opacity(isHovered ? 0.1 : 0.03),
-                radius: isHovered ? 8 : 3,
-                x: 0,
-                y: isHovered ? 4 : 1
+            .overlay(
+                Capsule()
+                    .strokeBorder(session.connection.color.opacity(0.2), lineWidth: 0.5)
+            )
+            .shadow(color: session.connection.color.opacity(0.1), radius: 4, x: 0, y: 2)
+    }
+
+    @ViewBuilder
+    private var cardBackground: some View {
+        RoundedRectangle(cornerRadius: 14, style: .continuous)
+            .fill(
+                LinearGradient(
+                    gradient: Gradient(colors: [
+                        Color(nsColor: .controlBackgroundColor).opacity(0.85),
+                        Color(nsColor: .controlBackgroundColor).opacity(0.85)
+                    ]),
+                    startPoint: .leading,
+                    endPoint: .trailing
+                )
+            )
+            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .strokeBorder(Color.primary.opacity(0.08), lineWidth: 0.5)
+            )
+    }
+
+    @ViewBuilder
+    private var databaseList: some View {
+        VStack(spacing: 4) {
+            ForEach(availableDatabases, id: \.name) { database in
+                DatabaseBubble(
+                    database: database,
+                    isSelected: database.name == session.selectedDatabaseName,
+                    serverColor: session.connection.color,
+                    onSelect: { onSelectDatabase(database.name) },
+                    onRefresh: {
+                        Task {
+                            await appModel.refreshDatabaseStructure(
+                                for: session.id,
+                                scope: .selectedDatabase,
+                                databaseOverride: database.name
+                            )
+                        }
+                    }
+                )
+            }
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+    }
+
+    private func databaseStats(for database: DatabaseInfo) -> (tables: Int, views: Int, functions: Int, triggers: Int) {
+        var tables = 0
+        var views = 0
+        var functions = 0
+        var triggers = 0
+
+        for schema in database.schemas {
+            for object in schema.objects {
+                switch object.type {
+                case .table:
+                    tables += 1
+                case .view, .materializedView:
+                    views += 1
+                case .function:
+                    functions += 1
+                case .trigger:
+                    triggers += 1
+                }
+            }
+        }
+
+        return (tables, views, functions, triggers)
+    }
+}
+
+// MARK: - Database Bubble
+
+private struct DatabaseBubble: View {
+    let database: DatabaseInfo
+    let isSelected: Bool
+    let serverColor: Color
+    let onSelect: () -> Void
+    let onRefresh: () -> Void
+
+    @State private var isHovered = false
+
+    private var stats: (tables: Int, views: Int, functions: Int, triggers: Int) {
+        var tables = 0
+        var views = 0
+        var functions = 0
+        var triggers = 0
+
+        for schema in database.schemas {
+            for object in schema.objects {
+                switch object.type {
+                case .table:
+                    tables += 1
+                case .view, .materializedView:
+                    views += 1
+                case .function:
+                    functions += 1
+                case .trigger:
+                    triggers += 1
+                }
+            }
+        }
+
+        return (tables, views, functions, triggers)
+    }
+
+    var body: some View {
+        Button(action: onSelect) {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 8) {
+                    Circle()
+                        .fill(serverColor)
+                        .frame(width: 6, height: 6)
+                    Text(database.name)
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(isSelected ? serverColor : .primary)
+                        .lineLimit(1)
+                    Spacer()
+                    if isSelected {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.system(size: 12))
+                            .foregroundStyle(serverColor)
+                    }
+                }
+
+                // Stats row
+                HStack(spacing: 10) {
+                    StatBadge(icon: "tablecells", count: stats.tables, color: .blue)
+                    StatBadge(icon: "eye", count: stats.views, color: .purple)
+                    StatBadge(icon: "function", count: stats.functions, color: .orange)
+                    StatBadge(icon: "bolt", count: stats.triggers, color: .yellow)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(
+                        isSelected
+                            ? serverColor.opacity(0.16)
+                            : (isHovered ? Color.primary.opacity(0.05) : Color.clear)
+                    )
             )
         }
         .buttonStyle(.plain)
-        .onHover { hovering in
-            withAnimation(.easeInOut(duration: 0.2)) {
-                isHovered = hovering
+        .contentShape(Rectangle())
+        .contextMenu {
+            Button("Refresh") {
+                onRefresh()
             }
+            Button("Connect") {
+                onSelect()
+            }
+        }
+        .onHover { hovering in
+            isHovered = hovering
+        }
+    }
+}
+
+// MARK: - Stat Badge
+
+private struct StatBadge: View {
+    let icon: String
+    let count: Int
+    let color: Color
+
+    var body: some View {
+        HStack(spacing: 3) {
+            Image(systemName: icon)
+                .font(.system(size: 9, weight: .medium))
+                .foregroundStyle(color)
+            Text("\(count)")
+                .font(.system(size: 10, weight: .medium))
+                .foregroundStyle(.secondary)
         }
     }
 }
@@ -927,7 +1545,7 @@ private struct CompactDatabaseCard: View {
             .overlay(
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
                     .strokeBorder(
-                        isSelected ? serverColor.opacity(0.3) : (isHovered ? .quaternary : .clear),
+                        isSelected ? serverColor.opacity(0.3) : (isHovered ? Color.primary.opacity(0.05) : .clear),
                         lineWidth: isSelected ? 1 : 0.5
                     )
             )

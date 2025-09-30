@@ -23,6 +23,7 @@ final class ConnectionSession: ObservableObject, Identifiable {
     @Published var connectionState: ConnectionState = .connected
     @Published var lastActivity: Date = Date()
     @Published var structureLoadingState: StructureLoadingState = .idle
+    @Published var structureLoadingMessage: String?
 
     // Query tabs specific to this connection
     @Published var queryTabs: [QueryTab] = []
@@ -66,6 +67,7 @@ final class ConnectionSession: ObservableObject, Identifiable {
         let tab = QueryTab(
             connection: connection,
             session: session,
+            connectionSessionID: id,
             title: "Query \(queryTabs.count + 1)"
         )
         tab.sql = query

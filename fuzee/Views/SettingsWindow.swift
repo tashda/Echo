@@ -110,7 +110,8 @@ struct SettingsView: View {
 
 struct AppearanceSettingsView: View {
     @EnvironmentObject var themeManager: ThemeManager
-    
+    @AppStorage("useServerColorAsAccent") private var useServerColorAsAccent = false
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
@@ -168,24 +169,57 @@ struct AppearanceSettingsView: View {
                     }
                 }
                 
+                // Color Settings Section
+                VStack(alignment: .leading, spacing: 16) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Colors")
+                            .font(.headline)
+                            .fontWeight(.semibold)
+
+                        Text("Customize the color scheme")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    // Toggle for server color as accent
+                    Toggle(isOn: $useServerColorAsAccent) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Use connected server color as accent")
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+
+                            Text("When enabled, UI elements will use the color of the currently connected database server")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .toggleStyle(.switch)
+                    .padding(.vertical, 8)
+                    .padding(.horizontal, 16)
+                    .background {
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .fill(Color.primary.opacity(0.03))
+                    }
+                }
+
                 // Information section
                 VStack(alignment: .leading, spacing: 12) {
                     HStack(spacing: 10) {
                         Image(systemName: "info.circle.fill")
                             .font(.system(size: 16, weight: .medium))
                             .foregroundStyle(.blue)
-                        
+
                         Text("System Integration")
                             .font(.headline)
                             .fontWeight(.semibold)
                     }
-                    
+
                     Text("Fuzee follows your system appearance settings when set to 'System'. Changes take effect immediately.")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                         .padding(.leading, 26)
                 }
-                
+
                 Spacer()
             }
             .padding(32)

@@ -4,6 +4,7 @@ struct SidebarView: View {
     @Binding var selectedConnectionID: UUID?
     @Binding var selectedIdentityID: UUID?
     @EnvironmentObject var appModel: AppModel
+    @EnvironmentObject var appState: AppState
 
     var onAddConnection: () -> Void
 
@@ -14,5 +15,6 @@ struct SidebarView: View {
             onAddConnection: onAddConnection
         )
         .environmentObject(appModel)
+        .environmentObject(appState)
     }
 }

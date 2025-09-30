@@ -1,4 +1,7 @@
 import SwiftUI
+#if os(macOS)
+import AppKit
+#endif
 
 struct ConnectionEditorView: View {
     enum SaveAction {
@@ -17,20 +20,34 @@ struct ConnectionEditorView: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var appModel: AppModel
 
-    @State private var model: SavedConnection
+    @State private var selectedDatabaseType: DatabaseType
+    @State private var connectionName: String
+    @State private var host: String
+    @State private var port: Int
+    @State private var database: String
+    @State private var username: String
     @State private var password: String
+    @State private var credentialSource: CredentialSource
+    @State private var identityID: UUID?
+    @State private var folderID: UUID?
+    @State private var useTLS: Bool
+    @State private var colorHex: String
+
     @State private var isTestingConnection = false
     @State private var testResult: ConnectionTestResult?
     @State private var testTask: Task<Void, Never>?
+    @State private var showingIdentityCreator = false
+    @State private var showingTestAlert = false
 
+    private let originalConnection: SavedConnection?
     let onSave: (SavedConnection, String?, SaveAction) -> Void
-    private let isEditingExisting: Bool
 
     init(connection: SavedConnection?, onSave: @escaping (SavedConnection, String?, SaveAction) -> Void) {
+        self.originalConnection = connection
         self.onSave = onSave
-        self.isEditingExisting = connection != nil
 
-        var initialModel = connection ?? SavedConnection(
+        let model = connection ?? SavedConnection(
+            id: UUID(),
             connectionName: "",
             host: "",
             port: DatabaseType.postgresql.defaultPort,
@@ -39,6 +56,7 @@ struct ConnectionEditorView: View {
             credentialSource: .manual,
             identityID: nil,
             keychainIdentifier: nil,
+            folderID: nil,
             useTLS: true,
             databaseType: .postgresql,
             serverVersion: nil,
@@ -47,24 +65,30 @@ struct ConnectionEditorView: View {
             cachedStructureUpdatedAt: nil
         )
 
-        if initialModel.colorHex.isEmpty {
-            initialModel.colorHex = ConnectionEditorView.colorPalette.first ?? ""
-        }
-
-        _model = State(initialValue: initialModel)
+        _selectedDatabaseType = State(initialValue: model.databaseType)
+        _connectionName = State(initialValue: model.connectionName)
+        _host = State(initialValue: model.host)
+        _port = State(initialValue: model.port)
+        _database = State(initialValue: model.database)
+        _username = State(initialValue: model.username)
         _password = State(initialValue: "")
+        _credentialSource = State(initialValue: model.credentialSource)
+        _identityID = State(initialValue: model.identityID)
+        _folderID = State(initialValue: model.folderID)
+        _useTLS = State(initialValue: model.useTLS)
+        _colorHex = State(initialValue: model.colorHex.isEmpty ? (ConnectionEditorView.colorPalette.first ?? "") : model.colorHex)
     }
 
-    private var normalizedSelectedColorHex: String {
-        model.colorHex.uppercased()
+    private var currentColor: Color {
+        Color(hex: colorHex) ?? .accentColor
     }
 
     private var sortedFolders: [SavedFolder] {
         appModel.folders
             .filter { $0.kind == .connections }
             .sorted { lhs, rhs in
-            folderDisplayName(lhs).localizedCaseInsensitiveCompare(folderDisplayName(rhs)) == .orderedAscending
-        }
+                folderDisplayName(lhs).localizedCaseInsensitiveCompare(folderDisplayName(rhs)) == .orderedAscending
+            }
     }
 
     private var sortedIdentities: [SavedIdentity] {
@@ -72,421 +96,386 @@ struct ConnectionEditorView: View {
     }
 
     private var selectedIdentity: SavedIdentity? {
-        guard let identityID = model.identityID else { return nil }
+        guard let identityID = identityID else { return nil }
         return sortedIdentities.first { $0.id == identityID }
     }
 
     private var inheritedIdentity: SavedIdentity? {
-        guard let folderID = model.folderID else { return nil }
+        guard let folderID = folderID else { return nil }
         return appModel.folderIdentity(for: folderID)
     }
 
     private var isFormValid: Bool {
-        let trimmedName = model.connectionName.trimmingCharacters(in: .whitespacesAndNewlines)
-        let trimmedHost = model.host.trimmingCharacters(in: .whitespacesAndNewlines)
-        let trimmedDatabase = model.database.trimmingCharacters(in: .whitespacesAndNewlines)
-        let trimmedUsername = model.username.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedName = connectionName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedHost = host.trimmingCharacters(in: .whitespacesAndNewlines)
 
-        let hasValidPort = (1...65535).contains(model.port)
-        let requiresDatabase = model.databaseType != .sqlite
+        let hasValidPort = (1...65535).contains(port)
 
         let credentialsValid: Bool
-        switch model.credentialSource {
+        switch credentialSource {
         case .manual:
-            credentialsValid = !trimmedUsername.isEmpty
+            credentialsValid = !username.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         case .identity:
-            credentialsValid = model.identityID != nil
+            credentialsValid = identityID != nil
         case .inherit:
-            credentialsValid = model.folderID != nil && inheritedIdentity != nil
+            credentialsValid = folderID != nil && inheritedIdentity != nil
         }
 
         if trimmedName.isEmpty || trimmedHost.isEmpty || !hasValidPort {
             return false
         }
 
-        if requiresDatabase && trimmedDatabase.isEmpty {
-            return false
-        }
-
         return credentialsValid
-    }
-
-    private var testButtonLabel: some View {
-        HStack(spacing: 6) {
-            if isTestingConnection {
-                ProgressView().controlSize(.small)
-                Text("Cancel Test")
-            } else {
-                Image(systemName: "link.badge.plus")
-                Text("Test Configuration")
-            }
-        }
-    }
-
-    private var databaseTypeSelection: Binding<DatabaseType?> {
-        Binding<DatabaseType?>(
-            get: { model.databaseType },
-            set: { newValue in
-                guard let newValue else { return }
-                updateDatabaseType(newValue)
-            }
-        )
     }
 
     var body: some View {
         NavigationSplitView {
-            databaseTypeList
+            sidebarView
         } detail: {
-            editorContent
+            detailView
         }
-        .frame(minWidth: 820, minHeight: 600)
+        .navigationSplitViewStyle(.balanced)
+        .frame(width: 700, height: 550)
         .onDisappear { cancelActiveTest() }
-        .onAppear {
-            if !isEditingExisting, model.folderID == nil {
-                model.folderID = appModel.selectedFolderID
-            }
-        }
-        .onChange(of: model.credentialSource) { _, newSource in
-            switch newSource {
-            case .manual:
-                break
-            case .identity:
-                password = ""
-                if appModel.identities.isEmpty {
-                    model.identityID = nil
-                } else if let identityID = model.identityID,
-                          appModel.identities.contains(where: { $0.id == identityID }) {
-                    // Keep current identity
-                } else {
-                    model.identityID = appModel.identities.first?.id
+        .sheet(isPresented: $showingIdentityCreator) {
+            IdentityEditorView { identity, password in
+                Task {
+                    await appModel.upsertIdentity(identity, password: password)
+                    identityID = identity.id
                 }
-            case .inherit:
-                password = ""
             }
+            .environmentObject(appModel)
         }
-        .onChange(of: appModel.identities) { _, newIdentities in
-            guard model.credentialSource == .identity else { return }
-            if let identityID = model.identityID,
-               !newIdentities.contains(where: { $0.id == identityID }) {
-                model.identityID = newIdentities.first?.id
-            } else if model.identityID == nil {
-                model.identityID = newIdentities.first?.id
-            }
-        }
-        .onChange(of: appModel.folders) { _, newFolders in
-            if let folderID = model.folderID,
-               !newFolders.contains(where: { $0.id == folderID }) {
-                model.folderID = nil
+        .alert(testResult?.success == true ? "Connection Successful" : "Connection Failed", isPresented: $showingTestAlert) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            if let result = testResult {
+                if result.details.isEmpty {
+                    Text(result.message)
+                } else {
+                    Text(result.details)
+                }
             }
         }
     }
 
-    private var databaseTypeList: some View {
-        List(DatabaseType.allCases, id: \.self, selection: databaseTypeSelection) { type in
-            databaseTypeRow(for: type)
+    // MARK: - Sidebar
+    private var sidebarView: some View {
+        List(selection: $selectedDatabaseType) {
+            ForEach(DatabaseType.allCases, id: \.self) { type in
+                Label {
+                    Text(type.displayName)
+                } icon: {
+                    Image(type.iconName)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 18, height: 18)
+                }
+                .tag(type)
+            }
         }
-        .listStyle(.sidebar)
-        .navigationTitle("Database Type")
+        .navigationTitle("Database")
+        .navigationSplitViewColumnWidth(min: 160, ideal: 160, max: 200)
+        .onChange(of: selectedDatabaseType) { _, newType in
+            let oldDefaults = DatabaseType.allCases.map { $0.defaultPort }
+            if oldDefaults.contains(port) || port == 0 {
+                port = newType.defaultPort
+            }
+        }
     }
 
-    private func databaseTypeRow(for type: DatabaseType) -> some View {
-        Label(type.displayName, systemImage: type.iconName)
-            .font(.system(size: 14, weight: .medium))
-            .padding(.vertical, 4)
-            .tag(type)
-    }
-
-    private var editorContent: some View {
+    // MARK: - Detail View
+    private var detailView: some View {
         VStack(spacing: 0) {
             ScrollView {
-                VStack(alignment: .leading, spacing: 24) {
-                    headerSection
-                    GroupBox("Connection Identity", content: identitySection)
-                    GroupBox("Server", content: serverSection)
-                    GroupBox("Placement", content: folderSection)
-                    GroupBox("Authentication", content: authenticationSection)
-                    GroupBox("Security", content: securitySection)
+                Form {
+                    Section {
+                        LabeledContent("Name") {
+                            TextField("", text: $connectionName, prompt: Text("My Connection"))
+                                .multilineTextAlignment(.trailing)
+                        }
 
-                    if let result = testResult {
-                        ConnectionTestResultView(result: result)
+                        LabeledContent("Color") {
+                            HStack(spacing: 8) {
+                                ForEach(Self.colorPalette, id: \.self) { hex in
+                                    Button {
+                                        colorHex = hex.uppercased()
+                                    } label: {
+                                        Circle()
+                                            .fill(Color(hex: hex) ?? .accentColor)
+                                            .frame(width: 28, height: 28)
+                                            .overlay(
+                                                Circle()
+                                                    .strokeBorder(
+                                                        Color.primary.opacity(colorHex.uppercased() == hex.uppercased() ? 0.6 : 0.2),
+                                                        lineWidth: colorHex.uppercased() == hex.uppercased() ? 2.5 : 1
+                                                    )
+                                            )
+                                            .overlay(
+                                                Group {
+                                                    if colorHex.uppercased() == hex.uppercased() {
+                                                        Image(systemName: "checkmark")
+                                                            .font(.system(size: 11, weight: .bold))
+                                                            .foregroundStyle(.white)
+                                                            .shadow(color: .black.opacity(0.3), radius: 1, x: 0, y: 0.5)
+                                                    }
+                                                }
+                                            )
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                            }
+                        }
+                    } header: {
+                        Text("General")
+                    }
+
+                    Section {
+                        Picker("Folder", selection: $folderID) {
+                            Text("Root").tag(nil as UUID?)
+                            ForEach(sortedFolders, id: \.id) { folder in
+                                Text(folderDisplayName(folder)).tag(folder.id as UUID?)
+                            }
+                        }
+                        .onChange(of: folderID) { _, newFolderID in
+                            if newFolderID == nil && credentialSource == .inherit {
+                                credentialSource = .manual
+                            }
+                        }
+                    } header: {
+                        Text("Organization")
+                    }
+
+                    Section {
+                        LabeledContent("Host") {
+                            TextField("", text: $host, prompt: Text("localhost"))
+                                .multilineTextAlignment(.trailing)
+                        }
+
+                        LabeledContent("Port") {
+                            TextField("", value: $port, format: .number.grouping(.never), prompt: Text("\(selectedDatabaseType.defaultPort)"))
+                                .multilineTextAlignment(.trailing)
+                        }
+
+                        LabeledContent("Database") {
+                            TextField("", text: $database, prompt: Text("postgres (optional)"))
+                                .multilineTextAlignment(.trailing)
+                                .disabled(selectedDatabaseType == .sqlite)
+                        }
+                    } header: {
+                        Text("Server")
+                    }
+
+                    Section {
+                        Picker("Method", selection: $credentialSource) {
+                            Text("Manual").tag(CredentialSource.manual)
+                            Text("Identity").tag(CredentialSource.identity)
+                            if folderID != nil {
+                                Text("Inherit").tag(CredentialSource.inherit)
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        .onChange(of: credentialSource) { _, newSource in
+                            switch newSource {
+                            case .manual:
+                                break
+                            case .identity:
+                                password = ""
+                                if identityID == nil || !appModel.identities.contains(where: { $0.id == identityID }) {
+                                    identityID = appModel.identities.first?.id
+                                }
+                            case .inherit:
+                                password = ""
+                            }
+                        }
+
+                        switch credentialSource {
+                        case .manual:
+                            LabeledContent("Username") {
+                                TextField("", text: $username, prompt: Text("username"))
+                                    .multilineTextAlignment(.trailing)
+                            }
+
+                            LabeledContent("Password") {
+                                SecureField("", text: $password, prompt: Text("password"))
+                                    .multilineTextAlignment(.trailing)
+                            }
+
+                        case .identity:
+                            if sortedIdentities.isEmpty {
+                                VStack(alignment: .leading, spacing: 8) {
+                                    Text("No identities available.")
+                                        .foregroundStyle(.secondary)
+                                        .font(.callout)
+                                    Button("Create Identity") {
+                                        showingIdentityCreator = true
+                                    }
+                                    .buttonStyle(.link)
+                                }
+                            } else {
+                                Picker("Identity", selection: $identityID) {
+                                    ForEach(sortedIdentities, id: \.id) { identity in
+                                        Text(identity.name).tag(identity.id as UUID?)
+                                    }
+                                }
+                                .pickerStyle(.menu)
+
+                                HStack {
+                                    Button("Create Identity") {
+                                        showingIdentityCreator = true
+                                    }
+                                    .buttonStyle(.link)
+                                    Spacer()
+                                }
+                            }
+
+                        case .inherit:
+                            if let identity = inheritedIdentity {
+                                Text("This connection will use the identity '\(identity.name)' inherited from the selected folder.")
+                                    .foregroundStyle(.secondary)
+                                    .font(.callout)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            } else {
+                                Text("The selected folder does not have credentials configured.")
+                                    .foregroundStyle(.red)
+                                    .font(.callout)
+                            }
+                        }
+                    } header: {
+                        Text("Authentication")
+                    }
+
+                    Section {
+                        Toggle("Use SSL/TLS", isOn: $useTLS)
+                    } header: {
+                        Text("Security")
+                    } footer: {
+                        Text("Enable encrypted connections when supported by the server.")
                     }
                 }
-                .frame(maxWidth: 620, alignment: .leading)
-                .padding(.vertical, 32)
-                .padding(.horizontal, 40)
+                .formStyle(.grouped)
+                .scrollContentBackground(.hidden)
             }
 
             Divider()
 
-            actionButtons
+            toolbarView
         }
-        .navigationTitle(model.connectionName.isEmpty ? "New Connection" : model.connectionName)
     }
 
-    private var actionButtons: some View {
+    // MARK: - Toolbar
+    private var toolbarView: some View {
         HStack(spacing: 12) {
-            Button("Cancel") { dismiss() }
-                .keyboardShortcut(.cancelAction)
+            Button(action: handleTestButton) {
+                HStack(spacing: 6) {
+                    if isTestingConnection {
+                        ProgressView().controlSize(.small)
+                        Text("Cancel Test")
+                    } else {
+                        Image(systemName: "link.badge.plus")
+                        Text("Test Connection")
+                    }
+                }
+            }
+            .buttonStyle(.bordered)
+            .disabled(!isTestingConnection && !isFormValid)
 
             Spacer()
 
-            Button(action: handleTestButton) {
-                testButtonLabel
+            Button("Cancel") {
+                dismiss()
             }
-            .buttonStyle(.bordered)
-            .controlSize(.large)
-            .disabled(!isTestingConnection && !isFormValid)
+            .keyboardShortcut(.cancelAction)
 
             Button("Save") {
                 handleSave(action: .save)
             }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.large)
             .disabled(!isFormValid)
 
             Button("Save & Connect") {
                 handleSave(action: .saveAndConnect)
             }
             .buttonStyle(.borderedProminent)
-            .controlSize(.large)
             .disabled(!isFormValid)
+            .keyboardShortcut(.defaultAction)
         }
-        .padding(.horizontal, 24)
-        .padding(.vertical, 16)
-        .background(.regularMaterial)
+        .padding(.horizontal, 20)
+        .padding(.vertical, 14)
+        .background(.ultraThinMaterial)
     }
 
-    private var headerSection: some View {
-        HStack(spacing: 16) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .fill(Color(hex: normalizedSelectedColorHex) ?? .accentColor)
-                    .frame(width: 68, height: 68)
-
-                Image(systemName: model.databaseType.iconName)
-                    .font(.system(size: 26, weight: .medium))
-                    .foregroundStyle((Color(hex: normalizedSelectedColorHex) ?? .accentColor).contrastingForegroundColor)
-            }
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text(model.connectionName.isEmpty ? "Untitled Connection" : model.connectionName)
-                    .font(.title2)
-                    .fontWeight(.semibold)
-                Text(model.databaseType.displayName)
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .padding(.bottom, 8)
-    }
-
-    private func identitySection() -> some View {
-        VStack(alignment: .leading, spacing: 16) {
-            TextField("Name", text: $model.connectionName)
-                .textFieldStyle(.roundedBorder)
-
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Color")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-
-                HStack(spacing: 12) {
-                    ForEach(Self.colorPalette, id: \.self) { hex in
-                        PaletteColorSwatch(
-                            hex: hex,
-                            isSelected: normalizedSelectedColorHex == hex.uppercased()
-                        ) {
-                            model.colorHex = hex.uppercased()
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    private func serverSection() -> some View {
-        VStack(alignment: .leading, spacing: 16) {
-            TextField("Server Address", text: $model.host)
-                .textFieldStyle(.roundedBorder)
-
-            HStack(spacing: 12) {
-                TextField(
-                    "Port",
-                    value: $model.port,
-                    format: .number.grouping(.never)
-                )
-                .textFieldStyle(.roundedBorder)
-                .frame(width: 120)
-
-                Text("Default: \(model.databaseType.defaultPort)")
-                    .foregroundStyle(.secondary)
-            }
-
-            TextField("Database", text: $model.database)
-                .textFieldStyle(.roundedBorder)
-                .disabled(model.databaseType == .sqlite)
-                .opacity(model.databaseType == .sqlite ? 0.5 : 1.0)
-        }
-    }
-
-    private func folderSection() -> some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Picker(
-                "Folder",
-                selection: Binding<UUID?>(
-                    get: { model.folderID },
-                    set: { model.folderID = $0 }
-                )
-            ) {
-                Text("No Folder").tag(UUID?.none)
-                ForEach(sortedFolders, id: \.id) { folder in
-                    Text(folderDisplayName(folder)).tag(UUID?.some(folder.id))
-                }
-            }
-            .pickerStyle(.menu)
-
-            if let folderID = model.folderID,
-               let folder = appModel.folders.first(where: { $0.id == folderID }) {
-                folderSummaryView(for: folder)
-            } else {
-                Text("Connections without a folder appear at the root level.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            }
-        }
-    }
-
-    private func authenticationSection() -> some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Picker("Credentials", selection: $model.credentialSource) {
-                ForEach(CredentialSource.allCases, id: \.self) { source in
-                    Text(source.displayName).tag(source)
-                }
-            }
-            .pickerStyle(.segmented)
-
-            switch model.credentialSource {
-            case .manual:
-                TextField("Username", text: $model.username)
-                    .textFieldStyle(.roundedBorder)
-
-                SecureField("Password", text: $password)
-                    .textFieldStyle(.roundedBorder)
-
-                Text("Credentials are stored securely using the macOS keychain.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-
-            case .identity:
-                if sortedIdentities.isEmpty {
-                    Text("Create an identity to reuse credentials across connections.")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                } else {
-                    Picker(
-                        "Identity",
-                        selection: Binding<UUID?>(
-                            get: { model.identityID },
-                            set: { model.identityID = $0 }
-                        )
-                    ) {
-                        ForEach(sortedIdentities, id: \.id) { identity in
-                            Text(identity.name).tag(UUID?.some(identity.id))
-                        }
-                    }
-                    .pickerStyle(.menu)
-
-                    if let identity = selectedIdentity {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Username: \(identity.username)")
-                                .font(.subheadline)
-                            Text("Passwords remain in the identity's keychain entry.")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                }
-
-            case .inherit:
-                if model.folderID == nil {
-                    Text("Select a folder to inherit credentials from its hierarchy.")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                } else if let identity = inheritedIdentity {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Using identity \"\(identity.name)\" from selected folder")
-                            .font(.subheadline)
-                            .fontWeight(.medium)
-                        Text("Username: \(identity.username)")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                } else {
-                    Text("The selected folder does not provide credentials yet.")
-                        .font(.subheadline)
-                        .foregroundStyle(.red)
-                }
-            }
-        }
-    }
-
-    @ViewBuilder
-    private func folderSummaryView(for folder: SavedFolder) -> some View {
-        HStack(spacing: 12) {
-            RoundedRectangle(cornerRadius: 6, style: .continuous)
-                .fill(folder.color)
-                .frame(width: 22, height: 22)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(folderDisplayName(folder))
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-                Text(folderCredentialDescription(folder))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-        }
-    }
-
-    private func folderCredentialDescription(_ folder: SavedFolder) -> String {
-        switch folder.credentialMode {
-        case .none:
-            return "No credentials configured"
-        case .identity:
-            if let identity = appModel.identities.first(where: { $0.id == folder.identityID }) {
-                return "Uses identity \(identity.name)"
-            } else {
-                return "Identity unavailable"
-            }
-        case .inherit:
-            if let inherited = appModel.folderIdentity(for: folder.id) {
-                return "Inherits credentials (\(inherited.name))"
-            } else {
-                return "Inherits credentials"
-            }
-        }
-    }
-
-    private func securitySection() -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Toggle("Use SSL/TLS", isOn: $model.useTLS)
-                .toggleStyle(.switch)
-
-            Text("Enable secure connections when supported by the server.")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-        }
-    }
-
+    // MARK: - Actions
     private func handleSave(action: SaveAction) {
         cancelActiveTest()
-        let passwordToPersist: String?
-        if model.credentialSource == .manual {
-            passwordToPersist = password.isEmpty ? nil : password
-        } else {
-            passwordToPersist = nil
-        }
-        onSave(model, passwordToPersist, action)
+
+        let generatedLogo = generateConnectionLogo(
+            databaseType: selectedDatabaseType,
+            color: currentColor
+        )
+
+        let connection = SavedConnection(
+            id: originalConnection?.id ?? UUID(),
+            connectionName: connectionName.trimmingCharacters(in: .whitespacesAndNewlines),
+            host: host.trimmingCharacters(in: .whitespacesAndNewlines),
+            port: port,
+            database: database.trimmingCharacters(in: .whitespacesAndNewlines),
+            username: username.trimmingCharacters(in: .whitespacesAndNewlines),
+            credentialSource: credentialSource,
+            identityID: identityID,
+            keychainIdentifier: originalConnection?.keychainIdentifier,
+            folderID: folderID,
+            useTLS: useTLS,
+            databaseType: selectedDatabaseType,
+            serverVersion: originalConnection?.serverVersion,
+            colorHex: colorHex,
+            logo: generatedLogo,
+            cachedStructure: originalConnection?.cachedStructure,
+            cachedStructureUpdatedAt: originalConnection?.cachedStructureUpdatedAt
+        )
+
+        let passwordToPersist = credentialSource == .manual && !password.isEmpty ? password : nil
+        onSave(connection, passwordToPersist, action)
         dismiss()
+    }
+
+    private func generateConnectionLogo(databaseType: DatabaseType, color: Color) -> Data? {
+        let size: CGFloat = 64
+        let image = NSImage(size: NSSize(width: size, height: size))
+
+        image.lockFocus()
+        defer { image.unlockFocus() }
+
+        // Draw background with color
+        let backgroundColor = NSColor(color.opacity(0.15))
+        backgroundColor.setFill()
+        let backgroundPath = NSBezierPath(roundedRect: NSRect(x: 0, y: 0, width: size, height: size), xRadius: 12, yRadius: 12)
+        backgroundPath.fill()
+
+        // Draw database icon
+        if let iconImage = NSImage(systemSymbolName: databaseType.iconName, accessibilityDescription: nil) {
+            let iconSize: CGFloat = 32
+            let iconRect = NSRect(
+                x: (size - iconSize) / 2,
+                y: (size - iconSize) / 2,
+                width: iconSize,
+                height: iconSize
+            )
+
+            iconImage.draw(in: iconRect, from: .zero, operation: .sourceOver, fraction: 1.0)
+
+            // Tint the icon with the color
+            NSColor(color).setFill()
+            iconRect.fill(using: .sourceAtop)
+        }
+
+        // Convert to PNG
+        guard let tiffData = image.tiffRepresentation,
+              let bitmapRep = NSBitmapImageRep(data: tiffData),
+              let pngData = bitmapRep.representation(using: .png, properties: [:]) else {
+            return nil
+        }
+
+        return pngData
     }
 
     private func handleTestButton() {
@@ -502,10 +491,28 @@ struct ConnectionEditorView: View {
         isTestingConnection = true
         testResult = nil
 
-        let snapshot = model
-        let overridePassword = model.credentialSource == .manual ? password : nil
+        let connection = SavedConnection(
+            id: originalConnection?.id ?? UUID(),
+            connectionName: connectionName,
+            host: host,
+            port: port,
+            database: database,
+            username: username,
+            credentialSource: credentialSource,
+            identityID: identityID,
+            keychainIdentifier: originalConnection?.keychainIdentifier,
+            folderID: folderID,
+            useTLS: useTLS,
+            databaseType: selectedDatabaseType,
+            serverVersion: nil,
+            colorHex: colorHex,
+            cachedStructure: nil,
+            cachedStructureUpdatedAt: nil
+        )
+
+        let overridePassword = credentialSource == .manual ? password : nil
         testTask = Task {
-            await runConnectionTest(connection: snapshot, passwordOverride: overridePassword)
+            await runConnectionTest(connection: connection, passwordOverride: overridePassword)
         }
     }
 
@@ -516,26 +523,65 @@ struct ConnectionEditorView: View {
     }
 
     private func runConnectionTest(connection: SavedConnection, passwordOverride: String?) async {
-        let result = await appModel.testConnection(connection, passwordOverride: passwordOverride)
+        // Run the actual test with timeout
+        do {
+            let result = try await withThrowingTaskGroup(of: ConnectionTestResult.self) { group in
+                // Add connection test task
+                group.addTask {
+                    await appModel.testConnection(connection, passwordOverride: passwordOverride)
+                }
 
-        if Task.isCancelled { return }
+                // Add timeout task
+                group.addTask {
+                    try await Task.sleep(nanoseconds: 10_000_000_000) // 10 seconds
+                    return await ConnectionTestResult(
+                        isSuccessful: false,
+                        message: "Connection timed out",
+                        responseTime: 10.0,
+                        serverVersion: nil
+                    )
+                }
 
-        await MainActor.run {
-            testResult = result
-            isTestingConnection = false
-            testTask = nil
-        }
-    }
+                // Return the first result
+                let result = try await group.next()!
+                group.cancelAll()
+                return result
+            }
 
-    private func updateDatabaseType(_ newType: DatabaseType) {
-        let previousType = model.databaseType
-        let previousPort = model.port
-        model.databaseType = newType
+            guard !Task.isCancelled else {
+                await MainActor.run {
+                    testResult = ConnectionTestResult(
+                        isSuccessful: false,
+                        message: "Connection test cancelled",
+                        responseTime: nil,
+                        serverVersion: nil
+                    )
+                    isTestingConnection = false
+                    self.testTask = nil
+                    showingTestAlert = true
+                }
+                return
+            }
 
-        guard previousType != newType else { return }
-
-        if previousPort == previousType.defaultPort || previousPort <= 0 {
-            model.port = newType.defaultPort
+            await MainActor.run {
+                testResult = result
+                isTestingConnection = false
+                self.testTask = nil
+                showingTestAlert = true
+            }
+        } catch {
+            // Handle cancellation
+            await MainActor.run {
+                testResult = ConnectionTestResult(
+                    isSuccessful: false,
+                    message: "Connection test cancelled",
+                    responseTime: nil,
+                    serverVersion: nil
+                )
+                isTestingConnection = false
+                self.testTask = nil
+                showingTestAlert = true
+            }
         }
     }
 
@@ -556,57 +602,3 @@ struct ConnectionEditorView: View {
     }
 }
 
-struct ConnectionTestResultView: View {
-    let result: ConnectionTestResult
-
-    var body: some View {
-        GroupBox("Connection Test") {
-            HStack(spacing: 12) {
-                Image(systemName: result.success ? "checkmark.circle.fill" : "xmark.circle.fill")
-                    .font(.system(size: 22, weight: .semibold))
-                    .foregroundStyle(result.success ? .green : .red)
-
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(result.message)
-                        .font(.headline)
-                    if !result.details.isEmpty {
-                        Text(result.details)
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-
-                Spacer()
-            }
-            .padding(.vertical, 4)
-        }
-    }
-}
-
-private struct PaletteColorSwatch: View {
-    let hex: String
-    let isSelected: Bool
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            ZStack {
-                Circle()
-                    .fill(Color(hex: hex) ?? .accentColor)
-                    .frame(width: 32, height: 32)
-
-                if isSelected {
-                    Image(systemName: "checkmark")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle((Color(hex: hex) ?? .accentColor).contrastingForegroundColor)
-                }
-            }
-            .overlay(
-                Circle()
-                    .strokeBorder(isSelected ? Color.primary.opacity(0.6) : Color.primary.opacity(0.2), lineWidth: isSelected ? 2 : 1)
-            )
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel("Color \(hex)")
-    }
-}

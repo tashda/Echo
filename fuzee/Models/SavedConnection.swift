@@ -18,10 +18,10 @@ enum DatabaseType: String, Codable, CaseIterable {
 
     var iconName: String {
         switch self {
-        case .postgresql: return "cylinder.split.1x2"
-        case .mysql: return "cylinder.split.1x2"
-        case .microsoftSQL: return "cylinder.split.1x2"
-        case .sqlite: return "internaldrive"
+        case .postgresql: return "postgresql"
+        case .mysql: return "mysql"
+        case .microsoftSQL: return "mssql"
+        case .sqlite: return "sqlite"
         }
     }
 
@@ -64,6 +64,7 @@ struct SavedConnection: Identifiable, Codable, Hashable {
     var databaseType: DatabaseType
     var serverVersion: String?
     var colorHex: String
+    var logo: Data?
     var cachedStructure: DatabaseStructure?
     var cachedStructureUpdatedAt: Date?
 
@@ -96,6 +97,7 @@ struct SavedConnection: Identifiable, Codable, Hashable {
         case databaseType
         case serverVersion
         case colorHex
+        case logo
         case cachedStructure
         case cachedStructureUpdatedAt
     }
@@ -115,6 +117,7 @@ struct SavedConnection: Identifiable, Codable, Hashable {
         databaseType: DatabaseType = .postgresql,
         serverVersion: String? = nil,
         colorHex: String = "",
+        logo: Data? = nil,
         cachedStructure: DatabaseStructure? = nil,
         cachedStructureUpdatedAt: Date? = nil
     ) {
@@ -132,6 +135,7 @@ struct SavedConnection: Identifiable, Codable, Hashable {
         self.databaseType = databaseType
         self.serverVersion = serverVersion
         self.colorHex = colorHex
+        self.logo = logo
         self.cachedStructure = cachedStructure
         self.cachedStructureUpdatedAt = cachedStructureUpdatedAt
     }
@@ -152,6 +156,7 @@ struct SavedConnection: Identifiable, Codable, Hashable {
         databaseType = try container.decodeIfPresent(DatabaseType.self, forKey: .databaseType) ?? .postgresql
         serverVersion = try container.decodeIfPresent(String.self, forKey: .serverVersion)
         colorHex = try container.decodeIfPresent(String.self, forKey: .colorHex) ?? ""
+        logo = try container.decodeIfPresent(Data.self, forKey: .logo)
         cachedStructure = try container.decodeIfPresent(DatabaseStructure.self, forKey: .cachedStructure)
         cachedStructureUpdatedAt = try container.decodeIfPresent(Date.self, forKey: .cachedStructureUpdatedAt)
     }
@@ -172,6 +177,7 @@ struct SavedConnection: Identifiable, Codable, Hashable {
         try container.encode(databaseType, forKey: .databaseType)
         try container.encodeIfPresent(serverVersion, forKey: .serverVersion)
         try container.encode(colorHex, forKey: .colorHex)
+        try container.encodeIfPresent(logo, forKey: .logo)
         try container.encodeIfPresent(cachedStructure, forKey: .cachedStructure)
         try container.encodeIfPresent(cachedStructureUpdatedAt, forKey: .cachedStructureUpdatedAt)
     }

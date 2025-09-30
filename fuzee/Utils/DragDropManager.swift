@@ -41,7 +41,8 @@ class DragDropManager: ObservableObject {
 
         // Start new timer for expansion
         hoverTimer = Timer.scheduledTimer(withTimeInterval: hoverDelay, repeats: false) { [weak self] _ in
-            Task { @MainActor in
+            guard let self = self else { return }
+            Task { @MainActor [weak self] in
                 self?.expandedFoldersOnDrag.insert(folderId)
             }
         }
