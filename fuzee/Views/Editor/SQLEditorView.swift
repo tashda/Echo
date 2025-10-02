@@ -16,26 +16,30 @@ struct SQLEditorSelection: Equatable {
 struct SQLEditorView: View {
     @Binding var text: String
     var theme: SQLEditorTheme
+    var display: SQLEditorDisplayOptions
     var onSelectionChange: (SQLEditorSelection) -> Void
     var onSelectionPreviewChange: (SQLEditorSelection) -> Void
 
     init(
         text: Binding<String>,
         theme: SQLEditorTheme,
+        display: SQLEditorDisplayOptions,
         onSelectionChange: @escaping (SQLEditorSelection) -> Void,
         onSelectionPreviewChange: @escaping (SQLEditorSelection) -> Void
     ) {
         _text = text
         self.theme = theme
+        self.display = display
         self.onSelectionChange = onSelectionChange
         self.onSelectionPreviewChange = onSelectionPreviewChange
     }
 
     var body: some View {
-    #if os(macOS)
+#if os(macOS)
         MacSQLEditorRepresentable(
             text: $text,
             theme: theme,
+            display: display,
             onSelectionChange: onSelectionChange,
             onSelectionPreviewChange: onSelectionPreviewChange
         )
@@ -43,6 +47,7 @@ struct SQLEditorView: View {
         IOSSQLEditorRepresentable(
             text: $text,
             theme: theme,
+            display: display,
             onSelectionChange: onSelectionChange,
             onSelectionPreviewChange: onSelectionPreviewChange
         )
@@ -54,13 +59,14 @@ struct SQLEditorView: View {
 private struct MacSQLEditorRepresentable: NSViewRepresentable {
     @Binding var text: String
     var theme: SQLEditorTheme
+    var display: SQLEditorDisplayOptions
     var onSelectionChange: (SQLEditorSelection) -> Void
     var onSelectionPreviewChange: (SQLEditorSelection) -> Void
 
     func makeCoordinator() -> Coordinator { Coordinator(parent: self) }
 
     func makeNSView(context: Context) -> SQLScrollView {
-        let scrollView = SQLScrollView(theme: theme)
+        let scrollView = SQLScrollView(theme: theme, display: display)
         let textView = scrollView.sqlTextView
         textView.sqlDelegate = context.coordinator
         textView.string = text
@@ -76,8 +82,9 @@ private struct MacSQLEditorRepresentable: NSViewRepresentable {
     }
 
     func updateNSView(_ nsView: SQLScrollView, context: Context) {
+        nsView.updateTheme(theme)
+        nsView.updateDisplay(display)
         let textView = nsView.sqlTextView
-        textView.theme = theme
         context.coordinator.theme = theme
 
         // Update binding -> editor content without stealing focus or resetting selection unnecessarily
@@ -103,8 +110,12 @@ private struct MacSQLEditorRepresentable: NSViewRepresentable {
             let availableWidth = max(scrollViewWidth - rulerWidth, 320)
 
             if let textContainer = textView.textContainer {
-                if textContainer.size.width != availableWidth {
-                    textContainer.size = NSSize(width: availableWidth, height: CGFloat.greatestFiniteMagnitude)
+                if nsView.currentDisplayOptions.wrapLines {
+                    if textContainer.size.width != availableWidth {
+                        textContainer.size = NSSize(width: availableWidth, height: CGFloat.greatestFiniteMagnitude)
+                    }
+                } else {
+                    textContainer.size = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
                 }
             }
         }
@@ -148,18 +159,30 @@ extension SQLTextViewDelegate {
 
 private final class SQLScrollView: NSScrollView {
     let sqlTextView: SQLTextView
+    private var theme: SQLEditorTheme
+    private var displayOptions: SQLEditorDisplayOptions
+    private let lineNumberRuler: LineNumberRulerView
 
-    init(theme: SQLEditorTheme) {
-        self.sqlTextView = SQLTextView(theme: theme)
+    var currentDisplayOptions: SQLEditorDisplayOptions { displayOptions }
+
+    init(theme: SQLEditorTheme, display: SQLEditorDisplayOptions) {
+        self.displayOptions = display
+        self.sqlTextView = SQLTextView(theme: theme, displayOptions: display)
+        self.lineNumberRuler = LineNumberRulerView(textView: sqlTextView, theme: theme)
+        self.theme = theme
         super.init(frame: .zero)
         drawsBackground = false
+        wantsLayer = true
+        layer?.cornerRadius = 0
+        layer?.masksToBounds = false
         borderType = .noBorder
         hasVerticalScroller = true
         hasHorizontalScroller = false
         autohidesScrollers = true
         autoresizesSubviews = true
-        backgroundColor = .clear
         documentView = sqlTextView
+        scrollerStyle = .overlay
+        verticalScrollElasticity = .automatic
 
         sqlTextView.minSize = NSSize(width: 0, height: 320)
         sqlTextView.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
@@ -169,33 +192,94 @@ private final class SQLScrollView: NSScrollView {
 
         hasVerticalRuler = true
         rulersVisible = true
-        let ruler = LineNumberRulerView(textView: sqlTextView)
-        verticalRulerView = ruler
+        verticalRulerView = lineNumberRuler
 
         if let textContainer = sqlTextView.textContainer {
-            textContainer.widthTracksTextView = false
+            textContainer.widthTracksTextView = true
             textContainer.containerSize = NSSize(width: 800, height: CGFloat.greatestFiniteMagnitude)
+            textContainer.lineFragmentPadding = 10
         }
 
         sqlTextView.setFrameSize(NSSize(width: 800, height: 360))
-        ruler.needsDisplay = true
+        lineNumberRuler.needsDisplay = true
+        applyTheme()
+        applyDisplay()
     }
 
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
+
+    func updateTheme(_ theme: SQLEditorTheme) {
+        self.theme = theme
+        applyTheme()
+    }
+
+    func updateDisplay(_ options: SQLEditorDisplayOptions) {
+        displayOptions = options
+        sqlTextView.displayOptions = options
+        applyDisplay()
+    }
+
+    private func applyTheme() {
+        backgroundColor = .clear
+        contentView.backgroundColor = .clear
+        sqlTextView.theme = theme
+        lineNumberRuler.theme = theme
+    }
+
+    private func applyDisplay() {
+        sqlTextView.displayOptions = displayOptions
+
+        if displayOptions.wrapLines {
+            hasHorizontalScroller = false
+            autohidesScrollers = true
+            sqlTextView.isHorizontallyResizable = false
+            sqlTextView.textContainer?.widthTracksTextView = true
+        } else {
+            hasHorizontalScroller = true
+            autohidesScrollers = false
+            sqlTextView.isHorizontallyResizable = true
+            sqlTextView.textContainer?.widthTracksTextView = false
+            sqlTextView.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
+        }
+
+        if displayOptions.showLineNumbers {
+            hasVerticalRuler = true
+            rulersVisible = true
+            verticalRulerView = lineNumberRuler
+            lineNumberRuler.theme = theme
+            lineNumberRuler.sqlTextView = sqlTextView
+            lineNumberRuler.needsDisplay = true
+        } else {
+            hasVerticalRuler = false
+            verticalRulerView = nil
+        }
+    }
+}
+
+private func sqlRangeIsValid(_ range: NSRange, upperBound: Int) -> Bool {
+    guard range.location >= 0, range.length >= 0 else { return false }
+    guard upperBound >= 0 else { return false }
+    if range.length == 0 {
+        return range.location <= upperBound
+    }
+    guard upperBound > 0 else { return false }
+    guard range.location < upperBound else { return false }
+    return NSMaxRange(range) <= upperBound
 }
 
 private final class SQLTextView: NSTextView, NSTextViewDelegate {
     weak var sqlDelegate: SQLTextViewDelegate?
     var theme: SQLEditorTheme { didSet { applyTheme() } }
+    var displayOptions: SQLEditorDisplayOptions { didSet { applyDisplayOptions() } }
 
-    private let highlighter: SQLSyntaxHighlighter
     private weak var lineNumberRuler: LineNumberRulerView?
+    private var paragraphStyle = NSMutableParagraphStyle()
 
-    init(theme: SQLEditorTheme) {
+    init(theme: SQLEditorTheme, displayOptions: SQLEditorDisplayOptions) {
         self.theme = theme
-        self.highlighter = SQLSyntaxHighlighter(theme: theme)
+        self.displayOptions = displayOptions
 
         let textStorage = NSTextStorage()
         let layoutManager = NSLayoutManager()
@@ -215,7 +299,7 @@ private final class SQLTextView: NSTextView, NSTextViewDelegate {
         isAutomaticSpellingCorrectionEnabled = false
         isGrammarCheckingEnabled = false
         usesAdaptiveColorMappingForDarkAppearance = true
-        textContainerInset = NSSize(width: 18, height: 20)
+        textContainerInset = NSSize(width: 12, height: 24)
         allowsUndo = true
         maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
         minSize = NSSize(width: 0, height: 320)
@@ -224,10 +308,11 @@ private final class SQLTextView: NSTextView, NSTextViewDelegate {
         autoresizingMask = [.width]
 
         textContainer.widthTracksTextView = false
-        textContainer.lineFragmentPadding = 18
+        textContainer.lineFragmentPadding = 14
 
-        delegatesSetup()
+        configureDelegates()
         applyTheme()
+        applyDisplayOptions()
     }
 
     required init?(coder: NSCoder) {
@@ -236,24 +321,19 @@ private final class SQLTextView: NSTextView, NSTextViewDelegate {
 
     func configure(ruler: LineNumberRulerView) { lineNumberRuler = ruler }
 
-    private func delegatesSetup() {
+    private func configureDelegates() {
         delegate = self
-        textStorage?.delegate = highlighter
-        highlighter.textView = self
     }
 
     private func applyTheme() {
-        let background = NSColor.textBackgroundColor
         font = theme.nsFont
         textColor = theme.tokenColors.plain.nsColor
-        insertionPointColor = theme.tokenColors.plain.nsColor
+        insertionPointColor = theme.tokenColors.operatorSymbol.nsColor
         drawsBackground = true
-        backgroundColor = background
-        typingAttributes = [
-            .font: theme.nsFont,
-            .foregroundColor: theme.tokenColors.plain.nsColor
-        ]
-        highlighter.theme = theme
+        backgroundColor = theme.palette.background.nsColor
+        updateParagraphStyle()
+        lineNumberRuler?.theme = theme
+        lineNumberRuler?.highlightedLines = selectedLineRange()
         lineNumberRuler?.setNeedsDisplay(lineNumberRuler?.bounds ?? .zero)
     }
 
@@ -263,10 +343,8 @@ private final class SQLTextView: NSTextView, NSTextViewDelegate {
             configure(ruler: ruler)
             ruler.sqlTextView = self
         }
-        // Make first responder once on attach
         DispatchQueue.main.async { [weak self] in
-            guard let self else { return }
-            self.window?.makeFirstResponder(self)
+            self?.window?.makeFirstResponder(self)
         }
     }
 
@@ -276,14 +354,10 @@ private final class SQLTextView: NSTextView, NSTextViewDelegate {
         notifySelectionPreview()
     }
 
-    func reapplyHighlighting() {
-        highlighter.applyHighlighting(to: textStorage)
-        lineNumberRuler?.setNeedsDisplay(lineNumberRuler?.bounds ?? .zero)
-    }
+    func reapplyHighlighting() {}
 
     override func didChangeText() {
         super.didChangeText()
-        // Do not call highlighting here; textStorage delegate will handle it
         sqlDelegate?.sqlTextView(self, didUpdateText: string)
         lineNumberRuler?.setNeedsDisplay(lineNumberRuler?.bounds ?? .zero)
         notifySelectionChanged()
@@ -306,6 +380,8 @@ private final class SQLTextView: NSTextView, NSTextViewDelegate {
         let selected = (range.length > 0 && range.location != NSNotFound) ? nsString.substring(with: range) : ""
         let lines = selectedLines(for: range)
         let selection = SQLEditorSelection(selectedText: selected, range: range, lineRange: lines)
+        lineNumberRuler?.highlightedLines = selectedLineRange()
+        lineNumberRuler?.setNeedsDisplay(lineNumberRuler?.bounds ?? .zero)
         sqlDelegate?.sqlTextView(self, didChangeSelection: selection)
     }
 
@@ -327,14 +403,120 @@ private final class SQLTextView: NSTextView, NSTextViewDelegate {
     }
 
     func selectedLineRange() -> IndexSet {
-        guard let lines = selectedLines(for: selectedRange()) else { return [] }
-        return IndexSet(integersIn: lines)
+        let range = selectedRange()
+        if range.length > 0, let lines = selectedLines(for: range) {
+            return IndexSet(integersIn: lines)
+        }
+        guard range.location != NSNotFound else { return [] }
+        let caretLine = (string as NSString).lineNumber(at: range.location)
+        return IndexSet(integer: caretLine)
+    }
+
+    private func applyDisplayOptions() {
+        updateParagraphStyle()
+        textContainer?.widthTracksTextView = displayOptions.wrapLines
+        lineNumberRuler?.highlightedLines = selectedLineRange()
+        lineNumberRuler?.setNeedsDisplay(lineNumberRuler?.bounds ?? .zero)
+    }
+
+    private func updateParagraphStyle() {
+        let style = paragraphStyle(for: theme, display: displayOptions)
+        paragraphStyle = style
+        defaultParagraphStyle = style
+
+        typingAttributes = [
+            .font: theme.nsFont,
+            .foregroundColor: theme.tokenColors.plain.nsColor,
+            .paragraphStyle: style
+        ]
+
+        selectedTextAttributes = [
+            .backgroundColor: theme.palette.selection.nsColor.withAlphaComponent(0.3),
+            .foregroundColor: theme.tokenColors.plain.nsColor,
+            .paragraphStyle: style
+        ]
+
+        if let textStorage = textStorage {
+            let fullRange = NSRange(location: 0, length: textStorage.length)
+            textStorage.addAttribute(.paragraphStyle, value: style, range: fullRange)
+        }
+
+    }
+
+    override func scrollRangeToVisible(_ charRange: NSRange) {
+        let length = (string as NSString).length
+        let clamped = makeSafeRange(charRange, documentLength: max(length, 0))
+        guard sqlRangeIsValid(clamped, upperBound: max(length, 0)) || (length == 0 && clamped.location == 0) else { return }
+        super.scrollRangeToVisible(clamped)
+    }
+
+    override func setSelectedRange(_ charRange: NSRange) {
+        let length = (string as NSString).length
+        let clamped = makeSafeRange(charRange, documentLength: length)
+        if sqlRangeIsValid(clamped, upperBound: max(length, 0)) || (length == 0 && clamped.location == 0) {
+            super.setSelectedRange(clamped)
+        }
+    }
+
+    private func paragraphStyle(for theme: SQLEditorTheme, display: SQLEditorDisplayOptions) -> NSMutableParagraphStyle {
+        let style = NSMutableParagraphStyle()
+        let baseline: CGFloat
+        if let layout = layoutManager {
+            baseline = layout.defaultLineHeight(for: theme.nsFont)
+        } else {
+            baseline = theme.nsFont.ascender - theme.nsFont.descender + theme.nsFont.leading
+        }
+        let lineHeight = baseline * theme.lineHeightMultiplier
+        style.minimumLineHeight = lineHeight
+        style.maximumLineHeight = lineHeight
+        style.lineBreakMode = display.wrapLines ? .byWordWrapping : .byClipping
+        style.tabStops = []
+        style.defaultTabInterval = theme.nsFont.pointSize * 1.6
+        style.paragraphSpacing = 4
+        let indentSpaces = display.wrapLines ? display.indentWrappedLines : 0
+        style.headIndent = indentWidth(for: indentSpaces)
+        style.firstLineHeadIndent = 0
+        return style
+    }
+
+    private func indentWidth(for spaces: Int) -> CGFloat {
+        guard spaces > 0 else { return 0 }
+        let sample = String(repeating: " ", count: max(1, spaces))
+        let size = (sample as NSString).size(withAttributes: [.font: theme.nsFont])
+        return size.width
+    }
+
+    private func makeSafeRange(_ range: NSRange, documentLength length: Int) -> NSRange {
+        guard length > 0 else { return NSRange(location: 0, length: 0) }
+
+        if range.length == 0 {
+            let location = min(max(range.location, 0), length)
+            return NSRange(location: location, length: 0)
+        }
+
+        let location = min(max(range.location, 0), max(length - 1, 0))
+        let available = max(0, length - location)
+        let safeLength = min(max(range.length, 0), available)
+        return NSRange(location: location, length: safeLength)
+    }
+
+    private func clampSelectionRange(_ range: NSRange) -> NSRange {
+        let length = (string as NSString).length
+        return makeSafeRange(range, documentLength: length)
+    }
+
+    private func clampRangeForScrolling(_ range: NSRange) -> NSRange {
+        let length = (string as NSString).length
+        if length == 0 { return NSRange(location: 0, length: 0) }
+        return makeSafeRange(range, documentLength: length)
     }
 }
-
 private final class LineNumberRulerView: NSRulerView {
     weak var sqlTextView: SQLTextView?
     var highlightedLines: IndexSet = []
+    var theme: SQLEditorTheme {
+        didSet { needsDisplay = true }
+    }
 
     private let paragraphStyle: NSMutableParagraphStyle = {
         let style = NSMutableParagraphStyle()
@@ -342,11 +524,12 @@ private final class LineNumberRulerView: NSRulerView {
         return style
     }()
 
-    init(textView: SQLTextView) {
+    init(textView: SQLTextView, theme: SQLEditorTheme) {
+        self.theme = theme
         super.init(scrollView: textView.enclosingScrollView, orientation: .verticalRuler)
         self.sqlTextView = textView
         self.clientView = textView
-        self.ruleThickness = 52
+        self.ruleThickness = 40
     }
 
     required init(coder: NSCoder) {
@@ -354,37 +537,61 @@ private final class LineNumberRulerView: NSRulerView {
     }
 
     override func drawHashMarksAndLabels(in rect: NSRect) {
+        theme.palette.gutterBackground.nsColor.setFill()
+        rect.fill()
+
         guard let textView = sqlTextView,
               let layoutManager = textView.layoutManager,
               let textContainer = textView.textContainer else { return }
 
-        let visibleGlyphRange = layoutManager.glyphRange(forBoundingRect: textView.visibleRect, in: textContainer)
-        let nsString = textView.string as NSString
-        var currentLine = nsString.lineNumber(at: layoutManager.characterIndexForGlyph(at: visibleGlyphRange.location))
-
         let attributes: [NSAttributedString.Key: Any] = [
             .font: NSFont.monospacedDigitSystemFont(ofSize: 11, weight: .regular),
-            .foregroundColor: NSColor.secondaryLabelColor,
+            .foregroundColor: theme.palette.gutterText.nsColor,
             .paragraphStyle: paragraphStyle
         ]
 
-        var glyphIndex = visibleGlyphRange.location
-        while glyphIndex < NSMaxRange(visibleGlyphRange) {
+        let glyphCount = layoutManager.numberOfGlyphs
+        let nsString = textView.string as NSString
+
+        if glyphCount == 0 || nsString.length == 0 {
+            drawFallbackLine(with: attributes, in: rect)
+            return
+        }
+
+        var visibleGlyphRange = layoutManager.glyphRange(forBoundingRect: textView.visibleRect, in: textContainer)
+        if visibleGlyphRange.location == NSNotFound {
+            visibleGlyphRange = NSRange(location: 0, length: glyphCount)
+        }
+
+        let initialGlyph = min(visibleGlyphRange.location, max(glyphCount - 1, 0))
+        let maxGlyphIndex = min(NSMaxRange(visibleGlyphRange), glyphCount)
+        if maxGlyphIndex <= initialGlyph {
+            drawFallbackLine(with: attributes, in: rect)
+            return
+        }
+
+        let initialCharIndex = layoutManager.characterIndexForGlyph(at: initialGlyph)
+        var currentLine = nsString.lineNumber(at: min(initialCharIndex, max(nsString.length - 1, 0)))
+
+        var glyphIndex = initialGlyph
+        while glyphIndex < maxGlyphIndex {
             var lineRange = NSRange(location: 0, length: 0)
             let lineRect = layoutManager.lineFragmentRect(forGlyphAt: glyphIndex, effectiveRange: &lineRange, withoutAdditionalLayout: true)
             let yPosition = lineRect.minY + textView.textContainerInset.height - textView.visibleRect.origin.y
 
-            if highlightedLines.contains(currentLine) {
-                NSColor.controlAccentColor.withAlphaComponent(0.12).setFill()
-                NSRect(x: 0, y: yPosition, width: bounds.width, height: lineRect.height).fill()
-            }
-
-            let labelRect = NSRect(x: 0, y: yPosition, width: bounds.width - 6, height: lineRect.height)
+            let labelRect = NSRect(x: 0, y: yPosition + 2, width: bounds.width - 6, height: lineRect.height)
             ("\(currentLine)" as NSString).draw(in: labelRect, withAttributes: attributes)
 
-            glyphIndex = NSMaxRange(lineRange)
+            glyphIndex = min(NSMaxRange(lineRange), maxGlyphIndex)
             currentLine += 1
         }
+
+        // No divider – match Tahoe preview
+    }
+
+    private func drawFallbackLine(with attributes: [NSAttributedString.Key: Any], in rect: NSRect) {
+        let labelRect = NSRect(x: 0, y: rect.minY + 4, width: bounds.width - 6, height: rect.height)
+        ("1" as NSString).draw(in: labelRect, withAttributes: attributes)
     }
 
     override func mouseDown(with event: NSEvent) { selectLine(event) }
@@ -395,10 +602,14 @@ private final class LineNumberRulerView: NSRulerView {
               let layoutManager = textView.layoutManager,
               let textContainer = textView.textContainer else { return }
 
+        let glyphCount = layoutManager.numberOfGlyphs
+        guard glyphCount > 0 else { return }
+
         let location = convert(event.locationInWindow, from: nil)
         let pointInTextView = convert(location, to: textView)
         var fraction: CGFloat = 0
-        let glyphIndex = layoutManager.glyphIndex(for: pointInTextView, in: textContainer, fractionOfDistanceThroughGlyph: &fraction)
+        var glyphIndex = layoutManager.glyphIndex(for: pointInTextView, in: textContainer, fractionOfDistanceThroughGlyph: &fraction)
+        glyphIndex = min(max(glyphIndex, 0), glyphCount - 1)
         let charIndex = layoutManager.characterIndexForGlyph(at: glyphIndex)
         let line = (textView.string as NSString).lineNumber(at: charIndex)
         textView.selectLineRange(line...line)
@@ -413,83 +624,6 @@ private extension SQLTextView {
         let selectionRange = NSRange(location: startLocation, length: endLocation - startLocation)
         setSelectedRange(selectionRange)
         scrollRangeToVisible(selectionRange)
-    }
-}
-
-private final class SQLSyntaxHighlighter: NSObject, NSTextStorageDelegate {
-    var theme: SQLEditorTheme
-    private var isHighlighting = false
-    weak var textView: NSTextView?
-
-    init(theme: SQLEditorTheme) {
-        self.theme = theme
-    }
-
-    func textStorage(_ textStorage: NSTextStorage, didProcessEditing editedMask: NSTextStorageEditActions, range editedRange: NSRange, changeInLength delta: Int) {
-        guard !isHighlighting else { return }
-        guard editedMask.contains(.editedCharacters) else { return }
-        applyHighlighting(to: textStorage)
-    }
-
-    func applyHighlighting(to textStorage: NSTextStorage?) {
-        guard let textStorage else { return }
-        isHighlighting = true
-
-        // Preserve selection and typing attributes
-        let currentSelection = textView?.selectedRange() ?? NSRange(location: NSNotFound, length: 0)
-        let currentTypingAttributes = textView?.typingAttributes
-
-        let fullRange = NSRange(location: 0, length: textStorage.length)
-        textStorage.beginEditing()
-        textStorage.setAttributes([
-            .font: theme.nsFont,
-            .foregroundColor: theme.tokenColors.plain.nsColor
-        ], range: fullRange)
-
-        highlight(pattern: #"--.*"#, in: textStorage, color: theme.tokenColors.comment.nsColor)
-        highlight(pattern: #"/\*[^*]*\*+(?:[^/*][^*]*\*+)*/"#, in: textStorage, color: theme.tokenColors.comment.nsColor)
-        highlight(pattern: #"'[^']*'"#, in: textStorage, color: theme.tokenColors.string.nsColor)
-        highlight(pattern: #"\"[^\"]*\""#, in: textStorage, color: theme.tokenColors.string.nsColor)
-        highlight(pattern: #"\b[0-9]+(?:\.[0-9]+)?\b"#, in: textStorage, color: theme.tokenColors.number.nsColor)
-        highlightKeywords(in: textStorage)
-
-        textStorage.endEditing()
-
-        // Restore typing attributes and selection
-        if let attrs = currentTypingAttributes {
-            textView?.typingAttributes = attrs
-        }
-        if currentSelection.location != NSNotFound {
-            textView?.setSelectedRange(currentSelection)
-        }
-
-        isHighlighting = false
-    }
-
-    private func highlight(pattern: String, in textStorage: NSTextStorage, color: NSColor) {
-        guard let regex = try? NSRegularExpression(pattern: pattern, options: [.dotMatchesLineSeparators]) else { return }
-        let string = textStorage.string
-        let range = NSRange(location: 0, length: (string as NSString).length)
-        regex.enumerateMatches(in: string, options: [], range: range) { result, _, _ in
-            guard let result else { return }
-            textStorage.addAttributes([
-                .foregroundColor: color
-            ], range: result.range)
-        }
-    }
-
-    private func highlightKeywords(in textStorage: NSTextStorage) {
-        let keywords = "SELECT|INSERT|UPDATE|DELETE|FROM|WHERE|GROUP|BY|ORDER|LIMIT|OFFSET|JOIN|INNER|LEFT|RIGHT|FULL|ON|AS|DISTINCT|AND|OR|NOT|BETWEEN|IN|IS|NULL|LIKE|HAVING|CREATE|ALTER|DROP|TABLE|VIEW|INDEX|TRIGGER|FUNCTION|RETURNING|WITH|EXISTS|UNION"
-        guard let regex = try? NSRegularExpression(pattern: #"\b(?:\#(keywords))\b"#, options: [.caseInsensitive]) else { return }
-        let string = textStorage.string
-        let range = NSRange(location: 0, length: (string as NSString).length)
-        regex.enumerateMatches(in: string, options: [], range: range) { result, _, _ in
-            guard let result else { return }
-            textStorage.addAttributes([
-                .foregroundColor: theme.tokenColors.keyword.nsColor,
-                .font: theme.nsFont
-            ], range: result.range)
-        }
     }
 }
 
@@ -542,6 +676,7 @@ private extension NSString {
 private struct IOSSQLEditorRepresentable: UIViewRepresentable {
     @Binding var text: String
     var theme: SQLEditorTheme
+    var display: SQLEditorDisplayOptions
     var onSelectionChange: (SQLEditorSelection) -> Void
     var onSelectionPreviewChange: (SQLEditorSelection) -> Void
 
@@ -551,7 +686,8 @@ private struct IOSSQLEditorRepresentable: UIViewRepresentable {
         let textView = UITextView()
         textView.font = theme.uiFont
         textView.textColor = theme.tokenColors.plain.uiColor
-        textView.backgroundColor = .systemBackground
+        textView.backgroundColor = theme.palette.background.uiColor
+        textView.tintColor = theme.tokenColors.operatorSymbol.uiColor
         textView.autocorrectionType = .no
         textView.autocapitalizationType = .none
         textView.smartQuotesType = .no
@@ -559,6 +695,9 @@ private struct IOSSQLEditorRepresentable: UIViewRepresentable {
         textView.smartInsertDeleteType = .no
         textView.delegate = context.coordinator
         textView.text = text
+        textView.textContainerInset = UIEdgeInsets(top: 14, left: 12, bottom: 14, right: 12)
+        textView.textContainer.widthTracksTextView = display.wrapLines
+        textView.textContainer.lineFragmentPadding = 12
         return textView
     }
 
@@ -568,6 +707,9 @@ private struct IOSSQLEditorRepresentable: UIViewRepresentable {
         }
         uiView.font = theme.uiFont
         uiView.textColor = theme.tokenColors.plain.uiColor
+        uiView.backgroundColor = theme.palette.background.uiColor
+        uiView.tintColor = theme.tokenColors.operatorSymbol.uiColor
+        uiView.textContainer.widthTracksTextView = display.wrapLines
     }
 
     final class Coordinator: NSObject, UITextViewDelegate {
