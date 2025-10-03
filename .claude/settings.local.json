@@ -1,0 +1,30 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(xcodebuild:*)",
+      "WebFetch(domain:swiftpackageindex.com)",
+      "WebFetch(domain:github.com)",
+      "Read(//Users/k/Library/Developer/Xcode/DerivedData/fuzee-cgtqmbnsmuftjecbnjbrlqqbwvhm/SourcePackages/checkouts/postgres-nio/Sources/PostgresNIO/Data/**)",
+      "Read(//Users/k/Library/Developer/Xcode/DerivedData/**)",
+      "Bash(swift build:*)",
+      "Bash(swift:*)",
+      "Bash(find:*)",
+      "Bash(git show-branch:*)",
+      "Bash(git checkout:*)",
+      "Bash(git stash show:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$(cat <<''EOF''\n🎯 RECOVERED: Complete week of lost development work\n\nThis commit recovers all the sophisticated functionality that was built over the past week:\n\n## 🔥 Major Features Added:\n\n### Query Interface & Management\n- TabbedQueryView: Multi-tab SQL query interface with resizable splits\n- QueryInputSection: Advanced SQL editor with line numbers, syntax highlighting\n- QueryResultsSection: Rich results display with messages/results tabs  \n- QueryTab: Complete query execution with timing and state management\n\n### Server & Connection Management\n- ServerSwitcher: Cmd+Tab style server switching (macOS native)\n- ServerOverview: Comprehensive server management interface\n- Enhanced ConnectionSession management\n- FinderStyleConnectionsList: Sophisticated connection browsing\n\n### Advanced Data Display\n- HighPerformanceGridView: Virtualized grid for large datasets\n- Cell/row selection, column sorting, resizing\n- EnhancedMessagesView: Rich query message display with severity levels\n\n### Developer Experience\n- SQLFormatter: Complete SQL syntax highlighting & formatting\n- KeyboardShortcuts: Full keyboard shortcut management system\n- Color+Extensions: Hex color support and utilities\n- Platform compatibility layers for macOS/iOS\n\n### UI/UX Enhancements  \n- Custom SF Symbols for database objects\n- JetBrains Mono font integration\n- Drag & drop functionality\n- Modern macOS Liquid Glass design elements\n\n## 🛠️ Infrastructure\n- Enhanced DatabaseClient with new object types (materialized views, functions, triggers)\n- Comprehensive session management architecture\n- Advanced state management with proper bindings\n- Cross-platform compatibility utilities\n\nThis represents a significant advancement in the database client functionality with\nprofessional-grade features for query management, data visualization, and user experience.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(grep:*)",
+      "Bash(awk:*)",
+      "Bash(for:*)",
+      "Bash(do if grep -q \"ObservableObject\\|@Published\" \"$file\")",
+      "Bash(! grep -q \"import Combine\" \"$file\")",
+      "Bash(then echo \"$file\")",
+      "Bash(fi)",
+      "Bash(done)",
+      "Bash(cat:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
