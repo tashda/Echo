@@ -40,9 +40,18 @@ if [[ ! -f "${UNIVERSAL_BINARY}" ]]; then
     echo "[sqruff] downloading source…"
     SRC_DIR="${CACHE_DIR}/src"
     if [[ -d "${SRC_DIR}" ]]; then
-      git -C "${SRC_DIR}" fetch --depth=1 origin "v${SQRUFF_VERSION}"
-      git -C "${SRC_DIR}" checkout "v${SQRUFF_VERSION}"
+      if git -C "${SRC_DIR}" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+        git -C "${SRC_DIR}" fetch --depth=1 origin "v${SQRUFF_VERSION}"
+        git -C "${SRC_DIR}" checkout "v${SQRUFF_VERSION}"
+      else
+        echo "[sqruff] cache source directory is not a git repository; resetting…"
+        rm -rf "${SRC_DIR}"
+      fi
     else
+      git clone --depth=1 --branch "v${SQRUFF_VERSION}" https://github.com/quarylabs/sqruff "${SRC_DIR}"
+    fi
+
+    if [[ ! -d "${SRC_DIR}" ]]; then
       git clone --depth=1 --branch "v${SQRUFF_VERSION}" https://github.com/quarylabs/sqruff "${SRC_DIR}"
     fi
 
