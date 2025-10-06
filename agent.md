@@ -4,9 +4,18 @@
 - Repository reset to commit `4e45cd6` and reconstructed for multi-session sidebar + cached schema architecture.
 - Explorer sidebar now uses `DatabaseObjectBrowserView` to render schemas/tables/functions with Finder-style interactions.
 - Postgres integration restored via `PostgresSession` in `Echo/Database/PostgresDatabase.swift`; supports schema enumeration, object definitions, and cached structures.
+- Microsoft SQL Server integration implemented via `MSSQLSession` in `Echo/Database/MSSQLDatabase.swift`; mirrors Postgres capabilities using the forked `tds-nio` driver (SNI suppressed automatically when connecting by IP, database enumeration pulls from `sys.dm_user_db_access`/fallbacks for low-privilege logins, and Windows authentication via Kerberos/GSS is supported with domain credentials).
 - Query experience is provided by `TabbedQueryView`, `QueryInputSection`, and `HighPerformanceGridView`.
 - Project-centric data model is live: connections, identities, and folders are scoped by project, persisted through `ProjectStore`, and surfaced via the Xcode-style `TopBarNavigator`.
 - `ManageConnectionsTab` replaces the legacy sidebar editing: creation/edit/move flows live there while `ConnectionsSidebarView` is read-only for navigation.
+- Native macOS Tahoe tab bar is now driven by real `NSTabGroup` windows managed by `WorkspaceWindowController`; SwiftUI tab chrome is hidden whenever the `.useNativeTabBar` environment flag is set.
+- Source tree reorganized under `Sources/`:
+  - `Application/` (app lifecycle, coordinators, app-wide services)
+  - `Domain/` (app, connection, tab, search, and settings models/view models)
+  - `Infrastructure/Database`, `Infrastructure/Persistence`, `Infrastructure/Utilities`
+  - `Platform/macOS/` (AppKit windows + platform extensions)
+  - `Presentation/Views`, `Presentation/Environment`, `Presentation/Theme`
++ Clean naming rules: prefer descriptive singular filenames (e.g. `TitlebarTabsWindow`) and keep platform-specific code under `Sources/Platform`.
 
 ## Design Priorities
 - UI must feel like a native macOS Tahoe app: glassy backgrounds, subtle elevations, no harsh contrasts.
@@ -29,7 +38,7 @@
    - Reuse helper `performQuery` + `firstString` when adding new metadata queries.
    - Share common helpers across database engines when it reduces duplication, but keep engine-specific logic isolated per database implementation (Postgres, MySQL, MSSQL, etc.).
 5. **Query Tabs**
-   - `TabManager` (on `AppModel`) owns tabs. `HighPerformanceGridView` expects standard `QueryResultSet` data.
+   - `TabManager` (on `AppModel`) owns tabs while `WorkspaceWindowController` mirrors that list into an `NSTabGroup`; always mutate through `TabManager` so window/tab state stays consistent.
    - Split view uses `ResizeHandle`; keep interactive handle cross-platform.
    - Results grid must stay responsive and accurate—never introduce lag or stale/incorrect cells; keep data shaping in the fetch pipeline, not in the view layer.
 6. **Theming**

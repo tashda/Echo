@@ -27,7 +27,7 @@
 					<key>payload</key>
 					<dict>
 						<key>relative-path</key>
-						<string>Echo/Views/TabbedQueryView.swift</string>
+						<string>fuzee/Views/TabbedQueryView.swift</string>
 					</dict>
 				</dict>
 			</dict>
@@ -73,7 +73,7 @@
 					<key>payload</key>
 					<dict>
 						<key>relative-path</key>
-						<string>Echo/Views/TabbedQueryView.swift</string>
+						<string>fuzee/Views/TabbedQueryView.swift</string>
 					</dict>
 				</dict>
 			</dict>
@@ -119,7 +119,7 @@
 					<key>payload</key>
 					<dict>
 						<key>relative-path</key>
-						<string>Echo/Views/Sidebar/Components/DatabaseObjectBrowserView.swift</string>
+						<string>fuzee/Views/Sidebar/Components/DatabaseObjectBrowserView.swift</string>
 					</dict>
 				</dict>
 			</dict>
@@ -163,7 +163,7 @@
 					<key>payload</key>
 					<dict>
 						<key>relative-path</key>
-						<string>Echo/Views/Sidebar/Pages/Explorer/ExplorerSidebarView.swift</string>
+						<string>fuzee/Views/Sidebar/Pages/Explorer/ExplorerSidebarView.swift</string>
 					</dict>
 				</dict>
 			</dict>
@@ -208,7 +208,7 @@
 					<key>payload</key>
 					<dict>
 						<key>relative-path</key>
-						<string>Echo/Views/Sidebar/Components/DatabaseObjectBrowserView.swift</string>
+						<string>fuzee/Views/Sidebar/Components/DatabaseObjectBrowserView.swift</string>
 					</dict>
 				</dict>
 			</dict>
@@ -253,7 +253,7 @@
 					<key>payload</key>
 					<dict>
 						<key>relative-path</key>
-						<string>Echo/Views/Sidebar/Components/DatabaseObjectBrowserView.swift</string>
+						<string>fuzee/Views/Sidebar/Components/DatabaseObjectBrowserView.swift</string>
 					</dict>
 				</dict>
 			</dict>
@@ -272,6 +272,231 @@
         .onTapGesture {
 </string>
 			</dict>
+			<key>type</key>
+			<string>bookmark</string>
+		</dict>
+		<dict>
+			<key>destination</key>
+			<dict>
+				<key>location-parameters</key>
+				<dict>
+					<key>EndingColumnNumber</key>
+					<string>0</string>
+					<key>EndingLineNumber</key>
+					<string>122</string>
+					<key>StartingColumnNumber</key>
+					<string>0</string>
+					<key>StartingLineNumber</key>
+					<string>122</string>
+					<key>Timestamp</key>
+					<string>781396090.51263</string>
+				</dict>
+				<key>rebasable-url</key>
+				<dict>
+					<key>base</key>
+					<string>workspace</string>
+					<key>payload</key>
+					<dict>
+						<key>relative-path</key>
+						<string>Echo/Sources/Platform/macOS/Windows/TitlebarTabsWindow.swift</string>
+					</dict>
+				</dict>
+			</dict>
+			<key>text-context</key>
+			<dict>
+				<key>focused</key>
+				<string></string>
+				<key>leading</key>
+				<string>    static let title = NSToolbarItem.Identifier("EchoTitle")
+}
+</string>
+				<key>trailing</key>
+				<string></string>
+			</dict>
+			<key>title</key>
+			<string>Error: Attribute 'private' can only be used in a non-local scope
+    private final class ViewModel: ObservableObject {
+    ^</string>
+			<key>type</key>
+			<string>bookmark</string>
+		</dict>
+		<dict>
+			<key>destination</key>
+			<dict>
+				<key>location-parameters</key>
+				<dict>
+					<key>EndingColumnNumber</key>
+					<string>0</string>
+					<key>EndingLineNumber</key>
+					<string>122</string>
+					<key>StartingColumnNumber</key>
+					<string>0</string>
+					<key>StartingLineNumber</key>
+					<string>122</string>
+					<key>Timestamp</key>
+					<string>781396090.512625</string>
+				</dict>
+				<key>rebasable-url</key>
+				<dict>
+					<key>base</key>
+					<string>workspace</string>
+					<key>payload</key>
+					<dict>
+						<key>relative-path</key>
+						<string>Echo/Sources/Platform/macOS/Windows/TitlebarTabsWindow.swift</string>
+					</dict>
+				</dict>
+			</dict>
+			<key>text-context</key>
+			<dict>
+				<key>focused</key>
+				<string></string>
+				<key>leading</key>
+				<string>    static let title = NSToolbarItem.Identifier("EchoTitle")
+}
+</string>
+				<key>trailing</key>
+				<string></string>
+			</dict>
+			<key>title</key>
+			<string>Error: Attribute 'private' can only be used in a non-local scope
+    private struct TitleItem: View {
+    ^</string>
+			<key>type</key>
+			<string>bookmark</string>
+		</dict>
+		<dict>
+			<key>destination</key>
+			<dict>
+				<key>location-parameters</key>
+				<dict>
+					<key>EndingColumnNumber</key>
+					<string>0</string>
+					<key>EndingLineNumber</key>
+					<string>122</string>
+					<key>StartingColumnNumber</key>
+					<string>0</string>
+					<key>StartingLineNumber</key>
+					<string>122</string>
+					<key>Timestamp</key>
+					<string>781396090.5126179</string>
+				</dict>
+				<key>rebasable-url</key>
+				<dict>
+					<key>base</key>
+					<string>workspace</string>
+					<key>payload</key>
+					<dict>
+						<key>relative-path</key>
+						<string>Echo/Sources/Platform/macOS/Windows/TitlebarTabsWindow.swift</string>
+					</dict>
+				</dict>
+			</dict>
+			<key>text-context</key>
+			<dict>
+				<key>focused</key>
+				<string></string>
+				<key>leading</key>
+				<string>    static let title = NSToolbarItem.Identifier("EchoTitle")
+}
+</string>
+				<key>trailing</key>
+				<string></string>
+			</dict>
+			<key>title</key>
+			<string>Error: Declaration is only valid at file scope
+private extension Array {
+        ^</string>
+			<key>type</key>
+			<string>bookmark</string>
+		</dict>
+		<dict>
+			<key>destination</key>
+			<dict>
+				<key>location-parameters</key>
+				<dict>
+					<key>EndingColumnNumber</key>
+					<string>0</string>
+					<key>EndingLineNumber</key>
+					<string>122</string>
+					<key>StartingColumnNumber</key>
+					<string>0</string>
+					<key>StartingLineNumber</key>
+					<string>122</string>
+					<key>Timestamp</key>
+					<string>781396090.512637</string>
+				</dict>
+				<key>rebasable-url</key>
+				<dict>
+					<key>base</key>
+					<string>workspace</string>
+					<key>payload</key>
+					<dict>
+						<key>relative-path</key>
+						<string>Echo/Sources/Platform/macOS/Windows/TitlebarTabsWindow.swift</string>
+					</dict>
+				</dict>
+			</dict>
+			<key>text-context</key>
+			<dict>
+				<key>focused</key>
+				<string></string>
+				<key>leading</key>
+				<string>    static let title = NSToolbarItem.Identifier("EchoTitle")
+}
+</string>
+				<key>trailing</key>
+				<string></string>
+			</dict>
+			<key>title</key>
+			<string>Error: Declaration is only valid at file scope
+private extension NSToolbarItem.Identifier {
+        ^</string>
+			<key>type</key>
+			<string>bookmark</string>
+		</dict>
+		<dict>
+			<key>destination</key>
+			<dict>
+				<key>location-parameters</key>
+				<dict>
+					<key>EndingColumnNumber</key>
+					<string>0</string>
+					<key>EndingLineNumber</key>
+					<string>122</string>
+					<key>StartingColumnNumber</key>
+					<string>0</string>
+					<key>StartingLineNumber</key>
+					<string>122</string>
+					<key>Timestamp</key>
+					<string>781396090.512601</string>
+				</dict>
+				<key>rebasable-url</key>
+				<dict>
+					<key>base</key>
+					<string>workspace</string>
+					<key>payload</key>
+					<dict>
+						<key>relative-path</key>
+						<string>Echo/Sources/Platform/macOS/Windows/TitlebarTabsWindow.swift</string>
+					</dict>
+				</dict>
+			</dict>
+			<key>text-context</key>
+			<dict>
+				<key>focused</key>
+				<string></string>
+				<key>leading</key>
+				<string>    static let title = NSToolbarItem.Identifier("EchoTitle")
+}
+</string>
+				<key>trailing</key>
+				<string></string>
+			</dict>
+			<key>title</key>
+			<string>Error: Expected '}' in class
+
+^</string>
 			<key>type</key>
 			<string>bookmark</string>
 		</dict>
