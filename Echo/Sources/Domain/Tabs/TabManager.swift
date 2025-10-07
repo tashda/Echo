@@ -7,6 +7,11 @@ protocol TabManagerDelegate: AnyObject {
     func tabManager(_ manager: TabManager, didRemoveTabID tabID: UUID)
     func tabManager(_ manager: TabManager, didSetActiveTabID tabID: UUID?)
     func tabManagerDidReorderTabs(_ manager: TabManager)
+    func tabManager(_ manager: TabManager, shouldClose tab: WorkspaceTab) -> Bool
+}
+
+extension TabManagerDelegate {
+    func tabManager(_ manager: TabManager, shouldClose tab: WorkspaceTab) -> Bool { true }
 }
 
 @MainActor
@@ -75,8 +80,12 @@ final class TabManager: ObservableObject {
         delegate?.tabManager(self, didRemoveTabID: id)
     }
 
-    func closeTab(id: UUID) {
+    @discardableResult
+    func closeTab(id: UUID) -> Bool {
+        guard let tab = getTab(id: id) else { return false }
+        guard delegate?.tabManager(self, shouldClose: tab) ?? true else { return false }
         removeTab(withID: id)
+        return true
     }
 
     func setActiveTab(_ id: UUID) {
@@ -186,9 +195,13 @@ final class TabManager: ObservableObject {
         let idsToRemove = tabs.compactMap { $0.id == id ? nil : $0.id }
         let shouldActivate = activeTabId == id
 
-        idsToRemove.forEach { removeTab(withID: $0) }
+        for tabID in idsToRemove {
+            if !closeTab(id: tabID) {
+                break
+            }
+        }
 
-        if shouldActivate || activeTabId != id {
+        if (shouldActivate || activeTabId != id), tabs.contains(where: { $0.id == id }) {
             activeTabId = id
         }
     }
@@ -198,9 +211,13 @@ final class TabManager: ObservableObject {
         let idsToRemove = tabs[..<index].map(\.id)
         let shouldActivate = activeTabId == id
 
-        idsToRemove.forEach { removeTab(withID: $0) }
+        for tabID in idsToRemove.reversed() {
+            if !closeTab(id: tabID) {
+                break
+            }
+        }
 
-        if shouldActivate || activeTabId != id {
+        if (shouldActivate || activeTabId != id), tabs.contains(where: { $0.id == id }) {
             activeTabId = id
         }
     }
@@ -210,15 +227,19 @@ final class TabManager: ObservableObject {
         let idsToRemove = tabs[(index + 1)...].map(\.id)
         let shouldActivate = activeTabId == id
 
-        idsToRemove.forEach { removeTab(withID: $0) }
+        for tabID in idsToRemove {
+            if !closeTab(id: tabID) {
+                break
+            }
+        }
 
-        if shouldActivate || activeTabId != id {
+        if (shouldActivate || activeTabId != id), tabs.contains(where: { $0.id == id }) {
             activeTabId = id
         }
     }
 
     func removeTabFromWindowClose(id: UUID) {
-        removeTab(withID: id)
+        _ = closeTab(id: id)
     }
 
     func reorderTabs(toMatch orderedIDs: [UUID]) {

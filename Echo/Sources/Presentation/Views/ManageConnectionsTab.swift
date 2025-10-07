@@ -22,6 +22,7 @@ struct ManageConnectionsTab: View {
     @State private var identityEditorState: IdentityEditorState?
     @State private var pendingDeletion: DeletionTarget?
     @State private var connectionEditorPresentation: ConnectionEditorPresentation?
+    @State private var pendingDuplicateConnection: SavedConnection?
     
     
     private var activeSection: ManageSection { selectedSection ?? .connections }
@@ -34,6 +35,29 @@ struct ManageConnectionsTab: View {
             .sheet(item: $identityEditorState, content: identityEditorSheet)
             .sheet(item: $connectionEditorPresentation, content: connectionEditorSheet)
             .alert("Delete Item?", isPresented: deletionAlertBinding, presenting: pendingDeletion, actions: deletionAlertActions, message: deletionAlertMessage)
+            .confirmationDialog(
+                "Duplicate Connection",
+                isPresented: Binding(
+                    get: { pendingDuplicateConnection != nil },
+                    set: { isPresented in if !isPresented { pendingDuplicateConnection = nil } }
+                ),
+                titleVisibility: .visible,
+                presenting: pendingDuplicateConnection
+            ) { connection in
+                Button("Duplicate with Bookmark History") {
+                    performDuplicate(connection, copyBookmarks: true)
+                }
+
+                Button("Duplicate Only Connection") {
+                    performDuplicate(connection, copyBookmarks: false)
+                }
+
+                Button("Cancel", role: .cancel) {
+                    pendingDuplicateConnection = nil
+                }
+            } message: { _ in
+                Text("Do you want to copy the bookmark history into the duplicated connection?")
+            }
             .onChange(of: appModel.selectedProject?.id) { _, _ in resetForProjectChange() }
             .onChange(of: selectedSection) { _, section in if let section { handleSectionChange(section) } }
             .onChange(of: appModel.folders) { _, _ in pruneNavigationStacks() }
@@ -49,15 +73,6 @@ struct ManageConnectionsTab: View {
         }
     }
     
-    private var addToolbarButton: some View {
-        Button {
-            handlePrimaryAdd(for: activeSection)
-        } label: {
-            Label(activeSection == .connections ? "New Connection" : "New Identity", systemImage: "plus")
-        }
-        .help(activeSection == .connections ? "Create a new connection" : "Create a new identity")
-    }
-    
     private var splitView: some View {
         NavigationSplitView(columnVisibility: $columnVisibility) {
             sidebar
@@ -67,16 +82,7 @@ struct ManageConnectionsTab: View {
                 .frame(minWidth: 560)
                 .background(Color(nsColor: .windowBackgroundColor))
         }
-        .searchable(
-            text: $searchText,
-            placement: .toolbar,
-            prompt: activeSection == .connections ? "Search Connections" : "Search Identities"
-        )
-        .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                addToolbarButton
-            }
-        }
+        .toolbar(.hidden, for: .windowToolbar)
     }
     
     // MARK: - Sheets & Alerts
@@ -192,7 +198,9 @@ struct ManageConnectionsTab: View {
             ManageConnectionsListView(
                 tree: tree,
                 section: section,
-                identityDisplayProvider: identityDisplay(for:),
+                searchText: $searchText,
+                identityDecorationProvider: identityDecoration(for:),
+                folderDecorationProvider: folderDecoration(for:),
                 onConnect: connectToConnection,
                 onEditConnection: editConnection,
                 onDuplicateConnection: duplicateConnection,
@@ -201,17 +209,21 @@ struct ManageConnectionsTab: View {
                 onDelete: handleDeletion,
                 onMove: { payload, targetFolderID in
                     handleMove(payload, to: targetFolderID, in: section)
-                }
+                },
+                onPrimaryAdd: { handlePrimaryAdd(for: section) },
+                onCreateFolder: { createNewFolder(for: section) }
             )
         }
     }
 
     private struct ManageConnectionsListView: View {
-        
-        
+
+
         let tree: [ItemNode]
         let section: ManageSection
-        let identityDisplayProvider: (SavedConnection) -> IdentityDisplay
+        let searchText: Binding<String>
+        let identityDecorationProvider: (SavedConnection) -> IdentityDecoration?
+        let folderDecorationProvider: (SavedFolder) -> IdentityDecoration?
         let onConnect: (SavedConnection) -> Void
         let onEditConnection: (SavedConnection) -> Void
         let onDuplicateConnection: (SavedConnection) -> Void
@@ -219,28 +231,37 @@ struct ManageConnectionsTab: View {
         let onEditFolder: (SavedFolder) -> Void
         let onDelete: (ItemNode.Payload) -> Void
         let onMove: (DragPayload, UUID?) -> Void
-        
+        let onPrimaryAdd: () -> Void
+        let onCreateFolder: () -> Void
+
         @State private var dropTargetID: UUID?
         @State private var rootDropActive = false
-        
+        @State private var hoveredNodeID: UUID?
+        @State private var isProcessingDrop = false
+
         private let parentLookup: [UUID: UUID?]
-        private let nodeLookup: [UUID: ItemNode]
-        
+
         init(
             tree: [ItemNode],
             section: ManageSection,
-            identityDisplayProvider: @escaping (SavedConnection) -> IdentityDisplay,
+            searchText: Binding<String>,
+            identityDecorationProvider: @escaping (SavedConnection) -> IdentityDecoration?,
+            folderDecorationProvider: @escaping (SavedFolder) -> IdentityDecoration?,
             onConnect: @escaping (SavedConnection) -> Void,
             onEditConnection: @escaping (SavedConnection) -> Void,
             onDuplicateConnection: @escaping (SavedConnection) -> Void,
             onEditIdentity: @escaping (SavedIdentity) -> Void,
             onEditFolder: @escaping (SavedFolder) -> Void,
             onDelete: @escaping (ItemNode.Payload) -> Void,
-            onMove: @escaping (DragPayload, UUID?) -> Void
+            onMove: @escaping (DragPayload, UUID?) -> Void,
+            onPrimaryAdd: @escaping () -> Void,
+            onCreateFolder: @escaping () -> Void
         ) {
             self.tree = tree
             self.section = section
-            self.identityDisplayProvider = identityDisplayProvider
+            self.searchText = searchText
+            self.identityDecorationProvider = identityDecorationProvider
+            self.folderDecorationProvider = folderDecorationProvider
             self.onConnect = onConnect
             self.onEditConnection = onEditConnection
             self.onDuplicateConnection = onDuplicateConnection
@@ -248,138 +269,310 @@ struct ManageConnectionsTab: View {
             self.onEditFolder = onEditFolder
             self.onDelete = onDelete
             self.onMove = onMove
-            
-            let maps = Self.buildLookups(from: tree)
-            self.parentLookup = maps.parent
-            self.nodeLookup = maps.nodes
+            self.onPrimaryAdd = onPrimaryAdd
+            self.onCreateFolder = onCreateFolder
+
+            self.parentLookup = Self.buildParentLookup(from: tree)
         }
-        
-        private static func buildLookups(from nodes: [ItemNode]) -> (parent: [UUID: UUID?], nodes: [UUID: ItemNode]) {
+
+        private static func buildParentLookup(from nodes: [ItemNode]) -> [UUID: UUID?] {
             var parents: [UUID: UUID?] = [:]
-            var nodesMap: [UUID: ItemNode] = [:]
-            
+
             func walk(_ current: [ItemNode], parent: UUID?) {
                 for node in current {
                     parents[node.id] = parent
-                    nodesMap[node.id] = node
                     walk(node.children, parent: node.id)
                 }
             }
-            
+
             walk(nodes, parent: nil)
-            return (parents, nodesMap)
+            return parents
         }
-        
+
         var body: some View {
             List {
                 OutlineGroup(tree, children: \ItemNode.childNodes) { node in
-                    rowContent(for: node)
-                        .contextMenu { contextMenu(for: node) }
+                    nodeRow(for: node, isHovered: hoveredNodeID == node.id)
+                        .contentShape(Rectangle())
                         .listRowBackground(rowBackground(for: node))
+                        .contextMenu { contextMenu(for: node) }
+                        .onTapGesture(count: 2) { activate(node.payload) }
+                        .onDrag { provider(for: node) }
+                        .onDrop(of: [UTType.utf8PlainText], isTargeted: dropTargetBinding(for: node)) { providers in
+                            handleDrop(providers: providers, targetFor: node)
+                        }
+                        .onHover { isHovering in
+                            hoveredNodeID = isHovering ? node.id : (hoveredNodeID == node.id ? nil : hoveredNodeID)
+                        }
                 }
             }
-            .listStyle(.sidebar)
+            .listStyle(.inset)
             .scrollContentBackground(.hidden)
-            .background(Color(nsColor: .windowBackgroundColor))
+            .alternatingRowBackgrounds()
+            .environment(\.defaultMinListRowHeight, 40)
             .onDrop(of: [UTType.utf8PlainText], isTargeted: $rootDropActive) { providers in
                 defer { rootDropActive = false }
+                guard dropTargetID == nil else { return false }
                 return handleDrop(providers: providers, targetFolderID: nil)
             }
-        }
-        
-        private func rowContent(for node: ItemNode) -> some View {
-            let payload = node.payload
-            let isDropTarget = dropTargetID == node.id
-            
-            return HStack(spacing: 10) {
-                icon(for: payload)
-                
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(primaryTitle(for: payload))
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundStyle(Color.primary)
-                    
-                    if let subtitle = subtitle(for: node) {
-                        Text(subtitle)
-                            .font(.system(size: 12, weight: .medium))
-                            .foregroundStyle(Color.secondary)
-                    }
-                    
-                    if case .connection(let connection) = payload {
-                        identityBadge(for: connection)
-                    }
-                }
-                
-                Spacer(minLength: 8)
-                trailingControls(for: payload)
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                bottomBar
             }
-            .padding(.vertical, 6)
-            .contentShape(Rectangle())
-            .onTapGesture(count: 2) { activate(payload) }
-            .onDrag { provider(for: node) }
-            .onDrop(of: [UTType.utf8PlainText], isTargeted: Binding(
-                get: { dropTargetID == node.id },
+            .overlay(alignment: .topTrailing) {
+                searchField
+            }
+        }
+
+        private var searchField: some View {
+            HStack(spacing: 6) {
+                Image(systemName: "magnifyingglass")
+                    .foregroundStyle(.secondary)
+                TextField(section.searchPlaceholder, text: searchText)
+                    .textFieldStyle(.plain)
+                    .frame(width: 200)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(.ultraThinMaterial)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .strokeBorder(Color.primary.opacity(0.08))
+            )
+            .padding(.top, 12)
+            .padding(.trailing, 16)
+        }
+
+        private var bottomBar: some View {
+            HStack(spacing: 8) {
+                Button(action: onPrimaryAdd) {
+                    Image(systemName: section.primaryAddSymbol)
+                        .font(.system(size: 14, weight: .semibold))
+                }
+                .buttonStyle(.borderless)
+                .controlSize(.small)
+                .help(section.primaryAddHelp)
+                .tint(Color(nsColor: .controlAccentColor))
+
+                Button(action: onCreateFolder) {
+                    Image(systemName: "folder.badge.plus")
+                        .font(.system(size: 14, weight: .semibold))
+                }
+                .buttonStyle(.borderless)
+                .controlSize(.small)
+                .help(section.createFolderHelp)
+                .tint(Color(nsColor: .controlAccentColor))
+
+                Spacer()
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 8)
+            .background(.ultraThinMaterial)
+            .overlay(alignment: .top) { Divider() }
+        }
+
+        private func dropTargetBinding(for node: ItemNode) -> Binding<Bool> {
+            let isFolder: Bool
+            if case .folder = node.payload {
+                isFolder = true
+            } else {
+                isFolder = false
+            }
+
+            return Binding(
+                get: { isFolder && dropTargetID == node.id },
                 set: { isTargeted in
+                    guard isFolder else {
+                        dropTargetID = nil
+                        return
+                    }
                     dropTargetID = isTargeted ? node.id : nil
                 }
-            )) { providers in
-                guard case .folder(let folder) = node.payload else { return false }
-                return handleDrop(providers: providers, targetFolderID: folder.id)
-            }
-            .background(
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(isDropTarget ? Color.accentColor.opacity(0.12) : Color.clear)
             )
         }
-        
+
         private func rowBackground(for node: ItemNode) -> Color? {
             dropTargetID == node.id ? Color.accentColor.opacity(0.08) : nil
         }
-        
-        private func icon(for payload: ItemNode.Payload) -> some View {
-            let configuration = LabelConfiguration(for: payload)
-            return Image(systemName: configuration.symbol)
-                .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(configuration.tint)
+
+        private func handleDrop(providers: [NSItemProvider], targetFor node: ItemNode) -> Bool {
+            guard case .folder(let folder) = node.payload else { return false }
+            return handleDrop(providers: providers, targetFolderID: folder.id)
         }
-        
-        private func trailingControls(for payload: ItemNode.Payload) -> some View {
-            HStack(spacing: 6) {
-                switch payload {
-                case .connection(let connection):
-                    Button { onConnect(connection) } label: {
-                        Label("Connect", systemImage: "bolt.horizontal.circle")
+
+        @ViewBuilder
+        private func nodeRow(for node: ItemNode, isHovered: Bool) -> some View {
+            switch node.payload {
+            case .folder(let folder):
+                folderRow(folder, summary: subtitle(for: node), isHovered: isHovered)
+            case .connection(let connection):
+                connectionRow(connection, summary: subtitle(for: node), isHovered: isHovered)
+            case .identity(let identity):
+                identityRow(identity, summary: subtitle(for: node), isHovered: isHovered)
+            }
+        }
+
+        private func folderRow(_ folder: SavedFolder, summary: String?, isHovered: Bool) -> some View {
+            let decoration = folderDecorationProvider(folder)
+
+            return HStack(spacing: 12) {
+                Image(systemName: "folder")
+                    .symbolVariant(.fill)
+                    .font(.system(size: 17, weight: .regular))
+                    .foregroundStyle(Color(nsColor: .controlAccentColor))
+
+                VStack(alignment: .leading, spacing: 3) {
+                    HStack(spacing: 6) {
+                        Text(primaryTitle(for: .folder(folder)))
+                            .font(.body.weight(.medium))
+                        if let decoration {
+                            IdentityBubble(decoration: decoration)
+                        }
                     }
-                    .buttonStyle(.borderedProminent)
+
+                    if let summary {
+                        Text(summary)
+                            .font(.system(size: 12))
+                            .italic()
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                Spacer(minLength: 12)
+
+                Menu {
+                    Button("Edit") { onEditFolder(folder) }
+                    Button("Delete", role: .destructive) { onDelete(.folder(folder)) }
+                } label: {
+                    Image(systemName: "ellipsis")
+                        .font(.system(size: 14, weight: .semibold))
+                }
+                .menuIndicator(.hidden)
+                .controlSize(.small)
+                .menuStyle(BorderlessButtonMenuStyle())
+                .opacity(isHovered ? 1 : 0)
+                .allowsHitTesting(isHovered)
+            }
+            .frame(minHeight: 44, alignment: .center)
+            .padding(.vertical, 2)
+        }
+
+        private func connectionRow(_ connection: SavedConnection, summary: String?, isHovered: Bool) -> some View {
+            let decoration = identityDecorationProvider(connection)
+
+            return HStack(spacing: 12) {
+                Image(systemName: "server.rack")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(Color(nsColor: .systemBlue))
+                    .frame(width: 18)
+
+                VStack(alignment: .leading, spacing: 3) {
+                    HStack(spacing: 6) {
+                        Text(primaryTitle(for: .connection(connection)))
+                            .font(.body.weight(.medium))
+                        if let decoration {
+                            IdentityBubble(decoration: decoration)
+                        }
+                    }
+
+                    if let summary {
+                        Text(summary)
+                            .font(.system(size: 12))
+                            .italic()
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                Spacer(minLength: 12)
+
+                HStack(spacing: 8) {
+                    Button(action: { onConnect(connection) }) {
+                        Image(systemName: "bolt.horizontal")
+                            .font(.system(size: 14, weight: .semibold))
+                    }
+                    .buttonStyle(.borderless)
                     .controlSize(.small)
-                    
+                    .help("Connect")
+
                     Menu {
                         Button("Edit") { onEditConnection(connection) }
                         Button("Duplicate") { onDuplicateConnection(connection) }
+                        Divider()
                         Button("Delete", role: .destructive) { onDelete(.connection(connection)) }
                     } label: {
-                        Image(systemName: "ellipsis.circle")
-                            .font(.system(size: 17, weight: .semibold))
+                        Image(systemName: "ellipsis")
+                            .font(.system(size: 14, weight: .semibold))
                     }
                     .menuIndicator(.hidden)
-                    
-                case .folder(let folder):
-                    Button { onEditFolder(folder) } label: {
-                        Image(systemName: "square.and.pencil")
-                    }
-                    .buttonStyle(.bordered)
-                    .controlSize(.mini)
-                    
-                case .identity(let identity):
-                    Button { onEditIdentity(identity) } label: {
-                        Image(systemName: "person.crop.circle.badge.checkmark")
-                    }
-                    .buttonStyle(.bordered)
-                    .controlSize(.mini)
+                    .controlSize(.small)
+                    .menuStyle(BorderlessButtonMenuStyle())
                 }
+                .opacity(isHovered ? 1 : 0)
+                .allowsHitTesting(isHovered)
+            }
+            .frame(minHeight: 44, alignment: .center)
+            .padding(.vertical, 2)
+        }
+
+        private func identityRow(_ identity: SavedIdentity, summary: String?, isHovered: Bool) -> some View {
+            HStack(spacing: 12) {
+                Image(systemName: "person.crop.circle")
+                    .font(.system(size: 17, weight: .regular))
+                    .foregroundStyle(Color(nsColor: .systemPurple))
+                    .frame(width: 18)
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(primaryTitle(for: .identity(identity)))
+                        .font(.body.weight(.medium))
+                    if let summary {
+                        Text(summary)
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                Spacer(minLength: 12)
+
+                Menu {
+                    Button("Edit") { onEditIdentity(identity) }
+                    Divider()
+                    Button("Delete", role: .destructive) { onDelete(.identity(identity)) }
+                } label: {
+                    Image(systemName: "ellipsis")
+                        .font(.system(size: 14, weight: .semibold))
+                }
+                .menuIndicator(.hidden)
+                .controlSize(.small)
+                .menuStyle(BorderlessButtonMenuStyle())
+                .opacity(isHovered ? 1 : 0)
+                .allowsHitTesting(isHovered)
+            }
+            .frame(minHeight: 44, alignment: .center)
+            .padding(.vertical, 2)
+        }
+
+        private struct IdentityBubble: View {
+            let decoration: IdentityDecoration
+
+            var body: some View {
+                Image(systemName: decoration.symbol)
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(decoration.tint)
+                    .frame(width: 16, height: 16)
+                    .background(
+                        Circle()
+                            .fill(decoration.tint.opacity(0.18))
+                    )
+                    .overlay(
+                        Circle()
+                            .stroke(decoration.tint.opacity(0.35), lineWidth: 0.5)
+                    )
+                    .help(decoration.tooltip ?? "")
             }
         }
-        
+
         private func primaryTitle(for payload: ItemNode.Payload) -> String {
             switch payload {
             case .folder(let folder):
@@ -392,7 +585,7 @@ struct ManageConnectionsTab: View {
                 return identity.name
             }
         }
-        
+
         private func subtitle(for node: ItemNode) -> String? {
             switch node.payload {
             case .folder:
@@ -419,28 +612,7 @@ struct ManageConnectionsTab: View {
                 return user.isEmpty ? nil : user
             }
         }
-        
-        private func identityBadge(for connection: SavedConnection) -> some View {
-            let display = identityDisplayProvider(connection)
-            return Group {
-                if display.label.isEmpty {
-                    EmptyView()
-                } else {
-                    HStack(spacing: 6) {
-                        Image(systemName: display.style.iconSymbol)
-                            .font(.system(size: 10, weight: .semibold))
-                        Text(display.label)
-                            .font(.system(size: 11, weight: .semibold))
-                    }
-                    .foregroundStyle(display.style.foreground)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(Color(nsColor: display.style.pillBackgroundColor))
-                    .clipShape(Capsule())
-                }
-            }
-        }
-        
+
         private func provider(for node: ItemNode) -> NSItemProvider {
             let payload: DragPayload
             switch node.payload {
@@ -453,31 +625,37 @@ struct ManageConnectionsTab: View {
             }
             return NSItemProvider(object: payload.stringValue as NSString)
         }
-        
+
         private func handleDrop(providers: [NSItemProvider], targetFolderID: UUID?) -> Bool {
-            guard let payload = extractPayload(from: providers) else { return false }
-            guard canDrop(payload, into: targetFolderID) else { return false }
-            onMove(payload, targetFolderID)
-            dropTargetID = nil
-            return true
-        }
-        
-        private func extractPayload(from providers: [NSItemProvider]) -> DragPayload? {
-            guard let provider = providers.first(where: { $0.hasItemConformingToTypeIdentifier(UTType.utf8PlainText.identifier) }) else { return nil }
-            let semaphore = DispatchSemaphore(value: 0)
-            var result: DragPayload?
-            provider.loadItem(forTypeIdentifier: UTType.utf8PlainText.identifier, options: nil) { item, _ in
-                defer { semaphore.signal() }
-                if let data = item as? Data, let string = String(data: data, encoding: .utf8) {
-                    result = DragPayload(string: string)
-                } else if let string = item as? String {
-                    result = DragPayload(string: string)
+            guard let provider = providers.first(where: { $0.canLoadObject(ofClass: NSString.self) }) else { return false }
+
+            if isProcessingDrop { return false }
+            isProcessingDrop = true
+
+            provider.loadObject(ofClass: NSString.self) { object, _ in
+                guard let string = object as? String,
+                      let payload = DragPayload(string: string) else {
+                    DispatchQueue.main.async {
+                        isProcessingDrop = false
+                        dropTargetID = nil
+                    }
+                    return
+                }
+
+                DispatchQueue.main.async {
+                    defer {
+                        dropTargetID = nil
+                        isProcessingDrop = false
+                    }
+
+                    guard canDrop(payload, into: targetFolderID) else { return }
+                    onMove(payload, targetFolderID)
                 }
             }
-            semaphore.wait()
-            return result
+
+            return true
         }
-        
+
         private func activate(_ payload: ItemNode.Payload) {
             switch payload {
             case .folder:
@@ -488,7 +666,7 @@ struct ManageConnectionsTab: View {
                 onEditIdentity(identity)
             }
         }
-        
+
         private func canDrop(_ payload: DragPayload, into destinationFolderID: UUID?) -> Bool {
             switch section {
             case .connections:
@@ -513,7 +691,7 @@ struct ManageConnectionsTab: View {
                 }
             }
         }
-        
+
         private func isInvalidFolderMove(folderID: UUID, destinationFolderID: UUID?) -> Bool {
             guard let destination = destinationFolderID else { return false }
             if destination == folderID { return true }
@@ -524,39 +702,21 @@ struct ManageConnectionsTab: View {
             }
             return false
         }
-        
+
         @ViewBuilder
         private func contextMenu(for node: ItemNode) -> some View {
             switch node.payload {
             case .folder(let folder):
-                Button("Rename") { onEditFolder(folder) }
+                Button("Edit") { onEditFolder(folder) }
                 Button("Delete", role: .destructive) { onDelete(.folder(folder)) }
             case .connection(let connection):
                 Button("Connect") { onConnect(connection) }
                 Button("Edit") { onEditConnection(connection) }
+                Button("Duplicate") { onDuplicateConnection(connection) }
                 Button("Delete", role: .destructive) { onDelete(.connection(connection)) }
             case .identity(let identity):
                 Button("Edit") { onEditIdentity(identity) }
                 Button("Delete", role: .destructive) { onDelete(.identity(identity)) }
-            }
-        }
-        
-        private struct LabelConfiguration {
-            let symbol: String
-            let tint: Color
-            
-            init(for payload: ItemNode.Payload) {
-                switch payload {
-                case .folder:
-                    symbol = "folder"
-                    tint = Color(nsColor: .controlAccentColor)
-                case .connection:
-                    symbol = "server.rack"
-                    tint = Color(nsColor: .systemBlue)
-                case .identity:
-                    symbol = "person.crop.circle"
-                    tint = Color(nsColor: .systemPurple)
-                }
             }
         }
     }
@@ -627,7 +787,14 @@ struct ManageConnectionsTab: View {
     }
 
     private func duplicateConnection(_ connection: SavedConnection) {
-        Task { await appModel.duplicateConnection(connection) }
+        pendingDuplicateConnection = connection
+    }
+
+    private func performDuplicate(_ connection: SavedConnection, copyBookmarks: Bool) {
+        Task {
+            pendingDuplicateConnection = nil
+            await appModel.duplicateConnection(connection, copyBookmarks: copyBookmarks)
+        }
     }
 
     private func connectToConnection(_ connection: SavedConnection) {
@@ -644,6 +811,10 @@ struct ManageConnectionsTab: View {
         selectedSection = .identities
         let parent = folder ?? defaultFolder(for: .identities)
         identityEditorState = .create(parent: parent, token: UUID())
+    }
+
+    private func createNewFolder(for section: ManageSection, parent: SavedFolder? = nil) {
+        folderEditorState = .create(kind: section.folderKind, parent: parent, token: UUID())
     }
 
     private func editIdentity(_ identity: SavedIdentity) {
@@ -833,9 +1004,7 @@ struct ManageConnectionsTab: View {
                     connectionMap: connectionMap,
                     identityMap: identityMap
                 )
-                let connections = (connectionMap?[folder.id] ?? []).map { ItemNode(payload: .connection($0), children: []) }
-                let identities = (identityMap?[folder.id] ?? []).map { ItemNode(payload: .identity($0), children: []) }
-                nodes.append(ItemNode(payload: .folder(folder), children: children + connections + identities))
+                nodes.append(ItemNode(payload: .folder(folder), children: children))
             }
         }
 
@@ -863,20 +1032,87 @@ struct ManageConnectionsTab: View {
         }
     }
 
-    private func identityDisplay(for connection: SavedConnection) -> IdentityDisplay {
+    private func identityDecoration(for connection: SavedConnection) -> IdentityDecoration? {
         switch connection.credentialSource {
         case .identity:
-            if let identityID = connection.identityID,
-               let identity = identityLookup[identityID] {
-                let detail = identity.username.trimmingCharacters(in: .whitespacesAndNewlines)
-                return IdentityDisplay(label: identity.name, detail: detail.isEmpty ? nil : detail, style: .identity)
+            guard let identityID = connection.identityID,
+                  let identity = identityLookup[identityID] else {
+                return IdentityDecoration(
+                    symbol: "person.fill",
+                    tint: Color(nsColor: .systemPurple),
+                    tooltip: "Linked Identity"
+                )
             }
-            return IdentityDisplay(label: "Linked Identity", detail: nil, style: .identity)
+
+            var tooltip = identity.name
+            let detail = identity.username.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !detail.isEmpty {
+                tooltip += " — \(detail)"
+            }
+
+            return IdentityDecoration(
+                symbol: "person.fill",
+                tint: Color(nsColor: .systemPurple),
+                tooltip: tooltip
+            )
+
         case .inherit:
-            return IdentityDisplay(label: "Inherited Credentials", detail: nil, style: .inherit)
+            return IdentityDecoration(
+                symbol: "arrow.triangle.branch",
+                tint: Color(nsColor: .systemTeal),
+                tooltip: "Inherited credentials"
+            )
+
         case .manual:
-            let detail = connection.username.trimmingCharacters(in: .whitespacesAndNewlines)
-            return IdentityDisplay(label: "Manual Credentials", detail: detail.isEmpty ? nil : detail, style: .manual)
+            let username = connection.username.trimmingCharacters(in: .whitespacesAndNewlines)
+            let tooltip = username.isEmpty ? "Manual credentials" : "Manual credentials — \(username)"
+            return IdentityDecoration(
+                symbol: "key.fill",
+                tint: Color(nsColor: .systemBlue),
+                tooltip: tooltip
+            )
+        }
+    }
+
+    private func folderDecoration(for folder: SavedFolder) -> IdentityDecoration? {
+        switch folder.credentialMode {
+        case .none:
+            return nil
+        case .manual:
+            let username = folder.manualUsername?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            let tooltip = username.isEmpty ? "Manual credentials" : "Manual credentials — \(username)"
+            return IdentityDecoration(
+                symbol: "key.fill",
+                tint: Color(nsColor: .systemBlue),
+                tooltip: tooltip
+            )
+        case .identity:
+            guard let identityID = folder.identityID,
+                  let identity = identityLookup[identityID] else {
+                return IdentityDecoration(
+                    symbol: "person.fill",
+                    tint: Color(nsColor: .systemPurple),
+                    tooltip: "Linked identity"
+                )
+            }
+
+            var tooltip = identity.name
+            let detail = identity.username.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !detail.isEmpty {
+                tooltip += " — \(detail)"
+            }
+
+            return IdentityDecoration(
+                symbol: "person.fill",
+                tint: Color(nsColor: .systemPurple),
+                tooltip: tooltip
+            )
+        case .inherit:
+            return IdentityDecoration(
+                symbol: "arrow.triangle.branch",
+                tint: Color(nsColor: .systemTeal),
+                tooltip: "Inherits credentials"
+            )
         }
     }
 
@@ -893,6 +1129,7 @@ struct ManageConnectionsTab: View {
                 }
             }
             .listStyle(.sidebar)
+            .scrollContentBackground(.hidden)
             .onAppear {
                 if selection == nil {
                     selection = .connections
@@ -951,6 +1188,30 @@ private enum ManageSection: String, CaseIterable, Identifiable {
         case .identities: return "New Identity"
         }
     }
+
+    var primaryAddSymbol: String { "plus" }
+
+    var primaryAddHelp: String {
+        switch self {
+        case .connections: return "Create a new connection"
+        case .identities: return "Create a new identity"
+        }
+    }
+
+    var createFolderHelp: String {
+        switch self {
+        case .connections: return "Create a new connection folder"
+        case .identities: return "Create a new identity folder"
+        }
+    }
+
+    var searchPlaceholder: String {
+        switch self {
+        case .connections: return "Search connections"
+        case .identities: return "Search identities"
+        }
+    }
+
 }
 
 private struct ItemNode: Identifiable {
@@ -998,40 +1259,10 @@ private struct ItemNode: Identifiable {
     }
 }
 
-private struct IdentityDisplay {
-    enum Style {
-        case identity
-        case inherit
-        case manual
-
-        var foreground: Color {
-            switch self {
-            case .identity: return Color(nsColor: .systemPurple)
-            case .inherit: return Color(nsColor: .systemTeal)
-            case .manual: return .secondary
-            }
-        }
-
-        var iconSymbol: String {
-            switch self {
-            case .identity: return "person.crop.circle"
-            case .inherit: return "arrow.triangle.branch"
-            case .manual: return "key.fill"
-            }
-        }
-
-        var pillBackgroundColor: NSColor {
-            switch self {
-            case .identity: return NSColor.systemPurple.withAlphaComponent(0.12)
-            case .inherit: return NSColor.systemTeal.withAlphaComponent(0.12)
-            case .manual: return NSColor.controlAccentColor.withAlphaComponent(0.1)
-            }
-        }
-    }
-
-    let label: String
-    let detail: String?
-    let style: Style
+private struct IdentityDecoration {
+    let symbol: String
+    let tint: Color
+    let tooltip: String?
 }
 
 private struct ConnectionEditorPresentation: Identifiable {

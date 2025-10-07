@@ -855,12 +855,14 @@ private func queryTabSnapshots(from appModel: AppModel?) -> [SearchSidebarQueryT
     guard let appModel else { return [] }
     let sessionsByID = Dictionary(uniqueKeysWithValues: appModel.sessionManager.sessions.map { ($0.id, $0) })
 
-    return appModel.tabManager.tabs.compactMap { tab in
-        guard let queryState = tab.query else { return nil }
+    var snapshots: [SearchSidebarQueryTabSnapshot] = []
+
+    for tab in appModel.tabManager.tabs {
+        guard let queryState = tab.query else { continue }
         let session = sessionsByID[tab.connectionSessionID]
         let connection = tab.connection
-        let databaseName = session?.selectedDatabaseName?.trimmingCharacters(in: .whitespacesAndNewlines)
-            .flatMap { $0.isEmpty ? nil : $0 }
+        let trimmedSelectedDatabase = session?.selectedDatabaseName?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let databaseName = (trimmedSelectedDatabase?.isEmpty == false ? trimmedSelectedDatabase : nil)
             ?? connection.database.trimmingCharacters(in: .whitespacesAndNewlines).nonEmpty
         let serverText = connectionSummary(for: connection)
         var subtitleComponents: [String] = []
@@ -872,15 +874,19 @@ private func queryTabSnapshots(from appModel: AppModel?) -> [SearchSidebarQueryT
         }
         let subtitle = subtitleComponents.isEmpty ? nil : subtitleComponents.joined(separator: " • ")
 
-        return SearchSidebarQueryTabSnapshot(
-            tabID: tab.id,
-            connectionSessionID: tab.connectionSessionID,
-            title: tab.title,
-            subtitle: subtitle,
-            metadata: nil,
-            sql: queryState.sql
+        snapshots.append(
+            SearchSidebarQueryTabSnapshot(
+                tabID: tab.id,
+                connectionSessionID: tab.connectionSessionID,
+                title: tab.title,
+                subtitle: subtitle,
+                metadata: nil,
+                sql: queryState.sql
+            )
         )
     }
+
+    return snapshots
 }
 
 private func connectionSummary(for connection: SavedConnection) -> String {

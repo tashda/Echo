@@ -80,9 +80,6 @@ struct ContentView: View {
         .onChange(of: appState.activeSheet) { _, newSheet in
             showingConnectionEditor = (newSheet == .connectionEditor)
         }
-        .safeAreaInset(edge: .top, spacing: 0) {
-            topToolbarInset
-        }
     }
 }
 
@@ -101,24 +98,20 @@ private extension ContentView {
     }
 
     var mainContent: some View {
-        GeometryReader { geometry in
-            VStack(spacing: 0) {
-                // Native Tabs (extends full width)
-                if !useNativeTabBar && showsTabStrip {
-                    WorkspaceTabStrip(
-                        leadingPadding: 12,
-                        trailingPadding: 12,
-                        createNewTab: createNewTab,
-                        toggleOverview: { appState.showTabOverview.toggle() }
-                    )
-                    .frame(height: 44)
-                    .padding(.top, 6)
-                }
-
-                // Query Editor and Results
-                queryContent
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+        VStack(spacing: 0) {
+            if !useNativeTabBar && showsTabStrip {
+                WorkspaceTabStrip(
+                    leadingPadding: 0,
+                    trailingPadding: appState.showInfoSidebar ? 300 : 0,
+                    createNewTab: createNewTab,
+                    toggleOverview: { appState.showTabOverview.toggle() }
+                )
+                .frame(height: 44)
+                .padding(.top, 6)
             }
+
+            queryContent
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
 
@@ -148,17 +141,6 @@ private extension ContentView {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-    }
-
-    var topToolbarInset: some View {
-        GeometryReader { proxy in
-            WorkspaceTopToolbar(availableWidth: max(proxy.size.width - 24, 320))
-                .padding(.horizontal, 12)
-                .padding(.vertical, 6)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-        }
-        .frame(height: 44)
-        .background(.bar)
     }
 
     func createNewTab() {

@@ -594,6 +594,12 @@ private struct ConnectionFolderRow<Content: View>: View {
         switch folder.credentialMode {
         case .none:
             return "No credentials"
+        case .manual:
+            let username = folder.manualUsername?.trimmingCharacters(in: .whitespacesAndNewlines)
+            if let username, !username.isEmpty {
+                return "Manual credentials (\(username))"
+            }
+            return "Manual credentials"
         case .identity:
             if let identity = folder.identityID.flatMap({ id in appModel.identities.first(where: { $0.id == id }) }) {
                 return "Uses identity \(identity.name)"

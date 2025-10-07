@@ -22,7 +22,9 @@
       "Bash(then echo \"$file\")",
       "Bash(fi)",
       "Bash(done)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(open:*)",
+      "Bash(killall:*)"
     ],
     "deny": [],
     "ask": []

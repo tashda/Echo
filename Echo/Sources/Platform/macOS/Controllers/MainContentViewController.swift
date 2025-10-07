@@ -66,7 +66,6 @@ private struct MainContentWrapperView: View {
     @ObservedObject var appModel: AppModel
     @ObservedObject var appState: AppState
     @ObservedObject var clipboardHistory: ClipboardHistoryStore
-    @Environment(\.useNativeTabBar) private var useNativeTabBar
     @ObservedObject var themeManager: ThemeManager
 
     private var selectedConnection: SavedConnection? { appModel.selectedConnection }
@@ -76,46 +75,30 @@ private struct MainContentWrapperView: View {
     }
 
     var body: some View {
-        GeometryReader { geometry in
-            let safeArea = geometry.safeAreaInsets
-            let contentBottomPadding = max(safeArea.bottom, 18)
-
-            VStack(spacing: 8) {
-                if showsTabStrip {
-                    WorkspaceTabStrip(
-                        leadingPadding: 18,
-                        trailingPadding: 18,
-                        createNewTab: createNewTab,
-                        toggleOverview: { appState.showTabOverview.toggle() }
-                    )
-                    .frame(height: 44)
-                    .padding(.horizontal, 12)
-                    .padding(.top, 6)
-                }
-
-                queryContent
-                    .padding(.leading, safeArea.leading)
-                    .padding(.trailing, safeArea.trailing)
-                    .padding(.bottom, contentBottomPadding)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        VStack(spacing: 0) {
+            // Tab strip below toolbar (if showing)
+            if showsTabStrip {
+                WorkspaceTabStrip(
+                    leadingPadding: 0,
+                    trailingPadding: 0,
+                    createNewTab: createNewTab,
+                    toggleOverview: { appState.showTabOverview.toggle() }
+                )
+                .frame(height: 44)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(themeManager.windowBackground)
+
+            // Main content
+            queryContent
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(themeManager.windowBackground)
+        .ignoresSafeArea()
         .environmentObject(appModel)
         .environmentObject(appState)
         .environmentObject(clipboardHistory)
         .environmentObject(themeManager)
-        .safeAreaInset(edge: .top, spacing: 0) {
-            GeometryReader { proxy in
-                WorkspaceTopToolbar(availableWidth: max(proxy.size.width - 24, 320))
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-            }
-            .frame(height: 44)
-            .background(.bar)
-        }
+        .environment(\.useNativeTabBar, false)
     }
 
     private var queryContent: some View {
@@ -148,7 +131,7 @@ private struct MainContentWrapperView: View {
     }
 
     private var showsTabStrip: Bool {
-        !useNativeTabBar && !appModel.tabManager.tabs.isEmpty
+        !appModel.tabManager.tabs.isEmpty
     }
 }
 

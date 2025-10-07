@@ -4,7 +4,7 @@ import NIOCore
 import NIOPosix
 import NIOSSL
 import Network
-import TDS
+@preconcurrency import TDS
 
 struct MSSQLNIOFactory: DatabaseFactory {
     private let logger = Logger(label: "dk.tippr.echo.mssql")
@@ -210,17 +210,29 @@ final class MSSQLSession: DatabaseSession {
 
         let currentName = await resolvedCurrentDatabase()
 
-        func cleaned(_ names: [String]) -> [String] {
-            let excluded = Set(["master", "tempdb", "model", "msdb"])
-            var set = Set(names.filter { !$0.isEmpty && !excluded.contains($0.lowercased()) })
+        func cleaned(_ names: [String], includeSystem: Bool = false) -> Set<String> {
+            var result = Set<String>()
+            for name in names where !name.isEmpty {
+                let lower = name.lowercased()
+                let isSystem = ["master", "tempdb", "model", "msdb"].contains(lower)
+                if isSystem {
+                    if includeSystem {
+                        result.insert(name)
+                    }
+                    continue
+                }
+                result.insert(name)
+            }
             if let current = currentName, !current.isEmpty {
-                set.insert(current)
+                result.insert(current)
             }
             if let defaultDb = defaultDatabase, !defaultDb.isEmpty {
-                set.insert(defaultDb)
+                result.insert(defaultDb)
             }
-            return set.sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+            return result
         }
+
+        var discovered = Set<String>()
 
         let dmSQL = """
         SELECT DISTINCT DB_NAME(database_id) AS database_name
@@ -230,10 +242,9 @@ final class MSSQLSession: DatabaseSession {
         """
         if let dmRows = try? await fetchRows(dmSQL) {
             let names = cleaned(dmRows.compactMap { $0.string("database_name") })
-            logger.debug("MSSQL listDatabases using dm_exec_sessions returned \(names.count) entries")
-            if !names.isEmpty {
-                return names
-            }
+            let sortedNames = names.sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+            logger.info("MSSQL listDatabases dm_exec_sessions yielded \(sortedNames)")
+            discovered.formUnion(names)
         }
 
         let catalogSQL = """
@@ -245,24 +256,29 @@ final class MSSQLSession: DatabaseSession {
         """
         if let rows = try? await fetchRows(catalogSQL) {
             let names = cleaned(rows.compactMap { $0.string("name") })
-            logger.debug("MSSQL listDatabases using sys.databases returned \(names.count) entries")
-            if !names.isEmpty {
-                return names
-            }
+            let sortedNames = names.sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+            logger.info("MSSQL listDatabases sys.databases yielded \(sortedNames)")
+            discovered.formUnion(names)
         }
 
         if let procedureRows = try? await fetchRows("EXEC sp_databases;"),
            !procedureRows.isEmpty {
             let names = cleaned(procedureRows.compactMap { $0.string("DATABASE_NAME") })
-            logger.debug("MSSQL listDatabases using sp_databases returned \(names.count) entries")
-            if !names.isEmpty {
-                return names
-            }
+            let sortedNames = names.sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+            logger.info("MSSQL listDatabases sp_databases yielded \(sortedNames)")
+            discovered.formUnion(names)
         }
 
-        let fallbacks = cleaned([])
-        logger.debug("MSSQL listDatabases falling back to current/default set count \(fallbacks.count)")
-        return fallbacks.isEmpty ? ["master"] : fallbacks
+        if discovered.isEmpty {
+            let systemFallback = cleaned([], includeSystem: true)
+            let sortedFallback = systemFallback.sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+            logger.info("MSSQL listDatabases fallback to system set \(sortedFallback)")
+            return systemFallback.sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+        }
+
+        let sorted = discovered.sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+        logger.info("MSSQL listDatabases final set \(sorted)")
+        return sorted
     }
 
     func listSchemas() async throws -> [String] {
@@ -272,27 +288,24 @@ final class MSSQLSession: DatabaseSession {
         WHERE name NOT IN ('sys', 'INFORMATION_SCHEMA')
         ORDER BY name;
         """
-        do {
-            let rows = try await fetchRows(sql)
-            let names = rows.compactMap { $0.string("name") }
-            if !names.isEmpty {
-                return names
-            }
-        } catch {
-            logger.debug("Falling back to alternate schema query due to error: \(error.localizedDescription)")
+        let rows = try await fetchRows(sql)
+        let names = rows.compactMap { $0.string("name") }
+        logger.info("MSSQL listSchemas fetched \(names.count) schemas")
+        if !names.isEmpty {
+            return names
         }
 
-        if let altRows = try? await fetchRows("SELECT DISTINCT TABLE_SCHEMA AS name FROM INFORMATION_SCHEMA.TABLES ORDER BY TABLE_SCHEMA;"),
-           !altRows.isEmpty {
-            let names = altRows.compactMap { $0.string("name") }
-            logger.debug("MSSQL listSchemas using INFORMATION_SCHEMA returned \(names.count) entries")
-            if !names.isEmpty {
-                return names
+        if let fallbackRows = try? await fetchRows("SELECT schema_name AS name FROM INFORMATION_SCHEMA.SCHEMATA ORDER BY schema_name"),
+           !fallbackRows.isEmpty {
+            let fallbackNames = fallbackRows.compactMap { $0.string("name") }
+            logger.info("MSSQL listSchemas fallback via INFORMATION_SCHEMA returned \(fallbackNames.count) schemas")
+            if !fallbackNames.isEmpty {
+                return fallbackNames
             }
         }
 
-        logger.debug("MSSQL listSchemas returning default dbo")
-        return ["dbo"]
+        logger.info("MSSQL listSchemas returning no schemas")
+        return []
     }
 
     func queryWithPaging(_ sql: String, limit: Int, offset: Int) async throws -> QueryResultSet {
@@ -465,7 +478,7 @@ final class MSSQLSession: DatabaseSession {
     }
 
     private func fetchColumnsByObject(schemaName: String) async throws -> [String: [ColumnInfo]] {
-        logger.debug("MSSQL fetchColumnsByObject for schema \(schemaName) started")
+        logger.info("MSSQL fetchColumnsByObject for schema \(schemaName) started")
         let sql = """
         SELECT
             c.TABLE_NAME,
@@ -483,7 +496,14 @@ final class MSSQLSession: DatabaseSession {
         ORDER BY c.TABLE_NAME, c.ORDINAL_POSITION;
         """
 
-        let rows = try await fetchRows(sql)
+        let rows: [MSSQLRow]
+        do {
+            rows = try await fetchRows(sql)
+        } catch {
+            logger.warning("MSSQL fetchColumnsByObject for schema \(schemaName) failed: \(error.localizedDescription)")
+            return [:]
+        }
+        logger.info("MSSQL fetchColumnsByObject for schema \(schemaName) received \(rows.count) column rows")
         let primaryKeyMap = try await loadPrimaryKeyColumns(schema: schemaName)
 
         var columnsByTable: [String: [ColumnInfo]] = [:]
@@ -509,7 +529,7 @@ final class MSSQLSession: DatabaseSession {
             columnsByTable[tableName, default: []].append(columnInfo)
         }
 
-        logger.debug("MSSQL fetchColumnsByObject for schema \(schemaName) produced \(columnsByTable.count) tables")
+        logger.info("MSSQL fetchColumnsByObject for schema \(schemaName) produced \(columnsByTable.count) tables")
         return columnsByTable
     }
 
@@ -808,7 +828,8 @@ final class MSSQLSession: DatabaseSession {
 
     private static func formatTypeName(base: String, maxLength: Int?, precision: String?, scale: String?) -> String {
         switch base.lowercased() {
-        case "nvarchar", "nchar", "varchar", "char" where maxLength != nil:
+        case "nvarchar", "nchar", "varchar", 
+            "char" where maxLength != nil:
             if let maxLength, maxLength == -1 {
                 return "\(base)(MAX)"
             }
@@ -877,6 +898,7 @@ extension MSSQLSession: DatabaseMetadataSession {
         ORDER BY table_name;
         """
         let tableRows = try await fetchRows(tablesSQL)
+        logger.info("MSSQL loadSchemaInfo schema \(schemaName) discovered \(tableRows.count) tables/views")
 
         let functionSQL = """
         SELECT routine_name
@@ -886,6 +908,7 @@ extension MSSQLSession: DatabaseMetadataSession {
         ORDER BY routine_name;
         """
         let functionRows = try await fetchRows(functionSQL)
+        logger.info("MSSQL loadSchemaInfo schema \(schemaName) discovered \(functionRows.count) functions")
 
         let triggerSQL = """
         SELECT
@@ -905,6 +928,7 @@ extension MSSQLSession: DatabaseMetadataSession {
         ORDER BY tr.name;
         """
         let triggerRows = try await fetchRows(triggerSQL)
+        logger.info("MSSQL loadSchemaInfo schema \(schemaName) discovered \(triggerRows.count) triggers")
 
         let totalObjects = max(tableRows.count + functionRows.count + triggerRows.count, 1)
         var processed = 0

@@ -55,19 +55,16 @@ private struct SidebarWrapperView: View {
     @State private var showingConnectionEditor = false
 
     var body: some View {
-        GeometryReader { proxy in
-            SidebarView(
-                selectedConnectionID: $appModel.selectedConnectionID,
-                selectedIdentityID: $appModel.selectedIdentityID,
-                onAddConnection: {
-                    showingConnectionEditor = true
-                }
-            )
-            .environmentObject(appModel)
-            .environmentObject(appState)
-            .padding(.top, proxy.safeAreaInsets.top + 16)
-            .ignoresSafeArea(edges: [.leading, .trailing, .bottom])
-        }
+        SidebarView(
+            selectedConnectionID: $appModel.selectedConnectionID,
+            selectedIdentityID: $appModel.selectedIdentityID,
+            onAddConnection: {
+                showingConnectionEditor = true
+            }
+        )
+        .environmentObject(appModel)
+        .environmentObject(appState)
+        .ignoresSafeArea()
         .sheet(isPresented: $showingConnectionEditor) {
             ConnectionEditorView(
                 connection: appModel.selectedConnection,

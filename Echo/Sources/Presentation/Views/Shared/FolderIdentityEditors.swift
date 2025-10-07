@@ -68,6 +68,9 @@ struct FolderEditorSheet: View {
     @State private var selectedColorHex: String = FolderIdentityPalette.defaults.first ?? "BAF2BB"
     @State private var credentialMode: FolderCredentialMode = .none
     @State private var selectedIdentityID: UUID?
+    @State private var manualUsername: String = ""
+    @State private var manualPassword: String = ""
+    @State private var manualPasswordDirty = false
 
     private var isIdentityFolder: Bool {
         switch state {
@@ -93,6 +96,22 @@ struct FolderEditorSheet: View {
         return nil
     }
 
+    private var editingFolderUsesManual: Bool {
+        editingFolder?.credentialMode == .manual
+    }
+
+    private var header: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(editingFolder == nil ? "New Folder" : "Edit Folder")
+                .font(.system(size: 22, weight: .semibold))
+
+            Text(editingFolder == nil ? "Group connections and share credentials across team members." : "Update folder details and credential sharing preferences.")
+                .font(.system(size: 13))
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
     private var availableIdentities: [SavedIdentity] {
         appModel.identities.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
     }
@@ -110,32 +129,61 @@ struct FolderEditorSheet: View {
     }
 
     private var isValid: Bool {
-        !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedName.isEmpty else { return false }
+
+        switch credentialMode {
+        case .manual:
+            let trimmedUsername = manualUsername.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmedUsername.isEmpty else { return false }
+
+            if editingFolderUsesManual && !manualPasswordDirty {
+                return true
+            }
+
+            return !manualPassword.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+
+        case .identity:
+            return selectedIdentityID != nil
+
+        default:
+            return true
+        }
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text(editingFolder == nil ? "New Folder" : "Edit Folder")
-                .font(.title3)
-                .fontWeight(.semibold)
+        VStack(spacing: 24) {
+            header
 
-            folderForm
+            ScrollView(.vertical, showsIndicators: false) {
+                VStack(spacing: 20) {
+                    folderForm
 
-            if !isIdentityFolder {
-                credentialsSection
+                    if !isIdentityFolder {
+                        credentialsSection
+                    }
+                }
+                .padding(.horizontal, 2)
             }
+            .frame(maxHeight: 320)
 
-            Spacer()
+            Divider()
 
             footerButtons
         }
-        .padding(24)
-        .frame(width: 420)
+        .padding(28)
+        .frame(width: 520, height: 440)
+        .background(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .fill(Color(nsColor: .windowBackgroundColor))
+                .shadow(color: Color.black.opacity(0.08), radius: 24, y: 14)
+        )
+        .padding(.vertical, 12)
         .onAppear(perform: prepareInitialValues)
     }
 
     private var folderForm: some View {
-        FormSection {
+        FormSection(title: "Folder Details") {
             FormRow(label: "Folder Name") {
                 TextEntryField(text: $name, placeholder: "Folder name")
             }
@@ -174,16 +222,46 @@ struct FolderEditorSheet: View {
 
     private var credentialsSection: some View {
         FormSection(title: "Credentials") {
-            FormRow(label: "Mode", showsDivider: credentialMode == .identity) {
+            FormRow(label: "Mode", showsDivider: credentialMode != .none) {
                 Picker("", selection: $credentialMode) {
                     Text("None").tag(FolderCredentialMode.none)
+                    if !isIdentityFolder {
+                        Text("Manual Credentials").tag(FolderCredentialMode.manual)
+                    }
                     Text("Link Identity").tag(FolderCredentialMode.identity)
                     if canUseInheritance {
                         Text("Inherit Parent").tag(FolderCredentialMode.inherit)
                     }
                 }
                 .pickerStyle(.segmented)
-                .frame(maxWidth: 240)
+                .frame(maxWidth: 320)
+            }
+
+            if credentialMode == .manual {
+                FormRow(label: "Username") {
+                    TextField("", text: $manualUsername, prompt: Text("shared_user"))
+                        .textFieldStyle(.roundedBorder)
+                        .frame(maxWidth: 260)
+                }
+
+                FormRow(label: "Password", showsDivider: false) {
+                    SecureField("", text: Binding<String>(
+                        get: { manualPassword },
+                        set: { newValue in
+                            manualPassword = newValue
+                            manualPasswordDirty = true
+                        }
+                    ), prompt: Text("••••••••"))
+                        .textFieldStyle(.roundedBorder)
+                        .frame(maxWidth: 260)
+
+                    if editingFolderUsesManual && !manualPasswordDirty {
+                        Text("Existing password retained")
+                            .font(.system(size: 11))
+                            .foregroundStyle(.secondary)
+                            .padding(.leading, 8)
+                    }
+                }
             }
 
             if credentialMode == .identity {
@@ -202,32 +280,49 @@ struct FolderEditorSheet: View {
                 }
             }
         }
+        .onChange(of: credentialMode) { newMode in
+            switch newMode {
+            case .manual:
+                manualUsername = editingFolderUsesManual ? (editingFolder?.manualUsername ?? "") : ""
+                manualPassword = ""
+                manualPasswordDirty = false
+            case .identity:
+                if selectedIdentityID == nil {
+                    selectedIdentityID = availableIdentities.first?.id
+                }
+            default:
+                manualUsername = ""
+                manualPassword = ""
+                manualPasswordDirty = false
+            }
+        }
     }
 
     @ViewBuilder
     private var footerButtons: some View {
         HStack {
-            if editingFolder != nil {
-                Button("Delete", role: .destructive) {
-                    guard let folder = editingFolder else { return }
+            if let folder = editingFolder {
+                Button(role: .destructive) {
                     Task {
                         await appModel.deleteFolder(folder)
                         dismiss()
                     }
+                } label: {
+                    Label("Delete Folder", systemImage: "trash")
                 }
-                Spacer()
-            } else {
-                Spacer()
             }
+
+            Spacer()
 
             Button("Cancel", role: .cancel) { dismiss() }
 
-            Button(editingFolder == nil ? "Create" : "Save") {
+            Button(editingFolder == nil ? "Create Folder" : "Save Changes") {
                 Task { await saveFolder() }
             }
             .buttonStyle(.borderedProminent)
             .disabled(!isValid)
         }
+        .controlSize(.large)
     }
 
     private func prepareInitialValues() {
@@ -236,10 +331,19 @@ struct FolderEditorSheet: View {
             selectedColorHex = folder.colorHex
             credentialMode = folder.credentialMode
             selectedIdentityID = folder.identityID
+            manualUsername = folder.manualUsername ?? ""
+            manualPassword = ""
+            manualPasswordDirty = false
         } else {
             if let parent = parentFolder {
                 selectedColorHex = parent.colorHex
+                if parent.credentialMode == .inherit {
+                    credentialMode = .inherit
+                }
             }
+            manualUsername = ""
+            manualPassword = ""
+            manualPasswordDirty = false
         }
     }
 
@@ -261,8 +365,17 @@ struct FolderEditorSheet: View {
         folder.colorHex = selectedColorHex
         folder.credentialMode = credentialMode
         folder.identityID = credentialMode == .identity ? selectedIdentityID : nil
+        folder.manualUsername = credentialMode == .manual ? manualUsername.trimmingCharacters(in: .whitespacesAndNewlines) : nil
 
-        await appModel.upsertFolder(folder)
+        let passwordToPersist: String?
+        if credentialMode == .manual {
+            let trimmedPassword = manualPassword.trimmingCharacters(in: .whitespacesAndNewlines)
+            passwordToPersist = manualPasswordDirty ? trimmedPassword : nil
+        } else {
+            passwordToPersist = nil
+        }
+
+        await appModel.upsertFolder(folder, manualPassword: passwordToPersist)
         if folder.kind == .connections {
             appModel.selectedFolderID = folder.id
         }

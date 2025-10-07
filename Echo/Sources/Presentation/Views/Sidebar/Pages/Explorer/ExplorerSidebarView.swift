@@ -396,9 +396,11 @@ struct ExplorerSidebarView: View {
             let fieldBackground = Color(nsColor: .controlBackgroundColor).opacity(0.85)
             let strokeColor = Color.black.opacity(0.08)
 
-            VStack(spacing: 0) {
-                Divider()
+            let hasExplorerContent = database.schemas.contains { !$0.objects.isEmpty }
+            let sidebarBackground = Color(nsColor: .underPageBackgroundColor)
+            let backgroundColor = hasExplorerContent ? sidebarBackground : Color.clear
 
+            VStack(spacing: 0) {
                 HStack(spacing: 10) {
                     NativeSearchField(
                         text: $searchText,
@@ -435,7 +437,14 @@ struct ExplorerSidebarView: View {
                 .padding(.vertical, 6)
                 .frame(maxWidth: .infinity)
             }
-            .background(.bar)
+            .background(backgroundColor)
+            .overlay(alignment: .top) {
+                if hasExplorerContent {
+                    Rectangle()
+                        .fill(sidebarBackground)
+                        .frame(height: 8)
+                }
+            }
             .animation(.easeInOut(duration: 0.2), value: shouldShowSchemaPicker)
         }
     }
@@ -970,6 +979,16 @@ private struct NativeSearchField: NSViewRepresentable {
         searchField.sendsWholeSearchString = true
         searchField.focusRingType = .none
         searchField.font = NSFont.systemFont(ofSize: 13, weight: .regular)
+        if let cell = searchField.cell as? NSSearchFieldCell {
+            cell.cancelButtonCell = nil
+            cell.placeholderAttributedString = NSAttributedString(
+                string: placeholder,
+                attributes: [
+                    .foregroundColor: NSColor.placeholderTextColor,
+                    .font: NSFont.systemFont(ofSize: 13)
+                ]
+            )
+        }
         return searchField
     }
 
@@ -977,8 +996,33 @@ private struct NativeSearchField: NSViewRepresentable {
         if nsView.stringValue != text {
             nsView.stringValue = text
         }
-        if nsView.placeholderString != placeholder {
-            nsView.placeholderString = placeholder
+
+        guard let cell = nsView.cell as? NSSearchFieldCell else { return }
+
+        if isFocused {
+            if cell.placeholderAttributedString != nil {
+                cell.placeholderAttributedString = nil
+            }
+        } else {
+            if cell.placeholderAttributedString?.string != placeholder {
+                cell.placeholderAttributedString = NSAttributedString(
+                    string: placeholder,
+                    attributes: [
+                        .foregroundColor: NSColor.placeholderTextColor,
+                        .font: NSFont.systemFont(ofSize: 13)
+                    ]
+                )
+            }
+        }
+
+        if let searchButtonCell = cell.searchButtonCell {
+            searchButtonCell.image = NSImage(systemSymbolName: "magnifyingglass", accessibilityDescription: nil)
+            searchButtonCell.imageScaling = .scaleProportionallyDown
+            searchButtonCell.alignment = .center
+        }
+
+        if isFocused, nsView.window?.firstResponder != nsView.currentEditor() {
+            nsView.window?.makeFirstResponder(nsView)
         }
     }
 
