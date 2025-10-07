@@ -25,7 +25,8 @@ struct InfoSidebarView: View {
             }
         }
         .formStyle(.grouped)
-        .scrollContentBackground(.visible)
+        .scrollContentBackground(.hidden)
+        .background(Color.clear)
         .padding(.top, 52)
     }
 }

@@ -166,6 +166,38 @@ extension AppCoordinator: TabManagerDelegate {
         }
     }
 
+    func tabManager(_ manager: TabManager, shouldClose tab: WorkspaceTab) -> Bool {
+        guard let context = tab.bookmarkContext, let queryState = tab.query else {
+            return true
+        }
+
+#if os(macOS)
+        let alert = NSAlert()
+        alert.messageText = "Save bookmark \"\(context.displayName)\"?"
+        alert.informativeText = "Do you want to save the current query back to this bookmark before closing the tab?"
+        alert.addButton(withTitle: "Save")
+        alert.addButton(withTitle: "Don't Save")
+        alert.addButton(withTitle: "Cancel")
+
+        let response = alert.runModal()
+
+        switch response {
+        case .alertFirstButtonReturn:
+            let currentQuery = queryState.sql
+            Task { [weak self] in
+                await self?.appModel.updateBookmarkQuery(context.bookmarkID, newQuery: currentQuery)
+            }
+            return true
+        case .alertSecondButtonReturn:
+            return true
+        default:
+            return false
+        }
+#else
+        return true
+#endif
+    }
+
     func tabManager(_ manager: TabManager, didRemoveTabID tabID: UUID) {
         if let activeTab = manager.activeTab {
             appModel.sessionManager.setActiveSession(activeTab.connectionSessionID)

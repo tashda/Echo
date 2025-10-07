@@ -462,11 +462,18 @@ final class AppModel: ObservableObject {
         let connection = targetSession.connection
         let title: String
         if let context = bookmarkContext {
-            let existingCount = tabManager.tabs.filter { $0.bookmarkContext?.bookmarkID == context.bookmarkID }.count
-            if existingCount == 0 {
-                title = context.displayName
+            let existingTabs = tabManager.tabs.filter { $0.bookmarkContext?.bookmarkID == context.bookmarkID }
+            let baseTitle = context.displayName
+            if !existingTabs.contains(where: { $0.title == baseTitle }) {
+                title = baseTitle
             } else {
-                title = "\(context.displayName) #\(existingCount + 1)"
+                var suffix = 2
+                var candidate = "\(baseTitle) #\(suffix)"
+                while existingTabs.contains(where: { $0.title == candidate }) {
+                    suffix += 1
+                    candidate = "\(baseTitle) #\(suffix)"
+                }
+                title = candidate
             }
         } else {
             let existingCountForConnection = tabManager.tabs.filter {
@@ -708,8 +715,54 @@ final class AppModel: ObservableObject {
         }
     }
 
-    func upsertFolder(_ folder: SavedFolder) async {
+    func upsertFolder(_ folder: SavedFolder, manualPassword: String? = nil) async {
         var updated = folder
+        var trimmedManualPassword = manualPassword?.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmedManualPassword?.isEmpty == true { trimmedManualPassword = nil }
+
+        let existing = folders.first(where: { $0.id == updated.id })
+
+        switch updated.credentialMode {
+        case .manual:
+            let trimmedUsername = updated.manualUsername?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+
+            guard !trimmedUsername.isEmpty else {
+                updated.manualUsername = nil
+                updated.manualKeychainIdentifier = nil
+                updated.credentialMode = .none
+                trimmedManualPassword = nil
+                break
+            }
+
+            updated.manualUsername = trimmedUsername
+
+            let identifier = existing?.manualKeychainIdentifier ?? updated.manualKeychainIdentifier ?? "echo.folder.manual.\(updated.id.uuidString)"
+            updated.manualKeychainIdentifier = identifier
+
+            if let password = trimmedManualPassword {
+                do {
+                    try keychain.setPassword(password, account: identifier)
+                } catch {
+                    updated.manualUsername = nil
+                    updated.manualKeychainIdentifier = nil
+                    updated.credentialMode = .none
+                }
+            } else if existing?.credentialMode != .manual || existing?.manualKeychainIdentifier == nil {
+                // No password available to persist
+                try? keychain.deletePassword(account: identifier)
+                updated.manualUsername = nil
+                updated.manualKeychainIdentifier = nil
+                updated.credentialMode = .none
+            }
+
+        default:
+            updated.manualUsername = nil
+            let identifier = existing?.manualKeychainIdentifier ?? updated.manualKeychainIdentifier
+            if let identifier {
+                try? keychain.deletePassword(account: identifier)
+            }
+            updated.manualKeychainIdentifier = nil
+        }
 
         if updated.credentialMode == .identity && updated.identityID == nil {
             updated.credentialMode = .none
@@ -779,6 +832,12 @@ final class AppModel: ObservableObject {
             }
         }
 
+        for folderID in allFolderIDs {
+            if let identifier = folders.first(where: { $0.id == folderID })?.manualKeychainIdentifier {
+                try? keychain.deletePassword(account: identifier)
+            }
+        }
+
         folders.removeAll { allFolderIDs.contains($0.id) }
         await persistFolders()
 
@@ -840,7 +899,7 @@ final class AppModel: ObservableObject {
         Task { await persistFolders() }
     }
 
-    func duplicateConnection(_ connection: SavedConnection) async {
+    func duplicateConnection(_ connection: SavedConnection, copyBookmarks: Bool) async {
         var copy = connection
         copy.id = UUID()
         copy.connectionName = uniqueDuplicateName(for: connection.connectionName)
@@ -856,7 +915,42 @@ final class AppModel: ObservableObject {
             copy.keychainIdentifier = nil
         }
 
+        let sourceBookmarks: [Bookmark]
+        let targetProjectID: UUID?
+        if copyBookmarks {
+            sourceBookmarks = bookmarks(for: connection.id)
+            targetProjectID = connection.projectID ?? connectionProjectID(connection.id)
+        } else {
+            sourceBookmarks = []
+            targetProjectID = nil
+        }
+
         await upsertConnection(copy, password: password)
+
+        if copyBookmarks,
+           let projectID = targetProjectID,
+           !sourceBookmarks.isEmpty {
+            await mutateBookmarks(for: projectID) { bookmarks in
+                let duplicates: [Bookmark] = sourceBookmarks.map { bookmark in
+                    Bookmark(
+                        id: UUID(),
+                        connectionID: copy.id,
+                        databaseName: bookmark.databaseName,
+                        title: bookmark.title,
+                        query: bookmark.query,
+                        createdAt: bookmark.createdAt,
+                        updatedAt: bookmark.updatedAt,
+                        source: bookmark.source
+                    )
+                }
+
+                // Maintain chronological ordering by inserting in reverse
+                for bookmark in duplicates.reversed() {
+                    bookmarks.insert(bookmark, at: 0)
+                }
+            }
+        }
+
         selectedConnectionID = copy.id
     }
 
@@ -881,6 +975,11 @@ final class AppModel: ObservableObject {
         return folders.first { $0.id == id }
     }
 
+    private enum FolderResolvedCredentials {
+        case manual(username: String, password: String?)
+        case identity(SavedIdentity)
+    }
+
     private func resolvedIdentity(forFolderID folderID: UUID, visited: Set<UUID> = []) -> SavedIdentity? {
         guard !visited.contains(folderID), let folder = folder(withID: folderID) else {
             return nil
@@ -889,6 +988,8 @@ final class AppModel: ObservableObject {
         switch folder.credentialMode {
         case .none:
             return nil
+        case .manual:
+            return nil
         case .identity:
             return identity(withID: folder.identityID)
         case .inherit:
@@ -896,6 +997,31 @@ final class AppModel: ObservableObject {
             var updatedVisited = visited
             updatedVisited.insert(folderID)
             return resolvedIdentity(forFolderID: parentID, visited: updatedVisited)
+        }
+    }
+
+    private func resolvedFolderCredentials(forFolderID folderID: UUID, visited: Set<UUID> = []) -> FolderResolvedCredentials? {
+        guard !visited.contains(folderID), let folder = folder(withID: folderID) else {
+            return nil
+        }
+
+        switch folder.credentialMode {
+        case .none:
+            return nil
+        case .manual:
+            guard let username = folder.manualUsername?.trimmingCharacters(in: .whitespacesAndNewlines), !username.isEmpty else {
+                return nil
+            }
+            let password = folder.manualKeychainIdentifier.flatMap { try? keychain.getPassword(account: $0) }
+            return .manual(username: username, password: password)
+        case .identity:
+            guard let identity = identity(withID: folder.identityID) else { return nil }
+            return .identity(identity)
+        case .inherit:
+            guard let parentID = folder.parentFolderID else { return nil }
+            var updatedVisited = visited
+            updatedVisited.insert(folderID)
+            return resolvedFolderCredentials(forFolderID: parentID, visited: updatedVisited)
         }
     }
 
@@ -913,9 +1039,16 @@ final class AppModel: ObservableObject {
             password = overridePassword ?? identity.keychainIdentifier.flatMap { try? keychain.getPassword(account: $0) }
         case .inherit:
             guard let folderID = connection.folderID,
-                  let identity = resolvedIdentity(forFolderID: folderID) else { return nil }
-            username = identity.username
-            password = overridePassword ?? identity.keychainIdentifier.flatMap { try? keychain.getPassword(account: $0) }
+                  let credentials = resolvedFolderCredentials(forFolderID: folderID) else { return nil }
+
+            switch credentials {
+            case .identity(let identity):
+                username = identity.username
+                password = overridePassword ?? identity.keychainIdentifier.flatMap { try? keychain.getPassword(account: $0) }
+            case .manual(let manualUsername, let storedPassword):
+                username = manualUsername
+                password = overridePassword ?? storedPassword
+            }
         }
 
         let trimmedDomain = connection.domain.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -1665,7 +1798,7 @@ extension AppModel {
         guard !normalizedQuery.isEmpty else { return }
         guard let projectID = connection.projectID ?? selectedProject?.id else { return }
 
-        var bookmark = Bookmark(
+        let bookmark = Bookmark(
             connectionID: connection.id,
             databaseName: normalizedDatabaseName(databaseName),
             title: normalizedTitle(title),
@@ -1699,6 +1832,17 @@ extension AppModel {
             guard let index = bookmarks.firstIndex(where: { $0.id == bookmark.id }) else { return }
             var updated = bookmarks[index]
             updated.title = normalizedTitle(title)
+            updated.updatedAt = Date()
+            bookmarks[index] = updated
+        }
+    }
+
+    func updateBookmarkQuery(_ bookmarkID: UUID, newQuery: String) async {
+        guard let projectID = projectIDContainingBookmark(bookmarkID) else { return }
+        await mutateBookmarks(for: projectID) { bookmarks in
+            guard let index = bookmarks.firstIndex(where: { $0.id == bookmarkID }) else { return }
+            var updated = bookmarks[index]
+            updated.query = newQuery
             updated.updatedAt = Date()
             bookmarks[index] = updated
         }
@@ -1745,7 +1889,10 @@ extension AppModel {
             navigationState.selectConnection(connection)
         }
 
-        openQueryTab(for: refreshedSession, presetQuery: bookmark.query)
+        let context = WorkspaceTab.BookmarkTabContext(bookmark: bookmark)
+        openQueryTab(for: refreshedSession,
+                     presetQuery: bookmark.query,
+                     bookmarkContext: context)
     }
 
     private func mutateBookmarks(for projectID: UUID, update: (inout [Bookmark]) -> Void) async {
@@ -1776,6 +1923,21 @@ extension AppModel {
     private func normalizedTitle(_ title: String?) -> String? {
         guard let trimmed = title?.trimmingCharacters(in: .whitespacesAndNewlines), !trimmed.isEmpty else { return nil }
         return trimmed
+    }
+
+    private func projectIDContainingBookmark(_ bookmarkID: UUID) -> UUID? {
+        if let project = projects.first(where: { project in
+            project.bookmarks.contains(where: { $0.id == bookmarkID })
+        }) {
+            return project.id
+        }
+
+        if let project = selectedProject,
+           project.bookmarks.contains(where: { $0.id == bookmarkID }) {
+            return project.id
+        }
+
+        return nil
     }
 
     private func sortedBookmarks(_ bookmarks: [Bookmark]) -> [Bookmark] {

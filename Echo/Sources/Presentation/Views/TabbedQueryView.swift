@@ -227,12 +227,33 @@ struct WorkspaceTabStrip: View {
 
     @State private var trailingControlsWidth: CGFloat = 0
     @State private var hoveredTabID: UUID?
-    @State private var draggingTabID: UUID?
-    @State private var dragTranslation: CGFloat = 0
-    @State private var dragStartIndex: Int = 0
-    @State private var dragCurrentIndex: Int = 0
+    @State private var dragState = TabDragState()
 
-    private let tabReorderAnimation = Animation.spring(response: 0.45, dampingFraction: 0.86, blendDuration: 0.22)
+    private struct TabDragState: Equatable {
+        var id: UUID?
+        var originalIndex: Int = 0
+        var currentIndex: Int = 0
+        var translation: CGFloat = 0
+        var minIndex: Int = 0
+        var maxIndex: Int = 0
+
+        var isActive: Bool { id != nil }
+
+        mutating func begin(id: UUID, originalIndex: Int, minIndex: Int, maxIndex: Int) {
+            self.id = id
+            self.originalIndex = originalIndex
+            self.currentIndex = originalIndex
+            self.translation = 0
+            self.minIndex = minIndex
+            self.maxIndex = maxIndex
+        }
+
+        mutating func reset() {
+            self = TabDragState()
+        }
+    }
+
+    private let tabReorderAnimation = Animation.interactiveSpring(response: 0.72, dampingFraction: 0.86, blendDuration: 0.30)
 
     private let trailingFallbackWidth: CGFloat = 96
 
@@ -250,10 +271,11 @@ struct WorkspaceTabStrip: View {
 
             ZStack {
 #if os(macOS)
+                let basePlateSideInset: CGFloat = 6
                 if hasTabs {
                     SafariTabBarBasePlate()
-                        .padding(.horizontal, leadingPadding)
-                        .padding(.trailing, trailingPadding + reservedTrailingWidth)
+                        .padding(.leading, leadingPadding + basePlateSideInset)
+                        .padding(.trailing, trailingPadding + reservedTrailingWidth + basePlateSideInset)
                 }
 #endif
 
@@ -262,9 +284,6 @@ struct WorkspaceTabStrip: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
 
                     if hasTabs {
-                        trailingSeparator(after: orderedTabs.last?.0)
-                            .padding(.vertical, 9)
-
                         TabBarTrailingControls(
                             hasActiveSession: appModel.sessionManager.activeSession != nil,
                             isTabOverviewActive: appState.showTabOverview,
@@ -281,19 +300,12 @@ struct WorkspaceTabStrip: View {
                 }
                 .padding(.leading, leadingPadding)
                 .padding(.trailing, trailingPadding)
-                .padding(.vertical, 7)
+                .padding(.vertical, 5)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .animation(tabReorderAnimation, value: appModel.tabManager.tabs.map(\.id))
             }
         }
-        .frame(height: 36)
-        #if os(macOS)
-        .background(SafariTabBarBackground())
-        .overlay(SafariTabBarTopEdge(), alignment: .top)
-        .overlay(SafariTabBarBottomGlow(), alignment: .bottom)
-        #else
-        .background(Color(white: 0.92))
-        #endif
+        .frame(height: 34)
         .clipped()
         .onPreferenceChange(TrailingControlsWidthPreferenceKey.self) { width in
             trailingControlsWidth = width
@@ -323,55 +335,91 @@ struct WorkspaceTabStrip: View {
                 let tab = element.0
 
                 tabButtonView(tab: tab, targetWidth: tabWidth, index: index, totalCount: orderedTabs.count)
-                    .offset(x: draggingTabID == tab.id ? dragTranslation : 0)
-                    .zIndex(draggingTabID == tab.id ? 1 : 0)
-                    .highPriorityGesture(dragGesture(for: tab, tabWidth: tabWidth, index: index, totalCount: orderedTabs.count))
-
-                if index < orderedTabs.count - 1 {
-                    tabSeparator(between: tab, and: orderedTabs[index + 1].0)
-                        .padding(.vertical, 9)
-                }
+                    .offset(x: tabOffset(for: tab, index: index, tabWidth: tabWidth))
+                    .zIndex(tabZIndex(for: tab))
+                    .overlay(alignment: .trailing) {
+                        if index < orderedTabs.count - 1 {
+                            let nextTab = orderedTabs[index + 1].0
+                            tabSeparator()
+                                .padding(.vertical, 8)
+                                .opacity(separatorOpacity(between: tab, and: nextTab, separatorIndex: index))
+                        }
+                    }
+                    .highPriorityGesture(
+                        dragGesture(
+                            for: tab,
+                            tabWidth: tabWidth,
+                            index: index,
+                            totalCount: orderedTabs.count
+                        )
+                    )
             }
         }
     }
 
-    private func tabSeparator(between current: WorkspaceTab, and next: WorkspaceTab) -> some View {
-        Rectangle()
-            .fill(separatorColor)
-            .frame(width: tabHairlineWidth(), height: 26)
-            .opacity(shouldShowSeparator(between: current, and: next) ? 1 : 0)
+    private func tabOffset(for tab: WorkspaceTab, index: Int, tabWidth: CGFloat) -> CGFloat {
+        guard dragState.isActive, let draggingId = dragState.id else { return 0 }
+        if draggingId == tab.id {
+            return dragState.translation
+        }
+        guard tabWidth > 0 else { return 0 }
+
+        if dragState.currentIndex > dragState.originalIndex {
+            if index > dragState.originalIndex && index <= dragState.currentIndex {
+                return -tabWidth
+            }
+        } else if dragState.currentIndex < dragState.originalIndex {
+            if index >= dragState.currentIndex && index < dragState.originalIndex {
+                return tabWidth
+            }
+        }
+
+        return 0
     }
 
-    private func trailingSeparator(after lastTab: WorkspaceTab?) -> some View {
-        Rectangle()
+    private func tabZIndex(for tab: WorkspaceTab) -> Double {
+        dragState.id == tab.id ? 1 : 0
+    }
+
+    private func tabSeparator() -> some View {
+        Capsule(style: .continuous)
             .fill(separatorColor)
-            .frame(width: tabHairlineWidth(), height: 26)
-            .opacity(shouldShowTrailingSeparator(for: lastTab) ? 1 : 0)
+            .frame(width: tabHairlineWidth(), height: 18)
     }
 
     private var separatorColor: Color {
-        colorScheme == .dark ? Color.white.opacity(0.22) : Color.black.opacity(0.08)
+        if colorScheme == .dark {
+            return Color.white.opacity(0.20)
+        } else {
+            return Color(white: 0.78)
+        }
     }
 
-    private func shouldShowSeparator(between current: WorkspaceTab, and next: WorkspaceTab) -> Bool {
+    private func separatorOpacity(between current: WorkspaceTab, and next: WorkspaceTab, separatorIndex: Int) -> Double {
+        if dragState.isActive {
+            if let draggingId = dragState.id, (draggingId == current.id || draggingId == next.id) {
+                return 0
+            }
+
+            if dragState.currentIndex > dragState.originalIndex {
+                if separatorIndex >= dragState.originalIndex && separatorIndex < dragState.currentIndex {
+                    return 0
+                }
+            } else if dragState.currentIndex < dragState.originalIndex {
+                if separatorIndex >= dragState.currentIndex && separatorIndex < dragState.originalIndex {
+                    return 0
+                }
+            }
+        }
+
         if current.id == appModel.tabManager.activeTabId || next.id == appModel.tabManager.activeTabId {
-            return false
+            return 0
         }
         if current.id == hoveredTabID || next.id == hoveredTabID {
-            return false
+            return 0
         }
-        if current.id == draggingTabID || next.id == draggingTabID {
-            return false
-        }
-        return true
-    }
 
-    private func shouldShowTrailingSeparator(for tab: WorkspaceTab?) -> Bool {
-        guard let tab else { return false }
-        if tab.id == appModel.tabManager.activeTabId { return false }
-        if tab.id == hoveredTabID { return false }
-        if tab.id == draggingTabID { return false }
-        return true
+        return 1
     }
 
     private func dragGesture(for tab: WorkspaceTab, tabWidth: CGFloat, index: Int, totalCount: Int) -> some Gesture {
@@ -379,50 +427,66 @@ struct WorkspaceTabStrip: View {
             .onChanged { value in
                 guard tabWidth > 0 else { return }
 
-                if draggingTabID == nil {
-                    draggingTabID = tab.id
-                    dragStartIndex = index
-                    dragCurrentIndex = index
-                    dragTranslation = 0
+                if !dragState.isActive {
+                    let bounds = tabBounds(for: tab, totalCount: totalCount)
+                    dragState.begin(
+                        id: tab.id,
+                        originalIndex: index,
+                        minIndex: bounds.min,
+                        maxIndex: bounds.max
+                    )
                     hoveredTabID = tab.id
                 }
 
-                guard draggingTabID == tab.id else { return }
+                guard dragState.id == tab.id else { return }
 
-                let bounds = tabBounds(for: tab, totalCount: totalCount)
                 let rawTranslation = value.translation.width
-                let leftLimit = -CGFloat(dragStartIndex - bounds.min) * tabWidth
-                let rightLimit = CGFloat(bounds.max - dragStartIndex) * tabWidth
-                let translation = min(max(rawTranslation, leftLimit), rightLimit)
+                let clampedTranslation = clampTranslation(rawTranslation, for: dragState, tabWidth: tabWidth)
 
-                let threshold = tabWidth * 0.45
+                let moveThreshold = tabWidth * 0.5
+                var proposedIndex = dragState.originalIndex
+                var remainder = clampedTranslation
 
-                var proposedIndex = dragStartIndex
-                var adjustedTranslation = translation
-
-                while adjustedTranslation > threshold && proposedIndex < bounds.max {
-                    adjustedTranslation -= tabWidth
+                while remainder > moveThreshold && proposedIndex < dragState.maxIndex {
+                    remainder -= tabWidth
                     proposedIndex += 1
                 }
 
-                while adjustedTranslation < -threshold && proposedIndex > bounds.min {
-                    adjustedTranslation += tabWidth
+                while remainder < -moveThreshold && proposedIndex > dragState.minIndex {
+                    remainder += tabWidth
                     proposedIndex -= 1
                 }
 
-                if proposedIndex != dragCurrentIndex {
+                if proposedIndex != dragState.currentIndex {
                     withAnimation(tabReorderAnimation) {
-                        appModel.tabManager.moveTab(id: tab.id, to: proposedIndex)
+                        dragState.currentIndex = proposedIndex
                     }
-                    dragCurrentIndex = proposedIndex
                 }
 
-                let committedSteps = dragCurrentIndex - dragStartIndex
-                dragTranslation = translation - CGFloat(committedSteps) * tabWidth
+                dragState.translation = clampedTranslation
             }
             .onEnded { _ in
-                resetDragState()
+                guard dragState.isActive, dragState.id == tab.id else { return }
+                let finalIndex = dragState.currentIndex
+                let shouldMove = finalIndex != dragState.originalIndex
+
+                if shouldMove {
+                    withAnimation(tabReorderAnimation) {
+                        appModel.tabManager.moveTab(id: tab.id, to: finalIndex)
+                    }
+                }
+
+                withAnimation(tabReorderAnimation) {
+                    dragState.reset()
+                }
+                hoveredTabID = nil
             }
+    }
+
+    private func clampTranslation(_ translation: CGFloat, for state: TabDragState, tabWidth: CGFloat) -> CGFloat {
+        let maxRight = CGFloat(state.maxIndex - state.originalIndex) * tabWidth
+        let maxLeft = CGFloat(state.originalIndex - state.minIndex) * tabWidth
+        return min(max(translation, -maxLeft), maxRight)
     }
 
     private func tabBounds(for tab: WorkspaceTab, totalCount: Int) -> (min: Int, max: Int) {
@@ -434,16 +498,6 @@ struct WorkspaceTabStrip: View {
         }
     }
 
-    private func resetDragState() {
-        withAnimation(tabReorderAnimation) {
-            dragTranslation = 0
-        }
-        draggingTabID = nil
-        dragStartIndex = 0
-        dragCurrentIndex = 0
-        hoveredTabID = nil
-    }
-
     @ViewBuilder
     private func tabButtonView(tab: WorkspaceTab, targetWidth: CGFloat, index: Int, totalCount: Int) -> some View {
         let isActive = appModel.tabManager.activeTabId == tab.id
@@ -452,6 +506,7 @@ struct WorkspaceTabStrip: View {
         let hasRight = tabIndex < totalCount - 1
         let canDuplicate = tab.kind == .query
         let closeOthersDisabled = totalCount <= 1
+        let isBeingDragged = dragState.isActive && dragState.id == tab.id
 
         return WorkspaceTabButton(
             tab: tab,
@@ -468,7 +523,8 @@ struct WorkspaceTabStrip: View {
             closeOthersDisabled: closeOthersDisabled,
             closeTabsLeftDisabled: !hasLeft,
             closeTabsRightDisabled: !hasRight,
-            isDropTarget: draggingTabID == tab.id,
+            isDropTarget: false,
+            isBeingDragged: isBeingDragged,
             onHoverChanged: { hovering in
                 if hovering {
                     hoveredTabID = tab.id
@@ -479,6 +535,11 @@ struct WorkspaceTabStrip: View {
         )
         .frame(width: targetWidth > 0 ? targetWidth : nil)
         .id(tab.id)
+        .transaction { transaction in
+            if isBeingDragged {
+                transaction.animation = nil
+            }
+        }
     }
 
     private func bookmark(tab: WorkspaceTab) {
@@ -722,6 +783,7 @@ private struct WorkspaceTabButton: View {
     let closeTabsLeftDisabled: Bool
     let closeTabsRightDisabled: Bool
     let isDropTarget: Bool
+    let isBeingDragged: Bool
     let onHoverChanged: (Bool) -> Void
 
     @State private var isHovering = false
@@ -758,7 +820,7 @@ private struct WorkspaceTabButton: View {
 
                 if !tab.isPinned {
                     Text(tab.title)
-                        .font(.system(size: 12, weight: .medium))
+                        .font(.system(size: 11))
                         .lineLimit(1)
                         .foregroundStyle(tabTitleColor)
                 }
@@ -846,60 +908,114 @@ private struct WorkspaceTabButton: View {
         .foregroundStyle(tabIconColor)
     }
 
+    @ViewBuilder
     private var tabBackground: some View {
-        tabShape
-            .fill(isDropTarget ? tabDropHighlightGradient : tabFillGradient)
+#if os(macOS)
+        if let gradient = macTabFillGradient {
+            tabShape.fill(gradient)
+        } else {
+            tabShape.fill(Color.clear)
+        }
+#else
+        tabShape.fill(tabFillGradient)
+#endif
     }
 
+    @ViewBuilder
     private var tabStroke: some View {
-        tabShape
-            .stroke(isDropTarget ? tabDropBorderColor : tabBorderColor, lineWidth: hairlineWidth)
+#if os(macOS)
+        if isDropTarget {
+            tabShape.stroke(tabDropBorderColor, lineWidth: hairlineWidth)
+        } else if let color = macTabBorderColor {
+            tabShape.stroke(color, lineWidth: hairlineWidth)
+        }
+#else
+        tabShape.stroke(isDropTarget ? tabDropBorderColor : tabBorderColor, lineWidth: hairlineWidth)
+#endif
     }
 
+    @ViewBuilder
     private var hoverOutline: some View {
+#if os(macOS)
+        if shouldShowHoverOutline {
+            tabShape
+                .stroke(hoverHighlightColor, lineWidth: 1.1)
+        }
+#else
         tabShape
             .stroke(hoverHighlightColor, lineWidth: 1.1)
             .opacity(shouldShowHoverOutline ? 1 : 0)
+#endif
     }
 
-    private var tabFillGradient: LinearGradient {
 #if os(macOS)
-        if tab.isPinned {
-            if colorScheme == .dark {
-                return LinearGradient(colors: [Color.white.opacity(0.18), Color.white.opacity(0.11)], startPoint: .top, endPoint: .bottom)
-            } else {
-                return LinearGradient(colors: [Color.white.opacity(0.86), Color.white.opacity(0.74)], startPoint: .top, endPoint: .bottom)
-            }
-        } else {
-            if colorScheme == .dark {
-                if isActive {
-                    return LinearGradient(colors: [Color.white.opacity(0.36), Color.white.opacity(0.24)], startPoint: .top, endPoint: .bottom)
-                } else if isHovering || isDropTarget {
-                    return LinearGradient(colors: [Color.white.opacity(0.22), Color.white.opacity(0.16)], startPoint: .top, endPoint: .bottom)
+    private var macTabFillGradient: LinearGradient? {
+        if isDropTarget {
+            return tabDropHighlightGradient
+        }
+
+        if isActive {
+            if effectiveHovering {
+                if colorScheme == .dark {
+                    return LinearGradient(colors: [Color.white.opacity(0.48), Color.white.opacity(0.32)], startPoint: .top, endPoint: .bottom)
                 } else {
-                    return LinearGradient(colors: [Color.white.opacity(0.18), Color.white.opacity(0.12)], startPoint: .top, endPoint: .bottom)
+                    return LinearGradient(colors: [Color(white: 0.93), Color(white: 0.86)], startPoint: .top, endPoint: .bottom)
                 }
             } else {
-                if isActive {
-                    return LinearGradient(colors: [Color.white.opacity(0.96), Color.white.opacity(0.90)], startPoint: .top, endPoint: .bottom)
-                } else if isHovering || isDropTarget {
-                    return LinearGradient(colors: [Color.white.opacity(0.86), Color.white.opacity(0.78)], startPoint: .top, endPoint: .bottom)
+                if colorScheme == .dark {
+                    return LinearGradient(colors: [Color.white.opacity(0.38), Color.white.opacity(0.26)], startPoint: .top, endPoint: .bottom)
                 } else {
-                    return LinearGradient(colors: [Color.white.opacity(0.80), Color.white.opacity(0.72)], startPoint: .top, endPoint: .bottom)
+                    return LinearGradient(colors: [Color(white: 0.998), Color(white: 0.965)], startPoint: .top, endPoint: .bottom)
                 }
             }
         }
-#else
-        LinearGradient(colors: [Color.white.opacity(0.75), Color.white.opacity(0.6)], startPoint: .top, endPoint: .bottom)
-#endif
+
+        if shouldTreatAsHover {
+            if colorScheme == .dark {
+                return LinearGradient(colors: [Color.white.opacity(0.24), Color.white.opacity(0.17)], startPoint: .top, endPoint: .bottom)
+            } else {
+                return LinearGradient(colors: [Color(white: 0.92), Color(white: 0.88)], startPoint: .top, endPoint: .bottom)
+            }
+        }
+
+        return nil
     }
+
+    private var macTabBorderColor: Color? {
+        if isDropTarget {
+            return tabDropBorderColor
+        }
+
+        if isActive {
+            if colorScheme == .dark {
+                return Color.white.opacity(0.34)
+            } else {
+                return Color(white: 0.82)
+            }
+        }
+
+        return nil
+    }
+
+    private var effectiveHovering: Bool {
+        isHovering || isBeingDragged
+    }
+
+    private var shouldTreatAsHover: Bool {
+        !isActive && effectiveHovering && !isDropTarget
+    }
+#else
+    private var tabFillGradient: LinearGradient {
+        LinearGradient(colors: [Color.white.opacity(0.75), Color.white.opacity(0.6)], startPoint: .top, endPoint: .bottom)
+    }
+#endif
 
     private var tabDropHighlightGradient: LinearGradient {
 #if os(macOS)
         if colorScheme == .dark {
-            return LinearGradient(colors: [Color.white.opacity(0.22), Color.white.opacity(0.16)], startPoint: .top, endPoint: .bottom)
+            return LinearGradient(colors: [Color.white.opacity(0.24), Color.white.opacity(0.18)], startPoint: .top, endPoint: .bottom)
         } else {
-            return LinearGradient(colors: [Color.white.opacity(0.86), Color.white.opacity(0.78)], startPoint: .top, endPoint: .bottom)
+            return LinearGradient(colors: [Color(white: 0.90), Color(white: 0.86)], startPoint: .top, endPoint: .bottom)
         }
 #else
         LinearGradient(colors: [Color.accentColor.opacity(0.4), Color.accentColor.opacity(0.28)], startPoint: .top, endPoint: .bottom)
@@ -908,21 +1024,7 @@ private struct WorkspaceTabButton: View {
 
     private var tabBorderColor: Color {
 #if os(macOS)
-        if colorScheme == .dark {
-            if tab.isPinned {
-                return Color.white.opacity(isActive ? 0.24 : 0.14)
-            }
-            if isActive { return Color.white.opacity(0.30) }
-            if isHovering || isDropTarget { return Color.white.opacity(0.20) }
-            return Color.white.opacity(0.12)
-        } else {
-            if tab.isPinned {
-                return Color.black.opacity(isActive ? 0.12 : 0.07)
-            }
-            if isActive { return Color.black.opacity(0.10) }
-            if isHovering || isDropTarget { return Color.black.opacity(0.08) }
-            return Color.black.opacity(0.05)
-        }
+        Color.clear
 #else
         return Color.black.opacity(0.1)
 #endif
@@ -931,9 +1033,9 @@ private struct WorkspaceTabButton: View {
     private var tabDropBorderColor: Color {
 #if os(macOS)
         if colorScheme == .dark {
-            return Color.white.opacity(0.22)
+            return Color.white.opacity(0.15)
         } else {
-            return Color.black.opacity(0.08)
+            return Color.black.opacity(0.05)
         }
 #else
         return Color.accentColor.opacity(0.6)
@@ -950,10 +1052,7 @@ private struct WorkspaceTabButton: View {
 
     private var shouldShowHoverOutline: Bool {
 #if os(macOS)
-        if tab.isPinned { return false }
-        if isDropTarget { return false }
-        if isActive { return false }
-        return isHovering
+        false
 #else
         return false
 #endif
@@ -961,18 +1060,15 @@ private struct WorkspaceTabButton: View {
 
     private var tabShadowColor: Color {
 #if os(macOS)
-        if tab.isPinned && !isActive {
-            return Color.black.opacity(colorScheme == .dark ? 0.18 : 0.08)
-        }
         if !isActive { return Color.clear }
-        return colorScheme == .dark ? Color.black.opacity(0.35) : Color.black.opacity(0.14)
+        return colorScheme == .dark ? Color.black.opacity(0.28) : Color.black.opacity(0.10)
 #else
         return Color.black.opacity(isActive ? 0.2 : 0)
 #endif
     }
 
-    private var tabShadowRadius: CGFloat { isActive ? 4 : 0 }
-    private var tabShadowYOffset: CGFloat { isActive ? 2 : 0 }
+    private var tabShadowRadius: CGFloat { isActive ? 2.5 : 0 }
+    private var tabShadowYOffset: CGFloat { isActive ? 1.2 : 0 }
 
     private var tabTitleColor: Color {
 #if os(macOS)
@@ -1011,8 +1107,13 @@ private struct WorkspaceTabButton: View {
     private var closeButtonForeground: Color {
 #if os(macOS)
         if isDropTarget { return Color.white }
-        if isHoveringClose { return Color.white }
-        return Color(nsColor: isActive ? .secondaryLabelColor : .tertiaryLabelColor)
+        if isHoveringClose {
+            return Color(nsColor: .labelColor)
+        }
+        if isActive {
+            return Color(nsColor: .secondaryLabelColor)
+        }
+        return Color(nsColor: .tertiaryLabelColor)
 #else
         return .secondary
 #endif
@@ -1020,8 +1121,12 @@ private struct WorkspaceTabButton: View {
 
     private var closeButtonBackground: Color {
 #if os(macOS)
-        guard isHoveringClose else { return Color.clear }
-        return colorScheme == .dark ? Color.white.opacity(0.18) : Color.black.opacity(0.10)
+        guard shouldShowClose, isHoveringClose else { return Color.clear }
+        if colorScheme == .dark {
+            return Color.white.opacity(0.18)
+        } else {
+            return Color.black.opacity(0.08)
+        }
 #else
         return Color.black.opacity(0.12)
 #endif
@@ -1030,7 +1135,7 @@ private struct WorkspaceTabButton: View {
     private var closeButtonArea: some View {
         Button(action: onClose) {
             Image(systemName: "xmark")
-                .font(.system(size: 8, weight: .semibold))
+                .font(.system(size: 9, weight: .semibold))
                 .foregroundStyle(closeButtonForeground)
                 .frame(width: closeButtonSize, height: closeButtonSize)
                 .background(
@@ -1055,19 +1160,19 @@ private struct WorkspaceTabButton: View {
         let width: CGFloat
 #if os(macOS)
         if tab.isPinned {
-            width = 2
+            width = 0
         } else {
-            width = shouldShowClose ? closeButtonSize : 4
+            width = closeButtonSize
         }
 #else
-        width = shouldShowClose ? closeButtonSize : 4
+        width = closeButtonSize
 #endif
         return Rectangle()
             .fill(Color.clear)
             .frame(width: width, height: closeButtonSize)
     }
 
-    private var closeButtonSize: CGFloat { 14 }
+    private var closeButtonSize: CGFloat { 16 }
 }
 
 // MARK: - Tab Bar Controls
@@ -1814,14 +1919,22 @@ private struct SafariTabBarBackground: View {
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
-        VisualEffectMaterial(material: .hudWindow, blendingMode: .withinWindow)
-            .overlay(overlayGradient)
+        LinearGradient(colors: backgroundColors, startPoint: .top, endPoint: .bottom)
+            .allowsHitTesting(false)
     }
 
-    private var overlayGradient: LinearGradient {
-        let top = colorScheme == .dark ? Color.white.opacity(0.06) : Color.white.opacity(0.18)
-        let bottom = colorScheme == .dark ? Color.black.opacity(0.05) : Color.black.opacity(0.03)
-        return LinearGradient(colors: [top, Color.clear, bottom], startPoint: .top, endPoint: .bottom)
+    private var backgroundColors: [Color] {
+        if colorScheme == .dark {
+            return [
+                Color.white.opacity(0.16),
+                Color.black.opacity(0.14)
+            ]
+        } else {
+            return [
+                Color(white: 0.94),
+                Color(white: 0.88)
+            ]
+        }
     }
 }
 
@@ -1830,25 +1943,8 @@ private struct SafariTabBarTopEdge: View {
 
     var body: some View {
         Rectangle()
-            .fill(colorScheme == .dark ? Color.white.opacity(0.20) : Color.white.opacity(0.70))
+            .fill(colorScheme == .dark ? Color.white.opacity(0.14) : Color.white.opacity(0.55))
             .frame(height: tabHairlineWidth())
-    }
-}
-
-private struct SafariTabBarBottomGlow: View {
-    @Environment(\.colorScheme) private var colorScheme
-
-    var body: some View {
-        LinearGradient(
-            colors: [
-                Color.black.opacity(colorScheme == .dark ? 0.32 : 0.14),
-                Color.black.opacity(colorScheme == .dark ? 0.18 : 0.06),
-                .clear
-            ],
-            startPoint: .top,
-            endPoint: .bottom
-        )
-        .frame(height: 14)
     }
 }
 
@@ -1865,54 +1961,38 @@ private struct SafariTabBarBasePlate: View {
             .overlay(shape.stroke(baseStroke, lineWidth: tabHairlineWidth()))
             .shadow(color: baseShadow, radius: 2.5, y: 1)
             .frame(maxWidth: .infinity)
-            .frame(height: 22)
+            .frame(height: 24)
+            .allowsHitTesting(false)
     }
 
     private var baseFill: LinearGradient {
         if colorScheme == .dark {
             return LinearGradient(colors: [
-                Color.white.opacity(0.18),
-                Color.white.opacity(0.10)
+                Color.white.opacity(0.20),
+                Color.white.opacity(0.13)
             ], startPoint: .top, endPoint: .bottom)
         } else {
             return LinearGradient(colors: [
-                Color.white.opacity(0.88),
-                Color.white.opacity(0.76)
+                Color(white: 0.96),
+                Color(white: 0.90)
             ], startPoint: .top, endPoint: .bottom)
         }
     }
 
     private var baseStroke: Color {
-        colorScheme == .dark ? Color.white.opacity(0.18) : Color.white.opacity(0.55)
+        if colorScheme == .dark {
+            return Color.white.opacity(0.24)
+        } else {
+            return Color(white: 0.84)
+        }
     }
 
     private var baseShadow: Color {
-        colorScheme == .dark ? Color.black.opacity(0.25) : Color.black.opacity(0.10)
-    }
-}
-
-private struct VisualEffectMaterial: NSViewRepresentable {
-    let material: NSVisualEffectView.Material
-    var blendingMode: NSVisualEffectView.BlendingMode = .withinWindow
-
-    func makeNSView(context: Context) -> NSVisualEffectView {
-        let view = NSVisualEffectView()
-        view.material = material
-        view.blendingMode = blendingMode
-        view.state = .active
-        view.isEmphasized = true
-        return view
-    }
-
-    func updateNSView(_ nsView: NSVisualEffectView, context: Context) {
-        if nsView.material != material {
-            nsView.material = material
+        if colorScheme == .dark {
+            return Color.black.opacity(0.26)
+        } else {
+            return Color.black.opacity(0.06)
         }
-        if nsView.blendingMode != blendingMode {
-            nsView.blendingMode = blendingMode
-        }
-        nsView.state = .active
-        nsView.isEmphasized = true
     }
 }
 

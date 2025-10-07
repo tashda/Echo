@@ -8,6 +8,7 @@ struct SidebarMenu: View {
     let onAddConnection: () -> Void
 
     @State private var selectedNavSection: NavSection = .code
+    @State private var pendingDuplicateConnection: SavedConnection?
 
     enum NavSection: String, CaseIterable {
         case folder = "Explorer"
@@ -57,6 +58,29 @@ struct SidebarMenu: View {
 
             contentView
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .confirmationDialog(
+            "Duplicate Connection",
+            isPresented: Binding(
+                get: { pendingDuplicateConnection != nil },
+                set: { isPresented in if !isPresented { pendingDuplicateConnection = nil } }
+            ),
+            titleVisibility: .visible,
+            presenting: pendingDuplicateConnection
+        ) { connection in
+            Button("Duplicate with Bookmark History") {
+                duplicateConnection(connection, copyBookmarks: true)
+            }
+
+            Button("Duplicate Only Connection") {
+                duplicateConnection(connection, copyBookmarks: false)
+            }
+
+            Button("Cancel", role: .cancel) {
+                pendingDuplicateConnection = nil
+            }
+        } message: { _ in
+            Text("Do you want to copy the bookmark history into the duplicated connection?")
         }
         .onChange(of: appModel.pendingExplorerFocus) { _, focus in
             guard focus != nil else { return }
@@ -169,7 +193,7 @@ struct SidebarMenu: View {
                     appModel.moveFolder(folderID, toParent: parentID)
                 },
                 onDuplicateConnection: { connection in
-                    Task { await appModel.duplicateConnection(connection) }
+                    pendingDuplicateConnection = connection
                 }
             )
         case .database:
@@ -187,6 +211,13 @@ struct SidebarMenu: View {
 
         Task {
             await appModel.connect(to: connection)
+        }
+    }
+
+    private func duplicateConnection(_ connection: SavedConnection, copyBookmarks: Bool) {
+        Task {
+            pendingDuplicateConnection = nil
+            await appModel.duplicateConnection(connection, copyBookmarks: copyBookmarks)
         }
     }
 }

@@ -9,6 +9,18 @@ import AppKit
 import SwiftUI
 import Combine
 
+protocol WorkspaceSplitViewControllerLayoutDelegate: AnyObject {
+    func workspaceSplitViewController(
+        _ controller: WorkspaceSplitViewController,
+        didUpdateNavigatorLayout layout: WorkspaceNavigatorLayout
+    )
+}
+
+struct WorkspaceNavigatorLayout: Equatable {
+    let leading: CGFloat
+    let width: CGFloat
+}
+
 final class WorkspaceSplitViewController: NSSplitViewController {
     private let appModel: AppModel
     private let appState: AppState
@@ -19,6 +31,9 @@ final class WorkspaceSplitViewController: NSSplitViewController {
     private var contentItem: NSSplitViewItem!
     private var inspectorItem: NSSplitViewItem!
     private var cancellables = Set<AnyCancellable>()
+    private var pendingLayoutUpdate = false
+
+    weak var layoutDelegate: WorkspaceSplitViewControllerLayoutDelegate?
 
     init(
         tabID: UUID?,
@@ -39,8 +54,8 @@ final class WorkspaceSplitViewController: NSSplitViewController {
     }
 
     override func viewDidLoad() {
-        super.viewDidLoad()
 
+        
         // Configure split view
         splitView.dividerStyle = .thin
         splitView.autosaveName = "WorkspaceSplitView"
@@ -53,9 +68,9 @@ final class WorkspaceSplitViewController: NSSplitViewController {
         )
         sidebarItem = NSSplitViewItem(sidebarWithViewController: sidebarVC)
         sidebarItem.canCollapse = true
-        sidebarItem.minimumThickness = 200
-        sidebarItem.maximumThickness = 400
-        sidebarItem.holdingPriority = .init(251)
+        sidebarItem.minimumThickness = 220
+        sidebarItem.maximumThickness = 420
+        sidebarItem.holdingPriority = .defaultHigh
         addSplitViewItem(sidebarItem)
 
         // Create main content (center pane)
@@ -67,22 +82,21 @@ final class WorkspaceSplitViewController: NSSplitViewController {
         )
         contentItem = NSSplitViewItem(viewController: contentVC)
         contentItem.minimumThickness = 600
-        contentItem.holdingPriority = .init(252)
+        contentItem.holdingPriority = .defaultLow
         addSplitViewItem(contentItem)
 
         // Create inspector (right pane)
-        let inspectorVC = InspectorViewController(appModel: appModel)
+        let inspectorVC = InspectorViewController(appModel: appModel, appState: appState)
         inspectorItem = NSSplitViewItem(viewController: inspectorVC)
         inspectorItem.canCollapse = true
-        inspectorItem.minimumThickness = 250
-        inspectorItem.maximumThickness = 400
-        inspectorItem.holdingPriority = .init(250)
+        inspectorItem.minimumThickness = 240
+        inspectorItem.maximumThickness = 420
+        inspectorItem.holdingPriority = .defaultHigh
         inspectorItem.isCollapsed = !appState.showInfoSidebar
         addSplitViewItem(inspectorItem)
 
-        // Set default positions
-        sidebarItem.viewController.view.widthAnchor.constraint(equalToConstant: 320).isActive = true
-        inspectorItem.viewController.view.widthAnchor.constraint(equalToConstant: 300).isActive = true
+        sidebarItem.preferredThicknessFraction = 0.23
+        inspectorItem.preferredThicknessFraction = 0.22
 
         appState.$showInfoSidebar
             .removeDuplicates()
@@ -93,12 +107,26 @@ final class WorkspaceSplitViewController: NSSplitViewController {
                 if self.inspectorItem.isCollapsed != shouldCollapse {
                     self.inspectorItem.animator().isCollapsed = shouldCollapse
                 }
+                self.requestNavigatorLayoutUpdate()
             }
             .store(in: &cancellables)
+
+        requestNavigatorLayoutUpdate()
     }
 
-    func toggleSidebar() {
-        sidebarItem.isCollapsed.toggle()
+    override func viewDidAppear() {
+        super.viewDidAppear()
+        requestNavigatorLayoutUpdate()
+    }
+
+    override func viewDidLayout() {
+        super.viewDidLayout()
+        requestNavigatorLayoutUpdate()
+    }
+
+    override func toggleSidebar(_ sender: Any?) {
+        super.toggleSidebar(sender)
+        requestNavigatorLayoutUpdate()
     }
 
     func toggleInspector() {
@@ -107,11 +135,17 @@ final class WorkspaceSplitViewController: NSSplitViewController {
 }
 
 extension WorkspaceSplitViewController {
+    override func splitViewDidResizeSubviews(_ notification: Notification) {
+        super.splitViewDidResizeSubviews(notification)
+        requestNavigatorLayoutUpdate()
+    }
+
     func splitView(_ splitView: NSSplitView, didCollapseSubview subview: NSView) {
         guard subview === inspectorItem.viewController.view else { return }
         if appState.showInfoSidebar {
             appState.showInfoSidebar = false
         }
+        requestNavigatorLayoutUpdate()
     }
 
     func splitView(_ splitView: NSSplitView, didExpandSubview subview: NSView) {
@@ -119,5 +153,40 @@ extension WorkspaceSplitViewController {
         if !appState.showInfoSidebar {
             appState.showInfoSidebar = true
         }
+        requestNavigatorLayoutUpdate()
+    }
+}
+
+private extension WorkspaceSplitViewController {
+    func requestNavigatorLayoutUpdate() {
+        guard !pendingLayoutUpdate else { return }
+        pendingLayoutUpdate = true
+
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            self.pendingLayoutUpdate = false
+            guard let layout = self.currentNavigatorLayout() else { return }
+            self.layoutDelegate?.workspaceSplitViewController(self, didUpdateNavigatorLayout: layout)
+        }
+    }
+
+    func currentNavigatorLayout() -> WorkspaceNavigatorLayout? {
+        guard isViewLoaded else { return nil }
+        guard let contentView = contentItem?.viewController.view else { return nil }
+
+        let frameInSplitView = contentView.convert(contentView.bounds, to: splitView)
+
+        if let window = view.window, let contentSuperview = window.contentView {
+            let frameInWindow = splitView.convert(frameInSplitView, to: contentSuperview)
+            return WorkspaceNavigatorLayout(
+                leading: frameInWindow.minX,
+                width: frameInWindow.width
+            )
+        }
+
+        return WorkspaceNavigatorLayout(
+            leading: frameInSplitView.minX,
+            width: frameInSplitView.width
+        )
     }
 }

@@ -5,12 +5,14 @@ import SwiftUI
 
 enum FolderCredentialMode: String, Codable, CaseIterable {
     case none
+    case manual
     case identity
     case inherit
 
     var displayName: String {
         switch self {
         case .none: return "No Credentials"
+        case .manual: return "Manual Credentials"
         case .identity: return "Link Identity"
         case .inherit: return "Inherit from Parent"
         }
@@ -84,6 +86,8 @@ struct SavedFolder: Identifiable, Codable, Hashable {
     var kind: FolderKind = .connections
     var credentialMode: FolderCredentialMode = .none
     var identityID: UUID?
+    var manualUsername: String?
+    var manualKeychainIdentifier: String?
     var children: [SidebarItem] = []
 
     var connectionCount: Int {
@@ -101,7 +105,7 @@ struct SavedFolder: Identifiable, Codable, Hashable {
     // MARK: - Codable Support for Color
 
     private enum CodingKeys: String, CodingKey {
-        case id, projectID, name, parentFolderID, createdAt, colorHex, kind, credentialMode, identityID, children
+        case id, projectID, name, parentFolderID, createdAt, colorHex, kind, credentialMode, identityID, manualUsername, manualKeychainIdentifier, children
     }
 
     init(from decoder: Decoder) throws {
@@ -114,6 +118,8 @@ struct SavedFolder: Identifiable, Codable, Hashable {
         kind = try container.decodeIfPresent(FolderKind.self, forKey: .kind) ?? .connections
         credentialMode = try container.decodeIfPresent(FolderCredentialMode.self, forKey: .credentialMode) ?? .none
         identityID = try container.decodeIfPresent(UUID.self, forKey: .identityID)
+        manualUsername = try container.decodeIfPresent(String.self, forKey: .manualUsername)
+        manualKeychainIdentifier = try container.decodeIfPresent(String.self, forKey: .manualKeychainIdentifier)
         children = try container.decodeIfPresent([SidebarItem].self, forKey: .children) ?? []
 
         colorHex = try container.decodeIfPresent(String.self, forKey: .colorHex) ?? Self.defaultColorHex
@@ -129,6 +135,8 @@ struct SavedFolder: Identifiable, Codable, Hashable {
         try container.encode(kind, forKey: .kind)
         try container.encode(credentialMode, forKey: .credentialMode)
         try container.encodeIfPresent(identityID, forKey: .identityID)
+        try container.encodeIfPresent(manualUsername, forKey: .manualUsername)
+        try container.encodeIfPresent(manualKeychainIdentifier, forKey: .manualKeychainIdentifier)
         try container.encode(children, forKey: .children)
         try container.encode(colorHex, forKey: .colorHex)
     }

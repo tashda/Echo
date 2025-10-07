@@ -42,11 +42,11 @@ class TransparentTitlebarWindow: TerminalWindow {
             backgroundColor = preferredBackgroundColor.withAlphaComponent(1)
         }
 
-        if #available(macOS 26.0, *) {
-            applyTahoeAppearance()
-        } else {
-            applyVenturaAppearance()
-        }
+        // if #available(macOS 26.0, *) {
+        //     applyTahoeAppearance()
+        // } else {
+        //     applyVenturaAppearance()
+        // }
     }
 
     @available(macOS 26.0, *)

@@ -176,11 +176,11 @@ final class SearchSidebarViewModel: ObservableObject {
         isSearching = true
 
         searchTask = Task { [weak self] in
-            guard let self else { return }
             do {
                 try await Task.sleep(nanoseconds: 250_000_000) // 250ms debounce
                 try Task.checkCancellation()
 
+                guard let self else { return }
                 var aggregated: [SearchSidebarResult] = []
                 var dbErrorDescription: String?
 
@@ -212,14 +212,14 @@ final class SearchSidebarViewModel: ObservableObject {
                     self.searchTask = nil
                 }
             } catch is CancellationError {
+                guard let self else { return }
                 await MainActor.run {
-                    guard let self else { return }
                     self.searchTask = nil
                 }
             } catch {
                 let dbError = DatabaseError.from(error)
+                guard let self else { return }
                 await MainActor.run {
-                    guard let self else { return }
                     let tabResults = self.searchQueryTabs(with: searchText, snapshots: tabSnapshots, includeQueryTabs: shouldSearchQueryTabs)
                     self.results = self.sortResults(tabResults)
                     self.isSearching = false
