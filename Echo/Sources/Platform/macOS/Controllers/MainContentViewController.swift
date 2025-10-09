@@ -94,6 +94,7 @@ private struct MainContentWrapperView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(themeManager.windowBackground)
         .ignoresSafeArea()
+        .accentColor(themeManager.accentColor)
         .environmentObject(appModel)
         .environmentObject(appState)
         .environmentObject(clipboardHistory)

@@ -221,10 +221,10 @@ final class AppModel: ObservableObject {
 
         if globalSettings.defaultPaletteID(for: .light).isEmpty
             || globalSettings.palette(withID: globalSettings.defaultPaletteID(for: .light)) == nil {
-            if let legacyPalette, !legacyPalette.isDark {
+            if let legacyPalette, legacyPalette.tone == .light {
                 globalSettings.defaultEditorPaletteIDLight = legacyPalette.id
-            } else if let fallback = SQLEditorPalette.builtIn.first(where: { !$0.isDark }) {
-                globalSettings.defaultEditorPaletteIDLight = fallback.id
+            } else if let fallbackLight = SQLEditorTokenPalette.builtIn.first(where: { $0.tone == .light }) {
+                globalSettings.defaultEditorPaletteIDLight = fallbackLight.id
             } else {
                 globalSettings.defaultEditorPaletteIDLight = SQLEditorPalette.aurora.id
             }
@@ -233,10 +233,10 @@ final class AppModel: ObservableObject {
 
         if globalSettings.defaultPaletteID(for: .dark).isEmpty
             || globalSettings.palette(withID: globalSettings.defaultPaletteID(for: .dark)) == nil {
-            if let legacyPalette, legacyPalette.isDark {
+            if let legacyPalette, legacyPalette.tone == .dark {
                 globalSettings.defaultEditorPaletteIDDark = legacyPalette.id
-            } else if let fallback = SQLEditorPalette.builtIn.first(where: { $0.isDark }) {
-                globalSettings.defaultEditorPaletteIDDark = fallback.id
+            } else if let fallbackDark = SQLEditorTokenPalette.builtIn.first(where: { $0.tone == .dark }) {
+                globalSettings.defaultEditorPaletteIDDark = fallbackDark.id
             } else {
                 globalSettings.defaultEditorPaletteIDDark = SQLEditorPalette.midnight.id
             }
@@ -314,7 +314,7 @@ final class AppModel: ObservableObject {
         await persistGlobalSettings()
     }
 
-    func upsertCustomPalette(_ palette: SQLEditorPalette) async {
+    func upsertCustomPalette(_ palette: SQLEditorTokenPalette) async {
         if let index = globalSettings.customEditorPalettes.firstIndex(where: { $0.id == palette.id }) {
             globalSettings.customEditorPalettes[index] = palette
         } else {
@@ -360,6 +360,57 @@ final class AppModel: ObservableObject {
                 selectedProject = updated
             }
         }
+    }
+
+    func upsertCustomTheme(_ theme: AppColorTheme) async {
+        if let index = globalSettings.customThemes.firstIndex(where: { $0.id == theme.id }) {
+            globalSettings.customThemes[index] = theme
+        } else {
+            globalSettings.customThemes.append(theme)
+        }
+        await persistGlobalSettings()
+        await ensureActiveThemesApplied()
+    }
+
+    func deleteCustomTheme(withID id: AppColorTheme.ID) async {
+        globalSettings.customThemes.removeAll { $0.id == id }
+        if globalSettings.activeThemeIDLight == id {
+            globalSettings.activeThemeIDLight = nil
+        }
+        if globalSettings.activeThemeIDDark == id {
+            globalSettings.activeThemeIDDark = nil
+        }
+        await persistGlobalSettings()
+        await ensureActiveThemesApplied()
+    }
+
+    func setActiveTheme(_ themeID: AppColorTheme.ID?, for tone: SQLEditorPalette.Tone) async {
+        globalSettings.setActiveThemeID(themeID, for: tone)
+        await persistGlobalSettings()
+        applyChrome(for: tone)
+    }
+
+    private func ensureActiveThemesApplied() async {
+        applyChrome(for: .light)
+        applyChrome(for: .dark)
+    }
+
+    private func applyChrome(for tone: SQLEditorPalette.Tone) {
+#if canImport(AppKit)
+        _ = activeTheme(for: tone)
+#endif
+    }
+
+    private func activeTheme(for tone: SQLEditorPalette.Tone) -> AppColorTheme {
+        if let theme = globalSettings.theme(withID: globalSettings.activeThemeID(for: tone), tone: tone) {
+            return theme
+        }
+        if let projectThemeID = selectedProject?.settings.editorTheme,
+           let projectTheme = globalSettings.theme(withID: projectThemeID, tone: tone) {
+            return projectTheme
+        }
+        return AppColorTheme.builtInThemes(for: tone).first
+            ?? AppColorTheme.fromPalette(tone == .dark ? SQLEditorPalette.midnight : SQLEditorPalette.aurora)
     }
 
     func updateProjectAppearance(projectID: UUID, update: (inout ProjectSettings) -> Void) async {

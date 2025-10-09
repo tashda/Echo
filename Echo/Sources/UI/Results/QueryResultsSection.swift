@@ -27,6 +27,7 @@ struct QueryResultsSection: View {
 
     @EnvironmentObject private var themeManager: ThemeManager
 
+#if !os(macOS)
     private let connectionChipMinWidth: CGFloat = 180
     private let metricChipMinWidth: CGFloat = 82
     private let timeChipMinWidth: CGFloat = 112
@@ -34,6 +35,7 @@ struct QueryResultsSection: View {
     private let statusChipHeight: CGFloat = 28
     private let statusBarVerticalPadding: CGFloat = 8
     private var statusBarHeight: CGFloat { statusChipHeight + statusBarVerticalPadding * 2 }
+#endif
 
     enum ResultTab: Hashable {
         case results
@@ -202,6 +204,39 @@ struct QueryResultsSection: View {
         .padding(40)
     }
 
+    private var noRowsReturnedView: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "tablecells.badge.ellipsis")
+                .font(.system(size: 36))
+                .foregroundStyle(.secondary)
+            Text("No Rows Returned")
+                .font(.headline)
+            Text("The query executed successfully but returned no data.")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    @ViewBuilder
+    private var overlayContent: some View {
+        if query.isExecuting && !hasRows {
+            executingView
+                .background(platformBackground)
+        } else if let error = query.errorMessage, !hasRows {
+            errorView(error)
+                .background(platformBackground)
+        } else if !hasRows {
+            if query.results != nil {
+                noRowsReturnedView
+                    .background(platformBackground)
+            } else {
+                placeholder
+                    .background(platformBackground)
+            }
+        }
+    }
+
     private var resultsView: some View {
 #if os(macOS)
         return macResultsView
@@ -212,33 +247,20 @@ struct QueryResultsSection: View {
 
 #if os(macOS)
     private var macResultsView: some View {
-        Group {
-            if rowCount == 0 {
-                if query.results != nil {
-                    VStack(spacing: 12) {
-                        Image(systemName: "tablecells.badge.ellipsis")
-                            .font(.system(size: 36))
-                            .foregroundStyle(.secondary)
-                        Text("No Rows Returned")
-                            .font(.headline)
-                        Text("The query executed successfully but returned no data.")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else {
-                    placeholder
-                }
-            } else {
-                QueryResultsTableView(
-                    query: query,
-                    highlightedColumnIndex: highlightedColumnIndex,
-                    activeSort: activeSort,
-                    rowOrder: rowOrder,
-                    onColumnTap: { index in toggleHighlightedColumn(index) },
-                    onSort: { index, action in handleSortAction(columnIndex: index, action: action) }
-                )
-            }
+        ZStack {
+            QueryResultsTableView(
+                query: query,
+                highlightedColumnIndex: highlightedColumnIndex,
+                activeSort: activeSort,
+                rowOrder: rowOrder,
+                onColumnTap: { index in toggleHighlightedColumn(index) },
+                onSort: { index, action in handleSortAction(columnIndex: index, action: action) },
+                backgroundColor: gridBackgroundColor
+            )
+            .opacity(hasRows ? 1 : 0)
+            .allowsHitTesting(hasRows)
+
+            overlayContent
         }
     }
 #endif
@@ -524,6 +546,170 @@ struct QueryResultsSection: View {
         }
     }
 
+#if os(macOS)
+    private var statusBar: some View {
+        Group {
+            if shouldShowStatusBar {
+                VStack(spacing: 0) {
+                    Divider().opacity(0.3)
+                    HStack(spacing: 18) {
+                        connectionStatusItem
+                        Spacer(minLength: 12)
+                        rowCountStatusItem
+                        timeStatusItem
+                        statusSummaryItem
+                    }
+                    .padding(.horizontal, 18)
+                    .padding(.vertical, 6)
+                }
+                .background(themeManager.windowBackground)
+            }
+        }
+        .transaction { transaction in
+            transaction.animation = nil
+        }
+    }
+
+    private var connectionStatusItem: some View {
+        StatusBarSegment(isEnabled: true, action: {
+            showConnectionInfoPopover.toggle()
+        }) {
+            HStack(spacing: 8) {
+                Image(systemName: "server.rack")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(connection.color)
+
+                Text(connectionDisplayName)
+                    .font(.system(size: 12, weight: .semibold))
+
+                if let database = effectiveDatabaseName {
+                    Text(database)
+                        .font(.system(size: 11, weight: .semibold))
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 3)
+                        .background(Color.primary.opacity(0.08), in: Capsule())
+                }
+            }
+        }
+        .popover(isPresented: $showConnectionInfoPopover, arrowEdge: .bottom) {
+            connectionInfoPopover
+        }
+    }
+
+    private var rowCountStatusItem: some View {
+        let total = query.totalAvailableRowCount
+        let current = query.currentRowCount ?? rowCount
+        let displayText = formattedRowCountShort(current, totalCount: total, executing: query.isExecuting)
+        let isEnabled = !query.isExecuting && total > 0
+
+        return StatusBarSegment(isEnabled: isEnabled, action: {
+            guard isEnabled else { return }
+            showRowInfoPopover.toggle()
+        }) {
+            HStack(spacing: 7) {
+                statusIcon(named: "table.rows")
+                Text(displayText)
+                    .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                    .foregroundStyle(query.isExecuting ? Color.secondary : Color.primary)
+            }
+        }
+        .popover(isPresented: $showRowInfoPopover, arrowEdge: .bottom) {
+            rowInfoPopover
+        }
+    }
+
+    private var timeStatusItem: some View {
+        let elapsedSeconds = query.isExecuting
+            ? max(0, Int(query.currentExecutionTime))
+            : max(0, Int((query.lastExecutionTime ?? 0)))
+        let hasDuration = query.isExecuting || query.lastExecutionTime != nil
+        let displayText = hasDuration ? formattedDuration(elapsedSeconds) : "—"
+        let textColor: Color = query.isExecuting ? .orange : (hasDuration ? .primary : .secondary)
+
+        return StatusBarSegment(isEnabled: hasDuration && !query.isExecuting, action: {
+            guard hasDuration, !query.isExecuting else { return }
+            showTimeInfoPopover.toggle()
+        }) {
+            HStack(spacing: 7) {
+                Image(systemName: "clock")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(textColor)
+                Text(displayText)
+                    .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                    .foregroundStyle(textColor)
+            }
+        }
+        .popover(isPresented: $showTimeInfoPopover, arrowEdge: .bottom) {
+            timeInfoPopover
+        }
+    }
+
+    private var statusSummaryItem: some View {
+        let config = statusBubbleConfiguration()
+        return StatusBarSegment(isEnabled: false, action: nil) {
+            HStack(spacing: 7) {
+                Image(systemName: config.icon)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(config.tint)
+                Text(config.label)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(config.tint)
+            }
+        }
+    }
+
+    private func statusIcon(named name: String) -> some View {
+        let image: Image
+        if let _ = NSImage(named: NSImage.Name(name)) {
+            image = Image(name)
+        } else {
+            image = Image(systemName: "tablecells")
+        }
+        return image
+            .font(.system(size: 12, weight: .semibold))
+            .foregroundStyle(Color.primary)
+    }
+
+    private struct StatusBarSegment<Content: View>: View {
+        let isEnabled: Bool
+        let action: (() -> Void)?
+        @ViewBuilder let content: () -> Content
+
+        @State private var isHovering = false
+
+        init(isEnabled: Bool, action: (() -> Void)?, @ViewBuilder content: @escaping () -> Content) {
+            self.isEnabled = isEnabled
+            self.action = action
+            self.content = content
+        }
+
+        var body: some View {
+            Group {
+                if let action {
+                    Button(action: action) {
+                        segmentContent
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(!isEnabled)
+                    .onHover { isHovering = $0 && isEnabled }
+                } else {
+                    segmentContent
+                        .onHover { isHovering = $0 && isEnabled }
+                }
+            }
+        }
+
+        private var segmentContent: some View {
+            content()
+                .padding(.horizontal, 10)
+                .padding(.vertical, 5)
+                .background(
+                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                        .fill(isHovering && isEnabled ? Color(nsColor: NSColor.controlHighlightColor).opacity(0.35) : Color.clear)
+                )
+        }
+    }
+#else
     private var statusBar: some View {
         Group {
             if query.isExecuting || query.hasExecutedAtLeastOnce {
@@ -557,19 +743,6 @@ struct QueryResultsSection: View {
             minWidth: connectionChipMinWidth
         )
 
-#if os(macOS)
-        return Button {
-            showConnectionInfoPopover.toggle()
-        } label: {
-            chip
-        }
-        .buttonStyle(.plain)
-        .frame(height: statusChipHeight, alignment: .center)
-        .contentShape(Rectangle())
-        .popover(isPresented: $showConnectionInfoPopover, arrowEdge: .bottom) {
-            connectionInfoPopover
-        }
-#else
         return Button {
             showConnectionInfoPopover.toggle()
         } label: {
@@ -581,7 +754,6 @@ struct QueryResultsSection: View {
         .sheet(isPresented: $showConnectionInfoPopover) {
             connectionInfoPopover
         }
-#endif
     }
 
     private var rowCountControl: some View {
@@ -596,22 +768,6 @@ struct QueryResultsSection: View {
             minWidth: metricChipMinWidth
         )
 
-#if os(macOS)
-        return Button {
-            guard !query.isExecuting, total > 0 else { return }
-            showRowInfoPopover.toggle()
-        } label: {
-            chip
-        }
-        .buttonStyle(.plain)
-        .frame(height: statusChipHeight, alignment: .center)
-        .contentShape(Rectangle())
-        .animation(.none, value: rowCount)
-        .animation(.none, value: query.currentRowCount)
-        .popover(isPresented: $showRowInfoPopover, arrowEdge: .bottom) {
-            rowInfoPopover
-        }
-#else
         return Button {
             guard !query.isExecuting, total > 0 else { return }
             showRowInfoPopover.toggle()
@@ -624,7 +780,6 @@ struct QueryResultsSection: View {
         .sheet(isPresented: $showRowInfoPopover) {
             rowInfoPopover
         }
-#endif
     }
 
     private var timeControl: some View {
@@ -641,21 +796,6 @@ struct QueryResultsSection: View {
             minWidth: timeChipMinWidth
         )
 
-#if os(macOS)
-        return Button {
-            guard !query.isExecuting, hasDuration else { return }
-            showTimeInfoPopover.toggle()
-        } label: {
-            chip
-        }
-        .buttonStyle(.plain)
-        .frame(height: statusChipHeight, alignment: .center)
-        .contentShape(Rectangle())
-        .animation(.none, value: query.currentExecutionTime)
-        .popover(isPresented: $showTimeInfoPopover, arrowEdge: .bottom) {
-            timeInfoPopover
-        }
-#else
         return Button {
             guard !query.isExecuting, hasDuration else { return }
             showTimeInfoPopover.toggle()
@@ -668,7 +808,6 @@ struct QueryResultsSection: View {
         .sheet(isPresented: $showTimeInfoPopover) {
             timeInfoPopover
         }
-#endif
     }
 
     private var statusControl: some View {
@@ -695,6 +834,7 @@ struct QueryResultsSection: View {
     private var connectionIconName: String {
         "server.rack"
     }
+#endif
 
     private var connectionDisplayName: String {
         let trimmedName = connection.connectionName.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -779,6 +919,7 @@ struct QueryResultsSection: View {
         }
     }
 
+#if !os(macOS)
     private func metricChip(text: String, icon: String, tint: Color, minWidth: CGFloat) -> some View {
         HStack(spacing: 6) {
             Image(systemName: icon)
@@ -802,6 +943,7 @@ struct QueryResultsSection: View {
         )
         .frame(maxHeight: .infinity, alignment: .center)
     }
+#endif
 
     private func statusBubbleConfiguration() -> (label: String, icon: String, tint: Color) {
         if query.isExecuting {
@@ -947,6 +1089,17 @@ struct QueryResultsSection: View {
     }
 
     private var platformBackground: Color { themeManager.windowBackground }
+    private var gridBackgroundColor: NSColor {
+#if os(macOS)
+        NSColor(themeManager.windowBackground)
+#else
+        .clear
+#endif
+    }
+
+    private var shouldShowStatusBar: Bool {
+        query.isExecuting || query.hasExecutedAtLeastOnce || query.errorMessage != nil
+    }
 
     private var tableColumns: [ColumnInfo] {
         query.displayedColumns

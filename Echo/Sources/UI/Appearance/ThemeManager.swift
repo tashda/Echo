@@ -2,115 +2,219 @@
 //  ThemeManager.swift
 //  Echo
 //
-//  Created by Assistant on 23/09/2025.
+//  Created by Assistant on 08/10/2025.
 //
 
 import SwiftUI
 import Combine
-import AppKit
 
-/// Manages the app's theme settings and appearance
+#if os(macOS)
+import AppKit
+#endif
+
 @MainActor
 final class ThemeManager: ObservableObject {
     static let shared = ThemeManager()
 
-    @Published var currentTheme: AppTheme {
-        didSet {
-            UserDefaults.standard.set(currentTheme.rawValue, forKey: "selectedTheme")
-            updateAppearance()
-        }
+    @Published private(set) var effectiveColorScheme: ColorScheme
+    @Published private(set) var activeTheme: AppColorTheme
+    @Published private(set) var accentColor: Color
+    @Published private(set) var windowBackgroundColor: Color
+
+#if os(macOS)
+    @Published private(set) var accentNSColor: NSColor
+    @Published private(set) var windowBackgroundNSColor: NSColor
+#endif
+
+    /// Combine publisher for imperative consumers that need to react to accent color changes.
+    var accentPublisher: AnyPublisher<Color, Never> {
+        accentSubject.eraseToAnyPublisher()
     }
 
-    @Published private(set) var effectiveColorScheme: ColorScheme = .light
-    
-    var activePaletteTone: SQLEditorPalette.Tone {
-        effectiveColorScheme == .dark ? .dark : .light
-    }
+    var activePaletteTone: SQLEditorPalette.Tone { activeTone }
+    var windowBackground: Color { windowBackgroundColor }
 
-    private let userDefaults = UserDefaults.standard
-    private var appearanceObserver: AnyCancellable?
+    private var themesByTone: [SQLEditorPalette.Tone: AppColorTheme]
+    private var activeTone: SQLEditorPalette.Tone
+    private let accentSubject: CurrentValueSubject<Color, Never>
+#if os(macOS)
+    private var appearanceObserver: NSObjectProtocol?
+#endif
 
     private init() {
-        let savedTheme = userDefaults.string(forKey: "selectedTheme")
-        self.currentTheme = AppTheme(rawValue: savedTheme ?? AppTheme.system.rawValue) ?? .system
-        updateAppearance()
+        let defaultLightTheme = AppColorTheme.builtInThemes(for: .light).first
+            ?? AppColorTheme.fromPalette(.aurora, idOverride: "builtin-initial-light", isCustom: false)
+        let defaultDarkTheme = AppColorTheme.builtInThemes(for: .dark).first
+            ?? AppColorTheme.fromPalette(.midnight, idOverride: "builtin-initial-dark", isCustom: false)
+        themesByTone = [.light: defaultLightTheme, .dark: defaultDarkTheme]
+
+#if os(macOS)
+        let initialScheme = ThemeManager.currentSystemColorScheme()
+#else
+        let initialScheme: ColorScheme = .light
+#endif
+        effectiveColorScheme = initialScheme
+        activeTone = ThemeManager.tone(for: initialScheme)
+        activeTheme = themesByTone[activeTone] ?? defaultLightTheme
+
+        let accentRepresentable = ThemeManager.accentRepresentable(from: activeTheme)
+        accentColor = accentRepresentable.color
+        windowBackgroundColor = activeTheme.windowBackground.color
+        accentSubject = CurrentValueSubject<Color, Never>(accentColor)
+
+#if os(macOS)
+        accentNSColor = accentRepresentable.nsColor
+        windowBackgroundNSColor = activeTheme.windowBackground.nsColor
         observeSystemAppearanceChanges()
+#endif
     }
 
-    /// Public initializer for testing/previews; does not update appearance unless for production singleton
+    // MARK: - Theme Accessors
 
-    public init(forTesting: Bool = false) {
-        let savedTheme = userDefaults.string(forKey: "selectedTheme")
-        self.currentTheme = AppTheme(rawValue: savedTheme ?? AppTheme.system.rawValue) ?? .system
-        if !forTesting {
-            updateAppearance()
-            observeSystemAppearanceChanges()
+    func theme(for tone: SQLEditorPalette.Tone) -> AppColorTheme {
+        if let stored = themesByTone[tone] {
+            return stored
         }
+        let fallback = AppColorTheme.builtInThemes(for: tone).first
+            ?? AppColorTheme.fromPalette(tone == .dark ? .midnight : .aurora)
+        themesByTone[tone] = fallback
+        return fallback
     }
 
-    private func updateAppearance() {
-        switch currentTheme {
+    func accentColor(for tone: SQLEditorPalette.Tone) -> Color {
+        ThemeManager.accentRepresentable(from: theme(for: tone)).color
+    }
+
+    func windowBackgroundColor(for tone: SQLEditorPalette.Tone) -> Color {
+        theme(for: tone).windowBackground.color
+    }
+
+#if os(macOS)
+    func windowBackgroundNSColor(for tone: SQLEditorPalette.Tone) -> NSColor {
+        theme(for: tone).windowBackground.nsColor
+    }
+
+    func accentNSColor(for tone: SQLEditorPalette.Tone) -> NSColor {
+        ThemeManager.accentRepresentable(from: theme(for: tone)).nsColor
+    }
+#endif
+
+    // MARK: - Mutating API
+
+    func applyChrome(theme: AppColorTheme, tone: SQLEditorPalette.Tone) {
+        themesByTone[tone] = theme
+        if tone == activeTone {
+            updateOutputs(for: tone)
+        }
+#if os(macOS)
+        applyChromeToWindows(theme)
+#endif
+    }
+
+    func setActiveTone(_ tone: SQLEditorPalette.Tone) {
+        guard tone != activeTone else { return }
+        activeTone = tone
+        effectiveColorScheme = ThemeManager.colorScheme(for: tone)
+        updateOutputs(for: tone)
+    }
+
+    func overrideColorScheme(_ scheme: ColorScheme) {
+        let tone = ThemeManager.tone(for: scheme)
+        effectiveColorScheme = scheme
+        activeTone = tone
+        updateOutputs(for: tone)
+    }
+
+    func applyAppearanceMode(_ mode: AppearanceMode) {
+        switch mode {
         case .light:
-            NSApp.appearance = NSAppearance(named: .aqua)
+            setActiveTone(.light)
         case .dark:
-            NSApp.appearance = NSAppearance(named: .darkAqua)
+            setActiveTone(.dark)
         case .system:
-            NSApp.appearance = nil // Use system setting
+#if os(macOS)
+            let scheme = ThemeManager.currentSystemColorScheme()
+            effectiveColorScheme = scheme
+            activeTone = ThemeManager.tone(for: scheme)
+            updateOutputs(for: activeTone)
+#else
+            setActiveTone(.light)
+#endif
         }
-        updateEffectiveColorScheme()
     }
 
+    // MARK: - Private Helpers
+
+    private func updateOutputs(for tone: SQLEditorPalette.Tone) {
+        let theme = theme(for: tone)
+        activeTheme = theme
+
+        let accentRepresentable = ThemeManager.accentRepresentable(from: theme)
+        accentColor = accentRepresentable.color
+        windowBackgroundColor = theme.windowBackground.color
+        accentSubject.send(accentColor)
+
+#if os(macOS)
+        accentNSColor = accentRepresentable.nsColor
+        windowBackgroundNSColor = theme.windowBackground.nsColor
+        applyChromeToWindows(theme)
+#endif
+    }
+
+#if os(macOS)
     private func observeSystemAppearanceChanges() {
-        let notificationName = Notification.Name("NSApplicationDidChangeEffectiveAppearanceNotification")
-        appearanceObserver = NotificationCenter.default.publisher(for: notificationName)
-            .receive(on: RunLoop.main)
-            .sink { [weak self] _ in
-                guard let self else { return }
-                if self.currentTheme == .system {
-                    self.updateEffectiveColorScheme()
-                }
-            }
-    }
-
-    private func updateEffectiveColorScheme() {
-        let resolvedScheme: ColorScheme
-        switch currentTheme {
-        case .light:
-            resolvedScheme = .light
-        case .dark:
-            resolvedScheme = .dark
-        case .system:
-            let appearance = NSApp?.effectiveAppearance ?? NSAppearance(named: .aqua)
-            let match = appearance?.bestMatch(from: [.darkAqua, .aqua]) ?? .aqua
-            resolvedScheme = match == .darkAqua ? .dark : .light
-        }
-
-        if effectiveColorScheme != resolvedScheme {
-            effectiveColorScheme = resolvedScheme
+        appearanceObserver = NotificationCenter.default.addObserver(
+            forName: NSApplication.didChangeEffectiveAppearanceNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            guard let self else { return }
+            let scheme = ThemeManager.currentSystemColorScheme()
+            self.effectiveColorScheme = scheme
+            self.activeTone = ThemeManager.tone(for: scheme)
+            self.updateOutputs(for: self.activeTone)
         }
     }
 
-    // Convenience computed properties for theme-aware styling
-    @Published var showAlternateRowShading: Bool = true
-
-    // Convenience computed properties for theme-aware styling
-    var backgroundColor: Color {
-        Color(NSColor.controlBackgroundColor)
-    }
-
-    var sidebarBackground: NSVisualEffectView.Material {
-        .sidebar
-    }
-
-    var windowBackground: Color {
-        switch currentTheme {
-        case .light:
-            return Color.white
-        case .dark:
-            return Color(NSColor.windowBackgroundColor)
-        case .system:
-            return Color(NSColor.windowBackgroundColor)
+    private func applyChromeToWindows(_ theme: AppColorTheme) {
+        for window in NSApp?.windows ?? [] {
+            window.backgroundColor = theme.windowBackground.nsColor
         }
+    }
+
+    private static func currentSystemColorScheme() -> ColorScheme {
+        guard let appearance = NSApp?.effectiveAppearance else {
+            return .light
+        }
+        let match = appearance.bestMatch(from: [.darkAqua, .aqua]) ?? .aqua
+        return match == .darkAqua ? .dark : .light
+    }
+#endif
+
+    deinit {
+#if os(macOS)
+        if let appearanceObserver {
+            NotificationCenter.default.removeObserver(appearanceObserver)
+        }
+#endif
+    }
+
+    private static func tone(for scheme: ColorScheme) -> SQLEditorPalette.Tone {
+        scheme == .dark ? .dark : .light
+    }
+
+    private static func colorScheme(for tone: SQLEditorPalette.Tone) -> ColorScheme {
+        tone == .dark ? .dark : .light
+    }
+
+    private static func accentRepresentable(from theme: AppColorTheme) -> ColorRepresentable {
+        if let accent = theme.accent {
+            return accent
+        }
+        if let swatch = theme.swatchColors.first {
+            return swatch
+        }
+        return theme.surfaceForeground
     }
 }
 
@@ -118,7 +222,7 @@ enum AppTheme: String, CaseIterable {
     case light = "light"
     case dark = "dark"
     case system = "system"
-    
+
     var displayName: String {
         switch self {
         case .light:
@@ -129,7 +233,7 @@ enum AppTheme: String, CaseIterable {
             return "System"
         }
     }
-    
+
     var iconName: String {
         switch self {
         case .light:

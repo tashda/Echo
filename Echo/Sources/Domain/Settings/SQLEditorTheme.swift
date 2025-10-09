@@ -6,6 +6,18 @@ import AppKit
 import UIKit
 #endif
 
+struct SQLEditorSurfaceColors: Codable, Equatable {
+    var background: ColorRepresentable
+    var text: ColorRepresentable
+    var gutterBackground: ColorRepresentable
+    var gutterText: ColorRepresentable
+    var gutterAccent: ColorRepresentable
+    var selection: ColorRepresentable
+    var currentLine: ColorRepresentable
+    var symbolHighlightStrong: ColorRepresentable?
+    var symbolHighlightBright: ColorRepresentable?
+}
+
 struct SQLEditorTheme: Codable, Equatable {
     static let defaultFontName = "JetBrainsMono-Regular"
     static let defaultFontSize: CGFloat = 12
@@ -14,21 +26,27 @@ struct SQLEditorTheme: Codable, Equatable {
     var fontName: String
     var fontSize: CGFloat
     var lineHeightMultiplier: CGFloat
-    var palette: SQLEditorPalette
+    var surfaces: SQLEditorSurfaceColors
+    var tokenPalette: SQLEditorTokenPalette
+    var palette: SQLEditorTokenPalette { tokenPalette }
 
     init(
         fontName: String = SQLEditorTheme.defaultFontName,
         fontSize: CGFloat = SQLEditorTheme.defaultFontSize,
         lineHeightMultiplier: CGFloat = SQLEditorTheme.defaultLineHeight,
-        palette: SQLEditorPalette = .aurora
+        surfaces: SQLEditorSurfaceColors,
+        tokenPalette: SQLEditorTokenPalette
     ) {
         self.fontName = fontName
         self.fontSize = fontSize
         self.lineHeightMultiplier = lineHeightMultiplier
-        self.palette = palette
+        self.surfaces = surfaces
+        self.tokenPalette = tokenPalette
     }
 
-    var tokenColors: SQLEditorPalette.TokenColors { palette.tokens }
+    var tone: SQLEditorPalette.Tone { tokenPalette.tone }
+
+    var tokenColors: SQLEditorPalette.TokenColors { tokenPalette.tokens }
 
     var font: NSFontWithFallback {
         NSFontWithFallback(name: fontName, size: fontSize)
@@ -39,6 +57,47 @@ struct SQLEditorTheme: Codable, Equatable {
 #else
     var uiFont: UIFont { font.font }
 #endif
+
+    static func fallback(tone: SQLEditorPalette.Tone = .light) -> SQLEditorTheme {
+        let baseTheme = AppColorTheme.builtInThemes(for: tone).first
+            ?? AppColorTheme.fromPalette(tone == .dark ? SQLEditorPalette.midnight : SQLEditorPalette.aurora)
+
+        let palette = SQLEditorTokenPalette.builtIn.first(where: { $0.id == baseTheme.defaultPaletteID })
+            ?? SQLEditorTokenPalette.builtIn.first(where: { $0.tone == tone })
+            ?? SQLEditorTokenPalette(from: tone == .dark ? SQLEditorPalette.midnight : SQLEditorPalette.aurora)
+
+        let strongHighlight = baseTheme.editorSymbolHighlightStrong
+            ?? SQLEditorTokenPalette.defaultSymbolHighlightStrong(
+                selection: baseTheme.editorSelection,
+                accent: baseTheme.accent,
+                background: baseTheme.editorBackground,
+                isDark: tone == .dark
+            )
+        let brightHighlight = baseTheme.editorSymbolHighlightBright
+            ?? SQLEditorTokenPalette.defaultSymbolHighlightBright(
+                selection: baseTheme.editorSelection,
+                accent: baseTheme.accent,
+                background: baseTheme.editorBackground,
+                isDark: tone == .dark
+            )
+
+        let surfaces = SQLEditorSurfaceColors(
+            background: baseTheme.editorBackground,
+            text: baseTheme.editorForeground,
+            gutterBackground: baseTheme.editorGutterBackground,
+            gutterText: baseTheme.editorGutterForeground,
+            gutterAccent: baseTheme.accent ?? baseTheme.editorForeground,
+            selection: baseTheme.editorSelection,
+            currentLine: baseTheme.editorCurrentLine,
+            symbolHighlightStrong: strongHighlight,
+            symbolHighlightBright: brightHighlight
+        )
+
+        return SQLEditorTheme(
+            surfaces: surfaces,
+            tokenPalette: palette
+        )
+    }
 }
 
 struct SQLEditorDisplayOptions: Codable, Equatable {
@@ -98,6 +157,100 @@ struct SQLEditorDisplayOptions: Codable, Equatable {
         try container.encode(indentWrappedLines, forKey: .indentWrappedLines)
         try container.encode(autoCompletionEnabled, forKey: .autoCompletionEnabled)
         try container.encode(suggestTableAliasesInCompletion, forKey: .suggestTableAliasesInCompletion)
+    }
+}
+
+struct SQLEditorTokenPalette: Codable, Equatable, Hashable, Identifiable {
+    enum Kind: String, Codable {
+        case builtIn
+        case custom
+    }
+
+    var id: String
+    var name: String
+    var kind: Kind
+    var tone: SQLEditorPalette.Tone
+    var tokens: SQLEditorPalette.TokenColors
+
+    init(
+        id: String,
+        name: String,
+        kind: Kind,
+        tone: SQLEditorPalette.Tone,
+        tokens: SQLEditorPalette.TokenColors
+    ) {
+        self.id = id
+        self.name = name
+        self.kind = kind
+        self.tone = tone
+        self.tokens = tokens
+    }
+
+    init(from palette: SQLEditorPalette) {
+        self.init(
+            id: palette.id,
+            name: palette.name,
+            kind: palette.kind == .custom ? .custom : .builtIn,
+            tone: palette.tone,
+            tokens: palette.tokens
+        )
+    }
+
+    func asCustomCopy(named name: String? = nil) -> SQLEditorTokenPalette {
+        SQLEditorTokenPalette(
+            id: "custom-\(UUID().uuidString)",
+            name: name ?? "\(self.name) Copy",
+            kind: .custom,
+            tone: tone,
+            tokens: tokens
+        )
+    }
+
+    static let builtIn: [SQLEditorTokenPalette] = SQLEditorPalette.builtIn.map { SQLEditorTokenPalette(from: $0) }
+
+    static func palette(withID id: String, customPalettes: [SQLEditorTokenPalette] = []) -> SQLEditorTokenPalette? {
+        if let custom = customPalettes.first(where: { $0.id == id }) {
+            return custom
+        }
+        return builtIn.first(where: { $0.id == id })
+    }
+
+    static func defaultSymbolHighlightStrong(
+        selection: ColorRepresentable,
+        accent: ColorRepresentable?,
+        background: ColorRepresentable,
+        isDark: Bool
+    ) -> ColorRepresentable {
+        let base = accent ?? selection
+        let blend = isDark ? 0.24 : 0.32
+        let alpha = isDark ? 0.48 : 0.42
+        let tinted = base.blended(with: background, fraction: blend)
+        return tinted.withAlpha(alpha)
+    }
+
+    static func defaultSymbolHighlightBright(
+        selection: ColorRepresentable,
+        accent: ColorRepresentable?,
+        background: ColorRepresentable,
+        isDark: Bool
+    ) -> ColorRepresentable {
+        let base = accent ?? selection
+        let blend = isDark ? 0.55 : 0.68
+        let alpha = isDark ? 0.3 : 0.26
+        let tinted = base.blended(with: background, fraction: blend)
+        return tinted.withAlpha(alpha)
+    }
+}
+
+extension SQLEditorTokenPalette {
+    var showcaseColors: [Color] {
+        [
+            tokens.keyword.color,
+            tokens.string.color,
+            tokens.operatorSymbol.color,
+            tokens.identifier.color,
+            tokens.comment.color
+        ]
     }
 }
 
@@ -723,6 +876,19 @@ struct ColorRepresentable: Codable, Equatable, Hashable {
         UIColor(red: red, green: green, blue: blue, alpha: alpha)
     }
 #endif
+
+    func withAlpha(_ alpha: Double) -> ColorRepresentable {
+        ColorRepresentable(red: red, green: green, blue: blue, alpha: alpha)
+    }
+
+    func blended(with other: ColorRepresentable, fraction: Double) -> ColorRepresentable {
+        let t = max(0.0, min(1.0, fraction))
+        let blendedRed = red + (other.red - red) * t
+        let blendedGreen = green + (other.green - green) * t
+        let blendedBlue = blue + (other.blue - blue) * t
+        let blendedAlpha = alpha + (other.alpha - alpha) * t
+        return ColorRepresentable(red: blendedRed, green: blendedGreen, blue: blendedBlue, alpha: blendedAlpha)
+    }
 }
 
 struct NSFontWithFallback {
@@ -759,7 +925,8 @@ struct NSFontWithFallback {
 
 enum SQLEditorThemeResolver {
     static func resolve(globalSettings: GlobalSettings, project: Project?, tone: SQLEditorPalette.Tone) -> SQLEditorTheme {
-        let palette = resolvePalette(globalSettings: globalSettings, project: project, tone: tone)
+        let applicationTheme = resolveApplicationTheme(globalSettings: globalSettings, tone: tone)
+        let tokenPalette = resolveTokenPalette(globalSettings: globalSettings, project: project, tone: tone)
 
         let projectFontName = sanitizedFontName(project?.settings.editorFontFamily)
         let globalFontName = sanitizedFontName(globalSettings.defaultEditorFontFamily)
@@ -770,11 +937,39 @@ enum SQLEditorThemeResolver {
         let fontSize = max(8, CGFloat(fontSizeValue))
         let lineHeight = max(1.0, CGFloat(lineHeightValue))
 
+        let strongHighlight = applicationTheme.editorSymbolHighlightStrong
+            ?? SQLEditorTokenPalette.defaultSymbolHighlightStrong(
+                selection: applicationTheme.editorSelection,
+                accent: applicationTheme.accent,
+                background: applicationTheme.editorBackground,
+                isDark: tone == .dark
+            )
+        let brightHighlight = applicationTheme.editorSymbolHighlightBright
+            ?? SQLEditorTokenPalette.defaultSymbolHighlightBright(
+                selection: applicationTheme.editorSelection,
+                accent: applicationTheme.accent,
+                background: applicationTheme.editorBackground,
+                isDark: tone == .dark
+            )
+
+        let surfaces = SQLEditorSurfaceColors(
+            background: applicationTheme.editorBackground,
+            text: applicationTheme.editorForeground,
+            gutterBackground: applicationTheme.editorGutterBackground,
+            gutterText: applicationTheme.editorGutterForeground,
+            gutterAccent: applicationTheme.accent ?? applicationTheme.editorForeground,
+            selection: applicationTheme.editorSelection,
+            currentLine: applicationTheme.editorCurrentLine,
+            symbolHighlightStrong: strongHighlight,
+            symbolHighlightBright: brightHighlight
+        )
+
         return SQLEditorTheme(
             fontName: fontName,
             fontSize: fontSize,
             lineHeightMultiplier: lineHeight,
-            palette: palette
+            surfaces: surfaces,
+            tokenPalette: tokenPalette
         )
     }
 
@@ -796,7 +991,20 @@ enum SQLEditorThemeResolver {
         )
     }
 
-    private static func resolvePalette(globalSettings: GlobalSettings, project: Project?, tone: SQLEditorPalette.Tone) -> SQLEditorPalette {
+    private static func resolveApplicationTheme(globalSettings: GlobalSettings, tone: SQLEditorPalette.Tone) -> AppColorTheme {
+        if let themeID = globalSettings.activeThemeID(for: tone),
+           let theme = globalSettings.theme(withID: themeID, tone: tone) {
+            return theme
+        }
+
+        if let fallback = AppColorTheme.builtInThemes(for: tone).first {
+            return fallback
+        }
+
+        return AppColorTheme.fromPalette(tone == .dark ? SQLEditorPalette.midnight : SQLEditorPalette.aurora)
+    }
+
+    private static func resolveTokenPalette(globalSettings: GlobalSettings, project: Project?, tone: SQLEditorPalette.Tone) -> SQLEditorTokenPalette {
         if let projectPalette = project?.settings.customEditorPalette {
             return projectPalette
         }
@@ -810,7 +1018,6 @@ enum SQLEditorThemeResolver {
             return palette
         }
 
-        // Fall back to the opposite tone if available (e.g. missing dark default but light exists).
         let alternateTone: SQLEditorPalette.Tone = tone == .light ? .dark : .light
         if let palette = globalSettings.defaultPalette(for: alternateTone) {
             return palette
@@ -820,7 +1027,8 @@ enum SQLEditorThemeResolver {
             return legacy
         }
 
-        return SQLEditorPalette.aurora
+        let fallback = tone == .dark ? SQLEditorPalette.midnight : SQLEditorPalette.aurora
+        return SQLEditorTokenPalette(from: fallback)
     }
 
     private static func sanitizedFontName(_ value: String?) -> String? {
@@ -829,7 +1037,7 @@ enum SQLEditorThemeResolver {
         return trimmed.isEmpty ? nil : trimmed
     }
 
-    private static func palette(withID id: String, globalSettings: GlobalSettings, project: Project?) -> SQLEditorPalette? {
+    private static func palette(withID id: String, globalSettings: GlobalSettings, project: Project?) -> SQLEditorTokenPalette? {
         if let projectPalette = project?.settings.customEditorPalette, projectPalette.id == id {
             return projectPalette
         }
@@ -838,7 +1046,7 @@ enum SQLEditorThemeResolver {
             return custom
         }
 
-        return SQLEditorPalette.builtIn.first(where: { $0.id == id })
+        return SQLEditorTokenPalette.builtIn.first(where: { $0.id == id })
     }
 
     private static func clamped(_ value: Double, min: Double, max: Double) -> Double {
