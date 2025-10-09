@@ -1,4 +1,5 @@
 import SwiftUI
+import Combine
 #if os(macOS)
 import AppKit
 #else
@@ -88,6 +89,13 @@ struct SQLAutoCompletionSuggestion: Identifiable, Equatable {
         }
     }
 
+    struct TableColumn: Equatable {
+        let name: String
+        let dataType: String
+        let isNullable: Bool
+        let isPrimaryKey: Bool
+    }
+
     let id: String
     let title: String
     let subtitle: String?
@@ -96,6 +104,7 @@ struct SQLAutoCompletionSuggestion: Identifiable, Equatable {
     let kind: SQLAutoCompletionKind
     let origin: Origin?
     let dataType: String?
+    let tableColumns: [TableColumn]?
 
     init(id: String = UUID().uuidString,
          title: String,
@@ -104,7 +113,8 @@ struct SQLAutoCompletionSuggestion: Identifiable, Equatable {
          insertText: String,
          kind: SQLAutoCompletionKind,
          origin: Origin? = nil,
-         dataType: String? = nil) {
+         dataType: String? = nil,
+         tableColumns: [TableColumn]? = nil) {
         self.id = id
         self.title = title
         self.subtitle = subtitle
@@ -117,6 +127,7 @@ struct SQLAutoCompletionSuggestion: Identifiable, Equatable {
             self.origin = nil
         }
         self.dataType = dataType
+        self.tableColumns = tableColumns?.isEmpty == true ? nil : tableColumns
     }
 }
 
@@ -926,6 +937,7 @@ struct SQLEditorView: View {
     var display: SQLEditorDisplayOptions
     var backgroundColor: Color?
     var completionContext: SQLEditorCompletionContext?
+    var ruleTraceConfig: SQLAutocompleteRuleTraceConfiguration?
     var onTextChange: (String) -> Void
     var onSelectionChange: (SQLEditorSelection) -> Void
     var onSelectionPreviewChange: (SQLEditorSelection) -> Void
@@ -940,6 +952,7 @@ struct SQLEditorView: View {
         display: SQLEditorDisplayOptions,
         backgroundColor: Color? = nil,
         completionContext: SQLEditorCompletionContext? = nil,
+        ruleTraceConfig: SQLAutocompleteRuleTraceConfiguration? = nil,
         onTextChange: @escaping (String) -> Void,
         onSelectionChange: @escaping (SQLEditorSelection) -> Void,
         onSelectionPreviewChange: @escaping (SQLEditorSelection) -> Void,
@@ -951,6 +964,7 @@ struct SQLEditorView: View {
         self.display = display
         self.backgroundColor = backgroundColor
         self.completionContext = completionContext
+        self.ruleTraceConfig = ruleTraceConfig
         self.onTextChange = onTextChange
         self.onSelectionChange = onSelectionChange
         self.onSelectionPreviewChange = onSelectionPreviewChange
@@ -971,7 +985,8 @@ struct SQLEditorView: View {
             clipboardHistory: clipboardHistory,
             clipboardMetadata: clipboardMetadata,
             onAddBookmark: onAddBookmark,
-            completionContext: completionContext
+            completionContext: completionContext,
+            ruleTraceConfig: ruleTraceConfig
         )
 #else
         IOSSQLEditorRepresentable(
@@ -1004,6 +1019,7 @@ private struct MacSQLEditorRepresentable: NSViewRepresentable {
     var clipboardMetadata: ClipboardHistoryStore.Entry.Metadata
     var onAddBookmark: (String) -> Void
     var completionContext: SQLEditorCompletionContext?
+    var ruleTraceConfig: SQLAutocompleteRuleTraceConfiguration?
 
     func makeCoordinator() -> Coordinator { Coordinator(parent: self) }
 
@@ -1012,7 +1028,8 @@ private struct MacSQLEditorRepresentable: NSViewRepresentable {
             theme: theme,
             display: display,
             backgroundOverride: backgroundColor.map(NSColor.init),
-            completionContext: completionContext
+            completionContext: completionContext,
+            ruleTraceConfig: ruleTraceConfig
         )
         let textView = scrollView.sqlTextView
         textView.sqlDelegate = context.coordinator
@@ -1021,6 +1038,13 @@ private struct MacSQLEditorRepresentable: NSViewRepresentable {
         textView.string = text
         textView.reapplyHighlighting()
         textView.completionContext = completionContext
+        if let ruleTraceConfig {
+            textView.isRuleTracingEnabled = ruleTraceConfig.isEnabled
+            textView.onRuleTrace = ruleTraceConfig.onTrace
+        } else {
+            textView.isRuleTracingEnabled = false
+            textView.onRuleTrace = nil
+        }
         context.coordinator.textView = textView
 
         // Make first responder once after attachment
@@ -1041,6 +1065,13 @@ private struct MacSQLEditorRepresentable: NSViewRepresentable {
         context.coordinator.parent = self
         textView.clipboardHistory = clipboardHistory
         textView.clipboardMetadata = clipboardMetadata
+        if let ruleTraceConfig {
+            textView.isRuleTracingEnabled = ruleTraceConfig.isEnabled
+            textView.onRuleTrace = ruleTraceConfig.onTrace
+        } else {
+            textView.isRuleTracingEnabled = false
+            textView.onRuleTrace = nil
+        }
 
         // Update binding -> editor content without stealing focus or resetting selection unnecessarily
         if textView.string != text {
@@ -1107,7 +1138,7 @@ private struct MacSQLEditorRepresentable: NSViewRepresentable {
     }
 }
 
-private protocol SQLTextViewDelegate: AnyObject {
+protocol SQLTextViewDelegate: AnyObject {
     func sqlTextView(_ view: SQLTextView, didUpdateText text: String)
     func sqlTextView(_ view: SQLTextView, didChangeSelection selection: SQLEditorSelection)
     func sqlTextView(_ view: SQLTextView, didPreviewSelection selection: SQLEditorSelection)
@@ -1134,7 +1165,8 @@ private final class SQLScrollView: NSScrollView {
     init(theme: SQLEditorTheme,
          display: SQLEditorDisplayOptions,
          backgroundOverride: NSColor?,
-         completionContext: SQLEditorCompletionContext? = nil) {
+         completionContext: SQLEditorCompletionContext? = nil,
+         ruleTraceConfig: SQLAutocompleteRuleTraceConfiguration? = nil) {
         self.displayOptions = display
         self.backgroundOverride = backgroundOverride
         self.completionContext = completionContext
@@ -1142,7 +1174,8 @@ private final class SQLScrollView: NSScrollView {
             theme: theme,
             displayOptions: display,
             backgroundOverride: backgroundOverride,
-            completionContext: completionContext
+            completionContext: completionContext,
+            ruleTraceConfig: ruleTraceConfig
         )
         self.lineNumberRuler = LineNumberRulerView(textView: sqlTextView, theme: theme)
         self.theme = theme
@@ -1258,7 +1291,7 @@ private final class SQLScrollView: NSScrollView {
     }
 }
 
-private func sqlRangeIsValid(_ range: NSRange, upperBound: Int) -> Bool {
+func sqlRangeIsValid(_ range: NSRange, upperBound: Int) -> Bool {
     guard range.location >= 0, range.length >= 0 else { return false }
     guard upperBound >= 0 else { return false }
     if range.length == 0 {
@@ -1269,7 +1302,7 @@ private func sqlRangeIsValid(_ range: NSRange, upperBound: Int) -> Bool {
     return NSMaxRange(range) <= upperBound
 }
 
-private final class SQLTextView: NSTextView, NSTextViewDelegate {
+final class SQLTextView: NSTextView, NSTextViewDelegate {
     weak var sqlDelegate: SQLTextViewDelegate?
     weak var clipboardHistory: ClipboardHistoryStore?
     var clipboardMetadata: ClipboardHistoryStore.Entry.Metadata = .empty
@@ -1290,13 +1323,45 @@ private final class SQLTextView: NSTextView, NSTextViewDelegate {
     private var symbolHighlightWorkItem: DispatchWorkItem?
     private var selectionMatchRanges: [NSRange] = []
     private var caretMatchRanges: [NSRange] = []
-    private var completionWorkItem: DispatchWorkItem?
-    private var completionTask: Task<Void, Never>?
-    private var completionGeneration = 0
-    private let completionEngine = SQLAutoCompletionEngine()
-    private var completionController: SQLAutoCompletionController?
+    var completionWorkItem: DispatchWorkItem?
+    var completionTask: Task<Void, Never>?
+    var completionGeneration = 0
+    let completionEngine = SQLAutoCompletionEngine()
+    let ruleEngine = SQLAutocompleteRuleEngine()
+    var completionController: SQLAutoCompletionController?
     private var isApplyingCompletion = false
     private var suppressNextCompletionRefresh = false
+    var isRuleTracingEnabled: Bool = false
+    var onRuleTrace: ((SQLAutocompleteTrace) -> Void)?
+
+    struct SuppressedCompletion: Equatable {
+        var tokenRange: NSRange
+        let canonicalText: String
+        let hasFollowUps: Bool
+
+        var isValid: Bool {
+            tokenRange.location != NSNotFound && tokenRange.length > 0
+        }
+
+        var asRuleSuppression: SQLAutocompleteRuleEngine.Suppression {
+            SQLAutocompleteRuleEngine.Suppression(tokenRange: tokenRange,
+                                                  canonicalText: canonicalText,
+                                                  hasFollowUps: hasFollowUps)
+        }
+    }
+
+    private struct StructureObjectMatch {
+        let database: String?
+        let schema: SchemaInfo
+        let object: SchemaObjectInfo
+    }
+
+    var suppressedCompletions: [SuppressedCompletion] = []
+    var completionIndicatorView: CompletionAccessoryView?
+
+    var ruleEnvironment: SQLAutocompleteRuleEngine.Environment {
+        SQLAutocompleteRuleEngine.Environment(completionContext: completionContext)
+    }
 
     private enum CompletionTriggerKind {
         case none
@@ -1305,7 +1370,7 @@ private final class SQLTextView: NSTextView, NSTextViewDelegate {
         case evaluateSpace
     }
 
-    private var isCompletionVisible: Bool {
+    var isCompletionVisible: Bool {
         completionController?.isPresenting ?? false
     }
 
@@ -1396,7 +1461,8 @@ private final class SQLTextView: NSTextView, NSTextViewDelegate {
     init(theme: SQLEditorTheme,
          displayOptions: SQLEditorDisplayOptions,
          backgroundOverride: NSColor?,
-         completionContext: SQLEditorCompletionContext? = nil) {
+         completionContext: SQLEditorCompletionContext? = nil,
+         ruleTraceConfig: SQLAutocompleteRuleTraceConfiguration? = nil) {
         self.theme = theme
         self.displayOptions = displayOptions
         self.backgroundOverride = backgroundOverride
@@ -1438,6 +1504,10 @@ private final class SQLTextView: NSTextView, NSTextViewDelegate {
         applyTheme()
         applyDisplayOptions()
         scheduleHighlighting(after: 0)
+        if let ruleTraceConfig {
+            isRuleTracingEnabled = ruleTraceConfig.isEnabled
+            onRuleTrace = ruleTraceConfig.onTrace
+        }
     }
 
     required init?(coder: NSCoder) {
@@ -1481,7 +1551,17 @@ private final class SQLTextView: NSTextView, NSTextViewDelegate {
         if completionController?.handleKeyDown(event) == true {
             return
         }
+        if handleCommandShortcut(event) {
+            return
+        }
         super.keyDown(with: event)
+    }
+
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        if handleCommandShortcut(event) {
+            return true
+        }
+        return super.performKeyEquivalent(with: event)
     }
 
     override func insertText(_ string: Any, replacementRange: NSRange) {
@@ -1581,6 +1661,7 @@ private final class SQLTextView: NSTextView, NSTextViewDelegate {
                 hideCompletions()
             }
         }
+        updateCompletionIndicator()
     }
 
     func textViewDidChangeSelection(_ notification: Notification) {
@@ -1823,19 +1904,40 @@ private final class SQLTextView: NSTextView, NSTextViewDelegate {
                 return
             }
 
+            let selectionRange = self.selectedRange()
+            let caretLocation = selectionRange.location
+
             var baseSuggestions = self.filteredSuggestions(from: self.completionEngine.suggestions(for: query), for: query)
             baseSuggestions = self.filterSuggestionsForContext(baseSuggestions, query: query)
             baseSuggestions = self.limitSuggestions(baseSuggestions)
 
+            if baseSuggestions.isEmpty,
+               let (_, suppression) = self.suppressedCompletionEntry(containing: selectionRange, caretLocation: caretLocation),
+               suppression.hasFollowUps,
+               let fallback = self.ruleEngine.fallbackSuggestions(for: suppression.asRuleSuppression,
+                                                                  environment: self.ruleEnvironment),
+               !fallback.isEmpty {
+                baseSuggestions = fallback
+            }
+
+            if self.shouldSuppressCompletions(query: query,
+                                              selection: selectionRange,
+                                              caretLocation: caretLocation,
+                                              suggestions: baseSuggestions,
+                                              bypassSuppression: false) {
+                self.hideCompletions()
+                return
+            }
+
             if baseSuggestions.isEmpty {
                 self.hideCompletions()
             } else {
+                self.removeCompletionIndicator()
                 controller.present(suggestions: baseSuggestions, query: query)
             }
 
             let currentContext = self.completionContext
             let fullText = self.string
-            let caretLocation = self.currentSelectionDescriptor().range.location
 
             self.completionTask = Task { [weak self] in
                 guard let self else { return }
@@ -1848,9 +1950,11 @@ private final class SQLTextView: NSTextView, NSTextViewDelegate {
                 }
                 guard let context = currentContext else { return }
 
+                let updatedCaretLocation = self.currentSelectionDescriptor().range.location
+
                 let external = await self.fetchSqruffSuggestions(for: query,
                                                                   text: fullText,
-                                                                  caretLocation: caretLocation,
+                                                                  caretLocation: updatedCaretLocation,
                                                                   context: context)
                 guard !external.isEmpty, !Task.isCancelled else { return }
 
@@ -1862,6 +1966,15 @@ private final class SQLTextView: NSTextView, NSTextViewDelegate {
 
                 await MainActor.run {
                     guard !Task.isCancelled, generation == self.completionGeneration else { return }
+                    if self.shouldSuppressCompletions(query: query,
+                                                      selection: self.selectedRange(),
+                                                      caretLocation: updatedCaretLocation,
+                                                      suggestions: combined,
+                                                      bypassSuppression: false) {
+                        self.hideCompletions()
+                        return
+                    }
+                    self.removeCompletionIndicator()
                     controller.present(suggestions: combined, query: query)
                 }
             }
@@ -1879,6 +1992,7 @@ private final class SQLTextView: NSTextView, NSTextViewDelegate {
         completionTask?.cancel()
         completionTask = nil
         completionController?.hide()
+        updateCompletionIndicator()
     }
 
     fileprivate func cancelPendingCompletions() {
@@ -1886,7 +2000,7 @@ private final class SQLTextView: NSTextView, NSTextViewDelegate {
     }
 
     @discardableResult
-    private func ensureCompletionController() -> SQLAutoCompletionController? {
+    func ensureCompletionController() -> SQLAutoCompletionController? {
         if completionController == nil {
             completionController = SQLAutoCompletionController(textView: self)
         }
@@ -1897,7 +2011,7 @@ private final class SQLTextView: NSTextView, NSTextViewDelegate {
         makeCompletionQuery()
     }
 
-    private func makeCompletionQuery() -> SQLAutoCompletionQuery? {
+    func makeCompletionQuery() -> SQLAutoCompletionQuery? {
         guard let textStorage else { return nil }
         let selection = selectedRange()
         guard selection.location != NSNotFound, selection.length == 0 else { return nil }
@@ -1948,7 +2062,7 @@ private final class SQLTextView: NSTextView, NSTextViewDelegate {
         return NSRange(location: start, length: length)
     }
 
-    private func tokenRange(at caretLocation: Int, in string: NSString) -> NSRange {
+    func tokenRange(at caretLocation: Int, in string: NSString) -> NSRange {
         var start = caretLocation
         while start > 0 {
             let character = string.character(at: start - 1)
@@ -2044,7 +2158,7 @@ private final class SQLTextView: NSTextView, NSTextViewDelegate {
         return String(token[range])
     }
 
-    private func filteredSuggestions(from sections: [SQLAutoCompletionSection], for query: SQLAutoCompletionQuery) -> [SQLAutoCompletionSuggestion] {
+    func filteredSuggestions(from sections: [SQLAutoCompletionSection], for query: SQLAutoCompletionQuery) -> [SQLAutoCompletionSuggestion] {
         let flattened = sections.flatMap { $0.suggestions }
         return sanitizeSuggestions(flattened, for: query)
     }
@@ -2095,12 +2209,12 @@ private final class SQLTextView: NSTextView, NSTextViewDelegate {
         return combined
     }
 
-    private func filterSuggestionsForContext(_ suggestions: [SQLAutoCompletionSuggestion],
+    func filterSuggestionsForContext(_ suggestions: [SQLAutoCompletionSuggestion],
                                              query: SQLAutoCompletionQuery) -> [SQLAutoCompletionSuggestion] {
         suggestions.filter { $0.kind != .function }
     }
 
-    private func limitSuggestions(_ suggestions: [SQLAutoCompletionSuggestion]) -> [SQLAutoCompletionSuggestion] {
+    func limitSuggestions(_ suggestions: [SQLAutoCompletionSuggestion]) -> [SQLAutoCompletionSuggestion] {
         let maximum = 60
         return suggestions.count > maximum ? Array(suggestions.prefix(maximum)) : suggestions
     }
@@ -2286,7 +2400,11 @@ private final class SQLTextView: NSTextView, NSTextViewDelegate {
         defer { isApplyingCompletion = false }
 
         textStorage.replaceCharacters(in: range, with: insertion)
-        let newLocation = range.location + (insertion as NSString).length
+        let insertionNSString = insertion as NSString
+        let insertionLength = insertionNSString.length
+        let appliedRange = NSRange(location: range.location, length: insertionLength)
+        registerSuppressedCompletion(for: suggestion, appliedRange: appliedRange, insertion: insertionNSString)
+        let newLocation = NSMaxRange(appliedRange)
         setSelectedRange(NSRange(location: newLocation, length: 0))
         hideCompletions()
         didChangeText()
@@ -2923,7 +3041,7 @@ private struct GlassBackground: NSViewRepresentable {
 }
 #endif
 
-private final class SQLAutoCompletionController {
+final class SQLAutoCompletionController {
     weak var textView: SQLTextView?
 
     private let popover: NSPopover
@@ -3137,7 +3255,7 @@ private final class SQLAutoCompletionController {
     }
 }
 
-private final class LineNumberRulerView: NSRulerView {
+final class LineNumberRulerView: NSRulerView {
     weak var sqlTextView: SQLTextView?
     var highlightedLines: IndexSet = []
     var theme: SQLEditorTheme {
@@ -3293,6 +3411,179 @@ private extension SQLTextView {
         let selectionRange = NSRange(location: startLocation, length: endLocation - startLocation)
         setSelectedRange(selectionRange)
         scrollRangeToVisible(selectionRange)
+    }
+}
+
+final class CompletionAccessoryView: NSView {
+    struct Layout {
+        static let padding = NSEdgeInsets(top: 2, left: 4, bottom: 2, right: 7)
+        static let cornerRadius: CGFloat = 6
+        static let strokeWidth: CGFloat = 1
+    }
+
+    var onActivate: (() -> Void)?
+    private(set) var isVisible: Bool = false
+
+    private var trackingArea: NSTrackingArea?
+    private var hostingView: NSHostingView<GlowFrameView>?
+    private var isHovering = false {
+        didSet { refreshRootView() }
+    }
+
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        wantsLayer = false
+        setupHostingView()
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    func update(for textRect: NSRect) {
+        let pad = Layout.padding
+        let frame = NSRect(
+            x: textRect.origin.x - pad.left,
+            y: textRect.origin.y - pad.bottom,
+            width: textRect.size.width + pad.left + pad.right,
+            height: textRect.size.height + pad.top + pad.bottom
+        ).integral
+        if self.frame != frame {
+            self.frame = frame
+        }
+        needsLayout = true
+        isHovering = false
+        isVisible = true
+        refreshRootView()
+        updateTrackingAreas()
+    }
+
+    override func layout() {
+        super.layout()
+        hostingView?.frame = bounds
+    }
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        if let trackingArea {
+            removeTrackingArea(trackingArea)
+        }
+        let options: NSTrackingArea.Options = [.mouseEnteredAndExited, .activeInKeyWindow, .inVisibleRect]
+        let area = NSTrackingArea(rect: bounds, options: options, owner: self, userInfo: nil)
+        addTrackingArea(area)
+        trackingArea = area
+    }
+
+    override func mouseEntered(with event: NSEvent) {
+        isHovering = true
+    }
+
+    override func mouseExited(with event: NSEvent) {
+        isHovering = false
+    }
+
+    override func mouseDown(with event: NSEvent) {
+        isHovering = true
+        refreshRootView()
+        onActivate?()
+    }
+
+    override func mouseUp(with event: NSEvent) {
+        isHovering = false
+    }
+
+    override func removeFromSuperview() {
+        super.removeFromSuperview()
+        isVisible = false
+        hostingView?.removeFromSuperview()
+        hostingView = nil
+    }
+
+    private func setupHostingView() {
+        let root = GlowFrameView(cornerRadius: Layout.cornerRadius,
+                                 baseLineWidth: Layout.strokeWidth,
+                                 isHovering: isHovering)
+        let hosting = NSHostingView(rootView: root)
+        hosting.translatesAutoresizingMaskIntoConstraints = true
+        addSubview(hosting)
+        hostingView = hosting
+    }
+
+    private func refreshRootView() {
+        guard let hostingView else { return }
+        hostingView.rootView = GlowFrameView(cornerRadius: Layout.cornerRadius,
+                                             baseLineWidth: Layout.strokeWidth,
+                                             isHovering: isHovering)
+        hostingView.needsDisplay = true
+    }
+}
+
+private struct GlowFrameView: View {
+    var cornerRadius: CGFloat
+    var baseLineWidth: CGFloat
+    var isHovering: Bool
+
+    @State private var gradientStops: [Gradient.Stop] = GlowFrameView.generateGradientStops()
+    private let timer = Timer.publish(every: 0.45, on: .main, in: .common).autoconnect()
+
+    var body: some View {
+        GeometryReader { proxy in
+            let size = proxy.size
+            let gradient = AngularGradient(gradient: Gradient(stops: gradientStops), center: .center)
+
+            ZStack {
+                roundedStroke(gradient: gradient, lineWidth: baseLineWidth, blur: 0, opacity: isHovering ? 0.95 : 0.75)
+                roundedStroke(gradient: gradient, lineWidth: baseLineWidth * 1.6, blur: 6, opacity: isHovering ? 0.55 : 0.4)
+                roundedStroke(gradient: gradient, lineWidth: baseLineWidth * 2.3, blur: 13, opacity: isHovering ? 0.32 : 0.22)
+            }
+            .frame(width: size.width, height: size.height)
+            .drawingGroup()
+        }
+        .allowsHitTesting(false)
+        .onReceive(timer) { _ in
+            withAnimation(.easeInOut(duration: 0.6)) {
+                gradientStops = GlowFrameView.generateGradientStops()
+            }
+        }
+    }
+
+    private func roundedStroke(gradient: AngularGradient,
+                               lineWidth: CGFloat,
+                               blur: CGFloat,
+                               opacity: Double) -> some View {
+        RoundedRectangle(cornerRadius: cornerRadius)
+            .stroke(gradient, lineWidth: lineWidth)
+            .blur(radius: blur)
+            .opacity(opacity)
+    }
+
+    private static func generateGradientStops() -> [Gradient.Stop] {
+        let palette = [
+            color(hex: "BC82F3"),
+            color(hex: "F5B9EA"),
+            color(hex: "8D9FFF"),
+            color(hex: "FF6778"),
+            color(hex: "FFBA71"),
+            color(hex: "C686FF")
+        ]
+
+        return palette.map { color in
+            Gradient.Stop(color: color, location: Double.random(in: 0...1))
+        }.sorted(by: { $0.location < $1.location })
+    }
+
+    private static func color(hex: String) -> Color {
+        let scanner = Scanner(string: hex)
+        _ = scanner.scanString("#")
+
+        var hexNumber: UInt64 = 0
+        scanner.scanHexInt64(&hexNumber)
+
+        let r = Double((hexNumber & 0xff0000) >> 16) / 255.0
+        let g = Double((hexNumber & 0x00ff00) >> 8) / 255.0
+        let b = Double(hexNumber & 0x0000ff) / 255.0
+
+        return Color(red: r, green: g, blue: b)
     }
 }
 

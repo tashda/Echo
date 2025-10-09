@@ -11,7 +11,7 @@ import Combine
 /// 1. Pure SwiftUI using List + OutlineGroup (SwiftUI-native)
 /// 2. NSOutlineView wrapped in NSViewRepresentable (AppKit-native)
 ///
-/// Both provide the same functionality as ManageConnectionsTab but using native components.
+/// Both provide the same functionality as ManageConnectionsView but using native components.
 struct NativeConnectionsTestView: View {
     @State private var selectedApproach: TestApproach = .swiftUIOutline
 

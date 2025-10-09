@@ -1,6 +1,6 @@
 import SwiftUI
 
-struct ContentView: View {
+struct WorkspaceView: View {
     @EnvironmentObject private var appModel: AppModel
     @EnvironmentObject private var appState: AppState
     @EnvironmentObject private var themeManager: ThemeManager
@@ -52,8 +52,8 @@ struct ContentView: View {
             .environmentObject(appModel)
             .environmentObject(appState)
         }
-        .sheet(isPresented: $appModel.showManageConnectionsTab) {
-            ManageConnectionsTab()
+        .sheet(isPresented: $appModel.isManageConnectionsPresented) {
+            ManageConnectionsView()
                 .environmentObject(appModel)
                 .environmentObject(appState)
         }
@@ -83,7 +83,7 @@ struct ContentView: View {
     }
 }
 
-private extension ContentView {
+private extension WorkspaceView {
     var sidebar: some View {
         SidebarView(
             selectedConnectionID: $appModel.selectedConnectionID,
@@ -100,7 +100,7 @@ private extension ContentView {
     var mainContent: some View {
         VStack(spacing: 0) {
             if !useNativeTabBar && showsTabStrip {
-                WorkspaceTabStrip(
+                QueryTabStrip(
                     leadingPadding: 0,
                     trailingPadding: appState.showInfoSidebar ? 300 : 0,
                     createNewTab: createNewTab,
@@ -119,7 +119,7 @@ private extension ContentView {
         Group {
             if let connection = selectedConnection, let session = selectedSession {
                 if appModel.tabManager.activeTab != nil {
-                    TabbedQueryView(
+                    QueryTabsView(
                         showsTabStrip: false // We show tabs in mainContent now
                     )
                     .environmentObject(appModel)

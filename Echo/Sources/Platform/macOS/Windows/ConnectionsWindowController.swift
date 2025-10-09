@@ -52,7 +52,7 @@ private struct ConnectionsRootView: View {
     let clipboardHistory: ClipboardHistoryStore
 
     var body: some View {
-        ManageConnectionsTab()
+        ManageConnectionsView()
             .environmentObject(appModel)
             .environmentObject(appState)
             .environmentObject(clipboardHistory)

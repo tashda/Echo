@@ -2,7 +2,7 @@ import SwiftUI
 import AppKit
 import UniformTypeIdentifiers
 
-    private enum ManageConnectionsLayout {
+private enum ManageConnectionsLayout {
         static let tileWidth: CGFloat = 180
         static let tileHeight: CGFloat = 76
         static let identityHeight: CGFloat = 60
@@ -10,7 +10,7 @@ import UniformTypeIdentifiers
         static let tileSpacing: CGFloat = 10
     }
 
-struct ManageConnectionsTab: View {
+struct ManageConnectionsView: View {
     @EnvironmentObject private var appModel: AppModel
     @EnvironmentObject private var appState: AppState
     @Environment(\.dismiss) private var dismiss
@@ -743,7 +743,7 @@ struct ManageConnectionsTab: View {
             if action == .saveAndConnect {
                 await appModel.connect(to: connection)
                 await MainActor.run {
-                    appModel.showManageConnectionsTab = false
+                    appModel.isManageConnectionsPresented = false
                     dismiss()
                 }
             }
@@ -801,7 +801,7 @@ struct ManageConnectionsTab: View {
         Task {
             await appModel.connect(to: connection)
             await MainActor.run {
-                appModel.showManageConnectionsTab = false
+                appModel.isManageConnectionsPresented = false
                 dismiss()
             }
         }
