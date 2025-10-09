@@ -230,7 +230,7 @@ struct QueryResultsSection: View {
                     placeholder
                 }
             } else {
-                MacResultsTable(
+                QueryResultsTableView(
                     query: query,
                     highlightedColumnIndex: highlightedColumnIndex,
                     activeSort: activeSort,
@@ -244,7 +244,7 @@ struct QueryResultsSection: View {
 #endif
 
 #if os(macOS)
-    private func handleSortAction(columnIndex: Int, action: MacResultsTable.HeaderSortAction) {
+    private func handleSortAction(columnIndex: Int, action: QueryResultsTableView.HeaderSortAction) {
         guard columnIndex >= 0 else {
             sortCriteria = nil
             highlightedColumnIndex = nil

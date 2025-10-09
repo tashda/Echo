@@ -22,7 +22,9 @@ struct EchoApp: App {
                 QueryCommands(appModel: AppCoordinator.shared.appModel,
                               appState: AppCoordinator.shared.appState)
                 AppSettingsCommands()
+                AutocompleteManagementCommands()
             }
+        AutocompleteManagementWindow()
     }
 }
 
@@ -79,6 +81,19 @@ struct AppSettingsCommands: Commands {
                 openWindow(id: SettingsWindow.sceneID)
             }
             .keyboardShortcut(",", modifiers: [.command])
+        }
+    }
+}
+
+struct AutocompleteManagementCommands: Commands {
+    @Environment(\.openWindow) private var openWindow
+
+    var body: some Commands {
+        CommandGroup(after: .help) {
+            Button("Autocomplete Management…") {
+                openWindow(id: AutocompleteManagementWindow.sceneID)
+            }
+            .keyboardShortcut("m", modifiers: [.command, .option])
         }
     }
 }

@@ -21,7 +21,7 @@ private struct TrailingControlsWidthPreferenceKey: PreferenceKey {
     }
 }
 
-struct TabbedQueryView: View {
+struct QueryTabsView: View {
     @EnvironmentObject private var appModel: AppModel
     @EnvironmentObject private var appState: AppState
     @EnvironmentObject private var themeManager: ThemeManager
@@ -43,7 +43,7 @@ struct TabbedQueryView: View {
     var body: some View {
         VStack(spacing: 0) {
             if showsTabStrip {
-                WorkspaceTabStrip(
+                QueryTabStrip(
                     leadingPadding: tabBarLeadingPadding,
                     trailingPadding: tabBarTrailingPadding,
                     createNewTab: createNewTab,
@@ -215,7 +215,7 @@ struct TabbedQueryView: View {
 
 }
 
-struct WorkspaceTabStrip: View {
+struct QueryTabStrip: View {
     let leadingPadding: CGFloat
     let trailingPadding: CGFloat
     let createNewTab: () -> Void
@@ -273,7 +273,7 @@ struct WorkspaceTabStrip: View {
 #if os(macOS)
                 let basePlateSideInset: CGFloat = 6
                 if hasTabs {
-                    SafariTabBarBasePlate()
+                    TabStripBackground()
                         .padding(.leading, leadingPadding + basePlateSideInset)
                         .padding(.trailing, trailingPadding + reservedTrailingWidth + basePlateSideInset)
                 }
@@ -508,7 +508,7 @@ struct WorkspaceTabStrip: View {
         let closeOthersDisabled = totalCount <= 1
         let isBeingDragged = dragState.isActive && dragState.id == tab.id
 
-        return WorkspaceTabButton(
+        return QueryTabButton(
             tab: tab,
             isActive: isActive,
             onSelect: { appModel.tabManager.activeTabId = tab.id },
@@ -767,7 +767,7 @@ private struct QueryEditorContainer: View {
 
 // MARK: - Tab Button
 
-private struct WorkspaceTabButton: View {
+private struct QueryTabButton: View {
     @ObservedObject var tab: WorkspaceTab
     let isActive: Bool
     let onSelect: () -> Void
@@ -1185,7 +1185,7 @@ private struct TabBarTrailingControls: View {
 
     var body: some View {
         HStack(spacing: 6) {
-            TabBarActionButton(
+            TabStripActionButton(
                 systemImage: "plus",
                 accessibilityLabel: "New Tab",
                 isActive: false,
@@ -1197,7 +1197,7 @@ private struct TabBarTrailingControls: View {
             .help("New Query Tab")
 #endif
 
-            TabBarActionButton(
+            TabStripActionButton(
                 systemImage: "square.grid.2x2",
                 accessibilityLabel: "Tab Overview",
                 isActive: isTabOverviewActive,
@@ -1213,7 +1213,7 @@ private struct TabBarTrailingControls: View {
     }
 }
 
-private struct TabBarActionButton: View {
+private struct TabStripActionButton: View {
     let systemImage: String
     let accessibilityLabel: String
     let isActive: Bool
@@ -1948,7 +1948,7 @@ private struct SafariTabBarTopEdge: View {
     }
 }
 
-private struct SafariTabBarBasePlate: View {
+private struct TabStripBackground: View {
     @Environment(\.colorScheme) private var colorScheme
 
     private var shape: RoundedRectangle {

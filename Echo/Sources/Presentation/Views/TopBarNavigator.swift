@@ -154,7 +154,7 @@ private extension TopBarNavigator {
                 },
                 onManage: {
                     activePopover = nil
-                    appModel.showManageConnectionsTab = true
+                    appModel.isManageConnectionsPresented = true
                 }
             )
         }

@@ -3,7 +3,7 @@ import SwiftUI
 import AppKit
 import QuartzCore
 
-struct MacResultsTable: NSViewRepresentable {
+struct QueryResultsTableView: NSViewRepresentable {
     @ObservedObject var query: QueryEditorState
     var highlightedColumnIndex: Int?
     var activeSort: SortCriteria?
@@ -70,7 +70,7 @@ struct MacResultsTable: NSViewRepresentable {
     }
 
     final class Coordinator: NSObject, NSTableViewDelegate, NSTableViewDataSource, NSMenuDelegate {
-        private var parent: MacResultsTable
+        private var parent: QueryResultsTableView
         private let clipboardHistory: ClipboardHistoryStore
         private weak var tableView: NSTableView?
         private let headerMenu = NSMenu()
@@ -81,15 +81,15 @@ struct MacResultsTable: NSViewRepresentable {
         private var cachedSort: SortCriteria?
         private var lastRowCount: Int = 0
         private var selectionRegion: SelectedRegion?
-        private var selectionAnchor: MacResultsTable.SelectedCell?
+        private var selectionAnchor: QueryResultsTableView.SelectedCell?
         private var isDraggingCellSelection = false
         private var rowIndexOverlay: RowIndexOverlayView?
-        private var selectionFocus: MacResultsTable.SelectedCell?
+        private var selectionFocus: QueryResultsTableView.SelectedCell?
         private var rowSelectionAnchor: Int?
 
         var currentTableView: NSTableView? { tableView }
 
-        init(_ parent: MacResultsTable, clipboardHistory: ClipboardHistoryStore) {
+        init(_ parent: QueryResultsTableView, clipboardHistory: ClipboardHistoryStore) {
             self.parent = parent
             self.clipboardHistory = clipboardHistory
             super.init()
@@ -98,8 +98,8 @@ struct MacResultsTable: NSViewRepresentable {
         }
 
         private struct SelectedRegion: Equatable {
-            var start: MacResultsTable.SelectedCell
-            var end: MacResultsTable.SelectedCell
+            var start: QueryResultsTableView.SelectedCell
+            var end: QueryResultsTableView.SelectedCell
 
             var normalizedRowRange: ClosedRange<Int> {
                 let lower = min(start.row, end.row)
@@ -113,7 +113,7 @@ struct MacResultsTable: NSViewRepresentable {
                 return lower...upper
             }
 
-            func contains(_ cell: MacResultsTable.SelectedCell) -> Bool {
+            func contains(_ cell: QueryResultsTableView.SelectedCell) -> Bool {
                 normalizedRowRange.contains(cell.row) && normalizedColumnRange.contains(cell.column)
             }
 
@@ -149,7 +149,7 @@ struct MacResultsTable: NSViewRepresentable {
             )
         }
 
-        func update(parent: MacResultsTable, tableView: NSTableView) {
+        func update(parent: QueryResultsTableView, tableView: NSTableView) {
             self.parent = parent
             if self.tableView == nil {
                 self.tableView = tableView
@@ -334,7 +334,7 @@ struct MacResultsTable: NSViewRepresentable {
                 }
             }
 
-            let cellSelection = MacResultsTable.SelectedCell(row: row, column: dataIndex)
+            let cellSelection = QueryResultsTableView.SelectedCell(row: row, column: dataIndex)
             let isSelectedCell = selectionRegion?.contains(cellSelection) ?? false
             let isHighlightedColumn = parent.highlightedColumnIndex == dataIndex
 
@@ -400,7 +400,7 @@ struct MacResultsTable: NSViewRepresentable {
         func tableView(_ tableView: NSTableView, shouldSelectRow row: Int) -> Bool {
             let clickedColumn = tableView.clickedColumn
             if clickedColumn >= 0 {
-                let cell = MacResultsTable.SelectedCell(row: row, column: clickedColumn)
+                let cell = QueryResultsTableView.SelectedCell(row: row, column: clickedColumn)
                 setSelectionRegion(SelectedRegion(start: cell, end: cell), tableView: tableView)
                 isDraggingCellSelection = true
                 rowSelectionAnchor = nil
@@ -411,7 +411,7 @@ struct MacResultsTable: NSViewRepresentable {
                 let location = tableView.convert(event.locationInWindow, from: nil)
                 let column = tableView.column(at: location)
                 if column >= 0 {
-                    let cell = MacResultsTable.SelectedCell(row: row, column: column)
+                    let cell = QueryResultsTableView.SelectedCell(row: row, column: column)
                     setSelectionRegion(SelectedRegion(start: cell, end: cell), tableView: tableView)
                     isDraggingCellSelection = false
                     rowSelectionAnchor = nil
@@ -544,8 +544,8 @@ struct MacResultsTable: NSViewRepresentable {
                 return
             }
 
-            let top = MacResultsTable.SelectedCell(row: 0, column: index)
-            let bottom = MacResultsTable.SelectedCell(row: maxRow, column: index)
+            let top = QueryResultsTableView.SelectedCell(row: 0, column: index)
+            let bottom = QueryResultsTableView.SelectedCell(row: maxRow, column: index)
             setSelectionRegion(SelectedRegion(start: top, end: bottom), tableView: tableView)
             selectionAnchor = top
             selectionFocus = bottom
@@ -760,7 +760,7 @@ struct MacResultsTable: NSViewRepresentable {
             if selectionRegion == nil {
                 let defaultRow = tableView.selectedRow >= 0 ? tableView.selectedRow : 0
                 let defaultColumn = tableView.selectedColumn >= 0 ? tableView.selectedColumn : 0
-                let seed = MacResultsTable.SelectedCell(
+                let seed = QueryResultsTableView.SelectedCell(
                     row: max(0, min(tableView.numberOfRows - 1, defaultRow)),
                     column: max(0, min(tableView.tableColumns.count - 1, defaultColumn))
                 )
@@ -802,9 +802,9 @@ struct MacResultsTable: NSViewRepresentable {
                 targetColumn = max(0, min(maxColumn, focus.column + columnDelta))
             }
 
-            focus = MacResultsTable.SelectedCell(row: targetRow, column: targetColumn)
+            focus = QueryResultsTableView.SelectedCell(row: targetRow, column: targetColumn)
 
-            let anchor: MacResultsTable.SelectedCell
+            let anchor: QueryResultsTableView.SelectedCell
             if extend, let existingAnchor = selectionAnchor ?? selectionRegion?.start {
                 anchor = existingAnchor
             } else {
@@ -820,16 +820,16 @@ struct MacResultsTable: NSViewRepresentable {
             tableView.scrollColumnToVisible(focus.column)
         }
 
-        private func resolvedCell(forRow row: Int, column: Int, tableView: NSTableView) -> MacResultsTable.SelectedCell? {
+        private func resolvedCell(forRow row: Int, column: Int, tableView: NSTableView) -> QueryResultsTableView.SelectedCell? {
             guard row >= 0, row < tableView.numberOfRows else { return nil }
             guard column >= 0, column < tableView.tableColumns.count else { return nil }
             let visibleRow = row
             let dataColumn = column
             guard dataColumn < parent.query.displayedColumns.count else { return nil }
-            return MacResultsTable.SelectedCell(row: visibleRow, column: dataColumn)
+            return QueryResultsTableView.SelectedCell(row: visibleRow, column: dataColumn)
         }
 
-        private func resolvedCell(at point: NSPoint, in tableView: NSTableView, allowOutOfBounds: Bool) -> MacResultsTable.SelectedCell? {
+        private func resolvedCell(at point: NSPoint, in tableView: NSTableView, allowOutOfBounds: Bool) -> QueryResultsTableView.SelectedCell? {
             var row = tableView.row(at: point)
             var column = tableView.column(at: point)
 
@@ -1042,7 +1042,7 @@ final class ResultTableContainerView: NSView {
 }
 
 private final class ResultTableView: NSTableView {
-    weak var selectionDelegate: MacResultsTable.Coordinator?
+    weak var selectionDelegate: QueryResultsTableView.Coordinator?
 
     override var acceptsFirstResponder: Bool { true }
 
@@ -1111,7 +1111,7 @@ private final class VerticallyCenteredTextFieldCell: NSTextFieldCell {
 }
 
 final class RowIndexOverlayView: NSView {
-    weak var coordinator: MacResultsTable.Coordinator?
+    weak var coordinator: QueryResultsTableView.Coordinator?
     weak var scrollView: NSScrollView?
     let width: CGFloat
 
@@ -1119,7 +1119,7 @@ final class RowIndexOverlayView: NSView {
     private let rowFont = NSFont.monospacedDigitSystemFont(ofSize: 11, weight: .regular)
     private var isDraggingRowSelection = false
 
-    init(coordinator: MacResultsTable.Coordinator, scrollView: NSScrollView, width: CGFloat) {
+    init(coordinator: QueryResultsTableView.Coordinator, scrollView: NSScrollView, width: CGFloat) {
         self.coordinator = coordinator
         self.scrollView = scrollView
         self.width = width

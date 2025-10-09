@@ -78,7 +78,7 @@ private struct MainContentWrapperView: View {
         VStack(spacing: 0) {
             // Tab strip below toolbar (if showing)
             if showsTabStrip {
-                WorkspaceTabStrip(
+                QueryTabStrip(
                     leadingPadding: 0,
                     trailingPadding: 0,
                     createNewTab: createNewTab,
@@ -105,7 +105,7 @@ private struct MainContentWrapperView: View {
         Group {
             if let connection = selectedConnection, let session = selectedSession {
                 if appModel.tabManager.activeTab != nil {
-                    TabbedQueryView(showsTabStrip: false)
+                    QueryTabsView(showsTabStrip: false)
                         .environmentObject(appModel)
                         .environmentObject(appState)
                         .environmentObject(themeManager)
