@@ -973,21 +973,14 @@ enum SQLEditorThemeResolver {
         )
     }
 
-    static func resolveDisplayOptions(globalSettings: GlobalSettings, project: Project?) -> SQLEditorDisplayOptions {
-        let showLineNumbers = project?.settings.showLineNumbers ?? globalSettings.editorShowLineNumbers
-        let highlightSelected = project?.settings.highlightSelectedSymbol ?? globalSettings.editorHighlightSelectedSymbol
-        let highlightDelay = clamped(project?.settings.highlightDelay ?? globalSettings.editorHighlightDelay, min: 0.0, max: 5.0)
-        let wrapLines = project?.settings.wrapLines ?? globalSettings.editorWrapLines
-        let indentWrappedLines = max(0, project?.settings.indentWrappedLines ?? globalSettings.editorIndentWrappedLines)
-        let autoCompletionEnabled = project?.settings.enableAutocomplete ?? globalSettings.editorEnableAutocomplete
-
-        return SQLEditorDisplayOptions(
-            showLineNumbers: showLineNumbers,
-            highlightSelectedSymbol: highlightSelected,
-            highlightDelay: highlightDelay,
-            wrapLines: wrapLines,
-            indentWrappedLines: indentWrappedLines,
-            autoCompletionEnabled: autoCompletionEnabled
+    static func resolveDisplayOptions(globalSettings: GlobalSettings, project _: Project?) -> SQLEditorDisplayOptions {
+        SQLEditorDisplayOptions(
+            showLineNumbers: globalSettings.editorShowLineNumbers,
+            highlightSelectedSymbol: globalSettings.editorHighlightSelectedSymbol,
+            highlightDelay: clamped(globalSettings.editorHighlightDelay, min: 0.0, max: 5.0),
+            wrapLines: globalSettings.editorWrapLines,
+            indentWrappedLines: max(0, globalSettings.editorIndentWrappedLines),
+            autoCompletionEnabled: globalSettings.editorEnableAutocomplete
         )
     }
 
@@ -1004,16 +997,7 @@ enum SQLEditorThemeResolver {
         return AppColorTheme.fromPalette(tone == .dark ? SQLEditorPalette.midnight : SQLEditorPalette.aurora)
     }
 
-    private static func resolveTokenPalette(globalSettings: GlobalSettings, project: Project?, tone: SQLEditorPalette.Tone) -> SQLEditorTokenPalette {
-        if let projectPalette = project?.settings.customEditorPalette {
-            return projectPalette
-        }
-
-        if let paletteID = project?.settings.effectivePaletteIdentifier,
-           let palette = palette(withID: paletteID, globalSettings: globalSettings, project: project) {
-            return palette
-        }
-
+    private static func resolveTokenPalette(globalSettings: GlobalSettings, project _: Project?, tone: SQLEditorPalette.Tone) -> SQLEditorTokenPalette {
         if let palette = globalSettings.defaultPalette(for: tone) {
             return palette
         }
@@ -1023,7 +1007,7 @@ enum SQLEditorThemeResolver {
             return palette
         }
 
-        if let legacy = palette(withID: globalSettings.defaultEditorTheme, globalSettings: globalSettings, project: project) {
+        if let legacy = palette(withID: globalSettings.defaultEditorTheme, globalSettings: globalSettings) {
             return legacy
         }
 
@@ -1037,11 +1021,7 @@ enum SQLEditorThemeResolver {
         return trimmed.isEmpty ? nil : trimmed
     }
 
-    private static func palette(withID id: String, globalSettings: GlobalSettings, project: Project?) -> SQLEditorTokenPalette? {
-        if let projectPalette = project?.settings.customEditorPalette, projectPalette.id == id {
-            return projectPalette
-        }
-
+    private static func palette(withID id: String, globalSettings: GlobalSettings) -> SQLEditorTokenPalette? {
         if let custom = globalSettings.customEditorPalettes.first(where: { $0.id == id }) {
             return custom
         }

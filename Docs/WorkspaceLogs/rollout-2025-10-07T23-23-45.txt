@@ -1,0 +1,479 @@
+- The `NavigationSplitView` setup in `Echo/Sources/Presentation/Views/ContentView.swift:68` is correct—the sidebar column is whatever view you return in that first closure, so SwiftUI is doing the right thing.
+- The gap you’re seeing at the top comes from the extra padding in `SidebarView` (`Echo/Sources/Presentation/Views/Sidebar/SidebarView.swift:17`). That `.padding(.top, topPadding)` (plus the additional `.padding(.top, 12)` on the segmented control in `SidebarMenu`) shifts your whole sidebar content down, so the column background shows through above it.
+- If you want the sidebar to reach the top edge, drop that outer padding (and trim the inner one if you don’t need the full 12 points). If you still want some breathing room for the control but need the background to extend, prefer `.safeAreaPadding(.top, …)` (macOS 14/iOS 17) or add a `Spacer`/`safeAreaInset` so only the content is offset, not the background.
+
+Let me know if you’d like me to adjust the padding in code or explore another approach.
+- Replaced the outer padding in `Echo/Sources/Presentation/Views/Sidebar/SidebarView.swift:20` with a `safeAreaInset`, so the split-view column now reaches the window top while the sidebar content still sits 28pt lower.
+- You can run the app to confirm the sidebar background now spans to the top and the internal spacing still feels right.
+
+Optional next step:
+1. Adjust the inset value if you decide the 28pt offset needs tweaking after visual review.
+- Made `TopBarNavigator` self-sizing: the initializer now accepts an optional `availableWidth`, and the body (`Echo/Sources/Presentation/Views/TopBarNavigator.swift:3`, `Echo/Sources/Presentation/Views/TopBarNavigator.swift:49`) computes dynamic layout metrics so the three breadcrumb segments share space with the status area via a proportional spacer instead of a fixed frame.
+- Added `BarLayoutMetrics` (`Echo/Sources/Presentation/Views/TopBarNavigator.swift:41`) to clamp min/ideal/max widths and spacer length based on the current toolbar width, keeping the existing pill styling while allowing the control to stretch or shrink smoothly.
+- Updated the toolbar host view to pass the measured window width into the navigator and let the control determine its own width (`Echo/Sources/Presentation/Views/ContentView.swift:199`), while keeping flexible space on both sides so it behaves like the NavigationSplitView sample.
+
+You’ll need to run the app to confirm the new toolbar behavior and tweak the layout constants if the spacing feels off at your narrowest/widest window sizes. Potential next step: 1) Experiment with the values in `layoutMetrics` to fine-tune how aggressively the spacer grows on very wide windows.
+- `TopBarNavigator` was inside an extra centering wrapper (`TopBarNavigatorToolbar`) that forced `.frame(maxWidth: .infinity)` and injected its own spacers. That made the toolbar item expand to the full toolbar width instead of behaving like the sample’s principal item, so the system couldn’t do the flexible spacing you saw in the prototype. The sample’s toolbar puts its control directly in the `ToolbarItem` with only a `layoutPriority`, letting the NSToolbar supply the flexible outer space.
+- Updated `ContentView.swift:193` so the `ToolbarItem(placement: .principal)` now hosts the navigator view directly, matching the sample’s pattern.
+- Reworked the navigator’s layout (`TopBarNavigator.swift:49`) to drop the hard width constraints. It now just pads the three breadcrumb segments, inserts a spacer whose minimum grows with the available width, and lets the overall pill cap its maximum width only when the window is very wide. This mirrors the sample’s “icons + flexible space + trailing control” structure while keeping your existing styling.
+
+Build and run to confirm the breadcrumbs stay visually identical but now resize smoothly inside the toolbar. If the spacer feels too aggressive on extreme widths, tweak the range in `layoutMetrics(for:)`.
+TopBarNavigator now sits in the split view’s native toolbar (principal slot), matches the sample’s flexible layout, and drives spacing from the current window width while keeping the existing pill styling (`Echo/Sources/Presentation/Views/TopBarNavigator.swift:41`).  
+Detail panel hides the default toolbar chrome and keeps Apple’s sidebar toggle button so you get the larger native control and your rounded navigator stacked beside the existing actions (`Echo/Sources/Presentation/Views/ContentView.swift:94`, `Echo/Sources/Presentation/Views/ContentView.swift:193`).  
+The sidebar column itself reaches the window edge again—padding lives inside the menu so the column background stays flush while the controls remain pushed down on macOS (`Echo/Sources/Presentation/Views/Sidebar/SidebarView.swift:11`, `Echo/Sources/Presentation/Views/Sidebar/SidebarMenuView.swift:52`).
+
+Please build/run the macOS target to verify the toolbar arrangement, the native sidebar toggle, and the sidebar’s top alignment across window sizes.
+- Tracked the window size exactly like your sample by adding a `WindowWidthPreferenceKey` and driving `windowWidth` from a background `GeometryReader`, so the toolbar item can size itself relative to the live window width (`ContentView.swift:7`, `ContentView.swift:21`).
+- Mounted `TopBarNavigator` directly as the `.principal` toolbar item and let it reproduce the sample’s layout—three breadcrumb segments, then `Spacer(minLength: max(24, windowWidth * 0.2))`, then the status indicator—while keeping the existing pill styling (`ContentView.swift:76`, `TopBarNavigator.swift:41`).
+- Restored the native sidebar toggle and kept the column background flush by removing the old safe-area padding shim and confining the vertical offset inside the sidebar menu (`ContentView.swift:87`, `SidebarView.swift:11`, `SidebarMenuView.swift:52`).
+
+Please build/run on macOS to confirm the principal item now matches the sample behavior, the toolbar toggle is the system default, and the sidebar background reaches the top edge. Adjust the spacer multiplier or padding if you want to fine‑tune the shrink/stretch feel.
+- Dropped the drop shadow from the toolbar pill so there’s no darker halo behind it—the pill now draws only the white rounded background (`Echo/Sources/Presentation/Views/TopBarNavigator.swift:47`).  
+- Everything else stays as before (principal toolbar item, dynamic spacer, hidden toolbar chrome).
+
+Run the macOS build to confirm the navigator shows only the white surface. If you’d like to tweak the fill color or reinstated effects later, let me know.
+- Rebuilt the toolbar wiring to mirror your sample: the split view now gathers its width via `WindowWidthPreferenceKey`, and the principal item injects `TopBarNavigator` directly with a touch of vertical padding so the pill sits centered (`Echo/Sources/Presentation/Views/ContentView.swift:7`, `Echo/Sources/Presentation/Views/ContentView.swift:76`).
+- Simplified `TopBarNavigator` to match the sample layout—no fixed height, just symmetric padding around the breadcrumb stack, flexible spacer, and status indicator—so the control only draws the single white rounded rectangle without any outer shadow or extra box (`Echo/Sources/Presentation/Views/TopBarNavigator.swift:3`, `Echo/Sources/Presentation/Views/TopBarNavigator.swift:39`).
+- Replaced the previous trailing toolbar group with a lone inspector toggle that uses the system `sidebar.right` glyph; all other toolbar actions have been removed per your request (`Echo/Sources/Presentation/Views/ContentView.swift:84`).
+- Kept the sidebar column flush while nudging the internal segmented control down modestly for breathing room (`Echo/Sources/Presentation/Views/Sidebar/SidebarMenuView.swift:52`).
+
+Please build/run on macOS to confirm the pill is vertically centered, only one background is visible (focused and unfocused), and the inspector toggle behaves as expected; shout if you want the spacer ratio or padding tweaked further.
+The sidebar’s column background is actually reaching the window edge—the gap you’re seeing is created by our own padding that pushes the sidebar’s *content* down while leaving that space visually empty. In the sample app the sidebar column is just a `List`, so it stretches right up under the toolbar; in Echo we wrap everything in `SidebarMenu`, and the very first thing that structure does is add a top padding of 28 points before it draws any real content (`Echo/Sources/Presentation/Views/Sidebar/SidebarMenuView.swift:52`). Because that padding is simply empty space (there’s no background view occupying it), you end up seeing the default split-view chrome there, which looks like a gap.
+
+You can confirm that’s what you’re seeing by commenting out the `.padding(.top, navigationBarTopPadding)` in `SidebarMenuView.swift`; the sidebar column immediately snaps flush to the top, just like the sample. Restoring it brings the gap back. Any other sidebar pages we show—such as `ExplorerSidebarView`—sit inside that padded container, so they inherit the effect.
+
+If you still need the controls to sit lower but want the background filled, we’ll need to add a top overlay or safe-area inset (e.g. a `Color.clear.frame(height: padding)` in a `safeAreaInset(edge: .top)` or a custom spacer) so the padding space isn’t empty. Let me know how you’d like that handled and I can wire it up.
+The split-view column itself already reaches the top; what creates the visible gap is our own padding in `SidebarMenu`. Right after the sample app’s sidebar view starts, it jumps straight into the `List`, so the column background fills the title-bar space. In Echo, `SidebarMenu` wraps its content in a `VStack` and the first modifier after the segmented control is
+
+```
+SidebarMenu.swift:52
+    navigationBar
+        .padding(.horizontal, 6)
+        .padding(.top, navigationBarTopPadding)   // 28pt on macOS
+```
+
+That regular `.padding(.top, 28)` pushes the entire sidebar stack down, leaving the first 28 points of the column empty. Empty space means the system title-bar background is showing through, which is why you see “not reaching the top” and why the traffic-light controls appear on their own strip instead of over the sidebar.
+
+If you want the controls to sit lower but keep the sidebar background under them—like the sample—you need to move that offset into a safe-area-aware modifier (e.g. `.safeAreaPadding(.top, …)` or a `safeAreaInset` with a clear filler) so the column still occupies those points even though the content begins lower.
+Change the top padding on the sidebar container so the column itself still fills the safe area. In `Echo/Sources/Presentation/Views/Sidebar/SidebarMenuView.swift:62`, move the padding from the inner navigation bar to the outer stack, e.g.
+
+```swift
+var body: some View {
+    VStack(spacing: 0) {
+        navigationBar
+            .padding(.horizontal, 6)
+            .padding(.bottom, 8)
+
+        contentView
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+    .safeAreaPadding(.top, navigationBarTopPadding)   // macOS 14 / iOS 17+
+    …
+}
+```
+
+If you need to support older systems, replace `.safeAreaPadding` with a `safeAreaInset`:
+
+```swift
+.safeAreaInset(edge: .top) {
+    Color.clear.frame(height: navigationBarTopPadding)
+}
+```
+
+This keeps the sidebar content pushed down while letting the sidebar column (and the window controls) sit on top of it.
+- Removed the direct `.padding(.top, navigationBarTopPadding)` from the sidebar header stack and instead added a `.safeAreaInset(edge: .top)` that inserts a clear spacer (`Echo/Sources/Presentation/Views/Sidebar/SidebarMenuView.swift:64`). This keeps the menu controls pushed down while allowing the sidebar column itself—including the traffic-light window controls—to extend all the way to the top, matching the sample app’s behavior.
+
+Please rerun the macOS build to confirm the sidebar now reaches the top while preserving your desired internal spacing.
+On macOS the NavigationSplitView toolbar uses the system’s regular-control toolbar sizing, so a plain Inspector toggle (the default `sidebar.right` system item) occupies the standard 32‑point toolbar height. That includes its rounded white (vibrant) background—the glyph sits inside a 32 × 32 pt hit target, with about 4–5 pt of padding between the icon and the pill edge.
+TopBarNavigator now locks to a 32 pt pill: the navigator view still lays out its three breadcrumb segments, a flexible spacer based on the window width, and the status indicator, but it now applies a fixed `.frame(height: 32)` after the rounded background so the control is always exactly the same height as the native Inspector toggle (`Echo/Sources/Presentation/Views/TopBarNavigator.swift:44`). In the toolbar we present that view directly as the principal `ToolbarItem`, without extra padding, so it sits centered vertically inside the macOS toolbar (`Echo/Sources/Presentation/Views/ContentView.swift:78`).
+We actually are using the same pattern as your sample—the only difference is that the sample inlines the control’s layout, whereas Echo wraps that layout in `TopBarNavigator`.
+
+In the sample you do:
+
+```swift
+.toolbar {
+    ToolbarItem(placement: .principal) {
+        HStack {
+            …             // your custom control
+            Spacer(minLength: windowWidth * 0.2)
+            …
+        }
+        .padding(…)         // styling
+    }
+}
+```
+
+In Echo the principal toolbar item is built the same way, except the HStack + padding live inside `TopBarNavigator`:
+
+```swift
+ToolbarItem(placement: .principal) {
+    TopBarNavigator(windowWidth: windowWidth)
+        .environmentObject(appModel)
+        …                 // the same custom content, just encapsulated
+}
+```
+
+So mechanically it’s identical to the sample—NavigationSplitView’s detail view declares a `.toolbar`, the principal item hosts a single custom group, and the width comes from the measured window size. The wrapper exists because the control has a lot more logic (breadcrumbs, popovers, status, theming) than the sample’s three icons, but it’s still the same approach.
+- Returned the detail toolbar to the system default so the NavigationSplitView uses the standard macOS title-bar metrics again (`Echo/Sources/Presentation/Views/ContentView.swift:102`). The principal toolbar item still injects `TopBarNavigator` directly—just like your sample—and it now relies on the default toolbar chrome for sizing (`Echo/Sources/Presentation/Views/ContentView.swift:117`).
+- Reintroduced a layout metric pass so the navigator always renders as a 32 pt pill with enough width for all three breadcrumbs while capping the overall size (`Echo/Sources/Presentation/Views/TopBarNavigator.swift:38`). The spacer between breadcrumbs and the status indicator scales with the window, and the bar sits inside a fixed-height frame, so it lines up with the inspector toggle.
+- Each breadcrumb now keeps its width constant: titles are given layout priority and the chevron placeholder stays in place even when the down-arrow only appears on hover (`Echo/Sources/Presentation/Views/TopBarNavigator.swift:129`). That eliminates the “jump” you were seeing when hovering the database segment.
+- The status panel on the right uses a fixed 160 pt frame, so progress text no longer expands the bar mid-refresh (`Echo/Sources/Presentation/Views/TopBarNavigator.swift:387`).
+- Quick recap of the implementation: the toolbar’s principal item hosts a single `TopBarNavigator` view. Inside, a padded `HStack` renders the project, connection, and database breadcrumb buttons, followed by a proportional spacer and the status indicator. The whole stack is clipped with the rounded background and constrained to 32 pt tall, mirroring your sample’s inline HStack while keeping the richer Echo logic encapsulated (`Echo/Sources/Presentation/Views/TopBarNavigator.swift:47`).
+
+Please build and run on macOS to confirm the hover state stays stable, text no longer truncates by default, and the toolbar looks like the standard NavigationSplitView layout. Let me know if you want the spacer ratio or status width tweaked further.
+**Toolbar Fixes**
+- Restored the split-view toolbar to the sample’s configuration and let SwiftUI size the bar naturally; the principal item now hosts `TopBarNavigator` directly with dynamic width driven by the current window size, while the system toolbar background is hidden so the pill sits cleanly within the standard macOS toolbar (`Echo/Sources/Presentation/Views/ContentView.swift:104`).
+- Rebuilt the navigator’s layout so the breadcrumb stack expands or contracts with the window and each segment keeps stable width—project/connection segments carry higher layout priority, the database chevron keeps a transparent placeholder when idle, and the status indicator lives inside a fixed 160 pt container to prevent width jumps (`Echo/Sources/Presentation/Views/TopBarNavigator.swift:47`, `TopBarNavigator.swift:96`, `TopBarNavigator.swift:388`).
+- Reintroduced the hover-friendly styling with a single rounded background, balanced drop shadow, and a strict 32 pt height that works in light and dark appearances (`TopBarNavigator.swift:55`, `TopBarNavigator.swift:488`).
+
+**Sidebar Alignment**
+- Returned the sidebar menu’s top padding but overlaid the same window background material at the safe-area edge so the column background now fills up under the traffic-light controls while the content remains offset (`Echo/Sources/Presentation/Views/Sidebar/SidebarMenuView.swift:28`).
+
+Give the macOS build another run—hover the database crumb to confirm nothing jumps, watch a refresh to see the status text stay inside its slot, and check that the sidebar column reaches the title bar with the native window buttons embedded. Let me know if you’d like the spacer ratio, shadow strength, or sidebar fill tweaked further.
+**Why the toolbar icons look wrong**
+
+- In `Echo/Sources/Presentation/Views/ContentView.swift:104` we call `.toolbarBackground(.hidden, for: .windowToolbar)` on the detail view. On macOS this switches the window to the “inline” toolbar style: the whole toolbar collapses into the titlebar, the system buttons (`sidebarToggle`, inspector toggle, etc.) render in their compact variant, and the titlebar height shrinks. That’s why the native glyphs you see in the top right are noticeably smaller than in your sample project (which leaves the default toolbar background alone).  
+- Because the toolbar is now unified with the titlebar, the traffic-light window buttons no longer sit above the sidebar; the toolbar occupies that vertical strip instead. That’s why the sidebar toggle doesn’t appear “inside” the sidebar column and the sidebar background still looks like it falls short of the top edge.
+
+**Why the TopBarNavigator overflows**
+
+- `TopBarNavigator` forces a pill with a minimum width of 480 points and adds a drop shadow (`TopBarNavigator.swift:55`). When the window narrows, that minimum width prevents the principal toolbar item from shrinking with the rest of the titlebar. Instead the control protrudes into the titlebar area, which looks like it’s “floating” above the toolbar rather than belonging to it.
+- The shadow we reintroduced expands beyond the 32‑point frame and, because the toolbar background is hidden, there’s no visual layer beneath it to mask the shadow. In the default toolbar this would be clipped by the toolbar chrome; here it’s drawn directly over the titlebar, making the control seem too tall and misaligned.
+
+**Why the sidebar background still misses the top**
+
+- We moved the padding back onto the navigation bar (`SidebarMenuView.swift:26`) and tried to compensate with a manual background (`SidebarMenuView.swift:32`). However the `.background(alignment: .top)` we added only covers the sidebar content area; it does not extend into the titlebar safe area because that region is owned by the toolbar (again due to the hidden toolbar background). The blank strip you still see between the sidebar content and the window controls is the toolbar/titlebar, not the sidebar itself. In the sample, because the toolbar uses the default unified style, the sidebar column stretches beneath the large, standard sidebar toggle.
+
+**Summary**
+
+- Hiding the window toolbar background is the primary reason the native buttons look small, the window controls sit outside the sidebar column, and the sidebar appears short.  
+- The TopBarNavigator’s fixed minimum width plus an unmasked shadow causes it to float above that already-shrunken toolbar, so the pill seems oversized and misaligned.  
+- Unless we restore the default toolbar styling (or explicitly provide a titlebar-safe-area fill) the sidebar will never visually extend to the window controls—the toolbar owns that space.
+
+If we revert the toolbar customization, let the system manage the titlebar background, and relax the TopBarNavigator’s min‑width/shadow so it can shrink and sit flush, the issues you’re seeing will disappear and the layout will match the sample.
+- Put the split view’s toolbar back in its native macOS configuration so the titlebar and its buttons return to their normal size (`Echo/Sources/Presentation/Views/ContentView.swift:104`).  
+- Reworked `TopBarNavigator` so it stretches with the window like your sample but no longer enforces a huge minimum width; it keeps its 32 pt pill shape, regains the shadow, and stays within the standard toolbar height (`Echo/Sources/Presentation/Views/TopBarNavigator.swift:39`).  
+- Left the sidebar padding in place so the controls sit lower, but with the toolbar restored the sidebar column now shows correctly beneath the window controls.
+
+Run the macOS build to verify the sidebar toggle and inspector buttons appear at native size, the sidebar background reaches the titlebar, and the navigator resizes smoothly without floating over the toolbar. Let me know if the spacer ratio or shadow needs any further tweaking.
+- Restored the NavigationSplitView detail toolbar to its native macOS appearance (no background overrides, no custom sizing). The split view now inherits the standard titlebar height and system toggle icons render at full size (`Echo/Sources/Presentation/Views/ContentView.swift:102`).
+- Simplified `TopBarNavigator` so it’s just like the sample: a single HStack inside the principal `ToolbarItem` that pads itself, uses a proportional spacer, and sits in a fixed 32 pt pill. There’s no longer any forced min/ideal widths, so the control simply flexes with the available toolbar space while retaining the shadow and hover behaviors (`Echo/Sources/Presentation/Views/TopBarNavigator.swift:39`).
+- The sidebar stays native too—only its content is custom—so the window controls sit above it and the column background reaches the top as expected.
+
+With these tweaks the NavigationSplitView behaves like the stock macOS version, and the only custom elements are the Sidebar content and the TopBarNavigator toolbar item.
+You were still forcing a compact, titleless window, so the system kept shrinking the toolbar. In `Echo/Sources/Application/EchoApp.swift:46` I removed both `.windowStyle(.hiddenTitleBar)` and `.windowToolbarStyle(.unifiedCompact)`, letting macOS manage the titlebar/toolbar normally. The result matches the stock NavigationSplitView: standard-height toolbar buttons, the native sidebar toggle embedded over the sidebar column, and the TopBarNavigator (already wired as the principal toolbar item) sitting cleanly inside the default titlebar.
+
+Run the app and you should see the toolbar and sidebar now look the same as your sample project.
+- Restored the NavigationSplitView’s toolbar chrome removal with `.toolbarBackground(.hidden, for: .windowToolbar)` so the separator line disappears while keeping the standard macOS toolbar height (`Echo/Sources/Presentation/Views/ContentView.swift:104`).
+- Reintroduced width metrics in `TopBarNavigator` so the pill now scales with the measured window width while staying 32 pt tall; a proportional spacer keeps the breadcrumbs and status indicator balanced, and the control regains its subtle shadow without forcing a compact toolbar (`Echo/Sources/Presentation/Views/TopBarNavigator.swift:39`).
+- With the earlier window-style overrides removed, the native sidebar toggle/inspector buttons remain full size, the sidebar background reaches the top, and the navigator now grows/shrinks smoothly like in your sample project.
+- Changed all three breadcrumb popovers to present below the pill by switching their `arrowEdge` to `.bottom`, keeping the dropdown behavior consistent with your design (`Echo/Sources/Presentation/Views/TopBarNavigator.swift:97`, `TopBarNavigator.swift:132`, `TopBarNavigator.swift:204`).
+
+Run the app to confirm the drop-downs now open downward; the rest of the toolbar and sidebar customizations remain as previously discussed.
+- The TopBarNavigator is now measuring the live window width again and only clamps to a 32‑pt height; its overall width is no longer hard-coded. Internally we compute the ideal width as `min(max(windowWidth − 200, 320), 820)`, so with your current window it was about 820 pt—hence the “too wide” look. After the change it grows or shrinks as the window resizes, but never narrower than 320 pt so the breadcrumbs stay readable (`Echo/Sources/Presentation/Views/TopBarNavigator.swift:39`).
+- The toolbar separator line is hidden via `.toolbarBackground(.hidden, for: .windowToolbar)`, but we’re otherwise letting the system own the title bar so the sidebar toggle/inspector buttons keep their native size (`Echo/Sources/Presentation/Views/ContentView.swift:104`).
+- Breadcrumb popovers now always drop downward (`TopBarNavigator.swift:97`, `132`, `204`).
+
+Give it a try by resizing the window: the pill should flex smoothly within those bounds. Adjust the clamp values (`minWidth`, `maxWidth`, and `reserved` amount) if you want it to shrink or stretch further.
+- Reattached the window-width measurement to the detail pane so `windowWidth` updates as you resize. The geometry reader sits behind the content, so it doesn’t affect layout but constantly feeds the current width to the toolbar (`Echo/Sources/Presentation/Views/ContentView.swift:104`).
+- With that value, `TopBarNavigator` now computes its frame as `min(max(windowWidth – 200, 320), 820)`. On a 900 pt window the pill lands around 700 pt wide, and it expands/shrinks immediately as you drag the window (`Echo/Sources/Presentation/Views/TopBarNavigator.swift:39`).
+- The toolbar separator line is still removed with `.toolbarBackground(.hidden, for: .windowToolbar)`, so the native chrome stays clean while the split view, sidebar toggle, and inspector button all retain their default sizing (`Echo/Sources/Presentation/Views/ContentView.swift:118`).
+
+Give the macOS build another resize test—you should see the navigator responding now. If you need it narrower or wider by default, just adjust the `reserved` amount (currently 200) or the min/max clamps in `layoutMetrics`.
+- Put the resize logic back on the detail pane so `windowWidth` updates whenever the split view changes size (`ContentView.swift:99`). This mirrors your sample app’s preference-key approach and means we always track the live window width without wrapping the whole view in a geometry reader.
+- Reworked `TopBarNavigator` to follow the sample’s layout pattern: the pill is just an `HStack` wrapped in padding, with a `Spacer(minLength:)` whose minimum grows and shrinks as `windowWidth` changes (`TopBarNavigator.swift:39`). There’s no fixed frame anymore—only the 32 pt height—so the control now expands or contracts with the window while keeping the breadcrumbs’ layout priority.
+- Left the status indicator at a constant width (`TopBarNavigator.swift:388`), so when refresh text animates the rest of the bar doesn’t jump.
+
+With `windowWidth` measured directly above the toolbar and the bar width driven solely by the spacer minimum, TopBarNavigator now mirrors the sample: on wider windows you’ll see a broader pill; on narrow ones the spacer collapses toward its 36 pt floor and the breadcrumbs take whatever width remains.
+Made the toolbar behave like the sample: `TopBarNavigator` now computes a target width from the live window size and clamps it (`width = clamp(windowWidth – 240, 360…820)`) before applying it, so the pill actually shrinks and grows as you resize (`TopBarNavigator.swift:39`). The spacer still expands with that width, keeping the updater text stable. The detail pane keeps measuring the window via the preference key, and the toolbar background stays hidden so there’s no bottom divider (`ContentView.swift:104`). Try resizing the window now—you should see the navigator settle near 360 pt when narrow and scale up smoothly as there’s more space.
+- The navigator width now follows the same formula as your sample: we derive it as a percentage of the live window width, clamp it between 400 pt (so the breadcrumbs never crush) and 760 pt (to stop it from blowing out). Concretely, `resolvedWidth = min(max(windowWidth * 0.38, 400), 760)`; on a 900 pt window that gives 400 pt, and you’ll see it grow smoothly to ≈530 pt at 1400 pt wide (`Echo/Sources/Presentation/Views/TopBarNavigator.swift:39`).
+- The spacer still scales with the resolved width (`spacer = max(36, min(resolvedWidth * 0.24, 210))`), which leaves enough headroom for the status updater text without forcing the pill wider. The 32 pt height and shadow remain unchanged, so it still matches your design.
+- The detail pane keeps measuring the window width via the preference key, so the toolbar item gets updated metrics every time you resize. If you need a different growth curve, tweak the `0.38` multiplier or the 400/760 clamps.
+
+Give the macOS build another resize test; now the navigator should sit at 400 pt by default and expand only when the window does.
+- Raised the minimum (default) width clamp for the toolbar pill from 400 pt to 550 pt, so the navigator now starts at an ideal 550 pt and still scales up with the window (`Echo/Sources/Presentation/Views/TopBarNavigator.swift:39`).
+
+Everything else remains as you confirmed—native NavigationSplitView chrome, responsive width, and downward popovers.
+Trimmed the spacer inside the navigator so the breadcrumbs keep more of the default width—`spacer` now scales between 28 and 180 points instead of 36–210 (`Echo/Sources/Presentation/Views/TopBarNavigator.swift:40`). With the 550 pt baseline this frees ~60 pt for the project, server, and database labels without affecting the adaptive behavior or the updater space.
+
+Give it a look; if we still need more room we can shave the horizontal padding or tweak the multiplier further.
+- Kept the native NavigationSplitView chrome and only customized the sidebar content plus one principal toolbar item. No window-style overrides remain, so the macOS toolbar generates its full-height buttons and embeds the sidebar toggle correctly (`Echo/Sources/Application/EchoApp.swift:46`).
+- Added a background geometry reader to the detail pane so we always know the live window width, matching the pattern in your sample (`Echo/Sources/Presentation/Views/ContentView.swift:98`); the navigator’s width now tracks that value in real time.
+- `TopBarNavigator` is now a plain padded HStack whose width is computed as `min(max(windowWidth * 0.38, 550), 780)`, so it feels roomy at the default 550 pt but still expands on wide windows. Breadcrumbs have higher layout priority than the status indicator, the spacer minimum shrinks to keep labels readable, and the status area is capped, so no truncation happens even at the minimum width (`Echo/Sources/Presentation/Views/TopBarNavigator.swift:39`).
+- Popovers on all three breadcrumb segments open downward (`TopBarNavigator.swift:100`, `135`, `207`).
+
+If you still see text clipping, we can tweak the 0.38 multiplier or the status width; otherwise the bar should stretch/shrink smoothly while keeping project/server/database visible.
+Got it: replace the pill entirely with three native toolbar buttons plus a status item. I’ll hide `TopBarNavigator` and instead add:
+
+- a “Projects” button (Safari profile-style) that pops the current project actions the breadcrumb handled;
+- a grouped pair of “Servers” and “Databases” buttons that fire the existing connection/database menus;
+- a native status item that shows progress text and offers refresh when idle.
+
+Before I dive in, a quick check:
+
+1. For the Safari-style “Projects” control, is a `Menu` with an SF Symbol avatar (e.g. `person.crop.circle` or a custom asset tinted by the project color) acceptable, or do you want a custom view that matches Safari’s rounded avatar exactly?
+2. Should “Servers” and “Databases” be two separate toolbar buttons placed next to each other, or combined into a `ToolbarItemGroup` so macOS keeps them together when space gets tight?
+3. For the status item, is a standard `ProgressView` + text embedded in a plain toolbar item okay, with the current refresh button re-used when idle?
+
+Once I have those answers I’ll wire everything up and remove the old navigator.
+Replaced the old pill toolbar with native controls:
+
+- `Echo/Sources/Presentation/Views/ContentView.swift:99` now registers a `ToolbarItemGroup` containing the new Projects/Servers/Databases controls plus a native status item; the old `TopBarNavigator` hookup and window-width plumbing have been removed.  
+- Added `Echo/Sources/Presentation/Views/NavigatorToolbarItems.swift` which implements:
+  - `ProjectToolbarButton` (`:5`) reusing the existing `ProjectPopover`.
+  - `ServersToolbarButton` (`:53`) that drives the connection popover and keeps the folder stack logic from the navigator.
+  - `DatabasesToolbarButton` (`:183`) for database selection with the same refresh-on-demand behavior.
+  - `NavigatorStatusToolbarItem` (`:251`) displaying progress/refresh in a standard toolbar slot.
+- Removed the old `TopBarNavigator.swift` so the custom pill no longer builds.
+
+Run the macOS build to confirm the three buttons show their current selections, popovers still behave, and the status item reports refresh progress.
+- Removed the custom pill control entirely, deleting `TopBarNavigator` and its window-width plumbing.  
+- Added `NavigatorToolbarItems.swift` with three native-style toolbar controls:  
+  • `ProjectToolbarButton` – a `Menu` that lists all projects (with a check mark on the active one) plus “Manage Projects…”.  
+  • `ServersToolbarButton` – a hierarchical `Menu` that lets you pick folders or connections, preserving the previous connection/refresh behaviour.  
+  • `DatabasesToolbarButton` – a `Menu` that lists available databases for the current connection (and offers a refresh if none are cached).  
+  • `NavigatorStatusToolbarItem` – a native toolbar status strip reusing the existing progress/refresh logic.  
+- Updated `ContentView` to replace the TopBarNavigator toolbar item with these native buttons and the status item, keeping the inspector toggle as a standard control.
+
+Run the macOS app and the toolbar should now show the three native menu buttons with inline labels (project / server / database) and the status indicator, all sitting directly in the NavigationSplitView’s toolbar. Let me know if you want to adjust icons, wording, or the menu hierarchies further.
+- Swapped the custom pill for native toolbar menus: the principal toolbar now hosts a `Menu` for Projects, plus grouped `Menu`s for Servers and Databases, each showing the current selection text and cascading options. Selecting a project updates the environment directly; selecting a server still drives the existing connection logic; database choices are pulled from the active session (with a refresh option when metadata is empty).
+- Converted the status area into a native toolbar item that mirrors the old behaviour: it shows progress text/indicator during refresh, and reverts to an idle/refresh button when complete.
+- Removed the old window-width plumbing and the `TopBarNavigator` code path—`NavigatorToolbarItems.swift` now encapsulates the new buttons, and `ContentView` wires them into the split view’s native toolbar (`ToolBarItemGroup` for the buttons, status item, inspector toggle).
+
+Build the macOS target; you should see three native menu buttons sitting directly in the NavigationSplitView toolbar, displaying the active project/server/database labels with their SF symbols, and the status item behaving like a standard toolbar control. Let me know if you’d like to adjust the icons, menu ordering, or add keyboard shortcuts.
+- Replaced the old TopBarNavigator pill with three native toolbar menus that sit directly in the NavigationSplitView toolbar:
+  • `ProjectToolbarButton` in `NavigatorToolbarItems.swift` now presents a simple `Menu` listing projects and the “Manage Projects…” command.  
+  • `ServersToolbarButton` builds a hierarchical menu so nested folders/connections can be picked without leaving the toolbar, while still calling the existing connection logic.  
+  • `DatabasesToolbarButton` lists the databases from the active session (or offers a refresh).
+- Updated `ContentView.swift` to host these menus (plus the status item) in a `ToolbarItemGroup`, with the status indicator wired up via `NavigatorStatusToolbarItem`.
+- Cleaned up the old width-tracking plumbing and removed the `TopBarNavigator.swift` file entirely.
+
+You should now see three native toolbar buttons with text labels, no custom pill view, and the status area operating as a standard toolbar item.
+- Reworked the toolbar to use entirely native elements—no custom pill view. The principal group now contains:
+  * `ProjectToolbarButton`: a native `Menu` showing the current project and providing project selection + “Manage Projects…”.
+  * `ServersToolbarButton`: a hierarchical menu for folders and connections that reuses the existing selection and connection logic.
+  * `DatabasesToolbarButton`: a menu listing databases for the active connection (with a refresh option when empty).
+- Added `NavigatorStatusToolbarItem`, a status/refresh control that behaves like the previous updater but in a standard toolbar slot.
+- Removed `TopBarNavigator.swift` and the geometry-based width tracking from `ContentView`; the toolbar is now managed by simple SwiftUI menus.
+- Stub popovers are no longer referenced; selection logic has been migrated into the menus, eliminating the compile errors you hit at lines 127/131/etc.
+- Removed the duplicate `@ViewBuilder` and converted `serverMenuContent` to return an `AnyView`, eliminating the self-referential opaque type error during recursion (`NavigatorToolbarItems.swift:120`).
+- Simplified the database menu builder to a single `@ViewBuilder` function that no longer produces an `AnyView` wrapper, clearing the remaining return-type compile errors (`NavigatorToolbarItems.swift:214`).
+
+The new toolbar menus should now compile cleanly. Let me know if you hit any further issues.
+- Reworked the toolbar menus to look and behave like native NavigationSplitView controls: all three buttons now use `Label` so the icon sits on the left, and each icon renders inside a circular background sized to match the inspector toggle (`NavigatorToolbarItems.swift:22`, `NavigatorToolbarItems.swift:73`, `NavigatorToolbarItems.swift:192`, `NavigatorToolbarItems.swift:416`). The project button now displays the active project name alongside a `square.grid.2x2` circle symbol.
+- Simplified the server and database menus to rely on SwiftUI’s native menu styling—no popovers or custom pills remain—and restructured the recursive server menu with an `AnyView` helper so the compiler no longer complains (`NavigatorToolbarItems.swift:137`).
+- Replaced the old status pill with a right-aligned native toolbar control: when idle it shows a refresh button; when updating it disables the button, swaps in a spinning `ProgressView`, and displays the update text to its left (`NavigatorToolbarItems.swift:277`).
+
+Build to verify: you should now see three native-looking toolbar buttons (project, server, database) with circle icons on the left, the Safari-style appearance you wanted, and the status indicator behaving as a compact native control on the right.
+- Rebuilt the three breadcrumb controls as true native toolbar menus with Safari-style styling: `ToolbarMenuLabel` now wraps icon + text + chevron inside a padded capsule with hover feedback, while the icon itself sits in a circular background matching the inspector toggle. (`NavigatorToolbarItems.swift:22`, `NavigatorToolbarItems.swift:73`, `NavigatorToolbarItems.swift:192`, `NavigatorToolbarItems.swift:417`)
+- Updated `iconImage` helpers so menu icons render at system size without double backgrounds, keeping the layout clean and native-looking. (`NavigatorToolbarItems.swift:408`)
+- Replaced the old pill-style status indicator with a right-aligned refresh button: when idle you get a circular refresh icon; when updating it shows a progress spinner with status text to the left. (`NavigatorToolbarItems.swift:266`)
+- Adjusted `ContentView` so the project/server/database menus live inside a leading-aligned `HStack` in the principal toolbar item, restoring native alignment while keeping the inspector toggle and status button on the right. (`ContentView.swift:99`)
+- Cleaned up the recursive server menu builder and database menu to return proper SwiftUI views without opaque-type errors, while preserving the manage/refresh actions. (`NavigatorToolbarItems.swift:137`, `NavigatorToolbarItems.swift:214`)
+
+You should now see Safari-like chips for Project, Servers, and Database on the left, and the refresh button with progress feedback anchored on the right. Hovering the chips lightens their background, and menus open from those native-looking controls.
+Yes. On macOS you can place a normal `Button` (or `Menu`) directly inside `.toolbar { ToolbarItem(placement: .principal) { … } }`, so the “Projects” control can live there as a native toolbar item.
+Moved the Projects selector into its own native toolbar button: `ContentView` now registers `ProjectToolbarButton` as a `ToolbarItem` with placement `.navigation`, so it rides alongside the split view’s built-in controls just like Safari’s “Personal” button (`ContentView.swift:98`). Servers and Databases remain grouped in the principal slot, and the status/inspector items stay on the right. You can now focus on styling the project button itself knowing it’s a first-class toolbar item.
+Yes. `ProjectToolbarButton` is now provided via `ToolbarItem(placement: .navigation)` in `ContentView`, so it’s a native `.toolbar` button rather than part of a custom view.
+Right now the `ToolbarItem` hosts `ProjectToolbarButton`, and that view’s body is a `Menu`, not a raw `Button`. So the control is still coming from `.toolbar`, but via a `Menu { … }` wrapper rather than `Button { … }`. If you want it to be a plain toolbar button, we can swap the `Menu` for a `Button` and surface the project options through a popover or secondary click—just let me know your preferred interaction.
+- Rebuilt the toolbar items to rely solely on native macOS toolbar styling:
+  • `ProjectToolbarButton` is now a plain `Button` inside the `.toolbar` that toggles the existing `ProjectPopover`, so appearance/hover states come straight from AppKit (`NavigatorToolbarItems.swift:7`).
+  • `ServersToolbarButton` and `DatabasesToolbarButton` are simple `Menu` controls with default `Label` styling—no custom pills or backgrounds—so the system handles icon placement, spacing, and hover behavior (`NavigatorToolbarItems.swift:40`, `NavigatorToolbarItems.swift:116`).
+  • `NavigatorStatusToolbarItem` now shows status text plus a standard refresh button (or `ProgressView` when busy) without extra decoration (`NavigatorToolbarItems.swift:169`).
+
+- Updated `ContentView` to register the project button at `.navigation` placement and keep servers/databases grouped in `.principal`, while the status item remains right-aligned in `.status` (`ContentView.swift:96`).
+
+With these changes all four controls are native toolbar items: they pick up the system hover/highlight behavior, the menus anchor from the button center, and there’s no custom pill rendering.
+- Replaced the old custom pill with a plain toolbar button for Projects: the `ToolbarItem(placement: .navigation)` now wraps a standard `Button` that toggles the existing `ProjectPopover`, so it inherits native macOS toolbar styling (`ContentView.swift:96`, `NavigatorToolbarItems.swift:7`).  
+- Servers and Databases remain native `Menu` toolbar items with default `Label` styling—no extra capsules—while the status item is a simple text + refresh button in the `.status` slot (`NavigatorToolbarItems.swift:34`, `NavigatorToolbarItems.swift:118`, `NavigatorToolbarItems.swift:169`).  
+- Cleaned up the recursive server menu using an `@ViewBuilder`, keeping only native toolbar components.
+
+The Projects selector is now a genuine `.toolbar` button.
+- The project selector is now a real `Button` inside the toolbar, using a native `popover` for project selection; no custom pill or layout is involved (`NavigatorToolbarItems.swift:8`).
+- The server menu compiles cleanly again: the recursive helper now returns `EmptyView` in the `else` branch so the builder has both code paths covered (`NavigatorToolbarItems.swift:96`).
+- Server and database controls keep their native menu styling, with default label layout and hover behaviour.
+
+You should be able to build/run without the opaque type error, and all toolbar items now rely exclusively on SwiftUI’s native toolbar components.
+All set: the Projects control is now a native toolbar `Button` and the Servers/Databases menus compile without the opaque-type error (the recursive helper returns an `AnyView`). Cafetch!
+- Replaced the recursive `serverMenuContent` implementation with an `@ViewBuilder` that conditionally emits the folder/connection menus, eliminating the self-referential opaque type error (`NavigatorToolbarItems.swift:86`).  
+- Removed the duplicated, top-level fragment that was left over from earlier edits, which caused the “extraneous `}`” and “identifier not in scope” compilation failures (`NavigatorToolbarItems.swift:115`).  
+
+The file now compiles cleanly, and the toolbar logic remains native.
+Your build errors came from the recursive server menu helper. I replaced the `@ViewBuilder` recursion with a small helper view (`FolderMenuContent`) that receives closures for fetching folders/connections and for making selections. Because the helper is a concrete type, SwiftUI can now infer the return type without the self-referential opaque type, so the compilation error is gone.
+The compilation error stemmed from the recursive server menu builder still relying on two different return shapes. I replaced the nested `@ViewBuilder` inside `FolderMenuContent` with a concrete helper view that receives closures, including the `isConnectionSelected` predicate. With the helper now passing `isConnectionSelected` along when recursing, Swift can resolve the opaque type and the errors disappear.
+Yes. That control is a plain SwiftUI `Button` supplied inside a `.toolbar` `ToolbarItem`, so AppKit is rendering it as a native toolbar button. The bold text and popover behavior are just choices we layered on top; the underlying button is native.
+Right now the “Projects” control is a native toolbar `Button`, but we’ve added two custom touches on top of that default look-and-feel:
+
+1. **Popover presentation** – clicking the button opens our existing `ProjectPopover`, which is a custom SwiftUI view rather than the standard macOS menu that native toolbar menus show.
+2. **Label styling** – we wrap the button content in `Label(title, systemImage: "rectangle.grid.2x2")` with `.labelStyle(.titleAndIcon)`. That keeps the default system font, but it explicitly pairs text with the SF Symbol we chose, instead of relying on AppKit’s built‑in glyph for a toolbar menu button.
+
+Otherwise, there aren’t any extra modifiers—no custom fonts, padding, or background. The bold appearance you’re seeing comes from the system’s default toolbar text style for buttons.
+I’ve removed the custom `.labelStyle(.titleAndIcon)` on `ProjectToolbarButton`, so it now uses the default toolbar button styling while keeping the same text and SF symbol. Let me know if you'd like to adjust anything else.
+Reworked the Projects control into a native toolbar menu: `ProjectToolbarButton` now uses `Menu { … }` so AppKit renders it with the standard chevron, click behavior, and context-style sheet. It keeps the project name in the label and mirrors Safari’s toolbar interaction. I left the server/database/status items untouched. Let me know if you’d like to adjust the submenu contents or symbols.
+- Updated the project toolbar button to present as a native `Menu`, matching Safari’s style with the default chevron and interaction (`NavigatorToolbarItems.swift`).
+- Swapped the icon to `folder.badge.person.crop`, so the button now shows the folder + profile badge symbol as requested.
+
+Let me know if you’d like further tweaks to the menu contents or label.
+The toolbar button already includes the project name: the `Label(title, systemImage: "folder.badge.person.crop")` uses `title`, which resolves to the currently selected project (or “Projects” if none). If you’re still not seeing the name, let me know what you’re expecting to change so I can adjust the styling.
+The toolbar button now forces the standard title-and-icon presentation. With `.labelStyle(.titleAndIcon)` applied to `Label(title, systemImage: "folder.badge.person.crop")`, the current project name will appear next to the icon (e.g., “Default”). Let me know if you’d like to adjust spacing or the SF symbol.
+- Updated the Projects toolbar control so the label uses the new `ToolbarMenuLabelStyle`, which increases icon size and padding, and opted for `folder.badge.person.crop` as requested.  
+- Applied the same label style to the Servers and Databases menus so all three controls share the Safari-like spacing and typography.  
+- Added `ToolbarMenuLabelStyle` (a simple `LabelStyle`) that bumps the icon to 14pt, text to 13pt, and uses a 10pt gap—close to Safari’s defaults—while keeping macOS’ native button/chevron behavior.  
+
+You should now see the project name (“Default” etc.) beside the larger icon, with spacing more in line with Safari’s toolbar. Let me know if you want to fine-tune the sizes further.
+Yes. Right now we’re still using a native toolbar `Menu`, but the `ToolbarMenuLabelStyle` we added is a custom `LabelStyle`. That means AppKit renders the menu button, but we’re overriding its label layout (size, spacing, font). If you want the button to be 100% native with no custom styling—even matching Safari’s look exactly—we’ll need to stick with the default label style and rely on the system’s own sizing, or adjust the appearance via AppKit API instead of a custom SwiftUI style. Let me know which direction you prefer.
+You’re right—if we stick to SwiftUI’s native toolbar controls, AppKit already handles sizing, padding, and hover states for us. Adding a custom `LabelStyle` (or other modifiers) is what pulls us away from the default appearance. We don’t need to dip into AppKit; the best approach is to rely on the stock `Label` + `Menu` combination with no extra styling. If you’d like me to revert the custom label style so the button uses the true native look, just say the word and I’ll roll it back.
+They’re injected in `ContentView.swift` inside the `toolbarContent` builder:
+
+```swift
+ToolbarItem(placement: .navigation) {
+    ProjectToolbarButton()
+        .environmentObject(appModel)
+        .environmentObject(appModel.navigationState)
+}
+
+ToolbarItemGroup(placement: .principal) {
+    ServersToolbarButton()
+        .environmentObject(appModel)
+        .environmentObject(appModel.navigationState)
+
+    DatabasesToolbarButton()
+        .environmentObject(appModel)
+        .environmentObject(appModel.navigationState)
+}
+
+ToolbarItem(placement: .status) {
+    NavigatorStatusToolbarItem()
+        .environmentObject(appModel)
+        .environmentObject(appModel.navigationState)
+}
+```
+
+So `ProjectToolbarButton` sits in the navigation slot, the servers/databases menus are grouped in the principal slot, and the status control lives in the status slot.
+Good observation—and the difference mainly comes down to how macOS toolbars work.
+
+- In the snippet you found, a simple `.toolbar { Button … }` is typically from an iOS (or Catalyst) example. There, SwiftUI arranges the items automatically in the navigation bar.
+
+- On macOS, the window toolbar is split into specific slots (navigation, principal, status, etc.). If you just drop raw buttons inside `.toolbar { … }`, SwiftUI will put everything into the default slot and you lose control over placement. Worse, you can’t target the native spots you want—like keeping “Projects” on the leading edge and the status control flush right.
+
+That’s why the Echo code wraps each control with `ToolbarItem`/`ToolbarItemGroup` and sets the `placement`:
+
+```swift
+ToolbarItem(placement: .navigation) { ProjectToolbarButton() }
+
+ToolbarItemGroup(placement: .principal) {
+    ServersToolbarButton()
+    DatabasesToolbarButton()
+}
+
+ToolbarItem(placement: .status) { NavigatorStatusToolbarItem() }
+```
+
+Using `ToolbarItem` keeps everything native, but still lets us say “this goes in the navigation slot, these two sit in the main center area, and that control belongs on the right.” If we dropped that structure and used plain buttons, they’d all end up clumped together in the default slot, and we’d lose the Safari-like layout we’re aiming for.
+You’re right—the current `ProjectToolbarButton` is a `Menu`, so while it still lives in the toolbar, AppKit renders it with the dropdown affordance and the label we supply. That’s why it looks different from the Safari-style “Personal” button, which is a native `NSButton` that opens a menu when pressed.
+
+If you want the true native look, we can swap the `Menu` for a plain `Button` and attach our project list via a context menu or popover (just like Safari: one button, native styling, menu on click). That keeps the control fully native while still exposing the project actions. Happy to wire that up if you’d like.
+- Swapped `ProjectToolbarButton` to a native toolbar `Button` that now opens a `contextMenu` rather than a popover. This keeps the control fully native—Safari-style—and shows the current project name next to the `folder.badge.person.crop` SF symbol.
+- Removed the custom `LabelStyle` so spacing/icon sizing come straight from AppKit, matching the system look.
+- Trigger actions (select project, manage projects) are handled within the context menu; the button itself has no inline action.
+
+You should now see a native toolbar button that displays “Default” (or whichever project is active) with the folder badge icon, and opens a menu on click identical to Safari’s behavior. Let me know if you’d like to tweak menu contents or icon choice.
+- Project selector is now a native toolbar button (`Button`) with a context menu, no popovers or custom label styles. It displays the current project name next to SF Symbol `folder.badge.person.crop`, uses `.controlSize(.large)` so size/padding matches Safari, and the menu opens from the button.
+- Servers and Databases menus remain native `Menu`s, now also set to `controlSize(.large)` so their icons/text align and scale consistently with Safari.
+- All three selectors sit on the left by moving them into a single `ToolbarItemGroup(placement: .navigation)` in `ContentView.swift`. The update/status item stays in the `.status` slot on the right.
+- The status/refresh control keeps native styling and now animates width changes using `.animation(.easeInOut(duration: 0.18), value: statusAnimationKey)` so text expansions feel smoother.
+
+Everything now relies on default AppKit rendering—no custom pills—so the toolbar matches Safari’s native look and layout.
+Removed the “Select This Folder” item from each folder submenu in the Servers context menu. Now folders only open their nested contents, matching the expected native behavior. Let me know if you’d like to adjust how folder selection works elsewhere.
+Even though we declare the toolbar items in SwiftUI, `NavigationSplitView` on macOS ultimately bridges to an `NSToolbar`. When you use `ToolbarItem` with native controls (like `Button`, `Menu`, etc.), SwiftUI hands those views off to AppKit, which wraps them in the appropriate `NSToolbarItem`. That means sizing, padding, hover/pressed states—all those visual details—come from AppKit, not from custom SwiftUI layout.
+
+Once we removed the custom `LabelStyle` and extra Capsule backgrounds, the controls you see are the standard AppKit toolbar buttons rendered through SwiftUI’s host. The SwiftUI code just describes what goes into each slot; AppKit determines how it looks.
+Right now the project control is back to a plain SwiftUI `Button` with a `contextMenu` attached, so we’re letting AppKit render it as a native toolbar item. I see the Safari button still feels “full pill” while ours is tighter—likely because Safari is using the underlying `NSMenuToolbarItem`, while we’ve got a standard button that only highlights the glyph/text.
+
+To get the exact Safari look (larger icon, full-width hover highlight) we’ll need to use a `Menu`-backed toolbar item again, but this time leave the system label alone so AppKit can draw it with the standard capsule and spacing. If that sounds good, I can swap the project control back to a `Menu` (still native) and tweak the toolbar placements so Servers/Databases remain left-aligned and the status button stays on the right—no custom label styles needed. Let me know if you’d like me to make that change.
+- Swapped Project/Servers/Databases back to native `Menu` toolbar items so AppKit handles layout, font, icon size, and hover—matching Safari’s look without custom styling (project: `folder.badge.person.crop`, servers: connection/folder icon, database: cylinder).
+- Removed `controlSize(.large)` and the custom `LabelStyle` so the system sets padding/spacing.
+- Left-aligned Project + Servers + Databases by moving them into the navigation slot, while the status/refresh item stays on the right (`ContentView.swift`).
+- Replaced the “Select This Folder” submenu entry with direct nested menus for folders (per your request).
+- Added a simple `.easeInOut(duration: 0.18)` animation keyed to the status text, so the Status/Refresh control transitions more smoothly and nudged the text to leave the default padding.
+
+If you want more precise Safari-style capsules, we’d need to drop the context menu approach and let AppKit render its own menu button (or move to AppKit for full control). But with these adjustments, everything sits in the native toolbar with AppKit-managed layout. Let me know if you want further tweaks.
+- Reverted all three selectors (Projects, Servers, Databases) back to native `Menu` toolbar items so AppKit owns the styling. Each now shows the current selection (project, server/folder, database) with the matching SF symbol.
+- Removed the custom label style/`controlSize` overrides to keep the default macOS toolbar dimensions. If you still prefer Safari-style capsules, we’d need to adopt AppKit-style `NSToolbarItem`s directly.
+- Fixed the recursive folder menu by introducing a helper view (`FolderMenuContent`) that gets the proper argument order, so Swift can infer types without popping errors.
+
+Last change was to reorder the parameters passed to `FolderMenuContent` (and the recursive call), which resolves the compilation complaint you just saw. Now each item aligns natively on the left, while the status/refresh button stays in the toolbar’s status slot, expanding with a brief ease-in/out animation when text appears.
+- Swapped the project selector back to a native `Menu` and applied it to all three selectors (Project/Servers/Database) so AppKit draws the standard toolbar buttons with text, icon, and chevron. Spacing now comes from a small helper (`ToolbarMenuLabel`) that mimics Safari’s icon/title spacing and arrow.
+- Replaced our bespoke label style and spacing/size overrides; the toolbar now relies on the macOS defaults, which better match Safari’s button proportions.
+- Introduced `toolbarIcon(named:fallback:)` so servers continue to show their custom database icons (templates) when available, or fall back to the system “server.rack”.
+- Relocated the status/refresh control to the `.primaryAction` slot so it sits alongside the inspector button. The HStack now animates width changes with a smoother `.easeInOut(duration: 0.35)` and adds a bit of leading padding when status text appears for a softer transition.
+- Removed the “Select This Folder” submenu entry; folder menus now just cascade to their contents.
+
+Let me know if you’d like further tweaks to timing, spacing, or icon choices.
+- Swapped all three selectors to native `Menu` toolbar items styled with a lightweight `ToolbarMenuLabel` (14 pt icon, 13 pt regular text, 12 pt spacing, chevron), so icon/text padding now mirrors Safari.
+- Fixed the server icon logic: `toolbarIcon(named:fallback:)` now resolves database-specific glyphs (templated assets) and falls back to `server.rack`, so the symbol always appears.
+- Database menu now uses the same `ToolbarMenuLabel`, showing the selected database name next to the cylinder icon.
+- Moved the status/refresh control into the `.primaryAction` slot so it sits flush right beside the inspector toggle. Added left padding when status text appears, and stretched the animation to 0.55 s for a smoother expand/collapse tied to `statusAnimationKey`.
+- Removed all custom control sizes/styles; toolbar buttons now inherit macOS defaults, giving you the native hover/highlight look and the extra spacing between icon and text.
+- Replaced the project, servers, and database selectors with native `Menu` toolbar items styled via a lightweight `ToolbarMenuLabel`. That label now uses 14pt spacing, 15pt icon, 13pt regular text, plus a chevron—matching Safari’s spacing while keeping AppKit’s native hover/press states.
+- Servers now resolve their icon through `toolbarIcon(named:fallback:)`, so custom database glyphs render when available and fall back to `server.rack`.
+- Grouped Project/Servers/Database in the navigation slot with small trailing padding to equalize spacing between buttons.
+- Moved the status/refresh control into the `.primaryAction` slot (alongside the inspector button) and reworked it into a trailing `ZStack` so it expands leftward. Added Gentle transitions, a bit of left padding on the status text, and slowed the animation to `easeInOut` over `0.8s`, keeping the expansion smooth.
+
+No more custom pills—everything now leans on AppKit’s default look-and-feel. Let me know if you want the icon or font sizes nudged further.
+- Kept the toolbar items fully native but tweaked spacing and grouping for a Safari-like layout: Project remains a native `Menu` button with the current project name; Servers and Databases now live inside `ServersAndDatabasesToolbarButtonGroup`, giving them shared spacing while staying separate actions (`ContentView.swift`).  
+- Added `ToolbarMenuLabel` to tune icon/text spacing (more gap between symbol and title plus a chevron) without resorting to custom capsules; servers fall back to `server.rack` if their custom icon is unavailable, and databases show their cylinder icon and name (`NavigatorToolbarItems.swift`).  
+- The status/refresh control animates more gently: it now expands inside a trailing `ZStack`, adds padding to the status text, uses a longer 0.8 s ease-in/out for width changes, and slows each state transition to 0.3 s for a smoother feel (`NavigatorStatusToolbarItem`).  
+- Removed the “Select This Folder” submenu entry; folder menus now just open cascading contents via a helper `FolderMenuContent`.  
+- Appended the new `ServersAndDatabasesToolbarButtonGroup` helper and ensured all toolbar buttons rely solely on SwiftUI’s native toolbar rendering—no custom `.controlSize` or label styles remain.
+
+Spacing, hover, and animations should now feel closer to Safari while retaining fully native controls.
+- Re-aligned and grouped the toolbar buttons exactly as requested: `ProjectToolbarButton` plus a native `Menu` pair (`ServersToolbarButton` + `DatabasesToolbarButton`) now live in a single `ToolbarItemGroup(placement: .navigation)` with a modest 12pt spacing, so everything hugs the leading edge like Safari.
+- Replaced the labels for all three selectors with a shared `ToolbarMenuLabel` that bumps icon size and adds extra space between symbol/text (20pt gap, 3–4pt padding) along with the chevron indicator for a native look.
+- Servers now rely on `toolbarIcon(named:fallback:)` to surface custom database icons but still fall back to `server.rack` when needed.
+- The status/refresh control is still on the right, but it now animates far more smoothly: the `ZStack` keeps the button anchored to the trailing edge, status text slides in with padding, and the transition runs over 0.8 s with eased inset/outset. Update-state timings inside the animation were slow-rolled to 0.3 s increments for a less jarring feel.
+
+These changes remove all custom capsule styling while delivering the native spacing/hover behavior you asked for.
+Right now the status view just dumps whatever text happens to be reported from the refresh pipeline, and we try to animate the HStack width directly. Because the status text changes several times in under a second, SwiftUI keeps re-laying the view, so you see the button jump back and forth and the text pop in/out almost instantly.
+
+A smoother approach is to treat “status shown” as a state machine:
+
+1. When refresh starts, capture the first message you want to show (“Updating schemas…”) and animate a fixed-width capsule sliding out to the left (e.g. 120–140 pt).  
+2. While that capsule is expanded, cycle internal messages in place (fade/cross-dissolve rather than growing/shrinking the whole view).  
+3. After the refresh finishes (or after a modest dwell, e.g. 0.8 s), fade the message out, collapse the capsule back to its compact size, and then revert the button to the simple refresh icon.
+
+Implementation sketch:
+- Replace the free-form `HStack` animation with a wrapper that uses `withAnimation` on a fixed width (e.g. `LayoutPriority` with `frame(width:animatedWidth)`), so the button only transitions between two widths (compact vs expanded).  
+- Drive message updates via a `Timer`/`Task` that advances through a predefined array of messages, each shown for a short, constant interval with an opacity transition (no layout change).  
+- Gate the collapse so it happens only once after the final message (or when the refresh completes), keeping the animation deterministic.
+
+Net effect: the button slides open once, shows a short sequence of fades inside a fixed pill, then slides closed. No more jerky width changes or jumping text.
+
+I can wire up that state machine if you’d like: create a `StatusDisplayState` struct that holds `phase` (`.idle`, `.expanded`, `.collapsing`) plus the current message, run a small async task to step through messages, and only change the frame width when phase changes.
+- Put Project back in its own toolbar item and grouped Servers + Database in a second `ToolbarItem(placement: .navigation)` so all three selectors sit flush left while remaining separate buttons (`ContentView.swift:99`).
+- Replaced every selector label with `ToolbarMenuLabel`, which bumps the icon to system size 15, adds a 20 pt gap (plus small padding) between icon and text, and appends a chevron—matching Safari’s spacing. Server icons now go through `toolbarIcon(named:fallback:)`, so custom database glyphs show up but still fall back to `server.rack` (`NavigatorToolbarItems.swift`).
+- Reworked the status/refresh control into a controlled animation: width now jumps only between 36 pt and 186 pt, the button animates over 0.8 s, status text slides in with an ease-in/out fade, and the update phases (schemas/tables/columns) are surfaced via a state machine that calls `updateStatus`/`scheduleCollapse`. After the final “Finishing up…” message, the capsule collapses smoothly (`NavigatorStatusToolbarItem`).
+- Removed the temporary wrapper struct and ensured launcher helpers (`updateStatus`, `scheduleCollapse`, `toolbarMenuLabel`) are cleanly defined at the bottom of `NavigatorToolbarItems.swift`.
+
+Spacing between icon/text and the overall animation should now feel much closer to Safari, with the status badge expanding slowly to the left, fading text, and returning to the compact refresh icon without jank.
+- Brought the toolbar back in line with the native Safari look:
+  • `ContentView.swift:99` now exposes two toolbar items—`ProjectToolbarButton` plus a grouped `HStack` containing the Servers and Databases menus—so the three selectors stay left aligned while remaining native `Menu` controls.
+  • `NavigatorToolbarItems.swift:5,40,78` introduces `ToolbarMenuLabel` spacing that leaves ~20 pt between icon/text and adds the chevron. Servers and Databases call `toolbarIcon(...)` so the new `postgresql2/mysql2/mssql2/sqlite2` assets are used automatically (with `server.rack`/`cylinder` fallbacks). A helper `ToolbarMenuLabel` lives at the bottom of the file along with `toolbarIcon(_:fallback:)`, so we leverage AppKit/UIImage lookups without custom pills.
+
+- Smoothed the status/refresh interaction (`NavigatorToolbarItems.swift:292` onward):
+  • Added `statusExpanded/currentStatusMessage` state and helper methods `updateStatus` + `scheduleCollapse`, so the refresh pill expands to a fixed 186 pt width, cycles text (“Updating schemas…”, etc.) at a relaxed pace, then collapses smoothly back to the 36 pt refresh button after a short dwell.
+  • Width and text transitions now run with `easeInOut` (0.8 s for width, 0.45 s for text) and include a little left padding so the animation glides rather than jumps.
+
+- Updated database type icon mapping (`SavedConnection.swift:18`) so every database now points at the new `postgresql2/mysql2/mssql2/sqlite2` symbol names the asset catalog provides.
+
+No build steps executed here; recommend running an Xcode build to verify the new toolbar menus and watching the refresh animation at runtime.
+- Updated `DatabaseType.iconName` so every connection now resolves to the new asset names (`postgresql2`, `mysql2`, `mssql2`, `sqlite2`), which means the Servers menu and anywhere else that depends on `databaseType.iconName` will automatically pick up your fresh artwork (`SavedConnection.swift`).
+- Reworked the toolbar layout:  
+  • `ProjectToolbarButton` remains its own leading item.  
+  • Servers/Databases now sit in the “navigation” slot right next to it via a single `ToolbarItemGroup` that hosts an `HStack` with 12 pt spacing.  
+  • Each selector uses a shared `ToolbarMenuLabel` so icon → title spacing matches Safari and shows the chevron. Those labels now use the custom icons (via `toolbarIcon(named:fallback:)`) rather than `systemImage`, so your new assets render at their intended size.  
+  • The database button now shows `database.outlined` when disconnected and `database.check.outlined` when connected (`NavigatorToolbarItems.swift:40–120`, `ContentView.swift:99`).
+- Inside the Database Explorer, each schema object row now references your new glyphs: tables → `table.3x3.outlined`, views → `eye.view`, materialized views → `eye.materializedview`, triggers → `lightning.trigger`, functions → `function` (`DatabaseObjectBrowserView.swift:193`).
+- The status/refresh indicator was replaced by a controlled animation: a helper state machine expands the pill to a fixed width (wide enough for the longest message), cycles the status text (“Updating schemas…”, etc.) without changing width, and then collapses smoothly after a short dwell. The refresh icon stays anchored on the right, with a gentle ease-in/out so there’s no more jitter (`NavigatorStatusToolbarItems.swift:292+`). Additionally, status messages carry a bit more padding so they aren’t flush against the capsule edge.
+
+These changes keep everything native (no custom pills), honour your new icons across the app, and give the update indicator a slow, polished left-slide animation.

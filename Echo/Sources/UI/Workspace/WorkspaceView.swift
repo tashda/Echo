@@ -5,217 +5,248 @@ struct WorkspaceView: View {
     @EnvironmentObject private var appState: AppState
     @EnvironmentObject private var themeManager: ThemeManager
     @EnvironmentObject private var clipboardHistory: ClipboardHistoryStore
-    @Environment(\.useNativeTabBar) private var useNativeTabBar
 
-    @State private var showingConnectionEditor = false
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
+    @State private var showingConnectionEditor = false
 
-    private var selectedConnection: SavedConnection? { appModel.selectedConnection }
-    private var selectedSession: ConnectionSession? {
-        guard let connection = selectedConnection else { return nil }
+    @ViewBuilder
+    var body: some View {
+        navigationLayout
+            .preferredColorScheme(themeManager.effectiveColorScheme)
+            .background(themeManager.windowBackground)
+    }
+
+    @ViewBuilder
+    private var navigationLayout: some View {
+        NavigationSplitView(columnVisibility: $columnVisibility) {
+            SidebarColumnView(showingConnectionEditor: $showingConnectionEditor)
+                .frame(minWidth: 260, idealWidth: 300, maxWidth: 420)
+                .background(themeManager.surfaceBackgroundColor)
+        } content: {
+            WorkspaceContentColumn()
+                .background(themeManager.surfaceBackgroundColor)
+        } detail: {
+            InspectorColumnView()
+                .frame(minWidth: 260, idealWidth: 300)
+                .background(themeManager.surfaceBackgroundColor)
+        }
+        .modifier(
+            WorkspaceSceneModifier(
+                showingConnectionEditor: $showingConnectionEditor,
+                columnVisibility: $columnVisibility
+            )
+        )
+        .toolbar {
+            WorkspaceToolbarItems()
+        }
+    }
+}
+
+private struct SidebarColumnView: View {
+    @Binding var showingConnectionEditor: Bool
+    @EnvironmentObject private var appModel: AppModel
+    @EnvironmentObject private var appState: AppState
+    @EnvironmentObject private var themeManager: ThemeManager
+
+    var body: some View {
+        SidebarView(
+            selectedConnectionID: Binding(
+                get: { appModel.selectedConnectionID },
+                set: { appModel.selectedConnectionID = $0 }
+            ),
+            selectedIdentityID: Binding(
+                get: { appModel.selectedIdentityID },
+                set: { appModel.selectedIdentityID = $0 }
+            ),
+            onAddConnection: { showingConnectionEditor = true }
+        )
+        .background(themeManager.surfaceBackgroundColor)
+    }
+}
+
+private struct WorkspaceContentColumn: View {
+    @EnvironmentObject private var appModel: AppModel
+    @EnvironmentObject private var appState: AppState
+    @EnvironmentObject private var themeManager: ThemeManager
+
+    var body: some View {
+        VStack(spacing: 0) {
+            headerChips
+                .padding(.horizontal, 12)
+                .padding(.top, 12)
+
+            Divider()
+                .padding(.horizontal, 12)
+
+            QueryTabsView(
+                showsTabStrip: true,
+                tabBarLeadingPadding: 12,
+                tabBarTrailingPadding: appState.showInfoSidebar ? 320 : 12
+            )
+            .environment(\.useNativeTabBar, false)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(themeManager.surfaceBackgroundColor)
+    }
+
+    @ViewBuilder
+    private var headerChips: some View {
+        HStack(spacing: 8) {
+            if let connection = appModel.selectedConnection {
+                HelperChip(
+                    label: connection.connectionName,
+                    systemImage: "externaldrive",
+                    tint: themeManager.accentColor
+                )
+            } else {
+                HelperChip(
+                    label: "No Connection",
+                    systemImage: "externaldrive.slash",
+                    tint: .secondary.opacity(0.6)
+                )
+            }
+
+            if let session = activeSession,
+               let database = session.selectedDatabaseName {
+                HelperChip(
+                    label: database,
+                    systemImage: "database",
+                    tint: themeManager.accentColor.opacity(0.8)
+                )
+            }
+
+            Spacer()
+
+            if appState.isConnecting {
+                HelperChip(
+                    label: "Connecting…",
+                    systemImage: "arrow.triangle.2.circlepath",
+                    tint: .orange
+                )
+            }
+        }
+    }
+
+    private var activeSession: ConnectionSession? {
+        guard let connection = appModel.selectedConnection else { return nil }
         return appModel.sessionManager.sessionForConnection(connection.id)
     }
-    private var isSidebarCollapsed: Bool { columnVisibility == .detailOnly }
+}
+
+private struct InspectorColumnView: View {
+    @EnvironmentObject private var appModel: AppModel
+    @EnvironmentObject private var appState: AppState
+    @EnvironmentObject private var themeManager: ThemeManager
 
     var body: some View {
-        NavigationSplitView(columnVisibility: $columnVisibility) {
-            sidebar
-                .navigationSplitViewColumnWidth(min: 280, ideal: 320, max: 560)
-        } detail: {
-            ZStack {
-                mainContent
-
-                if appState.showInfoSidebar {
-                    HStack {
-                        Spacer()
-                        InfoSidebarView()
-                            .environmentObject(appModel)
-                            .frame(width: 300)
-                            .ignoresSafeArea()
-                    }
+        Group {
+            if appState.showInfoSidebar {
+                InfoSidebarView()
+                    .environmentObject(appModel)
+            } else {
+                ContentUnavailableView {
+                    Label("No Inspector", systemImage: "sidebar.right")
+                } description: {
+                    Text("Select an object to view contextual details.")
                 }
             }
         }
-        .navigationSplitViewStyle(.balanced)
-        .sheet(isPresented: $showingConnectionEditor) {
-            ConnectionEditorView(
-                connection: selectedConnection,
-                onSave: { connection, password, action in
-                    Task {
-                        await appModel.upsertConnection(connection, password: password)
-                        if action == .saveAndConnect {
-                            await appModel.connect(to: connection)
+        .background(themeManager.surfaceBackgroundColor)
+    }
+}
+
+private struct HelperChip: View {
+    var label: String
+    var systemImage: String
+    var tint: Color
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Image(systemName: systemImage)
+            Text(label)
+                .font(.subheadline)
+        }
+        .padding(.vertical, 6)
+        .padding(.horizontal, 10)
+        .foregroundStyle(.white)
+        .background(
+            Capsule(style: .continuous)
+                .fill(tint.gradient)
+        )
+    }
+}
+
+private struct WorkspaceSceneModifier: ViewModifier {
+    @EnvironmentObject private var appModel: AppModel
+    @EnvironmentObject private var appState: AppState
+    @EnvironmentObject private var themeManager: ThemeManager
+    @EnvironmentObject private var clipboardHistory: ClipboardHistoryStore
+
+    @Binding var showingConnectionEditor: Bool
+    @Binding var columnVisibility: NavigationSplitViewVisibility
+
+    func body(content: Content) -> some View {
+        content
+            .navigationSplitViewStyle(.balanced)
+            .preferredColorScheme(themeManager.effectiveColorScheme)
+            .sheet(isPresented: $showingConnectionEditor) {
+                ConnectionEditorView(
+                    connection: appModel.selectedConnection,
+                    onSave: { connection, password, action in
+                        Task {
+                            await appModel.upsertConnection(connection, password: password)
+                            if action == .saveAndConnect {
+                                await appModel.connect(to: connection)
+                            }
                         }
                     }
-                }
-            )
-            .environmentObject(appModel)
-            .environmentObject(appState)
-        }
-        .sheet(isPresented: $appModel.isManageConnectionsPresented) {
-            ManageConnectionsView()
+                )
                 .environmentObject(appModel)
                 .environmentObject(appState)
-        }
-        .sheet(isPresented: $appModel.showManageProjectsSheet) {
-            ManageProjectsSheet()
-                .environmentObject(appModel)
-                .environmentObject(clipboardHistory)
-                .environmentObject(themeManager)
-        }
-        .sheet(isPresented: $appModel.showNewProjectSheet) {
-            NewProjectSheet()
-                .environmentObject(appModel)
-        }
-        .task {
-            if !AppCoordinator.shared.isInitialized {
-                await appModel.load()
             }
-        }
-        .onChange(of: appModel.selectedConnectionID) { _, newValue in
-            if newValue == nil {
-                appState.showInfoSidebar = false
-            }
-        }
-        .onChange(of: appState.activeSheet) { _, newSheet in
-            showingConnectionEditor = (newSheet == .connectionEditor)
-        }
-        .accentColor(themeManager.accentColor)
-    }
-}
-
-private extension WorkspaceView {
-    var sidebar: some View {
-        SidebarView(
-            selectedConnectionID: $appModel.selectedConnectionID,
-            selectedIdentityID: $appModel.selectedIdentityID,
-            onAddConnection: {
-                showingConnectionEditor = true
-            }
-        )
-        .environmentObject(appModel)
-        .environmentObject(appState)
-        .ignoresSafeArea()
-    }
-
-    var mainContent: some View {
-        VStack(spacing: 0) {
-            if !useNativeTabBar && showsTabStrip {
-                QueryTabStrip(
-                    leadingPadding: 0,
-                    trailingPadding: appState.showInfoSidebar ? 300 : 0,
-                    createNewTab: createNewTab,
-                    toggleOverview: { appState.showTabOverview.toggle() }
-                )
-                .frame(height: 44)
-                .padding(.top, 6)
-            }
-
-            queryContent
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-        }
-    }
-
-    var queryContent: some View {
-        Group {
-            if let connection = selectedConnection, let session = selectedSession {
-                if appModel.tabManager.activeTab != nil {
-                    QueryTabsView(
-                        showsTabStrip: false // We show tabs in mainContent now
-                    )
+            .sheet(isPresented: $appModel.isManageConnectionsPresented) {
+                ManageConnectionsView()
                     .environmentObject(appModel)
                     .environmentObject(appState)
+            }
+            .sheet(isPresented: $appModel.showManageProjectsSheet) {
+                ManageProjectsSheet()
+                    .environmentObject(appModel)
+                    .environmentObject(clipboardHistory)
                     .environmentObject(themeManager)
-                } else {
-                    ActiveConnectionView(connection: connection, session: session)
-                        .environmentObject(appModel)
-                        .environmentObject(appState)
-                }
-            } else if let connection = selectedConnection {
-                DisconnectedConnectionView(connection: connection)
+            }
+            .sheet(isPresented: $appModel.showNewProjectSheet) {
+                NewProjectSheet()
                     .environmentObject(appModel)
-                    .environmentObject(appState)
-            } else {
-                NoConnectionSelectedView(onAddConnection: {
-                    showingConnectionEditor = true
-                })
             }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-    }
-
-    func createNewTab() {
-        guard let activeSession = appModel.sessionManager.activeSession else { return }
-        appModel.openQueryTab(for: activeSession)
-    }
-
-    private var showsTabStrip: Bool {
-        !useNativeTabBar && !appModel.tabManager.tabs.isEmpty
-    }
-}
-
-
-private struct ActiveConnectionView: View {
-    let connection: SavedConnection
-    let session: ConnectionSession
-    @EnvironmentObject private var appModel: AppModel
-
-    var body: some View {
-        VStack(spacing: 16) {
-            Text("Connected to \(connection.connectionName)")
-                .font(.title2)
-                .fontWeight(.semibold)
-
-            Text(session.selectedDatabaseName.map { "Database: \($0)" } ?? "No database selected")
-                .foregroundStyle(.secondary)
-
-            Button("Disconnect") {
-                Task { await appModel.disconnectSession(withID: session.id) }
+            .task {
+                if !AppCoordinator.shared.isInitialized {
+                    await AppCoordinator.shared.initialize()
+                }
             }
-            .buttonStyle(.bordered)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-}
-
-private struct DisconnectedConnectionView: View {
-    let connection: SavedConnection
-    @EnvironmentObject private var appModel: AppModel
-
-    var body: some View {
-        VStack(spacing: 16) {
-            Text("Not Connected")
-                .font(.title2)
-                .fontWeight(.semibold)
-
-            Text("Connect to \(connection.connectionName) to start working.")
-                .foregroundStyle(.secondary)
-
-            Button("Connect") {
-                Task { await appModel.connect(to: connection) }
+            .onChange(of: appState.activeSheet) { _, newSheet in
+                showingConnectionEditor = (newSheet == .connectionEditor)
             }
-            .buttonStyle(.borderedProminent)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-}
-
-private struct NoConnectionSelectedView: View {
-    let onAddConnection: () -> Void
-
-    var body: some View {
-        VStack(spacing: 20) {
-            Text("No Connection Selected")
-                .font(.title2)
-                .fontWeight(.semibold)
-
-            Text("Open or add a connection to get started.")
-                .foregroundStyle(.secondary)
-
-            Button("Add Connection", action: onAddConnection)
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .onChange(of: columnVisibility) { _, visibility in
+                switch visibility {
+                case .all:
+                    if !appState.showInfoSidebar {
+                        appState.showInfoSidebar = true
+                    }
+                case .doubleColumn, .detailOnly:
+                    if appState.showInfoSidebar {
+                        appState.showInfoSidebar = false
+                    }
+                default:
+                    break
+                }
+            }
+            .onChange(of: appState.showInfoSidebar) { _, showInspector in
+                let targetVisibility: NavigationSplitViewVisibility = showInspector ? .all : .doubleColumn
+                if columnVisibility != targetVisibility {
+                    columnVisibility = targetVisibility
+                }
+            }
+            .accentColor(themeManager.accentColor)
     }
 }

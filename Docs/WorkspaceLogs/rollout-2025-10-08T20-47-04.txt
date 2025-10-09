@@ -1,0 +1,26 @@
+- Echo/Sources/UI/Workspace/Tabs/QueryTabsView.swift:1517 wired up Tab Overview state for focusable tabs, tracked the grid width via `TabOverviewWidthPreferenceKey`, and layered in a macOS `KeyCaptureView` so arrows, Tab (activate), Shift+Tab, Enter, and Delete now move, select, or close the highlighted tab.
+- Echo/Sources/UI/Workspace/Tabs/QueryTabsView.swift:2234 refreshed `TabPreviewCard` to surface a visible focus ring, share hover events with the parent for focus hand-off, and keep the close button available while a card is keyboard-focused.
+- Echo/Sources/UI/Workspace/Tabs/QueryTabsView.swift:262 bounded the tab-strip background to the measured tab group width (with trailing-control fallbacks) so the chrome no longer spills beyond the first/last tab.
+
+Tests not run (not requested).  
+Next: 1) Build/run Echo to confirm the new Tab Overview keyboard paths and tab-strip visuals look correct across light/dark themes.
+Cleared the macOS build error in `Echo/Sources/UI/Workspace/Tabs/QueryTabsView.swift` by removing the stray `isFocused` reference from `QueryTabButton`. All Tab Overview keyboard and layout updates remain intact. Please rebuild to confirm everything compiles and behaves as expected.
+Expanded the tap target for the tab-bar action buttons by setting their `contentShape` to a circle in `Echo/Sources/UI/Workspace/Tabs/QueryTabsView.swift:1337`, so the entire circular button (not just the glyph) now responds to clicks.
+- Echo/Sources/UI/Workspace/Tabs/QueryTabsView.swift:1337 made the tab-bar +/overview buttons accept clicks across the full circular background.
+- Echo/Sources/UI/Workspace/Tabs/QueryTabsView.swift:1517,1528,1555-1570 reworked Tab Overview width tracking so we measure the ScrollView, record the actual available grid width, and derive the column count from that width minus the padding. With the correct column count in place, up/down arrows now move focus between grid rows as expected.
+
+Give the Tab Overview a spin to confirm vertical navigation and the enlarged button hit areas feel right.
+Made Tab Overview auto-dismiss whenever the active tab changes outside the overview:
+
+- Clicking a tab in the strip now sets the active tab and closes the overview if it’s open (`Echo/Sources/UI/Workspace/Tabs/QueryTabsView.swift:609`).
+- Also listening to `appModel.tabManager.activeTabId` changes so Ctrl+Tab / Ctrl+Shift+Tab (or any external selection change) hides the overview as well (`QueryTabsView.swift:1586`).
+- Echo/Sources/UI/Workspace/Tabs/QueryTabsView.swift:598 made tab-strip selections collapse the Tab Overview immediately by clearing `appState.showTabOverview` after switching the active tab.
+- Echo/Sources/UI/Workspace/Tabs/QueryTabsView.swift:1579 listens for any external active-tab change (e.g. Ctrl+Tab / Ctrl+Shift+Tab) and hides the overview when it’s open.
+- Echo/Sources/UI/Workspace/Tabs/QueryTabsView.swift:1952 now accepts Control as an allowed modifier inside the overview’s key handler and routes `Ctrl+Tab` / `Ctrl+Shift+Tab` to `activateNextTab()`/`activatePreviousTab()`, while still supporting Tab/Shift+Tab selection and arrow navigation.
+
+Give Ctrl+Tab and Ctrl+Shift+Tab a try inside the overview—both should switch tabs and dismiss the grid right away.
+- Added a comprehensive tab-strip blueprint with layout metrics, behaviour rules, and the full Safari-style separator spec so we can restore today’s look-and-feel later (`Docs/TabBarLayout.md:1`).
+- Adjusted the separator logic so only the slot-adjacent dividers drop out while dragging; everything else stays visible the moment a tab passes by, matching the Safari interaction you described (`Echo/Sources/UI/Workspace/Tabs/QueryTabsView.swift:459`).
+- Pinning already lands the tab at the far left with the `pin.fill` badge, and the context menu/middle-click wiring continues to handle pin/unpin and close actions (`Echo/Sources/UI/Workspace/Tabs/QueryTabsView.swift:944`, `Echo/Sources/UI/Workspace/Tabs/QueryTabsView.swift:950`).
+
+Tests not run (not requested).

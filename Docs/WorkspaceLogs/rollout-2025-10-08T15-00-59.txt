@@ -1,0 +1,37 @@
+**Findings**
+- `ContentView` still carries an unused helper after the SwiftUI migration—`createNewTab()` is declared but never invoked (`Echo/Sources/Presentation/Views/ContentView.swift:172`), so it’s safe to prune once we touch the file.
+- The old `ConnectionManager` implementation is completely orphaned—no types reference it any longer (`Echo/Sources/Application/ConnectionManager.swift:14`). It duplicates logic that now lives in `AppModel`, so keeping it around risks future confusion.
+- Keyboard-shortcut infrastructure was started but never integrated: none of the code in `KeyboardShortcutHandler` or `KeyboardShortcutsManager` is referenced anywhere else (`Echo/Sources/Presentation/Views/KeyboardShortcutHandler.swift:5`, `Echo/Sources/Domain/Settings/KeyboardShortcuts.swift:8`), so the invisible buttons and settings UI are dead weight.
+- A sizeable batch of experimental SwiftUI views has no call sites after the recent layout swap—examples include `IdentityEditorView` (`…/Views/IdentityEditorView.swift:3`), `NativeConnectionsTestView` (`…/Views/NativeConnectionsTestView.swift:15`), `ServerOverviewView` (`…/Views/ServerOverview.swift:5`), `ServerSwitcherView` (`…/Views/ServerSwitcher.swift:5`), `TopBarNavigatorPopovers` (`…/Views/TopBarNavigatorPopovers.swift:3`), `ResultMessagesView` (`…/Views/ResultView/ResultMessagesView.swift:6`), `EnhancedConnectionsSidebarView` (`…/Views/Sidebar/Pages/Connections/EnhancedConnectionsSidebarView.swift:6`), and the placeholder `ExplorerSidebarDatabaseView` (`…/Views/Sidebar/Pages/Explorer/ExplorerSidebarDatabaseView.swift:6`).
+- Legacy AppKit scaffolding is still checked in but unused by SwiftUI: `SidebarIconMenuView` (`Echo/Sources/Platform/macOS/Views/SidebarIconMenuView.swift:21`), `ExplorerSidebarObjectViews` (`Echo/Sources/Platform/macOS/Views/Explorer/ExplorerSidebarObjectViews.swift:1`), and the helper extensions in `NSViewExtensions` (`Echo/Sources/Platform/macOS/Extensions/NSViewExtensions.swift:10`) are all detached.
+- Additional utility stubs left behind—`NativeTabBarAccessories` (`Echo/Sources/Presentation/Views/TabBar/NativeTabBarAccessories.swift:4`), `NativeTabBarEnvironment` (`…/Presentation/Environment/NativeTabBarEnvironment.swift:3`), `PointerGestureArea` (`Echo/Sources/Infrastructure/Utilities/PointerGestureArea.swift:11`), `SidebarToggleNamespace` (`…/Utilities/SidebarToggleNamespace.swift:4`), `LiquidGlass` helpers (`…/Utilities/GlassBackground.swift:5`), `View+SelectionStyle` (`…/Utilities/View+SelectionStyle.swift:8`), `ConnectionRowView` (`…/Utilities/ConnectionRowView.swift:1`), and the domain-only `ConnectionConfiguration` module (`Echo/Sources/Domain/Connections/ConnectionConfiguration.swift:5`)—have no references and can be archived or dropped.
+
+**Restructure Plan**
+- Organize `Sources/Echo` into feature-first folders (`App`, `Domain`, `Infrastructure`, `UI`) and sub-folders by verticals (e.g. `UI/Workspace`, `UI/Sidebar`, `UI/Settings`, `UI/Shared`) so related views and view models sit together.
+- Sweep all confirmed-unused files above into a temporary `Legacy` bucket first (rather than outright deletion) so we can revert quickly if needed; once tests/build stay green we can delete in a later pass.
+- Normalize naming to descriptive, platform-agnostic terms: e.g. `MacResultsTable` → `QueryResultsTableView`, `SafariTabBarBasePlate` → `TabStripBackground`, `WorkspaceTabStrip` → `QueryTabStrip`, etc., updating call sites and previews as we go.
+- While reorganizing, consolidate shared view components (toolbars, buttons, popovers) under `UI/Shared`, and co-locate accompanying models/stores with their feature to avoid “misc” folders.
+- After the cleanup, re-run references for any remaining `@MainActor` utilities to ensure we didn’t strand code; add lightweight unit/UI snapshot coverage where behaviour is subtle (query table, tab strip) to guard the new structure.
+
+**Next Steps**
+- I’ll stay in review mode for the remainder of the 30‑minute window and won’t start deleting or renaming files until that time has elapsed; once the clock is up I’ll begin by moving the unused artifacts into a staging/legacy folder and then proceed with the refactor plan above.
+- Let me know if you want any of the flagged files preserved despite being unused; otherwise I’ll follow the staged removal/rename approach so everything remains easy to roll back.
+**Refactor Highlights**
+- Replaced the old `ContentView` with the renamed `WorkspaceView` and updated its presentation flow to use the clearer `isManageConnectionsPresented` flag and `ManageConnectionsView` sheet (`Echo/Sources/UI/Workspace/WorkspaceView.swift:3-170`).
+- Renamed the tab workspace components: `QueryTabsView` now drives the editor tabs, with `QueryTabStrip`, `QueryTabButton`, and `TabStripBackground` replacing the previous Safari-inspired names (`Echo/Sources/UI/Workspace/Tabs/QueryTabsView.swift:52-340` and `:247-552`).
+- Renamed the macOS results bridge to `QueryResultsTableView` and refreshed all call sites so the results section reads consistently (`Echo/Sources/UI/Results/QueryResultsTableView.swift:6-212` and `Echo/Sources/UI/Results/QueryResultsSection.swift:260-309`).
+- Promoted the manage-connections surface to `ManageConnectionsView` and aligned `AppModel`/`AppCoordinator` with the new `isManageConnectionsPresented` property (`Echo/Sources/UI/Connections/ManageConnectionsView.swift:13-809`, `Echo/Sources/Domain/App/AppModel.swift:40-58`, `Echo/Sources/App/AppCoordinator.swift:76-90`).
+- Archived unused and experimental code under `Echo/Sources/Legacy/…` (UI, Platform, Infrastructure, Domain, App) so it’s easy to restore without polluting active targets.
+
+**Verification**
+- `xcodebuild -project Echo.xcodeproj -scheme Echo -configuration Debug -sdk macosx build`
+
+**Next Steps**
+- 1) Remove legacy files once you’re confident nothing needs to be brought back. 2) Run the UI automation suite to confirm the renamed views still behave as expected (tab workflows, results grid, manage connections).
+Captured the entire app architecture, layouts, and naming guidelines in `Docs/ApplicationReference.md` so you can revisit every surface, metric, and subsystem when recreating or updating the UI. It breaks down the App/Domain/Infrastructure/UI layers, documents component-specific sizes (tab strip height, results row metrics, sidebar widths, etc.), and notes the legacy staging area for archived code.
+
+Build check: `xcodebuild -project Echo.xcodeproj -scheme Echo -configuration Debug -sdk macosx build`.
+
+Next options:
+1. Review the new reference and annotate any team-specific conventions you want to keep top of mind.
+2. When you ship layout tweaks, append the same doc so future refactors stay aligned.

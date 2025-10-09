@@ -35,19 +35,18 @@ struct ExplorerSidebarView: View {
 
     var body: some View {
         ScrollViewReader { proxy in
-            ZStack(alignment: .center) {
+            ZStack(alignment: .bottom) {
                 VStack(spacing: 0) {
-                    // Sticky top bar when database is selected and not hovering
-                    if showConnectedServersSection, let session = selectedSession, session.selectedDatabaseName != nil, !isHoveringConnectedServers {
+                    if showConnectedServersSection,
+                       let session = selectedSession,
+                       session.selectedDatabaseName != nil,
+                       !isHoveringConnectedServers {
                         stickyTopBar()
                             .transition(.move(edge: .top).combined(with: .opacity))
                     }
 
-                    // Main scroll content
                     ScrollView {
                         LazyVStack(alignment: .leading, spacing: 10, pinnedViews: .sectionHeaders) {
-                            // Connected Servers section (shown when hovering or no database selected)
-                            // Hidden by default - controlled by showConnectedServersSection flag
                             if showConnectedServersSection && (isHoveringConnectedServers || selectedSession?.selectedDatabaseName == nil) {
                                 Section {
                                     Color.clear.frame(height: 0)
@@ -70,11 +69,14 @@ struct ExplorerSidebarView: View {
                             explorerContent(proxy: proxy)
                         }
                         .padding(.top, 12)
-                        .padding(.bottom, ExplorerSidebarConstants.scrollBottomPadding)
+                        .padding(.bottom, ExplorerSidebarConstants.scrollBottomPadding + ExplorerSidebarConstants.footerHeight)
                     }
                     .scrollIndicators(.hidden)
                     .contentShape(Rectangle())
                     .coordinateSpace(name: ExplorerSidebarConstants.scrollCoordinateSpace)
+                    .overlay(alignment: .top) {
+                        loadingOverlay
+                    }
                     .onAppear(perform: syncSelectionWithSessions)
                     .onChange(of: sessions.map { $0.connection.id }) { _, _ in
                         syncSelectionWithSessions()
@@ -114,24 +116,21 @@ struct ExplorerSidebarView: View {
                             proxy.scrollTo(ExplorerSidebarConstants.objectsTopAnchor, anchor: .top)
                         }
                     }
-            }
+                }
 
-            loadingOverlay
-        }
-        .safeAreaInset(edge: .bottom) {
-            bottomControls
-        }
-        .onAppear {
-            if let focus = appModel.pendingExplorerFocus {
+                footerOverlay
+            }
+            .onAppear {
+                if let focus = appModel.pendingExplorerFocus {
+                    handleExplorerFocus(focus, proxy: proxy)
+                }
+            }
+            .onChange(of: appModel.pendingExplorerFocus) { _, focus in
+                guard let focus else { return }
                 handleExplorerFocus(focus, proxy: proxy)
             }
         }
-        .onChange(of: appModel.pendingExplorerFocus) { _, focus in
-            guard let focus else { return }
-            handleExplorerFocus(focus, proxy: proxy)
-        }
     }
-}
 
     // MARK: - Connection Management
 
@@ -318,7 +317,6 @@ struct ExplorerSidebarView: View {
                                 selectedSchemaName: $selectedSchemaName,
                                 expandedObjectGroups: $expandedObjectGroups,
                                 expandedObjectIDs: $expandedObjectIDs,
-                                coordinateSpaceName: ExplorerSidebarConstants.scrollCoordinateSpace,
                                 scrollTo: { id, anchor in
                                     withAnimation(.easeInOut(duration: 0.3)) {
                                         proxy.scrollTo(id, anchor: anchor)
@@ -387,66 +385,117 @@ struct ExplorerSidebarView: View {
         }
     }
 
-    @ViewBuilder
-    private var bottomControls: some View {
-        if let session = selectedSession,
-           let structure = session.databaseStructure,
-           let database = selectedDatabase(in: structure, for: session) {
-            let shouldShowSchemaPicker = database.schemas.count > 1 && !isSearchFieldFocused
-            let fieldBackground = Color(nsColor: .controlBackgroundColor).opacity(0.85)
-            let strokeColor = Color.black.opacity(0.08)
+    private var footerOverlay: some View {
+        Group {
+            if let session = selectedSession,
+               let structure = session.databaseStructure,
+               let database = selectedDatabase(in: structure, for: session) {
+                let hasExplorerContent = database.schemas.contains { !$0.objects.isEmpty }
 
-            let hasExplorerContent = database.schemas.contains { !$0.objects.isEmpty }
-            let sidebarBackground = Color(nsColor: .underPageBackgroundColor)
-            let backgroundColor = hasExplorerContent ? sidebarBackground : Color.clear
+                VStack(spacing: 0) {
+                    Divider()
+                        .opacity(hasExplorerContent ? 1 : 0)
+                    footerControls(session: session, database: database)
+                }
+                .padding(.bottom, 8)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.clear)
+            } else {
+                EmptyView()
+            }
+        }
+    }
 
-            VStack(spacing: 0) {
-                HStack(spacing: 10) {
-                    NativeSearchField(
-                        text: $searchText,
-                        placeholder: "Search",
-                        isFocused: $isSearchFieldFocused
-                    )
-                    .frame(height: ExplorerSidebarConstants.bottomControlHeight)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 4)
-                    .background(
-                        RoundedRectangle(cornerRadius: 10, style: .continuous)
-                            .fill(fieldBackground)
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 10, style: .continuous)
-                            .stroke(strokeColor, lineWidth: 0.5)
-                    )
-                    .frame(maxWidth: .infinity)
+    private func footerControls(
+        session: ConnectionSession,
+        database: DatabaseInfo
+    ) -> some View {
+        let accentColor = appModel.useServerColorAsAccent ? session.connection.color : Color.accentColor
+        let controlBackground = Color.primary.opacity(0.04)
+        let borderColor = Color.primary.opacity(0.08)
+        let schemaDisplayName = selectedSchemaName ?? "All Schemas"
+        let shouldShowSchemaPicker = database.schemas.count > 1 && !isSearchFieldFocused
 
-                    if shouldShowSchemaPicker {
-                        Picker("Schema", selection: $selectedSchemaName) {
-                            Text("All Schemas").tag(nil as String?)
-                            ForEach(database.schemas, id: \.name) { schema in
-                                Text(schema.name).tag(Optional(schema.name))
+        return HStack(spacing: 6) {
+            NativeSearchField(
+                text: $searchText,
+                placeholder: "Search",
+                isFocused: $isSearchFieldFocused
+            )
+            .frame(height: ExplorerSidebarConstants.bottomControlHeight)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 3)
+            .background(
+                RoundedRectangle(cornerRadius: 9, style: .continuous)
+                    .fill(controlBackground)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 9, style: .continuous)
+                    .stroke(borderColor, lineWidth: 0.5)
+            )
+            .frame(maxWidth: .infinity)
+
+            if shouldShowSchemaPicker {
+                Menu {
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            selectedSchemaName = nil
+                        }
+                    } label: {
+                        if selectedSchemaName == nil {
+                            Label("All Schemas", systemImage: "checkmark")
+                        } else {
+                            Text("All Schemas")
+                        }
+                    }
+
+                    ForEach(database.schemas, id: \.name) { schema in
+                        Button {
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                selectedSchemaName = schema.name
+                            }
+                        } label: {
+                            if selectedSchemaName == schema.name {
+                                Label(schema.name, systemImage: "checkmark")
+                            } else {
+                                Text(schema.name)
                             }
                         }
-                        .labelsHidden()
-                        .pickerStyle(.menu)
-                        .frame(width: 150)
-                        .transition(.opacity)
                     }
+                } label: {
+                    HStack(spacing: 8) {
+                        Image("schema")
+                            .renderingMode(.template)
+                            .resizable()
+                            .frame(width: 12, height: 12)
+                            .foregroundStyle(selectedSchemaName == nil ? .secondary : accentColor)
+
+                        Text(schemaDisplayName)
+                            .font(.system(size: 12, weight: .medium))
+                            .lineLimit(1)
+                            .foregroundStyle(selectedSchemaName == nil ? Color.primary : accentColor)
+                    }
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 4)
+                    .frame(minWidth: 132, alignment: .leading)
+                    .background(
+                        RoundedRectangle(cornerRadius: 9, style: .continuous)
+                            .fill(controlBackground)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 9, style: .continuous)
+                            .stroke(borderColor, lineWidth: 0.5)
+                    )
                 }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 6)
-                .frame(maxWidth: .infinity)
+                .menuStyle(.borderlessButton)
+                .fixedSize()
+                .transition(.opacity)
             }
-            .background(backgroundColor)
-            .overlay(alignment: .top) {
-                if hasExplorerContent {
-                    Rectangle()
-                        .fill(sidebarBackground)
-                        .frame(height: 8)
-                }
-            }
-            .animation(.easeInOut(duration: 0.2), value: shouldShowSchemaPicker)
         }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
+        .animation(.easeInOut(duration: 0.2), value: shouldShowSchemaPicker)
+        .animation(.easeInOut(duration: 0.2), value: isSearchFieldFocused)
     }
 
     private func selectedDatabase(in structure: DatabaseStructure, for session: ConnectionSession) -> DatabaseInfo? {
@@ -827,7 +876,8 @@ private enum ExplorerSidebarConstants {
     static let objectsTopAnchor = "ExplorerSidebarObjectsTop"
     static let connectedServersAnchor = "ExplorerSidebarConnectedServers"
     static let scrollBottomPadding: CGFloat = 32
-    static let bottomControlHeight: CGFloat = 24
+    static let bottomControlHeight: CGFloat = 20
+    static let footerHeight: CGFloat = 56
 }
 
 // MARK: - Section Header
@@ -978,16 +1028,18 @@ private struct NativeSearchField: NSViewRepresentable {
         searchField.sendsSearchStringImmediately = true
         searchField.sendsWholeSearchString = true
         searchField.focusRingType = .none
-        searchField.font = NSFont.systemFont(ofSize: 13, weight: .regular)
+        searchField.controlSize = .small
+        searchField.font = NSFont.systemFont(ofSize: 12, weight: .regular)
         if let cell = searchField.cell as? NSSearchFieldCell {
             cell.cancelButtonCell = nil
             cell.placeholderAttributedString = NSAttributedString(
                 string: placeholder,
                 attributes: [
                     .foregroundColor: NSColor.placeholderTextColor,
-                    .font: NSFont.systemFont(ofSize: 13)
+                    .font: NSFont.systemFont(ofSize: 12)
                 ]
             )
+            cell.controlSize = .small
         }
         return searchField
     }
@@ -999,20 +1051,14 @@ private struct NativeSearchField: NSViewRepresentable {
 
         guard let cell = nsView.cell as? NSSearchFieldCell else { return }
 
-        if isFocused {
-            if cell.placeholderAttributedString != nil {
-                cell.placeholderAttributedString = nil
-            }
-        } else {
-            if cell.placeholderAttributedString?.string != placeholder {
-                cell.placeholderAttributedString = NSAttributedString(
-                    string: placeholder,
-                    attributes: [
-                        .foregroundColor: NSColor.placeholderTextColor,
-                        .font: NSFont.systemFont(ofSize: 13)
-                    ]
-                )
-            }
+        if cell.placeholderAttributedString?.string != placeholder {
+            cell.placeholderAttributedString = NSAttributedString(
+                string: placeholder,
+                attributes: [
+                    .foregroundColor: NSColor.placeholderTextColor,
+                    .font: NSFont.systemFont(ofSize: 12)
+                ]
+            )
         }
 
         if let searchButtonCell = cell.searchButtonCell {
