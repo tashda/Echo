@@ -140,6 +140,7 @@ final class AppCoordinator: ObservableObject {
     }
 
     private func applyEditorAppearance(project: Project?, global: GlobalSettings) {
+        ThemeManager.shared.applyAppearanceMode(global.appearanceMode)
         appState.sqlEditorDisplay = SQLEditorThemeResolver.resolveDisplayOptions(globalSettings: global, project: project)
         applyEditorTheme(project: project, global: global)
     }

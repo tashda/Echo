@@ -80,6 +80,7 @@ struct WorkspaceView: View {
         .onChange(of: appState.activeSheet) { _, newSheet in
             showingConnectionEditor = (newSheet == .connectionEditor)
         }
+        .accentColor(themeManager.accentColor)
     }
 }
 

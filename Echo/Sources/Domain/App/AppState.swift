@@ -17,7 +17,7 @@ import Combine
     @Published var isQueryRunning = false
     @Published var queryHistory: [QueryHistoryItem] = []
     @Published var currentQuery = "SELECT NOW();"
-    @Published var sqlEditorTheme = SQLEditorTheme()
+    @Published var sqlEditorTheme = SQLEditorTheme.fallback()
     @Published var sqlEditorDisplay = SQLEditorDisplayOptions()
 
     // MARK: - Connection State
