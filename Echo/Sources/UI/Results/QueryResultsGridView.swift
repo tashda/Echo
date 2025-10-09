@@ -1,6 +1,7 @@
 import SwiftUI
 
 #if os(macOS)
+import AppKit
 /// Thin SwiftUI wrapper that allows callers to continue referencing the grid-style
 /// results view while the macOS implementation delegates to the AppKit-backed table.
 struct QueryResultsGridView: View {
@@ -29,7 +30,8 @@ struct QueryResultsGridView: View {
                     gridAction = .clear
                 }
                 onSort(columnIndex, gridAction)
-            }
+            },
+            backgroundColor: NSColor.windowBackgroundColor
         )
     }
 }

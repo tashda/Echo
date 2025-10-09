@@ -13,7 +13,28 @@ struct QueryInputSection: View {
     let completionContext: SQLEditorCompletionContext?
 
     @EnvironmentObject private var appState: AppState
+    @EnvironmentObject private var appModel: AppModel
     @EnvironmentObject private var themeManager: ThemeManager
+
+    private var targetTone: SQLEditorPalette.Tone {
+        themeManager.effectiveColorScheme == .dark ? .dark : .light
+    }
+
+    private var editorTheme: SQLEditorTheme {
+        let resolved = appState.sqlEditorTheme
+        if resolved.tone == targetTone {
+            return resolved
+        }
+        return SQLEditorThemeResolver.resolve(
+            globalSettings: appModel.globalSettings,
+            project: appModel.selectedProject,
+            tone: targetTone
+        )
+    }
+
+    private var editorBackground: Color {
+        editorTheme.surfaces.background.color
+    }
 
     @State private var currentSelection = SQLEditorSelection(
         selectedText: "",
@@ -39,9 +60,9 @@ struct QueryInputSection: View {
         ZStack(alignment: .bottomTrailing) {
             SQLEditorView(
                 text: $query.sql,
-                theme: appState.sqlEditorTheme,
+                theme: editorTheme,
                 display: appState.sqlEditorDisplay,
-                backgroundColor: themeManager.windowBackground,
+                backgroundColor: editorBackground,
                 completionContext: completionContext,
                 onTextChange: { newText in
                     if query.sql != newText {
@@ -62,7 +83,7 @@ struct QueryInputSection: View {
                 .padding(.bottom, verticalPadding)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .background(themeManager.windowBackground)
+        .background(editorBackground)
     }
 
     private var runButton: some View {

@@ -1525,7 +1525,7 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
         textColor = theme.tokenColors.plain.nsColor
         insertionPointColor = theme.tokenColors.operatorSymbol.nsColor
         drawsBackground = true
-        backgroundColor = backgroundOverride ?? theme.palette.background.nsColor
+        backgroundColor = backgroundOverride ?? theme.surfaces.background.nsColor
         updateParagraphStyle()
         lineNumberRuler?.theme = theme
         lineNumberRuler?.highlightedLines = selectedLineRange()
@@ -2416,18 +2416,24 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
     }
 
     private func symbolHighlightColor(_ strength: SymbolHighlightStrength) -> NSColor {
-        let selectionColor = theme.palette.selection.nsColor
-        let background = backgroundOverride ?? theme.palette.background.nsColor
+        let selectionColor = theme.surfaces.selection.nsColor
+        let background = backgroundOverride ?? theme.surfaces.background.nsColor
         let fallback = selectionColor
 
         let blended: NSColor
         switch strength {
         case .bright:
+            if let explicit = theme.surfaces.symbolHighlightBright?.nsColor {
+                return explicit
+            }
             blended = selectionColor.blended(withFraction: 0.35, of: background) ?? fallback
-            return blended.withAlphaComponent(max(blended.alphaComponent, theme.palette.isDark ? 0.55 : 0.65))
+            return blended.withAlphaComponent(max(blended.alphaComponent, theme.tone == .dark ? 0.55 : 0.65))
         case .strong:
+            if let explicit = theme.surfaces.symbolHighlightStrong?.nsColor {
+                return explicit
+            }
             blended = selectionColor.blended(withFraction: 0.15, of: background) ?? fallback
-            return blended.withAlphaComponent(max(blended.alphaComponent, theme.palette.isDark ? 0.8 : 0.75))
+            return blended.withAlphaComponent(max(blended.alphaComponent, theme.tone == .dark ? 0.8 : 0.75))
         }
     }
 
@@ -2626,7 +2632,7 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
         ]
 
         selectedTextAttributes = [
-            .backgroundColor: theme.palette.selection.nsColor.withAlphaComponent(0.3),
+            .backgroundColor: theme.surfaces.selection.nsColor.withAlphaComponent(0.3),
             .foregroundColor: theme.tokenColors.plain.nsColor,
             .paragraphStyle: style
         ]
@@ -3329,7 +3335,7 @@ final class LineNumberRulerView: NSRulerView {
 
         let attributes: [NSAttributedString.Key: Any] = [
             .font: NSFont.monospacedDigitSystemFont(ofSize: 11, weight: .regular),
-            .foregroundColor: theme.palette.gutterText.nsColor,
+            .foregroundColor: theme.surfaces.gutterText.nsColor,
             .paragraphStyle: paragraphStyle
         ]
 
@@ -3666,7 +3672,7 @@ private struct IOSSQLEditorRepresentable: UIViewRepresentable {
         let textView = UITextView()
         textView.font = theme.uiFont
         textView.textColor = theme.tokenColors.plain.uiColor
-        textView.backgroundColor = (backgroundColor.map(UIColor.init)) ?? theme.palette.background.uiColor
+        textView.backgroundColor = (backgroundColor.map(UIColor.init)) ?? theme.surfaces.background.uiColor
         textView.tintColor = theme.tokenColors.operatorSymbol.uiColor
         textView.autocorrectionType = .no
         textView.autocapitalizationType = .none
@@ -3687,7 +3693,7 @@ private struct IOSSQLEditorRepresentable: UIViewRepresentable {
         }
         uiView.font = theme.uiFont
         uiView.textColor = theme.tokenColors.plain.uiColor
-        uiView.backgroundColor = (backgroundColor.map(UIColor.init)) ?? theme.palette.background.uiColor
+        uiView.backgroundColor = (backgroundColor.map(UIColor.init)) ?? theme.surfaces.background.uiColor
         uiView.tintColor = theme.tokenColors.operatorSymbol.uiColor
         uiView.textContainer.widthTracksTextView = display.wrapLines
     }

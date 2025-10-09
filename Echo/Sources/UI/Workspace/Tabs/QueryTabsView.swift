@@ -21,6 +21,14 @@ private struct TrailingControlsWidthPreferenceKey: PreferenceKey {
     }
 }
 
+private struct TabGroupWidthPreferenceKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = nextValue()
+    }
+}
+
 struct QueryTabsView: View {
     @EnvironmentObject private var appModel: AppModel
     @EnvironmentObject private var appState: AppState
@@ -224,10 +232,33 @@ struct QueryTabStrip: View {
     @EnvironmentObject private var appModel: AppModel
     @EnvironmentObject private var appState: AppState
     @Environment(\.colorScheme) private var colorScheme
+    @EnvironmentObject private var themeManager: ThemeManager
 
     @State private var trailingControlsWidth: CGFloat = 0
+    @State private var lastMeasuredTrailingControlsWidth: CGFloat = 0
+    @State private var tabGroupWidth: CGFloat = 0
     @State private var hoveredTabID: UUID?
     @State private var dragState = TabDragState()
+
+    private var themedAppearance: TabChromePalette? {
+#if os(macOS)
+        guard appState.themeTabs else { return nil }
+        return TabChromePalette(
+            theme: themeManager.activeTheme,
+            accent: themeManager.accentNSColor,
+            fallbackScheme: colorScheme
+        )
+#else
+        return nil
+#endif
+    }
+
+    private var tabStripStyle: TabStripBackground.Style {
+        if let appearance = themedAppearance {
+            return .themed(appearance)
+        }
+        return .standard(colorScheme)
+    }
 
     private struct TabDragState: Equatable {
         var id: UUID?
@@ -263,8 +294,8 @@ struct QueryTabStrip: View {
             let hasTabs = !tabs.isEmpty
             let orderedTabs = combinedTabs(from: tabs)
 
-            let reservedTrailingWidth = hasTabs ? max(trailingControlsWidth, trailingFallbackWidth) : 0
-            let availableWidth = max(geo.size.width - leadingPadding - trailingPadding - reservedTrailingWidth, 0)
+            let resolvedTrailingWidth = hasTabs ? max(trailingControlsWidth > 0 ? trailingControlsWidth : lastMeasuredTrailingControlsWidth, trailingFallbackWidth) : 0
+            let availableWidth = max(geo.size.width - leadingPadding - trailingPadding - resolvedTrailingWidth, 0)
             let separatorWidth = CGFloat(max(orderedTabs.count - 1, 0)) * tabHairlineWidth()
             let effectiveWidth = max(availableWidth - separatorWidth, 0)
             let tabWidth = orderedTabs.isEmpty ? 0 : effectiveWidth / CGFloat(orderedTabs.count)
@@ -273,9 +304,9 @@ struct QueryTabStrip: View {
 #if os(macOS)
                 let basePlateSideInset: CGFloat = 6
                 if hasTabs {
-                    TabStripBackground()
-                        .padding(.leading, leadingPadding + basePlateSideInset)
-                        .padding(.trailing, trailingPadding + reservedTrailingWidth + basePlateSideInset)
+                    TabStripBackground(style: tabStripStyle)
+                        .frame(width: max(tabGroupWidth + 3, 0))
+                        .offset(x: leadingPadding + basePlateSideInset)
                 }
 #endif
 
@@ -288,7 +319,8 @@ struct QueryTabStrip: View {
                             hasActiveSession: appModel.sessionManager.activeSession != nil,
                             isTabOverviewActive: appState.showTabOverview,
                             onNewTab: createNewTab,
-                            onToggleOverview: toggleOverview
+                            onToggleOverview: toggleOverview,
+                            appearance: themedAppearance
                         )
                         .background(
                             GeometryReader { proxy in
@@ -309,10 +341,18 @@ struct QueryTabStrip: View {
         .clipped()
         .onPreferenceChange(TrailingControlsWidthPreferenceKey.self) { width in
             trailingControlsWidth = width
+            if width > 0 {
+                lastMeasuredTrailingControlsWidth = width
+            }
+        }
+        .onPreferenceChange(TabGroupWidthPreferenceKey.self) { width in
+            tabGroupWidth = width
         }
         .onChange(of: appModel.tabManager.tabs.isEmpty) { isEmpty in
             if isEmpty {
                 trailingControlsWidth = 0
+                lastMeasuredTrailingControlsWidth = 0
+                tabGroupWidth = 0
                 hoveredTabID = nil
             }
         }
@@ -334,7 +374,7 @@ struct QueryTabStrip: View {
             ForEach(Array(orderedTabs.enumerated()), id: \.element.0.id) { index, element in
                 let tab = element.0
 
-                tabButtonView(tab: tab, targetWidth: tabWidth, index: index, totalCount: orderedTabs.count)
+                tabButtonView(tab: tab, targetWidth: tabWidth, index: index, totalCount: orderedTabs.count, appearance: themedAppearance)
                     .offset(x: tabOffset(for: tab, index: index, tabWidth: tabWidth))
                     .zIndex(tabZIndex(for: tab))
                     .overlay(alignment: .trailing) {
@@ -355,6 +395,11 @@ struct QueryTabStrip: View {
                     )
             }
         }
+        .background(
+            GeometryReader { proxy in
+                Color.clear.preference(key: TabGroupWidthPreferenceKey.self, value: proxy.size.width)
+            }
+        )
     }
 
     private func tabOffset(for tab: WorkspaceTab, index: Int, tabWidth: CGFloat) -> CGFloat {
@@ -388,6 +433,9 @@ struct QueryTabStrip: View {
     }
 
     private var separatorColor: Color {
+        if let palette = themedAppearance {
+            return palette.separatorColor
+        }
         if colorScheme == .dark {
             return Color.white.opacity(0.20)
         } else {
@@ -499,7 +547,7 @@ struct QueryTabStrip: View {
     }
 
     @ViewBuilder
-    private func tabButtonView(tab: WorkspaceTab, targetWidth: CGFloat, index: Int, totalCount: Int) -> some View {
+    private func tabButtonView(tab: WorkspaceTab, targetWidth: CGFloat, index: Int, totalCount: Int, appearance: TabChromePalette?) -> some View {
         let isActive = appModel.tabManager.activeTabId == tab.id
         let tabIndex = appModel.tabManager.index(of: tab.id) ?? 0
         let hasLeft = tabIndex > 0
@@ -525,6 +573,7 @@ struct QueryTabStrip: View {
             closeTabsRightDisabled: !hasRight,
             isDropTarget: false,
             isBeingDragged: isBeingDragged,
+            appearance: appearance,
             onHoverChanged: { hovering in
                 if hovering {
                     hoveredTabID = tab.id
@@ -784,6 +833,7 @@ private struct QueryTabButton: View {
     let closeTabsRightDisabled: Bool
     let isDropTarget: Bool
     let isBeingDragged: Bool
+    let appearance: TabChromePalette?
     let onHoverChanged: (Bool) -> Void
 
     @State private var isHovering = false
@@ -950,6 +1000,25 @@ private struct QueryTabButton: View {
 
 #if os(macOS)
     private var macTabFillGradient: LinearGradient? {
+        if let appearance {
+            if isDropTarget {
+                return appearance.dropTabFill
+            }
+
+            if isActive {
+                if effectiveHovering {
+                    return appearance.hoverTabFill
+                } else {
+                    return appearance.activeTabFill
+                }
+            }
+
+            if shouldTreatAsHover {
+                return appearance.hoverTabFill
+            }
+
+            return appearance.inactiveTabFill
+        }
         if isDropTarget {
             return tabDropHighlightGradient
         }
@@ -982,6 +1051,21 @@ private struct QueryTabButton: View {
     }
 
     private var macTabBorderColor: Color? {
+        if let appearance {
+            if isDropTarget {
+                return appearance.dropTabBorder
+            }
+
+            if isActive {
+                return appearance.activeTabBorder
+            }
+
+            if shouldTreatAsHover {
+                return appearance.hoverTabBorder
+            }
+
+            return appearance.inactiveTabBorder
+        }
         if isDropTarget {
             return tabDropBorderColor
         }
@@ -1012,6 +1096,9 @@ private struct QueryTabButton: View {
 
     private var tabDropHighlightGradient: LinearGradient {
 #if os(macOS)
+        if let appearance {
+            return appearance.dropTabFill
+        }
         if colorScheme == .dark {
             return LinearGradient(colors: [Color.white.opacity(0.24), Color.white.opacity(0.18)], startPoint: .top, endPoint: .bottom)
         } else {
@@ -1032,6 +1119,9 @@ private struct QueryTabButton: View {
 
     private var tabDropBorderColor: Color {
 #if os(macOS)
+        if let appearance {
+            return appearance.dropTabBorder
+        }
         if colorScheme == .dark {
             return Color.white.opacity(0.15)
         } else {
@@ -1044,6 +1134,9 @@ private struct QueryTabButton: View {
 
     private var hoverHighlightColor: Color {
 #if os(macOS)
+        if let appearance {
+            return appearance.hoverTabBorder
+        }
         return colorScheme == .dark ? Color.white.opacity(0.38) : Color.white.opacity(0.55)
 #else
         return Color.white.opacity(0.4)
@@ -1075,6 +1168,9 @@ private struct QueryTabButton: View {
         if isDropTarget {
             return Color.white
         }
+        if let appearance {
+            return isActive ? appearance.activeTitle : appearance.inactiveTitle
+        }
         if tab.isPinned {
             return Color(nsColor: isActive ? .labelColor : .secondaryLabelColor.withAlphaComponent(0.75))
         }
@@ -1092,6 +1188,9 @@ private struct QueryTabButton: View {
         if isDropTarget {
             return Color.white
         }
+        if let appearance {
+            return isActive ? appearance.activeIcon : appearance.inactiveIcon
+        }
         if tab.isPinned {
             return Color(nsColor: isActive ? .labelColor : .secondaryLabelColor)
         }
@@ -1106,6 +1205,12 @@ private struct QueryTabButton: View {
 
     private var closeButtonForeground: Color {
 #if os(macOS)
+        if let appearance {
+            if isDropTarget { return Color.white }
+            if isHoveringClose { return appearance.closeHoverForeground }
+            if isActive { return appearance.closeForeground }
+            return appearance.closeForeground.opacity(0.85)
+        }
         if isDropTarget { return Color.white }
         if isHoveringClose {
             return Color(nsColor: .labelColor)
@@ -1121,6 +1226,9 @@ private struct QueryTabButton: View {
 
     private var closeButtonBackground: Color {
 #if os(macOS)
+        if let appearance, shouldShowClose, isHoveringClose {
+            return appearance.closeHoverBackground
+        }
         guard shouldShowClose, isHoveringClose else { return Color.clear }
         if colorScheme == .dark {
             return Color.white.opacity(0.18)
@@ -1182,6 +1290,7 @@ private struct TabBarTrailingControls: View {
     let isTabOverviewActive: Bool
     let onNewTab: () -> Void
     let onToggleOverview: () -> Void
+    let appearance: TabChromePalette?
 
     var body: some View {
         HStack(spacing: 6) {
@@ -1191,6 +1300,7 @@ private struct TabBarTrailingControls: View {
                 isActive: false,
                 isEnabled: hasActiveSession,
                 activeSymbolVariant: nil,
+                appearance: appearance,
                 action: onNewTab
             )
 #if os(macOS)
@@ -1203,6 +1313,7 @@ private struct TabBarTrailingControls: View {
                 isActive: isTabOverviewActive,
                 isEnabled: true,
                 activeSymbolVariant: .fill,
+                appearance: appearance,
                 action: onToggleOverview
             )
 #if os(macOS)
@@ -1219,6 +1330,7 @@ private struct TabStripActionButton: View {
     let isActive: Bool
     let isEnabled: Bool
     let activeSymbolVariant: SymbolVariants?
+    let appearance: TabChromePalette?
     let action: () -> Void
 
     @Environment(\.colorScheme) private var colorScheme
@@ -1230,6 +1342,7 @@ private struct TabStripActionButton: View {
         }
         .buttonStyle(.plain)
         .frame(width: 28, height: 28)
+        .contentShape(Circle())
         .background(buttonBackground)
         .overlay(buttonBorder)
         .shadow(color: buttonShadowColor, radius: buttonShadowRadius, y: buttonShadowYOffset)
@@ -1269,6 +1382,15 @@ private struct TabStripActionButton: View {
 
     private var buttonBackgroundGradient: LinearGradient {
 #if os(macOS)
+        if let palette = appearance {
+            if isActive {
+                return palette.actionButtonFill
+            }
+            if isHovering && isEnabled {
+                return palette.actionButtonFillHover
+            }
+            return palette.actionButtonFillInactive
+        }
         if isActive {
             let accent = Color(nsColor: NSColor.controlAccentColor)
             let top = accent.opacity(colorScheme == .dark ? 0.75 : 0.45)
@@ -1297,6 +1419,15 @@ private struct TabStripActionButton: View {
 
     private var borderColor: Color {
 #if os(macOS)
+        if let palette = appearance {
+            if isActive {
+                return palette.actionButtonBorder
+            }
+            if isHovering && isEnabled {
+                return palette.actionButtonBorder.opacity(0.85)
+            }
+            return palette.actionButtonBorder.opacity(0.6)
+        }
         if isActive {
             return Color(nsColor: NSColor.controlAccentColor.withAlphaComponent(colorScheme == .dark ? 0.75 : 0.32))
         }
@@ -1308,6 +1439,18 @@ private struct TabStripActionButton: View {
 
     private var iconColor: Color {
 #if os(macOS)
+        if let palette = appearance {
+            if !isEnabled {
+                return palette.actionButtonIcon.opacity(0.4)
+            }
+            if isActive {
+                return palette.actionButtonIcon
+            }
+            if isHovering {
+                return palette.actionButtonIcon.opacity(0.9)
+            }
+            return palette.actionButtonIcon.opacity(0.75)
+        }
         if !isEnabled {
             return Color(nsColor: .tertiaryLabelColor)
         }
@@ -1325,6 +1468,12 @@ private struct TabStripActionButton: View {
 
     private var buttonShadowColor: Color {
 #if os(macOS)
+        if let palette = appearance {
+            if isActive {
+                return palette.shadowColor
+            }
+            return Color.clear
+        }
         if isActive {
             return colorScheme == .dark ? Color.black.opacity(0.55) : Color.black.opacity(0.25)
         }
@@ -1915,41 +2064,108 @@ private struct TabPreviewCard: View {
 #if os(macOS)
 // MARK: - Safari-Style Tab Bar Chrome
 
-private struct SafariTabBarBackground: View {
-    @Environment(\.colorScheme) private var colorScheme
+private struct TabChromePalette {
+    let baseFill: LinearGradient
+    let baseStroke: Color
+    let baseShadow: Color
+    let activeTabFill: LinearGradient
+    let inactiveTabFill: LinearGradient
+    let hoverTabFill: LinearGradient
+    let dropTabFill: LinearGradient
+    let activeTabBorder: Color
+    let hoverTabBorder: Color
+    let inactiveTabBorder: Color
+    let dropTabBorder: Color
+    let activeTitle: Color
+    let inactiveTitle: Color
+    let activeIcon: Color
+    let inactiveIcon: Color
+    let closeForeground: Color
+    let closeHoverForeground: Color
+    let closeHoverBackground: Color
+    let shadowColor: Color
+    let actionButtonFill: LinearGradient
+    let actionButtonFillHover: LinearGradient
+    let actionButtonFillInactive: LinearGradient
+    let actionButtonBorder: Color
+    let actionButtonIcon: Color
+    let separatorColor: Color
 
-    var body: some View {
-        LinearGradient(colors: backgroundColors, startPoint: .top, endPoint: .bottom)
-            .allowsHitTesting(false)
-    }
+    init(theme: AppColorTheme, accent: NSColor, fallbackScheme: ColorScheme) {
+        let baseBackground = theme.surfaceBackground.nsColor.usingColorSpace(.deviceRGB) ?? theme.surfaceBackground.nsColor
+        let selection = theme.editorSelection.nsColor.usingColorSpace(.deviceRGB) ?? theme.editorSelection.nsColor
+        let textColor = theme.surfaceForeground.nsColor
+        let accentColor = (theme.accent?.nsColor ?? accent).usingColorSpace(.deviceRGB) ?? accent
+        let toneIsDark = theme.tone == .dark
 
-    private var backgroundColors: [Color] {
-        if colorScheme == .dark {
-            return [
-                Color.white.opacity(0.16),
-                Color.black.opacity(0.14)
-            ]
-        } else {
-            return [
-                Color(white: 0.94),
-                Color(white: 0.88)
-            ]
-        }
+        let baseTop = lighten(baseBackground, by: toneIsDark ? 0.05 : 0.14)
+        let baseBottom = darken(baseBackground, by: toneIsDark ? 0.12 : 0.08)
+        baseFill = LinearGradient(colors: [Color(nsColor: baseTop), Color(nsColor: baseBottom)], startPoint: .top, endPoint: .bottom)
+        baseStroke = Color(nsColor: darken(baseBackground, by: toneIsDark ? 0.18 : 0.12))
+        baseShadow = toneIsDark ? Color.black.opacity(0.55) : Color.black.opacity(0.08)
+
+        let accentTop = lighten(accentColor, by: 0.18)
+        let accentBottom = darken(accentColor, by: 0.12)
+        activeTabFill = LinearGradient(colors: [Color(nsColor: accentTop), Color(nsColor: accentBottom)], startPoint: .top, endPoint: .bottom)
+
+        let inactiveTop = lighten(baseBackground, by: toneIsDark ? 0.08 : 0.06)
+        let inactiveBottom = darken(baseBackground, by: toneIsDark ? 0.10 : 0.05)
+        inactiveTabFill = LinearGradient(colors: [Color(nsColor: inactiveTop), Color(nsColor: inactiveBottom)], startPoint: .top, endPoint: .bottom)
+
+        let hoverTop = lighten(selection, by: 0.12)
+        let hoverBottom = darken(selection, by: 0.08)
+        hoverTabFill = LinearGradient(colors: [Color(nsColor: hoverTop), Color(nsColor: hoverBottom)], startPoint: .top, endPoint: .bottom)
+        dropTabFill = LinearGradient(colors: [Color(nsColor: accentTop), Color(nsColor: accentBottom)], startPoint: .top, endPoint: .bottom)
+
+        activeTabBorder = Color(nsColor: darken(accentColor, by: 0.18))
+        hoverTabBorder = Color(nsColor: darken(selection, by: 0.16))
+        inactiveTabBorder = Color(nsColor: darken(baseBackground, by: toneIsDark ? 0.16 : 0.10))
+        dropTabBorder = Color(nsColor: darken(accentColor, by: 0.25))
+
+        activeTitle = Color(nsColor: textColor)
+        inactiveTitle = Color(nsColor: lighten(textColor, by: toneIsDark ? 0.12 : 0.28))
+        activeIcon = activeTitle
+        inactiveIcon = inactiveTitle
+        closeForeground = Color(nsColor: lighten(textColor, by: 0.1))
+        closeHoverForeground = Color.white
+        closeHoverBackground = Color(nsColor: lighten(accentColor, by: 0.25)).opacity(0.9)
+        shadowColor = baseShadow
+        actionButtonFill = LinearGradient(colors: [Color(nsColor: lighten(accentColor, by: 0.2)), Color(nsColor: darken(accentColor, by: 0.12))], startPoint: .top, endPoint: .bottom)
+        actionButtonFillHover = LinearGradient(colors: [Color(nsColor: lighten(accentColor, by: 0.24)), Color(nsColor: darken(accentColor, by: 0.08))], startPoint: .top, endPoint: .bottom)
+        let inactiveActionTop = lighten(baseBackground, by: 0.12)
+        let inactiveActionBottom = darken(baseBackground, by: 0.06)
+        actionButtonFillInactive = LinearGradient(colors: [Color(nsColor: inactiveActionTop), Color(nsColor: inactiveActionBottom)], startPoint: .top, endPoint: .bottom)
+        actionButtonBorder = Color(nsColor: darken(accentColor, by: 0.2))
+        actionButtonIcon = Color.white
+        separatorColor = Color(nsColor: darken(baseBackground, by: toneIsDark ? 0.24 : 0.18)).opacity(0.85)
     }
 }
 
-private struct SafariTabBarTopEdge: View {
-    @Environment(\.colorScheme) private var colorScheme
+private func clamp(_ value: CGFloat) -> CGFloat { min(max(value, 0), 1) }
 
-    var body: some View {
-        Rectangle()
-            .fill(colorScheme == .dark ? Color.white.opacity(0.14) : Color.white.opacity(0.55))
-            .frame(height: tabHairlineWidth())
-    }
+private func lighten(_ color: NSColor, by amount: CGFloat) -> NSColor {
+    let rgb = color.usingColorSpace(.deviceRGB) ?? color
+    return NSColor(red: clamp(rgb.redComponent + amount),
+                   green: clamp(rgb.greenComponent + amount),
+                   blue: clamp(rgb.blueComponent + amount),
+                   alpha: rgb.alphaComponent)
+}
+
+private func darken(_ color: NSColor, by amount: CGFloat) -> NSColor {
+    let rgb = color.usingColorSpace(.deviceRGB) ?? color
+    return NSColor(red: clamp(rgb.redComponent - amount),
+                   green: clamp(rgb.greenComponent - amount),
+                   blue: clamp(rgb.blueComponent - amount),
+                   alpha: rgb.alphaComponent)
 }
 
 private struct TabStripBackground: View {
-    @Environment(\.colorScheme) private var colorScheme
+    enum Style {
+        case standard(ColorScheme)
+        case themed(TabChromePalette)
+    }
+
+    var style: Style
 
     private var shape: RoundedRectangle {
         RoundedRectangle(cornerRadius: 15, style: .continuous)
@@ -1957,42 +2173,63 @@ private struct TabStripBackground: View {
 
     var body: some View {
         shape
-            .fill(baseFill)
-            .overlay(shape.stroke(baseStroke, lineWidth: tabHairlineWidth()))
-            .shadow(color: baseShadow, radius: 2.5, y: 1)
-            .frame(maxWidth: .infinity)
+            .fill(fillGradient)
+            .overlay(shape.stroke(strokeColor, lineWidth: tabHairlineWidth()))
+            .shadow(color: shadowColor, radius: 2.5, y: 1)
             .frame(height: 24)
             .allowsHitTesting(false)
     }
 
-    private var baseFill: LinearGradient {
-        if colorScheme == .dark {
-            return LinearGradient(colors: [
-                Color.white.opacity(0.20),
-                Color.white.opacity(0.13)
-            ], startPoint: .top, endPoint: .bottom)
-        } else {
-            return LinearGradient(colors: [
-                Color(white: 0.96),
-                Color(white: 0.90)
-            ], startPoint: .top, endPoint: .bottom)
+    private var fillGradient: LinearGradient {
+        switch style {
+        case .standard(let scheme):
+            if scheme == .dark {
+                return LinearGradient(colors: [
+                    Color.white.opacity(0.20),
+                    Color.white.opacity(0.13)
+                ], startPoint: .top, endPoint: .bottom)
+            } else {
+                return LinearGradient(colors: [
+                    Color(white: 0.96),
+                    Color(white: 0.90)
+                ], startPoint: .top, endPoint: .bottom)
+            }
+        case .themed(let palette):
+            return palette.baseFill
         }
     }
 
-    private var baseStroke: Color {
-        if colorScheme == .dark {
-            return Color.white.opacity(0.24)
-        } else {
-            return Color(white: 0.84)
+    private var strokeColor: Color {
+        switch style {
+        case .standard(let scheme):
+            return scheme == .dark ? Color.white.opacity(0.24) : Color(white: 0.84)
+        case .themed(let palette):
+            return palette.baseStroke
         }
     }
 
-    private var baseShadow: Color {
-        if colorScheme == .dark {
-            return Color.black.opacity(0.26)
-        } else {
-            return Color.black.opacity(0.06)
+    private var shadowColor: Color {
+        switch style {
+        case .standard(let scheme):
+            return scheme == .dark ? Color.black.opacity(0.26) : Color.black.opacity(0.06)
+        case .themed(let palette):
+            return palette.baseShadow
         }
+    }
+}
+
+private struct SafariTabBarBackground: View {
+    var body: some View {
+        LinearGradient(colors: [Color.white.opacity(0.16), Color.black.opacity(0.14)], startPoint: .top, endPoint: .bottom)
+            .allowsHitTesting(false)
+    }
+}
+
+private struct SafariTabBarTopEdge: View {
+    var body: some View {
+        Rectangle()
+            .fill(Color.white.opacity(0.45))
+            .frame(height: tabHairlineWidth())
     }
 }
 
@@ -2084,6 +2321,16 @@ extension View {
     }
 }
 #else
+private struct TabChromePalette {}
+
+private struct TabStripBackground: View {
+    var body: some View {
+        RoundedRectangle(cornerRadius: 15, style: .continuous)
+            .fill(Color(white: 0.92))
+            .allowsHitTesting(false)
+    }
+}
+
 extension View {
     func onMiddleClick(perform action: @escaping () -> Void) -> some View {
         self

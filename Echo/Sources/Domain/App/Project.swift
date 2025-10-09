@@ -703,6 +703,8 @@ struct GlobalSettings: Codable, Hashable {
     var activeThemeIDLight: AppColorTheme.ID?
     var activeThemeIDDark: AppColorTheme.ID?
     var themeTabs: Bool = false
+    var themeResultsGrid: Bool = true
+    var resultsAlternateRowShading: Bool = false
 
     // Window preferences
     var defaultWindowWidth: Double?
@@ -726,6 +728,8 @@ struct GlobalSettings: Codable, Hashable {
         editorEnableAutocomplete: Bool = true,
         useServerColorAsAccent: Bool = true,
         themeTabs: Bool = false,
+        themeResultsGrid: Bool = true,
+        resultsAlternateRowShading: Bool = false,
         defaultWindowWidth: Double? = nil,
         defaultWindowHeight: Double? = nil,
         activeThemeIDLight: AppColorTheme.ID? = nil,
@@ -748,6 +752,8 @@ struct GlobalSettings: Codable, Hashable {
         self.editorEnableAutocomplete = editorEnableAutocomplete
         self.useServerColorAsAccent = useServerColorAsAccent
         self.themeTabs = themeTabs
+        self.themeResultsGrid = themeResultsGrid
+        self.resultsAlternateRowShading = resultsAlternateRowShading
         self.defaultWindowWidth = defaultWindowWidth
         self.defaultWindowHeight = defaultWindowHeight
         self.activeThemeIDLight = activeThemeIDLight
@@ -777,6 +783,8 @@ struct GlobalSettings: Codable, Hashable {
         case activeThemeIDLight
         case activeThemeIDDark
         case themeTabs
+        case themeResultsGrid
+        case resultsAlternateRowShading
     }
 
     init(from decoder: Decoder) throws {
@@ -828,6 +836,8 @@ struct GlobalSettings: Codable, Hashable {
         activeThemeIDLight = try container.decodeIfPresent(AppColorTheme.ID.self, forKey: .activeThemeIDLight)
         activeThemeIDDark = try container.decodeIfPresent(AppColorTheme.ID.self, forKey: .activeThemeIDDark)
         themeTabs = try container.decodeIfPresent(Bool.self, forKey: .themeTabs) ?? false
+        themeResultsGrid = try container.decodeIfPresent(Bool.self, forKey: .themeResultsGrid) ?? true
+        resultsAlternateRowShading = try container.decodeIfPresent(Bool.self, forKey: .resultsAlternateRowShading) ?? false
     }
 
     func encode(to encoder: Encoder) throws {
@@ -851,6 +861,8 @@ struct GlobalSettings: Codable, Hashable {
         try container.encodeIfPresent(activeThemeIDLight, forKey: .activeThemeIDLight)
         try container.encodeIfPresent(activeThemeIDDark, forKey: .activeThemeIDDark)
         try container.encode(themeTabs, forKey: .themeTabs)
+        try container.encode(themeResultsGrid, forKey: .themeResultsGrid)
+        try container.encode(resultsAlternateRowShading, forKey: .resultsAlternateRowShading)
 
         try container.encode(defaultEditorPaletteIDLight, forKey: .defaultEditorPaletteIDLight)
         try container.encode(defaultEditorPaletteIDDark, forKey: .defaultEditorPaletteIDDark)

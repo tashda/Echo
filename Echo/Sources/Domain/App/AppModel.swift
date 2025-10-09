@@ -181,6 +181,7 @@ final class AppModel: ObservableObject {
                 selectedIdentityID = identities.first?.id
             }
 
+            await ensureActiveThemesApplied()
             synchronizeRecentConnectionsWithConnections()
         } catch {
             print("Failed to load data: \(error)")
@@ -396,38 +397,16 @@ final class AppModel: ObservableObject {
     }
 
     private func applyChrome(for tone: SQLEditorPalette.Tone) {
-#if canImport(AppKit)
-        _ = activeTheme(for: tone)
-#endif
+        let theme = activeTheme(for: tone)
+        ThemeManager.shared.applyChrome(theme: theme, tone: tone)
     }
 
     private func activeTheme(for tone: SQLEditorPalette.Tone) -> AppColorTheme {
         if let theme = globalSettings.theme(withID: globalSettings.activeThemeID(for: tone), tone: tone) {
             return theme
         }
-        if let projectThemeID = selectedProject?.settings.editorTheme,
-           let projectTheme = globalSettings.theme(withID: projectThemeID, tone: tone) {
-            return projectTheme
-        }
         return AppColorTheme.builtInThemes(for: tone).first
             ?? AppColorTheme.fromPalette(tone == .dark ? SQLEditorPalette.midnight : SQLEditorPalette.aurora)
-    }
-
-    func updateProjectAppearance(projectID: UUID, update: (inout ProjectSettings) -> Void) async {
-        guard let index = projects.firstIndex(where: { $0.id == projectID }) else { return }
-        update(&projects[index].settings)
-        projects[index].updatedAt = Date()
-        let updatedProject = projects[index]
-
-        do {
-            try await projectStore.save(projects)
-        } catch {
-            print("Failed to persist project appearance: \(error)")
-        }
-
-        if selectedProject?.id == projectID {
-            selectedProject = updatedProject
-        }
     }
 
     func upsertConnection(_ connection: SavedConnection, password: String?) async {

@@ -34,7 +34,6 @@ final class TitlebarTabsWindow: TransparentTitlebarWindow {
 
     override func awakeFromNib() {
         super.awakeFromNib()
-
         titleVisibility = .hidden
     }
 

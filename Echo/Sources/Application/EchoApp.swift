@@ -10,37 +10,31 @@ import AppKit
 
 @main
 struct EchoApp: App {
-    @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
+    @StateObject private var coordinator = AppCoordinator.shared
 
     init() {
         FontRegistrar.registerBundledFonts()
     }
 
     var body: some Scene {
+        WindowGroup("Workspace") {
+            WorkspaceView()
+                .environmentObject(coordinator.appModel)
+                .environmentObject(coordinator.appState)
+                .environmentObject(coordinator.appModel.navigationState)
+                .environmentObject(coordinator.clipboardHistory)
+                .environmentObject(coordinator.themeManager)
+                .task { await coordinator.initialize() }
+        }
+        .commands {
+            QueryCommands(appModel: coordinator.appModel,
+                          appState: coordinator.appState)
+            AppSettingsCommands()
+            AutocompleteManagementCommands()
+        }
+
         SettingsWindow()
-            .commands {
-                QueryCommands(appModel: AppCoordinator.shared.appModel,
-                              appState: AppCoordinator.shared.appState)
-                AppSettingsCommands()
-                AutocompleteManagementCommands()
-            }
         AutocompleteManagementWindow()
-    }
-}
-
-final class AppDelegate: NSObject, NSApplicationDelegate {
-    func applicationDidFinishLaunching(_ notification: Notification) {
-        Task {
-            await AppCoordinator.shared.initialize()
-            AppCoordinator.shared.openInitialWorkspaceIfNeeded()
-        }
-    }
-
-    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
-        if !flag {
-            AppCoordinator.shared.reopenLastWindow()
-        }
-        return true
     }
 }
 

@@ -20,10 +20,14 @@ final class ThemeManager: ObservableObject {
     @Published private(set) var activeTheme: AppColorTheme
     @Published private(set) var accentColor: Color
     @Published private(set) var windowBackgroundColor: Color
+    @Published private(set) var surfaceBackgroundColor: Color
+    @Published private(set) var surfaceForegroundColor: Color
 
 #if os(macOS)
     @Published private(set) var accentNSColor: NSColor
     @Published private(set) var windowBackgroundNSColor: NSColor
+    @Published private(set) var surfaceBackgroundNSColor: NSColor
+    @Published private(set) var surfaceForegroundNSColor: NSColor
 #endif
 
     /// Combine publisher for imperative consumers that need to react to accent color changes.
@@ -39,6 +43,7 @@ final class ThemeManager: ObservableObject {
     private let accentSubject: CurrentValueSubject<Color, Never>
 #if os(macOS)
     private var appearanceObserver: NSObjectProtocol?
+    private static let appearanceDidChangeNotification = Notification.Name("NSApplicationDidChangeEffectiveAppearanceNotification")
 #endif
 
     private init() {
@@ -55,16 +60,22 @@ final class ThemeManager: ObservableObject {
 #endif
         effectiveColorScheme = initialScheme
         activeTone = ThemeManager.tone(for: initialScheme)
-        activeTheme = themesByTone[activeTone] ?? defaultLightTheme
+        let initialTheme = themesByTone[activeTone] ?? defaultLightTheme
+        activeTheme = initialTheme
 
-        let accentRepresentable = ThemeManager.accentRepresentable(from: activeTheme)
-        accentColor = accentRepresentable.color
-        windowBackgroundColor = activeTheme.windowBackground.color
-        accentSubject = CurrentValueSubject<Color, Never>(accentColor)
+        let accentRepresentable = ThemeManager.accentRepresentable(from: initialTheme)
+        let initialAccentColor = accentRepresentable.color
+        accentColor = initialAccentColor
+        windowBackgroundColor = initialTheme.windowBackground.color
+        surfaceBackgroundColor = initialTheme.surfaceBackground.color
+        surfaceForegroundColor = initialTheme.surfaceForeground.color
+        accentSubject = CurrentValueSubject<Color, Never>(initialAccentColor)
 
 #if os(macOS)
         accentNSColor = accentRepresentable.nsColor
-        windowBackgroundNSColor = activeTheme.windowBackground.nsColor
+        windowBackgroundNSColor = initialTheme.windowBackground.nsColor
+        surfaceBackgroundNSColor = initialTheme.surfaceBackground.nsColor
+        surfaceForegroundNSColor = initialTheme.surfaceForeground.nsColor
         observeSystemAppearanceChanges()
 #endif
     }
@@ -89,6 +100,14 @@ final class ThemeManager: ObservableObject {
         theme(for: tone).windowBackground.color
     }
 
+    func surfaceBackgroundColor(for tone: SQLEditorPalette.Tone) -> Color {
+        theme(for: tone).surfaceBackground.color
+    }
+
+    func surfaceForegroundColor(for tone: SQLEditorPalette.Tone) -> Color {
+        theme(for: tone).surfaceForeground.color
+    }
+
 #if os(macOS)
     func windowBackgroundNSColor(for tone: SQLEditorPalette.Tone) -> NSColor {
         theme(for: tone).windowBackground.nsColor
@@ -107,6 +126,7 @@ final class ThemeManager: ObservableObject {
             updateOutputs(for: tone)
         }
 #if os(macOS)
+        NSApp?.appearance = NSAppearance(named: tone == .dark ? .darkAqua : .aqua)
         applyChromeToWindows(theme)
 #endif
     }
@@ -152,11 +172,15 @@ final class ThemeManager: ObservableObject {
         let accentRepresentable = ThemeManager.accentRepresentable(from: theme)
         accentColor = accentRepresentable.color
         windowBackgroundColor = theme.windowBackground.color
+        surfaceBackgroundColor = theme.surfaceBackground.color
+        surfaceForegroundColor = theme.surfaceForeground.color
         accentSubject.send(accentColor)
 
 #if os(macOS)
         accentNSColor = accentRepresentable.nsColor
         windowBackgroundNSColor = theme.windowBackground.nsColor
+        surfaceBackgroundNSColor = theme.surfaceBackground.nsColor
+        surfaceForegroundNSColor = theme.surfaceForeground.nsColor
         applyChromeToWindows(theme)
 #endif
     }
@@ -164,7 +188,7 @@ final class ThemeManager: ObservableObject {
 #if os(macOS)
     private func observeSystemAppearanceChanges() {
         appearanceObserver = NotificationCenter.default.addObserver(
-            forName: NSApplication.didChangeEffectiveAppearanceNotification,
+            forName: ThemeManager.appearanceDidChangeNotification,
             object: nil,
             queue: .main
         ) { [weak self] _ in
@@ -218,30 +242,7 @@ final class ThemeManager: ObservableObject {
     }
 }
 
-enum AppTheme: String, CaseIterable {
-    case light = "light"
-    case dark = "dark"
-    case system = "system"
-
-    var displayName: String {
-        switch self {
-        case .light:
-            return "Light"
-        case .dark:
-            return "Dark"
-        case .system:
-            return "System"
-        }
-    }
-
-    var iconName: String {
-        switch self {
-        case .light:
-            return "sun.max"
-        case .dark:
-            return "moon"
-        case .system:
-            return "circle.lefthalf.filled"
-        }
-    }
+extension ThemeManager {
+    /// Legacy compatibility for components that still expect this flag.
+    var showAlternateRowShading: Bool { false }
 }

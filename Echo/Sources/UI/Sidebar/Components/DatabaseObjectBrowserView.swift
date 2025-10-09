@@ -8,7 +8,6 @@ struct DatabaseObjectBrowserView: View {
     @Binding var selectedSchemaName: String?
     @Binding var expandedObjectGroups: Set<SchemaObjectInfo.ObjectType>
     @Binding var expandedObjectIDs: Set<String>
-    let coordinateSpaceName: String
     let scrollTo: (String, UnitPoint) -> Void
 
     @EnvironmentObject private var appModel: AppModel
@@ -97,12 +96,49 @@ struct DatabaseObjectBrowserView: View {
         if isSearching && totalFilteredObjectCount == 0 {
             SearchEmptyStateView(query: searchText)
         } else {
-            LazyVStack(spacing: 0, pinnedViews: .sectionHeaders) {
+            LazyVStack(alignment: .leading, spacing: 4) {
                 ForEach(SchemaObjectInfo.ObjectType.allCases, id: \.self) { objectType in
                     let objects = objects(for: objectType)
 
-                    Section {
-                        if expandedObjectGroups.contains(objectType) {
+                    let headerID = "header-\(objectType.rawValue)"
+                    let isExpanded = expandedObjectGroups.contains(objectType)
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        Button {
+                            let wasExpanded = isExpanded
+                            withAnimation(.easeInOut(duration: 0.25)) {
+                                if wasExpanded {
+                                    expandedObjectGroups.remove(objectType)
+                                } else {
+                                    expandedObjectGroups.insert(objectType)
+                                }
+                            }
+                            if wasExpanded {
+                                scrollTo(headerID, .top)
+                            }
+                        } label: {
+                            HStack(spacing: 6) {
+                                Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
+                                    .font(.system(size: 10, weight: .semibold))
+                                    .foregroundStyle(.secondary)
+                                Text(objectType.pluralDisplayName.uppercased())
+                                    .font(.system(size: 11, weight: .semibold))
+                                    .foregroundStyle(.secondary)
+                                Text("\(objects.count)")
+                                    .font(.system(size: 10, weight: .semibold))
+                                    .foregroundStyle(.secondary.opacity(0.8))
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 2)
+                                    .background(Color.primary.opacity(0.06), in: Capsule())
+                                Spacer()
+                            }
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 4)
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+
+                        if isExpanded {
                             ForEach(objects, id: \.id) { object in
                                 DatabaseObjectRow(
                                     object: object,
@@ -116,26 +152,8 @@ struct DatabaseObjectBrowserView: View {
                                 .id(object.id)
                             }
                         }
-                    } header: {
-                        SidebarStickySectionHeader(
-                            title: objectType.pluralDisplayName,
-                            count: objects.count,
-                            isExpanded: expandedObjectGroups.contains(objectType),
-                            coordinateSpaceName: coordinateSpaceName
-                        ) {
-                            withAnimation(.easeInOut(duration: 0.25)) {
-                                if expandedObjectGroups.contains(objectType) {
-                                    expandedObjectGroups.remove(objectType)
-                                } else {
-                                    expandedObjectGroups.insert(objectType)
-                                }
-                            }
-                            if !expandedObjectGroups.contains(objectType) {
-                                scrollTo("header-\(objectType.rawValue)", .top)
-                            }
-                        }
                     }
-                    .id("header-\(objectType.rawValue)")
+                    .id(headerID)
                 }
             }
         }
@@ -187,6 +205,10 @@ private struct DatabaseObjectRow: View {
         showColumns && !object.columns.isEmpty
     }
 
+    private var accentColor: Color {
+        appModel.useServerColorAsAccent ? connection.color : Color.accentColor
+    }
+
     private var iconName: String {
         switch object.type {
         case .table:
@@ -226,7 +248,7 @@ private struct DatabaseObjectRow: View {
 
                 Image(systemName: iconName)
                     .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(.blue)
+                    .foregroundStyle(accentColor)
 
                 Text(displayName)
                     .font(.system(size: 13))
@@ -238,10 +260,10 @@ private struct DatabaseObjectRow: View {
                 if showColumns && !object.columns.isEmpty {
                     Text("\(object.columns.count)")
                         .font(.system(size: 11, weight: .medium))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(accentColor)
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)
-                        .background(Color.primary.opacity(0.08), in: Capsule())
+                        .background(accentColor.opacity(0.12), in: Capsule())
                 }
             }
 
@@ -250,8 +272,9 @@ private struct DatabaseObjectRow: View {
             }
         }
         .padding(.horizontal, 12)
-        .padding(.vertical, 6)
+        .padding(.vertical, 4)
         .background(highlightBackground)
+        .shadow(color: isHovered ? accentColor.opacity(0.15) : Color.clear, radius: 8, x: 0, y: 2)
         .contentShape(Rectangle())
         .onTapGesture {
             guard canExpand else { return }
@@ -273,10 +296,10 @@ private struct DatabaseObjectRow: View {
             if let action = object.triggerAction, !action.isEmpty {
                 Text(action)
                     .font(.system(size: 10, weight: .semibold))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(accentColor)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 3)
-                    .background(Color.primary.opacity(0.06), in: Capsule())
+                    .background(accentColor.opacity(0.12), in: Capsule())
             }
             if let table = object.triggerTable, !table.isEmpty {
                 Button {
@@ -284,10 +307,10 @@ private struct DatabaseObjectRow: View {
                 } label: {
                     Text(table)
                         .font(.system(size: 10, weight: .semibold))
-                        .foregroundStyle(.blue)
+                        .foregroundStyle(accentColor)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 3)
-                        .background(Color.blue.opacity(0.12), in: Capsule())
+                        .background(accentColor.opacity(0.12), in: Capsule())
                 }
                 .buttonStyle(.plain)
             }
@@ -296,9 +319,18 @@ private struct DatabaseObjectRow: View {
         .padding(.leading, 24)
     }
 
+    @ViewBuilder
     private var highlightBackground: some View {
-        RoundedRectangle(cornerRadius: 6, style: .continuous)
-            .fill(isHovered || isExpanded ? Color.accentColor.opacity(0.08) : Color.clear)
+        let base = RoundedRectangle(cornerRadius: 8, style: .continuous)
+        if isHovered || isExpanded {
+            base
+                .fill(accentColor.opacity(0.12))
+                .overlay(
+                    base.stroke(accentColor.opacity(0.35), lineWidth: 1)
+                )
+        } else {
+            Color.clear
+        }
     }
 
     private var columnsList: some View {
@@ -308,7 +340,7 @@ private struct DatabaseObjectRow: View {
                     Spacer().frame(width: 24)
                     Image(systemName: column.isPrimaryKey ? "key.fill" : "doc.text")
                         .font(.system(size: 10))
-                        .foregroundStyle(column.isPrimaryKey ? .yellow : .secondary)
+                        .foregroundStyle(column.isPrimaryKey ? accentColor : .secondary)
                     Text(column.name)
                         .font(.system(size: 11))
                         .foregroundStyle(.primary)
@@ -316,10 +348,10 @@ private struct DatabaseObjectRow: View {
                     Spacer(minLength: 0)
                     Text(formatDataType(column.dataType))
                         .font(.system(size: 10, weight: .medium))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(accentColor)
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)
-                        .background(Color.primary.opacity(0.08), in: Capsule())
+                        .background(accentColor.opacity(0.1), in: Capsule())
                 }
                 .padding(.vertical, 1)
                 .padding(.trailing, 12)
