@@ -1304,7 +1304,9 @@ final class AppModel: ObservableObject {
     }
 
     // MARK: - Database Metadata
-func loadDatabaseStructureForSession(_ connectionSession: ConnectionSession) async throws -> DatabaseStructure {
+    func loadDatabaseStructureForSession(_ connectionSession: ConnectionSession) async throws -> DatabaseStructure {
+        try Task.checkCancellation()
+
         connectionSession.structureLoadingState = .loading(progress: 0)
         connectionSession.structureLoadingMessage = "Preparing update…"
 
@@ -1339,6 +1341,8 @@ func loadDatabaseStructureForSession(_ connectionSession: ConnectionSession) asy
             connectionSession.structureLoadingState = .failed(message: "Unsupported database type")
             throw DatabaseError.connectionFailed("Unsupported database type: \(connectionSession.connection.databaseType.displayName)")
         }
+
+        try Task.checkCancellation()
 
         do {
             let structure = try await fetcher.fetchStructure(
@@ -1390,8 +1394,13 @@ func loadDatabaseStructureForSession(_ connectionSession: ConnectionSession) asy
 
             return structure
         } catch {
-            connectionSession.structureLoadingMessage = error.localizedDescription
-            connectionSession.structureLoadingState = .failed(message: error.localizedDescription)
+            if error is CancellationError {
+                connectionSession.structureLoadingMessage = nil
+                connectionSession.structureLoadingState = .idle
+            } else {
+                connectionSession.structureLoadingMessage = error.localizedDescription
+                connectionSession.structureLoadingState = .failed(message: error.localizedDescription)
+            }
             throw error
         }
     }
@@ -1466,12 +1475,24 @@ func loadDatabaseStructureForSession(_ connectionSession: ConnectionSession) asy
 
         switch scope {
         case .full:
+            if Task.isCancelled {
+                session.structureLoadingMessage = nil
+                session.structureLoadingState = .idle
+                return
+            }
+
             do {
                 let structure = try await loadDatabaseStructureForSession(session)
                 session.databaseStructure = structure
                 cacheStructure(structure, for: session.connection.id)
             } catch {
-                session.structureLoadingState = .failed(message: error.localizedDescription)
+                if error is CancellationError {
+                    session.structureLoadingMessage = nil
+                    session.structureLoadingState = .idle
+                } else {
+                    session.structureLoadingMessage = error.localizedDescription
+                    session.structureLoadingState = .failed(message: error.localizedDescription)
+                }
             }
 
         case .selectedDatabase:
@@ -1492,15 +1513,21 @@ func loadDatabaseStructureForSession(_ connectionSession: ConnectionSession) asy
             session.structureLoadingState = .loading(progress: 0)
             session.structureLoadingMessage = "Updating \(targetDatabase)…"
 
+            if Task.isCancelled {
+                session.structureLoadingMessage = nil
+                session.structureLoadingState = .idle
+                return
+            }
+
             guard let fetcher = makeStructureFetcher(for: session.connection) else {
                 session.structureLoadingState = .failed(message: "Unsupported database type")
                 return
             }
 
             do {
-            let structure = try await fetcher.fetchStructure(
-                for: session.connection,
-                credentials: .init(authentication: credentials),
+                let structure = try await fetcher.fetchStructure(
+                    for: session.connection,
+                    credentials: .init(authentication: credentials),
                     selectedDatabase: targetDatabase,
                     reuseSession: session.session,
                     databaseFilter: [targetDatabase],
@@ -1539,8 +1566,13 @@ func loadDatabaseStructureForSession(_ connectionSession: ConnectionSession) asy
                 cacheStructure(updatedStructure, for: session.connection.id)
 
             } catch {
-                session.structureLoadingMessage = error.localizedDescription
-                session.structureLoadingState = .failed(message: error.localizedDescription)
+                if error is CancellationError {
+                    session.structureLoadingMessage = nil
+                    session.structureLoadingState = .idle
+                } else {
+                    session.structureLoadingMessage = error.localizedDescription
+                    session.structureLoadingState = .failed(message: error.localizedDescription)
+                }
             }
         }
     }

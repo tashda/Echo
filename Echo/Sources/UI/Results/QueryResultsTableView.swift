@@ -2,6 +2,7 @@
 import SwiftUI
 import AppKit
 import QuartzCore
+import Foundation
 
 struct QueryResultsTableView: NSViewRepresentable {
     @ObservedObject var query: QueryEditorState
@@ -10,12 +11,10 @@ struct QueryResultsTableView: NSViewRepresentable {
     var rowOrder: [Int]
     var onColumnTap: (Int) -> Void
     var onSort: (Int, HeaderSortAction) -> Void
+    var onClearColumnHighlight: () -> Void
     var backgroundColor: NSColor
 
     @EnvironmentObject private var clipboardHistory: ClipboardHistoryStore
-
-    private let rowIndexWidth: CGFloat = 52
-
     struct SelectedCell: Equatable {
         let row: Int
         let column: Int
@@ -54,25 +53,26 @@ struct QueryResultsTableView: NSViewRepresentable {
 #if DEBUG
         tableView.layer?.backgroundColor = backgroundColor.cgColor
 #endif
-        if #available(macOS 13.0, *) {
-            tableView.style = .inset
+        if let headerView = tableView.headerView {
+            headerView.frame.size.height = max(headerView.frame.size.height, 28)
+            headerView.isHidden = false
         }
-
-        let overlay = RowIndexOverlayView(coordinator: context.coordinator, scrollView: scrollView, width: rowIndexWidth)
-        let container = ResultTableContainerView(scrollView: scrollView, overlay: overlay)
-
-        context.coordinator.configure(tableView: tableView, scrollView: scrollView, overlay: overlay)
+        context.coordinator.configure(tableView: tableView, scrollView: scrollView)
         tableView.selectionDelegate = context.coordinator
         scrollView.documentView = tableView
+
+        let leadingWidth = ThemeManager.shared.resultsGridLeadingInset
+        let container = ResultTableContainerView(scrollView: scrollView, leadingWidth: leadingWidth)
         container.updateBackgroundColor(backgroundColor)
         return container
     }
 
-    func updateNSView(_ nsView: ResultTableContainerView, context: Context) {
-        guard let tableView = nsView.tableView else { return }
+    func updateNSView(_ container: ResultTableContainerView, context: Context) {
+        guard let tableView = container.tableView else { return }
         tableView.backgroundColor = backgroundColor
         tableView.usesAlternatingRowBackgroundColors = ThemeManager.shared.showAlternateRowShading
-        nsView.updateBackgroundColor(backgroundColor)
+        container.updateLeadingWidth(ThemeManager.shared.resultsGridLeadingInset)
+        container.updateBackgroundColor(backgroundColor)
         context.coordinator.update(parent: self, tableView: tableView)
     }
 
@@ -91,10 +91,10 @@ struct QueryResultsTableView: NSViewRepresentable {
         private var selectionRegion: SelectedRegion?
         private var selectionAnchor: QueryResultsTableView.SelectedCell?
         private var isDraggingCellSelection = false
-        private var rowIndexOverlay: RowIndexOverlayView?
         private var selectionFocus: QueryResultsTableView.SelectedCell?
-        private var rowSelectionAnchor: Int?
         private var columnSelectionAnchor: Int?
+        private weak var activeSelectableField: NSTextField?
+        private var cachedPaletteSignature: String?
 
         var currentTableView: NSTableView? { tableView }
 
@@ -146,7 +146,7 @@ struct QueryResultsTableView: NSViewRepresentable {
             NotificationCenter.default.removeObserver(self)
         }
 
-        func configure(tableView: NSTableView, scrollView: NSScrollView, overlay: RowIndexOverlayView) {
+        func configure(tableView: NSTableView, scrollView: NSScrollView) {
             self.tableView = tableView
             self.scrollView = scrollView
             tableView.delegate = self
@@ -155,22 +155,20 @@ struct QueryResultsTableView: NSViewRepresentable {
             if let header = tableView.headerView as? ResultTableHeaderView {
                 header.coordinator = self
                 header.menu = headerMenu
+                header.frame.size.height = max(header.frame.size.height, 28)
+                header.isHidden = false
             } else {
                 tableView.headerView?.menu = headerMenu
+                tableView.headerView?.frame.size.height = max(tableView.headerView?.frame.size.height ?? 0, 28)
+                tableView.headerView?.isHidden = false
             }
             tableView.selectionHighlightStyle = .regular
+            tableView.usesAlternatingRowBackgroundColors = false
             _ = reloadColumns()
+            applyHeaderStyle(to: tableView)
+            refreshVisibleRowBackgrounds(tableView)
+            cachedPaletteSignature = paletteSignature()
 
-            rowIndexOverlay = overlay
-            overlay.refresh()
-
-            scrollView.contentView.postsBoundsChangedNotifications = true
-            NotificationCenter.default.addObserver(
-                self,
-                selector: #selector(contentViewDidScroll(_:)),
-                name: NSView.boundsDidChangeNotification,
-                object: scrollView.contentView
-            )
             adjustTableSize()
         }
 
@@ -185,14 +183,21 @@ struct QueryResultsTableView: NSViewRepresentable {
             if let header = tableView.headerView as? ResultTableHeaderView {
                 header.coordinator = self
                 header.menu = headerMenu
+                header.frame.size.height = max(header.frame.size.height, 28)
+                header.isHidden = false
             } else {
                 tableView.headerView?.menu = headerMenu
+                tableView.headerView?.frame.size.height = max(tableView.headerView?.frame.size.height ?? 0, 28)
+                tableView.headerView?.isHidden = false
             }
             let currentRowOrder = parent.rowOrder
             let currentRowCount = currentRowOrder.isEmpty ? parent.query.displayedRowCount : currentRowOrder.count
             let columnsChanged = reloadColumns()
             let sortChanged = parent.activeSort != cachedSort
             let rowOrderChanged = currentRowOrder != cachedRowOrder
+            let currentPaletteSignature = paletteSignature()
+            let paletteChanged = currentPaletteSignature != cachedPaletteSignature
+            cachedPaletteSignature = currentPaletteSignature
 
             var performedFullReload = false
 
@@ -216,6 +221,8 @@ struct QueryResultsTableView: NSViewRepresentable {
 
             if columnsChanged {
                 setSelectionRegion(nil, tableView: tableView)
+                applyHeaderStyle(to: tableView)
+                refreshVisibleRowBackgrounds(tableView)
             }
 
             cachedSort = parent.activeSort
@@ -244,7 +251,16 @@ struct QueryResultsTableView: NSViewRepresentable {
 
             updateHeaderIndicators()
             adjustTableSize(rowCount: currentRowCount)
-            rowIndexOverlay?.refresh()
+
+            if paletteChanged {
+                deactivateActiveSelectableField(in: tableView)
+                applyHeaderStyle(to: tableView)
+                if !performedFullReload {
+                    tableView.reloadData()
+                    performedFullReload = true
+                }
+                refreshVisibleRowBackgrounds(tableView)
+            }
         }
 
         private func reloadColumns() -> Bool {
@@ -253,6 +269,7 @@ struct QueryResultsTableView: NSViewRepresentable {
             let columnIDs = parent.query.displayedColumns.map(\.id)
             let desiredColumnCount = columnIDs.count
             let columnsChanged = tableView.tableColumns.count != desiredColumnCount || columnIDs != cachedColumnIDs
+            var headerNeedsRefresh = false
 
             if columnsChanged {
                 while tableView.tableColumns.count > 0 {
@@ -260,11 +277,13 @@ struct QueryResultsTableView: NSViewRepresentable {
                 }
 
                 addDataColumns(to: tableView)
+                headerNeedsRefresh = true
             } else {
                 for (offset, column) in parent.query.displayedColumns.enumerated() {
                     let tableColumn = tableView.tableColumns[offset]
                     if tableColumn.title != column.name {
                         tableColumn.title = column.name
+                        headerNeedsRefresh = true
                     }
                     let minWidth = width(for: column)
                     if abs(tableColumn.minWidth - minWidth) > 1 {
@@ -277,9 +296,51 @@ struct QueryResultsTableView: NSViewRepresentable {
             }
 
             tableView.headerView?.needsDisplay = true
+            if headerNeedsRefresh {
+                applyHeaderStyle(to: tableView)
+            }
             cachedColumnIDs = columnIDs
-            rowIndexOverlay?.refresh()
             return columnsChanged
+        }
+
+        private func paletteSignature() -> String {
+            let theme = ThemeManager.shared
+            return [
+                String(theme.useAppThemeForResultsGrid),
+                String(theme.resultsAlternateRowShading),
+                colorSignature(theme.resultsGridCellBackgroundNSColor),
+                colorSignature(theme.resultsGridAlternateRowNSColor),
+                colorSignature(theme.resultsGridCellTextNSColor),
+                colorSignature(theme.resultsGridHeaderBackgroundNSColor),
+                colorSignature(theme.resultsGridHeaderTextNSColor)
+            ].joined(separator: "|")
+        }
+
+        private func colorSignature(_ color: NSColor) -> String {
+            guard let converted = color.usingColorSpace(.extendedSRGB) else { return color.description }
+            func fmt(_ value: CGFloat) -> String { String(format: "%.4f", value) }
+            return [converted.redComponent, converted.greenComponent, converted.blueComponent, converted.alphaComponent].map(fmt).joined(separator: ",")
+        }
+
+        private func applyHeaderStyle(to tableView: NSTableView) {
+            let theme = ThemeManager.shared
+            if let headerView = tableView.headerView {
+                headerView.wantsLayer = true
+                headerView.layer?.backgroundColor = theme.resultsGridHeaderBackgroundNSColor.cgColor
+                headerView.layer?.borderColor = theme.resultsGridHeaderSeparatorNSColor.cgColor
+                let scale = headerView.window?.backingScaleFactor ?? NSScreen.main?.backingScaleFactor ?? 1
+                headerView.layer?.borderWidth = 1 / max(scale, 1)
+                headerView.needsDisplay = true
+            }
+
+            let attributes: [NSAttributedString.Key: Any] = [
+                .foregroundColor: theme.resultsGridHeaderTextNSColor,
+                .font: NSFont.systemFont(ofSize: 12, weight: .semibold)
+            ]
+
+            for column in tableView.tableColumns {
+                column.headerCell.attributedStringValue = NSAttributedString(string: column.title, attributes: attributes)
+            }
         }
 
         private func updateHeaderIndicators() {
@@ -294,10 +355,8 @@ struct QueryResultsTableView: NSViewRepresentable {
                 let imageName = sort.ascending ? NSImage.touchBarGoUpTemplateName : NSImage.touchBarGoDownTemplateName
                 let indicator = NSImage(named: imageName)
                 tableView.setIndicatorImage(indicator, in: tableColumn)
-                tableView.highlightedTableColumn = tableColumn
-            } else {
-                tableView.highlightedTableColumn = nil
             }
+            // Column highlighting is managed explicitly when the user selects a column.
         }
 
         private func width(for column: ColumnInfo) -> CGFloat {
@@ -384,7 +443,6 @@ struct QueryResultsTableView: NSViewRepresentable {
             selectionFocus = bottom
             tableView.scrollColumnToVisible(lower)
             tableView.scrollColumnToVisible(upper)
-            rowSelectionAnchor = nil
         }
 
         private func adjustTableSize(rowCount: Int? = nil) {
@@ -412,6 +470,98 @@ struct QueryResultsTableView: NSViewRepresentable {
             parent.rowOrder.isEmpty ? parent.query.displayedRowCount : parent.rowOrder.count
         }
 
+        func tableView(_ tableView: NSTableView, rowViewForRow row: Int) -> NSTableRowView? {
+            let rowView = ResultTableRowView()
+            rowView.configure(
+                row: row,
+                colorProvider: { [weak self] index in
+                    self?.rowBackgroundColor(for: index) ?? ThemeManager.shared.resultsGridCellBackgroundNSColor
+                },
+                highlightProvider: { [weak self, weak tableView] view, index in
+                    guard let self, let tableView else { return nil }
+                    return self.selectionRenderInfo(forRow: index, rowView: view, tableView: tableView)
+                }
+            )
+            return rowView
+        }
+
+        private func rowBackgroundColor(for row: Int) -> NSColor {
+            let theme = ThemeManager.shared
+            if theme.resultsAlternateRowShading && row.isMultiple(of: 2) {
+                return theme.resultsGridAlternateRowNSColor
+            }
+            return theme.resultsGridCellBackgroundNSColor
+        }
+
+        private func refreshVisibleRowBackgrounds(_ tableView: NSTableView) {
+            let visibleRange = tableView.rows(in: tableView.visibleRect)
+            guard visibleRange.length > 0 else { return }
+            let lower = max(0, visibleRange.location)
+            let upper = min(tableView.numberOfRows, lower + visibleRange.length)
+            guard upper > lower else { return }
+
+            for row in lower..<upper {
+                guard let rowView = tableView.rowView(atRow: row, makeIfNecessary: false) as? ResultTableRowView else { continue }
+                rowView.configure(
+                    row: row,
+                    colorProvider: { [weak self] index in
+                        self?.rowBackgroundColor(for: index) ?? ThemeManager.shared.resultsGridCellBackgroundNSColor
+                    },
+                    highlightProvider: { [weak self, weak tableView] view, index in
+                        guard let self, let tableView else { return nil }
+                        return self.selectionRenderInfo(forRow: index, rowView: view, tableView: tableView)
+                    }
+                )
+            }
+        }
+
+        private func selectionRenderInfo(forRow row: Int, rowView: NSTableRowView, tableView: NSTableView) -> ResultTableRowView.SelectionRenderInfo? {
+            guard let region = selectionRegion, region.containsRow(row) else { return nil }
+            let maxColumn = tableView.tableColumns.count - 1
+            guard maxColumn >= 0 else { return nil }
+
+            let lowerColumn = max(0, min(region.normalizedColumnRange.lowerBound, maxColumn))
+            let upperColumn = max(0, min(region.normalizedColumnRange.upperBound, maxColumn))
+            guard upperColumn >= lowerColumn else { return nil }
+
+            let leftEdge = tableView.rect(ofColumn: lowerColumn).minX
+            let rightEdge = tableView.rect(ofColumn: upperColumn).maxX
+
+            let isTop = row == region.normalizedRowRange.lowerBound
+            let isBottom = row == region.normalizedRowRange.upperBound
+
+            var rect = NSRect(x: leftEdge, y: tableView.rect(ofRow: row).minY, width: rightEdge - leftEdge, height: tableView.rowHeight)
+            rect = rect.insetBy(dx: 1.5, dy: 0)
+
+            var converted = rowView.convert(rect, from: tableView)
+
+            let topInset: CGFloat = isTop ? 2 : 0
+            let bottomInset: CGFloat = isBottom ? 2 : 0
+
+            if rowView.isFlipped {
+                converted.origin.y += topInset
+                converted.size.height -= (topInset + bottomInset)
+            } else {
+                converted.origin.y += bottomInset
+                converted.size.height -= (topInset + bottomInset)
+            }
+
+            converted.size.height = max(converted.size.height, 0)
+
+            let topRadiusRaw: CGFloat = isTop ? 6 : 0
+            let bottomRadiusRaw: CGFloat = isBottom ? 6 : 0
+            let (topRadius, bottomRadius): (CGFloat, CGFloat)
+            if rowView.isFlipped {
+                topRadius = bottomRadiusRaw
+                bottomRadius = topRadiusRaw
+            } else {
+                topRadius = topRadiusRaw
+                bottomRadius = bottomRadiusRaw
+            }
+
+            return ResultTableRowView.SelectionRenderInfo(rect: converted, topCornerRadius: topRadius, bottomCornerRadius: bottomRadius)
+        }
+
         func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
             guard let tableColumn else { return nil }
             guard let dataIndex = dataColumnIndex(for: tableColumn) else { return nil }
@@ -431,11 +581,11 @@ struct QueryResultsTableView: NSViewRepresentable {
             let value = parent.query.valueForDisplay(row: sourceIndex, column: dataIndex)
             if let value {
                 textField.stringValue = value
-                textField.textColor = .labelColor
+                textField.textColor = ThemeManager.shared.resultsGridCellTextNSColor
                 textField.font = NSFont.systemFont(ofSize: 12)
             } else {
                 textField.stringValue = "NULL"
-                textField.textColor = .secondaryLabelColor
+                textField.textColor = ThemeManager.shared.resultsGridCellTextNSColor.withAlphaComponent(0.65)
                 let baseFont = NSFont.systemFont(ofSize: 12)
                 textField.font = NSFontManager.shared.convert(baseFont, toHaveTrait: .italicFontMask)
             }
@@ -451,26 +601,15 @@ struct QueryResultsTableView: NSViewRepresentable {
 
             let cellSelection = QueryResultsTableView.SelectedCell(row: row, column: dataIndex)
             let isSelectedCell = selectionRegion?.contains(cellSelection) ?? false
-            let isHighlightedColumn = parent.highlightedColumnIndex == dataIndex
 
             textField.drawsBackground = false
             textField.backgroundColor = .clear
-            textField.layer?.backgroundColor = nil
+            textField.layer?.backgroundColor = NSColor.clear.cgColor
             textField.layer?.borderWidth = 0
             textField.layer?.borderColor = nil
 
             if isSelectedCell {
-                let background = NSColor.controlAccentColor.withAlphaComponent(0.25)
-                textField.layer?.backgroundColor = background.cgColor
-                let border = NSColor.controlAccentColor.withAlphaComponent(0.6)
-                textField.layer?.borderColor = border.cgColor
-                textField.layer?.borderWidth = 1
-                textField.textColor = .labelColor
-            } else if isHighlightedColumn {
-                let background = NSColor.controlAccentColor.withAlphaComponent(0.12)
-                textField.layer?.backgroundColor = background.cgColor
-            } else {
-                textField.layer?.backgroundColor = nil
+                textField.textColor = ThemeManager.shared.resultsGridCellTextNSColor
             }
 
             textField.alignment = .left
@@ -490,8 +629,10 @@ struct QueryResultsTableView: NSViewRepresentable {
             label.identifier = identifier
             label.cell = cell
             label.isEditable = false
+            label.isSelectable = false
             label.isBordered = false
             label.drawsBackground = false
+            label.focusRingType = .none
             label.lineBreakMode = .byTruncatingTail
             label.usesSingleLineMode = true
             label.maximumNumberOfLines = 1
@@ -518,7 +659,6 @@ struct QueryResultsTableView: NSViewRepresentable {
                 let cell = QueryResultsTableView.SelectedCell(row: row, column: clickedColumn)
                 setSelectionRegion(SelectedRegion(start: cell, end: cell), tableView: tableView)
                 isDraggingCellSelection = true
-                rowSelectionAnchor = nil
                 return false
             }
 
@@ -529,7 +669,6 @@ struct QueryResultsTableView: NSViewRepresentable {
                     let cell = QueryResultsTableView.SelectedCell(row: row, column: column)
                     setSelectionRegion(SelectedRegion(start: cell, end: cell), tableView: tableView)
                     isDraggingCellSelection = false
-                    rowSelectionAnchor = nil
                     return false
                 }
             }
@@ -549,17 +688,7 @@ struct QueryResultsTableView: NSViewRepresentable {
             if hasRowSelection {
                 isDraggingCellSelection = false
                 setSelectionRegion(nil, tableView: tableView)
-                let sortedIndexes = tableView.selectedRowIndexes.sorted()
-                if let last = sortedIndexes.last {
-                    rowSelectionAnchor = last
-                } else if tableView.selectedRow >= 0 {
-                    rowSelectionAnchor = tableView.selectedRow
-                }
-            } else {
-                rowSelectionAnchor = nil
             }
-
-            reloadIndexColumn(for: tableView)
         }
 
         // MARK: NSMenuDelegate
@@ -598,14 +727,22 @@ struct QueryResultsTableView: NSViewRepresentable {
 
                 menu.addItem(.separator())
 
-                let copyColumnItem = NSMenuItem(title: "Copy Column", action: #selector(copyColumnPlain), keyEquivalent: "")
+                let copyColumnItem = NSMenuItem(title: "Copy Column", action: #selector(copyColumnPlain), keyEquivalent: "c")
                 copyColumnItem.target = self
                 copyColumnItem.isEnabled = hasCopyableSelection()
+                copyColumnItem.keyEquivalentModifierMask = [.command]
+                if #available(macOS 11.0, *) {
+                    copyColumnItem.image = NSImage(systemSymbolName: "doc.on.doc", accessibilityDescription: nil)
+                }
                 menu.addItem(copyColumnItem)
 
-                let copyColumnWithHeadersItem = NSMenuItem(title: "Copy Column with Headers", action: #selector(copyColumnWithHeaders), keyEquivalent: "")
+                let copyColumnWithHeadersItem = NSMenuItem(title: "Copy Column with Headers", action: #selector(copyColumnWithHeaders), keyEquivalent: "c")
                 copyColumnWithHeadersItem.target = self
                 copyColumnWithHeadersItem.isEnabled = hasCopyableSelection()
+                copyColumnWithHeadersItem.keyEquivalentModifierMask = [.command, .shift]
+                if #available(macOS 11.0, *) {
+                    copyColumnWithHeadersItem.image = NSImage(systemSymbolName: "tablecells", accessibilityDescription: nil)
+                }
                 menu.addItem(copyColumnWithHeadersItem)
             } else if menu === cellMenu {
                 updateCellMenu(menu, tableView: tableView)
@@ -635,20 +772,22 @@ struct QueryResultsTableView: NSViewRepresentable {
 
             let hasSelection = hasCopyableSelection()
 
-            let copyItem = NSMenuItem(title: "Copy", action: #selector(copySelectionPlain), keyEquivalent: "")
+            let copyItem = NSMenuItem(title: "Copy", action: #selector(copySelectionPlain), keyEquivalent: "c")
             copyItem.target = self
             if #available(macOS 11.0, *) {
                 copyItem.image = NSImage(systemSymbolName: "doc.on.doc", accessibilityDescription: nil)
             }
             copyItem.isEnabled = hasSelection
+            copyItem.keyEquivalentModifierMask = [.command]
             menu.addItem(copyItem)
 
-            let copyHeadersItem = NSMenuItem(title: "Copy with Headers", action: #selector(copySelectionWithHeaders), keyEquivalent: "")
+            let copyHeadersItem = NSMenuItem(title: "Copy with Headers", action: #selector(copySelectionWithHeaders), keyEquivalent: "c")
             copyHeadersItem.target = self
             if #available(macOS 11.0, *) {
                 copyHeadersItem.image = NSImage(systemSymbolName: "tablecells", accessibilityDescription: nil)
             }
             copyHeadersItem.isEnabled = hasSelection
+            copyHeadersItem.keyEquivalentModifierMask = [.command, .shift]
             menu.addItem(copyHeadersItem)
         }
 
@@ -665,8 +804,9 @@ struct QueryResultsTableView: NSViewRepresentable {
             selectionAnchor = top
             selectionFocus = bottom
             isDraggingCellSelection = false
-            rowSelectionAnchor = nil
+            tableView.highlightedTableColumn = tableView.tableColumns[index]
         }
+
 
         private func ensureSelectionForContextMenu(tableView: NSTableView) {
             let clickedRow = tableView.clickedRow
@@ -676,9 +816,12 @@ struct QueryResultsTableView: NSViewRepresentable {
                 return
             }
 
-            if selectionRegion?.contains(cell) != true {
-                setSelectionRegion(SelectedRegion(start: cell, end: cell), tableView: tableView)
+            if let region = selectionRegion, region.contains(cell) {
+                return
             }
+
+            setSelectionRegion(SelectedRegion(start: cell, end: cell), tableView: tableView)
+            parent.onClearColumnHighlight()
         }
 
         private func hasCopyableSelection() -> Bool {
@@ -773,18 +916,51 @@ struct QueryResultsTableView: NSViewRepresentable {
 
         func handleMouseDown(_ event: NSEvent, in tableView: NSTableView) {
             guard tableView.numberOfRows > 0 else { return }
+            deactivateActiveSelectableField(in: tableView)
             tableView.window?.makeFirstResponder(tableView)
             let point = tableView.convert(event.locationInWindow, from: nil)
             guard let cell = resolvedCell(at: point, in: tableView, allowOutOfBounds: false) else {
+                clearColumnSelection(in: tableView)
+                isDraggingCellSelection = false
+                tableView.deselectAll(nil)
+                selectionAnchor = nil
+                selectionFocus = nil
+                selectionRegion = nil
+                return
+            }
+
+            let clickCount = event.clickCount
+            let extendSelection = event.modifierFlags.contains(.shift)
+            let currentRegion = selectionRegion
+            let anchorCell: QueryResultsTableView.SelectedCell
+
+            if extendSelection, let existingAnchor = selectionAnchor {
+                anchorCell = existingAnchor
+            } else if let existingRegion = currentRegion, regionRepresentsEntireColumn(existingRegion, tableView: tableView) {
+                anchorCell = cell
+                setSelectionRegion(SelectedRegion(start: anchorCell, end: cell), tableView: tableView)
+            } else {
+                anchorCell = cell
+                if currentRegion?.contains(cell) != true {
+                    setSelectionRegion(SelectedRegion(start: anchorCell, end: cell), tableView: tableView)
+                }
+            }
+
+            if clickCount >= 2 {
+                focusCellEditor(at: cell, tableView: tableView)
                 isDraggingCellSelection = false
                 return
             }
 
-            if selectionRegion?.contains(cell) != true {
+            if extendSelection {
+                setSelectionRegion(SelectedRegion(start: anchorCell, end: cell), tableView: tableView)
+                selectionAnchor = anchorCell
+            } else {
                 setSelectionRegion(SelectedRegion(start: cell, end: cell), tableView: tableView)
+                selectionAnchor = cell
+                parent.onClearColumnHighlight()
             }
 
-            selectionAnchor = cell
             selectionFocus = cell
             isDraggingCellSelection = true
         }
@@ -861,7 +1037,17 @@ struct QueryResultsTableView: NSViewRepresentable {
 
         func clearCellSelection(for tableView: NSTableView) {
             setSelectionRegion(nil, tableView: tableView)
-            rowSelectionAnchor = nil
+            parent.onClearColumnHighlight()
+            deactivateActiveSelectableField(in: tableView)
+        }
+
+        private func clearColumnSelection(in tableView: NSTableView) {
+            setSelectionRegion(nil, tableView: tableView)
+            tableView.highlightedTableColumn = nil
+            parent.onClearColumnHighlight()
+            deactivateActiveSelectableField(in: tableView)
+            selectionAnchor = nil
+            selectionFocus = nil
         }
 
         func isRowInCellSelection(_ row: Int) -> Bool {
@@ -873,8 +1059,8 @@ struct QueryResultsTableView: NSViewRepresentable {
         private func ensureSelectionSeed(in tableView: NSTableView) {
             guard tableView.numberOfRows > 0, tableView.tableColumns.count > 0 else { return }
             if selectionRegion == nil {
-                let defaultRow = tableView.selectedRow >= 0 ? tableView.selectedRow : 0
-                let defaultColumn = tableView.selectedColumn >= 0 ? tableView.selectedColumn : 0
+                let defaultRow = tableView.clickedRow >= 0 ? tableView.clickedRow : (selectionFocus?.row ?? 0)
+                let defaultColumn = tableView.clickedColumn >= 0 ? tableView.clickedColumn : (selectionFocus?.column ?? 0)
                 let seed = QueryResultsTableView.SelectedCell(
                     row: max(0, min(tableView.numberOfRows - 1, defaultRow)),
                     column: max(0, min(tableView.tableColumns.count - 1, defaultColumn))
@@ -887,6 +1073,8 @@ struct QueryResultsTableView: NSViewRepresentable {
 
         private func moveSelection(rowDelta: Int, columnDelta: Int, extend: Bool, tableView: NSTableView) {
             guard tableView.numberOfRows > 0, tableView.tableColumns.count > 0 else { return }
+
+            deactivateActiveSelectableField(in: tableView)
 
             ensureSelectionSeed(in: tableView)
 
@@ -944,6 +1132,17 @@ struct QueryResultsTableView: NSViewRepresentable {
             return QueryResultsTableView.SelectedCell(row: visibleRow, column: dataColumn)
         }
 
+        private func focusCellEditor(at cell: QueryResultsTableView.SelectedCell, tableView: NSTableView) {
+            guard let textField = tableView.view(atColumn: cell.column, row: cell.row, makeIfNecessary: false) as? NSTextField else {
+                return
+            }
+            deactivateActiveSelectableField(in: tableView)
+            textField.isSelectable = true
+            activeSelectableField = textField
+            tableView.window?.makeFirstResponder(textField)
+            textField.selectText(nil)
+        }
+
         private func resolvedCell(at point: NSPoint, in tableView: NSTableView, allowOutOfBounds: Bool) -> QueryResultsTableView.SelectedCell? {
             var row = tableView.row(at: point)
             var column = tableView.column(at: point)
@@ -988,6 +1187,22 @@ struct QueryResultsTableView: NSViewRepresentable {
             return column
         }
 
+        private func regionRepresentsEntireColumn(_ region: SelectedRegion, tableView: NSTableView) -> Bool {
+            guard region.start.column == region.end.column else { return false }
+            let rowCount = tableView.numberOfRows
+            guard rowCount > 0 else { return false }
+            return region.normalizedRowRange.lowerBound <= 0 && region.normalizedRowRange.upperBound >= rowCount - 1
+        }
+
+        private func deactivateActiveSelectableField(in tableView: NSTableView?) {
+            guard let field = activeSelectableField else { return }
+            if let tableView, let window = tableView.window, let editor = window.firstResponder as? NSTextView, editor.delegate as? NSTextField === field {
+                window.makeFirstResponder(tableView)
+            }
+            field.isSelectable = false
+            activeSelectableField = nil
+        }
+
         private func resolvedRowIndex(for visibleRow: Int) -> Int {
             guard !parent.rowOrder.isEmpty else { return visibleRow }
             if visibleRow < parent.rowOrder.count {
@@ -1007,15 +1222,26 @@ struct QueryResultsTableView: NSViewRepresentable {
             if region != nil {
                 tableView.selectionHighlightStyle = .none
                 tableView.deselectAll(nil)
-                rowSelectionAnchor = nil
             } else {
                 tableView.selectionHighlightStyle = .regular
                 isDraggingCellSelection = false
+                deactivateActiveSelectableField(in: tableView)
             }
 
             reload(region: previous, tableView: tableView)
             reload(region: region, tableView: tableView)
-            reloadIndexColumn(for: tableView)
+
+            tableView.highlightedTableColumn = nil
+            if let region,
+               regionRepresentsEntireColumn(region, tableView: tableView),
+               region.start.column >= 0,
+               region.start.column < tableView.tableColumns.count {
+                tableView.highlightedTableColumn = tableView.tableColumns[region.start.column]
+            } else {
+                parent.onClearColumnHighlight()
+            }
+
+            refreshVisibleRowBackgrounds(tableView)
         }
 
         private func reload(region: SelectedRegion?, tableView: NSTableView) {
@@ -1038,100 +1264,32 @@ struct QueryResultsTableView: NSViewRepresentable {
             tableView.reloadData(forRowIndexes: rowIndexes, columnIndexes: columnIndexes)
         }
 
-        func reloadIndexColumn(for tableView: NSTableView) {
-            rowIndexOverlay?.refresh()
-        }
-
-        func beginRowHeaderSelection(at row: Int, modifiers: NSEvent.ModifierFlags) {
-            guard let tableView else { return }
-            let maxRow = tableView.numberOfRows - 1
-            guard maxRow >= 0 else { return }
-            let target = max(0, min(maxRow, row))
-
-            if modifiers.contains(.command) {
-                var selection = tableView.selectedRowIndexes
-                if selection.contains(target) {
-                    selection.remove(target)
-                } else {
-                    selection.insert(target)
-                }
-                tableView.selectRowIndexes(selection, byExtendingSelection: false)
-                rowSelectionAnchor = target
-            } else {
-                let anchor: Int
-                if modifiers.contains(.shift) {
-                    let existingAnchor = rowSelectionAnchor ?? tableView.selectedRow
-                    anchor = existingAnchor >= 0 ? existingAnchor : target
-                } else {
-                    anchor = target
-                }
-                rowSelectionAnchor = anchor
-                applyRowSelection(range: anchor...target)
-            }
-
-            setSelectionRegion(nil, tableView: tableView)
-            tableView.scrollRowToVisible(target)
-            reloadIndexColumn(for: tableView)
-        }
-
-        func continueRowHeaderSelection(to row: Int) {
-            guard let tableView else { return }
-            let maxRow = tableView.numberOfRows - 1
-            guard maxRow >= 0 else { return }
-
-            let anchor: Int
-            if let storedAnchor = rowSelectionAnchor, storedAnchor >= 0 {
-                anchor = max(0, min(maxRow, storedAnchor))
-            } else if tableView.selectedRow >= 0 {
-                anchor = max(0, min(maxRow, tableView.selectedRow))
-                rowSelectionAnchor = anchor
-            } else {
-                anchor = max(0, min(maxRow, row))
-                rowSelectionAnchor = anchor
-            }
-
-            let target = max(0, min(maxRow, row))
-            applyRowSelection(range: anchor...target)
-            setSelectionRegion(nil, tableView: tableView)
-            tableView.scrollRowToVisible(target)
-            reloadIndexColumn(for: tableView)
-        }
-
-        private func applyRowSelection(range: ClosedRange<Int>) {
-            guard let tableView else { return }
-            let maxRow = tableView.numberOfRows - 1
-            guard maxRow >= 0 else { return }
-            let lower = max(0, min(range.lowerBound, maxRow))
-            let upper = max(0, min(range.upperBound, maxRow))
-            guard upper >= lower else { return }
-            let indexes = IndexSet(integersIn: lower...upper)
-            tableView.selectRowIndexes(indexes, byExtendingSelection: false)
-        }
-
-        @objc private func contentViewDidScroll(_ notification: Notification) {
-            guard let tableView else { return }
-            reloadIndexColumn(for: tableView)
-        }
     }
 }
 
-final class ResultTableContainerView: NSView {
+final class ResultTableContainerView: NSVisualEffectView {
     let scrollView: NSScrollView
-    let overlay: RowIndexOverlayView
+    private let leadingView: ResultTableLeadingBackgroundView
+    private var leadingWidth: CGFloat
 
-    init(scrollView: NSScrollView, overlay: RowIndexOverlayView) {
+    init(scrollView: NSScrollView, leadingWidth: CGFloat) {
         self.scrollView = scrollView
-        self.overlay = overlay
+        self.leadingWidth = max(0, leadingWidth)
+        self.leadingView = ResultTableLeadingBackgroundView(width: self.leadingWidth)
         super.init(frame: .zero)
 
+        material = .contentBackground
+        blendingMode = .withinWindow
+        state = .followsWindowActiveState
+        isEmphasized = false
         wantsLayer = true
+        layer?.masksToBounds = false
         scrollView.autoresizingMask = [.width, .height]
-        overlay.autoresizingMask = [.height]
+        leadingView.autoresizingMask = [.height]
+        leadingView.isHidden = self.leadingWidth <= 0
 
+        addSubview(leadingView)
         addSubview(scrollView)
-        addSubview(overlay)
-
-        overlay.layer?.zPosition = 1
     }
 
     required init?(coder: NSCoder) {
@@ -1143,23 +1301,28 @@ final class ResultTableContainerView: NSView {
     }
 
     func updateBackgroundColor(_ color: NSColor) {
+        leadingView.updateBackgroundColor(ThemeManager.shared.resultsGridHeaderBackgroundNSColor)
         wantsLayer = true
         layer?.backgroundColor = color.cgColor
         scrollView.backgroundColor = .clear
         scrollView.drawsBackground = false
         scrollView.contentView.drawsBackground = false
         scrollView.contentView.backgroundColor = .clear
-        overlay.updateBackgroundColor(color)
+    }
+
+    func updateLeadingWidth(_ width: CGFloat) {
+        let normalized = max(0, width)
+        guard abs(normalized - leadingWidth) > 0.01 else { return }
+        leadingWidth = normalized
+        leadingView.updateConfiguredWidth(normalized)
+        leadingView.isHidden = normalized <= 0
+        needsLayout = true
+        layoutSubtreeIfNeeded()
     }
 
     override func layout() {
         super.layout()
         layoutChildren()
-#if DEBUG
-        let tableFrame = tableView?.frame ?? .zero
-        print("[GridDebug] Container layout -> frame=\(frame) scrollFrame=\(scrollView.frame) overlayFrame=\(overlay.frame) tableFrame=\(tableFrame)")
-        print("[GridDebug] Container subviews -> \(subviews.map { type(of: $0) })")
-#endif
     }
 
     override func viewDidMoveToSuperview() {
@@ -1173,12 +1336,169 @@ final class ResultTableContainerView: NSView {
     }
 
     private func layoutChildren() {
-        guard scrollView.superview === self, overlay.superview === self else { return }
-        let overlayWidth = max(0, min(overlay.width, bounds.width))
-        overlay.frame = NSRect(x: 0, y: 0, width: overlayWidth, height: bounds.height)
-        let scrollOriginX = overlayWidth
+        guard scrollView.superview === self else { return }
+        let actualWidth = max(0, min(leadingWidth, bounds.width))
+        leadingView.isHidden = actualWidth <= 0
+        leadingView.frame = NSRect(x: 0, y: 0, width: actualWidth, height: bounds.height)
+        let scrollOriginX = actualWidth
         let scrollWidth = max(bounds.width - scrollOriginX, 0)
         scrollView.frame = NSRect(x: scrollOriginX, y: 0, width: scrollWidth, height: bounds.height)
+        if scrollView.responds(to: #selector(getter: NSScrollView.contentInsets)) {
+            scrollView.contentInsets = NSEdgeInsetsZero
+        }
+    }
+}
+
+private final class ResultTableLeadingBackgroundView: NSVisualEffectView {
+    private var configuredWidth: CGFloat
+    private let separatorLayer = CALayer()
+
+    init(width: CGFloat) {
+        self.configuredWidth = width
+        super.init(frame: .zero)
+        material = .sidebar
+        blendingMode = .withinWindow
+        state = .followsWindowActiveState
+        isEmphasized = false
+        wantsLayer = true
+        layer?.masksToBounds = false
+        layer?.addSublayer(separatorLayer)
+        separatorLayer.contentsScale = NSScreen.main?.backingScaleFactor ?? 2
+        separatorLayer.isHidden = width <= 0
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    func updateBackgroundColor(_ color: NSColor) {
+        wantsLayer = true
+        material = .sidebar
+        blendingMode = .withinWindow
+        state = .followsWindowActiveState
+        layer?.backgroundColor = color.cgColor
+        separatorLayer.backgroundColor = ThemeManager.shared.resultsGridHeaderSeparatorNSColor.cgColor
+        separatorLayer.isHidden = configuredWidth <= 0
+        needsLayout = true
+    }
+
+    func updateConfiguredWidth(_ width: CGFloat) {
+        configuredWidth = width
+        separatorLayer.isHidden = width <= 0
+        needsLayout = true
+    }
+
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        nil
+    }
+
+    override func layout() {
+        super.layout()
+        separatorLayer.frame = CGRect(
+            x: max(0, bounds.width - 1),
+            y: 0,
+            width: configuredWidth > 0 ? 1 : 0,
+            height: bounds.height
+        )
+    }
+}
+
+private final class ResultTableRowView: NSTableRowView {
+    private var rowIndex: Int = 0
+    private var colorProvider: ((Int) -> NSColor)?
+
+    struct SelectionRenderInfo {
+        let rect: NSRect
+        let topCornerRadius: CGFloat
+        let bottomCornerRadius: CGFloat
+    }
+
+    private var highlightProvider: ((ResultTableRowView, Int) -> SelectionRenderInfo?)?
+
+    func configure(row: Int,
+                   colorProvider: @escaping (Int) -> NSColor,
+                   highlightProvider: @escaping (ResultTableRowView, Int) -> SelectionRenderInfo?) {
+        self.rowIndex = row
+        self.colorProvider = colorProvider
+        self.highlightProvider = highlightProvider
+        needsDisplay = true
+    }
+
+    override func prepareForReuse() {
+        super.prepareForReuse()
+        colorProvider = nil
+        highlightProvider = nil
+    }
+
+    override func drawBackground(in dirtyRect: NSRect) {
+        let color = colorProvider?(rowIndex) ?? NSColor.clear
+        color.setFill()
+        dirtyRect.fill()
+
+        if let info = highlightProvider?(self, rowIndex) {
+            let accent = ThemeManager.shared.accentNSColor
+            let fill = accent.withAlphaComponent(0.18)
+            let stroke = accent.withAlphaComponent(0.65)
+            let path = makeRoundedPath(in: info.rect, topRadius: info.topCornerRadius, bottomRadius: info.bottomCornerRadius)
+            fill.setFill()
+            path.fill()
+            stroke.setStroke()
+            path.lineWidth = 1
+            path.stroke()
+        }
+    }
+
+    override func drawSelection(in dirtyRect: NSRect) {}
+
+    override var isEmphasized: Bool {
+        get { false }
+        set { }
+    }
+
+    private func makeRoundedPath(in rect: NSRect, topRadius: CGFloat, bottomRadius: CGFloat) -> NSBezierPath {
+        let path = NSBezierPath()
+        let topR = min(topRadius, rect.width / 2, rect.height / 2)
+        let bottomR = min(bottomRadius, rect.width / 2, rect.height / 2)
+
+        let minX = rect.minX
+        let maxX = rect.maxX
+        let minY = rect.minY
+        let maxY = rect.maxY
+
+        path.move(to: NSPoint(x: minX, y: minY + bottomR))
+
+        if bottomR > 0 {
+            path.appendArc(withCenter: NSPoint(x: minX + bottomR, y: minY + bottomR), radius: bottomR, startAngle: 180, endAngle: 270)
+        } else {
+            path.line(to: NSPoint(x: minX, y: minY))
+        }
+
+        path.line(to: NSPoint(x: maxX - bottomR, y: minY))
+
+        if bottomR > 0 {
+            path.appendArc(withCenter: NSPoint(x: maxX - bottomR, y: minY + bottomR), radius: bottomR, startAngle: 270, endAngle: 360)
+        } else {
+            path.line(to: NSPoint(x: maxX, y: minY))
+        }
+
+        path.line(to: NSPoint(x: maxX, y: maxY - topR))
+
+        if topR > 0 {
+            path.appendArc(withCenter: NSPoint(x: maxX - topR, y: maxY - topR), radius: topR, startAngle: 0, endAngle: 90)
+        } else {
+            path.line(to: NSPoint(x: maxX, y: maxY))
+        }
+
+        path.line(to: NSPoint(x: minX + topR, y: maxY))
+
+        if topR > 0 {
+            path.appendArc(withCenter: NSPoint(x: minX + topR, y: maxY - topR), radius: topR, startAngle: 90, endAngle: 180)
+        } else {
+            path.line(to: NSPoint(x: minX, y: maxY))
+        }
+
+        path.close()
+        return path
     }
 }
 
@@ -1196,11 +1516,17 @@ private final class ResultTableView: NSTableView {
 
     override func mouseDown(with event: NSEvent) {
         selectionDelegate?.handleMouseDown(event, in: self)
+        if selectionDelegate?.hasActiveCellSelection == true {
+            return
+        }
         super.mouseDown(with: event)
     }
 
     override func mouseDragged(with event: NSEvent) {
         selectionDelegate?.handleMouseDragged(event, in: self)
+        if selectionDelegate?.hasActiveCellSelection == true {
+            return
+        }
         super.mouseDragged(with: event)
     }
 
@@ -1304,223 +1630,6 @@ private final class ResultTableHeaderView: NSTableHeaderView {
         }
         isDraggingColumns = false
         super.mouseUp(with: event)
-    }
-}
-
-final class RowIndexOverlayView: NSView {
-    weak var coordinator: QueryResultsTableView.Coordinator?
-    weak var scrollView: NSScrollView?
-    let width: CGFloat
-
-    private let headerFont = NSFont.systemFont(ofSize: 11, weight: .medium)
-    private let rowFont = NSFont.monospacedDigitSystemFont(ofSize: 11, weight: .regular)
-    private var isDraggingRowSelection = false
-    private var overlayBackgroundColor: NSColor = NSColor.windowBackgroundColor
-
-    init(coordinator: QueryResultsTableView.Coordinator, scrollView: NSScrollView, width: CGFloat) {
-        self.coordinator = coordinator
-        self.scrollView = scrollView
-        self.width = width
-        super.init(frame: .zero)
-        wantsLayer = true
-        translatesAutoresizingMaskIntoConstraints = false
-        layer?.masksToBounds = false
-    }
-
-    required init?(coder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
-    }
-
-    override var isOpaque: Bool { false }
-
-    override var isFlipped: Bool { true }
-
-    func refresh() {
-        needsDisplay = true
-    }
-
-    func updateBackgroundColor(_ color: NSColor) {
-        overlayBackgroundColor = color
-        needsDisplay = true
-    }
-
-    override func draw(_ dirtyRect: NSRect) {
-        guard let coordinator,
-              let tableView = coordinator.currentTableView,
-              let scrollView = scrollView else {
-            overlayBackgroundColor.setFill()
-            dirtyRect.fill()
-            return
-        }
-
-        overlayBackgroundColor.setFill()
-        dirtyRect.fill()
-
-        let headerRect: NSRect?
-        if let headerView = tableView.headerView {
-            var converted = headerView.bounds
-            converted = tableView.convert(converted, to: self)
-            converted.origin.x = 0
-            converted.size.width = bounds.width
-            let clipped = converted.intersection(bounds)
-            headerRect = clipped
-
-            if !clipped.isEmpty {
-                NSColor.controlBackgroundColor.setFill()
-                clipped.fill()
-
-                let headerString = "#" as NSString
-                let attributes: [NSAttributedString.Key: Any] = [
-                    .font: headerFont,
-                    .foregroundColor: NSColor.secondaryLabelColor
-                ]
-                let size = headerString.size(withAttributes: attributes)
-                let centerPoint = NSPoint(
-                    x: clipped.midX - size.width / 2,
-                    y: clipped.midY - size.height / 2
-                )
-                headerString.draw(at: centerPoint, withAttributes: attributes)
-            }
-        } else {
-            headerRect = nil
-        }
-
-        let visibleRect = scrollView.contentView.bounds
-        let visibleRows = tableView.rows(in: visibleRect)
-        guard visibleRows.length > 0 else { return }
-
-        let start = max(0, Int(visibleRows.location))
-        let end = min(tableView.numberOfRows, start + Int(visibleRows.length) + 1)
-        let selection = tableView.selectedRowIndexes
-
-        for row in start..<end {
-            let rowRectInTable = tableView.rect(ofRow: row)
-            var rectInScroll = tableView.convert(rowRectInTable, to: scrollView)
-            rectInScroll.origin.x = 0
-            rectInScroll.size.width = width
-            let rowRect = convert(rectInScroll, from: scrollView)
-
-            var drawRect = rowRect
-            if let headerRect, drawRect.intersects(headerRect) {
-                let overlap = headerRect.maxY - drawRect.minY
-                if overlap >= drawRect.height {
-                    continue
-                }
-                drawRect.origin.y += overlap
-                drawRect.size.height -= overlap
-            }
-
-            if drawRect.height <= 0 { continue }
-
-            if selection.contains(row) {
-                NSColor.controlAccentColor.withAlphaComponent(0.18).setFill()
-                drawRect.fill()
-            } else if coordinator.isRowInCellSelection(row) {
-                NSColor.controlAccentColor.withAlphaComponent(0.1).setFill()
-                drawRect.fill()
-            } else {
-                overlayBackgroundColor.setFill()
-                drawRect.fill()
-            }
-
-            let number = "\(row + 1)" as NSString
-            let attributes: [NSAttributedString.Key: Any] = [
-                .font: rowFont,
-                .foregroundColor: selection.contains(row) ? NSColor.controlAccentColor : NSColor.secondaryLabelColor
-            ]
-            let size = number.size(withAttributes: attributes)
-            let insetRect = drawRect.insetBy(dx: 6, dy: max(0, (drawRect.height - size.height) / 2 - 1))
-            let textPoint = NSPoint(x: insetRect.maxX - size.width, y: insetRect.minY + max(0, (insetRect.height - size.height) / 2))
-            number.draw(at: textPoint, withAttributes: attributes)
-        }
-
-        let dividerPath = NSBezierPath()
-        dividerPath.move(to: NSPoint(x: bounds.width - 0.5, y: 0))
-        dividerPath.line(to: NSPoint(x: bounds.width - 0.5, y: bounds.height))
-        NSColor.separatorColor.setStroke()
-        dividerPath.lineWidth = 1
-        dividerPath.stroke()
-    }
-
-    override func mouseDown(with event: NSEvent) {
-        guard let coordinator = coordinator,
-              let tableView = coordinator.currentTableView,
-              let scrollView = scrollView else { return }
-
-        let locationInOverlay = convert(event.locationInWindow, from: nil)
-        let pointInScroll = convert(locationInOverlay, to: scrollView)
-        let pointInTable = tableView.convert(pointInScroll, from: scrollView)
-
-        let rawRow = tableView.row(at: pointInTable)
-        let row = clampRow(rawRow, point: pointInTable, tableView: tableView)
-        guard row >= 0 else { return }
-
-        window?.makeFirstResponder(tableView)
-        isDraggingRowSelection = true
-        coordinator.beginRowHeaderSelection(at: row, modifiers: event.modifierFlags)
-    }
-
-    override func rightMouseDown(with event: NSEvent) {
-        mouseDown(with: event)
-        if let tableView = coordinator?.currentTableView {
-            tableView.rightMouseDown(with: event)
-        } else {
-            super.rightMouseDown(with: event)
-        }
-    }
-
-    override func otherMouseDown(with event: NSEvent) {
-        mouseDown(with: event)
-        super.otherMouseDown(with: event)
-    }
-
-    override func mouseDragged(with event: NSEvent) {
-        guard isDraggingRowSelection,
-              let coordinator = coordinator,
-              let tableView = coordinator.currentTableView,
-              let scrollView = scrollView else {
-            super.mouseDragged(with: event)
-            return
-        }
-
-        let locationInOverlay = convert(event.locationInWindow, from: nil)
-        let pointInScroll = convert(locationInOverlay, to: scrollView)
-        let pointInTable = tableView.convert(pointInScroll, from: scrollView)
-        let rawRow = tableView.row(at: pointInTable)
-        let row = clampRow(rawRow, point: pointInTable, tableView: tableView)
-        guard row >= 0 else {
-            super.mouseDragged(with: event)
-            return
-        }
-
-        coordinator.continueRowHeaderSelection(to: row)
-        super.mouseDragged(with: event)
-    }
-
-    override func mouseUp(with event: NSEvent) {
-        isDraggingRowSelection = false
-        super.mouseUp(with: event)
-    }
-
-    override func scrollWheel(with event: NSEvent) {
-        scrollView?.scrollWheel(with: event)
-    }
-
-    override func layout() {
-        super.layout()
-        needsDisplay = true
-    }
-
-    private func clampRow(_ row: Int, point: NSPoint, tableView: NSTableView) -> Int {
-        if row >= 0 { return row }
-        let maxRow = tableView.numberOfRows - 1
-        guard maxRow >= 0 else { return -1 }
-
-        if point.y < 0 { return 0 }
-        let lastRowRect = tableView.rect(ofRow: maxRow)
-        if point.y > lastRowRect.maxY { return maxRow }
-        let approximate = Int(point.y / max(tableView.rowHeight, 1))
-        return max(0, min(maxRow, approximate))
     }
 }
 #endif

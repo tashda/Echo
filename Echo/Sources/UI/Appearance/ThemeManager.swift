@@ -10,6 +10,8 @@ import Combine
 
 #if os(macOS)
 import AppKit
+#elseif canImport(UIKit)
+import UIKit
 #endif
 
 @MainActor
@@ -22,6 +24,8 @@ final class ThemeManager: ObservableObject {
     @Published private(set) var windowBackgroundColor: Color
     @Published private(set) var surfaceBackgroundColor: Color
     @Published private(set) var surfaceForegroundColor: Color
+    @Published private(set) var useAppThemeForResultsGrid: Bool
+    @Published private(set) var resultsAlternateRowShading: Bool
 
 #if os(macOS)
     @Published private(set) var accentNSColor: NSColor
@@ -37,6 +41,8 @@ final class ThemeManager: ObservableObject {
 
     var activePaletteTone: SQLEditorPalette.Tone { activeTone }
     var windowBackground: Color { windowBackgroundColor }
+    var surfaceBackground: Color { surfaceBackgroundColor }
+    var surfaceForeground: Color { surfaceForegroundColor }
 
     private var themesByTone: [SQLEditorPalette.Tone: AppColorTheme]
     private var activeTone: SQLEditorPalette.Tone
@@ -69,6 +75,8 @@ final class ThemeManager: ObservableObject {
         windowBackgroundColor = initialTheme.windowBackground.color
         surfaceBackgroundColor = initialTheme.surfaceBackground.color
         surfaceForegroundColor = initialTheme.surfaceForeground.color
+        useAppThemeForResultsGrid = true
+        resultsAlternateRowShading = false
         accentSubject = CurrentValueSubject<Color, Never>(initialAccentColor)
 
 #if os(macOS)
@@ -163,6 +171,15 @@ final class ThemeManager: ObservableObject {
         }
     }
 
+    func applyResultsGridPreferences(themeResultsGrid: Bool, alternateRowShading: Bool) {
+        if useAppThemeForResultsGrid != themeResultsGrid {
+            useAppThemeForResultsGrid = themeResultsGrid
+        }
+        if resultsAlternateRowShading != alternateRowShading {
+            resultsAlternateRowShading = alternateRowShading
+        }
+    }
+
     // MARK: - Private Helpers
 
     private func updateOutputs(for tone: SQLEditorPalette.Tone) {
@@ -244,5 +261,76 @@ final class ThemeManager: ObservableObject {
 
 extension ThemeManager {
     /// Legacy compatibility for components that still expect this flag.
-    var showAlternateRowShading: Bool { false }
+    var showAlternateRowShading: Bool { resultsAlternateRowShading }
+
+    var resultsGridBackground: Color {
+#if os(macOS)
+        let fallback = Color(NSColor.textBackgroundColor)
+#else
+        let fallback = Color(uiColor: .systemBackground)
+#endif
+        return useAppThemeForResultsGrid ? windowBackgroundColor : fallback
+    }
+
+#if os(macOS)
+    var resultsGridBackgroundNSColor: NSColor {
+        useAppThemeForResultsGrid ? windowBackgroundNSColor : NSColor.textBackgroundColor
+    }
+#elseif canImport(UIKit)
+    var resultsGridBackgroundUIColor: UIColor {
+        if useAppThemeForResultsGrid {
+            return UIColor(resultsGridBackground)
+        } else {
+            return UIColor.systemBackground
+        }
+    }
+#endif
+
+    var resultsGridLeadingInset: CGFloat {
+#if os(macOS)
+        return 0
+#else
+        return 0
+#endif
+    }
+
+#if os(macOS)
+    var resultsGridCellBackgroundNSColor: NSColor { resultsGridBackgroundNSColor }
+
+    var resultsGridCellTextNSColor: NSColor {
+        useAppThemeForResultsGrid ? surfaceForegroundNSColor : NSColor.labelColor
+    }
+
+    var resultsGridAlternateRowNSColor: NSColor {
+        guard resultsAlternateRowShading else { return resultsGridCellBackgroundNSColor }
+        if useAppThemeForResultsGrid {
+            let base = resultsGridCellBackgroundNSColor.usingColorSpace(.extendedSRGB) ?? resultsGridCellBackgroundNSColor
+            let accent = accentNSColor.usingColorSpace(.extendedSRGB) ?? accentNSColor
+            return base.blended(withFraction: 0.04, of: accent) ?? base
+        } else {
+            let alternating = NSColor.controlAlternatingRowBackgroundColors
+            if alternating.count > 1 {
+                return alternating[1]
+            }
+            return alternating.first ?? NSColor.textBackgroundColor
+        }
+    }
+
+    var resultsGridHeaderBackgroundNSColor: NSColor {
+        useAppThemeForResultsGrid ? surfaceBackgroundNSColor : NSColor.windowBackgroundColor
+    }
+
+    var resultsGridHeaderTextNSColor: NSColor {
+        useAppThemeForResultsGrid ? surfaceForegroundNSColor : NSColor.labelColor
+    }
+
+    var resultsGridHeaderSeparatorNSColor: NSColor {
+        useAppThemeForResultsGrid ? accentNSColor.withAlphaComponent(0.2) : NSColor.separatorColor
+    }
+#elseif canImport(UIKit)
+    var resultsGridAlternateRowUIColor: UIColor {
+        guard resultsAlternateRowShading else { return resultsGridBackgroundUIColor }
+        return useAppThemeForResultsGrid ? UIColor.systemGray6 : UIColor.secondarySystemBackground
+    }
+#endif
 }

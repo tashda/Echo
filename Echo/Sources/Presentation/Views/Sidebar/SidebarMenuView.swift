@@ -53,12 +53,12 @@ struct SidebarMenu: View {
         VStack(spacing: 0) {
             navigationBar
                 .padding(.horizontal, 6)
-                .padding(.top, 12)
                 .padding(.bottom, 8)
 
             contentView
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
+        .safeAreaPadding(.top, 12)
         .confirmationDialog(
             "Duplicate Connection",
             isPresented: Binding(

@@ -1,4 +1,5 @@
 import SwiftUI
+import Foundation
 import AppKit
 
 /// Primary settings scene built with a native `NavigationSplitView`.
@@ -67,6 +68,8 @@ struct SettingsView: View {
             preferredColumn = .sidebar
         }
         .accentColor(themeManager.accentColor)
+        .preferredColorScheme(themeManager.effectiveColorScheme)
+        .background(themeManager.windowBackground)
     }
 
     private var sidebar: some View {
@@ -81,6 +84,8 @@ struct SettingsView: View {
         }
         .navigationTitle("Settings")
         .listStyle(.sidebar)
+        .scrollContentBackground(.hidden)
+        .background(themeManager.surfaceBackgroundColor)
         .navigationSplitViewColumnWidth(min: 260, ideal: 300, max: 360)
         .navigationDestination(for: SettingsSection.self) { section in
             sectionView(for: section)
@@ -101,7 +106,7 @@ struct SettingsView: View {
                 }
             }
         }
-        .background(themeManager.windowBackground)
+        .background(themeManager.surfaceBackgroundColor)
         .frame(minWidth: 560, minHeight: 420)
     }
 
@@ -147,7 +152,6 @@ struct AppearanceSettingsView: View {
     @State private var isThemeEditorPresented = false
     @State private var isPaletteEditorPresented = false
 
-    private let cardColumns = [GridItem(.adaptive(minimum: 220, maximum: 260), spacing: 16)]
 
     var body: some View {
         Form {
@@ -169,7 +173,7 @@ struct AppearanceSettingsView: View {
         }
         .formStyle(.grouped)
         .scrollContentBackground(.hidden)
-        .background(themeManager.windowBackground)
+        .background(themeManager.surfaceBackgroundColor)
         .alert(
             "Delete Theme?",
             isPresented: Binding(
@@ -240,12 +244,18 @@ struct AppearanceSettingsView: View {
 
     private var appearanceModeSection: some View {
         Section("Appearance Mode") {
-            Picker("Mode", selection: appearanceModeBinding) {
-                ForEach(AppearanceMode.allCases, id: \.self) { mode in
-                    Text(mode.displayName).tag(mode)
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 14) {
+                    ForEach(appearanceModeOptions) { option in
+                        AppearanceModeCard(
+                            option: option,
+                            isSelected: appearanceModeBinding.wrappedValue == option.mode,
+                            onSelect: { appearanceModeBinding.wrappedValue = option.mode }
+                        )
+                    }
                 }
+                .padding(.horizontal, 4)
             }
-            .pickerStyle(.segmented)
 
             Text("Choose Light or Dark for a fixed appearance, or System to follow macOS automatically.")
                 .font(.footnote)
@@ -278,43 +288,48 @@ struct AppearanceSettingsView: View {
         let defaultPalette = appModel.globalSettings.defaultPalette(for: tone)
 
         return VStack(alignment: .leading, spacing: 12) {
-            LazyVGrid(columns: cardColumns, spacing: 16) {
-                ThemeSelectionCard(
-                    title: "Match Palette Default",
-                    subtitle: defaultPalette?.name ?? "Selects the palette’s default theme colours",
-                    theme: autoTheme,
-                    palette: defaultPalette,
-                    isSelected: selectedThemeID == nil,
-                    isBusy: isUpdatingTheme && selectedThemeID == nil,
-                    badge: ThemeSelectionCard.Badge(label: "Auto", style: .default),
-                    onSelect: { selectTheme(nil, tone: tone) }
-                ) {
-                    EmptyView()
-                }
-                .disabled(isUpdatingTheme)
-
-                ForEach(themes) { theme in
-                    let palette = palette(for: theme.defaultPaletteID)
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 14) {
                     ThemeSelectionCard(
-                        title: theme.name,
-                        subtitle: palette?.name,
-                        theme: theme,
-                        palette: palette,
-                        isSelected: selectedThemeID == theme.id,
-                        isBusy: isUpdatingTheme && selectedThemeID == theme.id,
-                        badge: theme.isCustom ? ThemeSelectionCard.Badge(label: "Custom", style: .secondary) : nil,
-                        onSelect: { selectTheme(theme.id, tone: tone, defaultPaletteID: theme.defaultPaletteID) }
+                        title: "Match Palette Default",
+                        subtitle: defaultPalette?.name ?? "Use palette colours",
+                        theme: autoTheme,
+                        palette: defaultPalette,
+                        isSelected: selectedThemeID == nil,
+                        isBusy: isUpdatingTheme && selectedThemeID == nil,
+                        badge: ThemeSelectionCard.Badge(label: "Auto", style: .default),
+                        onSelect: { selectTheme(nil, tone: tone) },
+                        style: .compact
                     ) {
-                        if theme.isCustom {
-                            Button("Edit Theme…") { startEditingTheme(theme, tone: tone) }
-                            Button("Duplicate…") { startDuplicatingTheme(theme, tone: tone) }
-                            Button("Delete", role: .destructive) { themePendingDeletion = theme }
-                        } else {
-                            Button("Duplicate…") { startDuplicatingTheme(theme, tone: tone) }
-                        }
+                        EmptyView()
                     }
                     .disabled(isUpdatingTheme)
+
+                    ForEach(themes) { theme in
+                        let palette = palette(for: theme.defaultPaletteID)
+                        ThemeSelectionCard(
+                            title: theme.name,
+                            subtitle: palette?.name,
+                            theme: theme,
+                            palette: palette,
+                            isSelected: selectedThemeID == theme.id,
+                            isBusy: isUpdatingTheme && selectedThemeID == theme.id,
+                            badge: theme.isCustom ? ThemeSelectionCard.Badge(label: "Custom", style: .secondary) : nil,
+                            onSelect: { selectTheme(theme.id, tone: tone, defaultPaletteID: theme.defaultPaletteID) },
+                            style: .compact
+                        ) {
+                            if theme.isCustom {
+                                Button("Edit Theme…") { startEditingTheme(theme, tone: tone) }
+                                Button("Duplicate…") { startDuplicatingTheme(theme, tone: tone) }
+                                Button("Delete", role: .destructive) { themePendingDeletion = theme }
+                            } else {
+                                Button("Duplicate…") { startDuplicatingTheme(theme, tone: tone) }
+                            }
+                        }
+                        .disabled(isUpdatingTheme)
+                    }
                 }
+                .padding(.horizontal, 4)
             }
 
             HStack {
@@ -332,36 +347,31 @@ struct AppearanceSettingsView: View {
         let selectedPaletteID = appModel.globalSettings.defaultPaletteID(for: tone)
 
         return VStack(alignment: .leading, spacing: 12) {
-            LazyVGrid(columns: cardColumns, spacing: 16) {
-                ForEach(palettes, id: \.id) { palette in
-                    PaletteSelectionCard(
-                        palette: palette,
-                        isSelected: selectedPaletteID == palette.id,
-                        isBusy: isUpdatingPalette && selectedPaletteID == palette.id,
-                        onSelect: { selectPalette(palette, tone: tone) }
-                    ) {
-                        if palette.kind == .custom {
-                            Button("Edit Palette…") { startEditingPalette(palette, tone: tone) }
-                            Button("Duplicate…") { startDuplicatingPalette(palette, tone: tone) }
-                            Button("Delete", role: .destructive) { palettePendingDeletion = palette }
-                        } else {
-                            Button("Duplicate…") { startDuplicatingPalette(palette, tone: tone) }
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 14) {
+                    if palettes.isEmpty {
+                        paletteEmptyStateCard
+                    } else {
+                        ForEach(palettes, id: \.id) { palette in
+                            PaletteSelectionCard(
+                                palette: palette,
+                                isSelected: selectedPaletteID == palette.id,
+                                isBusy: isUpdatingPalette && selectedPaletteID == palette.id,
+                                onSelect: { selectPalette(palette, tone: tone) }
+                            ) {
+                                if palette.kind == .custom {
+                                    Button("Edit Palette…") { startEditingPalette(palette, tone: tone) }
+                                    Button("Duplicate…") { startDuplicatingPalette(palette, tone: tone) }
+                                    Button("Delete", role: .destructive) { palettePendingDeletion = palette }
+                                } else {
+                                    Button("Duplicate…") { startDuplicatingPalette(palette, tone: tone) }
+                                }
+                            }
+                            .disabled(isUpdatingPalette)
                         }
                     }
-                    .disabled(isUpdatingPalette)
                 }
-
-                if palettes.isEmpty {
-                    Text("No palettes available for this tone.")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .frame(maxWidth: .infinity, minHeight: 96, alignment: .leading)
-                        .padding()
-                        .background(
-                            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                .stroke(Color.primary.opacity(0.08), lineWidth: 1)
-                        )
-                }
+                .padding(.horizontal, 4)
             }
 
             HStack {
@@ -372,6 +382,23 @@ struct AppearanceSettingsView: View {
             }
         }
         .animation(.easeInOut(duration: 0.2), value: selectedPaletteID)
+    }
+
+    @ViewBuilder
+    private var paletteEmptyStateCard: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("No palettes available for this tone.")
+                .font(.system(size: 12, weight: .semibold))
+            Text("Create a palette to customise SQL syntax colours.")
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
+        }
+        .padding(12)
+        .frame(width: ThemePreview.Layout.compact.size.width + 24, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .stroke(Color.primary.opacity(0.08), lineWidth: 1)
+        )
     }
 
     private var accentSection: some View {
@@ -676,6 +703,42 @@ struct AppearanceSettingsView: View {
         appModel.globalSettings.availablePalettes.filter { $0.tone == tone }
     }
 
+    private var appearanceModeOptions: [AppearanceModeOption] {
+        let light = appearanceThemePreview(for: .light)
+        let dark = appearanceThemePreview(for: .dark)
+
+        return [
+            AppearanceModeOption(
+                mode: .system,
+                title: "System",
+                subtitle: "Matches macOS appearance",
+                preview: .dual(light: light, dark: dark)
+            ),
+            AppearanceModeOption(
+                mode: .light,
+                title: "Light",
+                subtitle: "Always use light chrome",
+                preview: .single(light)
+            ),
+            AppearanceModeOption(
+                mode: .dark,
+                title: "Dark",
+                subtitle: "Always use dark chrome",
+                preview: .single(dark)
+            )
+        ]
+    }
+
+    private func appearanceThemePreview(for tone: SQLEditorPalette.Tone) -> AppearanceThemePreview {
+        let theme = appModel.globalSettings.theme(
+            withID: appModel.globalSettings.activeThemeID(for: tone),
+            tone: tone
+        ) ?? themeManager.theme(for: tone)
+        let resolvedPalette = palette(for: theme.defaultPaletteID)
+            ?? appModel.globalSettings.defaultPalette(for: tone)
+        return AppearanceThemePreview(theme: theme, palette: resolvedPalette)
+    }
+
     private func palette(for id: String?) -> SQLEditorTokenPalette? {
         guard let id else { return nil }
         return appModel.globalSettings.palette(withID: id)
@@ -818,6 +881,11 @@ private enum PaletteEditorMode {
 }
 
 private struct ThemeSelectionCard<ContextMenuContent: View>: View {
+    enum Style {
+        case grid
+        case compact
+    }
+
     struct Badge {
         enum Style {
             case `default`
@@ -836,21 +904,28 @@ private struct ThemeSelectionCard<ContextMenuContent: View>: View {
     let isBusy: Bool
     let badge: Badge?
     let onSelect: () -> Void
+    var style: Style = .grid
     @ViewBuilder var contextMenu: () -> ContextMenuContent
 
     var body: some View {
-        Button(action: onSelect) {
-            VStack(alignment: .leading, spacing: 12) {
-                ThemePreview(theme: theme, palette: palette)
-                    .frame(height: 96)
-                    .overlay(alignment: .topLeading) {
-                        if let badge {
-                            badgeView(for: badge)
-                                .padding(10)
-                        }
-                    }
+        let previewLayout: ThemePreview.Layout = style == .grid ? .regular : .compact
 
-                VStack(alignment: .leading, spacing: 4) {
+        return Button(action: { onSelect() }) {
+            VStack(alignment: .center, spacing: 9) {
+                ThemePreview(
+                    theme: theme,
+                    palette: palette,
+                    layout: previewLayout
+                )
+                .frame(width: previewLayout.size.width, height: previewLayout.size.height)
+                .overlay(alignment: .topLeading) {
+                    if let badge {
+                        badgeView(for: badge)
+                            .padding(10)
+                    }
+                }
+
+                VStack(alignment: .center, spacing: 3) {
                     Text(title)
                         .font(.system(size: 13, weight: .semibold))
                     if let subtitle {
@@ -860,15 +935,15 @@ private struct ThemeSelectionCard<ContextMenuContent: View>: View {
                     }
                 }
             }
-            .padding(14)
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(cardPadding)
+            .frame(width: cardWidth(for: previewLayout))
             .background(
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .fill(Color.primary.opacity(0.04))
+                    .fill(cardBackground)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .stroke(isSelected ? Color.accentColor : Color.primary.opacity(0.08), lineWidth: isSelected ? 2 : 1)
+                    .stroke(isSelected ? Color.accentColor : inactiveBorderColor, lineWidth: isSelected ? 2 : 1)
             )
         }
         .buttonStyle(.plain)
@@ -885,6 +960,20 @@ private struct ThemeSelectionCard<ContextMenuContent: View>: View {
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 
+    private var cardBackground: Color {
+        if let theme {
+            return theme.surfaceBackground.color.opacity(style == .grid ? 0.9 : 0.75)
+        }
+        return Color.primary.opacity(style == .grid ? 0.06 : 0.05)
+    }
+
+    private var inactiveBorderColor: Color {
+        if let theme {
+            return theme.surfaceForeground.color.opacity(0.15)
+        }
+        return Color.primary.opacity(0.08)
+    }
+
     @ViewBuilder
     private func badgeView(for badge: Badge) -> some View {
         switch badge.style {
@@ -893,6 +982,82 @@ private struct ThemeSelectionCard<ContextMenuContent: View>: View {
         case .secondary:
             SecondaryBadge(label: badge.label)
         }
+    }
+
+    private var cardPadding: CGFloat {
+        style == .grid ? 12 : 9
+    }
+
+    private func cardWidth(for layout: ThemePreview.Layout) -> CGFloat {
+        layout.size.width + (cardPadding * 2)
+    }
+}
+
+private struct AppearanceModeCard: View {
+    let option: AppearanceModeOption
+    let isSelected: Bool
+    let onSelect: () -> Void
+
+    var body: some View {
+        Button(action: { onSelect() }) {
+            VStack(alignment: .leading, spacing: 10) {
+                preview
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(option.title)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(.primary)
+                    Text(option.subtitle)
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                }
+            }
+            .padding(10)
+            .frame(width: ThemePreview.Layout.compact.size.width + 20, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(cardBackground)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .stroke(isSelected ? Color.accentColor : borderColor, lineWidth: isSelected ? 2 : 1)
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
+    @ViewBuilder
+    private var preview: some View {
+        switch option.preview {
+        case .single(let preview):
+            ThemePreview(theme: preview.theme, palette: preview.palette, layout: .compact)
+        case .dual(let light, let dark):
+            ZStack {
+                ThemePreview(theme: dark.theme, palette: dark.palette, layout: .compact)
+                    .scaleEffect(0.92)
+                    .offset(x: 18, y: 4)
+                    .opacity(0.82)
+                ThemePreview(theme: light.theme, palette: light.palette, layout: .compact)
+                    .scaleEffect(0.92)
+                    .offset(x: -12, y: -4)
+            }
+        }
+    }
+
+    private var cardBackground: Color {
+        switch option.mode {
+        case .dark:
+            return Color.white.opacity(0.05)
+        case .light:
+            return Color.primary.opacity(0.05)
+        case .system:
+            return Color.primary.opacity(0.045)
+        }
+    }
+
+    private var borderColor: Color {
+        Color.primary.opacity(0.08)
     }
 }
 
@@ -904,13 +1069,24 @@ private struct PaletteSelectionCard<ContextMenuContent: View>: View {
     @ViewBuilder var contextMenu: () -> ContextMenuContent
 
     var body: some View {
-        Button(action: onSelect) {
-            VStack(alignment: .leading, spacing: 12) {
+        Button(action: { onSelect() }) {
+            VStack(alignment: .center, spacing: 8) {
+                PaletteSnippetPreview(
+                    background: basePalette.background.color,
+                    gutterBackground: basePalette.gutterBackground.color,
+                    gutterForeground: basePalette.gutterText.color,
+                    selection: basePalette.selection.color,
+                    currentLine: basePalette.currentLine.color,
+                    defaultText: basePalette.text.color,
+                    tokenColors: palette.tokens,
+                    isDark: palette.tone == .dark
+                )
+                .frame(width: snippetSize.width, height: snippetSize.height)
+
                 SwatchStripView(colors: Array(palette.showcaseColors.prefix(6)))
                     .frame(maxWidth: .infinity)
-                    .padding(.top, 8)
 
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .center, spacing: 3) {
                     Text(palette.name)
                         .font(.system(size: 13, weight: .semibold))
                     Text(palette.tone == .dark ? "Dark palette" : "Light palette")
@@ -918,15 +1094,15 @@ private struct PaletteSelectionCard<ContextMenuContent: View>: View {
                         .foregroundStyle(.secondary)
                 }
             }
-            .padding(14)
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(cardPadding)
+            .frame(width: cardWidth, alignment: .center)
             .background(
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .fill(Color.primary.opacity(0.04))
+                    .fill(cardBackground)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .stroke(isSelected ? Color.accentColor : Color.primary.opacity(0.08), lineWidth: isSelected ? 2 : 1)
+                    .stroke(isSelected ? Color.accentColor : borderColor, lineWidth: isSelected ? 2 : 1)
             )
         }
         .buttonStyle(.plain)
@@ -948,71 +1124,503 @@ private struct PaletteSelectionCard<ContextMenuContent: View>: View {
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
+
+    private var cardBackground: Color {
+        palette.tone == .dark ? Color.white.opacity(0.05) : Color.primary.opacity(0.05)
+    }
+
+    private var borderColor: Color {
+        palette.tone == .dark ? Color.white.opacity(0.08) : Color.primary.opacity(0.08)
+    }
+
+    private var basePalette: SQLEditorPalette {
+        SQLEditorPalette.palette(withID: palette.id)
+            ?? (palette.tone == .dark ? .midnight : .aurora)
+    }
+
+    private var cardPadding: CGFloat { 12 }
+
+    private var cardWidth: CGFloat {
+        ThemePreview.Layout.compact.size.width + (cardPadding * 2)
+    }
+
+    private var snippetSize: CGSize {
+        CGSize(width: ThemePreview.Layout.compact.size.width, height: 58)
+    }
 }
 
 private struct ThemePreview: View {
-    let theme: AppColorTheme?
-    let palette: SQLEditorTokenPalette?
+    enum Layout {
+        case regular
+        case compact
 
-    var body: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(
-                    LinearGradient(
-                        colors: [surfaceColor, windowColor],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .stroke(Color.white.opacity(0.08), lineWidth: 1)
-                )
-
-            VStack(alignment: .leading, spacing: 8) {
-                HStack(spacing: 6) {
-                    Circle()
-                        .fill(accentColor)
-                        .frame(width: 16, height: 16)
-                        .overlay(
-                            Circle()
-                                .stroke(Color.white.opacity(0.5), lineWidth: 1)
-                        )
-
-                    RoundedRectangle(cornerRadius: 4, style: .continuous)
-                        .fill(Color.white.opacity(0.15))
-                        .frame(width: 42, height: 6)
-                }
-                .padding(.top, 10)
-
-                Spacer()
-
-                if let palette {
-                    SwatchStripView(colors: Array(palette.showcaseColors.prefix(5)))
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.bottom, 10)
-                }
+        var size: CGSize {
+            switch self {
+        case .regular:
+            return CGSize(width: 136, height: 72)
+        case .compact:
+            return CGSize(width: 104, height: 52)
             }
-            .padding(.horizontal, 12)
+        }
+
+        var padding: CGFloat {
+            switch self {
+        case .regular: return 8
+            case .compact: return 5
+            }
+        }
+
+        var sidebarWidth: CGFloat {
+            switch self {
+        case .regular: return 44
+            case .compact: return 30
+            }
+        }
+
+        var cornerRadius: CGFloat {
+            switch self {
+        case .regular: return 10
+            case .compact: return 7
+            }
         }
     }
 
+    let theme: AppColorTheme?
+    let palette: SQLEditorTokenPalette?
+    var layout: Layout = .regular
+#if DEBUG
+    @State private var debugLoggedSize: CGSize = .zero
+#endif
+
+    var body: some View {
+        ZStack(alignment: .topLeading) {
+            RoundedRectangle(cornerRadius: layout.cornerRadius, style: .continuous)
+                .fill(windowFill)
+                .overlay(
+                    RoundedRectangle(cornerRadius: layout.cornerRadius, style: .continuous)
+                        .strokeBorder(borderColor, lineWidth: 1)
+                        .blendMode(.overlay)
+                )
+
+            VStack(spacing: layout == .regular ? 6 : 5) {
+                chromeBar
+
+                HStack(spacing: layout == .regular ? 6 : 4) {
+                    sidebarPreview
+                    EditorTokenPreview(
+                        background: editorBackgroundColor,
+                        gutter: editorGutterBackgroundColor,
+                        gutterAccent: editorGutterAccentColor,
+                        gutterForeground: editorGutterForegroundColor,
+                        selection: editorSelectionColor,
+                        currentLine: editorCurrentLineColor,
+                        tokenColors: resolvedTokens,
+                        isDark: isDark
+                    )
+                    .frame(height: layout == .regular ? 56 : 44)
+                }
+
+                if !swatchColors.isEmpty {
+                    SwatchStripView(colors: swatchColors)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
+            .padding(layout.padding)
+        }
+        .frame(width: layout.size.width, height: layout.size.height, alignment: .topLeading)
+#if DEBUG
+        .background(
+            GeometryReader { proxy in
+                Color.clear
+                    .onAppear { reportSizeIfNeeded(proxy.size) }
+                    .onChange(of: proxy.size) { newSize in reportSizeIfNeeded(newSize) }
+            }
+        )
+#endif
+    }
+
+    private var isDark: Bool {
+        if let tone = theme?.tone {
+            return tone == .dark
+        }
+        return palette?.tone == .dark
+    }
+
+    private var windowFill: LinearGradient {
+        let top = windowColor.opacity(isDark ? 0.9 : 1.0)
+        let bottom = windowColor.opacity(isDark ? 0.8 : 0.92)
+        return LinearGradient(
+            colors: [top, bottom],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+    }
+
+    private var borderColor: Color {
+        isDark ? Color.white.opacity(0.12) : Color.black.opacity(0.08)
+    }
+
+    private var chromeBar: some View {
+        HStack(spacing: layout == .regular ? 4 : 3) {
+            trafficLight(Color(red: 0.99, green: 0.31, blue: 0.29))
+            trafficLight(Color(red: 0.99, green: 0.76, blue: 0.2))
+            trafficLight(Color(red: 0.3, green: 0.85, blue: 0.39))
+
+            Spacer()
+
+            Capsule(style: .continuous)
+                .fill(accentColor.opacity(isDark ? 0.6 : 0.78))
+                .frame(width: layout == .regular ? 32 : 26, height: layout == .regular ? 6 : 5)
+                .overlay(
+                    Capsule(style: .continuous)
+                        .strokeBorder(Color.white.opacity(isDark ? 0.08 : 0.25), lineWidth: 1)
+                )
+        }
+        .padding(.horizontal, layout == .regular ? 6 : 4)
+        .padding(.vertical, layout == .regular ? 4 : 2)
+        .background(
+            RoundedRectangle(cornerRadius: layout == .regular ? 8 : 6, style: .continuous)
+                .fill(surfaceColor.opacity(isDark ? 0.45 : 0.6))
+        )
+    }
+
+    private func trafficLight(_ color: Color) -> some View {
+        Circle()
+            .fill(color.opacity(isDark ? 0.9 : 0.85))
+            .frame(width: layout == .regular ? 8 : 6, height: layout == .regular ? 8 : 6)
+            .overlay(
+                Circle()
+                    .strokeBorder(Color.white.opacity(isDark ? 0.08 : 0.25), lineWidth: 0.8)
+            )
+    }
+
+    private var sidebarPreview: some View {
+        VStack(alignment: .leading, spacing: layout == .regular ? 4 : 3) {
+            Capsule(style: .continuous)
+                .fill(accentColor.opacity(isDark ? 0.56 : 0.46))
+                .frame(width: layout.sidebarWidth * 0.62, height: layout == .regular ? 6 : 4.5)
+            Capsule(style: .continuous)
+                .fill(surfaceForeground.opacity(isDark ? 0.56 : 0.32))
+                .frame(width: layout.sidebarWidth * 0.55, height: layout == .regular ? 4.8 : 4)
+            Capsule(style: .continuous)
+                .fill(surfaceForeground.opacity(isDark ? 0.5 : 0.28))
+                .frame(width: layout.sidebarWidth * 0.7, height: layout == .regular ? 4.8 : 4)
+            Capsule(style: .continuous)
+                .fill(surfaceForeground.opacity(isDark ? 0.4 : 0.22))
+                .frame(width: layout.sidebarWidth * 0.48, height: layout == .regular ? 4.6 : 3.8)
+        }
+        .padding(.vertical, layout == .regular ? 8 : 6)
+        .padding(.horizontal, layout == .regular ? 6 : 5)
+        .frame(width: layout.sidebarWidth)
+        .background(
+            RoundedRectangle(cornerRadius: layout == .regular ? 11 : 9, style: .continuous)
+                .fill(surfaceColor.opacity(isDark ? 0.5 : 0.38))
+        )
+    }
+
+    private var surfaceForeground: Color {
+        theme?.surfaceForeground.color ?? basePalette.text.color
+    }
+
+    private var editorBackgroundColor: Color {
+        theme?.editorBackground.color
+            ?? basePalette.background.color
+    }
+
+    private var editorGutterBackgroundColor: Color {
+        theme?.editorGutterBackground.color
+            ?? basePalette.gutterBackground.color
+    }
+
+    private var editorGutterAccentColor: Color {
+        theme?.accent?.color
+            ?? basePalette.gutterAccent.color
+    }
+
+    private var editorGutterForegroundColor: Color {
+        theme?.editorGutterForeground.color
+            ?? basePalette.gutterText.color
+    }
+
+    private var editorSelectionColor: Color {
+        theme?.editorSelection.color
+            ?? basePalette.selection.color
+    }
+
+    private var editorCurrentLineColor: Color {
+        theme?.editorCurrentLine.color
+            ?? basePalette.currentLine.color
+    }
+
+    private var resolvedTokens: SQLEditorPalette.TokenColors {
+        if let palette {
+            return palette.tokens
+        }
+        return basePalette.tokens
+    }
+
+    private var swatchColors: [Color] {
+        if let theme, !theme.swatchColors.isEmpty {
+            return theme.swatchColors.map { $0.color }
+        }
+        if let palette {
+            return Array(palette.showcaseColors.prefix(5))
+        }
+        return []
+    }
+
+    private var defaultPalette: SQLEditorPalette {
+        isDark ? .midnight : .aurora
+    }
+
+    private var basePalette: SQLEditorPalette {
+        if let theme, let resolved = SQLEditorPalette.palette(withID: theme.defaultPaletteID) {
+            return resolved
+        }
+        if let palette, let resolved = SQLEditorPalette.palette(withID: palette.id) {
+            return resolved
+        }
+        return defaultPalette
+    }
+
     private var windowColor: Color {
-        theme?.windowBackground.color ?? Color(nsColor: .windowBackgroundColor)
+        theme?.windowBackground.color ?? basePalette.background.color
     }
 
     private var surfaceColor: Color {
-        theme?.surfaceBackground.color ?? windowColor.opacity(0.9)
+        theme?.surfaceBackground.color ?? basePalette.gutterBackground.color
     }
 
     private var accentColor: Color {
         if let accent = theme?.accent?.color {
             return accent
         }
-        if let palette {
-            return palette.tokens.keyword.color
+        return palette?.tokens.keyword.color ?? basePalette.tokens.keyword.color
+    }
+
+#if DEBUG
+    private func reportSizeIfNeeded(_ size: CGSize) {
+        DispatchQueue.main.async {
+            let deltaWidth = abs(size.width - debugLoggedSize.width)
+            let deltaHeight = abs(size.height - debugLoggedSize.height)
+            guard deltaWidth > 0.5 || deltaHeight > 0.5 else { return }
+            debugLoggedSize = size
+            let width = String(format: "%.1f", size.width)
+            let height = String(format: "%.1f", size.height)
+            print("[ThemePreview] layout=\(layout) size=\(width)x\(height)")
         }
-        return Color.accentColor
+    }
+#endif
+}
+
+private struct PaletteSnippetPreview: View {
+    let background: Color
+    let gutterBackground: Color
+    let gutterForeground: Color
+    let selection: Color
+    let currentLine: Color
+    let defaultText: Color
+    let tokenColors: SQLEditorPalette.TokenColors
+    let isDark: Bool
+
+    private let font: Font = .system(size: 9, weight: .medium, design: .monospaced)
+
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(background)
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .strokeBorder(borderColor, lineWidth: isDark ? 0.6 : 1)
+
+            HStack(spacing: 0) {
+                lineNumberColumn
+                codeColumn
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .padding(.horizontal, 4)
+            .padding(.vertical, 6)
+        }
+    }
+
+    private var lineNumberColumn: some View {
+        VStack(alignment: .trailing, spacing: 4) {
+            lineNumber(1)
+            lineNumber(2)
+            lineNumber(3)
+        }
+        .font(font)
+        .frame(width: 26)
+        .padding(.vertical, 7)
+        .padding(.horizontal, 5)
+        .foregroundStyle(gutterForeground.opacity(isDark ? 0.72 : 0.55))
+        .background(gutterBackground.opacity(isDark ? 0.92 : 0.88))
+    }
+
+    private var codeColumn: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            codeLine(
+                [
+                    ("-- palette preview", tokenColors.comment.color.opacity(isDark ? 0.82 : 0.72))
+                ],
+                highlight: highlightColor(currentLine, fallbackOpacity: isDark ? 0.25 : 0.16)
+            )
+            codeLine(
+                [
+                    ("SELECT ", tokenColors.keyword.color),
+                    ("* ", tokenColors.operatorSymbol.color),
+                    ("FROM ", tokenColors.keyword.color),
+                    ("Echo", tokenColors.identifier.color),
+                    (".", defaultText.opacity(isDark ? 0.75 : 0.6)),
+                    ("Table", tokenColors.identifier.color)
+                ],
+                highlight: highlightColor(selection, fallbackOpacity: isDark ? 0.38 : 0.26)
+            )
+            codeLine(
+                [
+                    ("WHERE ", tokenColors.keyword.color),
+                    ("created_at ", tokenColors.identifier.color),
+                    ("> ", tokenColors.operatorSymbol.color),
+                    ("NOW", tokenColors.function.color),
+                    ("()", defaultText.opacity(isDark ? 0.8 : 0.65)),
+                    (";", tokenColors.operatorSymbol.color.opacity(isDark ? 0.85 : 0.7))
+                ]
+            )
+        }
+        .padding(.vertical, 7)
+        .padding(.horizontal, 10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(background.opacity(isDark ? 0.02 : 0.04))
+    }
+
+    private func codeLine(_ segments: [(String, Color)], highlight: Color? = nil) -> some View {
+        var attributed = AttributedString()
+        for segment in segments {
+            var span = AttributedString(segment.0)
+            span.font = font
+            span.foregroundColor = segment.1
+            attributed.append(span)
+        }
+
+        return Text(attributed)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.vertical, 1.5)
+            .padding(.horizontal, 5)
+            .background(
+                highlight.map {
+                    RoundedRectangle(cornerRadius: 5, style: .continuous)
+                        .fill($0)
+                }
+            )
+    }
+
+    private func lineNumber(_ value: Int) -> Text {
+        Text("\(value)")
+    }
+
+    private func highlightColor(_ color: Color, fallbackOpacity: Double) -> Color {
+        color.opacity(fallbackOpacity)
+    }
+
+    private var borderColor: Color {
+        isDark ? Color.white.opacity(0.08) : Color.black.opacity(0.08)
+    }
+}
+
+private struct EditorTokenPreview: View {
+    let background: Color
+    let gutter: Color
+    let gutterAccent: Color
+    let gutterForeground: Color
+    let selection: Color
+    let currentLine: Color
+    let tokenColors: SQLEditorPalette.TokenColors
+    let isDark: Bool
+
+    var body: some View {
+        ZStack(alignment: .leading) {
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(background)
+                .shadow(color: Color.black.opacity(isDark ? 0.45 : 0.08), radius: isDark ? 4 : 6, y: isDark ? 1 : 3)
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .strokeBorder(borderColor, lineWidth: isDark ? 0.6 : 1)
+                .blendMode(.overlay)
+
+            HStack(spacing: 0) {
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(gutter.opacity(isDark ? 0.94 : 0.82))
+                    .frame(width: 18)
+                    .overlay(
+                        VStack(alignment: .trailing, spacing: 3) {
+                            Capsule(style: .continuous)
+                                .fill(gutterAccent.opacity(isDark ? 0.6 : 0.5))
+                                .frame(width: 8, height: 3)
+                            Capsule(style: .continuous)
+                                .fill(gutterForeground.opacity(isDark ? 0.52 : 0.35))
+                                .frame(width: 9, height: 3)
+                            Capsule(style: .continuous)
+                                .fill(gutterForeground.opacity(isDark ? 0.48 : 0.3))
+                                .frame(width: 10, height: 3)
+                        }
+                        .padding(.vertical, 10)
+                        .padding(.trailing, 3)
+                    )
+
+                ZStack(alignment: .topLeading) {
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(currentLine.opacity(isDark ? 0.4 : 0.3))
+                        .frame(height: 12)
+                        .padding(.top, 10)
+                        .padding(.horizontal, 8)
+
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(selection.opacity(isDark ? 0.6 : 0.48))
+                        .frame(height: 12)
+                        .padding(.top, 22)
+                        .padding(.horizontal, 8)
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        codeLine([
+                            (tokenColors.keyword.color, 18),
+                            (tokenColors.identifier.color, 14),
+                            (tokenColors.operatorSymbol.color, 8),
+                            (tokenColors.string.color, 16)
+                        ])
+                        codeLine([
+                            (tokenColors.comment.color.opacity(isDark ? 0.78 : 0.68), 48)
+                        ])
+                        codeLine([
+                            (tokenColors.keyword.color, 16),
+                            (tokenColors.identifier.color, 18),
+                            (tokenColors.operatorSymbol.color, 8),
+                            (tokenColors.number.color, 14)
+                        ])
+                        codeLine([
+                            (tokenColors.function.color, 14),
+                            (tokenColors.plain.color.opacity(isDark ? 0.75 : 0.58), 20),
+                            (tokenColors.comment.color.opacity(isDark ? 0.6 : 0.5), 14)
+                        ])
+                    }
+                    .padding(.vertical, 8)
+                    .padding(.horizontal, 8)
+                }
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        }
+    }
+
+    private func codeLine(_ segments: [(Color, CGFloat)]) -> some View {
+        HStack(spacing: 4) {
+            ForEach(Array(segments.enumerated()), id: \.offset) { _, segment in
+                Capsule(style: .continuous)
+                    .fill(segment.0.opacity(isDark ? 0.92 : 0.85))
+                    .frame(width: segment.1, height: 5)
+            }
+            Spacer(minLength: 0)
+        }
+    }
+
+    private var borderColor: Color {
+        isDark ? Color.white.opacity(0.08) : Color.black.opacity(0.1)
     }
 }
 
@@ -1038,6 +1646,14 @@ private struct ThemeEditorSheet: View {
             Text(title)
                 .font(.title3)
                 .fontWeight(.semibold)
+                .padding(.top, 4)
+
+            ThemePreview(theme: draft, palette: previewPalette, layout: .regular)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .overlay(
+                    RoundedRectangle(cornerRadius: ThemePreview.Layout.regular.cornerRadius, style: .continuous)
+                        .stroke(Color.primary.opacity(0.08), lineWidth: 1)
+                )
 
             Form {
                 Section("Basics") {
@@ -1067,27 +1683,26 @@ private struct ThemeEditorSheet: View {
                         .toggleStyle(.switch)
 
                     ColorPicker(
-                        "Accent",
+                        "Accent colour",
                         selection: accentBinding,
                         supportsOpacity: true
                     )
-                    .labelsHidden()
                     .disabled(!useCustomAccent)
                 }
 
                 Section("Window & Surfaces") {
-                    colorPickerRow(label: "Window background", binding: colorBinding(\AppColorTheme.windowBackground))
-                    colorPickerRow(label: "Surface background", binding: colorBinding(\AppColorTheme.surfaceBackground))
-                    colorPickerRow(label: "Surface foreground", binding: colorBinding(\AppColorTheme.surfaceForeground))
+                    ColorPicker("Window background", selection: colorBinding(\AppColorTheme.windowBackground), supportsOpacity: true)
+                    ColorPicker("Surface background", selection: colorBinding(\AppColorTheme.surfaceBackground), supportsOpacity: true)
+                    ColorPicker("Surface foreground", selection: colorBinding(\AppColorTheme.surfaceForeground), supportsOpacity: true)
                 }
 
                 Section("Editor") {
-                    colorPickerRow(label: "Editor background", binding: colorBinding(\AppColorTheme.editorBackground))
-                    colorPickerRow(label: "Editor foreground", binding: colorBinding(\AppColorTheme.editorForeground))
-                    colorPickerRow(label: "Gutter background", binding: colorBinding(\AppColorTheme.editorGutterBackground))
-                    colorPickerRow(label: "Gutter foreground", binding: colorBinding(\AppColorTheme.editorGutterForeground))
-                    colorPickerRow(label: "Selection", binding: colorBinding(\AppColorTheme.editorSelection))
-                    colorPickerRow(label: "Current line", binding: colorBinding(\AppColorTheme.editorCurrentLine))
+                    ColorPicker("Editor background", selection: colorBinding(\AppColorTheme.editorBackground), supportsOpacity: true)
+                    ColorPicker("Editor foreground", selection: colorBinding(\AppColorTheme.editorForeground), supportsOpacity: true)
+                    ColorPicker("Gutter background", selection: colorBinding(\AppColorTheme.editorGutterBackground), supportsOpacity: true)
+                    ColorPicker("Gutter text", selection: colorBinding(\AppColorTheme.editorGutterForeground), supportsOpacity: true)
+                    ColorPicker("Selection highlight", selection: colorBinding(\AppColorTheme.editorSelection), supportsOpacity: true)
+                    ColorPicker("Current line", selection: colorBinding(\AppColorTheme.editorCurrentLine), supportsOpacity: true)
                 }
 
                 Section("Highlights") {
@@ -1098,7 +1713,6 @@ private struct ThemeEditorSheet: View {
                         selection: strongHighlightBinding,
                         supportsOpacity: true
                     )
-                    .labelsHidden()
                     .disabled(!useStrongHighlight)
 
                     Toggle("Bright highlight", isOn: $useBrightHighlight)
@@ -1108,14 +1722,12 @@ private struct ThemeEditorSheet: View {
                         selection: brightHighlightBinding,
                         supportsOpacity: true
                     )
-                    .labelsHidden()
                     .disabled(!useBrightHighlight)
                 }
 
                 Section("Swatches") {
                     ForEach(0..<5, id: \.self) { index in
                         ColorPicker("Swatch \(index + 1)", selection: swatchBinding(index), supportsOpacity: true)
-                            .labelsHidden()
                     }
 
                     if !availablePalettes.isEmpty {
@@ -1186,16 +1798,6 @@ private struct ThemeEditorSheet: View {
         }
     }
 
-    private func colorPickerRow(label: String, binding: Binding<Color>) -> some View {
-        HStack {
-            Text(label)
-            Spacer()
-            ColorPicker(label, selection: binding, supportsOpacity: true)
-                .labelsHidden()
-                .frame(width: 130, alignment: .trailing)
-        }
-    }
-
     private func colorBinding(_ keyPath: WritableKeyPath<AppColorTheme, ColorRepresentable>) -> Binding<Color> {
         Binding(
             get: { draft[keyPath: keyPath].color },
@@ -1254,6 +1856,10 @@ private struct ThemeEditorSheet: View {
             return ColorRepresentable(color: palette.tokens.keyword.color)
         }
         return draft.accent ?? draft.surfaceForeground
+    }
+
+    private var previewPalette: SQLEditorTokenPalette? {
+        availablePalettes.first(where: { $0.id == draft.defaultPaletteID })
     }
 }
 
@@ -1348,20 +1954,25 @@ private struct SwatchStripView: View {
     var body: some View {
         HStack(spacing: 4) {
             ForEach(Array(colors.enumerated()), id: \.offset) { _, color in
-                Capsule(style: .continuous)
-                    .fill(color)
-                    .frame(width: 18, height: 8)
+                RoundedRectangle(cornerRadius: 4, style: .continuous)
+                    .fill(color.opacity(0.92))
+                    .frame(width: 14, height: 9)
                     .overlay(
-                        Capsule(style: .continuous)
-                            .stroke(Color.white.opacity(0.25), lineWidth: 0.5)
+                        RoundedRectangle(cornerRadius: 4, style: .continuous)
+                            .stroke(color.opacity(0.35), lineWidth: 0.8)
                     )
             }
         }
         .padding(.horizontal, 6)
-        .padding(.vertical, 4)
+        .padding(.vertical, 5)
         .background(
-            RoundedRectangle(cornerRadius: 6, style: .continuous)
-                .fill(Color.primary.opacity(0.05))
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(Color.primary.opacity(0.07))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .strokeBorder(Color.white.opacity(0.12), lineWidth: 0.8)
+                        .blendMode(.overlay)
+                )
         )
     }
 }
@@ -1375,11 +1986,29 @@ private struct TagBadge: View {
         Text(label.uppercased())
             .font(.caption2.weight(.bold))
             .padding(.horizontal, 6)
-            .padding(.vertical, 2)
-            .foregroundStyle(foreground)
-            .background(background)
-            .clipShape(Capsule())
+        .padding(.vertical, 2)
+        .foregroundStyle(foreground)
+        .background(background)
+        .clipShape(Capsule())
     }
+}
+
+private struct AppearanceThemePreview {
+    let theme: AppColorTheme
+    let palette: SQLEditorTokenPalette?
+}
+
+private struct AppearanceModeOption: Identifiable {
+    enum Preview {
+        case single(AppearanceThemePreview)
+        case dual(light: AppearanceThemePreview, dark: AppearanceThemePreview)
+    }
+
+    var id: AppearanceMode { mode }
+    let mode: AppearanceMode
+    let title: String
+    let subtitle: String
+    let preview: Preview
 }
 
 private struct DefaultBadge: View {
@@ -1408,6 +2037,7 @@ private struct SecondaryBadge: View {
 
 struct ApplicationCacheSettingsView: View {
     @EnvironmentObject private var clipboardHistory: ClipboardHistoryStore
+    @EnvironmentObject private var themeManager: ThemeManager
     @State private var confirmDisableHistory = false
 
     private let baseStorageOptions: [Int] = [
@@ -1446,7 +2076,7 @@ struct ApplicationCacheSettingsView: View {
         }
         .formStyle(.grouped)
         .scrollContentBackground(.hidden)
-        .background(Color(nsColor: .windowBackgroundColor))
+        .background(themeManager.surfaceBackgroundColor)
         .alert("Disable Clipboard History?", isPresented: $confirmDisableHistory) {
             Button("Disable", role: .destructive) {
                 confirmDisableHistory = false

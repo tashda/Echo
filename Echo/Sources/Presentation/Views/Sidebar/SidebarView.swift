@@ -7,7 +7,6 @@ struct SidebarView: View {
     @EnvironmentObject var appState: AppState
 
     var onAddConnection: () -> Void
-    private let topPadding: CGFloat = 28
 
     var body: some View {
         SidebarMenu(
@@ -17,6 +16,6 @@ struct SidebarView: View {
         )
         .environmentObject(appModel)
         .environmentObject(appState)
-        .padding(.top, topPadding)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 }
