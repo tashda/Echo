@@ -11,6 +11,8 @@ struct QueryResultsGridView: View {
     var rowOrder: [Int]
     var onColumnTap: (Int) -> Void
     var onSort: (Int, ResultGridSortAction) -> Void
+    var onClearColumnHighlight: () -> Void
+    @EnvironmentObject private var themeManager: ThemeManager
 
     var body: some View {
         QueryResultsTableView(
@@ -31,15 +33,50 @@ struct QueryResultsGridView: View {
                 }
                 onSort(columnIndex, gridAction)
             },
-            backgroundColor: NSColor.windowBackgroundColor
+            onClearColumnHighlight: onClearColumnHighlight,
+            backgroundColor: themeManager.resultsGridCellBackgroundNSColor
         )
     }
 }
 #else
-/// Placeholder iOS implementation – the macOS build uses the AppKit-backed table view.
 struct QueryResultsGridView: View {
+    @ObservedObject var query: QueryEditorState
+    var highlightedColumnIndex: Int?
+    var activeSort: SortCriteria?
+    var rowOrder: [Int]
+    var onColumnTap: (Int) -> Void
+    var onSort: (Int, ResultGridSortAction) -> Void
+    var onClearColumnHighlight: () -> Void
+
+    @EnvironmentObject private var themeManager: ThemeManager
+    @EnvironmentObject private var clipboardHistory: ClipboardHistoryStore
+
     var body: some View {
-        Text("Query results grid is only available on macOS.")
+        QueryResultsGridRepresentable(
+            query: query,
+            highlightedColumnIndex: highlightedColumnIndex,
+            activeSort: activeSort,
+            rowOrder: rowOrder,
+            onColumnTap: onColumnTap,
+            onSort: onSort,
+            onClearColumnHighlight: onClearColumnHighlight,
+            themeManager: themeManager,
+            clipboardHistory: clipboardHistory
+        )
+        .background(themeManager.resultsGridBackground)
+        .modifier(GridBackgroundEffectModifier())
+    }
+}
+
+private struct GridBackgroundEffectModifier: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(iOS 17.0, *) {
+            content
+                .background(.clear)
+                .backgroundExtensionEffect()
+        } else {
+            content
+        }
     }
 }
 #endif

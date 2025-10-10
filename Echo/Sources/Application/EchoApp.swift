@@ -6,7 +6,6 @@
 //
 
 import SwiftUI
-import AppKit
 
 @main
 struct EchoApp: App {
@@ -17,7 +16,7 @@ struct EchoApp: App {
     }
 
     var body: some Scene {
-        WindowGroup("Workspace") {
+        WindowGroup {
             WorkspaceView()
                 .environmentObject(coordinator.appModel)
                 .environmentObject(coordinator.appState)
@@ -26,6 +25,7 @@ struct EchoApp: App {
                 .environmentObject(coordinator.themeManager)
                 .task { await coordinator.initialize() }
         }
+        .windowStyle(.hiddenTitleBar)
         .commands {
             QueryCommands(appModel: coordinator.appModel,
                           appState: coordinator.appState)

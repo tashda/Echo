@@ -1,4 +1,5 @@
 import SwiftUI
+import Foundation
 #if os(macOS)
 import AppKit
 #else
@@ -21,19 +22,36 @@ struct QueryInputSection: View {
     }
 
     private var editorTheme: SQLEditorTheme {
-        let resolved = appState.sqlEditorTheme
-        if resolved.tone == targetTone {
-            return resolved
+        var resolved = appState.sqlEditorTheme
+        if resolved.tone != targetTone {
+            resolved = SQLEditorThemeResolver.resolve(
+                globalSettings: appModel.globalSettings,
+                project: appModel.selectedProject,
+                tone: targetTone
+            )
         }
-        return SQLEditorThemeResolver.resolve(
-            globalSettings: appModel.globalSettings,
-            project: appModel.selectedProject,
-            tone: targetTone
-        )
+        let chrome = themeManager.activeTheme
+        resolved.surfaces.background = chrome.windowBackground
+        resolved.surfaces.text = chrome.editorForeground
+        resolved.surfaces.gutterBackground = chrome.editorGutterBackground
+        resolved.surfaces.gutterText = chrome.editorGutterForeground
+        resolved.surfaces.gutterAccent = chrome.accent ?? chrome.editorForeground
+        resolved.surfaces.selection = chrome.editorSelection
+        resolved.surfaces.currentLine = chrome.editorCurrentLine
+        if let strong = chrome.editorSymbolHighlightStrong {
+            resolved.surfaces.symbolHighlightStrong = strong
+        }
+        if let bright = chrome.editorSymbolHighlightBright {
+            resolved.surfaces.symbolHighlightBright = bright
+        }
+#if DEBUG
+        logEditorThemeDiagnostics(resolved: resolved, chrome: chrome)
+#endif
+        return resolved
     }
 
     private var editorBackground: Color {
-        editorTheme.surfaces.background.color
+        themeManager.activeTheme.windowBackground.color
     }
 
     @State private var currentSelection = SQLEditorSelection(
@@ -223,3 +241,19 @@ struct QueryInputSection: View {
         }
     }
 }
+
+#if DEBUG
+private extension QueryInputSection {
+    func logEditorThemeDiagnostics(resolved: SQLEditorTheme, chrome: AppColorTheme) {
+        let window = describeColor(chrome.windowBackground)
+        let surface = describeColor(chrome.surfaceBackground)
+        let editorBG = describeColor(resolved.surfaces.background)
+        let paletteBG = describeColor(appState.sqlEditorTheme.surfaces.background)
+        print("[QueryInputSection] tone=\(resolved.tone) window=\(window) surface=\(surface) resolvedEditor=\(editorBG) originalPalette=\(paletteBG)")
+    }
+
+    func describeColor(_ color: ColorRepresentable) -> String {
+        String(format: "r%.2f g%.2f b%.2f a%.2f", color.red, color.green, color.blue, color.alpha)
+    }
+}
+#endif

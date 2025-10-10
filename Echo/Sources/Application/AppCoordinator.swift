@@ -68,6 +68,14 @@ final class AppCoordinator: ObservableObject {
             }
             .store(in: &cancellables)
 
+        ThemeManager.shared.$activeTheme
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                guard let self else { return }
+                self.applyEditorTheme(project: self.appModel.selectedProject, global: self.appModel.globalSettings)
+            }
+            .store(in: &cancellables)
+
         appModel.$projects
             .receive(on: RunLoop.main)
             .sink { [weak self] projects in
@@ -93,6 +101,10 @@ final class AppCoordinator: ObservableObject {
 
     private func applyEditorAppearance(project: Project?, global: GlobalSettings) {
         ThemeManager.shared.applyAppearanceMode(global.appearanceMode)
+        ThemeManager.shared.applyResultsGridPreferences(
+            themeResultsGrid: global.themeResultsGrid,
+            alternateRowShading: global.resultsAlternateRowShading
+        )
         appState.sqlEditorDisplay = SQLEditorThemeResolver.resolveDisplayOptions(globalSettings: global, project: project)
         appState.themeTabs = global.themeTabs
         applyEditorTheme(project: project, global: global)
@@ -113,26 +125,22 @@ final class AppCoordinator: ObservableObject {
 
     private func presentConnectionsIfNeeded() {
         guard !appModel.isManageConnectionsPresented else { return }
+#if os(macOS)
+        ManageConnectionsWindowController.shared.present()
+#else
         appModel.isManageConnectionsPresented = true
+#endif
     }
 
     private func dismissConnectionsIfNeeded() {
-        appModel.isManageConnectionsPresented = false
-    }
-
 #if os(macOS)
-    func workspaceWindowDidBecomeMain(_ controller: WorkspaceWindowController) {
-        if let activeTab = appModel.tabManager.activeTab {
-            appModel.sessionManager.setActiveSession(activeTab.connectionSessionID)
+        if appModel.isManageConnectionsPresented {
+            ManageConnectionsWindowController.shared.closeWindow()
         }
-    }
-
-    func workspaceWindowWillClose(_ controller: WorkspaceWindowController) {
-        appModel.sessionManager.activeSessionID = nil
-        appModel.tabManager.activeTabId = nil
-        presentConnectionsIfNeeded()
-    }
+#else
+        appModel.isManageConnectionsPresented = false
 #endif
+    }
 
 }
 

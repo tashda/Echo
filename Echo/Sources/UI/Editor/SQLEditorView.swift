@@ -1,5 +1,6 @@
 import SwiftUI
 import Combine
+import Foundation
 #if os(macOS)
 import AppKit
 #else
@@ -1239,6 +1240,13 @@ private final class SQLScrollView: NSScrollView {
         backgroundOverride = color
         contentView.backgroundColor = color ?? .clear
         sqlTextView.backgroundOverride = color
+#if DEBUG
+        if let color {
+            debugLogBackgroundOverride(color: color, label: "updateBackgroundOverride")
+        } else {
+            print("[SQLScrollView] backgroundOverride cleared")
+        }
+#endif
     }
 
     func updateDisplay(_ options: SQLEditorDisplayOptions) {
@@ -1254,6 +1262,13 @@ private final class SQLScrollView: NSScrollView {
         sqlTextView.theme = theme
         sqlTextView.backgroundOverride = backgroundOverride
         lineNumberRuler.theme = theme
+#if DEBUG
+        if let backgroundOverride {
+            debugLogBackgroundOverride(color: backgroundOverride, label: "applyTheme override")
+        } else {
+            debugLogBackgroundOverride(color: theme.surfaces.background.nsColor, label: "applyTheme theme")
+        }
+#endif
     }
 
     private func applyDisplay() {
@@ -1289,6 +1304,17 @@ private final class SQLScrollView: NSScrollView {
             verticalRulerView = nil
         }
     }
+
+#if DEBUG
+    private func debugLogBackgroundOverride(color: NSColor, label: String) {
+        let device = color.usingColorSpace(.deviceRGB) ?? color
+        let red = String(format: "%.3f", device.redComponent)
+        let green = String(format: "%.3f", device.greenComponent)
+        let blue = String(format: "%.3f", device.blueComponent)
+        let alpha = String(format: "%.3f", device.alphaComponent)
+        print("[SQLScrollView] \(label) r=\(red) g=\(green) b=\(blue) a=\(alpha)")
+    }
+#endif
 }
 
 func sqlRangeIsValid(_ range: NSRange, upperBound: Int) -> Bool {
@@ -1488,7 +1514,7 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
         isAutomaticTextReplacementEnabled = false
         isAutomaticSpellingCorrectionEnabled = false
         isGrammarCheckingEnabled = false
-        usesAdaptiveColorMappingForDarkAppearance = true
+        usesAdaptiveColorMappingForDarkAppearance = false
         textContainerInset = NSSize(width: 12, height: 24)
         allowsUndo = true
         maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
@@ -1496,6 +1522,8 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
         isHorizontallyResizable = false
         isVerticallyResizable = true
         autoresizingMask = [.width]
+        wantsLayer = true
+        layer?.isOpaque = true
 
         textContainer.widthTracksTextView = false
         textContainer.lineFragmentPadding = 14

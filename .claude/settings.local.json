@@ -24,7 +24,10 @@
       "Bash(done)",
       "Bash(cat:*)",
       "Bash(open:*)",
-      "Bash(killall:*)"
+      "Bash(killall:*)",
+      "Read(//Users/k/Tools/ReferenceProjects/BuildingAGreatMacAppWithSwiftUI/Session2/Part2-End/**)",
+      "Bash(tee:*)",
+      "Read(///**)"
     ],
     "deny": [],
     "ask": []

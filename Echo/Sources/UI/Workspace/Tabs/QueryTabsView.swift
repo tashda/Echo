@@ -13,17 +13,8 @@ private func tabHairlineWidth() -> CGFloat {
 private func tabHairlineWidth() -> CGFloat { 1 }
 #endif
 
-private struct TrailingControlsWidthPreferenceKey: PreferenceKey {
-    static var defaultValue: CGFloat = 0
-
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
-        value = nextValue()
-    }
-}
-
 private struct TabGroupWidthPreferenceKey: PreferenceKey {
     static var defaultValue: CGFloat = 0
-
     static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
         value = nextValue()
     }
@@ -53,9 +44,7 @@ struct QueryTabsView: View {
             if showsTabStrip {
                 QueryTabStrip(
                     leadingPadding: tabBarLeadingPadding,
-                    trailingPadding: tabBarTrailingPadding,
-                    createNewTab: createNewTab,
-                    toggleOverview: { appState.showTabOverview.toggle() }
+                    trailingPadding: tabBarTrailingPadding
                 )
             }
 
@@ -226,19 +215,15 @@ struct QueryTabsView: View {
 struct QueryTabStrip: View {
     let leadingPadding: CGFloat
     let trailingPadding: CGFloat
-    let createNewTab: () -> Void
-    let toggleOverview: () -> Void
 
     @EnvironmentObject private var appModel: AppModel
     @EnvironmentObject private var appState: AppState
     @Environment(\.colorScheme) private var colorScheme
     @EnvironmentObject private var themeManager: ThemeManager
 
-    @State private var trailingControlsWidth: CGFloat = 0
-    @State private var lastMeasuredTrailingControlsWidth: CGFloat = 0
-    @State private var tabGroupWidth: CGFloat = 0
     @State private var hoveredTabID: UUID?
     @State private var dragState = TabDragState()
+    @State private var tabGroupWidth: CGFloat = 0
 
     private var themedAppearance: TabChromePalette? {
 #if os(macOS)
@@ -285,8 +270,8 @@ struct QueryTabStrip: View {
     }
 
     private let tabReorderAnimation = Animation.interactiveSpring(response: 0.72, dampingFraction: 0.86, blendDuration: 0.30)
-
-    private let trailingFallbackWidth: CGFloat = 96
+    private let baseHorizontalInset: CGFloat = 12
+    private let basePlateExtension: CGFloat = 0
 
     var body: some View {
         GeometryReader { geo in
@@ -294,44 +279,30 @@ struct QueryTabStrip: View {
             let hasTabs = !tabs.isEmpty
             let orderedTabs = combinedTabs(from: tabs)
 
-            let resolvedTrailingWidth = hasTabs ? max(trailingControlsWidth > 0 ? trailingControlsWidth : lastMeasuredTrailingControlsWidth, trailingFallbackWidth) : 0
-            let availableWidth = max(geo.size.width - leadingPadding - trailingPadding - resolvedTrailingWidth, 0)
+            let effectiveLeadingPadding = leadingPadding + baseHorizontalInset
+            let effectiveTrailingPadding = trailingPadding + baseHorizontalInset
+            let availableWidth = max(geo.size.width - effectiveLeadingPadding - effectiveTrailingPadding, 0)
             let separatorWidth = CGFloat(max(orderedTabs.count - 1, 0)) * tabHairlineWidth()
             let effectiveWidth = max(availableWidth - separatorWidth, 0)
             let tabWidth = orderedTabs.isEmpty ? 0 : effectiveWidth / CGFloat(orderedTabs.count)
+            let measuredWidth = tabGroupWidth > 0 ? (tabGroupWidth + separatorWidth) : max(tabWidth * CGFloat(orderedTabs.count) + separatorWidth, 0)
+            let basePlateWidth = hasTabs ? min(measuredWidth + basePlateExtension * 2, availableWidth + basePlateExtension * 2) : 0
 
-            ZStack {
+            ZStack(alignment: .leading) {
 #if os(macOS)
-                let basePlateSideInset: CGFloat = 6
                 if hasTabs {
                     TabStripBackground(style: tabStripStyle)
-                        .frame(width: max(tabGroupWidth + 3, 0))
-                        .offset(x: leadingPadding + basePlateSideInset)
+                        .frame(width: basePlateWidth, height: 24)
+                        .offset(x: effectiveLeadingPadding - basePlateExtension)
                 }
 #endif
 
                 HStack(spacing: 0) {
                     tabGroup(orderedTabs: orderedTabs, tabWidth: tabWidth)
                         .frame(maxWidth: .infinity, alignment: .leading)
-
-                    if hasTabs {
-                        TabBarTrailingControls(
-                            hasActiveSession: appModel.sessionManager.activeSession != nil,
-                            isTabOverviewActive: appState.showTabOverview,
-                            onNewTab: createNewTab,
-                            onToggleOverview: toggleOverview,
-                            appearance: themedAppearance
-                        )
-                        .background(
-                            GeometryReader { proxy in
-                                Color.clear.preference(key: TrailingControlsWidthPreferenceKey.self, value: proxy.size.width)
-                            }
-                        )
-                        .padding(.leading, 6)
-                    }
                 }
-                .padding(.leading, leadingPadding)
-                .padding(.trailing, trailingPadding)
+                .padding(.leading, effectiveLeadingPadding)
+                .padding(.trailing, effectiveTrailingPadding)
                 .padding(.vertical, 5)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .animation(tabReorderAnimation, value: appModel.tabManager.tabs.map(\.id))
@@ -339,21 +310,13 @@ struct QueryTabStrip: View {
         }
         .frame(height: 34)
         .clipped()
-        .onPreferenceChange(TrailingControlsWidthPreferenceKey.self) { width in
-            trailingControlsWidth = width
-            if width > 0 {
-                lastMeasuredTrailingControlsWidth = width
-            }
-        }
         .onPreferenceChange(TabGroupWidthPreferenceKey.self) { width in
             tabGroupWidth = width
         }
         .onChange(of: appModel.tabManager.tabs.isEmpty) { isEmpty in
             if isEmpty {
-                trailingControlsWidth = 0
-                lastMeasuredTrailingControlsWidth = 0
-                tabGroupWidth = 0
                 hoveredTabID = nil
+                tabGroupWidth = 0
             }
         }
         .onChange(of: appModel.tabManager.tabs.map(\.id)) { _, ids in
@@ -395,6 +358,7 @@ struct QueryTabStrip: View {
                     )
             }
         }
+        .fixedSize()
         .background(
             GeometryReader { proxy in
                 Color.clear.preference(key: TabGroupWidthPreferenceKey.self, value: proxy.size.width)
@@ -428,35 +392,58 @@ struct QueryTabStrip: View {
 
     private func tabSeparator() -> some View {
         Capsule(style: .continuous)
-            .fill(separatorColor)
+            .fill(separatorFill)
             .frame(width: tabHairlineWidth(), height: 18)
+            .animation(nil, value: dragState)
     }
 
-    private var separatorColor: Color {
+    private var separatorFill: LinearGradient {
+#if os(macOS)
         if let palette = themedAppearance {
-            return palette.separatorColor
+            return palette.separatorGradient
         }
         if colorScheme == .dark {
-            return Color.white.opacity(0.20)
-        } else {
-            return Color(white: 0.78)
+            return LinearGradient(colors: [
+                Color.white.opacity(0.28),
+                Color.white.opacity(0.16)
+            ], startPoint: .top, endPoint: .bottom)
         }
+        return LinearGradient(colors: [
+            Color(white: 0.88),
+            Color(white: 0.75)
+        ], startPoint: .top, endPoint: .bottom)
+#else
+        return LinearGradient(colors: [Color(white: 0.8), Color(white: 0.7)], startPoint: .top, endPoint: .bottom)
+#endif
     }
 
     private func separatorOpacity(between current: WorkspaceTab, and next: WorkspaceTab, separatorIndex: Int) -> Double {
-        if dragState.isActive {
-            if let draggingId = dragState.id, (draggingId == current.id || draggingId == next.id) {
+        if dragState.isActive,
+           let draggingId = dragState.id {
+            let orderedTabs = combinedTabs(from: appModel.tabManager.tabs).map { $0.0 }
+            guard let originalIndex = orderedTabs.firstIndex(where: { $0.id == draggingId }) else {
+                return 1
+            }
+
+            let (preview, destination) = currentTabOrderApplyingDrag(to: orderedTabs, draggingIndex: originalIndex)
+
+            // Hide separators adjacent to the original slot while the tab occupies it
+            if separatorIndex == originalIndex - 1 || separatorIndex == originalIndex {
                 return 0
             }
 
-            if dragState.currentIndex > dragState.originalIndex {
-                if separatorIndex >= dragState.originalIndex && separatorIndex < dragState.currentIndex {
-                    return 0
-                }
-            } else if dragState.currentIndex < dragState.originalIndex {
-                if separatorIndex >= dragState.currentIndex && separatorIndex < dragState.originalIndex {
-                    return 0
-                }
+            if let gap = liveGapIndex(originalIndex: originalIndex, destinationIndex: destination, totalTabs: preview.count),
+               separatorIndex == gap {
+                return 0
+            }
+
+            if destination != originalIndex,
+               (separatorIndex == destination - 1 || separatorIndex == destination) {
+                return 0
+            }
+
+            if current.id == draggingId || next.id == draggingId {
+                return 0
             }
         }
 
@@ -468,6 +455,51 @@ struct QueryTabStrip: View {
         }
 
         return 1
+    }
+
+    private func liveGapIndex(originalIndex: Int, destinationIndex: Int, totalTabs: Int) -> Int? {
+        guard dragState.isActive, totalTabs > 1 else { return nil }
+
+        let lastSeparator = max(totalTabs - 2, 0)
+
+        if destinationIndex == originalIndex {
+            if dragState.translation > 0 {
+                let candidate = min(originalIndex, lastSeparator)
+                return candidate >= 0 ? candidate : nil
+            } else if dragState.translation < 0 {
+                let candidate = originalIndex - 1
+                return candidate >= 0 ? candidate : nil
+            } else {
+                return nil
+            }
+        }
+
+        if destinationIndex > originalIndex {
+            let candidate = destinationIndex - 1
+            return candidate >= 0 && candidate <= lastSeparator ? candidate : nil
+        } else {
+            let candidate = destinationIndex
+            return candidate >= 0 && candidate <= lastSeparator ? candidate : nil
+        }
+    }
+
+    private func currentTabOrderApplyingDrag(to tabs: [WorkspaceTab], draggingIndex: Int) -> ([WorkspaceTab], Int) {
+        var result = tabs
+        guard dragState.isActive,
+              let bounds = boundsForDraggingTab(tabs[draggingIndex]) else {
+            return (result, draggingIndex)
+        }
+        let dragged = result.remove(at: draggingIndex)
+        let clamped = min(max(dragState.currentIndex, bounds.min), bounds.max)
+        result.insert(dragged, at: clamped)
+        return (result, clamped)
+    }
+
+    private func boundsForDraggingTab(_ tab: WorkspaceTab) -> (min: Int, max: Int)? {
+        let total = combinedTabs(from: appModel.tabManager.tabs).count
+        guard total > 0 else { return nil }
+        let bounds = tabBounds(for: tab, totalCount: total)
+        return bounds
     }
 
     private func dragGesture(for tab: WorkspaceTab, tabWidth: CGFloat, index: Int, totalCount: Int) -> some Gesture {
@@ -864,22 +896,15 @@ private struct QueryTabButton: View {
         HStack(spacing: 3) {
             leadingControl
 
-            HStack(spacing: tab.isPinned ? 1.5 : 3) {
-                icon
-                    .frame(width: 16, height: 16)
-
-                if !tab.isPinned {
-                    Text(tab.title)
-                        .font(.system(size: 11))
-                        .lineLimit(1)
-                        .foregroundStyle(tabTitleColor)
-                }
-            }
-            .frame(maxWidth: .infinity)
+            Text(displayedTitle)
+                .font(tabTitleFont)
+                .lineLimit(1)
+                .foregroundStyle(tabTitleColor)
+                .frame(maxWidth: .infinity, alignment: .center)
 
             closeButtonPlaceholder
         }
-        .padding(.horizontal, tab.isPinned ? 15 : 19)
+        .padding(.horizontal, tab.isPinned ? 13 : 18)
         .padding(.vertical, 3)
         .frame(minHeight: 24)
         .background(tabBackground)
@@ -939,23 +964,22 @@ private struct QueryTabButton: View {
         }
     }
 
-    private var icon: some View {
-        Group {
-            if tab.isPinned {
-                Image(systemName: "pin.fill")
-                    .font(.system(size: 10, weight: .semibold))
-            } else {
-                switch tab.kind {
-                case .structure:
-                    Image(systemName: "tablecells")
-                        .font(.system(size: 10, weight: .medium))
-                case .query:
-                    Image(systemName: "doc.text")
-                        .font(.system(size: 10, weight: .medium))
-                }
+    private var displayedTitle: String {
+        let trimmed = tab.title.trimmingCharacters(in: .whitespacesAndNewlines)
+        if tab.isPinned {
+            if let first = trimmed.first {
+                return String(first).uppercased()
             }
+            return "•"
         }
-        .foregroundStyle(tabIconColor)
+        return trimmed.isEmpty ? "Untitled" : trimmed
+    }
+
+    private var tabTitleFont: Font {
+        if tab.isPinned {
+            return .system(size: 11, weight: .semibold)
+        }
+        return .system(size: 11)
     }
 
     @ViewBuilder
@@ -1006,11 +1030,7 @@ private struct QueryTabButton: View {
             }
 
             if isActive {
-                if effectiveHovering {
-                    return appearance.hoverTabFill
-                } else {
-                    return appearance.activeTabFill
-                }
+                return appearance.activeTabFill
             }
 
             if shouldTreatAsHover {
@@ -1071,11 +1091,7 @@ private struct QueryTabButton: View {
         }
 
         if isActive {
-            if colorScheme == .dark {
-                return Color.white.opacity(0.34)
-            } else {
-                return Color(white: 0.82)
-            }
+            return colorScheme == .dark ? Color.white.opacity(0.34) : Color(white: 0.82)
         }
 
         return nil
@@ -1183,26 +1199,6 @@ private struct QueryTabButton: View {
 #endif
     }
 
-    private var tabIconColor: Color {
-#if os(macOS)
-        if isDropTarget {
-            return Color.white
-        }
-        if let appearance {
-            return isActive ? appearance.activeIcon : appearance.inactiveIcon
-        }
-        if tab.isPinned {
-            return Color(nsColor: isActive ? .labelColor : .secondaryLabelColor)
-        }
-        return Color(nsColor: isActive ? .labelColor : .tertiaryLabelColor)
-#else
-        if isDropTarget {
-            return .white
-        }
-        return isActive ? .primary : .secondary
-#endif
-    }
-
     private var closeButtonForeground: Color {
 #if os(macOS)
         if let appearance {
@@ -1281,211 +1277,6 @@ private struct QueryTabButton: View {
     }
 
     private var closeButtonSize: CGFloat { 16 }
-}
-
-// MARK: - Tab Bar Controls
-
-private struct TabBarTrailingControls: View {
-    let hasActiveSession: Bool
-    let isTabOverviewActive: Bool
-    let onNewTab: () -> Void
-    let onToggleOverview: () -> Void
-    let appearance: TabChromePalette?
-
-    var body: some View {
-        HStack(spacing: 6) {
-            TabStripActionButton(
-                systemImage: "plus",
-                accessibilityLabel: "New Tab",
-                isActive: false,
-                isEnabled: hasActiveSession,
-                activeSymbolVariant: nil,
-                appearance: appearance,
-                action: onNewTab
-            )
-#if os(macOS)
-            .help("New Query Tab")
-#endif
-
-            TabStripActionButton(
-                systemImage: "square.grid.2x2",
-                accessibilityLabel: "Tab Overview",
-                isActive: isTabOverviewActive,
-                isEnabled: true,
-                activeSymbolVariant: .fill,
-                appearance: appearance,
-                action: onToggleOverview
-            )
-#if os(macOS)
-            .help("Tab Overview")
-#endif
-        }
-        .frame(width: 74, alignment: .trailing)
-    }
-}
-
-private struct TabStripActionButton: View {
-    let systemImage: String
-    let accessibilityLabel: String
-    let isActive: Bool
-    let isEnabled: Bool
-    let activeSymbolVariant: SymbolVariants?
-    let appearance: TabChromePalette?
-    let action: () -> Void
-
-    @Environment(\.colorScheme) private var colorScheme
-    @State private var isHovering = false
-
-    var body: some View {
-        Button(action: action) {
-            icon
-        }
-        .buttonStyle(.plain)
-        .frame(width: 28, height: 28)
-        .contentShape(Circle())
-        .background(buttonBackground)
-        .overlay(buttonBorder)
-        .shadow(color: buttonShadowColor, radius: buttonShadowRadius, y: buttonShadowYOffset)
-        .opacity(isEnabled ? 1 : 0.45)
-#if os(macOS)
-        .onHover { hovering in
-            isHovering = hovering
-        }
-#endif
-        .disabled(!isEnabled)
-        .accessibilityLabel(Text(accessibilityLabel))
-    }
-
-    private var icon: some View {
-        Group {
-            if let variant = activeSymbolVariant, isActive {
-                Image(systemName: systemImage)
-                    .symbolVariant(variant)
-            } else {
-                Image(systemName: systemImage)
-            }
-        }
-        .font(.system(size: 12, weight: .semibold))
-        .foregroundStyle(iconColor)
-        .frame(width: 26, height: 26)
-    }
-
-    private var buttonBackground: some View {
-        Circle()
-            .fill(buttonBackgroundGradient)
-    }
-
-    private var buttonBorder: some View {
-        Circle()
-            .strokeBorder(borderColor, lineWidth: tabHairlineWidth())
-    }
-
-    private var buttonBackgroundGradient: LinearGradient {
-#if os(macOS)
-        if let palette = appearance {
-            if isActive {
-                return palette.actionButtonFill
-            }
-            if isHovering && isEnabled {
-                return palette.actionButtonFillHover
-            }
-            return palette.actionButtonFillInactive
-        }
-        if isActive {
-            let accent = Color(nsColor: NSColor.controlAccentColor)
-            let top = accent.opacity(colorScheme == .dark ? 0.75 : 0.45)
-            let bottom = accent.opacity(colorScheme == .dark ? 0.58 : 0.32)
-            return LinearGradient(colors: [top, bottom], startPoint: .top, endPoint: .bottom)
-        }
-
-        if isHovering && isEnabled {
-            if colorScheme == .dark {
-                return LinearGradient(colors: [Color.white.opacity(0.24), Color.white.opacity(0.18)], startPoint: .top, endPoint: .bottom)
-            } else {
-                return LinearGradient(colors: [Color.white.opacity(0.94), Color.white.opacity(0.82)], startPoint: .top, endPoint: .bottom)
-            }
-        }
-
-        if colorScheme == .dark {
-            return LinearGradient(colors: [Color.white.opacity(0.24), Color.white.opacity(0.16)], startPoint: .top, endPoint: .bottom)
-        }
-        return LinearGradient(colors: [Color.white.opacity(0.92), Color.white.opacity(0.80)], startPoint: .top, endPoint: .bottom)
-#else
-        let top = isActive ? Color.accentColor.opacity(0.65) : Color(white: 0.96)
-        let bottom = isActive ? Color.accentColor.opacity(0.48) : Color(white: 0.88)
-        return LinearGradient(colors: [top, bottom], startPoint: .top, endPoint: .bottom)
-#endif
-    }
-
-    private var borderColor: Color {
-#if os(macOS)
-        if let palette = appearance {
-            if isActive {
-                return palette.actionButtonBorder
-            }
-            if isHovering && isEnabled {
-                return palette.actionButtonBorder.opacity(0.85)
-            }
-            return palette.actionButtonBorder.opacity(0.6)
-        }
-        if isActive {
-            return Color(nsColor: NSColor.controlAccentColor.withAlphaComponent(colorScheme == .dark ? 0.75 : 0.32))
-        }
-        return colorScheme == .dark ? Color.white.opacity(0.22) : Color.black.opacity(0.08)
-#else
-        return Color.black.opacity(isActive ? 0.2 : 0.12)
-#endif
-    }
-
-    private var iconColor: Color {
-#if os(macOS)
-        if let palette = appearance {
-            if !isEnabled {
-                return palette.actionButtonIcon.opacity(0.4)
-            }
-            if isActive {
-                return palette.actionButtonIcon
-            }
-            if isHovering {
-                return palette.actionButtonIcon.opacity(0.9)
-            }
-            return palette.actionButtonIcon.opacity(0.75)
-        }
-        if !isEnabled {
-            return Color(nsColor: .tertiaryLabelColor)
-        }
-        if isActive {
-            return Color.white
-        }
-        if isHovering {
-            return Color(nsColor: .labelColor)
-        }
-        return Color(nsColor: .secondaryLabelColor)
-#else
-        return isActive ? .white : .primary
-#endif
-    }
-
-    private var buttonShadowColor: Color {
-#if os(macOS)
-        if let palette = appearance {
-            if isActive {
-                return palette.shadowColor
-            }
-            return Color.clear
-        }
-        if isActive {
-            return colorScheme == .dark ? Color.black.opacity(0.55) : Color.black.opacity(0.25)
-        }
-        return Color.clear
-#else
-        return isActive ? Color.black.opacity(0.24) : Color.clear
-#endif
-    }
-
-    private var buttonShadowRadius: CGFloat { isActive ? 6 : 0 }
-
-    private var buttonShadowYOffset: CGFloat { isActive ? 2 : 0 }
 }
 
 private struct ResizeHandle: View {
@@ -1968,7 +1759,7 @@ private struct TabPreviewCard: View {
                     .buttonStyle(.plain)
                 }
             }
-
+            
             VStack(alignment: .leading, spacing: 8) {
                 Text(tab.connection.connectionName)
                     .font(.system(size: 12, weight: .medium))
@@ -2089,7 +1880,7 @@ private struct TabChromePalette {
     let actionButtonFillInactive: LinearGradient
     let actionButtonBorder: Color
     let actionButtonIcon: Color
-    let separatorColor: Color
+    let separatorGradient: LinearGradient
 
     init(theme: AppColorTheme, accent: NSColor, fallbackScheme: ColorScheme) {
         let baseBackground = theme.surfaceBackground.nsColor.usingColorSpace(.deviceRGB) ?? theme.surfaceBackground.nsColor
@@ -2137,7 +1928,16 @@ private struct TabChromePalette {
         actionButtonFillInactive = LinearGradient(colors: [Color(nsColor: inactiveActionTop), Color(nsColor: inactiveActionBottom)], startPoint: .top, endPoint: .bottom)
         actionButtonBorder = Color(nsColor: darken(accentColor, by: 0.2))
         actionButtonIcon = Color.white
-        separatorColor = Color(nsColor: darken(baseBackground, by: toneIsDark ? 0.24 : 0.18)).opacity(0.85)
+        let separatorTop = lighten(baseBackground, by: toneIsDark ? 0.10 : 0.05)
+        let separatorBottom = darken(baseBackground, by: toneIsDark ? 0.20 : 0.12)
+        separatorGradient = LinearGradient(
+            colors: [
+                Color(nsColor: separatorTop).opacity(toneIsDark ? 0.65 : 0.8),
+                Color(nsColor: separatorBottom).opacity(toneIsDark ? 0.75 : 0.9)
+            ],
+            startPoint: .top,
+            endPoint: .bottom
+        )
     }
 }
 
@@ -2281,7 +2081,7 @@ private struct MiddleClickCapture: NSViewRepresentable {
             }
 
             let recognizer = NSClickGestureRecognizer(target: self, action: #selector(handleMiddleClick(_:)))
-            recognizer.buttonMask = 0x2
+            recognizer.buttonMask = 0x4
             recognizer.numberOfClicksRequired = 1
             recognizer.delegate = self
             view.addGestureRecognizer(recognizer)

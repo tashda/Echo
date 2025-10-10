@@ -17,6 +17,7 @@ struct ExplorerSidebarView: View {
     @State private var isHoveringConnectedServers = false
     @State private var connectedServersHeight: CGFloat = 0
     @State private var knownSessionIDs: Set<UUID> = []
+    @State private var footerHeight: CGFloat = ExplorerSidebarConstants.footerHeight
 
     // Control visibility of Connected Servers section
     // Set to false to hide the section (future: make this user-configurable)
@@ -35,16 +36,16 @@ struct ExplorerSidebarView: View {
 
     var body: some View {
         ScrollViewReader { proxy in
-            ZStack(alignment: .bottom) {
-                VStack(spacing: 0) {
-                    if showConnectedServersSection,
-                       let session = selectedSession,
-                       session.selectedDatabaseName != nil,
-                       !isHoveringConnectedServers {
-                        stickyTopBar()
-                            .transition(.move(edge: .top).combined(with: .opacity))
-                    }
+            VStack(spacing: 0) {
+                if showConnectedServersSection,
+                   let session = selectedSession,
+                   session.selectedDatabaseName != nil,
+                   !isHoveringConnectedServers {
+                    stickyTopBar()
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                }
 
+                ZStack(alignment: .bottom) {
                     ScrollView {
                         LazyVStack(alignment: .leading, spacing: 10, pinnedViews: .sectionHeaders) {
                             if showConnectedServersSection && (isHoveringConnectedServers || selectedSession?.selectedDatabaseName == nil) {
@@ -69,7 +70,7 @@ struct ExplorerSidebarView: View {
                             explorerContent(proxy: proxy)
                         }
                         .padding(.top, 12)
-                        .padding(.bottom, ExplorerSidebarConstants.scrollBottomPadding + ExplorerSidebarConstants.footerHeight)
+                        .padding(.bottom, ExplorerSidebarConstants.scrollBottomPadding + footerHeight)
                     }
                     .scrollIndicators(.hidden)
                     .contentShape(Rectangle())
@@ -116,9 +117,9 @@ struct ExplorerSidebarView: View {
                             proxy.scrollTo(ExplorerSidebarConstants.objectsTopAnchor, anchor: .top)
                         }
                     }
-                }
 
-                footerOverlay
+                    footerOverlay
+                }
             }
             .onAppear {
                 if let focus = appModel.pendingExplorerFocus {
@@ -397,12 +398,27 @@ struct ExplorerSidebarView: View {
                         .opacity(hasExplorerContent ? 1 : 0)
                     footerControls(session: session, database: database)
                 }
-                .padding(.bottom, 8)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(Color.clear)
+                .background(
+                    GeometryReader { proxy in
+                        Color.clear
+                            .onAppear { updateFooterHeightIfNeeded(proxy.size.height) }
+                            .onChange(of: proxy.size.height) { _, newValue in
+                                updateFooterHeightIfNeeded(newValue)
+                            }
+                    }
+                )
             } else {
                 EmptyView()
             }
+        }
+    }
+
+    private func updateFooterHeightIfNeeded(_ height: CGFloat) {
+        let value = max(0, ceil(height))
+        if abs(footerHeight - value) > 0.5 {
+            footerHeight = value
         }
     }
 
@@ -877,7 +893,7 @@ private enum ExplorerSidebarConstants {
     static let connectedServersAnchor = "ExplorerSidebarConnectedServers"
     static let scrollBottomPadding: CGFloat = 32
     static let bottomControlHeight: CGFloat = 20
-    static let footerHeight: CGFloat = 56
+    static let footerHeight: CGFloat = 64
 }
 
 // MARK: - Section Header
@@ -1051,7 +1067,11 @@ private struct NativeSearchField: NSViewRepresentable {
 
         guard let cell = nsView.cell as? NSSearchFieldCell else { return }
 
-        if cell.placeholderAttributedString?.string != placeholder {
+        if isFocused {
+            if cell.placeholderAttributedString != nil {
+                cell.placeholderAttributedString = nil
+            }
+        } else if cell.placeholderAttributedString?.string != placeholder {
             cell.placeholderAttributedString = NSAttributedString(
                 string: placeholder,
                 attributes: [
@@ -1095,7 +1115,9 @@ private struct NativeSearchField: NSViewRepresentable {
         private func updateFocusState(_ focused: Bool) {
             if parent.isFocused != focused {
                 DispatchQueue.main.async {
-                    self.parent.isFocused = focused
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        self.parent.isFocused = focused
+                    }
                 }
             }
         }

@@ -13,14 +13,6 @@ struct QueryResultsSection: View {
     @State private var sortCriteria: SortCriteria?
     @State private var highlightedColumnIndex: Int?
     @State private var rowOrder: [Int] = []
-#if !os(macOS)
-    private struct CellSelection: Equatable {
-        let row: Int
-        let column: Int
-    }
-    @State private var selectedRow: Int?
-    @State private var selectedCell: CellSelection?
-#endif
     @State private var showConnectionInfoPopover = false
     @State private var showRowInfoPopover = false
     @State private var showTimeInfoPopover = false
@@ -61,38 +53,22 @@ struct QueryResultsSection: View {
                 rebuildRowOrder()
                 showRowInfoPopover = false
                 showTimeInfoPopover = false
-#if !os(macOS)
-                selectedRow = nil
-                selectedCell = nil
-#endif
             }
         }
         .onChange(of: query.errorMessage) { _, error in
             if error != nil {
                 selectedTab = .messages
-#if !os(macOS)
-                selectedRow = nil
-                selectedCell = nil
-#endif
             }
         }
         .onChange(of: query.results?.columns.map(\.id)) { _, _ in
             highlightedColumnIndex = nil
             rebuildRowOrder()
-#if !os(macOS)
-            selectedRow = nil
-            selectedCell = nil
-#endif
         }
         .onChange(of: query.streamingColumns.map(\.id)) { _, _ in
             rebuildRowOrder()
         }
         .onChange(of: query.results?.commandTag) { _, _ in
             rebuildRowOrder()
-#if !os(macOS)
-            selectedRow = nil
-            selectedCell = nil
-#endif
         }
         .onChange(of: query.streamingRows.count) { _, newCount in
             if newCount > 0 {
@@ -115,10 +91,6 @@ struct QueryResultsSection: View {
                 rowOrder = []
                 showRowInfoPopover = false
                 showTimeInfoPopover = false
-#if !os(macOS)
-                selectedRow = nil
-                selectedCell = nil
-#endif
             }
         }
     }
@@ -255,6 +227,7 @@ struct QueryResultsSection: View {
                 rowOrder: rowOrder,
                 onColumnTap: { index in toggleHighlightedColumn(index) },
                 onSort: { index, action in handleSortAction(columnIndex: index, action: action) },
+                onClearColumnHighlight: { highlightedColumnIndex = nil },
                 backgroundColor: gridBackgroundColor
             )
             .opacity(hasRows ? 1 : 0)
@@ -307,162 +280,34 @@ struct QueryResultsSection: View {
                     placeholder
                 }
             } else {
-                ScrollView([.horizontal]) {
-                    VStack(spacing: 0) {
-                        headerRow
-                        Divider().opacity(0.35)
-                        ScrollView(.vertical) {
-                            LazyVStack(spacing: 0) {
-                                if rowOrder.count == rowCount {
-                                    ForEach(rowOrder.indices, id: \.self) { position in
-                                        dataRow(rowIndex: rowOrder[position], displayIndex: position)
-                                    }
-                                } else {
-                                    ForEach(0..<rowCount, id: \.self) { position in
-                                        dataRow(rowIndex: position, displayIndex: position)
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
+                QueryResultsGridView(
+                    query: query,
+                    highlightedColumnIndex: highlightedColumnIndex,
+                    activeSort: activeSort,
+                    rowOrder: rowOrder,
+                    onColumnTap: { index in toggleHighlightedColumn(index) },
+                    onSort: handleGridSortAction,
+                    onClearColumnHighlight: { highlightedColumnIndex = nil }
+                )
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                .textSelection(.enabled)
-            }
-        }
-    }
-#endif
-
-#if !os(macOS)
-    private var headerRow: some View {
-        HStack(spacing: 0) {
-            headerIndexCell
-
-            ForEach(Array(tableColumns.enumerated()), id: \.element.id) { entry in
-                columnHeader(for: entry.element, index: entry.offset)
-                    .frame(minWidth: columnMinWidth(for: entry.offset), alignment: .leading)
-                    .overlay(alignment: .trailing) {
-                        if entry.offset < tableColumns.count - 1 {
-                            Divider().opacity(0.2)
-                        }
-                    }
-            }
-        }
-        .padding(.vertical, 6)
-        .background(themeManager.windowBackground)
-    }
-
-    private var headerIndexCell: some View {
-        Text("#")
-            .font(.system(size: 12, weight: .semibold))
-            .frame(width: indexColumnWidth, alignment: .trailing)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
-            .background(Color.secondary.opacity(0.12), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
-            .overlay(Divider().opacity(0.2), alignment: .trailing)
-    }
-
-    @ViewBuilder
-    private func dataRow(rowIndex: Int, displayIndex: Int) -> some View {
-        if rowIndex < rowCount {
-            let isSelected = selectedRow == rowIndex
-
-            HStack(spacing: 0) {
-                Text("\(displayIndex + 1)")
-                    .font(.system(size: 12, weight: .medium, design: .monospaced))
-                    .foregroundStyle(.secondary)
-                    .frame(width: indexColumnWidth, alignment: .trailing)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 6)
-                    .background(indexColumnBackground(isSelected: isSelected))
-                    .overlay(Divider().opacity(0.08), alignment: .trailing)
-                    .onTapGesture {
-                        selectedRow = rowIndex
-                        selectedCell = nil
-                    }
-
-                ForEach(0..<tableColumns.count, id: \.self) { columnIndex in
-                    let value = query.valueForDisplay(row: rowIndex, column: columnIndex)
-                    dataCell(value: value, rowIndex: rowIndex, columnIndex: columnIndex)
-                        .frame(minWidth: columnMinWidth(for: columnIndex), alignment: .leading)
-                        .overlay(alignment: .trailing) {
-                            if columnIndex < tableColumns.count - 1 {
-                                Divider().opacity(0.08)
-                            }
-                        }
-                        .onTapGesture {
-                            selectedCell = CellSelection(row: rowIndex, column: columnIndex)
-                            selectedRow = nil
-                        }
-                }
-            }
-            .background(rowBackground(for: displayIndex, isSelected: isSelected))
-            .onAppear {
-                Task { @MainActor in
-                    query.revealMoreRowsIfNeeded(forDisplayedRow: rowIndex)
-                }
             }
         }
     }
 
-    private func dataCell(value: String?, rowIndex: Int, columnIndex: Int) -> some View {
-        let isHighlighted = highlightedColumnIndex == columnIndex
-        let isSelected = selectedCell == CellSelection(row: rowIndex, column: columnIndex)
-
-        let text: Text = {
-            if let value {
-                return Text(value)
-                    .foregroundStyle(.primary)
-            } else {
-                return Text("NULL")
-                    .foregroundStyle(.secondary)
-                    .italic()
-            }
-        }()
-
-        return text
-            .font(.system(size: 12))
-            .padding(.vertical, 6)
-            .padding(.horizontal, 8)
-            .background(cellBackground(isHighlighted: isHighlighted, isSelected: isSelected))
-            .contentShape(Rectangle())
-    }
-
-    private func rowBackground(for displayIndex: Int, isSelected: Bool) -> Color {
-        if isSelected {
-            return Color.accentColor.opacity(0.12)
+    private func handleGridSortAction(columnIndex: Int, action: ResultGridSortAction) {
+        switch action {
+        case .ascending(let index):
+            guard index >= 0, index < tableColumns.count else { return }
+            applySort(column: tableColumns[index], ascending: true)
+        case .descending(let index):
+            guard index >= 0, index < tableColumns.count else { return }
+            applySort(column: tableColumns[index], ascending: false)
+        case .clear:
+            sortCriteria = nil
+            highlightedColumnIndex = nil
+            rebuildRowOrder()
         }
-        return displayIndex.isMultiple(of: 2) ? Color.clear : Color.primary.opacity(0.03)
     }
-
-    private func indexColumnBackground(isSelected: Bool) -> Color {
-        if isSelected {
-            return Color.accentColor.opacity(0.18)
-        }
-        return Color.secondary.opacity(0.08)
-    }
-
-    private func cellBackground(isHighlighted: Bool, isSelected: Bool) -> Color {
-        if isSelected {
-            return Color.accentColor.opacity(0.22)
-        }
-        if isHighlighted {
-            return Color.accentColor.opacity(0.12)
-        }
-        return Color.clear
-    }
-
-    private func columnMinWidth(for index: Int) -> CGFloat {
-        guard index < tableColumns.count else { return 140 }
-        let type = tableColumns[index].dataType.lowercased()
-
-        if type.contains("bool") { return 90 }
-        if isNumericType(type) { return 110 }
-        if type.contains("date") || type.contains("time") { return 150 }
-        return 180
-    }
-
-    private let indexColumnWidth: CGFloat = 56
 #endif
 
     private func rebuildRowOrder() {
@@ -1089,13 +934,15 @@ struct QueryResultsSection: View {
     }
 
     private var platformBackground: Color { themeManager.windowBackground }
-    private var gridBackgroundColor: NSColor {
 #if os(macOS)
-        NSColor(themeManager.windowBackground)
-#else
-        .clear
-#endif
+    private var gridBackgroundColor: NSColor {
+        themeManager.resultsGridCellBackgroundNSColor
     }
+#else
+    private var gridBackgroundColor: Color {
+        themeManager.resultsGridBackground
+    }
+#endif
 
     private var shouldShowStatusBar: Bool {
         query.isExecuting || query.hasExecutedAtLeastOnce || query.errorMessage != nil

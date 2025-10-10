@@ -122,13 +122,7 @@ final class TabManager: ObservableObject {
             maxIndex = finalCountAfterInsertion - 1
         }
 
-        var destination = min(max(proposedIndex, minIndex), maxIndex)
-
-        if currentIndex < destination {
-            destination -= 1
-        }
-
-        destination = min(max(destination, minIndex), maxIndex)
+        let destination = min(max(proposedIndex, minIndex), maxIndex)
 
         tabs.insert(tab, at: destination)
 

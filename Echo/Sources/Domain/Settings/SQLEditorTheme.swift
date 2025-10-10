@@ -393,21 +393,21 @@ extension SQLEditorPalette {
         kind: .builtIn,
         isDark: false,
         background: ColorRepresentable(hex: 0xFFFFFF),
-        text: ColorRepresentable(hex: 0x1C2434),
-        gutterBackground: ColorRepresentable(hex: 0xF2F4F8),
-        gutterText: ColorRepresentable(hex: 0x7B8798),
-        gutterAccent: ColorRepresentable(hex: 0xC8D2E4),
-        selection: ColorRepresentable(hex: 0xD8E7FF, alpha: 0.85),
-        currentLine: ColorRepresentable(hex: 0xEEF4FF),
+        text: ColorRepresentable(hex: 0x1E1E1E),
+        gutterBackground: ColorRepresentable(hex: 0xF3F4F6),
+        gutterText: ColorRepresentable(hex: 0x6D6D6D),
+        gutterAccent: ColorRepresentable(hex: 0xD9D9DC),
+        selection: ColorRepresentable(hex: 0xCCE8FF, alpha: 0.85),
+        currentLine: ColorRepresentable(hex: 0xF3F3F3),
         tokens: .init(
-            keyword: ColorRepresentable(hex: 0x3367D6),
-            string: ColorRepresentable(hex: 0x0C9A6F),
-            number: ColorRepresentable(hex: 0xB25D07),
-            comment: ColorRepresentable(hex: 0x94A3B8),
-            plain: ColorRepresentable(hex: 0x1C2434),
-            function: ColorRepresentable(hex: 0xC44191),
-            operatorSymbol: ColorRepresentable(hex: 0xAF3041),
-            identifier: ColorRepresentable(hex: 0x24314A)
+            keyword: ColorRepresentable(hex: 0x0000FF),
+            string: ColorRepresentable(hex: 0xA31515),
+            number: ColorRepresentable(hex: 0x098658),
+            comment: ColorRepresentable(hex: 0x008000),
+            plain: ColorRepresentable(hex: 0x1E1E1E),
+            function: ColorRepresentable(hex: 0x795E26),
+            operatorSymbol: ColorRepresentable(hex: 0x1B1B1B),
+            identifier: ColorRepresentable(hex: 0x267F99)
         )
     )
 
@@ -416,22 +416,22 @@ extension SQLEditorPalette {
         name: "Midnight",
         kind: .builtIn,
         isDark: true,
-        background: ColorRepresentable(hex: 0x0B1220),
-        text: ColorRepresentable(hex: 0xE5E9F0),
-        gutterBackground: ColorRepresentable(hex: 0x121C2F),
-        gutterText: ColorRepresentable(hex: 0x5B6A83),
-        gutterAccent: ColorRepresentable(hex: 0x1F2A3D),
-        selection: ColorRepresentable(hex: 0x1F3A5C, alpha: 0.9),
-        currentLine: ColorRepresentable(hex: 0x16233A),
+        background: ColorRepresentable(hex: 0x1E1E1E),
+        text: ColorRepresentable(hex: 0xD4D4D4),
+        gutterBackground: ColorRepresentable(hex: 0x252526),
+        gutterText: ColorRepresentable(hex: 0x858585),
+        gutterAccent: ColorRepresentable(hex: 0x2D2D30),
+        selection: ColorRepresentable(hex: 0x264F78, alpha: 0.9),
+        currentLine: ColorRepresentable(hex: 0x2A2A2A),
         tokens: .init(
-            keyword: ColorRepresentable(hex: 0x7DD3FC),
-            string: ColorRepresentable(hex: 0x34D399),
-            number: ColorRepresentable(hex: 0xF87171),
-            comment: ColorRepresentable(hex: 0x6B7280),
-            plain: ColorRepresentable(hex: 0xE5E9F0),
-            function: ColorRepresentable(hex: 0xC084FC),
-            operatorSymbol: ColorRepresentable(hex: 0xF97316),
-            identifier: ColorRepresentable(hex: 0xA5B4FC)
+            keyword: ColorRepresentable(hex: 0xC586C0),
+            string: ColorRepresentable(hex: 0xCE9178),
+            number: ColorRepresentable(hex: 0xB5CEA8),
+            comment: ColorRepresentable(hex: 0x6A9955),
+            plain: ColorRepresentable(hex: 0xD4D4D4),
+            function: ColorRepresentable(hex: 0xDCDCAA),
+            operatorSymbol: ColorRepresentable(hex: 0x569CD6),
+            identifier: ColorRepresentable(hex: 0x9CDCFE)
         )
     )
 
@@ -560,22 +560,22 @@ extension SQLEditorPalette {
         name: "Orchard",
         kind: .builtIn,
         isDark: false,
-        background: ColorRepresentable(hex: 0xFBFDF7),
-        text: ColorRepresentable(hex: 0x2F3A1F),
-        gutterBackground: ColorRepresentable(hex: 0xE7F0E0),
-        gutterText: ColorRepresentable(hex: 0x6E8163),
-        gutterAccent: ColorRepresentable(hex: 0xC4D7B5),
-        selection: ColorRepresentable(hex: 0xDCEFD0, alpha: 0.85),
-        currentLine: ColorRepresentable(hex: 0xEEF6E4),
+        background: ColorRepresentable(hex: 0xECEFF4),
+        text: ColorRepresentable(hex: 0x2E3440),
+        gutterBackground: ColorRepresentable(hex: 0xD8DEE9),
+        gutterText: ColorRepresentable(hex: 0x4C566A),
+        gutterAccent: ColorRepresentable(hex: 0xCBD6E2),
+        selection: ColorRepresentable(hex: 0xE5EEF6, alpha: 0.85),
+        currentLine: ColorRepresentable(hex: 0xDEE6F0),
         tokens: .init(
-            keyword: ColorRepresentable(hex: 0x5A8C2D),
-            string: ColorRepresentable(hex: 0xB3682D),
-            number: ColorRepresentable(hex: 0xD19C27),
-            comment: ColorRepresentable(hex: 0x94A281),
-            plain: ColorRepresentable(hex: 0x2F3A1F),
-            function: ColorRepresentable(hex: 0x4A7FB6),
-            operatorSymbol: ColorRepresentable(hex: 0xBF4F56),
-            identifier: ColorRepresentable(hex: 0x3A5C2D)
+            keyword: ColorRepresentable(hex: 0x5E81AC),
+            string: ColorRepresentable(hex: 0xA3BE8C),
+            number: ColorRepresentable(hex: 0xEBCB8B),
+            comment: ColorRepresentable(hex: 0x7D8899),
+            plain: ColorRepresentable(hex: 0x2E3440),
+            function: ColorRepresentable(hex: 0x81A1C1),
+            operatorSymbol: ColorRepresentable(hex: 0xBF616A),
+            identifier: ColorRepresentable(hex: 0x88C0D0)
         )
     )
 
@@ -584,22 +584,22 @@ extension SQLEditorPalette {
         name: "Paperwhite",
         kind: .builtIn,
         isDark: false,
-        background: ColorRepresentable(hex: 0xFAFAF5),
-        text: ColorRepresentable(hex: 0x2C2F3C),
-        gutterBackground: ColorRepresentable(hex: 0xECEDE5),
-        gutterText: ColorRepresentable(hex: 0x7A7F8C),
-        gutterAccent: ColorRepresentable(hex: 0xC7C9BE),
-        selection: ColorRepresentable(hex: 0xD7DEF6, alpha: 0.82),
-        currentLine: ColorRepresentable(hex: 0xEEEFE8),
+        background: ColorRepresentable(hex: 0xFAFAFA),
+        text: ColorRepresentable(hex: 0x383A42),
+        gutterBackground: ColorRepresentable(hex: 0xEDEEED),
+        gutterText: ColorRepresentable(hex: 0x8B9098),
+        gutterAccent: ColorRepresentable(hex: 0xCFD0D4),
+        selection: ColorRepresentable(hex: 0xE0E8FF, alpha: 0.82),
+        currentLine: ColorRepresentable(hex: 0xF1F2F4),
         tokens: .init(
-            keyword: ColorRepresentable(hex: 0x2948B2),
-            string: ColorRepresentable(hex: 0x1F7F5F),
-            number: ColorRepresentable(hex: 0xB25C3B),
-            comment: ColorRepresentable(hex: 0xA0A3AD),
-            plain: ColorRepresentable(hex: 0x2C2F3C),
-            function: ColorRepresentable(hex: 0x6C4FB2),
-            operatorSymbol: ColorRepresentable(hex: 0xB23745),
-            identifier: ColorRepresentable(hex: 0x44506B)
+            keyword: ColorRepresentable(hex: 0xA626A4),
+            string: ColorRepresentable(hex: 0x50A14F),
+            number: ColorRepresentable(hex: 0x986801),
+            comment: ColorRepresentable(hex: 0xA0A1A7),
+            plain: ColorRepresentable(hex: 0x383A42),
+            function: ColorRepresentable(hex: 0x4078F2),
+            operatorSymbol: ColorRepresentable(hex: 0x0184BC),
+            identifier: ColorRepresentable(hex: 0xE45649)
         )
     )
 
@@ -680,22 +680,22 @@ extension SQLEditorPalette {
         name: "Ember Dark",
         kind: .builtIn,
         isDark: true,
-        background: ColorRepresentable(hex: 0x1B0F12),
-        text: ColorRepresentable(hex: 0xF5E6E1),
-        gutterBackground: ColorRepresentable(hex: 0x241517),
-        gutterText: ColorRepresentable(hex: 0x8B5F61),
-        gutterAccent: ColorRepresentable(hex: 0x3A1E22),
-        selection: ColorRepresentable(hex: 0x3E1C27, alpha: 0.9),
-        currentLine: ColorRepresentable(hex: 0x2A161B),
+        background: ColorRepresentable(hex: 0x272822),
+        text: ColorRepresentable(hex: 0xF8F8F2),
+        gutterBackground: ColorRepresentable(hex: 0x2F2E29),
+        gutterText: ColorRepresentable(hex: 0x9D9D91),
+        gutterAccent: ColorRepresentable(hex: 0x3B3A32),
+        selection: ColorRepresentable(hex: 0x49483E, alpha: 0.9),
+        currentLine: ColorRepresentable(hex: 0x3B3A32),
         tokens: .init(
-            keyword: ColorRepresentable(hex: 0xF27C5B),
-            string: ColorRepresentable(hex: 0xF2C879),
-            number: ColorRepresentable(hex: 0xF59F5A),
-            comment: ColorRepresentable(hex: 0xA77679),
-            plain: ColorRepresentable(hex: 0xF5E6E1),
-            function: ColorRepresentable(hex: 0xFF87B7),
-            operatorSymbol: ColorRepresentable(hex: 0xF25A7A),
-            identifier: ColorRepresentable(hex: 0xF0B27A)
+            keyword: ColorRepresentable(hex: 0xF92672),
+            string: ColorRepresentable(hex: 0xE6DB74),
+            number: ColorRepresentable(hex: 0xAE81FF),
+            comment: ColorRepresentable(hex: 0x75715E),
+            plain: ColorRepresentable(hex: 0xF8F8F2),
+            function: ColorRepresentable(hex: 0x66D9EF),
+            operatorSymbol: ColorRepresentable(hex: 0xFD971F),
+            identifier: ColorRepresentable(hex: 0xA6E22E)
         )
     )
 
@@ -704,22 +704,70 @@ extension SQLEditorPalette {
         name: "Charcoal",
         kind: .builtIn,
         isDark: true,
-        background: ColorRepresentable(hex: 0x111418),
+        background: ColorRepresentable(hex: 0x16161E),
         text: ColorRepresentable(hex: 0xD8DEE6),
-        gutterBackground: ColorRepresentable(hex: 0x161B21),
-        gutterText: ColorRepresentable(hex: 0x5A636E),
-        gutterAccent: ColorRepresentable(hex: 0x222831),
-        selection: ColorRepresentable(hex: 0x1F2A37, alpha: 0.92),
-        currentLine: ColorRepresentable(hex: 0x1A232D),
+        gutterBackground: ColorRepresentable(hex: 0x1F1F2A),
+        gutterText: ColorRepresentable(hex: 0x6B7285),
+        gutterAccent: ColorRepresentable(hex: 0x2A2B38),
+        selection: ColorRepresentable(hex: 0x1F2533, alpha: 0.92),
+        currentLine: ColorRepresentable(hex: 0x20222F),
         tokens: .init(
             keyword: ColorRepresentable(hex: 0x5DA9F6),
             string: ColorRepresentable(hex: 0x4BD0A0),
             number: ColorRepresentable(hex: 0xF2A65A),
-            comment: ColorRepresentable(hex: 0x6E7A88),
+            comment: ColorRepresentable(hex: 0x606B7D),
             plain: ColorRepresentable(hex: 0xD8DEE6),
             function: ColorRepresentable(hex: 0x7D8CFF),
             operatorSymbol: ColorRepresentable(hex: 0xF5546B),
             identifier: ColorRepresentable(hex: 0x8AD1FF)
+        )
+    )
+
+    static let catppuccinMocha = SQLEditorPalette(
+        id: "catppuccin-mocha",
+        name: "Catppuccin Mocha",
+        kind: .builtIn,
+        isDark: true,
+        background: ColorRepresentable(hex: 0x1E1E2E),
+        text: ColorRepresentable(hex: 0xCDD6F4),
+        gutterBackground: ColorRepresentable(hex: 0x242438),
+        gutterText: ColorRepresentable(hex: 0x8388B5),
+        gutterAccent: ColorRepresentable(hex: 0x2D2D45),
+        selection: ColorRepresentable(hex: 0x3A3A58, alpha: 0.9),
+        currentLine: ColorRepresentable(hex: 0x2A2A40),
+        tokens: .init(
+            keyword: ColorRepresentable(hex: 0xCBA6F7),
+            string: ColorRepresentable(hex: 0xA6E3A1),
+            number: ColorRepresentable(hex: 0xF5C2E7),
+            comment: ColorRepresentable(hex: 0x6E738D),
+            plain: ColorRepresentable(hex: 0xCDD6F4),
+            function: ColorRepresentable(hex: 0x94E2D5),
+            operatorSymbol: ColorRepresentable(hex: 0xF5C2E7),
+            identifier: ColorRepresentable(hex: 0x89B4FA)
+        )
+    )
+
+    static let solarizedDark = SQLEditorPalette(
+        id: "solarized-dark",
+        name: "Solarized Dark",
+        kind: .builtIn,
+        isDark: true,
+        background: ColorRepresentable(hex: 0x002B36),
+        text: ColorRepresentable(hex: 0x839496),
+        gutterBackground: ColorRepresentable(hex: 0x01313C),
+        gutterText: ColorRepresentable(hex: 0x586E75),
+        gutterAccent: ColorRepresentable(hex: 0x0A3944),
+        selection: ColorRepresentable(hex: 0x073642, alpha: 0.92),
+        currentLine: ColorRepresentable(hex: 0x003541),
+        tokens: .init(
+            keyword: ColorRepresentable(hex: 0x859900),
+            string: ColorRepresentable(hex: 0x2AA198),
+            number: ColorRepresentable(hex: 0xD33682),
+            comment: ColorRepresentable(hex: 0x586E75),
+            plain: ColorRepresentable(hex: 0x93A1A1),
+            function: ColorRepresentable(hex: 0x268BD2),
+            operatorSymbol: ColorRepresentable(hex: 0xB58900),
+            identifier: ColorRepresentable(hex: 0xCB4B16)
         )
     )
 
@@ -787,6 +835,8 @@ extension SQLEditorPalette {
         nebulaNight,
         emberDark,
         charcoal,
+        catppuccinMocha,
+        solarizedDark,
         violetStorm
     ]
 

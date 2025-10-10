@@ -1,45 +1,65 @@
 import SwiftUI
 import AppKit
-import UniformTypeIdentifiers
-
-private enum ManageConnectionsLayout {
-        static let tileWidth: CGFloat = 180
-        static let tileHeight: CGFloat = 76
-        static let identityHeight: CGFloat = 60
-        static let tileCornerRadius: CGFloat = 10
-        static let tileSpacing: CGFloat = 10
-    }
 
 struct ManageConnectionsView: View {
     @EnvironmentObject private var appModel: AppModel
     @EnvironmentObject private var appState: AppState
+    @ObservedObject private var themeManager = ThemeManager.shared
     @Environment(\.dismiss) private var dismiss
-    
+    private let onClose: (() -> Void)?
+
     @State private var selectedSection: ManageSection? = .connections
-    @State private var columnVisibility: NavigationSplitViewVisibility = .all
+    @State private var sidebarSelection: SidebarSelection? = .section(.connections)
     @State private var searchText = ""
     @State private var folderEditorState: FolderEditorState?
     @State private var identityEditorState: IdentityEditorState?
     @State private var pendingDeletion: DeletionTarget?
     @State private var connectionEditorPresentation: ConnectionEditorPresentation?
     @State private var pendingDuplicateConnection: SavedConnection?
-    
-    
+    @State private var pendingConnectionMove: SavedConnection?
+    @State private var pendingIdentityMove: SavedIdentity?
+    @State private var connectionSelection = Set<SavedConnection.ID>()
+    @State private var identitySelection = Set<SavedIdentity.ID>()
+    @State private var connectionSortOrder: [KeyPathComparator<SavedConnection>] = [
+        .init(\.connectionName, order: .forward)
+    ]
+    @State private var identitySortOrder: [KeyPathComparator<SavedIdentity>] = [
+        .init(\.name, order: .forward)
+    ]
+
+    @State private var expandedSections: Set<ManageSection> = [.connections, .identities]
+
+    init(onClose: (() -> Void)? = nil) {
+        self.onClose = onClose
+    }
+
     private var activeSection: ManageSection { selectedSection ?? .connections }
-    
+
     var body: some View {
-        splitView
-            .navigationSplitViewStyle(.balanced)
-            .frame(minWidth: 800, minHeight: 560)
+        contentView
+            .onAppear(perform: ensureSectionSelection)
+    }
+
+    private var contentView: some View {
+        configuredSplitView
+            .preferredColorScheme(themeManager.effectiveColorScheme)
             .sheet(item: $folderEditorState, content: folderEditorSheet)
             .sheet(item: $identityEditorState, content: identityEditorSheet)
             .sheet(item: $connectionEditorPresentation, content: connectionEditorSheet)
-            .alert("Delete Item?", isPresented: deletionAlertBinding, presenting: pendingDeletion, actions: deletionAlertActions, message: deletionAlertMessage)
+            .alert(
+                "Delete Item?",
+                isPresented: deletionAlertBinding,
+                presenting: pendingDeletion,
+                actions: deletionAlertActions,
+                message: deletionAlertMessage
+            )
             .confirmationDialog(
                 "Duplicate Connection",
                 isPresented: Binding(
                     get: { pendingDuplicateConnection != nil },
-                    set: { isPresented in if !isPresented { pendingDuplicateConnection = nil } }
+                    set: { isPresented in
+                        if !isPresented { pendingDuplicateConnection = nil }
+                    }
                 ),
                 titleVisibility: .visible,
                 presenting: pendingDuplicateConnection
@@ -58,13 +78,345 @@ struct ManageConnectionsView: View {
             } message: { _ in
                 Text("Do you want to copy the bookmark history into the duplicated connection?")
             }
-            .onChange(of: appModel.selectedProject?.id) { _, _ in resetForProjectChange() }
-            .onChange(of: selectedSection) { _, section in if let section { handleSectionChange(section) } }
-            .onChange(of: appModel.folders) { _, _ in pruneNavigationStacks() }
-            .onAppear(perform: ensureSectionSelection)
+            .modifier(ChangeHandlers(
+                appModel: appModel,
+                selectedSection: $selectedSection,
+                sidebarSelection: $sidebarSelection,
+                pendingConnectionMove: $pendingConnectionMove,
+                pendingIdentityMove: $pendingIdentityMove,
+                filteredConnectionsForTable: filteredConnectionsForTable,
+                filteredIdentitiesForTable: filteredIdentitiesForTable,
+                onProjectChange: resetForProjectChange,
+                onSectionChange: handleSectionChange,
+                onSidebarSelectionChange: handleSidebarSelectionChange,
+                onFolderIDChange: syncSidebarSelection,
+                onConnectionsChange: { pruneConnectionSelection(allowedIDs: Set($0)) },
+                onIdentitiesChange: { pruneIdentitySelection(allowedIDs: Set($0)) },
+                onFoldersChange: handleFoldersChange
+            ))
     }
-    
-    private func handlePrimaryAdd(for section: ManageSection) {
+
+    private var configuredSplitView: some View {
+        splitView
+            .frame(minWidth: 900, minHeight: 600)
+    }
+
+    private var splitView: some View {
+        NavigationView {
+            sidebar
+                .frame(minWidth: 220, idealWidth: 260, maxWidth: 300)
+            detailContent
+        }
+        .navigationViewStyle(.columns)
+        .background(Color(nsColor: .windowBackgroundColor))
+    }
+}
+
+// MARK: - Layout
+
+private extension ManageConnectionsView {
+    var detailContent: some View {
+        detailBody
+            .searchable(text: $searchText, prompt: activeSection.searchPlaceholder)
+            .toolbar {
+                ToolbarItem(placement: .primaryAction) {
+                    Menu {
+                        switch activeSection {
+                        case .connections:
+                            Button {
+                                handlePrimaryAdd(for: .connections)
+                            } label: {
+                                Label("New Connection", systemImage: "externaldrive.badge.plus")
+                            }
+                            Button {
+                                presentCreateFolder(for: .connections)
+                            } label: {
+                                Label("New Folder", systemImage: "folder.badge.plus")
+                            }
+                        case .identities:
+                            Button {
+                                handlePrimaryAdd(for: .identities)
+                            } label: {
+                                Label("New Identity", systemImage: "person.crop.circle.badge.plus")
+                            }
+                            Button {
+                                presentCreateFolder(for: .identities)
+                            } label: {
+                                Label("New Folder", systemImage: "folder.badge.plus")
+                            }
+                        }
+                    } label: {
+                        Image(systemName: "plus")
+                    }
+                    .menuIndicator(.hidden)
+                    .help(activeSection == .connections ? "Add connection or folder" : "Add identity or folder")
+                }
+            }
+            .navigationTitle(navigationTitleText)
+            .navigationSubtitle(navigationSubtitleText)
+    }
+
+    private var navigationTitleText: String {
+        if case .folder(let folderID, _) = sidebarSelection,
+           let folder = folder(withID: folderID) {
+            return folder.displayName
+        }
+        return activeSection.title
+    }
+
+    private var navigationSubtitleText: String {
+        if case .folder(_, _) = sidebarSelection {
+            return activeSection.title
+        }
+        return ""
+    }
+
+    @ViewBuilder
+    var sidebar: some View {
+        if #available(macOS 13.0, *) {
+            sidebarList
+                .contentMargins(.zero, for: .scrollContent)
+        } else {
+            sidebarList
+        }
+    }
+
+    private var sidebarList: some View {
+        List(selection: $sidebarSelection) {
+            ForEach(ManageSection.allCases) { section in
+                sidebarSection(
+                    section,
+                    nodes: section == .connections ? connectionFolderNodes : identityFolderNodes,
+                    totalCount: totalCount(for: section)
+                )
+            }
+        }
+        .listStyle(.sidebar)
+        .accentColor(.primary)
+    }
+
+    @ViewBuilder
+    func sidebarSection(
+        _ section: ManageSection,
+        nodes: [FolderNode],
+        totalCount: Int
+    ) -> some View {
+        DisclosureGroup(isExpanded: binding(for: section)) {
+            OutlineGroup(nodes, children: \.childNodes) { node in
+                sidebarFolderLink(node: node, section: section)
+            }
+        } label: {
+            NavigationLink(value: SidebarSelection.section(section)) {
+                HStack(spacing: 6) {
+                    Image(systemName: section.icon)
+                    Text(section.title)
+                }
+            }
+            .tag(SidebarSelection.section(section))
+            .contextMenu {
+                switch section {
+                case .connections:
+                    Button {
+                        handlePrimaryAdd(for: .connections)
+                    } label: {
+                        Label("New Connection", systemImage: "externaldrive.badge.plus")
+                    }
+                    Button {
+                        presentCreateFolder(for: .connections)
+                    } label: {
+                        Label("New Folder", systemImage: "folder.badge.plus")
+                    }
+                case .identities:
+                    Button {
+                        handlePrimaryAdd(for: .identities)
+                    } label: {
+                        Label("New Identity", systemImage: "person.crop.circle.badge.plus")
+                    }
+                    Button {
+                        presentCreateFolder(for: .identities)
+                    } label: {
+                        Label("New Folder", systemImage: "folder.badge.plus")
+                    }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    func sidebarFolderLink(node: FolderNode, section: ManageSection) -> some View {
+        NavigationLink(value: SidebarSelection.folder(node.folder.id, section)) {
+            HStack(spacing: 6) {
+                Image(systemName: "folder")
+                Text(node.folder.displayName)
+            }
+        }
+        .tag(SidebarSelection.folder(node.folder.id, section))
+        .contextMenu {
+            Button {
+                createNewFolder(for: section, parent: node.folder)
+            } label: {
+                Text("New Subfolder")
+            }
+
+            Button {
+                editFolder(node.folder)
+            } label: {
+                Text("Edit")
+            }
+
+            Divider()
+
+            Button("Delete", role: .destructive) {
+                handleDeletion(.folder(node.folder))
+            }
+        }
+        .dropDestination(for: String.self) { items, location in
+            if section == .connections {
+                return handleConnectionDrop(items: items, folder: node.folder)
+            } else {
+                return handleIdentityDrop(items: items, folder: node.folder)
+            }
+        }
+    }
+
+    func totalCount(for section: ManageSection) -> Int {
+        switch section {
+        case .connections: return projectConnections.count
+        case .identities: return projectIdentities.count
+        }
+    }
+
+    func binding(for section: ManageSection) -> Binding<Bool> {
+        Binding(
+            get: { expandedSections.contains(section) },
+            set: { isExpanded in
+                if isExpanded {
+                    expandedSections.insert(section)
+                } else {
+                    expandedSections.remove(section)
+                }
+            }
+        )
+    }
+
+    @ViewBuilder
+    var connectionsDetail: some View {
+        if filteredConnectionsForTable.isEmpty {
+            emptyState(for: .connections)
+        } else {
+            ConnectionsTableView(
+                connections: filteredConnectionsForTable,
+                selection: $connectionSelection,
+                sortOrder: $connectionSortOrder,
+                folderLookup: folderLookup(for: .connections),
+                onConnect: connectToConnection,
+                onEdit: editConnection,
+                onDuplicate: duplicateConnection,
+                onDelete: { handleDeletion(.connection($0)) },
+                identityDecorationProvider: identityDecoration(for:),
+                onDoubleClick: connectToConnection,
+                moveConnectionToFolder: moveConnectionToFolder,
+                createFolderAndMoveConnection: createFolderAndMoveConnection
+            )
+        }
+    }
+
+    @ViewBuilder
+    var identitiesDetail: some View {
+        if filteredIdentitiesForTable.isEmpty {
+            emptyState(for: .identities)
+        } else {
+            IdentitiesTableView(
+                identities: filteredIdentitiesForTable,
+                selection: $identitySelection,
+                sortOrder: $identitySortOrder,
+                folderLookup: folderLookup(for: .identities),
+                onEdit: editIdentity,
+                onDelete: { handleDeletion(.identity($0)) },
+                moveIdentityToFolder: moveIdentityToFolder,
+                createFolderAndMoveIdentity: createFolderAndMoveIdentity
+            )
+        }
+    }
+
+    @ViewBuilder
+    func emptyState(for section: ManageSection) -> some View {
+        VStack(spacing: 14) {
+            Image(systemName: section == .connections ? "externaldrive.badge.plus" : "person.crop.circle.badge.plus")
+                .font(.system(size: 40, weight: .semibold))
+                .symbolRenderingMode(.hierarchical)
+                .foregroundStyle(Color.accentColor)
+
+            Text(section.emptyTitle)
+                .font(.system(size: 18, weight: .semibold))
+
+            Text(section.emptyMessage)
+                .font(.system(size: 13))
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: 320)
+
+            Button {
+                handlePrimaryAdd(for: section)
+            } label: {
+                Label(section.emptyActionTitle, systemImage: "plus")
+            }
+            .buttonStyle(.borderedProminent)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(themeManager.effectiveColorScheme == .dark ? Color(white: 0.15) : Color(white: 0.98))
+    }
+}
+
+// MARK: - Sheets & Alerts
+
+private extension ManageConnectionsView {
+    var deletionAlertBinding: Binding<Bool> {
+        Binding(
+            get: { pendingDeletion != nil },
+            set: { isPresented in
+                if !isPresented { pendingDeletion = nil }
+            }
+        )
+    }
+
+    @ViewBuilder
+    func folderEditorSheet(_ state: FolderEditorState) -> some View {
+        FolderEditorSheet(state: state)
+            .environmentObject(appModel)
+    }
+
+    @ViewBuilder
+    func identityEditorSheet(_ state: IdentityEditorState) -> some View {
+        IdentityEditorSheet(state: state)
+            .environmentObject(appModel)
+    }
+
+    @ViewBuilder
+    func connectionEditorSheet(_ presentation: ConnectionEditorPresentation) -> some View {
+        ConnectionEditorView(connection: presentation.connection) { connection, password, action in
+            handleConnectionEditorSave(connection: connection, password: password, action: action)
+        }
+        .environmentObject(appModel)
+        .environmentObject(appState)
+    }
+
+    @ViewBuilder
+    func deletionAlertActions(target: DeletionTarget) -> some View {
+        Button("Delete", role: .destructive) { performDeletion(for: target) }
+        Button("Cancel", role: .cancel) { pendingDeletion = nil }
+    }
+
+    @ViewBuilder
+    func deletionAlertMessage(target: DeletionTarget) -> some View {
+        Text("Are you sure you want to delete \(target.displayName)? This action cannot be undone.")
+    }
+}
+
+// MARK: - Selection & Sync
+
+private extension ManageConnectionsView {
+    func handlePrimaryAdd(for section: ManageSection) {
         switch section {
         case .connections:
             createNewConnection()
@@ -72,658 +424,310 @@ struct ManageConnectionsView: View {
             createNewIdentity()
         }
     }
-    
-    private var splitView: some View {
-        NavigationSplitView(columnVisibility: $columnVisibility) {
-            sidebar
-                .navigationSplitViewColumnWidth(min: 220, ideal: 240, max: 260)
-        } detail: {
-            mainContent
-                .frame(minWidth: 560)
-                .background(Color(nsColor: .windowBackgroundColor))
+
+    func handleSectionChange(_ section: ManageSection) {
+        searchText = ""
+        if section == .connections {
+            appModel.selectedIdentityID = nil
         }
-        .toolbar(.hidden, for: .windowToolbar)
+
+        let target: SidebarSelection = .section(section)
+        if sidebarSelection != target {
+            sidebarSelection = target
+        }
     }
-    
-    // MARK: - Sheets & Alerts
-    
-    private var deletionAlertBinding: Binding<Bool> {
-        Binding(
-            get: { pendingDeletion != nil },
-            set: { isPresented in
-                if !isPresented {
-                    pendingDeletion = nil
-                }
+
+    func handleSidebarSelectionChange(_ selection: SidebarSelection?) {
+        guard let selection else { return }
+
+        if selectedSection != selection.section {
+            selectedSection = selection.section
+        }
+
+        switch selection {
+        case .section:
+            if appModel.selectedFolderID != nil {
+                appModel.selectedFolderID = nil
             }
+        case .folder(let folderID, _):
+            if appModel.selectedFolderID != folderID {
+                appModel.selectedFolderID = folderID
+            }
+        }
+    }
+
+    func syncSidebarSelection(withFolderID folderID: UUID?) {
+        guard let folderID,
+              let folder = folder(withID: folderID) else {
+            let section = selectedSection ?? .connections
+            let target: SidebarSelection = .section(section)
+            if sidebarSelection != target {
+                sidebarSelection = target
+            }
+            return
+        }
+
+        let section = folder.kind.manageSection
+        if selectedSection != section {
+            selectedSection = section
+        }
+
+        let target: SidebarSelection = .folder(folder.id, section)
+        if sidebarSelection != target {
+            sidebarSelection = target
+        }
+    }
+
+    func pruneConnectionSelection(allowedIDs: Set<UUID>) {
+        let invalid = connectionSelection.filter { !allowedIDs.contains($0) }
+        if !invalid.isEmpty {
+            connectionSelection.subtract(invalid)
+        }
+    }
+
+    func pruneIdentitySelection(allowedIDs: Set<UUID>) {
+        let invalid = identitySelection.filter { !allowedIDs.contains($0) }
+        if !invalid.isEmpty {
+            identitySelection.subtract(invalid)
+        }
+    }
+
+    func resetForProjectChange() {
+        searchText = ""
+        pendingDeletion = nil
+        connectionEditorPresentation = nil
+        folderEditorState = nil
+        identityEditorState = nil
+        connectionSelection.removeAll()
+        identitySelection.removeAll()
+        selectedSection = .connections
+        sidebarSelection = .section(.connections)
+        pruneNavigationStacks()
+        ensureSectionSelection()
+    }
+
+    func pruneNavigationStacks() {
+        guard let projectID = selectedProjectID else {
+            appModel.selectedFolderID = nil
+            appModel.selectedIdentityID = nil
+            appModel.selectedConnectionID = nil
+            return
+        }
+
+        if let folderID = appModel.selectedFolderID,
+           !appModel.folders.contains(where: { $0.id == folderID && $0.projectID == projectID }) {
+            appModel.selectedFolderID = nil
+        }
+
+        if let identityID = appModel.selectedIdentityID,
+           !appModel.identities.contains(where: { $0.id == identityID && $0.projectID == projectID }) {
+            appModel.selectedIdentityID = nil
+        }
+
+        if let connectionID = appModel.selectedConnectionID,
+           !appModel.connections.contains(where: { $0.id == connectionID && $0.projectID == projectID }) {
+            appModel.selectedConnectionID = nil
+        }
+
+        syncSidebarSelection(withFolderID: appModel.selectedFolderID)
+    }
+
+    func ensureSectionSelection() {
+        if selectedSection == nil {
+            if let identityID = appModel.selectedIdentityID,
+               appModel.identities.contains(where: { $0.id == identityID }) {
+                selectedSection = .identities
+            } else {
+                selectedSection = .connections
+            }
+        }
+
+        if sidebarSelection == nil {
+            if let folderID = appModel.selectedFolderID {
+                syncSidebarSelection(withFolderID: folderID)
+            } else if let section = selectedSection {
+                sidebarSelection = .section(section)
+            } else {
+                sidebarSelection = .section(.connections)
+            }
+        }
+
+        if connectionSelection.isEmpty,
+           let id = appModel.selectedConnectionID,
+           filteredConnectionsForTable.contains(where: { $0.id == id }) {
+            connectionSelection = [id]
+        }
+
+        if identitySelection.isEmpty,
+           let id = appModel.selectedIdentityID,
+           filteredIdentitiesForTable.contains(where: { $0.id == id }) {
+            identitySelection = [id]
+        }
+    }
+}
+
+// MARK: - Data
+
+private extension ManageConnectionsView {
+    var selectedProjectID: UUID? {
+        appModel.selectedProject?.id
+    }
+
+    var projectConnections: [SavedConnection] {
+        appModel.connections.filter { $0.projectID == selectedProjectID }
+    }
+
+    var projectIdentities: [SavedIdentity] {
+        appModel.identities.filter { $0.projectID == selectedProjectID }
+    }
+
+    var connectionFolders: [SavedFolder] {
+        appModel.folders.filter { $0.kind == .connections && $0.projectID == selectedProjectID }
+    }
+
+    var identityFolders: [SavedFolder] {
+        appModel.folders.filter { $0.kind == .identities && $0.projectID == selectedProjectID }
+    }
+
+    var connectionFolderNodes: [FolderNode] {
+        buildFolderNodes(
+            from: connectionFolders.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending },
+            itemMap: Dictionary(grouping: projectConnections, by: { $0.folderID })
         )
     }
-    
-    @ViewBuilder
-    private func folderEditorSheet(_ state: FolderEditorState) -> some View {
-        FolderEditorSheet(state: state)
-            .environmentObject(appModel)
-    }
-    
-    @ViewBuilder
-    private func identityEditorSheet(_ state: IdentityEditorState) -> some View {
-        IdentityEditorSheet(state: state)
-            .environmentObject(appModel)
-    }
-    
-    @ViewBuilder
-    private func connectionEditorSheet(_ presentation: ConnectionEditorPresentation) -> some View {
-        ConnectionEditorView(connection: presentation.connection) { connection, password, action in
-            handleConnectionEditorSave(connection: connection, password: password, action: action)
-        }
-        .environmentObject(appModel)
-        .environmentObject(appState)
-    }
-    
-    @ViewBuilder
-    private func deletionAlertActions(target: DeletionTarget) -> some View {
-        Button("Delete", role: .destructive) { performDeletion(for: target) }
-        Button("Cancel", role: .cancel) { pendingDeletion = nil }
-    }
-    
-    @ViewBuilder
-    private func deletionAlertMessage(target: DeletionTarget) -> some View {
-        Text("Are you sure you want to delete \(target.displayName)? This action cannot be undone.")
-    }
-    
-    // MARK: - Sidebar
-    
-    @ViewBuilder
-    private var sidebar: some View {
-        ManageConnectionsSidebar(selection: $selectedSection)
-    }
-    
-    // MARK: - Main Content
-    
-    @ViewBuilder
-    private var mainContent: some View {
-        Group {
-            switch activeSection {
-            case .connections:
-                connectionsDetail
-            case .identities:
-                identitiesDetail
-            }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .background(Color(nsColor: .windowBackgroundColor))
+
+    var identityFolderNodes: [FolderNode] {
+        buildFolderNodes(
+            from: identityFolders.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending },
+            itemMap: Dictionary(grouping: projectIdentities, by: { $0.folderID })
+        )
     }
 
-    // MARK: - Section Detail
-
-    @ViewBuilder
-    private var connectionsDetail: some View {
-        sectionList(for: .connections)
+    var identityLookup: [UUID: SavedIdentity] {
+        Dictionary(uniqueKeysWithValues: projectIdentities.map { ($0.id, $0) })
     }
 
-    @ViewBuilder
-    private var identitiesDetail: some View {
-        sectionList(for: .identities)
+    var normalizedQuery: String? {
+        let trimmed = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed.lowercased()
     }
 
-    @ViewBuilder
-    private func sectionList(for section: ManageSection) -> some View {
-        let tree = section == .connections ? filteredConnectionTree : filteredIdentityTree
+    var filteredConnectionsForTable: [SavedConnection] {
+        var items = projectConnections
 
-        if tree.isEmpty {
-            VStack(spacing: 12) {
-                Image(systemName: section == .connections ? "externaldrive.badge.plus" : "person.crop.circle.badge.plus")
-                    .font(.system(size: 34, weight: .semibold))
-                    .symbolRenderingMode(.hierarchical)
-                    .foregroundStyle(Color.accentColor)
-
-                Text(section.emptyTitle)
-                    .font(.system(size: 18, weight: .semibold))
-
-                Text(section.emptyMessage)
-                    .font(.system(size: 13))
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-                    .frame(maxWidth: 320)
-
-                Button {
-                    handlePrimaryAdd(for: section)
-                } label: {
-                    Label(section.emptyActionTitle, systemImage: "plus")
-                }
-                .buttonStyle(.borderedProminent)
+        if let folderID = activeFolderID(for: .connections) {
+            let scope = folderScope(for: folderID, in: .connections)
+            items = items.filter { connection in
+                guard let id = connection.folderID else { return false }
+                return scope.contains(id)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .padding(32)
-        } else {
-            ManageConnectionsListView(
-                tree: tree,
-                section: section,
-                searchText: $searchText,
-                identityDecorationProvider: identityDecoration(for:),
-                folderDecorationProvider: folderDecoration(for:),
-                onConnect: connectToConnection,
-                onEditConnection: editConnection,
-                onDuplicateConnection: duplicateConnection,
-                onEditIdentity: editIdentity,
-                onEditFolder: editFolder,
-                onDelete: handleDeletion,
-                onMove: { payload, targetFolderID in
-                    handleMove(payload, to: targetFolderID, in: section)
-                },
-                onPrimaryAdd: { handlePrimaryAdd(for: section) },
-                onCreateFolder: { createNewFolder(for: section) }
-            )
         }
+
+        if let query = normalizedQuery {
+            items = items.filter { connectionMatches($0, query: query) }
+        }
+
+        return items.sorted(using: connectionSortOrder)
     }
 
-    private struct ManageConnectionsListView: View {
+    var filteredIdentitiesForTable: [SavedIdentity] {
+        var items = projectIdentities
 
-
-        let tree: [ItemNode]
-        let section: ManageSection
-        let searchText: Binding<String>
-        let identityDecorationProvider: (SavedConnection) -> IdentityDecoration?
-        let folderDecorationProvider: (SavedFolder) -> IdentityDecoration?
-        let onConnect: (SavedConnection) -> Void
-        let onEditConnection: (SavedConnection) -> Void
-        let onDuplicateConnection: (SavedConnection) -> Void
-        let onEditIdentity: (SavedIdentity) -> Void
-        let onEditFolder: (SavedFolder) -> Void
-        let onDelete: (ItemNode.Payload) -> Void
-        let onMove: (DragPayload, UUID?) -> Void
-        let onPrimaryAdd: () -> Void
-        let onCreateFolder: () -> Void
-
-        @State private var dropTargetID: UUID?
-        @State private var rootDropActive = false
-        @State private var hoveredNodeID: UUID?
-        @State private var isProcessingDrop = false
-
-        private let parentLookup: [UUID: UUID?]
-
-        init(
-            tree: [ItemNode],
-            section: ManageSection,
-            searchText: Binding<String>,
-            identityDecorationProvider: @escaping (SavedConnection) -> IdentityDecoration?,
-            folderDecorationProvider: @escaping (SavedFolder) -> IdentityDecoration?,
-            onConnect: @escaping (SavedConnection) -> Void,
-            onEditConnection: @escaping (SavedConnection) -> Void,
-            onDuplicateConnection: @escaping (SavedConnection) -> Void,
-            onEditIdentity: @escaping (SavedIdentity) -> Void,
-            onEditFolder: @escaping (SavedFolder) -> Void,
-            onDelete: @escaping (ItemNode.Payload) -> Void,
-            onMove: @escaping (DragPayload, UUID?) -> Void,
-            onPrimaryAdd: @escaping () -> Void,
-            onCreateFolder: @escaping () -> Void
-        ) {
-            self.tree = tree
-            self.section = section
-            self.searchText = searchText
-            self.identityDecorationProvider = identityDecorationProvider
-            self.folderDecorationProvider = folderDecorationProvider
-            self.onConnect = onConnect
-            self.onEditConnection = onEditConnection
-            self.onDuplicateConnection = onDuplicateConnection
-            self.onEditIdentity = onEditIdentity
-            self.onEditFolder = onEditFolder
-            self.onDelete = onDelete
-            self.onMove = onMove
-            self.onPrimaryAdd = onPrimaryAdd
-            self.onCreateFolder = onCreateFolder
-
-            self.parentLookup = Self.buildParentLookup(from: tree)
-        }
-
-        private static func buildParentLookup(from nodes: [ItemNode]) -> [UUID: UUID?] {
-            var parents: [UUID: UUID?] = [:]
-
-            func walk(_ current: [ItemNode], parent: UUID?) {
-                for node in current {
-                    parents[node.id] = parent
-                    walk(node.children, parent: node.id)
-                }
-            }
-
-            walk(nodes, parent: nil)
-            return parents
-        }
-
-        var body: some View {
-            List {
-                OutlineGroup(tree, children: \ItemNode.childNodes) { node in
-                    nodeRow(for: node, isHovered: hoveredNodeID == node.id)
-                        .contentShape(Rectangle())
-                        .listRowBackground(rowBackground(for: node))
-                        .contextMenu { contextMenu(for: node) }
-                        .onTapGesture(count: 2) { activate(node.payload) }
-                        .onDrag { provider(for: node) }
-                        .onDrop(of: [UTType.utf8PlainText], isTargeted: dropTargetBinding(for: node)) { providers in
-                            handleDrop(providers: providers, targetFor: node)
-                        }
-                        .onHover { isHovering in
-                            hoveredNodeID = isHovering ? node.id : (hoveredNodeID == node.id ? nil : hoveredNodeID)
-                        }
-                }
-            }
-            .listStyle(.inset)
-            .scrollContentBackground(.hidden)
-            .alternatingRowBackgrounds()
-            .environment(\.defaultMinListRowHeight, 40)
-            .onDrop(of: [UTType.utf8PlainText], isTargeted: $rootDropActive) { providers in
-                defer { rootDropActive = false }
-                guard dropTargetID == nil else { return false }
-                return handleDrop(providers: providers, targetFolderID: nil)
-            }
-            .safeAreaInset(edge: .bottom, spacing: 0) {
-                bottomBar
-            }
-            .overlay(alignment: .topTrailing) {
-                searchField
+        if let folderID = activeFolderID(for: .identities) {
+            let scope = folderScope(for: folderID, in: .identities)
+            items = items.filter { identity in
+                guard let id = identity.folderID else { return false }
+                return scope.contains(id)
             }
         }
 
-        private var searchField: some View {
-            HStack(spacing: 6) {
-                Image(systemName: "magnifyingglass")
-                    .foregroundStyle(.secondary)
-                TextField(section.searchPlaceholder, text: searchText)
-                    .textFieldStyle(.plain)
-                    .frame(width: 200)
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .background(
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .fill(.ultraThinMaterial)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .strokeBorder(Color.primary.opacity(0.08))
-            )
-            .padding(.top, 12)
-            .padding(.trailing, 16)
+        if let query = normalizedQuery {
+            items = items.filter { identityMatches($0, query: query) }
         }
 
-        private var bottomBar: some View {
-            HStack(spacing: 8) {
-                Button(action: onPrimaryAdd) {
-                    Image(systemName: section.primaryAddSymbol)
-                        .font(.system(size: 14, weight: .semibold))
-                }
-                .buttonStyle(.borderless)
-                .controlSize(.small)
-                .help(section.primaryAddHelp)
-                .tint(Color(nsColor: .controlAccentColor))
+        return items.sorted(using: identitySortOrder)
+    }
 
-                Button(action: onCreateFolder) {
-                    Image(systemName: "folder.badge.plus")
-                        .font(.system(size: 14, weight: .semibold))
-                }
-                .buttonStyle(.borderless)
-                .controlSize(.small)
-                .help(section.createFolderHelp)
-                .tint(Color(nsColor: .controlAccentColor))
-
-                Spacer()
-            }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 8)
-            .background(.ultraThinMaterial)
-            .overlay(alignment: .top) { Divider() }
-        }
-
-        private func dropTargetBinding(for node: ItemNode) -> Binding<Bool> {
-            let isFolder: Bool
-            if case .folder = node.payload {
-                isFolder = true
-            } else {
-                isFolder = false
-            }
-
-            return Binding(
-                get: { isFolder && dropTargetID == node.id },
-                set: { isTargeted in
-                    guard isFolder else {
-                        dropTargetID = nil
-                        return
-                    }
-                    dropTargetID = isTargeted ? node.id : nil
-                }
-            )
-        }
-
-        private func rowBackground(for node: ItemNode) -> Color? {
-            dropTargetID == node.id ? Color.accentColor.opacity(0.08) : nil
-        }
-
-        private func handleDrop(providers: [NSItemProvider], targetFor node: ItemNode) -> Bool {
-            guard case .folder(let folder) = node.payload else { return false }
-            return handleDrop(providers: providers, targetFolderID: folder.id)
-        }
-
-        @ViewBuilder
-        private func nodeRow(for node: ItemNode, isHovered: Bool) -> some View {
-            switch node.payload {
-            case .folder(let folder):
-                folderRow(folder, summary: subtitle(for: node), isHovered: isHovered)
-            case .connection(let connection):
-                connectionRow(connection, summary: subtitle(for: node), isHovered: isHovered)
-            case .identity(let identity):
-                identityRow(identity, summary: subtitle(for: node), isHovered: isHovered)
-            }
-        }
-
-        private func folderRow(_ folder: SavedFolder, summary: String?, isHovered: Bool) -> some View {
-            let decoration = folderDecorationProvider(folder)
-
-            return HStack(spacing: 12) {
-                Image(systemName: "folder")
-                    .symbolVariant(.fill)
-                    .font(.system(size: 17, weight: .regular))
-                    .foregroundStyle(Color(nsColor: .controlAccentColor))
-
-                VStack(alignment: .leading, spacing: 3) {
-                    HStack(spacing: 6) {
-                        Text(primaryTitle(for: .folder(folder)))
-                            .font(.body.weight(.medium))
-                        if let decoration {
-                            IdentityBubble(decoration: decoration)
-                        }
-                    }
-
-                    if let summary {
-                        Text(summary)
-                            .font(.system(size: 12))
-                            .italic()
-                            .foregroundStyle(.secondary)
-                    }
-                }
-
-                Spacer(minLength: 12)
-
-                Menu {
-                    Button("Edit") { onEditFolder(folder) }
-                    Button("Delete", role: .destructive) { onDelete(.folder(folder)) }
-                } label: {
-                    Image(systemName: "ellipsis")
-                        .font(.system(size: 14, weight: .semibold))
-                }
-                .menuIndicator(.hidden)
-                .controlSize(.small)
-                .menuStyle(BorderlessButtonMenuStyle())
-                .opacity(isHovered ? 1 : 0)
-                .allowsHitTesting(isHovered)
-            }
-            .frame(minHeight: 44, alignment: .center)
-            .padding(.vertical, 2)
-        }
-
-        private func connectionRow(_ connection: SavedConnection, summary: String?, isHovered: Bool) -> some View {
-            let decoration = identityDecorationProvider(connection)
-
-            return HStack(spacing: 12) {
-                Image(systemName: "server.rack")
-                    .font(.system(size: 17, weight: .semibold))
-                    .foregroundStyle(Color(nsColor: .systemBlue))
-                    .frame(width: 18)
-
-                VStack(alignment: .leading, spacing: 3) {
-                    HStack(spacing: 6) {
-                        Text(primaryTitle(for: .connection(connection)))
-                            .font(.body.weight(.medium))
-                        if let decoration {
-                            IdentityBubble(decoration: decoration)
-                        }
-                    }
-
-                    if let summary {
-                        Text(summary)
-                            .font(.system(size: 12))
-                            .italic()
-                            .foregroundStyle(.secondary)
-                    }
-                }
-
-                Spacer(minLength: 12)
-
-                HStack(spacing: 8) {
-                    Button(action: { onConnect(connection) }) {
-                        Image(systemName: "bolt.horizontal")
-                            .font(.system(size: 14, weight: .semibold))
-                    }
-                    .buttonStyle(.borderless)
-                    .controlSize(.small)
-                    .help("Connect")
-
-                    Menu {
-                        Button("Edit") { onEditConnection(connection) }
-                        Button("Duplicate") { onDuplicateConnection(connection) }
-                        Divider()
-                        Button("Delete", role: .destructive) { onDelete(.connection(connection)) }
-                    } label: {
-                        Image(systemName: "ellipsis")
-                            .font(.system(size: 14, weight: .semibold))
-                    }
-                    .menuIndicator(.hidden)
-                    .controlSize(.small)
-                    .menuStyle(BorderlessButtonMenuStyle())
-                }
-                .opacity(isHovered ? 1 : 0)
-                .allowsHitTesting(isHovered)
-            }
-            .frame(minHeight: 44, alignment: .center)
-            .padding(.vertical, 2)
-        }
-
-        private func identityRow(_ identity: SavedIdentity, summary: String?, isHovered: Bool) -> some View {
-            HStack(spacing: 12) {
-                Image(systemName: "person.crop.circle")
-                    .font(.system(size: 17, weight: .regular))
-                    .foregroundStyle(Color(nsColor: .systemPurple))
-                    .frame(width: 18)
-
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(primaryTitle(for: .identity(identity)))
-                        .font(.body.weight(.medium))
-                    if let summary {
-                        Text(summary)
-                            .font(.callout)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-
-                Spacer(minLength: 12)
-
-                Menu {
-                    Button("Edit") { onEditIdentity(identity) }
-                    Divider()
-                    Button("Delete", role: .destructive) { onDelete(.identity(identity)) }
-                } label: {
-                    Image(systemName: "ellipsis")
-                        .font(.system(size: 14, weight: .semibold))
-                }
-                .menuIndicator(.hidden)
-                .controlSize(.small)
-                .menuStyle(BorderlessButtonMenuStyle())
-                .opacity(isHovered ? 1 : 0)
-                .allowsHitTesting(isHovered)
-            }
-            .frame(minHeight: 44, alignment: .center)
-            .padding(.vertical, 2)
-        }
-
-        private struct IdentityBubble: View {
-            let decoration: IdentityDecoration
-
-            var body: some View {
-                Image(systemName: decoration.symbol)
-                    .font(.system(size: 10, weight: .semibold))
-                    .foregroundStyle(decoration.tint)
-                    .frame(width: 16, height: 16)
-                    .background(
-                        Circle()
-                            .fill(decoration.tint.opacity(0.18))
-                    )
-                    .overlay(
-                        Circle()
-                            .stroke(decoration.tint.opacity(0.35), lineWidth: 0.5)
-                    )
-                    .help(decoration.tooltip ?? "")
-            }
-        }
-
-        private func primaryTitle(for payload: ItemNode.Payload) -> String {
-            switch payload {
-            case .folder(let folder):
-                let trimmed = folder.name.trimmingCharacters(in: .whitespacesAndNewlines)
-                return trimmed.isEmpty ? "Untitled Folder" : trimmed
-            case .connection(let connection):
-                let trimmed = connection.connectionName.trimmingCharacters(in: .whitespacesAndNewlines)
-                return trimmed.isEmpty ? connection.host : trimmed
-            case .identity(let identity):
-                return identity.name
-            }
-        }
-
-        private func subtitle(for node: ItemNode) -> String? {
-            switch node.payload {
-            case .folder:
-                let folderCount = node.children.filter { if case .folder = $0.payload { return true } else { return false } }.count
-                let itemCount = node.children.count - folderCount
-                var parts: [String] = []
-                if folderCount > 0 {
-                    parts.append("\(folderCount) folder\(folderCount == 1 ? "" : "s")")
-                }
-                if itemCount > 0 {
-                    let label = section == .connections ? "connection" : "identity"
-                    parts.append("\(itemCount) \(label)\(itemCount == 1 ? "" : "s")")
-                }
-                return parts.isEmpty ? nil : parts.joined(separator: " • ")
-            case .connection(let connection):
-                var components: [String] = []
-                let host = connection.host.trimmingCharacters(in: .whitespacesAndNewlines)
-                if !host.isEmpty { components.append(host) }
-                let database = connection.database.trimmingCharacters(in: .whitespacesAndNewlines)
-                if !database.isEmpty { components.append(database) }
-                return components.isEmpty ? nil : components.joined(separator: " • ")
-            case .identity(let identity):
-                let user = identity.username.trimmingCharacters(in: .whitespacesAndNewlines)
-                return user.isEmpty ? nil : user
-            }
-        }
-
-        private func provider(for node: ItemNode) -> NSItemProvider {
-            let payload: DragPayload
-            switch node.payload {
-            case .connection(let connection):
-                payload = .connection(connection.id)
-            case .identity(let identity):
-                payload = .identity(identity.id)
-            case .folder(let folder):
-                payload = .folder(folder.id, folder.kind)
-            }
-            return NSItemProvider(object: payload.stringValue as NSString)
-        }
-
-        private func handleDrop(providers: [NSItemProvider], targetFolderID: UUID?) -> Bool {
-            guard let provider = providers.first(where: { $0.canLoadObject(ofClass: NSString.self) }) else { return false }
-
-            if isProcessingDrop { return false }
-            isProcessingDrop = true
-
-            provider.loadObject(ofClass: NSString.self) { object, _ in
-                guard let string = object as? String,
-                      let payload = DragPayload(string: string) else {
-                    DispatchQueue.main.async {
-                        isProcessingDrop = false
-                        dropTargetID = nil
-                    }
-                    return
-                }
-
-                DispatchQueue.main.async {
-                    defer {
-                        dropTargetID = nil
-                        isProcessingDrop = false
-                    }
-
-                    guard canDrop(payload, into: targetFolderID) else { return }
-                    onMove(payload, targetFolderID)
-                }
-            }
-
+    func connectionMatches(_ connection: SavedConnection, query: String) -> Bool {
+        if connection.connectionName.lowercased().contains(query) { return true }
+        if connection.host.lowercased().contains(query) { return true }
+        if connection.database.lowercased().contains(query) { return true }
+        if connection.username.lowercased().contains(query) { return true }
+        if let identityID = connection.identityID,
+           let identity = identityLookup[identityID],
+           identity.name.lowercased().contains(query) {
             return true
         }
+        return false
+    }
 
-        private func activate(_ payload: ItemNode.Payload) {
-            switch payload {
-            case .folder:
-                break
-            case .connection(let connection):
-                onConnect(connection)
-            case .identity(let identity):
-                onEditIdentity(identity)
+    func identityMatches(_ identity: SavedIdentity, query: String) -> Bool {
+        if identity.name.lowercased().contains(query) { return true }
+        if identity.username.lowercased().contains(query) { return true }
+        return false
+    }
+
+    func folderLookup(for section: ManageSection) -> [UUID: SavedFolder] {
+        let folders = section == .connections ? connectionFolders : identityFolders
+        return Dictionary(uniqueKeysWithValues: folders.map { ($0.id, $0) })
+    }
+
+    func buildFolderNodes<Item>(
+        from folders: [SavedFolder],
+        itemMap: [UUID?: [Item]]
+    ) -> [FolderNode] {
+        let grouped = Dictionary(grouping: folders, by: { $0.parentFolderID })
+
+        func makeNodes(parent: UUID?) -> [FolderNode] {
+            guard let items = grouped[parent] else { return [] }
+
+            return items.map { folder in
+                let children = makeNodes(parent: folder.id)
+                let childCount = children.reduce(0) { $0 + $1.totalItemCount }
+                let directCount = itemMap[folder.id]?.count ?? 0
+                return FolderNode(folder: folder, children: children, totalItemCount: directCount + childCount)
             }
         }
 
-        private func canDrop(_ payload: DragPayload, into destinationFolderID: UUID?) -> Bool {
-            switch section {
-            case .connections:
-                switch payload {
-                case .connection:
-                    return true
-                case .folder(let folderID, let kind):
-                    guard kind == .connections else { return false }
-                    return !isInvalidFolderMove(folderID: folderID, destinationFolderID: destinationFolderID)
-                case .identity:
-                    return false
-                }
-            case .identities:
-                switch payload {
-                case .identity:
-                    return true
-                case .folder(let folderID, let kind):
-                    guard kind == .identities else { return false }
-                    return !isInvalidFolderMove(folderID: folderID, destinationFolderID: destinationFolderID)
-                case .connection:
-                    return false
-                }
-            }
-        }
+        return makeNodes(parent: nil)
+    }
 
-        private func isInvalidFolderMove(folderID: UUID, destinationFolderID: UUID?) -> Bool {
-            guard let destination = destinationFolderID else { return false }
-            if destination == folderID { return true }
-            var current = parentLookup[destination] ?? nil
-            while let ancestor = current {
-                if ancestor == folderID { return true }
-                current = parentLookup[ancestor] ?? nil
-            }
-            return false
-        }
-
-        @ViewBuilder
-        private func contextMenu(for node: ItemNode) -> some View {
-            switch node.payload {
-            case .folder(let folder):
-                Button("Edit") { onEditFolder(folder) }
-                Button("Delete", role: .destructive) { onDelete(.folder(folder)) }
-            case .connection(let connection):
-                Button("Connect") { onConnect(connection) }
-                Button("Edit") { onEditConnection(connection) }
-                Button("Duplicate") { onDuplicateConnection(connection) }
-                Button("Delete", role: .destructive) { onDelete(.connection(connection)) }
-            case .identity(let identity):
-                Button("Edit") { onEditIdentity(identity) }
-                Button("Delete", role: .destructive) { onDelete(.identity(identity)) }
-            }
+    func activeFolderID(for section: ManageSection) -> UUID? {
+        guard let selection = sidebarSelection else { return nil }
+        switch selection {
+        case .section(let targetSection):
+            return targetSection == section ? nil : nil
+        case .folder(let folderID, let targetSection):
+            return targetSection == section ? folderID : nil
         }
     }
 
-    // MARK: - Actions
+    func folderScope(for folderID: UUID, in section: ManageSection) -> Set<UUID> {
+        var scope: Set<UUID> = [folderID]
+        let folders = section == .connections ? connectionFolders : identityFolders
+        var stack: [UUID] = [folderID]
 
-    private func handleConnectionEditorSave(
+        while let current = stack.popLast() {
+            let children = folders.filter { $0.parentFolderID == current }
+            for child in children {
+                if scope.insert(child.id).inserted {
+                    stack.append(child.id)
+                }
+            }
+        }
+
+        return scope
+    }
+
+    func folder(withID id: UUID) -> SavedFolder? {
+        appModel.folders.first(where: { $0.id == id })
+    }
+}
+
+// MARK: - Actions
+
+private extension ManageConnectionsView {
+    func handleConnectionEditorSave(
         connection: SavedConnection,
         password: String?,
         action: ConnectionEditorView.SaveAction
@@ -734,34 +738,24 @@ struct ManageConnectionsView: View {
             await MainActor.run {
                 selectedSection = .connections
                 appModel.selectedFolderID = connection.folderID
-                if action == .saveAndConnect {
-                    appModel.selectedConnectionID = connection.id
-                }
+                connectionSelection = [connection.id]
                 connectionEditorPresentation = nil
             }
 
             if action == .saveAndConnect {
                 await appModel.connect(to: connection)
                 await MainActor.run {
-                    appModel.isManageConnectionsPresented = false
-                    dismiss()
+                    closeManageConnections()
                 }
             }
         }
     }
 
-    private func handleDeletion(_ payload: ItemNode.Payload) {
-        switch payload {
-        case .folder(let folder):
-            pendingDeletion = .folder(folder)
-        case .connection(let connection):
-            pendingDeletion = .connection(connection)
-        case .identity(let identity):
-            pendingDeletion = .identity(identity)
-        }
+    func handleDeletion(_ payload: DeletionTarget) {
+        pendingDeletion = payload
     }
 
-    private func performDeletion(for target: DeletionTarget) {
+    func performDeletion(for target: DeletionTarget) {
         switch target {
         case .connection(let connection):
             Task { await appModel.deleteConnection(connection) }
@@ -773,60 +767,86 @@ struct ManageConnectionsView: View {
         pendingDeletion = nil
     }
 
-    private func createNewConnection(in folder: SavedFolder? = nil) {
+    func createNewConnection() {
         selectedSection = .connections
-        let parent = folder ?? defaultFolder(for: .connections)
+        let parent = currentFolder(for: .connections) ?? defaultFolder(for: .connections)
         appModel.selectedFolderID = parent?.id
         connectionEditorPresentation = ConnectionEditorPresentation(connection: nil)
     }
 
-    private func editConnection(_ connection: SavedConnection) {
+    func editConnection(_ connection: SavedConnection) {
         selectedSection = .connections
         appModel.selectedFolderID = connection.folderID
         connectionEditorPresentation = ConnectionEditorPresentation(connection: connection)
     }
 
-    private func duplicateConnection(_ connection: SavedConnection) {
+    func duplicateConnection(_ connection: SavedConnection) {
         pendingDuplicateConnection = connection
     }
 
-    private func performDuplicate(_ connection: SavedConnection, copyBookmarks: Bool) {
+    func performDuplicate(_ connection: SavedConnection, copyBookmarks: Bool) {
         Task {
             pendingDuplicateConnection = nil
             await appModel.duplicateConnection(connection, copyBookmarks: copyBookmarks)
         }
     }
 
-    private func connectToConnection(_ connection: SavedConnection) {
+    func connectToConnection(_ connection: SavedConnection) {
         Task {
             await appModel.connect(to: connection)
             await MainActor.run {
-                appModel.isManageConnectionsPresented = false
-                dismiss()
+                closeManageConnections()
             }
         }
     }
 
-    private func createNewIdentity(in folder: SavedFolder? = nil) {
+    func closeManageConnections() {
+        if let onClose {
+            onClose()
+        } else {
+            dismiss()
+        }
+    }
+
+    func createNewIdentity() {
         selectedSection = .identities
-        let parent = folder ?? defaultFolder(for: .identities)
+        let parent = currentFolder(for: .identities) ?? defaultFolder(for: .identities)
         identityEditorState = .create(parent: parent, token: UUID())
     }
 
-    private func createNewFolder(for section: ManageSection, parent: SavedFolder? = nil) {
+    func createNewFolder(for section: ManageSection, parent: SavedFolder? = nil) {
         folderEditorState = .create(kind: section.folderKind, parent: parent, token: UUID())
     }
 
-    private func editIdentity(_ identity: SavedIdentity) {
+    func presentCreateFolder(for section: ManageSection) {
+        let parent = currentFolder(for: section)
+        createNewFolder(for: section, parent: parent)
+    }
+
+    func editIdentity(_ identity: SavedIdentity) {
         identityEditorState = .edit(identity: identity)
     }
 
-    private func editFolder(_ folder: SavedFolder) {
+    func editFolder(_ folder: SavedFolder) {
         folderEditorState = .edit(folder: folder)
     }
 
-    private func defaultFolder(for section: ManageSection) -> SavedFolder? {
+    func currentFolder(for section: ManageSection) -> SavedFolder? {
+        if case .folder(let id, let selectedSection) = sidebarSelection,
+           selectedSection == section {
+            return folder(withID: id)
+        }
+        if let folderID = appModel.selectedFolderID,
+           let folder = folder(withID: folderID),
+           folder.kind.manageSection == section {
+            return folder
+        }
+        return nil
+    }
+
+    func defaultFolder(for section: ManageSection) -> SavedFolder? {
         guard let projectID = selectedProjectID else { return nil }
+
         switch section {
         case .connections:
             if let folderID = appModel.selectedFolderID,
@@ -858,240 +878,111 @@ struct ManageConnectionsView: View {
         return nil
     }
 
-    private func folder(withID id: UUID) -> SavedFolder? {
-        appModel.folders.first(where: { $0.id == id })
-    }
-
-    private func handleMove(_ payload: DragPayload, to targetFolderID: UUID?, in section: ManageSection) {
-        switch payload {
-        case .connection(let id):
-            guard section == .connections else { return }
-            appModel.moveConnection(id, toFolder: targetFolderID)
-        case .identity(let id):
-            guard section == .identities else { return }
-            appModel.moveIdentity(id, toFolder: targetFolderID)
-        case .folder(let id, let kind):
-            guard kind == section.folderKind else { return }
-            appModel.moveFolder(id, toParent: targetFolderID)
+    func moveConnectionToFolder(_ connection: SavedConnection, _ folder: SavedFolder) {
+        var updatedConnection = connection
+        updatedConnection.folderID = folder.id
+        Task {
+            await appModel.upsertConnection(updatedConnection, password: nil)
         }
     }
 
-    // MARK: - Selection & Lifecycle
+    func createFolderAndMoveConnection(_ connection: SavedConnection) {
+        // Store the connection to move after creating the folder
+        pendingConnectionMove = connection
+        let parent = currentFolder(for: .connections)
+        folderEditorState = .create(
+            kind: .connections,
+            parent: parent,
+            token: UUID()
+        )
+    }
 
-    private func resetForProjectChange() {
-        searchText = ""
-        pendingDeletion = nil
-        connectionEditorPresentation = nil
-        folderEditorState = nil
-        identityEditorState = nil
+    func handleFoldersChange(_ oldFolders: [SavedFolder], _ newFolders: [SavedFolder]) {
         pruneNavigationStacks()
-        ensureSectionSelection()
-    }
 
-    private func handleSectionChange(_ section: ManageSection) {
-        searchText = ""
-        if section == .connections {
-            appModel.selectedIdentityID = nil
+        // Check if a new folder was created while we have a pending connection move
+        if let pendingConnection = pendingConnectionMove,
+           newFolders.count > oldFolders.count,
+           let newFolder = newFolders.first(where: { folder in
+               !oldFolders.contains(where: { $0.id == folder.id }) && folder.kind == .connections
+           }) {
+            // Move the connection to the newly created folder
+            moveConnectionToFolder(pendingConnection, newFolder)
+            pendingConnectionMove = nil
+        }
+
+        // Check if a new folder was created while we have a pending identity move
+        if let pendingIdentity = pendingIdentityMove,
+           newFolders.count > oldFolders.count,
+           let newFolder = newFolders.first(where: { folder in
+               !oldFolders.contains(where: { $0.id == folder.id }) && folder.kind == .identities
+           }) {
+            // Move the identity to the newly created folder
+            moveIdentityToFolder(pendingIdentity, newFolder)
+            pendingIdentityMove = nil
         }
     }
 
-    private func pruneNavigationStacks() {
-        guard let projectID = selectedProjectID else {
-            appModel.selectedFolderID = nil
-            appModel.selectedIdentityID = nil
-            return
+    func handleConnectionDrop(items: [String], folder: SavedFolder) -> Bool {
+        // Only allow drops into connection folders
+        guard folder.kind == .connections else { return false }
+
+        guard let firstItem = items.first,
+              firstItem.hasPrefix("connection:"),
+              let connectionID = UUID(uuidString: String(firstItem.dropFirst("connection:".count))),
+              let connection = projectConnections.first(where: { $0.id == connectionID }) else {
+            return false
         }
 
-        if let folderID = appModel.selectedFolderID,
-           !appModel.folders.contains(where: { $0.id == folderID && $0.projectID == projectID }) {
-            appModel.selectedFolderID = nil
+        moveConnectionToFolder(connection, folder)
+        return true
+    }
+
+    func handleIdentityDrop(items: [String], folder: SavedFolder) -> Bool {
+        // Only allow drops into identity folders
+        guard folder.kind == .identities else { return false }
+
+        guard let firstItem = items.first,
+              firstItem.hasPrefix("identity:"),
+              let identityID = UUID(uuidString: String(firstItem.dropFirst("identity:".count))),
+              let identity = projectIdentities.first(where: { $0.id == identityID }) else {
+            return false
         }
 
-        if let identityID = appModel.selectedIdentityID,
-           !appModel.identities.contains(where: { $0.id == identityID && $0.projectID == projectID }) {
-            appModel.selectedIdentityID = nil
-        }
+        moveIdentityToFolder(identity, folder)
+        return true
     }
 
-    private func ensureSectionSelection() {
-        if selectedSection == nil {
-            if let identityID = appModel.selectedIdentityID,
-               appModel.identities.contains(where: { $0.id == identityID }) {
-                selectedSection = .identities
-            } else {
-                selectedSection = .connections
-            }
-        }
-    }
-
-    // MARK: - Data Sources
-
-    private var selectedProjectID: UUID? {
-        appModel.selectedProject?.id
-    }
-
-    private var projectConnections: [SavedConnection] {
-        appModel.connections.filter { $0.projectID == selectedProjectID }
-    }
-
-    private var projectIdentities: [SavedIdentity] {
-        appModel.identities.filter { $0.projectID == selectedProjectID }
-    }
-
-    private var connectionFoldersSorted: [SavedFolder] {
-        connectionFolders.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
-    }
-
-    private var identityFoldersSorted: [SavedFolder] {
-        identityFolders.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
-    }
-
-    private var connectionFolders: [SavedFolder] {
-        appModel.folders.filter { $0.kind == .connections && $0.projectID == selectedProjectID }
-    }
-
-    private var identityFolders: [SavedFolder] {
-        appModel.folders.filter { $0.kind == .identities && $0.projectID == selectedProjectID }
-    }
-
-    private var identityLookup: [UUID: SavedIdentity] {
-        Dictionary(uniqueKeysWithValues: projectIdentities.map { ($0.id, $0) })
-    }
-
-    private var filteredConnectionTree: [ItemNode] {
-        let tree = buildTree(for: .connections)
-        guard let query = normalizedQuery else { return tree }
-        return filter(tree, for: .connections, query: query)
-    }
-
-    private var filteredIdentityTree: [ItemNode] {
-        let tree = buildTree(for: .identities)
-        guard let query = normalizedQuery else { return tree }
-        return filter(tree, for: .identities, query: query)
-    }
-
-    private var normalizedQuery: String? {
-        let trimmed = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmed.isEmpty ? nil : trimmed.lowercased()
-    }
-
-    private func buildTree(for section: ManageSection) -> [ItemNode] {
-        switch section {
-        case .connections:
-            let folderMap = Dictionary(grouping: connectionFoldersSorted, by: { $0.parentFolderID })
-            let itemMap = Dictionary(grouping: projectConnections.sorted { $0.connectionName.localizedCaseInsensitiveCompare($1.connectionName) == .orderedAscending }, by: { $0.folderID })
-            return buildNodes(parentID: nil, folderMap: folderMap, connectionMap: itemMap, identityMap: nil)
-        case .identities:
-            let folderMap = Dictionary(grouping: identityFoldersSorted, by: { $0.parentFolderID })
-            let itemMap = Dictionary(grouping: projectIdentities.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }, by: { $0.folderID })
-            return buildNodes(parentID: nil, folderMap: folderMap, connectionMap: nil, identityMap: itemMap)
+    func moveIdentityToFolder(_ identity: SavedIdentity, _ folder: SavedFolder) {
+        var updatedIdentity = identity
+        updatedIdentity.folderID = folder.id
+        Task {
+            await appModel.upsertIdentity(updatedIdentity, password: nil)
         }
     }
 
-    private func buildNodes(
-        parentID: UUID?,
-        folderMap: [UUID?: [SavedFolder]],
-        connectionMap: [UUID?: [SavedConnection]]?,
-        identityMap: [UUID?: [SavedIdentity]]?
-    ) -> [ItemNode] {
-        var nodes: [ItemNode] = []
-
-        if let folders = folderMap[parentID] {
-            for folder in folders {
-                let children = buildNodes(
-                    parentID: folder.id,
-                    folderMap: folderMap,
-                    connectionMap: connectionMap,
-                    identityMap: identityMap
-                )
-                nodes.append(ItemNode(payload: .folder(folder), children: children))
-            }
-        }
-
-        if let connections = connectionMap?[parentID] {
-            nodes += connections.map { ItemNode(payload: .connection($0), children: []) }
-        }
-
-        if let identities = identityMap?[parentID] {
-            nodes += identities.map { ItemNode(payload: .identity($0), children: []) }
-        }
-
-        return nodes
+    func createFolderAndMoveIdentity(_ identity: SavedIdentity) {
+        pendingIdentityMove = identity
+        let parent = currentFolder(for: .identities)
+        folderEditorState = .create(
+            kind: .identities,
+            parent: parent,
+            token: UUID()
+        )
     }
+}
 
-    private func filter(_ nodes: [ItemNode], for section: ManageSection, query: String) -> [ItemNode] {
-        nodes.compactMap { node in
-            let filteredChildren = filter(node.children, for: section, query: query)
-            if node.matches(query, section: section, identityLookup: identityLookup) {
-                return ItemNode(payload: node.payload, children: filteredChildren)
-            }
-            if !filteredChildren.isEmpty {
-                return ItemNode(payload: node.payload, children: filteredChildren)
-            }
-            return nil
-        }
-    }
+// MARK: - Decorations
 
-    private func identityDecoration(for connection: SavedConnection) -> IdentityDecoration? {
+private extension ManageConnectionsView {
+    func identityDecoration(for connection: SavedConnection) -> IdentityDecoration? {
         switch connection.credentialSource {
         case .identity:
             guard let identityID = connection.identityID,
                   let identity = identityLookup[identityID] else {
                 return IdentityDecoration(
                     symbol: "person.fill",
-                    tint: Color(nsColor: .systemPurple),
-                    tooltip: "Linked Identity"
-                )
-            }
-
-            var tooltip = identity.name
-            let detail = identity.username.trimmingCharacters(in: .whitespacesAndNewlines)
-            if !detail.isEmpty {
-                tooltip += " — \(detail)"
-            }
-
-            return IdentityDecoration(
-                symbol: "person.fill",
-                tint: Color(nsColor: .systemPurple),
-                tooltip: tooltip
-            )
-
-        case .inherit:
-            return IdentityDecoration(
-                symbol: "arrow.triangle.branch",
-                tint: Color(nsColor: .systemTeal),
-                tooltip: "Inherited credentials"
-            )
-
-        case .manual:
-            let username = connection.username.trimmingCharacters(in: .whitespacesAndNewlines)
-            let tooltip = username.isEmpty ? "Manual credentials" : "Manual credentials — \(username)"
-            return IdentityDecoration(
-                symbol: "key.fill",
-                tint: Color(nsColor: .systemBlue),
-                tooltip: tooltip
-            )
-        }
-    }
-
-    private func folderDecoration(for folder: SavedFolder) -> IdentityDecoration? {
-        switch folder.credentialMode {
-        case .none:
-            return nil
-        case .manual:
-            let username = folder.manualUsername?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-            let tooltip = username.isEmpty ? "Manual credentials" : "Manual credentials — \(username)"
-            return IdentityDecoration(
-                symbol: "key.fill",
-                tint: Color(nsColor: .systemBlue),
-                tooltip: tooltip
-            )
-        case .identity:
-            guard let identityID = folder.identityID,
-                  let identity = identityLookup[identityID] else {
-                return IdentityDecoration(
-                    symbol: "person.fill",
-                    tint: Color(nsColor: .systemPurple),
+                    label: "Identity",
                     tooltip: "Linked identity"
                 )
             }
@@ -1104,37 +995,25 @@ struct ManageConnectionsView: View {
 
             return IdentityDecoration(
                 symbol: "person.fill",
-                tint: Color(nsColor: .systemPurple),
+                label: identity.name,
                 tooltip: tooltip
             )
+
         case .inherit:
             return IdentityDecoration(
                 symbol: "arrow.triangle.branch",
-                tint: Color(nsColor: .systemTeal),
+                label: "Inherited",
                 tooltip: "Inherits credentials"
             )
-        }
-    }
 
-    private struct ManageConnectionsSidebar: View {
-        @Binding var selection: ManageSection?
-        
-        var body: some View {
-            List(selection: $selection) {
-                ForEach(ManageSection.allCases) { section in
-                    NavigationLink(value: section) {
-                        Label(section.title, systemImage: section.icon)
-                    }
-                    .tag(section)
-                }
-            }
-            .listStyle(.sidebar)
-            .scrollContentBackground(.hidden)
-            .onAppear {
-                if selection == nil {
-                    selection = .connections
-                }
-            }
+        case .manual:
+            let username = connection.username.trimmingCharacters(in: .whitespacesAndNewlines)
+            let tooltip = username.isEmpty ? "Manual credentials" : "Manual credentials — \(username)"
+            return IdentityDecoration(
+                symbol: "key.fill",
+                label: username.isEmpty ? "Manual" : username,
+                tooltip: tooltip
+            )
         }
     }
 }
@@ -1189,8 +1068,6 @@ private enum ManageSection: String, CaseIterable, Identifiable {
         }
     }
 
-    var primaryAddSymbol: String { "plus" }
-
     var primaryAddHelp: String {
         switch self {
         case .connections: return "Create a new connection"
@@ -1205,63 +1082,59 @@ private enum ManageSection: String, CaseIterable, Identifiable {
         }
     }
 
+    var createFolderTitle: String {
+        switch self {
+        case .connections: return "New Folder"
+        case .identities: return "New Folder"
+        }
+    }
+
     var searchPlaceholder: String {
         switch self {
         case .connections: return "Search connections"
         case .identities: return "Search identities"
         }
     }
-
 }
 
-private struct ItemNode: Identifiable {
-    enum Payload {
-        case folder(SavedFolder)
-        case connection(SavedConnection)
-        case identity(SavedIdentity)
-    }
+private enum SidebarSelection: Hashable, Identifiable {
+    case section(ManageSection)
+    case folder(UUID, ManageSection)
 
-    let payload: Payload
-    var children: [ItemNode]
-
-    var id: UUID {
-        switch payload {
-        case .folder(let folder): return folder.id
-        case .connection(let connection): return connection.id
-        case .identity(let identity): return identity.id
+    var id: String {
+        switch self {
+        case .section(let section):
+            return "section-\(section.id)"
+        case .folder(let id, let section):
+            return "folder-\(section.id)-\(id.uuidString)"
         }
     }
 
-    var childNodes: [ItemNode]? {
+    var section: ManageSection {
+        switch self {
+        case .section(let section):
+            return section
+        case .folder(_, let section):
+            return section
+        }
+    }
+}
+
+private struct FolderNode: Identifiable, Hashable {
+    let folder: SavedFolder
+    var children: [FolderNode]
+    var totalItemCount: Int
+
+    var id: UUID { folder.id }
+
+    var childNodes: [FolderNode]? {
         children.isEmpty ? nil : children
-    }
-
-    func matches(_ query: String, section: ManageSection, identityLookup: [UUID: SavedIdentity]) -> Bool {
-        switch payload {
-        case .folder(let folder):
-            return folder.name.lowercased().contains(query)
-        case .connection(let connection):
-            let lowercasedName = connection.connectionName.lowercased()
-            if lowercasedName.contains(query) { return true }
-            if connection.host.lowercased().contains(query) { return true }
-            if connection.database.lowercased().contains(query) { return true }
-            if connection.username.lowercased().contains(query) { return true }
-            if let identityID = connection.identityID,
-               let identity = identityLookup[identityID],
-               identity.name.lowercased().contains(query) {
-                return true
-            }
-            return false
-        case .identity(let identity):
-            if identity.name.lowercased().contains(query) { return true }
-            return identity.username.lowercased().contains(query)
-        }
     }
 }
 
 private struct IdentityDecoration {
     let symbol: String
-    let tint: Color
+    let label: String
     let tooltip: String?
 }
 
@@ -1270,40 +1143,365 @@ private struct ConnectionEditorPresentation: Identifiable {
     let connection: SavedConnection?
 }
 
-private enum DragPayload: Equatable {
-    case connection(UUID)
-    case identity(UUID)
-    case folder(UUID, FolderKind)
-
-    init?(string: String) {
-        let parts = string.split(separator: ":")
-        guard let type = parts.first else { return nil }
-
-        switch type {
-        case "connection":
-            guard parts.count == 2, let id = UUID(uuidString: String(parts[1])) else { return nil }
-            self = .connection(id)
-        case "identity":
-            guard parts.count == 2, let id = UUID(uuidString: String(parts[1])) else { return nil }
-            self = .identity(id)
-        case "folder":
-            guard parts.count == 3,
-                  let kind = FolderKind(rawValue: String(parts[1])),
-                  let id = UUID(uuidString: String(parts[2])) else { return nil }
-            self = .folder(id, kind)
-        default:
-            return nil
-        }
-    }
-
-    var stringValue: String {
+private extension FolderKind {
+    var manageSection: ManageSection {
         switch self {
-        case .connection(let id):
-            return "connection:\(id.uuidString)"
-        case .identity(let id):
-            return "identity:\(id.uuidString)"
-        case .folder(let id, let kind):
-            return "folder:\(kind.rawValue):\(id.uuidString)"
+        case .connections: return .connections
+        case .identities: return .identities
         }
     }
 }
+
+private extension SavedFolder {
+    var displayName: String {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? "Untitled Folder" : trimmed
+    }
+}
+
+// MARK: - Table Views
+
+private struct ConnectionsTableView: View {
+    let connections: [SavedConnection]
+    @Binding var selection: Set<SavedConnection.ID>
+    @Binding var sortOrder: [KeyPathComparator<SavedConnection>]
+    let folderLookup: [UUID: SavedFolder]
+    let onConnect: (SavedConnection) -> Void
+    let onEdit: (SavedConnection) -> Void
+    let onDuplicate: (SavedConnection) -> Void
+    let onDelete: (SavedConnection) -> Void
+    let identityDecorationProvider: (SavedConnection) -> IdentityDecoration?
+    let onDoubleClick: (SavedConnection) -> Void
+    let moveConnectionToFolder: (SavedConnection, SavedFolder) -> Void
+    let createFolderAndMoveConnection: (SavedConnection) -> Void
+    @ObservedObject private var themeManager = ThemeManager.shared
+
+    var body: some View {
+        DoubleClickableTable(
+            connections: connections,
+            selection: $selection,
+            onDoubleClick: onDoubleClick
+        ) {
+            Table(of: SavedConnection.self, selection: $selection, sortOrder: $sortOrder) {
+                TableColumn("Name", value: \.connectionName) { connection in
+                    Text(displayName(for: connection))
+                }
+
+                TableColumn("Server") { connection in
+                    Text(serverLabel(for: connection))
+                }
+
+                TableColumn("Database", value: \.database) { connection in
+                    Text(connection.database.isEmpty ? "—" : connection.database)
+                }
+
+                TableColumn("Credentials") { connection in
+                    if let decoration = identityDecorationProvider(connection) {
+                        Label {
+                            Text(decoration.label)
+                        } icon: {
+                            Image(systemName: decoration.symbol)
+                        }
+                        .foregroundStyle(.secondary)
+                        .help(decoration.tooltip ?? decoration.label)
+                    } else {
+                        Text("—")
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                TableColumn("Folder") { connection in
+                    if let folderID = connection.folderID,
+                       let folder = folderLookup[folderID] {
+                        Text(folder.displayName)
+                    } else {
+                        Text("—")
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                TableColumn("Type") { connection in
+                    Text(connection.databaseType.displayName)
+                }
+            } rows: {
+                ForEach(connections) { connection in
+                    TableRow(connection)
+                        .itemProvider {
+                            NSItemProvider(object: "connection:\(connection.id.uuidString)" as NSString)
+                        }
+                }
+            }
+            .contextMenu(forSelectionType: SavedConnection.ID.self) { items in
+                if let selectionID = items.first,
+                   let connection = connections.first(where: { $0.id == selectionID }) {
+                    Button {
+                        onConnect(connection)
+                    } label: {
+                        Text("Connect")
+                    }
+
+                    Button {
+                        onEdit(connection)
+                    } label: {
+                        Text("Edit")
+                    }
+
+                    Button {
+                        onDuplicate(connection)
+                    } label: {
+                        Text("Duplicate")
+                    }
+
+                    Menu("Move to Folder") {
+                        ForEach(Array(folderLookup.values).sorted(by: { $0.name < $1.name }), id: \.id) { folder in
+                            Button(folder.displayName) {
+                                moveConnectionToFolder(connection, folder)
+                            }
+                        }
+                        Divider()
+                        Button("Create New Folder...") {
+                            createFolderAndMoveConnection(connection)
+                        }
+                    }
+
+                    Divider()
+                    Button("Delete", role: .destructive) { onDelete(connection) }
+                }
+            }
+        }
+    }
+
+    private func displayName(for connection: SavedConnection) -> String {
+        let trimmed = connection.connectionName.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? connection.host : trimmed
+    }
+
+    private func serverLabel(for connection: SavedConnection) -> String {
+        if connection.port > 0 {
+            return "\(connection.host):\(connection.port)"
+        }
+        return connection.host.isEmpty ? "—" : connection.host
+    }
+}
+
+private struct IdentitiesTableView: View {
+    let identities: [SavedIdentity]
+    @Binding var selection: Set<SavedIdentity.ID>
+    @Binding var sortOrder: [KeyPathComparator<SavedIdentity>]
+    let folderLookup: [UUID: SavedFolder]
+    let onEdit: (SavedIdentity) -> Void
+    let onDelete: (SavedIdentity) -> Void
+    let moveIdentityToFolder: (SavedIdentity, SavedFolder) -> Void
+    let createFolderAndMoveIdentity: (SavedIdentity) -> Void
+    @ObservedObject private var themeManager = ThemeManager.shared
+
+    var body: some View {
+        Table(of: SavedIdentity.self, selection: $selection, sortOrder: $sortOrder) {
+            TableColumn("Name", value: \.name) { identity in
+                Text(identity.name)
+            }
+
+            TableColumn("Username", value: \.username) { identity in
+                let username = identity.username.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !username.isEmpty {
+                    Text(username)
+                } else {
+                    Text("—")
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            TableColumn("Folder") { identity in
+                if let folderID = identity.folderID,
+                   let folder = folderLookup[folderID] {
+                    Text(folder.displayName)
+                } else {
+                    Text("—")
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            TableColumn("Updated") { identity in
+                if let updatedAt = identity.updatedAt {
+                    Text(updatedAt, style: .date)
+                } else {
+                    Text(identity.createdAt, style: .date)
+                }
+            }
+
+        } rows: {
+            ForEach(identities) { identity in
+                TableRow(identity)
+                    .itemProvider {
+                        NSItemProvider(object: "identity:\(identity.id.uuidString)" as NSString)
+                    }
+            }
+        }
+        .contextMenu {
+            if let selectionID = selection.first,
+               let identity = identities.first(where: { $0.id == selectionID }) {
+                Button {
+                    onEdit(identity)
+                } label: {
+                    Text("Edit")
+                }
+
+                Menu("Move to Folder") {
+                    ForEach(Array(folderLookup.values).sorted(by: { $0.name < $1.name }), id: \.id) { folder in
+                        Button(folder.displayName) {
+                            moveIdentityToFolder(identity, folder)
+                        }
+                    }
+                    Divider()
+                    Button("Create New Folder...") {
+                        createFolderAndMoveIdentity(identity)
+                    }
+                }
+
+                Divider()
+
+                Button("Delete", role: .destructive) { onDelete(identity) }
+            }
+        }
+    }
+}
+
+private extension ManageConnectionsView {
+    @ViewBuilder
+    var detailBody: some View {
+        switch activeSection {
+        case .connections:
+            connectionsDetail
+        case .identities:
+            identitiesDetail
+        }
+    }
+
+    private var selectedConnection: SavedConnection? {
+        guard let selectedID = connectionSelection.first else { return nil }
+        return filteredConnectionsForTable.first(where: { $0.id == selectedID })
+    }
+}
+
+// MARK: - Change Handlers
+
+private struct ChangeHandlers: ViewModifier {
+    let appModel: AppModel
+    @Binding var selectedSection: ManageSection?
+    @Binding var sidebarSelection: SidebarSelection?
+    @Binding var pendingConnectionMove: SavedConnection?
+    @Binding var pendingIdentityMove: SavedIdentity?
+    let filteredConnectionsForTable: [SavedConnection]
+    let filteredIdentitiesForTable: [SavedIdentity]
+    let onProjectChange: () -> Void
+    let onSectionChange: (ManageSection) -> Void
+    let onSidebarSelectionChange: (SidebarSelection?) -> Void
+    let onFolderIDChange: (UUID?) -> Void
+    let onConnectionsChange: ([UUID]) -> Void
+    let onIdentitiesChange: ([UUID]) -> Void
+    let onFoldersChange: ([SavedFolder], [SavedFolder]) -> Void
+
+    func body(content: Content) -> some View {
+        content
+            .onChange(of: appModel.selectedProject?.id) { _, _ in
+                onProjectChange()
+            }
+            .onChange(of: selectedSection) { _, section in
+                if let section { onSectionChange(section) }
+            }
+            .onChange(of: sidebarSelection) { _, selection in
+                onSidebarSelectionChange(selection)
+            }
+            .onChange(of: appModel.selectedFolderID) { _, folderID in
+                onFolderIDChange(folderID)
+            }
+            .onChange(of: filteredConnectionsForTable.map(\.id)) { _, ids in
+                onConnectionsChange(ids)
+            }
+            .onChange(of: filteredIdentitiesForTable.map(\.id)) { _, ids in
+                onIdentitiesChange(ids)
+            }
+            .onChange(of: appModel.folders) { oldFolders, newFolders in
+                onFoldersChange(oldFolders, newFolders)
+            }
+    }
+}
+
+// MARK: - Double-Click Support
+
+#if os(macOS)
+private struct DoubleClickableTable<Content: View>: NSViewRepresentable {
+    let connections: [SavedConnection]
+    @Binding var selection: Set<SavedConnection.ID>
+    let onDoubleClick: (SavedConnection) -> Void
+    let content: Content
+
+    init(
+        connections: [SavedConnection],
+        selection: Binding<Set<SavedConnection.ID>>,
+        onDoubleClick: @escaping (SavedConnection) -> Void,
+        @ViewBuilder content: () -> Content
+    ) {
+        self.connections = connections
+        self._selection = selection
+        self.onDoubleClick = onDoubleClick
+        self.content = content()
+    }
+
+    func makeNSView(context: Context) -> NSHostingView<Content> {
+        let hostingView = NSHostingView(rootView: content)
+
+        DispatchQueue.main.async {
+            if let tableView = findTableView(in: hostingView) {
+                tableView.doubleAction = #selector(Coordinator.tableViewDoubleClicked(_:))
+                tableView.target = context.coordinator
+            }
+        }
+
+        return hostingView
+    }
+
+    func updateNSView(_ nsView: NSHostingView<Content>, context: Context) {
+        nsView.rootView = content
+        context.coordinator.connections = connections
+        context.coordinator.selection = selection
+        context.coordinator.onDoubleClick = onDoubleClick
+    }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(connections: connections, selection: selection, onDoubleClick: onDoubleClick)
+    }
+
+    private func findTableView(in view: NSView) -> NSTableView? {
+        if let tableView = view as? NSTableView {
+            return tableView
+        }
+        for subview in view.subviews {
+            if let found = findTableView(in: subview) {
+                return found
+            }
+        }
+        return nil
+    }
+
+    class Coordinator: NSObject {
+        var connections: [SavedConnection]
+        var selection: Set<SavedConnection.ID>
+        var onDoubleClick: (SavedConnection) -> Void
+
+        init(connections: [SavedConnection], selection: Set<SavedConnection.ID>, onDoubleClick: @escaping (SavedConnection) -> Void) {
+            self.connections = connections
+            self.selection = selection
+            self.onDoubleClick = onDoubleClick
+        }
+
+        @objc func tableViewDoubleClicked(_ sender: NSTableView) {
+            guard sender.clickedRow >= 0,
+                  sender.clickedRow < connections.count else { return }
+
+            let connection = connections[sender.clickedRow]
+            onDoubleClick(connection)
+        }
+    }
+}
+#endif

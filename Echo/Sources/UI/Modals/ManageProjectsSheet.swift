@@ -68,7 +68,6 @@ struct ManageProjectsSheet: View {
     private var baseLayout: some View {
         splitView
             .frame(width: 820, height: 600)
-            .background(Color(nsColor: .windowBackgroundColor))
             .toolbar { toolbarContent }
     }
 
