@@ -25,7 +25,7 @@ struct WorkspaceToolbarItems: ToolbarContent {
     @EnvironmentObject private var navigationState: NavigationState
     @EnvironmentObject private var themeManager: ThemeManager
 
-    var body: some ToolbarContent {
+var body: some ToolbarContent {
         ToolbarItem(placement: .principal) {
             EmptyView()
         }
@@ -75,6 +75,15 @@ struct WorkspaceToolbarItems: ToolbarContent {
             }
             .help(appState.showInfoSidebar ? "Hide Inspector" : "Show Inspector")
         }
+#if DEBUG
+        ToolbarItem(placement: .status) {
+            Label {
+                Text(appModel.selectedProject?.name ?? "Project")
+            } icon: {
+                ToolbarContextSegmentedSample()
+            }
+        }
+#endif
     }
 
     // MARK: - Project Menu
@@ -573,7 +582,7 @@ private struct RefreshButtonContent: View {
                 onRefresh()
             }
         } label: {
-            Label("Refresh", systemImage: currentSymbol)
+            Label("Refresh", systemImage: "circle")
                 .labelStyle(.iconOnly)
                 .foregroundStyle(.clear)
                 .overlay {
@@ -702,7 +711,6 @@ private struct RefreshButtonContent: View {
     private func startHoverDelay() {
         hoverEnableTask?.cancel()
         hoverEnabled = false
-        hoverIntent = false
         isHovering = false
         hoverEnableTask = Task { @MainActor in
             try? await Task.sleep(nanoseconds: 3_000_000_000)
@@ -740,6 +748,136 @@ private struct RefreshButtonPlaceholder: View {
         .help("Refresh (Unavailable)")
     }
 }
+
+#if DEBUG && os(macOS)
+private struct ToolbarContextSegmentedSample: NSViewRepresentable {
+    @EnvironmentObject private var appModel: AppModel
+    @EnvironmentObject private var navigationState: NavigationState
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(parent: self)
+    }
+
+    func makeNSView(context: Context) -> NSSegmentedControl {
+        let control = NSSegmentedControl(frame: .zero)
+        control.segmentCount = 1
+        control.segmentStyle = .capsule
+        control.target = context.coordinator
+        control.action = #selector(Coordinator.segmentTapped(_:))
+        control.trackingMode = .momentary
+        control.translatesAutoresizingMaskIntoConstraints = false
+        if #available(macOS 13.0, *) {
+            control.setShowsMenuIndicator(true, forSegment: 0)
+        }
+        context.coordinator.control = control
+        update(control)
+        return control
+    }
+
+    func updateNSView(_ control: NSSegmentedControl, context: Context) {
+        update(control)
+    }
+
+    private func update(_ control: NSSegmentedControl) {
+        let title = appModel.selectedProject?.name ?? "Project"
+        control.setLabel(title, forSegment: 0)
+        if let icon = projectIconImage(for: appModel.selectedProject ?? navigationState.selectedProject) {
+            control.setImage(icon, forSegment: 0)
+            control.setImageScaling(.scaleProportionallyDown, forSegment: 0)
+        }
+        control.setWidth(140, forSegment: 0)
+        control.menu = buildMenu()
+    }
+
+    private func projectIconImage(for project: Project?) -> NSImage? {
+        guard let project else {
+            return NSImage(systemSymbolName: "folder.badge.gearshape", accessibilityDescription: nil)
+        }
+        if let iconName = project.iconName, !iconName.isEmpty {
+            if let asset = NSImage(named: iconName) {
+                asset.size = NSSize(width: 16, height: 16)
+                return asset
+            }
+            if let system = NSImage(systemSymbolName: iconName, accessibilityDescription: nil) {
+                system.size = NSSize(width: 16, height: 16)
+                return system
+            }
+        }
+        return NSImage(systemSymbolName: "folder.badge.gearshape", accessibilityDescription: nil)
+    }
+
+    private func buildMenu() -> NSMenu {
+        let menu = NSMenu()
+        let header = NSMenuItem(title: "Projects", action: nil, keyEquivalent: "")
+        header.isEnabled = false
+        header.attributedTitle = NSAttributedString(string: "Projects", attributes: [
+            .font: NSFont.systemFont(ofSize: 11, weight: .semibold),
+            .foregroundColor: NSColor.secondaryLabelColor
+        ])
+        menu.addItem(header)
+        menu.addItem(.separator())
+
+        if appModel.projects.isEmpty {
+            let empty = NSMenuItem(title: "No Projects Available", action: nil, keyEquivalent: "")
+            empty.isEnabled = false
+            menu.addItem(empty)
+        } else {
+            for project in appModel.projects {
+                let item = NSMenuItem(title: project.name, action: #selector(Coordinator.selectProject(_:)), keyEquivalent: "")
+                item.representedObject = project
+                item.target = coordinator
+                item.indentationLevel = 1
+                item.image = projectIconImage(for: project)
+                if project.id == appModel.selectedProject?.id {
+                    item.state = .on
+                }
+                menu.addItem(item)
+            }
+        }
+
+        menu.addItem(.separator())
+        let manage = NSMenuItem(title: "Manage Projects…", action: #selector(Coordinator.manageProjects), keyEquivalent: "")
+        manage.target = coordinator
+        menu.addItem(manage)
+        menu.autoenablesItems = false
+        return menu
+    }
+
+    final class Coordinator: NSObject {
+        let parent: ToolbarContextSegmentedSample
+        weak var control: NSSegmentedControl?
+
+        init(parent: ToolbarContextSegmentedSample) {
+            self.parent = parent
+        }
+
+        @objc func segmentTapped(_ sender: NSSegmentedControl) {
+            sender.menu = parent.buildMenu()
+            sender.menu?.popUp(positioning: nil, at: NSPoint(x: sender.bounds.minX, y: sender.bounds.maxY + 2), in: sender)
+            sender.setSelected(false, forSegment: 0)
+        }
+
+        @objc func selectProject(_ sender: NSMenuItem) {
+            guard let project = sender.representedObject as? Project else { return }
+            parent.navigationState.selectProject(project)
+            parent.appModel.selectedProject = project
+            if let control {
+                parent.update(control)
+            }
+        }
+
+        @objc func manageProjects() {
+            parent.appModel.showManageProjectsSheet = true
+        }
+    }
+}
+#endif
+
+
+
+
+
+
 
 private struct GlowBorder: View {
     var cornerRadius: CGFloat

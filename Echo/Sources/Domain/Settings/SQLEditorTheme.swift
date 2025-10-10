@@ -411,6 +411,30 @@ extension SQLEditorPalette {
         )
     )
 
+    static let echoLight = SQLEditorPalette(
+        id: "echo-light",
+        name: "Echo Light",
+        kind: .builtIn,
+        isDark: false,
+        background: ColorRepresentable(hex: 0xFAFBFF),
+        text: ColorRepresentable(hex: 0x1C1C1E),
+        gutterBackground: ColorRepresentable(hex: 0xEEF1F6),
+        gutterText: ColorRepresentable(hex: 0x8E8E93),
+        gutterAccent: ColorRepresentable(hex: 0xD7DAE1),
+        selection: ColorRepresentable(hex: 0xD6E8FF, alpha: 0.78),
+        currentLine: ColorRepresentable(hex: 0xF2F5FC),
+        tokens: .init(
+            keyword: ColorRepresentable(hex: 0x056CF2),
+            string: ColorRepresentable(hex: 0x0F8F6A),
+            number: ColorRepresentable(hex: 0xCE8A22),
+            comment: ColorRepresentable(hex: 0x86868B),
+            plain: ColorRepresentable(hex: 0x1C1C1E),
+            function: ColorRepresentable(hex: 0x3E4CA3),
+            operatorSymbol: ColorRepresentable(hex: 0x2C5CC5),
+            identifier: ColorRepresentable(hex: 0x1F6CAD)
+        )
+    )
+
     static let midnight = SQLEditorPalette(
         id: "midnight",
         name: "Midnight",
@@ -819,7 +843,32 @@ extension SQLEditorPalette {
         )
     )
 
+    static let echoDark = SQLEditorPalette(
+        id: "echo-dark",
+        name: "Echo Dark",
+        kind: .builtIn,
+        isDark: true,
+        background: ColorRepresentable(hex: 0x242530),
+        text: ColorRepresentable(hex: 0xE9E9EC),
+        gutterBackground: ColorRepresentable(hex: 0x1D1E27),
+        gutterText: ColorRepresentable(hex: 0x7A7A86),
+        gutterAccent: ColorRepresentable(hex: 0x31343D),
+        selection: ColorRepresentable(hex: 0x2E3A50, alpha: 0.78),
+        currentLine: ColorRepresentable(hex: 0x2B2C37),
+        tokens: .init(
+            keyword: ColorRepresentable(hex: 0x87B7FF),
+            string: ColorRepresentable(hex: 0x7FD8B8),
+            number: ColorRepresentable(hex: 0xFFC86B),
+            comment: ColorRepresentable(hex: 0x7A7A86),
+            plain: ColorRepresentable(hex: 0xE9E9EC),
+            function: ColorRepresentable(hex: 0xA7C6FF),
+            operatorSymbol: ColorRepresentable(hex: 0x5CAFFF),
+            identifier: ColorRepresentable(hex: 0x8AD6FF)
+        )
+    )
+
     static let builtIn: [SQLEditorPalette] = [
+        echoLight,
         aurora,
         solstice,
         githubLight,
@@ -829,6 +878,7 @@ extension SQLEditorPalette {
         orchard,
         paperwhite,
         midnight,
+        echoDark,
         oneDark,
         dracula,
         nord,

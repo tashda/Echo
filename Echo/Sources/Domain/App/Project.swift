@@ -295,6 +295,23 @@ private struct BuiltInThemeDefinition {
 extension AppColorTheme {
     private static let builtInThemeCatalog: [BuiltInThemeDefinition] = [
         BuiltInThemeDefinition(
+            identifier: "echo",
+            name: "Echo Light",
+            tone: .light,
+            defaultPaletteID: SQLEditorPalette.echoLight.id,
+            accent: ColorRepresentable(hex: 0x0A84FF),
+            windowBackground: ColorRepresentable(hex: 0xF2F3F7),
+            surfaceBackground: ColorRepresentable(hex: 0xFFFFFF),
+            surfaceForeground: ColorRepresentable(hex: 0x1C1C1E),
+            swatches: [
+                ColorRepresentable(hex: 0x0A84FF),
+                ColorRepresentable(hex: 0x30D158),
+                ColorRepresentable(hex: 0xFF9F0A),
+                ColorRepresentable(hex: 0xFF375F),
+                ColorRepresentable(hex: 0x8E8E93)
+            ]
+        ),
+        BuiltInThemeDefinition(
             identifier: "default",
             name: "Light+",
             tone: .light,
@@ -462,6 +479,23 @@ extension AppColorTheme {
                 ColorRepresentable(hex: 0x38BDF8),
                 ColorRepresentable(hex: 0x60A5FA),
                 ColorRepresentable(hex: 0x0F172A)
+            ]
+        ),
+        BuiltInThemeDefinition(
+            identifier: "echo",
+            name: "Echo Dark",
+            tone: .dark,
+            defaultPaletteID: SQLEditorPalette.echoDark.id,
+            accent: ColorRepresentable(hex: 0x0A84FF),
+            windowBackground: ColorRepresentable(hex: 0x1B1C23),
+            surfaceBackground: ColorRepresentable(hex: 0x242530),
+            surfaceForeground: ColorRepresentable(hex: 0xF2F2F7),
+            swatches: [
+                ColorRepresentable(hex: 0x0A84FF),
+                ColorRepresentable(hex: 0x30D158),
+                ColorRepresentable(hex: 0xFF9F0A),
+                ColorRepresentable(hex: 0xFF453A),
+                ColorRepresentable(hex: 0xAEAEB2)
             ]
         ),
         BuiltInThemeDefinition(
@@ -906,8 +940,23 @@ extension GlobalSettings {
     func availableThemes(for tone: SQLEditorPalette.Tone) -> [AppColorTheme] {
         let builtIn = AppColorTheme.builtInThemes(for: tone)
         let customs = customThemes.filter { $0.tone == tone }
+        func priority(_ theme: AppColorTheme) -> Int {
+            if theme.id.hasPrefix("builtin-echo-") {
+                return 0
+            }
+            if !theme.isCustom {
+                return 1
+            }
+            return 2
+        }
+
         return (builtIn + customs).sorted { lhs, rhs in
-            lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
+            let lhsPriority = priority(lhs)
+            let rhsPriority = priority(rhs)
+            if lhsPriority != rhsPriority {
+                return lhsPriority < rhsPriority
+            }
+            return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
         }
     }
 

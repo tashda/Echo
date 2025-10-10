@@ -249,6 +249,15 @@ final class ThemeManager: ObservableObject {
     }
 
     private static func accentRepresentable(from theme: AppColorTheme) -> ColorRepresentable {
+#if os(macOS)
+        if theme.id.hasPrefix("builtin-echo-") {
+            return ColorRepresentable(color: Color(nsColor: NSColor.controlAccentColor))
+        }
+#elseif canImport(UIKit)
+        if theme.id.hasPrefix("builtin-echo-") {
+            return ColorRepresentable(color: Color(uiColor: .tintColor))
+        }
+#endif
         if let accent = theme.accent {
             return accent
         }

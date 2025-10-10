@@ -91,7 +91,9 @@ final class AppCoordinator: ObservableObject {
             .sink { [weak self] sessions in
                 guard let self else { return }
                 if sessions.isEmpty {
+#if !os(macOS)
                     self.presentConnectionsIfNeeded()
+#endif
                 } else {
                     self.dismissConnectionsIfNeeded()
                 }
@@ -117,7 +119,9 @@ final class AppCoordinator: ObservableObject {
 
     private func ensureInitialWorkspaceState() {
         if appModel.sessionManager.activeSessions.isEmpty {
+#if !os(macOS)
             presentConnectionsIfNeeded()
+#endif
         } else if appModel.tabManager.tabs.isEmpty {
             appModel.openQueryTab()
         }
@@ -196,7 +200,9 @@ extension AppCoordinator: TabManagerDelegate {
     func tabManager(_ manager: TabManager, didSetActiveTabID tabID: UUID?) {
         guard let tabID, let tab = manager.getTab(id: tabID) else {
             appModel.sessionManager.activeSessionID = nil
+#if !os(macOS)
             presentConnectionsIfNeeded()
+#endif
             return
         }
 

@@ -1,6 +1,9 @@
 import SwiftUI
 import Foundation
+import Combine
+#if os(macOS)
 import AppKit
+#endif
 
 /// Primary settings scene built with a native `NavigationSplitView`.
 struct SettingsWindow: Scene {
@@ -152,6 +155,10 @@ struct AppearanceSettingsView: View {
     @State private var isThemeEditorPresented = false
     @State private var isPaletteEditorPresented = false
 
+#if os(macOS)
+    @StateObject private var fontPickerCoordinator = SystemFontPickerCoordinator()
+#endif
+
 
     var body: some View {
         Form {
@@ -159,10 +166,12 @@ struct AppearanceSettingsView: View {
 
             if shouldShowSection(for: .light) {
                 toneSection(for: .light, title: "Light Appearance")
+                queryEditorSection(for: .light, title: "Query Editor (Light)")
             }
 
             if shouldShowSection(for: .dark) {
                 toneSection(for: .dark, title: "Dark Appearance")
+                queryEditorSection(for: .dark, title: "Query Editor (Dark)")
             }
 
             accentSection
@@ -174,6 +183,7 @@ struct AppearanceSettingsView: View {
         .formStyle(.grouped)
         .scrollContentBackground(.hidden)
         .background(themeManager.surfaceBackgroundColor)
+        .background(SettingsWindowConfigurator(themeManager: themeManager))
         .alert(
             "Delete Theme?",
             isPresented: Binding(
@@ -244,18 +254,12 @@ struct AppearanceSettingsView: View {
 
     private var appearanceModeSection: some View {
         Section("Appearance Mode") {
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 14) {
-                    ForEach(appearanceModeOptions) { option in
-                        AppearanceModeCard(
-                            option: option,
-                            isSelected: appearanceModeBinding.wrappedValue == option.mode,
-                            onSelect: { appearanceModeBinding.wrappedValue = option.mode }
-                        )
-                    }
-                }
-                .padding(.horizontal, 4)
+            Picker("Appearance Mode", selection: appearanceModeBinding) {
+                Text("System").tag(AppearanceMode.system)
+                Text("Light").tag(AppearanceMode.light)
+                Text("Dark").tag(AppearanceMode.dark)
             }
+            .pickerStyle(.segmented)
 
             Text("Choose Light or Dark for a fixed appearance, or System to follow macOS automatically.")
                 .font(.footnote)
@@ -265,8 +269,22 @@ struct AppearanceSettingsView: View {
 
     private func toneSection(for tone: SQLEditorPalette.Tone, title: String) -> some View {
         Section(title) {
-            themeGrid(for: tone)
-            paletteGrid(for: tone)
+            let themes = availableThemes(for: tone)
+            let selectedThemeID = appModel.globalSettings.activeThemeID(for: tone)
+            ThemeAppearanceSection(
+                tone: tone,
+                themes: themes,
+                selectedThemeID: selectedThemeID,
+                isUpdatingTheme: isUpdatingTheme,
+                paletteResolver: { palette(for: $0) },
+                onSelectTheme: { theme in
+                    selectTheme(theme.id, tone: tone, defaultPaletteID: theme.defaultPaletteID)
+                },
+                onCreateTheme: { startCreatingTheme(tone: tone) },
+                onEditTheme: { theme in startEditingTheme(theme, tone: tone) },
+                onDuplicateTheme: { theme in startDuplicatingTheme(theme, tone: tone) },
+                onDeleteTheme: { theme in themePendingDeletion = theme }
+            )
 
             VStack(alignment: .leading, spacing: 4) {
                 Text("Themes control window chrome, toolbars, and workspace surfaces.")
@@ -280,125 +298,34 @@ struct AppearanceSettingsView: View {
         }
     }
 
-    private func themeGrid(for tone: SQLEditorPalette.Tone) -> some View {
+    private func queryEditorSection(for tone: SQLEditorPalette.Tone, title: String) -> some View {
         let themes = availableThemes(for: tone)
         let selectedThemeID = appModel.globalSettings.activeThemeID(for: tone)
-        let autoTheme = appModel.globalSettings.themeMatchingCurrentPalette(for: tone)
+        let theme = appModel.globalSettings.theme(withID: selectedThemeID, tone: tone)
+            ?? themes.first
             ?? themeManager.theme(for: tone)
-        let defaultPalette = appModel.globalSettings.defaultPalette(for: tone)
-
-        return VStack(alignment: .leading, spacing: 12) {
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 14) {
-                    ThemeSelectionCard(
-                        title: "Match Palette Default",
-                        subtitle: defaultPalette?.name ?? "Use palette colours",
-                        theme: autoTheme,
-                        palette: defaultPalette,
-                        isSelected: selectedThemeID == nil,
-                        isBusy: isUpdatingTheme && selectedThemeID == nil,
-                        badge: ThemeSelectionCard.Badge(label: "Auto", style: .default),
-                        onSelect: { selectTheme(nil, tone: tone) },
-                        style: .compact
-                    ) {
-                        EmptyView()
-                    }
-                    .disabled(isUpdatingTheme)
-
-                    ForEach(themes) { theme in
-                        let palette = palette(for: theme.defaultPaletteID)
-                        ThemeSelectionCard(
-                            title: theme.name,
-                            subtitle: palette?.name,
-                            theme: theme,
-                            palette: palette,
-                            isSelected: selectedThemeID == theme.id,
-                            isBusy: isUpdatingTheme && selectedThemeID == theme.id,
-                            badge: theme.isCustom ? ThemeSelectionCard.Badge(label: "Custom", style: .secondary) : nil,
-                            onSelect: { selectTheme(theme.id, tone: tone, defaultPaletteID: theme.defaultPaletteID) },
-                            style: .compact
-                        ) {
-                            if theme.isCustom {
-                                Button("Edit Theme…") { startEditingTheme(theme, tone: tone) }
-                                Button("Duplicate…") { startDuplicatingTheme(theme, tone: tone) }
-                                Button("Delete", role: .destructive) { themePendingDeletion = theme }
-                            } else {
-                                Button("Duplicate…") { startDuplicatingTheme(theme, tone: tone) }
-                            }
-                        }
-                        .disabled(isUpdatingTheme)
-                    }
-                }
-                .padding(.horizontal, 4)
-            }
-
-            HStack {
-                Button("New Theme…") { startCreatingTheme(tone: tone) }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(isUpdatingTheme)
-                Spacer()
-            }
-        }
-        .animation(.easeInOut(duration: 0.2), value: selectedThemeID)
-    }
-
-    private func paletteGrid(for tone: SQLEditorPalette.Tone) -> some View {
         let palettes = availablePalettes(for: tone)
         let selectedPaletteID = appModel.globalSettings.defaultPaletteID(for: tone)
 
-        return VStack(alignment: .leading, spacing: 12) {
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 14) {
-                    if palettes.isEmpty {
-                        paletteEmptyStateCard
-                    } else {
-                        ForEach(palettes, id: \.id) { palette in
-                            PaletteSelectionCard(
-                                palette: palette,
-                                isSelected: selectedPaletteID == palette.id,
-                                isBusy: isUpdatingPalette && selectedPaletteID == palette.id,
-                                onSelect: { selectPalette(palette, tone: tone) }
-                            ) {
-                                if palette.kind == .custom {
-                                    Button("Edit Palette…") { startEditingPalette(palette, tone: tone) }
-                                    Button("Duplicate…") { startDuplicatingPalette(palette, tone: tone) }
-                                    Button("Delete", role: .destructive) { palettePendingDeletion = palette }
-                                } else {
-                                    Button("Duplicate…") { startDuplicatingPalette(palette, tone: tone) }
-                                }
-                            }
-                            .disabled(isUpdatingPalette)
-                        }
-                    }
-                }
-                .padding(.horizontal, 4)
-            }
-
-            HStack {
-                Button("New Palette…") { startCreatingPalette(tone: tone) }
-                    .buttonStyle(.bordered)
-                    .disabled(isUpdatingPalette)
-                Spacer()
-            }
+        return Section(title) {
+            QueryEditorSection(
+                tone: tone,
+                theme: theme,
+                palettes: palettes,
+                selectedPaletteID: selectedPaletteID,
+                isUpdatingPalette: isUpdatingPalette,
+                selectedFontName: editorFontFamilyBinding.wrappedValue,
+                fontOptions: editorFontOptions,
+                fontDisplayNameProvider: fontDisplayName(for:),
+                onSelectPalette: { palette in selectPalette(palette, tone: tone) },
+                onCreatePalette: { startCreatingPalette(tone: tone) },
+                onEditPalette: { palette in startEditingPalette(palette, tone: tone) },
+                onDuplicatePalette: { palette in startDuplicatingPalette(palette, tone: tone) },
+                onDeletePalette: { palette in palettePendingDeletion = palette },
+                onSelectFont: { editorFontFamilyBinding.wrappedValue = $0 },
+                onRequestCustomFont: { presentFontPicker() }
+            )
         }
-        .animation(.easeInOut(duration: 0.2), value: selectedPaletteID)
-    }
-
-    @ViewBuilder
-    private var paletteEmptyStateCard: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text("No palettes available for this tone.")
-                .font(.system(size: 12, weight: .semibold))
-            Text("Create a palette to customise SQL syntax colours.")
-                .font(.system(size: 11))
-                .foregroundStyle(.secondary)
-        }
-        .padding(12)
-        .frame(width: ThemePreview.Layout.compact.size.width + 24, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .stroke(Color.primary.opacity(0.08), lineWidth: 1)
-        )
     }
 
     private var accentSection: some View {
@@ -703,45 +630,53 @@ struct AppearanceSettingsView: View {
         appModel.globalSettings.availablePalettes.filter { $0.tone == tone }
     }
 
-    private var appearanceModeOptions: [AppearanceModeOption] {
-        let light = appearanceThemePreview(for: .light)
-        let dark = appearanceThemePreview(for: .dark)
-
-        return [
-            AppearanceModeOption(
-                mode: .system,
-                title: "System",
-                subtitle: "Matches macOS appearance",
-                preview: .dual(light: light, dark: dark)
-            ),
-            AppearanceModeOption(
-                mode: .light,
-                title: "Light",
-                subtitle: "Always use light chrome",
-                preview: .single(light)
-            ),
-            AppearanceModeOption(
-                mode: .dark,
-                title: "Dark",
-                subtitle: "Always use dark chrome",
-                preview: .single(dark)
-            )
-        ]
-    }
-
-    private func appearanceThemePreview(for tone: SQLEditorPalette.Tone) -> AppearanceThemePreview {
-        let theme = appModel.globalSettings.theme(
-            withID: appModel.globalSettings.activeThemeID(for: tone),
-            tone: tone
-        ) ?? themeManager.theme(for: tone)
-        let resolvedPalette = palette(for: theme.defaultPaletteID)
-            ?? appModel.globalSettings.defaultPalette(for: tone)
-        return AppearanceThemePreview(theme: theme, palette: resolvedPalette)
-    }
-
     private func palette(for id: String?) -> SQLEditorTokenPalette? {
         guard let id else { return nil }
         return appModel.globalSettings.palette(withID: id)
+    }
+
+    private var editorFontOptions: [EditorFontOption] {
+        [
+            EditorFontOption(id: "FiraCode-Regular", postScriptName: "FiraCode-Regular", displayName: "Fira Code"),
+            EditorFontOption(id: "IBMPlexMono-Regular", postScriptName: "IBMPlexMono-Regular", displayName: "IBM Plex Mono"),
+            EditorFontOption(id: "SplineSansMono-Regular", postScriptName: "SplineSansMono-Regular", displayName: "Spline Sans Mono"),
+            EditorFontOption(id: "RecursiveMonoLinear-Regular", postScriptName: "RecursiveMonoLinear-Regular", displayName: "Recursive Mono"),
+            EditorFontOption(id: "JetBrainsMono-Regular", postScriptName: "JetBrainsMono-Regular", displayName: "JetBrains Mono")
+        ]
+    }
+
+    private var editorFontFamilyBinding: Binding<String> {
+        Binding(
+            get: { appModel.globalSettings.defaultEditorFontFamily },
+            set: { newValue in
+                guard appModel.globalSettings.defaultEditorFontFamily != newValue else { return }
+                Task { await appModel.updateGlobalEditorDisplay { $0.defaultEditorFontFamily = newValue } }
+            }
+        )
+    }
+
+    private func fontDisplayName(for fontName: String) -> String {
+        if let option = editorFontOptions.first(where: { $0.postScriptName == fontName }) {
+            return option.displayName
+        }
+#if os(macOS)
+        if let font = NSFont(name: fontName, size: 12) {
+            return font.displayName ?? fontName
+        }
+#elseif canImport(UIKit)
+        if let font = UIFont(name: fontName, size: 12) {
+            return font.familyName
+        }
+#endif
+        return fontName
+    }
+
+    private func presentFontPicker() {
+#if os(macOS)
+        fontPickerCoordinator.present(currentFontName: editorFontFamilyBinding.wrappedValue) { fontName in
+            editorFontFamilyBinding.wrappedValue = fontName
+        }
+#endif
     }
 
     private var appearanceModeBinding: Binding<AppearanceMode> {
@@ -880,272 +815,727 @@ private enum PaletteEditorMode {
     case edit
 }
 
-private struct ThemeSelectionCard<ContextMenuContent: View>: View {
-    enum Style {
-        case grid
-        case compact
-    }
 
-    struct Badge {
-        enum Style {
-            case `default`
-            case secondary
-        }
+private struct ThemeAppearanceSection: View {
+    let tone: SQLEditorPalette.Tone
+    let themes: [AppColorTheme]
+    let selectedThemeID: String?
+    let isUpdatingTheme: Bool
+    let paletteResolver: (String?) -> SQLEditorTokenPalette?
+    let onSelectTheme: (AppColorTheme) -> Void
+    let onCreateTheme: () -> Void
+    let onEditTheme: (AppColorTheme) -> Void
+    let onDuplicateTheme: (AppColorTheme) -> Void
+    let onDeleteTheme: (AppColorTheme) -> Void
 
-        let label: String
-        let style: Style
-    }
-
-    let title: String
-    let subtitle: String?
-    let theme: AppColorTheme?
-    let palette: SQLEditorTokenPalette?
-    let isSelected: Bool
-    let isBusy: Bool
-    let badge: Badge?
-    let onSelect: () -> Void
-    var style: Style = .grid
-    @ViewBuilder var contextMenu: () -> ContextMenuContent
+    @State private var hoveredThemeID: String?
 
     var body: some View {
-        let previewLayout: ThemePreview.Layout = style == .grid ? .regular : .compact
-
-        return Button(action: { onSelect() }) {
-            VStack(alignment: .center, spacing: 9) {
-                ThemePreview(
-                    theme: theme,
-                    palette: palette,
-                    layout: previewLayout
-                )
-                .frame(width: previewLayout.size.width, height: previewLayout.size.height)
-                .overlay(alignment: .topLeading) {
-                    if let badge {
-                        badgeView(for: badge)
-                            .padding(10)
-                    }
+        VStack(alignment: .leading, spacing: 20) {
+            ViewThatFits {
+                HStack(alignment: .top, spacing: 24) {
+                    heroPreview
+                    paletteSummary
                 }
+                VStack(alignment: .leading, spacing: 20) {
+                    heroPreview
+                    paletteSummary
+                }
+            }
 
-                VStack(alignment: .center, spacing: 3) {
-                    Text(title)
-                        .font(.system(size: 13, weight: .semibold))
-                    if let subtitle {
-                        Text(subtitle)
-                            .font(.system(size: 11))
-                            .foregroundStyle(.secondary)
+            Text("Themes")
+                .font(.headline)
+
+            LazyVGrid(columns: chipColumns, spacing: 12) {
+                ForEach(themes) { theme in
+                    let palette = resolvedPalette(for: theme)
+                    ThemeChip(
+                        title: theme.name,
+                        subtitle: palette.name,
+                        swatchColors: swatches(for: theme, palette: palette),
+                        isSelected: selectedThemeID == theme.id,
+                        isBusy: isUpdatingTheme && selectedThemeID == theme.id,
+                        isDisabled: isUpdatingTheme,
+                        badge: themeBadge(for: theme, palette: palette),
+                        onTap: { onSelectTheme(theme) },
+                        onHoverChanged: { hovering in hoveredThemeID = hovering ? theme.id : nil },
+                        showsContextMenu: true
+                    ) {
+                        if theme.isCustom {
+                            Button("Edit Theme…") { onEditTheme(theme) }
+                            Button("Duplicate…") { onDuplicateTheme(theme) }
+                            Button("Delete", role: .destructive) { onDeleteTheme(theme) }
+                        } else {
+                            Button("Duplicate…") { onDuplicateTheme(theme) }
+                        }
+                    }
+                    .disabled(isUpdatingTheme)
+                }
+            }
+
+            HStack {
+                Button("New Theme…", action: onCreateTheme)
+                    .buttonStyle(.borderedProminent)
+                    .disabled(isUpdatingTheme)
+                Spacer()
+            }
+        }
+        .animation(.easeInOut(duration: 0.16), value: hoveredThemeID)
+    }
+
+    private var heroPreview: some View {
+        let theme = displayedTheme
+        let palette = resolvedPalette(for: theme)
+        return VStack(alignment: .leading, spacing: 12) {
+            Text(theme.name)
+                .font(.headline)
+            ThemeHeroPreviewCard(theme: theme, palette: palette)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    private var paletteSummary: some View {
+        let palette = resolvedPalette(for: displayedTheme)
+        return VStack(alignment: .leading, spacing: 12) {
+            Text("Default Palette")
+                .font(.headline)
+            PalettePreviewCard(
+                palette: palette,
+                tone: tone,
+                style: .compact,
+                showsQueryChip: false,
+                showsManualIndicator: false
+            )
+            .frame(maxWidth: .infinity, alignment: .leading)
+            Text(palette.name)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private var chipColumns: [GridItem] {
+        [GridItem(.adaptive(minimum: 152, maximum: 220), spacing: 12)]
+    }
+
+    private var displayedTheme: AppColorTheme {
+        if let hovered = hoveredThemeID,
+           let match = themes.first(where: { $0.id == hovered }) {
+            return match
+        }
+        if let selected = selectedThemeID,
+           let match = themes.first(where: { $0.id == selected }) {
+            return match
+        }
+        return themes.first ?? AppColorTheme.fromPalette(tone == .dark ? SQLEditorPalette.midnight : SQLEditorPalette.aurora)
+    }
+
+    private func resolvedPalette(for theme: AppColorTheme) -> SQLEditorTokenPalette {
+        if let palette = paletteResolver(theme.defaultPaletteID) {
+            return palette
+        }
+        if let palette = SQLEditorTokenPalette.palette(withID: theme.defaultPaletteID) {
+            return palette
+        }
+        return SQLEditorTokenPalette(from: theme.tone == .dark ? SQLEditorPalette.midnight : SQLEditorPalette.aurora)
+    }
+
+    private func swatches(for theme: AppColorTheme, palette: SQLEditorTokenPalette) -> [Color] {
+        let swatches = theme.swatchColors.map { $0.color }
+        if !swatches.isEmpty {
+            return Array(swatches.prefix(6))
+        }
+        return Array(palette.showcaseColors.prefix(6))
+    }
+
+    private func themeBadge(for theme: AppColorTheme, palette: SQLEditorTokenPalette) -> ChipBadge? {
+        guard theme.isCustom else { return nil }
+        let accent = theme.accent?.color ?? palette.tokens.keyword.color
+        return ChipBadge(label: "Custom", foreground: accent, background: accent.opacity(0.16))
+    }
+}
+
+private struct QueryEditorSection: View {
+    let tone: SQLEditorPalette.Tone
+    let theme: AppColorTheme
+    let palettes: [SQLEditorTokenPalette]
+    let selectedPaletteID: String
+    let isUpdatingPalette: Bool
+    let selectedFontName: String
+    let fontOptions: [EditorFontOption]
+    let fontDisplayNameProvider: (String) -> String
+    let onSelectPalette: (SQLEditorTokenPalette) -> Void
+    let onCreatePalette: () -> Void
+    let onEditPalette: (SQLEditorTokenPalette) -> Void
+    let onDuplicatePalette: (SQLEditorTokenPalette) -> Void
+    let onDeletePalette: (SQLEditorTokenPalette) -> Void
+    let onSelectFont: (String) -> Void
+    let onRequestCustomFont: () -> Void
+
+    @State private var hoveredPaletteID: String?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            queryPreview
+
+            Text("Palettes")
+                .font(.headline)
+
+            if palettes.isEmpty {
+                Text("No palettes available for this tone.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            } else {
+                LazyVGrid(columns: chipColumns, spacing: 12) {
+                    ForEach(palettes, id: \.id) { palette in
+                        PaletteChip(
+                            palette: palette,
+                            isSelected: selectedPaletteID == palette.id,
+                            isBusy: isUpdatingPalette && selectedPaletteID == palette.id,
+                            isDisabled: isUpdatingPalette,
+                            badge: paletteBadge(for: palette),
+                            onTap: { onSelectPalette(palette) },
+                            onHoverChanged: { hovering in hoveredPaletteID = hovering ? palette.id : nil },
+                            showsContextMenu: true
+                        ) {
+                            if palette.kind == .custom {
+                                Button("Edit Palette…") { onEditPalette(palette) }
+                                Button("Duplicate…") { onDuplicatePalette(palette) }
+                                Button("Delete", role: .destructive) { onDeletePalette(palette) }
+                            } else {
+                                Button("Duplicate…") { onDuplicatePalette(palette) }
+                            }
+                        }
+                        .disabled(isUpdatingPalette)
                     }
                 }
             }
-            .padding(cardPadding)
-            .frame(width: cardWidth(for: previewLayout))
+
+            HStack {
+                Button("New Palette…", action: onCreatePalette)
+                    .buttonStyle(.bordered)
+                    .disabled(isUpdatingPalette)
+                Spacer()
+            }
+
+            Divider()
+
+            fontPicker
+        }
+        .animation(.easeInOut(duration: 0.16), value: hoveredPaletteID)
+    }
+
+    private var chipColumns: [GridItem] {
+        [GridItem(.adaptive(minimum: 152, maximum: 220), spacing: 12)]
+    }
+
+    private var displayedPalette: SQLEditorTokenPalette {
+        if let hovered = hoveredPaletteID,
+           let palette = palettes.first(where: { $0.id == hovered }) {
+            return palette
+        }
+        return palettes.first(where: { $0.id == selectedPaletteID })
+            ?? palettes.first
+            ?? SQLEditorTokenPalette(from: tone == .dark ? SQLEditorPalette.midnight : SQLEditorPalette.aurora)
+    }
+
+    private var manualSelectionActive: Bool {
+        selectedPaletteID != theme.defaultPaletteID
+    }
+
+    private var queryPreview: some View {
+        let palette = displayedPalette
+        return VStack(alignment: .leading, spacing: 8) {
+            Text(palette.name)
+                .font(.headline)
+            QueryEditorPreview(theme: theme, palette: palette, fontName: selectedFontName)
+                .overlay(alignment: .topTrailing) {
+                    if manualSelectionActive && hoveredPaletteID == nil {
+                        TagBadge(
+                            label: "Manual",
+                            foreground: Color.accentColor,
+                            background: Color.accentColor.opacity(0.18)
+                        )
+                        .padding(12)
+                    }
+                }
+            Text(fontDisplayNameProvider(selectedFontName))
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private var fontPicker: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Editor Font")
+                .font(.headline)
+
+            let columns = [GridItem(.adaptive(minimum: 140, maximum: 200), spacing: 12)]
+            LazyVGrid(columns: columns, spacing: 12) {
+                ForEach(fontOptions) { option in
+                    FontChip(
+                        title: option.displayName,
+                        sampleFontName: option.postScriptName,
+                        isSelected: selectedFontName == option.postScriptName,
+                        onSelect: { onSelectFont(option.postScriptName) }
+                    )
+                }
+
+                if !fontOptions.contains(where: { $0.postScriptName == selectedFontName }) {
+                    FontChip(
+                        title: fontDisplayNameProvider(selectedFontName),
+                        sampleFontName: selectedFontName,
+                        isSelected: true,
+                        onSelect: { onSelectFont(selectedFontName) },
+                        isCustom: true
+                    )
+                }
+            }
+
+            Button("Choose from System…", action: onRequestCustomFont)
+                .buttonStyle(.bordered)
+        }
+    }
+
+    private func paletteBadge(for palette: SQLEditorTokenPalette) -> ChipBadge? {
+        guard palette.kind == .custom else { return nil }
+        let accent = palette.tokens.keyword.color
+        return ChipBadge(label: "Custom", foreground: accent, background: accent.opacity(0.16))
+    }
+}
+
+private struct QueryEditorPreview: View {
+    let theme: AppColorTheme
+    let palette: SQLEditorTokenPalette
+    let fontName: String
+
+    var body: some View {
+        PaletteSnippetPreview(
+            background: theme.editorBackground.color,
+            gutterBackground: theme.editorGutterBackground.color,
+            gutterForeground: theme.editorGutterForeground.color,
+            selection: theme.editorSelection.color,
+            currentLine: theme.editorCurrentLine.color,
+            defaultText: theme.editorForeground.color,
+            tokenColors: palette.tokens,
+            isDark: theme.tone == .dark,
+            font: previewFont
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .shadow(color: Color.black.opacity(theme.tone == .dark ? 0.28 : 0.12), radius: 24, x: 0, y: theme.tone == .dark ? 28 : 18)
+    }
+
+    private var previewFont: Font {
+        if fontName.isEmpty {
+            return .system(size: 11, weight: .medium, design: .monospaced)
+        }
+        return .custom(fontName, size: 11)
+    }
+}
+
+private struct FontChip: View {
+    let title: String
+    let sampleFontName: String
+    let isSelected: Bool
+    let onSelect: () -> Void
+    var isCustom: Bool = false
+
+    var body: some View {
+        Button(action: onSelect) {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("SELECT * FROM table;")
+                    .font(sampleFont)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+                    .foregroundStyle(Color.primary.opacity(0.85))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                Text(title)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(12)
+            .frame(minWidth: 140, maxWidth: .infinity, alignment: .leading)
             .background(
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .fill(cardBackground)
+                    .fill(Color.primary.opacity(0.05))
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .stroke(isSelected ? Color.accentColor : inactiveBorderColor, lineWidth: isSelected ? 2 : 1)
+                    .stroke(isSelected ? Color.accentColor : Color.primary.opacity(0.08), lineWidth: isSelected ? 2 : 1)
             )
-        }
-        .buttonStyle(.plain)
-        .contextMenu(menuItems: contextMenu)
-        .overlay {
-            if isBusy {
-                ProgressView()
-                    .controlSize(.small)
-                    .padding(12)
-                    .background(.ultraThinMaterial, in: Circle())
+            .overlay(alignment: .topLeading) {
+                if isCustom {
+                    TagBadge(label: "Custom", foreground: Color.accentColor, background: Color.accentColor.opacity(0.18))
+                        .padding(8)
+                }
             }
         }
+        .buttonStyle(.plain)
+    }
+
+    private var sampleFont: Font {
+        if sampleFontName.isEmpty {
+            return .system(size: 11, weight: .medium, design: .monospaced)
+        }
+        return .custom(sampleFontName, size: 11)
+    }
+}
+
+private struct EditorFontOption: Identifiable {
+    let id: String
+    let postScriptName: String
+    let displayName: String
+}
+
+#if os(macOS)
+private struct SettingsWindowConfigurator: NSViewRepresentable {
+    let themeManager: ThemeManager
+
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView()
+        DispatchQueue.main.async {
+            guard let window = view.window else { return }
+            configure(window: window)
+        }
+        return view
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {
+        DispatchQueue.main.async {
+            guard let window = nsView.window else { return }
+            configure(window: window)
+        }
+    }
+
+    private func configure(window: NSWindow) {
+        if window.titleVisibility != .hidden {
+            window.titleVisibility = .hidden
+        }
+        if window.titlebarAppearsTransparent == false {
+            window.titlebarAppearsTransparent = true
+        }
+        if window.toolbarStyle != .unifiedCompact {
+            window.toolbarStyle = .unifiedCompact
+        }
+        let targetColor = themeManager.windowBackgroundNSColor
+        if window.backgroundColor != targetColor {
+            window.backgroundColor = targetColor
+        }
+    }
+}
+#endif
+
+#if os(macOS)
+final class SystemFontPickerCoordinator: NSObject, ObservableObject {
+    private var completion: ((String) -> Void)?
+
+    func present(currentFontName: String, completion: @escaping (String) -> Void) {
+        self.completion = completion
+        let manager = NSFontManager.shared
+        manager.target = self
+        manager.action = #selector(handleFontChange(_:))
+        let initialFont = NSFont(name: currentFontName, size: 14)
+            ?? NSFont.monospacedSystemFont(ofSize: 14, weight: .regular)
+        manager.setSelectedFont(initialFont, isMultiple: false)
+        let panel = NSFontPanel.shared
+        panel.setPanelFont(initialFont, isMultiple: false)
+        panel.makeKeyAndOrderFront(nil)
+    }
+
+    @objc private func handleFontChange(_ sender: NSFontManager) {
+        let baseFont = sender.selectedFont ?? NSFont.monospacedSystemFont(ofSize: 14, weight: .regular)
+        let converted = sender.convert(baseFont)
+        completion?(converted.fontName)
+    }
+}
+#else
+final class SystemFontPickerCoordinator: ObservableObject {
+    func present(currentFontName: String, completion: @escaping (String) -> Void) {
+        completion(currentFontName)
+    }
+}
+#endif
+private struct ThemeHeroPreviewCard: View {
+    let theme: AppColorTheme
+    let palette: SQLEditorTokenPalette
+
+    var body: some View {
+        let accent = theme.accent?.color ?? palette.tokens.keyword.color
+
+        return RoundedRectangle(cornerRadius: 18, style: .continuous)
+            .fill(heroBackground)
+            .overlay(
+                ThemePreview(theme: theme, palette: palette, layout: .regular)
+                    .scaleEffect(1.18)
+                    .padding(28)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .stroke(Color.white.opacity(theme.tone == .dark ? 0.12 : 0.08), lineWidth: 1)
+                    .blendMode(.overlay)
+            )
+            .frame(minWidth: 320, idealWidth: 360, maxWidth: .infinity, minHeight: 164, alignment: .center)
+            .shadow(color: accent.opacity(theme.tone == .dark ? 0.28 : 0.18), radius: 24, x: 0, y: 18)
+    }
+
+    private var heroBackground: LinearGradient {
+        let surface = theme.surfaceBackground.color
+        let window = theme.windowBackground.color
+        return LinearGradient(
+            colors: [
+                surface.opacity(theme.tone == .dark ? 0.62 : 0.78),
+                window.opacity(theme.tone == .dark ? 0.48 : 0.64)
+            ],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+    }
+}
+
+private struct PalettePreviewCard: View {
+    enum Style {
+        case compact
+        case wide
+    }
+
+    let palette: SQLEditorTokenPalette
+    let tone: SQLEditorPalette.Tone
+    let style: Style
+    let showsQueryChip: Bool
+    let showsManualIndicator: Bool
+
+    var body: some View {
+        ZStack(alignment: .topLeading) {
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(Color.primary.opacity(tone == .dark ? 0.18 : 0.06))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .stroke(Color.primary.opacity(0.08), lineWidth: 1)
+                )
+
+            PaletteSnippetPreview(
+                background: basePalette.background.color,
+                gutterBackground: basePalette.gutterBackground.color,
+                gutterForeground: basePalette.gutterText.color,
+                selection: basePalette.selection.color,
+                currentLine: basePalette.currentLine.color,
+                defaultText: basePalette.text.color,
+                tokenColors: palette.tokens,
+                isDark: palette.tone == .dark
+            )
+            .padding(.horizontal, style == .wide ? 28 : 20)
+            .padding(.vertical, style == .wide ? 28 : 18)
+        }
+        .frame(
+            minWidth: style == .wide ? 360 : 280,
+            idealWidth: style == .wide ? 420 : 320,
+            maxWidth: style == .wide ? .infinity : 340,
+            minHeight: cardHeight,
+            alignment: .topLeading
+        )
+        .overlay(alignment: .topLeading) {
+            if showsQueryChip {
+                TagBadge(
+                    label: "Query editor preview",
+                    foreground: Color.primary.opacity(0.72),
+                    background: Color.primary.opacity(0.08)
+                )
+                .padding(12)
+            }
+        }
+        .overlay(alignment: .topTrailing) {
+            if showsManualIndicator {
+                TagBadge(
+                    label: "Manual",
+                    foreground: Color.accentColor,
+                    background: Color.accentColor.opacity(0.18)
+                )
+                .padding(12)
+            }
+        }
+    }
+
+    private var cardHeight: CGFloat {
+        style == .wide ? 164 : 148
+    }
+
+    private var basePalette: SQLEditorPalette {
+        SQLEditorPalette.palette(withID: palette.id)
+            ?? (tone == .dark ? .midnight : .aurora)
+    }
+}
+
+private struct ThemeChip<ContextMenuContent: View>: View {
+    let title: String
+    let subtitle: String?
+    let swatchColors: [Color]
+    let isSelected: Bool
+    let isBusy: Bool
+    let isDisabled: Bool
+    let badge: ChipBadge?
+    let onTap: () -> Void
+    let onHoverChanged: (Bool) -> Void
+    let showsContextMenu: Bool
+    @ViewBuilder var contextMenu: () -> ContextMenuContent
+
+    @State private var isHovering = false
+
+    var body: some View {
+        Button(action: onTap) {
+            VStack(alignment: .leading, spacing: 10) {
+                SwatchStripView(colors: swatchPreview)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(.system(size: 12.5, weight: .semibold))
+                        .foregroundStyle(.primary)
+                        .lineLimit(2)
+                    if let subtitle, !subtitle.isEmpty {
+                        Text(subtitle)
+                            .font(.system(size: 11))
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                }
+            }
+            .padding(12)
+            .frame(minWidth: 148, maxWidth: 200, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(Color.primary.opacity(0.05))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .stroke(isSelected ? Color.accentColor : Color.primary.opacity(0.08), lineWidth: isSelected ? 2 : 1)
+            )
+            .overlay(alignment: .topLeading) {
+                if let badge {
+                    TagBadge(label: badge.label, foreground: badge.foreground, background: badge.background)
+                        .padding(8)
+                }
+            }
+            .overlay {
+                if isBusy {
+                    ProgressView()
+                        .controlSize(.small)
+                        .padding(12)
+                        .background(.ultraThinMaterial, in: Circle())
+                }
+            }
+            .scaleEffect(isHovering ? 1.02 : 1.0)
+            .animation(.easeInOut(duration: 0.16), value: isHovering)
+        }
+        .buttonStyle(.plain)
+        .disabled(isDisabled)
+        .onHover { hovering in
+            isHovering = hovering
+            onHoverChanged(hovering)
+        }
+        .optionalContextMenu(isEnabled: showsContextMenu, content: contextMenu)
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 
-    private var cardBackground: Color {
-        if let theme {
-            return theme.surfaceBackground.color.opacity(style == .grid ? 0.9 : 0.75)
+    private var swatchPreview: [Color] {
+        let preview = swatchColors
+        if preview.isEmpty {
+            return [Color.primary.opacity(0.55)]
         }
-        return Color.primary.opacity(style == .grid ? 0.06 : 0.05)
-    }
-
-    private var inactiveBorderColor: Color {
-        if let theme {
-            return theme.surfaceForeground.color.opacity(0.15)
-        }
-        return Color.primary.opacity(0.08)
-    }
-
-    @ViewBuilder
-    private func badgeView(for badge: Badge) -> some View {
-        switch badge.style {
-        case .default:
-            DefaultBadge(label: badge.label)
-        case .secondary:
-            SecondaryBadge(label: badge.label)
-        }
-    }
-
-    private var cardPadding: CGFloat {
-        style == .grid ? 12 : 9
-    }
-
-    private func cardWidth(for layout: ThemePreview.Layout) -> CGFloat {
-        layout.size.width + (cardPadding * 2)
+        return Array(preview.prefix(6))
     }
 }
 
-private struct AppearanceModeCard: View {
-    let option: AppearanceModeOption
-    let isSelected: Bool
-    let onSelect: () -> Void
-
-    var body: some View {
-        Button(action: { onSelect() }) {
-            VStack(alignment: .leading, spacing: 10) {
-                preview
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(option.title)
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(.primary)
-                    Text(option.subtitle)
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
-                        .lineLimit(2)
-                }
-            }
-            .padding(10)
-            .frame(width: ThemePreview.Layout.compact.size.width + 20, alignment: .leading)
-            .background(
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .fill(cardBackground)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .stroke(isSelected ? Color.accentColor : borderColor, lineWidth: isSelected ? 2 : 1)
-            )
-        }
-        .buttonStyle(.plain)
-    }
-
-    @ViewBuilder
-    private var preview: some View {
-        switch option.preview {
-        case .single(let preview):
-            ThemePreview(theme: preview.theme, palette: preview.palette, layout: .compact)
-        case .dual(let light, let dark):
-            ZStack {
-                ThemePreview(theme: dark.theme, palette: dark.palette, layout: .compact)
-                    .scaleEffect(0.92)
-                    .offset(x: 18, y: 4)
-                    .opacity(0.82)
-                ThemePreview(theme: light.theme, palette: light.palette, layout: .compact)
-                    .scaleEffect(0.92)
-                    .offset(x: -12, y: -4)
-            }
-        }
-    }
-
-    private var cardBackground: Color {
-        switch option.mode {
-        case .dark:
-            return Color.white.opacity(0.05)
-        case .light:
-            return Color.primary.opacity(0.05)
-        case .system:
-            return Color.primary.opacity(0.045)
-        }
-    }
-
-    private var borderColor: Color {
-        Color.primary.opacity(0.08)
-    }
-}
-
-private struct PaletteSelectionCard<ContextMenuContent: View>: View {
+private struct PaletteChip<ContextMenuContent: View>: View {
     let palette: SQLEditorTokenPalette
     let isSelected: Bool
     let isBusy: Bool
-    let onSelect: () -> Void
+    let isDisabled: Bool
+    let badge: ChipBadge?
+    let onTap: () -> Void
+    let onHoverChanged: (Bool) -> Void
+    let showsContextMenu: Bool
     @ViewBuilder var contextMenu: () -> ContextMenuContent
 
+    @State private var isHovering = false
+
     var body: some View {
-        Button(action: { onSelect() }) {
-            VStack(alignment: .center, spacing: 8) {
-                PaletteSnippetPreview(
-                    background: basePalette.background.color,
-                    gutterBackground: basePalette.gutterBackground.color,
-                    gutterForeground: basePalette.gutterText.color,
-                    selection: basePalette.selection.color,
-                    currentLine: basePalette.currentLine.color,
-                    defaultText: basePalette.text.color,
-                    tokenColors: palette.tokens,
-                    isDark: palette.tone == .dark
-                )
-                .frame(width: snippetSize.width, height: snippetSize.height)
-
+        Button(action: onTap) {
+            VStack(alignment: .leading, spacing: 10) {
                 SwatchStripView(colors: Array(palette.showcaseColors.prefix(6)))
-                    .frame(maxWidth: .infinity)
+                    .frame(maxWidth: .infinity, alignment: .leading)
 
-                VStack(alignment: .center, spacing: 3) {
+                VStack(alignment: .leading, spacing: 2) {
                     Text(palette.name)
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(.system(size: 12.5, weight: .semibold))
+                        .foregroundStyle(.primary)
+                        .lineLimit(2)
                     Text(palette.tone == .dark ? "Dark palette" : "Light palette")
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
                 }
             }
-            .padding(cardPadding)
-            .frame(width: cardWidth, alignment: .center)
+            .padding(12)
+            .frame(minWidth: 148, maxWidth: 200, alignment: .leading)
             .background(
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .fill(cardBackground)
+                    .fill(Color.primary.opacity(0.05))
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .stroke(isSelected ? Color.accentColor : borderColor, lineWidth: isSelected ? 2 : 1)
+                    .stroke(isSelected ? Color.accentColor : Color.primary.opacity(0.08), lineWidth: isSelected ? 2 : 1)
             )
+            .overlay(alignment: .topLeading) {
+                if let badge {
+                    TagBadge(label: badge.label, foreground: badge.foreground, background: badge.background)
+                        .padding(8)
+                }
+            }
+            .overlay {
+                if isBusy {
+                    ProgressView()
+                        .controlSize(.small)
+                        .padding(12)
+                        .background(.ultraThinMaterial, in: Circle())
+                }
+            }
+            .scaleEffect(isHovering ? 1.02 : 1.0)
+            .animation(.easeInOut(duration: 0.16), value: isHovering)
         }
         .buttonStyle(.plain)
-        .contextMenu(menuItems: contextMenu)
-        .overlay(alignment: .topLeading) {
-            if palette.kind == .custom {
-                SecondaryBadge(label: "Custom")
-                    .padding(10)
-            }
+        .disabled(isDisabled)
+        .onHover { hovering in
+            isHovering = hovering
+            onHoverChanged(hovering)
         }
-        .overlay {
-            if isBusy {
-                ProgressView()
-                    .controlSize(.small)
-                    .padding(12)
-                    .background(.ultraThinMaterial, in: Circle())
-            }
-        }
+        .optionalContextMenu(isEnabled: showsContextMenu, content: contextMenu)
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
+}
 
-    private var cardBackground: Color {
-        palette.tone == .dark ? Color.white.opacity(0.05) : Color.primary.opacity(0.05)
+private struct ChipBadge {
+    let label: String
+    let foreground: Color
+    let background: Color
+}
+
+private struct OptionalContextMenu<MenuContent: View>: ViewModifier {
+    let isEnabled: Bool
+    let menu: () -> MenuContent
+
+    func body(content: Content) -> some View {
+        if isEnabled {
+            content.contextMenu(menuItems: menu)
+        } else {
+            content
+        }
     }
+}
 
-    private var borderColor: Color {
-        palette.tone == .dark ? Color.white.opacity(0.08) : Color.primary.opacity(0.08)
-    }
-
-    private var basePalette: SQLEditorPalette {
-        SQLEditorPalette.palette(withID: palette.id)
-            ?? (palette.tone == .dark ? .midnight : .aurora)
-    }
-
-    private var cardPadding: CGFloat { 12 }
-
-    private var cardWidth: CGFloat {
-        ThemePreview.Layout.compact.size.width + (cardPadding * 2)
-    }
-
-    private var snippetSize: CGSize {
-        CGSize(width: ThemePreview.Layout.compact.size.width, height: 58)
+private extension View {
+    func optionalContextMenu<MenuContent: View>(isEnabled: Bool, @ViewBuilder content: @escaping () -> MenuContent) -> some View {
+        modifier(OptionalContextMenu(isEnabled: isEnabled, menu: content))
     }
 }
 
@@ -1422,8 +1812,29 @@ private struct PaletteSnippetPreview: View {
     let defaultText: Color
     let tokenColors: SQLEditorPalette.TokenColors
     let isDark: Bool
+    let font: Font
 
-    private let font: Font = .system(size: 9, weight: .medium, design: .monospaced)
+    init(
+        background: Color,
+        gutterBackground: Color,
+        gutterForeground: Color,
+        selection: Color,
+        currentLine: Color,
+        defaultText: Color,
+        tokenColors: SQLEditorPalette.TokenColors,
+        isDark: Bool,
+        font: Font = .system(size: 9, weight: .medium, design: .monospaced)
+    ) {
+        self.background = background
+        self.gutterBackground = gutterBackground
+        self.gutterForeground = gutterForeground
+        self.selection = selection
+        self.currentLine = currentLine
+        self.defaultText = defaultText
+        self.tokenColors = tokenColors
+        self.isDark = isDark
+        self.font = font
+    }
 
     var body: some View {
         ZStack {
@@ -1990,48 +2401,6 @@ private struct TagBadge: View {
         .foregroundStyle(foreground)
         .background(background)
         .clipShape(Capsule())
-    }
-}
-
-private struct AppearanceThemePreview {
-    let theme: AppColorTheme
-    let palette: SQLEditorTokenPalette?
-}
-
-private struct AppearanceModeOption: Identifiable {
-    enum Preview {
-        case single(AppearanceThemePreview)
-        case dual(light: AppearanceThemePreview, dark: AppearanceThemePreview)
-    }
-
-    var id: AppearanceMode { mode }
-    let mode: AppearanceMode
-    let title: String
-    let subtitle: String
-    let preview: Preview
-}
-
-private struct DefaultBadge: View {
-    var label: String = "Default"
-
-    var body: some View {
-        TagBadge(
-            label: label,
-            foreground: Color.accentColor,
-            background: Color.accentColor.opacity(0.18)
-        )
-    }
-}
-
-private struct SecondaryBadge: View {
-    let label: String
-
-    var body: some View {
-        TagBadge(
-            label: label,
-            foreground: Color.secondary,
-            background: Color.secondary.opacity(0.18)
-        )
     }
 }
 

@@ -19,14 +19,15 @@ struct QueryResultsSection: View {
 
     @EnvironmentObject private var themeManager: ThemeManager
 
+    private let statusChipMinWidth: CGFloat = 96
+    private let statusChipHeight: CGFloat = 24
+    private let statusBarVerticalPadding: CGFloat = 4
+    private var statusBarHeight: CGFloat { statusChipHeight + statusBarVerticalPadding * 2 }
+
 #if !os(macOS)
     private let connectionChipMinWidth: CGFloat = 180
     private let metricChipMinWidth: CGFloat = 82
     private let timeChipMinWidth: CGFloat = 112
-    private let statusChipMinWidth: CGFloat = 108
-    private let statusChipHeight: CGFloat = 28
-    private let statusBarVerticalPadding: CGFloat = 8
-    private var statusBarHeight: CGFloat { statusChipHeight + statusBarVerticalPadding * 2 }
 #endif
 
     enum ResultTab: Hashable {
@@ -397,15 +398,15 @@ struct QueryResultsSection: View {
             if shouldShowStatusBar {
                 VStack(spacing: 0) {
                     Divider().opacity(0.3)
-                    HStack(spacing: 18) {
+                    HStack(alignment: .center, spacing: 14) {
                         connectionStatusItem
                         Spacer(minLength: 12)
                         rowCountStatusItem
                         timeStatusItem
                         statusSummaryItem
                     }
-                    .padding(.horizontal, 18)
-                    .padding(.vertical, 6)
+                    .padding(.horizontal, 16)
+                    .frame(height: statusBarHeight, alignment: .center)
                 }
                 .background(themeManager.windowBackground)
             }
@@ -418,23 +419,28 @@ struct QueryResultsSection: View {
     private var connectionStatusItem: some View {
         StatusBarSegment(isEnabled: true, action: {
             showConnectionInfoPopover.toggle()
-        }) {
-            HStack(spacing: 8) {
+        }, chipHeight: statusChipHeight) {
+            HStack(spacing: 6) {
                 Image(systemName: "server.rack")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(.system(size: 11))
                     .foregroundStyle(connection.color)
 
                 Text(connectionDisplayName)
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(.system(size: 11))
+                    .lineLimit(1)
 
                 if let database = effectiveDatabaseName {
                     Text(database)
-                        .font(.system(size: 11, weight: .semibold))
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 3)
-                        .background(Color.primary.opacity(0.08), in: Capsule())
+                        .font(.system(size: 10))
+                        .padding(.horizontal, 5)
+                        .frame(height: statusChipHeight - 8, alignment: .center)
+                        .background(
+                            Capsule(style: .continuous)
+                                .fill(Color.primary.opacity(0.08))
+                        )
                 }
             }
+            .frame(maxHeight: .infinity, alignment: .center)
         }
         .popover(isPresented: $showConnectionInfoPopover, arrowEdge: .bottom) {
             connectionInfoPopover
@@ -450,13 +456,14 @@ struct QueryResultsSection: View {
         return StatusBarSegment(isEnabled: isEnabled, action: {
             guard isEnabled else { return }
             showRowInfoPopover.toggle()
-        }) {
-            HStack(spacing: 7) {
+        }, chipHeight: statusChipHeight) {
+            HStack(spacing: 6) {
                 statusIcon(named: "table.rows")
                 Text(displayText)
-                    .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                    .font(.system(size: 11))
                     .foregroundStyle(query.isExecuting ? Color.secondary : Color.primary)
             }
+            .frame(maxHeight: .infinity, alignment: .center)
         }
         .popover(isPresented: $showRowInfoPopover, arrowEdge: .bottom) {
             rowInfoPopover
@@ -474,15 +481,16 @@ struct QueryResultsSection: View {
         return StatusBarSegment(isEnabled: hasDuration && !query.isExecuting, action: {
             guard hasDuration, !query.isExecuting else { return }
             showTimeInfoPopover.toggle()
-        }) {
-            HStack(spacing: 7) {
+        }, chipHeight: statusChipHeight) {
+            HStack(spacing: 6) {
                 Image(systemName: "clock")
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(.system(size: 11))
                     .foregroundStyle(textColor)
                 Text(displayText)
-                    .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                    .font(.system(size: 11))
                     .foregroundStyle(textColor)
             }
+            .frame(maxHeight: .infinity, alignment: .center)
         }
         .popover(isPresented: $showTimeInfoPopover, arrowEdge: .bottom) {
             timeInfoPopover
@@ -491,15 +499,16 @@ struct QueryResultsSection: View {
 
     private var statusSummaryItem: some View {
         let config = statusBubbleConfiguration()
-        return StatusBarSegment(isEnabled: false, action: nil) {
-            HStack(spacing: 7) {
+        return StatusBarSegment(isEnabled: false, action: nil, chipHeight: statusChipHeight) {
+            HStack(spacing: 6) {
                 Image(systemName: config.icon)
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(.system(size: 11))
                     .foregroundStyle(config.tint)
                 Text(config.label)
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(.system(size: 11))
                     .foregroundStyle(config.tint)
             }
+            .frame(maxHeight: .infinity, alignment: .center)
         }
     }
 
@@ -511,20 +520,22 @@ struct QueryResultsSection: View {
             image = Image(systemName: "tablecells")
         }
         return image
-            .font(.system(size: 12, weight: .semibold))
+            .font(.system(size: 11))
             .foregroundStyle(Color.primary)
     }
 
     private struct StatusBarSegment<Content: View>: View {
         let isEnabled: Bool
         let action: (() -> Void)?
+        let chipHeight: CGFloat
         @ViewBuilder let content: () -> Content
 
         @State private var isHovering = false
 
-        init(isEnabled: Bool, action: (() -> Void)?, @ViewBuilder content: @escaping () -> Content) {
+        init(isEnabled: Bool, action: (() -> Void)?, chipHeight: CGFloat, @ViewBuilder content: @escaping () -> Content) {
             self.isEnabled = isEnabled
             self.action = action
+            self.chipHeight = chipHeight
             self.content = content
         }
 
@@ -537,17 +548,21 @@ struct QueryResultsSection: View {
                     .buttonStyle(.plain)
                     .disabled(!isEnabled)
                     .onHover { isHovering = $0 && isEnabled }
+                    .frame(height: chipHeight, alignment: .center)
                 } else {
                     segmentContent
                         .onHover { isHovering = $0 && isEnabled }
+                        .frame(height: chipHeight, alignment: .center)
                 }
             }
         }
 
         private var segmentContent: some View {
             content()
-                .padding(.horizontal, 10)
-                .padding(.vertical, 5)
+                .padding(.horizontal, 9)
+                .padding(.vertical, 4)
+                .frame(height: chipHeight, alignment: .center)
+                .frame(maxHeight: .infinity, alignment: .center)
                 .background(
                     RoundedRectangle(cornerRadius: 6, style: .continuous)
                         .fill(isHovering && isEnabled ? Color(nsColor: NSColor.controlHighlightColor).opacity(0.35) : Color.clear)

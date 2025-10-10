@@ -61,6 +61,7 @@ enum IdentityEditorState: Identifiable {
 struct FolderEditorSheet: View {
     @EnvironmentObject private var appModel: AppModel
     @Environment(\.dismiss) private var dismiss
+    @ObservedObject private var themeManager = ThemeManager.shared
 
     let state: FolderEditorState
 
@@ -152,17 +153,20 @@ struct FolderEditorSheet: View {
     }
 
     var body: some View {
-        VStack(spacing: 24) {
+        VStack(spacing: 20) {
             header
 
-            ScrollView(.vertical, showsIndicators: false) {
-                VStack(spacing: 20) {
+            Divider()
+
+            ScrollView(.vertical, showsIndicators: true) {
+                VStack(spacing: 18) {
                     folderForm
 
                     if !isIdentityFolder {
                         credentialsSection
                     }
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 2)
             }
             .frame(maxHeight: 320)
@@ -171,14 +175,10 @@ struct FolderEditorSheet: View {
 
             footerButtons
         }
-        .padding(28)
-        .frame(width: 520, height: 440)
-        .background(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(Color(nsColor: .windowBackgroundColor))
-                .shadow(color: Color.black.opacity(0.08), radius: 24, y: 14)
-        )
-        .padding(.vertical, 12)
+        .padding(.horizontal, 24)
+        .padding(.vertical, 20)
+        .frame(width: 520)
+        .background(themeManager.windowBackgroundColor)
         .onAppear(perform: prepareInitialValues)
     }
 
@@ -322,7 +322,7 @@ struct FolderEditorSheet: View {
             .buttonStyle(.borderedProminent)
             .disabled(!isValid)
         }
-        .controlSize(.large)
+        .controlSize(.regular)
     }
 
     private func prepareInitialValues() {
@@ -386,6 +386,7 @@ struct FolderEditorSheet: View {
 struct IdentityEditorSheet: View {
     @EnvironmentObject private var appModel: AppModel
     @Environment(\.dismiss) private var dismiss
+    @ObservedObject private var themeManager = ThemeManager.shared
 
     let state: IdentityEditorState
     var onSave: ((SavedIdentity) -> Void)? = nil
@@ -407,42 +408,48 @@ struct IdentityEditorSheet: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 24) {
+        VStack(alignment: .leading, spacing: 20) {
             Text(editingIdentity == nil ? "New Identity" : "Edit Identity")
-                .font(.title3)
-                .fontWeight(.semibold)
+                .font(.system(size: 22, weight: .semibold))
 
-            formContent
+            Divider()
 
-            Spacer()
+            ScrollView(.vertical, showsIndicators: true) {
+                identityForm
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .frame(maxHeight: 280)
+
+            Divider()
 
             footerButtons
         }
-        .padding(24)
+        .padding(.horizontal, 24)
+        .padding(.vertical, 20)
         .frame(width: 420)
+        .background(themeManager.windowBackgroundColor)
         .onAppear(perform: prepareInitialValues)
     }
 
-    private var formContent: some View {
-        Form {
-            Section("Identity") {
-                LabeledContent("Name") {
-                    TextField("", text: $name, prompt: Text("Production"))
-                        .multilineTextAlignment(.trailing)
+    private var identityForm: some View {
+        VStack(spacing: 18) {
+            FormSection(title: "Identity") {
+                FormRow(label: "Name") {
+                    TextEntryField(text: $name, placeholder: "Production")
                 }
-                LabeledContent("Username") {
-                    TextField("", text: $username, prompt: Text("db_admin"))
-                        .multilineTextAlignment(.trailing)
+
+                FormRow(label: "Username") {
+                    TextEntryField(text: $username, placeholder: "db_admin")
                 }
-                LabeledContent("Password") {
-                    SecureField("", text: $password, prompt: Text("••••••••"))
-                        .multilineTextAlignment(.trailing)
+
+                FormRow(label: "Password", showsDivider: false) {
+                    SecureEntryField(text: $password, placeholder: "••••••••")
                 }
             }
 
             if !availableFolders.isEmpty {
-                Section("Folder") {
-                    LabeledContent("Location") {
+                FormSection(title: "Folder") {
+                    FormRow(label: "Location", showsDivider: false) {
                         Picker("", selection: Binding<UUID?>(
                             get: { selectedFolderID },
                             set: { selectedFolderID = $0 }
@@ -453,12 +460,11 @@ struct IdentityEditorSheet: View {
                             }
                         }
                         .labelsHidden()
+                        .frame(maxWidth: 220)
                     }
                 }
             }
         }
-        .formStyle(.grouped)
-        .scrollContentBackground(.hidden)
     }
 
     @ViewBuilder
@@ -484,6 +490,7 @@ struct IdentityEditorSheet: View {
             .buttonStyle(.borderedProminent)
             .disabled(!isValid)
         }
+        .controlSize(.regular)
     }
 
     private var isValid: Bool {
@@ -496,6 +503,9 @@ struct IdentityEditorSheet: View {
             name = identity.name
             username = identity.username
             selectedFolderID = identity.folderID
+        } else if selectedFolderID == nil,
+                  let first = availableFolders.first {
+            selectedFolderID = first.id
         }
     }
 
@@ -529,6 +539,7 @@ struct IdentityEditorSheet: View {
 private struct FormSection<Content: View>: View {
     private let title: String?
     private let contentBuilder: () -> Content
+    private let themeManager = ThemeManager.shared
 
     init(title: String? = nil, @ViewBuilder content: @escaping () -> Content) {
         self.title = title
@@ -550,12 +561,12 @@ private struct FormSection<Content: View>: View {
             }
             .background(
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .fill(Color(nsColor: .controlBackgroundColor))
+                    .fill(themeManager.surfaceBackgroundColor.opacity(0.9))
             )
             .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .stroke(Color.primary.opacity(0.06), lineWidth: 0.6)
+                    .stroke(themeManager.surfaceForegroundColor.opacity(0.08), lineWidth: 0.6)
             )
         }
     }
@@ -588,9 +599,11 @@ private struct FormRow<Content: View>: View {
 }
 
 private struct FormDivider: View {
+    private let themeManager = ThemeManager.shared
+
     var body: some View {
         Rectangle()
-            .fill(Color.primary.opacity(0.08))
+            .fill(themeManager.surfaceForegroundColor.opacity(0.12))
             .frame(height: 1)
             .padding(.leading, 132)
     }
@@ -601,6 +614,7 @@ private struct TextEntryField: View {
     let placeholder: String
 
     @Environment(\.colorScheme) private var colorScheme
+    private let themeManager = ThemeManager.shared
 
     var body: some View {
         TextField("", text: $text, prompt: Text(placeholder).foregroundStyle(.tertiary))
@@ -612,7 +626,7 @@ private struct TextEntryField: View {
 
     private var inputBackground: some View {
         RoundedRectangle(cornerRadius: 7, style: .continuous)
-            .fill(Color(nsColor: .textBackgroundColor))
+            .fill(themeManager.windowBackgroundColor)
             .overlay(
                 RoundedRectangle(cornerRadius: 7, style: .continuous)
                     .stroke(Color.primary.opacity(colorScheme == .dark ? 0.35 : 0.12), lineWidth: 1)
@@ -625,6 +639,7 @@ private struct SecureEntryField: View {
     let placeholder: String
 
     @Environment(\.colorScheme) private var colorScheme
+    private let themeManager = ThemeManager.shared
 
     var body: some View {
         SecureField("", text: $text, prompt: Text(placeholder).foregroundStyle(.tertiary))
@@ -636,7 +651,7 @@ private struct SecureEntryField: View {
 
     private var inputBackground: some View {
         RoundedRectangle(cornerRadius: 7, style: .continuous)
-            .fill(Color(nsColor: .textBackgroundColor))
+            .fill(themeManager.windowBackgroundColor)
             .overlay(
                 RoundedRectangle(cornerRadius: 7, style: .continuous)
                     .stroke(Color.primary.opacity(colorScheme == .dark ? 0.35 : 0.12), lineWidth: 1)
