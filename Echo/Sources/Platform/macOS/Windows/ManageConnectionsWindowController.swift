@@ -1,6 +1,7 @@
 #if os(macOS)
 import AppKit
 import SwiftUI
+import Combine
 
 @MainActor
 final class ManageConnectionsWindowController: NSWindowController, NSWindowDelegate {
@@ -8,6 +9,7 @@ final class ManageConnectionsWindowController: NSWindowController, NSWindowDeleg
 
     private var hostingController: NSHostingController<ManageConnectionsWindowRootView>?
     private var isWindowLoadedOnce = false
+    private var themeCancellables = Set<AnyCancellable>()
 
     private override init(window: NSWindow?) {
         super.init(window: window)
@@ -23,14 +25,13 @@ final class ManageConnectionsWindowController: NSWindowController, NSWindowDeleg
         }
 
         guard let window else { return }
+        AppCoordinator.shared.appModel.selectedFolderID = nil
 
         hostingController?.rootView = ManageConnectionsWindowRootView(onClose: { [weak self] in
             self?.closeWindow()
         })
 
-        // Apply the theme's appearance to the window
-        let tone = ThemeManager.shared.activePaletteTone
-        window.appearance = NSAppearance(named: tone == .dark ? .darkAqua : .aqua)
+        applyTheme(to: window)
 
         if !isWindowLoadedOnce {
             window.center()
@@ -61,17 +62,64 @@ final class ManageConnectionsWindowController: NSWindowController, NSWindowDeleg
         )
         window.title = "Manage Connections"
         window.isReleasedWhenClosed = false
-        window.titlebarAppearsTransparent = false
-        window.titleVisibility = .visible
-        window.toolbarStyle = .unified
+        window.titlebarAppearsTransparent = true
+        window.titleVisibility = .hidden
+        if #available(macOS 13.0, *) {
+            window.toolbarStyle = .expanded
+        } else {
+            window.toolbarStyle = .unified
+        }
         window.contentViewController = hosting
         window.delegate = self
+        applyTheme(to: window)
+        bindThemeUpdates(for: window)
         hostingController = hosting
         self.window = window
     }
 
     func windowWillClose(_ notification: Notification) {
         AppCoordinator.shared.appModel.isManageConnectionsPresented = false
+    }
+
+    private func bindThemeUpdates(for window: NSWindow) {
+        themeCancellables.removeAll()
+
+        ThemeManager.shared.$activeTheme
+            .receive(on: RunLoop.main)
+            .sink { [weak self, weak window] _ in
+                guard let window else { return }
+                self?.applyTheme(to: window)
+            }
+            .store(in: &themeCancellables)
+
+        ThemeManager.shared.$effectiveColorScheme
+            .receive(on: RunLoop.main)
+            .sink { [weak self, weak window] _ in
+                guard let window else { return }
+                self?.applyTheme(to: window)
+            }
+            .store(in: &themeCancellables)
+
+        ThemeManager.shared.$surfaceBackgroundNSColor
+            .receive(on: RunLoop.main)
+            .sink { [weak self, weak window] _ in
+                guard let window else { return }
+                self?.applyTheme(to: window)
+            }
+            .store(in: &themeCancellables)
+    }
+
+    private func applyTheme(to window: NSWindow) {
+        let manager = ThemeManager.shared
+        let tone = manager.activePaletteTone
+        window.appearance = NSAppearance(named: tone == .dark ? .darkAqua : .aqua)
+        window.backgroundColor = manager.windowBackgroundNSColor
+        window.toolbar?.showsBaselineSeparator = false
+
+        if let titlebarView = window.standardWindowButton(.closeButton)?.superview {
+            titlebarView.wantsLayer = true
+            titlebarView.layer?.backgroundColor = manager.surfaceBackgroundNSColor.cgColor
+        }
     }
 }
 

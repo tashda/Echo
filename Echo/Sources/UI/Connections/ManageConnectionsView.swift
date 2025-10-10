@@ -43,6 +43,7 @@ struct ManageConnectionsView: View {
     private var contentView: some View {
         configuredSplitView
             .preferredColorScheme(themeManager.effectiveColorScheme)
+            .accentColor(themeManager.accentColor)
             .sheet(item: $folderEditorState, content: folderEditorSheet)
             .sheet(item: $identityEditorState, content: identityEditorSheet)
             .sheet(item: $connectionEditorPresentation, content: connectionEditorSheet)
@@ -106,9 +107,10 @@ struct ManageConnectionsView: View {
             sidebar
                 .frame(minWidth: 220, idealWidth: 260, maxWidth: 300)
             detailContent
+                .background(themeManager.windowBackgroundColor)
         }
         .navigationViewStyle(.columns)
-        .background(Color(nsColor: .windowBackgroundColor))
+        .background(themeManager.windowBackgroundColor)
     }
 }
 
@@ -154,6 +156,9 @@ private extension ManageConnectionsView {
             }
             .navigationTitle(navigationTitleText)
             .navigationSubtitle(navigationSubtitleText)
+            .toolbarBackground(themeManager.surfaceBackgroundColor, for: .windowToolbar)
+            .toolbarBackgroundVisibility(.visible, for: .windowToolbar)
+            .toolbarColorScheme(themeManager.effectiveColorScheme, for: .windowToolbar)
     }
 
     private var navigationTitleText: String {
@@ -181,8 +186,9 @@ private extension ManageConnectionsView {
         }
     }
 
+    @ViewBuilder
     private var sidebarList: some View {
-        List(selection: $sidebarSelection) {
+        let baseList = List(selection: $sidebarSelection) {
             ForEach(ManageSection.allCases) { section in
                 sidebarSection(
                     section,
@@ -192,7 +198,15 @@ private extension ManageConnectionsView {
             }
         }
         .listStyle(.sidebar)
-        .accentColor(.primary)
+
+        if #available(macOS 13.0, *) {
+            baseList
+                .scrollContentBackground(.hidden)
+                .background(themeManager.surfaceBackgroundColor)
+        } else {
+            baseList
+                .background(themeManager.surfaceBackgroundColor)
+        }
     }
 
     @ViewBuilder
@@ -345,7 +359,7 @@ private extension ManageConnectionsView {
             Image(systemName: section == .connections ? "externaldrive.badge.plus" : "person.crop.circle.badge.plus")
                 .font(.system(size: 40, weight: .semibold))
                 .symbolRenderingMode(.hierarchical)
-                .foregroundStyle(Color.accentColor)
+                .foregroundStyle(themeManager.accentColor)
 
             Text(section.emptyTitle)
                 .font(.system(size: 18, weight: .semibold))
@@ -364,7 +378,7 @@ private extension ManageConnectionsView {
             .buttonStyle(.borderedProminent)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(themeManager.effectiveColorScheme == .dark ? Color(white: 0.15) : Color(white: 0.98))
+        .background(themeManager.surfaceBackgroundColor)
     }
 }
 
@@ -1183,6 +1197,11 @@ private struct ConnectionsTableView: View {
             onDoubleClick: onDoubleClick
         ) {
             Table(of: SavedConnection.self, selection: $selection, sortOrder: $sortOrder) {
+                TableColumn("") { connection in
+                    ConnectionIconCell(connection: connection)
+                }
+                .width(28)
+
                 TableColumn("Name", value: \.connectionName) { connection in
                     Text(displayName(for: connection))
                 }
@@ -1269,6 +1288,7 @@ private struct ConnectionsTableView: View {
                 }
             }
         }
+        .background(themeManager.surfaceBackgroundColor)
     }
 
     private func displayName(for connection: SavedConnection) -> String {
@@ -1284,6 +1304,61 @@ private struct ConnectionsTableView: View {
     }
 }
 
+private struct ConnectionIconCell: View {
+    let connection: SavedConnection
+
+    var body: some View {
+        iconView
+            .frame(width: 20, height: 20)
+            .padding(.vertical, 2)
+            .frame(maxWidth: .infinity, alignment: .center)
+            .accessibilityHidden(true)
+    }
+
+    @ViewBuilder
+    private var iconView: some View {
+        if let (image, isTemplate) = iconInfo {
+            if isTemplate {
+                image
+                    .renderingMode(.template)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .foregroundStyle(.primary)
+            } else {
+                image
+                    .renderingMode(.original)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+            }
+        } else {
+            fallbackIcon
+        }
+    }
+
+    private var fallbackIcon: some View {
+        Image(systemName: "externaldrive")
+            .renderingMode(.template)
+            .resizable()
+            .aspectRatio(contentMode: .fit)
+            .foregroundStyle(.primary)
+    }
+
+    private var iconInfo: (Image, Bool)? {
+#if canImport(AppKit)
+        if let nsImage = NSImage(named: connection.databaseType.iconName) {
+            return (Image(nsImage: nsImage), nsImage.isTemplate)
+        }
+#elseif canImport(UIKit)
+        if let uiImage = UIImage(named: connection.databaseType.iconName) {
+            let isTemplate = uiImage.renderingMode == .alwaysTemplate || uiImage.isSymbolImage
+            let rendered = uiImage.withRenderingMode(isTemplate ? .alwaysTemplate : .alwaysOriginal)
+            return (Image(uiImage: rendered), isTemplate)
+        }
+#endif
+        return nil
+    }
+}
+
 private struct IdentitiesTableView: View {
     let identities: [SavedIdentity]
     @Binding var selection: Set<SavedIdentity.ID>
@@ -1296,71 +1371,73 @@ private struct IdentitiesTableView: View {
     @ObservedObject private var themeManager = ThemeManager.shared
 
     var body: some View {
-        Table(of: SavedIdentity.self, selection: $selection, sortOrder: $sortOrder) {
-            TableColumn("Name", value: \.name) { identity in
-                Text(identity.name)
-            }
-
-            TableColumn("Username", value: \.username) { identity in
-                let username = identity.username.trimmingCharacters(in: .whitespacesAndNewlines)
-                if !username.isEmpty {
-                    Text(username)
-                } else {
-                    Text("—")
-                        .foregroundStyle(.secondary)
+        ThemedTableContainer {
+            Table(of: SavedIdentity.self, selection: $selection, sortOrder: $sortOrder) {
+                TableColumn("Name", value: \.name) { identity in
+                    Text(identity.name)
                 }
-            }
 
-            TableColumn("Folder") { identity in
-                if let folderID = identity.folderID,
-                   let folder = folderLookup[folderID] {
-                    Text(folder.displayName)
-                } else {
-                    Text("—")
-                        .foregroundStyle(.secondary)
-                }
-            }
-
-            TableColumn("Updated") { identity in
-                if let updatedAt = identity.updatedAt {
-                    Text(updatedAt, style: .date)
-                } else {
-                    Text(identity.createdAt, style: .date)
-                }
-            }
-
-        } rows: {
-            ForEach(identities) { identity in
-                TableRow(identity)
-                    .itemProvider {
-                        NSItemProvider(object: "identity:\(identity.id.uuidString)" as NSString)
+                TableColumn("Username", value: \.username) { identity in
+                    let username = identity.username.trimmingCharacters(in: .whitespacesAndNewlines)
+                    if !username.isEmpty {
+                        Text(username)
+                    } else {
+                        Text("—")
+                            .foregroundStyle(.secondary)
                     }
-            }
-        }
-        .contextMenu {
-            if let selectionID = selection.first,
-               let identity = identities.first(where: { $0.id == selectionID }) {
-                Button {
-                    onEdit(identity)
-                } label: {
-                    Text("Edit")
                 }
 
-                Menu("Move to Folder") {
-                    ForEach(Array(folderLookup.values).sorted(by: { $0.name < $1.name }), id: \.id) { folder in
-                        Button(folder.displayName) {
-                            moveIdentityToFolder(identity, folder)
+                TableColumn("Folder") { identity in
+                    if let folderID = identity.folderID,
+                       let folder = folderLookup[folderID] {
+                        Text(folder.displayName)
+                    } else {
+                        Text("—")
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                TableColumn("Updated") { identity in
+                    if let updatedAt = identity.updatedAt {
+                        Text(updatedAt, style: .date)
+                    } else {
+                        Text(identity.createdAt, style: .date)
+                    }
+                }
+
+            } rows: {
+                ForEach(identities) { identity in
+                    TableRow(identity)
+                        .itemProvider {
+                            NSItemProvider(object: "identity:\(identity.id.uuidString)" as NSString)
+                        }
+                }
+            }
+            .contextMenu {
+                if let selectionID = selection.first,
+                   let identity = identities.first(where: { $0.id == selectionID }) {
+                    Button {
+                        onEdit(identity)
+                    } label: {
+                        Text("Edit")
+                    }
+
+                    Menu("Move to Folder") {
+                        ForEach(Array(folderLookup.values).sorted(by: { $0.name < $1.name }), id: \.id) { folder in
+                            Button(folder.displayName) {
+                                moveIdentityToFolder(identity, folder)
+                            }
+                        }
+                        Divider()
+                        Button("Create New Folder...") {
+                            createFolderAndMoveIdentity(identity)
                         }
                     }
+
                     Divider()
-                    Button("Create New Folder...") {
-                        createFolderAndMoveIdentity(identity)
-                    }
+
+                    Button("Delete", role: .destructive) { onDelete(identity) }
                 }
-
-                Divider()
-
-                Button("Delete", role: .destructive) { onDelete(identity) }
             }
         }
     }
@@ -1430,11 +1507,72 @@ private struct ChangeHandlers: ViewModifier {
 // MARK: - Double-Click Support
 
 #if os(macOS)
+private struct ThemedTableContainer<Content: View>: NSViewRepresentable {
+    let content: Content
+    @ObservedObject private var themeManager = ThemeManager.shared
+    let onConfigure: ((NSTableView) -> Void)?
+
+    init(onConfigure: ((NSTableView) -> Void)? = nil, @ViewBuilder content: () -> Content) {
+        self.content = content()
+        self.onConfigure = onConfigure
+    }
+
+    func makeNSView(context: Context) -> NSHostingView<Content> {
+        let hostingView = NSHostingView(rootView: content)
+
+        DispatchQueue.main.async {
+            if let tableView = findTableView(in: hostingView) {
+                context.coordinator.tableView = tableView
+                configure(tableView: tableView)
+            }
+        }
+
+        return hostingView
+    }
+
+    func updateNSView(_ nsView: NSHostingView<Content>, context: Context) {
+        nsView.rootView = content
+        if let tableView = context.coordinator.tableView {
+            configure(tableView: tableView)
+        }
+    }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator()
+    }
+
+    private func configure(tableView: NSTableView) {
+        applyTheme(to: tableView)
+        onConfigure?(tableView)
+    }
+
+    private func applyTheme(to tableView: NSTableView) {
+        applyTableTheme(tableView, themeManager: themeManager)
+    }
+
+    private func findTableView(in view: NSView) -> NSTableView? {
+        if let tableView = view as? NSTableView {
+            return tableView
+        }
+        for subview in view.subviews {
+            if let found = findTableView(in: subview) {
+                return found
+            }
+        }
+        return nil
+    }
+
+    class Coordinator {
+        weak var tableView: NSTableView?
+    }
+}
+
 private struct DoubleClickableTable<Content: View>: NSViewRepresentable {
     let connections: [SavedConnection]
     @Binding var selection: Set<SavedConnection.ID>
     let onDoubleClick: (SavedConnection) -> Void
     let content: Content
+    @ObservedObject private var themeManager = ThemeManager.shared
 
     init(
         connections: [SavedConnection],
@@ -1455,6 +1593,8 @@ private struct DoubleClickableTable<Content: View>: NSViewRepresentable {
             if let tableView = findTableView(in: hostingView) {
                 tableView.doubleAction = #selector(Coordinator.tableViewDoubleClicked(_:))
                 tableView.target = context.coordinator
+                applyTableTheme(tableView, themeManager: themeManager)
+                context.coordinator.tableView = tableView
             }
         }
 
@@ -1466,6 +1606,9 @@ private struct DoubleClickableTable<Content: View>: NSViewRepresentable {
         context.coordinator.connections = connections
         context.coordinator.selection = selection
         context.coordinator.onDoubleClick = onDoubleClick
+        if let tableView = context.coordinator.tableView {
+            applyTableTheme(tableView, themeManager: themeManager)
+        }
     }
 
     func makeCoordinator() -> Coordinator {
@@ -1488,6 +1631,7 @@ private struct DoubleClickableTable<Content: View>: NSViewRepresentable {
         var connections: [SavedConnection]
         var selection: Set<SavedConnection.ID>
         var onDoubleClick: (SavedConnection) -> Void
+        weak var tableView: NSTableView?
 
         init(connections: [SavedConnection], selection: Set<SavedConnection.ID>, onDoubleClick: @escaping (SavedConnection) -> Void) {
             self.connections = connections
@@ -1503,5 +1647,52 @@ private struct DoubleClickableTable<Content: View>: NSViewRepresentable {
             onDoubleClick(connection)
         }
     }
+}
+
+private func applyTableTheme(_ tableView: NSTableView, themeManager: ThemeManager) {
+    let tone = themeManager.activePaletteTone
+    tableView.appearance = NSAppearance(named: tone == .dark ? .darkAqua : .aqua)
+    tableView.backgroundColor = themeManager.surfaceBackgroundNSColor
+    tableView.gridColor = themeManager.surfaceForegroundNSColor.withAlphaComponent(0.08)
+    tableView.usesAlternatingRowBackgroundColors = themeManager.resultsAlternateRowShading
+    tableView.selectionHighlightStyle = .regular
+    tableView.intercellSpacing = NSSize(width: 0, height: 1)
+    tableView.rowHeight = max(tableView.rowHeight, 32)
+    if #available(macOS 11.0, *) {
+        tableView.style = .fullWidth
+    }
+    tableView.enclosingScrollView?.drawsBackground = true
+    tableView.enclosingScrollView?.backgroundColor = themeManager.surfaceBackgroundNSColor
+
+    let base = themeManager.surfaceBackgroundNSColor
+    tableView.backgroundColor = base
+    tableView.usesAlternatingRowBackgroundColors = themeManager.resultsAlternateRowShading
+    if !themeManager.resultsAlternateRowShading {
+        tableView.gridColor = themeManager.surfaceForegroundNSColor.withAlphaComponent(0.1)
+    }
+
+    if let header = tableView.headerView {
+        header.wantsLayer = true
+        header.layer?.backgroundColor = themeManager.surfaceBackgroundNSColor.cgColor
+        header.layer?.borderColor = themeManager.surfaceForegroundNSColor.withAlphaComponent(0.12).cgColor
+        header.layer?.borderWidth = 1
+    }
+
+    if let cornerView = tableView.cornerView {
+        cornerView.wantsLayer = true
+        cornerView.layer?.backgroundColor = themeManager.surfaceBackgroundNSColor.cgColor
+    }
+
+    tableView.reloadData()
+}
+#else
+private struct ThemedTableContainer<Content: View>: View {
+    let content: Content
+
+    init(onConfigure: ((Any) -> Void)? = nil, @ViewBuilder content: () -> Content) {
+        self.content = content()
+    }
+
+    var body: some View { content }
 }
 #endif

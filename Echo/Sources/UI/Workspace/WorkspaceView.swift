@@ -143,8 +143,7 @@ private struct WorkspaceWindowConfigurator: NSViewRepresentable {
         let view = NSView()
         DispatchQueue.main.async {
             guard let window = view.window else { return }
-            window.titleVisibility = .hidden
-            window.title = ""
+            configure(window: window)
         }
         return view
     }
@@ -152,12 +151,19 @@ private struct WorkspaceWindowConfigurator: NSViewRepresentable {
     func updateNSView(_ nsView: NSView, context: Context) {
         DispatchQueue.main.async {
             guard let window = nsView.window else { return }
-            if window.titleVisibility != .hidden {
-                window.titleVisibility = .hidden
-            }
-            if window.title != "" {
-                window.title = ""
-            }
+            configure(window: window)
+        }
+    }
+
+    private func configure(window: NSWindow) {
+        if window.titleVisibility != .visible {
+            window.titleVisibility = .visible
+        }
+        if window.titlebarAppearsTransparent == false {
+            window.titlebarAppearsTransparent = true
+        }
+        if window.title != " " {
+            window.title = " "
         }
     }
 }

@@ -93,6 +93,7 @@ struct QueryResultsTableView: NSViewRepresentable {
         private var isDraggingCellSelection = false
         private var selectionFocus: QueryResultsTableView.SelectedCell?
         private var columnSelectionAnchor: Int?
+        private var contextMenuCell: QueryResultsTableView.SelectedCell?
         private weak var activeSelectableField: NSTextField?
         private var cachedPaletteSignature: String?
 
@@ -324,7 +325,9 @@ struct QueryResultsTableView: NSViewRepresentable {
 
         private func applyHeaderStyle(to tableView: NSTableView) {
             let theme = ThemeManager.shared
-            if let headerView = tableView.headerView {
+            if let headerView = tableView.headerView as? ResultTableHeaderView {
+                headerView.updateAppearance(with: theme)
+            } else if let headerView = tableView.headerView {
                 headerView.wantsLayer = true
                 headerView.layer?.backgroundColor = theme.resultsGridHeaderBackgroundNSColor.cgColor
                 headerView.layer?.borderColor = theme.resultsGridHeaderSeparatorNSColor.cgColor
@@ -333,13 +336,26 @@ struct QueryResultsTableView: NSViewRepresentable {
                 headerView.needsDisplay = true
             }
 
+            let paragraph = NSMutableParagraphStyle()
+            paragraph.alignment = .left
+
             let attributes: [NSAttributedString.Key: Any] = [
                 .foregroundColor: theme.resultsGridHeaderTextNSColor,
-                .font: NSFont.systemFont(ofSize: 12, weight: .semibold)
+                .font: NSFont.systemFont(ofSize: 12, weight: .semibold),
+                .paragraphStyle: paragraph
             ]
 
             for column in tableView.tableColumns {
+                column.headerCell.controlSize = .regular
+                column.headerCell.alignment = .left
+                if !(column.headerCell is ResultTableHeaderCell) {
+                    let cell = ResultTableHeaderCell(textCell: column.title)
+                    cell.controlSize = .regular
+                    cell.alignment = .left
+                    column.headerCell = cell
+                }
                 column.headerCell.attributedStringValue = NSAttributedString(string: column.title, attributes: attributes)
+                column.headerCell.isHighlighted = false
             }
         }
 
@@ -379,7 +395,12 @@ struct QueryResultsTableView: NSViewRepresentable {
                 tableColumn.isEditable = false
                 tableColumn.resizingMask = [.userResizingMask]
                 tableColumn.headerCell.alignment = .left
-                tableColumn.headerCell.controlSize = .small
+                tableColumn.headerCell.controlSize = .regular
+                if !(tableColumn.headerCell is ResultTableHeaderCell) {
+                    tableColumn.headerCell = ResultTableHeaderCell(textCell: column.name)
+                    tableColumn.headerCell.controlSize = .regular
+                    tableColumn.headerCell.alignment = .left
+                }
                 tableColumn.headerCell.font = NSFont.systemFont(ofSize: 12, weight: .semibold)
                 tableView.addTableColumn(tableColumn)
             }
@@ -698,8 +719,11 @@ struct QueryResultsTableView: NSViewRepresentable {
             menu.removeAllItems()
 
             if menu === headerMenu {
-                let clickedColumn = tableView.clickedColumn
-                guard clickedColumn >= 0 else { return }
+                let clickedColumn = menuColumnIndex ?? tableView.clickedColumn
+                guard clickedColumn >= 0 else {
+                    menuColumnIndex = nil
+                    return
+                }
                 menuColumnIndex = clickedColumn
 
                 guard let dataIndex = menuColumnIndex,
@@ -768,6 +792,7 @@ struct QueryResultsTableView: NSViewRepresentable {
         }
 
         private func updateCellMenu(_ menu: NSMenu, tableView: NSTableView) {
+            menuColumnIndex = nil
             ensureSelectionForContextMenu(tableView: tableView)
 
             let hasSelection = hasCopyableSelection()
@@ -791,6 +816,14 @@ struct QueryResultsTableView: NSViewRepresentable {
             menu.addItem(copyHeadersItem)
         }
 
+        func prepareHeaderContextMenu(at column: Int?) {
+            if let column, column >= 0 {
+                menuColumnIndex = column
+            } else {
+                menuColumnIndex = nil
+            }
+        }
+
         private func selectColumn(at index: Int, in tableView: NSTableView) {
             let maxRow = tableView.numberOfRows - 1
             guard index >= 0, index < tableView.tableColumns.count, maxRow >= 0 else {
@@ -809,14 +842,15 @@ struct QueryResultsTableView: NSViewRepresentable {
 
 
         private func ensureSelectionForContextMenu(tableView: NSTableView) {
-            let clickedRow = tableView.clickedRow
-            let clickedColumn = tableView.clickedColumn
-
-            guard let cell = resolvedCell(forRow: clickedRow, column: clickedColumn, tableView: tableView) else {
+            let cell = consumeContextMenuCell()
+                ?? resolvedCell(forRow: tableView.clickedRow, column: tableView.clickedColumn, tableView: tableView)
+            guard let cell else {
                 return
             }
 
             if let region = selectionRegion, region.contains(cell) {
+                tableView.deselectAll(nil)
+                tableView.selectionHighlightStyle = .none
                 return
             }
 
@@ -917,6 +951,7 @@ struct QueryResultsTableView: NSViewRepresentable {
         func handleMouseDown(_ event: NSEvent, in tableView: NSTableView) {
             guard tableView.numberOfRows > 0 else { return }
             deactivateActiveSelectableField(in: tableView)
+            contextMenuCell = nil
             tableView.window?.makeFirstResponder(tableView)
             let point = tableView.convert(event.locationInWindow, from: nil)
             guard let cell = resolvedCell(at: point, in: tableView, allowOutOfBounds: false) else {
@@ -965,6 +1000,45 @@ struct QueryResultsTableView: NSViewRepresentable {
             isDraggingCellSelection = true
         }
 
+        func handleRightMouseDown(_ event: NSEvent, in tableView: NSTableView) {
+            guard tableView.numberOfRows > 0 else { return }
+            deactivateActiveSelectableField(in: tableView)
+            let point = tableView.convert(event.locationInWindow, from: nil)
+            if point.y < 0 {
+                contextMenuCell = nil
+                return
+            }
+
+            guard let cell = resolvedCell(at: point, in: tableView, allowOutOfBounds: false) else {
+                contextMenuCell = nil
+                setSelectionRegion(nil, tableView: tableView)
+                selectionAnchor = nil
+                selectionFocus = nil
+                return
+            }
+
+            if let region = selectionRegion, region.contains(cell) {
+                contextMenuCell = cell
+                selectionFocus = cell
+                if selectionAnchor == nil {
+                    selectionAnchor = region.start
+                }
+                return
+            }
+
+            let region = SelectedRegion(start: cell, end: cell)
+            setSelectionRegion(region, tableView: tableView)
+            selectionAnchor = cell
+            selectionFocus = cell
+            parent.onClearColumnHighlight()
+            contextMenuCell = cell
+        }
+
+        func consumeContextMenuCell() -> QueryResultsTableView.SelectedCell? {
+            defer { contextMenuCell = nil }
+            return contextMenuCell
+        }
+
         func handleMouseDragged(_ event: NSEvent, in tableView: NSTableView) {
             guard isDraggingCellSelection, let anchor = selectionAnchor else { return }
             let point = tableView.convert(event.locationInWindow, from: nil)
@@ -981,10 +1055,17 @@ struct QueryResultsTableView: NSViewRepresentable {
 
         func handleKeyDown(_ event: NSEvent, in tableView: NSTableView) -> Bool {
             if let characters = event.charactersIgnoringModifiers?.lowercased(),
-               characters == "c",
                event.modifierFlags.contains(.command) {
-                copySelection(includeHeaders: event.modifierFlags.contains(.shift))
-                return true
+                switch characters {
+                case "c":
+                    copySelection(includeHeaders: event.modifierFlags.contains(.shift))
+                    return true
+                case "a":
+                    selectAllCells(in: tableView)
+                    return true
+                default:
+                    break
+                }
             }
             return handleNavigationKey(event, in: tableView)
         }
@@ -1013,10 +1094,10 @@ struct QueryResultsTableView: NSViewRepresentable {
                 moveSelection(rowDelta: pageJumpAmount(for: tableView), columnDelta: 0, extend: extend, tableView: tableView)
                 return true
             case .home:
-                moveSelection(rowDelta: -Int.max, columnDelta: 0, extend: extend, tableView: tableView)
+                moveSelection(rowDelta: 0, columnDelta: -Int.max, extend: extend, tableView: tableView)
                 return true
             case .end:
-                moveSelection(rowDelta: Int.max, columnDelta: 0, extend: extend, tableView: tableView)
+                moveSelection(rowDelta: 0, columnDelta: Int.max, extend: extend, tableView: tableView)
                 return true
             default:
                 return false
@@ -1033,6 +1114,23 @@ struct QueryResultsTableView: NSViewRepresentable {
             guard self.tableView === tableView else { return false }
             copySelection(includeHeaders: false)
             return true
+        }
+
+        private func selectAllCells(in tableView: NSTableView) {
+            let columnCount = tableView.tableColumns.count
+            let rowCount = tableView.numberOfRows
+            guard columnCount > 0, rowCount > 0 else {
+                setSelectionRegion(nil, tableView: tableView)
+                return
+            }
+
+            let topLeft = QueryResultsTableView.SelectedCell(row: 0, column: 0)
+            let bottomRight = QueryResultsTableView.SelectedCell(row: rowCount - 1, column: columnCount - 1)
+            setSelectionRegion(SelectedRegion(start: topLeft, end: bottomRight), tableView: tableView)
+            selectionAnchor = topLeft
+            selectionFocus = bottomRight
+            isDraggingCellSelection = false
+            parent.onClearColumnHighlight()
         }
 
         func clearCellSelection(for tableView: NSTableView) {
@@ -1149,7 +1247,7 @@ struct QueryResultsTableView: NSViewRepresentable {
 
             if allowOutOfBounds {
                 row = clampRow(row, point: point, tableView: tableView)
-                column = clampColumn(column, tableView: tableView)
+                column = clampColumn(column, point: point, tableView: tableView)
             }
 
             return resolvedCell(forRow: row, column: column, tableView: tableView)
@@ -1179,12 +1277,36 @@ struct QueryResultsTableView: NSViewRepresentable {
             return max(0, min(maxRow, approximate))
         }
 
-        private func clampColumn(_ column: Int, tableView: NSTableView) -> Int {
+        private func clampColumn(_ column: Int, point: NSPoint, tableView: NSTableView) -> Int {
             let maxIndex = tableView.tableColumns.count - 1
             if maxIndex < 0 { return -1 }
-            if column < 0 { return 0 }
-            if column > maxIndex { return maxIndex }
-            return column
+            if column >= 0 && column <= maxIndex { return column }
+
+            if point.x < 0 {
+                return 0
+            }
+
+            let lastColumnRect = tableView.rect(ofColumn: maxIndex)
+            if point.x > lastColumnRect.maxX {
+                return maxIndex
+            }
+
+            let clampedX = min(max(point.x, 0), lastColumnRect.maxX - 1)
+            let probePoint = NSPoint(x: clampedX, y: point.y)
+            let fallback = tableView.column(at: probePoint)
+            if fallback >= 0 {
+                return min(fallback, maxIndex)
+            }
+
+            var cumulativeWidth: CGFloat = 0
+            for (index, column) in tableView.tableColumns.enumerated() {
+                cumulativeWidth += column.width
+                if clampedX < cumulativeWidth {
+                    return index
+                }
+            }
+
+            return maxIndex
         }
 
         private func regionRepresentsEntireColumn(_ region: SelectedRegion, tableView: NSTableView) -> Bool {
@@ -1514,6 +1636,11 @@ private final class ResultTableView: NSTableView {
         super.highlightSelection(inClipRect: clipRect)
     }
 
+    override func drawBackground(inClipRect clipRect: NSRect) {
+        ThemeManager.shared.resultsGridCellBackgroundNSColor.setFill()
+        clipRect.fill()
+    }
+
     override func mouseDown(with event: NSEvent) {
         selectionDelegate?.handleMouseDown(event, in: self)
         if selectionDelegate?.hasActiveCellSelection == true {
@@ -1535,11 +1662,48 @@ private final class ResultTableView: NSTableView {
         super.mouseUp(with: event)
     }
 
+    override func rightMouseDown(with event: NSEvent) {
+        selectionDelegate?.handleRightMouseDown(event, in: self)
+        let location = convert(event.locationInWindow, from: nil)
+        let row = row(at: location)
+
+        if selectionDelegate?.hasActiveCellSelection == true {
+            deselectAll(nil)
+            selectionHighlightStyle = .none
+            if row >= 0, let rowView = rowView(atRow: row, makeIfNecessary: false) {
+                rowView.needsDisplay = true
+                rowView.displayIfNeeded()
+            } else {
+                needsDisplay = true
+                displayIfNeeded()
+            }
+        }
+
+        if let contextMenu = menu {
+            NSMenu.popUpContextMenu(contextMenu, with: event, for: self)
+        } else {
+            super.rightMouseDown(with: event)
+        }
+    }
+
     override func keyDown(with event: NSEvent) {
         if selectionDelegate?.handleKeyDown(event, in: self) == true {
             return
         }
         super.keyDown(with: event)
+    }
+
+    override func selectRowIndexes(_ indexes: IndexSet, byExtendingSelection extend: Bool) {
+        if selectionDelegate?.hasActiveCellSelection == true,
+           let currentEvent = NSApp.currentEvent,
+           currentEvent.type == .rightMouseDown
+                || currentEvent.type == .otherMouseDown
+                || currentEvent.type == .rightMouseDragged
+                || (currentEvent.type == .leftMouseDown && currentEvent.modifierFlags.contains(.control)) {
+            super.selectRowIndexes(IndexSet(), byExtendingSelection: false)
+            return
+        }
+        super.selectRowIndexes(indexes, byExtendingSelection: extend)
     }
 
     @objc func copy(_ sender: Any?) {
@@ -1580,21 +1744,100 @@ private final class VerticallyCenteredTextFieldCell: NSTextFieldCell {
 private final class ResultTableHeaderView: NSTableHeaderView {
     weak var coordinator: QueryResultsTableView.Coordinator?
     private var isDraggingColumns = false
+    private let backgroundLayer = CAGradientLayer()
+    private let sheenLayer = CAGradientLayer()
+    private let topHighlightLayer = CALayer()
+    private let bottomBorderLayer = CALayer()
+    private var separatorLayers: [CALayer] = []
+    private var separatorColor: CGColor?
 
     init(coordinator: QueryResultsTableView.Coordinator?) {
         self.coordinator = coordinator
         super.init(frame: .zero)
+        configureLayers()
+        updateAppearance(with: ThemeManager.shared)
     }
 
     required init?(coder: NSCoder) {
         super.init(coder: coder)
+        configureLayers()
+        updateAppearance(with: ThemeManager.shared)
+    }
+
+    private func configureLayers() {
+        wantsLayer = true
+        layer?.masksToBounds = false
+
+        backgroundLayer.startPoint = CGPoint(x: 0, y: 0)
+        backgroundLayer.endPoint = CGPoint(x: 0, y: 1)
+        backgroundLayer.locations = [0, 1]
+        backgroundLayer.zPosition = -10
+
+        sheenLayer.startPoint = CGPoint(x: 0, y: 0)
+        sheenLayer.endPoint = CGPoint(x: 0, y: 1)
+        sheenLayer.locations = [0, 0.4, 1]
+        sheenLayer.zPosition = -5
+
+        topHighlightLayer.masksToBounds = true
+        topHighlightLayer.zPosition = 2
+        bottomBorderLayer.masksToBounds = true
+        bottomBorderLayer.zPosition = 2
+
+        layer?.addSublayer(backgroundLayer)
+        layer?.addSublayer(sheenLayer)
+        layer?.addSublayer(topHighlightLayer)
+        layer?.addSublayer(bottomBorderLayer)
+    }
+
+    func updateAppearance(with theme: ThemeManager) {
+        let baseColor = theme.resultsGridHeaderBackgroundNSColor.usingColorSpace(.extendedSRGB) ?? theme.resultsGridHeaderBackgroundNSColor
+        let accentColor = theme.accentNSColor.usingColorSpace(.extendedSRGB) ?? theme.accentNSColor
+
+        let topColor = baseColor.blended(withFraction: 0.28, of: .white) ?? baseColor
+        let bottomColor = baseColor.blended(withFraction: 0.18, of: accentColor) ?? baseColor
+
+        backgroundLayer.colors = [
+            topColor.withAlphaComponent(0.94).cgColor,
+            bottomColor.withAlphaComponent(0.96).cgColor
+        ]
+
+        sheenLayer.colors = [
+            NSColor.white.withAlphaComponent(0.16).cgColor,
+            NSColor.white.withAlphaComponent(0.05).cgColor,
+            NSColor.clear.cgColor
+        ]
+
+        topHighlightLayer.backgroundColor = NSColor.white.withAlphaComponent(0.24).cgColor
+        bottomBorderLayer.backgroundColor = (baseColor.shadow(withLevel: 0.28) ?? theme.resultsGridHeaderSeparatorNSColor).cgColor
+        separatorColor = theme.accentNSColor.withAlphaComponent(0.18).cgColor
+        separatorLayers.forEach { $0.backgroundColor = separatorColor }
+
+        needsLayout = true
+        needsDisplay = true
+    }
+
+    override func layout() {
+        super.layout()
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        backgroundLayer.frame = bounds
+        sheenLayer.frame = bounds
+        let scale = window?.backingScaleFactor ?? NSScreen.main?.backingScaleFactor ?? 1
+        let lineWidth = 1 / max(scale, 1)
+        topHighlightLayer.frame = CGRect(x: 0, y: bounds.height - lineWidth, width: bounds.width, height: lineWidth)
+        bottomBorderLayer.frame = CGRect(x: 0, y: 0, width: bounds.width, height: lineWidth)
+        updateSeparatorFrames(lineWidth: lineWidth)
+        CATransaction.commit()
     }
 
     override func mouseDown(with event: NSEvent) {
-        guard let tableView = tableView else {
+        guard event.buttonNumber == 0,
+              !event.modifierFlags.contains(.control),
+              let tableView = tableView else {
             super.mouseDown(with: event)
             return
         }
+
         let location = convert(event.locationInWindow, from: nil)
         let column = tableView.column(at: location)
         if column >= 0 {
@@ -1607,7 +1850,10 @@ private final class ResultTableHeaderView: NSTableHeaderView {
     }
 
     override func mouseDragged(with event: NSEvent) {
-        guard isDraggingColumns, let tableView = tableView else {
+        guard event.buttonNumber == 0,
+              !event.modifierFlags.contains(.control),
+              isDraggingColumns,
+              let tableView = tableView else {
             super.mouseDragged(with: event)
             return
         }
@@ -1625,11 +1871,106 @@ private final class ResultTableHeaderView: NSTableHeaderView {
     }
 
     override func mouseUp(with event: NSEvent) {
-        if isDraggingColumns {
+        if isDraggingColumns, event.buttonNumber == 0 {
             coordinator?.endColumnSelection()
         }
         isDraggingColumns = false
         super.mouseUp(with: event)
+    }
+
+    override func rightMouseDown(with event: NSEvent) {
+        super.rightMouseDown(with: event)
+    }
+
+    override func menu(for event: NSEvent) -> NSMenu? {
+        let location = convert(event.locationInWindow, from: nil)
+        let column = tableView?.column(at: location) ?? -1
+        coordinator?.prepareHeaderContextMenu(at: column >= 0 ? column : nil)
+        return menu ?? super.menu(for: event)
+    }
+
+    private func updateSeparatorFrames(lineWidth: CGFloat) {
+        guard let tableView else {
+            separatorLayers.forEach { $0.removeFromSuperlayer() }
+            separatorLayers.removeAll()
+            return
+        }
+
+        let columnCount = tableView.numberOfColumns
+        let required = max(columnCount - 1, 0)
+
+        if separatorLayers.count != required {
+            separatorLayers.forEach { $0.removeFromSuperlayer() }
+            separatorLayers.removeAll()
+
+            guard required > 0 else { return }
+
+            for _ in 0..<required {
+                let layer = CALayer()
+                layer.zPosition = 1
+                layer.backgroundColor = separatorColor
+                self.layer?.addSublayer(layer)
+                separatorLayers.append(layer)
+            }
+        }
+
+        guard !separatorLayers.isEmpty else { return }
+
+        for (index, layer) in separatorLayers.enumerated() {
+            let columnRect = tableView.rect(ofColumn: index)
+            let converted = convert(columnRect, from: tableView)
+            let xPosition = converted.maxX - lineWidth / 2
+            layer.backgroundColor = separatorColor
+            layer.frame = CGRect(x: xPosition, y: 0, width: lineWidth, height: bounds.height)
+        }
+    }
+}
+
+private final class ResultTableHeaderCell: NSTableHeaderCell {
+    override init(textCell: String) {
+        super.init(textCell: textCell)
+        lineBreakMode = .byTruncatingTail
+    }
+
+    required init(coder: NSCoder) {
+        super.init(coder: coder)
+        lineBreakMode = .byTruncatingTail
+    }
+
+    override func titleRect(forBounds rect: NSRect) -> NSRect {
+        var adjusted = rect.insetBy(dx: 10, dy: 0)
+        let attributed = attributedStringValue
+        if attributed.length > 0 {
+            let bounds = attributed.boundingRect(
+                with: CGSize(width: adjusted.width, height: CGFloat.greatestFiniteMagnitude),
+                options: [.usesLineFragmentOrigin, .usesFontLeading]
+            )
+            let clampedHeight = min(bounds.height, adjusted.height)
+            adjusted.origin.y = adjusted.midY - clampedHeight / 2
+            adjusted.size.height = clampedHeight
+        }
+        adjusted.origin.y = floor(adjusted.origin.y)
+        return adjusted
+    }
+
+    override func draw(withFrame cellFrame: NSRect, in controlView: NSView) {
+        if isHighlighted {
+            let theme = ThemeManager.shared
+            let base = theme.resultsGridHeaderBackgroundNSColor
+            let pressed = base.shadow(withLevel: 0.18) ?? base
+            pressed.setFill()
+            cellFrame.fill()
+        }
+        drawInterior(withFrame: cellFrame, in: controlView)
+    }
+
+    override func drawInterior(withFrame cellFrame: NSRect, in controlView: NSView) {
+        let attributed = attributedStringValue.length > 0
+            ? attributedStringValue
+            : NSAttributedString(string: title)
+        let options: NSString.DrawingOptions = [.usesLineFragmentOrigin, .truncatesLastVisibleLine]
+        let rect = titleRect(forBounds: cellFrame)
+        attributed.draw(with: rect, options: options)
     }
 }
 #endif
