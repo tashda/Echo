@@ -398,7 +398,10 @@ final class AppModel: ObservableObject {
 
     private func applyChrome(for tone: SQLEditorPalette.Tone) {
         let theme = activeTheme(for: tone)
-        ThemeManager.shared.applyChrome(theme: theme, tone: tone)
+        let palette = globalSettings.palette(withID: theme.defaultPaletteID)
+            ?? SQLEditorTokenPalette.builtIn.first(where: { $0.id == theme.defaultPaletteID })
+            ?? SQLEditorTokenPalette.builtIn.first(where: { $0.tone == tone })
+        ThemeManager.shared.applyChrome(theme: theme, tone: tone, palette: palette)
     }
 
     private func activeTheme(for tone: SQLEditorPalette.Tone) -> AppColorTheme {

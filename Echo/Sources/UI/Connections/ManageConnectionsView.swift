@@ -109,9 +109,6 @@ struct ManageConnectionsView: View {
             detailContent
         }
         .navigationViewStyle(.columns)
-        .toolbarBackground(.hidden, for: .windowToolbar)
-        .toolbarColorScheme(themeManager.effectiveColorScheme, for: .windowToolbar)
-        .ignoresSafeArea(.container, edges: .top)
     }
 }
 
@@ -122,37 +119,13 @@ private extension ManageConnectionsView {
         detailBody
             .searchable(text: $searchText, prompt: activeSection.searchPlaceholder)
             .toolbar {
+#if os(macOS)
+                ToolbarItem(placement: .automatic) {
+                    ToolbarFlexibleSpacer()
+                }
+#endif
                 ToolbarItem(placement: .primaryAction) {
-                    Menu {
-                        switch activeSection {
-                        case .connections:
-                            Button {
-                                handlePrimaryAdd(for: .connections)
-                            } label: {
-                                Label("New Connection", systemImage: "externaldrive.badge.plus")
-                            }
-                            Button {
-                                presentCreateFolder(for: .connections)
-                            } label: {
-                                Label("New Folder", systemImage: "folder.badge.plus")
-                            }
-                        case .identities:
-                            Button {
-                                handlePrimaryAdd(for: .identities)
-                            } label: {
-                                Label("New Identity", systemImage: "person.crop.circle.badge.plus")
-                            }
-                            Button {
-                                presentCreateFolder(for: .identities)
-                            } label: {
-                                Label("New Folder", systemImage: "folder.badge.plus")
-                            }
-                        }
-                    } label: {
-                        Image(systemName: "plus")
-                    }
-                    .menuIndicator(.hidden)
-                    .help(activeSection == .connections ? "Add connection or folder" : "Add identity or folder")
+                    addMenuToolbarItem
                 }
             }
             .navigationTitle(navigationTitleText)
@@ -175,6 +148,40 @@ private extension ManageConnectionsView {
     }
 
     @ViewBuilder
+    private var addMenuToolbarItem: some View {
+        Menu {
+            switch activeSection {
+            case .connections:
+                Button {
+                    handlePrimaryAdd(for: .connections)
+                } label: {
+                    Label("New Connection", systemImage: "externaldrive.badge.plus")
+                }
+                Button {
+                    presentCreateFolder(for: .connections)
+                } label: {
+                    Label("New Folder", systemImage: "folder.badge.plus")
+                }
+            case .identities:
+                Button {
+                    handlePrimaryAdd(for: .identities)
+                } label: {
+                    Label("New Identity", systemImage: "person.crop.circle.badge.plus")
+                }
+                Button {
+                    presentCreateFolder(for: .identities)
+                } label: {
+                    Label("New Folder", systemImage: "folder.badge.plus")
+                }
+            }
+        } label: {
+            Image(systemName: "plus")
+        }
+        .menuIndicator(.hidden)
+        .help(activeSection == .connections ? "Add connection or folder" : "Add identity or folder")
+    }
+
+    @ViewBuilder
     var sidebar: some View {
         sidebarList
     }
@@ -191,7 +198,6 @@ private extension ManageConnectionsView {
             }
         }
         .listStyle(.sidebar)
-        .applySidebarBackground()
     }
 
     @ViewBuilder
@@ -1648,17 +1654,15 @@ private func applyTableTheme(_ tableView: NSTableView, themeManager: ThemeManage
     if !themeManager.resultsAlternateRowShading {
         tableView.gridColor = themeManager.surfaceForegroundNSColor.withAlphaComponent(0.12)
     }
+}
 
-    if let header = tableView.headerView {
-        header.wantsLayer = true
-        header.layer?.backgroundColor = themeManager.surfaceBackgroundNSColor.cgColor
-        header.layer?.borderColor = themeManager.surfaceForegroundNSColor.withAlphaComponent(0.12).cgColor
-        header.layer?.borderWidth = 1
-    }
-
-    if let cornerView = tableView.cornerView {
-        cornerView.wantsLayer = true
-        cornerView.layer?.backgroundColor = themeManager.surfaceBackgroundNSColor.cgColor
+private struct ToolbarFlexibleSpacer: View {
+    var body: some View {
+        HStack { Spacer(minLength: 0) }
+            .frame(maxWidth: .infinity)
+            .contentShape(Rectangle())
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
     }
 }
 #else
@@ -1670,27 +1674,5 @@ private struct ThemedTableContainer<Content: View>: View {
     }
 
     var body: some View { content }
-}
-#endif
-
-#if os(macOS)
-private extension View {
-    @ViewBuilder
-    func applySidebarBackground() -> some View {
-        if #available(macOS 13.0, *) {
-            self
-                .scrollContentBackground(.hidden)
-                .background(.clear)
-                .ignoresSafeArea(.container, edges: .top)
-        } else {
-            self
-                .background(Color.clear)
-                .ignoresSafeArea(.container, edges: .top)
-        }
-    }
-}
-#else
-private extension View {
-    func applySidebarBackground() -> some View { self }
 }
 #endif

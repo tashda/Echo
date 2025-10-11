@@ -139,11 +139,11 @@ struct AppColorTheme: Identifiable, Codable, Hashable {
             swatchColors = fallbackTheme.swatchColors
         } else if let palette = SQLEditorPalette.palette(withID: defaultPaletteID) {
             swatchColors = [
-                palette.tokens.keyword,
-                palette.tokens.string,
-                palette.tokens.operatorSymbol,
-                palette.tokens.identifier,
-                palette.tokens.comment
+                palette.tokens.keyword.color,
+                palette.tokens.string.color,
+                palette.tokens.operatorSymbol.color,
+                palette.tokens.identifier.color,
+                palette.tokens.comment.color
             ]
         } else {
             swatchColors = []
@@ -188,7 +188,7 @@ struct AppColorTheme: Identifiable, Codable, Hashable {
             return accent
         }
         if let palette = paletteProvider(defaultPaletteID) {
-            return palette.tokens.keyword
+            return palette.tokens.keyword.color
         }
         return tone == .dark ? ColorRepresentable(hex: 0x60A5FA) : ColorRepresentable(hex: 0x2563EB)
     }
@@ -209,13 +209,13 @@ struct AppColorTheme: Identifiable, Codable, Hashable {
             tone: palette.tone,
             defaultPaletteID: palette.id,
             isCustom: isCustom ?? (palette.kind == .custom),
-            accent: palette.tokens.keyword,
+            accent: palette.tokens.keyword.color,
             swatchColors: [
-                palette.tokens.keyword,
-                palette.tokens.string,
-                palette.tokens.operatorSymbol,
-                palette.tokens.identifier,
-                palette.tokens.comment
+                palette.tokens.keyword.color,
+                palette.tokens.string.color,
+                palette.tokens.operatorSymbol.color,
+                palette.tokens.identifier.color,
+                palette.tokens.comment.color
             ],
             windowBackground: palette.background,
             surfaceBackground: palette.gutterBackground,
@@ -263,10 +263,10 @@ private struct BuiltInThemeDefinition {
 
         let defaultSwatches = [
             accent,
-            palette.tokens.keyword,
-            palette.tokens.string,
-            palette.tokens.operatorSymbol,
-            palette.tokens.comment
+            palette.tokens.keyword.color,
+            palette.tokens.string.color,
+            palette.tokens.operatorSymbol.color,
+            palette.tokens.comment.color
         ]
 
         return AppColorTheme(

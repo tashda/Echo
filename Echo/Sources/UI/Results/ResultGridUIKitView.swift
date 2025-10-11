@@ -314,6 +314,8 @@ final class ResultGridViewController: UIViewController {
                 let columnIndex = indexPath.item - 1
                 guard columnIndex < columns.count else { return }
                 let value = valueForDisplay(row: rowIndex, column: columnIndex)
+                let column = columns[columnIndex]
+                let valueKind = ResultGridValueClassifier.kind(for: column, value: value)
                 let text = value ?? "NULL"
                 let isNull = value == nil
                 let highlighted = isColumnHighlighted(columnIndex)
@@ -328,7 +330,8 @@ final class ResultGridViewController: UIViewController {
                     isCellSelected: cellSelected,
                     sortIndicator: nil,
                     isNullValue: isNull,
-                    isAlternateRow: isAlternateRow(rowIndex)
+                    isAlternateRow: isAlternateRow(rowIndex),
+                    valueKind: valueKind
                 )
             }
         }
@@ -653,6 +656,12 @@ private enum SortIndicator {
 }
 
 private struct ResultGridPalette {
+    struct ResultGridTextStyle {
+        let color: UIColor
+        let isBold: Bool
+        let isItalic: Bool
+    }
+
     let background: UIColor
     let headerBackground: UIColor
     let headerText: UIColor
@@ -663,6 +672,8 @@ private struct ResultGridPalette {
     let columnHighlight: UIColor
     let rowHighlight: UIColor
     let alternateRow: UIColor?
+    private let dataStyles: [ResultGridValueKind: ResultGridTextStyle]
+    private let defaultDataStyle: ResultGridTextStyle
 
     static let `default` = ResultGridPalette(
         background: .systemBackground,
@@ -674,7 +685,17 @@ private struct ResultGridPalette {
         selectionFill: UIColor.systemBlue.withAlphaComponent(0.18),
         columnHighlight: UIColor.systemBlue.withAlphaComponent(0.1),
         rowHighlight: UIColor.systemBlue.withAlphaComponent(0.12),
-        alternateRow: UIColor.systemGray6.withAlphaComponent(0.35)
+        alternateRow: UIColor.systemGray6.withAlphaComponent(0.35),
+        dataStyles: [
+            .null: ResultGridTextStyle(color: .secondaryLabel, isBold: false, isItalic: true),
+            .numeric: ResultGridTextStyle(color: .systemBlue, isBold: false, isItalic: false),
+            .boolean: ResultGridTextStyle(color: .systemGreen, isBold: false, isItalic: false),
+            .temporal: ResultGridTextStyle(color: .systemOrange, isBold: false, isItalic: false),
+            .binary: ResultGridTextStyle(color: .systemPurple, isBold: false, isItalic: false),
+            .identifier: ResultGridTextStyle(color: .systemIndigo, isBold: false, isItalic: false),
+            .json: ResultGridTextStyle(color: .systemTeal, isBold: false, isItalic: false)
+        ],
+        defaultDataStyle: ResultGridTextStyle(color: .label, isBold: false, isItalic: false)
     )
 
     init(themeManager: ThemeManager, traitCollection: UITraitCollection) {
@@ -707,6 +728,38 @@ private struct ResultGridPalette {
         } else {
             alternateRow = nil
         }
+
+        if themeManager.useAppThemeForResultsGrid {
+            func makeStyle(_ kind: ResultGridValueKind) -> ResultGridTextStyle {
+                let style = themeManager.resultGridStyle(for: kind)
+                return ResultGridTextStyle(
+                    color: UIColor(style.swiftColor).resolvedColor(with: traitCollection),
+                    isBold: style.isBold,
+                    isItalic: style.isItalic
+                )
+            }
+            dataStyles = [
+                .null: makeStyle(.null),
+                .numeric: makeStyle(.numeric),
+                .boolean: makeStyle(.boolean),
+                .temporal: makeStyle(.temporal),
+                .binary: makeStyle(.binary),
+                .identifier: makeStyle(.identifier),
+                .json: makeStyle(.json)
+            ]
+            defaultDataStyle = makeStyle(.text)
+        } else {
+            dataStyles = [
+                .null: ResultGridTextStyle(color: UIColor.secondaryLabel.withAlphaComponent(0.7), isBold: false, isItalic: true),
+                .numeric: ResultGridTextStyle(color: .systemBlue, isBold: false, isItalic: false),
+                .boolean: ResultGridTextStyle(color: .systemGreen, isBold: false, isItalic: false),
+                .temporal: ResultGridTextStyle(color: .systemOrange, isBold: false, isItalic: false),
+                .binary: ResultGridTextStyle(color: .systemPurple, isBold: false, isItalic: false),
+                .identifier: ResultGridTextStyle(color: .systemIndigo, isBold: false, isItalic: false),
+                .json: ResultGridTextStyle(color: .systemTeal, isBold: false, isItalic: false)
+            ]
+            defaultDataStyle = ResultGridTextStyle(color: .label, isBold: false, isItalic: false)
+        }
     }
 
     private init(
@@ -719,7 +772,9 @@ private struct ResultGridPalette {
         selectionFill: UIColor,
         columnHighlight: UIColor,
         rowHighlight: UIColor,
-        alternateRow: UIColor?
+        alternateRow: UIColor?,
+        dataStyles: [ResultGridValueKind: ResultGridTextStyle],
+        defaultDataStyle: ResultGridTextStyle
     ) {
         self.background = background
         self.headerBackground = headerBackground
@@ -731,6 +786,8 @@ private struct ResultGridPalette {
         self.columnHighlight = columnHighlight
         self.rowHighlight = rowHighlight
         self.alternateRow = alternateRow
+        self.dataStyles = dataStyles
+        self.defaultDataStyle = defaultDataStyle
     }
 
     private static func mix(color: UIColor, with accent: UIColor, amount: CGFloat) -> UIColor {
@@ -745,6 +802,13 @@ private struct ResultGridPalette {
                        green: g1 * inverse + g2 * amount,
                        blue: b1 * inverse + b2 * amount,
                        alpha: a1)
+    }
+
+    func style(for kind: ResultGridValueKind) -> ResultGridTextStyle {
+        if let style = dataStyles[kind] {
+            return style
+        }
+        return defaultDataStyle
     }
 }
 
@@ -977,7 +1041,8 @@ private final class ResultGridCell: UICollectionViewCell {
         isCellSelected: Bool,
         sortIndicator: SortIndicator?,
         isNullValue: Bool,
-        isAlternateRow: Bool
+        isAlternateRow: Bool,
+        valueKind: ResultGridValueKind = .text
     ) {
         titleLabel.text = text
         titleLabel.textColor = palette.primaryText
@@ -1010,13 +1075,9 @@ private final class ResultGridCell: UICollectionViewCell {
             background = isRowSelected ? palette.rowHighlight : palette.headerBackground
         case .data:
             titleLabel.textAlignment = .left
-            if isNullValue {
-                titleLabel.font = UIFont.italicSystemFont(ofSize: 13)
-                titleLabel.textColor = palette.secondaryText.withAlphaComponent(0.8)
-            } else {
-                titleLabel.font = UIFont.systemFont(ofSize: 13, weight: .regular)
-                titleLabel.textColor = palette.primaryText
-            }
+            let textStyle = palette.style(for: valueKind)
+            titleLabel.font = font(for: textStyle)
+            titleLabel.textColor = textStyle.color
             if isCellSelected {
                 background = palette.selectionFill
             } else if isHighlightedColumn {
@@ -1033,6 +1094,27 @@ private final class ResultGridCell: UICollectionViewCell {
         contentView.backgroundColor = background
         contentView.layer.borderWidth = isCellSelected ? 1 : 0
         contentView.layer.borderColor = isCellSelected ? palette.accent.withAlphaComponent(0.6).cgColor : UIColor.clear.cgColor
+        if isCellSelected {
+            titleLabel.textColor = palette.primaryText
+        }
+    }
+
+    private func font(for style: ResultGridPalette.ResultGridTextStyle) -> UIFont {
+        var descriptor = UIFont.systemFont(ofSize: 13, weight: .regular).fontDescriptor
+        var traits = descriptor.symbolicTraits
+        if style.isBold {
+            traits.insert(.traitBold)
+        }
+        if style.isItalic {
+            traits.insert(.traitItalic)
+        }
+        if let resolved = descriptor.withSymbolicTraits(traits) {
+            return UIFont(descriptor: resolved, size: 13)
+        }
+        if style.isBold {
+            return UIFont.boldSystemFont(ofSize: 13)
+        }
+        return UIFont.systemFont(ofSize: 13)
     }
 }
 

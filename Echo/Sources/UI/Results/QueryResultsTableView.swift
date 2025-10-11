@@ -96,6 +96,19 @@ struct QueryResultsTableView: NSViewRepresentable {
         private var contextMenuCell: QueryResultsTableView.SelectedCell?
         private weak var activeSelectableField: NSTextField?
         private var cachedPaletteSignature: String?
+        private let cellBaseFont = NSFont.systemFont(ofSize: 12)
+
+        private func resolvedFont(for style: SQLEditorTokenPalette.ResultGridStyle) -> NSFont {
+            var traits: NSFontTraitMask = []
+            if style.isBold {
+                traits.insert(.boldFontMask)
+            }
+            if style.isItalic {
+                traits.insert(.italicFontMask)
+            }
+            guard !traits.isEmpty else { return cellBaseFont }
+            return NSFontManager.shared.convert(cellBaseFont, toHaveTrait: traits)
+        }
 
         var currentTableView: NSTableView? { tableView }
 
@@ -600,16 +613,20 @@ struct QueryResultsTableView: NSViewRepresentable {
 
             let sourceIndex = resolvedRowIndex(for: row)
             let value = parent.query.valueForDisplay(row: sourceIndex, column: dataIndex)
-            if let value {
-                textField.stringValue = value
-                textField.textColor = ThemeManager.shared.resultsGridCellTextNSColor
-                textField.font = NSFont.systemFont(ofSize: 12)
-            } else {
+            let columnInfo = dataIndex < parent.query.displayedColumns.count ? parent.query.displayedColumns[dataIndex] : nil
+            let kind = ResultGridValueClassifier.kind(for: columnInfo, value: value)
+            let style = ThemeManager.shared.resultGridStyle(for: kind)
+            let resolvedValue = value ?? ""
+
+            switch kind {
+            case .null:
                 textField.stringValue = "NULL"
-                textField.textColor = ThemeManager.shared.resultsGridCellTextNSColor.withAlphaComponent(0.65)
-                let baseFont = NSFont.systemFont(ofSize: 12)
-                textField.font = NSFontManager.shared.convert(baseFont, toHaveTrait: .italicFontMask)
+            default:
+                textField.stringValue = resolvedValue
             }
+
+            textField.textColor = style.nsColor
+            textField.font = resolvedFont(for: style)
 
             textField.wantsLayer = true
             if let layer = textField.layer {
