@@ -107,10 +107,11 @@ struct ManageConnectionsView: View {
             sidebar
                 .frame(minWidth: 220, idealWidth: 260, maxWidth: 300)
             detailContent
-                .background(themeManager.windowBackgroundColor)
         }
         .navigationViewStyle(.columns)
-        .background(themeManager.windowBackgroundColor)
+        .toolbarBackground(.hidden, for: .windowToolbar)
+        .toolbarColorScheme(themeManager.effectiveColorScheme, for: .windowToolbar)
+        .ignoresSafeArea(.container, edges: .top)
     }
 }
 
@@ -156,9 +157,6 @@ private extension ManageConnectionsView {
             }
             .navigationTitle(navigationTitleText)
             .navigationSubtitle(navigationSubtitleText)
-            .toolbarBackground(themeManager.surfaceBackgroundColor, for: .windowToolbar)
-            .toolbarBackgroundVisibility(.visible, for: .windowToolbar)
-            .toolbarColorScheme(themeManager.effectiveColorScheme, for: .windowToolbar)
     }
 
     private var navigationTitleText: String {
@@ -178,17 +176,12 @@ private extension ManageConnectionsView {
 
     @ViewBuilder
     var sidebar: some View {
-        if #available(macOS 13.0, *) {
-            sidebarList
-                .contentMargins(.zero, for: .scrollContent)
-        } else {
-            sidebarList
-        }
+        sidebarList
     }
 
     @ViewBuilder
     private var sidebarList: some View {
-        let baseList = List(selection: $sidebarSelection) {
+        List(selection: $sidebarSelection) {
             ForEach(ManageSection.allCases) { section in
                 sidebarSection(
                     section,
@@ -198,15 +191,7 @@ private extension ManageConnectionsView {
             }
         }
         .listStyle(.sidebar)
-
-        if #available(macOS 13.0, *) {
-            baseList
-                .scrollContentBackground(.hidden)
-                .background(themeManager.surfaceBackgroundColor)
-        } else {
-            baseList
-                .background(themeManager.surfaceBackgroundColor)
-        }
+        .applySidebarBackground()
     }
 
     @ViewBuilder
@@ -1652,23 +1637,16 @@ private struct DoubleClickableTable<Content: View>: NSViewRepresentable {
 private func applyTableTheme(_ tableView: NSTableView, themeManager: ThemeManager) {
     let tone = themeManager.activePaletteTone
     tableView.appearance = NSAppearance(named: tone == .dark ? .darkAqua : .aqua)
-    tableView.backgroundColor = themeManager.surfaceBackgroundNSColor
-    tableView.gridColor = themeManager.surfaceForegroundNSColor.withAlphaComponent(0.08)
-    tableView.usesAlternatingRowBackgroundColors = themeManager.resultsAlternateRowShading
-    tableView.selectionHighlightStyle = .regular
-    tableView.intercellSpacing = NSSize(width: 0, height: 1)
-    tableView.rowHeight = max(tableView.rowHeight, 32)
-    if #available(macOS 11.0, *) {
-        tableView.style = .fullWidth
-    }
-    tableView.enclosingScrollView?.drawsBackground = true
-    tableView.enclosingScrollView?.backgroundColor = themeManager.surfaceBackgroundNSColor
-
     let base = themeManager.surfaceBackgroundNSColor
     tableView.backgroundColor = base
     tableView.usesAlternatingRowBackgroundColors = themeManager.resultsAlternateRowShading
+    tableView.selectionHighlightStyle = .regular
+    tableView.intercellSpacing = NSSize(width: 0, height: 0)
+    tableView.enclosingScrollView?.drawsBackground = true
+    tableView.enclosingScrollView?.backgroundColor = base
+
     if !themeManager.resultsAlternateRowShading {
-        tableView.gridColor = themeManager.surfaceForegroundNSColor.withAlphaComponent(0.1)
+        tableView.gridColor = themeManager.surfaceForegroundNSColor.withAlphaComponent(0.12)
     }
 
     if let header = tableView.headerView {
@@ -1682,8 +1660,6 @@ private func applyTableTheme(_ tableView: NSTableView, themeManager: ThemeManage
         cornerView.wantsLayer = true
         cornerView.layer?.backgroundColor = themeManager.surfaceBackgroundNSColor.cgColor
     }
-
-    tableView.reloadData()
 }
 #else
 private struct ThemedTableContainer<Content: View>: View {
@@ -1694,5 +1670,27 @@ private struct ThemedTableContainer<Content: View>: View {
     }
 
     var body: some View { content }
+}
+#endif
+
+#if os(macOS)
+private extension View {
+    @ViewBuilder
+    func applySidebarBackground() -> some View {
+        if #available(macOS 13.0, *) {
+            self
+                .scrollContentBackground(.hidden)
+                .background(.clear)
+                .ignoresSafeArea(.container, edges: .top)
+        } else {
+            self
+                .background(Color.clear)
+                .ignoresSafeArea(.container, edges: .top)
+        }
+    }
+}
+#else
+private extension View {
+    func applySidebarBackground() -> some View { self }
 }
 #endif

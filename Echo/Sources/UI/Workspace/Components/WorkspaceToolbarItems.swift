@@ -77,11 +77,7 @@ var body: some ToolbarContent {
         }
 #if DEBUG
         ToolbarItem(placement: .status) {
-            Label {
-                Text(appModel.selectedProject?.name ?? "Project")
-            } icon: {
-                ToolbarContextSegmentedSample()
-            }
+            ToolbarContextSegmentedSample()
         }
 #endif
     }
@@ -758,47 +754,57 @@ private struct ToolbarContextSegmentedSample: NSViewRepresentable {
         Coordinator(parent: self)
     }
 
-    func makeNSView(context: Context) -> NSSegmentedControl {
-        let control = NSSegmentedControl(frame: .zero)
-        control.segmentCount = 1
-        control.segmentStyle = .capsule
-        control.target = context.coordinator
-        control.action = #selector(Coordinator.segmentTapped(_:))
-        control.trackingMode = .momentary
-        control.translatesAutoresizingMaskIntoConstraints = false
-        if #available(macOS 13.0, *) {
-            control.setShowsMenuIndicator(true, forSegment: 0)
+    func makeNSView(context: Context) -> NSPopUpButton {
+        let popup = NSPopUpButton(frame: NSRect(x: 0, y: 0, width: 160, height: 32), pullsDown: true)
+        popup.bezelStyle = .rounded
+        popup.controlSize = .regular
+        popup.refusesFirstResponder = true
+        popup.menu?.autoenablesItems = false
+        popup.preferredEdge = .maxY
+        context.coordinator.popup = popup
+        updatePopover(popup, coordinator: context.coordinator)
+        return popup
+    }
+
+    func updateNSView(_ popup: NSPopUpButton, context: Context) {
+        updatePopover(popup, coordinator: context.coordinator)
+    }
+
+    private func updatePopover(_ popup: NSPopUpButton, coordinator: Coordinator) {
+        popup.removeAllItems()
+        popup.menu = buildMenu(coordinator: coordinator)
+        let title = appModel.selectedProject?.name ?? navigationState.selectedProject?.name ?? "Project"
+        popup.attributedTitle = attributedTitle(for: title)
+        popup.sizeToFit()
+        var frame = popup.frame
+        frame.size.width = max(frame.size.width + 20, 160)
+        frame.size.height = 32
+        popup.frame = frame
+    }
+
+    private func attributedTitle(for title: String) -> NSAttributedString {
+        let attributed = NSMutableAttributedString()
+        if let icon = projectIcon(for: appModel.selectedProject ?? navigationState.selectedProject) {
+            let attachment = NSTextAttachment()
+            attachment.image = icon
+            attachment.bounds = CGRect(x: 0, y: -1, width: 16, height: 16)
+            attributed.append(NSAttributedString(attachment: attachment))
+            attributed.append(NSAttributedString(string: "  "))
         }
-        context.coordinator.control = control
-        update(control)
-        return control
+        attributed.append(NSAttributedString(string: title, attributes: [.font: NSFont.systemFont(ofSize: 13, weight: .regular)]))
+        return attributed
     }
 
-    func updateNSView(_ control: NSSegmentedControl, context: Context) {
-        update(control)
-    }
-
-    private func update(_ control: NSSegmentedControl) {
-        let title = appModel.selectedProject?.name ?? "Project"
-        control.setLabel(title, forSegment: 0)
-        if let icon = projectIconImage(for: appModel.selectedProject ?? navigationState.selectedProject) {
-            control.setImage(icon, forSegment: 0)
-            control.setImageScaling(.scaleProportionallyDown, forSegment: 0)
-        }
-        control.setWidth(140, forSegment: 0)
-        control.menu = buildMenu()
-    }
-
-    private func projectIconImage(for project: Project?) -> NSImage? {
+    private func projectIcon(for project: Project?) -> NSImage? {
         guard let project else {
             return NSImage(systemSymbolName: "folder.badge.gearshape", accessibilityDescription: nil)
         }
-        if let iconName = project.iconName, !iconName.isEmpty {
-            if let asset = NSImage(named: iconName) {
+        if let name = project.iconName, !name.isEmpty {
+            if let asset = NSImage(named: name) {
                 asset.size = NSSize(width: 16, height: 16)
                 return asset
             }
-            if let system = NSImage(systemSymbolName: iconName, accessibilityDescription: nil) {
+            if let system = NSImage(systemSymbolName: name, accessibilityDescription: nil) {
                 system.size = NSSize(width: 16, height: 16)
                 return system
             }
@@ -806,7 +812,7 @@ private struct ToolbarContextSegmentedSample: NSViewRepresentable {
         return NSImage(systemSymbolName: "folder.badge.gearshape", accessibilityDescription: nil)
     }
 
-    private func buildMenu() -> NSMenu {
+    private func buildMenu(coordinator: Coordinator) -> NSMenu {
         let menu = NSMenu()
         let header = NSMenuItem(title: "Projects", action: nil, keyEquivalent: "")
         header.isEnabled = false
@@ -816,7 +822,6 @@ private struct ToolbarContextSegmentedSample: NSViewRepresentable {
         ])
         menu.addItem(header)
         menu.addItem(.separator())
-
         if appModel.projects.isEmpty {
             let empty = NSMenuItem(title: "No Projects Available", action: nil, keyEquivalent: "")
             empty.isEnabled = false
@@ -827,14 +832,13 @@ private struct ToolbarContextSegmentedSample: NSViewRepresentable {
                 item.representedObject = project
                 item.target = coordinator
                 item.indentationLevel = 1
-                item.image = projectIconImage(for: project)
+                item.image = projectIcon(for: project)
                 if project.id == appModel.selectedProject?.id {
                     item.state = .on
                 }
                 menu.addItem(item)
             }
         }
-
         menu.addItem(.separator())
         let manage = NSMenuItem(title: "Manage Projects…", action: #selector(Coordinator.manageProjects), keyEquivalent: "")
         manage.target = coordinator
@@ -845,24 +849,20 @@ private struct ToolbarContextSegmentedSample: NSViewRepresentable {
 
     final class Coordinator: NSObject {
         let parent: ToolbarContextSegmentedSample
-        weak var control: NSSegmentedControl?
+        weak var popup: NSPopUpButton?
 
         init(parent: ToolbarContextSegmentedSample) {
             self.parent = parent
         }
 
-        @objc func segmentTapped(_ sender: NSSegmentedControl) {
-            sender.menu = parent.buildMenu()
-            sender.menu?.popUp(positioning: nil, at: NSPoint(x: sender.bounds.minX, y: sender.bounds.maxY + 2), in: sender)
-            sender.setSelected(false, forSegment: 0)
-        }
+        @objc func segmentTapped(_ sender: NSSegmentedControl) {}
 
         @objc func selectProject(_ sender: NSMenuItem) {
             guard let project = sender.representedObject as? Project else { return }
             parent.navigationState.selectProject(project)
             parent.appModel.selectedProject = project
-            if let control {
-                parent.update(control)
+            if let popup {
+                parent.updatePopover(popup, coordinator: self)
             }
         }
 
@@ -872,6 +872,9 @@ private struct ToolbarContextSegmentedSample: NSViewRepresentable {
     }
 }
 #endif
+
+
+
 
 
 

@@ -90,7 +90,6 @@ struct AutocompleteManagementRootView: View {
                     theme: editorTheme,
                     display: appState.sqlEditorDisplay,
                     backgroundColor: nil,
-                    underlayColor: themeManager.surfaceBackgroundColor,
                     completionContext: context,
                     ruleTraceConfig: traceConfiguration,
                     onTextChange: { sqlText = $0 },

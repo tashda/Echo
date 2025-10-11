@@ -300,7 +300,7 @@ extension AppColorTheme {
             tone: .light,
             defaultPaletteID: SQLEditorPalette.echoLight.id,
             accent: ColorRepresentable(hex: 0x0A84FF),
-            windowBackground: ColorRepresentable(hex: 0xF2F3F7),
+            windowBackground: ColorRepresentable(hex: 0xFFFFFF),
             surfaceBackground: ColorRepresentable(hex: 0xFFFFFF),
             surfaceForeground: ColorRepresentable(hex: 0x1C1C1E),
             swatches: [
@@ -482,23 +482,6 @@ extension AppColorTheme {
             ]
         ),
         BuiltInThemeDefinition(
-            identifier: "echo",
-            name: "Echo Dark",
-            tone: .dark,
-            defaultPaletteID: SQLEditorPalette.echoDark.id,
-            accent: ColorRepresentable(hex: 0x0A84FF),
-            windowBackground: ColorRepresentable(hex: 0x1B1C23),
-            surfaceBackground: ColorRepresentable(hex: 0x242530),
-            surfaceForeground: ColorRepresentable(hex: 0xF2F2F7),
-            swatches: [
-                ColorRepresentable(hex: 0x0A84FF),
-                ColorRepresentable(hex: 0x30D158),
-                ColorRepresentable(hex: 0xFF9F0A),
-                ColorRepresentable(hex: 0xFF453A),
-                ColorRepresentable(hex: 0xAEAEB2)
-            ]
-        ),
-        BuiltInThemeDefinition(
             identifier: "default",
             name: "Dark+",
             tone: .dark,
@@ -513,6 +496,23 @@ extension AppColorTheme {
                 ColorRepresentable(hex: 0xC586C0),
                 ColorRepresentable(hex: 0xB5CEA8),
                 ColorRepresentable(hex: 0x6A9955)
+            ]
+        ),
+        BuiltInThemeDefinition(
+            identifier: "echo",
+            name: "Echo Dark",
+            tone: .dark,
+            defaultPaletteID: SQLEditorPalette.echoDark.id,
+            accent: ColorRepresentable(hex: 0x0A84FF),
+            windowBackground: ColorRepresentable(hex: 0x12131B),
+            surfaceBackground: ColorRepresentable(hex: 0x1D1E27),
+            surfaceForeground: ColorRepresentable(hex: 0xF2F2F7),
+            swatches: [
+                ColorRepresentable(hex: 0x0A84FF),
+                ColorRepresentable(hex: 0x30D158),
+                ColorRepresentable(hex: 0xFF9F0A),
+                ColorRepresentable(hex: 0xFF453A),
+                ColorRepresentable(hex: 0xAEAEB2)
             ]
         ),
         BuiltInThemeDefinition(
