@@ -1,9 +1,6 @@
 import SwiftUI
 import Combine
 import Foundation
-#if canImport(QuartzCore)
-import QuartzCore
-#endif
 #if os(macOS)
 import AppKit
 #else
@@ -940,7 +937,6 @@ struct SQLEditorView: View {
     var theme: SQLEditorTheme
     var display: SQLEditorDisplayOptions
     var backgroundColor: Color?
-    var underlayColor: Color?
     var completionContext: SQLEditorCompletionContext?
     var ruleTraceConfig: SQLAutocompleteRuleTraceConfiguration?
     var onTextChange: (String) -> Void
@@ -956,7 +952,6 @@ struct SQLEditorView: View {
         theme: SQLEditorTheme,
         display: SQLEditorDisplayOptions,
         backgroundColor: Color? = nil,
-        underlayColor: Color? = nil,
         completionContext: SQLEditorCompletionContext? = nil,
         ruleTraceConfig: SQLAutocompleteRuleTraceConfiguration? = nil,
         onTextChange: @escaping (String) -> Void,
@@ -969,7 +964,6 @@ struct SQLEditorView: View {
         self.theme = theme
         self.display = display
         self.backgroundColor = backgroundColor
-        self.underlayColor = underlayColor
         self.completionContext = completionContext
         self.ruleTraceConfig = ruleTraceConfig
         self.onTextChange = onTextChange
@@ -986,7 +980,6 @@ struct SQLEditorView: View {
             theme: theme,
             display: display,
             backgroundColor: backgroundColor,
-            underlayColor: underlayColor,
             onTextChange: onTextChange,
             onSelectionChange: onSelectionChange,
             onSelectionPreviewChange: onSelectionPreviewChange,
@@ -1002,7 +995,6 @@ struct SQLEditorView: View {
             theme: theme,
             display: display,
             backgroundColor: backgroundColor,
-            underlayColor: underlayColor,
             onTextChange: onTextChange,
             onSelectionChange: onSelectionChange,
             onSelectionPreviewChange: onSelectionPreviewChange,
@@ -1021,7 +1013,6 @@ private struct MacSQLEditorRepresentable: NSViewRepresentable {
     var theme: SQLEditorTheme
     var display: SQLEditorDisplayOptions
     var backgroundColor: Color?
-    var underlayColor: Color?
     var onTextChange: (String) -> Void
     var onSelectionChange: (SQLEditorSelection) -> Void
     var onSelectionPreviewChange: (SQLEditorSelection) -> Void
@@ -1038,7 +1029,6 @@ private struct MacSQLEditorRepresentable: NSViewRepresentable {
             theme: theme,
             display: display,
             backgroundOverride: backgroundColor.map(NSColor.init),
-            underlayColor: underlayColor.map(NSColor.init),
             completionContext: completionContext,
             ruleTraceConfig: ruleTraceConfig
         )
@@ -1070,7 +1060,6 @@ private struct MacSQLEditorRepresentable: NSViewRepresentable {
         nsView.updateTheme(theme)
         nsView.updateDisplay(display)
         nsView.updateBackgroundOverride(backgroundColor.map(NSColor.init))
-        nsView.updateUnderlayColor(underlayColor.map(NSColor.init))
         nsView.completionContext = completionContext
         let textView = nsView.sqlTextView
         context.coordinator.theme = theme
@@ -1168,8 +1157,6 @@ private final class SQLScrollView: NSScrollView {
     private var displayOptions: SQLEditorDisplayOptions
     private let lineNumberRuler: LineNumberRulerView
     private var backgroundOverride: NSColor?
-    private var underlayColor: NSColor?
-    private var boundsObserver: NSObjectProtocol?
     var completionContext: SQLEditorCompletionContext? {
         didSet { sqlTextView.completionContext = completionContext }
     }
@@ -1179,18 +1166,15 @@ private final class SQLScrollView: NSScrollView {
     init(theme: SQLEditorTheme,
          display: SQLEditorDisplayOptions,
          backgroundOverride: NSColor?,
-         underlayColor: NSColor?,
          completionContext: SQLEditorCompletionContext? = nil,
          ruleTraceConfig: SQLAutocompleteRuleTraceConfiguration? = nil) {
         self.displayOptions = display
         self.backgroundOverride = backgroundOverride
         self.completionContext = completionContext
-        self.underlayColor = underlayColor
         self.sqlTextView = SQLTextView(
             theme: theme,
             displayOptions: display,
             backgroundOverride: backgroundOverride,
-            underlayColor: underlayColor,
             completionContext: completionContext,
             ruleTraceConfig: ruleTraceConfig
         )
@@ -1213,14 +1197,6 @@ private final class SQLScrollView: NSScrollView {
         documentView = sqlTextView
         scrollerStyle = .overlay
         verticalScrollElasticity = .automatic
-        contentView.postsBoundsChangedNotifications = true
-        boundsObserver = NotificationCenter.default.addObserver(
-            forName: NSView.boundsDidChangeNotification,
-            object: contentView,
-            queue: .main
-        ) { [weak self] _ in
-            self?.handleClipViewBoundsChange()
-        }
 
         sqlTextView.minSize = NSSize(width: 0, height: 320)
         sqlTextView.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
@@ -1243,7 +1219,6 @@ private final class SQLScrollView: NSScrollView {
         lineNumberRuler.needsDisplay = true
         applyTheme()
         applyDisplay()
-        handleClipViewBoundsChange()
     }
 
     required init?(coder: NSCoder) {
@@ -1251,9 +1226,6 @@ private final class SQLScrollView: NSScrollView {
     }
 
     deinit {
-        if let boundsObserver {
-            NotificationCenter.default.removeObserver(boundsObserver)
-        }
         sqlTextView.cancelPendingCompletions()
     }
 
@@ -1277,12 +1249,6 @@ private final class SQLScrollView: NSScrollView {
 #endif
     }
 
-    func updateUnderlayColor(_ color: NSColor?) {
-        guard underlayColor != color else { return }
-        underlayColor = color
-        sqlTextView.updateUnderlayColor(color)
-    }
-
     func updateDisplay(_ options: SQLEditorDisplayOptions) {
         guard displayOptions != options else { return }
         displayOptions = options
@@ -1295,8 +1261,6 @@ private final class SQLScrollView: NSScrollView {
         contentView.backgroundColor = backgroundOverride ?? .clear
         sqlTextView.theme = theme
         sqlTextView.backgroundOverride = backgroundOverride
-        sqlTextView.updateUnderlayColor(underlayColor)
-        sqlTextView.updateScrollPosition(verticalOffset: contentView.bounds.minY)
         lineNumberRuler.theme = theme
 #if DEBUG
         if let backgroundOverride {
@@ -1305,10 +1269,6 @@ private final class SQLScrollView: NSScrollView {
             debugLogBackgroundOverride(color: theme.surfaces.background.nsColor, label: "applyTheme theme")
         }
 #endif
-    }
-
-    private func handleClipViewBoundsChange() {
-        sqlTextView.updateScrollPosition(verticalOffset: contentView.bounds.minY)
     }
 
     private func applyDisplay() {
@@ -1375,7 +1335,6 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
     var theme: SQLEditorTheme { didSet { applyTheme() } }
     var displayOptions: SQLEditorDisplayOptions { didSet { applyDisplayOptions() } }
     var backgroundOverride: NSColor? { didSet { applyTheme() } }
-    var underlayColor: NSColor? { didSet { updateDecorAppearance() } }
     var completionContext: SQLEditorCompletionContext? {
         didSet {
             completionEngine.updateContext(completionContext)
@@ -1398,12 +1357,6 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
     var completionController: SQLAutoCompletionController?
     private var isApplyingCompletion = false
     private var suppressNextCompletionRefresh = false
-    private let caretHaloLayer = CAGradientLayer()
-    private let leftEdgeFadeLayer = CAGradientLayer()
-    private let rightEdgeFadeLayer = CAGradientLayer()
-    private let topOutlineLayer = CALayer()
-    private let haloRadius: CGFloat = 240
-    private let edgeFadeWidth: CGFloat = 24
     var isRuleTracingEnabled: Bool = false
     var onRuleTrace: ((SQLAutocompleteTrace) -> Void)?
 
@@ -1534,13 +1487,11 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
     init(theme: SQLEditorTheme,
          displayOptions: SQLEditorDisplayOptions,
          backgroundOverride: NSColor?,
-         underlayColor: NSColor?,
          completionContext: SQLEditorCompletionContext? = nil,
          ruleTraceConfig: SQLAutocompleteRuleTraceConfiguration? = nil) {
         self.theme = theme
         self.displayOptions = displayOptions
         self.backgroundOverride = backgroundOverride
-        self.underlayColor = underlayColor
         self.completionContext = completionContext
 
         let textStorage = NSTextStorage()
@@ -1573,11 +1524,6 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
         autoresizingMask = [.width]
         wantsLayer = true
         layer?.isOpaque = true
-        layer?.masksToBounds = false
-        configureDecorLayers()
-        updateDecorAppearance()
-        updateDecorLayerFrames()
-        updateCaretHalo()
 
         textContainer.widthTracksTextView = false
         textContainer.lineFragmentPadding = 14
@@ -1602,149 +1548,12 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
         delegate = self
     }
 
-    func updateUnderlayColor(_ color: NSColor?) {
-        underlayColor = color
-    }
-
-    func updateScrollPosition(verticalOffset: CGFloat) {
-        let clamped = max(0, min(1, verticalOffset / 28.0))
-        let opacity = Float(1 - clamped)
-        CATransaction.begin()
-        CATransaction.setDisableActions(true)
-        topOutlineLayer.opacity = opacity
-        CATransaction.commit()
-        updateCaretHalo()
-    }
-
-    private func configureDecorLayers() {
-        guard let layer else { return }
-
-        caretHaloLayer.type = .radial
-        caretHaloLayer.locations = [0, 1]
-        caretHaloLayer.opacity = 1
-        caretHaloLayer.zPosition = -2
-        layer.addSublayer(caretHaloLayer)
-
-        leftEdgeFadeLayer.startPoint = CGPoint(x: 1, y: 0.5)
-        leftEdgeFadeLayer.endPoint = CGPoint(x: 0, y: 0.5)
-        leftEdgeFadeLayer.zPosition = 4
-        leftEdgeFadeLayer.type = .axial
-        layer.addSublayer(leftEdgeFadeLayer)
-
-        rightEdgeFadeLayer.startPoint = CGPoint(x: 0, y: 0.5)
-        rightEdgeFadeLayer.endPoint = CGPoint(x: 1, y: 0.5)
-        rightEdgeFadeLayer.zPosition = 4
-        rightEdgeFadeLayer.type = .axial
-        layer.addSublayer(rightEdgeFadeLayer)
-
-        topOutlineLayer.zPosition = 5
-        topOutlineLayer.opacity = 1
-        layer.addSublayer(topOutlineLayer)
-    }
-
-    private func updateDecorAppearance() {
-        CATransaction.begin()
-        CATransaction.setDisableActions(true)
-        caretHaloLayer.colors = caretHaloColors()
-        leftEdgeFadeLayer.colors = edgeFadeColors(isLeft: true)
-        rightEdgeFadeLayer.colors = edgeFadeColors(isLeft: false)
-        topOutlineLayer.backgroundColor = outlineStrokeColor().cgColor
-        CATransaction.commit()
-    }
-
-    private func updateDecorLayerFrames() {
-        guard layer != nil else { return }
-        let outlineHeight = max(1.0 / (window?.backingScaleFactor ?? 2.0), 0.5)
-        CATransaction.begin()
-        CATransaction.setDisableActions(true)
-        caretHaloLayer.bounds = CGRect(x: 0, y: 0, width: haloRadius * 2, height: haloRadius * 2)
-        let effectiveWidth = bounds.width
-        let fadeWidth = min(edgeFadeWidth, max(effectiveWidth / 2, 0))
-        leftEdgeFadeLayer.frame = CGRect(x: 0, y: 0, width: fadeWidth, height: bounds.height)
-        rightEdgeFadeLayer.frame = CGRect(x: max(effectiveWidth - fadeWidth, 0), y: 0, width: fadeWidth, height: bounds.height)
-        topOutlineLayer.frame = CGRect(x: 0, y: bounds.height - outlineHeight, width: bounds.width, height: outlineHeight)
-        CATransaction.commit()
-    }
-
-    override func layout() {
-        super.layout()
-        updateDecorLayerFrames()
-        updateCaretHalo()
-    }
-
-    private func caretHaloColors() -> [CGColor] {
-        let alpha: CGFloat = theme.tone == .dark ? 0.18 : 0.3
-        let start = NSColor.white.withAlphaComponent(alpha)
-        return [start.cgColor, start.withAlphaComponent(0).cgColor]
-    }
-
-    private func edgeFadeColors(isLeft: Bool) -> [CGColor] {
-        let baseColor = (underlayColor ?? backgroundOverride ?? theme.surfaces.background.nsColor)
-        let overlayAlpha: CGFloat = theme.tone == .dark ? 0.55 : 0.8
-        let start = baseColor.withAlphaComponent(overlayAlpha)
-        let end = baseColor.withAlphaComponent(0)
-        return isLeft ? [start.cgColor, end.cgColor] : [end.cgColor, start.cgColor]
-    }
-
-    private func outlineStrokeColor() -> NSColor {
-        if theme.tone == .dark {
-            return nsColor(hex: 0x31343D, alpha: 0.88)
-        }
-        return nsColor(hex: 0xD7DAE1, alpha: 0.9)
-    }
-
-    private func nsColor(hex: Int, alpha: CGFloat = 1.0) -> NSColor {
-        let red = CGFloat((hex >> 16) & 0xFF) / 255.0
-        let green = CGFloat((hex >> 8) & 0xFF) / 255.0
-        let blue = CGFloat(hex & 0xFF) / 255.0
-        return NSColor(calibratedRed: red, green: green, blue: blue, alpha: alpha)
-    }
-
-    private func updateCaretHalo() {
-        CATransaction.begin()
-        CATransaction.setDisableActions(true)
-        if let caretRect = caretRectInView() {
-            caretHaloLayer.position = CGPoint(x: caretRect.midX, y: caretRect.midY)
-            caretHaloLayer.opacity = 1
-        } else {
-            caretHaloLayer.opacity = 0
-        }
-        CATransaction.commit()
-    }
-
-    private func caretRectInView() -> CGRect? {
-        let selection = selectedRange()
-        guard selection.location != NSNotFound else { return nil }
-        let caretIndex = selection.length > 0 ? selection.location + selection.length : selection.location
-
-        if let window = window {
-            let screenRect = firstRect(forCharacterRange: NSRange(location: caretIndex, length: 0), actualRange: nil)
-            if !screenRect.isNull && !screenRect.isEmpty {
-                let windowRect = window.convertFromScreen(screenRect)
-                return convert(windowRect, from: nil)
-            }
-        }
-
-        guard let layoutManager = layoutManager, let textContainer = textContainer else { return nil }
-        var glyphRange = layoutManager.glyphRange(forCharacterRange: NSRange(location: caretIndex, length: 0), actualCharacterRange: nil)
-        if glyphRange.length == 0 && caretIndex > 0 {
-            glyphRange = layoutManager.glyphRange(forCharacterRange: NSRange(location: caretIndex - 1, length: 1), actualCharacterRange: nil)
-        }
-        guard glyphRange.location != NSNotFound else { return nil }
-        var rect = layoutManager.boundingRect(forGlyphRange: glyphRange, in: textContainer)
-        rect.origin.x += textContainerInset.width
-        rect.origin.y += textContainerInset.height
-        return rect
-    }
-
     private func applyTheme() {
         font = theme.nsFont
         textColor = theme.tokenColors.plain.nsColor
         insertionPointColor = theme.tokenColors.operatorSymbol.nsColor
         drawsBackground = true
         backgroundColor = backgroundOverride ?? theme.surfaces.background.nsColor
-        updateDecorAppearance()
-        updateCaretHalo()
         updateParagraphStyle()
         lineNumberRuler?.theme = theme
         lineNumberRuler?.highlightedLines = selectedLineRange()
@@ -1760,12 +1569,6 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
         if let ruler = enclosingScrollView?.verticalRulerView as? LineNumberRulerView {
             configure(ruler: ruler)
             ruler.sqlTextView = self
-        }
-        updateDecorLayerFrames()
-        if let clipView = enclosingScrollView?.contentView {
-            updateScrollPosition(verticalOffset: clipView.bounds.minY)
-        } else {
-            updateCaretHalo()
         }
         DispatchQueue.main.async { [weak self] in
             self?.window?.makeFirstResponder(self)
@@ -1887,14 +1690,12 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
             }
         }
         updateCompletionIndicator()
-        updateCaretHalo()
     }
 
     func textViewDidChangeSelection(_ notification: Notification) {
         notifySelectionChanged()
         lineNumberRuler?.highlightedLines = selectedLineRange()
         lineNumberRuler?.setNeedsDisplay(lineNumberRuler?.bounds ?? .zero)
-        updateCaretHalo()
     }
 
     override func mouseDragged(with event: NSEvent) {
@@ -1953,7 +1754,6 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
         lineNumberRuler?.setNeedsDisplay(lineNumberRuler?.bounds ?? .zero)
         sqlDelegate?.sqlTextView(self, didChangeSelection: selection)
         refreshCompletions(immediate: true)
-        updateCaretHalo()
     }
 
     private func notifySelectionPreview() {
@@ -3890,7 +3690,6 @@ private struct IOSSQLEditorRepresentable: UIViewRepresentable {
     var theme: SQLEditorTheme
     var display: SQLEditorDisplayOptions
     var backgroundColor: Color?
-    var underlayColor: Color?
     var onTextChange: (String) -> Void
     var onSelectionChange: (SQLEditorSelection) -> Void
     var onSelectionPreviewChange: (SQLEditorSelection) -> Void

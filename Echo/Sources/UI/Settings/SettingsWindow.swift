@@ -3,6 +3,8 @@ import Foundation
 import Combine
 #if os(macOS)
 import AppKit
+#elseif canImport(UIKit)
+import UIKit
 #endif
 
 /// Primary settings scene built with a native `NavigationSplitView`.
@@ -174,8 +176,7 @@ struct AppearanceSettingsView: View {
                 queryEditorSection(for: .dark, title: "Query Editor (Dark)")
             }
 
-            accentSection
-            workspaceSection
+            themeCustomizationSection
             resultsGridSection
             editorDisplaySection
             informationSection
@@ -183,7 +184,10 @@ struct AppearanceSettingsView: View {
         .formStyle(.grouped)
         .scrollContentBackground(.hidden)
         .background(themeManager.surfaceBackgroundColor)
-        .background(SettingsWindowConfigurator(themeManager: themeManager))
+        .background(
+            SettingsWindowConfigurator(themeManager: themeManager)
+                .frame(width: 0, height: 0)
+        )
         .alert(
             "Delete Theme?",
             isPresented: Binding(
@@ -328,23 +332,15 @@ struct AppearanceSettingsView: View {
         }
     }
 
-    private var accentSection: some View {
-        Section("Accent") {
+    private var themeCustomizationSection: some View {
+        Section("Theme Customizations") {
             Toggle("Use connected server color as accent", isOn: useServerAccentBinding)
                 .toggleStyle(.switch)
 
-            Text("When enabled, highlights outside the editor adopt the active connection's color.")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-        }
-    }
-
-    private var workspaceSection: some View {
-        Section("Workspace") {
             Toggle("Match workspace tabs to editor theme", isOn: themeTabsBinding)
                 .toggleStyle(.switch)
 
-            Text("Adjust the workspace tab strip to reuse the active SQL editor theme's colors.")
+            Text("Apply connection colors outside the editor and sync workspace tabs with the active theme.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
         }
@@ -352,21 +348,29 @@ struct AppearanceSettingsView: View {
 
     private var resultsGridSection: some View {
         Section("Results Grid") {
+            resultsGridPreview
+
             Toggle("Use application theme", isOn: themeResultsGridBinding)
                 .toggleStyle(.switch)
-
-            Text("When enabled, the results table adopts the active window theme's background and foreground colors.")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-                .padding(.bottom, 4)
 
             Toggle("Show alternate row shading", isOn: alternateRowShadingBinding)
                 .toggleStyle(.switch)
 
-            Text("Applies subtle striping to result rows to aid scanning. Available in both themed and system appearance modes.")
+            Text("Preview updates as you toggle the options above.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
         }
+    }
+
+    private var resultsGridPreview: some View {
+        let theme = themeManager.activeTheme
+        return ResultsGridPreview(
+            tone: theme.tone,
+            theme: theme,
+            useThemedAppearance: themeResultsGridBinding.wrappedValue,
+            alternateRows: alternateRowShadingBinding.wrappedValue
+        )
+        .frame(maxWidth: .infinity)
     }
 
     private var editorDisplaySection: some View {
@@ -832,16 +836,7 @@ private struct ThemeAppearanceSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
-            ViewThatFits {
-                HStack(alignment: .top, spacing: 24) {
-                    heroPreview
-                    paletteSummary
-                }
-                VStack(alignment: .leading, spacing: 20) {
-                    heroPreview
-                    paletteSummary
-                }
-            }
+            AdaptivePreviewGrid(hero: heroPreview, secondary: paletteSummary)
 
             Text("Themes")
                 .font(.headline)
@@ -886,35 +881,101 @@ private struct ThemeAppearanceSection: View {
     private var heroPreview: some View {
         let theme = displayedTheme
         let palette = resolvedPalette(for: theme)
-        return VStack(alignment: .leading, spacing: 12) {
-            Text(theme.name)
-                .font(.headline)
-            ThemeHeroPreviewCard(theme: theme, palette: palette)
-                .frame(maxWidth: .infinity, alignment: .leading)
+        let accent = theme.accent?.color ?? palette.tokens.keyword.color
+
+        return previewCard(
+            title: theme.name,
+            subtitle: nil,
+            background: themeHeroGradient(for: theme),
+            shadowColor: accent.opacity(theme.tone == .dark ? 0.26 : 0.18)
+        ) {
+            ThemePreview(theme: theme, palette: palette, layout: .regular)
+                .scaleEffect(1.1)
         }
     }
 
     private var paletteSummary: some View {
-        let palette = resolvedPalette(for: displayedTheme)
-        return VStack(alignment: .leading, spacing: 12) {
-            Text("Default Palette")
-                .font(.headline)
-            PalettePreviewCard(
-                palette: palette,
-                tone: tone,
-                style: .compact,
-                showsQueryChip: false,
-                showsManualIndicator: false
-            )
-            .frame(maxWidth: .infinity, alignment: .leading)
-            Text(palette.name)
-                .font(.caption)
-                .foregroundStyle(.secondary)
+        let theme = displayedTheme
+        let palette = resolvedPalette(for: theme)
+        let accent = palette.tokens.keyword.color
+
+        return previewCard(
+            title: "Default Palette",
+            subtitle: palette.name,
+            background: paletteHeroGradient(for: theme, palette: palette),
+            shadowColor: accent.opacity(theme.tone == .dark ? 0.22 : 0.14)
+        ) {
+            QueryEditorPreview(theme: theme, palette: palette, fontName: "JetBrainsMono-Regular")
+                .scaleEffect(0.94)
         }
     }
 
     private var chipColumns: [GridItem] {
         [GridItem(.adaptive(minimum: 152, maximum: 220), spacing: 12)]
+    }
+
+    private var previewHeight: CGFloat { 184 }
+
+    private func previewCard<Content: View>(
+        title: String,
+        subtitle: String?,
+        background: LinearGradient,
+        shadowColor: Color,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(title)
+                .font(.headline)
+
+            if let subtitle, !subtitle.isEmpty {
+                Text(subtitle)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+
+            ZStack {
+                RoundedRectangle(cornerRadius: 22, style: .continuous)
+                    .fill(background)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 22, style: .continuous)
+                            .stroke(Color.white.opacity(0.28), lineWidth: 1)
+                            .blendMode(.overlay)
+                    )
+
+                content()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                    .padding(26)
+            }
+            .frame(height: previewHeight)
+            .shadow(color: shadowColor, radius: 24, x: 0, y: 14)
+        }
+    }
+
+    private func themeHeroGradient(for theme: AppColorTheme) -> LinearGradient {
+        let base = theme.windowBackground.color
+        let secondary = theme.surfaceBackground.color
+        let accent = theme.accent?.color ?? theme.surfaceForeground.color
+        return LinearGradient(
+            colors: [
+                base.lerp(to: accent, fraction: theme.tone == .dark ? 0.08 : 0.05),
+                secondary.lerp(to: Color.white, fraction: theme.tone == .dark ? 0.02 : 0.08)
+            ],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+    }
+
+    private func paletteHeroGradient(for theme: AppColorTheme, palette: SQLEditorTokenPalette) -> LinearGradient {
+        let base = theme.editorBackground.color
+        let accent = palette.tokens.keyword.color
+        return LinearGradient(
+            colors: [
+                base,
+                base.lerp(to: accent, fraction: theme.tone == .dark ? 0.12 : 0.08)
+            ],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
     }
 
     private var displayedTheme: AppColorTheme {
@@ -1103,268 +1164,6 @@ private struct QueryEditorSection: View {
     }
 }
 
-private struct QueryEditorPreview: View {
-    let theme: AppColorTheme
-    let palette: SQLEditorTokenPalette
-    let fontName: String
-
-    var body: some View {
-        PaletteSnippetPreview(
-            background: theme.editorBackground.color,
-            gutterBackground: theme.editorGutterBackground.color,
-            gutterForeground: theme.editorGutterForeground.color,
-            selection: theme.editorSelection.color,
-            currentLine: theme.editorCurrentLine.color,
-            defaultText: theme.editorForeground.color,
-            tokenColors: palette.tokens,
-            isDark: theme.tone == .dark,
-            font: previewFont
-        )
-        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-        .shadow(color: Color.black.opacity(theme.tone == .dark ? 0.28 : 0.12), radius: 24, x: 0, y: theme.tone == .dark ? 28 : 18)
-    }
-
-    private var previewFont: Font {
-        if fontName.isEmpty {
-            return .system(size: 11, weight: .medium, design: .monospaced)
-        }
-        return .custom(fontName, size: 11)
-    }
-}
-
-private struct FontChip: View {
-    let title: String
-    let sampleFontName: String
-    let isSelected: Bool
-    let onSelect: () -> Void
-    var isCustom: Bool = false
-
-    var body: some View {
-        Button(action: onSelect) {
-            VStack(alignment: .leading, spacing: 6) {
-                Text("SELECT * FROM table;")
-                    .font(sampleFont)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
-                    .foregroundStyle(Color.primary.opacity(0.85))
-                    .frame(maxWidth: .infinity, alignment: .leading)
-
-                Text(title)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            .padding(12)
-            .frame(minWidth: 140, maxWidth: .infinity, alignment: .leading)
-            .background(
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .fill(Color.primary.opacity(0.05))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .stroke(isSelected ? Color.accentColor : Color.primary.opacity(0.08), lineWidth: isSelected ? 2 : 1)
-            )
-            .overlay(alignment: .topLeading) {
-                if isCustom {
-                    TagBadge(label: "Custom", foreground: Color.accentColor, background: Color.accentColor.opacity(0.18))
-                        .padding(8)
-                }
-            }
-        }
-        .buttonStyle(.plain)
-    }
-
-    private var sampleFont: Font {
-        if sampleFontName.isEmpty {
-            return .system(size: 11, weight: .medium, design: .monospaced)
-        }
-        return .custom(sampleFontName, size: 11)
-    }
-}
-
-private struct EditorFontOption: Identifiable {
-    let id: String
-    let postScriptName: String
-    let displayName: String
-}
-
-#if os(macOS)
-private struct SettingsWindowConfigurator: NSViewRepresentable {
-    let themeManager: ThemeManager
-
-    func makeNSView(context: Context) -> NSView {
-        let view = NSView()
-        DispatchQueue.main.async {
-            guard let window = view.window else { return }
-            configure(window: window)
-        }
-        return view
-    }
-
-    func updateNSView(_ nsView: NSView, context: Context) {
-        DispatchQueue.main.async {
-            guard let window = nsView.window else { return }
-            configure(window: window)
-        }
-    }
-
-    private func configure(window: NSWindow) {
-        if window.titleVisibility != .hidden {
-            window.titleVisibility = .hidden
-        }
-        if window.titlebarAppearsTransparent == false {
-            window.titlebarAppearsTransparent = true
-        }
-        if window.toolbarStyle != .unifiedCompact {
-            window.toolbarStyle = .unifiedCompact
-        }
-        let targetColor = themeManager.windowBackgroundNSColor
-        if window.backgroundColor != targetColor {
-            window.backgroundColor = targetColor
-        }
-    }
-}
-#endif
-
-#if os(macOS)
-final class SystemFontPickerCoordinator: NSObject, ObservableObject {
-    private var completion: ((String) -> Void)?
-
-    func present(currentFontName: String, completion: @escaping (String) -> Void) {
-        self.completion = completion
-        let manager = NSFontManager.shared
-        manager.target = self
-        manager.action = #selector(handleFontChange(_:))
-        let initialFont = NSFont(name: currentFontName, size: 14)
-            ?? NSFont.monospacedSystemFont(ofSize: 14, weight: .regular)
-        manager.setSelectedFont(initialFont, isMultiple: false)
-        let panel = NSFontPanel.shared
-        panel.setPanelFont(initialFont, isMultiple: false)
-        panel.makeKeyAndOrderFront(nil)
-    }
-
-    @objc private func handleFontChange(_ sender: NSFontManager) {
-        let baseFont = sender.selectedFont ?? NSFont.monospacedSystemFont(ofSize: 14, weight: .regular)
-        let converted = sender.convert(baseFont)
-        completion?(converted.fontName)
-    }
-}
-#else
-final class SystemFontPickerCoordinator: ObservableObject {
-    func present(currentFontName: String, completion: @escaping (String) -> Void) {
-        completion(currentFontName)
-    }
-}
-#endif
-private struct ThemeHeroPreviewCard: View {
-    let theme: AppColorTheme
-    let palette: SQLEditorTokenPalette
-
-    var body: some View {
-        let accent = theme.accent?.color ?? palette.tokens.keyword.color
-
-        return RoundedRectangle(cornerRadius: 18, style: .continuous)
-            .fill(heroBackground)
-            .overlay(
-                ThemePreview(theme: theme, palette: palette, layout: .regular)
-                    .scaleEffect(1.18)
-                    .padding(28)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .stroke(Color.white.opacity(theme.tone == .dark ? 0.12 : 0.08), lineWidth: 1)
-                    .blendMode(.overlay)
-            )
-            .frame(minWidth: 320, idealWidth: 360, maxWidth: .infinity, minHeight: 164, alignment: .center)
-            .shadow(color: accent.opacity(theme.tone == .dark ? 0.28 : 0.18), radius: 24, x: 0, y: 18)
-    }
-
-    private var heroBackground: LinearGradient {
-        let surface = theme.surfaceBackground.color
-        let window = theme.windowBackground.color
-        return LinearGradient(
-            colors: [
-                surface.opacity(theme.tone == .dark ? 0.62 : 0.78),
-                window.opacity(theme.tone == .dark ? 0.48 : 0.64)
-            ],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
-    }
-}
-
-private struct PalettePreviewCard: View {
-    enum Style {
-        case compact
-        case wide
-    }
-
-    let palette: SQLEditorTokenPalette
-    let tone: SQLEditorPalette.Tone
-    let style: Style
-    let showsQueryChip: Bool
-    let showsManualIndicator: Bool
-
-    var body: some View {
-        ZStack(alignment: .topLeading) {
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(Color.primary.opacity(tone == .dark ? 0.18 : 0.06))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .stroke(Color.primary.opacity(0.08), lineWidth: 1)
-                )
-
-            PaletteSnippetPreview(
-                background: basePalette.background.color,
-                gutterBackground: basePalette.gutterBackground.color,
-                gutterForeground: basePalette.gutterText.color,
-                selection: basePalette.selection.color,
-                currentLine: basePalette.currentLine.color,
-                defaultText: basePalette.text.color,
-                tokenColors: palette.tokens,
-                isDark: palette.tone == .dark
-            )
-            .padding(.horizontal, style == .wide ? 28 : 20)
-            .padding(.vertical, style == .wide ? 28 : 18)
-        }
-        .frame(
-            minWidth: style == .wide ? 360 : 280,
-            idealWidth: style == .wide ? 420 : 320,
-            maxWidth: style == .wide ? .infinity : 340,
-            minHeight: cardHeight,
-            alignment: .topLeading
-        )
-        .overlay(alignment: .topLeading) {
-            if showsQueryChip {
-                TagBadge(
-                    label: "Query editor preview",
-                    foreground: Color.primary.opacity(0.72),
-                    background: Color.primary.opacity(0.08)
-                )
-                .padding(12)
-            }
-        }
-        .overlay(alignment: .topTrailing) {
-            if showsManualIndicator {
-                TagBadge(
-                    label: "Manual",
-                    foreground: Color.accentColor,
-                    background: Color.accentColor.opacity(0.18)
-                )
-                .padding(12)
-            }
-        }
-    }
-
-    private var cardHeight: CGFloat {
-        style == .wide ? 164 : 148
-    }
-
-    private var basePalette: SQLEditorPalette {
-        SQLEditorPalette.palette(withID: palette.id)
-            ?? (tone == .dark ? .midnight : .aurora)
-    }
-}
-
 private struct ThemeChip<ContextMenuContent: View>: View {
     let title: String
     let subtitle: String?
@@ -1514,31 +1313,6 @@ private struct PaletteChip<ContextMenuContent: View>: View {
     }
 }
 
-private struct ChipBadge {
-    let label: String
-    let foreground: Color
-    let background: Color
-}
-
-private struct OptionalContextMenu<MenuContent: View>: ViewModifier {
-    let isEnabled: Bool
-    let menu: () -> MenuContent
-
-    func body(content: Content) -> some View {
-        if isEnabled {
-            content.contextMenu(menuItems: menu)
-        } else {
-            content
-        }
-    }
-}
-
-private extension View {
-    func optionalContextMenu<MenuContent: View>(isEnabled: Bool, @ViewBuilder content: @escaping () -> MenuContent) -> some View {
-        modifier(OptionalContextMenu(isEnabled: isEnabled, menu: content))
-    }
-}
-
 private struct ThemePreview: View {
     enum Layout {
         case regular
@@ -1546,30 +1320,30 @@ private struct ThemePreview: View {
 
         var size: CGSize {
             switch self {
-        case .regular:
-            return CGSize(width: 136, height: 72)
-        case .compact:
-            return CGSize(width: 104, height: 52)
+            case .regular:
+                return CGSize(width: 136, height: 72)
+            case .compact:
+                return CGSize(width: 104, height: 52)
             }
         }
 
         var padding: CGFloat {
             switch self {
-        case .regular: return 8
+            case .regular: return 8
             case .compact: return 5
             }
         }
 
         var sidebarWidth: CGFloat {
             switch self {
-        case .regular: return 44
+            case .regular: return 44
             case .compact: return 30
             }
         }
 
         var cornerRadius: CGFloat {
             switch self {
-        case .regular: return 10
+            case .regular: return 10
             case .compact: return 7
             }
         }
@@ -1742,6 +1516,29 @@ private struct ThemePreview: View {
             ?? basePalette.currentLine.color
     }
 
+    private var windowColor: Color {
+        theme?.windowBackground.color ?? basePalette.background.color
+    }
+
+    private var surfaceColor: Color {
+        theme?.surfaceBackground.color ?? basePalette.background.color
+    }
+
+    private var accentColor: Color {
+        theme?.accent?.color ?? basePalette.tokens.keyword.color
+    }
+
+    private var basePalette: SQLEditorPalette {
+        if let themePaletteID = theme?.defaultPaletteID,
+           let resolved = SQLEditorPalette.palette(withID: themePaletteID) {
+            return resolved
+        }
+        if let palette, let resolved = SQLEditorPalette.palette(withID: palette.id) {
+            return resolved
+        }
+        return theme?.tone == .dark ? SQLEditorPalette.midnight : SQLEditorPalette.aurora
+    }
+
     private var resolvedTokens: SQLEditorPalette.TokenColors {
         if let palette {
             return palette.tokens
@@ -1759,50 +1556,317 @@ private struct ThemePreview: View {
         return []
     }
 
-    private var defaultPalette: SQLEditorPalette {
-        isDark ? .midnight : .aurora
-    }
-
-    private var basePalette: SQLEditorPalette {
-        if let theme, let resolved = SQLEditorPalette.palette(withID: theme.defaultPaletteID) {
-            return resolved
-        }
-        if let palette, let resolved = SQLEditorPalette.palette(withID: palette.id) {
-            return resolved
-        }
-        return defaultPalette
-    }
-
-    private var windowColor: Color {
-        theme?.windowBackground.color ?? basePalette.background.color
-    }
-
-    private var surfaceColor: Color {
-        theme?.surfaceBackground.color ?? basePalette.gutterBackground.color
-    }
-
-    private var accentColor: Color {
-        if let accent = theme?.accent?.color {
-            return accent
-        }
-        return palette?.tokens.keyword.color ?? basePalette.tokens.keyword.color
-    }
-
 #if DEBUG
     private func reportSizeIfNeeded(_ size: CGSize) {
-        DispatchQueue.main.async {
-            let deltaWidth = abs(size.width - debugLoggedSize.width)
-            let deltaHeight = abs(size.height - debugLoggedSize.height)
-            guard deltaWidth > 0.5 || deltaHeight > 0.5 else { return }
-            debugLoggedSize = size
-            let width = String(format: "%.1f", size.width)
-            let height = String(format: "%.1f", size.height)
-            print("[ThemePreview] layout=\(layout) size=\(width)x\(height)")
-        }
+        guard debugLoggedSize != size else { return }
+        debugLoggedSize = size
+        print("ThemePreview layout \(layout) size: \(size)")
     }
 #endif
 }
 
+private struct ResultsGridPreview: View {
+    let tone: SQLEditorPalette.Tone
+    let theme: AppColorTheme
+    let useThemedAppearance: Bool
+    let alternateRows: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Preview")
+                .font(.headline)
+            tablePreview
+                .frame(height: 140)
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .stroke(Color.primary.opacity(0.08), lineWidth: 1)
+                )
+        }
+    }
+
+    private var tablePreview: some View {
+#if os(macOS)
+        let neutralBackground = Color(nsColor: .textBackgroundColor)
+        let neutralText = Color(nsColor: .labelColor)
+#else
+        let neutralBackground = Color(uiColor: .systemBackground)
+        let neutralText = Color(uiColor: .label)
+#endif
+        let baseBackground = useThemedAppearance ? theme.windowBackground.color : neutralBackground
+        let textColor = useThemedAppearance ? theme.surfaceForeground.color : neutralText
+        let accent = theme.accent?.color ?? textColor
+        let evenRow = baseBackground
+        let oddRow = alternateRows ? baseBackground.lerp(to: accent, fraction: 0.04) : baseBackground
+
+        return VStack(spacing: 0) {
+            headerRow(textColor: textColor)
+            ForEach(0..<4) { index in
+                row(index: index, color: index.isMultiple(of: 2) ? evenRow : oddRow, textColor: textColor)
+            }
+        }
+        .background(baseBackground)
+    }
+
+    private func headerRow(textColor: Color) -> some View {
+        HStack {
+            Text("Column A")
+                .frame(maxWidth: .infinity, alignment: .leading)
+            Text("Column B")
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .font(.caption.weight(.semibold))
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
+        .background((theme.accent?.color ?? textColor).opacity(0.12))
+        .foregroundStyle(textColor)
+    }
+
+    private func row(index: Int, color: Color, textColor: Color) -> some View {
+        HStack {
+            Text("Row \((index + 1))")
+                .frame(maxWidth: .infinity, alignment: .leading)
+            Text(index.isMultiple(of: 2) ? "Active" : "Pending")
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .font(.caption)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
+        .background(color)
+        .foregroundStyle(textColor.opacity(0.9))
+    }
+}
+
+private struct AdaptivePreviewGrid<Hero: View, Secondary: View>: View {
+    let hero: Hero
+    let secondary: Secondary
+
+    var body: some View {
+        ViewThatFits {
+            HStack(alignment: .top, spacing: 24) {
+                hero
+                secondary
+            }
+            VStack(alignment: .leading, spacing: 20) {
+                hero
+                secondary
+            }
+        }
+    }
+}
+private struct QueryEditorPreview: View {
+    let theme: AppColorTheme
+    let palette: SQLEditorTokenPalette
+    let fontName: String
+
+    var body: some View {
+        PaletteSnippetPreview(
+            background: theme.editorBackground.color,
+            gutterBackground: theme.editorGutterBackground.color,
+            gutterForeground: theme.editorGutterForeground.color,
+            selection: theme.editorSelection.color,
+            currentLine: theme.editorCurrentLine.color,
+            defaultText: theme.editorForeground.color,
+            tokenColors: palette.tokens,
+            isDark: theme.tone == .dark,
+            font: previewFont
+        )
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+    }
+
+    private var previewFont: Font {
+        if fontName.isEmpty {
+            return .system(size: 11, weight: .medium, design: .monospaced)
+        }
+        return .custom(fontName, size: 11)
+    }
+}
+
+private extension Color {
+    struct RGBAComponents {
+        let red: Double
+        let green: Double
+        let blue: Double
+        let opacity: Double
+    }
+
+    var rgbaComponents: RGBAComponents {
+#if os(macOS)
+        let nsColor = NSColor(self).usingColorSpace(.deviceRGB)
+        var r: CGFloat = 0
+        var g: CGFloat = 0
+        var b: CGFloat = 0
+        var a: CGFloat = 0
+        nsColor?.getRed(&r, green: &g, blue: &b, alpha: &a)
+#else
+        let uiColor = UIColor(self)
+        var r: CGFloat = 0
+        var g: CGFloat = 0
+        var b: CGFloat = 0
+        var a: CGFloat = 0
+        uiColor.getRed(&r, green: &g, blue: &b, alpha: &a)
+#endif
+        return RGBAComponents(red: Double(r), green: Double(g), blue: Double(b), opacity: Double(a))
+    }
+
+    func lerp(to other: Color, fraction: Double) -> Color {
+        let f = max(0, min(1, fraction))
+        let lhs = rgbaComponents
+        let rhs = other.rgbaComponents
+        return Color(
+            red: lhs.red + (rhs.red - lhs.red) * f,
+            green: lhs.green + (rhs.green - lhs.green) * f,
+            blue: lhs.blue + (rhs.blue - lhs.blue) * f,
+            opacity: lhs.opacity + (rhs.opacity - lhs.opacity) * f
+        )
+    }
+}
+
+private struct FontChip: View {
+    let title: String
+    let sampleFontName: String
+    let isSelected: Bool
+    let onSelect: () -> Void
+    var isCustom: Bool = false
+
+    var body: some View {
+        Button(action: onSelect) {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("SELECT * FROM table;")
+                    .font(sampleFont)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+                    .foregroundStyle(Color.primary.opacity(0.85))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                Text(title)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(12)
+            .frame(minWidth: 140, maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(Color.primary.opacity(0.05))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .stroke(isSelected ? Color.accentColor : Color.primary.opacity(0.08), lineWidth: isSelected ? 2 : 1)
+            )
+            .overlay(alignment: .topLeading) {
+                if isCustom {
+                    TagBadge(label: "Custom", foreground: Color.accentColor, background: Color.accentColor.opacity(0.18))
+                        .padding(8)
+                }
+            }
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var sampleFont: Font {
+        if sampleFontName.isEmpty {
+            return .system(size: 11, weight: .medium, design: .monospaced)
+        }
+        return .custom(sampleFontName, size: 11)
+    }
+}
+
+private struct EditorFontOption: Identifiable {
+    let id: String
+    let postScriptName: String
+    let displayName: String
+}
+
+private struct ChipBadge {
+    let label: String
+    let foreground: Color
+    let background: Color
+}
+
+private struct OptionalContextMenu<MenuContent: View>: ViewModifier {
+    let isEnabled: Bool
+    let menu: () -> MenuContent
+
+    func body(content: Content) -> some View {
+        if isEnabled {
+            content.contextMenu(menuItems: menu)
+        } else {
+            content
+        }
+    }
+}
+
+private extension View {
+    func optionalContextMenu<MenuContent: View>(isEnabled: Bool, @ViewBuilder content: @escaping () -> MenuContent) -> some View {
+        modifier(OptionalContextMenu(isEnabled: isEnabled, menu: content))
+    }
+}
+
+#if os(macOS)
+private struct SettingsWindowConfigurator: NSViewRepresentable {
+    let themeManager: ThemeManager
+
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView()
+        DispatchQueue.main.async {
+            guard let window = view.window else { return }
+            configure(window: window)
+        }
+        return view
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {
+        DispatchQueue.main.async {
+            guard let window = nsView.window else { return }
+            configure(window: window)
+        }
+    }
+
+    private func configure(window: NSWindow) {
+        if window.titleVisibility != .hidden {
+            window.titleVisibility = .hidden
+        }
+        if window.titlebarAppearsTransparent == false {
+            window.titlebarAppearsTransparent = true
+        }
+        let targetColor = themeManager.windowBackgroundNSColor
+        if window.backgroundColor != targetColor {
+            window.backgroundColor = targetColor
+        }
+    }
+}
+#endif
+
+#if os(macOS)
+final class SystemFontPickerCoordinator: NSObject, ObservableObject {
+    private var completion: ((String) -> Void)?
+
+    func present(currentFontName: String, completion: @escaping (String) -> Void) {
+        self.completion = completion
+        let manager = NSFontManager.shared
+        manager.target = self
+        manager.action = #selector(handleFontChange(_:))
+        let initialFont = NSFont(name: currentFontName, size: 14)
+            ?? NSFont.monospacedSystemFont(ofSize: 14, weight: .regular)
+        manager.setSelectedFont(initialFont, isMultiple: false)
+        let panel = NSFontPanel.shared
+        panel.setPanelFont(initialFont, isMultiple: false)
+        panel.makeKeyAndOrderFront(nil)
+    }
+
+    @objc private func handleFontChange(_ sender: NSFontManager) {
+        let baseFont = sender.selectedFont ?? NSFont.monospacedSystemFont(ofSize: 14, weight: .regular)
+        let converted = sender.convert(baseFont)
+        completion?(converted.fontName)
+    }
+}
+#else
+final class SystemFontPickerCoordinator: ObservableObject {
+    func present(currentFontName: String, completion: @escaping (String) -> Void) {
+        completion(currentFontName)
+    }
+}
+#endif
 private struct PaletteSnippetPreview: View {
     let background: Color
     let gutterBackground: Color

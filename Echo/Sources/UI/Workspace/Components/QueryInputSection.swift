@@ -31,7 +31,7 @@ struct QueryInputSection: View {
             )
         }
         let chrome = themeManager.activeTheme
-        resolved.surfaces.background = chrome.editorBackground
+        resolved.surfaces.background = chrome.windowBackground
         resolved.surfaces.text = chrome.editorForeground
         resolved.surfaces.gutterBackground = chrome.editorGutterBackground
         resolved.surfaces.gutterText = chrome.editorGutterForeground
@@ -50,7 +50,7 @@ struct QueryInputSection: View {
         return resolved
     }
 
-    private var workspaceBackground: Color {
+    private var editorBackground: Color {
         themeManager.activeTheme.windowBackground.color
     }
 
@@ -76,16 +76,13 @@ struct QueryInputSection: View {
 
     var body: some View {
         let resolvedTheme = editorTheme
-        let editorSurface = resolvedTheme.surfaces.background.color
-        let workspace = workspaceBackground
 
         return ZStack(alignment: .bottomTrailing) {
             SQLEditorView(
                 text: $query.sql,
                 theme: resolvedTheme,
                 display: appState.sqlEditorDisplay,
-                backgroundColor: editorSurface,
-                underlayColor: workspace,
+                backgroundColor: editorBackground,
                 completionContext: completionContext,
                 onTextChange: { newText in
                     if query.sql != newText {
@@ -106,7 +103,7 @@ struct QueryInputSection: View {
                 .padding(.bottom, verticalPadding)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .background(workspace)
+        .background(editorBackground)
     }
 
     private var runButton: some View {

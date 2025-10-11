@@ -105,10 +105,14 @@ private struct SidebarColumn: View {
             onAddConnection: { appState.showSheet(.connectionEditor) }
         )
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+#if os(macOS)
+        .background(SidebarGlassBackground().ignoresSafeArea())
+#else
         .background(
             themeManager.surfaceBackgroundColor
                 .ignoresSafeArea()
         )
+#endif
     }
 }
 
@@ -165,6 +169,22 @@ private struct WorkspaceWindowConfigurator: NSViewRepresentable {
         if window.title != " " {
             window.title = " "
         }
+    }
+}
+
+private struct SidebarGlassBackground: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSVisualEffectView {
+        let view = NSVisualEffectView()
+        view.material = .sidebar
+        view.blendingMode = .behindWindow
+        view.state = .active
+        return view
+    }
+
+    func updateNSView(_ nsView: NSVisualEffectView, context: Context) {
+        nsView.material = .sidebar
+        nsView.blendingMode = .behindWindow
+        nsView.state = .active
     }
 }
 #else
