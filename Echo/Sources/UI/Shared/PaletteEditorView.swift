@@ -39,14 +39,14 @@ struct PaletteEditorView: View {
             }
 
             Section("Tokens") {
-                colorPickerRow(label: "Keywords", color: binding(forTokens: \SQLEditorPalette.TokenColors.keyword))
-                colorPickerRow(label: "Strings", color: binding(forTokens: \SQLEditorPalette.TokenColors.string))
-                colorPickerRow(label: "Numbers", color: binding(forTokens: \SQLEditorPalette.TokenColors.number))
-                colorPickerRow(label: "Comments", color: binding(forTokens: \SQLEditorPalette.TokenColors.comment))
-                colorPickerRow(label: "Functions", color: binding(forTokens: \SQLEditorPalette.TokenColors.function))
-                colorPickerRow(label: "Operators", color: binding(forTokens: \SQLEditorPalette.TokenColors.operatorSymbol))
-                colorPickerRow(label: "Identifiers", color: binding(forTokens: \SQLEditorPalette.TokenColors.identifier))
-                colorPickerRow(label: "Plain Text", color: binding(forTokens: \SQLEditorPalette.TokenColors.plain))
+                tokenEditorRow(label: "Keywords", keyPath: \.keyword)
+                tokenEditorRow(label: "Strings", keyPath: \.string)
+                tokenEditorRow(label: "Numbers", keyPath: \.number)
+                tokenEditorRow(label: "Comments", keyPath: \.comment)
+                tokenEditorRow(label: "Functions", keyPath: \.function)
+                tokenEditorRow(label: "Operators", keyPath: \.operatorSymbol)
+                tokenEditorRow(label: "Identifiers", keyPath: \.identifier)
+                tokenEditorRow(label: "Plain Text", keyPath: \.plain)
             }
         }
     }
@@ -65,10 +65,14 @@ struct PaletteEditorView: View {
         )
     }
 
-    private func binding(forTokens keyPath: WritableKeyPath<SQLEditorPalette.TokenColors, ColorRepresentable>) -> Binding<Color> {
+    private func binding(forTokens keyPath: WritableKeyPath<SQLEditorPalette.TokenColors, SQLEditorPalette.TokenStyle>) -> Binding<Color> {
         Binding(
-            get: { palette.tokens[keyPath: keyPath].color },
-            set: { palette.tokens[keyPath: keyPath] = ColorRepresentable(color: $0) }
+            get: { palette.tokens[keyPath: keyPath].swiftColor },
+            set: { newValue in
+                var style = palette.tokens[keyPath: keyPath]
+                style.color = ColorRepresentable(color: newValue)
+                palette.tokens[keyPath: keyPath] = style
+            }
         )
     }
 
@@ -81,5 +85,60 @@ struct PaletteEditorView: View {
                 .labelsHidden()
                 .frame(width: 120, alignment: .trailing)
         }
+    }
+
+    @ViewBuilder
+    private func tokenEditorRow(
+        label: String,
+        keyPath: WritableKeyPath<SQLEditorPalette.TokenColors, SQLEditorPalette.TokenStyle>
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text(label)
+                Spacer()
+                ColorPicker(
+                    label,
+                    selection: binding(forTokens: keyPath),
+                    supportsOpacity: true
+                )
+                .labelsHidden()
+                .frame(width: 120, alignment: .trailing)
+            }
+
+            HStack(spacing: 16) {
+                Spacer()
+                Toggle("Bold", isOn: boldBinding(for: keyPath))
+                    .toggleStyle(.checkbox)
+                    .controlSize(.small)
+                Toggle("Italic", isOn: italicBinding(for: keyPath))
+                    .toggleStyle(.checkbox)
+                    .controlSize(.small)
+            }
+            .font(.caption)
+            .padding(.trailing, 4)
+        }
+        .padding(.vertical, 2)
+    }
+
+    private func boldBinding(for keyPath: WritableKeyPath<SQLEditorPalette.TokenColors, SQLEditorPalette.TokenStyle>) -> Binding<Bool> {
+        Binding(
+            get: { palette.tokens[keyPath: keyPath].isBold },
+            set: { newValue in
+                var style = palette.tokens[keyPath: keyPath]
+                style.isBold = newValue
+                palette.tokens[keyPath: keyPath] = style
+            }
+        )
+    }
+
+    private func italicBinding(for keyPath: WritableKeyPath<SQLEditorPalette.TokenColors, SQLEditorPalette.TokenStyle>) -> Binding<Bool> {
+        Binding(
+            get: { palette.tokens[keyPath: keyPath].isItalic },
+            set: { newValue in
+                var style = palette.tokens[keyPath: keyPath]
+                style.isItalic = newValue
+                palette.tokens[keyPath: keyPath] = style
+            }
+        )
     }
 }

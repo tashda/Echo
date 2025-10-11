@@ -166,24 +166,82 @@ struct SQLEditorTokenPalette: Codable, Equatable, Hashable, Identifiable {
         case custom
     }
 
+    struct ResultGridStyle: Codable, Equatable, Hashable {
+        var color: ColorRepresentable
+        var isBold: Bool
+        var isItalic: Bool
+
+        init(color: ColorRepresentable, isBold: Bool = false, isItalic: Bool = false) {
+            self.color = color
+            self.isBold = isBold
+            self.isItalic = isItalic
+        }
+
+        var swiftColor: Color { color.color }
+
+#if os(macOS)
+        var nsColor: NSColor { color.nsColor }
+#elseif canImport(UIKit)
+        var uiColor: UIColor { color.uiColor }
+#endif
+    }
+
+    struct ResultGridColors: Codable, Equatable, Hashable {
+        var null: ResultGridStyle
+        var numeric: ResultGridStyle
+        var boolean: ResultGridStyle
+        var temporal: ResultGridStyle
+        var binary: ResultGridStyle
+        var identifier: ResultGridStyle
+        var json: ResultGridStyle
+
+        static func defaults(for tone: SQLEditorPalette.Tone) -> ResultGridColors {
+            switch tone {
+            case .light:
+                return ResultGridColors(
+                    null: ResultGridStyle(color: ColorRepresentable(hex: 0x6B7280, alpha: 0.7), isItalic: true),
+                    numeric: ResultGridStyle(color: ColorRepresentable(hex: 0x1D4ED8)),
+                    boolean: ResultGridStyle(color: ColorRepresentable(hex: 0x047857)),
+                    temporal: ResultGridStyle(color: ColorRepresentable(hex: 0xB45309)),
+                    binary: ResultGridStyle(color: ColorRepresentable(hex: 0x7C3AED)),
+                    identifier: ResultGridStyle(color: ColorRepresentable(hex: 0x4338CA)),
+                    json: ResultGridStyle(color: ColorRepresentable(hex: 0x0F766E))
+                )
+            case .dark:
+                return ResultGridColors(
+                    null: ResultGridStyle(color: ColorRepresentable(hex: 0xCBD5F5, alpha: 0.85), isItalic: true),
+                    numeric: ResultGridStyle(color: ColorRepresentable(hex: 0x60A5FA)),
+                    boolean: ResultGridStyle(color: ColorRepresentable(hex: 0x34D399)),
+                    temporal: ResultGridStyle(color: ColorRepresentable(hex: 0xFBBF24)),
+                    binary: ResultGridStyle(color: ColorRepresentable(hex: 0xC084FC)),
+                    identifier: ResultGridStyle(color: ColorRepresentable(hex: 0xA5B4FF)),
+                    json: ResultGridStyle(color: ColorRepresentable(hex: 0x5EEAD4))
+                )
+            }
+        }
+    }
+
     var id: String
     var name: String
     var kind: Kind
     var tone: SQLEditorPalette.Tone
     var tokens: SQLEditorPalette.TokenColors
+    var resultGrid: ResultGridColors
 
     init(
         id: String,
         name: String,
         kind: Kind,
         tone: SQLEditorPalette.Tone,
-        tokens: SQLEditorPalette.TokenColors
+        tokens: SQLEditorPalette.TokenColors,
+        resultGrid: ResultGridColors? = nil
     ) {
         self.id = id
         self.name = name
         self.kind = kind
         self.tone = tone
         self.tokens = tokens
+        self.resultGrid = resultGrid ?? ResultGridColors.defaults(for: tone)
     }
 
     init(from palette: SQLEditorPalette) {
@@ -192,7 +250,8 @@ struct SQLEditorTokenPalette: Codable, Equatable, Hashable, Identifiable {
             name: palette.name,
             kind: palette.kind == .custom ? .custom : .builtIn,
             tone: palette.tone,
-            tokens: palette.tokens
+            tokens: palette.tokens,
+            resultGrid: ResultGridColors.defaults(for: palette.tone)
         )
     }
 
@@ -202,8 +261,39 @@ struct SQLEditorTokenPalette: Codable, Equatable, Hashable, Identifiable {
             name: name ?? "\(self.name) Copy",
             kind: .custom,
             tone: tone,
-            tokens: tokens
+            tokens: tokens,
+            resultGrid: resultGrid
         )
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id
+        case name
+        case kind
+        case tone
+        case tokens
+        case resultGrid
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        name = try container.decode(String.self, forKey: .name)
+        kind = try container.decode(Kind.self, forKey: .kind)
+        tone = try container.decode(SQLEditorPalette.Tone.self, forKey: .tone)
+        tokens = try container.decode(SQLEditorPalette.TokenColors.self, forKey: .tokens)
+        resultGrid = try container.decodeIfPresent(ResultGridColors.self, forKey: .resultGrid)
+            ?? ResultGridColors.defaults(for: tone)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(name, forKey: .name)
+        try container.encode(kind, forKey: .kind)
+        try container.encode(tone, forKey: .tone)
+        try container.encode(tokens, forKey: .tokens)
+        try container.encode(resultGrid, forKey: .resultGrid)
     }
 
     static let builtIn: [SQLEditorTokenPalette] = SQLEditorPalette.builtIn.map { SQLEditorTokenPalette(from: $0) }
@@ -245,12 +335,37 @@ struct SQLEditorTokenPalette: Codable, Equatable, Hashable, Identifiable {
 extension SQLEditorTokenPalette {
     var showcaseColors: [Color] {
         [
-            tokens.keyword.color,
-            tokens.string.color,
-            tokens.operatorSymbol.color,
-            tokens.identifier.color,
-            tokens.comment.color
+            tokens.keyword.swiftColor,
+            tokens.string.swiftColor,
+            tokens.operatorSymbol.swiftColor,
+            tokens.identifier.swiftColor,
+            tokens.comment.swiftColor
         ]
+    }
+
+    func style(for kind: ResultGridValueKind) -> SQLEditorTokenPalette.ResultGridStyle {
+        switch kind {
+        case .null:
+            return resultGrid.null
+        case .numeric:
+            return resultGrid.numeric
+        case .boolean:
+            return resultGrid.boolean
+        case .temporal:
+            return resultGrid.temporal
+        case .binary:
+            return resultGrid.binary
+        case .identifier:
+            return resultGrid.identifier
+        case .json:
+            return resultGrid.json
+        case .text:
+#if os(macOS)
+            return SQLEditorTokenPalette.ResultGridStyle(color: ColorRepresentable(color: Color(nsColor: .labelColor)))
+#else
+            return SQLEditorTokenPalette.ResultGridStyle(color: ColorRepresentable(color: Color(uiColor: .label)))
+#endif
+        }
     }
 }
 
@@ -265,15 +380,100 @@ struct SQLEditorPalette: Codable, Equatable, Hashable, Identifiable {
         case dark
     }
 
+    struct TokenStyle: Codable, Equatable, Hashable {
+        var color: ColorRepresentable
+        var isBold: Bool
+        var isItalic: Bool
+
+        init(color: ColorRepresentable, isBold: Bool = false, isItalic: Bool = false) {
+            self.color = color
+            self.isBold = isBold
+            self.isItalic = isItalic
+        }
+
+        init(from decoder: Decoder) throws {
+            if let single = try? decoder.singleValueContainer(),
+               let color = try? single.decode(ColorRepresentable.self) {
+                self.init(color: color)
+                return
+            }
+
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            let color = try container.decode(ColorRepresentable.self, forKey: .color)
+            let isBold = try container.decodeIfPresent(Bool.self, forKey: .isBold) ?? false
+            let isItalic = try container.decodeIfPresent(Bool.self, forKey: .isItalic) ?? false
+            self.init(color: color, isBold: isBold, isItalic: isItalic)
+        }
+
+        func encode(to encoder: Encoder) throws {
+            var container = encoder.container(keyedBy: CodingKeys.self)
+            try container.encode(color, forKey: .color)
+            if isBold {
+                try container.encode(isBold, forKey: .isBold)
+            }
+            if isItalic {
+                try container.encode(isItalic, forKey: .isItalic)
+            }
+        }
+
+        private enum CodingKeys: String, CodingKey {
+            case color
+            case isBold
+            case isItalic
+        }
+
+        var swiftColor: Color { color.color }
+
+#if os(macOS)
+        var nsColor: NSColor { color.nsColor }
+#else
+        var uiColor: UIColor { color.uiColor }
+#endif
+
+        func platformFont(from base: PlatformFont) -> PlatformFont {
+#if os(macOS)
+            var traits: NSFontTraitMask = []
+            if isBold {
+                traits.insert(.boldFontMask)
+            }
+            if isItalic {
+                traits.insert(.italicFontMask)
+            }
+            guard !traits.isEmpty else { return base }
+            return NSFontManager.shared.convert(base, toHaveTrait: traits)
+#else
+            var traits = base.fontDescriptor.symbolicTraits
+            if isBold {
+                traits.insert(.traitBold)
+            }
+            if isItalic {
+                traits.insert(.traitItalic)
+            }
+            guard let descriptor = base.fontDescriptor.withSymbolicTraits(traits) else {
+                return base
+            }
+            return UIFont(descriptor: descriptor, size: base.pointSize)
+#endif
+        }
+
+        func swiftUIFont(from base: PlatformFont) -> Font {
+#if os(macOS)
+            Font(platformFont(from: base))
+#else
+            Font(platformFont(from: base))
+#endif
+        }
+    }
+
     struct TokenColors: Codable, Equatable, Hashable {
-        var keyword: ColorRepresentable
-        var string: ColorRepresentable
-        var number: ColorRepresentable
-        var comment: ColorRepresentable
-        var plain: ColorRepresentable
-        var function: ColorRepresentable
-        var operatorSymbol: ColorRepresentable
-        var identifier: ColorRepresentable
+        var keyword: TokenStyle
+        var string: TokenStyle
+        var number: TokenStyle
+        var comment: TokenStyle
+        var plain: TokenStyle
+        var function: TokenStyle
+        var operatorSymbol: TokenStyle
+        var identifier: TokenStyle
 
         private enum CodingKeys: String, CodingKey {
             case keyword
@@ -289,14 +489,14 @@ struct SQLEditorPalette: Codable, Equatable, Hashable, Identifiable {
         }
 
         init(
-            keyword: ColorRepresentable,
-            string: ColorRepresentable,
-            number: ColorRepresentable,
-            comment: ColorRepresentable,
-            plain: ColorRepresentable,
-            function: ColorRepresentable,
-            operatorSymbol: ColorRepresentable,
-            identifier: ColorRepresentable
+            keyword: TokenStyle,
+            string: TokenStyle,
+            number: TokenStyle,
+            comment: TokenStyle,
+            plain: TokenStyle,
+            function: TokenStyle,
+            operatorSymbol: TokenStyle,
+            identifier: TokenStyle
         ) {
             self.keyword = keyword
             self.string = string
@@ -308,25 +508,47 @@ struct SQLEditorPalette: Codable, Equatable, Hashable, Identifiable {
             self.identifier = identifier
         }
 
+        init(
+            keyword: ColorRepresentable,
+            string: ColorRepresentable,
+            number: ColorRepresentable,
+            comment: ColorRepresentable,
+            plain: ColorRepresentable,
+            function: ColorRepresentable,
+            operatorSymbol: ColorRepresentable,
+            identifier: ColorRepresentable
+        ) {
+            self.init(
+                keyword: TokenStyle(color: keyword, isBold: true),
+                string: TokenStyle(color: string),
+                number: TokenStyle(color: number),
+                comment: TokenStyle(color: comment),
+                plain: TokenStyle(color: plain),
+                function: TokenStyle(color: function),
+                operatorSymbol: TokenStyle(color: operatorSymbol),
+                identifier: TokenStyle(color: identifier)
+            )
+        }
+
         init(from decoder: Decoder) throws {
             let container = try decoder.container(keyedBy: CodingKeys.self)
-            if let explicit = try container.decodeIfPresent(ColorRepresentable.self, forKey: .keyword) {
+            if let explicit = try container.decodeIfPresent(TokenStyle.self, forKey: .keyword) {
                 keyword = explicit
             } else if let legacyPrimary = try container.decodeIfPresent(ColorRepresentable.self, forKey: .primaryKeyword) {
-                keyword = legacyPrimary
+                keyword = TokenStyle(color: legacyPrimary)
             } else if let legacySecondary = try container.decodeIfPresent(ColorRepresentable.self, forKey: .secondaryKeyword) {
-                keyword = legacySecondary
+                keyword = TokenStyle(color: legacySecondary)
             } else {
-                keyword = ColorRepresentable(hex: 0x3367D6)
+                keyword = TokenStyle(color: ColorRepresentable(hex: 0x3367D6))
             }
 
-            string = try container.decode(ColorRepresentable.self, forKey: .string)
-            number = try container.decode(ColorRepresentable.self, forKey: .number)
-            comment = try container.decode(ColorRepresentable.self, forKey: .comment)
-            plain = try container.decode(ColorRepresentable.self, forKey: .plain)
-            function = try container.decode(ColorRepresentable.self, forKey: .function)
-            operatorSymbol = try container.decode(ColorRepresentable.self, forKey: .operatorSymbol)
-            identifier = try container.decode(ColorRepresentable.self, forKey: .identifier)
+            string = try container.decode(TokenStyle.self, forKey: .string)
+            number = try container.decode(TokenStyle.self, forKey: .number)
+            comment = try container.decode(TokenStyle.self, forKey: .comment)
+            plain = try container.decode(TokenStyle.self, forKey: .plain)
+            function = try container.decode(TokenStyle.self, forKey: .function)
+            operatorSymbol = try container.decode(TokenStyle.self, forKey: .operatorSymbol)
+            identifier = try container.decode(TokenStyle.self, forKey: .identifier)
         }
 
         func encode(to encoder: Encoder) throws {
@@ -381,6 +603,16 @@ struct SQLEditorPalette: Codable, Equatable, Hashable, Identifiable {
         self.selection = selection
         self.currentLine = currentLine
         self.tokens = tokens
+    }
+}
+
+extension SQLEditorPalette.TokenStyle {
+    init(color: Color, isBold: Bool = false, isItalic: Bool = false) {
+        self.init(color: ColorRepresentable(color: color), isBold: isBold, isItalic: isItalic)
+    }
+
+    func withColor(_ color: Color) -> SQLEditorPalette.TokenStyle {
+        SQLEditorPalette.TokenStyle(color: ColorRepresentable(color: color), isBold: isBold, isItalic: isItalic)
     }
 }
 
@@ -1133,5 +1365,25 @@ enum SQLEditorThemeResolver {
         if value < min { return min }
         if value > max { return max }
         return value
+    }
+}
+
+extension SQLEditorTokenPalette.ResultGridColors {
+    func style(for kind: ResultGridValueKind) -> SQLEditorTokenPalette.ResultGridStyle {
+        switch kind {
+        case .null: return null
+        case .numeric: return numeric
+        case .boolean: return boolean
+        case .temporal: return temporal
+        case .binary: return binary
+        case .identifier: return identifier
+        case .json: return json
+        case .text:
+#if os(macOS)
+            return SQLEditorTokenPalette.ResultGridStyle(color: ColorRepresentable(color: Color(nsColor: .labelColor)))
+#else
+            return SQLEditorTokenPalette.ResultGridStyle(color: ColorRepresentable(color: Color(uiColor: .label)))
+#endif
+        }
     }
 }

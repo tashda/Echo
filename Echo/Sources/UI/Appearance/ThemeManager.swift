@@ -45,6 +45,8 @@ final class ThemeManager: ObservableObject {
     var surfaceForeground: Color { surfaceForegroundColor }
 
     private var themesByTone: [SQLEditorPalette.Tone: AppColorTheme]
+    private var tokenPalettesByTone: [SQLEditorPalette.Tone: SQLEditorTokenPalette]
+    private var resultGridColorsByTone: [SQLEditorPalette.Tone: SQLEditorTokenPalette.ResultGridColors]
     private var activeTone: SQLEditorPalette.Tone
     private let accentSubject: CurrentValueSubject<Color, Never>
 #if os(macOS)
@@ -58,6 +60,8 @@ final class ThemeManager: ObservableObject {
         let defaultDarkTheme = AppColorTheme.builtInThemes(for: .dark).first
             ?? AppColorTheme.fromPalette(.midnight, idOverride: "builtin-initial-dark", isCustom: false)
         themesByTone = [.light: defaultLightTheme, .dark: defaultDarkTheme]
+        tokenPalettesByTone = [:]
+        resultGridColorsByTone = [:]
 
 #if os(macOS)
         let initialScheme = ThemeManager.currentSystemColorScheme()
@@ -77,6 +81,7 @@ final class ThemeManager: ObservableObject {
         surfaceForegroundColor = initialTheme.surfaceForeground.color
         useAppThemeForResultsGrid = true
         resultsAlternateRowShading = false
+        resultGridColorsByTone[activeTone] = SQLEditorTokenPalette.ResultGridColors.defaults(for: activeTone)
         accentSubject = CurrentValueSubject<Color, Never>(initialAccentColor)
 
 #if os(macOS)
@@ -126,10 +131,133 @@ final class ThemeManager: ObservableObject {
     }
 #endif
 
+    private func updateResultGridPalette(
+        for tone: SQLEditorPalette.Tone,
+        theme: AppColorTheme,
+        palette: SQLEditorTokenPalette?
+    ) {
+        let resolved: SQLEditorTokenPalette
+        if let palette {
+            resolved = palette
+        } else if let existing = tokenPalettesByTone[tone] {
+            resolved = existing
+        } else if let matched = SQLEditorTokenPalette.palette(withID: theme.defaultPaletteID) {
+            resolved = matched
+        } else if let fallback = SQLEditorTokenPalette.builtIn.first(where: { $0.tone == tone }) {
+            resolved = fallback
+        } else {
+            let base = tone == .dark ? SQLEditorPalette.midnight : SQLEditorPalette.aurora
+            resolved = SQLEditorTokenPalette(from: base)
+        }
+
+        tokenPalettesByTone[tone] = resolved
+        resultGridColorsByTone[tone] = resolved.resultGrid
+    }
+
+    private func resultGridColors(for tone: SQLEditorPalette.Tone) -> SQLEditorTokenPalette.ResultGridColors {
+        resultGridColorsByTone[tone] ?? SQLEditorTokenPalette.ResultGridColors.defaults(for: tone)
+    }
+
+    private var activeResultGridColors: SQLEditorTokenPalette.ResultGridColors {
+        resultGridColors(for: activeTone)
+    }
+
+    func resultGridStyle(for kind: ResultGridValueKind) -> SQLEditorTokenPalette.ResultGridStyle {
+        if useAppThemeForResultsGrid {
+            let colors = activeResultGridColors
+            switch kind {
+            case .null:
+                return colors.null
+            case .numeric:
+                return colors.numeric
+            case .boolean:
+                return colors.boolean
+            case .temporal:
+                return colors.temporal
+            case .binary:
+                return colors.binary
+            case .identifier:
+                return colors.identifier
+            case .json:
+                return colors.json
+            case .text:
+                return SQLEditorTokenPalette.ResultGridStyle(
+                    color: ColorRepresentable(color: surfaceForegroundColor),
+                    isBold: false,
+                    isItalic: false
+                )
+        }
+    } else {
+        return fallbackResultGridStyle(for: kind)
+    }
+}
+
+    private func fallbackResultGridStyle(for kind: ResultGridValueKind) -> SQLEditorTokenPalette.ResultGridStyle {
+        switch kind {
+        case .null:
+#if os(macOS)
+            return SQLEditorTokenPalette.ResultGridStyle(
+                color: ColorRepresentable(color: Color(nsColor: NSColor.secondaryLabelColor.withAlphaComponent(0.7))),
+                isBold: false,
+                isItalic: true
+            )
+#else
+            return SQLEditorTokenPalette.ResultGridStyle(
+                color: ColorRepresentable(color: Color(uiColor: UIColor.secondaryLabel.withAlphaComponent(0.7))),
+                isBold: false,
+                isItalic: true
+            )
+#endif
+        case .numeric:
+#if os(macOS)
+            return SQLEditorTokenPalette.ResultGridStyle(color: ColorRepresentable(color: Color(nsColor: .systemBlue)))
+#else
+            return SQLEditorTokenPalette.ResultGridStyle(color: ColorRepresentable(color: Color(uiColor: .systemBlue)))
+#endif
+        case .boolean:
+#if os(macOS)
+            return SQLEditorTokenPalette.ResultGridStyle(color: ColorRepresentable(color: Color(nsColor: .systemGreen)))
+#else
+            return SQLEditorTokenPalette.ResultGridStyle(color: ColorRepresentable(color: Color(uiColor: .systemGreen)))
+#endif
+        case .temporal:
+#if os(macOS)
+            return SQLEditorTokenPalette.ResultGridStyle(color: ColorRepresentable(color: Color(nsColor: .systemOrange)))
+#else
+            return SQLEditorTokenPalette.ResultGridStyle(color: ColorRepresentable(color: Color(uiColor: .systemOrange)))
+#endif
+        case .binary:
+#if os(macOS)
+            return SQLEditorTokenPalette.ResultGridStyle(color: ColorRepresentable(color: Color(nsColor: .systemPurple)))
+#else
+            return SQLEditorTokenPalette.ResultGridStyle(color: ColorRepresentable(color: Color(uiColor: .systemPurple)))
+#endif
+        case .identifier:
+#if os(macOS)
+            return SQLEditorTokenPalette.ResultGridStyle(color: ColorRepresentable(color: Color(nsColor: .systemIndigo)))
+#else
+            return SQLEditorTokenPalette.ResultGridStyle(color: ColorRepresentable(color: Color(uiColor: .systemIndigo)))
+#endif
+        case .json:
+#if os(macOS)
+            return SQLEditorTokenPalette.ResultGridStyle(color: ColorRepresentable(color: Color(nsColor: .systemTeal)))
+#else
+            return SQLEditorTokenPalette.ResultGridStyle(color: ColorRepresentable(color: Color(uiColor: .systemTeal)))
+#endif
+        case .text:
+#if os(macOS)
+            return SQLEditorTokenPalette.ResultGridStyle(color: ColorRepresentable(color: Color(nsColor: .labelColor)))
+#else
+            return SQLEditorTokenPalette.ResultGridStyle(color: ColorRepresentable(color: Color(uiColor: .label)))
+#endif
+        }
+    }
+
     // MARK: - Mutating API
 
-    func applyChrome(theme: AppColorTheme, tone: SQLEditorPalette.Tone) {
+    func applyChrome(theme: AppColorTheme, tone: SQLEditorPalette.Tone, palette: SQLEditorTokenPalette? = nil) {
         themesByTone[tone] = theme
+        updateResultGridPalette(for: tone, theme: theme, palette: palette)
         if tone == activeTone {
             updateOutputs(for: tone)
         }
@@ -185,6 +313,9 @@ final class ThemeManager: ObservableObject {
     private func updateOutputs(for tone: SQLEditorPalette.Tone) {
         let theme = theme(for: tone)
         activeTheme = theme
+        if resultGridColorsByTone[tone] == nil {
+            updateResultGridPalette(for: tone, theme: theme, palette: nil)
+        }
 
         let accentRepresentable = ThemeManager.accentRepresentable(from: theme)
         accentColor = accentRepresentable.color
@@ -336,10 +467,26 @@ extension ThemeManager {
     var resultsGridHeaderSeparatorNSColor: NSColor {
         useAppThemeForResultsGrid ? accentNSColor.withAlphaComponent(0.2) : NSColor.separatorColor
     }
+
+    var resultsGridNullTextNSColor: NSColor { resultGridStyle(for: .null).nsColor }
+    var resultsGridNumericTextNSColor: NSColor { resultGridStyle(for: .numeric).nsColor }
+    var resultsGridBooleanTextNSColor: NSColor { resultGridStyle(for: .boolean).nsColor }
+    var resultsGridTemporalTextNSColor: NSColor { resultGridStyle(for: .temporal).nsColor }
+    var resultsGridBinaryTextNSColor: NSColor { resultGridStyle(for: .binary).nsColor }
+    var resultsGridIdentifierTextNSColor: NSColor { resultGridStyle(for: .identifier).nsColor }
+    var resultsGridJSONTextNSColor: NSColor { resultGridStyle(for: .json).nsColor }
 #elseif canImport(UIKit)
     var resultsGridAlternateRowUIColor: UIColor {
         guard resultsAlternateRowShading else { return resultsGridBackgroundUIColor }
         return useAppThemeForResultsGrid ? UIColor.systemGray6 : UIColor.secondarySystemBackground
     }
+
+    var resultsGridNullTextUIColor: UIColor { resultGridStyle(for: .null).uiColor }
+    var resultsGridNumericTextUIColor: UIColor { resultGridStyle(for: .numeric).uiColor }
+    var resultsGridBooleanTextUIColor: UIColor { resultGridStyle(for: .boolean).uiColor }
+    var resultsGridTemporalTextUIColor: UIColor { resultGridStyle(for: .temporal).uiColor }
+    var resultsGridBinaryTextUIColor: UIColor { resultGridStyle(for: .binary).uiColor }
+    var resultsGridIdentifierTextUIColor: UIColor { resultGridStyle(for: .identifier).uiColor }
+    var resultsGridJSONTextUIColor: UIColor { resultGridStyle(for: .json).uiColor }
 #endif
 }

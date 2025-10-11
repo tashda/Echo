@@ -881,7 +881,7 @@ private struct ThemeAppearanceSection: View {
     private var heroPreview: some View {
         let theme = displayedTheme
         let palette = resolvedPalette(for: theme)
-        let accent = theme.accent?.color ?? palette.tokens.keyword.color
+        let accent = theme.accent?.color ?? palette.tokens.keyword.swiftColor
 
         return previewCard(
             title: theme.name,
@@ -897,7 +897,7 @@ private struct ThemeAppearanceSection: View {
     private var paletteSummary: some View {
         let theme = displayedTheme
         let palette = resolvedPalette(for: theme)
-        let accent = palette.tokens.keyword.color
+        let accent = palette.tokens.keyword.swiftColor
 
         return previewCard(
             title: "Default Palette",
@@ -967,7 +967,7 @@ private struct ThemeAppearanceSection: View {
 
     private func paletteHeroGradient(for theme: AppColorTheme, palette: SQLEditorTokenPalette) -> LinearGradient {
         let base = theme.editorBackground.color
-        let accent = palette.tokens.keyword.color
+        let accent = palette.tokens.keyword.swiftColor
         return LinearGradient(
             colors: [
                 base,
@@ -1010,7 +1010,7 @@ private struct ThemeAppearanceSection: View {
 
     private func themeBadge(for theme: AppColorTheme, palette: SQLEditorTokenPalette) -> ChipBadge? {
         guard theme.isCustom else { return nil }
-        let accent = theme.accent?.color ?? palette.tokens.keyword.color
+        let accent = theme.accent?.color ?? palette.tokens.keyword.swiftColor
         return ChipBadge(label: "Custom", foreground: accent, background: accent.opacity(0.16))
     }
 }
@@ -1159,7 +1159,7 @@ private struct QueryEditorSection: View {
 
     private func paletteBadge(for palette: SQLEditorTokenPalette) -> ChipBadge? {
         guard palette.kind == .custom else { return nil }
-        let accent = palette.tokens.keyword.color
+        let accent = palette.tokens.keyword.swiftColor
         return ChipBadge(label: "Custom", foreground: accent, background: accent.opacity(0.16))
     }
 }
@@ -1525,7 +1525,7 @@ private struct ThemePreview: View {
     }
 
     private var accentColor: Color {
-        theme?.accent?.color ?? basePalette.tokens.keyword.color
+        theme?.accent?.color ?? basePalette.tokens.keyword.swiftColor
     }
 
     private var basePalette: SQLEditorPalette {
@@ -1570,6 +1570,8 @@ private struct ResultsGridPreview: View {
     let theme: AppColorTheme
     let useThemedAppearance: Bool
     let alternateRows: Bool
+    private let columns: [PreviewColumn] = PreviewColumn.sampleColumns
+    private let sampleRows: [[String?]] = PreviewColumn.sampleRows
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -1601,19 +1603,21 @@ private struct ResultsGridPreview: View {
 
         return VStack(spacing: 0) {
             headerRow(textColor: textColor)
-            ForEach(0..<4) { index in
-                row(index: index, color: index.isMultiple(of: 2) ? evenRow : oddRow, textColor: textColor)
+            ForEach(sampleRows.indices, id: \.self) { index in
+                row(index: index,
+                    color: index.isMultiple(of: 2) ? evenRow : oddRow,
+                    textColor: textColor)
             }
         }
         .background(baseBackground)
     }
 
     private func headerRow(textColor: Color) -> some View {
-        HStack {
-            Text("Column A")
-                .frame(maxWidth: .infinity, alignment: .leading)
-            Text("Column B")
-                .frame(maxWidth: .infinity, alignment: .leading)
+        return HStack {
+            ForEach(columns) { column in
+                Text(column.title)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
         }
         .font(.caption.weight(.semibold))
         .padding(.horizontal, 12)
@@ -1623,17 +1627,38 @@ private struct ResultsGridPreview: View {
     }
 
     private func row(index: Int, color: Color, textColor: Color) -> some View {
-        HStack {
-            Text("Row \((index + 1))")
-                .frame(maxWidth: .infinity, alignment: .leading)
-            Text(index.isMultiple(of: 2) ? "Active" : "Pending")
-                .frame(maxWidth: .infinity, alignment: .leading)
+        let values = sampleRows[index]
+        return HStack {
+            ForEach(columns) { column in
+                Text(values[column.index] ?? "—")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
         }
         .font(.caption)
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
         .background(color)
         .foregroundStyle(textColor.opacity(0.9))
+    }
+
+    private struct PreviewColumn: Identifiable {
+        let id = UUID()
+        let index: Int
+        let title: String
+
+        static let sampleColumns: [PreviewColumn] = [
+            PreviewColumn(index: 0, title: "ID"),
+            PreviewColumn(index: 1, title: "Status"),
+            PreviewColumn(index: 2, title: "Created"),
+            PreviewColumn(index: 3, title: "Owner")
+        ]
+
+        static let sampleRows: [[String?]] = [
+            ["1", "Active", "2024-10-30", "primary"],
+            ["2", "Pending", "2024-10-18", "review"],
+            ["3", "Active", "2024-09-27", "ops"],
+            ["4", nil, "2024-07-12", "archive"]
+        ]
     }
 }
 
@@ -1720,6 +1745,10 @@ private extension Color {
             opacity: lhs.opacity + (rhs.opacity - lhs.opacity) * f
         )
     }
+}
+
+private extension BinaryInteger {
+    var cg: CGFloat { CGFloat(self) }
 }
 
 private struct FontChip: View {
@@ -1935,29 +1964,29 @@ private struct PaletteSnippetPreview: View {
         VStack(alignment: .leading, spacing: 4) {
             codeLine(
                 [
-                    ("-- palette preview", tokenColors.comment.color.opacity(isDark ? 0.82 : 0.72))
+                    ("-- palette preview", tokenColors.comment.swiftColor.opacity(isDark ? 0.82 : 0.72))
                 ],
                 highlight: highlightColor(currentLine, fallbackOpacity: isDark ? 0.25 : 0.16)
             )
             codeLine(
                 [
-                    ("SELECT ", tokenColors.keyword.color),
-                    ("* ", tokenColors.operatorSymbol.color),
-                    ("FROM ", tokenColors.keyword.color),
-                    ("Echo", tokenColors.identifier.color),
+                    ("SELECT ", tokenColors.keyword.swiftColor),
+                    ("* ", tokenColors.operatorSymbol.swiftColor),
+                    ("FROM ", tokenColors.keyword.swiftColor),
+                    ("Echo", tokenColors.identifier.swiftColor),
                     (".", defaultText.opacity(isDark ? 0.75 : 0.6)),
-                    ("Table", tokenColors.identifier.color)
+                    ("Table", tokenColors.identifier.swiftColor)
                 ],
                 highlight: highlightColor(selection, fallbackOpacity: isDark ? 0.38 : 0.26)
             )
             codeLine(
                 [
-                    ("WHERE ", tokenColors.keyword.color),
-                    ("created_at ", tokenColors.identifier.color),
-                    ("> ", tokenColors.operatorSymbol.color),
-                    ("NOW", tokenColors.function.color),
+                    ("WHERE ", tokenColors.keyword.swiftColor),
+                    ("created_at ", tokenColors.identifier.swiftColor),
+                    ("> ", tokenColors.operatorSymbol.swiftColor),
+                    ("NOW", tokenColors.function.swiftColor),
                     ("()", defaultText.opacity(isDark ? 0.8 : 0.65)),
-                    (";", tokenColors.operatorSymbol.color.opacity(isDark ? 0.85 : 0.7))
+                    (";", tokenColors.operatorSymbol.swiftColor.opacity(isDark ? 0.85 : 0.7))
                 ]
             )
         }
@@ -2055,24 +2084,24 @@ private struct EditorTokenPreview: View {
 
                     VStack(alignment: .leading, spacing: 4) {
                         codeLine([
-                            (tokenColors.keyword.color, 18),
-                            (tokenColors.identifier.color, 14),
-                            (tokenColors.operatorSymbol.color, 8),
-                            (tokenColors.string.color, 16)
+                            (tokenColors.keyword.swiftColor, 18.cg),
+                            (tokenColors.identifier.swiftColor, 14.cg),
+                            (tokenColors.operatorSymbol.swiftColor, 8.cg),
+                            (tokenColors.string.swiftColor, 16.cg)
                         ])
                         codeLine([
-                            (tokenColors.comment.color.opacity(isDark ? 0.78 : 0.68), 48)
+                            (tokenColors.comment.swiftColor.opacity(isDark ? 0.78 : 0.68), 48.cg)
                         ])
                         codeLine([
-                            (tokenColors.keyword.color, 16),
-                            (tokenColors.identifier.color, 18),
-                            (tokenColors.operatorSymbol.color, 8),
-                            (tokenColors.number.color, 14)
+                            (tokenColors.keyword.swiftColor, 16.cg),
+                            (tokenColors.identifier.swiftColor, 18.cg),
+                            (tokenColors.operatorSymbol.swiftColor, 8.cg),
+                            (tokenColors.number.swiftColor, 14.cg)
                         ])
                         codeLine([
-                            (tokenColors.function.color, 14),
-                            (tokenColors.plain.color.opacity(isDark ? 0.75 : 0.58), 20),
-                            (tokenColors.comment.color.opacity(isDark ? 0.6 : 0.5), 14)
+                            (tokenColors.function.swiftColor, 14.cg),
+                            (tokenColors.plain.swiftColor.opacity(isDark ? 0.75 : 0.58), 20.cg),
+                            (tokenColors.comment.swiftColor.opacity(isDark ? 0.6 : 0.5), 14.cg)
                         ])
                     }
                     .padding(.vertical, 8)
@@ -2328,7 +2357,7 @@ private struct ThemeEditorSheet: View {
 
     private func defaultAccent() -> ColorRepresentable {
         if let palette = availablePalettes.first(where: { $0.id == draft.defaultPaletteID }) {
-            return ColorRepresentable(color: palette.tokens.keyword.color)
+            return ColorRepresentable(color: palette.tokens.keyword.swiftColor)
         }
         return draft.accent ?? draft.surfaceForeground
     }
@@ -2369,14 +2398,14 @@ private struct TokenPaletteEditorSheet: View {
                 }
 
                 Section("Tokens") {
-                    tokenColorRow(label: "Keywords", binding: tokenBinding(\SQLEditorPalette.TokenColors.keyword))
-                    tokenColorRow(label: "Strings", binding: tokenBinding(\SQLEditorPalette.TokenColors.string))
-                    tokenColorRow(label: "Numbers", binding: tokenBinding(\SQLEditorPalette.TokenColors.number))
-                    tokenColorRow(label: "Comments", binding: tokenBinding(\SQLEditorPalette.TokenColors.comment))
-                    tokenColorRow(label: "Functions", binding: tokenBinding(\SQLEditorPalette.TokenColors.function))
-                    tokenColorRow(label: "Operators", binding: tokenBinding(\SQLEditorPalette.TokenColors.operatorSymbol))
-                    tokenColorRow(label: "Identifiers", binding: tokenBinding(\SQLEditorPalette.TokenColors.identifier))
-                    tokenColorRow(label: "Plain text", binding: tokenBinding(\SQLEditorPalette.TokenColors.plain))
+                    tokenRow(label: "Keywords", keyPath: \SQLEditorPalette.TokenColors.keyword)
+                    tokenRow(label: "Strings", keyPath: \SQLEditorPalette.TokenColors.string)
+                    tokenRow(label: "Numbers", keyPath: \SQLEditorPalette.TokenColors.number)
+                    tokenRow(label: "Comments", keyPath: \SQLEditorPalette.TokenColors.comment)
+                    tokenRow(label: "Functions", keyPath: \SQLEditorPalette.TokenColors.function)
+                    tokenRow(label: "Operators", keyPath: \SQLEditorPalette.TokenColors.operatorSymbol)
+                    tokenRow(label: "Identifiers", keyPath: \SQLEditorPalette.TokenColors.identifier)
+                    tokenRow(label: "Plain Text", keyPath: \SQLEditorPalette.TokenColors.plain)
                 }
             }
 
@@ -2406,21 +2435,67 @@ private struct TokenPaletteEditorSheet: View {
         .padding(24)
     }
 
-    private func tokenBinding(_ keyPath: WritableKeyPath<SQLEditorPalette.TokenColors, ColorRepresentable>) -> Binding<Color> {
+    private func tokenColorBinding(_ keyPath: WritableKeyPath<SQLEditorPalette.TokenColors, SQLEditorPalette.TokenStyle>) -> Binding<Color> {
         Binding(
-            get: { draft.tokens[keyPath: keyPath].color },
-            set: { draft.tokens[keyPath: keyPath] = ColorRepresentable(color: $0) }
+            get: { draft.tokens[keyPath: keyPath].swiftColor },
+            set: { newValue in
+                var style = draft.tokens[keyPath: keyPath]
+                style.color = ColorRepresentable(color: newValue)
+                draft.tokens[keyPath: keyPath] = style
+            }
         )
     }
 
-    private func tokenColorRow(label: String, binding: Binding<Color>) -> some View {
-        HStack {
-            Text(label)
-            Spacer()
-            ColorPicker(label, selection: binding, supportsOpacity: true)
+    private func tokenBoldBinding(_ keyPath: WritableKeyPath<SQLEditorPalette.TokenColors, SQLEditorPalette.TokenStyle>) -> Binding<Bool> {
+        Binding(
+            get: { draft.tokens[keyPath: keyPath].isBold },
+            set: { newValue in
+                var style = draft.tokens[keyPath: keyPath]
+                style.isBold = newValue
+                draft.tokens[keyPath: keyPath] = style
+            }
+        )
+    }
+
+    private func tokenItalicBinding(_ keyPath: WritableKeyPath<SQLEditorPalette.TokenColors, SQLEditorPalette.TokenStyle>) -> Binding<Bool> {
+        Binding(
+            get: { draft.tokens[keyPath: keyPath].isItalic },
+            set: { newValue in
+                var style = draft.tokens[keyPath: keyPath]
+                style.isItalic = newValue
+                draft.tokens[keyPath: keyPath] = style
+            }
+        )
+    }
+
+    @ViewBuilder
+    private func tokenRow(
+        label: String,
+        keyPath: WritableKeyPath<SQLEditorPalette.TokenColors, SQLEditorPalette.TokenStyle>
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text(label)
+                Spacer()
+                ColorPicker(
+                    label,
+                    selection: tokenColorBinding(keyPath),
+                    supportsOpacity: true
+                )
                 .labelsHidden()
                 .frame(width: 130, alignment: .trailing)
+            }
+
+            HStack(spacing: 18) {
+                Spacer()
+                Toggle("Bold", isOn: tokenBoldBinding(keyPath))
+                    .toggleStyle(.checkbox)
+                Toggle("Italic", isOn: tokenItalicBinding(keyPath))
+                    .toggleStyle(.checkbox)
+            }
+            .font(.caption)
         }
+        .padding(.vertical, 4)
     }
 }
 private struct SwatchStripView: View {

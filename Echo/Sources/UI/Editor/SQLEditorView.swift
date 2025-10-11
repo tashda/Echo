@@ -1470,20 +1470,6 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
         return set
     }()
 
-#if os(macOS)
-    private static func keywordFont(from font: NSFont) -> NSFont {
-        NSFontManager.shared.convert(font, toHaveTrait: .boldFontMask)
-    }
-#else
-    private static func keywordFont(from font: UIFont) -> UIFont {
-        let traits = font.fontDescriptor.symbolicTraits.union(.traitBold)
-        if let descriptor = font.fontDescriptor.withSymbolicTraits(traits) {
-            return UIFont(descriptor: descriptor, size: font.pointSize)
-        }
-        return font
-    }
-#endif
-
     init(theme: SQLEditorTheme,
          displayOptions: SQLEditorDisplayOptions,
          backgroundOverride: NSColor?,
@@ -2541,20 +2527,14 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
 
         var excludedRanges: [NSRange] = []
 
-        excludedRanges += applyRegex(SQLTextView.singleQuotedStringRegex, in: nsString, color: theme.tokenColors.string.nsColor)
-        excludedRanges += applyRegex(SQLEditorRegex.doubleQuotedStringRegex, in: nsString, color: theme.tokenColors.identifier.nsColor)
-        excludedRanges += applyRegex(SQLTextView.blockCommentRegex, in: nsString, color: theme.tokenColors.comment.nsColor)
-        excludedRanges += applyRegex(SQLTextView.singleLineCommentRegex, in: nsString, color: theme.tokenColors.comment.nsColor)
+        excludedRanges += applyRegex(SQLTextView.singleQuotedStringRegex, in: nsString, style: theme.tokenColors.string)
+        excludedRanges += applyRegex(SQLEditorRegex.doubleQuotedStringRegex, in: nsString, style: theme.tokenColors.identifier)
+        excludedRanges += applyRegex(SQLTextView.blockCommentRegex, in: nsString, style: theme.tokenColors.comment)
+        excludedRanges += applyRegex(SQLTextView.singleLineCommentRegex, in: nsString, style: theme.tokenColors.comment)
 
-#if os(macOS)
-        let keywordFont = SQLTextView.keywordFont(from: theme.nsFont)
-#else
-        let keywordFont = SQLTextView.keywordFont(from: theme.uiFont)
-#endif
-
-        _ = applyRegex(SQLTextView.numberRegex, in: nsString, color: theme.tokenColors.number.nsColor, skip: excludedRanges)
-        _ = applyRegex(SQLTextView.operatorRegex, in: nsString, color: theme.tokenColors.operatorSymbol.nsColor, skip: excludedRanges)
-        _ = applyRegex(SQLTextView.keywordRegex, in: nsString, color: theme.tokenColors.keyword.nsColor, font: keywordFont, skip: excludedRanges)
+        _ = applyRegex(SQLTextView.numberRegex, in: nsString, style: theme.tokenColors.number, skip: excludedRanges)
+        _ = applyRegex(SQLTextView.operatorRegex, in: nsString, style: theme.tokenColors.operatorSymbol, skip: excludedRanges)
+        _ = applyRegex(SQLTextView.keywordRegex, in: nsString, style: theme.tokenColors.keyword, skip: excludedRanges)
 
         applyFunctionHighlights(in: nsString, skip: excludedRanges)
 
@@ -2564,18 +2544,18 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
 
     private func applyRegex(_ regex: NSRegularExpression,
                             in string: NSString,
-                            color: NSColor,
-                            font: PlatformFont? = nil,
+                            style: SQLEditorPalette.TokenStyle,
                             skip: [NSRange] = []) -> [NSRange] {
         guard let textStorage = textStorage else { return [] }
         let fullRange = NSRange(location: 0, length: string.length)
         var applied: [NSRange] = []
+        let font = font(for: style)
         regex.enumerateMatches(in: string as String, options: [], range: fullRange) { match, _, _ in
             guard let match = match else { return }
             let targetRange = match.range
             guard targetRange.length > 0 else { return }
             guard !intersectsExcluded(targetRange, excluded: skip) else { return }
-            var attributes: [NSAttributedString.Key: Any] = [.foregroundColor: color]
+            var attributes: [NSAttributedString.Key: Any] = [.foregroundColor: style.nsColor]
             if let font {
                 attributes[.font] = font
             }
@@ -2583,6 +2563,15 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
             applied.append(targetRange)
         }
         return applied
+    }
+
+    private func font(for style: SQLEditorPalette.TokenStyle) -> PlatformFont? {
+        guard style.isBold || style.isItalic else { return nil }
+#if os(macOS)
+        return style.platformFont(from: theme.nsFont)
+#else
+        return style.platformFont(from: theme.uiFont)
+#endif
     }
 
     private func applyFunctionHighlights(in string: NSString, skip: [NSRange]) {
@@ -2595,9 +2584,13 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
             guard !intersectsExcluded(nameRange, excluded: skip) else { return }
             let name = string.substring(with: nameRange).lowercased()
             guard !SQLTextView.allKeywords.contains(name) else { return }
-            textStorage.addAttributes([
+            var attributes: [NSAttributedString.Key: Any] = [
                 .foregroundColor: self.theme.tokenColors.function.nsColor
-            ], range: nameRange)
+            ]
+            if let font = font(for: self.theme.tokenColors.function) {
+                attributes[.font] = font
+            }
+            textStorage.addAttributes(attributes, range: nameRange)
         }
     }
 

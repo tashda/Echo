@@ -1,3 +1,8 @@
+#if os(macOS)
+import AppKit
+#else
+import UIKit
+#endif
 import SwiftUI
 
 struct PalettePreview: View {
@@ -32,26 +37,26 @@ struct PalettePreview: View {
 
                 VStack(alignment: .leading, spacing: 6) {
                     codeLine([
-                        ("SELECT ", palette.tokens.keyword, true),
-                        ("name", palette.tokens.identifier, false),
-                        (", ", palette.tokens.plain, false),
-                        ("created_at ", palette.tokens.identifier, false),
-                        ("FROM ", palette.tokens.keyword, true),
-                        ("users", palette.tokens.identifier, false)
+                        ("SELECT ", palette.tokens.keyword),
+                        ("name", palette.tokens.identifier),
+                        (", ", palette.tokens.plain),
+                        ("created_at ", palette.tokens.identifier),
+                        ("FROM ", palette.tokens.keyword),
+                        ("users", palette.tokens.identifier)
                     ])
 
                     codeLine([
-                        ("WHERE ", palette.tokens.keyword, true),
-                        ("active ", palette.tokens.identifier, false),
-                        ("= ", palette.tokens.operatorSymbol, false),
-                        ("TRUE", palette.tokens.number, false)
+                        ("WHERE ", palette.tokens.keyword),
+                        ("active ", palette.tokens.identifier),
+                        ("= ", palette.tokens.operatorSymbol),
+                        ("TRUE", palette.tokens.number)
                     ])
 
                     codeLine([
-                        ("AND ", palette.tokens.keyword, true),
-                        ("name", palette.tokens.identifier, false),
-                        (" LIKE ", palette.tokens.keyword, true),
-                        ("'Ken%'", palette.tokens.string, false)
+                        ("AND ", palette.tokens.keyword),
+                        ("name", palette.tokens.identifier),
+                        (" LIKE ", palette.tokens.keyword),
+                        ("'Ken%'", palette.tokens.string)
                     ])
                 }
                 .padding(.vertical, 12)
@@ -70,12 +75,20 @@ struct PalettePreview: View {
         .frame(height: 120)
     }
 
-    private func codeLine(_ segments: [(String, ColorRepresentable, Bool)]) -> Text {
+    private var basePlatformFont: PlatformFont {
+#if os(macOS)
+        NSFont.monospacedSystemFont(ofSize: 12, weight: .regular)
+#else
+        UIFont.monospacedSystemFont(ofSize: 12, weight: .regular)
+#endif
+    }
+
+    private func codeLine(_ segments: [(String, SQLEditorPalette.TokenStyle)]) -> Text {
         var attributed = AttributedString()
-        for (string, color, isKeyword) in segments {
+        for (string, style) in segments {
             var segment = AttributedString(string)
-            segment.foregroundColor = color.color
-            segment.font = .system(size: 12, weight: isKeyword ? .semibold : .regular, design: .monospaced)
+            segment.foregroundColor = style.swiftColor
+            segment.font = style.swiftUIFont(from: basePlatformFont)
             attributed.append(segment)
         }
         return Text(attributed)
