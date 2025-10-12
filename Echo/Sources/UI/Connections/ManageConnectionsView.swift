@@ -43,7 +43,6 @@ struct ManageConnectionsView: View {
     private var contentView: some View {
         configuredSplitView
             .preferredColorScheme(themeManager.effectiveColorScheme)
-            .accentColor(themeManager.accentColor)
             .sheet(item: $folderEditorState, content: folderEditorSheet)
             .sheet(item: $identityEditorState, content: identityEditorSheet)
             .sheet(item: $connectionEditorPresentation, content: connectionEditorSheet)
@@ -103,12 +102,12 @@ struct ManageConnectionsView: View {
     }
 
     private var splitView: some View {
-        NavigationView {
+        NavigationSplitView {
             sidebar
                 .frame(minWidth: 220, idealWidth: 260, maxWidth: 300)
+        } detail: {
             detailContent
         }
-        .navigationViewStyle(.columns)
     }
 }
 
@@ -130,6 +129,7 @@ private extension ManageConnectionsView {
             }
             .navigationTitle(navigationTitleText)
             .navigationSubtitle(navigationSubtitleText)
+            .accentColor(themeManager.accentColor)
     }
 
     private var navigationTitleText: String {

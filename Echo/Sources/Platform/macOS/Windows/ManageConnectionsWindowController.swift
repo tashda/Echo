@@ -115,11 +115,6 @@ final class ManageConnectionsWindowController: NSWindowController, NSWindowDeleg
         window.appearance = NSAppearance(named: tone == .dark ? .darkAqua : .aqua)
         window.backgroundColor = manager.windowBackgroundNSColor
         window.toolbar?.showsBaselineSeparator = false
-
-        if let titlebarView = window.standardWindowButton(.closeButton)?.superview {
-            titlebarView.wantsLayer = true
-            titlebarView.layer?.backgroundColor = manager.surfaceBackgroundNSColor.cgColor
-        }
     }
 }
 
@@ -128,6 +123,7 @@ private struct ManageConnectionsWindowRootView: View {
 
     var body: some View {
         ManageConnectionsView(onClose: onClose)
+            .ignoresSafeArea()
             .environmentObject(AppCoordinator.shared.appModel)
             .environmentObject(AppCoordinator.shared.appState)
             .environmentObject(AppCoordinator.shared.themeManager)
