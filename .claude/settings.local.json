@@ -27,7 +27,11 @@
       "Bash(killall:*)",
       "Read(//Users/k/Tools/ReferenceProjects/BuildingAGreatMacAppWithSwiftUI/Session2/Part2-End/**)",
       "Bash(tee:*)",
-      "Read(///**)"
+      "Read(///**)",
+      "Read(//private/var/folders/**)",
+      "WebSearch",
+      "WebFetch(domain:stackoverflow.com)",
+      "WebFetch(domain:www.createwithswift.com)"
     ],
     "deny": [],
     "ask": []

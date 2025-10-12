@@ -6,6 +6,7 @@ import AppKit
 struct WorkspaceView: View {
     @EnvironmentObject private var appModel: AppModel
     @EnvironmentObject private var appState: AppState
+    @EnvironmentObject private var navigationState: NavigationState
     @EnvironmentObject private var themeManager: ThemeManager
     @EnvironmentObject private var clipboardHistory: ClipboardHistoryStore
 
@@ -20,22 +21,25 @@ struct WorkspaceView: View {
             WorkspaceMainContent()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(themeManager.windowBackgroundColor)
+                .toolbar {
+                    WorkspaceToolbarItems()
+                }
+                .inspector(isPresented: $appState.showInfoSidebar) {
+                    InfoSidebarView()
+                        .environmentObject(appModel)
+                        .frame(
+                            minWidth: WorkspaceLayoutMetrics.inspectorMinWidth,
+                            idealWidth: WorkspaceLayoutMetrics.inspectorIdealWidth,
+                            maxWidth: WorkspaceLayoutMetrics.inspectorMaxWidth,
+                            maxHeight: .infinity,
+                            alignment: .topLeading
+                        )
+                        .padding(.vertical, 16)
+                        .padding(.horizontal, 20)
+                }
         }
         .navigationSplitViewStyle(.balanced)
         .background(WorkspaceWindowConfigurator())
-        .inspector(isPresented: $appState.showInfoSidebar) {
-            InfoSidebarView()
-                .environmentObject(appModel)
-                .frame(
-                    minWidth: WorkspaceLayoutMetrics.inspectorMinWidth,
-                    idealWidth: WorkspaceLayoutMetrics.inspectorIdealWidth,
-                    maxWidth: WorkspaceLayoutMetrics.inspectorMaxWidth,
-                    maxHeight: .infinity,
-                    alignment: .topLeading
-                )
-                .padding(.vertical, 16)
-                .padding(.horizontal, 20)
-        }
         .sheet(
             isPresented: Binding(
                 get: { appState.activeSheet == .connectionEditor },
@@ -78,10 +82,6 @@ struct WorkspaceView: View {
                 await AppCoordinator.shared.initialize()
             }
         }
-        .toolbar {
-            WorkspaceToolbarItems()
-        }
-        .toolbarBackground(.hidden, for: .windowToolbar)
         .preferredColorScheme(themeManager.effectiveColorScheme)
         .accentColor(themeManager.accentColor)
     }
@@ -105,14 +105,6 @@ private struct SidebarColumn: View {
             onAddConnection: { appState.showSheet(.connectionEditor) }
         )
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-#if os(macOS)
-        .background(SidebarGlassBackground().ignoresSafeArea())
-#else
-        .background(
-            themeManager.surfaceBackgroundColor
-                .ignoresSafeArea()
-        )
-#endif
     }
 }
 
@@ -172,21 +164,6 @@ private struct WorkspaceWindowConfigurator: NSViewRepresentable {
     }
 }
 
-private struct SidebarGlassBackground: NSViewRepresentable {
-    func makeNSView(context: Context) -> NSVisualEffectView {
-        let view = NSVisualEffectView()
-        view.material = .sidebar
-        view.blendingMode = .behindWindow
-        view.state = .active
-        return view
-    }
-
-    func updateNSView(_ nsView: NSVisualEffectView, context: Context) {
-        nsView.material = .sidebar
-        nsView.blendingMode = .behindWindow
-        nsView.state = .active
-    }
-}
 #else
 private struct WorkspaceWindowConfigurator: UIViewRepresentable {
     func makeUIView(context: Context) -> UIView { UIView() }

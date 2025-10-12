@@ -114,7 +114,6 @@ final class WorkspaceWindowController: NSWindowController, NSWindowDelegate {
             titlebarWindow.preferredBackgroundColor = theme.windowBackground.nsColor
         }
 
-        window.backgroundColor = theme.windowBackground.nsColor
         window.appearance = NSAppearance(named: theme.tone == .dark ? .darkAqua : .aqua)
         window.invalidateShadow()
     }

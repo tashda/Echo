@@ -1737,7 +1737,6 @@ private struct WindowAppearanceConfigurator: NSViewRepresentable {
         window.titlebarAppearsTransparent = true
         window.toolbarStyle = .unified
         window.isMovableByWindowBackground = true
-        window.backgroundColor = NSColor(windowBackground)
     }
 }
 #endif
@@ -1959,10 +1958,6 @@ private struct SettingsWindowConfigurator: NSViewRepresentable {
         }
         if window.titlebarAppearsTransparent == false {
             window.titlebarAppearsTransparent = true
-        }
-        let targetColor = themeManager.windowBackgroundNSColor
-        if window.backgroundColor != targetColor {
-            window.backgroundColor = targetColor
         }
     }
 }
