@@ -78,11 +78,6 @@ var body: some ToolbarContent {
             }
             .help(appState.showInfoSidebar ? "Hide Inspector" : "Show Inspector")
         }
-#if DEBUG
-        ToolbarItem(placement: .status) {
-            ToolbarContextSegmentedSample()
-        }
-#endif
     }
 
     // MARK: - Project Menu
@@ -777,134 +772,6 @@ private struct RefreshButtonPlaceholder: View {
     }
 }
 
-#if DEBUG && os(macOS)
-private struct ToolbarContextSegmentedSample: NSViewRepresentable {
-    @EnvironmentObject private var appModel: AppModel
-    @EnvironmentObject private var navigationState: NavigationState
-
-    func makeCoordinator() -> Coordinator {
-        Coordinator(parent: self)
-    }
-
-    func makeNSView(context: Context) -> NSPopUpButton {
-        let popup = NSPopUpButton(frame: NSRect(x: 0, y: 0, width: 160, height: 32), pullsDown: true)
-        popup.bezelStyle = .rounded
-        popup.controlSize = .regular
-        popup.refusesFirstResponder = true
-        popup.menu?.autoenablesItems = false
-        popup.preferredEdge = .maxY
-        context.coordinator.popup = popup
-        updatePopover(popup, coordinator: context.coordinator)
-        return popup
-    }
-
-    func updateNSView(_ popup: NSPopUpButton, context: Context) {
-        updatePopover(popup, coordinator: context.coordinator)
-    }
-
-    private func updatePopover(_ popup: NSPopUpButton, coordinator: Coordinator) {
-        popup.removeAllItems()
-        popup.menu = buildMenu(coordinator: coordinator)
-        let title = appModel.selectedProject?.name ?? navigationState.selectedProject?.name ?? "Project"
-        popup.attributedTitle = attributedTitle(for: title)
-        popup.sizeToFit()
-        var frame = popup.frame
-        frame.size.width = max(frame.size.width + 20, 160)
-        frame.size.height = 32
-        popup.frame = frame
-    }
-
-    private func attributedTitle(for title: String) -> NSAttributedString {
-        let attributed = NSMutableAttributedString()
-        if let icon = projectIcon(for: appModel.selectedProject ?? navigationState.selectedProject) {
-            let attachment = NSTextAttachment()
-            attachment.image = icon
-            attachment.bounds = CGRect(x: 0, y: -1, width: 16, height: 16)
-            attributed.append(NSAttributedString(attachment: attachment))
-            attributed.append(NSAttributedString(string: "  "))
-        }
-        attributed.append(NSAttributedString(string: title, attributes: [.font: NSFont.systemFont(ofSize: 13, weight: .regular)]))
-        return attributed
-    }
-
-    private func projectIcon(for project: Project?) -> NSImage? {
-        guard let project else {
-            return NSImage(systemSymbolName: "folder.badge.gearshape", accessibilityDescription: nil)
-        }
-        if let name = project.iconName, !name.isEmpty {
-            if let asset = NSImage(named: name) {
-                asset.size = NSSize(width: 16, height: 16)
-                return asset
-            }
-            if let system = NSImage(systemSymbolName: name, accessibilityDescription: nil) {
-                system.size = NSSize(width: 16, height: 16)
-                return system
-            }
-        }
-        return NSImage(systemSymbolName: "folder.badge.gearshape", accessibilityDescription: nil)
-    }
-
-    private func buildMenu(coordinator: Coordinator) -> NSMenu {
-        let menu = NSMenu()
-        let header = NSMenuItem(title: "Projects", action: nil, keyEquivalent: "")
-        header.isEnabled = false
-        header.attributedTitle = NSAttributedString(string: "Projects", attributes: [
-            .font: NSFont.systemFont(ofSize: 11, weight: .semibold),
-            .foregroundColor: NSColor.secondaryLabelColor
-        ])
-        menu.addItem(header)
-        menu.addItem(.separator())
-        if appModel.projects.isEmpty {
-            let empty = NSMenuItem(title: "No Projects Available", action: nil, keyEquivalent: "")
-            empty.isEnabled = false
-            menu.addItem(empty)
-        } else {
-            for project in appModel.projects {
-                let item = NSMenuItem(title: project.name, action: #selector(Coordinator.selectProject(_:)), keyEquivalent: "")
-                item.representedObject = project
-                item.target = coordinator
-                item.indentationLevel = 1
-                item.image = projectIcon(for: project)
-                if project.id == appModel.selectedProject?.id {
-                    item.state = .on
-                }
-                menu.addItem(item)
-            }
-        }
-        menu.addItem(.separator())
-        let manage = NSMenuItem(title: "Manage Projects…", action: #selector(Coordinator.manageProjects), keyEquivalent: "")
-        manage.target = coordinator
-        menu.addItem(manage)
-        menu.autoenablesItems = false
-        return menu
-    }
-
-    final class Coordinator: NSObject {
-        let parent: ToolbarContextSegmentedSample
-        weak var popup: NSPopUpButton?
-
-        init(parent: ToolbarContextSegmentedSample) {
-            self.parent = parent
-        }
-
-        @objc func segmentTapped(_ sender: NSSegmentedControl) {}
-
-        @objc func selectProject(_ sender: NSMenuItem) {
-            guard let project = sender.representedObject as? Project else { return }
-            parent.navigationState.selectProject(project)
-            parent.appModel.selectedProject = project
-            if let popup {
-                parent.updatePopover(popup, coordinator: self)
-            }
-        }
-
-        @objc func manageProjects() {
-            parent.appModel.showManageProjectsSheet = true
-        }
-    }
-}
-#endif
-
 #if os(macOS)
 private func makeToolbarPillButton() -> NSPopUpButton {
     let button = NSPopUpButton(frame: .zero, pullsDown: true)
@@ -991,6 +858,7 @@ private struct ProjectToolbarMenuButton: NSViewRepresentable {
 
         func configure(_ button: NSPopUpButton) {
             self.button = button
+            button.contentTintColor = .labelColor
             rebuildMenu()
         }
 
@@ -1029,16 +897,26 @@ private struct ProjectToolbarMenuButton: NSViewRepresentable {
             menu.addItem(manage)
 
             button.menu = menu
-            button.selectItem(at: 0)
-            button.isEnabled = !parent.appModel.projects.isEmpty
+           button.selectItem(at: 0)
+           button.isEnabled = !parent.appModel.projects.isEmpty
             button.toolTip = parent.placeholderTitle()
+            button.image = parent.icon(for: parent.currentProject())
+            button.attributedTitle = NSAttributedString(
+                string: parent.placeholderTitle(),
+                attributes: [
+                    .font: NSFont.systemFont(ofSize: 13, weight: .regular),
+                    .foregroundColor: NSColor.labelColor
+                ]
+            )
         }
 
         @objc private func selectProject(_ sender: NSMenuItem) {
             guard let project = sender.representedObject as? Project else { return }
-            parent.navigationState.selectProject(project)
-            parent.appModel.selectedProject = project
-            updatePlaceholder()
+            Task { @MainActor in
+                parent.navigationState.selectProject(project)
+                parent.appModel.selectedProject = project
+                updatePlaceholder()
+            }
         }
 
         @objc private func manageProjects() {
@@ -1051,8 +929,16 @@ private struct ProjectToolbarMenuButton: NSViewRepresentable {
                 placeholder.title = parent.placeholderTitle()
                 placeholder.image = parent.icon(for: parent.currentProject())
             }
-            button.selectItem(at: 0)
-            button.toolTip = parent.placeholderTitle()
+           button.selectItem(at: 0)
+           button.toolTip = parent.placeholderTitle()
+            button.image = parent.icon(for: parent.currentProject())
+            button.attributedTitle = NSAttributedString(
+                string: parent.placeholderTitle(),
+                attributes: [
+                    .font: NSFont.systemFont(ofSize: 13, weight: .regular),
+                    .foregroundColor: NSColor.labelColor
+                ]
+            )
         }
     }
 }
@@ -1112,8 +998,9 @@ private struct ServerToolbarMenuButton: NSViewRepresentable {
             self.parent = parent
         }
 
-        func configure(_ button: NSPopUpButton) {
-            self.button = button
+       func configure(_ button: NSPopUpButton) {
+           self.button = button
+            button.contentTintColor = .labelColor
             rebuildMenu()
         }
 
@@ -1146,6 +1033,14 @@ private struct ServerToolbarMenuButton: NSViewRepresentable {
             button.selectItem(at: 0)
             button.isEnabled = !parent.appModel.connections.isEmpty
             button.toolTip = parent.placeholderTitle()
+            button.image = parent.icon(for: parent.navigationState.selectedConnection)
+            button.attributedTitle = NSAttributedString(
+                string: parent.placeholderTitle(),
+                attributes: [
+                    .font: NSFont.systemFont(ofSize: 13, weight: .regular),
+                    .foregroundColor: NSColor.labelColor
+                ]
+            )
         }
 
         private func appendItems(into menu: NSMenu, parentID: UUID?) {
@@ -1181,9 +1076,11 @@ private struct ServerToolbarMenuButton: NSViewRepresentable {
 
         @objc private func selectConnection(_ sender: NSMenuItem) {
             guard let connection = sender.representedObject as? SavedConnection else { return }
-            parent.navigationState.selectConnection(connection)
-            parent.appModel.selectedConnectionID = connection.id
-            updatePlaceholder()
+            Task { @MainActor in
+                parent.navigationState.selectConnection(connection)
+                parent.appModel.selectedConnectionID = connection.id
+                updatePlaceholder()
+            }
             Task {
                 await parent.appModel.connect(to: connection)
                 await MainActor.run {
@@ -1204,6 +1101,14 @@ private struct ServerToolbarMenuButton: NSViewRepresentable {
             }
             button.selectItem(at: 0)
             button.toolTip = parent.placeholderTitle()
+            button.image = parent.icon(for: parent.navigationState.selectedConnection)
+            button.attributedTitle = NSAttributedString(
+                string: parent.placeholderTitle(),
+                attributes: [
+                    .font: NSFont.systemFont(ofSize: 13, weight: .regular),
+                    .foregroundColor: NSColor.labelColor
+                ]
+            )
         }
     }
 }
@@ -1257,6 +1162,7 @@ private struct DatabaseToolbarMenuButton: NSViewRepresentable {
 
         func configure(_ button: NSPopUpButton) {
             self.button = button
+            button.contentTintColor = .labelColor
             rebuildMenu()
         }
 
@@ -1271,23 +1177,36 @@ private struct DatabaseToolbarMenuButton: NSViewRepresentable {
             placeholder.isEnabled = false
             menu.addItem(placeholder)
 
-            if let session = parent.activeSession(),
-               let databases = session.databaseStructure?.databases ?? session.connection.cachedStructure?.databases,
-               !databases.isEmpty {
-                menu.addItem(.separator())
-                for database in databases.sorted(by: { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }) {
-                    let item = NSMenuItem(title: database.name, action: #selector(selectDatabase(_:)), keyEquivalent: "")
-                    item.representedObject = (database.name, session)
-                    item.target = self
-                    item.image = parent.entryIcon()
-                    if database.name == parent.navigationState.selectedDatabase {
-                        item.state = .on
+            if let session = parent.activeSession() {
+                let databases = session.databaseStructure?.databases ?? session.connection.cachedStructure?.databases
+
+                if let databases, !databases.isEmpty {
+                    menu.addItem(.separator())
+                    for database in databases.sorted(by: { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }) {
+                        let item = NSMenuItem(title: database.name, action: #selector(selectDatabase(_:)), keyEquivalent: "")
+                        item.representedObject = (database.name, session)
+                        item.target = self
+                        item.image = parent.entryIcon()
+                        if database.name == parent.navigationState.selectedDatabase {
+                            item.state = .on
+                        }
+                        menu.addItem(item)
                     }
-                    menu.addItem(item)
+                } else if session.structureLoadingState.isLoading {
+                    let loading = NSMenuItem(title: "Loading Databases…", action: nil, keyEquivalent: "")
+                    loading.isEnabled = false
+                    menu.addItem(loading)
+                } else if let message = session.structureLoadingMessage, !message.isEmpty {
+                    let info = NSMenuItem(title: message, action: nil, keyEquivalent: "")
+                    info.isEnabled = false
+                    menu.addItem(info)
+                } else {
+                    let empty = NSMenuItem(title: "No Databases Available", action: nil, keyEquivalent: "")
+                    empty.isEnabled = false
+                    menu.addItem(empty)
                 }
             } else {
-                let title = parent.activeSession() == nil ? "No Active Connection" : "No Databases Available"
-                let empty = NSMenuItem(title: title, action: nil, keyEquivalent: "")
+                let empty = NSMenuItem(title: "No Active Connection", action: nil, keyEquivalent: "")
                 empty.isEnabled = false
                 menu.addItem(empty)
             }
@@ -1302,13 +1221,23 @@ private struct DatabaseToolbarMenuButton: NSViewRepresentable {
             button.selectItem(at: 0)
             button.isEnabled = parent.activeSession() != nil
             button.toolTip = parent.placeholderTitle()
+            button.image = parent.placeholderIcon()
+            button.attributedTitle = NSAttributedString(
+                string: parent.placeholderTitle(),
+                attributes: [
+                    .font: NSFont.systemFont(ofSize: 13, weight: .regular),
+                    .foregroundColor: NSColor.labelColor
+                ]
+            )
         }
 
         @objc private func selectDatabase(_ sender: NSMenuItem) {
             guard let payload = sender.representedObject as? (String, ConnectionSession) else { return }
             let (name, session) = payload
-            parent.navigationState.selectDatabase(name)
-            updatePlaceholder()
+            Task { @MainActor in
+                parent.navigationState.selectDatabase(name)
+                updatePlaceholder()
+            }
             Task {
                 await parent.appModel.loadSchemaForDatabase(name, connectionSession: session)
                 await MainActor.run {
@@ -1332,6 +1261,14 @@ private struct DatabaseToolbarMenuButton: NSViewRepresentable {
             }
             button.selectItem(at: 0)
             button.toolTip = parent.placeholderTitle()
+            button.image = parent.placeholderIcon()
+            button.attributedTitle = NSAttributedString(
+                string: parent.placeholderTitle(),
+                attributes: [
+                    .font: NSFont.systemFont(ofSize: 13, weight: .regular),
+                    .foregroundColor: NSColor.labelColor
+                ]
+            )
         }
     }
 }
@@ -1611,6 +1548,29 @@ private extension ToolbarIcon {
         image.isTemplate = isTemplate
         return image
     }
+}
+#endif
+
+#if os(macOS)
+private struct ToolbarGap: NSViewRepresentable {
+    let width: CGFloat
+
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView(frame: NSRect(x: 0, y: 0, width: width, height: 10))
+        view.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            view.widthAnchor.constraint(equalToConstant: width),
+            view.heightAnchor.constraint(equalToConstant: 10)
+        ])
+        return view
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {}
+}
+#else
+private struct ToolbarGap: View {
+    let width: CGFloat
+    var body: some View { Spacer().frame(width: width) }
 }
 #endif
 

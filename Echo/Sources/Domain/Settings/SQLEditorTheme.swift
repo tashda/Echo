@@ -535,11 +535,11 @@ struct SQLEditorPalette: Codable, Equatable, Hashable, Identifiable {
             if let explicit = try container.decodeIfPresent(TokenStyle.self, forKey: .keyword) {
                 keyword = explicit
             } else if let legacyPrimary = try container.decodeIfPresent(ColorRepresentable.self, forKey: .primaryKeyword) {
-                keyword = TokenStyle(color: legacyPrimary)
+                keyword = TokenStyle(color: legacyPrimary, isBold: true)
             } else if let legacySecondary = try container.decodeIfPresent(ColorRepresentable.self, forKey: .secondaryKeyword) {
-                keyword = TokenStyle(color: legacySecondary)
+                keyword = TokenStyle(color: legacySecondary, isBold: true)
             } else {
-                keyword = TokenStyle(color: ColorRepresentable(hex: 0x3367D6))
+                keyword = TokenStyle(color: ColorRepresentable(hex: 0x3367D6), isBold: true)
             }
 
             string = try container.decode(TokenStyle.self, forKey: .string)

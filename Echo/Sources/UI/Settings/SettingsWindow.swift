@@ -60,6 +60,9 @@ struct SettingsView: View {
         } detail: {
             detailContent
         }
+#if os(macOS)
+        .toolbar(removing: .sidebarToggle)
+#endif
         .frame(minWidth: 720, minHeight: 520)
         .onAppear {
             if selection == nil {
@@ -75,6 +78,11 @@ struct SettingsView: View {
         .accentColor(themeManager.accentColor)
         .preferredColorScheme(themeManager.effectiveColorScheme)
         .background(themeManager.windowBackground)
+#if os(macOS)
+        .background(
+            WindowAppearanceConfigurator(windowBackground: themeManager.windowBackground)
+        )
+#endif
     }
 
     private var sidebar: some View {
@@ -135,6 +143,12 @@ struct SettingsView: View {
     SettingsView()
 }
 
+enum PaletteToneMode: Hashable {
+    case light
+    case dark
+    case both
+}
+
 struct AppearanceSettingsView: View {
     @EnvironmentObject private var appModel: AppModel
     @EnvironmentObject private var appState: AppState
@@ -151,6 +165,7 @@ struct AppearanceSettingsView: View {
     @State private var themeEditorDraft = AppColorTheme.fromPalette(.aurora)
 
     @State private var paletteEditorTone: SQLEditorPalette.Tone = .light
+    @State private var paletteEditorToneMode: PaletteToneMode = .light
     @State private var paletteEditorMode: PaletteEditorMode = .create
     @State private var paletteEditorDraft = SQLEditorTokenPalette(from: SQLEditorPalette.aurora)
 
@@ -235,7 +250,8 @@ struct AppearanceSettingsView: View {
         }
         .sheet(isPresented: $isPaletteEditorPresented) {
             TokenPaletteEditorSheet(
-                tone: paletteEditorTone,
+                tone: $paletteEditorTone,
+                toneMode: $paletteEditorToneMode,
                 draft: $paletteEditorDraft,
                 mode: paletteEditorMode,
                 isSaving: isUpdatingPalette,
@@ -522,6 +538,7 @@ struct AppearanceSettingsView: View {
 
     private func startCreatingPalette(tone: SQLEditorPalette.Tone) {
         paletteEditorTone = tone
+        paletteEditorToneMode = tone == .dark ? .dark : .light
         paletteEditorMode = .create
         let base = appModel.globalSettings.defaultPalette(for: tone)
             ?? SQLEditorTokenPalette.builtIn.first(where: { $0.tone == tone })
@@ -534,6 +551,7 @@ struct AppearanceSettingsView: View {
 
     private func startEditingPalette(_ palette: SQLEditorTokenPalette, tone: SQLEditorPalette.Tone) {
         paletteEditorTone = tone
+        paletteEditorToneMode = tone == .dark ? .dark : .light
         paletteEditorMode = .edit
         var draft = palette
         draft.tone = tone
@@ -544,6 +562,7 @@ struct AppearanceSettingsView: View {
 
     private func startDuplicatingPalette(_ palette: SQLEditorTokenPalette, tone: SQLEditorPalette.Tone) {
         paletteEditorTone = tone
+        paletteEditorToneMode = tone == .dark ? .dark : .light
         paletteEditorMode = .create
         var draft = palette.asCustomCopy(named: copyName(from: palette.name))
         draft.tone = tone
@@ -558,21 +577,42 @@ struct AppearanceSettingsView: View {
     private func persistPaletteEditorDraft() {
         guard !isUpdatingPalette else { return }
         isUpdatingPalette = true
-        var draft = paletteEditorDraft
-        draft.tone = paletteEditorTone
-        draft.kind = .custom
-        draft.name = sanitizedName(draft.name, fallback: paletteEditorTone == .dark ? "Custom Dark Palette" : "Custom Light Palette")
-        if paletteEditorMode == .create && !draft.id.hasPrefix("custom-") {
-            draft.id = "custom-\(UUID().uuidString)"
-        }
-        let shouldSelect = paletteEditorMode == .create
+        let toneMode = paletteEditorToneMode
+        let mode = paletteEditorMode
+        let baseDraft = paletteEditorDraft
+        let shouldSelect = mode == .create
+
         Task { @MainActor in
-            await appModel.upsertCustomPalette(draft)
-            if shouldSelect || appModel.globalSettings.defaultPaletteID(for: paletteEditorTone) == draft.id {
-                await appModel.setDefaultEditorPalette(to: draft.id, for: paletteEditorTone)
+            defer {
+                isUpdatingPalette = false
+                isPaletteEditorPresented = false
             }
-            isUpdatingPalette = false
-            isPaletteEditorPresented = false
+
+            @MainActor
+            func save(_ draft: SQLEditorTokenPalette, tone: SQLEditorPalette.Tone, select: Bool) async {
+                var draft = draft
+                if mode == .create && !draft.id.hasPrefix("custom-") {
+                    draft.id = "custom-\(UUID().uuidString)"
+                }
+                await appModel.upsertCustomPalette(draft)
+                if select || appModel.globalSettings.defaultPaletteID(for: tone) == draft.id {
+                    await appModel.setDefaultEditorPalette(to: draft.id, for: tone)
+                }
+            }
+
+            switch toneMode {
+            case .light, .dark:
+                let tone = toneMode == .dark ? SQLEditorPalette.Tone.dark : .light
+                let draft = makePaletteDraft(from: baseDraft, tone: tone, toneMode: toneMode)
+                await save(draft, tone: tone, select: shouldSelect)
+                paletteEditorTone = tone
+            case .both:
+                let lightDraft = makePaletteDraft(from: baseDraft, tone: .light, toneMode: toneMode)
+                let darkDraft = makePaletteDraft(from: baseDraft, tone: .dark, toneMode: toneMode)
+                await save(lightDraft, tone: .light, select: shouldSelect)
+                await save(darkDraft, tone: .dark, select: shouldSelect)
+                paletteEditorTone = .light
+            }
         }
     }
 
@@ -624,6 +664,25 @@ struct AppearanceSettingsView: View {
     private func sanitizedName(_ value: String, fallback: String) -> String {
         let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed.isEmpty ? fallback : trimmed
+    }
+
+    private func makePaletteDraft(from base: SQLEditorTokenPalette, tone: SQLEditorPalette.Tone, toneMode: PaletteToneMode) -> SQLEditorTokenPalette {
+        var draft = base
+        draft.tone = tone
+        draft.kind = .custom
+
+        let fallback = tone == .dark ? "Custom Dark Palette" : "Custom Light Palette"
+        var name = sanitizedName(draft.name, fallback: fallback)
+
+        if toneMode == .both {
+            let keyword = tone == .dark ? "dark" : "light"
+            if !name.lowercased().contains(keyword) {
+                name += tone == .dark ? " (Dark)" : " (Light)"
+            }
+        }
+
+        draft.name = name
+        return draft
     }
 
     private func availableThemes(for tone: SQLEditorPalette.Tone) -> [AppColorTheme] {
@@ -835,8 +894,12 @@ private struct ThemeAppearanceSection: View {
     @State private var hoveredThemeID: String?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            AdaptivePreviewGrid(hero: heroPreview, secondary: paletteSummary)
+        VStack(alignment: .leading, spacing: 14) {
+            AdaptivePreviewGrid(
+                hero: heroPreview,
+                secondary: paletteSummary,
+                minimumHeight: previewTileHeight + 60
+            )
 
             Text("Themes")
                 .font(.headline)
@@ -881,29 +944,25 @@ private struct ThemeAppearanceSection: View {
     private var heroPreview: some View {
         let theme = displayedTheme
         let palette = resolvedPalette(for: theme)
-        let accent = theme.accent?.color ?? palette.tokens.keyword.swiftColor
-
-        return previewCard(
+        return PreviewTile(
             title: theme.name,
             subtitle: nil,
             background: themeHeroGradient(for: theme),
-            shadowColor: accent.opacity(theme.tone == .dark ? 0.26 : 0.18)
+            shadowColor: (theme.accent?.color ?? palette.tokens.keyword.swiftColor).opacity(theme.tone == .dark ? 0.26 : 0.18)
         ) {
             ThemePreview(theme: theme, palette: palette, layout: .regular)
-                .scaleEffect(1.1)
+                .scaleEffect(1.02)
         }
     }
 
     private var paletteSummary: some View {
         let theme = displayedTheme
         let palette = resolvedPalette(for: theme)
-        let accent = palette.tokens.keyword.swiftColor
-
-        return previewCard(
-            title: "Default Palette",
-            subtitle: palette.name,
+        return PreviewTile(
+            title: palette.name,
+            subtitle: "Default Palette",
             background: paletteHeroGradient(for: theme, palette: palette),
-            shadowColor: accent.opacity(theme.tone == .dark ? 0.22 : 0.14)
+            shadowColor: palette.tokens.keyword.swiftColor.opacity(theme.tone == .dark ? 0.22 : 0.14)
         ) {
             QueryEditorPreview(theme: theme, palette: palette, fontName: "JetBrainsMono-Regular")
                 .scaleEffect(0.94)
@@ -912,43 +971,6 @@ private struct ThemeAppearanceSection: View {
 
     private var chipColumns: [GridItem] {
         [GridItem(.adaptive(minimum: 152, maximum: 220), spacing: 12)]
-    }
-
-    private var previewHeight: CGFloat { 184 }
-
-    private func previewCard<Content: View>(
-        title: String,
-        subtitle: String?,
-        background: LinearGradient,
-        shadowColor: Color,
-        @ViewBuilder content: () -> Content
-    ) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text(title)
-                .font(.headline)
-
-            if let subtitle, !subtitle.isEmpty {
-                Text(subtitle)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            }
-
-            ZStack {
-                RoundedRectangle(cornerRadius: 22, style: .continuous)
-                    .fill(background)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 22, style: .continuous)
-                            .stroke(Color.white.opacity(0.28), lineWidth: 1)
-                            .blendMode(.overlay)
-                    )
-
-                content()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-                    .padding(26)
-            }
-            .frame(height: previewHeight)
-            .shadow(color: shadowColor, radius: 24, x: 0, y: 14)
-        }
     }
 
     private func themeHeroGradient(for theme: AppColorTheme) -> LinearGradient {
@@ -1662,21 +1684,101 @@ private struct ResultsGridPreview: View {
     }
 }
 
+private let previewTileHeight: CGFloat = 184
+
 private struct AdaptivePreviewGrid<Hero: View, Secondary: View>: View {
     let hero: Hero
     let secondary: Secondary
+    var minimumHeight: CGFloat
+
+    init(hero: Hero, secondary: Secondary, minimumHeight: CGFloat = 340) {
+        self.hero = hero
+        self.secondary = secondary
+        self.minimumHeight = minimumHeight
+    }
 
     var body: some View {
-        ViewThatFits {
-            HStack(alignment: .top, spacing: 24) {
+        GeometryReader { proxy in
+            let spacing: CGFloat = 24
+            let availableWidth = max(proxy.size.width - spacing, 0)
+            let cardWidth = availableWidth / 2
+
+            HStack(alignment: .top, spacing: spacing) {
                 hero
+                    .frame(width: cardWidth, alignment: .top)
                 secondary
+                    .frame(width: cardWidth, alignment: .top)
             }
-            VStack(alignment: .leading, spacing: 20) {
-                hero
-                secondary
-            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
+        .frame(height: minimumHeight)
+    }
+}
+#if os(macOS)
+private struct WindowAppearanceConfigurator: NSViewRepresentable {
+    let windowBackground: Color
+
+    func makeNSView(context: Context) -> NSView {
+        let nsView = NSView(frame: .zero)
+        DispatchQueue.main.async {
+            configure(for: nsView)
+        }
+        return nsView
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {
+        DispatchQueue.main.async {
+            configure(for: nsView)
+        }
+    }
+
+    private func configure(for nsView: NSView) {
+        guard let window = nsView.window else { return }
+        window.titlebarAppearsTransparent = true
+        window.toolbarStyle = .unified
+        window.isMovableByWindowBackground = true
+        window.backgroundColor = NSColor(windowBackground)
+    }
+}
+#endif
+
+private struct PreviewTile<Content: View>: View {
+    let title: String
+    let subtitle: String?
+    let background: LinearGradient
+    let shadowColor: Color
+    @ViewBuilder var content: () -> Content
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                    .font(.headline)
+                    .foregroundStyle(.primary)
+                if let subtitle, !subtitle.isEmpty {
+                    Text(subtitle)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            ZStack {
+                RoundedRectangle(cornerRadius: 22, style: .continuous)
+                    .fill(background)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 22, style: .continuous)
+                            .stroke(Color.white.opacity(0.18), lineWidth: 1)
+                            .blendMode(.overlay)
+                    )
+
+                content()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                    .padding(26)
+            }
+            .frame(height: previewTileHeight)
+            .shadow(color: shadowColor, radius: 24, x: 0, y: 14)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 private struct QueryEditorPreview: View {
@@ -2368,7 +2470,8 @@ private struct ThemeEditorSheet: View {
 }
 
 private struct TokenPaletteEditorSheet: View {
-    let tone: SQLEditorPalette.Tone
+    @Binding var tone: SQLEditorPalette.Tone
+    @Binding var toneMode: PaletteToneMode
     @Binding var draft: SQLEditorTokenPalette
     let mode: PaletteEditorMode
     let isSaving: Bool
@@ -2380,34 +2483,68 @@ private struct TokenPaletteEditorSheet: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
+        VStack(alignment: .leading, spacing: 16) {
             Text(title)
                 .font(.title3)
                 .fontWeight(.semibold)
 
-            Form {
-                Section("Basics") {
+            ScrollView {
+                Form {
+                    Section("Basics") {
                     TextField("Palette Name", text: $draft.name)
 
-                    HStack {
-                        Text("Tone")
-                        Spacer()
-                        Text(tone == .dark ? "Dark" : "Light")
-                            .foregroundStyle(.secondary)
+                    if mode == .create {
+                        Picker("Tone", selection: $toneMode) {
+                            Text("Light").tag(PaletteToneMode.light)
+                            Text("Dark").tag(PaletteToneMode.dark)
+                            Text("Both").tag(PaletteToneMode.both)
+                        }
+                        .pickerStyle(.segmented)
+                        .onChange(of: toneMode) { newValue in
+                            switch newValue {
+                            case .light: tone = .light
+                            case .dark: tone = .dark
+                            case .both: tone = .light
+                            }
+                        }
+                    } else {
+                        HStack {
+                            Text("Tone")
+                            Spacer()
+                            Text(tone == .dark ? "Dark" : "Light")
+                                .foregroundStyle(.secondary)
+                        }
+                        .font(.subheadline)
+                        .padding(.vertical, 4)
                     }
                 }
 
-                Section("Tokens") {
-                    tokenRow(label: "Keywords", keyPath: \SQLEditorPalette.TokenColors.keyword)
-                    tokenRow(label: "Strings", keyPath: \SQLEditorPalette.TokenColors.string)
-                    tokenRow(label: "Numbers", keyPath: \SQLEditorPalette.TokenColors.number)
-                    tokenRow(label: "Comments", keyPath: \SQLEditorPalette.TokenColors.comment)
-                    tokenRow(label: "Functions", keyPath: \SQLEditorPalette.TokenColors.function)
-                    tokenRow(label: "Operators", keyPath: \SQLEditorPalette.TokenColors.operatorSymbol)
-                    tokenRow(label: "Identifiers", keyPath: \SQLEditorPalette.TokenColors.identifier)
-                    tokenRow(label: "Plain Text", keyPath: \SQLEditorPalette.TokenColors.plain)
+                    Section("Tokens") {
+                        tokenRow(label: "Keywords", keyPath: \SQLEditorPalette.TokenColors.keyword)
+                        tokenRow(label: "Strings", keyPath: \SQLEditorPalette.TokenColors.string)
+                        tokenRow(label: "Numbers", keyPath: \SQLEditorPalette.TokenColors.number)
+                        tokenRow(label: "Comments", keyPath: \SQLEditorPalette.TokenColors.comment)
+                        tokenRow(label: "Functions", keyPath: \SQLEditorPalette.TokenColors.function)
+                        tokenRow(label: "Operators", keyPath: \SQLEditorPalette.TokenColors.operatorSymbol)
+                        tokenRow(label: "Identifiers", keyPath: \SQLEditorPalette.TokenColors.identifier)
+                        tokenRow(label: "Plain Text", keyPath: \SQLEditorPalette.TokenColors.plain)
+                    }
+
+                    Section("Query Results") {
+                        resultGridRow(label: "Null", keyPath: \SQLEditorTokenPalette.ResultGridColors.null)
+                        resultGridRow(label: "Numbers", keyPath: \SQLEditorTokenPalette.ResultGridColors.numeric)
+                        resultGridRow(label: "Booleans", keyPath: \SQLEditorTokenPalette.ResultGridColors.boolean)
+                        resultGridRow(label: "Temporal", keyPath: \SQLEditorTokenPalette.ResultGridColors.temporal)
+                        resultGridRow(label: "Binary", keyPath: \SQLEditorTokenPalette.ResultGridColors.binary)
+                        resultGridRow(label: "Identifiers", keyPath: \SQLEditorTokenPalette.ResultGridColors.identifier)
+                        resultGridRow(label: "JSON", keyPath: \SQLEditorTokenPalette.ResultGridColors.json)
+                    }
                 }
+                .formStyle(.grouped)
+                .scrollContentBackground(.hidden)
+                .disabled(isSaving)
             }
+            .frame(maxHeight: .infinity)
 
             Divider()
 
@@ -2431,8 +2568,22 @@ private struct TokenPaletteEditorSheet: View {
                 .keyboardShortcut(.defaultAction)
             }
         }
-        .frame(minWidth: 420, minHeight: 480)
+        .frame(minWidth: 460, minHeight: 560)
         .padding(24)
+        .onAppear {
+            if mode == .create {
+                switch toneMode {
+                case .light:
+                    tone = .light
+                case .dark:
+                    tone = .dark
+                case .both:
+                    tone = .light
+                }
+            } else {
+                toneMode = tone == .dark ? .dark : .light
+            }
+        }
     }
 
     private func tokenColorBinding(_ keyPath: WritableKeyPath<SQLEditorPalette.TokenColors, SQLEditorPalette.TokenStyle>) -> Binding<Color> {
@@ -2473,28 +2624,79 @@ private struct TokenPaletteEditorSheet: View {
         label: String,
         keyPath: WritableKeyPath<SQLEditorPalette.TokenColors, SQLEditorPalette.TokenStyle>
     ) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Text(label)
-                Spacer()
-                ColorPicker(
-                    label,
-                    selection: tokenColorBinding(keyPath),
-                    supportsOpacity: true
-                )
-                .labelsHidden()
-                .frame(width: 130, alignment: .trailing)
-            }
-
-            HStack(spacing: 18) {
-                Spacer()
-                Toggle("Bold", isOn: tokenBoldBinding(keyPath))
-                    .toggleStyle(.checkbox)
-                Toggle("Italic", isOn: tokenItalicBinding(keyPath))
-                    .toggleStyle(.checkbox)
-            }
-            .font(.caption)
+        HStack(spacing: 16) {
+            Text(label)
+            Spacer()
+            ColorPicker(
+                label,
+                selection: tokenColorBinding(keyPath),
+                supportsOpacity: true
+            )
+            .labelsHidden()
+            .frame(width: 130, alignment: .trailing)
+            Toggle("Italic", isOn: tokenItalicBinding(keyPath))
+                .toggleStyle(.checkbox)
+            Toggle("Bold", isOn: tokenBoldBinding(keyPath))
+                .toggleStyle(.checkbox)
         }
+        .font(.caption)
+        .padding(.vertical, 4)
+    }
+
+    private func resultGridColorBinding(_ keyPath: WritableKeyPath<SQLEditorTokenPalette.ResultGridColors, SQLEditorTokenPalette.ResultGridStyle>) -> Binding<Color> {
+        Binding(
+            get: { draft.resultGrid[keyPath: keyPath].swiftColor },
+            set: { newValue in
+                var style = draft.resultGrid[keyPath: keyPath]
+                style.color = ColorRepresentable(color: newValue)
+                draft.resultGrid[keyPath: keyPath] = style
+            }
+        )
+    }
+
+    private func resultGridBoldBinding(_ keyPath: WritableKeyPath<SQLEditorTokenPalette.ResultGridColors, SQLEditorTokenPalette.ResultGridStyle>) -> Binding<Bool> {
+        Binding(
+            get: { draft.resultGrid[keyPath: keyPath].isBold },
+            set: { newValue in
+                var style = draft.resultGrid[keyPath: keyPath]
+                style.isBold = newValue
+                draft.resultGrid[keyPath: keyPath] = style
+            }
+        )
+    }
+
+    private func resultGridItalicBinding(_ keyPath: WritableKeyPath<SQLEditorTokenPalette.ResultGridColors, SQLEditorTokenPalette.ResultGridStyle>) -> Binding<Bool> {
+        Binding(
+            get: { draft.resultGrid[keyPath: keyPath].isItalic },
+            set: { newValue in
+                var style = draft.resultGrid[keyPath: keyPath]
+                style.isItalic = newValue
+                draft.resultGrid[keyPath: keyPath] = style
+            }
+        )
+    }
+
+    @ViewBuilder
+    private func resultGridRow(
+        label: String,
+        keyPath: WritableKeyPath<SQLEditorTokenPalette.ResultGridColors, SQLEditorTokenPalette.ResultGridStyle>
+    ) -> some View {
+        HStack(spacing: 16) {
+            Text(label)
+            Spacer()
+            ColorPicker(
+                label,
+                selection: resultGridColorBinding(keyPath),
+                supportsOpacity: true
+            )
+            .labelsHidden()
+            .frame(width: 130, alignment: .trailing)
+            Toggle("Italic", isOn: resultGridItalicBinding(keyPath))
+                .toggleStyle(.checkbox)
+            Toggle("Bold", isOn: resultGridBoldBinding(keyPath))
+                .toggleStyle(.checkbox)
+        }
+        .font(.caption)
         .padding(.vertical, 4)
     }
 }
