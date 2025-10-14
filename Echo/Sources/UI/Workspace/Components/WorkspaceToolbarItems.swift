@@ -27,31 +27,16 @@ struct WorkspaceToolbarItems: ToolbarContent {
 
     var body: some ToolbarContent {
 #if os(macOS)
-        ToolbarItem(placement: .navigation) {
-            ProjectToolbarMenuButton(
-                appModel: appModel,
-                navigationState: navigationState
-            )
-        }
-
-        ToolbarItem(placement: .navigation) {
-            ServerDatabaseToolbarButton(
-                appModel: appModel,
-                navigationState: navigationState
-            )
-        }
+        ToolbarItemGroup(placement: .automatic) {}
 #else
         ToolbarItemGroup(placement: .navigation) {
             projectMenu
         }
-#endif
 
-#if !os(macOS)
         ToolbarItemGroup(placement: .navigation) {
             connectionsMenu
             databaseMenu
         }
-#endif
 
         ToolbarItem(placement: .primaryAction) {
             RefreshToolbarButton()
@@ -65,6 +50,7 @@ struct WorkspaceToolbarItems: ToolbarContent {
             }
             .help("Open a new query tab")
             .disabled(activeSession == nil)
+            .labelStyle(.iconOnly)
         }
 
         ToolbarItem(placement: .primaryAction) {
@@ -80,6 +66,7 @@ struct WorkspaceToolbarItems: ToolbarContent {
             }
             .help(appState.showTabOverview ? "Hide Tab Overview" : "Show all tabs")
             .disabled(appModel.tabManager.tabs.isEmpty)
+            .labelStyle(.iconOnly)
         }
 
         ToolbarItem(placement: .primaryAction) {
@@ -94,7 +81,9 @@ struct WorkspaceToolbarItems: ToolbarContent {
                 )
             }
             .help(appState.showInfoSidebar ? "Hide Inspector" : "Show Inspector")
+            .labelStyle(.iconOnly)
         }
+#endif
     }
 
     // MARK: - Project Menu

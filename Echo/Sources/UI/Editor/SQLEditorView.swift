@@ -1501,7 +1501,7 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
         isAutomaticSpellingCorrectionEnabled = false
         isGrammarCheckingEnabled = false
         usesAdaptiveColorMappingForDarkAppearance = false
-        textContainerInset = NSSize(width: 12, height: 24)
+        textContainerInset = NSSize(width: 10, height: 16)
         allowsUndo = true
         maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
         minSize = NSSize(width: 0, height: 320)
@@ -3409,7 +3409,25 @@ final class LineNumberRulerView: NSRulerView {
     }
 
     private func drawFallbackLine(with attributes: [NSAttributedString.Key: Any], in rect: NSRect) {
-        let labelRect = NSRect(x: 0, y: rect.minY + 4, width: rect.width - 8, height: rect.height)
+        guard let textView = sqlTextView else {
+            let labelRect = NSRect(x: 0, y: rect.minY + 4, width: rect.width - 8, height: rect.height)
+            ("1" as NSString).draw(in: labelRect, withAttributes: attributes)
+            return
+        }
+
+        let font = textView.theme.nsFont
+        let lineHeight = max(CGFloat(16), font.ascender - font.descender + font.leading)
+        let insetOrigin = textView.textContainerOrigin
+        let visibleOffset = textView.visibleRect.origin.y
+        let baseY = insetOrigin.y - visibleOffset
+        let yPosition = max(rect.minY, baseY + 2)
+
+        let labelRect = NSRect(
+            x: 0,
+            y: yPosition,
+            width: rect.width - 8,
+            height: lineHeight
+        )
         ("1" as NSString).draw(in: labelRect, withAttributes: attributes)
     }
 
@@ -3705,7 +3723,7 @@ private struct IOSSQLEditorRepresentable: UIViewRepresentable {
         textView.smartInsertDeleteType = .no
         textView.delegate = context.coordinator
         textView.text = text
-        textView.textContainerInset = UIEdgeInsets(top: 14, left: 12, bottom: 14, right: 12)
+        textView.textContainerInset = UIEdgeInsets(top: 12, left: 10, bottom: 12, right: 10)
         textView.textContainer.widthTracksTextView = display.wrapLines
         textView.textContainer.lineFragmentPadding = 12
         return textView

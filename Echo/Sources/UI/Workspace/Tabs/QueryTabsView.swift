@@ -15,13 +15,6 @@ private func tabHairlineWidth() -> CGFloat {
 private func tabHairlineWidth() -> CGFloat { 1 }
 #endif
 
-private struct TabGroupWidthPreferenceKey: PreferenceKey {
-    static var defaultValue: CGFloat = 0
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
-        value = nextValue()
-    }
-}
-
 struct QueryTabsView: View {
     @EnvironmentObject private var appModel: AppModel
     @EnvironmentObject private var appState: AppState
@@ -29,8 +22,8 @@ struct QueryTabsView: View {
     @Environment(\.hostedWorkspaceTabID) private var hostedWorkspaceTabID
 
     var showsTabStrip: Bool = true
-    var tabBarLeadingPadding: CGFloat = 12
-    var tabBarTrailingPadding: CGFloat = 12
+    var tabBarLeadingPadding: CGFloat = 6
+    var tabBarTrailingPadding: CGFloat = 6
     private var recentConnectionItems: [RecentConnectionItem] {
         appModel.recentConnections.compactMap { record in
             guard let connection = appModel.connections.first(where: { $0.id == record.connectionID }) else {
@@ -243,7 +236,6 @@ struct QueryTabStrip: View {
 
     @State private var hoveredTabID: UUID?
     @State private var dragState = TabDragState()
-    @State private var tabGroupWidth: CGFloat = 0
 
     private var themedAppearance: TabChromePalette? {
 #if os(macOS)
@@ -290,8 +282,13 @@ struct QueryTabStrip: View {
     }
 
     private let tabReorderAnimation = Animation.interactiveSpring(response: 0.72, dampingFraction: 0.86, blendDuration: 0.30)
-    private let baseHorizontalInset: CGFloat = 12
+    private let tabStripHeight: CGFloat = 38
+    private let baseHorizontalInset: CGFloat = 4
     private let basePlateExtension: CGFloat = 0
+    private let basePlateEdgeInset: CGFloat = 2
+    private let basePlateCornerRadius: CGFloat = 14
+    private let tabContentVerticalPadding: CGFloat = 5
+    private var basePlateHeight: CGFloat { max(tabStripHeight - tabContentVerticalPadding * 2, 0) }
 
     var body: some View {
         GeometryReader { geo in
@@ -305,15 +302,17 @@ struct QueryTabStrip: View {
             let separatorWidth = CGFloat(max(orderedTabs.count - 1, 0)) * tabHairlineWidth()
             let effectiveWidth = max(availableWidth - separatorWidth, 0)
             let tabWidth = orderedTabs.isEmpty ? 0 : effectiveWidth / CGFloat(orderedTabs.count)
-            let measuredWidth = tabGroupWidth > 0 ? (tabGroupWidth + separatorWidth) : max(tabWidth * CGFloat(orderedTabs.count) + separatorWidth, 0)
-            let basePlateWidth = hasTabs ? min(measuredWidth + basePlateExtension * 2, availableWidth + basePlateExtension * 2) : 0
+            let basePlateLeading = max(effectiveLeadingPadding - basePlateExtension - basePlateEdgeInset, 0)
+            let basePlateTrailing = max(effectiveTrailingPadding - basePlateExtension - basePlateEdgeInset, 0)
+            let basePlateWidth = hasTabs ? max(geo.size.width - basePlateLeading - basePlateTrailing, 0) : 0
+            let basePlateOffset = basePlateLeading
 
             ZStack(alignment: .leading) {
 #if os(macOS)
                 if hasTabs {
-                    TabStripBackground(style: tabStripStyle)
-                        .frame(width: basePlateWidth, height: 24)
-                        .offset(x: effectiveLeadingPadding - basePlateExtension)
+                    TabStripBackground(style: tabStripStyle, height: basePlateHeight, cornerRadius: basePlateCornerRadius)
+                        .frame(width: basePlateWidth, height: basePlateHeight)
+                        .offset(x: basePlateOffset)
                 }
 #endif
 
@@ -323,20 +322,16 @@ struct QueryTabStrip: View {
                 }
                 .padding(.leading, effectiveLeadingPadding)
                 .padding(.trailing, effectiveTrailingPadding)
-                .padding(.vertical, 5)
+                .padding(.vertical, tabContentVerticalPadding)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .animation(tabReorderAnimation, value: appModel.tabManager.tabs.map(\.id))
             }
         }
-        .frame(height: 34)
+        .frame(height: tabStripHeight)
         .clipped()
-        .onPreferenceChange(TabGroupWidthPreferenceKey.self) { width in
-            tabGroupWidth = width
-        }
         .onChange(of: appModel.tabManager.tabs.isEmpty) { isEmpty in
             if isEmpty {
                 hoveredTabID = nil
-                tabGroupWidth = 0
             }
         }
         .onChange(of: appModel.tabManager.tabs.map(\.id)) { _, ids in
@@ -379,11 +374,6 @@ struct QueryTabStrip: View {
             }
         }
         .fixedSize()
-        .background(
-            GeometryReader { proxy in
-                Color.clear.preference(key: TabGroupWidthPreferenceKey.self, value: proxy.size.width)
-            }
-        )
     }
 
     private func tabOffset(for tab: WorkspaceTab, index: Int, tabWidth: CGFloat) -> CGFloat {
@@ -1212,30 +1202,53 @@ private struct QueryTabButton: View {
         }
 
         if isActive {
-            if effectiveHovering {
-                if colorScheme == .dark {
-                    return LinearGradient(colors: [Color.white.opacity(0.48), Color.white.opacity(0.32)], startPoint: .top, endPoint: .bottom)
-                } else {
-                    return LinearGradient(colors: [Color(white: 0.93), Color(white: 0.86)], startPoint: .top, endPoint: .bottom)
-                }
-            } else {
-                if colorScheme == .dark {
-                    return LinearGradient(colors: [Color.white.opacity(0.38), Color.white.opacity(0.26)], startPoint: .top, endPoint: .bottom)
-                } else {
-                    return LinearGradient(colors: [Color(white: 0.998), Color(white: 0.965)], startPoint: .top, endPoint: .bottom)
-                }
-            }
+            return effectiveHovering ? activeHoverGradient : activeIdleGradient
         }
 
         if shouldTreatAsHover {
-            if colorScheme == .dark {
-                return LinearGradient(colors: [Color.white.opacity(0.24), Color.white.opacity(0.17)], startPoint: .top, endPoint: .bottom)
-            } else {
-                return LinearGradient(colors: [Color(white: 0.92), Color(white: 0.88)], startPoint: .top, endPoint: .bottom)
-            }
+            return inactiveHoverGradient
         }
 
         return nil
+    }
+
+    private var activeIdleGradient: LinearGradient {
+        if colorScheme == .dark {
+            return LinearGradient(colors: [
+                Color.white.opacity(0.26),
+                Color.white.opacity(0.18)
+            ], startPoint: .top, endPoint: .bottom)
+        }
+        return LinearGradient(colors: [
+            Color(white: 0.99),
+            Color(white: 0.95)
+        ], startPoint: .top, endPoint: .bottom)
+    }
+
+    private var activeHoverGradient: LinearGradient {
+        if colorScheme == .dark {
+            return LinearGradient(colors: [
+                Color.white.opacity(0.32),
+                Color.white.opacity(0.24)
+            ], startPoint: .top, endPoint: .bottom)
+        }
+        return LinearGradient(colors: [
+            Color(white: 1.0),
+            Color(white: 0.97)
+        ], startPoint: .top, endPoint: .bottom)
+    }
+
+    private var inactiveHoverGradient: LinearGradient {
+        if colorScheme == .dark {
+            return LinearGradient(colors: [
+                Color.white.opacity(0.18),
+                Color.white.opacity(0.12)
+            ], startPoint: .top, endPoint: .bottom)
+        }
+        return LinearGradient(colors: [
+            Color(white: 0.94),
+            Color(white: 0.90)
+        ], startPoint: .top, endPoint: .bottom)
     }
 
     private var macTabBorderColor: Color? {
@@ -1259,7 +1272,11 @@ private struct QueryTabButton: View {
         }
 
         if isActive {
-            return colorScheme == .dark ? Color.white.opacity(0.34) : Color(white: 0.82)
+            return colorScheme == .dark ? Color.white.opacity(0.30) : Color(white: 0.86)
+        }
+
+        if shouldTreatAsHover {
+            return colorScheme == .dark ? Color.white.opacity(0.22) : Color.white.opacity(0.68)
         }
 
         return nil
@@ -2134,55 +2151,44 @@ private struct TabStripBackground: View {
     }
 
     var style: Style
+    var height: CGFloat = 24
+    var cornerRadius: CGFloat = 15
 
     private var shape: RoundedRectangle {
-        RoundedRectangle(cornerRadius: 15, style: .continuous)
+        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
     }
 
     var body: some View {
         shape
-            .fill(fillGradient)
-            .overlay(shape.stroke(strokeColor, lineWidth: tabHairlineWidth()))
-            .shadow(color: shadowColor, radius: 2.5, y: 1)
-            .frame(height: 24)
+            .fill(baseFill)
+            .overlay(topEdgeOverlay)
+            .overlay(bottomEdgeOverlay)
+            .frame(height: height)
             .allowsHitTesting(false)
     }
 
-    private var fillGradient: LinearGradient {
+    private var baseFill: AnyShapeStyle {
         switch style {
         case .standard(let scheme):
-            if scheme == .dark {
-                return LinearGradient(colors: [
-                    Color.white.opacity(0.20),
-                    Color.white.opacity(0.13)
-                ], startPoint: .top, endPoint: .bottom)
-            } else {
-                return LinearGradient(colors: [
-                    Color(white: 0.96),
-                    Color(white: 0.90)
-                ], startPoint: .top, endPoint: .bottom)
-            }
+            let color = scheme == .dark ? Color(white: 0.22) : Color(white: 0.90)
+            return AnyShapeStyle(color)
         case .themed(let palette):
-            return palette.baseFill
+            return AnyShapeStyle(palette.baseFill)
         }
     }
 
-    private var strokeColor: Color {
-        switch style {
-        case .standard(let scheme):
-            return scheme == .dark ? Color.white.opacity(0.24) : Color(white: 0.84)
-        case .themed(let palette):
-            return palette.baseStroke
+    @ViewBuilder
+    private var topEdgeOverlay: some View {
+        if case .themed(let palette) = style {
+            shape.stroke(palette.baseStroke, lineWidth: tabHairlineWidth())
+        } else {
+            EmptyView()
         }
     }
 
-    private var shadowColor: Color {
-        switch style {
-        case .standard(let scheme):
-            return scheme == .dark ? Color.black.opacity(0.26) : Color.black.opacity(0.06)
-        case .themed(let palette):
-            return palette.baseShadow
-        }
+    @ViewBuilder
+    private var bottomEdgeOverlay: some View {
+        EmptyView()
     }
 }
 
