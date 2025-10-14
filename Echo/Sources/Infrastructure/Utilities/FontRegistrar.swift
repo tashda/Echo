@@ -9,9 +9,32 @@ import UIKit
 /// Registers bundled custom fonts so they are available throughout the app
 enum FontRegistrar {
     private static let fontSubdirectory = "Fonts"
+    private static var hasRegistered = false
+    private static let lock = NSLock()
 
     static func registerBundledFonts() {
-        guard let urls = Bundle.main.urls(forResourcesWithExtension: "ttf", subdirectory: fontSubdirectory) else {
+        lock.lock()
+        defer { lock.unlock() }
+        if hasRegistered { return }
+
+        var collected: [URL] = []
+
+        if let bundleURLs = Bundle.main.urls(forResourcesWithExtension: "ttf", subdirectory: fontSubdirectory) {
+            collected.append(contentsOf: bundleURLs)
+        }
+
+        if let resourceRoot = Bundle.main.resourceURL?.appendingPathComponent(fontSubdirectory, isDirectory: true) {
+            do {
+                let directoryContents = try FileManager.default.contentsOfDirectory(at: resourceRoot, includingPropertiesForKeys: nil, options: [.skipsHiddenFiles])
+                collected.append(contentsOf: directoryContents.filter { $0.pathExtension.lowercased() == "ttf" })
+            } catch {
+                print("[FontRegistrar] Failed to enumerate Fonts directory: \(error)")
+            }
+        }
+
+        let urls = Array(Set(collected))
+        guard !urls.isEmpty else {
+            print("[FontRegistrar] No font URLs found in \(fontSubdirectory)")
             return
         }
 
@@ -22,7 +45,16 @@ enum FontRegistrar {
                 if let cfError = error?.takeRetainedValue() {
                     print("[FontRegistrar] Failed to register font at \(url.lastPathComponent): \(cfError)")
                 }
+            } else {
+                #if DEBUG
+                if let descriptors = CTFontManagerCreateFontDescriptorsFromURL(url as CFURL) as? [CTFontDescriptor] {
+                    let names = descriptors.compactMap { CTFontDescriptorCopyAttribute($0, kCTFontNameAttribute) as? String }
+                    print("[FontRegistrar] Registered fonts: \(names)")
+                }
+                #endif
             }
         }
+
+        hasRegistered = true
     }
 }

@@ -1257,6 +1257,8 @@ struct NSFontWithFallback {
 
 enum SQLEditorThemeResolver {
     static func resolve(globalSettings: GlobalSettings, project: Project?, tone: SQLEditorPalette.Tone) -> SQLEditorTheme {
+        FontRegistrar.registerBundledFonts()
+
         let applicationTheme = resolveApplicationTheme(globalSettings: globalSettings, tone: tone)
         let tokenPalette = resolveTokenPalette(globalSettings: globalSettings, project: project, tone: tone)
 
@@ -1351,6 +1353,10 @@ enum SQLEditorThemeResolver {
         guard let value else { return nil }
         let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed.isEmpty ? nil : trimmed
+    }
+
+    static func normalizedFontName(_ value: String?) -> String {
+        sanitizedFontName(value) ?? SQLEditorTheme.defaultFontName
     }
 
     private static func palette(withID id: String, globalSettings: GlobalSettings) -> SQLEditorTokenPalette? {

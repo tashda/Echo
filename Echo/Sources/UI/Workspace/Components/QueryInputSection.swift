@@ -71,8 +71,10 @@ struct QueryInputSection: View {
 
     @State private var isFormatting = false
 
-    private let horizontalPadding: CGFloat = 20
-    private let verticalPadding: CGFloat = 24
+    private let leadingPadding: CGFloat = 8
+    private let trailingPadding: CGFloat = 18
+    private let topPadding: CGFloat = 14
+    private let bottomPadding: CGFloat = 20
 
     var body: some View {
         let resolvedTheme = editorTheme
@@ -94,13 +96,14 @@ struct QueryInputSection: View {
                 clipboardMetadata: query.clipboardMetadata,
                 onAddBookmark: onAddBookmark
             )
-            .padding(.horizontal, horizontalPadding)
-            .padding(.top, verticalPadding)
-            .padding(.bottom, verticalPadding)
+            .padding(.leading, leadingPadding)
+            .padding(.trailing, trailingPadding)
+            .padding(.top, topPadding)
+            .padding(.bottom, bottomPadding)
 
             floatingControls
-                .padding(.trailing, horizontalPadding)
-                .padding(.bottom, verticalPadding)
+                .padding(.trailing, trailingPadding)
+                .padding(.bottom, bottomPadding)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(editorBackground)
