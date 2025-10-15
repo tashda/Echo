@@ -340,11 +340,14 @@ final class ThemeManager: ObservableObject {
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            guard let self else { return }
-            let scheme = ThemeManager.currentSystemColorScheme()
-            self.effectiveColorScheme = scheme
-            self.activeTone = ThemeManager.tone(for: scheme)
-            self.updateOutputs(for: self.activeTone)
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                let scheme = ThemeManager.currentSystemColorScheme()
+                self.effectiveColorScheme = scheme
+                let tone = ThemeManager.tone(for: scheme)
+                self.activeTone = tone
+                self.updateOutputs(for: tone)
+            }
         }
     }
 
@@ -354,6 +357,7 @@ final class ThemeManager: ObservableObject {
         }
     }
 
+    @MainActor
     private static func currentSystemColorScheme() -> ColorScheme {
         guard let appearance = NSApp?.effectiveAppearance else {
             return .light
@@ -448,7 +452,12 @@ extension ThemeManager {
             let accent = accentNSColor.usingColorSpace(.extendedSRGB) ?? accentNSColor
             return base.blended(withFraction: 0.04, of: accent) ?? base
         } else {
-            let alternating = NSColor.controlAlternatingRowBackgroundColors
+            let alternating: [NSColor]
+            if #available(macOS 11, *) {
+                alternating = NSColor.alternatingContentBackgroundColors
+            } else {
+                alternating = NSColor.controlAlternatingRowBackgroundColors
+            }
             if alternating.count > 1 {
                 return alternating[1]
             }

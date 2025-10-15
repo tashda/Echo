@@ -60,12 +60,12 @@ struct ConnectionsSidebarView: View {
             Text("Are you sure you want to delete \(target.displayName)? This action cannot be undone.")
         }
         .onAppear(perform: syncExpandedFoldersFromModel)
-        .onChange(of: appModel.expandedConnectionFolderIDs) { newValue in
+        .onChange(of: appModel.expandedConnectionFolderIDs) { _, newValue in
             if newValue != expandedFolders {
                 expandedFolders = newValue
             }
         }
-        .onChange(of: expandedFolders) { newValue in
+        .onChange(of: expandedFolders) { _, newValue in
             appModel.updateExpandedConnectionFolders(newValue)
         }
     }

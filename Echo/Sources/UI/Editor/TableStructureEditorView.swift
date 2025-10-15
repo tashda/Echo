@@ -45,7 +45,7 @@ struct TableStructureEditorView: View {
                 viewModel.requestedSection = nil
             }
         }
-        .onChange(of: viewModel.columns) { _ in
+        .onChange(of: viewModel.columns) { _, _ in
             pruneSelectedColumns()
         }
         .onReceive(viewModel.$requestedSection.compactMap { $0 }) { section in

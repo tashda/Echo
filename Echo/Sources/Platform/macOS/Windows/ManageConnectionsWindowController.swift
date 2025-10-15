@@ -114,7 +114,9 @@ final class ManageConnectionsWindowController: NSWindowController, NSWindowDeleg
         let tone = manager.activePaletteTone
         window.appearance = NSAppearance(named: tone == .dark ? .darkAqua : .aqua)
         window.backgroundColor = manager.windowBackgroundNSColor
-        window.toolbar?.showsBaselineSeparator = false
+        if #unavailable(macOS 15) {
+            window.toolbar?.showsBaselineSeparator = false
+        }
     }
 }
 

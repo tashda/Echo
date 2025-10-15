@@ -1115,7 +1115,7 @@ private struct AppearanceToneSection: View {
         .animation(.easeInOut(duration: 0.16), value: hoveredThemeID)
         .animation(.easeInOut(duration: 0.16), value: hoveredPaletteID)
         .animation(.easeInOut(duration: 0.16), value: hoveredFontName)
-        .onChange(of: selection) { _ in
+        .onChange(of: selection) { _, _ in
             hoveredThemeID = nil
             hoveredPaletteID = nil
             hoveredFontName = nil
@@ -1783,7 +1783,9 @@ private struct ThemePreview: View {
             GeometryReader { proxy in
                 Color.clear
                     .onAppear { reportSizeIfNeeded(proxy.size) }
-                    .onChange(of: proxy.size) { newSize in reportSizeIfNeeded(newSize) }
+                    .onChange(of: proxy.size) { _, newSize in
+                        reportSizeIfNeeded(newSize)
+                    }
             }
         )
 #endif
@@ -2872,7 +2874,7 @@ private struct ThemeEditorSheet: View {
             useStrongHighlight = draft.editorSymbolHighlightStrong != nil
             useBrightHighlight = draft.editorSymbolHighlightBright != nil
         }
-        .onChange(of: useCustomAccent) { newValue in
+        .onChange(of: useCustomAccent) { _, newValue in
             if newValue {
                 if draft.accent == nil {
                     draft.accent = defaultAccent()
@@ -2881,7 +2883,7 @@ private struct ThemeEditorSheet: View {
                 draft.accent = nil
             }
         }
-        .onChange(of: useStrongHighlight) { newValue in
+        .onChange(of: useStrongHighlight) { _, newValue in
             if newValue {
                 if draft.editorSymbolHighlightStrong == nil {
                     draft.editorSymbolHighlightStrong = draft.editorSelection
@@ -2890,7 +2892,7 @@ private struct ThemeEditorSheet: View {
                 draft.editorSymbolHighlightStrong = nil
             }
         }
-        .onChange(of: useBrightHighlight) { newValue in
+        .onChange(of: useBrightHighlight) { _, newValue in
             if newValue {
                 if draft.editorSymbolHighlightBright == nil {
                     draft.editorSymbolHighlightBright = draft.editorSelection
@@ -2997,7 +2999,7 @@ private struct TokenPaletteEditorSheet: View {
                             Text("Both").tag(PaletteToneMode.both)
                         }
                         .pickerStyle(.segmented)
-                        .onChange(of: toneMode) { newValue in
+                        .onChange(of: toneMode) { _, newValue in
                             switch newValue {
                             case .light: tone = .light
                             case .dark: tone = .dark

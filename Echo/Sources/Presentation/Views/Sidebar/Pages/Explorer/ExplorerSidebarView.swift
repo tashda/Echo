@@ -137,7 +137,7 @@ struct ExplorerSidebarView: View {
 
     private func connectToSavedConnection(_ connection: SavedConnection) async {
         await MainActor.run {
-            _ = withAnimation(.easeInOut(duration: 0.3)) {
+            withAnimation(.easeInOut(duration: 0.3)) {
                 isHoveringConnectedServers = true
             }
         }
@@ -145,7 +145,7 @@ struct ExplorerSidebarView: View {
         await appModel.connect(to: connection)
 
         await MainActor.run {
-            _ = withAnimation(.easeInOut(duration: 0.3)) {
+            withAnimation(.easeInOut(duration: 0.3)) {
                 expandedConnectedServerIDs.insert(connection.id)
             }
             selectedConnectionID = connection.id
