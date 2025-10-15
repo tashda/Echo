@@ -193,6 +193,7 @@ struct ConnectionEditorView: View {
                 }
             }
         }
+        .background(Color.clear)
     }
 
     // MARK: - Sidebar
@@ -403,10 +404,13 @@ struct ConnectionEditorView: View {
                                     Text("No identities available.")
                                         .foregroundStyle(.secondary)
                                         .font(.callout)
-                                    Button("Create Identity") {
-                                        identityEditorState = .create(parent: nil, token: UUID())
+                                    HStack {
+                                        Spacer()
+                                        Button("Create Linked Identity…") {
+                                            identityEditorState = .create(parent: nil, token: UUID())
+                                        }
+                                        .buttonStyle(.link)
                                     }
-                                    .buttonStyle(.link)
                                 }
                             } else {
                                 Picker("Identity", selection: $identityID) {
@@ -417,11 +421,11 @@ struct ConnectionEditorView: View {
                                 .pickerStyle(.menu)
 
                                 HStack {
-                                    Button("Create Identity") {
+                                    Spacer()
+                                    Button("Create Linked Identity…") {
                                         identityEditorState = .create(parent: nil, token: UUID())
                                     }
                                     .buttonStyle(.link)
-                                    Spacer()
                                 }
                             }
 

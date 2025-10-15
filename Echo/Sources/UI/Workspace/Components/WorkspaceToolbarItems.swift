@@ -23,78 +23,69 @@ struct WorkspaceToolbarItems: ToolbarContent {
     @EnvironmentObject private var appModel: AppModel
     @EnvironmentObject private var appState: AppState
     @EnvironmentObject private var navigationState: NavigationState
-    @EnvironmentObject private var themeManager: ThemeManager
 
     var body: some ToolbarContent {
 #if os(macOS)
-        ToolbarItemGroup(placement: .automatic) {}
+        macToolbar
 #else
+        iosToolbar
+#endif
+    }
+
+#if os(macOS)
+    @ToolbarContentBuilder
+    private var macToolbar: some ToolbarContent {
+        ToolbarItem(placement: .navigation) {
+            projectMenu
+        }
+
+        ToolbarItem(placement: .principal) {
+            ToolbarPrincipalSpacer()
+        }
+
+        ToolbarItemGroup(placement: .primaryAction) {
+            refreshButton
+            newTabButton
+            tabOverviewButton
+            inspectorButton
+        }
+    }
+#else
+    @ToolbarContentBuilder
+    private var iosToolbar: some ToolbarContent {
         ToolbarItemGroup(placement: .navigation) {
             projectMenu
         }
 
-        ToolbarItemGroup(placement: .navigation) {
-            connectionsMenu
-            databaseMenu
-        }
-
-        ToolbarItem(placement: .primaryAction) {
-            RefreshToolbarButton()
-        }
-
-        ToolbarItem(placement: .primaryAction) {
-            Button {
-                appModel.openQueryTab()
-            } label: {
-                Label("New Tab", systemImage: "plus")
+        let showConnectionControls = false
+        if showConnectionControls {
+            ToolbarItemGroup(placement: .navigation) {
+                connectionsMenu
+                databaseMenu
             }
-            .help("Open a new query tab")
-            .disabled(activeSession == nil)
-            .labelStyle(.iconOnly)
         }
 
         ToolbarItem(placement: .primaryAction) {
-            Button {
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    appState.showTabOverview.toggle()
-                }
-            } label: {
-                Label(
-                    appState.showTabOverview ? "Hide Tab Overview" : "Tab Overview",
-                    systemImage: appState.showTabOverview ? "rectangle.grid.2x2.fill" : "rectangle.grid.2x2"
-                )
-            }
-            .help(appState.showTabOverview ? "Hide Tab Overview" : "Show all tabs")
-            .disabled(appModel.tabManager.tabs.isEmpty)
-            .labelStyle(.iconOnly)
+            refreshButton
         }
 
         ToolbarItem(placement: .primaryAction) {
-            Button {
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    appState.showInfoSidebar.toggle()
-                }
-            } label: {
-                Label(
-                    appState.showInfoSidebar ? "Hide Inspector" : "Show Inspector",
-                    systemImage: appState.showInfoSidebar ? "sidebar.trailing" : "sidebar.right"
-                )
-            }
-            .help(appState.showInfoSidebar ? "Hide Inspector" : "Show Inspector")
-            .labelStyle(.iconOnly)
+            newTabButton
         }
-#endif
+
+        ToolbarItem(placement: .primaryAction) {
+            tabOverviewButton
+        }
+
+        ToolbarItem(placement: .primaryAction) {
+            inspectorButton
+        }
     }
+#endif
 
     // MARK: - Project Menu
 
     private var projectMenu: some View {
-#if os(macOS)
-        ProjectToolbarMenuButton(
-            appModel: appModel,
-            navigationState: navigationState
-        )
-#else
         Menu {
             if appModel.projects.isEmpty {
                 Text("No Projects Available").foregroundStyle(.secondary)
@@ -124,7 +115,58 @@ struct WorkspaceToolbarItems: ToolbarContent {
                 title: currentProject?.name ?? "Project"
             )
         }
-#endif
+    }
+
+    // MARK: - Toolbar Buttons
+
+    private var refreshButton: some View {
+        RefreshToolbarButton()
+            .labelStyle(.iconOnly)
+    }
+
+    private var newTabButton: some View {
+        Button {
+            appModel.openQueryTab()
+        } label: {
+            Label("New Tab", systemImage: "plus")
+        }
+        .help("Open a new query tab")
+        .disabled(!canOpenNewTab)
+        .labelStyle(.iconOnly)
+        .accessibilityLabel("New Tab")
+    }
+
+    private var tabOverviewButton: some View {
+        Button {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                appState.showTabOverview.toggle()
+            }
+        } label: {
+            Label(
+                appState.showTabOverview ? "Hide Tab Overview" : "Tab Overview",
+                systemImage: appState.showTabOverview ? "rectangle.grid.2x2.fill" : "rectangle.grid.2x2"
+            )
+        }
+        .help(appState.showTabOverview ? "Hide Tab Overview" : "Show all tabs")
+        .disabled(appModel.tabManager.tabs.isEmpty)
+        .labelStyle(.iconOnly)
+        .accessibilityLabel(appState.showTabOverview ? "Hide Tab Overview" : "Show Tab Overview")
+    }
+
+    private var inspectorButton: some View {
+        Button {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                appState.showInfoSidebar.toggle()
+            }
+        } label: {
+            Label(
+                appState.showInfoSidebar ? "Hide Inspector" : "Show Inspector",
+                systemImage: appState.showInfoSidebar ? "sidebar.trailing" : "sidebar.right"
+            )
+        }
+        .help(appState.showInfoSidebar ? "Hide Inspector" : "Show Inspector")
+        .labelStyle(.iconOnly)
+        .accessibilityLabel(appState.showInfoSidebar ? "Hide Inspector" : "Show Inspector")
     }
 
     // MARK: - Connections Menu
@@ -174,7 +216,7 @@ struct WorkspaceToolbarItems: ToolbarContent {
                     Menu {
                         connectionMenuItems(parentID: folder.id)
                     } label: {
-                        menuRow(icon: projectIcon, title: folder.name)
+                        menuRow(icon: ToolbarIcon.system("folder"), title: folder.name)
                     }
                 }
 
@@ -243,12 +285,31 @@ struct WorkspaceToolbarItems: ToolbarContent {
 
     // MARK: - Helpers
 
+    private var canOpenNewTab: Bool {
+        guard let session = activeSession else { return false }
+        return hasActiveDatabase(for: session)
+    }
+
     private var activeSession: ConnectionSession? {
         if let connection = navigationState.selectedConnection,
            let session = appModel.sessionManager.sessionForConnection(connection.id) {
             return session
         }
         return appModel.sessionManager.activeSession ?? appModel.sessionManager.activeSessions.first
+    }
+
+    private func hasActiveDatabase(for session: ConnectionSession) -> Bool {
+        func normalized(_ value: String?) -> String? {
+            guard let trimmed = value?.trimmingCharacters(in: .whitespacesAndNewlines),
+                  !trimmed.isEmpty else {
+                return nil
+            }
+            return trimmed
+        }
+
+        if normalized(navigationState.selectedDatabase) != nil { return true }
+        if normalized(session.selectedDatabaseName) != nil { return true }
+        return normalized(session.connection.database) != nil
     }
 
     private func availableDatabases(in session: ConnectionSession) -> [DatabaseInfo]? {
@@ -309,9 +370,7 @@ struct WorkspaceToolbarItems: ToolbarContent {
         navigationState.selectedDatabase ?? "Database"
     }
 
-    private var projectIcon: ToolbarIcon {
-        .system("folder")
-    }
+    private var projectIcon: ToolbarIcon { .system("folder.badge.person.crop") }
 
     private var currentServerIcon: ToolbarIcon {
         if let connection = navigationState.selectedConnection {
@@ -768,1027 +827,6 @@ private struct RefreshButtonPlaceholder: View {
     }
 }
 
-#if os(macOS)
-private struct NavigationButtonsContainer: NSViewRepresentable {
-    @ObservedObject var appModel: AppModel
-    @ObservedObject var navigationState: NavigationState
-
-    func makeNSView(context: Context) -> NSView {
-        let container = NSView()
-        container.translatesAutoresizingMaskIntoConstraints = false
-
-        // Create project button
-        let projectControl = makeToolbarSegmentedControl(segmentCount: 1)
-        let projectContainer = ToolbarCapsuleContainer(content: projectControl, insets: NSEdgeInsets(top: 3, left: 10, bottom: 3, right: 10))
-
-        // Create server/database button
-        let serverControl = makeToolbarSegmentedControl(segmentCount: 2)
-        let serverContainer = ToolbarCapsuleContainer(content: serverControl, insets: NSEdgeInsets(top: 3, left: 10, bottom: 3, right: 10))
-
-        container.addSubview(projectContainer)
-        container.addSubview(serverContainer)
-
-        NSLayoutConstraint.activate([
-            projectContainer.leadingAnchor.constraint(equalTo: container.leadingAnchor),
-            projectContainer.centerYAnchor.constraint(equalTo: container.centerYAnchor),
-
-            serverContainer.leadingAnchor.constraint(equalTo: projectContainer.trailingAnchor, constant: 20),
-            serverContainer.centerYAnchor.constraint(equalTo: container.centerYAnchor),
-            serverContainer.trailingAnchor.constraint(equalTo: container.trailingAnchor),
-
-            container.heightAnchor.constraint(equalTo: projectContainer.heightAnchor)
-        ])
-
-        context.coordinator.projectContainer = projectContainer
-        context.coordinator.projectControl = projectControl
-        context.coordinator.serverContainer = serverContainer
-        context.coordinator.serverControl = serverControl
-        context.coordinator.configure()
-
-        return container
-    }
-
-    func updateNSView(_ nsView: NSView, context: Context) {
-        context.coordinator.configure()
-    }
-
-    func makeCoordinator() -> Coordinator {
-        Coordinator(parent: self)
-    }
-
-    class Coordinator: NSObject {
-        var parent: NavigationButtonsContainer
-        weak var projectContainer: ToolbarCapsuleContainer<NSSegmentedControl>?
-        weak var projectControl: NSSegmentedControl?
-        weak var serverContainer: ToolbarCapsuleContainer<NSSegmentedControl>?
-        weak var serverControl: NSSegmentedControl?
-
-        init(parent: NavigationButtonsContainer) {
-            self.parent = parent
-            super.init()
-        }
-
-        func configure() {
-            configureProjectButton()
-            configureServerDatabaseButtons()
-        }
-
-        private func configureProjectButton() {
-            guard let control = projectControl else { return }
-
-            control.target = self
-            control.action = #selector(projectSegmentPressed(_:))
-
-            let menu = buildProjectMenu()
-            control.setMenu(menu, forSegment: 0)
-            control.setEnabled(!parent.appModel.projects.isEmpty, forSegment: 0)
-
-            let currentProject = parent.navigationState.selectedProject ?? parent.appModel.selectedProject ?? parent.appModel.projects.first
-            let title = currentProject?.name ?? "Project"
-            let icon = projectIcon(for: currentProject)
-
-            control.setToolTip(title, forSegment: 0)
-            control.applySegmentAppearance(title: title, image: icon, segment: 0)
-            projectContainer?.requestLayoutUpdate()
-        }
-
-        private func configureServerDatabaseButtons() {
-            guard let control = serverControl else { return }
-
-            control.target = self
-            control.action = #selector(serverSegmentPressed(_:))
-
-            // Configure server segment
-            let serverMenu = buildServerMenu()
-            control.setMenu(serverMenu, forSegment: 0)
-            control.setEnabled(!parent.appModel.connections.isEmpty, forSegment: 0)
-
-            let serverTitle = serverButtonTitle()
-            let serverIcon = serverButtonIcon()
-            control.setToolTip(serverTitle, forSegment: 0)
-            control.applySegmentAppearance(title: serverTitle, image: serverIcon, segment: 0)
-
-            // Configure database segment
-            let databaseMenu = buildDatabaseMenu()
-            control.setMenu(databaseMenu, forSegment: 1)
-            control.setEnabled(activeSession() != nil, forSegment: 1)
-
-            let databaseTitle = parent.navigationState.selectedDatabase ?? "Database"
-            let databaseIcon = databaseButtonIcon()
-            control.setToolTip(databaseTitle, forSegment: 1)
-            control.applySegmentAppearance(title: databaseTitle, image: databaseIcon, segment: 1)
-
-            serverContainer?.requestLayoutUpdate()
-        }
-
-        @objc private func projectSegmentPressed(_ sender: NSSegmentedControl) {
-            sender.popUpMenu(for: 0)
-        }
-
-        @objc private func serverSegmentPressed(_ sender: NSSegmentedControl) {
-            sender.popUpMenu(for: sender.selectedSegment)
-        }
-
-        private func projectIcon(for project: Project?) -> NSImage? {
-            if let project, let iconName = project.iconName, !iconName.isEmpty {
-                if let asset = NSImage(named: iconName)?.copy() as? NSImage {
-                    asset.size = NSSize(width: 16, height: 16)
-                    asset.isTemplate = false
-                    return asset
-                }
-                if let symbol = NSImage(systemSymbolName: iconName, accessibilityDescription: nil)?.copy() as? NSImage {
-                    symbol.size = NSSize(width: 16, height: 16)
-                    symbol.isTemplate = true
-                    return symbol
-                }
-            }
-            return ToolbarIcon.system("folder").makeNSImage()
-        }
-
-        private func serverButtonTitle() -> String {
-            if let connection = parent.navigationState.selectedConnection {
-                let trimmed = connection.connectionName.trimmingCharacters(in: .whitespacesAndNewlines)
-                if !trimmed.isEmpty { return trimmed }
-                let host = connection.host.trimmingCharacters(in: .whitespacesAndNewlines)
-                return host.isEmpty ? "Server" : host
-            }
-            return "Server"
-        }
-
-        private func serverButtonIcon() -> NSImage? {
-            if let connection = parent.navigationState.selectedConnection {
-                let assetName = connection.databaseType.iconName
-                if let image = NSImage(named: assetName)?.copy() as? NSImage {
-                    image.size = NSSize(width: 16, height: 16)
-                    image.isTemplate = false
-                    return image
-                }
-            }
-            return ToolbarIcon.system("externaldrive").makeNSImage()
-        }
-
-        private func databaseButtonIcon() -> NSImage? {
-            let isSelected = parent.navigationState.selectedDatabase != nil
-            let assetName = isSelected ? "database.check.outlined" : "database.outlined"
-            if let asset = NSImage(named: assetName)?.copy() as? NSImage {
-                asset.size = NSSize(width: 16, height: 16)
-                asset.isTemplate = false
-                return asset
-            }
-            let fallback = isSelected ? "checkmark.circle" : "cylinder.split.1x2"
-            if let symbol = NSImage(systemSymbolName: fallback, accessibilityDescription: nil)?.copy() as? NSImage {
-                symbol.size = NSSize(width: 16, height: 16)
-                symbol.isTemplate = true
-                return symbol
-            }
-            return nil
-        }
-
-        private func activeSession() -> ConnectionSession? {
-            if let connection = parent.navigationState.selectedConnection {
-                return parent.appModel.sessionManager.sessionForConnection(connection.id)
-            }
-            return parent.appModel.sessionManager.activeSession ?? parent.appModel.sessionManager.activeSessions.first
-        }
-
-        private func buildProjectMenu() -> NSMenu {
-            let menu = NSMenu()
-            menu.autoenablesItems = false
-
-            if parent.appModel.projects.isEmpty {
-                let empty = NSMenuItem(title: "No Projects Available", action: nil, keyEquivalent: "")
-                empty.isEnabled = false
-                menu.addItem(empty)
-            } else {
-                for project in parent.appModel.projects {
-                    let item = NSMenuItem(title: project.name, action: #selector(selectProject(_:)), keyEquivalent: "")
-                    item.target = self
-                    item.representedObject = project
-                    item.image = projectIcon(for: project)
-                    let currentProject = parent.navigationState.selectedProject ?? parent.appModel.selectedProject
-                    if project.id == currentProject?.id {
-                        item.state = .on
-                    }
-                    menu.addItem(item)
-                }
-            }
-            menu.addItem(.separator())
-            let manage = NSMenuItem(title: "Manage Projects…", action: #selector(manageProjects), keyEquivalent: "")
-            manage.target = self
-            menu.addItem(manage)
-            return menu
-        }
-
-        private func buildServerMenu() -> NSMenu {
-            let menu = NSMenu()
-            menu.autoenablesItems = false
-
-            if parent.appModel.connections.isEmpty {
-                let item = NSMenuItem(title: "No Connections Available", action: nil, keyEquivalent: "")
-                item.isEnabled = false
-                menu.addItem(item)
-            } else {
-                appendConnectionItems(into: menu, parentID: nil)
-            }
-
-            menu.addItem(.separator())
-            let manage = NSMenuItem(title: "Manage Connections…", action: #selector(manageConnections), keyEquivalent: "")
-            manage.target = self
-            menu.addItem(manage)
-            return menu
-        }
-
-        private func appendConnectionItems(into menu: NSMenu, parentID: UUID?) {
-            let folders = parent.appModel.folders
-                .filter { $0.kind == .connections && $0.parentFolderID == parentID }
-                .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
-
-            for folder in folders {
-                let subtree = NSMenu(title: folder.name)
-                subtree.autoenablesItems = false
-                appendConnectionItems(into: subtree, parentID: folder.id)
-                let folderItem = NSMenuItem(title: folder.name, action: nil, keyEquivalent: "")
-                folderItem.submenu = subtree
-                folderItem.image = ToolbarIcon.system("folder").makeNSImage()
-                menu.addItem(folderItem)
-            }
-
-            let connections = parent.appModel.connections
-                .filter { $0.folderID == parentID }
-                .sorted { displayName(for: $0).localizedCaseInsensitiveCompare(displayName(for: $1)) == .orderedAscending }
-
-            for connection in connections {
-                let item = NSMenuItem(title: displayName(for: connection), action: #selector(selectConnection(_:)), keyEquivalent: "")
-                item.target = self
-                item.representedObject = connection
-                if let icon = connectionIcon(for: connection) {
-                    item.image = icon
-                }
-                if parent.navigationState.selectedConnection?.id == connection.id {
-                    item.state = .on
-                }
-                menu.addItem(item)
-            }
-        }
-
-        private func buildDatabaseMenu() -> NSMenu {
-            let menu = NSMenu()
-            menu.autoenablesItems = false
-
-            if let session = activeSession() {
-                let databases = session.databaseStructure?.databases ?? session.connection.cachedStructure?.databases
-
-                if let databases, !databases.isEmpty {
-                    for database in databases.sorted(by: { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }) {
-                        let item = NSMenuItem(title: database.name, action: #selector(selectDatabase(_:)), keyEquivalent: "")
-                        item.representedObject = (database.name, session)
-                        item.target = self
-                        if let icon = databaseEntryIcon() {
-                            item.image = icon
-                        }
-                        if database.name == parent.navigationState.selectedDatabase {
-                            item.state = .on
-                        }
-                        menu.addItem(item)
-                    }
-                } else {
-                    let empty = NSMenuItem(title: "No Databases Available", action: nil, keyEquivalent: "")
-                    empty.isEnabled = false
-                    menu.addItem(empty)
-                }
-
-                menu.addItem(.separator())
-                let refresh = NSMenuItem(title: "Refresh Databases", action: #selector(refreshDatabases), keyEquivalent: "")
-                refresh.target = self
-                refresh.isEnabled = true
-                menu.addItem(refresh)
-            } else {
-                let unavailable = NSMenuItem(title: "No Databases Available", action: nil, keyEquivalent: "")
-                unavailable.isEnabled = false
-                menu.addItem(unavailable)
-            }
-
-            return menu
-        }
-
-        private func displayName(for connection: SavedConnection) -> String {
-            let trimmed = connection.connectionName.trimmingCharacters(in: .whitespacesAndNewlines)
-            if !trimmed.isEmpty { return trimmed }
-            let host = connection.host.trimmingCharacters(in: .whitespacesAndNewlines)
-            return host.isEmpty ? "Untitled Connection" : host
-        }
-
-        private func connectionIcon(for connection: SavedConnection) -> NSImage? {
-            let assetName = connection.databaseType.iconName
-            if let image = NSImage(named: assetName)?.copy() as? NSImage {
-                image.size = NSSize(width: 16, height: 16)
-                image.isTemplate = false
-                return image
-            }
-            return ToolbarIcon.system("externaldrive").makeNSImage()
-        }
-
-        private func databaseEntryIcon() -> NSImage? {
-            if let asset = NSImage(named: "database.outlined")?.copy() as? NSImage {
-                asset.size = NSSize(width: 16, height: 16)
-                asset.isTemplate = false
-                return asset
-            }
-            if let symbol = NSImage(systemSymbolName: "cylinder", accessibilityDescription: nil)?.copy() as? NSImage {
-                symbol.size = NSSize(width: 16, height: 16)
-                symbol.isTemplate = true
-                return symbol
-            }
-            return nil
-        }
-
-        @objc private func selectProject(_ sender: NSMenuItem) {
-            guard let project = sender.representedObject as? Project else { return }
-            Task { @MainActor in
-                parent.navigationState.selectProject(project)
-                parent.appModel.selectedProject = project
-                configure()
-            }
-        }
-
-        @objc private func manageProjects() {
-            parent.appModel.showManageProjectsSheet = true
-        }
-
-        @objc private func selectConnection(_ sender: NSMenuItem) {
-            guard let connection = sender.representedObject as? SavedConnection else { return }
-            Task { @MainActor in
-                parent.navigationState.selectConnection(connection)
-                parent.appModel.selectedConnectionID = connection.id
-                configure()
-            }
-            Task {
-                await parent.appModel.connect(to: connection)
-            }
-        }
-
-        @objc private func manageConnections() {
-            ManageConnectionsWindowController.shared.present()
-        }
-
-        @objc private func selectDatabase(_ sender: NSMenuItem) {
-            guard let (name, session) = sender.representedObject as? (String, ConnectionSession) else { return }
-            Task {
-                await parent.appModel.loadSchemaForDatabase(name, connectionSession: session)
-                await MainActor.run {
-                    parent.navigationState.selectDatabase(name)
-                    configure()
-                }
-            }
-        }
-
-        @objc private func refreshDatabases() {
-            Task {
-                if let session = activeSession() {
-                    await parent.appModel.refreshDatabaseStructure(for: session.id, scope: .full)
-                    await MainActor.run {
-                        configure()
-                    }
-                }
-            }
-        }
-    }
-}
-
-private func makeToolbarSegmentedControl(segmentCount: Int) -> NSSegmentedControl {
-    let labels = Array(repeating: "", count: segmentCount)
-    let control = NSSegmentedControl(labels: labels, trackingMode: .momentary, target: nil, action: nil)
-    control.segmentStyle = .capsule
-    control.controlSize = .large
-    control.font = NSFont.systemFont(ofSize: 13, weight: .regular)
-    control.translatesAutoresizingMaskIntoConstraints = false
-    control.setContentHuggingPriority(.required, for: .horizontal)
-    control.setContentHuggingPriority(.required, for: .vertical)
-    control.setContentCompressionResistancePriority(.required, for: .horizontal)
-    for index in 0..<segmentCount {
-        control.setShowsMenuIndicator(true, forSegment: index)
-    }
-    return control
-}
-
-final class ToolbarCapsuleContainer<Content: NSView>: NSView {
-    let content: Content
-    private let insets: NSEdgeInsets
-
-    init(content: Content, insets: NSEdgeInsets) {
-        self.content = content
-        self.insets = insets
-        super.init(frame: .zero)
-        wantsLayer = true
-        layer?.masksToBounds = false
-        translatesAutoresizingMaskIntoConstraints = false
-
-        content.translatesAutoresizingMaskIntoConstraints = false
-        addSubview(content)
-
-        NSLayoutConstraint.activate([
-            content.leadingAnchor.constraint(equalTo: leadingAnchor, constant: insets.left),
-            content.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -insets.right),
-            content.topAnchor.constraint(equalTo: topAnchor, constant: insets.top),
-            content.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -insets.bottom)
-        ])
-
-        updateAppearance()
-    }
-
-    required init?(coder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
-    }
-
-    override func layout() {
-        super.layout()
-        layer?.cornerRadius = bounds.height / 2
-        updateAppearance()
-    }
-
-    override var intrinsicContentSize: NSSize {
-        let contentSize = content.intrinsicContentSize
-        return NSSize(
-            width: contentSize.width + insets.left + insets.right,
-            height: contentSize.height + insets.top + insets.bottom
-        )
-    }
-
-    override func updateLayer() {
-        super.updateLayer()
-        updateAppearance()
-    }
-
-    func requestLayoutUpdate() {
-        invalidateIntrinsicContentSize()
-        needsLayout = true
-        needsDisplay = true
-    }
-
-    private func updateAppearance() {
-        guard let layer else { return }
-        let dark = effectiveAppearance.isDarkMode
-        let background = dark
-            ? NSColor.windowBackgroundColor.withAlphaComponent(0.45)
-            : NSColor.controlBackgroundColor.withAlphaComponent(0.93)
-        let border = NSColor.white.withAlphaComponent(dark ? 0.18 : 0.3)
-        let shadowColor = NSColor.black.withAlphaComponent(dark ? 0.45 : 0.15)
-
-        layer.backgroundColor = background.cgColor
-        layer.borderColor = border.cgColor
-        layer.borderWidth = 1
-        layer.shadowColor = shadowColor.cgColor
-        layer.shadowOpacity = 1
-        layer.shadowRadius = 2
-        layer.shadowOffset = CGSize(width: 0, height: 0)
-        layer.cornerRadius = bounds.height / 2
-    }
-}
-
-private extension NSSegmentedControl {
-    func applySegmentAppearance(title: String, image: NSImage?, segment: Int) {
-        let appearance = window?.effectiveAppearance ?? effectiveAppearance
-        let textColor = appearance.isDarkMode ? NSColor.white : NSColor.black
-        setLabel(title, forSegment: segment)
-        if let image {
-            let icon = image.copy() as? NSImage ?? image
-            icon.size = NSSize(width: 16, height: 16)
-            icon.isTemplate = true
-            setImage(icon, forSegment: segment)
-        } else {
-            setImage(nil, forSegment: segment)
-        }
-        let attributes: [NSAttributedString.Key: Any] = [
-            .font: NSFont.systemFont(ofSize: 13, weight: .regular),
-            .foregroundColor: textColor
-        ]
-        let textWidth = (title as NSString).size(withAttributes: attributes).width
-        let iconWidth: CGFloat = image == nil ? 0 : 22
-        let horizontalPadding: CGFloat = 28
-        let calculated = textWidth + iconWidth + horizontalPadding
-        setWidth(max(calculated, 110), forSegment: segment)
-    }
-
-    func popUpMenu(for segment: Int) {
-        guard let menu = menu(forSegment: segment) else { return }
-        guard let cell = cell as? NSSegmentedCell else { return }
-        let yOffset: CGFloat = bounds.maxY
-        let segmentMinX = (0..<segment).reduce(CGFloat(0)) { partial, index in
-            partial + cell.width(forSegment: index)
-        }
-        let segmentWidth = cell.width(forSegment: segment)
-        let segmentRect = CGRect(x: segmentMinX, y: yOffset, width: segmentWidth, height: 0)
-        let point = NSPoint(x: segmentRect.minX, y: segmentRect.maxY + 3)
-        isEnabled = false
-        defer {
-            isEnabled = true
-            setSelected(false, forSegment: segment)
-        }
-        menu.popUp(positioning: nil, at: point, in: self)
-    }
-}
-
-private extension NSAppearance {
-    var isDarkMode: Bool {
-        let candidates: [NSAppearance.Name] = [
-            .darkAqua,
-            .vibrantDark,
-            .aqua,
-            .vibrantLight
-        ]
-        let resolved = bestMatch(from: candidates) ?? name
-        return resolved.rawValue.lowercased().contains("dark")
-    }
-}
-
-struct ProjectToolbarMenuButton: NSViewRepresentable {
-    @ObservedObject var appModel: AppModel
-    @ObservedObject var navigationState: NavigationState
-
-    func makeCoordinator() -> Coordinator { Coordinator(parent: self) }
-
-    func makeNSView(context: Context) -> ToolbarCapsuleContainer<NSSegmentedControl> {
-        context.coordinator.parent = self
-        let control = makeToolbarSegmentedControl(segmentCount: 1)
-        control.target = context.coordinator
-        control.action = #selector(Coordinator.segmentPressed(_:))
-        let container = ToolbarCapsuleContainer(content: control, insets: NSEdgeInsets(top: 3, left: 10, bottom: 3, right: 10))
-        context.coordinator.configure(container)
-        return container
-    }
-
-    func updateNSView(_ container: ToolbarCapsuleContainer<NSSegmentedControl>, context: Context) {
-        context.coordinator.parent = self
-        context.coordinator.configure(container)
-    }
-
-    private func currentProject() -> Project? {
-        if let selected = navigationState.selectedProject ?? appModel.selectedProject {
-            return selected
-        }
-        if let fallback = appModel.projects.first(where: { $0.isDefault }) ?? appModel.projects.first {
-            DispatchQueue.main.async {
-                if self.navigationState.selectedProject == nil {
-                    self.navigationState.selectProject(fallback)
-                }
-                if self.appModel.selectedProject == nil {
-                    self.appModel.selectedProject = fallback
-                }
-            }
-            return fallback
-        }
-        return nil
-    }
-
-    private func placeholderTitle() -> String { currentProject()?.name ?? "Project" }
-
-    private func icon(for project: Project?) -> NSImage? {
-        if let project, let iconName = project.iconName, !iconName.isEmpty {
-            if let asset = NSImage(named: iconName)?.copy() as? NSImage {
-                asset.size = NSSize(width: 16, height: 16)
-                asset.isTemplate = false
-                return asset
-            }
-            if let symbol = NSImage(systemSymbolName: iconName, accessibilityDescription: nil)?.copy() as? NSImage {
-                symbol.size = NSSize(width: 16, height: 16)
-                symbol.isTemplate = true
-                return symbol
-            }
-        }
-        return ToolbarIcon.system("folder").makeNSImage()
-    }
-
-    final class Coordinator: NSObject {
-        var parent: ProjectToolbarMenuButton
-        weak var container: ToolbarCapsuleContainer<NSSegmentedControl>?
-        weak var control: NSSegmentedControl?
-
-        init(parent: ProjectToolbarMenuButton) {
-            self.parent = parent
-        }
-
-        func configure(_ container: ToolbarCapsuleContainer<NSSegmentedControl>) {
-            self.container = container
-            let control = container.content
-            self.control = control
-            configureProjectSegment(control)
-            container.requestLayoutUpdate()
-        }
-
-        @objc func segmentPressed(_ sender: NSSegmentedControl) {
-            let segment = sender.selectedSegment
-            guard segment != -1 else { return }
-            sender.popUpMenu(for: segment)
-        }
-
-        private func configureProjectSegment(_ control: NSSegmentedControl) {
-            let menu = buildMenu()
-            control.setMenu(menu, forSegment: 0)
-            control.setEnabled(!parent.appModel.projects.isEmpty, forSegment: 0)
-
-            let title = parent.placeholderTitle()
-            control.setToolTip(title, forSegment: 0)
-            control.applySegmentAppearance(title: title, image: parent.icon(for: parent.currentProject()), segment: 0)
-            container?.requestLayoutUpdate()
-        }
-
-        @objc func selectProject(_ sender: NSMenuItem) {
-            guard let project = sender.representedObject as? Project else { return }
-            Task { @MainActor in
-                parent.navigationState.selectProject(project)
-                parent.appModel.selectedProject = project
-                refreshMenu()
-            }
-        }
-
-        @objc func manageProjects() {
-            parent.appModel.showManageProjectsSheet = true
-        }
-
-        private func refreshMenu() {
-            guard let control else { return }
-            configureProjectSegment(control)
-            container?.requestLayoutUpdate()
-        }
-
-        private func buildMenu() -> NSMenu {
-            let menu = NSMenu()
-            menu.autoenablesItems = false
-
-            if parent.appModel.projects.isEmpty {
-                let empty = NSMenuItem(title: "No Projects Available", action: nil, keyEquivalent: "")
-                empty.isEnabled = false
-                menu.addItem(empty)
-            } else {
-                for project in parent.appModel.projects {
-                    let item = NSMenuItem(title: project.name, action: #selector(selectProject(_:)), keyEquivalent: "")
-                    item.target = self
-                    item.representedObject = project
-                    item.image = parent.icon(for: project)
-                    if project.id == parent.currentProject()?.id {
-                        item.state = .on
-                    }
-                    menu.addItem(item)
-                }
-            }
-            menu.addItem(.separator())
-            let manage = NSMenuItem(title: "Manage Projects…", action: #selector(manageProjects), keyEquivalent: "")
-            manage.target = self
-            menu.addItem(manage)
-            return menu
-        }
-    }
-}
-
-struct ServerDatabaseToolbarButton: NSViewRepresentable {
-    @ObservedObject var appModel: AppModel
-    @ObservedObject var navigationState: NavigationState
-
-    func makeCoordinator() -> Coordinator { Coordinator(parent: self) }
-
-    func makeNSView(context: Context) -> ToolbarCapsuleContainer<NSSegmentedControl> {
-        context.coordinator.parent = self
-        let control = makeToolbarSegmentedControl(segmentCount: 2)
-        control.target = context.coordinator
-        control.action = #selector(Coordinator.segmentPressed(_:))
-        let container = ToolbarCapsuleContainer(content: control, insets: NSEdgeInsets(top: 3, left: 10, bottom: 3, right: 10))
-        context.coordinator.configure(container)
-        return container
-    }
-
-    func updateNSView(_ container: ToolbarCapsuleContainer<NSSegmentedControl>, context: Context) {
-        context.coordinator.parent = self
-        context.coordinator.configure(container)
-    }
-
-    final class Coordinator: NSObject {
-        var parent: ServerDatabaseToolbarButton
-        weak var container: ToolbarCapsuleContainer<NSSegmentedControl>?
-        weak var control: NSSegmentedControl?
-
-        init(parent: ServerDatabaseToolbarButton) {
-            self.parent = parent
-        }
-
-        func configure(_ container: ToolbarCapsuleContainer<NSSegmentedControl>) {
-            self.container = container
-            let control = container.content
-            self.control = control
-            configureServerSegment(control)
-            configureDatabaseSegment(control)
-            container.requestLayoutUpdate()
-        }
-
-        @objc func segmentPressed(_ sender: NSSegmentedControl) {
-            let segment = sender.selectedSegment
-            guard segment != -1 else { return }
-            sender.popUpMenu(for: segment)
-        }
-
-        private func configureServerSegment(_ control: NSSegmentedControl) {
-            let menu = NSMenu()
-            menu.autoenablesItems = false
-
-            if parent.appModel.connections.isEmpty {
-                let item = NSMenuItem(title: "No Connections Available", action: nil, keyEquivalent: "")
-                item.isEnabled = false
-                menu.addItem(item)
-            } else {
-                appendConnectionItems(into: menu, parentID: nil)
-            }
-
-            menu.addItem(.separator())
-            let manage = NSMenuItem(title: "Manage Connections…", action: #selector(manageConnections), keyEquivalent: "")
-            manage.target = self
-            menu.addItem(manage)
-
-            control.setMenu(menu, forSegment: 0)
-            control.setEnabled(!parent.appModel.connections.isEmpty, forSegment: 0)
-
-            let title = serverTitle()
-            control.setToolTip(title, forSegment: 0)
-            control.applySegmentAppearance(title: title, image: serverIcon(), segment: 0)
-            container?.requestLayoutUpdate()
-        }
-
-        private func appendConnectionItems(into menu: NSMenu, parentID: UUID?) {
-            let folders = parent.appModel.folders
-                .filter { $0.kind == .connections && $0.parentFolderID == parentID }
-                .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
-
-            for folder in folders {
-                let subtree = NSMenu(title: folder.name)
-                subtree.autoenablesItems = false
-                appendConnectionItems(into: subtree, parentID: folder.id)
-                let folderItem = NSMenuItem(title: folder.name, action: nil, keyEquivalent: "")
-                folderItem.submenu = subtree
-                folderItem.image = ToolbarIcon.system("folder").makeNSImage()
-                menu.addItem(folderItem)
-            }
-
-            let connections = parent.appModel.connections
-                .filter { $0.folderID == parentID }
-                .sorted { displayName(for: $0).localizedCaseInsensitiveCompare(displayName(for: $1)) == .orderedAscending }
-
-            for connection in connections {
-                let item = NSMenuItem(title: displayName(for: connection), action: #selector(selectConnection(_:)), keyEquivalent: "")
-                item.target = self
-                item.representedObject = connection
-                item.image = connectionIcon(for: connection)
-                if parent.navigationState.selectedConnection?.id == connection.id {
-                    item.state = .on
-                }
-                menu.addItem(item)
-            }
-        }
-
-        private func configureDatabaseSegment(_ control: NSSegmentedControl) {
-            let menu = NSMenu()
-            menu.autoenablesItems = false
-
-            if let session = activeSession() {
-                let databases = session.databaseStructure?.databases ?? session.connection.cachedStructure?.databases
-
-                if let databases, !databases.isEmpty {
-                    for database in databases.sorted(by: { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }) {
-                        let item = NSMenuItem(title: database.name, action: #selector(selectDatabase(_:)), keyEquivalent: "")
-                        item.representedObject = (database.name, session)
-                        item.target = self
-                        item.image = databaseEntryIcon()
-                        if database.name == parent.navigationState.selectedDatabase {
-                            item.state = .on
-                        }
-                        menu.addItem(item)
-                    }
-                } else if session.structureLoadingState.isLoading {
-                    let loading = NSMenuItem(title: "Loading Databases…", action: nil, keyEquivalent: "")
-                    loading.isEnabled = false
-                    menu.addItem(loading)
-                } else if let message = session.structureLoadingMessage, !message.isEmpty {
-                    let info = NSMenuItem(title: message, action: nil, keyEquivalent: "")
-                    info.isEnabled = false
-                    menu.addItem(info)
-                } else {
-                    let empty = NSMenuItem(title: "No Databases Available", action: nil, keyEquivalent: "")
-                    empty.isEnabled = false
-                    menu.addItem(empty)
-                }
-
-                menu.addItem(.separator())
-                let refresh = NSMenuItem(title: "Refresh Databases", action: #selector(refreshDatabases), keyEquivalent: "")
-                refresh.target = self
-                refresh.isEnabled = true
-                menu.addItem(refresh)
-            } else {
-                let unavailable = NSMenuItem(title: "No Databases Available", action: nil, keyEquivalent: "")
-                unavailable.isEnabled = false
-                menu.addItem(unavailable)
-            }
-
-            control.setMenu(menu, forSegment: 1)
-            control.setEnabled(activeSession() != nil, forSegment: 1)
-
-            let title = databaseTitle()
-            control.setToolTip(title, forSegment: 1)
-            control.applySegmentAppearance(title: title, image: databasePlaceholderIcon(), segment: 1)
-            container?.requestLayoutUpdate()
-        }
-
-        private func serverTitle() -> String {
-            if let connection = parent.navigationState.selectedConnection {
-                let trimmed = connection.connectionName.trimmingCharacters(in: .whitespacesAndNewlines)
-                if !trimmed.isEmpty { return trimmed }
-                let host = connection.host.trimmingCharacters(in: .whitespacesAndNewlines)
-                return host.isEmpty ? "Server" : host
-            }
-            return "Server"
-        }
-
-        private func databaseTitle() -> String {
-            parent.navigationState.selectedDatabase ?? "Database"
-        }
-
-        private func displayName(for connection: SavedConnection) -> String {
-            let trimmed = connection.connectionName.trimmingCharacters(in: .whitespacesAndNewlines)
-            if !trimmed.isEmpty { return trimmed }
-            let host = connection.host.trimmingCharacters(in: .whitespacesAndNewlines)
-            return host.isEmpty ? "Untitled Connection" : host
-        }
-
-        private func connectionIcon(for connection: SavedConnection) -> NSImage? {
-            let assetName = connection.databaseType.iconName
-            if let image = NSImage(named: assetName)?.copy() as? NSImage {
-                image.size = NSSize(width: 16, height: 16)
-                image.isTemplate = false
-                return image
-            }
-            return ToolbarIcon.system("externaldrive").makeNSImage()
-        }
-
-        private func serverIcon() -> NSImage? {
-            if let connection = parent.navigationState.selectedConnection {
-                return connectionIcon(for: connection)
-            }
-            return ToolbarIcon.system("externaldrive").makeNSImage()
-        }
-
-        private func databasePlaceholderIcon() -> NSImage? {
-            iconForDatabasePlaceholder(isSelected: parent.navigationState.selectedDatabase != nil)
-        }
-
-        private func iconForDatabasePlaceholder(isSelected: Bool) -> NSImage? {
-            let assetName = isSelected ? "database.check.outlined" : "database.outlined"
-            if let asset = NSImage(named: assetName)?.copy() as? NSImage {
-                asset.size = NSSize(width: 16, height: 16)
-                asset.isTemplate = false
-                return asset
-            }
-            let fallback = isSelected ? "checkmark.circle" : "cylinder.split.1x2"
-            if let symbol = NSImage(systemSymbolName: fallback, accessibilityDescription: nil)?.copy() as? NSImage {
-                symbol.size = NSSize(width: 16, height: 16)
-                symbol.isTemplate = true
-                return symbol
-            }
-            return nil
-        }
-
-        private func databaseEntryIcon() -> NSImage? {
-            if let asset = NSImage(named: "database.outlined")?.copy() as? NSImage {
-                asset.size = NSSize(width: 16, height: 16)
-                asset.isTemplate = false
-                return asset
-            }
-            if let symbol = NSImage(systemSymbolName: "cylinder", accessibilityDescription: nil)?.copy() as? NSImage {
-                symbol.size = NSSize(width: 16, height: 16)
-                symbol.isTemplate = true
-                return symbol
-            }
-            return nil
-        }
-
-        private func activeSession() -> ConnectionSession? {
-            if let connection = parent.navigationState.selectedConnection {
-                return parent.appModel.sessionManager.sessionForConnection(connection.id)
-            }
-            return parent.appModel.sessionManager.activeSession ?? parent.appModel.sessionManager.activeSessions.first
-        }
-
-        @objc private func selectConnection(_ sender: NSMenuItem) {
-            guard let connection = sender.representedObject as? SavedConnection else { return }
-            Task { @MainActor in
-                parent.navigationState.selectConnection(connection)
-                parent.appModel.selectedConnectionID = connection.id
-                refreshMenus()
-            }
-            Task {
-                await parent.appModel.connect(to: connection)
-            }
-        }
-
-        @objc private func manageConnections() {
-            ManageConnectionsWindowController.shared.present()
-        }
-
-        @objc private func selectDatabase(_ sender: NSMenuItem) {
-            guard let (name, session) = sender.representedObject as? (String, ConnectionSession) else { return }
-            Task {
-                await parent.appModel.loadSchemaForDatabase(name, connectionSession: session)
-                await MainActor.run {
-                    parent.navigationState.selectDatabase(name)
-                    refreshMenus()
-                }
-            }
-        }
-
-        @objc private func refreshDatabases() {
-            Task {
-                if let session = activeSession() {
-                    await parent.appModel.refreshDatabaseStructure(for: session.id, scope: .full)
-                    await MainActor.run {
-                        refreshMenus()
-                    }
-                }
-            }
-        }
-
-        private func refreshMenus() {
-            guard let control else { return }
-            configureServerSegment(control)
-            configureDatabaseSegment(control)
-            container?.requestLayoutUpdate()
-        }
-    }
-}
-#endif
-
-private struct GlowBorder: View {
-    var cornerRadius: CGFloat
-    var color: Color
-
-    @State private var gradientRotation: Angle = .degrees(0)
-
-    private var animatedGradient: AngularGradient {
-        let colors = [
-            color,
-            color.opacity(0.75),
-            color.opacity(0.45),
-            color.opacity(0.75),
-            color
-        ]
-        return AngularGradient(gradient: Gradient(colors: colors), center: .center, angle: gradientRotation)
-    }
-
-    var body: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: cornerRadius)
-                .stroke(animatedGradient, lineWidth: 4)
-                .blur(radius: 7)
-                .opacity(0.4)
-            RoundedRectangle(cornerRadius: cornerRadius)
-                .stroke(animatedGradient, lineWidth: 10)
-                .blur(radius: 16)
-                .opacity(0.24)
-            RoundedRectangle(cornerRadius: cornerRadius)
-                .stroke(animatedGradient, lineWidth: 18)
-                .blur(radius: 26)
-                .opacity(0.18)
-        }
-        .animation(.linear(duration: 3.0).repeatForever(autoreverses: false), value: gradientRotation)
-        .onAppear {
-            gradientRotation = .degrees(360)
-        }
-    }
-}
-
-#if DEBUG
-struct WorkspaceToolbarItems_Previews: PreviewProvider {
-    static var previews: some View {
-        Group {
-            WorkspaceToolbarPreview(mode: .idle)
-                .previewDisplayName("Idle")
-
-            WorkspaceToolbarPreview(mode: .refreshing)
-                .previewDisplayName("Refreshing")
-
-            WorkspaceToolbarPreview(mode: .completed)
-                .previewDisplayName("Completed")
-        }
-        .frame(width: 520)
-        .padding(12)
-        .background(previewBackground)
-        .preferredColorScheme(.light)
-    }
-
-    private static var previewBackground: Color {
-#if canImport(AppKit)
-        Color(nsColor: NSColor.windowBackgroundColor)
-#elseif canImport(UIKit)
-        Color(uiColor: .systemBackground)
-#else
-        Color.gray.opacity(0.05)
-#endif
-    }
-}
 
 private struct WorkspaceToolbarPreview: View {
     private let data: WorkspaceToolbarPreviewData
@@ -1939,6 +977,76 @@ private final class PreviewDatabaseSession: DatabaseSession, @unchecked Sendable
 
     func getTableStructureDetails(schema: String, table: String) async throws -> TableStructureDetails {
         TableStructureDetails()
+    }
+}
+
+
+private struct GlowBorder: View {
+    var cornerRadius: CGFloat
+    var color: Color
+
+    @State private var gradientRotation: Angle = .degrees(0)
+
+    private var animatedGradient: AngularGradient {
+        let colors = [
+            color,
+            color.opacity(0.75),
+            color.opacity(0.45),
+            color.opacity(0.75),
+            color
+        ]
+        return AngularGradient(gradient: Gradient(colors: colors), center: .center, angle: gradientRotation)
+    }
+
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: cornerRadius)
+                .stroke(animatedGradient, lineWidth: 4)
+                .blur(radius: 7)
+                .opacity(0.4)
+            RoundedRectangle(cornerRadius: cornerRadius)
+                .stroke(animatedGradient, lineWidth: 10)
+                .blur(radius: 16)
+                .opacity(0.24)
+            RoundedRectangle(cornerRadius: cornerRadius)
+                .stroke(animatedGradient, lineWidth: 18)
+                .blur(radius: 26)
+                .opacity(0.18)
+        }
+        .animation(.linear(duration: 3.0).repeatForever(autoreverses: false), value: gradientRotation)
+        .onAppear {
+            gradientRotation = .degrees(360)
+        }
+    }
+}
+
+#if DEBUG
+struct WorkspaceToolbarItems_Previews: PreviewProvider {
+    static var previews: some View {
+        Group {
+            WorkspaceToolbarPreview(mode: .idle)
+                .previewDisplayName("Idle")
+
+            WorkspaceToolbarPreview(mode: .refreshing)
+                .previewDisplayName("Refreshing")
+
+            WorkspaceToolbarPreview(mode: .completed)
+                .previewDisplayName("Completed")
+        }
+        .frame(width: 520)
+        .padding(12)
+        .background(previewBackground)
+        .preferredColorScheme(.light)
+    }
+
+    private static var previewBackground: Color {
+#if canImport(AppKit)
+        Color(nsColor: NSColor.windowBackgroundColor)
+#elseif canImport(UIKit)
+        Color(uiColor: .systemBackground)
+#else
+        Color.gray.opacity(0.05)
+#endif
     }
 }
 #endif

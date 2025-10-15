@@ -72,6 +72,7 @@ struct FolderEditorSheet: View {
     @State private var manualUsername: String = ""
     @State private var manualPassword: String = ""
     @State private var manualPasswordDirty = false
+    @State private var identityEditorState: IdentityEditorState?
 
     private var isIdentityFolder: Bool {
         switch state {
@@ -95,6 +96,11 @@ struct FolderEditorSheet: View {
     private var editingFolder: SavedFolder? {
         if case .edit(let folder) = state { return folder }
         return nil
+    }
+
+    private var inheritedIdentity: SavedIdentity? {
+        guard let parent = parentFolder else { return nil }
+        return appModel.folderIdentity(for: parent.id)
     }
 
     private var editingFolderUsesManual: Bool {
@@ -158,18 +164,7 @@ struct FolderEditorSheet: View {
 
             Divider()
 
-            ScrollView(.vertical, showsIndicators: true) {
-                VStack(spacing: 18) {
-                    folderForm
-
-                    if !isIdentityFolder {
-                        credentialsSection
-                    }
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 2)
-            }
-            .frame(maxHeight: 320)
+            formContent
 
             Divider()
 
@@ -177,95 +172,132 @@ struct FolderEditorSheet: View {
         }
         .padding(.horizontal, 24)
         .padding(.vertical, 20)
-        .frame(width: 520)
+        .frame(width: 540)
         .background(themeManager.windowBackgroundColor)
+        .sheet(item: $identityEditorState) { state in
+            IdentityEditorSheet(state: state) { identity in
+                selectedIdentityID = identity.id
+                credentialMode = .identity
+            }
+            .environmentObject(appModel)
+        }
         .onAppear(perform: prepareInitialValues)
     }
 
-    private var folderForm: some View {
-        FormSection(title: "Folder Details") {
-            FormRow(label: "Folder Name") {
-                TextEntryField(text: $name, placeholder: "Folder name")
-            }
+    private var formContent: some View {
+        Form {
+            folderDetailsSection
 
-            FormRow(label: "Color", showsDivider: false) {
-                HStack(spacing: 10) {
-                    ForEach(FolderIdentityPalette.defaults, id: \.self) { hex in
-                        let swatchColor = Color(hex: hex) ?? .accentColor
-                        Circle()
-                            .fill(swatchColor)
-                            .frame(width: 24, height: 24)
-                            .overlay(
-                                Circle()
-                                    .strokeBorder(Color.white.opacity(selectedColorHex == hex ? 0.9 : 0.3), lineWidth: 2)
-                            )
-                            .overlay(
-                                Circle()
-                                    .strokeBorder(
-                                        swatchColor.opacity(selectedColorHex == hex ? 0.8 : 0.0),
-                                        lineWidth: selectedColorHex == hex ? 3 : 0
-                                    )
-                            )
-                            .onTapGesture {
-                                withAnimation(.easeInOut(duration: 0.2)) {
-                                    selectedColorHex = hex
-                                }
-                            }
-                    }
-                    ColorPicker("", selection: folderColorBinding)
-                        .labelsHidden()
-                        .frame(width: 24, height: 24)
-                }
+            if !isIdentityFolder {
+                credentialsFormSection
             }
+        }
+        .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
+        .frame(maxHeight: 360)
+        .onChange(of: credentialMode) { _, newMode in
+            handleCredentialModeChange(newMode)
         }
     }
 
-    private var credentialsSection: some View {
-        FormSection(title: "Credentials") {
-            FormRow(label: "Mode", showsDivider: credentialMode != .none) {
-                Picker("", selection: $credentialMode) {
-                    Text("None").tag(FolderCredentialMode.none)
-                    if !isIdentityFolder {
-                        Text("Manual Credentials").tag(FolderCredentialMode.manual)
-                    }
-                    Text("Link Identity").tag(FolderCredentialMode.identity)
-                    if canUseInheritance {
-                        Text("Inherit Parent").tag(FolderCredentialMode.inherit)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .frame(maxWidth: 320)
+    private var folderDetailsSection: some View {
+        Section {
+            LabeledContent("Folder Name") {
+                TextField("", text: $name, prompt: Text("Folder name"))
+                    .multilineTextAlignment(.trailing)
             }
 
-            if credentialMode == .manual {
-                FormRow(label: "Username") {
+            LabeledContent("Color") {
+                colorPaletteView
+            }
+        } header: {
+            Text("Folder Details")
+        }
+    }
+
+    @ViewBuilder
+    private var credentialsFormSection: some View {
+        Section {
+            Picker("Credential Mode", selection: $credentialMode) {
+                Text("None").tag(FolderCredentialMode.none)
+                Text("Manual Credentials").tag(FolderCredentialMode.manual)
+                Text("Link Identity").tag(FolderCredentialMode.identity)
+                if canUseInheritance {
+                    Text("Inherit Parent").tag(FolderCredentialMode.inherit)
+                }
+            }
+            .pickerStyle(.segmented)
+
+            switch credentialMode {
+            case .manual:
+                LabeledContent("Username") {
                     TextField("", text: $manualUsername, prompt: Text("shared_user"))
-                        .textFieldStyle(.roundedBorder)
-                        .frame(maxWidth: 260)
+                        .multilineTextAlignment(.trailing)
                 }
 
-                FormRow(label: "Password", showsDivider: false) {
-                    SecureField("", text: Binding<String>(
-                        get: { manualPassword },
-                        set: { newValue in
-                            manualPassword = newValue
-                            manualPasswordDirty = true
-                        }
-                    ), prompt: Text("••••••••"))
-                        .textFieldStyle(.roundedBorder)
-                        .frame(maxWidth: 260)
+                LabeledContent("Password") {
+                    VStack(alignment: .trailing, spacing: 4) {
+                        SecureField(
+                            "",
+                            text: Binding<String>(
+                                get: { manualPassword },
+                                set: { newValue in
+                                    manualPassword = newValue
+                                    manualPasswordDirty = true
+                                }
+                            ),
+                            prompt: Text("••••••••")
+                        )
+                        .multilineTextAlignment(.trailing)
 
-                    if editingFolderUsesManual && !manualPasswordDirty {
-                        Text("Existing password retained")
-                            .font(.system(size: 11))
-                            .foregroundStyle(.secondary)
-                            .padding(.leading, 8)
+                        if editingFolderUsesManual && !manualPasswordDirty {
+                            Text("Existing password retained")
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                        }
                     }
                 }
-            }
 
-            if credentialMode == .identity {
-                FormRow(label: "Identity", showsDivider: false) {
+            case .identity:
+                identitySelectionContent
+
+            case .inherit:
+                if let identity = inheritedIdentity {
+                    Text("This folder will inherit the identity '\(identity.name)' from its parent.")
+                        .foregroundStyle(.secondary)
+                        .font(.callout)
+                } else {
+                    Text("Parent folder does not provide credentials to inherit.")
+                        .foregroundStyle(.red)
+                        .font(.callout)
+                }
+
+            case .none:
+                EmptyView()
+            }
+        } header: {
+            Text("Credentials")
+        }
+    }
+
+    private var identitySelectionContent: some View {
+        Group {
+            if availableIdentities.isEmpty {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("No identities available.")
+                        .foregroundStyle(.secondary)
+                        .font(.callout)
+
+                    HStack {
+                        Spacer()
+                        Button("Create Linked Identity…") {
+                            identityEditorState = .create(parent: nil, token: UUID())
+                        }
+                        .buttonStyle(.link)
+                    }
+                }
+            } else {
+                LabeledContent("Identity") {
                     Picker("", selection: Binding<UUID?>(
                         get: { selectedIdentityID },
                         set: { selectedIdentityID = $0 }
@@ -276,26 +308,49 @@ struct FolderEditorSheet: View {
                         }
                     }
                     .labelsHidden()
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+
+                HStack {
+                    Spacer()
+                    Button("Create Linked Identity…") {
+                        identityEditorState = .create(parent: nil, token: UUID())
+                    }
+                    .buttonStyle(.link)
                 }
             }
         }
-        .onChange(of: credentialMode) { newMode in
-            switch newMode {
-            case .manual:
-                manualUsername = editingFolderUsesManual ? (editingFolder?.manualUsername ?? "") : ""
-                manualPassword = ""
-                manualPasswordDirty = false
-            case .identity:
-                if selectedIdentityID == nil {
-                    selectedIdentityID = availableIdentities.first?.id
-                }
-            default:
-                manualUsername = ""
-                manualPassword = ""
-                manualPasswordDirty = false
+    }
+
+    private var colorPaletteView: some View {
+        HStack(spacing: 10) {
+            ForEach(FolderIdentityPalette.defaults, id: \.self) { hex in
+                let swatchColor = Color(hex: hex) ?? .accentColor
+                Circle()
+                    .fill(swatchColor)
+                    .frame(width: 24, height: 24)
+                    .overlay(
+                        Circle()
+                            .strokeBorder(Color.white.opacity(selectedColorHex == hex ? 0.9 : 0.25), lineWidth: 2)
+                    )
+                    .overlay(
+                        Circle()
+                            .strokeBorder(
+                                swatchColor.opacity(selectedColorHex == hex ? 0.75 : 0.0),
+                                lineWidth: selectedColorHex == hex ? 3 : 0
+                            )
+                    )
+                    .onTapGesture {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            selectedColorHex = hex
+                        }
+                    }
             }
+
+            ColorPicker("", selection: folderColorBinding)
+                .labelsHidden()
+                .frame(width: 24, height: 24)
         }
+        .frame(maxWidth: .infinity, alignment: .trailing)
     }
 
     @ViewBuilder
@@ -323,6 +378,23 @@ struct FolderEditorSheet: View {
             .disabled(!isValid)
         }
         .controlSize(.regular)
+    }
+
+    private func handleCredentialModeChange(_ newMode: FolderCredentialMode) {
+        switch newMode {
+        case .manual:
+            manualUsername = editingFolderUsesManual ? (editingFolder?.manualUsername ?? "") : ""
+            manualPassword = ""
+            manualPasswordDirty = false
+        case .identity:
+            if selectedIdentityID == nil {
+                selectedIdentityID = availableIdentities.first?.id
+            }
+        default:
+            manualUsername = ""
+            manualPassword = ""
+            manualPasswordDirty = false
+        }
     }
 
     private func prepareInitialValues() {
@@ -414,11 +486,7 @@ struct IdentityEditorSheet: View {
 
             Divider()
 
-            ScrollView(.vertical, showsIndicators: true) {
-                identityForm
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            .frame(maxHeight: 280)
+            identityForm
 
             Divider()
 
@@ -432,24 +500,29 @@ struct IdentityEditorSheet: View {
     }
 
     private var identityForm: some View {
-        VStack(spacing: 18) {
-            FormSection(title: "Identity") {
-                FormRow(label: "Name") {
-                    TextEntryField(text: $name, placeholder: "Production")
+        Form {
+            Section {
+                LabeledContent("Name") {
+                    TextField("", text: $name, prompt: Text("Production"))
+                        .multilineTextAlignment(.trailing)
                 }
 
-                FormRow(label: "Username") {
-                    TextEntryField(text: $username, placeholder: "db_admin")
+                LabeledContent("Username") {
+                    TextField("", text: $username, prompt: Text("db_admin"))
+                        .multilineTextAlignment(.trailing)
                 }
 
-                FormRow(label: "Password", showsDivider: false) {
-                    SecureEntryField(text: $password, placeholder: "••••••••")
+                LabeledContent("Password") {
+                    SecureField("", text: $password, prompt: Text("••••••••"))
+                        .multilineTextAlignment(.trailing)
                 }
+            } header: {
+                Text("Identity Details")
             }
 
             if !availableFolders.isEmpty {
-                FormSection(title: "Folder") {
-                    FormRow(label: "Location", showsDivider: false) {
+                Section {
+                    LabeledContent("Folder") {
                         Picker("", selection: Binding<UUID?>(
                             get: { selectedFolderID },
                             set: { selectedFolderID = $0 }
@@ -460,11 +533,15 @@ struct IdentityEditorSheet: View {
                             }
                         }
                         .labelsHidden()
-                        .frame(maxWidth: 220)
                     }
+                } header: {
+                    Text("Location")
                 }
             }
         }
+        .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
+        .frame(maxHeight: 320)
     }
 
     @ViewBuilder
@@ -531,131 +608,6 @@ struct IdentityEditorSheet: View {
         await appModel.upsertIdentity(identity, password: password.isEmpty ? nil : password)
         onSave?(identity)
         dismiss()
-    }
-}
-
-// MARK: - Modern Form Helpers
-
-private struct FormSection<Content: View>: View {
-    private let title: String?
-    private let contentBuilder: () -> Content
-    private let themeManager = ThemeManager.shared
-
-    init(title: String? = nil, @ViewBuilder content: @escaping () -> Content) {
-        self.title = title
-        self.contentBuilder = content
-    }
-
-    private let cornerRadius: CGFloat = 14
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            if let title, !title.isEmpty {
-                Text(title)
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(.secondary)
-            }
-
-            VStack(spacing: 0) {
-                contentBuilder()
-            }
-            .background(
-                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .fill(themeManager.surfaceBackgroundColor.opacity(0.9))
-            )
-            .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .stroke(themeManager.surfaceForegroundColor.opacity(0.08), lineWidth: 0.6)
-            )
-        }
-    }
-}
-
-private struct FormRow<Content: View>: View {
-    let label: String
-    var showsDivider: Bool = true
-    @ViewBuilder var content: () -> Content
-
-    var body: some View {
-        VStack(spacing: 0) {
-            HStack(alignment: .center, spacing: 18) {
-                Text(label)
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(.secondary)
-                    .frame(width: 120, alignment: .leading)
-
-                content()
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            .padding(.vertical, 8)
-            .padding(.horizontal, 12)
-
-            if showsDivider {
-                FormDivider()
-            }
-        }
-    }
-}
-
-private struct FormDivider: View {
-    private let themeManager = ThemeManager.shared
-
-    var body: some View {
-        Rectangle()
-            .fill(themeManager.surfaceForegroundColor.opacity(0.12))
-            .frame(height: 1)
-            .padding(.leading, 132)
-    }
-}
-
-private struct TextEntryField: View {
-    @Binding var text: String
-    let placeholder: String
-
-    @Environment(\.colorScheme) private var colorScheme
-    private let themeManager = ThemeManager.shared
-
-    var body: some View {
-        TextField("", text: $text, prompt: Text(placeholder).foregroundStyle(.tertiary))
-            .textFieldStyle(.plain)
-            .padding(.vertical, 6)
-            .padding(.horizontal, 8)
-            .background(inputBackground)
-    }
-
-    private var inputBackground: some View {
-        RoundedRectangle(cornerRadius: 7, style: .continuous)
-            .fill(themeManager.windowBackgroundColor)
-            .overlay(
-                RoundedRectangle(cornerRadius: 7, style: .continuous)
-                    .stroke(Color.primary.opacity(colorScheme == .dark ? 0.35 : 0.12), lineWidth: 1)
-            )
-    }
-}
-
-private struct SecureEntryField: View {
-    @Binding var text: String
-    let placeholder: String
-
-    @Environment(\.colorScheme) private var colorScheme
-    private let themeManager = ThemeManager.shared
-
-    var body: some View {
-        SecureField("", text: $text, prompt: Text(placeholder).foregroundStyle(.tertiary))
-            .textFieldStyle(.plain)
-            .padding(.vertical, 6)
-            .padding(.horizontal, 8)
-            .background(inputBackground)
-    }
-
-    private var inputBackground: some View {
-        RoundedRectangle(cornerRadius: 7, style: .continuous)
-            .fill(themeManager.windowBackgroundColor)
-            .overlay(
-                RoundedRectangle(cornerRadius: 7, style: .continuous)
-                    .stroke(Color.primary.opacity(colorScheme == .dark ? 0.35 : 0.12), lineWidth: 1)
-            )
     }
 }
 

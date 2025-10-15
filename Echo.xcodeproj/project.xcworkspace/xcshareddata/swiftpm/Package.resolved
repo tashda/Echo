@@ -1,5 +1,5 @@
 {
-  "originHash" : "75a0df313b45ba1a990c2f839fb05c035ad2b24855f4bde0aeffbe052a3b12e9",
+  "originHash" : "a91ebf292598c2114f0fdf3c07791bdd86b419c8db9ed176c2dc7c73b2b03288",
   "pins" : [
     {
       "identity" : "mysql-nio",
@@ -187,7 +187,7 @@
       "location" : "https://github.com/tashda/tds-nio.git",
       "state" : {
         "branch" : "master",
-        "revision" : "e32fec4d11ee91ed97e029a475e28505979f7627"
+        "revision" : "b4680f32e297c0b30df7ec8ed0f01354ab4910e6"
       }
     }
   ],

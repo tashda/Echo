@@ -4,6 +4,10 @@ import AppKit
 import QuartzCore
 import Foundation
 
+private enum ResultsGridMetrics {
+    static let horizontalPadding: CGFloat = 12
+}
+
 struct QueryResultsTableView: NSViewRepresentable {
     @ObservedObject var query: QueryEditorState
     var highlightedColumnIndex: Int?
@@ -13,11 +17,28 @@ struct QueryResultsTableView: NSViewRepresentable {
     var onSort: (Int, HeaderSortAction) -> Void
     var onClearColumnHighlight: () -> Void
     var backgroundColor: NSColor
+    var foreignKeyDisplayMode: ForeignKeyDisplayMode
+    var foreignKeyInspectorBehavior: ForeignKeyInspectorBehavior
+    var onForeignKeyEvent: (ForeignKeyEvent) -> Void
 
     @EnvironmentObject private var clipboardHistory: ClipboardHistoryStore
     struct SelectedCell: Equatable {
         let row: Int
         let column: Int
+    }
+
+    struct ForeignKeySelection: Equatable {
+        let row: Int
+        let column: Int
+        let value: String
+        let columnName: String
+        let reference: ColumnInfo.ForeignKeyReference
+        let valueKind: ResultGridValueKind
+    }
+
+    enum ForeignKeyEvent {
+        case selectionChanged(ForeignKeySelection?)
+        case activate(ForeignKeySelection)
     }
 
     enum HeaderSortAction {
@@ -46,6 +67,7 @@ struct QueryResultsTableView: NSViewRepresentable {
         tableView.headerView = ResultTableHeaderView(coordinator: context.coordinator)
         tableView.gridStyleMask = []
         tableView.columnAutoresizingStyle = .noColumnAutoresizing
+        tableView.allowsColumnReordering = false
         tableView.allowsMultipleSelection = true
         tableView.allowsColumnSelection = false
         tableView.autoresizingMask = [.width, .height]
@@ -60,7 +82,6 @@ struct QueryResultsTableView: NSViewRepresentable {
         context.coordinator.configure(tableView: tableView, scrollView: scrollView)
         tableView.selectionDelegate = context.coordinator
         scrollView.documentView = tableView
-
         let leadingWidth = ThemeManager.shared.resultsGridLeadingInset
         let container = ResultTableContainerView(scrollView: scrollView, leadingWidth: leadingWidth)
         container.updateBackgroundColor(backgroundColor)
@@ -97,6 +118,9 @@ struct QueryResultsTableView: NSViewRepresentable {
         private weak var activeSelectableField: NSTextField?
         private var cachedPaletteSignature: String?
         private let cellBaseFont = NSFont.systemFont(ofSize: 12)
+        private var lastForeignKeySelection: QueryResultsTableView.ForeignKeySelection?
+        private var lastForeignKeyDisplayMode: ForeignKeyDisplayMode?
+        private var lastForeignKeyInspectorBehavior: ForeignKeyInspectorBehavior?
 
         private func resolvedFont(for style: SQLEditorTokenPalette.ResultGridStyle) -> NSFont {
             var traits: NSFontTraitMask = []
@@ -184,6 +208,8 @@ struct QueryResultsTableView: NSViewRepresentable {
             cachedPaletteSignature = paletteSignature()
 
             adjustTableSize()
+            lastForeignKeyDisplayMode = parent.foreignKeyDisplayMode
+            lastForeignKeyInspectorBehavior = parent.foreignKeyInspectorBehavior
         }
 
         func update(parent: QueryResultsTableView, tableView: NSTableView) {
@@ -265,6 +291,13 @@ struct QueryResultsTableView: NSViewRepresentable {
 
             updateHeaderIndicators()
             adjustTableSize(rowCount: currentRowCount)
+
+            if lastForeignKeyDisplayMode != parent.foreignKeyDisplayMode || lastForeignKeyInspectorBehavior != parent.foreignKeyInspectorBehavior {
+                lastForeignKeyDisplayMode = parent.foreignKeyDisplayMode
+                lastForeignKeyInspectorBehavior = parent.foreignKeyInspectorBehavior
+                tableView.reloadData()
+                notifyForeignKeySelection(selectionRegion)
+            }
 
             if paletteChanged {
                 deactivateActiveSelectableField(in: tableView)
@@ -396,6 +429,81 @@ struct QueryResultsTableView: NSViewRepresentable {
             }
             if type.contains("date") || type.contains("time") { return 160 }
             return 200
+        }
+
+        func tableView(_ tableView: NSTableView, shouldReorderColumn columnIndex: Int, toColumn newColumnIndex: Int) -> Bool {
+            false
+        }
+
+        func tableView(_ tableView: NSTableView, sizeToFitWidthOf column: Int) -> CGFloat {
+            guard column >= 0, column < tableView.tableColumns.count else { return 0 }
+            guard column < parent.query.displayedColumns.count else {
+                return max(tableView.tableColumns[column].minWidth, tableView.tableColumns[column].width)
+            }
+
+            let tableColumn = tableView.tableColumns[column]
+            let headerWidth = headerContentWidth(for: tableColumn, in: tableView)
+            let contentWidth = widestCellWidth(forColumn: column, tableView: tableView)
+            let desired = max(headerWidth, contentWidth)
+            let minWidth = tableColumn.minWidth
+            let maxWidth = tableColumn.maxWidth > 0 ? tableColumn.maxWidth : CGFloat.greatestFiniteMagnitude
+            return min(max(desired, minWidth), maxWidth)
+        }
+
+        private func headerContentWidth(for column: NSTableColumn, in tableView: NSTableView) -> CGFloat {
+            let baseString: NSString
+            let attributes: [NSAttributedString.Key: Any]
+            if column.headerCell.attributedStringValue.length > 0 {
+                baseString = column.headerCell.attributedStringValue.string as NSString
+                attributes = column.headerCell.attributedStringValue.attributes(at: 0, effectiveRange: nil)
+            } else {
+                baseString = column.title as NSString
+                attributes = [
+                    .font: column.headerCell.font ?? NSFont.systemFont(ofSize: 12, weight: .semibold)
+                ]
+            }
+            let size = baseString.size(withAttributes: attributes)
+            let indicatorWidth: CGFloat
+            if tableView.indicatorImage(in: column) != nil {
+                indicatorWidth = 16
+            } else {
+                indicatorWidth = 0
+            }
+            let padding = ResultsGridMetrics.horizontalPadding * 2
+            return ceil(size.width) + padding + indicatorWidth + 4
+        }
+
+        private func widestCellWidth(forColumn column: Int, tableView: NSTableView) -> CGFloat {
+            guard column >= 0 else { return 0 }
+            let rowCount = tableView.numberOfRows
+            guard rowCount > 0 else { return 0 }
+
+            let padding = ResultsGridMetrics.horizontalPadding * 2
+            let columnInfo = column < parent.query.displayedColumns.count ? parent.query.displayedColumns[column] : nil
+            let theme = ThemeManager.shared
+
+            var maxWidth = CGFloat.zero
+            for row in 0..<rowCount {
+                let sourceRow = resolvedRowIndex(for: row)
+                let value = parent.query.valueForDisplay(row: sourceRow, column: column)
+                let kind = ResultGridValueClassifier.kind(for: columnInfo, value: value)
+                let style = theme.resultGridStyle(for: kind)
+                let font = resolvedFont(for: style)
+                let resolvedString: String
+                if let value {
+                    resolvedString = value
+                } else if kind == .null {
+                    resolvedString = "NULL"
+                } else {
+                    resolvedString = ""
+                }
+                let displayString = resolvedString as NSString
+                let attributes: [NSAttributedString.Key: Any] = [.font: font]
+                let measured = displayString.size(withAttributes: attributes).width
+                maxWidth = max(maxWidth, measured)
+            }
+
+            return ceil(maxWidth) + padding + 6
         }
 
         private func addDataColumns(to tableView: NSTableView) {
@@ -600,23 +708,15 @@ struct QueryResultsTableView: NSViewRepresentable {
             guard let tableColumn else { return nil }
             guard let dataIndex = dataColumnIndex(for: tableColumn) else { return nil }
             let identifier = NSUserInterfaceItemIdentifier("data-cell-\(dataIndex)")
-            let textField = tableView.makeView(withIdentifier: identifier, owner: self) as? NSTextField ?? makeLabel(identifier: identifier)
-            if !(textField.cell is VerticallyCenteredTextFieldCell) {
-                textField.cell = VerticallyCenteredTextFieldCell(textCell: "")
-                if let cell = textField.cell as? VerticallyCenteredTextFieldCell {
-                    cell.isBordered = false
-                    cell.backgroundColor = .clear
-                    cell.usesSingleLineMode = true
-                    cell.truncatesLastVisibleLine = true
-                }
-            }
+            let cellView = tableView.makeView(withIdentifier: identifier, owner: self) as? ResultTableDataCellView ?? makeDataCellView(identifier: identifier)
+            let textField = cellView.contentTextField
 
             let sourceIndex = resolvedRowIndex(for: row)
-            let value = parent.query.valueForDisplay(row: sourceIndex, column: dataIndex)
+            let rawValue = parent.query.valueForDisplay(row: sourceIndex, column: dataIndex)
             let columnInfo = dataIndex < parent.query.displayedColumns.count ? parent.query.displayedColumns[dataIndex] : nil
-            let kind = ResultGridValueClassifier.kind(for: columnInfo, value: value)
+            let kind = ResultGridValueClassifier.kind(for: columnInfo, value: rawValue)
             let style = ThemeManager.shared.resultGridStyle(for: kind)
-            let resolvedValue = value ?? ""
+            let resolvedValue = rawValue ?? ""
 
             switch kind {
             case .null:
@@ -627,57 +727,66 @@ struct QueryResultsTableView: NSViewRepresentable {
 
             textField.textColor = style.nsColor
             textField.font = resolvedFont(for: style)
-
-            textField.wantsLayer = true
-            if let layer = textField.layer {
-                layer.masksToBounds = true
-                layer.cornerRadius = 6
-                if #available(macOS 10.15, *) {
-                    layer.cornerCurve = .continuous
-                }
-            }
-
-            let cellSelection = QueryResultsTableView.SelectedCell(row: row, column: dataIndex)
-            let isSelectedCell = selectionRegion?.contains(cellSelection) ?? false
-
             textField.drawsBackground = false
             textField.backgroundColor = .clear
             textField.layer?.backgroundColor = NSColor.clear.cgColor
             textField.layer?.borderWidth = 0
             textField.layer?.borderColor = nil
 
+            let cellSelection = QueryResultsTableView.SelectedCell(row: row, column: dataIndex)
+            let isSelectedCell = selectionRegion?.contains(cellSelection) ?? false
             if isSelectedCell {
                 textField.textColor = ThemeManager.shared.resultsGridCellTextNSColor
             }
 
-            textField.alignment = .left
-            textField.autoresizingMask = [.width, .height]
-            textField.frame = NSRect(x: 0, y: 0, width: tableColumn.width, height: tableView.rowHeight)
-            return textField
+            let showsIcon = shouldShowForeignKeyIcon(forColumn: dataIndex, value: rawValue)
+            if showsIcon {
+                cellView.configureIcon { [weak self] in
+                    self?.activateForeignKey(at: cellSelection)
+                }
+            } else {
+                cellView.configureIcon(nil)
+            }
+
+            cellView.frame = NSRect(x: 0, y: 0, width: tableColumn.width, height: tableView.rowHeight)
+            return cellView
         }
 
-        private func makeLabel(identifier: NSUserInterfaceItemIdentifier) -> NSTextField {
-            let cell = VerticallyCenteredTextFieldCell(textCell: "")
-            cell.isBordered = false
-            cell.backgroundColor = .clear
-            cell.usesSingleLineMode = true
-            cell.truncatesLastVisibleLine = true
-
-            let label = NSTextField(frame: .zero)
-            label.identifier = identifier
-            label.cell = cell
-            label.isEditable = false
-            label.isSelectable = false
-            label.isBordered = false
-            label.drawsBackground = false
-            label.focusRingType = .none
-            label.lineBreakMode = .byTruncatingTail
-            label.usesSingleLineMode = true
-            label.maximumNumberOfLines = 1
-            label.translatesAutoresizingMaskIntoConstraints = true
-            label.autoresizingMask = [.width, .height]
-            return label
+        private func makeDataCellView(identifier: NSUserInterfaceItemIdentifier) -> ResultTableDataCellView {
+            let cellView = ResultTableDataCellView()
+            cellView.identifier = identifier
+            let textField = cellView.contentTextField
+            if !(textField.cell is VerticallyCenteredTextFieldCell) {
+                textField.cell = VerticallyCenteredTextFieldCell(textCell: "")
+            }
+            if let cell = textField.cell as? VerticallyCenteredTextFieldCell {
+                cell.isBordered = false
+                cell.backgroundColor = .clear
+                cell.usesSingleLineMode = true
+                cell.truncatesLastVisibleLine = true
+            }
+            return cellView
         }
+
+        private func shouldShowForeignKeyIcon(forColumn column: Int, value: String?) -> Bool {
+            guard parent.foreignKeyDisplayMode == .showIcon else { return false }
+            guard column >= 0, column < parent.query.displayedColumns.count else { return false }
+            guard parent.query.displayedColumns[column].foreignKey != nil else { return false }
+            guard let value = value?.trimmingCharacters(in: .whitespacesAndNewlines), !value.isEmpty else { return false }
+            return true
+        }
+
+        private func activateForeignKey(at cell: QueryResultsTableView.SelectedCell) {
+            guard parent.foreignKeyDisplayMode != .disabled else { return }
+            if let tableView {
+                let region = SelectedRegion(start: cell, end: cell)
+                setSelectionRegion(region, tableView: tableView)
+            }
+            if let selection = makeForeignKeySelection(for: cell) {
+                parent.onForeignKeyEvent(.activate(selection))
+            }
+        }
+
 
         private func dataColumnIndex(for tableColumn: NSTableColumn) -> Int? {
             guard let tableView else { return nil }
@@ -1350,6 +1459,48 @@ struct QueryResultsTableView: NSViewRepresentable {
             return visibleRow
         }
 
+        private func notifyForeignKeySelection(_ region: SelectedRegion?) {
+            guard parent.foreignKeyDisplayMode != .disabled else {
+                lastForeignKeySelection = nil
+                parent.onForeignKeyEvent(.selectionChanged(nil))
+                return
+            }
+
+            guard let region,
+                  region.start.row == region.end.row,
+                  region.start.column == region.end.column,
+                  let selection = makeForeignKeySelection(for: region.start) else {
+                if lastForeignKeySelection != nil {
+                    lastForeignKeySelection = nil
+                    parent.onForeignKeyEvent(.selectionChanged(nil))
+                }
+                return
+            }
+
+            if lastForeignKeySelection != selection {
+                lastForeignKeySelection = selection
+                parent.onForeignKeyEvent(.selectionChanged(selection))
+            }
+        }
+
+        private func makeForeignKeySelection(for cell: QueryResultsTableView.SelectedCell) -> QueryResultsTableView.ForeignKeySelection? {
+            guard cell.column >= 0,
+                  cell.column < parent.query.displayedColumns.count else { return nil }
+            let columnInfo = parent.query.displayedColumns[cell.column]
+            guard let reference = columnInfo.foreignKey else { return nil }
+            let rowIndex = resolvedRowIndex(for: cell.row)
+            guard let rawValue = parent.query.valueForDisplay(row: rowIndex, column: cell.column) else { return nil }
+            let kind = ResultGridValueClassifier.kind(for: columnInfo, value: rawValue)
+            return QueryResultsTableView.ForeignKeySelection(
+                row: rowIndex,
+                column: cell.column,
+                value: rawValue,
+                columnName: columnInfo.name,
+                reference: reference,
+                valueKind: kind
+            )
+        }
+
         private func setSelectionRegion(_ region: SelectedRegion?, tableView: NSTableView?) {
             let previous = selectionRegion
             selectionRegion = region
@@ -1381,6 +1532,7 @@ struct QueryResultsTableView: NSViewRepresentable {
             }
 
             refreshVisibleRowBackgrounds(tableView)
+            notifyForeignKeySelection(region)
         }
 
         private func reload(region: SelectedRegion?, tableView: NSTableView) {
@@ -1732,7 +1884,7 @@ private final class ResultTableView: NSTableView {
 }
 
 private final class VerticallyCenteredTextFieldCell: NSTextFieldCell {
-    private let horizontalPadding: CGFloat = 8
+    private let horizontalPadding: CGFloat = ResultsGridMetrics.horizontalPadding
 
     override func drawingRect(forBounds rect: NSRect) -> NSRect {
         var newRect = super.drawingRect(forBounds: rect)
@@ -1758,6 +1910,149 @@ private final class VerticallyCenteredTextFieldCell: NSTextFieldCell {
     }
 }
 
+private final class ResultTableDataCellView: NSTableCellView {
+    let contentTextField: NSTextField
+    private let actionButton: NSButton
+    private var actionHandler: (() -> Void)?
+
+    override init(frame frameRect: NSRect) {
+        contentTextField = NSTextField(frame: .zero)
+        actionButton = NSButton(frame: .zero)
+        super.init(frame: frameRect)
+        setup()
+    }
+
+    required init?(coder: NSCoder) {
+        contentTextField = NSTextField(frame: .zero)
+        actionButton = NSButton(frame: .zero)
+        super.init(coder: coder)
+        setup()
+    }
+
+    private func setup() {
+        wantsLayer = true
+        contentTextField.isEditable = false
+        contentTextField.isSelectable = false
+        contentTextField.isBordered = false
+        contentTextField.drawsBackground = false
+        contentTextField.focusRingType = .none
+        contentTextField.wantsLayer = true
+        if let layer = contentTextField.layer {
+            layer.masksToBounds = true
+            layer.cornerRadius = 6
+            if #available(macOS 10.15, *) {
+                layer.cornerCurve = .continuous
+            }
+        }
+        contentTextField.lineBreakMode = .byTruncatingTail
+        contentTextField.usesSingleLineMode = true
+        contentTextField.maximumNumberOfLines = 1
+        contentTextField.alignment = .left
+        contentTextField.translatesAutoresizingMaskIntoConstraints = true
+        contentTextField.autoresizingMask = [.width, .height]
+        addSubview(contentTextField)
+        textField = contentTextField
+
+        actionButton.target = self
+        actionButton.action = #selector(handleAction)
+        actionButton.isBordered = false
+        actionButton.bezelStyle = .inline
+        actionButton.image = NSImage(systemSymbolName: "arrow.up.right.square", accessibilityDescription: "Show Inspector")
+        actionButton.imageScaling = .scaleProportionallyDown
+        actionButton.contentTintColor = NSColor.secondaryLabelColor
+        actionButton.isHidden = true
+        actionButton.translatesAutoresizingMaskIntoConstraints = true
+        actionButton.autoresizingMask = []
+        addSubview(actionButton)
+    }
+
+    func configureIcon(_ handler: (() -> Void)?) {
+        actionHandler = handler
+        let shouldShow = handler != nil
+        actionButton.isHidden = !shouldShow
+        actionButton.isEnabled = shouldShow
+        needsLayout = true
+    }
+
+    override func layout() {
+        super.layout()
+        let padding = ResultsGridMetrics.horizontalPadding
+        let buttonWidth: CGFloat = actionButton.isHidden ? 0 : 18
+        let spacing: CGFloat = actionButton.isHidden ? 0 : 6
+        let availableWidth = max(bounds.width - padding * 2 - buttonWidth - spacing, 0)
+        contentTextField.frame = NSRect(x: padding, y: 0, width: availableWidth, height: bounds.height)
+        if !actionButton.isHidden {
+            let buttonHeight: CGFloat = 16
+            let originY = (bounds.height - buttonHeight) / 2
+            actionButton.frame = NSRect(x: bounds.width - padding - buttonWidth, y: originY, width: buttonWidth, height: buttonHeight)
+        }
+    }
+
+    override func prepareForReuse() {
+        super.prepareForReuse()
+        actionHandler = nil
+        configureIcon(nil)
+    }
+
+    @objc private func handleAction() {
+        actionHandler?()
+    }
+}
+
+private struct ResultTableHeaderStyle {
+    let topColor: NSColor
+    let bottomColor: NSColor
+    let sheenTopAlpha: CGFloat
+    let sheenMidAlpha: CGFloat
+    let highlightAlpha: CGFloat
+    let borderColor: NSColor
+    let separatorColor: CGColor
+
+    static func make(for theme: ThemeManager) -> ResultTableHeaderStyle {
+        let baseColor = theme.resultsGridHeaderBackgroundNSColor.usingColorSpace(.extendedSRGB) ?? theme.resultsGridHeaderBackgroundNSColor
+        let accentColor = theme.accentNSColor.usingColorSpace(.extendedSRGB) ?? theme.accentNSColor
+        let isDarkMode = theme.activePaletteTone == .dark
+
+        let topBlendFraction: CGFloat = isDarkMode ? 0.12 : 0.08
+        let bottomBlendFraction: CGFloat = isDarkMode ? 0.28 : 0.24
+        let topBlendColor: NSColor = isDarkMode ? NSColor.white : accentColor
+        let bottomBlendColor: NSColor
+        if isDarkMode {
+            bottomBlendColor = accentColor
+        } else if let shadedAccent = accentColor.shadow(withLevel: 0.2) {
+            bottomBlendColor = shadedAccent
+        } else {
+            bottomBlendColor = accentColor
+        }
+
+        let topColor = baseColor.blended(withFraction: topBlendFraction, of: topBlendColor) ?? baseColor
+        let bottomColor = baseColor.blended(withFraction: bottomBlendFraction, of: bottomBlendColor) ?? baseColor
+
+        let highlightAlpha: CGFloat = isDarkMode ? 0.12 : 0.16
+        let sheenTop: CGFloat = isDarkMode ? 0.08 : 0.12
+        let sheenMid: CGFloat = isDarkMode ? 0.04 : 0.06
+        let borderColor: NSColor
+        if isDarkMode {
+            borderColor = accentColor.withAlphaComponent(0.5)
+        } else if let shadedBase = baseColor.shadow(withLevel: 0.25) {
+            borderColor = shadedBase
+        } else {
+            borderColor = theme.resultsGridHeaderSeparatorNSColor
+        }
+        let separatorColor = theme.accentNSColor.withAlphaComponent(isDarkMode ? 0.3 : 0.22).cgColor
+
+        return ResultTableHeaderStyle(
+            topColor: topColor,
+            bottomColor: bottomColor,
+            sheenTopAlpha: sheenTop,
+            sheenMidAlpha: sheenMid,
+            highlightAlpha: highlightAlpha,
+            borderColor: borderColor,
+            separatorColor: separatorColor
+        )
+    }
+}
+
 private final class ResultTableHeaderView: NSTableHeaderView {
     weak var coordinator: QueryResultsTableView.Coordinator?
     private var isDraggingColumns = false
@@ -1767,6 +2062,7 @@ private final class ResultTableHeaderView: NSTableHeaderView {
     private let bottomBorderLayer = CALayer()
     private var separatorLayers: [CALayer] = []
     private var separatorColor: CGColor?
+    private let resizeEdgeTolerance: CGFloat = 5
 
     init(coordinator: QueryResultsTableView.Coordinator?) {
         self.coordinator = coordinator
@@ -1807,26 +2103,22 @@ private final class ResultTableHeaderView: NSTableHeaderView {
     }
 
     func updateAppearance(with theme: ThemeManager) {
-        let baseColor = theme.resultsGridHeaderBackgroundNSColor.usingColorSpace(.extendedSRGB) ?? theme.resultsGridHeaderBackgroundNSColor
-        let accentColor = theme.accentNSColor.usingColorSpace(.extendedSRGB) ?? theme.accentNSColor
-
-        let topColor = baseColor.blended(withFraction: 0.28, of: .white) ?? baseColor
-        let bottomColor = baseColor.blended(withFraction: 0.18, of: accentColor) ?? baseColor
+        let style = ResultTableHeaderStyle.make(for: theme)
 
         backgroundLayer.colors = [
-            topColor.withAlphaComponent(0.94).cgColor,
-            bottomColor.withAlphaComponent(0.96).cgColor
+            style.topColor.cgColor,
+            style.bottomColor.cgColor
         ]
 
         sheenLayer.colors = [
-            NSColor.white.withAlphaComponent(0.16).cgColor,
-            NSColor.white.withAlphaComponent(0.05).cgColor,
+            NSColor.white.withAlphaComponent(style.sheenTopAlpha).cgColor,
+            NSColor.white.withAlphaComponent(style.sheenMidAlpha).cgColor,
             NSColor.clear.cgColor
         ]
 
-        topHighlightLayer.backgroundColor = NSColor.white.withAlphaComponent(0.24).cgColor
-        bottomBorderLayer.backgroundColor = (baseColor.shadow(withLevel: 0.28) ?? theme.resultsGridHeaderSeparatorNSColor).cgColor
-        separatorColor = theme.accentNSColor.withAlphaComponent(0.18).cgColor
+        topHighlightLayer.backgroundColor = NSColor.white.withAlphaComponent(style.highlightAlpha).cgColor
+        bottomBorderLayer.backgroundColor = style.borderColor.cgColor
+        separatorColor = style.separatorColor
         separatorLayers.forEach { $0.backgroundColor = separatorColor }
 
         needsLayout = true
@@ -1858,6 +2150,14 @@ private final class ResultTableHeaderView: NSTableHeaderView {
         let location = convert(event.locationInWindow, from: nil)
         let column = tableView.column(at: location)
         if column >= 0 {
+            let columnRect = headerRect(ofColumn: column)
+            let isNearLeftEdge = column > 0 && abs(location.x - columnRect.minX) <= resizeEdgeTolerance
+            let isNearRightEdge = abs(location.x - columnRect.maxX) <= resizeEdgeTolerance
+            if isNearLeftEdge || isNearRightEdge {
+                isDraggingColumns = false
+                super.mouseDown(with: event)
+                return
+            }
             coordinator?.beginColumnSelection(at: column, modifiers: event.modifierFlags)
             isDraggingColumns = true
         } else {
@@ -1955,7 +2255,7 @@ private final class ResultTableHeaderCell: NSTableHeaderCell {
     }
 
     override func titleRect(forBounds rect: NSRect) -> NSRect {
-        var adjusted = rect.insetBy(dx: 10, dy: 0)
+        var adjusted = rect.insetBy(dx: ResultsGridMetrics.horizontalPadding, dy: 0)
         let attributed = attributedStringValue
         if attributed.length > 0 {
             let bounds = attributed.boundingRect(

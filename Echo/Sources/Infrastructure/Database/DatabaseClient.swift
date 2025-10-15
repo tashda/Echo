@@ -31,13 +31,29 @@ public struct ColumnInfo: Sendable, Identifiable, Codable, Hashable {
     public let isPrimaryKey: Bool
     public let isNullable: Bool
     public let maxLength: Int?
+    public var foreignKey: ForeignKeyReference?
 
-    public init(name: String, dataType: String, isPrimaryKey: Bool = false, isNullable: Bool = true, maxLength: Int? = nil) {
+    public init(name: String, dataType: String, isPrimaryKey: Bool = false, isNullable: Bool = true, maxLength: Int? = nil, foreignKey: ForeignKeyReference? = nil) {
         self.name = name
         self.dataType = dataType
         self.isPrimaryKey = isPrimaryKey
         self.isNullable = isNullable
         self.maxLength = maxLength
+        self.foreignKey = foreignKey
+    }
+
+    public struct ForeignKeyReference: Sendable, Codable, Hashable {
+        public let constraintName: String
+        public let referencedSchema: String
+        public let referencedTable: String
+        public let referencedColumn: String
+
+        public init(constraintName: String, referencedSchema: String, referencedTable: String, referencedColumn: String) {
+            self.constraintName = constraintName
+            self.referencedSchema = referencedSchema
+            self.referencedTable = referencedTable
+            self.referencedColumn = referencedColumn
+        }
     }
 }
 
