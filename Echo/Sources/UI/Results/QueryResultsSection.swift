@@ -13,6 +13,7 @@ struct QueryResultsSection: View {
     let foreignKeyDisplayMode: ForeignKeyDisplayMode
     let foreignKeyInspectorBehavior: ForeignKeyInspectorBehavior
     let onForeignKeyEvent: (QueryResultsTableView.ForeignKeyEvent) -> Void
+    let onJsonEvent: (QueryResultsTableView.JsonCellEvent) -> Void
 #endif
     @State private var selectedTab: ResultTab = .results
     @State private var sortCriteria: SortCriteria?
@@ -21,6 +22,10 @@ struct QueryResultsSection: View {
     @State private var showConnectionInfoPopover = false
     @State private var showRowInfoPopover = false
     @State private var showTimeInfoPopover = false
+#if os(macOS)
+    @State private var jsonDetailLevels: [JsonDetailLevel] = []
+    @State private var jsonDetailBase: JsonDetailBase?
+#endif
 
     @EnvironmentObject private var themeManager: ThemeManager
 
@@ -38,6 +43,9 @@ struct QueryResultsSection: View {
     enum ResultTab: Hashable {
         case results
         case messages
+#if os(macOS)
+        case jsonDetail(UUID)
+#endif
     }
 
     var body: some View {
@@ -59,6 +67,10 @@ struct QueryResultsSection: View {
                 rebuildRowOrder()
                 showRowInfoPopover = false
                 showTimeInfoPopover = false
+#if os(macOS)
+                jsonDetailLevels = []
+                jsonDetailBase = nil
+#endif
             }
         }
         .onChange(of: query.errorMessage) { _, error in
@@ -97,8 +109,17 @@ struct QueryResultsSection: View {
                 rowOrder = []
                 showRowInfoPopover = false
                 showTimeInfoPopover = false
+#if os(macOS)
+                jsonDetailLevels = []
+                jsonDetailBase = nil
+#endif
             }
         }
+#if os(macOS)
+        .onChange(of: selectedTab) { _, newValue in
+            handleTabSelectionChange(newValue)
+        }
+#endif
     }
 
     private var toolbar: some View {
@@ -106,6 +127,11 @@ struct QueryResultsSection: View {
             Picker("", selection: $selectedTab) {
                 Text("Results").tag(ResultTab.results)
                 Text("Messages").tag(ResultTab.messages)
+#if os(macOS)
+                ForEach(jsonDetailLevels) { level in
+                    Text(level.title).tag(ResultTab.jsonDetail(level.id))
+                }
+#endif
             }
             .pickerStyle(.segmented)
             .frame(maxWidth: 220)
@@ -131,6 +157,10 @@ struct QueryResultsSection: View {
                     resultsView
                 case .messages:
                     messagesView
+#if os(macOS)
+                case .jsonDetail(let levelID):
+                    jsonDetailView(for: levelID)
+#endif
                 }
             }
         }
@@ -237,7 +267,8 @@ struct QueryResultsSection: View {
                 backgroundColor: gridBackgroundColor,
                 foreignKeyDisplayMode: foreignKeyDisplayMode,
                 foreignKeyInspectorBehavior: foreignKeyInspectorBehavior,
-                onForeignKeyEvent: onForeignKeyEvent
+                onForeignKeyEvent: onForeignKeyEvent,
+                onJsonEvent: handleJsonCellEvent
             )
             .opacity(hasRows ? 1 : 0)
             .allowsHitTesting(hasRows)
@@ -265,6 +296,18 @@ struct QueryResultsSection: View {
             sortCriteria = nil
             highlightedColumnIndex = nil
             rebuildRowOrder()
+        }
+    }
+#endif
+
+#if os(macOS)
+    private func handleJsonCellEvent(_ event: QueryResultsTableView.JsonCellEvent) {
+        switch event {
+        case .selectionChanged:
+            onJsonEvent(event)
+        case .activate(let selection):
+            openJsonDetailRoot(with: selection)
+            onJsonEvent(event)
         }
     }
 #endif
@@ -976,6 +1019,276 @@ struct QueryResultsSection: View {
                 .foregroundStyle(.primary)
         }
     }
+
+#if os(macOS)
+    private func openJsonDetailRoot(with selection: QueryResultsTableView.JsonSelection) {
+        let summary = jsonRowSummary(for: selection)
+        jsonDetailBase = JsonDetailBase(columnName: selection.columnName, rowSummary: summary)
+        let rootLevel = JsonDetailLevel(
+            id: UUID(),
+            title: summary,
+            path: [],
+            value: selection.jsonValue,
+            rows: selection.jsonValue.makeDetailRows()
+        )
+        jsonDetailLevels = [rootLevel]
+        selectedTab = .jsonDetail(rootLevel.id)
+    }
+
+    private func openJsonDetailRow(_ row: JsonDetailRow, from level: JsonDetailLevel) {
+        guard row.value.isContainer else { return }
+        guard let index = jsonDetailLevels.firstIndex(where: { $0.id == level.id }) else { return }
+        let newPath = level.path + [row.key]
+        let nextLevel = JsonDetailLevel(
+            id: UUID(),
+            title: row.key.breadcrumbTitle,
+            path: newPath,
+            value: row.value,
+            rows: row.value.makeDetailRows()
+        )
+        let prefix = Array(jsonDetailLevels.prefix(index + 1))
+        jsonDetailLevels = prefix + [nextLevel]
+        selectedTab = .jsonDetail(nextLevel.id)
+    }
+
+    private func handleTabSelectionChange(_ tab: ResultTab) {
+        switch tab {
+        case .results, .messages:
+            break
+        case .jsonDetail(let levelID):
+            guard let index = jsonDetailLevels.firstIndex(where: { $0.id == levelID }) else { return }
+            if index < jsonDetailLevels.count - 1 {
+                jsonDetailLevels = Array(jsonDetailLevels.prefix(index + 1))
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func jsonDetailView(for levelID: UUID) -> some View {
+        if let level = jsonDetailLevels.first(where: { $0.id == levelID }) {
+            let background = Color(nsColor: gridBackgroundColor)
+            VStack(alignment: .leading, spacing: 16) {
+                jsonDetailHeader(for: level)
+                JsonDetailGridView(
+                    rows: level.rows,
+                    isContainer: level.value.isContainer,
+                    valueSummary: level.value.summary,
+                    onOpenChild: { row in openJsonDetailRow(row, from: level) }
+                )
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 18)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .background(background)
+        } else {
+            VStack(spacing: 12) {
+                Image(systemName: "curlybraces")
+                    .font(.system(size: 36))
+                    .foregroundStyle(.secondary)
+                Text("No JSON Data")
+                    .font(.headline)
+                Text("Double-click a JSON column to explore its structure here.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+    }
+
+    private func jsonDetailHeader(for level: JsonDetailLevel) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(jsonDetailPathDescription(for: level))
+                .font(.title3.weight(.semibold))
+            if let context = jsonDetailBase {
+                Text(context.rowSummary)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+            Text("\(level.value.kind.displayName) • \(level.value.summary)")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private func jsonDetailPathDescription(for level: JsonDetailLevel) -> String {
+        var components: [String] = []
+        if let base = jsonDetailBase {
+            components.append(base.columnName)
+        }
+        components.append(contentsOf: level.path.map { $0.breadcrumbTitle })
+        if components.isEmpty, let base = jsonDetailBase {
+            components.append(base.columnName)
+        }
+        return components.joined(separator: " › ")
+    }
+
+    private func jsonRowSummary(for selection: QueryResultsTableView.JsonSelection) -> String {
+        if let descriptor = primaryKeyDescriptor(for: selection) {
+            return descriptor
+        }
+        return "Row \(selection.displayedRowIndex + 1)"
+    }
+
+    private func primaryKeyDescriptor(for selection: QueryResultsTableView.JsonSelection) -> String? {
+        guard let index = tableColumns.firstIndex(where: { $0.isPrimaryKey }),
+              index < tableColumns.count else {
+            return nil
+        }
+        guard let raw = query.valueForDisplay(row: selection.sourceRowIndex, column: index) else {
+            return nil
+        }
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        return "\(tableColumns[index].name): \(trimmed)"
+    }
+
+    private struct JsonDetailBase: Equatable {
+        let columnName: String
+        let rowSummary: String
+    }
+
+    private struct JsonDetailLevel: Identifiable, Equatable {
+        let id: UUID
+        let title: String
+        let path: [JsonDetailRow.Key]
+        let value: JsonValue
+        let rows: [JsonDetailRow]
+    }
+
+    private struct JsonDetailGridView: View {
+        let rows: [JsonDetailRow]
+        let isContainer: Bool
+        let valueSummary: String
+        let onOpenChild: (JsonDetailRow) -> Void
+
+        var body: some View {
+            VStack(spacing: 0) {
+                header
+                Divider().opacity(0.3)
+                if rows.isEmpty {
+                    JsonDetailEmptyState(isContainer: isContainer, valueSummary: valueSummary)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                        .padding(24)
+                } else {
+                    ScrollView {
+                        LazyVStack(alignment: .leading, spacing: 0) {
+                            ForEach(Array(rows.enumerated()), id: \.1.id) { index, row in
+                                JsonDetailGridRow(row: row, index: index, onOpenChild: onOpenChild)
+                            }
+                        }
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .background(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(Color(nsColor: NSColor.controlBackgroundColor))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .stroke(Color.primary.opacity(0.08), lineWidth: 0.6)
+            )
+        }
+
+        private var header: some View {
+            HStack(spacing: 12) {
+                Text("Key")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .frame(minWidth: 120, alignment: .leading)
+                    .layoutPriority(1)
+
+                Text("Type")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 90, alignment: .leading)
+
+                Text("Value")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .padding(.horizontal, 18)
+            .padding(.vertical, 10)
+        }
+    }
+
+    private struct JsonDetailGridRow: View {
+        let row: JsonDetailRow
+        let index: Int
+        let onOpenChild: (JsonDetailRow) -> Void
+
+        private var isContainer: Bool { row.value.isContainer }
+
+        var body: some View {
+            HStack(spacing: 12) {
+                Text(row.key.displayTitle)
+                    .font(.system(size: 13, weight: isContainer ? .semibold : .regular))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+                    .frame(minWidth: 120, alignment: .leading)
+                    .layoutPriority(1)
+
+                Text(row.typeDescription.uppercased())
+                    .font(.system(size: 11, weight: .medium, design: .monospaced))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 90, alignment: .leading)
+
+                Text(row.preview)
+                    .font(.system(size: 13))
+                    .foregroundStyle(.primary)
+                    .lineLimit(2)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                if isContainer {
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .padding(.horizontal, 18)
+            .padding(.vertical, 8)
+            .background(rowBackground)
+            .contentShape(Rectangle())
+            .onTapGesture(count: 2) {
+                guard isContainer else { return }
+                onOpenChild(row)
+            }
+        }
+
+        private var rowBackground: some View {
+            let base = Color.primary.opacity(0.03)
+            return index.isMultiple(of: 2) ? base : Color.clear
+        }
+    }
+
+    private struct JsonDetailEmptyState: View {
+        let isContainer: Bool
+        let valueSummary: String
+
+        var body: some View {
+            VStack(spacing: 12) {
+                Image(systemName: isContainer ? "square.stack.3d.up.slash" : "doc.text")
+                    .font(.system(size: 32, weight: .regular))
+                    .foregroundStyle(.secondary)
+                if isContainer {
+                    Text("No nested values")
+                        .font(.headline)
+                    Text("This object or array is empty.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                } else {
+                    Text(valueSummary)
+                        .font(.headline)
+                    Text("Primitive value")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+    }
+#endif
 
     private var platformBackground: Color { themeManager.windowBackground }
 #if os(macOS)

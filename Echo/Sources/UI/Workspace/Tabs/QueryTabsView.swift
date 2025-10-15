@@ -38,32 +38,6 @@ private func buildForeignKeyMapping(from details: TableStructureDetails) -> Fore
 }
 #endif
 
-struct ForeignKeyInspectorContent: Sendable, Equatable {
-    struct Field: Sendable, Equatable, Identifiable {
-        let id: UUID
-        let label: String
-        let value: String
-
-        init(label: String, value: String) {
-            self.id = UUID()
-            self.label = label
-            self.value = value
-        }
-    }
-
-    let title: String
-    let subtitle: String?
-    let fields: [Field]
-    let related: [ForeignKeyInspectorContent]
-
-    init(title: String, subtitle: String? = nil, fields: [Field], related: [ForeignKeyInspectorContent] = []) {
-        self.title = title
-        self.subtitle = subtitle
-        self.fields = fields
-        self.related = related
-    }
-}
-
 struct QueryTabsView: View {
     @EnvironmentObject private var appModel: AppModel
     @EnvironmentObject private var appState: AppState
@@ -240,7 +214,7 @@ struct QueryTabsView: View {
             queryState.errorMessage = nil
             queryState.startExecution()
             queryState.setExecutingTask(task)
-            appModel.foreignKeyInspectorContent = nil
+            appModel.dataInspectorContent = nil
         }
     }
 
@@ -986,6 +960,7 @@ private struct QueryEditorContainer: View {
     private let maxRatio: CGFloat = 0.8
 #if os(macOS)
     @State private var latestForeignKeySelection: QueryResultsTableView.ForeignKeySelection?
+    @State private var latestJsonSelection: QueryResultsTableView.JsonSelection?
     @State private var foreignKeyFetchTask: Task<Void, Never>?
     @State private var autoOpenedInspector = false
 #endif
@@ -1027,7 +1002,8 @@ private struct QueryEditorContainer: View {
                         activeDatabaseName: connectionDatabaseName,
                         foreignKeyDisplayMode: foreignKeyDisplayMode,
                         foreignKeyInspectorBehavior: foreignKeyInspectorBehavior,
-                        onForeignKeyEvent: handleForeignKeyEvent
+                        onForeignKeyEvent: handleForeignKeyEvent,
+                        onJsonEvent: handleJsonEvent
                     )
                         .frame(height: totalHeight * (1 - ratioBinding.wrappedValue))
                         .background(backgroundColor)
@@ -1168,6 +1144,9 @@ private struct QueryEditorContainer: View {
         switch event {
         case .selectionChanged(let selection):
             latestForeignKeySelection = selection
+            if selection != nil {
+                latestJsonSelection = nil
+            }
             if let selection {
                 if shouldAutoActivate(for: selection, triggeredByIcon: false) {
                     performForeignKeyActivation(for: selection)
@@ -1175,13 +1154,17 @@ private struct QueryEditorContainer: View {
                     if foreignKeyDisplayMode == .showInspector,
                        foreignKeyInspectorBehavior == .respectInspectorVisibility,
                        !appState.showInfoSidebar {
-                        appModel.foreignKeyInspectorContent = nil
+                        if case .foreignKey = appModel.dataInspectorContent {
+                            appModel.dataInspectorContent = nil
+                        }
                     }
                 }
             } else {
                 foreignKeyFetchTask?.cancel()
                 foreignKeyFetchTask = nil
-                appModel.foreignKeyInspectorContent = nil
+                if case .foreignKey = appModel.dataInspectorContent {
+                    appModel.dataInspectorContent = nil
+                }
                 if foreignKeyInspectorBehavior == .autoOpenAndClose && autoOpenedInspector {
                     autoOpenedInspector = false
                     if appState.showInfoSidebar {
@@ -1192,6 +1175,23 @@ private struct QueryEditorContainer: View {
 
         case .activate(let selection):
             performForeignKeyActivation(for: selection)
+        }
+    }
+
+    private func handleJsonEvent(_ event: QueryResultsTableView.JsonCellEvent) {
+        switch event {
+        case .selectionChanged(let selection):
+            latestJsonSelection = selection
+            if let selection {
+                let content = makeJsonInspectorContent(for: selection)
+                appModel.dataInspectorContent = .json(content)
+            } else if case .json = appModel.dataInspectorContent {
+                appModel.dataInspectorContent = nil
+            }
+        case .activate(let selection):
+            latestJsonSelection = selection
+            let content = makeJsonInspectorContent(for: selection)
+            appModel.dataInspectorContent = .json(content)
         }
     }
 
@@ -1230,15 +1230,44 @@ private struct QueryEditorContainer: View {
 
             guard let content = await fetchForeignKeyInspectorContent(for: selection, includeRelated: includeRelatedForeignKeys, depth: 0) else {
                 await MainActor.run {
-                    appModel.foreignKeyInspectorContent = nil
+                    if case .foreignKey = appModel.dataInspectorContent {
+                        appModel.dataInspectorContent = nil
+                    }
                 }
                 return
             }
 
             await MainActor.run {
-                appModel.foreignKeyInspectorContent = content
+                appModel.dataInspectorContent = .foreignKey(content)
             }
         }
+    }
+
+    private func makeJsonInspectorContent(for selection: QueryResultsTableView.JsonSelection) -> JsonInspectorContent {
+        let outline = selection.jsonValue.toOutlineNode()
+        let subtitle = jsonRowSummary(for: selection)
+        return JsonInspectorContent(title: selection.columnName, subtitle: subtitle, outline: outline)
+    }
+
+    private func jsonRowSummary(for selection: QueryResultsTableView.JsonSelection) -> String {
+        if let descriptor = primaryKeyDescriptor(for: selection) {
+            return descriptor
+        }
+        return "Row \(selection.displayedRowIndex + 1)"
+    }
+
+    private func primaryKeyDescriptor(for selection: QueryResultsTableView.JsonSelection) -> String? {
+        guard let index = query.displayedColumns.firstIndex(where: { $0.isPrimaryKey }),
+              index < query.displayedColumns.count else {
+            return nil
+        }
+        let column = query.displayedColumns[index]
+        guard let raw = query.valueForDisplay(row: selection.sourceRowIndex, column: index) else {
+            return nil
+        }
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        return "\(column.name): \(trimmed)"
     }
 
     private func fetchForeignKeyInspectorContent(for selection: QueryResultsTableView.ForeignKeySelection, includeRelated: Bool, depth: Int) async -> ForeignKeyInspectorContent? {
@@ -1569,7 +1598,7 @@ private struct QueryTabButton: View {
             }
 
             if isActive {
-                return appearance.activeTabFill
+                return effectiveHovering ? appearance.activeTabHoverFill : appearance.activeTabFill
             }
 
             if shouldTreatAsHover {
@@ -1639,7 +1668,7 @@ private struct QueryTabButton: View {
             }
 
             if isActive {
-                return appearance.activeTabBorder
+                return effectiveHovering ? appearance.activeTabHoverBorder : appearance.activeTabBorder
             }
 
             if shouldTreatAsHover {
@@ -1735,6 +1764,10 @@ private struct QueryTabButton: View {
 
     private var tabShadowColor: Color {
 #if os(macOS)
+        if let appearance {
+            return isActive ? appearance.shadowColor : Color.clear
+        }
+
         if !isActive { return Color.clear }
         return colorScheme == .dark ? Color.black.opacity(0.28) : Color.black.opacity(0.10)
 #else
@@ -2426,10 +2459,12 @@ private struct TabChromePalette {
     let baseStroke: Color
     let baseShadow: Color
     let activeTabFill: LinearGradient
+    let activeTabHoverFill: LinearGradient
     let inactiveTabFill: LinearGradient
     let hoverTabFill: LinearGradient
     let dropTabFill: LinearGradient
     let activeTabBorder: Color
+    let activeTabHoverBorder: Color
     let hoverTabBorder: Color
     let inactiveTabBorder: Color
     let dropTabBorder: Color
@@ -2449,57 +2484,90 @@ private struct TabChromePalette {
     let separatorGradient: LinearGradient
 
     init(theme: AppColorTheme, accent: NSColor, fallbackScheme: ColorScheme) {
+        _ = fallbackScheme
         let baseBackground = theme.surfaceBackground.nsColor.usingColorSpace(.deviceRGB) ?? theme.surfaceBackground.nsColor
         let selection = theme.editorSelection.nsColor.usingColorSpace(.deviceRGB) ?? theme.editorSelection.nsColor
-        let textColor = theme.surfaceForeground.nsColor
+        let textColor = theme.surfaceForeground.nsColor.usingColorSpace(.deviceRGB) ?? theme.surfaceForeground.nsColor
         let accentColor = (theme.accent?.nsColor ?? accent).usingColorSpace(.deviceRGB) ?? accent
         let toneIsDark = theme.tone == .dark
 
-        let baseTop = lighten(baseBackground, by: toneIsDark ? 0.05 : 0.14)
-        let baseBottom = darken(baseBackground, by: toneIsDark ? 0.12 : 0.08)
+        let neutralBase = blend(baseBackground, with: toneIsDark ? .black : .white, amount: toneIsDark ? 0.08 : 0.06)
+        let baseTop = lighten(neutralBase, by: toneIsDark ? 0.04 : 0.07)
+        let baseBottom = darken(neutralBase, by: toneIsDark ? 0.12 : 0.09)
         baseFill = LinearGradient(colors: [Color(nsColor: baseTop), Color(nsColor: baseBottom)], startPoint: .top, endPoint: .bottom)
-        baseStroke = Color(nsColor: darken(baseBackground, by: toneIsDark ? 0.18 : 0.12))
-        baseShadow = toneIsDark ? Color.black.opacity(0.55) : Color.black.opacity(0.08)
+        let baseStrokeColor = darken(neutralBase, by: toneIsDark ? 0.18 : 0.12).withAlphaComponent(toneIsDark ? 0.55 : 0.33)
+        baseStroke = Color(nsColor: baseStrokeColor)
+        baseShadow = toneIsDark ? Color.black.opacity(0.42) : Color.black.opacity(0.1)
 
-        let accentTop = lighten(accentColor, by: 0.18)
-        let accentBottom = darken(accentColor, by: 0.12)
-        activeTabFill = LinearGradient(colors: [Color(nsColor: accentTop), Color(nsColor: accentBottom)], startPoint: .top, endPoint: .bottom)
+        let softenedAccent = blend(accentColor, with: baseBackground, amount: toneIsDark ? 0.45 : 0.55)
+        let activeTop = lighten(softenedAccent, by: toneIsDark ? 0.06 : 0.10)
+        let activeBottom = darken(softenedAccent, by: toneIsDark ? 0.14 : 0.18)
+        activeTabFill = LinearGradient(colors: [Color(nsColor: activeTop), Color(nsColor: activeBottom)], startPoint: .top, endPoint: .bottom)
 
-        let inactiveTop = lighten(baseBackground, by: toneIsDark ? 0.08 : 0.06)
-        let inactiveBottom = darken(baseBackground, by: toneIsDark ? 0.10 : 0.05)
+        let activeHoverTop = lighten(softenedAccent, by: toneIsDark ? 0.10 : 0.14)
+        let activeHoverBottom = darken(softenedAccent, by: toneIsDark ? 0.10 : 0.12)
+        activeTabHoverFill = LinearGradient(colors: [Color(nsColor: activeHoverTop), Color(nsColor: activeHoverBottom)], startPoint: .top, endPoint: .bottom)
+
+        let inactiveTop = lighten(baseBackground, by: toneIsDark ? 0.05 : 0.04)
+        let inactiveBottom = darken(baseBackground, by: toneIsDark ? 0.08 : 0.05)
         inactiveTabFill = LinearGradient(colors: [Color(nsColor: inactiveTop), Color(nsColor: inactiveBottom)], startPoint: .top, endPoint: .bottom)
 
-        let hoverTop = lighten(selection, by: 0.12)
-        let hoverBottom = darken(selection, by: 0.08)
+        let softenedSelection = blend(selection, with: baseBackground, amount: toneIsDark ? 0.5 : 0.6)
+        let hoverTop = lighten(softenedSelection, by: toneIsDark ? 0.07 : 0.11)
+        let hoverBottom = darken(softenedSelection, by: toneIsDark ? 0.11 : 0.08)
         hoverTabFill = LinearGradient(colors: [Color(nsColor: hoverTop), Color(nsColor: hoverBottom)], startPoint: .top, endPoint: .bottom)
-        dropTabFill = LinearGradient(colors: [Color(nsColor: accentTop), Color(nsColor: accentBottom)], startPoint: .top, endPoint: .bottom)
 
-        activeTabBorder = Color(nsColor: darken(accentColor, by: 0.18))
-        hoverTabBorder = Color(nsColor: darken(selection, by: 0.16))
-        inactiveTabBorder = Color(nsColor: darken(baseBackground, by: toneIsDark ? 0.16 : 0.10))
-        dropTabBorder = Color(nsColor: darken(accentColor, by: 0.25))
+        let dropAccent = blend(accentColor, with: softenedAccent, amount: 0.25)
+        let dropTop = lighten(dropAccent, by: toneIsDark ? 0.12 : 0.16)
+        let dropBottom = darken(dropAccent, by: toneIsDark ? 0.18 : 0.20)
+        dropTabFill = LinearGradient(colors: [Color(nsColor: dropTop), Color(nsColor: dropBottom)], startPoint: .top, endPoint: .bottom)
+
+        let activeBorderColor = darken(softenedAccent, by: toneIsDark ? 0.20 : 0.18).withAlphaComponent(toneIsDark ? 0.95 : 0.78)
+        activeTabBorder = Color(nsColor: activeBorderColor)
+        let activeHoverBorderColor = darken(softenedAccent, by: toneIsDark ? 0.14 : 0.14).withAlphaComponent(toneIsDark ? 1.0 : 0.85)
+        activeTabHoverBorder = Color(nsColor: activeHoverBorderColor)
+        let hoverBorderColor = darken(softenedSelection, by: toneIsDark ? 0.16 : 0.12).withAlphaComponent(toneIsDark ? 0.9 : 0.6)
+        hoverTabBorder = Color(nsColor: hoverBorderColor)
+        inactiveTabBorder = Color.clear
+        let dropBorderColor = darken(dropAccent, by: toneIsDark ? 0.22 : 0.24).withAlphaComponent(toneIsDark ? 1.0 : 0.92)
+        dropTabBorder = Color(nsColor: dropBorderColor)
 
         activeTitle = Color(nsColor: textColor)
-        inactiveTitle = Color(nsColor: lighten(textColor, by: toneIsDark ? 0.12 : 0.28))
+        let inactiveTitleColor = blend(textColor, with: baseBackground, amount: toneIsDark ? 0.32 : 0.55)
+        inactiveTitle = Color(nsColor: inactiveTitleColor)
         activeIcon = activeTitle
         inactiveIcon = inactiveTitle
-        closeForeground = Color(nsColor: lighten(textColor, by: 0.1))
+
+        let closeBase = blend(textColor, with: baseBackground, amount: toneIsDark ? 0.24 : 0.40)
+        closeForeground = Color(nsColor: closeBase)
         closeHoverForeground = Color.white
-        closeHoverBackground = Color(nsColor: lighten(accentColor, by: 0.25)).opacity(0.9)
-        shadowColor = baseShadow
-        actionButtonFill = LinearGradient(colors: [Color(nsColor: lighten(accentColor, by: 0.2)), Color(nsColor: darken(accentColor, by: 0.12))], startPoint: .top, endPoint: .bottom)
-        actionButtonFillHover = LinearGradient(colors: [Color(nsColor: lighten(accentColor, by: 0.24)), Color(nsColor: darken(accentColor, by: 0.08))], startPoint: .top, endPoint: .bottom)
-        let inactiveActionTop = lighten(baseBackground, by: 0.12)
-        let inactiveActionBottom = darken(baseBackground, by: 0.06)
+        let closeBackgroundColor = lighten(softenedAccent, by: toneIsDark ? 0.18 : 0.22).withAlphaComponent(0.92)
+        closeHoverBackground = Color(nsColor: closeBackgroundColor)
+
+        shadowColor = toneIsDark ? Color.black.opacity(0.38) : Color.black.opacity(0.14)
+
+        let actionTop = lighten(softenedAccent, by: toneIsDark ? 0.14 : 0.18)
+        let actionBottom = darken(softenedAccent, by: toneIsDark ? 0.16 : 0.18)
+        actionButtonFill = LinearGradient(colors: [Color(nsColor: actionTop), Color(nsColor: actionBottom)], startPoint: .top, endPoint: .bottom)
+
+        let actionHoverTop = lighten(softenedAccent, by: toneIsDark ? 0.18 : 0.22)
+        let actionHoverBottom = darken(softenedAccent, by: toneIsDark ? 0.12 : 0.14)
+        actionButtonFillHover = LinearGradient(colors: [Color(nsColor: actionHoverTop), Color(nsColor: actionHoverBottom)], startPoint: .top, endPoint: .bottom)
+
+        let inactiveActionTop = lighten(baseBackground, by: toneIsDark ? 0.08 : 0.06)
+        let inactiveActionBottom = darken(baseBackground, by: toneIsDark ? 0.10 : 0.06)
         actionButtonFillInactive = LinearGradient(colors: [Color(nsColor: inactiveActionTop), Color(nsColor: inactiveActionBottom)], startPoint: .top, endPoint: .bottom)
-        actionButtonBorder = Color(nsColor: darken(accentColor, by: 0.2))
+
+        let actionBorderColor = darken(softenedAccent, by: toneIsDark ? 0.22 : 0.20).withAlphaComponent(toneIsDark ? 0.9 : 0.82)
+        actionButtonBorder = Color(nsColor: actionBorderColor)
         actionButtonIcon = Color.white
-        let separatorTop = lighten(baseBackground, by: toneIsDark ? 0.10 : 0.05)
-        let separatorBottom = darken(baseBackground, by: toneIsDark ? 0.20 : 0.12)
+
+        let separatorTop = lighten(baseBackground, by: toneIsDark ? 0.08 : 0.05)
+        let separatorBottom = darken(baseBackground, by: toneIsDark ? 0.18 : 0.10)
         separatorGradient = LinearGradient(
             colors: [
-                Color(nsColor: separatorTop).opacity(toneIsDark ? 0.65 : 0.8),
-                Color(nsColor: separatorBottom).opacity(toneIsDark ? 0.75 : 0.9)
+                Color(nsColor: separatorTop).opacity(toneIsDark ? 0.55 : 0.62),
+                Color(nsColor: separatorBottom).opacity(toneIsDark ? 0.72 : 0.74)
             ],
             startPoint: .top,
             endPoint: .bottom
@@ -2523,6 +2591,18 @@ private func darken(_ color: NSColor, by amount: CGFloat) -> NSColor {
                    green: clamp(rgb.greenComponent - amount),
                    blue: clamp(rgb.blueComponent - amount),
                    alpha: rgb.alphaComponent)
+}
+
+private func blend(_ color: NSColor, with other: NSColor, amount: CGFloat) -> NSColor {
+    let t = clamp(amount)
+    let rgb1 = color.usingColorSpace(.deviceRGB) ?? color
+    let rgb2 = other.usingColorSpace(.deviceRGB) ?? other
+    return NSColor(
+        red: rgb1.redComponent * (1 - t) + rgb2.redComponent * t,
+        green: rgb1.greenComponent * (1 - t) + rgb2.greenComponent * t,
+        blue: rgb1.blueComponent * (1 - t) + rgb2.blueComponent * t,
+        alpha: rgb1.alphaComponent * (1 - t) + rgb2.alphaComponent * t
+    )
 }
 
 private struct TabStripBackground: View {

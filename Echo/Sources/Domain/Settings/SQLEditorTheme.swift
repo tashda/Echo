@@ -1,10 +1,6 @@
 import SwiftUI
 import CoreGraphics
-#if os(macOS)
-import AppKit
-#else
-import UIKit
-#endif
+import CoreText
 
 struct SQLEditorSurfaceColors: Codable, Equatable {
     var background: ColorRepresentable
@@ -48,12 +44,41 @@ struct SQLEditorTheme: Codable, Equatable {
         self.tokenPalette = tokenPalette
     }
 
+    enum CodingKeys: String, CodingKey {
+        case fontName
+        case fontSize
+        case lineHeightMultiplier
+        case ligaturesEnabled
+        case surfaces
+        case tokenPalette
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        fontName = try container.decode(String.self, forKey: .fontName)
+        fontSize = try container.decode(CGFloat.self, forKey: .fontSize)
+        lineHeightMultiplier = try container.decode(CGFloat.self, forKey: .lineHeightMultiplier)
+        ligaturesEnabled = try container.decodeIfPresent(Bool.self, forKey: .ligaturesEnabled) ?? true
+        surfaces = try container.decode(SQLEditorSurfaceColors.self, forKey: .surfaces)
+        tokenPalette = try container.decode(SQLEditorTokenPalette.self, forKey: .tokenPalette)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(fontName, forKey: .fontName)
+        try container.encode(fontSize, forKey: .fontSize)
+        try container.encode(lineHeightMultiplier, forKey: .lineHeightMultiplier)
+        try container.encode(ligaturesEnabled, forKey: .ligaturesEnabled)
+        try container.encode(surfaces, forKey: .surfaces)
+        try container.encode(tokenPalette, forKey: .tokenPalette)
+    }
+
     var tone: SQLEditorPalette.Tone { tokenPalette.tone }
 
     var tokenColors: SQLEditorPalette.TokenColors { tokenPalette.tokens }
 
     var font: NSFontWithFallback {
-        NSFontWithFallback(name: fontName, size: fontSize)
+        NSFontWithFallback(name: fontName, size: fontSize, ligaturesEnabled: ligaturesEnabled)
     }
 
     static func isSystemFontIdentifier(_ value: String) -> Bool {
@@ -1234,10 +1259,12 @@ struct ColorRepresentable: Codable, Equatable, Hashable {
 struct NSFontWithFallback {
     var name: String
     var size: CGFloat
+    var ligaturesEnabled: Bool
 
-    init(name: String, size: CGFloat) {
+    init(name: String, size: CGFloat, ligaturesEnabled: Bool = true) {
         self.name = name
         self.size = size
+        self.ligaturesEnabled = ligaturesEnabled
     }
 
 #if os(macOS)
@@ -1248,8 +1275,8 @@ struct NSFontWithFallback {
         if let custom = NSFont(name: name, size: size) {
             return custom
         }
-        if let familyFont = NSFont(name: SQLEditorTheme.defaultFontName, size: size) {
-            return familyFont
+        if let fallback = NSFont(name: SQLEditorTheme.defaultFontName, size: size) {
+            return fallback
         }
         return .monospacedSystemFont(ofSize: size, weight: .regular)
     }
@@ -1261,8 +1288,8 @@ struct NSFontWithFallback {
         if let custom = UIFont(name: name, size: size) {
             return custom
         }
-        if let familyFont = UIFont(name: SQLEditorTheme.defaultFontName, size: size) {
-            return familyFont
+        if let fallback = UIFont(name: SQLEditorTheme.defaultFontName, size: size) {
+            return fallback
         }
         return .monospacedSystemFont(ofSize: size, weight: .regular)
     }

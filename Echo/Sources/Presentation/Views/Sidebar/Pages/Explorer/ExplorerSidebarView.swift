@@ -194,9 +194,11 @@ struct ExplorerSidebarView: View {
                     Text("No connected servers")
                         .font(.system(size: 13, weight: .medium))
                         .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
                 }
+                .frame(maxWidth: .infinity, alignment: .center)
             }
-            .frame(maxWidth: .infinity)
+            .frame(maxWidth: .infinity, alignment: .center)
             .padding(.vertical, 32)
         } else {
             VStack(alignment: .leading, spacing: 4) {
@@ -605,6 +607,7 @@ struct ExplorerSidebarView: View {
                 .foregroundStyle(.secondary)
         }
         .padding(.vertical, 40)
+        .frame(maxWidth: .infinity, alignment: .center)
     }
 
     private func failureView(message: String?) -> some View {
@@ -623,6 +626,7 @@ struct ExplorerSidebarView: View {
             .controlSize(.small)
         }
         .padding(.vertical, 32)
+        .frame(maxWidth: .infinity, alignment: .center)
     }
 
     private var noDatabaseSelectedView: some View {
@@ -639,6 +643,7 @@ struct ExplorerSidebarView: View {
                 .frame(maxWidth: 220)
         }
         .padding(.vertical, 32)
+        .frame(maxWidth: .infinity, alignment: .center)
     }
 
     private var emptyStateView: some View {
@@ -655,6 +660,7 @@ struct ExplorerSidebarView: View {
                 .frame(maxWidth: 240)
         }
         .padding(.vertical, 48)
+        .frame(maxWidth: .infinity, alignment: .center)
     }
 
     private func refreshSelectedSessionStructure() async {

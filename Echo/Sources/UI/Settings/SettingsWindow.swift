@@ -289,6 +289,22 @@ struct AppearanceSettingsView: View {
     @EnvironmentObject private var appState: AppState
     @EnvironmentObject private var themeManager: ThemeManager
 
+    enum AppearanceDetail: String, CaseIterable, Identifiable {
+        case theme
+        case palette
+        case font
+
+        var id: String { rawValue }
+
+        var title: String {
+            switch self {
+            case .theme: return "Theme"
+            case .palette: return "Editor Palette"
+            case .font: return "Editor Font"
+            }
+        }
+    }
+
     @State private var isUpdatingTheme = false
     @State private var isUpdatingPalette = false
 
@@ -307,6 +323,9 @@ struct AppearanceSettingsView: View {
     @State private var isThemeEditorPresented = false
     @State private var isPaletteEditorPresented = false
 
+    @State private var lightAppearanceDetail: AppearanceDetail = .theme
+    @State private var darkAppearanceDetail: AppearanceDetail = .theme
+
 #if os(macOS)
     @StateObject private var fontPickerCoordinator = SystemFontPickerCoordinator()
 #endif
@@ -317,13 +336,11 @@ struct AppearanceSettingsView: View {
             appearanceModeSection
 
             if shouldShowSection(for: .light) {
-                toneSection(for: .light, title: "Light Appearance")
-                queryEditorSection(for: .light, title: "Query Editor (Light)")
+                appearanceSection(for: .light, selection: $lightAppearanceDetail)
             }
 
             if shouldShowSection(for: .dark) {
-                toneSection(for: .dark, title: "Dark Appearance")
-                queryEditorSection(for: .dark, title: "Query Editor (Dark)")
+                appearanceSection(for: .dark, selection: $darkAppearanceDetail)
             }
 
             themeCustomizationSection
@@ -422,51 +439,24 @@ struct AppearanceSettingsView: View {
         }
     }
 
-    private func toneSection(for tone: SQLEditorPalette.Tone, title: String) -> some View {
-        Section(title) {
-            let themes = availableThemes(for: tone)
-            let selectedThemeID = appModel.globalSettings.activeThemeID(for: tone)
-            ThemeAppearanceSection(
-                tone: tone,
-                themes: themes,
-                selectedThemeID: selectedThemeID,
-                isUpdatingTheme: isUpdatingTheme,
-                paletteResolver: { palette(for: $0) },
-                previewFontSize: appModel.globalSettings.defaultEditorFontSize,
-                onSelectTheme: { theme in
-                    selectTheme(theme.id, tone: tone, defaultPaletteID: theme.defaultPaletteID)
-                },
-                onCreateTheme: { startCreatingTheme(tone: tone) },
-                onEditTheme: { theme in startEditingTheme(theme, tone: tone) },
-                onDuplicateTheme: { theme in startDuplicatingTheme(theme, tone: tone) },
-                onDeleteTheme: { theme in themePendingDeletion = theme }
-            )
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Themes control window chrome, toolbars, and workspace surfaces.")
-                Text("Palettes customise SQL editor token colours.")
-                if tone == .dark {
-                    Text("Light and dark settings are stored independently so System mode can switch cleanly.")
-                }
-            }
-            .font(.footnote)
-            .foregroundStyle(.secondary)
-        }
-    }
-
-    private func queryEditorSection(for tone: SQLEditorPalette.Tone, title: String) -> some View {
+    private func appearanceSection(for tone: SQLEditorPalette.Tone, selection: Binding<AppearanceDetail>) -> some View {
         let themes = availableThemes(for: tone)
         let selectedThemeID = appModel.globalSettings.activeThemeID(for: tone)
-        let theme = appModel.globalSettings.theme(withID: selectedThemeID, tone: tone)
-            ?? themes.first
-            ?? themeManager.theme(for: tone)
         let palettes = availablePalettes(for: tone)
         let selectedPaletteID = appModel.globalSettings.defaultPaletteID(for: tone)
+        let activeTheme = appModel.globalSettings.theme(withID: selectedThemeID, tone: tone)
+            ?? themes.first
+            ?? themeManager.theme(for: tone)
 
-        return Section(title) {
-            QueryEditorSection(
+        return Section("Appearance") {
+            AppearanceToneSection(
                 tone: tone,
-                theme: theme,
+                selection: selection,
+                themes: themes,
+                selectedThemeID: selectedThemeID,
+                activeTheme: activeTheme,
+                isUpdatingTheme: isUpdatingTheme,
+                paletteResolver: { palette(for: $0) },
                 palettes: palettes,
                 selectedPaletteID: selectedPaletteID,
                 isUpdatingPalette: isUpdatingPalette,
@@ -474,8 +464,16 @@ struct AppearanceSettingsView: View {
                 fontSize: editorFontSizeBinding,
                 customFontName: appModel.globalSettings.lastCustomEditorFontFamily,
                 ligatureBindingProvider: ligatureBinding(for:),
+                ligatureStatusProvider: { appModel.globalSettings.ligaturesEnabled(for: $0) },
                 fontOptions: editorFontOptions,
                 fontDisplayNameProvider: fontDisplayName(for:),
+                onSelectTheme: { theme in
+                    selectTheme(theme.id, tone: tone, defaultPaletteID: theme.defaultPaletteID)
+                },
+                onCreateTheme: { startCreatingTheme(tone: tone) },
+                onEditTheme: { theme in startEditingTheme(theme, tone: tone) },
+                onDuplicateTheme: { theme in startDuplicatingTheme(theme, tone: tone) },
+                onDeleteTheme: { theme in themePendingDeletion = theme },
                 onSelectPalette: { palette in selectPalette(palette, tone: tone) },
                 onCreatePalette: { startCreatingPalette(tone: tone) },
                 onEditPalette: { palette in startEditingPalette(palette, tone: tone) },
@@ -853,11 +851,7 @@ struct AppearanceSettingsView: View {
         ]
     }
 
-    private static let ligatureCapableFonts: Set<String> = [
-        "FiraCode-Regular",
-        "JetBrainsMono-Regular",
-        "Iosevka"
-    ]
+    private static let ligatureCapableFonts = GlobalSettings.defaultLigatureFonts
 
     private var editorFontFamilyBinding: Binding<String> {
         Binding(
@@ -893,8 +887,8 @@ struct AppearanceSettingsView: View {
     }
 
     private func ligatureBinding(for fontName: String) -> Binding<Bool>? {
-        let key = SQLEditorTheme.normalizedFontName(fontName)
-        guard SettingsWindow.ligatureCapableFonts.contains(key) else { return nil }
+        let key = SQLEditorThemeResolver.normalizedFontName(fontName)
+        guard Self.ligatureCapableFonts.contains(key) else { return nil }
         return Binding(
             get: { appModel.globalSettings.ligaturesEnabled(for: key) },
             set: { newValue in
@@ -1071,56 +1065,133 @@ private enum PaletteEditorMode {
 }
 
 
-private struct ThemeAppearanceSection: View {
+private struct AppearanceToneSection: View {
     let tone: SQLEditorPalette.Tone
+    @Binding var selection: AppearanceSettingsView.AppearanceDetail
     let themes: [AppColorTheme]
     let selectedThemeID: String?
+    let activeTheme: AppColorTheme
     let isUpdatingTheme: Bool
     let paletteResolver: (String?) -> SQLEditorTokenPalette?
-    let previewFontSize: Double
+    let palettes: [SQLEditorTokenPalette]
+    let selectedPaletteID: String
+    let isUpdatingPalette: Bool
+    let selectedFontName: String
+    let fontSize: Binding<Double>
+    let customFontName: String?
+    let ligatureBindingProvider: (String) -> Binding<Bool>?
+    let ligatureStatusProvider: (String) -> Bool
+    let fontOptions: [EditorFontOption]
+    let fontDisplayNameProvider: (String) -> String
     let onSelectTheme: (AppColorTheme) -> Void
     let onCreateTheme: () -> Void
     let onEditTheme: (AppColorTheme) -> Void
     let onDuplicateTheme: (AppColorTheme) -> Void
     let onDeleteTheme: (AppColorTheme) -> Void
+    let onSelectPalette: (SQLEditorTokenPalette) -> Void
+    let onCreatePalette: () -> Void
+    let onEditPalette: (SQLEditorTokenPalette) -> Void
+    let onDuplicatePalette: (SQLEditorTokenPalette) -> Void
+    let onDeletePalette: (SQLEditorTokenPalette) -> Void
+    let onSelectFont: (String) -> Void
+    let onRequestCustomFont: () -> Void
 
     @State private var hoveredThemeID: String?
+    @State private var hoveredPaletteID: String?
+    @State private var hoveredFontName: String?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: 20) {
+            toneLabel
+            detailPicker
             AdaptivePreviewGrid(
                 hero: heroPreview,
-                secondary: paletteSummary,
+                secondary: palettePreview,
                 minimumHeight: previewTileHeight + 60
             )
+            detailContent
+            footnote
+        }
+        .animation(.easeInOut(duration: 0.16), value: hoveredThemeID)
+        .animation(.easeInOut(duration: 0.16), value: hoveredPaletteID)
+        .animation(.easeInOut(duration: 0.16), value: hoveredFontName)
+        .onChange(of: selection) { _ in
+            hoveredThemeID = nil
+            hoveredPaletteID = nil
+            hoveredFontName = nil
+        }
+    }
 
+    private var toneLabel: some View {
+        Text(toneTitle.uppercased())
+            .font(.caption)
+            .fontWeight(.semibold)
+            .foregroundStyle(.secondary)
+    }
+
+    private var detailPicker: some View {
+        Picker("Appearance Detail", selection: $selection) {
+            ForEach(AppearanceSettingsView.AppearanceDetail.allCases) { detail in
+                Text(detail.title).tag(detail)
+            }
+        }
+        .pickerStyle(.segmented)
+        .padding(.bottom, 4)
+    }
+
+    @ViewBuilder
+    private var detailContent: some View {
+        switch selection {
+        case .theme:
+            themeSelector
+        case .palette:
+            paletteSelector
+        case .font:
+            fontSelector
+        }
+    }
+
+    private var themeSelector: some View {
+        VStack(alignment: .leading, spacing: 16) {
             Text("Themes")
                 .font(.headline)
 
-            LazyVGrid(columns: chipColumns, spacing: 12) {
-                ForEach(themes) { theme in
-                    let palette = resolvedPalette(for: theme)
-                    ThemeChip(
-                        title: theme.name,
-                        subtitle: palette.name,
-                        swatchColors: swatches(for: theme, palette: palette),
-                        isSelected: selectedThemeID == theme.id,
-                        isBusy: isUpdatingTheme && selectedThemeID == theme.id,
-                        isDisabled: isUpdatingTheme,
-                        badge: themeBadge(for: theme, palette: palette),
-                        onTap: { onSelectTheme(theme) },
-                        onHoverChanged: { hovering in hoveredThemeID = hovering ? theme.id : nil },
-                        showsContextMenu: true
-                    ) {
-                        if theme.isCustom {
-                            Button("Edit Theme…") { onEditTheme(theme) }
-                            Button("Duplicate…") { onDuplicateTheme(theme) }
-                            Button("Delete", role: .destructive) { onDeleteTheme(theme) }
-                        } else {
-                            Button("Duplicate…") { onDuplicateTheme(theme) }
+            if themes.isEmpty {
+                Text("No themes available for this tone.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            } else {
+                LazyVGrid(columns: themeColumns, spacing: 12) {
+                    ForEach(themes) { theme in
+                        let palette = resolvedPalette(for: theme)
+                        ThemeChip(
+                            title: theme.name,
+                            subtitle: palette.name,
+                            swatchColors: swatches(for: theme, palette: palette),
+                            isSelected: selectedThemeID == theme.id,
+                            isBusy: isUpdatingTheme && selectedThemeID == theme.id,
+                            isDisabled: isUpdatingTheme,
+                            badge: themeBadge(for: theme, palette: palette),
+                            onTap: { onSelectTheme(theme) },
+                            onHoverChanged: { hovering in
+                                if hovering {
+                                    hoveredThemeID = theme.id
+                                } else if hoveredThemeID == theme.id {
+                                    hoveredThemeID = nil
+                                }
+                            },
+                            showsContextMenu: true
+                        ) {
+                            if theme.isCustom {
+                                Button("Edit Theme…") { onEditTheme(theme) }
+                                Button("Duplicate…") { onDuplicateTheme(theme) }
+                                Button("Delete", role: .destructive) { onDeleteTheme(theme) }
+                            } else {
+                                Button("Duplicate…") { onDuplicateTheme(theme) }
+                            }
                         }
+                        .disabled(isUpdatingTheme)
                     }
-                    .disabled(isUpdatingTheme)
                 }
             }
 
@@ -1131,11 +1202,137 @@ private struct ThemeAppearanceSection: View {
                 Spacer()
             }
         }
-        .animation(.easeInOut(duration: 0.16), value: hoveredThemeID)
+    }
+
+    private var paletteSelector: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Editor Palette")
+                .font(.headline)
+
+            if palettes.isEmpty {
+                Text("No palettes available for this tone.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            } else {
+                LazyVGrid(columns: paletteColumns, spacing: 12) {
+                    ForEach(palettes, id: \.id) { palette in
+                        PaletteChip(
+                            palette: palette,
+                            isSelected: selectedPaletteID == palette.id,
+                            isBusy: isUpdatingPalette && selectedPaletteID == palette.id,
+                            isDisabled: isUpdatingPalette,
+                            badge: paletteBadge(for: palette),
+                            onTap: { onSelectPalette(palette) },
+                            onHoverChanged: { hovering in
+                                if hovering {
+                                    hoveredPaletteID = palette.id
+                                } else if hoveredPaletteID == palette.id {
+                                    hoveredPaletteID = nil
+                                }
+                            },
+                            showsContextMenu: true
+                        ) {
+                            if palette.kind == .custom {
+                                Button("Edit Palette…") { onEditPalette(palette) }
+                                Button("Duplicate…") { onDuplicatePalette(palette) }
+                                Button("Delete", role: .destructive) { onDeletePalette(palette) }
+                            } else {
+                                Button("Duplicate…") { onDuplicatePalette(palette) }
+                            }
+                        }
+                        .disabled(isUpdatingPalette)
+                    }
+                }
+            }
+
+            HStack {
+                Button("New Palette…", action: onCreatePalette)
+                    .buttonStyle(.bordered)
+                    .disabled(isUpdatingPalette)
+                Spacer()
+            }
+        }
+    }
+
+    private var fontSelector: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Editor Font")
+                .font(.headline)
+
+            LazyVGrid(columns: fontColumns, spacing: 12) {
+                ForEach(fontOptions) { option in
+                    FontChip(
+                        title: option.displayName,
+                        sampleFontName: option.postScriptName,
+                        sampleFontSize: chipSampleFontSize,
+                        isSelected: selectedFontName == option.postScriptName,
+                        onSelect: { onSelectFont(option.postScriptName) },
+                        ligatureBinding: ligatureBindingProvider(option.postScriptName),
+                        onHoverChanged: { hovering in
+                            if hovering {
+                                hoveredFontName = option.postScriptName
+                            } else if hoveredFontName == option.postScriptName {
+                                hoveredFontName = nil
+                            }
+                        }
+                    )
+                }
+
+                if let customOption = persistentCustomFontOption {
+                    FontChip(
+                        title: "System Font",
+                        subtitle: fontDisplayNameProvider(customOption.postScriptName),
+                        sampleFontName: customOption.postScriptName,
+                        sampleFontSize: chipSampleFontSize,
+                        isSelected: selectedFontName == customOption.postScriptName,
+                        onSelect: { onSelectFont(customOption.postScriptName) },
+                        style: .highlighted,
+                        ligatureBinding: ligatureBindingProvider(customOption.postScriptName),
+                        onHoverChanged: { hovering in
+                            if hovering {
+                                hoveredFontName = customOption.postScriptName
+                            } else if hoveredFontName == customOption.postScriptName {
+                                hoveredFontName = nil
+                            }
+                        }
+                    )
+                }
+            }
+
+            HStack(spacing: 12) {
+                Text("Font size")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Text(fontSizeLabel(fontSize.wrappedValue))
+                    .font(.body)
+                    .monospacedDigit()
+                Stepper("", value: fontSize, in: fontSizeRange, step: fontSizeStep)
+                    .labelsHidden()
+                    .controlSize(.small)
+                    .accessibilityLabel("Font size")
+            }
+            .padding(.top, 4)
+
+            Button("Choose from System…", action: onRequestCustomFont)
+                .buttonStyle(.bordered)
+        }
+    }
+
+    private var footnote: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("Themes control window chrome, toolbars, and workspace surfaces.")
+            Text("Palettes customise SQL editor token colours.")
+            if tone == .dark {
+                Text("Light and dark settings are stored independently so System mode can switch cleanly.")
+            }
+        }
+        .font(.footnote)
+        .foregroundStyle(.secondary)
     }
 
     private var heroPreview: some View {
-        let theme = displayedTheme
+        let theme = previewTheme
         let palette = resolvedPalette(for: theme)
         return PreviewTile(
             title: theme.name,
@@ -1148,27 +1345,181 @@ private struct ThemeAppearanceSection: View {
         }
     }
 
-    private var paletteSummary: some View {
-        let theme = displayedTheme
-        let palette = resolvedPalette(for: theme)
+    private var palettePreview: some View {
+        let theme = previewTheme
+        let palette = previewPalette
+        let fontName = previewFontName
+        let sizeValue = previewFontSize
         return PreviewTile(
             title: palette.name,
-            subtitle: "Default Palette",
+            subtitle: paletteSubtitle,
             background: paletteHeroGradient(for: theme, palette: palette),
             shadowColor: palette.tokens.keyword.swiftColor.opacity(theme.tone == .dark ? 0.22 : 0.14)
         ) {
             QueryEditorPreview(
                 theme: theme,
                 palette: palette,
-                fontName: "JetBrainsMono-Regular",
-                fontSize: previewFontSize
+                fontName: fontName,
+                fontSize: sizeValue,
+                ligaturesEnabled: ligatureStatusProvider(fontName)
             )
-                .scaleEffect(0.94)
+            .overlay(alignment: .topTrailing) {
+                if manualSelectionActive && selection != .theme && (selection != .palette || hoveredPaletteID == nil) {
+                    TagBadge(
+                        label: "Manual",
+                        foreground: Color.accentColor,
+                        background: Color.accentColor.opacity(0.18)
+                    )
+                    .padding(12)
+                }
+            }
         }
     }
 
-    private var chipColumns: [GridItem] {
+    private var themeColumns: [GridItem] {
         [GridItem(.adaptive(minimum: 152, maximum: 220), spacing: 12)]
+    }
+
+    private var paletteColumns: [GridItem] {
+        [GridItem(.adaptive(minimum: 152, maximum: 220), spacing: 12)]
+    }
+
+    private var fontColumns: [GridItem] {
+        [GridItem(.adaptive(minimum: 140, maximum: 200), spacing: 12)]
+    }
+
+    private var previewTheme: AppColorTheme {
+        if selection == .theme,
+           let hoveredThemeID,
+           let match = themes.first(where: { $0.id == hoveredThemeID }) {
+            return match
+        }
+        if let selectedThemeID,
+           let match = themes.first(where: { $0.id == selectedThemeID }) {
+            return match
+        }
+        if let first = themes.first {
+            return first
+        }
+        return activeTheme
+    }
+
+    private var previewPalette: SQLEditorTokenPalette {
+        switch selection {
+        case .theme:
+            return resolvedPalette(for: previewTheme)
+        case .palette:
+            if let hoveredPaletteID,
+               let match = palettes.first(where: { $0.id == hoveredPaletteID }) {
+                return match
+            }
+            return palettes.first(where: { $0.id == selectedPaletteID })
+                ?? palettes.first
+                ?? resolvedPalette(for: activeTheme)
+        case .font:
+            return palettes.first(where: { $0.id == selectedPaletteID })
+                ?? resolvedPalette(for: activeTheme)
+        }
+    }
+
+    private var previewFontName: String {
+        if selection == .font, let hoveredFontName {
+            return hoveredFontName
+        }
+        return selectedFontName
+    }
+
+    private var previewFontSize: Double {
+        fontSize.wrappedValue
+    }
+
+    private var manualSelectionActive: Bool {
+        selectedPaletteID != activeTheme.defaultPaletteID
+    }
+
+    private var paletteSubtitle: String {
+        switch selection {
+        case .theme:
+            return "Default Palette"
+        case .palette:
+            return previewPalette.kind == .custom ? "Custom Palette" : "Built-in Palette"
+        case .font:
+            return "\(fontDisplayNameProvider(previewFontName)) · \(fontSizeLabel(previewFontSize))"
+        }
+    }
+
+    private var toneTitle: String {
+        switch tone {
+        case .light: return "Light"
+        case .dark: return "Dark"
+        }
+    }
+
+    private var fontSizeRange: ClosedRange<Double> { 8...24 }
+    private var fontSizeStep: Double { 0.5 }
+
+    private var chipSampleFontSize: CGFloat {
+        let size = fontSize.wrappedValue
+        return CGFloat(min(max(size, 10), 20))
+    }
+
+    private var persistentCustomFontOption: EditorFontOption? {
+        guard let name = persistedCustomFontName else { return nil }
+        return EditorFontOption(id: "custom-\(name)", postScriptName: name, displayName: fontDisplayNameProvider(name))
+    }
+
+    private var persistedCustomFontName: String? {
+        if let stored = customFontName?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !stored.isEmpty,
+           !isBundledFont(stored) {
+            return stored
+        }
+        if !isBundledFont(selectedFontName) {
+            return selectedFontName
+        }
+        return nil
+    }
+
+    private func isBundledFont(_ name: String) -> Bool {
+        fontOptions.contains { $0.postScriptName == name }
+    }
+
+    private func fontSizeLabel(_ value: Double) -> String {
+        let rounded = (value * 10).rounded() / 10
+        if abs(rounded.rounded() - rounded) < 0.0001 {
+            return "\(Int(rounded.rounded())) pt"
+        }
+        return String(format: "%.1f pt", rounded)
+    }
+
+    private func resolvedPalette(for theme: AppColorTheme) -> SQLEditorTokenPalette {
+        if let palette = paletteResolver(theme.defaultPaletteID) {
+            return palette
+        }
+        if let palette = SQLEditorTokenPalette.palette(withID: theme.defaultPaletteID) {
+            return palette
+        }
+        return SQLEditorTokenPalette(from: theme.tone == .dark ? SQLEditorPalette.midnight : SQLEditorPalette.aurora)
+    }
+
+    private func swatches(for theme: AppColorTheme, palette: SQLEditorTokenPalette) -> [Color] {
+        let swatchColors = theme.swatchColors.map { $0.color }
+        if !swatchColors.isEmpty {
+            return Array(swatchColors.prefix(6))
+        }
+        return Array(palette.showcaseColors.prefix(6))
+    }
+
+    private func themeBadge(for theme: AppColorTheme, palette: SQLEditorTokenPalette) -> ChipBadge? {
+        guard theme.isCustom else { return nil }
+        let accent = theme.accent?.color ?? palette.tokens.keyword.swiftColor
+        return ChipBadge(label: "Custom", foreground: accent, background: accent.opacity(0.16))
+    }
+
+    private func paletteBadge(for palette: SQLEditorTokenPalette) -> ChipBadge? {
+        guard palette.kind == .custom else { return nil }
+        let accent = palette.tokens.keyword.swiftColor
+        return ChipBadge(label: "Custom", foreground: accent, background: accent.opacity(0.16))
     }
 
     private func themeHeroGradient(for theme: AppColorTheme) -> LinearGradient {
@@ -1196,272 +1547,6 @@ private struct ThemeAppearanceSection: View {
             startPoint: .topLeading,
             endPoint: .bottomTrailing
         )
-    }
-
-    private var displayedTheme: AppColorTheme {
-        if let hovered = hoveredThemeID,
-           let match = themes.first(where: { $0.id == hovered }) {
-            return match
-        }
-        if let selected = selectedThemeID,
-           let match = themes.first(where: { $0.id == selected }) {
-            return match
-        }
-        return themes.first ?? AppColorTheme.fromPalette(tone == .dark ? SQLEditorPalette.midnight : SQLEditorPalette.aurora)
-    }
-
-    private func resolvedPalette(for theme: AppColorTheme) -> SQLEditorTokenPalette {
-        if let palette = paletteResolver(theme.defaultPaletteID) {
-            return palette
-        }
-        if let palette = SQLEditorTokenPalette.palette(withID: theme.defaultPaletteID) {
-            return palette
-        }
-        return SQLEditorTokenPalette(from: theme.tone == .dark ? SQLEditorPalette.midnight : SQLEditorPalette.aurora)
-    }
-
-    private func swatches(for theme: AppColorTheme, palette: SQLEditorTokenPalette) -> [Color] {
-        let swatches = theme.swatchColors.map { $0.color }
-        if !swatches.isEmpty {
-            return Array(swatches.prefix(6))
-        }
-        return Array(palette.showcaseColors.prefix(6))
-    }
-
-    private func themeBadge(for theme: AppColorTheme, palette: SQLEditorTokenPalette) -> ChipBadge? {
-        guard theme.isCustom else { return nil }
-        let accent = theme.accent?.color ?? palette.tokens.keyword.swiftColor
-        return ChipBadge(label: "Custom", foreground: accent, background: accent.opacity(0.16))
-    }
-}
-
-private struct QueryEditorSection: View {
-    let tone: SQLEditorPalette.Tone
-    let theme: AppColorTheme
-    let palettes: [SQLEditorTokenPalette]
-    let selectedPaletteID: String
-    let isUpdatingPalette: Bool
-    let selectedFontName: String
-    let fontSize: Binding<Double>
-    let customFontName: String?
-    let ligatureBindingProvider: (String) -> Binding<Bool>?
-    let fontOptions: [EditorFontOption]
-    let fontDisplayNameProvider: (String) -> String
-    let onSelectPalette: (SQLEditorTokenPalette) -> Void
-    let onCreatePalette: () -> Void
-    let onEditPalette: (SQLEditorTokenPalette) -> Void
-    let onDuplicatePalette: (SQLEditorTokenPalette) -> Void
-    let onDeletePalette: (SQLEditorTokenPalette) -> Void
-    let onSelectFont: (String) -> Void
-    let onRequestCustomFont: () -> Void
-
-    @State private var hoveredPaletteID: String?
-    @State private var hoveredFontName: String?
-
-    private let fontSizeRange: ClosedRange<Double> = 8...24
-    private let fontSizeStep: Double = 0.5
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            queryPreview
-
-            Text("Palettes")
-                .font(.headline)
-
-            if palettes.isEmpty {
-                Text("No palettes available for this tone.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            } else {
-                LazyVGrid(columns: chipColumns, spacing: 12) {
-                    ForEach(palettes, id: \.id) { palette in
-                        PaletteChip(
-                            palette: palette,
-                            isSelected: selectedPaletteID == palette.id,
-                            isBusy: isUpdatingPalette && selectedPaletteID == palette.id,
-                            isDisabled: isUpdatingPalette,
-                            badge: paletteBadge(for: palette),
-                            onTap: { onSelectPalette(palette) },
-                            onHoverChanged: { hovering in hoveredPaletteID = hovering ? palette.id : nil },
-                            showsContextMenu: true
-                        ) {
-                            if palette.kind == .custom {
-                                Button("Edit Palette…") { onEditPalette(palette) }
-                                Button("Duplicate…") { onDuplicatePalette(palette) }
-                                Button("Delete", role: .destructive) { onDeletePalette(palette) }
-                            } else {
-                                Button("Duplicate…") { onDuplicatePalette(palette) }
-                            }
-                        }
-                        .disabled(isUpdatingPalette)
-                    }
-                }
-            }
-
-            HStack {
-                Button("New Palette…", action: onCreatePalette)
-                    .buttonStyle(.bordered)
-                    .disabled(isUpdatingPalette)
-                Spacer()
-            }
-
-            Divider()
-
-            fontPicker
-        }
-        .animation(.easeInOut(duration: 0.16), value: hoveredPaletteID)
-    }
-
-    private var chipColumns: [GridItem] {
-        [GridItem(.adaptive(minimum: 152, maximum: 220), spacing: 12)]
-    }
-
-    private var displayedPalette: SQLEditorTokenPalette {
-        if let hovered = hoveredPaletteID,
-           let palette = palettes.first(where: { $0.id == hovered }) {
-            return palette
-        }
-        return palettes.first(where: { $0.id == selectedPaletteID })
-            ?? palettes.first
-            ?? SQLEditorTokenPalette(from: tone == .dark ? SQLEditorPalette.midnight : SQLEditorPalette.aurora)
-    }
-
-    private var manualSelectionActive: Bool {
-        selectedPaletteID != theme.defaultPaletteID
-    }
-
-    private func fontSizeLabel(_ value: Double) -> String {
-        let rounded = (value * 10).rounded() / 10
-        if abs(rounded.rounded() - rounded) < 0.0001 {
-            return "\(Int(rounded.rounded())) pt"
-        }
-        return String(format: "%.1f pt", rounded)
-    }
-
-    private var previewFontName: String {
-        hoveredFontName ?? selectedFontName
-    }
-
-    private var previewFontSize: Double {
-        fontSize.wrappedValue
-    }
-
-    private var chipSampleFontSize: CGFloat {
-        let size = fontSize.wrappedValue
-        return CGFloat(min(max(size, 10), 20))
-    }
-
-    private func isBundledFont(_ name: String) -> Bool {
-        fontOptions.contains { $0.postScriptName == name }
-    }
-
-    private var persistedCustomFontName: String? {
-        if let stored = customFontName?.trimmingCharacters(in: .whitespacesAndNewlines),
-           !stored.isEmpty,
-           !isBundledFont(stored) {
-            return stored
-        }
-        if !isBundledFont(selectedFontName) {
-            return selectedFontName
-        }
-        return nil
-    }
-
-    private var persistentCustomFontOption: EditorFontOption? {
-        guard let name = persistedCustomFontName else { return nil }
-        return EditorFontOption(id: "custom-\(name)", postScriptName: name, displayName: fontDisplayNameProvider(name))
-    }
-
-    private var queryPreview: some View {
-        let palette = displayedPalette
-        let fontName = previewFontName
-        let sizeLabel = fontSizeLabel(previewFontSize)
-        return VStack(alignment: .leading, spacing: 8) {
-            Text(palette.name)
-                .font(.headline)
-            QueryEditorPreview(theme: theme, palette: palette, fontName: fontName, fontSize: previewFontSize)
-                .overlay(alignment: .topTrailing) {
-                    if manualSelectionActive && hoveredPaletteID == nil {
-                        TagBadge(
-                            label: "Manual",
-                            foreground: Color.accentColor,
-                            background: Color.accentColor.opacity(0.18)
-                        )
-                        .padding(12)
-                    }
-                }
-            Text("\(fontDisplayNameProvider(fontName)) · \(sizeLabel)")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-        }
-    }
-
-    private var fontPicker: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Editor Font")
-                .font(.headline)
-
-            let columns = [GridItem(.adaptive(minimum: 140, maximum: 200), spacing: 12)]
-            let chipSampleSize = chipSampleFontSize
-
-            LazyVGrid(columns: columns, spacing: 12) {
-                ForEach(fontOptions) { option in
-                    FontChip(
-                        title: option.displayName,
-                        sampleFontName: option.postScriptName,
-                        sampleFontSize: chipSampleSize,
-                        isSelected: selectedFontName == option.postScriptName,
-                        onSelect: { onSelectFont(option.postScriptName) },
-                        ligatureBinding: ligatureBindingProvider(option.postScriptName),
-                        onHoverChanged: { hovering in
-                            if hovering {
-                                hoveredFontName = option.postScriptName
-                            } else if hoveredFontName == option.postScriptName {
-                                hoveredFontName = nil
-                            }
-                        }
-                    )
-                }
-
-                if let customOption = persistentCustomFontOption {
-                    FontChip(
-                        title: "System Font",
-                        subtitle: fontDisplayNameProvider(customOption.postScriptName),
-                        sampleFontName: customOption.postScriptName,
-                        sampleFontSize: chipSampleSize,
-                        isSelected: selectedFontName == customOption.postScriptName,
-                        onSelect: { onSelectFont(customOption.postScriptName) },
-                        style: .highlighted,
-                        ligatureBinding: ligatureBindingProvider(customOption.postScriptName),
-                        onHoverChanged: { hovering in
-                            if hovering {
-                                hoveredFontName = customOption.postScriptName
-                            } else if hoveredFontName == customOption.postScriptName {
-                                hoveredFontName = nil
-                            }
-                        }
-                    )
-                }
-            }
-
-            LabeledContent("Font size") {
-                Stepper(value: fontSize, in: fontSizeRange, step: fontSizeStep) {
-                    Text(fontSizeLabel(fontSize.wrappedValue))
-                        .monospacedDigit()
-                        .frame(width: 72, alignment: .trailing)
-                }
-                .controlSize(.small)
-            }
-
-            Button("Choose from System…", action: onRequestCustomFont)
-                .buttonStyle(.bordered)
-        }
-    }
-
-    private func paletteBadge(for palette: SQLEditorTokenPalette) -> ChipBadge? {
-        guard palette.kind == .custom else { return nil }
-        let accent = palette.tokens.keyword.swiftColor
-        return ChipBadge(label: "Custom", foreground: accent, background: accent.opacity(0.16))
     }
 }
 
@@ -2064,6 +2149,7 @@ private struct QueryEditorPreview: View {
     let palette: SQLEditorTokenPalette
     let fontName: String
     let fontSize: Double
+    let ligaturesEnabled: Bool
 
     var body: some View {
         PaletteSnippetPreview(
@@ -2075,7 +2161,8 @@ private struct QueryEditorPreview: View {
             defaultText: theme.editorForeground.color,
             tokenColors: palette.tokens,
             isDark: theme.tone == .dark,
-            font: previewFont
+            font: previewFont,
+            ligaturesEnabled: ligaturesEnabled
         )
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
     }
@@ -2153,8 +2240,7 @@ private struct FontChip: View {
         ZStack(alignment: .bottomTrailing) {
             Button(action: onSelect) {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("SELECT * FROM table;")
-                        .font(sampleFont)
+                    samplePreviewText
                         .lineLimit(1)
                         .minimumScaleFactor(0.7)
                         .foregroundStyle(sampleTextColor)
@@ -2174,7 +2260,9 @@ private struct FontChip: View {
                         }
                     }
                 }
-                .padding(14)
+                .padding(.horizontal, 14)
+                .padding(.top, 14)
+                .padding(.bottom, hasAccessory ? 28 : 14)
                 .frame(minWidth: 140, maxWidth: .infinity, alignment: .leading)
                 .background(backgroundFill)
                 .overlay(borderOverlay)
@@ -2186,17 +2274,10 @@ private struct FontChip: View {
 
             if let ligatureBinding {
                 LigatureSelector(isEnabled: ligatureBinding)
-                    .padding(10)
+                    .padding(.trailing, 8)
+                    .padding(.bottom, 6)
             }
         }
-    }
-
-    private var sampleFont: Font {
-        let clampedSize = max(9, min(sampleFontSize, 24))
-        if sampleFontName.isEmpty || SQLEditorTheme.isSystemFontIdentifier(sampleFontName) {
-            return .system(size: clampedSize, weight: .medium, design: .monospaced)
-        }
-        return .custom(sampleFontName, size: clampedSize)
     }
 
     private var backgroundFill: some View {
@@ -2248,28 +2329,54 @@ private struct FontChip: View {
     private var subtitleColor: Color {
         style == .highlighted ? Color.white.opacity(0.85) : Color.secondary
     }
+
+    private var hasAccessory: Bool {
+        ligatureBinding != nil
+    }
+
+    private var samplePreviewText: Text {
+        let ligatureValue = (ligatureBinding?.wrappedValue ?? true) ? 1 : 0
+        let string = "SELECT * FROM table;"
+        let attributed = NSMutableAttributedString(string: string)
+        let range = NSRange(location: 0, length: attributed.length)
+#if os(macOS)
+        attributed.addAttribute(.font, value: samplePlatformFont, range: range)
+#else
+        attributed.addAttribute(.font, value: samplePlatformFont, range: range)
+#endif
+        attributed.addAttribute(.ligature, value: ligatureValue, range: range)
+        return Text(AttributedString(attributed))
+    }
+
+#if os(macOS)
+    private var samplePlatformFont: NSFont {
+        NSFontWithFallback(name: sampleFontName, size: sampleFontSize, ligaturesEnabled: ligatureBinding?.wrappedValue ?? true).font
+    }
+#else
+    private var samplePlatformFont: UIFont {
+        NSFontWithFallback(name: sampleFontName, size: sampleFontSize, ligaturesEnabled: ligatureBinding?.wrappedValue ?? true).font
+    }
+#endif
 }
 
 private struct LigatureSelector: View {
     @Binding var isEnabled: Bool
 
-    private var controlBackground: some View {
-        RoundedRectangle(cornerRadius: 9, style: .continuous)
-            .fill(Color.black.opacity(0.25))
-            .overlay(
-                RoundedRectangle(cornerRadius: 9, style: .continuous)
-                    .stroke(Color.white.opacity(0.18), lineWidth: 1)
-            )
-    }
-
     var body: some View {
-        HStack(spacing: 4) {
+        HStack(spacing: 2) {
             optionButton(label: "fi", enablesLigatures: false, isActive: !isEnabled)
             optionButton(label: "ﬁ", enablesLigatures: true, isActive: isEnabled)
         }
-        .padding(.horizontal, 6)
-        .padding(.vertical, 4)
-        .background(controlBackground)
+        .padding(.horizontal, 5)
+        .padding(.vertical, 3)
+        .background(
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .fill(Color.black.opacity(0.22))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                        .stroke(Color.white.opacity(0.18), lineWidth: 1)
+                )
+        )
     }
 
     private func optionButton(label: String, enablesLigatures: Bool, isActive: Bool) -> some View {
@@ -2279,10 +2386,8 @@ private struct LigatureSelector: View {
             }
         } label: {
             Text(label)
-                .font(.system(size: 11, weight: .semibold, design: .monospaced))
-                .frame(minWidth: 18)
-                .padding(.horizontal, 4)
-                .padding(.vertical, 2)
+                .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                .frame(width: 18, height: 16)
                 .foregroundColor(isActive ? Color.white : Color.white.opacity(0.7))
                 .background(
                     RoundedRectangle(cornerRadius: 6, style: .continuous)
@@ -2290,6 +2395,7 @@ private struct LigatureSelector: View {
                 )
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(enablesLigatures ? "Enable ligatures" : "Disable ligatures")
     }
 }
 
@@ -2395,6 +2501,7 @@ private struct PaletteSnippetPreview: View {
     let tokenColors: SQLEditorPalette.TokenColors
     let isDark: Bool
     let font: Font
+    let ligaturesEnabled: Bool
 
     init(
         background: Color,
@@ -2405,7 +2512,8 @@ private struct PaletteSnippetPreview: View {
         defaultText: Color,
         tokenColors: SQLEditorPalette.TokenColors,
         isDark: Bool,
-        font: Font = .system(size: 9, weight: .medium, design: .monospaced)
+        font: Font = .system(size: 9, weight: .medium, design: .monospaced),
+        ligaturesEnabled: Bool = true
     ) {
         self.background = background
         self.gutterBackground = gutterBackground
@@ -2416,6 +2524,7 @@ private struct PaletteSnippetPreview: View {
         self.tokenColors = tokenColors
         self.isDark = isDark
         self.font = font
+        self.ligaturesEnabled = ligaturesEnabled
     }
 
     var body: some View {
@@ -2491,6 +2600,7 @@ private struct PaletteSnippetPreview: View {
             var span = AttributedString(segment.0)
             span.font = font
             span.foregroundColor = segment.1
+            span.ligature = ligaturesEnabled ? 1 : 0
             attributed.append(span)
         }
 

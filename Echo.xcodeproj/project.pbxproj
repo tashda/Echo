@@ -16,19 +16,19 @@
 		0ADF94BD2E78BAA400E993F8 /* _ConnectionPoolTestUtils in Frameworks */ = {isa = PBXBuildFile; productRef = 0ADF94BC2E78BAA400E993F8 /* _ConnectionPoolTestUtils */; };
 		0C1234522F9ABC0100ABCDE /* SQLAutocompleteKit in Frameworks */ = {isa = PBXBuildFile; productRef = 0C1234512F9ABC0100ABCDE /* SQLAutocompleteKit */; };
 		198ED504586B4F4B8D2B074E /* QueryEditorUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E50DD38876CF4E95827F9B3D /* QueryEditorUITests.swift */; };
+		6030A29ABBCD58751DCA65AE /* SourceCodePro-Regular.ttf in CopyFiles */ = {isa = PBXBuildFile; fileRef = 63CF0995418024155EBA8F37 /* SourceCodePro-Regular.ttf */; };
+		8ECF63DBB3844802B62E76D4 /* UbuntuMono-Regular.ttf in CopyFiles */ = {isa = PBXBuildFile; fileRef = 533ECEA388B5E26722814A7C /* UbuntuMono-Regular.ttf */; };
+		B66C2F887E35A3358F209F93 /* Hack-Regular.ttf in CopyFiles */ = {isa = PBXBuildFile; fileRef = B76434B110ACC86CC86642A1 /* Hack-Regular.ttf */; };
+		C93850D54E3A549BC7E315B3 /* Inconsolata-Regular.ttf in CopyFiles */ = {isa = PBXBuildFile; fileRef = 23F736A358A1CCBACD3B0834 /* Inconsolata-Regular.ttf */; };
 		D316B590203F49689AC5D29A /* SQLEditorRegexTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD46E27623774768B647E31C /* SQLEditorRegexTests.swift */; };
+		D3BB6F6FC954AA040392C7C7 /* AnonymousPro-Regular.ttf in CopyFiles */ = {isa = PBXBuildFile; fileRef = CC1194D7AF45D51E8E8EA8C4 /* AnonymousPro-Regular.ttf */; };
+		E1CF7F199F60040BF42A54DF /* MesloLGS-Regular.ttf in CopyFiles */ = {isa = PBXBuildFile; fileRef = 9CC0B2EBE9BD3F338658D526 /* MesloLGS-Regular.ttf */; };
+		E2E872DC3647C4621284F1B2 /* Iosevka-Regular.ttf in CopyFiles */ = {isa = PBXBuildFile; fileRef = 9914A75C43EF3F555CE8E868 /* Iosevka-Regular.ttf */; };
 		F17A0E1C2FC1C3BC007F5489 /* FiraCode-Regular.ttf in CopyFiles */ = {isa = PBXBuildFile; fileRef = F17A0E0F2FC1B3F8007F5489 /* FiraCode-Regular.ttf */; };
 		F17A0E1D2FC1C3BC007F5489 /* IBMPlexMono-Regular.ttf in CopyFiles */ = {isa = PBXBuildFile; fileRef = F17A0E102FC1B3F8007F5489 /* IBMPlexMono-Regular.ttf */; };
 		F17A0E1E2FC1C3BC007F5489 /* JetBrainsMono-Regular.ttf in CopyFiles */ = {isa = PBXBuildFile; fileRef = F17A0E112FC1B3F8007F5489 /* JetBrainsMono-Regular.ttf */; };
 		F17A0E1F2FC1C3BC007F5489 /* RecursiveMonoLinear-Regular.ttf in CopyFiles */ = {isa = PBXBuildFile; fileRef = F17A0E122FC1B3F8007F5489 /* RecursiveMonoLinear-Regular.ttf */; };
 		F17A0E202FC1C3BC007F5489 /* SplineSansMono-Regular.ttf in CopyFiles */ = {isa = PBXBuildFile; fileRef = F17A0E132FC1B3F8007F5489 /* SplineSansMono-Regular.ttf */; };
-		6030A29ABBCD58751DCA65AE /* SourceCodePro-Regular.ttf in CopyFiles */ = {isa = PBXBuildFile; fileRef = 63CF0995418024155EBA8F37 /* SourceCodePro-Regular.ttf */; };
-		B66C2F887E35A3358F209F93 /* Hack-Regular.ttf in CopyFiles */ = {isa = PBXBuildFile; fileRef = B76434B110ACC86CC86642A1 /* Hack-Regular.ttf */; };
-		8ECF63DBB3844802B62E76D4 /* UbuntuMono-Regular.ttf in CopyFiles */ = {isa = PBXBuildFile; fileRef = 533ECEA388B5E26722814A7C /* UbuntuMono-Regular.ttf */; };
-		C93850D54E3A549BC7E315B3 /* Inconsolata-Regular.ttf in CopyFiles */ = {isa = PBXBuildFile; fileRef = 23F736A358A1CCBACD3B0834 /* Inconsolata-Regular.ttf */; };
-		E1CF7F199F60040BF42A54DF /* MesloLGS-Regular.ttf in CopyFiles */ = {isa = PBXBuildFile; fileRef = 9CC0B2EBE9BD3F338658D526 /* MesloLGS-Regular.ttf */; };
-		D3BB6F6FC954AA040392C7C7 /* AnonymousPro-Regular.ttf in CopyFiles */ = {isa = PBXBuildFile; fileRef = CC1194D7AF45D51E8E8EA8C4 /* AnonymousPro-Regular.ttf */; };
-		E2E872DC3647C4621284F1B2 /* Iosevka-Regular.ttf in CopyFiles */ = {isa = PBXBuildFile; fileRef = 9914A75C43EF3F555CE8E868 /* Iosevka-Regular.ttf */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -77,8 +77,15 @@
 		0A7955702E8EF321002279AE /* EchoTests.xctestplan */ = {isa = PBXFileReference; lastKnownFileType = text; path = EchoTests.xctestplan; sourceTree = "<group>"; };
 		0AD4AA292E8D55E100F42692 /* build_sqruff.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = build_sqruff.sh; sourceTree = "<group>"; };
 		0ADF94952E78B95200E993F8 /* Echo.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Echo.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		23F736A358A1CCBACD3B0834 /* Inconsolata-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; name = "Inconsolata-Regular.ttf"; path = "Echo/Resources/Fonts/Inconsolata-Regular.ttf"; sourceTree = "<group>"; };
 		44D226344BD64F6B8A29593F /* EchoUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = EchoUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		533ECEA388B5E26722814A7C /* UbuntuMono-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; name = "UbuntuMono-Regular.ttf"; path = "Echo/Resources/Fonts/UbuntuMono-Regular.ttf"; sourceTree = "<group>"; };
+		63CF0995418024155EBA8F37 /* SourceCodePro-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; name = "SourceCodePro-Regular.ttf"; path = "Echo/Resources/Fonts/SourceCodePro-Regular.ttf"; sourceTree = "<group>"; };
+		9914A75C43EF3F555CE8E868 /* Iosevka-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; name = "Iosevka-Regular.ttf"; path = "Echo/Resources/Fonts/Iosevka-Regular.ttf"; sourceTree = "<group>"; };
+		9CC0B2EBE9BD3F338658D526 /* MesloLGS-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; name = "MesloLGS-Regular.ttf"; path = "Echo/Resources/Fonts/MesloLGS-Regular.ttf"; sourceTree = "<group>"; };
+		B76434B110ACC86CC86642A1 /* Hack-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; name = "Hack-Regular.ttf"; path = "Echo/Resources/Fonts/Hack-Regular.ttf"; sourceTree = "<group>"; };
 		C7719E187414448D93AD6120 /* EchoTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = EchoTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		CC1194D7AF45D51E8E8EA8C4 /* AnonymousPro-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; name = "AnonymousPro-Regular.ttf"; path = "Echo/Resources/Fonts/AnonymousPro-Regular.ttf"; sourceTree = "<group>"; };
 		CD46E27623774768B647E31C /* SQLEditorRegexTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SQLEditorRegexTests.swift; sourceTree = "<group>"; };
 		E50DD38876CF4E95827F9B3D /* QueryEditorUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QueryEditorUITests.swift; sourceTree = "<group>"; };
 		F17A0E0F2FC1B3F8007F5489 /* FiraCode-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; name = "FiraCode-Regular.ttf"; path = "Echo/Resources/Fonts/FiraCode-Regular.ttf"; sourceTree = "<group>"; };
@@ -86,13 +93,6 @@
 		F17A0E112FC1B3F8007F5489 /* JetBrainsMono-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; name = "JetBrainsMono-Regular.ttf"; path = "Echo/Resources/Fonts/JetBrainsMono-Regular.ttf"; sourceTree = "<group>"; };
 		F17A0E122FC1B3F8007F5489 /* RecursiveMonoLinear-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; name = "RecursiveMonoLinear-Regular.ttf"; path = "Echo/Resources/Fonts/RecursiveMonoLinear-Regular.ttf"; sourceTree = "<group>"; };
 		F17A0E132FC1B3F8007F5489 /* SplineSansMono-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; name = "SplineSansMono-Regular.ttf"; path = "Echo/Resources/Fonts/SplineSansMono-Regular.ttf"; sourceTree = "<group>"; };
-		63CF0995418024155EBA8F37 /* SourceCodePro-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; name = "SourceCodePro-Regular.ttf"; path = "Echo/Resources/Fonts/SourceCodePro-Regular.ttf"; sourceTree = "<group>"; };
-		B76434B110ACC86CC86642A1 /* Hack-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; name = "Hack-Regular.ttf"; path = "Echo/Resources/Fonts/Hack-Regular.ttf"; sourceTree = "<group>"; };
-		533ECEA388B5E26722814A7C /* UbuntuMono-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; name = "UbuntuMono-Regular.ttf"; path = "Echo/Resources/Fonts/UbuntuMono-Regular.ttf"; sourceTree = "<group>"; };
-		23F736A358A1CCBACD3B0834 /* Inconsolata-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; name = "Inconsolata-Regular.ttf"; path = "Echo/Resources/Fonts/Inconsolata-Regular.ttf"; sourceTree = "<group>"; };
-		9CC0B2EBE9BD3F338658D526 /* MesloLGS-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; name = "MesloLGS-Regular.ttf"; path = "Echo/Resources/Fonts/MesloLGS-Regular.ttf"; sourceTree = "<group>"; };
-		CC1194D7AF45D51E8E8EA8C4 /* AnonymousPro-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; name = "AnonymousPro-Regular.ttf"; path = "Echo/Resources/Fonts/AnonymousPro-Regular.ttf"; sourceTree = "<group>"; };
-		9914A75C43EF3F555CE8E868 /* Iosevka-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; name = "Iosevka-Regular.ttf"; path = "Echo/Resources/Fonts/Iosevka-Regular.ttf"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
