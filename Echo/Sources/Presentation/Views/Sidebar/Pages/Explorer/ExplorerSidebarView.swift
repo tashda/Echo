@@ -17,7 +17,8 @@ struct ExplorerSidebarView: View {
     @State private var isHoveringConnectedServers = false
     @State private var connectedServersHeight: CGFloat = 0
     @State private var knownSessionIDs: Set<UUID> = []
-    @State private var footerHeight: CGFloat = ExplorerSidebarConstants.footerHeight
+    @State private var pinnedObjectIDsByDatabase: [String: Set<String>] = [:]
+    @State private var pinnedSectionExpandedByDatabase: [String: Bool] = [:]
 
     // Control visibility of Connected Servers section
     // Set to false to hide the section (future: make this user-configurable)
@@ -45,7 +46,7 @@ struct ExplorerSidebarView: View {
                         .transition(.move(edge: .top).combined(with: .opacity))
                 }
 
-                ZStack(alignment: .bottom) {
+                VStack(spacing: 0) {
                     ScrollView {
                         LazyVStack(alignment: .leading, spacing: 10, pinnedViews: .sectionHeaders) {
                             if showConnectedServersSection && (isHoveringConnectedServers || selectedSession?.selectedDatabaseName == nil) {
@@ -70,7 +71,7 @@ struct ExplorerSidebarView: View {
                             explorerContent(proxy: proxy)
                         }
                         .padding(.top, 12)
-                        .padding(.bottom, ExplorerSidebarConstants.scrollBottomPadding + footerHeight)
+                        .padding(.bottom, ExplorerSidebarConstants.scrollBottomPadding)
                     }
                     .scrollIndicators(.hidden)
                     .contentShape(Rectangle())
@@ -118,7 +119,7 @@ struct ExplorerSidebarView: View {
                         }
                     }
 
-                    footerOverlay
+                    footerView
                 }
             }
             .onAppear {
@@ -137,7 +138,7 @@ struct ExplorerSidebarView: View {
 
     private func connectToSavedConnection(_ connection: SavedConnection) async {
         await MainActor.run {
-            withAnimation(.easeInOut(duration: 0.3)) {
+            let _: Void = withAnimation(.easeInOut(duration: 0.3)) {
                 isHoveringConnectedServers = true
             }
         }
@@ -145,7 +146,7 @@ struct ExplorerSidebarView: View {
         await appModel.connect(to: connection)
 
         await MainActor.run {
-            withAnimation(.easeInOut(duration: 0.3)) {
+            let _: Void = withAnimation(.easeInOut(duration: 0.3)) {
                 expandedConnectedServerIDs.insert(connection.id)
             }
             selectedConnectionID = connection.id
@@ -320,6 +321,8 @@ struct ExplorerSidebarView: View {
                                 selectedSchemaName: $selectedSchemaName,
                                 expandedObjectGroups: $expandedObjectGroups,
                                 expandedObjectIDs: $expandedObjectIDs,
+                                pinnedObjectIDs: pinnedObjectsBinding(for: database, connectionID: session.connection.id),
+                                isPinnedSectionExpanded: pinnedSectionExpandedBinding(for: database, connectionID: session.connection.id),
                                 scrollTo: { id, anchor in
                                     withAnimation(.easeInOut(duration: 0.3)) {
                                         proxy.scrollTo(id, anchor: anchor)
@@ -388,7 +391,7 @@ struct ExplorerSidebarView: View {
         }
     }
 
-    private var footerOverlay: some View {
+    private var footerView: some View {
         Group {
             if let session = selectedSession,
                let structure = session.databaseStructure,
@@ -401,26 +404,9 @@ struct ExplorerSidebarView: View {
                     footerControls(session: session, database: database)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color.clear)
-                .background(
-                    GeometryReader { proxy in
-                        Color.clear
-                            .onAppear { updateFooterHeightIfNeeded(proxy.size.height) }
-                            .onChange(of: proxy.size.height) { _, newValue in
-                                updateFooterHeightIfNeeded(newValue)
-                            }
-                    }
-                )
             } else {
                 EmptyView()
             }
-        }
-    }
-
-    private func updateFooterHeightIfNeeded(_ height: CGFloat) {
-        let value = max(0, ceil(height))
-        if abs(footerHeight - value) > 0.5 {
-            footerHeight = value
         }
     }
 
@@ -561,6 +547,34 @@ struct ExplorerSidebarView: View {
         selectedSchemaName = nil
         expandedObjectGroups = Set(SchemaObjectInfo.ObjectType.allCases)
         expandedObjectIDs.removeAll()
+    }
+
+    private func pinnedStorageKey(connectionID: UUID, databaseName: String) -> String {
+        "\(connectionID.uuidString)#\(databaseName)"
+    }
+
+    private func pinnedObjectsBinding(for database: DatabaseInfo, connectionID: UUID) -> Binding<Set<String>> {
+        let key = pinnedStorageKey(connectionID: connectionID, databaseName: database.name)
+        return Binding(
+            get: { pinnedObjectIDsByDatabase[key] ?? [] },
+            set: { newValue in
+                if newValue.isEmpty {
+                    pinnedObjectIDsByDatabase.removeValue(forKey: key)
+                } else {
+                    pinnedObjectIDsByDatabase[key] = newValue
+                }
+            }
+        )
+    }
+
+    private func pinnedSectionExpandedBinding(for database: DatabaseInfo, connectionID: UUID) -> Binding<Bool> {
+        let key = pinnedStorageKey(connectionID: connectionID, databaseName: database.name)
+        return Binding(
+            get: { pinnedSectionExpandedByDatabase[key] ?? true },
+            set: { newValue in
+                pinnedSectionExpandedByDatabase[key] = newValue
+            }
+        )
     }
 
     private func syncSelectionWithSessions() {
@@ -899,7 +913,6 @@ private enum ExplorerSidebarConstants {
     static let connectedServersAnchor = "ExplorerSidebarConnectedServers"
     static let scrollBottomPadding: CGFloat = 32
     static let bottomControlHeight: CGFloat = 20
-    static let footerHeight: CGFloat = 64
 }
 
 // MARK: - Section Header

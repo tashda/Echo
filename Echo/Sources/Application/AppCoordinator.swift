@@ -25,6 +25,9 @@ final class AppCoordinator: ObservableObject {
     let clipboardHistory: ClipboardHistoryStore
     let themeManager: ThemeManager
     private var cancellables = Set<AnyCancellable>()
+#if os(macOS)
+    private var windowFocusObservers: [NSObjectProtocol] = []
+#endif
 
     // MARK: - Initialization State
     @Published private(set) var isInitialized = false
@@ -38,6 +41,9 @@ final class AppCoordinator: ObservableObject {
         self.themeManager = ThemeManager.shared
         self.appModel.tabManager.delegate = self
         setupBindings()
+#if os(macOS)
+        observeWindowFocusChanges()
+#endif
     }
 
     // MARK: - Public Methods
@@ -109,6 +115,7 @@ final class AppCoordinator: ObservableObject {
         )
         appState.sqlEditorDisplay = SQLEditorThemeResolver.resolveDisplayOptions(globalSettings: global, project: project)
         appState.themeTabs = global.themeTabs
+        appState.keepTabsInMemory = global.keepTabsInMemory
         applyEditorTheme(project: project, global: global)
     }
 
@@ -146,6 +153,51 @@ final class AppCoordinator: ObservableObject {
 #endif
     }
 
+#if os(macOS)
+    private func observeWindowFocusChanges() {
+        let center = NotificationCenter.default
+
+        let keyObserver = center.addObserver(
+            forName: NSWindow.didBecomeKeyNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.updateWorkspaceKeyState()
+            }
+        }
+
+        let resignObserver = center.addObserver(
+            forName: NSWindow.didResignKeyNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.updateWorkspaceKeyState()
+            }
+        }
+
+        windowFocusObservers = [keyObserver, resignObserver]
+
+        Task { @MainActor [weak self] in
+            self?.updateWorkspaceKeyState()
+        }
+    }
+
+    private func updateWorkspaceKeyState() {
+        guard let keyWindow = NSApplication.shared.keyWindow else {
+            appModel.isWorkspaceWindowKey = false
+            return
+        }
+        appModel.isWorkspaceWindowKey = keyWindow.identifier == AppWindowIdentifier.workspace
+    }
+#endif
+
+#if os(macOS)
+    deinit {
+        windowFocusObservers.forEach { NotificationCenter.default.removeObserver($0) }
+    }
+#endif
 }
 
 // MARK: - TabManagerDelegate

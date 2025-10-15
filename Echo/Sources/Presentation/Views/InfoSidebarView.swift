@@ -40,7 +40,7 @@ struct InfoSidebarView: View {
         VStack(spacing: 0) {
             InspectorTabSelector(selectedTab: $selectedTab)
                 .padding(.horizontal, 16)
-                .padding(.top, 8)
+                .padding(.top, 0)
                 .padding(.bottom, 8)
 
             Divider()
@@ -57,12 +57,15 @@ struct InfoSidebarView: View {
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 12)
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .onAppear(perform: updateSelectionForAvailableContent)
         .onChange(of: appModel.dataInspectorContent) { _, _ in
             updateSelectionForAvailableContent()
         }
+        .frame(maxWidth: .infinity, alignment: .topLeading)
     }
 
     private func updateSelectionForAvailableContent() {
@@ -149,55 +152,62 @@ struct InfoSidebarView: View {
 private struct InspectorTabSelector: View {
     @Binding var selectedTab: InspectorTab
 
-    private let cornerRadius: CGFloat = 16
-
     var body: some View {
-        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+        let controlHeight: CGFloat = 38
+        let controlCornerRadius: CGFloat = controlHeight / 2
+        let segmentCornerRadius: CGFloat = controlCornerRadius - 4
+
+        RoundedRectangle(cornerRadius: controlCornerRadius, style: .continuous)
             .fill(Color.primary.opacity(0.04))
             .overlay(
-                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                RoundedRectangle(cornerRadius: controlCornerRadius, style: .continuous)
                     .stroke(Color.primary.opacity(0.08), lineWidth: 0.5)
             )
-            .overlay(segmentedContent)
-            .frame(height: 34)
-    }
+            .overlay(
+                HStack(spacing: 0) {
+                    ForEach(Array(InspectorTab.allCases.enumerated()), id: \.offset) { index, tab in
+                        Button {
+                            withAnimation(.easeInOut(duration: 0.15)) {
+                                selectedTab = tab
+                            }
+                        } label: {
+                            ZStack {
+                                Rectangle()
+                                    .fill(Color.clear)
+                                    .contentShape(Rectangle())
 
-    private var segmentedContent: some View {
-        HStack(spacing: 0) {
-            ForEach(Array(InspectorTab.allCases.enumerated()), id: \.offset) { index, tab in
-                Button {
-                    withAnimation(.easeInOut(duration: 0.15)) {
-                        selectedTab = tab
+                                Image(systemName: selectedTab == tab ? tab.activeIcon : tab.icon)
+                                    .font(.system(size: 14, weight: selectedTab == tab ? .medium : .regular))
+                                    .foregroundStyle(selectedTab == tab ? Color.white : Color.secondary)
+                            }
+                        }
+                        .buttonStyle(.plain)
+                        .background(
+                            RoundedRectangle(cornerRadius: segmentCornerRadius, style: .continuous)
+                                .fill(Color.accentColor)
+                                .opacity(selectedTab == tab ? 1 : 0)
+                                .animation(.easeInOut(duration: 0.15), value: selectedTab)
+                        )
+                        .help(tab.title)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+                        if index < InspectorTab.allCases.count - 1 {
+                            let shouldShowDivider = selectedTab != tab &&
+                                selectedTab != InspectorTab.allCases[index + 1]
+
+                            Rectangle()
+                                .fill(Color.primary.opacity(0.12))
+                                .frame(width: 0.5)
+                                .padding(.vertical, 7)
+                                .opacity(shouldShowDivider ? 1 : 0)
+                                .animation(.easeInOut(duration: 0.15), value: shouldShowDivider)
+                        }
                     }
-                } label: {
-                    ZStack {
-                        RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .fill(Color.accentColor)
-                            .opacity(selectedTab == tab ? 1 : 0)
-
-                        Image(systemName: selectedTab == tab ? tab.activeIcon : tab.icon)
-                            .font(.system(size: 14, weight: selectedTab == tab ? .semibold : .regular))
-                            .foregroundStyle(selectedTab == tab ? Color.white : Color.secondary)
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .contentShape(Rectangle())
                 }
-                .buttonStyle(.plain)
-                .help(tab.title)
-
-                if index < InspectorTab.allCases.count - 1 {
-                    Rectangle()
-                        .fill(Color.primary.opacity(0.12))
-                        .frame(width: 0.5)
-                        .padding(.vertical, 6)
-                        .opacity(selectedTab == tab || selectedTab == InspectorTab.allCases[index + 1] ? 0 : 1)
-                        .animation(.easeInOut(duration: 0.15), value: selectedTab)
-                }
-            }
-        }
-        .padding(.horizontal, 4)
-        .padding(.vertical, 4)
+                .padding(.horizontal, 4)
+                .padding(.vertical, 4)
+            )
+            .frame(height: controlHeight)
     }
 }
 

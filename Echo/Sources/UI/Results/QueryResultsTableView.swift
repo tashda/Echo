@@ -546,7 +546,7 @@ struct QueryResultsTableView: NSViewRepresentable {
         // MARK: Column Selection
 
         func beginColumnSelection(at column: Int, modifiers: NSEvent.ModifierFlags) {
-            guard let tableView else { return }
+            guard tableView != nil else { return }
             let columnCount = parent.query.displayedColumns.count
             guard columnCount > 0 else { return }
 

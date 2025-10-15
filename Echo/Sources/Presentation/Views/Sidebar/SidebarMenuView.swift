@@ -55,7 +55,7 @@ struct SidebarMenu: View {
             contentView
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .safeAreaPadding(.top, 12)
+        .safeAreaPadding(.top, 6)
         .confirmationDialog(
             "Duplicate Connection",
             isPresented: Binding(
@@ -89,33 +89,33 @@ struct SidebarMenu: View {
 
     private var navigationBar: some View {
         xcodeStyleSegmentedControl
-            .frame(height: 32)
     }
 
     @ViewBuilder
     private var xcodeStyleSegmentedControl: some View {
-        RoundedRectangle(cornerRadius: 16, style: .continuous)
+        let controlHeight: CGFloat = 38
+        let controlCornerRadius: CGFloat = controlHeight / 2
+        let segmentCornerRadius: CGFloat = controlCornerRadius - 4
+
+        RoundedRectangle(cornerRadius: controlCornerRadius, style: .continuous)
             .fill(.primary.opacity(0.04))
             .overlay(
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                RoundedRectangle(cornerRadius: controlCornerRadius, style: .continuous)
                     .stroke(.primary.opacity(0.08), lineWidth: 0.5)
             )
             .overlay(
                 HStack(spacing: 0) {
                     ForEach(Array(NavSection.allCases.enumerated()), id: \.element.rawValue) { index, section in
-                        // Full-height button that fills the space
                         Button {
                             withAnimation(.easeInOut(duration: 0.15)) {
                                 selectedNavSection = section
                             }
                         } label: {
                             ZStack {
-                                // Invisible background for full click area
                                 Rectangle()
                                     .fill(.clear)
                                     .contentShape(Rectangle())
 
-                                // Icon centered in the area
                                 Image(systemName: selectedNavSection == section ? section.activeIcon : section.icon)
                                     .font(.system(size: 14, weight: selectedNavSection == section ? .medium : .regular))
                                     .foregroundStyle(selectedNavSection == section ? .white : .secondary)
@@ -123,7 +123,7 @@ struct SidebarMenu: View {
                         }
                         .buttonStyle(.plain)
                         .background(
-                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            RoundedRectangle(cornerRadius: segmentCornerRadius, style: .continuous)
                                 .fill(.tint)
                                 .opacity(selectedNavSection == section ? 1 : 0)
                                 .animation(.easeInOut(duration: 0.15), value: selectedNavSection == section)
@@ -131,22 +131,22 @@ struct SidebarMenu: View {
                         .help(section.displayName)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-                        // Divider after each item (except the last)
                         if index < NavSection.allCases.count - 1 {
                             let shouldShowDivider = selectedNavSection != section &&
-                                                   selectedNavSection != NavSection.allCases[index + 1]
+                                selectedNavSection != NavSection.allCases[index + 1]
                             Rectangle()
                                 .fill(.primary.opacity(0.15))
                                 .frame(width: 0.5)
-                                .padding(.vertical, 6)
+                                .padding(.vertical, 7)
                                 .opacity(shouldShowDivider ? 1 : 0)
                                 .animation(.easeInOut(duration: 0.15), value: shouldShowDivider)
                         }
                     }
                 }
-                .padding(.horizontal, 3)
-                .padding(.vertical, 3)
+                .padding(.horizontal, 4)
+                .padding(.vertical, 4)
             )
+            .frame(height: controlHeight)
     }
 
     @ViewBuilder

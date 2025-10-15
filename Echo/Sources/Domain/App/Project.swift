@@ -1059,6 +1059,7 @@ struct GlobalSettings: Codable, Hashable {
     var foreignKeyInspectorBehavior: ForeignKeyInspectorBehavior = .respectInspectorVisibility
     var foreignKeyIncludeRelated: Bool = false
     var inspectorWidth: Double?
+    var keepTabsInMemory: Bool = false
 
     // Window preferences
     var defaultWindowWidth: Double?
@@ -1093,7 +1094,8 @@ struct GlobalSettings: Codable, Hashable {
         defaultWindowWidth: Double? = nil,
         defaultWindowHeight: Double? = nil,
         activeThemeIDLight: AppColorTheme.ID? = nil,
-        activeThemeIDDark: AppColorTheme.ID? = nil
+        activeThemeIDDark: AppColorTheme.ID? = nil,
+        keepTabsInMemory: Bool = false
     ) {
         self.appearanceMode = appearanceMode
         self.defaultEditorFontSize = defaultEditorFontSize
@@ -1124,6 +1126,7 @@ struct GlobalSettings: Codable, Hashable {
         self.defaultWindowHeight = defaultWindowHeight
         self.activeThemeIDLight = activeThemeIDLight
         self.activeThemeIDDark = activeThemeIDDark
+        self.keepTabsInMemory = keepTabsInMemory
     }
 
     enum CodingKeys: String, CodingKey {
@@ -1157,6 +1160,7 @@ struct GlobalSettings: Codable, Hashable {
         case foreignKeyInspectorBehavior
         case foreignKeyIncludeRelated
         case inspectorWidth
+        case keepTabsInMemory
     }
 
     init(from decoder: Decoder) throws {
@@ -1216,6 +1220,7 @@ struct GlobalSettings: Codable, Hashable {
         foreignKeyInspectorBehavior = try container.decodeIfPresent(ForeignKeyInspectorBehavior.self, forKey: .foreignKeyInspectorBehavior) ?? .respectInspectorVisibility
         foreignKeyIncludeRelated = try container.decodeIfPresent(Bool.self, forKey: .foreignKeyIncludeRelated) ?? false
         inspectorWidth = try container.decodeIfPresent(Double.self, forKey: .inspectorWidth)
+        keepTabsInMemory = try container.decodeIfPresent(Bool.self, forKey: .keepTabsInMemory) ?? false
     }
 
     func encode(to encoder: Encoder) throws {
@@ -1247,6 +1252,7 @@ struct GlobalSettings: Codable, Hashable {
         try container.encode(foreignKeyInspectorBehavior, forKey: .foreignKeyInspectorBehavior)
         try container.encode(foreignKeyIncludeRelated, forKey: .foreignKeyIncludeRelated)
         try container.encodeIfPresent(inspectorWidth, forKey: .inspectorWidth)
+        try container.encode(keepTabsInMemory, forKey: .keepTabsInMemory)
 
         try container.encode(defaultEditorPaletteIDLight, forKey: .defaultEditorPaletteIDLight)
         try container.encode(defaultEditorPaletteIDDark, forKey: .defaultEditorPaletteIDDark)

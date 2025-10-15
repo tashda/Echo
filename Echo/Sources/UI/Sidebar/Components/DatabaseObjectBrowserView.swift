@@ -13,6 +13,8 @@ struct DatabaseObjectBrowserView: View {
     @Binding var selectedSchemaName: String?
     @Binding var expandedObjectGroups: Set<SchemaObjectInfo.ObjectType>
     @Binding var expandedObjectIDs: Set<String>
+    @Binding var pinnedObjectIDs: Set<String>
+    @Binding var isPinnedSectionExpanded: Bool
     let scrollTo: (String, UnitPoint) -> Void
 
     @EnvironmentObject private var appModel: AppModel
@@ -27,6 +29,17 @@ struct DatabaseObjectBrowserView: View {
         SchemaObjectInfo.ObjectType.allCases.reduce(into: 0) { result, type in
             result += objects(for: type).count
         }
+    }
+
+    private var pinnedObjects: [SchemaObjectInfo] {
+        filteredSchemas
+            .flatMap { $0.objects }
+            .filter { object in
+                pinnedObjectIDs.contains(object.id) && matchesSearch(object)
+            }
+            .sorted { lhs, rhs in
+                lhs.fullName.localizedCaseInsensitiveCompare(rhs.fullName) == .orderedAscending
+            }
     }
 
     private var filteredSchemas: [SchemaInfo] {
@@ -61,6 +74,25 @@ struct DatabaseObjectBrowserView: View {
             return object.fullName
         }
         return object.name
+    }
+
+    private func shouldShowColumns(for object: SchemaObjectInfo) -> Bool {
+        object.type == .table || object.type == .view || object.type == .materializedView
+    }
+
+    private func isPinned(_ object: SchemaObjectInfo) -> Bool {
+        pinnedObjectIDs.contains(object.id)
+    }
+
+    private func togglePin(for object: SchemaObjectInfo) {
+        withAnimation(.easeInOut(duration: 0.2)) {
+            if pinnedObjectIDs.contains(object.id) {
+                pinnedObjectIDs.remove(object.id)
+            } else {
+                pinnedObjectIDs.insert(object.id)
+                isPinnedSectionExpanded = true
+            }
+        }
     }
 
     private func expansionBinding(for objectID: String) -> Binding<Bool> {
@@ -102,6 +134,60 @@ struct DatabaseObjectBrowserView: View {
             SearchEmptyStateView(query: searchText)
         } else {
             LazyVStack(alignment: .leading, spacing: 4) {
+                if !pinnedObjects.isEmpty {
+                    let headerID = "header-pinned"
+                    let pinnedList = pinnedObjects
+                    VStack(alignment: .leading, spacing: 4) {
+                        Button {
+                            let wasExpanded = isPinnedSectionExpanded
+                            withAnimation(.easeInOut(duration: 0.25)) {
+                                isPinnedSectionExpanded.toggle()
+                            }
+                            if wasExpanded {
+                                scrollTo(headerID, .top)
+                            }
+                        } label: {
+                            HStack(spacing: 6) {
+                                Image(systemName: isPinnedSectionExpanded ? "chevron.down" : "chevron.right")
+                                    .font(.system(size: 10, weight: .semibold))
+                                    .foregroundStyle(.secondary)
+                                Text("PINNED")
+                                    .font(.system(size: 11, weight: .semibold))
+                                    .foregroundStyle(.secondary)
+                                Text("\(pinnedList.count)")
+                                    .font(.system(size: 10, weight: .semibold))
+                                    .foregroundStyle(.secondary.opacity(0.8))
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 2)
+                                    .background(Color.primary.opacity(0.06), in: Capsule())
+                                Spacer()
+                            }
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 4)
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+
+                        if isPinnedSectionExpanded {
+                            ForEach(pinnedList, id: \.id) { object in
+                                DatabaseObjectRow(
+                                    object: object,
+                                    displayName: displayName(for: object),
+                                    connection: connection,
+                                    showColumns: shouldShowColumns(for: object),
+                                    isExpanded: expansionBinding(for: object.id),
+                                    isPinned: true,
+                                    onTogglePin: { togglePin(for: object) },
+                                    onTriggerTableTap: object.type == .trigger ? { tableName in revealTable(fullName: tableName) } : nil
+                                )
+                                .environmentObject(appModel)
+                                .id("pinned-\(object.id)")
+                            }
+                        }
+                    }
+                    .id(headerID)
+                }
+
                 ForEach(SchemaObjectInfo.ObjectType.allCases, id: \.self) { objectType in
                     let objects = objects(for: objectType)
 
@@ -149,8 +235,10 @@ struct DatabaseObjectBrowserView: View {
                                     object: object,
                                     displayName: displayName(for: object),
                                     connection: connection,
-                                    showColumns: object.type == .table || object.type == .view || object.type == .materializedView,
+                                    showColumns: shouldShowColumns(for: object),
                                     isExpanded: expansionBinding(for: object.id),
+                                    isPinned: isPinned(object),
+                                    onTogglePin: { togglePin(for: object) },
                                     onTriggerTableTap: object.type == .trigger ? { tableName in revealTable(fullName: tableName) } : nil
                                 )
                                 .environmentObject(appModel)
@@ -201,6 +289,8 @@ private struct DatabaseObjectRow: View {
     let connection: SavedConnection
     let showColumns: Bool
     @Binding var isExpanded: Bool
+    let isPinned: Bool
+    let onTogglePin: () -> Void
     let onTriggerTableTap: ((String) -> Void)?
 
 @EnvironmentObject private var appModel: AppModel
@@ -343,7 +433,6 @@ private struct DatabaseObjectRow: View {
         VStack(alignment: .leading, spacing: 2) {
             ForEach(object.columns, id: \.name) { (column: ColumnInfo) in
                 HStack(spacing: 8) {
-                    Spacer().frame(width: 24)
                     let (iconName, iconColor): (String, Color) = {
                         if column.isPrimaryKey {
                             return ("key.fill", accentColor)
@@ -351,11 +440,11 @@ private struct DatabaseObjectRow: View {
                         if column.foreignKey != nil {
                             return ("arrow.turn.down.right", accentColor)
                         }
-                        return ("doc.text", Color.secondary)
+                        return ("circle.fill", Color.secondary)
                     }()
 
                     Image(systemName: iconName)
-                        .font(.system(size: 10))
+                        .font(.system(size: iconName == "circle.fill" ? 8 : 10))
                         .foregroundStyle(iconColor)
 
                     Text(column.name)
@@ -385,6 +474,7 @@ private struct DatabaseObjectRow: View {
                     RoundedRectangle(cornerRadius: 8, style: .continuous)
                         .fill(accentColor.opacity(hoveredColumnID == column.name ? 0.08 : 0))
                 )
+                .padding(.leading, 36)
                 .contentShape(Rectangle())
 #if os(macOS)
                 .onHover { hovering in
@@ -453,52 +543,978 @@ private struct DatabaseObjectRow: View {
 
     @ViewBuilder
     private var contextMenuContent: some View {
-        Button {
-            queryObjectData()
-        } label: {
-            Label("Query Data", systemImage: "tablecells")
-        }
-        Button {
-            viewObjectStructure()
-        } label: {
-            Label("View Structure", systemImage: "square.stack.3d.up")
-        }
-        if object.type == .table {
-            Button {
-                insertRowIntoTable()
+        ForEach(generalMenuItems) { item in
+            Button(role: item.role) {
+                item.action()
             } label: {
-                Label("Insert Row", systemImage: "square.and.pencil")
+                Label(item.title, systemImage: item.systemImage)
+            }
+        }
+
+        if !scriptMenuItems.isEmpty {
+            Divider()
+            Menu {
+                ForEach(scriptMenuItems) { item in
+                    Button {
+                        item.action()
+                    } label: {
+                        Label(item.title, systemImage: item.systemImage)
+                    }
+                }
+            } label: {
+                Label("Script as", systemImage: "scroll")
+            }
+        }
+
+        if !administrativeMenuItems.isEmpty {
+            Divider()
+            ForEach(administrativeMenuItems) { item in
+                Button(role: item.role) {
+                    item.action()
+                } label: {
+                    Label(item.title, systemImage: item.systemImage)
+                }
             }
         }
     }
 
-    private func queryObjectData() {
-        let sql = "SELECT * FROM \(object.fullName) LIMIT 100;"
+    private struct ContextMenuActionItem: Identifiable {
+        let id = UUID()
+        let title: String
+        let systemImage: String
+        let role: ButtonRole?
+        let action: () -> Void
+    }
+
+    private struct ScriptMenuActionItem: Identifiable {
+        let id = UUID()
+        let title: String
+        let systemImage: String
+        let action: () -> Void
+    }
+
+    private enum ScriptAction {
+        case create
+        case createOrReplace
+        case alter
+        case alterTable
+        case drop
+        case dropIfExists
+        case select
+        case execute
+    }
+
+    private var generalMenuItems: [ContextMenuActionItem] {
+        var items: [ContextMenuActionItem] = []
+
+        items.append(
+            ContextMenuActionItem(
+                title: "New Query",
+                systemImage: "doc.badge.plus",
+                role: nil,
+                action: { openNewQueryTab() }
+            )
+        )
+
+        if supportsDataPreview {
+            items.append(
+                ContextMenuActionItem(
+                    title: "Open Data",
+                    systemImage: "tablecells",
+                    role: nil,
+                    action: { openDataPreview() }
+                )
+            )
+        }
+
+        items.append(
+            ContextMenuActionItem(
+                title: isPinned ? "Unpin" : "Pin",
+                systemImage: isPinned ? "pin.slash" : "pin",
+                role: nil,
+                action: { onTogglePin() }
+            )
+        )
+
+        items.append(
+            ContextMenuActionItem(
+                title: "View Structure",
+                systemImage: "square.stack.3d.up",
+                role: nil,
+                action: { openStructureTab() }
+            )
+        )
+
+        if supportsDiagram {
+            items.append(
+                ContextMenuActionItem(
+                    title: "Show Diagram",
+                    systemImage: "rectangle.connected.to.line.below",
+                    role: nil,
+                    action: { openRelationsDiagram() }
+                )
+            )
+        }
+
+        return items
+    }
+
+    private var scriptMenuItems: [ScriptMenuActionItem] {
+        scriptActionsForCurrentContext().map { action in
+            ScriptMenuActionItem(
+                title: scriptTitle(for: action),
+                systemImage: scriptSystemImage(for: action),
+                action: { performScriptAction(action) }
+            )
+        }
+    }
+
+    private var administrativeMenuItems: [ContextMenuActionItem] {
+        var items: [ContextMenuActionItem] = []
+
+        switch connection.databaseType {
+        case .postgresql, .mysql, .microsoftSQL:
+            items.append(renameMenuItem)
+            if supportsTruncateTable {
+                items.append(
+                    ContextMenuActionItem(
+                        title: "Truncate Table",
+                        systemImage: "scissors",
+                        role: .destructive,
+                        action: { openTruncateStatement() }
+                    )
+                )
+            }
+            items.append(dropMenuItem)
+
+        case .sqlite:
+            items.append(renameMenuItem)
+            items.append(dropMenuItem)
+        }
+
+        return items
+    }
+
+    private var renameMenuItem: ContextMenuActionItem {
+        ContextMenuActionItem(
+            title: connection.databaseType == .sqlite ? "Rename (Limited)" : "Rename",
+            systemImage: "textformat.alt",
+            role: nil,
+            action: { initiateRename() }
+        )
+    }
+
+    private var dropMenuItem: ContextMenuActionItem {
+        ContextMenuActionItem(
+            title: "Drop",
+            systemImage: "trash",
+            role: .destructive,
+            action: { initiateDrop(includeIfExists: false) }
+        )
+    }
+
+    private var supportsDataPreview: Bool {
+        switch object.type {
+        case .table, .view, .materializedView:
+            return true
+        case .function, .trigger:
+            return false
+        }
+    }
+
+    private var supportsDiagram: Bool {
+        object.type == .table
+    }
+
+    private var supportsTruncateTable: Bool {
+        guard object.type == .table else { return false }
+        switch connection.databaseType {
+        case .postgresql, .mysql, .microsoftSQL:
+            return true
+        case .sqlite:
+            return false
+        }
+    }
+
+    private func scriptActionsForCurrentContext() -> [ScriptAction] {
+        switch connection.databaseType {
+        case .postgresql:
+            var actions: [ScriptAction] = [.create]
+            if supportsCreateOrReplaceInPostgres {
+                actions.append(.createOrReplace)
+            }
+            actions.append(.dropIfExists)
+            if shouldIncludeSelectScript || object.type == .function {
+                actions.append(.select)
+            }
+            return actions
+
+        case .mysql:
+            var actions: [ScriptAction] = [.create]
+            if supportsCreateOrReplaceInMySQL {
+                actions.append(.createOrReplace)
+            }
+            if object.type == .table {
+                actions.append(.alterTable)
+            } else {
+                actions.append(.alter)
+            }
+            actions.append(.drop)
+            if shouldIncludeSelectScript {
+                actions.append(.select)
+            }
+            if object.type == .function {
+                actions.append(.execute)
+            }
+            return actions
+
+        case .sqlite:
+            var actions: [ScriptAction] = [.create, .drop]
+            if shouldIncludeSelectScript {
+                actions.append(.select)
+            }
+            return actions
+
+        case .microsoftSQL:
+            var actions: [ScriptAction] = [.create, .alter, .dropIfExists]
+            if object.type == .function {
+                actions.append(.execute)
+            } else if shouldIncludeSelectScript {
+                actions.append(.select)
+            }
+            return actions
+        }
+    }
+
+    private var supportsCreateOrReplaceInPostgres: Bool {
+        switch object.type {
+        case .table:
+            return false
+        default:
+            return true
+        }
+    }
+
+    private var supportsCreateOrReplaceInMySQL: Bool {
+        object.type == .view
+    }
+
+    private var shouldIncludeSelectScript: Bool {
+        switch object.type {
+        case .table, .view, .materializedView:
+            return true
+        case .function, .trigger:
+            return false
+        }
+    }
+
+    private func scriptTitle(for action: ScriptAction) -> String {
+        switch action {
+        case .create:
+            return "CREATE"
+        case .createOrReplace:
+            return "CREATE OR REPLACE"
+        case .alterTable:
+            return "ALTER TABLE"
+        case .alter:
+            return "ALTER"
+        case .drop:
+            return "DROP"
+        case .dropIfExists:
+            return "DROP IF EXISTS"
+        case .select:
+            return "SELECT"
+        case .execute:
+            return connection.databaseType == .microsoftSQL ? "SELECT / EXEC" : "EXECUTE"
+        }
+    }
+
+    private func scriptSystemImage(for action: ScriptAction) -> String {
+        switch action {
+        case .create:
+            return "plus.rectangle.on.rectangle"
+        case .createOrReplace:
+            return "arrow.triangle.2.circlepath"
+        case .alter, .alterTable:
+            return "wrench"
+        case .drop:
+            return "trash"
+        case .dropIfExists:
+            return "trash.slash"
+        case .select:
+            return "text.magnifyingglass"
+        case .execute:
+            return "play.circle"
+        }
+    }
+
+    private func performScriptAction(_ action: ScriptAction) {
+        switch action {
+        case .create:
+            if object.type == .table {
+                openCreateTableScript()
+            } else {
+                openCreateDefinition(insertOrReplace: false)
+            }
+        case .createOrReplace:
+            openCreateDefinition(insertOrReplace: true)
+        case .alter:
+            openAlterStatement()
+        case .alterTable:
+            openAlterTableStatement()
+        case .drop:
+            openDropStatement(includeIfExists: false)
+        case .dropIfExists:
+            openDropStatement(includeIfExists: true)
+        case .select:
+            openSelectScript()
+        case .execute:
+            openExecuteScript()
+        }
+    }
+
+    private func openNewQueryTab() {
+        guard let session = appModel.sessionManager.sessionForConnection(connection.id) else { return }
+        let qualified = qualifiedName(schema: object.schema, name: object.name)
+        let sql = "-- Query for \(qualified)\n"
         Task { @MainActor in
-            guard let session = appModel.sessionManager.sessionForConnection(connection.id) else { return }
             appModel.openQueryTab(for: session, presetQuery: sql)
         }
     }
 
-    private func viewObjectStructure() {
+    private func openDataPreview() {
+        guard let session = appModel.sessionManager.sessionForConnection(connection.id) else { return }
+        let sql = dataPreviewStatement(limit: nil)
+        appModel.openDataPreviewTab(
+            for: session,
+            object: object,
+            sql: sql,
+            initialBatchSize: 500
+        )
+    }
+
+    private func openStructureTab() {
         Task { @MainActor in
             guard let session = appModel.sessionManager.sessionForConnection(connection.id) else { return }
             appModel.openStructureTab(for: session, object: object)
         }
     }
 
-    private func insertRowIntoTable() {
-        guard object.type == .table else { return }
-        let columnNames = object.columns.map { "\"\($0.name)\"" }.joined(separator: ", ")
-        let values = object.columns.map { _ in "?" }.joined(separator: ", ")
-        let sql = "INSERT INTO \(object.fullName) (\(columnNames)) VALUES (\(values));"
+    private func openRelationsDiagram() {
+        guard supportsDiagram else { return }
         Task { @MainActor in
+            guard let session = appModel.sessionManager.sessionForConnection(connection.id) else { return }
+            appModel.openDiagramTab(for: session, object: object)
+        }
+    }
+
+    private func openCreateDefinition(insertOrReplace: Bool) {
+        guard let session = appModel.sessionManager.sessionForConnection(connection.id) else { return }
+        Task {
             do {
-                _ = try await appModel.executeUpdate(sql)
+                let definition = try await session.session.getObjectDefinition(
+                    objectName: object.name,
+                    schemaName: object.schema,
+                    objectType: object.type
+                )
+                let adjusted = insertOrReplace ? applyCreateOrReplace(to: definition) : definition
+                await MainActor.run {
+                    appModel.openQueryTab(for: session, presetQuery: adjusted)
+                }
             } catch {
-                print("Insert failed: \(error)")
+                await MainActor.run {
+                    appModel.lastError = DatabaseError.from(error)
+                }
             }
         }
     }
+
+    private func openCreateTableScript() {
+        guard let session = appModel.sessionManager.sessionForConnection(connection.id) else { return }
+        Task {
+            do {
+                let details = try await session.session.getTableStructureDetails(
+                    schema: object.schema,
+                    table: object.name
+                )
+                let script = makeCreateTableScript(details: details)
+                await MainActor.run {
+                    appModel.openQueryTab(for: session, presetQuery: script)
+                }
+            } catch {
+                await MainActor.run {
+                    appModel.lastError = DatabaseError.from(error)
+                }
+            }
+        }
+    }
+
+    private func applyCreateOrReplace(to definition: String) -> String {
+        guard let range = definition.range(of: "CREATE", options: [.caseInsensitive]) else {
+            return definition
+        }
+        let snippet = definition[range]
+        if snippet.lowercased().contains("create or replace") {
+            return definition
+        }
+        return definition.replacingCharacters(in: range, with: "CREATE OR REPLACE")
+    }
+
+    private func openAlterStatement() {
+        let qualified = qualifiedName(schema: object.schema, name: object.name)
+        let statement: String
+        switch connection.databaseType {
+        case .mysql:
+            switch object.type {
+            case .function:
+                statement = "ALTER FUNCTION \(qualified)\n    -- Update characteristics here;\n"
+            case .trigger:
+                statement = "ALTER TRIGGER \(qualified)\n    -- Update trigger definition here;\n"
+            default:
+                statement = "ALTER \(objectTypeKeyword()) \(qualified)\n    -- Provide ALTER clauses here;\n"
+            }
+        case .microsoftSQL:
+            statement = """
+            ALTER \(objectTypeKeyword()) \(qualified)
+            -- Update definition here.
+            GO
+            """
+        case .postgresql, .sqlite:
+            statement = """
+            -- ALTER is not directly supported for this object. Consider using CREATE OR REPLACE.
+            """
+        }
+        openScriptTab(with: statement)
+    }
+
+    private func openAlterTableStatement() {
+        let qualified = qualifiedName(schema: object.schema, name: object.name)
+        let statement: String
+        switch connection.databaseType {
+        case .postgresql, .mysql:
+            statement = """
+            ALTER TABLE \(qualified)
+                ADD COLUMN new_column_name data_type;
+            """
+        case .microsoftSQL:
+            statement = """
+            ALTER TABLE \(qualified)
+                ADD new_column_name data_type;
+            """
+        case .sqlite:
+            statement = """
+            ALTER TABLE \(qualified)
+                RENAME COLUMN old_column TO new_column;
+            """
+        }
+        openScriptTab(with: statement)
+    }
+
+    private func openDropStatement(includeIfExists: Bool) {
+        let statement = dropStatement(includeIfExists: includeIfExists)
+        openScriptTab(with: statement)
+    }
+
+    private func openSelectScript() {
+        let sql: String
+        if object.type == .function {
+            sql = executeStatement()
+        } else {
+            sql = dataPreviewStatement(limit: 100)
+        }
+        openScriptTab(with: sql)
+    }
+
+    private func openExecuteScript() {
+        let sql = executeStatement()
+        openScriptTab(with: sql)
+    }
+
+    private func openTruncateStatement() {
+        let statement = truncateStatement()
+        openScriptTab(with: statement)
+    }
+
+    private func initiateRename() {
+#if os(macOS)
+        Task { await presentRenamePrompt() }
+#else
+        if let template = renameStatement() {
+            openScriptTab(with: template)
+        }
+#endif
+    }
+
+#if os(macOS)
+    @MainActor
+    private func presentRenamePrompt() async {
+        guard let session = appModel.sessionManager.sessionForConnection(connection.id) else { return }
+
+        let alert = NSAlert()
+        alert.messageText = "Rename \(objectTypeKeyword())"
+        alert.informativeText = "Enter a new name for \(object.fullName)."
+
+        let textField = NSTextField(string: object.name)
+        textField.frame = NSRect(x: 0, y: 0, width: 240, height: 24)
+        alert.accessoryView = textField
+        alert.window.initialFirstResponder = textField
+        textField.selectText(nil)
+
+        alert.addButton(withTitle: "OK")
+        alert.addButton(withTitle: "Cancel")
+
+        let response = alert.runModal()
+        guard response == .alertFirstButtonReturn else { return }
+
+        let newName = textField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !newName.isEmpty, newName != object.name else { return }
+
+        guard let sql = renameStatement(newName: newName) else {
+            if let template = renameStatement() {
+                openScriptTab(with: template)
+            }
+            return
+        }
+
+        appModel.sessionManager.setActiveSession(session.id)
+        appModel.selectedConnectionID = session.connection.id
+
+        Task {
+            do {
+                try await appModel.executeUpdate(sql)
+                await appModel.refreshDatabaseStructure(
+                    for: session.id,
+                    scope: .selectedDatabase,
+                    databaseOverride: session.selectedDatabaseName
+                )
+            } catch {
+                await MainActor.run {
+                    appModel.lastError = DatabaseError.from(error)
+                }
+            }
+        }
+    }
+#endif
+
+    private func initiateDrop(includeIfExists: Bool) {
+#if os(macOS)
+        if object.type == .table {
+            Task { await presentDropPrompt(includeIfExists: includeIfExists) }
+            return
+        }
+#endif
+        let statement = dropStatement(includeIfExists: includeIfExists)
+        openScriptTab(with: statement)
+    }
+
+#if os(macOS)
+    @MainActor
+    private func presentDropPrompt(includeIfExists: Bool) async {
+        guard let session = appModel.sessionManager.sessionForConnection(connection.id) else { return }
+
+        let alert = NSAlert()
+        alert.messageText = "Drop Table"
+        alert.informativeText = "Are you sure you want to drop table \(object.fullName)? This action cannot be undone."
+        alert.alertStyle = .warning
+
+        let dropButton = alert.addButton(withTitle: "Drop")
+        if #available(macOS 11.0, *) {
+            dropButton.hasDestructiveAction = true
+        }
+        alert.addButton(withTitle: "Cancel")
+
+        let response = alert.runModal()
+        guard response == .alertFirstButtonReturn else { return }
+
+        let statement = dropStatement(includeIfExists: includeIfExists)
+
+        appModel.sessionManager.setActiveSession(session.id)
+        appModel.selectedConnectionID = session.connection.id
+
+        Task {
+            do {
+                try await appModel.executeUpdate(statement)
+                if isPinned {
+                    await MainActor.run {
+                        onTogglePin()
+                    }
+                }
+                await appModel.refreshDatabaseStructure(
+                    for: session.id,
+                    scope: .selectedDatabase,
+                    databaseOverride: session.selectedDatabaseName
+                )
+            } catch {
+                await MainActor.run {
+                    appModel.lastError = DatabaseError.from(error)
+                }
+            }
+        }
+    }
+#endif
+
+    private func openScriptTab(with sql: String) {
+        guard let session = appModel.sessionManager.sessionForConnection(connection.id) else { return }
+        Task { @MainActor in
+            appModel.openQueryTab(for: session, presetQuery: sql)
+        }
+    }
+
+    private func makeCreateTableScript(details: TableStructureDetails) -> String {
+        let qualifiedTable = qualifiedName(schema: object.schema, name: object.name)
+
+        var definitionLines = details.columns.map(columnDefinition)
+
+        if let primaryKey = details.primaryKey {
+            definitionLines.append(primaryKeyDefinition(primaryKey))
+        }
+
+        definitionLines.append(contentsOf: details.uniqueConstraints.map(uniqueConstraintDefinition))
+        definitionLines.append(contentsOf: details.foreignKeys.map(foreignKeyDefinition))
+
+        let body: String
+        if definitionLines.isEmpty {
+            body = ""
+        } else {
+            body = definitionLines.joined(separator: ",\n    ")
+        }
+
+        var script = "CREATE TABLE \(qualifiedTable)"
+        if body.isEmpty {
+            script += " (\n);\n"
+        } else {
+            script += " (\n    \(body)\n);"
+        }
+
+        let indexStatements = details.indexes
+            .compactMap { indexStatement(for: $0, tableName: qualifiedTable) }
+
+        if !indexStatements.isEmpty {
+            script += "\n\n" + indexStatements.joined(separator: "\n")
+        }
+
+        return script
+    }
+
+    private func columnDefinition(_ column: TableStructureDetails.Column) -> String {
+        var parts: [String] = [
+            "\(quoteIdentifier(column.name)) \(column.dataType)"
+        ]
+
+        if let generated = generatedClause(for: column.generatedExpression) {
+            parts.append(generated)
+        }
+
+        if let defaultClause = defaultClause(for: column.defaultValue) {
+            parts.append(defaultClause)
+        }
+
+        if !column.isNullable {
+            parts.append("NOT NULL")
+        }
+
+        return parts.joined(separator: " ")
+    }
+
+    private func defaultClause(for value: String?) -> String? {
+        guard let raw = value?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !raw.isEmpty else {
+            return nil
+        }
+        if raw.uppercased().hasPrefix("DEFAULT") {
+            return raw
+        }
+        return "DEFAULT \(raw)"
+    }
+
+    private func generatedClause(for expression: String?) -> String? {
+        guard let raw = expression?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !raw.isEmpty else {
+            return nil
+        }
+        if raw.uppercased().hasPrefix("GENERATED") {
+            return raw
+        }
+        return "GENERATED ALWAYS AS (\(raw))"
+    }
+
+    private func primaryKeyDefinition(_ primaryKey: TableStructureDetails.PrimaryKey) -> String {
+        let columns = primaryKey.columns
+            .map { quoteIdentifier($0) }
+            .joined(separator: ", ")
+        return "CONSTRAINT \(quoteIdentifier(primaryKey.name)) PRIMARY KEY (\(columns))"
+    }
+
+    private func uniqueConstraintDefinition(_ constraint: TableStructureDetails.UniqueConstraint) -> String {
+        let columns = constraint.columns
+            .map { quoteIdentifier($0) }
+            .joined(separator: ", ")
+        return "CONSTRAINT \(quoteIdentifier(constraint.name)) UNIQUE (\(columns))"
+    }
+
+    private func foreignKeyDefinition(_ foreignKey: TableStructureDetails.ForeignKey) -> String {
+        let columns = foreignKey.columns
+            .map { quoteIdentifier($0) }
+            .joined(separator: ", ")
+        let referencedColumns = foreignKey.referencedColumns
+            .map { quoteIdentifier($0) }
+            .joined(separator: ", ")
+        let referencedTable = qualifiedName(
+            schema: foreignKey.referencedSchema,
+            name: foreignKey.referencedTable
+        )
+
+        var clause = "CONSTRAINT \(quoteIdentifier(foreignKey.name)) FOREIGN KEY (\(columns)) REFERENCES \(referencedTable) (\(referencedColumns))"
+
+        if let onUpdate = foreignKey.onUpdate?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !onUpdate.isEmpty {
+            clause += " ON UPDATE \(onUpdate)"
+        }
+        if let onDelete = foreignKey.onDelete?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !onDelete.isEmpty {
+            clause += " ON DELETE \(onDelete)"
+        }
+
+        return clause
+    }
+
+    private func indexStatement(for index: TableStructureDetails.Index, tableName: String) -> String? {
+        let sortedColumns = index.columns.sorted { $0.position < $1.position }
+        guard !sortedColumns.isEmpty else { return nil }
+
+        let columnClauses = sortedColumns.map { column in
+            "\(quoteIdentifier(column.name)) \(column.sortOrder.sqlKeyword.uppercased())"
+        }.joined(separator: ", ")
+
+        var statement = "CREATE "
+        if index.isUnique {
+            statement += "UNIQUE "
+        }
+        statement += "INDEX \(quoteIdentifier(index.name)) ON \(tableName) (\(columnClauses))"
+
+        if let filter = index.filterCondition?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !filter.isEmpty {
+            if filter.uppercased().hasPrefix("WHERE") {
+                statement += " \(filter)"
+            } else {
+                statement += " WHERE \(filter)"
+            }
+        }
+
+        statement += ";"
+        return statement
+    }
+
+    private func dataPreviewStatement(limit: Int?) -> String {
+        let qualified = qualifiedName(schema: object.schema, name: object.name)
+        switch connection.databaseType {
+        case .microsoftSQL:
+            if let limit {
+                return "SELECT TOP (\(limit)) *\nFROM \(qualified);"
+            }
+            return "SELECT *\nFROM \(qualified);"
+        default:
+            if let limit {
+                return "SELECT *\nFROM \(qualified)\nLIMIT \(limit);"
+            }
+            return "SELECT *\nFROM \(qualified);"
+        }
+    }
+
+    private func executeStatement() -> String {
+        let qualified = qualifiedName(schema: object.schema, name: object.name)
+        switch connection.databaseType {
+        case .postgresql:
+            return "SELECT * FROM \(qualified)(/* arguments */);"
+        case .mysql:
+            return "CALL \(qualified)(/* arguments */);"
+        case .microsoftSQL:
+            return "EXEC \(qualified) /* arguments */;"
+        case .sqlite:
+            return "-- Function execution is not supported in SQLite."
+        }
+    }
+
+    private func truncateStatement() -> String {
+        let qualified = qualifiedName(schema: object.schema, name: object.name)
+        switch connection.databaseType {
+        case .postgresql, .mysql, .microsoftSQL:
+            return "TRUNCATE TABLE \(qualified);"
+        case .sqlite:
+            return "-- TRUNCATE TABLE is not supported in SQLite."
+        }
+    }
+
+    private func renameStatement(newName: String? = nil) -> String? {
+        let qualified = qualifiedName(schema: object.schema, name: object.name)
+        let trimmedName = newName?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let fallbackName = "<new_name>"
+        let effectiveName = (trimmedName?.isEmpty ?? true) ? fallbackName : trimmedName!
+        let quotedNewName = quoteIdentifier(effectiveName)
+
+        switch connection.databaseType {
+        case .postgresql:
+            switch object.type {
+            case .table:
+                return "ALTER TABLE \(qualified) RENAME TO \(quotedNewName);"
+            case .view:
+                return "ALTER VIEW \(qualified) RENAME TO \(quotedNewName);"
+            case .materializedView:
+                return "ALTER MATERIALIZED VIEW \(qualified) RENAME TO \(quotedNewName);"
+            case .function:
+                return trimmedName == nil
+                ? "ALTER FUNCTION \(qualified)(/* arg_types */) RENAME TO \(quotedNewName);"
+                : nil
+            case .trigger:
+                return "ALTER TRIGGER \(quoteIdentifier(object.name)) ON \(triggerTargetName()) RENAME TO \(quotedNewName);"
+            }
+
+        case .mysql:
+            switch object.type {
+            case .table, .view:
+                let destination = qualifiedDestinationName(effectiveName)
+                return "RENAME TABLE \(qualified) TO \(destination);"
+            case .trigger:
+                return "RENAME TRIGGER \(qualified) TO \(quotedNewName);"
+            case .function:
+                return trimmedName == nil
+                ? """
+                -- MySQL cannot rename functions directly.
+                -- Drop and recreate the function with the desired name.
+                """
+                : nil
+            case .materializedView:
+                return "-- Materialized views are not supported in MySQL."
+            }
+
+        case .sqlite:
+            switch object.type {
+            case .table:
+                return "ALTER TABLE \(qualified) RENAME TO \(quotedNewName);"
+            case .view:
+                return """
+                -- SQLite cannot rename views directly.
+                -- Drop and recreate the view with the desired name.
+                """
+            case .trigger, .function, .materializedView:
+                return "-- Renaming is not supported for this object in SQLite."
+            }
+
+        case .microsoftSQL:
+            let escaped = effectiveName.replacingOccurrences(of: "'", with: "''")
+            return "EXEC sp_rename '\(qualifiedForStoredProcedures())', '\(escaped)';"
+        }
+        return nil
+    }
+
+    private func dropStatement(includeIfExists: Bool) -> String {
+        let keyword = objectTypeKeyword()
+        let qualified = qualifiedName(schema: object.schema, name: object.name)
+        let ifExists = includeIfExists ? dropIfExistsClause() : ""
+
+        switch connection.databaseType {
+        case .postgresql:
+            switch object.type {
+            case .trigger:
+                return "DROP TRIGGER \(includeIfExists ? "IF EXISTS " : "")\(quoteIdentifier(object.name)) ON \(triggerTargetName());"
+            case .function:
+                return "DROP FUNCTION \(includeIfExists ? "IF EXISTS " : "")\(qualified)(/* arg_types */);"
+            default:
+                return "DROP \(keyword) \(ifExists)\(qualified);"
+            }
+        case .mysql:
+            switch object.type {
+            case .trigger:
+                return "DROP TRIGGER \(includeIfExists ? "IF EXISTS " : "")\(qualified);"
+            default:
+                return "DROP \(keyword) \(includeIfExists ? "IF EXISTS " : "")\(qualified);"
+            }
+        case .sqlite:
+            return "DROP \(keyword) \(ifExists)\(qualified);"
+        case .microsoftSQL:
+            switch object.type {
+            case .trigger:
+                return "DROP TRIGGER \(includeIfExists ? "IF EXISTS " : "")\(qualified) ON \(triggerTargetName());"
+            default:
+                return "DROP \(keyword) \(ifExists)\(qualified);"
+            }
+        }
+    }
+
+    private func dropIfExistsClause() -> String {
+        switch connection.databaseType {
+        case .postgresql, .mysql, .microsoftSQL, .sqlite:
+            return "IF EXISTS "
+        }
+    }
+
+    private func qualifiedDestinationName(_ newName: String) -> String {
+        let schema = object.schema.trimmingCharacters(in: .whitespacesAndNewlines)
+        let quotedNewName = quoteIdentifier(newName)
+        guard !schema.isEmpty, connection.databaseType != .sqlite else {
+            return quotedNewName
+        }
+        return "\(quoteIdentifier(schema)).\(quotedNewName)"
+    }
+
+    private func objectTypeKeyword() -> String {
+        switch object.type {
+        case .table:
+            return "TABLE"
+        case .view:
+            return "VIEW"
+        case .materializedView:
+            return "MATERIALIZED VIEW"
+        case .function:
+            return "FUNCTION"
+        case .trigger:
+            return "TRIGGER"
+        }
+    }
+
+    private func qualifiedName(schema: String, name: String) -> String {
+        let trimmedSchema = schema.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmedSchema.isEmpty || connection.databaseType == .sqlite {
+            return quoteIdentifier(name)
+        }
+        return "\(quoteIdentifier(trimmedSchema)).\(quoteIdentifier(name))"
+    }
+
+    private func qualifiedForStoredProcedures() -> String {
+        let trimmedSchema = object.schema.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmedSchema.isEmpty || connection.databaseType == .sqlite {
+            return object.name
+        }
+        return "\(trimmedSchema).\(object.name)"
+    }
+
+    private func quoteIdentifier(_ identifier: String) -> String {
+        let trimmed = identifier.trimmingCharacters(in: .whitespacesAndNewlines)
+        switch connection.databaseType {
+        case .mysql:
+            let escaped = trimmed.replacingOccurrences(of: "`", with: "``")
+            return "`\(escaped)`"
+        case .microsoftSQL:
+            let escaped = trimmed.replacingOccurrences(of: "]", with: "]]")
+            return "[\(escaped)]"
+        default:
+            let escaped = trimmed.replacingOccurrences(of: "\"", with: "\"\"")
+            return "\"\(escaped)\""
+        }
+    }
+
+    private func triggerTargetName() -> String {
+        guard let triggerTable = object.triggerTable, !triggerTable.isEmpty else {
+            return qualifiedName(schema: object.schema, name: "<table_name>")
+        }
+        if triggerTable.contains(".") {
+            let parts = triggerTable.split(separator: ".", maxSplits: 1, omittingEmptySubsequences: true)
+            if parts.count == 2 {
+                return qualifiedName(schema: String(parts[0]), name: String(parts[1]))
+            }
+        }
+        return qualifiedName(schema: object.schema, name: triggerTable)
+    }
+
 }
 }

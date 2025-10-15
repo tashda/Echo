@@ -12,6 +12,7 @@ struct QueryResultsGridView: View {
     var onColumnTap: (Int) -> Void
     var onSort: (Int, ResultGridSortAction) -> Void
     var onClearColumnHighlight: () -> Void
+    var gridState: QueryResultsGridState?
     @EnvironmentObject private var themeManager: ThemeManager
 
     var body: some View {
@@ -38,7 +39,8 @@ struct QueryResultsGridView: View {
             foreignKeyDisplayMode: .disabled,
             foreignKeyInspectorBehavior: .respectInspectorVisibility,
             onForeignKeyEvent: { _ in },
-            onJsonEvent: { _ in }
+            onJsonEvent: { _ in },
+            persistedState: gridState
         )
     }
 }
@@ -51,6 +53,7 @@ struct QueryResultsGridView: View {
     var onColumnTap: (Int) -> Void
     var onSort: (Int, ResultGridSortAction) -> Void
     var onClearColumnHighlight: () -> Void
+    var gridState: QueryResultsGridState?
 
     @EnvironmentObject private var themeManager: ThemeManager
     @EnvironmentObject private var clipboardHistory: ClipboardHistoryStore

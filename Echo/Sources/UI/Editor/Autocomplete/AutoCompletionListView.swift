@@ -76,8 +76,8 @@ struct AutoCompletionListView: View {
         .background(backgroundMaterial)
         .overlay(borderOverlay)
         .onAppear { scheduleDetailReveal(forceReset: true) }
-        .onChange(of: selectedID) { _ in scheduleDetailReveal(forceReset: false) }
-        .onChange(of: suggestions) { _ in scheduleDetailReveal(forceReset: false) }
+        .onChange(of: selectedID) { _, _ in scheduleDetailReveal(forceReset: false) }
+        .onChange(of: suggestions) { _, _ in scheduleDetailReveal(forceReset: false) }
         .onDisappear { cancelDetailReveal() }
     }
 
@@ -121,7 +121,7 @@ struct AutoCompletionListView: View {
             }
             .frame(minWidth: listWidth, idealWidth: listWidth)
             .onAppear { scrollToSelection(proxy) }
-            .onChange(of: selectedID) { _ in scrollToSelection(proxy) }
+            .onChange(of: selectedID) { _, _ in scrollToSelection(proxy) }
         }
     }
 
@@ -158,7 +158,7 @@ struct AutoCompletionListView: View {
             GeometryReader { geo in
                 Color.clear
                     .onAppear { textWidth = geo.size.width }
-                    .onChange(of: geo.size.width) { newValue in
+                    .onChange(of: geo.size.width) { _, newValue in
                         textWidth = newValue
                     }
             }

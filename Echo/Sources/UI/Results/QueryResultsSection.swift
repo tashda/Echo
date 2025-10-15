@@ -9,6 +9,7 @@ struct QueryResultsSection: View {
     @ObservedObject var query: QueryEditorState
     let connection: SavedConnection
     let activeDatabaseName: String?
+    let gridState: QueryResultsGridState
 #if os(macOS)
     let foreignKeyDisplayMode: ForeignKeyDisplayMode
     let foreignKeyInspectorBehavior: ForeignKeyInspectorBehavior
@@ -23,8 +24,7 @@ struct QueryResultsSection: View {
     @State private var showRowInfoPopover = false
     @State private var showTimeInfoPopover = false
 #if os(macOS)
-    @State private var jsonDetailLevels: [JsonDetailLevel] = []
-    @State private var jsonDetailBase: JsonDetailBase?
+    @State private var jsonInspectorContext: JsonInspectorContext?
 #endif
 
     @EnvironmentObject private var themeManager: ThemeManager
@@ -44,7 +44,7 @@ struct QueryResultsSection: View {
         case results
         case messages
 #if os(macOS)
-        case jsonDetail(UUID)
+        case jsonInspector
 #endif
     }
 
@@ -68,8 +68,7 @@ struct QueryResultsSection: View {
                 showRowInfoPopover = false
                 showTimeInfoPopover = false
 #if os(macOS)
-                jsonDetailLevels = []
-                jsonDetailBase = nil
+                jsonInspectorContext = nil
 #endif
             }
         }
@@ -110,16 +109,13 @@ struct QueryResultsSection: View {
                 showRowInfoPopover = false
                 showTimeInfoPopover = false
 #if os(macOS)
-                jsonDetailLevels = []
-                jsonDetailBase = nil
+                if selectedTab == .jsonInspector {
+                    selectedTab = .results
+                }
+                jsonInspectorContext = nil
 #endif
             }
         }
-#if os(macOS)
-        .onChange(of: selectedTab) { _, newValue in
-            handleTabSelectionChange(newValue)
-        }
-#endif
     }
 
     private var toolbar: some View {
@@ -128,8 +124,8 @@ struct QueryResultsSection: View {
                 Text("Results").tag(ResultTab.results)
                 Text("Messages").tag(ResultTab.messages)
 #if os(macOS)
-                ForEach(jsonDetailLevels) { level in
-                    Text(level.title).tag(ResultTab.jsonDetail(level.id))
+                if jsonInspectorContext != nil {
+                    Text("JSON").tag(ResultTab.jsonInspector)
                 }
 #endif
             }
@@ -268,7 +264,8 @@ struct QueryResultsSection: View {
                 foreignKeyDisplayMode: foreignKeyDisplayMode,
                 foreignKeyInspectorBehavior: foreignKeyInspectorBehavior,
                 onForeignKeyEvent: onForeignKeyEvent,
-                onJsonEvent: handleJsonCellEvent
+                onJsonEvent: handleJsonCellEvent,
+                persistedState: gridState
             )
             .opacity(hasRows ? 1 : 0)
             .allowsHitTesting(hasRows)
@@ -339,7 +336,8 @@ struct QueryResultsSection: View {
                     rowOrder: rowOrder,
                     onColumnTap: { index in toggleHighlightedColumn(index) },
                     onSort: handleGridSortAction,
-                    onClearColumnHighlight: { highlightedColumnIndex = nil }
+                    onClearColumnHighlight: { highlightedColumnIndex = nil },
+                    gridState: gridState
                 )
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }
@@ -473,7 +471,7 @@ struct QueryResultsSection: View {
     private var connectionStatusItem: some View {
         StatusBarSegment(isEnabled: true, action: {
             showConnectionInfoPopover.toggle()
-        }, chipHeight: statusChipHeight, barHeight: statusBarHeight) {
+        }, chipHeight: statusChipHeight) {
             HStack(alignment: .center, spacing: 6) {
                 Image(systemName: "server.rack")
                     .font(.system(size: 11))
@@ -511,7 +509,7 @@ struct QueryResultsSection: View {
         return StatusBarSegment(isEnabled: isEnabled, action: {
             guard isEnabled else { return }
             showRowInfoPopover.toggle()
-        }, chipHeight: statusChipHeight, barHeight: statusBarHeight) {
+        }, chipHeight: statusChipHeight) {
             HStack(spacing: 6) {
                 statusIcon(named: "table.rows")
                 Text(displayText)
@@ -538,7 +536,7 @@ struct QueryResultsSection: View {
         return StatusBarSegment(isEnabled: hasDuration && !query.isExecuting, action: {
             guard hasDuration, !query.isExecuting else { return }
             showTimeInfoPopover.toggle()
-        }, chipHeight: statusChipHeight, barHeight: statusBarHeight) {
+        }, chipHeight: statusChipHeight) {
             HStack(spacing: 6) {
                 Image(systemName: "clock")
                     .font(.system(size: 11))
@@ -558,7 +556,7 @@ struct QueryResultsSection: View {
 
     private var statusSummaryItem: some View {
         let config = statusBubbleConfiguration()
-        return StatusBarSegment(isEnabled: false, action: nil, chipHeight: statusChipHeight, barHeight: statusBarHeight) {
+        return StatusBarSegment(isEnabled: false, action: nil, chipHeight: statusChipHeight) {
             HStack(spacing: 6) {
                 Image(systemName: config.icon)
                     .font(.system(size: 11))
@@ -589,7 +587,6 @@ struct QueryResultsSection: View {
         let isEnabled: Bool
         let action: (() -> Void)?
         let chipHeight: CGFloat
-        let barHeight: CGFloat
         @ViewBuilder let content: () -> Content
 
         @State private var isHovering = false
@@ -598,13 +595,11 @@ struct QueryResultsSection: View {
             isEnabled: Bool,
             action: (() -> Void)?,
             chipHeight: CGFloat,
-            barHeight: CGFloat,
             @ViewBuilder content: @escaping () -> Content
         ) {
             self.isEnabled = isEnabled
             self.action = action
             self.chipHeight = chipHeight
-            self.barHeight = barHeight
             self.content = content
         }
 
@@ -619,12 +614,10 @@ struct QueryResultsSection: View {
                     .buttonStyle(.plain)
                     .disabled(!isEnabled)
                     .onHover { isHovering = $0 && isEnabled }
-                    .frame(height: barHeight, alignment: .center)
                     .contentShape(interactionShape)
                 } else {
                     segmentContent
                         .onHover { isHovering = $0 && isEnabled }
-                        .frame(height: barHeight, alignment: .center)
                         .contentShape(interactionShape)
                 }
             }

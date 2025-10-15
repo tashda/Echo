@@ -24,11 +24,13 @@ final class WorkspaceTab: ObservableObject, Identifiable {
     enum Kind {
         case query
         case structure
+        case diagram
     }
 
     enum Content {
         case query(QueryEditorState)
         case structure(TableStructureEditorViewModel)
+        case diagram(SchemaDiagramViewModel)
     }
 
     let id = UUID()
@@ -42,6 +44,7 @@ final class WorkspaceTab: ObservableObject, Identifiable {
     let bookmarkContext: BookmarkTabContext?
 
     private var contentCancellable: AnyCancellable?
+    let resultsGridState = QueryResultsGridState()
 
     init(
         connection: SavedConnection,
@@ -66,6 +69,7 @@ final class WorkspaceTab: ObservableObject, Identifiable {
         switch content {
         case .query: return .query
         case .structure: return .structure
+        case .diagram: return .diagram
         }
     }
 
@@ -79,10 +83,27 @@ final class WorkspaceTab: ObservableObject, Identifiable {
         return nil
     }
 
+    var diagram: SchemaDiagramViewModel? {
+        if case .diagram(let diagram) = content { return diagram }
+        return nil
+    }
+
     func setContent(_ newContent: Content) {
         content = newContent
         subscribeToContent()
         objectWillChange.send()
+    }
+
+    func estimatedMemoryUsageBytes() -> Int {
+        let baseOverhead = 96 * 1024
+        switch content {
+        case .query(let state):
+            return baseOverhead + state.estimatedMemoryUsageBytes()
+        case .structure(let editor):
+            return baseOverhead + editor.estimatedMemoryUsageBytes()
+        case .diagram(let diagram):
+            return baseOverhead + diagram.estimatedMemoryUsageBytes()
+        }
     }
 
     private func subscribeToContent() {
@@ -96,8 +117,92 @@ final class WorkspaceTab: ObservableObject, Identifiable {
             contentCancellable = editor.objectWillChange
                 .receive(on: RunLoop.main)
                 .sink { [weak self] _ in self?.objectWillChange.send() }
+        case .diagram(let diagram):
+            contentCancellable = diagram.objectWillChange
+                .receive(on: RunLoop.main)
+                .sink { [weak self] _ in self?.objectWillChange.send() }
         }
     }
+}
+
+struct SchemaDiagramEdge: Identifiable, Hashable {
+    let id = UUID()
+    let fromNodeID: String
+    let fromColumn: String
+    let toNodeID: String
+    let toColumn: String
+    let relationshipName: String?
+}
+
+struct SchemaDiagramColumn: Identifiable, Hashable {
+    let id: String
+    let name: String
+    let dataType: String
+    let isPrimaryKey: Bool
+    let isForeignKey: Bool
+
+    init(name: String, dataType: String, isPrimaryKey: Bool, isForeignKey: Bool) {
+        self.id = name
+        self.name = name
+        self.dataType = dataType
+        self.isPrimaryKey = isPrimaryKey
+        self.isForeignKey = isForeignKey
+    }
+}
+
+final class SchemaDiagramNodeModel: ObservableObject, Identifiable {
+    let id: String
+    let schema: String
+    let name: String
+    let displayName: String
+    let columns: [SchemaDiagramColumn]
+    @Published var position: CGPoint
+
+    init(
+        schema: String,
+        name: String,
+        columns: [SchemaDiagramColumn],
+        position: CGPoint = .zero
+    ) {
+        self.schema = schema
+        self.name = name
+        self.displayName = "\(schema).\(name)"
+        self.columns = columns
+        self.position = position
+        self.id = "\(schema).\(name)"
+    }
+}
+
+@MainActor
+final class SchemaDiagramViewModel: ObservableObject {
+    @Published var nodes: [SchemaDiagramNodeModel]
+    @Published var edges: [SchemaDiagramEdge]
+    let title: String
+    let baseNodeID: String
+
+    init(
+        nodes: [SchemaDiagramNodeModel],
+        edges: [SchemaDiagramEdge],
+        baseNodeID: String,
+        title: String
+    ) {
+        self.nodes = nodes
+        self.edges = edges
+        self.baseNodeID = baseNodeID
+        self.title = title
+    }
+
+    func node(for id: String) -> SchemaDiagramNodeModel? {
+        nodes.first(where: { $0.id == id })
+    }
+}
+
+final class QueryResultsGridState {
+    var cachedColumnIDs: [String] = []
+    var cachedRowOrder: [Int] = []
+    var cachedSort: SortCriteria?
+    var lastRowCount: Int = 0
+    var lastResultToken: UInt64 = 0
 }
 
 @MainActor final class QueryEditorState: ObservableObject {
@@ -114,7 +219,10 @@ final class WorkspaceTab: ObservableObject, Identifiable {
     @Published var wasCancelled: Bool = false
     @Published private(set) var visibleRowLimit: Int?
     @Published private(set) var clipboardMetadata: ClipboardHistoryStore.Entry.Metadata = .empty
-    private let initialVisibleRowBatch = 600
+    @Published var isResultsOnly: Bool = false
+    @Published var shouldAutoExecuteOnAppear: Bool = false
+
+    private let initialVisibleRowBatch: Int
 
     private var executionStartTime: Date?
     private var executionTimer: Timer?
@@ -122,9 +230,11 @@ final class WorkspaceTab: ObservableObject, Identifiable {
     private var executingTask: Task<Void, Never>?
     @Published private(set) var streamingColumns: [ColumnInfo] = []
     @Published private(set) var streamingRows: [[String?]] = []
+    @Published private(set) var resultChangeToken: UInt64 = 0
 
-    init(sql: String = "SELECT current_timestamp;") {
+    init(sql: String = "SELECT current_timestamp;", initialVisibleRowBatch: Int = 600) {
         self.sql = sql
+        self.initialVisibleRowBatch = max(100, initialVisibleRowBatch)
     }
 
     func startExecution() {
@@ -149,6 +259,7 @@ final class WorkspaceTab: ObservableObject, Identifiable {
         streamingColumns.removeAll(keepingCapacity: false)
         streamingRows.removeAll(keepingCapacity: false)
         results = nil
+        markResultDataChanged()
 
         let timestamp = executionStartTime ?? Date()
         appendMessage(
@@ -218,6 +329,7 @@ final class WorkspaceTab: ObservableObject, Identifiable {
         streamingRows.removeAll(keepingCapacity: false)
         results = nil
         visibleRowLimit = nil
+        markResultDataChanged()
     }
 
     func appendMessage(
@@ -297,6 +409,7 @@ final class WorkspaceTab: ObservableObject, Identifiable {
         if results == nil {
             visibleRowLimit = nil
         }
+        markResultDataChanged()
     }
 
     @MainActor
@@ -321,6 +434,7 @@ final class WorkspaceTab: ObservableObject, Identifiable {
 
         let runningCount = max(update.totalRowCount, streamingRows.count)
         updateRowCount(runningCount)
+        markResultDataChanged()
     }
 
     func consumeFinalResult(_ result: QueryResultSet) {
@@ -329,6 +443,7 @@ final class WorkspaceTab: ObservableObject, Identifiable {
         results = result
         updateRowCount(result.rows.count)
         visibleRowLimit = nil
+        markResultDataChanged()
     }
 
     var displayedColumns: [ColumnInfo] {
@@ -400,5 +515,53 @@ final class WorkspaceTab: ObservableObject, Identifiable {
             objectName: objectName,
             connectionColorHex: clipboardMetadata.connectionColorHex
         )
+    }
+
+    private func markResultDataChanged() {
+        resultChangeToken &+= 1
+    }
+
+    func estimatedMemoryUsageBytes() -> Int {
+        var total = 64 * 1024
+        total += sql.utf8.count * 2
+        total += messages.count * 160
+
+        let columnCount = displayedColumns.count
+        total += columnCount * 192
+
+        if let results {
+            total += estimatedBytes(for: results.rows)
+        } else if !streamingRows.isEmpty {
+            total += estimatedBytes(for: streamingRows)
+        }
+
+        if let visibleLimit = visibleRowLimit, isExecuting {
+            total += visibleLimit * columnCount * 4
+        }
+
+        return total
+    }
+
+    private func estimatedBytes(for rows: [[String?]]) -> Int {
+        guard !rows.isEmpty else { return 0 }
+        let maxSamples = 2048
+        var sampledCells = 0
+        var sampledBytes = 0
+        var totalCells = 0
+
+        for row in rows {
+            totalCells += row.count
+            for value in row {
+                if sampledCells < maxSamples {
+                    let length = value?.utf8.count ?? 0
+                    sampledBytes += length + 16
+                    sampledCells += 1
+                }
+            }
+        }
+
+        if sampledCells == 0 { return totalCells * 16 }
+        let average = sampledBytes / sampledCells
+        return average * totalCells
     }
 }

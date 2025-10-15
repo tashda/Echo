@@ -14,7 +14,9 @@ struct SQLiteFactory: DatabaseFactory {
         let resolvedPath = try resolveDatabasePath(host: host, database: database)
         do {
             let connection = try Connection(resolvedPath)
-            return SQLiteSession(connection: connection)
+            let session = SQLiteSession()
+            await session.bootstrap(with: connection)
+            return session
         } catch {
             throw DatabaseError.connectionFailed("Failed to open SQLite database: \(error.localizedDescription)")
         }
@@ -55,11 +57,6 @@ private extension FileManager {
     var currentDirectoryPathURL: URL {
         URL(fileURLWithPath: currentDirectoryPath, isDirectory: true)
     }
-}
-
-@inline(__always)
-private func sqliteTransientDestructor() -> sqlite3_destructor_type {
-    unsafeBitCast(-1, to: sqlite3_destructor_type.self)
 }
 
 private struct SQLiteRawColumn: Sendable {
@@ -103,14 +100,22 @@ private struct SQLiteRawForeignKey: Sendable {
 }
 
 actor SQLiteSession: DatabaseSession {
-    private var connection: Connection?
+    private var connectionRef: Unmanaged<Connection>?
 
-    init(connection: Connection) {
-        self.connection = connection
+    init() {}
+
+    func bootstrap(with connection: Connection) {
+        connectionRef?.release()
+        connectionRef = Unmanaged.passRetained(connection)
     }
 
     func close() async {
-        connection = nil
+        connectionRef?.release()
+        connectionRef = nil
+    }
+
+    deinit {
+        connectionRef?.release()
     }
 
     func simpleQuery(_ sql: String) async throws -> QueryResultSet {
@@ -407,7 +412,8 @@ actor SQLiteSession: DatabaseSession {
     }
 
     private func fetchIndexWhereClause(databaseName: String, indexName: String) -> String? {
-        guard let conn = connection else { return nil }
+        guard let connectionRef else { return nil }
+        let conn = connectionRef.takeUnretainedValue()
         let sql = """
         SELECT sql
         FROM \(quoteIdentifier(databaseName)).sqlite_master
@@ -535,10 +541,10 @@ actor SQLiteSession: DatabaseSession {
     }
 
     private func requireConnection() throws -> Connection {
-        guard let connection else {
+        guard let connectionRef else {
             throw DatabaseError.connectionFailed("SQLite connection has been closed")
         }
-        return connection
+        return connectionRef.takeUnretainedValue()
     }
 
     private func normalizedDatabaseName(_ name: String?) -> String {
@@ -567,8 +573,9 @@ actor SQLiteSession: DatabaseSession {
     }
 
     private func bindText(_ statement: OpaquePointer?, index: Int32, value: String, connection: Connection) throws {
+        let destructor = unsafeBitCast(-1, to: sqlite3_destructor_type.self)
         let result = value.withCString { cString in
-            sqlite3_bind_text(statement, index, cString, -1, sqliteTransientDestructor())
+            sqlite3_bind_text(statement, index, cString, -1, destructor)
         }
         guard result == SQLITE_OK else {
             throw DatabaseError.queryError(String(cString: sqlite3_errmsg(connection.handle)))

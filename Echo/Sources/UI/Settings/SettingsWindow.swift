@@ -26,7 +26,6 @@ struct SettingsWindow: Scene {
 /// Hosts the sidebar/detail split view and renders each settings section.
 struct SettingsView: View {
     @EnvironmentObject private var appModel: AppModel
-    @EnvironmentObject private var appState: AppState
     @EnvironmentObject private var clipboardHistory: ClipboardHistoryStore
     @EnvironmentObject private var themeManager: ThemeManager
 
@@ -164,8 +163,11 @@ struct KeyboardShortcutsSettingsView: View {
             title: "Workspace",
             items: [
                 .init(title: "New Query Tab", context: "Open a new SQL editing tab.", keys: ["⌘", "T"]),
+                .init(title: "Next Tab", context: "Switch to the next workspace tab.", keys: ["⌃", "⇥"]),
+                .init(title: "Previous Tab", context: "Switch to the previous workspace tab.", keys: ["⌃", "⇧", "⇥"]),
                 .init(title: "Show Tab Overview", context: "Toggle the tab overview switcher.", keys: ["⌘", "O"]),
-                .init(title: "Close Query Tab", context: "Close the active tab.", keys: ["⌘", "W"])
+                .init(title: "Close Query Tab", context: "Close the active tab.", keys: ["⌘", "W"]),
+                .init(title: "Reopen Closed Tab", context: "Restore the most recently closed tab.", keys: ["⌘", "⇧", "T"])
             ]
         ),
         .init(
@@ -416,7 +418,7 @@ struct AppearanceSettingsView: View {
     private func shouldShowSection(for tone: SQLEditorPalette.Tone) -> Bool {
         switch appModel.globalSettings.appearanceMode {
         case .system:
-            return true
+            return themeManager.activePaletteTone == tone
         case .light:
             return tone == .light
         case .dark:
@@ -463,8 +465,11 @@ struct AppearanceSettingsView: View {
                 selectedFontName: editorFontFamilyBinding.wrappedValue,
                 fontSize: editorFontSizeBinding,
                 customFontName: appModel.globalSettings.lastCustomEditorFontFamily,
-                ligatureBindingProvider: ligatureBinding(for:),
+                isLigatureCapable: ligatureCapable(fontName:),
                 ligatureStatusProvider: { appModel.globalSettings.ligaturesEnabled(for: $0) },
+                onSetLigatures: { fontName, isEnabled in
+                    setLigatures(isEnabled, for: fontName)
+                },
                 fontOptions: editorFontOptions,
                 fontDisplayNameProvider: fontDisplayName(for:),
                 onSelectTheme: { theme in
@@ -886,19 +891,19 @@ struct AppearanceSettingsView: View {
         )
     }
 
-    private func ligatureBinding(for fontName: String) -> Binding<Bool>? {
+    private func ligatureCapable(fontName: String) -> Bool {
         let key = SQLEditorThemeResolver.normalizedFontName(fontName)
-        guard Self.ligatureCapableFonts.contains(key) else { return nil }
-        return Binding(
-            get: { appModel.globalSettings.ligaturesEnabled(for: key) },
-            set: { newValue in
-                Task {
-                    await appModel.updateGlobalEditorDisplay { settings in
-                        settings.setLigaturesEnabled(newValue, for: key)
-                    }
-                }
+        return Self.ligatureCapableFonts.contains(key)
+    }
+
+    private func setLigatures(_ isEnabled: Bool, for fontName: String) {
+        let key = SQLEditorThemeResolver.normalizedFontName(fontName)
+        guard Self.ligatureCapableFonts.contains(key) else { return }
+        Task {
+            await appModel.updateGlobalEditorDisplay { settings in
+                settings.setLigaturesEnabled(isEnabled, for: key)
             }
-        )
+        }
     }
 
     private func fontDisplayName(for fontName: String) -> String {
@@ -1079,8 +1084,9 @@ private struct AppearanceToneSection: View {
     let selectedFontName: String
     let fontSize: Binding<Double>
     let customFontName: String?
-    let ligatureBindingProvider: (String) -> Binding<Bool>?
+    let isLigatureCapable: (String) -> Bool
     let ligatureStatusProvider: (String) -> Bool
+    let onSetLigatures: (String, Bool) -> Void
     let fontOptions: [EditorFontOption]
     let fontDisplayNameProvider: (String) -> String
     let onSelectTheme: (AppColorTheme) -> Void
@@ -1103,12 +1109,12 @@ private struct AppearanceToneSection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
             toneLabel
-            detailPicker
             AdaptivePreviewGrid(
                 hero: heroPreview,
                 secondary: palettePreview,
                 minimumHeight: previewTileHeight + 60
             )
+            detailPicker
             detailContent
             footnote
         }
@@ -1130,13 +1136,18 @@ private struct AppearanceToneSection: View {
     }
 
     private var detailPicker: some View {
-        Picker("Appearance Detail", selection: $selection) {
-            ForEach(AppearanceSettingsView.AppearanceDetail.allCases) { detail in
-                Text(detail.title).tag(detail)
+        HStack {
+            Spacer()
+            Picker("", selection: $selection) {
+                ForEach(AppearanceSettingsView.AppearanceDetail.allCases) { detail in
+                    Text(detail.title).tag(detail)
+                }
             }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .frame(maxWidth: 320)
+            Spacer()
         }
-        .pickerStyle(.segmented)
-        .padding(.bottom, 4)
     }
 
     @ViewBuilder
@@ -1261,13 +1272,17 @@ private struct AppearanceToneSection: View {
 
             LazyVGrid(columns: fontColumns, spacing: 12) {
                 ForEach(fontOptions) { option in
+                    let supportsLigatures = isLigatureCapable(option.postScriptName)
+                    let ligaturesEnabled = supportsLigatures ? ligatureStatusProvider(option.postScriptName) : false
+
                     FontChip(
                         title: option.displayName,
                         sampleFontName: option.postScriptName,
                         sampleFontSize: chipSampleFontSize,
                         isSelected: selectedFontName == option.postScriptName,
                         onSelect: { onSelectFont(option.postScriptName) },
-                        ligatureBinding: ligatureBindingProvider(option.postScriptName),
+                        showsLigatureBadge: supportsLigatures,
+                        ligaturesEnabled: ligaturesEnabled,
                         onHoverChanged: { hovering in
                             if hovering {
                                 hoveredFontName = option.postScriptName
@@ -1276,9 +1291,15 @@ private struct AppearanceToneSection: View {
                             }
                         }
                     )
+                    .optionalContextMenu(isEnabled: supportsLigatures) {
+                        ligatureContextMenu(for: option.postScriptName, isEnabled: ligaturesEnabled)
+                    }
                 }
 
                 if let customOption = persistentCustomFontOption {
+                    let supportsLigatures = isLigatureCapable(customOption.postScriptName)
+                    let ligaturesEnabled = supportsLigatures ? ligatureStatusProvider(customOption.postScriptName) : false
+
                     FontChip(
                         title: "System Font",
                         subtitle: fontDisplayNameProvider(customOption.postScriptName),
@@ -1287,7 +1308,8 @@ private struct AppearanceToneSection: View {
                         isSelected: selectedFontName == customOption.postScriptName,
                         onSelect: { onSelectFont(customOption.postScriptName) },
                         style: .highlighted,
-                        ligatureBinding: ligatureBindingProvider(customOption.postScriptName),
+                        showsLigatureBadge: supportsLigatures,
+                        ligaturesEnabled: ligaturesEnabled,
                         onHoverChanged: { hovering in
                             if hovering {
                                 hoveredFontName = customOption.postScriptName
@@ -1296,26 +1318,33 @@ private struct AppearanceToneSection: View {
                             }
                         }
                     )
+                    .optionalContextMenu(isEnabled: supportsLigatures) {
+                        ligatureContextMenu(for: customOption.postScriptName, isEnabled: ligaturesEnabled)
+                    }
                 }
             }
 
-            HStack(spacing: 12) {
-                Text("Font size")
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Font Size")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
-                Spacer()
-                Text(fontSizeLabel(fontSize.wrappedValue))
-                    .font(.body)
-                    .monospacedDigit()
-                Stepper("", value: fontSize, in: fontSizeRange, step: fontSizeStep)
-                    .labelsHidden()
-                    .controlSize(.small)
-                    .accessibilityLabel("Font size")
-            }
-            .padding(.top, 4)
 
-            Button("Choose from System…", action: onRequestCustomFont)
-                .buttonStyle(.bordered)
+                HStack(spacing: 12) {
+                    FontSizeControl(
+                        value: fontSize,
+                        range: fontSizeRange,
+                        step: fontSizeStep,
+                        labelProvider: fontSizeLabel
+                    )
+                    .frame(height: fontControlHeight)
+
+                    Button("Choose from System…", action: onRequestCustomFont)
+                        .buttonStyle(.bordered)
+                        .controlSize(.large)
+                        .frame(height: fontControlHeight)
+                }
+            }
+            .padding(.top, 6)
         }
     }
 
@@ -1341,7 +1370,7 @@ private struct AppearanceToneSection: View {
             shadowColor: (theme.accent?.color ?? palette.tokens.keyword.swiftColor).opacity(theme.tone == .dark ? 0.26 : 0.18)
         ) {
             ThemePreview(theme: theme, palette: palette, layout: .regular)
-                .scaleEffect(1.02)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
         }
     }
 
@@ -1350,34 +1379,47 @@ private struct AppearanceToneSection: View {
         let palette = previewPalette
         let fontName = previewFontName
         let sizeValue = previewFontSize
-        return PreviewTile(
-            title: palette.name,
-            subtitle: paletteSubtitle,
-            background: paletteHeroGradient(for: theme, palette: palette),
-            shadowColor: palette.tokens.keyword.swiftColor.opacity(theme.tone == .dark ? 0.22 : 0.14)
-        ) {
-            QueryEditorPreview(
-                theme: theme,
-                palette: palette,
-                fontName: fontName,
-                fontSize: sizeValue,
-                ligaturesEnabled: ligatureStatusProvider(fontName)
-            )
-            .overlay(alignment: .topTrailing) {
+        let ligaturesEnabled = ligatureStatusProvider(fontName)
+
+        return VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(palette.name)
+                    .font(.headline)
+                    .foregroundStyle(.primary)
+                if let subtitle = paletteSubtitle, !subtitle.isEmpty {
+                    Text(subtitle)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            ZStack(alignment: .topTrailing) {
+                QueryEditorPreview(
+                    theme: theme,
+                    palette: palette,
+                    fontName: fontName,
+                    fontSize: sizeValue,
+                    ligaturesEnabled: ligaturesEnabled
+                )
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+
                 if manualSelectionActive && selection != .theme && (selection != .palette || hoveredPaletteID == nil) {
                     TagBadge(
                         label: "Manual",
                         foreground: Color.accentColor,
                         background: Color.accentColor.opacity(0.18)
                     )
-                    .padding(12)
+                    .padding(14)
                 }
             }
+            .frame(height: previewTileHeight)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var themeColumns: [GridItem] {
-        [GridItem(.adaptive(minimum: 152, maximum: 220), spacing: 12)]
+        [GridItem(.adaptive(minimum: 168, maximum: 240), spacing: 12)]
     }
 
     private var paletteColumns: [GridItem] {
@@ -1437,14 +1479,38 @@ private struct AppearanceToneSection: View {
         selectedPaletteID != activeTheme.defaultPaletteID
     }
 
-    private var paletteSubtitle: String {
+    private var paletteSubtitle: String? {
         switch selection {
         case .theme:
-            return "Default Palette"
+            return nil
         case .palette:
-            return previewPalette.kind == .custom ? "Custom Palette" : "Built-in Palette"
+            return nil
         case .font:
-            return "\(fontDisplayNameProvider(previewFontName)) · \(fontSizeLabel(previewFontSize))"
+            return nil
+        }
+    }
+
+    @ViewBuilder
+    private func ligatureContextMenu(for fontName: String, isEnabled: Bool) -> some View {
+        Button {
+            onSetLigatures(fontName, false)
+        } label: {
+            checkmarkableLabel("Ligatures Off", isActive: !isEnabled)
+        }
+
+        Button {
+            onSetLigatures(fontName, true)
+        } label: {
+            checkmarkableLabel("Ligatures On", isActive: isEnabled)
+        }
+    }
+
+    @ViewBuilder
+    private func checkmarkableLabel(_ title: String, isActive: Bool) -> some View {
+        if isActive {
+            Label(title, systemImage: "checkmark")
+        } else {
+            Text(title)
         }
     }
 
@@ -1457,6 +1523,7 @@ private struct AppearanceToneSection: View {
 
     private var fontSizeRange: ClosedRange<Double> { 8...24 }
     private var fontSizeStep: Double { 0.5 }
+    private var fontControlHeight: CGFloat { 32 }
 
     private var chipSampleFontSize: CGFloat {
         let size = fontSize.wrappedValue
@@ -1707,7 +1774,7 @@ private struct ThemePreview: View {
         var size: CGSize {
             switch self {
             case .regular:
-                return CGSize(width: 136, height: 72)
+                return CGSize(width: 184, height: 100)
             case .compact:
                 return CGSize(width: 104, height: 52)
             }
@@ -1715,21 +1782,21 @@ private struct ThemePreview: View {
 
         var padding: CGFloat {
             switch self {
-            case .regular: return 8
+            case .regular: return 10
             case .compact: return 5
             }
         }
 
         var sidebarWidth: CGFloat {
             switch self {
-            case .regular: return 44
+            case .regular: return 52
             case .compact: return 30
             }
         }
 
         var cornerRadius: CGFloat {
             switch self {
-            case .regular: return 10
+            case .regular: return 12
             case .compact: return 7
             }
         }
@@ -1743,7 +1810,7 @@ private struct ThemePreview: View {
 #endif
 
     var body: some View {
-        ZStack(alignment: .topLeading) {
+        ZStack(alignment: .center) {
             RoundedRectangle(cornerRadius: layout.cornerRadius, style: .continuous)
                 .fill(windowFill)
                 .overlay(
@@ -1752,10 +1819,10 @@ private struct ThemePreview: View {
                         .blendMode(.overlay)
                 )
 
-            VStack(spacing: layout == .regular ? 6 : 5) {
+            VStack(spacing: layout == .regular ? 8 : 5) {
                 chromeBar
 
-                HStack(spacing: layout == .regular ? 6 : 4) {
+                HStack(spacing: layout == .regular ? 8 : 4) {
                     sidebarPreview
                     EditorTokenPreview(
                         background: editorBackgroundColor,
@@ -1767,7 +1834,7 @@ private struct ThemePreview: View {
                         tokenColors: resolvedTokens,
                         isDark: isDark
                     )
-                    .frame(height: layout == .regular ? 56 : 44)
+                    .frame(height: layout == .regular ? 70 : 44)
                 }
 
                 if !swatchColors.isEmpty {
@@ -1776,8 +1843,9 @@ private struct ThemePreview: View {
                 }
             }
             .padding(layout.padding)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
         }
-        .frame(width: layout.size.width, height: layout.size.height, alignment: .topLeading)
+        .frame(width: layout.size.width, height: layout.size.height, alignment: .center)
 #if DEBUG
         .background(
             GeometryReader { proxy in
@@ -2138,7 +2206,7 @@ private struct PreviewTile<Content: View>: View {
 
                 content()
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-                    .padding(26)
+                    .padding(22)
             }
             .frame(height: previewTileHeight)
             .shadow(color: shadowColor, radius: 24, x: 0, y: 14)
@@ -2222,6 +2290,111 @@ private extension BinaryInteger {
     var cg: CGFloat { CGFloat(self) }
 }
 
+private struct FontSizeControl: View {
+    @Binding var value: Double
+    let range: ClosedRange<Double>
+    let step: Double
+    let labelProvider: (Double) -> String
+
+    @State private var textValue: String
+    @FocusState private var isFocused: Bool
+    private let controlHeight: CGFloat = 32
+
+    init(value: Binding<Double>, range: ClosedRange<Double>, step: Double, labelProvider: @escaping (Double) -> String) {
+        self._value = value
+        self.range = range
+        self.step = step
+        self.labelProvider = labelProvider
+        _textValue = State(initialValue: Self.format(value.wrappedValue))
+    }
+
+    var body: some View {
+        control
+            .accessibilityValue(labelProvider(value))
+            .onChange(of: value) { _, newValue in
+            let formatted = Self.format(newValue)
+            if formatted != textValue {
+                textValue = formatted
+            }
+        }
+    }
+
+    private var control: some View {
+        HStack(spacing: 0) {
+            stepButton(systemName: "minus", delta: -step)
+            separator
+            TextField("", text: $textValue)
+                .focused($isFocused)
+                .multilineTextAlignment(.center)
+                .font(.system(size: 13, weight: .semibold, design: .monospaced))
+                .frame(width: 56)
+                .textFieldStyle(.plain)
+                .onSubmit(commitText)
+            separator
+            stepButton(systemName: "plus", delta: step)
+        }
+        .frame(height: controlHeight)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(Color.primary.opacity(0.05))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .stroke(Color.primary.opacity(0.08), lineWidth: 1)
+        )
+        .onChange(of: isFocused) { _, newValue in
+            if !newValue {
+                commitText()
+            }
+        }
+    }
+
+    private func stepButton(systemName: String, delta: Double) -> some View {
+        Button {
+            adjust(by: delta)
+        } label: {
+            Image(systemName: systemName)
+                .font(.system(size: 12, weight: .semibold))
+                .frame(width: 34, height: controlHeight)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(delta < 0 ? "Decrease font size" : "Increase font size")
+    }
+
+    private var separator: some View {
+        Rectangle()
+            .fill(Color.primary.opacity(0.08))
+            .frame(width: 1, height: controlHeight)
+    }
+
+    private func adjust(by delta: Double) {
+        let next = min(max(value + delta, range.lowerBound), range.upperBound)
+        value = next
+    }
+
+    private func commitText() {
+        let sanitized = textValue
+            .replacingOccurrences(of: ",", with: ".")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let parsed = Double(sanitized) else {
+            textValue = Self.format(value)
+            return
+        }
+
+        let clamped = min(max(parsed, range.lowerBound), range.upperBound)
+        value = clamped
+        textValue = Self.format(clamped)
+    }
+
+    private static func format(_ value: Double) -> String {
+        let rounded = (value * 10).rounded() / 10
+        if abs(rounded.rounded() - rounded) < 0.0001 {
+            return String(Int(rounded.rounded()))
+        }
+        return String(format: "%.1f", rounded)
+    }
+}
+
 private struct FontChip: View {
     enum Style {
         case standard
@@ -2235,7 +2408,8 @@ private struct FontChip: View {
     let isSelected: Bool
     let onSelect: () -> Void
     var style: Style = .standard
-    var ligatureBinding: Binding<Bool>? = nil
+    var showsLigatureBadge: Bool = false
+    var ligaturesEnabled: Bool = false
     var onHoverChanged: ((Bool) -> Void)? = nil
 
     var body: some View {
@@ -2263,9 +2437,9 @@ private struct FontChip: View {
                     }
                 }
                 .padding(.horizontal, 14)
-                .padding(.top, 14)
-                .padding(.bottom, hasAccessory ? 28 : 14)
-                .frame(minWidth: 140, maxWidth: .infinity, alignment: .leading)
+                .padding(.top, 12)
+                .padding(.bottom, 16)
+                .frame(minWidth: 140, maxWidth: .infinity, minHeight: 108, alignment: .leading)
                 .background(backgroundFill)
                 .overlay(borderOverlay)
             }
@@ -2274,10 +2448,10 @@ private struct FontChip: View {
                 onHoverChanged?(hovering)
             }
 
-            if let ligatureBinding {
-                LigatureSelector(isEnabled: ligatureBinding)
-                    .padding(.trailing, 8)
-                    .padding(.bottom, 6)
+            if showsLigatureBadge {
+                LigatureBadge(isEnabled: ligaturesEnabled)
+                    .padding(.trailing, 10)
+                    .padding(.bottom, 8)
             }
         }
     }
@@ -2332,12 +2506,8 @@ private struct FontChip: View {
         style == .highlighted ? Color.white.opacity(0.85) : Color.secondary
     }
 
-    private var hasAccessory: Bool {
-        ligatureBinding != nil
-    }
-
     private var samplePreviewText: Text {
-        let ligatureValue = (ligatureBinding?.wrappedValue ?? true) ? 1 : 0
+        let ligatureValue = (showsLigatureBadge && ligaturesEnabled) ? 1 : 0
         let string = "SELECT * FROM table;"
         let attributed = NSMutableAttributedString(string: string)
         let range = NSRange(location: 0, length: attributed.length)
@@ -2352,52 +2522,33 @@ private struct FontChip: View {
 
 #if os(macOS)
     private var samplePlatformFont: NSFont {
-        NSFontWithFallback(name: sampleFontName, size: sampleFontSize, ligaturesEnabled: ligatureBinding?.wrappedValue ?? true).font
+        NSFontWithFallback(name: sampleFontName, size: sampleFontSize, ligaturesEnabled: showsLigatureBadge && ligaturesEnabled).font
     }
 #else
     private var samplePlatformFont: UIFont {
-        NSFontWithFallback(name: sampleFontName, size: sampleFontSize, ligaturesEnabled: ligatureBinding?.wrappedValue ?? true).font
+        NSFontWithFallback(name: sampleFontName, size: sampleFontSize, ligaturesEnabled: showsLigatureBadge && ligaturesEnabled).font
     }
 #endif
 }
 
-private struct LigatureSelector: View {
-    @Binding var isEnabled: Bool
+private struct LigatureBadge: View {
+    let isEnabled: Bool
 
     var body: some View {
-        HStack(spacing: 2) {
-            optionButton(label: "fi", enablesLigatures: false, isActive: !isEnabled)
-            optionButton(label: "ﬁ", enablesLigatures: true, isActive: isEnabled)
-        }
-        .padding(.horizontal, 5)
-        .padding(.vertical, 3)
-        .background(
-            RoundedRectangle(cornerRadius: 6, style: .continuous)
-                .fill(Color.black.opacity(0.22))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 6, style: .continuous)
-                        .stroke(Color.white.opacity(0.18), lineWidth: 1)
-                )
-        )
-    }
-
-    private func optionButton(label: String, enablesLigatures: Bool, isActive: Bool) -> some View {
-        Button {
-            if isEnabled != enablesLigatures {
-                isEnabled = enablesLigatures
-            }
-        } label: {
-            Text(label)
-                .font(.system(size: 10, weight: .semibold, design: .monospaced))
-                .frame(width: 18, height: 16)
-                .foregroundColor(isActive ? Color.white : Color.white.opacity(0.7))
-                .background(
-                    RoundedRectangle(cornerRadius: 6, style: .continuous)
-                        .fill(isActive ? Color.accentColor : Color.clear)
-                )
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(enablesLigatures ? "Enable ligatures" : "Disable ligatures")
+        Text("ﬁ")
+            .font(.system(size: 11, weight: .semibold, design: .default))
+            .foregroundStyle(isEnabled ? Color.accentColor : Color.primary.opacity(0.65))
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(
+                Capsule(style: .continuous)
+                    .fill(isEnabled ? Color.accentColor.opacity(0.18) : Color.primary.opacity(0.05))
+            )
+            .overlay(
+                Capsule(style: .continuous)
+                    .stroke(isEnabled ? Color.accentColor.opacity(0.5) : Color.primary.opacity(0.1), lineWidth: 1)
+            )
+            .accessibilityLabel(isEnabled ? "Ligatures on" : "Ligatures off")
     }
 }
 
@@ -2453,11 +2604,17 @@ private struct SettingsWindowConfigurator: NSViewRepresentable {
     }
 
     private func configure(window: NSWindow) {
+        if window.identifier != AppWindowIdentifier.settings {
+            window.identifier = AppWindowIdentifier.settings
+        }
         if window.titleVisibility != .hidden {
             window.titleVisibility = .hidden
         }
         if window.titlebarAppearsTransparent == false {
             window.titlebarAppearsTransparent = true
+        }
+        if window.toolbar != nil {
+            window.toolbar = nil
         }
     }
 }
@@ -2531,37 +2688,35 @@ private struct PaletteSnippetPreview: View {
 
     var body: some View {
         ZStack {
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
                 .fill(background)
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
                 .strokeBorder(borderColor, lineWidth: isDark ? 0.6 : 1)
 
             HStack(spacing: 0) {
                 lineNumberColumn
                 codeColumn
             }
-            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-            .padding(.horizontal, 4)
-            .padding(.vertical, 6)
+            .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
         }
     }
 
     private var lineNumberColumn: some View {
-        VStack(alignment: .trailing, spacing: 4) {
-            lineNumber(1)
-            lineNumber(2)
-            lineNumber(3)
+        VStack(alignment: .trailing, spacing: 6) {
+            ForEach(1...6, id: \.self) { index in
+                lineNumber(index)
+            }
         }
         .font(font)
-        .frame(width: 26)
-        .padding(.vertical, 7)
-        .padding(.horizontal, 5)
+        .frame(width: 32)
+        .padding(.vertical, 12)
+        .padding(.horizontal, 8)
         .foregroundStyle(gutterForeground.opacity(isDark ? 0.72 : 0.55))
         .background(gutterBackground.opacity(isDark ? 0.92 : 0.88))
     }
 
     private var codeColumn: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 6) {
             codeLine(
                 [
                     ("-- palette preview", tokenColors.comment.swiftColor.opacity(isDark ? 0.82 : 0.72))
@@ -2571,29 +2726,53 @@ private struct PaletteSnippetPreview: View {
             codeLine(
                 [
                     ("SELECT ", tokenColors.keyword.swiftColor),
-                    ("* ", tokenColors.operatorSymbol.swiftColor),
+                    ("id", tokenColors.identifier.swiftColor),
+                    (", ", defaultText.opacity(isDark ? 0.7 : 0.6)),
+                    ("name", tokenColors.identifier.swiftColor),
+                    (", ", defaultText.opacity(isDark ? 0.7 : 0.6)),
+                    ("status", tokenColors.identifier.swiftColor)
+                ],
+                highlight: highlightColor(selection, fallbackOpacity: isDark ? 0.34 : 0.24)
+            )
+            codeLine(
+                [
                     ("FROM ", tokenColors.keyword.swiftColor),
                     ("Echo", tokenColors.identifier.swiftColor),
                     (".", defaultText.opacity(isDark ? 0.75 : 0.6)),
                     ("Table", tokenColors.identifier.swiftColor)
-                ],
-                highlight: highlightColor(selection, fallbackOpacity: isDark ? 0.38 : 0.26)
+                ]
             )
             codeLine(
                 [
                     ("WHERE ", tokenColors.keyword.swiftColor),
-                    ("created_at ", tokenColors.identifier.swiftColor),
-                    ("> ", tokenColors.operatorSymbol.swiftColor),
+                    ("Table", tokenColors.identifier.swiftColor),
+                    (".", defaultText.opacity(isDark ? 0.75 : 0.6)),
+                    ("id", tokenColors.identifier.swiftColor),
+                    (" = ", tokenColors.operatorSymbol.swiftColor),
+                    ("12345", tokenColors.number.swiftColor)
+                ]
+            )
+            codeLine(
+                [
+                    ("  AND ", tokenColors.keyword.swiftColor),
+                    ("created_at", tokenColors.identifier.swiftColor),
+                    (" > ", tokenColors.operatorSymbol.swiftColor),
                     ("NOW", tokenColors.function.swiftColor),
-                    ("()", defaultText.opacity(isDark ? 0.8 : 0.65)),
-                    (";", tokenColors.operatorSymbol.swiftColor.opacity(isDark ? 0.85 : 0.7))
+                    ("()", defaultText.opacity(isDark ? 0.8 : 0.65))
+                ]
+            )
+            codeLine(
+                [
+                    ("ORDER BY ", tokenColors.keyword.swiftColor),
+                    ("status", tokenColors.identifier.swiftColor),
+                    (" DESC", tokenColors.keyword.swiftColor)
                 ]
             )
         }
-        .padding(.vertical, 7)
-        .padding(.horizontal, 10)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(background.opacity(isDark ? 0.02 : 0.04))
+        .padding(.vertical, 12)
+        .padding(.horizontal, 14)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .background(background.opacity(isDark ? 0.03 : 0.08))
     }
 
     private func codeLine(_ segments: [(String, Color)], highlight: Color? = nil) -> some View {
@@ -3359,6 +3538,8 @@ struct QueryResultsSettingsView: View {
 }
 
 struct ApplicationCacheSettingsView: View {
+    @EnvironmentObject private var appModel: AppModel
+    @EnvironmentObject private var appState: AppState
     @EnvironmentObject private var clipboardHistory: ClipboardHistoryStore
     @EnvironmentObject private var themeManager: ThemeManager
     @State private var confirmDisableHistory = false
@@ -3376,6 +3557,8 @@ struct ApplicationCacheSettingsView: View {
         let store = clipboardHistory
 
         Form {
+            workspaceTabSection
+
             Section("Clipboard History") {
                 Toggle("Enable clipboard history", isOn: clipboardEnabledBinding(for: store))
                     .toggleStyle(.switch)
@@ -3414,6 +3597,64 @@ struct ApplicationCacheSettingsView: View {
         }
     }
 
+    private var workspaceTabSection: some View {
+        let tabs = appModel.tabManager.tabs
+        let totalBytes = tabs.reduce(0) { $0 + $1.estimatedMemoryUsageBytes() }
+        let formatter = ByteCountFormatter()
+        formatter.allowedUnits = [.useBytes, .useKB, .useMB, .useGB]
+        formatter.countStyle = .memory
+
+        return Section("Workspace Tabs") {
+            Toggle("Keep tabs in memory", isOn: keepTabsBinding)
+                .toggleStyle(.switch)
+
+            Text("Keeps each tab's editor and results view alive when switching. This speeds up tab changes at the cost of additional memory usage.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+
+            if tabs.isEmpty {
+                Text("No tabs are currently open.")
+                    .font(.footnote)
+                    .foregroundStyle(.tertiary)
+                    .padding(.top, 4)
+            } else {
+                VStack(alignment: .leading, spacing: 8) {
+                    ForEach(tabs) { tab in
+                        let bytes = tab.estimatedMemoryUsageBytes()
+                        HStack(alignment: .firstTextBaseline, spacing: 12) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(tab.title.isEmpty ? "Untitled" : tab.title)
+                                    .font(.system(size: 13, weight: .semibold))
+                                Text(tabMemoryContextLabel(for: tab))
+                                    .font(.system(size: 12))
+                                    .foregroundStyle(.secondary)
+                            }
+
+                            Spacer(minLength: 16)
+
+                            Text(formatter.string(fromByteCount: Int64(bytes)))
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(.primary)
+                        }
+                        .padding(.vertical, 4)
+                    }
+
+                    Divider()
+
+                    HStack {
+                        Text("Total for open tabs")
+                            .font(.system(size: 12, weight: .semibold))
+                        Spacer()
+                        Text(formatter.string(fromByteCount: Int64(totalBytes)))
+                            .font(.system(size: 12, weight: .semibold))
+                    }
+                    .padding(.top, 2)
+                }
+                .padding(.top, 6)
+            }
+        }
+    }
+
     private func storageLimitSection(for store: ClipboardHistoryStore) -> some View {
         let usage = store.formattedUsageBreakdown()
         let options = storageOptions(for: store.storageLimit)
@@ -3435,6 +3676,39 @@ struct ApplicationCacheSettingsView: View {
                 usageView(usage)
             }
             .padding(.top, 8)
+        }
+    }
+
+    private var keepTabsBinding: Binding<Bool> {
+        Binding(
+            get: { appModel.globalSettings.keepTabsInMemory },
+            set: { newValue in
+                guard appModel.globalSettings.keepTabsInMemory != newValue else { return }
+                Task { await appModel.updateGlobalEditorDisplay { $0.keepTabsInMemory = newValue } }
+            }
+        )
+    }
+
+    private func tabMemoryContextLabel(for tab: WorkspaceTab) -> String {
+        switch tab.kind {
+        case .query:
+            if let query = tab.query {
+                if query.isExecuting {
+                    return "Query (executing)"
+                }
+                let rowCount = query.totalAvailableRowCount
+                if rowCount > 0 {
+                    return "Query results • \(rowCount) row\(rowCount == 1 ? "" : "s")"
+                }
+                return "Query editor"
+            }
+            return "Query editor"
+        case .structure:
+            if let editor = tab.structureEditor {
+                let columnCount = editor.columns.count
+                return "Structure • \(columnCount) column\(columnCount == 1 ? "" : "s")"
+            }
+            return "Structure editor"
         }
     }
 

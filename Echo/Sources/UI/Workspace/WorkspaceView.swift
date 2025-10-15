@@ -25,28 +25,31 @@ struct WorkspaceView: View {
                     WorkspaceToolbarItems()
                 }
                 .inspector(isPresented: $appState.showInfoSidebar) {
-                    let widthBinding = Binding<CGFloat>(
-                        get: { appModel.inspectorWidth },
-                        set: { newValue in
-                            appModel.updateInspectorWidth(
-                                newValue,
-                                min: WorkspaceLayoutMetrics.inspectorMinWidth,
-                                max: WorkspaceLayoutMetrics.inspectorMaxWidth
-                            )
-                        }
+                    InfoSidebarView()
+                        .environmentObject(appModel)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                        .padding(.top, 6)
+                        .padding(.bottom, 12)
+                        .padding(.horizontal, 18)
+                        .background(
+                            GeometryReader { geo in
+                                Color.clear
+                                    .preference(key: InspectorWidthPreferenceKey.self, value: geo.size.width)
+                            }
+                        )
+                        .navigationSplitViewColumnWidth(
+                            min: WorkspaceLayoutMetrics.inspectorMinWidth,
+                            ideal: max(WorkspaceLayoutMetrics.inspectorMinWidth, appModel.inspectorWidth),
+                            max: WorkspaceLayoutMetrics.inspectorMaxWidth
+                        )
+                }
+                .onPreferenceChange(InspectorWidthPreferenceKey.self) { newWidth in
+                    guard newWidth > 0 else { return }
+                    appModel.updateInspectorWidth(
+                        newWidth,
+                        min: WorkspaceLayoutMetrics.inspectorMinWidth,
+                        max: WorkspaceLayoutMetrics.inspectorMaxWidth
                     )
-
-                    ResizableInspectorContainer(
-                        width: widthBinding,
-                        minWidth: WorkspaceLayoutMetrics.inspectorMinWidth,
-                        maxWidth: WorkspaceLayoutMetrics.inspectorMaxWidth
-                    ) {
-                        InfoSidebarView()
-                            .environmentObject(appModel)
-                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                            .padding(.vertical, 12)
-                            .padding(.horizontal, 18)
-                    }
                 }
         }
         .navigationSplitViewStyle(.balanced)
@@ -140,60 +143,17 @@ private enum WorkspaceLayoutMetrics {
     static let sidebarIdealWidth: CGFloat = 320
 
     static let inspectorMinWidth: CGFloat = 300
-    static let inspectorIdealWidth: CGFloat = 360
-    static let inspectorMaxWidth: CGFloat = 520
+    static let inspectorIdealWidth: CGFloat = 400
+    static let inspectorMaxWidth: CGFloat = .greatestFiniteMagnitude
 }
 
-private struct ResizableInspectorContainer<Content: View>: View {
-    @Binding var width: CGFloat
-    let minWidth: CGFloat
-    let maxWidth: CGFloat
-    @ViewBuilder var content: Content
+private struct InspectorWidthPreferenceKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
 
-    @State private var dragStartWidth: CGFloat?
-    @State private var isHoveringHandle = false
-    private let handleWidth: CGFloat = 6
-
-    private func clamped(_ value: CGFloat) -> CGFloat {
-        max(minWidth, min(maxWidth, value))
-    }
-
-    var body: some View {
-        HStack(spacing: 0) {
-            Rectangle()
-                .fill(Color.primary.opacity(isHoveringHandle ? 0.18 : 0.08))
-                .frame(width: handleWidth)
-                .contentShape(Rectangle())
-                .gesture(DragGesture(minimumDistance: 0)
-                    .onChanged { value in
-                        if dragStartWidth == nil {
-                            dragStartWidth = width
-                        }
-                        let proposed = (dragStartWidth ?? width) - value.translation.width
-                        width = clamped(proposed)
-                    }
-                    .onEnded { _ in
-                        width = clamped(width)
-                        dragStartWidth = nil
-                    }
-                )
-#if os(macOS)
-                .onHover { hovering in
-                    withAnimation(.easeInOut(duration: 0.15)) {
-                        isHoveringHandle = hovering
-                    }
-                }
-#endif
-
-            Divider()
-
-            content
-                .frame(width: clamped(width), alignment: .topLeading)
-        }
-        .frame(maxHeight: .infinity, alignment: .topLeading)
-        .background(Color.clear)
-        .onAppear {
-            width = clamped(width)
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        let candidate = nextValue()
+        if candidate > 0 {
+            value = candidate
         }
     }
 }
@@ -217,6 +177,10 @@ private struct WorkspaceWindowConfigurator: NSViewRepresentable {
     }
 
     private func configure(window: NSWindow) {
+        if window.identifier != AppWindowIdentifier.workspace {
+            window.identifier = AppWindowIdentifier.workspace
+        }
+
         if window.titleVisibility != .visible {
             window.titleVisibility = .visible
         }
@@ -230,6 +194,9 @@ private struct WorkspaceWindowConfigurator: NSViewRepresentable {
         if #unavailable(macOS 15) {
             window.toolbar?.showsBaselineSeparator = false
         }
+
+        AppCoordinator.shared.appModel.isWorkspaceWindowKey =
+            window.identifier == AppWindowIdentifier.workspace && window.isKeyWindow
     }
 }
 

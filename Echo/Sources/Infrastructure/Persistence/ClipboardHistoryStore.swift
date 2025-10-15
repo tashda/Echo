@@ -258,12 +258,12 @@ final class ClipboardHistoryStore: ObservableObject {
         }
     }
 
-    func record(_ source: Entry.Source, content: String, metadata: Entry.Metadata = Entry.Metadata()) {
+    func record(_ source: Entry.Source, content: String, metadata: Entry.Metadata? = nil) {
         guard isEnabled else { return }
         let trimmed = content.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
 
-        var entry = Entry(source: source, content: content, metadata: metadata)
+        var entry = Entry(source: source, content: content, metadata: metadata ?? .empty)
         let entrySize = entry.estimatedSizeInBytes
 
         if storageLimit > 0 && entrySize > storageLimit {

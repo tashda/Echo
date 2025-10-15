@@ -98,6 +98,9 @@ struct ManageConnectionsView: View {
 
     private var configuredSplitView: some View {
         splitView
+#if os(macOS)
+            .ignoresSafeArea(edges: .top)
+#endif
             .frame(minWidth: 900, minHeight: 600)
     }
 
@@ -108,6 +111,9 @@ struct ManageConnectionsView: View {
         } detail: {
             detailContent
         }
+#if os(macOS)
+        .toolbar(.hidden, for: .windowToolbar)
+#endif
     }
 }
 
@@ -115,21 +121,14 @@ struct ManageConnectionsView: View {
 
 private extension ManageConnectionsView {
     var detailContent: some View {
-        detailBody
-            .searchable(text: $searchText, prompt: activeSection.searchPlaceholder)
-            .toolbar {
-#if os(macOS)
-                ToolbarItem(placement: .automatic) {
-                    ToolbarFlexibleSpacer()
-                }
-#endif
-                ToolbarItem(placement: .primaryAction) {
-                    addMenuToolbarItem
-                }
-            }
-            .navigationTitle(navigationTitleText)
-            .navigationSubtitle(navigationSubtitleText)
-            .accentColor(themeManager.accentColor)
+        VStack(spacing: 0) {
+            detailHeader
+            Divider()
+            detailBody
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .accentColor(themeManager.accentColor)
+        .background(themeManager.surfaceBackgroundColor)
     }
 
     private var navigationTitleText: String {
@@ -145,6 +144,42 @@ private extension ManageConnectionsView {
             return activeSection.title
         }
         return ""
+    }
+
+    private var detailHeader: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(navigationTitleText)
+                    .font(.system(size: 20, weight: .semibold))
+                if !navigationSubtitleText.isEmpty {
+                    Text(navigationSubtitleText)
+                        .font(.system(size: 12))
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            HStack(spacing: 10) {
+                detailSearchField
+                Spacer()
+                addMenuToolbarItem
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.top, 18)
+        .padding(.bottom, 14)
+        .background(themeManager.surfaceBackgroundColor)
+    }
+
+    @ViewBuilder
+    private var detailSearchField: some View {
+#if os(macOS)
+        ManageConnectionsSearchField(text: $searchText, placeholder: activeSection.searchPlaceholder)
+            .frame(maxWidth: 280)
+#else
+        TextField(activeSection.searchPlaceholder, text: $searchText, prompt: Text(activeSection.searchPlaceholder))
+            .textFieldStyle(.roundedBorder)
+            .frame(maxWidth: 280)
+#endif
     }
 
     @ViewBuilder
@@ -178,6 +213,10 @@ private extension ManageConnectionsView {
             Image(systemName: "plus")
         }
         .menuIndicator(.hidden)
+        .menuStyle(.borderlessButton)
+#if os(macOS)
+        .controlSize(.small)
+#endif
         .help(activeSection == .connections ? "Add connection or folder" : "Add identity or folder")
     }
 
@@ -198,6 +237,10 @@ private extension ManageConnectionsView {
             }
         }
         .listStyle(.sidebar)
+#if os(macOS)
+        .scrollContentBackground(.hidden)
+        .background(themeManager.surfaceBackgroundColor)
+#endif
     }
 
     @ViewBuilder
@@ -1495,6 +1538,54 @@ private struct ChangeHandlers: ViewModifier {
     }
 }
 
+#if os(macOS)
+private struct ManageConnectionsSearchField: NSViewRepresentable {
+    @Binding var text: String
+    let placeholder: String
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(text: $text)
+    }
+
+    func makeNSView(context: Context) -> NSSearchField {
+        let searchField = NSSearchField()
+        searchField.placeholderString = placeholder
+        searchField.stringValue = text
+        searchField.delegate = context.coordinator
+        searchField.sendsSearchStringImmediately = true
+        searchField.sendsWholeSearchString = true
+        searchField.controlSize = .small
+        searchField.font = NSFont.systemFont(ofSize: 13)
+        searchField.focusRingType = .none
+        searchField.translatesAutoresizingMaskIntoConstraints = false
+        return searchField
+    }
+
+    func updateNSView(_ nsView: NSSearchField, context: Context) {
+        if nsView.placeholderString != placeholder {
+            nsView.placeholderString = placeholder
+        }
+        if nsView.stringValue != text {
+            nsView.stringValue = text
+        }
+    }
+
+    final class Coordinator: NSObject, NSSearchFieldDelegate {
+        @Binding var text: String
+
+        init(text: Binding<String>) {
+            _text = text
+        }
+
+        func controlTextDidChange(_ obj: Notification) {
+            guard let searchField = obj.object as? NSSearchField else { return }
+            if text != searchField.stringValue {
+                text = searchField.stringValue
+            }
+        }
+    }
+}
+#endif
 // MARK: - Double-Click Support
 
 #if os(macOS)

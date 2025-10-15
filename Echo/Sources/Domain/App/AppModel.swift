@@ -80,6 +80,147 @@ final class AppModel: ObservableObject {
         return DatabaseStructureFetcher(factory: factory, databaseType: connection.databaseType)
     }
 
+    private struct DiagramTableKey: Hashable {
+        let schema: String
+        let name: String
+
+        var identifier: String { "\(schema).\(name)" }
+    }
+
+    private func buildSchemaDiagram(
+        for session: ConnectionSession,
+        object: SchemaObjectInfo
+    ) async throws -> SchemaDiagramViewModel {
+        let baseKey = DiagramTableKey(schema: object.schema, name: object.name)
+        let baseDetails = try await session.session.getTableStructureDetails(
+            schema: object.schema,
+            table: object.name
+        )
+
+        var tableDetails: [DiagramTableKey: TableStructureDetails] = [baseKey: baseDetails]
+        var relatedKeys = Set<DiagramTableKey>()
+
+        func normalize(_ identifier: String, fallbackSchema: String) -> DiagramTableKey {
+            let trimmed = identifier.trimmingCharacters(in: CharacterSet(charactersIn: "\"`[] ").union(.whitespacesAndNewlines))
+            if let dotIndex = trimmed.firstIndex(of: ".") {
+                let schema = String(trimmed[..<dotIndex])
+                let table = String(trimmed[trimmed.index(after: dotIndex)...])
+                return DiagramTableKey(schema: schema, name: table)
+            }
+            return DiagramTableKey(schema: fallbackSchema, name: trimmed)
+        }
+
+        for fk in baseDetails.foreignKeys {
+            let key = DiagramTableKey(schema: fk.referencedSchema, name: fk.referencedTable)
+            relatedKeys.insert(key)
+        }
+
+        for dependency in baseDetails.dependencies {
+            let key = normalize(dependency.referencedTable, fallbackSchema: object.schema)
+            relatedKeys.insert(key)
+        }
+
+        relatedKeys.remove(baseKey)
+
+        if !relatedKeys.isEmpty {
+            try await withThrowingTaskGroup(of: (DiagramTableKey, TableStructureDetails).self) { group in
+                for key in relatedKeys where tableDetails[key] == nil {
+                    group.addTask {
+                        let details = try await session.session.getTableStructureDetails(
+                            schema: key.schema,
+                            table: key.name
+                        )
+                        return (key, details)
+                    }
+                }
+
+                for try await (key, details) in group {
+                    tableDetails[key] = details
+                }
+            }
+        }
+
+        func buildColumns(for details: TableStructureDetails) -> [SchemaDiagramColumn] {
+            let primaryKeys = Set(details.primaryKey?.columns.map { $0.lowercased() } ?? [])
+            let foreignKeys = Set(details.foreignKeys.flatMap { $0.columns.map { $0.lowercased() } })
+
+            return details.columns.map { column in
+                SchemaDiagramColumn(
+                    name: column.name,
+                    dataType: column.dataType,
+                    isPrimaryKey: primaryKeys.contains(column.name.lowercased()),
+                    isForeignKey: foreignKeys.contains(column.name.lowercased())
+                )
+            }
+        }
+
+        var edges: [SchemaDiagramEdge] = []
+
+        func appendForeignKeyEdges(from tableKey: DiagramTableKey, details: TableStructureDetails) {
+            for fk in details.foreignKeys {
+                let targetKey = DiagramTableKey(schema: fk.referencedSchema, name: fk.referencedTable)
+                guard tableDetails[targetKey] != nil else { continue }
+
+                for pair in zip(fk.columns, fk.referencedColumns) {
+                    edges.append(
+                        SchemaDiagramEdge(
+                            fromNodeID: tableKey.identifier,
+                            fromColumn: pair.0,
+                            toNodeID: targetKey.identifier,
+                            toColumn: pair.1,
+                            relationshipName: fk.name
+                        )
+                    )
+                }
+            }
+        }
+
+        var nodeModels: [SchemaDiagramNodeModel] = []
+
+        if let baseColumns = tableDetails[baseKey].map(buildColumns) {
+            let baseNode = SchemaDiagramNodeModel(
+                schema: baseKey.schema,
+                name: baseKey.name,
+                columns: baseColumns,
+                position: CGPoint(x: 0, y: 0)
+            )
+            nodeModels.append(baseNode)
+        }
+
+        let otherKeys = tableDetails.keys.filter { $0 != baseKey }
+        if !otherKeys.isEmpty {
+            let radius: CGFloat = 520
+            for (index, key) in otherKeys.enumerated() {
+                guard let details = tableDetails[key] else { continue }
+                let columns = buildColumns(for: details)
+                let angle = CGFloat(index) / CGFloat(otherKeys.count) * 2 * .pi
+                let position = CGPoint(
+                    x: cos(angle) * radius,
+                    y: sin(angle) * radius
+                )
+                let node = SchemaDiagramNodeModel(
+                    schema: key.schema,
+                    name: key.name,
+                    columns: columns,
+                    position: position
+                )
+                nodeModels.append(node)
+            }
+        }
+
+        for (key, details) in tableDetails {
+            appendForeignKeyEdges(from: key, details: details)
+        }
+
+        let title = "\(object.schema).\(object.name)"
+        return SchemaDiagramViewModel(
+            nodes: nodeModels,
+            edges: edges,
+            baseNodeID: baseKey.identifier,
+            title: title
+        )
+    }
+
     private func loadExpandedConnectionFolders(for projectID: UUID?) {
         let storage = UserDefaults.standard.dictionary(forKey: Self.expandedConnectionFoldersKey) as? [String: [String]] ?? [:]
         let key = projectID?.uuidString ?? "global"
@@ -598,6 +739,80 @@ final class AppModel: ObservableObject {
             bookmarkContext: bookmarkContext
         )
         tabManager.addTab(newTab)
+    }
+
+    @MainActor
+    func openDataPreviewTab(
+        for session: ConnectionSession,
+        object: SchemaObjectInfo,
+        sql: String,
+        initialBatchSize: Int = 500
+    ) {
+        sessionManager.setActiveSession(session.id)
+        selectedConnectionID = session.connection.id
+
+        func normalized(_ value: String) -> String? {
+            let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+            return trimmed.isEmpty ? nil : trimmed
+        }
+
+        let queryState = QueryEditorState(sql: sql, initialVisibleRowBatch: initialBatchSize)
+        queryState.isResultsOnly = true
+        queryState.shouldAutoExecuteOnAppear = true
+
+        let serverName = normalized(session.connection.connectionName) ?? normalized(session.connection.host)
+        let databaseName = normalized(session.selectedDatabaseName ?? session.connection.database)
+
+        queryState.updateClipboardContext(
+            serverName: serverName,
+            databaseName: databaseName,
+            connectionColorHex: session.connection.metadataColorHex
+        )
+        queryState.updateClipboardObjectName(object.fullName)
+
+        let title = "\(object.name) Data"
+
+        let newTab = WorkspaceTab(
+            connection: session.connection,
+            session: session.session,
+            connectionSessionID: session.id,
+            title: title,
+            content: .query(queryState)
+        )
+
+        tabManager.addTab(newTab)
+        tabManager.activeTabId = newTab.id
+    }
+
+    @MainActor
+    func openDiagramTab(
+        for session: ConnectionSession,
+        object: SchemaObjectInfo
+    ) {
+        sessionManager.setActiveSession(session.id)
+        selectedConnectionID = session.connection.id
+
+        Task {
+            do {
+                let diagramModel = try await buildSchemaDiagram(for: session, object: object)
+                await MainActor.run {
+                    let title = "\(object.name) Diagram"
+                    let newTab = WorkspaceTab(
+                        connection: session.connection,
+                        session: session.session,
+                        connectionSessionID: session.id,
+                        title: title,
+                        content: .diagram(diagramModel)
+                    )
+                    tabManager.addTab(newTab)
+                    tabManager.activeTabId = newTab.id
+                }
+            } catch {
+                await MainActor.run {
+                    self.lastError = DatabaseError.from(error)
+                }
+            }
+        }
     }
 
     func closeActiveQueryTab() {
