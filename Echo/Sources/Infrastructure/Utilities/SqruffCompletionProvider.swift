@@ -36,8 +36,9 @@ actor SqruffCompletionProvider {
     private nonisolated let delimiterData = "\r\n\r\n".data(using: .utf8)!
 
     deinit {
-        Task {
-            await shutdownProcess()
+        Task { [weak self] in
+            guard let self else { return }
+            await self.shutdownProcess()
         }
     }
 
@@ -391,17 +392,17 @@ actor SqruffCompletionProvider {
         for item in itemsArray {
             guard let label = item["label"] as? String else { continue }
 
-            var insertText: String
+            let rawInsertText: String
             if let textEdit = item["textEdit"] as? [String: Any], let newText = textEdit["newText"] as? String {
-                insertText = newText
+                rawInsertText = newText
             } else if let providedInsert = item["insertText"] as? String {
-                insertText = providedInsert
+                rawInsertText = providedInsert
             } else {
-                insertText = label
+                rawInsertText = label
             }
 
-            insertText = cleanInsertText(insertText)
-            let key = insertText.lowercased()
+            let cleanedInsertText = cleanInsertText(rawInsertText)
+            let key = cleanedInsertText.lowercased()
             if seen.contains(key) { continue }
             seen.insert(key)
 
@@ -410,13 +411,14 @@ actor SqruffCompletionProvider {
             let kindValue = item["kind"] as? Int
             let kind = mapCompletionKind(kindValue, detail: detail, label: label)
 
+            let suggestionID = "sqruff::\(label)::\(cleanedInsertText)"
             let suggestion = await MainActor.run {
                 SQLAutoCompletionSuggestion(
-                    id: "sqruff::\(label)::\(insertText)",
+                    id: suggestionID,
                     title: label,
                     subtitle: detail,
                     detail: detail,
-                    insertText: insertText,
+                    insertText: cleanedInsertText,
                     kind: kind
                 )
             }

@@ -1110,7 +1110,7 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
     }
 
     func makeCompletionQuery() -> SQLAutoCompletionQuery? {
-        guard let textStorage else { return nil }
+        guard textStorage != nil else { return nil }
         let selection = selectedRange()
         guard selection.location != NSNotFound, selection.length == 0 else { return nil }
 

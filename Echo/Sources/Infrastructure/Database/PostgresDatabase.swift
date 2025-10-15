@@ -539,6 +539,40 @@ final class PostgresSession: DatabaseSession {
             primaryKeysByTable[table] = columns
         }
 
+        let foreignKeysSQL = """
+        SELECT
+            cls.relname AS table_name,
+            att.attname AS column_name,
+            nsp_ref.nspname AS referenced_schema,
+            cls_ref.relname AS referenced_table,
+            att_ref.attname AS referenced_column,
+            con.conname AS constraint_name
+        FROM pg_constraint con
+        JOIN pg_class cls ON cls.oid = con.conrelid
+        JOIN pg_namespace nsp ON nsp.oid = cls.relnamespace
+        JOIN pg_class cls_ref ON cls_ref.oid = con.confrelid
+        JOIN pg_namespace nsp_ref ON nsp_ref.oid = cls_ref.relnamespace
+        JOIN LATERAL generate_subscripts(con.conkey, 1) AS idx(pos) ON TRUE
+        JOIN pg_attribute att ON att.attrelid = con.conrelid AND att.attnum = con.conkey[idx.pos]
+        JOIN pg_attribute att_ref ON att_ref.attrelid = con.confrelid AND att_ref.attnum = con.confkey[idx.pos]
+        WHERE con.contype = 'f'
+          AND nsp.nspname = $1
+        ORDER BY cls.relname, idx.pos;
+        """
+
+        var foreignKeysByTable: [String: [String: ColumnInfo.ForeignKeyReference]] = [:]
+        let foreignKeysResult = try await performQuery(foreignKeysSQL, binds: [PostgresData(string: schemaName)])
+        for try await (table, column, referencedSchema, referencedTable, referencedColumn, constraintName) in foreignKeysResult.decode((String, String, String, String, String, String).self) {
+            var tableMap = foreignKeysByTable[table, default: [:]]
+            tableMap[column] = ColumnInfo.ForeignKeyReference(
+                constraintName: constraintName,
+                referencedSchema: referencedSchema,
+                referencedTable: referencedTable,
+                referencedColumn: referencedColumn
+            )
+            foreignKeysByTable[table] = tableMap
+        }
+
         // Materialized view columns may not appear in information_schema in some versions
         let matViewColumnSQL = """
         SELECT c.relname, a.attname, pg_catalog.format_type(a.atttypid, a.atttypmod), NOT a.attnotnull, NULL::integer, a.attnum
@@ -570,13 +604,15 @@ final class PostgresSession: DatabaseSession {
         for (table, records) in columnsByTable {
             let sorted = records.sorted { $0.ordinal < $1.ordinal }
             let primaryKeys = primaryKeysByTable[table] ?? []
+            let foreignKeys = foreignKeysByTable[table] ?? [:]
             let columns = sorted.map { record in
                 ColumnInfo(
                     name: record.name,
                     dataType: record.dataType,
                     isPrimaryKey: primaryKeys.contains(record.name),
                     isNullable: record.isNullable,
-                    maxLength: record.maxLength
+                    maxLength: record.maxLength,
+                    foreignKey: foreignKeys[record.name]
                 )
             }
             result[table] = columns

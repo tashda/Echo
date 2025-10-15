@@ -60,15 +60,12 @@ final class ManageConnectionsWindowController: NSWindowController, NSWindowDeleg
             backing: .buffered,
             defer: false
         )
+        window.identifier = AppWindowIdentifier.manageConnections
         window.title = "Manage Connections"
         window.isReleasedWhenClosed = false
         window.titlebarAppearsTransparent = true
         window.titleVisibility = .hidden
-        if #available(macOS 13.0, *) {
-            window.toolbarStyle = .expanded
-        } else {
-            window.toolbarStyle = .unified
-        }
+        window.toolbarStyle = .unified
         window.contentViewController = hosting
         window.delegate = self
         applyTheme(to: window)

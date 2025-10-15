@@ -13,6 +13,7 @@ import Combine
     @Published var showTabOverview = false
     @Published var showInfoSidebar = false
     @Published var themeTabs = false
+    @Published var keepTabsInMemory = false
 
     // MARK: - Query State
     @Published var isQueryRunning = false

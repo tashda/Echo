@@ -1,5 +1,6 @@
 import SwiftUI
 import Foundation
+import UniformTypeIdentifiers
 #if os(macOS)
 import AppKit
 #else
@@ -38,12 +39,14 @@ private func buildForeignKeyMapping(from details: TableStructureDetails) -> Fore
 }
 #endif
 
+@MainActor
 fileprivate func applyForeignKeyMapping(to update: QueryStreamUpdate, mapping: ForeignKeyMapping) -> QueryStreamUpdate {
     guard !mapping.isEmpty else { return update }
     let columns = applyForeignKeyMapping(to: update.columns, mapping: mapping)
     return QueryStreamUpdate(columns: columns, appendedRows: update.appendedRows, totalRowCount: update.totalRowCount)
 }
 
+@MainActor
 fileprivate func applyForeignKeyMapping(to columns: [ColumnInfo], mapping: ForeignKeyMapping) -> [ColumnInfo] {
     guard !mapping.isEmpty else { return columns }
     return columns.map { column in
@@ -134,6 +137,11 @@ struct QueryTabsView: View {
         .onChange(of: appModel.selectedConnection) { _, _ in
             createInitialTabIfNeeded()
         }
+        .onChange(of: appModel.tabManager.activeTabId) { _, _ in
+            if appState.showTabOverview {
+                appState.showTabOverview = false
+            }
+        }
     }
 
     private func createInitialTabIfNeeded() {
@@ -175,7 +183,9 @@ struct QueryTabsView: View {
                     guard let state else { return }
                     Task {
                         let mapping = await foreignKeyMappingTask.value
-                        let enrichedUpdate = applyForeignKeyMapping(to: update, mapping: mapping)
+                        let enrichedUpdate = await MainActor.run {
+                            applyForeignKeyMapping(to: update, mapping: mapping)
+                        }
                         await MainActor.run {
                             var transaction = Transaction()
                             transaction.disablesAnimations = true
@@ -189,7 +199,9 @@ struct QueryTabsView: View {
                 let mapping = await foreignKeyMappingTask.value
                 var enrichedResult = result
                 if !mapping.isEmpty {
-                    enrichedResult.columns = applyForeignKeyMapping(to: result.columns, mapping: mapping)
+                    enrichedResult.columns = await MainActor.run {
+                        applyForeignKeyMapping(to: result.columns, mapping: mapping)
+                    }
                 }
                 await MainActor.run {
                     state.consumeFinalResult(enrichedResult)
@@ -353,6 +365,7 @@ struct QueryTabStrip: View {
 
     @State private var hoveredTabID: UUID?
     @State private var dragState = TabDragState()
+    @State private var measuredTabGroupWidth: CGFloat = 0
 
     private var themedAppearance: TabChromePalette? {
 #if os(macOS)
@@ -419,9 +432,13 @@ struct QueryTabStrip: View {
             let separatorWidth = CGFloat(max(orderedTabs.count - 1, 0)) * tabHairlineWidth()
             let effectiveWidth = max(availableWidth - separatorWidth, 0)
             let tabWidth = orderedTabs.isEmpty ? 0 : effectiveWidth / CGFloat(orderedTabs.count)
+            let tabContentWidth = max(tabWidth * CGFloat(orderedTabs.count), 0)
+            let widthSource = measuredTabGroupWidth > 0 ? measuredTabGroupWidth : tabContentWidth
             let basePlateLeading = max(effectiveLeadingPadding - basePlateExtension - basePlateEdgeInset, 0)
             let basePlateTrailing = max(effectiveTrailingPadding - basePlateExtension - basePlateEdgeInset, 0)
-            let basePlateWidth = hasTabs ? max(geo.size.width - basePlateLeading - basePlateTrailing, 0) : 0
+            let plateAvailableWidth = max(geo.size.width - basePlateLeading - basePlateTrailing, 0)
+            let desiredPlateWidth = min(max(widthSource + basePlateEdgeInset * 2, widthSource), plateAvailableWidth)
+            let basePlateWidth = hasTabs ? desiredPlateWidth : 0
             let basePlateOffset = basePlateLeading
 
             ZStack(alignment: .leading) {
@@ -435,6 +452,12 @@ struct QueryTabStrip: View {
 
                 HStack(spacing: 0) {
                     tabGroup(orderedTabs: orderedTabs, tabWidth: tabWidth)
+                        .background(
+                            GeometryReader { contentGeo in
+                                Color.clear
+                                    .preference(key: TabGroupWidthPreferenceKey.self, value: contentGeo.size.width)
+                            }
+                        )
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 .padding(.leading, effectiveLeadingPadding)
@@ -446,6 +469,9 @@ struct QueryTabStrip: View {
         }
         .frame(height: tabStripHeight)
         .clipped()
+        .onPreferenceChange(TabGroupWidthPreferenceKey.self) { width in
+            measuredTabGroupWidth = width
+        }
         .onChange(of: appModel.tabManager.tabs.isEmpty) { _, isEmpty in
             if isEmpty {
                 hoveredTabID = nil
@@ -932,6 +958,9 @@ private struct WorkspaceContentView: View {
                 if let structureEditor = tab.structureEditor {
                     TableStructureEditorView(tab: tab, viewModel: structureEditor)
                         .background(themeManager.windowBackground)
+                } else if let diagram = tab.diagram {
+                    SchemaDiagramView(viewModel: diagram)
+                        .background(themeManager.windowBackground)
                 } else if let query = tab.query {
                     QueryEditorContainer(
                         tab: tab,
@@ -969,6 +998,7 @@ private struct QueryEditorContainer: View {
         GeometryReader { geometry in
             let totalHeight = geometry.size.height
             let backgroundColor = themeManager.windowBackground
+            let shouldShowResultsOnly = query.isResultsOnly
             let ratioBinding = Binding<CGFloat>(
                 get: { min(max(query.splitRatio, minRatio), maxRatio) },
                 set: { newValue in
@@ -977,24 +1007,7 @@ private struct QueryEditorContainer: View {
             )
 
             VStack(spacing: 0) {
-                QueryInputSection(
-                    query: query,
-                    onExecute: { sql in await runQuery(sql) },
-                    onCancel: cancelQuery,
-                    onAddBookmark: handleBookmarkRequest,
-                    completionContext: editorCompletionContext
-                )
-                .frame(height: query.hasExecutedAtLeastOnce ? totalHeight * ratioBinding.wrappedValue : totalHeight)
-                .background(backgroundColor)
-
-                if query.hasExecutedAtLeastOnce {
-                    ResizeHandle(
-                        ratio: ratioBinding,
-                        minRatio: minRatio,
-                        maxRatio: maxRatio,
-                        availableHeight: totalHeight
-                    )
-
+                if shouldShowResultsOnly {
                 #if os(macOS)
                     QueryResultsSection(
                         query: query,
@@ -1005,7 +1018,7 @@ private struct QueryEditorContainer: View {
                         onForeignKeyEvent: handleForeignKeyEvent,
                         onJsonEvent: handleJsonEvent
                     )
-                        .frame(height: totalHeight * (1 - ratioBinding.wrappedValue))
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .background(backgroundColor)
                         .transition(.opacity)
                 #else
@@ -1014,10 +1027,53 @@ private struct QueryEditorContainer: View {
                         connection: connectionForDisplay,
                         activeDatabaseName: connectionDatabaseName
                     )
-                        .frame(height: totalHeight * (1 - ratioBinding.wrappedValue))
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .background(backgroundColor)
                         .transition(.opacity)
                 #endif
+                } else {
+                    QueryInputSection(
+                        query: query,
+                        onExecute: { sql in await runQuery(sql) },
+                        onCancel: cancelQuery,
+                        onAddBookmark: handleBookmarkRequest,
+                        completionContext: editorCompletionContext
+                    )
+                    .frame(height: query.hasExecutedAtLeastOnce ? totalHeight * ratioBinding.wrappedValue : totalHeight)
+                    .background(backgroundColor)
+
+                    if query.hasExecutedAtLeastOnce {
+                        ResizeHandle(
+                            ratio: ratioBinding,
+                            minRatio: minRatio,
+                            maxRatio: maxRatio,
+                            availableHeight: totalHeight
+                        )
+
+                    #if os(macOS)
+                        QueryResultsSection(
+                            query: query,
+                            connection: connectionForDisplay,
+                            activeDatabaseName: connectionDatabaseName,
+                            foreignKeyDisplayMode: foreignKeyDisplayMode,
+                            foreignKeyInspectorBehavior: foreignKeyInspectorBehavior,
+                            onForeignKeyEvent: handleForeignKeyEvent,
+                            onJsonEvent: handleJsonEvent
+                        )
+                            .frame(height: totalHeight * (1 - ratioBinding.wrappedValue))
+                            .background(backgroundColor)
+                            .transition(.opacity)
+                    #else
+                        QueryResultsSection(
+                            query: query,
+                            connection: connectionForDisplay,
+                            activeDatabaseName: connectionDatabaseName
+                        )
+                            .frame(height: totalHeight * (1 - ratioBinding.wrappedValue))
+                            .background(backgroundColor)
+                            .transition(.opacity)
+                    #endif
+                    }
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -1030,6 +1086,15 @@ private struct QueryEditorContainer: View {
         }
         .onChange(of: tab.connection.database) { _, _ in
             updateClipboardContext()
+        }
+        .task {
+            await triggerAutoExecutionIfNeeded()
+        }
+        .onChange(of: query.shouldAutoExecuteOnAppear) { _, newValue in
+            guard newValue else { return }
+            Task {
+                await triggerAutoExecutionIfNeeded()
+            }
         }
     }
 
@@ -1067,6 +1132,15 @@ private struct QueryEditorContainer: View {
         appModel.globalSettings.foreignKeyIncludeRelated
     }
 #endif
+
+    @MainActor
+    private func triggerAutoExecutionIfNeeded() async {
+        guard query.isResultsOnly else { return }
+        guard !query.hasExecutedAtLeastOnce, !query.isExecuting else { return }
+        guard query.shouldAutoExecuteOnAppear else { return }
+        query.shouldAutoExecuteOnAppear = false
+        await runQuery(query.sql)
+    }
 
     private func updateClipboardContext() {
         query.updateClipboardContext(
@@ -1605,7 +1679,7 @@ private struct QueryTabButton: View {
                 return appearance.hoverTabFill
             }
 
-            return appearance.inactiveTabFill
+            return nil
         }
         if isDropTarget {
             return tabDropHighlightGradient
@@ -1675,7 +1749,7 @@ private struct QueryTabButton: View {
                 return appearance.hoverTabBorder
             }
 
-            return appearance.inactiveTabBorder
+            return nil
         }
         if isDropTarget {
             return tabDropBorderColor
@@ -1940,10 +2014,22 @@ private struct TabOverviewView: View {
     @State private var animateIn = false
     @State private var collapsedServers: Set<UUID> = []
     @State private var collapsedDatabases: Set<String> = []
+    @State private var focusedTabId: UUID?
+    @State private var columnCount: Int = 1
+    @State private var lastVisibleTabIDs: [UUID] = []
+    @State private var draggingTabId: UUID?
+    @State private var dropTargetTabId: UUID?
 
-    private let columns = [
-        GridItem(.adaptive(minimum: 260, maximum: 360), spacing: 16)
-    ]
+    private let minCardWidth: CGFloat = 260
+    private let maxCardWidth: CGFloat = 360
+    private let gridSpacing: CGFloat = 16
+
+    private var gridColumns: [GridItem] {
+        Array(
+            repeating: GridItem(.flexible(minimum: minCardWidth, maximum: maxCardWidth), spacing: gridSpacing),
+            count: max(columnCount, 1)
+        )
+    }
 
     private var orderedTabIDs: [UUID] { tabs.map(\.id) }
     private var animation: Animation { .spring(response: 0.45, dampingFraction: 0.82, blendDuration: 0.2) }
@@ -1966,12 +2052,52 @@ private struct TabOverviewView: View {
                     }
                     .padding(.horizontal, 24)
                     .padding(.bottom, 32)
+#if os(macOS)
+                    Color.clear
+                        .frame(height: 1)
+                        .frame(maxWidth: .infinity)
+                        .onDrop(of: [UTType.plainText], delegate: TabOverviewDropDelegate(
+                            targetTabID: nil,
+                            isTrailingPlaceholder: true,
+                            appModel: appModel,
+                            draggingTabId: $draggingTabId,
+                            dropTargetTabId: $dropTargetTabId
+                        ))
+#endif
                 }
             }
         }
         .background(themeManager.windowBackground)
-        .onAppear(perform: triggerAnimation)
-        .onChange(of: tabs.map(\.id)) { _, _ in resetAnimation() }
+        .onAppear {
+            triggerAnimation()
+            initializeFocus()
+        }
+        .onDisappear {
+            draggingTabId = nil
+            dropTargetTabId = nil
+        }
+        .onChange(of: tabs.map(\.id)) { _, _ in
+            resetAnimation()
+            ensureFocusedTabIsVisible(previousVisibleTabIDs: lastVisibleTabIDs)
+        }
+        .onChange(of: collapsedServers) { _, _ in
+            ensureFocusedTabIsVisible(previousVisibleTabIDs: lastVisibleTabIDs)
+        }
+        .onChange(of: collapsedDatabases) { _, _ in
+            ensureFocusedTabIsVisible(previousVisibleTabIDs: lastVisibleTabIDs)
+        }
+        .onChange(of: activeTabId) { oldValue, newValue in
+            handleActiveTabChange(from: oldValue, to: newValue)
+        }
+        .onPreferenceChange(TabOverviewWidthPreferenceKey.self) { width in
+            updateColumnCount(for: width)
+        }
+#if os(macOS)
+        .background(
+            TabOverviewKeyCapture(onKeyDown: handleKeyEvent)
+                .allowsHitTesting(false)
+        )
+#endif
     }
 
     private var header: some View {
@@ -2127,11 +2253,16 @@ private struct TabOverviewView: View {
                     .foregroundStyle(.secondary)
             }
 
-            LazyVGrid(columns: columns, spacing: 16) {
+            LazyVGrid(columns: gridColumns, spacing: gridSpacing) {
                 ForEach(section.tabs) { tab in
                     tabCard(for: tab)
                 }
             }
+            .background(
+                GeometryReader { proxy in
+                    Color.clear.preference(key: TabOverviewWidthPreferenceKey.self, value: proxy.size.width)
+                }
+            )
         }
         .animation(animation, value: section.tabs.map(\.id))
     }
@@ -2140,6 +2271,8 @@ private struct TabOverviewView: View {
         TabPreviewCard(
             tab: tab,
             isActive: tab.id == activeTabId,
+            isFocused: tab.id == focusedTabId,
+            isDropTarget: dropTargetTabId == tab.id,
             onSelect: { onSelectTab(tab.id) },
             onClose: { onCloseTab(tab.id) }
         )
@@ -2148,7 +2281,279 @@ private struct TabOverviewView: View {
         .opacity(animateIn ? 1 : 0)
         .animation(animation.delay(0.03 * Double(appearIndex(for: tab))), value: animateIn)
         .transition(.scale(scale: 0.92).combined(with: .opacity))
+#if os(macOS)
+        .onDrag {
+            draggingTabId = tab.id
+            dropTargetTabId = nil
+            return NSItemProvider(object: NSString(string: tab.id.uuidString))
+        }
+        .onDrop(of: [UTType.plainText], delegate: TabOverviewDropDelegate(
+            targetTabID: tab.id,
+            isTrailingPlaceholder: false,
+            appModel: appModel,
+            draggingTabId: $draggingTabId,
+            dropTargetTabId: $dropTargetTabId
+        ))
+#endif
     }
+
+    private var visibleTabIDs: [UUID] {
+        groupedTabs.reduce(into: [UUID]()) { result, serverGroup in
+            let serverID = serverGroup.connection.id
+            guard !collapsedServers.contains(serverID) else { return }
+
+            for databaseGroup in serverGroup.databaseGroups {
+                let identifier = databaseIdentifier(for: databaseGroup.key, serverID: serverID)
+                guard !collapsedDatabases.contains(identifier) else { continue }
+
+                for section in databaseGroup.sections {
+                    result.append(contentsOf: section.tabs.map(\.id))
+                }
+            }
+        }
+    }
+
+    private func initializeFocus() {
+        let visible = visibleTabIDs
+        lastVisibleTabIDs = visible
+
+        guard !visible.isEmpty else {
+            focusedTabId = nil
+            return
+        }
+
+        if let activeTabId, visible.contains(activeTabId) {
+            focusedTabId = activeTabId
+        } else {
+            focusedTabId = visible.first
+        }
+    }
+
+    private func ensureFocusedTabIsVisible(previousVisibleTabIDs: [UUID]? = nil) {
+        let visible = visibleTabIDs
+        defer { lastVisibleTabIDs = visible }
+
+        guard !visible.isEmpty else {
+            focusedTabId = nil
+            return
+        }
+
+        if let focusedTabId, visible.contains(focusedTabId) {
+            return
+        }
+
+        if let previous = previousVisibleTabIDs,
+           let focused = focusedTabId,
+           let previousIndex = previous.firstIndex(of: focused) {
+            let clampedIndex = min(previousIndex, visible.count - 1)
+            focusedTabId = visible[clampedIndex]
+            return
+        }
+
+        if let activeTabId, visible.contains(activeTabId) {
+            focusedTabId = activeTabId
+        } else {
+            focusedTabId = visible.first
+        }
+    }
+
+    private func handleActiveTabChange(from oldValue: UUID?, to newValue: UUID?) {
+        guard let newValue else {
+            ensureFocusedTabIsVisible(previousVisibleTabIDs: lastVisibleTabIDs)
+            return
+        }
+
+        let visible = visibleTabIDs
+        if visible.isEmpty {
+            focusedTabId = nil
+            lastVisibleTabIDs = visible
+            return
+        }
+
+        if focusedTabId == nil || focusedTabId == oldValue {
+            if visible.contains(newValue) {
+                focusedTabId = newValue
+            } else {
+                ensureFocusedTabIsVisible(previousVisibleTabIDs: lastVisibleTabIDs)
+            }
+        } else if let focusedTabId, !visible.contains(focusedTabId) {
+            ensureFocusedTabIsVisible(previousVisibleTabIDs: lastVisibleTabIDs)
+        }
+    }
+
+    private func updateColumnCount(for width: CGFloat) {
+        guard width > 0 else { return }
+        let effectiveWidth = width + gridSpacing
+        let base = minCardWidth + gridSpacing
+        let calculated = max(Int(effectiveWidth / base), 1)
+        if calculated != columnCount {
+            columnCount = calculated
+        }
+    }
+
+    private func focusIndex(in ids: [UUID]) -> Int? {
+        guard let focusedTabId else { return nil }
+        return ids.firstIndex(of: focusedTabId)
+    }
+
+    @discardableResult
+    private func moveFocus(by offset: Int, wrap: Bool) -> Bool {
+        let ids = visibleTabIDs
+        guard !ids.isEmpty else { return false }
+
+        let currentIndex: Int
+        if let existing = focusIndex(in: ids) {
+            currentIndex = existing
+        } else {
+            currentIndex = offset > 0 ? -1 : ids.count
+        }
+
+        var targetIndex = currentIndex + offset
+
+        if wrap {
+            let count = ids.count
+            if count == 0 { return false }
+            targetIndex = (targetIndex % count + count) % count
+        } else if targetIndex < 0 || targetIndex >= ids.count {
+            return false
+        }
+
+        focusedTabId = ids[targetIndex]
+        return true
+    }
+
+    @discardableResult
+    private func moveFocusVertically(by rows: Int) -> Bool {
+        guard rows != 0 else { return false }
+
+        let ids = visibleTabIDs
+        guard !ids.isEmpty else { return false }
+        let columns = max(columnCount, 1)
+
+        guard let currentIndex = focusIndex(in: ids) else {
+            focusedTabId = ids.first
+            return true
+        }
+
+        let targetIndex = currentIndex + rows * columns
+        guard targetIndex >= 0, targetIndex < ids.count else { return false }
+
+        focusedTabId = ids[targetIndex]
+        focusedTabId = ids[targetIndex]
+        return true
+    }
+
+    @discardableResult
+    private func focusNext(wrap: Bool) -> Bool {
+        moveFocus(by: 1, wrap: wrap)
+    }
+
+    @discardableResult
+    private func focusPrevious(wrap: Bool) -> Bool {
+        moveFocus(by: -1, wrap: wrap)
+    }
+
+    private func activateFocusedTab() -> Bool {
+        guard let focusedTabId, visibleTabIDs.contains(focusedTabId) else { return false }
+        onSelectTab(focusedTabId)
+        return true
+    }
+
+    private func closeFocusedTab() -> Bool {
+        guard let focusedTabId, visibleTabIDs.contains(focusedTabId) else { return false }
+        onCloseTab(focusedTabId)
+        return true
+    }
+
+#if os(macOS)
+    private func handleKeyEvent(_ event: NSEvent) -> Bool {
+        let flags = event.modifierFlags.intersection([.shift, .command, .control, .option])
+
+        switch event.keyCode {
+        case 123: // Left arrow
+            if flags.contains(.command) || flags.contains(.control) || flags.contains(.option) { return false }
+            return focusPrevious(wrap: true)
+
+        case 124: // Right arrow
+            if flags.contains(.command) || flags.contains(.control) || flags.contains(.option) { return false }
+            return focusNext(wrap: true)
+
+        case 125: // Down arrow
+            if flags.contains(.command) || flags.contains(.control) || flags.contains(.option) { return false }
+            return moveFocusVertically(by: 1)
+
+        case 126: // Up arrow
+            if flags.contains(.command) || flags.contains(.control) || flags.contains(.option) { return false }
+            return moveFocusVertically(by: -1)
+
+        case 48: // Tab
+            if flags.contains(.control) || flags.contains(.command) || flags.contains(.option) {
+                return false
+            }
+            if flags.contains(.shift) {
+                return focusPrevious(wrap: true)
+            } else {
+                return focusNext(wrap: true)
+            }
+
+        case 36, 76: // Return / keypad enter
+            if flags.contains(.command) || flags.contains(.control) || flags.contains(.option) { return false }
+            return activateFocusedTab()
+
+        case 51, 117: // Delete / forward delete
+            if flags.contains(.control) || flags.contains(.option) { return false }
+            return closeFocusedTab()
+
+        default:
+            return false
+        }
+    }
+
+    private struct TabOverviewDropDelegate: DropDelegate {
+        let targetTabID: UUID?
+        let isTrailingPlaceholder: Bool
+        let appModel: AppModel
+        @Binding var draggingTabId: UUID?
+        @Binding var dropTargetTabId: UUID?
+
+        func validateDrop(info: DropInfo) -> Bool {
+            draggingTabId != nil
+        }
+
+        func dropEntered(info: DropInfo) {
+            guard let draggingID = draggingTabId else { return }
+
+            Task { @MainActor in
+                if isTrailingPlaceholder {
+                    let count = appModel.tabManager.tabs.count
+                    guard count > 0 else { return }
+                    let destinationIndex = count - 1
+                    appModel.tabManager.moveTab(id: draggingID, to: destinationIndex)
+                    dropTargetTabId = nil
+                } else if let targetID = targetTabID,
+                          targetID != draggingID,
+                          let targetIndex = appModel.tabManager.index(of: targetID) {
+                    appModel.tabManager.moveTab(id: draggingID, to: targetIndex)
+                    dropTargetTabId = targetID
+                }
+            }
+        }
+
+        func dropExited(info: DropInfo) {
+            if isTrailingPlaceholder {
+                dropTargetTabId = nil
+            } else if dropTargetTabId == targetTabID {
+                dropTargetTabId = nil
+            }
+        }
+
+        func performDrop(info: DropInfo) -> Bool {
+            draggingTabId = nil
+            dropTargetTabId = nil
+            return true
+        }
+    }
+#endif
 
     private func triggerAnimation() {
         guard !animateIn else { return }
@@ -2333,6 +2738,8 @@ private struct TabOverviewView: View {
 private struct TabPreviewCard: View {
     @ObservedObject var tab: WorkspaceTab
     let isActive: Bool
+    let isFocused: Bool
+    let isDropTarget: Bool
     let onSelect: () -> Void
     let onClose: () -> Void
 
@@ -2404,13 +2811,16 @@ private struct TabPreviewCard: View {
         .frame(maxWidth: .infinity, minHeight: 160)
         .background(
             RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(isActive ? Color.accentColor.opacity(0.12) : themeManager.windowBackground.opacity(0.98))
+                .fill(cardBackgroundColor)
         )
         .overlay(
             RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .stroke(isActive ? Color.accentColor.opacity(0.5) : Color.primary.opacity(0.08), lineWidth: isActive ? 1.5 : 1)
+                .strokeBorder(cardBorderColor, lineWidth: cardBorderWidth)
         )
-        .shadow(color: Color.black.opacity(isActive ? 0.18 : 0.1), radius: isActive ? 12 : 8, x: 0, y: isActive ? 8 : 5)
+        .shadow(color: Color.black.opacity((isActive || isDropTarget) ? 0.18 : 0.1),
+                radius: (isActive || isDropTarget) ? 12 : 8,
+                x: 0,
+                y: (isActive || isDropTarget) ? 8 : 5)
         .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
 #if os(macOS)
         .onMiddleClick(perform: onClose)
@@ -2448,10 +2858,104 @@ private struct TabPreviewCard: View {
             }
         }
     }
+
+    private var cardBackgroundColor: Color {
+        if isDropTarget {
+            return Color.accentColor.opacity(0.18)
+        }
+        if isActive {
+            return Color.accentColor.opacity(0.12)
+        }
+        if isFocused {
+            return Color.accentColor.opacity(0.08)
+        }
+        return themeManager.windowBackground.opacity(0.98)
+    }
+
+    private var cardBorderColor: Color {
+        if isDropTarget {
+            return Color.accentColor
+        }
+        if isFocused {
+            return Color.accentColor.opacity(isActive ? 0.75 : 0.6)
+        }
+        if isActive {
+            return Color.accentColor.opacity(0.5)
+        }
+        return Color.primary.opacity(0.08)
+    }
+
+    private var cardBorderWidth: CGFloat {
+        if isDropTarget { return 2.2 }
+        if isFocused { return 1.8 }
+        if isActive { return 1.5 }
+        return 1
+    }
+}
+
+private struct TabGroupWidthPreferenceKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
+    }
+}
+
+private struct TabOverviewWidthPreferenceKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
+    }
 }
 
 
 #if os(macOS)
+// MARK: - Tab Overview Key Capture
+
+private struct TabOverviewKeyCapture: NSViewRepresentable {
+    let onKeyDown: (NSEvent) -> Bool
+
+    func makeNSView(context: Context) -> KeyCaptureView {
+        let view = KeyCaptureView()
+        view.onKeyDown = onKeyDown
+        DispatchQueue.main.async {
+            view.window?.makeFirstResponder(view)
+        }
+        return view
+    }
+
+    func updateNSView(_ nsView: KeyCaptureView, context: Context) {
+        nsView.onKeyDown = onKeyDown
+        DispatchQueue.main.async {
+            if nsView.window?.firstResponder !== nsView {
+                nsView.window?.makeFirstResponder(nsView)
+            }
+        }
+    }
+
+    final class KeyCaptureView: NSView {
+        var onKeyDown: ((NSEvent) -> Bool)?
+
+        override var acceptsFirstResponder: Bool { true }
+
+        override func keyDown(with event: NSEvent) {
+            if onKeyDown?(event) ?? false {
+                return
+            }
+            super.keyDown(with: event)
+        }
+
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            DispatchQueue.main.async { [weak self] in
+                guard let self else { return }
+                self.window?.makeFirstResponder(self)
+            }
+        }
+    }
+}
+
 // MARK: - Safari-Style Tab Bar Chrome
 
 private struct TabChromePalette {
@@ -2491,30 +2995,30 @@ private struct TabChromePalette {
         let accentColor = (theme.accent?.nsColor ?? accent).usingColorSpace(.deviceRGB) ?? accent
         let toneIsDark = theme.tone == .dark
 
-        let neutralBase = blend(baseBackground, with: toneIsDark ? .black : .white, amount: toneIsDark ? 0.08 : 0.06)
-        let baseTop = lighten(neutralBase, by: toneIsDark ? 0.04 : 0.07)
-        let baseBottom = darken(neutralBase, by: toneIsDark ? 0.12 : 0.09)
+        let neutralBase = blend(baseBackground, with: toneIsDark ? .black : .white, amount: toneIsDark ? 0.05 : 0.04)
+        let baseTop = lighten(neutralBase, by: toneIsDark ? 0.02 : 0.03)
+        let baseBottom = darken(neutralBase, by: toneIsDark ? 0.06 : 0.05)
         baseFill = LinearGradient(colors: [Color(nsColor: baseTop), Color(nsColor: baseBottom)], startPoint: .top, endPoint: .bottom)
-        let baseStrokeColor = darken(neutralBase, by: toneIsDark ? 0.18 : 0.12).withAlphaComponent(toneIsDark ? 0.55 : 0.33)
+        let baseStrokeColor = darken(neutralBase, by: toneIsDark ? 0.14 : 0.10).withAlphaComponent(toneIsDark ? 0.45 : 0.26)
         baseStroke = Color(nsColor: baseStrokeColor)
-        baseShadow = toneIsDark ? Color.black.opacity(0.42) : Color.black.opacity(0.1)
+        baseShadow = toneIsDark ? Color.black.opacity(0.28) : Color.black.opacity(0.08)
 
-        let softenedAccent = blend(accentColor, with: baseBackground, amount: toneIsDark ? 0.45 : 0.55)
-        let activeTop = lighten(softenedAccent, by: toneIsDark ? 0.06 : 0.10)
-        let activeBottom = darken(softenedAccent, by: toneIsDark ? 0.14 : 0.18)
+        let softenedAccent = blend(accentColor, with: baseBackground, amount: toneIsDark ? 0.68 : 0.72)
+        let activeTop = lighten(softenedAccent, by: toneIsDark ? 0.05 : 0.08)
+        let activeBottom = darken(softenedAccent, by: toneIsDark ? 0.10 : 0.12)
         activeTabFill = LinearGradient(colors: [Color(nsColor: activeTop), Color(nsColor: activeBottom)], startPoint: .top, endPoint: .bottom)
 
-        let activeHoverTop = lighten(softenedAccent, by: toneIsDark ? 0.10 : 0.14)
-        let activeHoverBottom = darken(softenedAccent, by: toneIsDark ? 0.10 : 0.12)
+        let activeHoverTop = lighten(softenedAccent, by: toneIsDark ? 0.08 : 0.11)
+        let activeHoverBottom = darken(softenedAccent, by: toneIsDark ? 0.08 : 0.10)
         activeTabHoverFill = LinearGradient(colors: [Color(nsColor: activeHoverTop), Color(nsColor: activeHoverBottom)], startPoint: .top, endPoint: .bottom)
 
         let inactiveTop = lighten(baseBackground, by: toneIsDark ? 0.05 : 0.04)
         let inactiveBottom = darken(baseBackground, by: toneIsDark ? 0.08 : 0.05)
         inactiveTabFill = LinearGradient(colors: [Color(nsColor: inactiveTop), Color(nsColor: inactiveBottom)], startPoint: .top, endPoint: .bottom)
 
-        let softenedSelection = blend(selection, with: baseBackground, amount: toneIsDark ? 0.5 : 0.6)
-        let hoverTop = lighten(softenedSelection, by: toneIsDark ? 0.07 : 0.11)
-        let hoverBottom = darken(softenedSelection, by: toneIsDark ? 0.11 : 0.08)
+        let softenedSelection = blend(selection, with: baseBackground, amount: toneIsDark ? 0.6 : 0.7)
+        let hoverTop = lighten(softenedSelection, by: toneIsDark ? 0.06 : 0.08)
+        let hoverBottom = darken(softenedSelection, by: toneIsDark ? 0.08 : 0.09)
         hoverTabFill = LinearGradient(colors: [Color(nsColor: hoverTop), Color(nsColor: hoverBottom)], startPoint: .top, endPoint: .bottom)
 
         let dropAccent = blend(accentColor, with: softenedAccent, amount: 0.25)
@@ -2522,11 +3026,11 @@ private struct TabChromePalette {
         let dropBottom = darken(dropAccent, by: toneIsDark ? 0.18 : 0.20)
         dropTabFill = LinearGradient(colors: [Color(nsColor: dropTop), Color(nsColor: dropBottom)], startPoint: .top, endPoint: .bottom)
 
-        let activeBorderColor = darken(softenedAccent, by: toneIsDark ? 0.20 : 0.18).withAlphaComponent(toneIsDark ? 0.95 : 0.78)
+        let activeBorderColor = darken(softenedAccent, by: toneIsDark ? 0.14 : 0.12).withAlphaComponent(toneIsDark ? 0.55 : 0.48)
         activeTabBorder = Color(nsColor: activeBorderColor)
-        let activeHoverBorderColor = darken(softenedAccent, by: toneIsDark ? 0.14 : 0.14).withAlphaComponent(toneIsDark ? 1.0 : 0.85)
+        let activeHoverBorderColor = darken(softenedAccent, by: toneIsDark ? 0.10 : 0.10).withAlphaComponent(toneIsDark ? 0.65 : 0.55)
         activeTabHoverBorder = Color(nsColor: activeHoverBorderColor)
-        let hoverBorderColor = darken(softenedSelection, by: toneIsDark ? 0.16 : 0.12).withAlphaComponent(toneIsDark ? 0.9 : 0.6)
+        let hoverBorderColor = darken(softenedSelection, by: toneIsDark ? 0.10 : 0.08).withAlphaComponent(toneIsDark ? 0.55 : 0.38)
         hoverTabBorder = Color(nsColor: hoverBorderColor)
         inactiveTabBorder = Color.clear
         let dropBorderColor = darken(dropAccent, by: toneIsDark ? 0.22 : 0.24).withAlphaComponent(toneIsDark ? 1.0 : 0.92)
@@ -2687,8 +3191,12 @@ private struct MiddleClickCapture: NSViewRepresentable {
 
     func makeNSView(context: Context) -> MiddleClickReceiverView {
         let view = MiddleClickReceiverView()
-        view.onSuperviewReady = { superview in
-            context.coordinator.attach(to: superview)
+        view.onSuperviewChanged = { superview in
+            if let superview {
+                context.coordinator.attach(to: superview)
+            } else {
+                context.coordinator.detach()
+            }
         }
         return view
     }
@@ -2697,13 +3205,15 @@ private struct MiddleClickCapture: NSViewRepresentable {
         context.coordinator.onMiddleClick = onMiddleClick
         if let superview = nsView.superview {
             context.coordinator.attach(to: superview)
+        } else {
+            context.coordinator.detach()
         }
     }
 
-    final class Coordinator: NSObject, NSGestureRecognizerDelegate {
+    final class Coordinator: NSObject {
         var onMiddleClick: () -> Void
-        private weak var recognizer: NSClickGestureRecognizer?
         private weak var attachedView: NSView?
+        private var monitor: Any?
 
         init(onMiddleClick: @escaping () -> Void) {
             self.onMiddleClick = onMiddleClick
@@ -2711,38 +3221,45 @@ private struct MiddleClickCapture: NSViewRepresentable {
 
         func attach(to view: NSView) {
             guard attachedView !== view else { return }
-            if let recognizer {
-                recognizer.view?.removeGestureRecognizer(recognizer)
-            }
-
-            let recognizer = NSClickGestureRecognizer(target: self, action: #selector(handleMiddleClick(_:)))
-            recognizer.buttonMask = 0x4
-            recognizer.numberOfClicksRequired = 1
-            recognizer.delegate = self
-            view.addGestureRecognizer(recognizer)
-            self.recognizer = recognizer
+            detach()
             attachedView = view
+            monitor = NSEvent.addLocalMonitorForEvents(matching: [.otherMouseUp]) { [weak self] event in
+                guard let self,
+                      let attachedView = self.attachedView,
+                      event.window === attachedView.window else {
+                    return event
+                }
+
+                let location = attachedView.convert(event.locationInWindow, from: nil)
+                if attachedView.bounds.contains(location) {
+                    self.onMiddleClick()
+                    return nil
+                }
+
+                return event
+            }
         }
 
-        @objc private func handleMiddleClick(_ recognizer: NSClickGestureRecognizer) {
-            guard recognizer.state == .ended else { return }
-            onMiddleClick()
+        func detach() {
+            if let monitor {
+                NSEvent.removeMonitor(monitor)
+            }
+            monitor = nil
+            attachedView = nil
         }
 
-        func gestureRecognizer(_ gestureRecognizer: NSGestureRecognizer, shouldRecognizeSimultaneouslyWith otherGestureRecognizer: NSGestureRecognizer) -> Bool {
-            true
+        deinit {
+            detach()
         }
     }
 }
 
 private final class MiddleClickReceiverView: NSView {
-    var onSuperviewReady: ((NSView) -> Void)?
+    var onSuperviewChanged: ((NSView?) -> Void)?
 
     override func viewDidMoveToSuperview() {
         super.viewDidMoveToSuperview()
-        if let superview {
-            onSuperviewReady?(superview)
-        }
+        onSuperviewChanged?(superview)
     }
 
     override func hitTest(_ point: NSPoint) -> NSView? {

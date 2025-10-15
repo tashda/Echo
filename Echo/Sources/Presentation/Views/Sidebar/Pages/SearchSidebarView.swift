@@ -10,13 +10,12 @@ struct SearchSidebarView: View {
     @State private var isFilterPopoverPresented = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            searchField
+        VStack(alignment: .leading, spacing: 0) {
+            searchFieldContainer
             Divider()
-                .padding(.vertical, 4)
             content
+                .padding(12)
         }
-        .padding(12)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .onAppear {
             if !didRestoreCache {
@@ -63,6 +62,13 @@ struct SearchSidebarView: View {
 
     private var isFilterActive: Bool {
         viewModel.selectedCategories.count != SearchSidebarCategory.allCases.count
+    }
+
+    private var searchFieldContainer: some View {
+        HStack {
+            searchField
+        }
+        .padding(12)
     }
 
     private var searchField: some View {

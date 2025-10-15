@@ -58,16 +58,49 @@ struct QueryCommands: Commands {
             .keyboardShortcut("t", modifiers: [.command])
             .disabled(!appModel.canOpenQueryTab)
 
+            Button("Next Tab") {
+                guard appModel.isWorkspaceWindowKey else { return }
+                appModel.tabManager.activateNextTab()
+                if appState.showTabOverview {
+                    appState.showTabOverview = false
+                }
+            }
+            .keyboardShortcut(.tab, modifiers: [.control])
+
+            Button("Previous Tab") {
+                guard appModel.isWorkspaceWindowKey else { return }
+                appModel.tabManager.activatePreviousTab()
+                if appState.showTabOverview {
+                    appState.showTabOverview = false
+                }
+            }
+            .keyboardShortcut(.tab, modifiers: [.control, .shift])
+
+            Button("Reopen Closed Tab") {
+                guard appModel.isWorkspaceWindowKey else { return }
+                if appModel.tabManager.reopenLastClosedTab(activate: true) != nil {
+                    if appState.showTabOverview {
+                        appState.showTabOverview = false
+                    }
+                }
+            }
+            .keyboardShortcut("t", modifiers: [.command, .shift])
+
             Button(appState.showTabOverview ? "Hide Tab Overview" : "Show Tab Overview") {
                 appState.showTabOverview.toggle()
             }
             .keyboardShortcut("o", modifiers: [.command])
 
             Button("Close Query Tab") {
-                appModel.closeActiveQueryTab()
+                if appModel.isWorkspaceWindowKey {
+                    if appModel.tabManager.activeTab != nil {
+                        appModel.closeActiveQueryTab()
+                    }
+                } else if let keyWindow = NSApplication.shared.keyWindow {
+                    keyWindow.performClose(nil)
+                }
             }
             .keyboardShortcut("w", modifiers: [.command])
-            .disabled(appModel.tabManager.activeTab == nil)
         }
     }
 }
