@@ -227,7 +227,9 @@ private struct WorkspaceWindowConfigurator: NSViewRepresentable {
             window.title = " "
         }
         window.toolbarStyle = .unified
-        window.toolbar?.showsBaselineSeparator = false
+        if #unavailable(macOS 15) {
+            window.toolbar?.showsBaselineSeparator = false
+        }
     }
 }
 

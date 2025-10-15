@@ -30,18 +30,18 @@ struct SearchSidebarView: View {
             }
             viewModel.notifyQueryTabsChanged()
         }
-        .onChange(of: appModel.selectedConnectionID) { _ in syncContext() }
-        .onChange(of: activeSession?.id) { _ in syncContext() }
-        .onChange(of: activeSession?.selectedDatabaseName) { _ in syncContext() }
+        .onChange(of: appModel.selectedConnectionID) { _, _ in syncContext() }
+        .onChange(of: activeSession?.id) { _, _ in syncContext() }
+        .onChange(of: activeSession?.selectedDatabaseName) { _, _ in syncContext() }
         .onReceive(viewModel.$query.removeDuplicates()) { _ in cacheState() }
         .onReceive(viewModel.$selectedCategories.removeDuplicates()) { _ in cacheState() }
         .onReceive(viewModel.$results) { _ in cacheState() }
         .onReceive(viewModel.$errorMessage.removeDuplicates()) { _ in cacheState() }
         .onReceive(viewModel.$isSearching.removeDuplicates()) { _ in cacheState() }
-        .onChange(of: appModel.tabManager.tabs.map(\.id)) { _ in
+        .onChange(of: appModel.tabManager.tabs.map(\.id)) { _, _ in
             viewModel.notifyQueryTabsChanged()
         }
-        .onChange(of: appModel.tabManager.activeTabId) { _ in
+        .onChange(of: appModel.tabManager.activeTabId) { _, _ in
             viewModel.notifyQueryTabsChanged()
         }
         .onDisappear { persistActiveCache() }
@@ -513,7 +513,7 @@ private struct SearchResultRow: View {
                 isHovered = hovering
             }
 #endif
-            .onChange(of: isInfoPresented) { newValue in
+            .onChange(of: isInfoPresented) { _, newValue in
                 if !newValue {
                     infoState = .idle
                 }

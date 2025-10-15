@@ -55,7 +55,7 @@ actor SqruffCompletionProvider {
         ]
 
         let result = try await sendRequest(method: "textDocument/completion", params: params)
-        let suggestions = SqruffCompletionProvider.parseCompletionResult(result)
+        let suggestions = await SqruffCompletionProvider.parseCompletionResult(result)
         return suggestions
     }
 
@@ -69,7 +69,7 @@ actor SqruffCompletionProvider {
     }
 
     private func startProcess(for dialect: DatabaseType) async throws {
-        try await shutdownProcess()
+        await shutdownProcess()
 
         guard let binaryURL = resolveBinaryURL() else {
             throw ProviderError.binaryNotFound
@@ -83,7 +83,9 @@ actor SqruffCompletionProvider {
         process.standardError = Pipe()
 
         process.terminationHandler = { [weak self] _ in
-            Task { await self?.handleTermination() }
+            Task { [weak self] in
+                await self?.handleTermination()
+            }
         }
 
         try process.run()
@@ -107,7 +109,9 @@ actor SqruffCompletionProvider {
         stdoutHandle?.readabilityHandler = { [weak self] handle in
             let data = handle.availableData
             guard !data.isEmpty else { return }
-            Task { await self?.receive(data: data) }
+            Task { [weak self] in
+                await self?.receive(data: data)
+            }
         }
 
         stderrHandle?.readabilityHandler = { [weak self] handle in
@@ -368,7 +372,7 @@ actor SqruffCompletionProvider {
         }
     }
 
-    private static func parseCompletionResult(_ result: Any) -> [SQLAutoCompletionSuggestion] {
+    private static func parseCompletionResult(_ result: Any) async -> [SQLAutoCompletionSuggestion] {
         let itemsArray: [[String: Any]]
 
         if let dict = result as? [String: Any], let items = dict["items"] as? [[String: Any]] {
@@ -406,17 +410,17 @@ actor SqruffCompletionProvider {
             let kindValue = item["kind"] as? Int
             let kind = mapCompletionKind(kindValue, detail: detail, label: label)
 
-            let id = "sqruff::\(label)::\(insertText)"
-            suggestions.append(
+            let suggestion = await MainActor.run {
                 SQLAutoCompletionSuggestion(
-                    id: id,
+                    id: "sqruff::\(label)::\(insertText)",
                     title: label,
                     subtitle: detail,
                     detail: detail,
                     insertText: insertText,
                     kind: kind
                 )
-            )
+            }
+            suggestions.append(suggestion)
         }
 
         return suggestions

@@ -451,7 +451,7 @@ struct QueryResultsTableView: NSViewRepresentable {
             false
         }
 
-        func tableView(_ tableView: NSTableView, sizeToFitWidthOf column: Int) -> CGFloat {
+        func tableView(_ tableView: NSTableView, sizeToFitWidthOfColumn column: Int) -> CGFloat {
             guard column >= 0, column < tableView.tableColumns.count else { return 0 }
             guard column < parent.query.displayedColumns.count else {
                 return max(tableView.tableColumns[column].minWidth, tableView.tableColumns[column].width)

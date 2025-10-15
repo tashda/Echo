@@ -38,6 +38,23 @@ private func buildForeignKeyMapping(from details: TableStructureDetails) -> Fore
 }
 #endif
 
+fileprivate func applyForeignKeyMapping(to update: QueryStreamUpdate, mapping: ForeignKeyMapping) -> QueryStreamUpdate {
+    guard !mapping.isEmpty else { return update }
+    let columns = applyForeignKeyMapping(to: update.columns, mapping: mapping)
+    return QueryStreamUpdate(columns: columns, appendedRows: update.appendedRows, totalRowCount: update.totalRowCount)
+}
+
+fileprivate func applyForeignKeyMapping(to columns: [ColumnInfo], mapping: ForeignKeyMapping) -> [ColumnInfo] {
+    guard !mapping.isEmpty else { return columns }
+    return columns.map { column in
+        var updated = column
+        if updated.foreignKey == nil, let reference = mapping[column.name.lowercased()] {
+            updated.foreignKey = reference
+        }
+        return updated
+    }
+}
+
 struct QueryTabsView: View {
     @EnvironmentObject private var appModel: AppModel
     @EnvironmentObject private var appState: AppState
@@ -275,23 +292,6 @@ struct QueryTabsView: View {
         }
     }
 
-    private func applyForeignKeyMapping(to update: QueryStreamUpdate, mapping: ForeignKeyMapping) -> QueryStreamUpdate {
-        guard !mapping.isEmpty else { return update }
-        let columns = applyForeignKeyMapping(to: update.columns, mapping: mapping)
-        return QueryStreamUpdate(columns: columns, appendedRows: update.appendedRows, totalRowCount: update.totalRowCount)
-    }
-
-    private func applyForeignKeyMapping(to columns: [ColumnInfo], mapping: ForeignKeyMapping) -> [ColumnInfo] {
-        guard !mapping.isEmpty else { return columns }
-        return columns.map { column in
-            var updated = column
-            if updated.foreignKey == nil, let reference = mapping[column.name.lowercased()] {
-                updated.foreignKey = reference
-            }
-            return updated
-        }
-    }
-
     private func resolveSchemaAndTable(for identifier: String?, connection: SavedConnection) -> (schema: String, table: String)? {
         guard let identifier, !identifier.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
         let components = parseQualifiedIdentifier(identifier)
@@ -446,7 +446,7 @@ struct QueryTabStrip: View {
         }
         .frame(height: tabStripHeight)
         .clipped()
-        .onChange(of: appModel.tabManager.tabs.isEmpty) { isEmpty in
+        .onChange(of: appModel.tabManager.tabs.isEmpty) { _, isEmpty in
             if isEmpty {
                 hoveredTabID = nil
             }
@@ -715,7 +715,7 @@ struct QueryTabStrip: View {
         let closeOthersDisabled = totalCount <= 1
         let isBeingDragged = dragState.isActive && dragState.id == tab.id
 
-        return QueryTabButton(
+        QueryTabButton(
             tab: tab,
             isActive: isActive,
             onSelect: { appModel.tabManager.activeTabId = tab.id },
@@ -1515,7 +1515,7 @@ private struct QueryTabButton: View {
                 Button("Add to Bookmarks", action: onAddBookmark)
             }
         }
-        .onChange(of: shouldShowClose) { visible in
+        .onChange(of: shouldShowClose) { _, visible in
             if !visible {
                 isHoveringClose = false
             }
