@@ -45,7 +45,8 @@ final class AppModel: ObservableObject {
     @Published private(set) var recentConnections: [RecentConnectionRecord] = []
     @Published var pendingExplorerFocus: ExplorerFocus?
     @Published var searchSidebarCaches: [SearchSidebarContextKey: SearchSidebarCache] = [:]
-    @Published var foreignKeyInspectorContent: ForeignKeyInspectorContent?
+    @Published var dataInspectorContent: DataInspectorContent?
+    @Published private(set) var expandedConnectionFolderIDs: Set<UUID> = []
 
     // Project management
     @Published var projects: [Project] = []
@@ -68,6 +69,7 @@ final class AppModel: ObservableObject {
     private var cancellables: Set<AnyCancellable> = []
     private var sessionDatabaseCancellables: [UUID: AnyCancellable] = [:]
     private let defaultInspectorWidth: CGFloat = 360
+    private static let expandedConnectionFoldersKey = "expandedConnectionFoldersByProject"
 
     private func makeDatabaseFactory(for type: DatabaseType) -> DatabaseFactory? {
         DatabaseFactoryProvider.makeFactory(for: type)
@@ -76,6 +78,26 @@ final class AppModel: ObservableObject {
     private func makeStructureFetcher(for connection: SavedConnection) -> DatabaseStructureFetcher? {
         guard let factory = makeDatabaseFactory(for: connection.databaseType) else { return nil }
         return DatabaseStructureFetcher(factory: factory, databaseType: connection.databaseType)
+    }
+
+    private func loadExpandedConnectionFolders(for projectID: UUID?) {
+        let storage = UserDefaults.standard.dictionary(forKey: Self.expandedConnectionFoldersKey) as? [String: [String]] ?? [:]
+        let key = projectID?.uuidString ?? "global"
+        let ids = storage[key]?.compactMap(UUID.init) ?? []
+        expandedConnectionFolderIDs = Set(ids)
+    }
+
+    func updateExpandedConnectionFolders(_ ids: Set<UUID>) {
+        guard expandedConnectionFolderIDs != ids else { return }
+        expandedConnectionFolderIDs = ids
+        persistExpandedConnectionFolders(ids: ids, projectID: selectedProject?.id)
+    }
+
+    private func persistExpandedConnectionFolders(ids: Set<UUID>, projectID: UUID?) {
+        let key = projectID?.uuidString ?? "global"
+        var storage = UserDefaults.standard.dictionary(forKey: Self.expandedConnectionFoldersKey) as? [String: [String]] ?? [:]
+        storage[key] = ids.map { $0.uuidString }
+        UserDefaults.standard.set(storage, forKey: Self.expandedConnectionFoldersKey)
     }
 
     // MARK: - Computed helpers
@@ -140,6 +162,14 @@ final class AppModel: ObservableObject {
             .store(in: &cancellables)
 
         loadRecentConnections()
+
+        $selectedProject
+            .map { $0?.id }
+            .removeDuplicates()
+            .sink { [weak self] projectID in
+                self?.loadExpandedConnectionFolders(for: projectID)
+            }
+            .store(in: &cancellables)
     }
 
     // MARK: - Persistence
@@ -187,6 +217,7 @@ final class AppModel: ObservableObject {
 
             await ensureActiveThemesApplied()
             synchronizeRecentConnectionsWithConnections()
+            loadExpandedConnectionFolders(for: selectedProject?.id)
         } catch {
             print("Failed to load data: \(error)")
         }

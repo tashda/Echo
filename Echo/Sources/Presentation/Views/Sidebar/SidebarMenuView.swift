@@ -7,7 +7,7 @@ struct SidebarMenu: View {
     @EnvironmentObject var appState: AppState
     let onAddConnection: () -> Void
 
-    @State private var selectedNavSection: NavSection = .code
+    @State private var selectedNavSection: NavSection = .folder
     @State private var pendingDuplicateConnection: SavedConnection?
 
     enum NavSection: String, CaseIterable {
@@ -15,7 +15,6 @@ struct SidebarMenu: View {
         case bookmark = "Bookmarks"
         case search = "Search"
         case clipboard = "Clipboard"
-        case code = "Development"
         case history = "History"
         case connections = "Connections"
         case database = "Database Administration"
@@ -26,7 +25,6 @@ struct SidebarMenu: View {
             case .bookmark: return "bookmark"
             case .search: return "magnifyingglass"
             case .clipboard: return "clipboard"
-            case .code: return "curlybraces"
             case .history: return "clock"
             case .connections: return "externaldrive"
             case .database: return "cylinder.split.1x2"
@@ -39,7 +37,6 @@ struct SidebarMenu: View {
             case .bookmark: return "bookmark.fill"
             case .search: return "magnifyingglass"
             case .clipboard: return "clipboard.fill"
-            case .code: return "curlybraces"
             case .history: return "clock.fill"
             case .connections: return "externaldrive.fill"
             case .database: return "cylinder.split.1x2.fill"
@@ -155,7 +152,7 @@ struct SidebarMenu: View {
     @ViewBuilder
     private var contentView: some View {
         switch selectedNavSection {
-        case .folder, .code:
+        case .folder:
             ExplorerSidebarView(selectedConnectionID: $selectedConnectionID)
         case .bookmark:
             BookmarksSidebarView()

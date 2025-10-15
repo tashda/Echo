@@ -33,7 +33,7 @@ struct InfoSidebarView: View {
     @State private var selectedTab: InspectorTab = .dataInspector
 
     private var hasDataInspectorContent: Bool {
-        appModel.foreignKeyInspectorContent != nil
+        appModel.dataInspectorContent != nil
     }
 
     var body: some View {
@@ -60,7 +60,7 @@ struct InfoSidebarView: View {
             }
         }
         .onAppear(perform: updateSelectionForAvailableContent)
-        .onChange(of: appModel.foreignKeyInspectorContent) { _, _ in
+        .onChange(of: appModel.dataInspectorContent) { _, _ in
             updateSelectionForAvailableContent()
         }
     }
@@ -77,20 +77,25 @@ struct InfoSidebarView: View {
 
     @ViewBuilder
     private var dataInspectorContent: some View {
-        if let content = appModel.foreignKeyInspectorContent {
+        if let content = appModel.dataInspectorContent {
             VStack(alignment: .leading, spacing: 16) {
-                InspectorPanelView(content: content, depth: 0)
-                if !appModel.globalSettings.foreignKeyIncludeRelated {
-                    Text("Enable related foreign keys in Settings › Query Results to automatically expand referenced rows when available.")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal, 4)
+                switch content {
+                case .foreignKey(let foreignKeyContent):
+                    InspectorPanelView(content: foreignKeyContent, depth: 0)
+                    if !appModel.globalSettings.foreignKeyIncludeRelated {
+                        Text("Enable related foreign keys in Settings › Query Results to automatically expand referenced rows when available.")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 4)
+                    }
+                case .json(let jsonContent):
+                    JsonInspectorPanelView(content: jsonContent)
                 }
             }
         } else {
             InspectorEmptyState(
                 title: "No Selection",
-                message: "Select a foreign key cell to inspect related data."
+                message: "Select a cell to inspect its related data."
             )
         }
     }
@@ -259,6 +264,112 @@ private struct InspectorFieldRow: View {
                         )
                 )
         }
+    }
+}
+
+private struct JsonInspectorPanelView: View {
+    let content: JsonInspectorContent
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(content.title)
+                    .font(.system(.title3, design: .default).weight(.semibold))
+                if let subtitle = content.subtitle, !subtitle.isEmpty {
+                    Text(subtitle)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            if content.outline.children.isEmpty {
+                JsonInspectorLeafRow(node: content.outline)
+            } else {
+                VStack(alignment: .leading, spacing: 12) {
+                    ForEach(content.outline.children) { child in
+                        JsonInspectorNodeRow(node: child, depth: 0)
+                    }
+                }
+            }
+        }
+        .padding(.top, 4)
+        .padding(.bottom, 4)
+    }
+}
+
+private struct JsonInspectorNodeRow: View {
+    let node: JsonOutlineNode
+    let depth: Int
+    @State private var isExpanded: Bool = true
+
+    var body: some View {
+        if node.hasChildren {
+            DisclosureGroup(isExpanded: $isExpanded) {
+                VStack(alignment: .leading, spacing: 10) {
+                    ForEach(node.children) { child in
+                        JsonInspectorNodeRow(node: child, depth: depth + 1)
+                    }
+                }
+                .padding(.top, 8)
+            } label: {
+                JsonInspectorRowHeader(title: node.title, subtitle: node.subtitle, depth: depth)
+            }
+        } else {
+            JsonInspectorLeafRow(node: node, depth: depth)
+        }
+    }
+}
+
+private struct JsonInspectorRowHeader: View {
+    let title: String
+    let subtitle: String
+    let depth: Int
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title)
+                .font(.system(size: 13, weight: .semibold))
+            Text(subtitle)
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
+        }
+        .padding(.leading, CGFloat(depth) * 4)
+    }
+}
+
+private struct JsonInspectorLeafRow: View {
+    let node: JsonOutlineNode
+    var depth: Int = 0
+    @EnvironmentObject private var themeManager: ThemeManager
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            if let title = node.key.displayTitle {
+                Text(title.uppercased())
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            } else {
+                Text(node.value.kind.displayName.uppercased())
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+
+            Text(node.subtitle.isEmpty ? "—" : node.subtitle)
+                .font(.callout.weight(.medium))
+                .foregroundStyle(themeManager.surfaceForegroundColor)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.vertical, 8)
+                .padding(.horizontal, 10)
+                .background(
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(Color.secondary.opacity(themeManager.activePaletteTone == .dark ? 0.18 : 0.12))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                .stroke(Color.white.opacity(themeManager.activePaletteTone == .dark ? 0.08 : 0.18), lineWidth: 0.6)
+                        )
+                )
+        }
+        .padding(.leading, CGFloat(depth) * 6)
     }
 }
 

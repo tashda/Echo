@@ -20,6 +20,7 @@ struct QueryResultsTableView: NSViewRepresentable {
     var foreignKeyDisplayMode: ForeignKeyDisplayMode
     var foreignKeyInspectorBehavior: ForeignKeyInspectorBehavior
     var onForeignKeyEvent: (ForeignKeyEvent) -> Void
+    var onJsonEvent: (JsonCellEvent) -> Void
 
     @EnvironmentObject private var clipboardHistory: ClipboardHistoryStore
     struct SelectedCell: Equatable {
@@ -39,6 +40,20 @@ struct QueryResultsTableView: NSViewRepresentable {
     enum ForeignKeyEvent {
         case selectionChanged(ForeignKeySelection?)
         case activate(ForeignKeySelection)
+    }
+
+    struct JsonSelection: Equatable {
+        let sourceRowIndex: Int
+        let displayedRowIndex: Int
+        let columnIndex: Int
+        let columnName: String
+        let rawValue: String
+        let jsonValue: JsonValue
+    }
+
+    enum JsonCellEvent {
+        case selectionChanged(JsonSelection?)
+        case activate(JsonSelection)
     }
 
     enum HeaderSortAction {
@@ -121,6 +136,7 @@ struct QueryResultsTableView: NSViewRepresentable {
         private var lastForeignKeySelection: QueryResultsTableView.ForeignKeySelection?
         private var lastForeignKeyDisplayMode: ForeignKeyDisplayMode?
         private var lastForeignKeyInspectorBehavior: ForeignKeyInspectorBehavior?
+        private var lastJsonSelection: QueryResultsTableView.JsonSelection?
 
         private func resolvedFont(for style: SQLEditorTokenPalette.ResultGridStyle) -> NSFont {
             var traits: NSFontTraitMask = []
@@ -1108,9 +1124,15 @@ struct QueryResultsTableView: NSViewRepresentable {
             }
 
             if clickCount >= 2 {
-                focusCellEditor(at: cell, tableView: tableView)
-                isDraggingCellSelection = false
-                return
+                if let jsonSelection = makeJsonSelection(for: cell) {
+                    parent.onJsonEvent(.activate(jsonSelection))
+                    isDraggingCellSelection = false
+                    return
+                } else {
+                    focusCellEditor(at: cell, tableView: tableView)
+                    isDraggingCellSelection = false
+                    return
+                }
             }
 
             if extendSelection {
@@ -1459,6 +1481,24 @@ struct QueryResultsTableView: NSViewRepresentable {
             return visibleRow
         }
 
+        private func notifyJsonSelection(_ region: SelectedRegion?) {
+            guard let region,
+                  region.start.row == region.end.row,
+                  region.start.column == region.end.column,
+                  let selection = makeJsonSelection(for: region.start) else {
+                if lastJsonSelection != nil {
+                    lastJsonSelection = nil
+                    parent.onJsonEvent(.selectionChanged(nil))
+                }
+                return
+            }
+
+            if lastJsonSelection != selection {
+                lastJsonSelection = selection
+                parent.onJsonEvent(.selectionChanged(selection))
+            }
+        }
+
         private func notifyForeignKeySelection(_ region: SelectedRegion?) {
             guard parent.foreignKeyDisplayMode != .disabled else {
                 lastForeignKeySelection = nil
@@ -1481,6 +1521,30 @@ struct QueryResultsTableView: NSViewRepresentable {
                 lastForeignKeySelection = selection
                 parent.onForeignKeyEvent(.selectionChanged(selection))
             }
+        }
+
+        private func makeJsonSelection(for cell: QueryResultsTableView.SelectedCell) -> QueryResultsTableView.JsonSelection? {
+            guard cell.column >= 0,
+                  cell.column < parent.query.displayedColumns.count else { return nil }
+            let columnInfo = parent.query.displayedColumns[cell.column]
+            let sourceRowIndex = resolvedRowIndex(for: cell.row)
+            guard sourceRowIndex >= 0,
+                  let rawValue = parent.query.valueForDisplay(row: sourceRowIndex, column: cell.column) else {
+                return nil
+            }
+            let trimmed = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty else { return nil }
+            let kind = ResultGridValueClassifier.kind(for: columnInfo, value: rawValue)
+            guard kind == .json else { return nil }
+            guard let jsonValue = try? JsonValue.parse(from: rawValue) else { return nil }
+            return QueryResultsTableView.JsonSelection(
+                sourceRowIndex: sourceRowIndex,
+                displayedRowIndex: cell.row,
+                columnIndex: cell.column,
+                columnName: columnInfo.name,
+                rawValue: rawValue,
+                jsonValue: jsonValue
+            )
         }
 
         private func makeForeignKeySelection(for cell: QueryResultsTableView.SelectedCell) -> QueryResultsTableView.ForeignKeySelection? {
@@ -1532,6 +1596,7 @@ struct QueryResultsTableView: NSViewRepresentable {
             }
 
             refreshVisibleRowBackgrounds(tableView)
+            notifyJsonSelection(region)
             notifyForeignKeySelection(region)
         }
 

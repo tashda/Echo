@@ -37,7 +37,8 @@ struct QueryResultsGridView: View {
             backgroundColor: themeManager.resultsGridCellBackgroundNSColor,
             foreignKeyDisplayMode: .disabled,
             foreignKeyInspectorBehavior: .respectInspectorVisibility,
-            onForeignKeyEvent: { _ in }
+            onForeignKeyEvent: { _ in },
+            onJsonEvent: { _ in }
         )
     }
 }

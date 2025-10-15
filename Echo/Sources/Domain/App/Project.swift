@@ -961,7 +961,7 @@ extension GlobalSettings {
     }
 
     func ligaturesEnabled(for fontName: String) -> Bool {
-        let key = SQLEditorTheme.normalizedFontName(fontName)
+        let key = SQLEditorThemeResolver.normalizedFontName(fontName)
         if let override = fontLigatureOverrides[key] {
             return override
         }
@@ -969,7 +969,7 @@ extension GlobalSettings {
     }
 
     mutating func setLigaturesEnabled(_ enabled: Bool, for fontName: String) {
-        let key = SQLEditorTheme.normalizedFontName(fontName)
+        let key = SQLEditorThemeResolver.normalizedFontName(fontName)
         let defaultValue = Self.defaultLigatureFonts.contains(key)
         if enabled == defaultValue {
             fontLigatureOverrides.removeValue(forKey: key)

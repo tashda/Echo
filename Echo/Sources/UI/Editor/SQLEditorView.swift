@@ -57,7 +57,7 @@ enum SQLAutoCompletionKind: String, Equatable {
         case .table: return "tablecells"
         case .view: return "rectangle.stack"
         case .materializedView: return "rectangle.stack.fill"
-        case .column: return "text.alignleft"
+        case .column: return "doc.text"
         case .function: return "function"
         case .keyword: return "textformat"
         }
@@ -2768,6 +2768,11 @@ struct AutoCompletionListView: View {
         static let verticalPadding: CGFloat = 10
         static let containerSpacing: CGFloat = 12
         static let detailRevealDelay: TimeInterval = 1.0
+        static let rowHorizontalPadding: CGFloat = 12
+        static let rowIconSpacing: CGFloat = 8
+        static let rowIconSize: CGFloat = 16
+        static let minListWidth: CGFloat = 220
+        static let maxColumnListHeight: CGFloat = 180
     }
 
     private var selectedSuggestion: SQLAutoCompletionSuggestion? {
@@ -2782,6 +2787,18 @@ struct AutoCompletionListView: View {
         if suggestion.serverDisplayName != nil { return true }
         return false
     }
+
+#if os(macOS)
+    private var listWidth: CGFloat {
+        let font = NSFont.systemFont(ofSize: 12)
+        let attributes: [NSAttributedString.Key: Any] = [.font: font]
+        let titleWidth = suggestions.map { ( $0.title as NSString).size(withAttributes: attributes).width }.max() ?? 0
+        let base = Layout.rowHorizontalPadding * 2 + Layout.rowIconSize + Layout.rowIconSpacing
+        return max(Layout.minListWidth, base + titleWidth)
+    }
+#else
+    private var listWidth: CGFloat { Layout.minListWidth }
+#endif
 
     var body: some View {
         content
@@ -2847,16 +2864,57 @@ struct AutoCompletionListView: View {
                     }
                 }
             }
-            .frame(minWidth: 170)
+            .frame(minWidth: listWidth, idealWidth: listWidth)
             .onAppear { scrollToSelection(proxy) }
             .onChange(of: selectedID) { _ in scrollToSelection(proxy) }
         }
     }
 
+
     private func scrollToSelection(_ proxy: ScrollViewProxy) {
         guard let selectedID else { return }
         DispatchQueue.main.async {
             proxy.scrollTo(selectedID, anchor: .center)
+        }
+    }
+
+    private struct AutoScrollingText: View {
+        let text: String
+        let font: Font
+        let isActive: Bool
+
+        @State private var textWidth: CGFloat = 0
+
+        var body: some View {
+            GeometryReader { geometry in
+                let available = geometry.size.width
+                TimelineView(.animation) { timeline in
+                    Text(text)
+                        .font(font)
+                        .lineLimit(1)
+                        .background(widthReader)
+                        .offset(x: offset(for: timeline.date.timeIntervalSinceReferenceDate, available: available))
+                }
+            }
+            .frame(height: 16)
+        }
+
+        private var widthReader: some View {
+            GeometryReader { geo in
+                Color.clear
+                    .onAppear { textWidth = geo.size.width }
+                    .onChange(of: geo.size.width) { newValue in
+                        textWidth = newValue
+                    }
+            }
+        }
+
+        private func offset(for time: TimeInterval, available: CGFloat) -> CGFloat {
+            let delta = textWidth - available
+            guard isActive, delta > 6 else { return 0 }
+            let period = max(Double(delta / 32), 1.6)
+            let progress = (sin((time.truncatingRemainder(dividingBy: period)) / period * .pi * 2) + 1) / 2
+            return -CGFloat(progress) * delta
         }
     }
 
@@ -2873,10 +2931,8 @@ struct AutoCompletionListView: View {
                     .foregroundStyle(iconColor(isSelected: isSelected))
                     .frame(width: 16)
 
-                Text(suggestion.title)
-                    .font(.system(size: 12))
+                AutoScrollingText(text: suggestion.title, font: .system(size: 12), isActive: isSelected)
                     .foregroundStyle(titleColor(isSelected: isSelected))
-                    .lineLimit(1)
 
                 Spacer(minLength: 0)
             }
@@ -2966,6 +3022,7 @@ struct AutoCompletionDetailView: View {
         static let columnBadgeCornerRadius: CGFloat = 6
         static let columnBadgePadding = EdgeInsets(top: 2, leading: 5, bottom: 2, trailing: 5)
         static let headerSpacing: CGFloat = 6
+        static let maxColumnListHeight: CGFloat = 180
     }
 
     var body: some View {
@@ -3007,18 +3064,7 @@ struct AutoCompletionDetailView: View {
         VStack(alignment: .leading, spacing: 4) {
             if let schema = suggestion.origin?.schema, let name = suggestion.origin?.object {
                 HStack(spacing: 6) {
-                    Image("schema")
-                        .renderingMode(.template)
-                        .foregroundStyle(Color.secondary)
-                        .font(.system(size: 12, weight: .medium))
-                    Text(schema)
-                        .font(.system(size: 11, weight: .medium))
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 3)
-                        .background(
-                            Capsule(style: .continuous)
-                                .fill(Color.primary.opacity(0.06))
-                        )
+                    schemaChip(schema)
                     Text(name)
                         .font(.system(size: 12, weight: .medium))
                         .foregroundStyle(Color.primary)
@@ -3026,26 +3072,7 @@ struct AutoCompletionDetailView: View {
             }
 
             if let columns = suggestion.tableColumns, !columns.isEmpty {
-                VStack(alignment: .leading, spacing: Layout.columnSpacing) {
-                    ForEach(Array(columns.enumerated()), id: \.offset) { _, column in
-                        HStack(spacing: 6) {
-                            Text(column.name)
-                                .font(.system(size: 11))
-                                .foregroundStyle(Color.primary)
-
-                            Spacer(minLength: 10)
-
-                            Text(formatDataType(column.dataType))
-                                .font(.system(size: 10, weight: .semibold))
-                                .foregroundStyle(Color.secondary)
-                                .padding(Layout.columnBadgePadding)
-                                .background(
-                                    Capsule(style: .continuous)
-                                        .fill(Color.primary.opacity(0.06))
-                                )
-                        }
-                    }
-                }
+                ColumnListView(columns: columns)
             } else {
                 Text("No columns available")
                     .font(.system(size: 11))
@@ -3090,6 +3117,25 @@ struct AutoCompletionDetailView: View {
         .background(serverBadgeBackground)
     }
 
+    private func schemaChip(_ schema: String) -> some View {
+        HStack(spacing: 5) {
+            Image("schema")
+                .resizable()
+                .renderingMode(.template)
+                .scaledToFit()
+                .frame(width: 12, height: 12)
+            Text(schema)
+                .font(.system(size: 11, weight: .medium))
+        }
+        .foregroundStyle(Color.primary)
+        .padding(.horizontal, 9)
+        .padding(.vertical, 4)
+        .background(
+            Capsule(style: .continuous)
+                .fill(Color.primary.opacity(0.08))
+        )
+    }
+
     private var tableBadgeText: String? {
         guard let origin = suggestion.origin else { return nil }
         return origin.object?.isEmpty == false ? origin.object : nil
@@ -3106,15 +3152,75 @@ struct AutoCompletionDetailView: View {
 #endif
     }
 
-    private func formatDataType(_ dataType: String) -> String {
-        var formatted = dataType
-        if formatted.contains("with time zone") {
-            formatted = formatted.replacingOccurrences(of: " with time zone", with: "tz")
+    private struct ColumnListView: View {
+        let columns: [SQLAutoCompletionSuggestion.TableColumn]
+        @State private var contentHeight: CGFloat = 0
+
+        var body: some View {
+            ZStack(alignment: .bottom) {
+                ScrollView(showsIndicators: false) {
+                    VStack(alignment: .leading, spacing: Layout.columnSpacing) {
+                        ForEach(Array(columns.enumerated()), id: \.offset) { _, column in
+                            HStack(spacing: 6) {
+                                Text(column.name)
+                                    .font(.system(size: 11))
+                                    .foregroundStyle(Color.primary)
+
+                                Spacer(minLength: 10)
+
+                                Text(formatDataType(column.dataType))
+                                    .font(.system(size: 10, weight: .semibold))
+                                    .foregroundStyle(Color.secondary)
+                                    .padding(Layout.columnBadgePadding)
+                                    .background(
+                                        Capsule(style: .continuous)
+                                            .fill(Color.primary.opacity(0.06))
+                                    )
+                            }
+                        }
+                    }
+                    .background(
+                        GeometryReader { geo in
+                            Color.clear.preference(key: ColumnContentHeightKey.self, value: geo.size.height)
+                        }
+                    )
+                }
+                .frame(maxHeight: Layout.maxColumnListHeight)
+
+                if contentHeight > Layout.maxColumnListHeight {
+                    LinearGradient(colors: [Color.clear, Color.primary.opacity(0.12)], startPoint: .top, endPoint: .bottom)
+                        .frame(height: 28)
+                        .overlay(
+                            Image(systemName: "chevron.down")
+                                .font(.system(size: 10, weight: .semibold))
+                                .foregroundStyle(Color.secondary)
+                                .padding(.bottom, 6),
+                            alignment: .bottom
+                        )
+                        .allowsHitTesting(false)
+                }
+            }
+            .frame(maxHeight: Layout.maxColumnListHeight)
+            .onPreferenceChange(ColumnContentHeightKey.self) { contentHeight = $0 }
         }
-        if formatted.contains("without time zone") {
-            formatted = formatted.replacingOccurrences(of: " without time zone", with: "")
+
+        private func formatDataType(_ dataType: String) -> String {
+            var formatted = dataType
+            if formatted.contains("with time zone") {
+                formatted = formatted.replacingOccurrences(of: " with time zone", with: "tz")
+            }
+            if formatted.contains("without time zone") {
+                formatted = formatted.replacingOccurrences(of: " without time zone", with: "")
+            }
+            return formatted
         }
-        return formatted
+    }
+
+    private struct ColumnContentHeightKey: PreferenceKey {
+        static var defaultValue: CGFloat = 0
+        static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+            value = max(value, nextValue())
+        }
     }
 
 #if os(macOS)
