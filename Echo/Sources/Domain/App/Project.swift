@@ -960,6 +960,30 @@ extension GlobalSettings {
         }
     }
 
+    func ligaturesEnabled(for fontName: String) -> Bool {
+        let key = SQLEditorTheme.normalizedFontName(fontName)
+        if let override = fontLigatureOverrides[key] {
+            return override
+        }
+        return Self.defaultLigatureFonts.contains(key)
+    }
+
+    mutating func setLigaturesEnabled(_ enabled: Bool, for fontName: String) {
+        let key = SQLEditorTheme.normalizedFontName(fontName)
+        let defaultValue = Self.defaultLigatureFonts.contains(key)
+        if enabled == defaultValue {
+            fontLigatureOverrides.removeValue(forKey: key)
+        } else {
+            fontLigatureOverrides[key] = enabled
+        }
+    }
+
+    static let defaultLigatureFonts: Set<String> = [
+        "FiraCode-Regular",
+        "JetBrainsMono-Regular",
+        "Iosevka"
+    ]
+
     func activeThemeID(for tone: SQLEditorPalette.Tone) -> AppColorTheme.ID? {
         switch tone {
         case .light:
@@ -995,12 +1019,25 @@ extension GlobalSettings {
 
 // MARK: - Global Settings
 
+enum ForeignKeyDisplayMode: String, Codable, CaseIterable, Hashable, Sendable {
+    case showInspector
+    case showIcon
+    case disabled
+}
+
+enum ForeignKeyInspectorBehavior: String, Codable, CaseIterable, Hashable, Sendable {
+    case respectInspectorVisibility
+    case autoOpenAndClose
+}
+
 struct GlobalSettings: Codable, Hashable {
     // Global UI preferences
     var appearanceMode: AppearanceMode
     var defaultEditorFontSize: Double
     var defaultEditorFontFamily: String
     var defaultEditorTheme: String // Legacy identifier kept for backward compatibility
+    var fontLigatureOverrides: [String: Bool]
+    var lastCustomEditorFontFamily: String?
     var defaultEditorPaletteIDLight: String
     var defaultEditorPaletteIDDark: String
     var customEditorPalettes: [SQLEditorTokenPalette]
@@ -1018,6 +1055,10 @@ struct GlobalSettings: Codable, Hashable {
     var themeTabs: Bool = false
     var themeResultsGrid: Bool = true
     var resultsAlternateRowShading: Bool = false
+    var foreignKeyDisplayMode: ForeignKeyDisplayMode = .showInspector
+    var foreignKeyInspectorBehavior: ForeignKeyInspectorBehavior = .respectInspectorVisibility
+    var foreignKeyIncludeRelated: Bool = false
+    var inspectorWidth: Double?
 
     // Window preferences
     var defaultWindowWidth: Double?
@@ -1028,6 +1069,8 @@ struct GlobalSettings: Codable, Hashable {
         defaultEditorFontSize: Double = 12.0,
         defaultEditorFontFamily: String = "JetBrainsMono-Regular",
         defaultEditorTheme: String = SQLEditorPalette.aurora.id,
+        fontLigatureOverrides: [String: Bool] = [:],
+        lastCustomEditorFontFamily: String? = nil,
         defaultEditorPaletteIDLight: String = SQLEditorPalette.aurora.id,
         defaultEditorPaletteIDDark: String = SQLEditorPalette.midnight.id,
         customEditorPalettes: [SQLEditorTokenPalette] = [],
@@ -1043,6 +1086,10 @@ struct GlobalSettings: Codable, Hashable {
         themeTabs: Bool = false,
         themeResultsGrid: Bool = true,
         resultsAlternateRowShading: Bool = false,
+        foreignKeyDisplayMode: ForeignKeyDisplayMode = .showInspector,
+        foreignKeyInspectorBehavior: ForeignKeyInspectorBehavior = .respectInspectorVisibility,
+        foreignKeyIncludeRelated: Bool = false,
+        inspectorWidth: Double? = nil,
         defaultWindowWidth: Double? = nil,
         defaultWindowHeight: Double? = nil,
         activeThemeIDLight: AppColorTheme.ID? = nil,
@@ -1052,6 +1099,8 @@ struct GlobalSettings: Codable, Hashable {
         self.defaultEditorFontSize = defaultEditorFontSize
         self.defaultEditorFontFamily = defaultEditorFontFamily
         self.defaultEditorTheme = defaultEditorTheme
+        self.fontLigatureOverrides = fontLigatureOverrides
+        self.lastCustomEditorFontFamily = lastCustomEditorFontFamily
         self.defaultEditorPaletteIDLight = defaultEditorPaletteIDLight
         self.defaultEditorPaletteIDDark = defaultEditorPaletteIDDark
         self.customEditorPalettes = customEditorPalettes
@@ -1067,6 +1116,10 @@ struct GlobalSettings: Codable, Hashable {
         self.themeTabs = themeTabs
         self.themeResultsGrid = themeResultsGrid
         self.resultsAlternateRowShading = resultsAlternateRowShading
+        self.foreignKeyDisplayMode = foreignKeyDisplayMode
+        self.foreignKeyInspectorBehavior = foreignKeyInspectorBehavior
+        self.foreignKeyIncludeRelated = foreignKeyIncludeRelated
+        self.inspectorWidth = inspectorWidth
         self.defaultWindowWidth = defaultWindowWidth
         self.defaultWindowHeight = defaultWindowHeight
         self.activeThemeIDLight = activeThemeIDLight
@@ -1078,9 +1131,11 @@ struct GlobalSettings: Codable, Hashable {
         case defaultEditorFontSize
         case defaultEditorFontFamily
         case defaultEditorTheme
+        case fontLigatureOverrides
         case defaultEditorPaletteID // Legacy single-mode palette
         case defaultEditorPaletteIDLight
         case defaultEditorPaletteIDDark
+        case lastCustomEditorFontFamily
         case customEditorPalettes
         case customThemes
         case defaultEditorLineHeight
@@ -1098,6 +1153,10 @@ struct GlobalSettings: Codable, Hashable {
         case themeTabs
         case themeResultsGrid
         case resultsAlternateRowShading
+        case foreignKeyDisplayMode
+        case foreignKeyInspectorBehavior
+        case foreignKeyIncludeRelated
+        case inspectorWidth
     }
 
     init(from decoder: Decoder) throws {
@@ -1107,6 +1166,8 @@ struct GlobalSettings: Codable, Hashable {
         defaultEditorFontSize = try container.decodeIfPresent(Double.self, forKey: .defaultEditorFontSize) ?? 12.0
         defaultEditorFontFamily = try container.decodeIfPresent(String.self, forKey: .defaultEditorFontFamily) ?? "JetBrainsMono-Regular"
         defaultEditorTheme = try container.decodeIfPresent(String.self, forKey: .defaultEditorTheme) ?? SQLEditorPalette.aurora.id
+        fontLigatureOverrides = try container.decodeIfPresent([String: Bool].self, forKey: .fontLigatureOverrides) ?? [:]
+        lastCustomEditorFontFamily = try container.decodeIfPresent(String.self, forKey: .lastCustomEditorFontFamily)
 
         if let palettes = try container.decodeIfPresent([SQLEditorTokenPalette].self, forKey: .customEditorPalettes) {
             customEditorPalettes = palettes
@@ -1151,6 +1212,10 @@ struct GlobalSettings: Codable, Hashable {
         themeTabs = try container.decodeIfPresent(Bool.self, forKey: .themeTabs) ?? false
         themeResultsGrid = try container.decodeIfPresent(Bool.self, forKey: .themeResultsGrid) ?? true
         resultsAlternateRowShading = try container.decodeIfPresent(Bool.self, forKey: .resultsAlternateRowShading) ?? false
+        foreignKeyDisplayMode = try container.decodeIfPresent(ForeignKeyDisplayMode.self, forKey: .foreignKeyDisplayMode) ?? .showInspector
+        foreignKeyInspectorBehavior = try container.decodeIfPresent(ForeignKeyInspectorBehavior.self, forKey: .foreignKeyInspectorBehavior) ?? .respectInspectorVisibility
+        foreignKeyIncludeRelated = try container.decodeIfPresent(Bool.self, forKey: .foreignKeyIncludeRelated) ?? false
+        inspectorWidth = try container.decodeIfPresent(Double.self, forKey: .inspectorWidth)
     }
 
     func encode(to encoder: Encoder) throws {
@@ -1159,6 +1224,8 @@ struct GlobalSettings: Codable, Hashable {
         try container.encode(defaultEditorFontSize, forKey: .defaultEditorFontSize)
         try container.encode(defaultEditorFontFamily, forKey: .defaultEditorFontFamily)
         try container.encode(defaultEditorTheme, forKey: .defaultEditorTheme)
+        try container.encode(fontLigatureOverrides, forKey: .fontLigatureOverrides)
+        try container.encodeIfPresent(lastCustomEditorFontFamily, forKey: .lastCustomEditorFontFamily)
         try container.encode(customEditorPalettes, forKey: .customEditorPalettes)
         try container.encode(customThemes, forKey: .customThemes)
         try container.encode(defaultEditorLineHeight, forKey: .defaultEditorLineHeight)
@@ -1176,6 +1243,10 @@ struct GlobalSettings: Codable, Hashable {
         try container.encode(themeTabs, forKey: .themeTabs)
         try container.encode(themeResultsGrid, forKey: .themeResultsGrid)
         try container.encode(resultsAlternateRowShading, forKey: .resultsAlternateRowShading)
+        try container.encode(foreignKeyDisplayMode, forKey: .foreignKeyDisplayMode)
+        try container.encode(foreignKeyInspectorBehavior, forKey: .foreignKeyInspectorBehavior)
+        try container.encode(foreignKeyIncludeRelated, forKey: .foreignKeyIncludeRelated)
+        try container.encodeIfPresent(inspectorWidth, forKey: .inspectorWidth)
 
         try container.encode(defaultEditorPaletteIDLight, forKey: .defaultEditorPaletteIDLight)
         try container.encode(defaultEditorPaletteIDDark, forKey: .defaultEditorPaletteIDDark)

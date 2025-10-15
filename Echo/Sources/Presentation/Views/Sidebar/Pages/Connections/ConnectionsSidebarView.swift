@@ -23,6 +23,7 @@ struct ConnectionsSidebarView: View {
     @State private var identityEditorState: IdentityEditorState?
     @State private var pendingDeletion: DeletionTarget?
     @State private var activeDropTarget: DropTarget?
+    @State private var isAddMenuHovered = false
 
     private var connectionItems: [SidebarItem] { buildConnectionItems(parentID: nil) }
     private var identityItems: [IdentityNode] { buildIdentityItems(parentID: nil) }
@@ -70,15 +71,26 @@ struct ConnectionsSidebarView: View {
             Menu {
                 menuContent()
             } label: {
-                Label("Add new", systemImage: "plus")
-                    .labelStyle(.titleAndIcon)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(
-                        Capsule().fill(Color.secondary.opacity(0.15))
-                    )
+                HStack(spacing: 6) {
+                    Image(systemName: "plus")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(isAddMenuHovered ? Color.accentColor : Color.secondary.opacity(0.55))
+                    Text("Add new")
+                        .font(.system(size: 13))
+                        .foregroundStyle(.primary)
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(
+                    Capsule().fill(Color.secondary.opacity(isAddMenuHovered ? 0.18 : 0.12))
+                )
             }
             .menuStyle(.borderlessButton)
+            .onHover { hovering in
+                withAnimation(.easeInOut(duration: 0.12)) {
+                    isAddMenuHovered = hovering
+                }
+            }
             Spacer()
         }
         .padding(.horizontal, 16)
@@ -555,31 +567,38 @@ private struct ConnectionFolderRow<Content: View>: View {
     let onSelect: () -> Void
     @ViewBuilder var content: Content
 
+    @State private var isHovering = false
+
     var body: some View {
         DisclosureGroup(isExpanded: $isExpanded) {
             content
         } label: {
-            HStack(spacing: 10) {
+            HStack(spacing: 8) {
                 Image(systemName: "folder.fill")
-                    .font(.system(size: 20))
+                    .font(.system(size: 18))
                     .foregroundStyle(folder.color)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(folder.name)
-                        .font(.subheadline)
-                        .fontWeight(.medium)
+                        .font(.system(size: 13))
+                        .foregroundStyle(.primary)
                     Text(folderSubtitle)
-                        .font(.caption)
+                        .font(.system(size: 11))
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
             }
-            .contentShape(Rectangle())
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(folderHighlight)
+            .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .onHover { hovering in
+                withAnimation(.easeInOut(duration: 0.12)) {
+                    isHovering = hovering
+                }
+            }
         }
-        .padding(.vertical, 4)
-        .background(
-            isHighlighted ? Color.accentColor.opacity(0.12) : Color.clear,
-            in: RoundedRectangle(cornerRadius: 10, style: .continuous)
-        )
+        .padding(.horizontal, 6)
         .contextMenu {
             Button("New Connection", systemImage: "externaldrive.badge.plus", action: onCreateConnection)
             Button("New Folder", systemImage: "folder.badge.plus", action: onCreateFolder)
@@ -588,6 +607,23 @@ private struct ConnectionFolderRow<Content: View>: View {
             Button("Delete", systemImage: "trash", role: .destructive, action: onDelete)
         }
         .simultaneousGesture(TapGesture().onEnded { onSelect() })
+    }
+
+    @ViewBuilder
+    private var folderHighlight: some View {
+        let base = RoundedRectangle(cornerRadius: 8, style: .continuous)
+
+        if isHighlighted {
+            base
+                .fill(Color.accentColor.opacity(0.2))
+                .overlay(base.stroke(Color.accentColor.opacity(0.4), lineWidth: 0.9))
+        } else if isHovering {
+            base
+                .fill(Color.accentColor.opacity(0.12))
+                .overlay(base.stroke(Color.accentColor.opacity(0.28), lineWidth: 0.6))
+        } else {
+            Color.clear
+        }
     }
 
     private var folderSubtitle: String {
@@ -625,70 +661,56 @@ private struct ConnectionRowView: View {
     let onDuplicate: () -> Void
     let onDelete: () -> Void
 
+    @EnvironmentObject private var appModel: AppModel
     @State private var isHovering = false
 
+    private var accentColor: Color {
+        appModel.useServerColorAsAccent ? connection.color : Color.accentColor
+    }
+
+    private var displayName: String {
+        let trimmed = connection.connectionName.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? connection.host : trimmed
+    }
+
     var body: some View {
-        HStack(spacing: 12) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(connection.color.opacity(0.16))
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .stroke(connection.color.opacity(0.4), lineWidth: 1)
-                Image(connection.databaseType.iconName)
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: 18, height: 18)
-                    .foregroundStyle(connection.color)
-            }
-            .frame(width: 30, height: 30)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(connection.connectionName.isEmpty ? "Untitled" : connection.connectionName)
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-                Text("\(connection.host):\(String(connection.port))")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            Spacer()
+        HStack(spacing: 8) {
+            connectionIcon
+                .frame(width: 16, height: 16)
+
+            Text(displayName)
+                .font(.system(size: 12))
+                .foregroundStyle(.primary)
+                .lineLimit(1)
+
+            Spacer(minLength: 4)
+
             if isHovering {
-                HStack(spacing: 8) {
-                    Button(action: onConnect) {
-                        Image(systemName: "bolt.horizontal.circle")
-                    }
-                    .buttonStyle(.borderless)
-
-                    Button(action: onEdit) {
-                        Image(systemName: "square.and.pencil")
-                    }
-                    .buttonStyle(.borderless)
-
-                    Button(action: onDuplicate) {
-                        Image(systemName: "plus.square.on.square")
-                    }
-                    .buttonStyle(.borderless)
-
-                    Button(action: onDelete) {
-                        Image(systemName: "trash")
-                    }
-                    .buttonStyle(.borderless)
+                Button(action: onConnect) {
+                    Image(systemName: "bolt.horizontal.circle")
+                        .font(.system(size: 11, weight: .semibold))
                 }
-                .foregroundStyle(.secondary)
+                .buttonStyle(.plain)
+                .foregroundStyle(accentColor)
             }
         }
-        .padding(.vertical, 6)
-        .padding(.horizontal, 4)
-        .background(
-            isSelected ? Color.accentColor.opacity(0.15) : Color.clear,
-            in: RoundedRectangle(cornerRadius: 10, style: .continuous)
-        )
-        .contentShape(Rectangle())
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(highlightBackground)
+        .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
         .onTapGesture(perform: onTap)
-        .onTapGesture(count: 2, perform: onConnect)
         .onHover { hovering in
             withAnimation(.easeInOut(duration: 0.1)) {
                 isHovering = hovering
             }
         }
+        .highPriorityGesture(
+            TapGesture(count: 2).onEnded {
+                onTap()
+                onConnect()
+            }
+        )
         .contextMenu {
             Button(action: onConnect) {
                 Label("Connect", systemImage: "bolt.horizontal.circle")
@@ -703,6 +725,48 @@ private struct ConnectionRowView: View {
             Button(role: .destructive, action: onDelete) {
                 Label("Delete", systemImage: "trash")
             }
+        }
+    }
+
+    @ViewBuilder
+    private var connectionIcon: some View {
+#if os(macOS)
+        if let logoData = connection.logo,
+           let nsImage = NSImage(data: logoData) {
+            Image(nsImage: nsImage)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
+        } else {
+            Image(connection.databaseType.iconName)
+                .resizable()
+                .renderingMode(.template)
+                .aspectRatio(contentMode: .fit)
+                .foregroundStyle(accentColor)
+        }
+#else
+        Image(connection.databaseType.iconName)
+            .resizable()
+            .renderingMode(.template)
+            .aspectRatio(contentMode: .fit)
+            .foregroundStyle(accentColor)
+#endif
+    }
+
+    @ViewBuilder
+    private var highlightBackground: some View {
+        let base = RoundedRectangle(cornerRadius: 8, style: .continuous)
+
+        if isSelected {
+            base
+                .fill(accentColor.opacity(0.2))
+                .overlay(base.stroke(accentColor.opacity(0.35), lineWidth: 1))
+        } else if isHovering {
+            base
+                .fill(Color.primary.opacity(0.05))
+                .overlay(base.stroke(Color.primary.opacity(0.08), lineWidth: 0.6))
+        } else {
+            Color.clear
         }
     }
 }

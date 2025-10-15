@@ -9,6 +9,11 @@ struct QueryResultsSection: View {
     @ObservedObject var query: QueryEditorState
     let connection: SavedConnection
     let activeDatabaseName: String?
+#if os(macOS)
+    let foreignKeyDisplayMode: ForeignKeyDisplayMode
+    let foreignKeyInspectorBehavior: ForeignKeyInspectorBehavior
+    let onForeignKeyEvent: (QueryResultsTableView.ForeignKeyEvent) -> Void
+#endif
     @State private var selectedTab: ResultTab = .results
     @State private var sortCriteria: SortCriteria?
     @State private var highlightedColumnIndex: Int?
@@ -229,7 +234,10 @@ struct QueryResultsSection: View {
                 onColumnTap: { index in toggleHighlightedColumn(index) },
                 onSort: { index, action in handleSortAction(columnIndex: index, action: action) },
                 onClearColumnHighlight: { highlightedColumnIndex = nil },
-                backgroundColor: gridBackgroundColor
+                backgroundColor: gridBackgroundColor,
+                foreignKeyDisplayMode: foreignKeyDisplayMode,
+                foreignKeyInspectorBehavior: foreignKeyInspectorBehavior,
+                onForeignKeyEvent: onForeignKeyEvent
             )
             .opacity(hasRows ? 1 : 0)
             .allowsHitTesting(hasRows)
@@ -582,11 +590,11 @@ struct QueryResultsSection: View {
         private var segmentContent: some View {
             content()
                 .padding(.horizontal, 10)
-                .padding(.vertical, 4)
-                .frame(minHeight: chipHeight, maxHeight: .infinity, alignment: .center)
+                .padding(.vertical, 3)
+                .frame(height: chipHeight, alignment: .center)
                 .background(
                     RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .fill(isHovering && isEnabled ? Color.primary.opacity(0.08) : Color.clear)
+                        .fill(isHovering && isEnabled ? Color.primary.opacity(0.04) : Color.clear)
                 )
         }
     }

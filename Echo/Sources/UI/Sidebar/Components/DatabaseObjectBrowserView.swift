@@ -1,4 +1,9 @@
 import SwiftUI
+#if os(macOS)
+import AppKit
+#else
+import UIKit
+#endif
 
 /// Database Explorer – hierarchical object list rendered in the explorer sidebar.
 struct DatabaseObjectBrowserView: View {
@@ -198,8 +203,9 @@ private struct DatabaseObjectRow: View {
     @Binding var isExpanded: Bool
     let onTriggerTableTap: ((String) -> Void)?
 
-    @EnvironmentObject private var appModel: AppModel
-    @State private var isHovered = false
+@EnvironmentObject private var appModel: AppModel
+@State private var isHovered = false
+@State private var hoveredColumnID: String?
 
     private var canExpand: Bool {
         showColumns && !object.columns.isEmpty
@@ -335,29 +341,76 @@ private struct DatabaseObjectRow: View {
 
     private var columnsList: some View {
         VStack(alignment: .leading, spacing: 2) {
-            ForEach(object.columns, id: \.name) { column in
+            ForEach(object.columns, id: \.name) { (column: ColumnInfo) in
                 HStack(spacing: 8) {
                     Spacer().frame(width: 24)
-                    Image(systemName: column.isPrimaryKey ? "key.fill" : "doc.text")
+                    let (iconName, iconColor): (String, Color) = {
+                        if column.isPrimaryKey {
+                            return ("key.fill", accentColor)
+                        }
+                        if column.foreignKey != nil {
+                            return ("arrow.turn.down.right", accentColor)
+                        }
+                        return ("doc.text", Color.secondary)
+                    }()
+
+                    Image(systemName: iconName)
                         .font(.system(size: 10))
-                        .foregroundStyle(column.isPrimaryKey ? accentColor : .secondary)
+                        .foregroundStyle(iconColor)
+
                     Text(column.name)
                         .font(.system(size: 11))
                         .foregroundStyle(.primary)
                         .lineLimit(1)
+
                     Spacer(minLength: 0)
+
                     Text(formatDataType(column.dataType))
                         .font(.system(size: 10, weight: .medium))
-                        .foregroundStyle(accentColor)
+                        .foregroundStyle(.primary)
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)
-                        .background(accentColor.opacity(0.1), in: Capsule())
+                        .background(
+                            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                .fill(.ultraThinMaterial)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                        .stroke(Color.white.opacity(0.18), lineWidth: 0.6)
+                                )
+                        )
                 }
-                .padding(.vertical, 1)
+                .padding(.vertical, 2)
                 .padding(.trailing, 12)
+                .background(
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .fill(accentColor.opacity(hoveredColumnID == column.name ? 0.08 : 0))
+                )
+                .contentShape(Rectangle())
+#if os(macOS)
+                .onHover { hovering in
+                    withAnimation(.easeInOut(duration: 0.15)) {
+                        hoveredColumnID = hovering ? column.name : (hoveredColumnID == column.name ? nil : hoveredColumnID)
+                    }
+                }
+#endif
+                .contextMenu {
+                    Button("Copy Name") {
+                        copyColumnName(column)
+                    }
+                    Button("Rename Column…") {
+                        openStructureEditor(for: column)
+                    }
+                    Button("Drop Column", role: .destructive) {
+                        openStructureEditor(for: column, preferDrop: true)
+                    }
+                }
             }
         }
+        .padding(.top, 6)
         .padding(.bottom, 4)
+        .onDisappear {
+            hoveredColumnID = nil
+        }
         .transition(.opacity.combined(with: .scale(scale: 0.95, anchor: .top)))
     }
 
@@ -375,6 +428,27 @@ private struct DatabaseObjectRow: View {
         }
 
         return formatted
+    }
+
+    private func copyColumnName(_ column: ColumnInfo) {
+        let name = column.name
+#if os(macOS)
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setString(name, forType: .string)
+#else
+        UIPasteboard.general.string = name
+#endif
+    }
+
+    private func openStructureEditor(for column: ColumnInfo, preferDrop: Bool = false) {
+        Task { @MainActor in
+            guard let session = appModel.sessionManager.sessionForConnection(connection.id) else { return }
+            appModel.openStructureTab(for: session, object: object, focus: .columns)
+            if preferDrop {
+                // Future enhancement: surface drop column affordance once editor supports deep linking.
+            }
+        }
     }
 
     @ViewBuilder

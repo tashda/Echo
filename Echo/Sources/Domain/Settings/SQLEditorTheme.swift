@@ -20,12 +20,14 @@ struct SQLEditorSurfaceColors: Codable, Equatable {
 
 struct SQLEditorTheme: Codable, Equatable {
     static let defaultFontName = "JetBrainsMono-Regular"
+    static let systemFontIdentifier = "__system_monospaced__"
     static let defaultFontSize: CGFloat = 12
     static let defaultLineHeight: CGFloat = 1.0
 
     var fontName: String
     var fontSize: CGFloat
     var lineHeightMultiplier: CGFloat
+    var ligaturesEnabled: Bool = true
     var surfaces: SQLEditorSurfaceColors
     var tokenPalette: SQLEditorTokenPalette
     var palette: SQLEditorTokenPalette { tokenPalette }
@@ -34,12 +36,14 @@ struct SQLEditorTheme: Codable, Equatable {
         fontName: String = SQLEditorTheme.defaultFontName,
         fontSize: CGFloat = SQLEditorTheme.defaultFontSize,
         lineHeightMultiplier: CGFloat = SQLEditorTheme.defaultLineHeight,
+        ligaturesEnabled: Bool = true,
         surfaces: SQLEditorSurfaceColors,
         tokenPalette: SQLEditorTokenPalette
     ) {
         self.fontName = fontName
         self.fontSize = fontSize
         self.lineHeightMultiplier = lineHeightMultiplier
+        self.ligaturesEnabled = ligaturesEnabled
         self.surfaces = surfaces
         self.tokenPalette = tokenPalette
     }
@@ -50,6 +54,10 @@ struct SQLEditorTheme: Codable, Equatable {
 
     var font: NSFontWithFallback {
         NSFontWithFallback(name: fontName, size: fontSize)
+    }
+
+    static func isSystemFontIdentifier(_ value: String) -> Bool {
+        value == systemFontIdentifier
     }
 
 #if os(macOS)
@@ -1234,6 +1242,9 @@ struct NSFontWithFallback {
 
 #if os(macOS)
     var font: NSFont {
+        if SQLEditorTheme.isSystemFontIdentifier(name) {
+            return .monospacedSystemFont(ofSize: size, weight: .regular)
+        }
         if let custom = NSFont(name: name, size: size) {
             return custom
         }
@@ -1244,6 +1255,9 @@ struct NSFontWithFallback {
     }
 #else
     var font: UIFont {
+        if SQLEditorTheme.isSystemFontIdentifier(name) {
+            return .monospacedSystemFont(ofSize: size, weight: .regular)
+        }
         if let custom = UIFont(name: name, size: size) {
             return custom
         }
@@ -1302,6 +1316,7 @@ enum SQLEditorThemeResolver {
             fontName: fontName,
             fontSize: fontSize,
             lineHeightMultiplier: lineHeight,
+            ligaturesEnabled: globalSettings.ligaturesEnabled(for: fontName),
             surfaces: surfaces,
             tokenPalette: tokenPalette
         )
@@ -1352,7 +1367,18 @@ enum SQLEditorThemeResolver {
     private static func sanitizedFontName(_ value: String?) -> String? {
         guard let value else { return nil }
         let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmed.isEmpty ? nil : trimmed
+        guard !trimmed.isEmpty else { return nil }
+
+        switch trimmed {
+        case SQLEditorTheme.systemFontIdentifier, "System", "system", "MonospacedSystem", ".monospacedSystemFont", ".SystemMonospaced":
+            return SQLEditorTheme.systemFontIdentifier
+        case "IBMPlexMono-Regular":
+            return "IBMPlexMono"
+        case "Iosevka-Regular":
+            return "Iosevka"
+        default:
+            return trimmed
+        }
     }
 
     static func normalizedFontName(_ value: String?) -> String {

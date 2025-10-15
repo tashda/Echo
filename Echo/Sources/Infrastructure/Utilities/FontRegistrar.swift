@@ -23,7 +23,8 @@ enum FontRegistrar {
             collected.append(contentsOf: bundleURLs)
         }
 
-        if let resourceRoot = Bundle.main.resourceURL?.appendingPathComponent(fontSubdirectory, isDirectory: true) {
+        if let resourceRoot = Bundle.main.resourceURL?.appendingPathComponent(fontSubdirectory, isDirectory: true),
+           FileManager.default.fileExists(atPath: resourceRoot.path) {
             do {
                 let directoryContents = try FileManager.default.contentsOfDirectory(at: resourceRoot, includingPropertiesForKeys: nil, options: [.skipsHiddenFiles])
                 collected.append(contentsOf: directoryContents.filter { $0.pathExtension.lowercased() == "ttf" })
@@ -43,7 +44,17 @@ enum FontRegistrar {
             let success = CTFontManagerRegisterFontsForURL(url as CFURL, .process, &error)
             if !success {
                 if let cfError = error?.takeRetainedValue() {
-                    print("[FontRegistrar] Failed to register font at \(url.lastPathComponent): \(cfError)")
+                    let nsError = cfError as Error as NSError
+                    let alreadyRegisteredCode = Int(CTFontManagerError.alreadyRegistered.rawValue)
+                    let domain = nsError.domain
+                    let code = nsError.code
+                    if domain == kCTFontManagerErrorDomain as String && code == alreadyRegisteredCode {
+                        #if DEBUG
+                        print("[FontRegistrar] Font already registered: \(url.lastPathComponent)")
+                        #endif
+                    } else {
+                        print("[FontRegistrar] Failed to register font at \(url.lastPathComponent): \(cfError)")
+                    }
                 }
             } else {
                 #if DEBUG

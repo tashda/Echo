@@ -6,7 +6,6 @@ import AppKit
 #else
 import UIKit
 #endif
-import SQLAutocompleteKit
 
 enum SQLEditorRegex {
     static let doubleQuotedStringPattern = #""(?:""|[^"])*""#
@@ -500,6 +499,18 @@ final class SQLAutoCompletionEngine {
             } else {
                 enrichedDetail = nil
             }
+            let tableColumns: [SQLAutoCompletionSuggestion.TableColumn]? = {
+                guard kind == .table || kind == .view || kind == .materializedView else { return nil }
+                let mapped = entry.object.columns.map {
+                    SQLAutoCompletionSuggestion.TableColumn(
+                        name: $0.name,
+                        dataType: $0.dataType,
+                        isNullable: $0.isNullable,
+                        isPrimaryKey: $0.isPrimaryKey
+                    )
+                }
+                return mapped.isEmpty ? nil : mapped
+            }()
             return SQLAutoCompletionSuggestion(
                 id: "object:\(kind.rawValue):\(entry.database).\(entry.schema).\(entry.object.name)".lowercased(),
                 title: entry.object.name,
@@ -507,7 +518,8 @@ final class SQLAutoCompletionEngine {
                 detail: enrichedDetail,
                 insertText: insertText,
                 kind: kind,
-                origin: .init(database: entry.database, schema: entry.schema, object: entry.object.name)
+                origin: .init(database: entry.database, schema: entry.schema, object: entry.object.name),
+                tableColumns: tableColumns
             )
         }
     }
@@ -1540,6 +1552,7 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
         insertionPointColor = theme.tokenColors.operatorSymbol.nsColor
         drawsBackground = true
         backgroundColor = backgroundOverride ?? theme.surfaces.background.nsColor
+        typingAttributes[.ligature] = theme.ligaturesEnabled ? 1 : 0
         updateParagraphStyle()
         lineNumberRuler?.theme = theme
         lineNumberRuler?.highlightedLines = selectedLineRange()
@@ -2519,7 +2532,8 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
         let baseAttributes: [NSAttributedString.Key: Any] = [
             .font: theme.nsFont,
             .foregroundColor: theme.tokenColors.plain.nsColor,
-            .paragraphStyle: paragraphStyle
+            .paragraphStyle: paragraphStyle,
+            .ligature: theme.ligaturesEnabled ? 1 : 0
         ]
 
         textStorage.beginEditing()
@@ -2805,10 +2819,6 @@ struct AutoCompletionListView: View {
 #endif
     }
 
-#if os(macOS)
-    private var containerMaterial: NSVisualEffectView.Material { .contentBackground }
-#endif
-
     private var borderColor: Color {
 #if os(macOS)
         return Color.clear
@@ -2951,6 +2961,11 @@ struct AutoCompletionDetailView: View {
 
     private enum Layout {
         static let cornerRadius: CGFloat = 14
+        static let badgeCornerRadius: CGFloat = 10
+        static let columnSpacing: CGFloat = 4
+        static let columnBadgeCornerRadius: CGFloat = 6
+        static let columnBadgePadding = EdgeInsets(top: 2, leading: 5, bottom: 2, trailing: 5)
+        static let headerSpacing: CGFloat = 6
     }
 
     var body: some View {
@@ -2967,33 +2982,98 @@ struct AutoCompletionDetailView: View {
 
     @ViewBuilder
     private var contentBody: some View {
-        if suggestion.kind == .column {
-            if let dataType = suggestion.dataType, !dataType.isEmpty {
-                Text(dataType)
-                    .font(.system(size: 11))
-                    .italic()
-                    .foregroundStyle(Color.secondary)
-            }
-        } else if let objectPath = suggestion.displayObjectPath {
-            Text(objectPath)
-                .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(Color.primary)
+        switch suggestion.kind {
+        case .table, .view, .materializedView:
+            tableDetail
+        case .column:
+            columnDetail
+        default:
+            genericDetail
         }
     }
 
     private var header: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: Layout.headerSpacing) {
             Text(suggestion.displayKindTitle)
                 .font(.system(size: 12, weight: .semibold))
                 .foregroundStyle(Color.primary)
 
-            if suggestion.kind == .column, let table = tableBadgeText {
-                badge(text: table, systemImage: "tablecells")
-            } else if let server = suggestion.serverDisplayName {
-                badge(text: server, systemImage: "server.rack")
+            Spacer(minLength: 0)
+        }
+    }
+
+    @ViewBuilder
+    private var tableDetail: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            if let schema = suggestion.origin?.schema, let name = suggestion.origin?.object {
+                HStack(spacing: 6) {
+                    Image("schema")
+                        .renderingMode(.template)
+                        .foregroundStyle(Color.secondary)
+                        .font(.system(size: 12, weight: .medium))
+                    Text(schema)
+                        .font(.system(size: 11, weight: .medium))
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(
+                            Capsule(style: .continuous)
+                                .fill(Color.primary.opacity(0.06))
+                        )
+                    Text(name)
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(Color.primary)
+                }
             }
 
-            Spacer(minLength: 0)
+            if let columns = suggestion.tableColumns, !columns.isEmpty {
+                VStack(alignment: .leading, spacing: Layout.columnSpacing) {
+                    ForEach(Array(columns.enumerated()), id: \.offset) { _, column in
+                        HStack(spacing: 6) {
+                            Text(column.name)
+                                .font(.system(size: 11))
+                                .foregroundStyle(Color.primary)
+
+                            Spacer(minLength: 10)
+
+                            Text(formatDataType(column.dataType))
+                                .font(.system(size: 10, weight: .semibold))
+                                .foregroundStyle(Color.secondary)
+                                .padding(Layout.columnBadgePadding)
+                                .background(
+                                    Capsule(style: .continuous)
+                                        .fill(Color.primary.opacity(0.06))
+                                )
+                        }
+                    }
+                }
+            } else {
+                Text("No columns available")
+                    .font(.system(size: 11))
+                    .foregroundStyle(Color.secondary)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var columnDetail: some View {
+        if let dataType = suggestion.dataType, !dataType.isEmpty {
+            Text(dataType)
+                .font(.system(size: 11))
+                .italic()
+                .foregroundStyle(Color.secondary)
+        } else {
+            Text("Column")
+                .font(.system(size: 11))
+                .foregroundStyle(Color.secondary)
+        }
+    }
+
+    @ViewBuilder
+    private var genericDetail: some View {
+        if let objectPath = suggestion.displayObjectPath {
+            Text(objectPath)
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(Color.primary)
         }
     }
 
@@ -3024,6 +3104,17 @@ struct AutoCompletionDetailView: View {
         Capsule(style: .continuous)
             .fill(Color.white.opacity(0.85))
 #endif
+    }
+
+    private func formatDataType(_ dataType: String) -> String {
+        var formatted = dataType
+        if formatted.contains("with time zone") {
+            formatted = formatted.replacingOccurrences(of: " with time zone", with: "tz")
+        }
+        if formatted.contains("without time zone") {
+            formatted = formatted.replacingOccurrences(of: " without time zone", with: "")
+        }
+        return formatted
     }
 
 #if os(macOS)
@@ -3072,7 +3163,11 @@ final class SQLAutoCompletionController {
     weak var textView: SQLTextView?
 
     private let popover: NSPopover
+#if os(macOS)
     private var hostingController: NSHostingController<AutoCompletionListView>?
+#else
+    private var hostingController: UIHostingController<AutoCompletionListView>?
+#endif
     private var flatSuggestions: [SQLAutoCompletionSuggestion] = []
     private var selectedIndex: Int = 0
     private var lastQuery: SQLAutoCompletionQuery?
@@ -3195,6 +3290,7 @@ final class SQLAutoCompletionController {
 
     private func ensureHostingController() -> NSHostingController<AutoCompletionListView> {
         if let hostingController { return hostingController }
+#if os(macOS)
         let controller = NSHostingController(
             rootView: AutoCompletionListView(
                 suggestions: [],
@@ -3203,6 +3299,16 @@ final class SQLAutoCompletionController {
                 detailResetID: detailResetToken
             )
         )
+#else
+        let controller = UIHostingController(
+            rootView: AutoCompletionListView(
+                suggestions: [],
+                selectedID: nil,
+                onSelect: { _ in },
+                detailResetID: detailResetToken
+            )
+        )
+#endif
         controller.view.translatesAutoresizingMaskIntoConstraints = false
         popover.contentViewController = controller
         hostingController = controller
@@ -3211,7 +3317,7 @@ final class SQLAutoCompletionController {
 
     private func updateContent() {
         let controller = ensureHostingController()
-        controller.rootView = AutoCompletionListView(
+        let updatedView = AutoCompletionListView(
             suggestions: flatSuggestions,
             selectedID: selectedSuggestion?.id,
             onSelect: { [weak self] suggestion in
@@ -3219,6 +3325,7 @@ final class SQLAutoCompletionController {
             },
             detailResetID: detailResetToken
         )
+        controller.rootView = updatedView
 
         controller.view.layoutSubtreeIfNeeded()
         var fittingSize = controller.view.fittingSize
@@ -3726,6 +3833,9 @@ private struct IOSSQLEditorRepresentable: UIViewRepresentable {
         textView.textContainerInset = UIEdgeInsets(top: 12, left: 10, bottom: 12, right: 10)
         textView.textContainer.widthTracksTextView = display.wrapLines
         textView.textContainer.lineFragmentPadding = 12
+        let ligatureValue = theme.ligaturesEnabled ? 1 : 0
+        textView.typingAttributes[.ligature] = ligatureValue
+        textView.textStorage.addAttribute(.ligature, value: ligatureValue, range: NSRange(location: 0, length: textView.textStorage.length))
         return textView
     }
 
@@ -3738,6 +3848,9 @@ private struct IOSSQLEditorRepresentable: UIViewRepresentable {
         uiView.backgroundColor = (backgroundColor.map(UIColor.init)) ?? theme.surfaces.background.uiColor
         uiView.tintColor = theme.tokenColors.operatorSymbol.uiColor
         uiView.textContainer.widthTracksTextView = display.wrapLines
+        let ligatureValue = theme.ligaturesEnabled ? 1 : 0
+        uiView.typingAttributes[.ligature] = ligatureValue
+        uiView.textStorage.addAttribute(.ligature, value: ligatureValue, range: NSRange(location: 0, length: uiView.textStorage.length))
     }
 
     final class Coordinator: NSObject, UITextViewDelegate {

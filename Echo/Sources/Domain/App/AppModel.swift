@@ -45,6 +45,7 @@ final class AppModel: ObservableObject {
     @Published private(set) var recentConnections: [RecentConnectionRecord] = []
     @Published var pendingExplorerFocus: ExplorerFocus?
     @Published var searchSidebarCaches: [SearchSidebarContextKey: SearchSidebarCache] = [:]
+    @Published var foreignKeyInspectorContent: ForeignKeyInspectorContent?
 
     // Project management
     @Published var projects: [Project] = []
@@ -55,6 +56,7 @@ final class AppModel: ObservableObject {
     @Published var showNewProjectSheet = false
     @Published var showManageProjectsSheet = false
     @Published var lastError: DatabaseError?
+    @Published var inspectorWidth: CGFloat = 360
 
     // MARK: - Dependencies
     private let store = ConnectionStore()
@@ -65,6 +67,7 @@ final class AppModel: ObservableObject {
     private let clipboardHistory: ClipboardHistoryStore
     private var cancellables: Set<AnyCancellable> = []
     private var sessionDatabaseCancellables: [UUID: AnyCancellable] = [:]
+    private let defaultInspectorWidth: CGFloat = 360
 
     private func makeDatabaseFactory(for type: DatabaseType) -> DatabaseFactory? {
         DatabaseFactoryProvider.makeFactory(for: type)
@@ -161,6 +164,7 @@ final class AppModel: ObservableObject {
             identities = loadedIdentities
             projects = loadedProjects
             globalSettings = loadedGlobalSettings
+            inspectorWidth = CGFloat(loadedGlobalSettings.inspectorWidth ?? Double(defaultInspectorWidth))
 
             await normalizeEditorPreferences()
 
@@ -185,6 +189,21 @@ final class AppModel: ObservableObject {
             synchronizeRecentConnectionsWithConnections()
         } catch {
             print("Failed to load data: \(error)")
+        }
+    }
+
+    @MainActor
+    func updateInspectorWidth(_ width: CGFloat, min: CGFloat, max: CGFloat) {
+        let clamped = Swift.max(min, Swift.min(max, width))
+        guard abs(inspectorWidth - clamped) > 0.5 else {
+            inspectorWidth = clamped
+            return
+        }
+        inspectorWidth = clamped
+        Task {
+            await updateGlobalEditorDisplay { settings in
+                settings.inspectorWidth = Double(clamped)
+            }
         }
     }
 

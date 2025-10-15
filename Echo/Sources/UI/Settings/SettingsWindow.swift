@@ -32,21 +32,27 @@ struct SettingsView: View {
 
     enum SettingsSection: String, CaseIterable, Identifiable {
         case appearance
+        case queryResults
         case applicationCache
+        case keyboardShortcuts
 
         var id: String { rawValue }
 
         var title: String {
             switch self {
             case .appearance: return "Appearance"
+            case .queryResults: return "Query Results"
             case .applicationCache: return "Application Cache"
+            case .keyboardShortcuts: return "Keyboard Shortcuts"
             }
         }
 
         var systemImage: String {
             switch self {
             case .appearance: return "paintbrush"
+            case .queryResults: return "tablecells"
             case .applicationCache: return "internaldrive"
+            case .keyboardShortcuts: return "command"
             }
         }
     }
@@ -132,15 +138,144 @@ struct SettingsView: View {
                 .environmentObject(appState)
                 .environmentObject(themeManager)
 
+        case .queryResults:
+            QueryResultsSettingsView()
+                .environmentObject(appModel)
+                .environmentObject(appState)
+                .environmentObject(themeManager)
+
         case .applicationCache:
             ApplicationCacheSettingsView()
                 .environmentObject(clipboardHistory)
+
+        case .keyboardShortcuts:
+            KeyboardShortcutsSettingsView()
         }
     }
 }
 
 #Preview("Settings Window") {
     SettingsView()
+}
+
+struct KeyboardShortcutsSettingsView: View {
+    private let sections: [ShortcutSectionData] = [
+        .init(
+            title: "Workspace",
+            items: [
+                .init(title: "New Query Tab", context: "Open a new SQL editing tab.", keys: ["⌘", "T"]),
+                .init(title: "Show Tab Overview", context: "Toggle the tab overview switcher.", keys: ["⌘", "O"]),
+                .init(title: "Close Query Tab", context: "Close the active tab.", keys: ["⌘", "W"])
+            ]
+        ),
+        .init(
+            title: "Query Editing",
+            items: [
+                .init(title: "Run Selected Query", context: "Execute the highlighted SQL in the query editor.", keys: ["⌘", "Return"]),
+                .init(title: "Format Query", context: "Format the current SQL using the configured style.", keys: ["⌘", "⇧", "F"])
+            ]
+        ),
+        .init(
+            title: "Results Grid",
+            items: [
+                .init(title: "Copy Selection", context: "Copy the selected cells.", keys: ["⌘", "C"]),
+                .init(title: "Copy with Headers", context: "Include column headers with the copied cells.", keys: ["⌘", "⇧", "C"])
+            ]
+        ),
+        .init(
+            title: "Connections",
+            items: [
+                .init(title: "Open Manage Connections", context: "Open the Manage Connections window.", keys: ["⌘", "⇧", "M"])
+            ]
+        )
+    ]
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 24) {
+                Text("Use keyboard shortcuts to stay in flow while working in Echo. These shortcuts are available wherever the related feature is active.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+
+                ForEach(sections) { section in
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text(section.title)
+                            .font(.headline)
+
+                        VStack(spacing: 8) {
+                            ForEach(section.items) { item in
+                                ShortcutRowView(item: item)
+                            }
+                        }
+                        .padding(16)
+                        .background(
+                            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                .fill(Color.primary.opacity(0.03))
+                        )
+                    }
+                }
+            }
+            .padding(24)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .background(Color.clear)
+    }
+}
+
+private struct ShortcutRowView: View {
+    let item: ShortcutItemData
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 16) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(item.title)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(.primary)
+                if let context = item.context {
+                    Text(context)
+                        .font(.system(size: 12))
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            Spacer(minLength: 16)
+
+            ShortcutKeyCaps(keys: item.keys)
+        }
+        .padding(.vertical, 6)
+    }
+}
+
+private struct ShortcutKeyCaps: View {
+    let keys: [String]
+
+    var body: some View {
+        HStack(spacing: 6) {
+            ForEach(Array(keys.enumerated()), id: \.offset) { _, key in
+                Text(key)
+                    .font(.system(size: 12, weight: .semibold))
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(
+                        RoundedRectangle(cornerRadius: 6, style: .continuous)
+                            .fill(Color.primary.opacity(0.08))
+                    )
+            }
+        }
+    }
+}
+
+private struct ShortcutSectionData: Identifiable {
+    let id = UUID()
+    let title: String
+    let items: [ShortcutItemData]
+}
+
+private struct ShortcutItemData: Identifiable {
+    let id = UUID()
+    let title: String
+    let context: String?
+    let keys: [String]
 }
 
 enum PaletteToneMode: Hashable {
@@ -297,6 +432,7 @@ struct AppearanceSettingsView: View {
                 selectedThemeID: selectedThemeID,
                 isUpdatingTheme: isUpdatingTheme,
                 paletteResolver: { palette(for: $0) },
+                previewFontSize: appModel.globalSettings.defaultEditorFontSize,
                 onSelectTheme: { theme in
                     selectTheme(theme.id, tone: tone, defaultPaletteID: theme.defaultPaletteID)
                 },
@@ -335,6 +471,9 @@ struct AppearanceSettingsView: View {
                 selectedPaletteID: selectedPaletteID,
                 isUpdatingPalette: isUpdatingPalette,
                 selectedFontName: editorFontFamilyBinding.wrappedValue,
+                fontSize: editorFontSizeBinding,
+                customFontName: appModel.globalSettings.lastCustomEditorFontFamily,
+                ligatureBindingProvider: ligatureBinding(for:),
                 fontOptions: editorFontOptions,
                 fontDisplayNameProvider: fontDisplayName(for:),
                 onSelectPalette: { palette in selectPalette(palette, tone: tone) },
@@ -700,25 +839,78 @@ struct AppearanceSettingsView: View {
 
     private var editorFontOptions: [EditorFontOption] {
         [
+            EditorFontOption(id: "system-monospaced", postScriptName: SQLEditorTheme.systemFontIdentifier, displayName: "System"),
             EditorFontOption(id: "FiraCode-Regular", postScriptName: "FiraCode-Regular", displayName: "Fira Code"),
-            EditorFontOption(id: "IBMPlexMono-Regular", postScriptName: "IBMPlexMono-Regular", displayName: "IBM Plex Mono"),
-            EditorFontOption(id: "SplineSansMono-Regular", postScriptName: "SplineSansMono-Regular", displayName: "Spline Sans Mono"),
-            EditorFontOption(id: "RecursiveMonoLinear-Regular", postScriptName: "RecursiveMonoLinear-Regular", displayName: "Recursive Mono"),
-            EditorFontOption(id: "JetBrainsMono-Regular", postScriptName: "JetBrainsMono-Regular", displayName: "JetBrains Mono")
+            EditorFontOption(id: "JetBrainsMono-Regular", postScriptName: "JetBrainsMono-Regular", displayName: "JetBrains Mono"),
+            EditorFontOption(id: "Iosevka-Regular", postScriptName: "Iosevka", displayName: "Iosevka"),
+            EditorFontOption(id: "Hack-Regular", postScriptName: "Hack-Regular", displayName: "Hack"),
+            EditorFontOption(id: "SourceCodePro-Regular", postScriptName: "SourceCodePro-Regular", displayName: "Source Code Pro"),
+            EditorFontOption(id: "IBMPlexMono-Regular", postScriptName: "IBMPlexMono", displayName: "IBM Plex Mono"),
+            EditorFontOption(id: "UbuntuMono-Regular", postScriptName: "UbuntuMono-Regular", displayName: "Ubuntu Mono"),
+            EditorFontOption(id: "Inconsolata-Regular", postScriptName: "Inconsolata-Regular", displayName: "Inconsolata"),
+            EditorFontOption(id: "MesloLGS-Regular", postScriptName: "MesloLGS-Regular", displayName: "Meslo LG"),
+            EditorFontOption(id: "AnonymousPro-Regular", postScriptName: "AnonymousPro-Regular", displayName: "Anonymous Pro")
         ]
     }
+
+    private static let ligatureCapableFonts: Set<String> = [
+        "FiraCode-Regular",
+        "JetBrainsMono-Regular",
+        "Iosevka"
+    ]
 
     private var editorFontFamilyBinding: Binding<String> {
         Binding(
             get: { appModel.globalSettings.defaultEditorFontFamily },
             set: { newValue in
-                guard appModel.globalSettings.defaultEditorFontFamily != newValue else { return }
-                Task { await appModel.updateGlobalEditorDisplay { $0.defaultEditorFontFamily = newValue } }
+                let trimmed = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !trimmed.isEmpty else { return }
+                guard appModel.globalSettings.defaultEditorFontFamily != trimmed else { return }
+                let bundledNames = Set(editorFontOptions.map(\.postScriptName))
+                let isBundled = bundledNames.contains(trimmed)
+                Task {
+                    await appModel.updateGlobalEditorDisplay { settings in
+                        settings.defaultEditorFontFamily = trimmed
+                        if !isBundled {
+                            settings.lastCustomEditorFontFamily = trimmed
+                        }
+                    }
+                }
+            }
+        )
+    }
+
+    private var editorFontSizeBinding: Binding<Double> {
+        Binding(
+            get: { appModel.globalSettings.defaultEditorFontSize },
+            set: { newValue in
+                let clamped = min(max(newValue, 8.0), 24.0)
+                let rounded = (clamped * 2).rounded() / 2
+                guard appModel.globalSettings.defaultEditorFontSize != rounded else { return }
+                Task { await appModel.updateGlobalEditorDisplay { $0.defaultEditorFontSize = rounded } }
+            }
+        )
+    }
+
+    private func ligatureBinding(for fontName: String) -> Binding<Bool>? {
+        let key = SQLEditorTheme.normalizedFontName(fontName)
+        guard SettingsWindow.ligatureCapableFonts.contains(key) else { return nil }
+        return Binding(
+            get: { appModel.globalSettings.ligaturesEnabled(for: key) },
+            set: { newValue in
+                Task {
+                    await appModel.updateGlobalEditorDisplay { settings in
+                        settings.setLigaturesEnabled(newValue, for: key)
+                    }
+                }
             }
         )
     }
 
     private func fontDisplayName(for fontName: String) -> String {
+        if SQLEditorTheme.isSystemFontIdentifier(fontName) {
+            return "System"
+        }
         if let option = editorFontOptions.first(where: { $0.postScriptName == fontName }) {
             return option.displayName
         }
@@ -885,6 +1077,7 @@ private struct ThemeAppearanceSection: View {
     let selectedThemeID: String?
     let isUpdatingTheme: Bool
     let paletteResolver: (String?) -> SQLEditorTokenPalette?
+    let previewFontSize: Double
     let onSelectTheme: (AppColorTheme) -> Void
     let onCreateTheme: () -> Void
     let onEditTheme: (AppColorTheme) -> Void
@@ -964,7 +1157,12 @@ private struct ThemeAppearanceSection: View {
             background: paletteHeroGradient(for: theme, palette: palette),
             shadowColor: palette.tokens.keyword.swiftColor.opacity(theme.tone == .dark ? 0.22 : 0.14)
         ) {
-            QueryEditorPreview(theme: theme, palette: palette, fontName: "JetBrainsMono-Regular")
+            QueryEditorPreview(
+                theme: theme,
+                palette: palette,
+                fontName: "JetBrainsMono-Regular",
+                fontSize: previewFontSize
+            )
                 .scaleEffect(0.94)
         }
     }
@@ -1044,6 +1242,9 @@ private struct QueryEditorSection: View {
     let selectedPaletteID: String
     let isUpdatingPalette: Bool
     let selectedFontName: String
+    let fontSize: Binding<Double>
+    let customFontName: String?
+    let ligatureBindingProvider: (String) -> Binding<Bool>?
     let fontOptions: [EditorFontOption]
     let fontDisplayNameProvider: (String) -> String
     let onSelectPalette: (SQLEditorTokenPalette) -> Void
@@ -1055,6 +1256,10 @@ private struct QueryEditorSection: View {
     let onRequestCustomFont: () -> Void
 
     @State private var hoveredPaletteID: String?
+    @State private var hoveredFontName: String?
+
+    private let fontSizeRange: ClosedRange<Double> = 8...24
+    private let fontSizeStep: Double = 0.5
 
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
@@ -1125,12 +1330,56 @@ private struct QueryEditorSection: View {
         selectedPaletteID != theme.defaultPaletteID
     }
 
+    private func fontSizeLabel(_ value: Double) -> String {
+        let rounded = (value * 10).rounded() / 10
+        if abs(rounded.rounded() - rounded) < 0.0001 {
+            return "\(Int(rounded.rounded())) pt"
+        }
+        return String(format: "%.1f pt", rounded)
+    }
+
+    private var previewFontName: String {
+        hoveredFontName ?? selectedFontName
+    }
+
+    private var previewFontSize: Double {
+        fontSize.wrappedValue
+    }
+
+    private var chipSampleFontSize: CGFloat {
+        let size = fontSize.wrappedValue
+        return CGFloat(min(max(size, 10), 20))
+    }
+
+    private func isBundledFont(_ name: String) -> Bool {
+        fontOptions.contains { $0.postScriptName == name }
+    }
+
+    private var persistedCustomFontName: String? {
+        if let stored = customFontName?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !stored.isEmpty,
+           !isBundledFont(stored) {
+            return stored
+        }
+        if !isBundledFont(selectedFontName) {
+            return selectedFontName
+        }
+        return nil
+    }
+
+    private var persistentCustomFontOption: EditorFontOption? {
+        guard let name = persistedCustomFontName else { return nil }
+        return EditorFontOption(id: "custom-\(name)", postScriptName: name, displayName: fontDisplayNameProvider(name))
+    }
+
     private var queryPreview: some View {
         let palette = displayedPalette
+        let fontName = previewFontName
+        let sizeLabel = fontSizeLabel(previewFontSize)
         return VStack(alignment: .leading, spacing: 8) {
             Text(palette.name)
                 .font(.headline)
-            QueryEditorPreview(theme: theme, palette: palette, fontName: selectedFontName)
+            QueryEditorPreview(theme: theme, palette: palette, fontName: fontName, fontSize: previewFontSize)
                 .overlay(alignment: .topTrailing) {
                     if manualSelectionActive && hoveredPaletteID == nil {
                         TagBadge(
@@ -1141,7 +1390,7 @@ private struct QueryEditorSection: View {
                         .padding(12)
                     }
                 }
-            Text(fontDisplayNameProvider(selectedFontName))
+            Text("\(fontDisplayNameProvider(fontName)) · \(sizeLabel)")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
         }
@@ -1153,25 +1402,55 @@ private struct QueryEditorSection: View {
                 .font(.headline)
 
             let columns = [GridItem(.adaptive(minimum: 140, maximum: 200), spacing: 12)]
+            let chipSampleSize = chipSampleFontSize
+
             LazyVGrid(columns: columns, spacing: 12) {
                 ForEach(fontOptions) { option in
                     FontChip(
                         title: option.displayName,
                         sampleFontName: option.postScriptName,
+                        sampleFontSize: chipSampleSize,
                         isSelected: selectedFontName == option.postScriptName,
-                        onSelect: { onSelectFont(option.postScriptName) }
+                        onSelect: { onSelectFont(option.postScriptName) },
+                        ligatureBinding: ligatureBindingProvider(option.postScriptName),
+                        onHoverChanged: { hovering in
+                            if hovering {
+                                hoveredFontName = option.postScriptName
+                            } else if hoveredFontName == option.postScriptName {
+                                hoveredFontName = nil
+                            }
+                        }
                     )
                 }
 
-                if !fontOptions.contains(where: { $0.postScriptName == selectedFontName }) {
+                if let customOption = persistentCustomFontOption {
                     FontChip(
-                        title: fontDisplayNameProvider(selectedFontName),
-                        sampleFontName: selectedFontName,
-                        isSelected: true,
-                        onSelect: { onSelectFont(selectedFontName) },
-                        isCustom: true
+                        title: "System Font",
+                        subtitle: fontDisplayNameProvider(customOption.postScriptName),
+                        sampleFontName: customOption.postScriptName,
+                        sampleFontSize: chipSampleSize,
+                        isSelected: selectedFontName == customOption.postScriptName,
+                        onSelect: { onSelectFont(customOption.postScriptName) },
+                        style: .highlighted,
+                        ligatureBinding: ligatureBindingProvider(customOption.postScriptName),
+                        onHoverChanged: { hovering in
+                            if hovering {
+                                hoveredFontName = customOption.postScriptName
+                            } else if hoveredFontName == customOption.postScriptName {
+                                hoveredFontName = nil
+                            }
+                        }
                     )
                 }
+            }
+
+            LabeledContent("Font size") {
+                Stepper(value: fontSize, in: fontSizeRange, step: fontSizeStep) {
+                    Text(fontSizeLabel(fontSize.wrappedValue))
+                        .monospacedDigit()
+                        .frame(width: 72, alignment: .trailing)
+                }
+                .controlSize(.small)
             }
 
             Button("Choose from System…", action: onRequestCustomFont)
@@ -1784,6 +2063,7 @@ private struct QueryEditorPreview: View {
     let theme: AppColorTheme
     let palette: SQLEditorTokenPalette
     let fontName: String
+    let fontSize: Double
 
     var body: some View {
         PaletteSnippetPreview(
@@ -1801,10 +2081,11 @@ private struct QueryEditorPreview: View {
     }
 
     private var previewFont: Font {
-        if fontName.isEmpty {
-            return .system(size: 11, weight: .medium, design: .monospaced)
+        let clampedSize = CGFloat(min(max(fontSize, 8.0), 36.0))
+        if fontName.isEmpty || SQLEditorTheme.isSystemFontIdentifier(fontName) {
+            return .system(size: clampedSize, weight: .medium, design: .monospaced)
         }
-        return .custom(fontName, size: 11)
+        return .custom(fontName, size: clampedSize)
     }
 }
 
@@ -1853,51 +2134,162 @@ private extension BinaryInteger {
 }
 
 private struct FontChip: View {
+    enum Style {
+        case standard
+        case highlighted
+    }
+
     let title: String
+    var subtitle: String? = nil
     let sampleFontName: String
+    var sampleFontSize: CGFloat = 11
     let isSelected: Bool
     let onSelect: () -> Void
-    var isCustom: Bool = false
+    var style: Style = .standard
+    var ligatureBinding: Binding<Bool>? = nil
+    var onHoverChanged: ((Bool) -> Void)? = nil
 
     var body: some View {
-        Button(action: onSelect) {
-            VStack(alignment: .leading, spacing: 6) {
-                Text("SELECT * FROM table;")
-                    .font(sampleFont)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
-                    .foregroundStyle(Color.primary.opacity(0.85))
-                    .frame(maxWidth: .infinity, alignment: .leading)
+        ZStack(alignment: .bottomTrailing) {
+            Button(action: onSelect) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("SELECT * FROM table;")
+                        .font(sampleFont)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                        .foregroundStyle(sampleTextColor)
+                        .frame(maxWidth: .infinity, alignment: .leading)
 
-                Text(title)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            .padding(12)
-            .frame(minWidth: 140, maxWidth: .infinity, alignment: .leading)
-            .background(
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .fill(Color.primary.opacity(0.05))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .stroke(isSelected ? Color.accentColor : Color.primary.opacity(0.08), lineWidth: isSelected ? 2 : 1)
-            )
-            .overlay(alignment: .topLeading) {
-                if isCustom {
-                    TagBadge(label: "Custom", foreground: Color.accentColor, background: Color.accentColor.opacity(0.18))
-                        .padding(8)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(title)
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                            .foregroundStyle(titleColor)
+                            .lineLimit(1)
+                        if let subtitle {
+                            Text(subtitle)
+                                .font(.caption)
+                                .foregroundStyle(subtitleColor)
+                                .lineLimit(1)
+                        }
+                    }
                 }
+                .padding(14)
+                .frame(minWidth: 140, maxWidth: .infinity, alignment: .leading)
+                .background(backgroundFill)
+                .overlay(borderOverlay)
+            }
+            .buttonStyle(.plain)
+            .onHover { hovering in
+                onHoverChanged?(hovering)
+            }
+
+            if let ligatureBinding {
+                LigatureSelector(isEnabled: ligatureBinding)
+                    .padding(10)
             }
         }
-        .buttonStyle(.plain)
     }
 
     private var sampleFont: Font {
-        if sampleFontName.isEmpty {
-            return .system(size: 11, weight: .medium, design: .monospaced)
+        let clampedSize = max(9, min(sampleFontSize, 24))
+        if sampleFontName.isEmpty || SQLEditorTheme.isSystemFontIdentifier(sampleFontName) {
+            return .system(size: clampedSize, weight: .medium, design: .monospaced)
         }
-        return .custom(sampleFontName, size: 11)
+        return .custom(sampleFontName, size: clampedSize)
+    }
+
+    private var backgroundFill: some View {
+        let fillStyle: AnyShapeStyle = {
+            if style == .highlighted {
+                return AnyShapeStyle(highlightGradient)
+            } else {
+                return AnyShapeStyle(Color.primary.opacity(0.05))
+            }
+        }()
+        return RoundedRectangle(cornerRadius: 14, style: .continuous)
+            .fill(fillStyle)
+    }
+
+    private var borderOverlay: some View {
+        RoundedRectangle(cornerRadius: 14, style: .continuous)
+            .stroke(borderColor, lineWidth: isSelected ? 2 : 1)
+    }
+
+    private var highlightGradient: LinearGradient {
+        LinearGradient(
+            colors: [
+                Color.accentColor.opacity(0.9),
+                Color.accentColor.opacity(0.6),
+                Color.accentColor.opacity(0.5)
+            ],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+    }
+
+    private var borderColor: Color {
+        switch style {
+        case .standard:
+            return isSelected ? Color.accentColor : Color.primary.opacity(0.08)
+        case .highlighted:
+            return isSelected ? Color.white.opacity(0.9) : Color.white.opacity(0.35)
+        }
+    }
+
+    private var sampleTextColor: Color {
+        style == .highlighted ? Color.white.opacity(0.95) : Color.primary.opacity(0.85)
+    }
+
+    private var titleColor: Color {
+        style == .highlighted ? Color.white : Color.primary
+    }
+
+    private var subtitleColor: Color {
+        style == .highlighted ? Color.white.opacity(0.85) : Color.secondary
+    }
+}
+
+private struct LigatureSelector: View {
+    @Binding var isEnabled: Bool
+
+    private var controlBackground: some View {
+        RoundedRectangle(cornerRadius: 9, style: .continuous)
+            .fill(Color.black.opacity(0.25))
+            .overlay(
+                RoundedRectangle(cornerRadius: 9, style: .continuous)
+                    .stroke(Color.white.opacity(0.18), lineWidth: 1)
+            )
+    }
+
+    var body: some View {
+        HStack(spacing: 4) {
+            optionButton(label: "fi", enablesLigatures: false, isActive: !isEnabled)
+            optionButton(label: "ﬁ", enablesLigatures: true, isActive: isEnabled)
+        }
+        .padding(.horizontal, 6)
+        .padding(.vertical, 4)
+        .background(controlBackground)
+    }
+
+    private func optionButton(label: String, enablesLigatures: Bool, isActive: Bool) -> some View {
+        Button {
+            if isEnabled != enablesLigatures {
+                isEnabled = enablesLigatures
+            }
+        } label: {
+            Text(label)
+                .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                .frame(minWidth: 18)
+                .padding(.horizontal, 4)
+                .padding(.vertical, 2)
+                .foregroundColor(isActive ? Color.white : Color.white.opacity(0.7))
+                .background(
+                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                        .fill(isActive ? Color.accentColor : Color.clear)
+                )
+        }
+        .buttonStyle(.plain)
     }
 }
 
@@ -2737,6 +3129,120 @@ private struct TagBadge: View {
         .foregroundStyle(foreground)
         .background(background)
         .clipShape(Capsule())
+    }
+}
+
+struct QueryResultsSettingsView: View {
+    @EnvironmentObject private var appModel: AppModel
+    @EnvironmentObject private var themeManager: ThemeManager
+
+    private var displayModeBinding: Binding<ForeignKeyDisplayMode> {
+        Binding(
+            get: { appModel.globalSettings.foreignKeyDisplayMode },
+            set: { newValue in
+                guard appModel.globalSettings.foreignKeyDisplayMode != newValue else { return }
+                Task { await appModel.updateGlobalEditorDisplay { $0.foreignKeyDisplayMode = newValue } }
+            }
+        )
+    }
+
+    private var inspectorBehaviorBinding: Binding<ForeignKeyInspectorBehavior> {
+        Binding(
+            get: { appModel.globalSettings.foreignKeyInspectorBehavior },
+            set: { newValue in
+                guard appModel.globalSettings.foreignKeyInspectorBehavior != newValue else { return }
+                Task { await appModel.updateGlobalEditorDisplay { $0.foreignKeyInspectorBehavior = newValue } }
+            }
+        )
+    }
+
+    private var includeRelatedBinding: Binding<Bool> {
+        Binding(
+            get: { appModel.globalSettings.foreignKeyIncludeRelated },
+            set: { newValue in
+                guard appModel.globalSettings.foreignKeyIncludeRelated != newValue else { return }
+                Task { await appModel.updateGlobalEditorDisplay { $0.foreignKeyIncludeRelated = newValue } }
+            }
+        )
+    }
+
+    private var selectedDisplayMode: ForeignKeyDisplayMode { displayModeBinding.wrappedValue }
+    private var selectedBehavior: ForeignKeyInspectorBehavior { inspectorBehaviorBinding.wrappedValue }
+
+    var body: some View {
+        Form {
+            Section("Foreign Keys") {
+                Picker("Foreign key cells", selection: displayModeBinding) {
+                    ForEach(ForeignKeyDisplayMode.allCases, id: \.self) { mode in
+                        Text(displayName(for: mode)).tag(mode)
+                    }
+                }
+                .pickerStyle(.segmented)
+
+                Text(displayDescription(for: selectedDisplayMode))
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+
+                if selectedDisplayMode != .disabled {
+                    Picker("Inspector behavior", selection: inspectorBehaviorBinding) {
+                        ForEach(ForeignKeyInspectorBehavior.allCases, id: \.self) { behavior in
+                            Text(behaviorDisplayName(for: behavior)).tag(behavior)
+                        }
+                    }
+                    .pickerStyle(.inline)
+
+                    Text(behaviorDescription(for: selectedBehavior))
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+
+                    Toggle("Include related foreign keys", isOn: includeRelatedBinding)
+                        .toggleStyle(.switch)
+
+                    Text("When enabled, the inspector also loads rows referenced by the selected record's foreign keys. This can increase query count on large schemas.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .padding(.top, 2)
+                }
+            }
+        }
+        .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
+        .background(themeManager.surfaceBackground)
+    }
+
+    private func displayName(for mode: ForeignKeyDisplayMode) -> String {
+        switch mode {
+        case .showInspector: return "Open in Inspector"
+        case .showIcon: return "Show Cell Icon"
+        case .disabled: return "Do Nothing"
+        }
+    }
+
+    private func displayDescription(for mode: ForeignKeyDisplayMode) -> String {
+        switch mode {
+        case .showInspector:
+            return "Selecting a foreign key cell immediately loads the referenced record."
+        case .showIcon:
+            return "Foreign key cells display an inline action icon so you can open the referenced record on demand."
+        case .disabled:
+            return "Foreign key metadata is ignored in the results grid."
+        }
+    }
+
+    private func behaviorDisplayName(for behavior: ForeignKeyInspectorBehavior) -> String {
+        switch behavior {
+        case .respectInspectorVisibility: return "Use Current Inspector State"
+        case .autoOpenAndClose: return "Auto Open & Close"
+        }
+    }
+
+    private func behaviorDescription(for behavior: ForeignKeyInspectorBehavior) -> String {
+        switch behavior {
+        case .respectInspectorVisibility:
+            return "Only populate the inspector when it is already visible."
+        case .autoOpenAndClose:
+            return "Automatically open the inspector when a foreign key is activated and close it when the selection moves away."
+        }
     }
 }
 

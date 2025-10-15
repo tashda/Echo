@@ -15,11 +15,61 @@ private func tabHairlineWidth() -> CGFloat {
 private func tabHairlineWidth() -> CGFloat { 1 }
 #endif
 
+fileprivate typealias ForeignKeyMapping = [String: ColumnInfo.ForeignKeyReference]
+
+#if os(macOS)
+private func buildForeignKeyMapping(from details: TableStructureDetails) -> ForeignKeyMapping {
+    var mapping: ForeignKeyMapping = [:]
+    for foreignKey in details.foreignKeys {
+        guard foreignKey.columns.count == foreignKey.referencedColumns.count,
+              foreignKey.columns.count == 1,
+              let localColumn = foreignKey.columns.first,
+              let referencedColumn = foreignKey.referencedColumns.first else { continue }
+
+        let reference = ColumnInfo.ForeignKeyReference(
+            constraintName: foreignKey.name,
+            referencedSchema: foreignKey.referencedSchema,
+            referencedTable: foreignKey.referencedTable,
+            referencedColumn: referencedColumn
+        )
+        mapping[localColumn.lowercased()] = reference
+    }
+    return mapping
+}
+#endif
+
+struct ForeignKeyInspectorContent: Sendable, Equatable {
+    struct Field: Sendable, Equatable, Identifiable {
+        let id: UUID
+        let label: String
+        let value: String
+
+        init(label: String, value: String) {
+            self.id = UUID()
+            self.label = label
+            self.value = value
+        }
+    }
+
+    let title: String
+    let subtitle: String?
+    let fields: [Field]
+    let related: [ForeignKeyInspectorContent]
+
+    init(title: String, subtitle: String? = nil, fields: [Field], related: [ForeignKeyInspectorContent] = []) {
+        self.title = title
+        self.subtitle = subtitle
+        self.fields = fields
+        self.related = related
+    }
+}
+
 struct QueryTabsView: View {
     @EnvironmentObject private var appModel: AppModel
     @EnvironmentObject private var appState: AppState
     @EnvironmentObject private var themeManager: ThemeManager
     @Environment(\.hostedWorkspaceTabID) private var hostedWorkspaceTabID
+
 
     var showsTabStrip: Bool = true
     var tabBarLeadingPadding: CGFloat = 6
@@ -119,48 +169,66 @@ struct QueryTabsView: View {
         await MainActor.run {
             queryState.updateClipboardObjectName(inferredObject)
         }
+        let foreignKeyMode = await MainActor.run { appModel.globalSettings.foreignKeyDisplayMode }
+        let shouldResolveForeignKeys = foreignKeyMode != .disabled
+        let foreignKeyMappingTask = Task<ForeignKeyMapping, Never> {
+            guard shouldResolveForeignKeys else { return [:] }
+            return await loadForeignKeyMapping(for: tab, inferredObject: inferredObject)
+        }
+
         let task = Task { [weak queryState] in
             guard let state = await MainActor.run(body: { queryState }) else { return }
 
             do {
                 let result = try await tab.session.simpleQuery(effectiveSQL) { [weak state] update in
                     guard let state else { return }
-                    Task { @MainActor in
-                        var transaction = Transaction()
-                        transaction.disablesAnimations = true
-                        withTransaction(transaction) {
-                            state.applyStreamUpdate(update)
+                    Task {
+                        let mapping = await foreignKeyMappingTask.value
+                        let enrichedUpdate = applyForeignKeyMapping(to: update, mapping: mapping)
+                        await MainActor.run {
+                            var transaction = Transaction()
+                            transaction.disablesAnimations = true
+                            withTransaction(transaction) {
+                                state.applyStreamUpdate(enrichedUpdate)
+                            }
                         }
                     }
                 }
                 try Task.checkCancellation()
+                let mapping = await foreignKeyMappingTask.value
+                var enrichedResult = result
+                if !mapping.isEmpty {
+                    enrichedResult.columns = applyForeignKeyMapping(to: result.columns, mapping: mapping)
+                }
                 await MainActor.run {
-                    state.consumeFinalResult(result)
+                    state.consumeFinalResult(enrichedResult)
                     state.finishExecution()
 
                     var metadata: [String: String] = [
-                        "rows": "\(result.rows.count)"
+                        "rows": "\(enrichedResult.rows.count)"
                     ]
-                    let columnNames = result.columns.map(\.name).joined(separator: ", ")
+                    let columnNames = enrichedResult.columns.map(\.name).joined(separator: ", ")
                     if !columnNames.isEmpty {
                         metadata["columns"] = columnNames
                     }
-                    if let commandTag = result.commandTag, !commandTag.isEmpty {
+                    if let commandTag = enrichedResult.commandTag, !commandTag.isEmpty {
                         metadata["commandTag"] = commandTag
                     }
 
                     state.appendMessage(
-                        message: "Returned \(result.rows.count) row\(result.rows.count == 1 ? "" : "s")",
+                        message: "Returned \(enrichedResult.rows.count) row\(enrichedResult.rows.count == 1 ? "" : "s")",
                         severity: .info,
                         metadata: metadata
                     )
-                    appState.addToQueryHistory(effectiveSQL, resultCount: result.rows.count, duration: state.lastExecutionTime ?? 0)
+                    appState.addToQueryHistory(effectiveSQL, resultCount: enrichedResult.rows.count, duration: state.lastExecutionTime ?? 0)
                 }
             } catch is CancellationError {
+                foreignKeyMappingTask.cancel()
                 await MainActor.run {
                     state.markCancellationCompleted()
                 }
             } catch {
+                foreignKeyMappingTask.cancel()
                 await MainActor.run {
                     state.errorMessage = error.localizedDescription
                     state.failExecution(with: "Query execution failed: \(error.localizedDescription)")
@@ -172,6 +240,7 @@ struct QueryTabsView: View {
             queryState.errorMessage = nil
             queryState.startExecution()
             queryState.setExecutingTask(task)
+            appModel.foreignKeyInspectorContent = nil
         }
     }
 
@@ -221,6 +290,80 @@ struct QueryTabsView: View {
         return trimmed
             .replacingOccurrences(of: "\"", with: "")
             .replacingOccurrences(of: "].[", with: ".")
+    }
+    private func loadForeignKeyMapping(for tab: WorkspaceTab, inferredObject: String?) async -> ForeignKeyMapping {
+        guard let components = resolveSchemaAndTable(for: inferredObject, connection: tab.connection) else { return [:] }
+        do {
+            let details = try await tab.session.getTableStructureDetails(schema: components.schema, table: components.table)
+            return buildForeignKeyMapping(from: details)
+        } catch {
+            return [:]
+        }
+    }
+
+    private func applyForeignKeyMapping(to update: QueryStreamUpdate, mapping: ForeignKeyMapping) -> QueryStreamUpdate {
+        guard !mapping.isEmpty else { return update }
+        let columns = applyForeignKeyMapping(to: update.columns, mapping: mapping)
+        return QueryStreamUpdate(columns: columns, appendedRows: update.appendedRows, totalRowCount: update.totalRowCount)
+    }
+
+    private func applyForeignKeyMapping(to columns: [ColumnInfo], mapping: ForeignKeyMapping) -> [ColumnInfo] {
+        guard !mapping.isEmpty else { return columns }
+        return columns.map { column in
+            var updated = column
+            if updated.foreignKey == nil, let reference = mapping[column.name.lowercased()] {
+                updated.foreignKey = reference
+            }
+            return updated
+        }
+    }
+
+    private func resolveSchemaAndTable(for identifier: String?, connection: SavedConnection) -> (schema: String, table: String)? {
+        guard let identifier, !identifier.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
+        let components = parseQualifiedIdentifier(identifier)
+        guard let table = components.last, !table.isEmpty else { return nil }
+        let schemaCandidate = components.count >= 2 ? components[components.count - 2] : nil
+        let effectiveSchema: String?
+        if let schemaCandidate, !schemaCandidate.isEmpty {
+            effectiveSchema = schemaCandidate
+        } else {
+            effectiveSchema = defaultSchema(for: connection.databaseType, connection: connection)
+        }
+
+        switch connection.databaseType {
+        case .mysql, .sqlite:
+            let schema = effectiveSchema ?? connection.database.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !schema.isEmpty else { return nil }
+            return (schema: schema, table: table)
+        default:
+            guard let schema = effectiveSchema, !schema.isEmpty else { return nil }
+            return (schema: schema, table: table)
+        }
+    }
+
+    private func parseQualifiedIdentifier(_ identifier: String) -> [String] {
+        let trimmed = identifier.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return [] }
+        let sanitized = trimmed
+            .replacingOccurrences(of: "\"", with: "")
+            .replacingOccurrences(of: "`", with: "")
+            .replacingOccurrences(of: "[", with: "")
+            .replacingOccurrences(of: "]", with: "")
+        return sanitized.split(separator: ".").map { String($0).trimmingCharacters(in: .whitespacesAndNewlines) }
+    }
+
+    private func defaultSchema(for type: DatabaseType, connection: SavedConnection) -> String? {
+        switch type {
+        case .microsoftSQL:
+            return "dbo"
+        case .postgresql:
+            return "public"
+        case .mysql:
+            let database = connection.database.trimmingCharacters(in: .whitespacesAndNewlines)
+            return database.isEmpty ? nil : database
+        case .sqlite:
+            return "main"
+        }
     }
 
 }
@@ -837,9 +980,15 @@ private struct QueryEditorContainer: View {
     let cancelQuery: () -> Void
     @EnvironmentObject private var themeManager: ThemeManager
     @EnvironmentObject private var appModel: AppModel
+    @EnvironmentObject private var appState: AppState
 
     private let minRatio: CGFloat = 0.25
     private let maxRatio: CGFloat = 0.8
+#if os(macOS)
+    @State private var latestForeignKeySelection: QueryResultsTableView.ForeignKeySelection?
+    @State private var foreignKeyFetchTask: Task<Void, Never>?
+    @State private var autoOpenedInspector = false
+#endif
 
     var body: some View {
         GeometryReader { geometry in
@@ -871,6 +1020,19 @@ private struct QueryEditorContainer: View {
                         availableHeight: totalHeight
                     )
 
+                #if os(macOS)
+                    QueryResultsSection(
+                        query: query,
+                        connection: connectionForDisplay,
+                        activeDatabaseName: connectionDatabaseName,
+                        foreignKeyDisplayMode: foreignKeyDisplayMode,
+                        foreignKeyInspectorBehavior: foreignKeyInspectorBehavior,
+                        onForeignKeyEvent: handleForeignKeyEvent
+                    )
+                        .frame(height: totalHeight * (1 - ratioBinding.wrappedValue))
+                        .background(backgroundColor)
+                        .transition(.opacity)
+                #else
                     QueryResultsSection(
                         query: query,
                         connection: connectionForDisplay,
@@ -879,6 +1041,7 @@ private struct QueryEditorContainer: View {
                         .frame(height: totalHeight * (1 - ratioBinding.wrappedValue))
                         .background(backgroundColor)
                         .transition(.opacity)
+                #endif
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -914,6 +1077,20 @@ private struct QueryEditorContainer: View {
         let database = tab.connection.database.trimmingCharacters(in: .whitespacesAndNewlines)
         return database.isEmpty ? nil : database
     }
+
+#if os(macOS)
+    private var foreignKeyDisplayMode: ForeignKeyDisplayMode {
+        appModel.globalSettings.foreignKeyDisplayMode
+    }
+
+    private var foreignKeyInspectorBehavior: ForeignKeyInspectorBehavior {
+        appModel.globalSettings.foreignKeyInspectorBehavior
+    }
+
+    private var includeRelatedForeignKeys: Bool {
+        appModel.globalSettings.foreignKeyIncludeRelated
+    }
+#endif
 
     private func updateClipboardContext() {
         query.updateClipboardContext(
@@ -986,7 +1163,211 @@ private struct QueryEditorContainer: View {
         return trimmed.isEmpty ? nil : trimmed
     }
 
-    private func handleBookmarkRequest(_ sql: String) {
+#if os(macOS)
+    private func handleForeignKeyEvent(_ event: QueryResultsTableView.ForeignKeyEvent) {
+        switch event {
+        case .selectionChanged(let selection):
+            latestForeignKeySelection = selection
+            if let selection {
+                if shouldAutoActivate(for: selection, triggeredByIcon: false) {
+                    performForeignKeyActivation(for: selection)
+                } else {
+                    if foreignKeyDisplayMode == .showInspector,
+                       foreignKeyInspectorBehavior == .respectInspectorVisibility,
+                       !appState.showInfoSidebar {
+                        appModel.foreignKeyInspectorContent = nil
+                    }
+                }
+            } else {
+                foreignKeyFetchTask?.cancel()
+                foreignKeyFetchTask = nil
+                appModel.foreignKeyInspectorContent = nil
+                if foreignKeyInspectorBehavior == .autoOpenAndClose && autoOpenedInspector {
+                    autoOpenedInspector = false
+                    if appState.showInfoSidebar {
+                        appState.showInfoSidebar = false
+                    }
+                }
+            }
+
+        case .activate(let selection):
+            performForeignKeyActivation(for: selection)
+        }
+    }
+
+    private func shouldAutoActivate(for selection: QueryResultsTableView.ForeignKeySelection, triggeredByIcon: Bool) -> Bool {
+        guard foreignKeyDisplayMode != .disabled else { return false }
+        switch foreignKeyDisplayMode {
+        case .showInspector:
+            if foreignKeyInspectorBehavior == .autoOpenAndClose {
+                return true
+            }
+            return appState.showInfoSidebar
+        case .showIcon:
+            if foreignKeyInspectorBehavior == .autoOpenAndClose {
+                return true
+            }
+            return triggeredByIcon
+        case .disabled:
+            return false
+        }
+    }
+
+    private func performForeignKeyActivation(for selection: QueryResultsTableView.ForeignKeySelection) {
+        guard foreignKeyDisplayMode != .disabled else { return }
+
+        foreignKeyFetchTask?.cancel()
+
+        foreignKeyFetchTask = Task {
+            if foreignKeyInspectorBehavior == .autoOpenAndClose {
+                await MainActor.run {
+                    if !appState.showInfoSidebar {
+                        appState.showInfoSidebar = true
+                        autoOpenedInspector = true
+                    }
+                }
+            }
+
+            guard let content = await fetchForeignKeyInspectorContent(for: selection, includeRelated: includeRelatedForeignKeys, depth: 0) else {
+                await MainActor.run {
+                    appModel.foreignKeyInspectorContent = nil
+                }
+                return
+            }
+
+            await MainActor.run {
+                appModel.foreignKeyInspectorContent = content
+            }
+        }
+    }
+
+    private func fetchForeignKeyInspectorContent(for selection: QueryResultsTableView.ForeignKeySelection, includeRelated: Bool, depth: Int) async -> ForeignKeyInspectorContent? {
+        guard let query = makeForeignKeyLookupQuery(for: selection) else { return nil }
+        do {
+            let result = try await tab.session.simpleQuery(query)
+            guard let row = result.rows.first else { return nil }
+
+            var fields: [ForeignKeyInspectorContent.Field] = []
+            for (column, value) in zip(result.columns, row) {
+                let displayValue = value ?? "NULL"
+                fields.append(ForeignKeyInspectorContent.Field(label: column.name, value: displayValue))
+            }
+
+            let title = selection.reference.referencedTable
+            let subtitle = selection.reference.referencedSchema.trimmingCharacters(in: .whitespacesAndNewlines)
+            var related: [ForeignKeyInspectorContent] = []
+
+            if includeRelated, depth < 1 {
+                let mapping = await loadForeignKeyMapping(schema: selection.reference.referencedSchema, table: selection.reference.referencedTable)
+                if !mapping.isEmpty {
+                    related = await loadRelatedForeignKeyContent(mapping: mapping, baseRow: row, columns: result.columns, parentDepth: depth)
+                }
+            }
+
+            return ForeignKeyInspectorContent(
+                title: title,
+                subtitle: subtitle.isEmpty ? nil : subtitle,
+                fields: fields,
+                related: related
+            )
+        } catch {
+            return nil
+        }
+    }
+
+    private func loadRelatedForeignKeyContent(mapping: ForeignKeyMapping, baseRow: [String?], columns: [ColumnInfo], parentDepth: Int) async -> [ForeignKeyInspectorContent] {
+        var related: [ForeignKeyInspectorContent] = []
+        for (index, column) in columns.enumerated() {
+            guard let reference = mapping[column.name.lowercased()] else { continue }
+            guard index < baseRow.count, let raw = baseRow[index] else { continue }
+
+            let trimmedValue = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmedValue.isEmpty else { continue }
+
+            let selection = QueryResultsTableView.ForeignKeySelection(
+                row: 0,
+                column: index,
+                value: trimmedValue,
+                columnName: column.name,
+                reference: reference,
+                valueKind: ResultGridValueClassifier.kind(forDataType: column.dataType, value: trimmedValue)
+            )
+
+            if let nested = await fetchForeignKeyInspectorContent(for: selection, includeRelated: includeRelatedForeignKeys, depth: parentDepth + 1) {
+                related.append(nested)
+            }
+        }
+        return related
+    }
+
+    private func loadForeignKeyMapping(schema: String, table: String) async -> ForeignKeyMapping {
+        do {
+            let details = try await tab.session.getTableStructureDetails(schema: schema, table: table)
+            return buildForeignKeyMapping(from: details)
+        } catch {
+            return [:]
+        }
+    }
+
+    private func makeForeignKeyLookupQuery(for selection: QueryResultsTableView.ForeignKeySelection) -> String? {
+        let databaseType = tab.connection.databaseType
+        guard let literal = makeForeignKeyLiteral(for: selection, databaseType: databaseType) else { return nil }
+        let reference = selection.reference
+        let tableIdentifier = qualifiedTable(schema: reference.referencedSchema, table: reference.referencedTable, databaseType: databaseType)
+        let columnIdentifier = quoteIdentifier(reference.referencedColumn, databaseType: databaseType)
+
+        switch databaseType {
+        case .microsoftSQL:
+            return "SELECT TOP 1 * FROM \(tableIdentifier) WHERE \(columnIdentifier) = \(literal);"
+        default:
+            return "SELECT * FROM \(tableIdentifier) WHERE \(columnIdentifier) = \(literal) LIMIT 1;"
+        }
+    }
+
+    private func qualifiedTable(schema: String, table: String, databaseType: DatabaseType) -> String {
+        let trimmedSchema = schema.trimmingCharacters(in: .whitespacesAndNewlines)
+        let tablePart = quoteIdentifier(table, databaseType: databaseType)
+        guard !trimmedSchema.isEmpty else { return tablePart }
+        return "\(quoteIdentifier(trimmedSchema, databaseType: databaseType)).\(tablePart)"
+    }
+
+    private func quoteIdentifier(_ identifier: String, databaseType: DatabaseType) -> String {
+        switch databaseType {
+        case .postgresql, .sqlite:
+            let escaped = identifier.replacingOccurrences(of: "\"", with: "\"\"")
+            return "\"\(escaped)\""
+        case .mysql:
+            let escaped = identifier.replacingOccurrences(of: "`", with: "``")
+            return "`\(escaped)`"
+        case .microsoftSQL:
+            let escaped = identifier.replacingOccurrences(of: "]", with: "]]")
+            return "[\(escaped)]"
+        }
+    }
+
+    private func makeForeignKeyLiteral(for selection: QueryResultsTableView.ForeignKeySelection, databaseType: DatabaseType) -> String? {
+        let rawValue = selection.value.trimmingCharacters(in: .whitespacesAndNewlines)
+        switch selection.valueKind {
+        case .numeric:
+            return rawValue.isEmpty ? nil : rawValue
+        case .boolean:
+            let normalized = rawValue.lowercased()
+            let truthy: Set<String> = ["true", "t", "1", "yes", "y"]
+            let isTrue = truthy.contains(normalized)
+            switch databaseType {
+            case .mysql, .microsoftSQL:
+                return isTrue ? "1" : "0"
+            case .postgresql, .sqlite:
+                return isTrue ? "TRUE" : "FALSE"
+            }
+        default:
+            let escaped = rawValue.replacingOccurrences(of: "'", with: "''")
+            return "'\(escaped)'"
+        }
+    }
+#endif
+
+private func handleBookmarkRequest(_ sql: String) {
         Task {
             await appModel.addBookmark(
                 for: tab.connection,
