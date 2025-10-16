@@ -6,7 +6,7 @@ public struct QueryResultSet: Sendable {
     public var totalRowCount: Int?
     public var commandTag: String?
 
-    public init(columns: [ColumnInfo], rows: [[String?]] = [], totalRowCount: Int? = nil, commandTag: String? = nil) {
+    public nonisolated init(columns: [ColumnInfo], rows: [[String?]] = [], totalRowCount: Int? = nil, commandTag: String? = nil) {
         self.columns = columns
         self.rows = rows
         self.totalRowCount = totalRowCount ?? rows.count
@@ -33,7 +33,7 @@ public struct ColumnInfo: Sendable, Identifiable, Codable, Hashable {
     public let maxLength: Int?
     public var foreignKey: ForeignKeyReference?
 
-    public init(name: String, dataType: String, isPrimaryKey: Bool = false, isNullable: Bool = true, maxLength: Int? = nil, foreignKey: ForeignKeyReference? = nil) {
+    public nonisolated init(name: String, dataType: String, isPrimaryKey: Bool = false, isNullable: Bool = true, maxLength: Int? = nil, foreignKey: ForeignKeyReference? = nil) {
         self.name = name
         self.dataType = dataType
         self.isPrimaryKey = isPrimaryKey
@@ -398,15 +398,59 @@ public struct SortCriteria: Sendable, Equatable {
     }
 }
 
+public struct QueryStreamMetrics: Sendable, Codable {
+    public let batchRowCount: Int
+    public let loopElapsed: TimeInterval
+    public let decodeDuration: TimeInterval
+    public let totalElapsed: TimeInterval
+    public let cumulativeRowCount: Int
+
+    public nonisolated init(
+        batchRowCount: Int,
+        loopElapsed: TimeInterval,
+        decodeDuration: TimeInterval,
+        totalElapsed: TimeInterval,
+        cumulativeRowCount: Int
+    ) {
+        self.batchRowCount = batchRowCount
+        self.loopElapsed = loopElapsed
+        self.decodeDuration = decodeDuration
+        self.totalElapsed = totalElapsed
+        self.cumulativeRowCount = cumulativeRowCount
+    }
+
+    public nonisolated var networkWaitEstimate: TimeInterval {
+        max(loopElapsed - decodeDuration, 0)
+    }
+}
+
+public struct ResultBinaryRow: Sendable {
+    public let data: Data
+
+    public nonisolated init(data: Data) {
+        self.data = data
+    }
+}
+
 public struct QueryStreamUpdate: Sendable {
     public let columns: [ColumnInfo]
     public let appendedRows: [[String?]]
+    public let encodedRows: [ResultBinaryRow]
     public let totalRowCount: Int
+    public let metrics: QueryStreamMetrics?
 
-    public init(columns: [ColumnInfo], appendedRows: [[String?]], totalRowCount: Int) {
+    public nonisolated init(
+        columns: [ColumnInfo],
+        appendedRows: [[String?]],
+        encodedRows: [ResultBinaryRow] = [],
+        totalRowCount: Int,
+        metrics: QueryStreamMetrics? = nil
+    ) {
         self.columns = columns
         self.appendedRows = appendedRows
+        self.encodedRows = encodedRows
         self.totalRowCount = totalRowCount
+        self.metrics = metrics
     }
 }
 

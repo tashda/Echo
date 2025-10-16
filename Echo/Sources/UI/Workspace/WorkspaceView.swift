@@ -36,23 +36,21 @@ struct WorkspaceView: View {
                         }
                     )
 
-                    ResizableInspectorContainer(
-                        width: widthBinding,
-                        minWidth: WorkspaceLayoutMetrics.inspectorMinWidth,
-                        maxWidth: WorkspaceLayoutMetrics.inspectorMaxWidth
-                    ) {
-                        InfoSidebarView()
-                            .environmentObject(appModel)
-                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                            .padding(.top, WorkspaceChromeMetrics.chromeTopInset)
-                            .padding(.bottom, 12)
-                            .padding(.horizontal, 18)
-                    }
-                    .navigationSplitViewColumnWidth(
-                        min: WorkspaceLayoutMetrics.inspectorMinWidth,
-                        ideal: max(WorkspaceLayoutMetrics.inspectorMinWidth, widthBinding.wrappedValue),
-                        max: WorkspaceLayoutMetrics.inspectorMaxWidth
-                    )
+                    InfoSidebarView()
+                        .environmentObject(appModel)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                        .padding(.top, WorkspaceChromeMetrics.chromeTopInset)
+                        .padding(.bottom, 12)
+                        .padding(.horizontal, 18)
+#if os(macOS)
+                        .background(
+                            InspectorSplitViewConfigurator(
+                                width: widthBinding,
+                                minWidth: WorkspaceLayoutMetrics.inspectorMinWidth,
+                                maxWidth: WorkspaceLayoutMetrics.inspectorMaxWidth
+                            )
+                        )
+#endif
                 }
         }
         .navigationSplitViewStyle(.balanced)
@@ -150,68 +148,168 @@ private enum WorkspaceLayoutMetrics {
     static let inspectorMaxWidth: CGFloat = 1600
 }
 
-private struct ResizableInspectorContainer<Content: View>: View {
-    @Binding var width: CGFloat
+#if os(macOS)
+private struct InspectorSplitViewConfigurator: NSViewRepresentable {
+    var width: Binding<CGFloat>
     let minWidth: CGFloat
     let maxWidth: CGFloat
-    @ViewBuilder var content: Content
 
-    @State private var dragStartWidth: CGFloat?
-    @State private var isHoveringHandle = false
-
-    private let handleWidth: CGFloat = 6
-    private let dividerWidth: CGFloat = 1
-
-    private func clamped(_ value: CGFloat) -> CGFloat {
-        let upper = maxWidth.isFinite ? min(maxWidth, value) : value
-        return max(minWidth, upper)
+    func makeCoordinator() -> Coordinator {
+        Coordinator(width: width, minWidth: minWidth, maxWidth: maxWidth)
     }
 
-    var body: some View {
-        let contentWidth = clamped(width)
-        let totalWidth = contentWidth + handleWidth + dividerWidth
+    func makeNSView(context: Context) -> ObserverView {
+        let view = ObserverView()
+        view.coordinator = context.coordinator
+        context.coordinator.register(observedView: view)
+        return view
+    }
 
-        HStack(spacing: 0) {
-            Rectangle()
-                .fill(Color.primary.opacity(isHoveringHandle ? 0.18 : 0.08))
-                .frame(width: handleWidth)
-                .contentShape(Rectangle())
-                .gesture(
-                    DragGesture(minimumDistance: 0)
-                        .onChanged { value in
-                            if dragStartWidth == nil {
-                                dragStartWidth = width
-                            }
-                            let proposed = (dragStartWidth ?? width) - value.translation.width
-                            width = clamped(proposed)
+    func updateNSView(_ nsView: ObserverView, context: Context) {
+        context.coordinator.width = width
+        context.coordinator.minWidth = minWidth
+        context.coordinator.maxWidth = maxWidth
+        context.coordinator.register(observedView: nsView)
+    }
+
+    final class Coordinator {
+        var width: Binding<CGFloat>
+        var minWidth: CGFloat
+        var maxWidth: CGFloat
+        private weak var observedView: NSView?
+        private var pendingUpdate = false
+        private var lastAppliedWidth: CGFloat?
+
+        init(width: Binding<CGFloat>, minWidth: CGFloat, maxWidth: CGFloat) {
+            self.width = width
+            self.minWidth = minWidth
+            self.maxWidth = maxWidth
+        }
+
+        func register(observedView view: NSView) {
+            if observedView !== view {
+                observedView = view
+            }
+            scheduleUpdate()
+        }
+
+        private func scheduleUpdate() {
+            guard !pendingUpdate else { return }
+            pendingUpdate = true
+            DispatchQueue.main.async { [weak self] in
+                guard let self, let view = self.observedView else {
+                    self?.pendingUpdate = false
+                    return
+                }
+                self.pendingUpdate = false
+                self.performUpdate(using: view)
+            }
+        }
+
+        private func performUpdate(using nsView: NSView) {
+            guard let (controller, splitView, index) = locateSplitViewInfo(from: nsView) else { return }
+
+            let item = controller.splitViewItems[index]
+            if item.minimumThickness != minWidth {
+                item.minimumThickness = minWidth
+            }
+            if item.maximumThickness != maxWidth {
+                item.maximumThickness = maxWidth
+            }
+            if item.holdingPriority != .defaultLow {
+                item.holdingPriority = .defaultLow
+            }
+
+            guard let inspectorView = splitView.safeSubview(at: index) else { return }
+
+            let desiredWidth = clamp(width.wrappedValue)
+            let inspectorWidth = clamp(inspectorView.frame.width)
+
+            let previouslyApplied = lastAppliedWidth ?? inspectorWidth
+
+            if abs(desiredWidth - previouslyApplied) > 0.5 {
+                // Programmatic width change; drive split view to desired width.
+                if abs(inspectorWidth - desiredWidth) > 0.5 {
+                    adjustDividerPosition(splitView: splitView, itemIndex: index, targetWidth: desiredWidth)
+                }
+                lastAppliedWidth = desiredWidth
+            } else {
+                // User-driven change; capture the new inspector width.
+                if abs(inspectorWidth - desiredWidth) > 0.5 {
+                    let clampedInspector = clamp(inspectorWidth)
+                    if abs(width.wrappedValue - clampedInspector) > 0.1 {
+                        width.wrappedValue = clampedInspector
+                    }
+                    lastAppliedWidth = clampedInspector
+                } else {
+                    lastAppliedWidth = desiredWidth
+                }
+            }
+        }
+
+        private func adjustDividerPosition(splitView: NSSplitView, itemIndex: Int, targetWidth: CGFloat) {
+            guard itemIndex > 0 else { return }
+            let dividerIndex = itemIndex - 1
+            let totalWidth = splitView.bounds.width
+            guard totalWidth > 0 else { return }
+            let dividerPosition = max(0, min(totalWidth - targetWidth, totalWidth))
+            let currentWidth = splitView.safeSubview(at: itemIndex)?.frame.width ?? 0
+
+            if abs(currentWidth - targetWidth) > 0.5 {
+                NSAnimationContext.beginGrouping()
+                NSAnimationContext.current.duration = 0
+                splitView.setPosition(dividerPosition, ofDividerAt: dividerIndex)
+                NSAnimationContext.endGrouping()
+            }
+        }
+
+        private func clamp(_ value: CGFloat) -> CGFloat {
+            max(minWidth, min(maxWidth, value))
+        }
+
+        private func locateSplitViewInfo(from view: NSView) -> (NSSplitViewController, NSSplitView, Int)? {
+            var responder: NSResponder? = view
+            while let current = responder {
+                if let controller = current as? NSSplitViewController {
+                    let splitView = controller.splitView
+                    for (index, item) in controller.splitViewItems.enumerated() {
+                        if item.viewController.view.isDescendant(of: view) || view.isDescendant(of: item.viewController.view) {
+                            return (controller, splitView, index)
                         }
-                        .onEnded { _ in
-                            width = clamped(width)
-                            dragStartWidth = nil
-                        }
-                )
-#if os(macOS)
-                .onHover { hovering in
-                    withAnimation(.easeInOut(duration: 0.15)) {
-                        isHoveringHandle = hovering
                     }
                 }
-#endif
-
-            Divider()
-                .frame(width: dividerWidth)
-
-            content
-                .frame(width: contentWidth, alignment: .topLeading)
+                responder = current.nextResponder
+            }
+            return nil
         }
-        .frame(width: totalWidth)
-        .frame(maxHeight: .infinity, alignment: .topLeading)
-        .background(Color.clear)
-        .onAppear {
-            width = contentWidth
+    }
+
+    final class ObserverView: NSView {
+        weak var coordinator: Coordinator?
+
+        override func layout() {
+            super.layout()
+            coordinator?.register(observedView: self)
+        }
+
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            coordinator?.register(observedView: self)
+        }
+
+        override func hitTest(_ point: NSPoint) -> NSView? {
+            nil
         }
     }
 }
+
+private extension NSSplitView {
+    func safeSubview(at index: Int) -> NSView? {
+        guard index >= 0 && index < subviews.count else { return nil }
+        return subviews[index]
+    }
+}
+#endif
 
 #if os(macOS)
 private struct WorkspaceWindowConfigurator: NSViewRepresentable {

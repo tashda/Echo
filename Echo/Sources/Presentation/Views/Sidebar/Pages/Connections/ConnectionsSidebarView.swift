@@ -74,51 +74,27 @@ struct ConnectionsSidebarView: View {
     // MARK: - Search & Toolbar
 
     private var searchBar: some View {
-        HStack {
-            HStack(spacing: 8) {
-                Image(systemName: "magnifyingglass")
-                    .foregroundStyle(.secondary)
-
-                TextField("Search connections", text: $searchText)
-                    .textFieldStyle(.plain)
-
-                if !trimmedSearch.isEmpty {
-                    Button {
-                        searchText = ""
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundStyle(.tertiary)
-                    }
-                    .buttonStyle(.plain)
-                }
-
-                Rectangle()
-                    .fill(Color.primary.opacity(0.08))
-                    .frame(width: 1, height: 18)
-
-                Menu {
-                    addMenuContent()
-                } label: {
-                    Image(systemName: "plus.circle.fill")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundStyle(Color.secondary.opacity(0.6))
-                        .padding(2)
-                        .background(
-                            Circle()
-                                .fill(Color.accentColor.opacity(0))
-                        )
-                }
-                .menuStyle(.borderlessButton)
-                .menuIndicator(.hidden)
+        SidebarSearchBar(
+            placeholder: "Search connections",
+            text: $searchText,
+            showsClearButton: !trimmedSearch.isEmpty,
+            onClear: { searchText = "" }
+        ) {
+            Menu {
+                addMenuContent()
+            } label: {
+                Image(systemName: "plus.circle.fill")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(Color.secondary.opacity(0.6))
+                    .padding(2)
+                    .background(
+                        Circle()
+                            .fill(Color.accentColor.opacity(0))
+                    )
             }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 8)
-            .background(
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .fill(Color.primary.opacity(0.05))
-            )
+            .menuStyle(.borderlessButton)
+            .menuIndicator(.hidden)
         }
-        .padding(12)
     }
 
     // MARK: - Content

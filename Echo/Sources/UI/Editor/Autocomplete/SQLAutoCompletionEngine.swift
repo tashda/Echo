@@ -494,14 +494,21 @@ final class SQLAutoCompletionEngine {
             return (context.selectedDatabase?.lowercased(), nil, nil)
         }
         if components.count == 1 {
-            let candidate = components.last?.lowercased()
-            let matchesScope = query.tablesInScope.contains { table in
-                let nameMatch = table.name.lowercased() == candidate
-                let schemaMatch = table.schema?.lowercased() == candidate
-                let aliasMatch = table.alias?.lowercased() == candidate
-                return nameMatch || schemaMatch || aliasMatch
+            guard let rawCandidate = components.last else {
+                return (context.selectedDatabase?.lowercased(), nil, nil)
             }
-            return (context.selectedDatabase?.lowercased(), nil, matchesScope ? candidate : nil)
+            let candidate = rawCandidate.lowercased()
+            if let resolved = resolveTable(for: candidate, in: query.tablesInScope) {
+                return (
+                    context.selectedDatabase?.lowercased(),
+                    resolved.schema?.lowercased(),
+                    resolved.name.lowercased()
+                )
+            }
+            let matchesSchema = query.tablesInScope.contains { table in
+                table.schema?.lowercased() == candidate
+            }
+            return (context.selectedDatabase?.lowercased(), matchesSchema ? candidate : nil, nil)
         }
         let table = components.last?.lowercased()
         let schema = components.dropLast().last?.lowercased()
@@ -709,6 +716,17 @@ final class SQLAutoCompletionEngine {
             }
         }
         return unique
+    }
+
+    private func resolveTable(for qualifier: String, in scope: [SQLAutoCompletionTableFocus]) -> SQLAutoCompletionTableFocus? {
+        let lowered = qualifier.lowercased()
+        if let aliasMatch = scope.first(where: { $0.alias?.lowercased() == lowered }) {
+            return aliasMatch
+        }
+        if let nameMatch = scope.first(where: { $0.name.lowercased() == lowered }) {
+            return nameMatch
+        }
+        return nil
     }
 
     private func matches(_ entry: ColumnEntry, scope: [SQLAutoCompletionTableFocus]) -> Bool {

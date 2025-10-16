@@ -45,7 +45,9 @@ struct QueryInputSection: View {
             resolved.surfaces.symbolHighlightBright = bright
         }
 #if DEBUG
-        logEditorThemeDiagnostics(resolved: resolved, chrome: chrome)
+        if QueryInputSection.isEditorDiagnosticsEnabled {
+            logEditorThemeDiagnostics(resolved: resolved, chrome: chrome)
+        }
 #endif
         return resolved
     }
@@ -249,6 +251,10 @@ struct QueryInputSection: View {
 
 #if DEBUG
 private extension QueryInputSection {
+    static let isEditorDiagnosticsEnabled: Bool = {
+        ProcessInfo.processInfo.environment["ECHO_EDITOR_DIAGNOSTICS"] == "1"
+    }()
+
     func logEditorThemeDiagnostics(resolved: SQLEditorTheme, chrome: AppColorTheme) {
         let window = describeColor(chrome.windowBackground)
         let surface = describeColor(chrome.surfaceBackground)

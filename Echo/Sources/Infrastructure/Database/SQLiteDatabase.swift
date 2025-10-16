@@ -67,11 +67,6 @@ private struct SQLiteRawColumn: Sendable {
     let maxLength: Int?
 }
 
-private struct SQLiteQueryData: Sendable {
-    let columns: [SQLiteRawColumn]
-    let rows: [[String?]]
-}
-
 private struct SQLiteSchemaObjectRecord: Sendable {
     let name: String
     let type: String
@@ -124,39 +119,143 @@ actor SQLiteSession: DatabaseSession {
 
     func simpleQuery(_ sql: String, progressHandler: QueryProgressHandler?) async throws -> QueryResultSet {
         let conn = try requireConnection()
-        let rawResult = try withSQLiteStatement(connection: conn, sql: sql) { statement in
-            let columnCount = Int(sqlite3_column_count(statement))
-            var columns: [SQLiteRawColumn] = []
-            columns.reserveCapacity(columnCount)
-            for index in 0..<columnCount {
-                let name = sqlite3_column_name(statement, Int32(index)).flatMap { String(cString: $0) } ?? "column\(index + 1)"
-                let declaredType = sqlite3_column_decltype(statement, Int32(index)).flatMap { String(cString: $0) }
-                columns.append(
-                    SQLiteRawColumn(
-                        name: name,
-                        dataType: declaredType?.uppercased() ?? "TEXT",
-                        isPrimaryKey: false,
-                        isNullable: true,
-                        maxLength: nil
-                    )
-                )
+
+        var rawColumns: [SQLiteRawColumn] = []
+        var resolvedColumns: [ColumnInfo] = []
+        var previewRows: [[String?]] = []
+        previewRows.reserveCapacity(4_096)
+        var totalRowCount = 0
+
+        var pendingPreviewRows: [[String?]] = []
+        pendingPreviewRows.reserveCapacity(256)
+        var pendingEncodedRows: [ResultBinaryRow] = []
+        pendingEncodedRows.reserveCapacity(256)
+        let operationStart = CFAbsoluteTimeGetCurrent()
+        var lastFlushTimestamp = operationStart
+        var batchDecodeDuration: TimeInterval = 0
+        let streamingPreviewLimit = 512
+        let maxFlushLatency: TimeInterval = 0.05
+
+        let flush: (_ force: Bool) -> Void = { force in
+            guard !pendingEncodedRows.isEmpty else { return }
+
+            if !force, progressHandler != nil, !resolvedColumns.isEmpty {
+                let threshold: Int
+                switch totalRowCount {
+                case 0..<1024:
+                    threshold = 128
+                case 1024..<4096:
+                    threshold = 512
+                case 4096..<16_384:
+                    threshold = 512
+                default:
+                    threshold = 1024
+                }
+                let shouldFlushByCount = pendingEncodedRows.count >= threshold
+                if !shouldFlushByCount {
+                    let elapsed = CFAbsoluteTimeGetCurrent() - lastFlushTimestamp
+                    guard elapsed >= maxFlushLatency else { return }
+                }
             }
 
-            var rows: [[String?]] = []
+            let previewBatch = pendingPreviewRows
+            let encodedBatch = pendingEncodedRows
+            pendingPreviewRows.removeAll(keepingCapacity: true)
+            pendingEncodedRows.removeAll(keepingCapacity: true)
+            let now = CFAbsoluteTimeGetCurrent()
+            let metrics = QueryStreamMetrics(
+                batchRowCount: encodedBatch.count,
+                loopElapsed: now - lastFlushTimestamp,
+                decodeDuration: batchDecodeDuration,
+                totalElapsed: now - operationStart,
+                cumulativeRowCount: totalRowCount
+            )
+            lastFlushTimestamp = now
+            batchDecodeDuration = 0
+
+            guard let handler = progressHandler, !resolvedColumns.isEmpty else { return }
+            let update = QueryStreamUpdate(
+                columns: resolvedColumns,
+                appendedRows: previewBatch,
+                encodedRows: encodedBatch,
+                totalRowCount: totalRowCount,
+                metrics: metrics
+            )
+            handler(update)
+        }
+
+        try withSQLiteStatement(connection: conn, sql: sql) { statement in
+            let columnCount = Int(sqlite3_column_count(statement))
+            if rawColumns.isEmpty {
+                rawColumns.reserveCapacity(columnCount)
+                for index in 0..<columnCount {
+                    let name = sqlite3_column_name(statement, Int32(index)).flatMap { String(cString: $0) } ?? "column\(index + 1)"
+                    let declaredType = sqlite3_column_decltype(statement, Int32(index)).flatMap { String(cString: $0) }
+                    rawColumns.append(
+                        SQLiteRawColumn(
+                            name: name,
+                            dataType: declaredType?.uppercased() ?? "TEXT",
+                            isPrimaryKey: false,
+                            isNullable: true,
+                            maxLength: nil
+                        )
+                    )
+                }
+                resolvedColumns = rawColumns.map { column in
+                    ColumnInfo(
+                        name: column.name,
+                        dataType: column.dataType,
+                        isPrimaryKey: column.isPrimaryKey,
+                        isNullable: column.isNullable,
+                        maxLength: column.maxLength
+                    )
+                }
+            }
+
             while true {
                 let stepResult = sqlite3_step(statement)
                 switch stepResult {
                 case SQLITE_ROW:
-                    rows.append(try makeRow(statement: statement, columnCount: columnCount))
+                    let decodeStart = CFAbsoluteTimeGetCurrent()
+                    let rowValues = try makeRow(statement: statement, columnCount: columnCount)
+                    batchDecodeDuration += CFAbsoluteTimeGetCurrent() - decodeStart
+                    let encoded = ResultBinaryRowCodec.encode(row: rowValues)
+                    pendingEncodedRows.append(encoded)
+                    totalRowCount += 1
+                    if totalRowCount <= streamingPreviewLimit {
+                        pendingPreviewRows.append(rowValues)
+                    }
+                    if previewRows.count < 4_096 {
+                        previewRows.append(rowValues)
+                    }
+                    flush(false)
                 case SQLITE_DONE:
-                    return SQLiteQueryData(columns: columns, rows: rows)
+                    return
                 default:
                     throw DatabaseError.queryError(String(cString: sqlite3_errmsg(conn.handle)))
                 }
             }
         }
 
-        return await assembleQueryResult(from: rawResult, progressHandler: progressHandler)
+        flush(true)
+
+        if resolvedColumns.isEmpty {
+            resolvedColumns = rawColumns.map { column in
+                ColumnInfo(
+                    name: column.name,
+                    dataType: column.dataType,
+                    isPrimaryKey: column.isPrimaryKey,
+                    isNullable: column.isNullable,
+                    maxLength: column.maxLength
+                )
+            }
+        }
+
+        if resolvedColumns.isEmpty {
+            resolvedColumns = [ColumnInfo(name: "result", dataType: "TEXT")]
+        }
+
+        return QueryResultSet(columns: resolvedColumns, rows: previewRows, totalRowCount: totalRowCount)
     }
 
     func listTablesAndViews(schema: String?) async throws -> [SchemaObjectInfo] {
@@ -467,33 +566,6 @@ actor SQLiteSession: DatabaseSession {
                     onDelete: entry.onDelete
                 )
             }
-        }
-    }
-
-    private func assembleQueryResult(from raw: SQLiteQueryData, progressHandler: QueryProgressHandler?) async -> QueryResultSet {
-        await MainActor.run {
-            let columns = raw.columns.map { column in
-                ColumnInfo(
-                    name: column.name,
-                    dataType: column.dataType,
-                    isPrimaryKey: column.isPrimaryKey,
-                    isNullable: column.isNullable,
-                    maxLength: column.maxLength
-                )
-            }
-
-            let effectiveColumns = columns.isEmpty ? [ColumnInfo(name: "result", dataType: "TEXT")] : columns
-
-            if let handler = progressHandler {
-                let update = QueryStreamUpdate(
-                    columns: effectiveColumns,
-                    appendedRows: raw.rows,
-                    totalRowCount: raw.rows.count
-                )
-                handler(update)
-            }
-
-            return QueryResultSet(columns: effectiveColumns, rows: raw.rows)
         }
     }
 

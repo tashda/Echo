@@ -55,7 +55,7 @@ struct SidebarMenu: View {
             contentView
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .safeAreaPadding(.top, WorkspaceChromeMetrics.chromeTopInset)
+        .padding(.top, WorkspaceChromeMetrics.chromeTopInset)
         .confirmationDialog(
             "Duplicate Connection",
             isPresented: Binding(
@@ -93,7 +93,7 @@ struct SidebarMenu: View {
 
     @ViewBuilder
     private var xcodeStyleSegmentedControl: some View {
-        let controlHeight: CGFloat = WorkspaceChromeMetrics.chromeControlHeight
+        let controlHeight: CGFloat = WorkspaceChromeMetrics.chromeBackgroundHeight
         let controlCornerRadius: CGFloat = controlHeight / 2
         let segmentCornerRadius: CGFloat = controlCornerRadius - 4
 
@@ -106,6 +106,9 @@ struct SidebarMenu: View {
             .overlay(
                 HStack(spacing: 0) {
                     ForEach(Array(NavSection.allCases.enumerated()), id: \.element.rawValue) { index, section in
+                        let isEdgeSegment = index == 0 || index == NavSection.allCases.count - 1
+                        let highlightCornerRadius = isEdgeSegment ? controlCornerRadius : segmentCornerRadius
+
                         Button {
                             withAnimation(.easeInOut(duration: 0.15)) {
                                 selectedNavSection = section
@@ -123,10 +126,10 @@ struct SidebarMenu: View {
                         }
                         .buttonStyle(.plain)
                         .background(
-                            RoundedRectangle(cornerRadius: segmentCornerRadius, style: .continuous)
+                            RoundedRectangle(cornerRadius: highlightCornerRadius, style: .continuous)
                                 .fill(.tint)
                                 .opacity(selectedNavSection == section ? 1 : 0)
-                                .animation(.easeInOut(duration: 0.15), value: selectedNavSection == section)
+                                .animation(.easeInOut(duration: 0.15), value: selectedNavSection)
                         )
                         .help(section.displayName)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -137,14 +140,13 @@ struct SidebarMenu: View {
                             Rectangle()
                                 .fill(.primary.opacity(0.15))
                                 .frame(width: 0.5)
-                                .padding(.vertical, 7)
                                 .opacity(shouldShowDivider ? 1 : 0)
                                 .animation(.easeInOut(duration: 0.15), value: shouldShowDivider)
                         }
                     }
                 }
-                .padding(.horizontal, 4)
-                .padding(.vertical, 4)
+                .padding(.horizontal, 0)
+                .padding(.vertical, 0)
             )
             .frame(height: controlHeight)
     }

@@ -16,6 +16,7 @@
 		0ADF94BD2E78BAA400E993F8 /* _ConnectionPoolTestUtils in Frameworks */ = {isa = PBXBuildFile; productRef = 0ADF94BC2E78BAA400E993F8 /* _ConnectionPoolTestUtils */; };
 		0C1234522F9ABC0100ABCDE /* SQLAutocompleteKit in Frameworks */ = {isa = PBXBuildFile; productRef = 0C1234512F9ABC0100ABCDE /* SQLAutocompleteKit */; };
 		198ED504586B4F4B8D2B074E /* QueryEditorUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E50DD38876CF4E95827F9B3D /* QueryEditorUITests.swift */; };
+		2D1E734B2FF0AC7A00A1B2C3 /* QueryPerformanceTrackerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D1E734A2FF0AC7A00A1B2C3 /* QueryPerformanceTrackerTests.swift */; };
 		6030A29ABBCD58751DCA65AE /* SourceCodePro-Regular.ttf in CopyFiles */ = {isa = PBXBuildFile; fileRef = 63CF0995418024155EBA8F37 /* SourceCodePro-Regular.ttf */; };
 		8ECF63DBB3844802B62E76D4 /* UbuntuMono-Regular.ttf in CopyFiles */ = {isa = PBXBuildFile; fileRef = 533ECEA388B5E26722814A7C /* UbuntuMono-Regular.ttf */; };
 		B66C2F887E35A3358F209F93 /* Hack-Regular.ttf in CopyFiles */ = {isa = PBXBuildFile; fileRef = B76434B110ACC86CC86642A1 /* Hack-Regular.ttf */; };
@@ -78,6 +79,7 @@
 		0AD4AA292E8D55E100F42692 /* build_sqruff.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = build_sqruff.sh; sourceTree = "<group>"; };
 		0ADF94952E78B95200E993F8 /* Echo.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Echo.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		23F736A358A1CCBACD3B0834 /* Inconsolata-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; name = "Inconsolata-Regular.ttf"; path = "Echo/Resources/Fonts/Inconsolata-Regular.ttf"; sourceTree = "<group>"; };
+		2D1E734A2FF0AC7A00A1B2C3 /* QueryPerformanceTrackerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QueryPerformanceTrackerTests.swift; sourceTree = "<group>"; };
 		44D226344BD64F6B8A29593F /* EchoUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = EchoUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		533ECEA388B5E26722814A7C /* UbuntuMono-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; name = "UbuntuMono-Regular.ttf"; path = "Echo/Resources/Fonts/UbuntuMono-Regular.ttf"; sourceTree = "<group>"; };
 		63CF0995418024155EBA8F37 /* SourceCodePro-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; name = "SourceCodePro-Regular.ttf"; path = "Echo/Resources/Fonts/SourceCodePro-Regular.ttf"; sourceTree = "<group>"; };
@@ -198,6 +200,7 @@
 			isa = PBXGroup;
 			children = (
 				CD46E27623774768B647E31C /* SQLEditorRegexTests.swift */,
+				2D1E734A2FF0AC7A00A1B2C3 /* QueryPerformanceTrackerTests.swift */,
 			);
 			path = EchoTests;
 			sourceTree = "<group>";
@@ -394,6 +397,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				D316B590203F49689AC5D29A /* SQLEditorRegexTests.swift in Sources */,
+				2D1E734B2FF0AC7A00A1B2C3 /* QueryPerformanceTrackerTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

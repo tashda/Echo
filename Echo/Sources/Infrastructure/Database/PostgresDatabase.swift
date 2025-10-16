@@ -71,6 +71,15 @@ final class PostgresSession: DatabaseSession {
     }
 
     func simpleQuery(_ sql: String, progressHandler: QueryProgressHandler?) async throws -> QueryResultSet {
+        if let progressHandler {
+            let sanitized = sanitizeSQL(sql)
+            return try await streamQuery(sanitizedSQL: sanitized, progressHandler: progressHandler)
+        } else {
+            return try await executeSimpleQuery(sql)
+        }
+    }
+
+    private func executeSimpleQuery(_ sql: String) async throws -> QueryResultSet {
         let query = PostgresQuery(unsafeSQL: sql)
         let result = try await client.query(query, logger: logger)
 
@@ -79,24 +88,6 @@ final class PostgresSession: DatabaseSession {
         rows.reserveCapacity(512)
 
         let formatterContext = CellFormatterContext()
-        var pendingBatch: [[String?]] = []
-        pendingBatch.reserveCapacity(256)
-
-        func dispatchBatch() {
-            guard !pendingBatch.isEmpty else { return }
-            let batch = pendingBatch
-            pendingBatch.removeAll(keepingCapacity: true)
-
-            guard let handler = progressHandler, !columns.isEmpty else { return }
-
-            let update = QueryStreamUpdate(
-                columns: columns,
-                appendedRows: batch,
-                totalRowCount: rows.count
-            )
-
-            handler(update)
-        }
 
         for try await row in result {
             if columns.isEmpty {
@@ -113,28 +104,10 @@ final class PostgresSession: DatabaseSession {
 
             var rowValues: [String?] = []
             rowValues.reserveCapacity(row.count)
-
             for cell in row {
                 rowValues.append(formatterContext.stringValue(for: cell))
             }
-
             rows.append(rowValues)
-            pendingBatch.append(rowValues)
-
-            if Task.isCancelled {
-                dispatchBatch() // flush whatever we have before bailing
-                throw CancellationError()
-            }
-
-            // Emit smaller batches early for fast first paint, then grow to reduce UI churn
-            let flushThreshold = rows.count < 768 ? 128 : 512
-            if pendingBatch.count >= flushThreshold {
-                dispatchBatch()
-            }
-        }
-
-        if !pendingBatch.isEmpty {
-            dispatchBatch()
         }
 
         let resolvedColumns = columns.isEmpty
@@ -145,6 +118,163 @@ final class PostgresSession: DatabaseSession {
             columns: resolvedColumns,
             rows: rows
         )
+    }
+
+    private func streamQuery(sanitizedSQL: String, progressHandler: @escaping QueryProgressHandler) async throws -> QueryResultSet {
+        let formatterContext = CellFormatterContext()
+
+        var columns: [ColumnInfo] = []
+        var previewRows: [[String?]] = []
+        previewRows.reserveCapacity(4_096)
+        var pendingPreviewRows: [[String?]] = []
+        pendingPreviewRows.reserveCapacity(512)
+        var pendingEncodedRows: [ResultBinaryRow] = []
+        pendingEncodedRows.reserveCapacity(512)
+
+        let operationStart = CFAbsoluteTimeGetCurrent()
+        var lastFlushTimestamp = operationStart
+        var batchDecodeDuration: TimeInterval = 0
+        let streamingPreviewLimit = 512
+        let previewResultLimit = 4_096
+        let maxFlushLatency: TimeInterval = 0.05
+
+        func rawData(for cell: PostgresCell) -> Data? {
+            guard var buffer = cell.bytes else { return nil }
+            let readable = buffer.readableBytes
+            guard readable > 0 else { return Data() }
+            if let bytes = buffer.readBytes(length: readable) {
+                return Data(bytes)
+            }
+            return Data()
+        }
+
+        func flushThreshold(for totalCount: Int) -> Int {
+            switch totalCount {
+            case 0..<1024:
+                return 128
+            case 1024..<8192:
+                return 512
+            case 8192..<32_768:
+                return 1_024
+            default:
+                return 2_048
+            }
+        }
+
+        func dispatchBatch(totalRowCount: Int) {
+            guard !pendingEncodedRows.isEmpty, !columns.isEmpty else { return }
+            let previewBatch = pendingPreviewRows
+            let encodedBatch = pendingEncodedRows
+            pendingPreviewRows.removeAll(keepingCapacity: true)
+            pendingEncodedRows.removeAll(keepingCapacity: true)
+            let now = CFAbsoluteTimeGetCurrent()
+            let metrics = QueryStreamMetrics(
+                batchRowCount: encodedBatch.count,
+                loopElapsed: now - lastFlushTimestamp,
+                decodeDuration: batchDecodeDuration,
+                totalElapsed: now - operationStart,
+                cumulativeRowCount: totalRowCount
+            )
+            lastFlushTimestamp = now
+            batchDecodeDuration = 0
+
+            let update = QueryStreamUpdate(
+                columns: columns,
+                appendedRows: previewBatch,
+                encodedRows: encodedBatch,
+                totalRowCount: totalRowCount,
+                metrics: metrics
+            )
+            progressHandler(update)
+        }
+
+        let query = PostgresQuery(unsafeSQL: sanitizedSQL)
+        let sequence = try await client.query(query, logger: logger)
+
+        var totalRowCount = 0
+
+        for try await row in sequence {
+            if columns.isEmpty {
+                columns.reserveCapacity(row.count)
+                for cell in row {
+                    columns.append(ColumnInfo(
+                        name: cell.columnName,
+                        dataType: "\(cell.dataType)",
+                        isPrimaryKey: false,
+                        isNullable: true,
+                        maxLength: nil
+                    ))
+                }
+            }
+
+            let currentIndex = totalRowCount
+            let capturePreview = currentIndex < streamingPreviewLimit || previewRows.count < previewResultLimit
+
+            var rawCells: [Data?] = []
+            rawCells.reserveCapacity(row.count)
+
+            var previewValues: [String?]? = nil
+
+            let conversionStart = CFAbsoluteTimeGetCurrent()
+
+            if capturePreview {
+                var values: [String?] = []
+                values.reserveCapacity(row.count)
+                for cell in row {
+                    rawCells.append(rawData(for: cell))
+                    values.append(formatterContext.stringValue(for: cell))
+                }
+                previewValues = values
+            } else {
+                for cell in row {
+                    rawCells.append(rawData(for: cell))
+                }
+            }
+
+            batchDecodeDuration += CFAbsoluteTimeGetCurrent() - conversionStart
+
+            pendingEncodedRows.append(ResultBinaryRowCodec.encodeRaw(cells: rawCells))
+
+            if let values = previewValues {
+                if previewRows.count < previewResultLimit {
+                    previewRows.append(values)
+                }
+                if currentIndex < streamingPreviewLimit {
+                    pendingPreviewRows.append(values)
+                }
+            }
+
+            totalRowCount += 1
+
+            let threshold = flushThreshold(for: totalRowCount)
+            let elapsedSinceFlush = CFAbsoluteTimeGetCurrent() - lastFlushTimestamp
+            if pendingEncodedRows.count >= threshold || elapsedSinceFlush >= maxFlushLatency {
+                dispatchBatch(totalRowCount: totalRowCount)
+            }
+        }
+
+        if !pendingEncodedRows.isEmpty {
+            dispatchBatch(totalRowCount: totalRowCount)
+        }
+
+        let resolvedColumns = columns.isEmpty
+            ? [ColumnInfo(name: "result", dataType: "text")]
+            : columns
+
+        return QueryResultSet(
+            columns: resolvedColumns,
+            rows: previewRows,
+            totalRowCount: totalRowCount
+        )
+    }
+
+    private func sanitizeSQL(_ sql: String) -> String {
+        var trimmed = sql.trimmingCharacters(in: .whitespacesAndNewlines)
+        while trimmed.last == ";" {
+            trimmed.removeLast()
+            trimmed = trimmed.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        return trimmed
     }
 
     func queryWithPaging(_ sql: String, limit: Int, offset: Int) async throws -> QueryResultSet {
@@ -721,33 +851,19 @@ final class PostgresSession: DatabaseSession {
 }
 
 private struct CellFormatterContext {
-    private let dateFormatter: DateFormatter
-    private let timeFormatter: DateFormatter
-    private let timestampFormatter: ISO8601DateFormatter
-
-    init() {
-        let dateFormatter = DateFormatter()
-        dateFormatter.calendar = Calendar(identifier: .gregorian)
-        dateFormatter.locale = Locale(identifier: "en_US_POSIX")
-        dateFormatter.timeZone = TimeZone(secondsFromGMT: 0)
-        dateFormatter.dateFormat = "yyyy-MM-dd"
-        self.dateFormatter = dateFormatter
-
-        let timeFormatter = DateFormatter()
-        timeFormatter.calendar = Calendar(identifier: .gregorian)
-        timeFormatter.locale = Locale(identifier: "en_US_POSIX")
-        timeFormatter.timeZone = TimeZone(secondsFromGMT: 0)
-        timeFormatter.dateFormat = "HH:mm:ss"
-        self.timeFormatter = timeFormatter
-
-        let timestampFormatter = ISO8601DateFormatter()
-        timestampFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        timestampFormatter.timeZone = TimeZone(secondsFromGMT: 0)
-        self.timestampFormatter = timestampFormatter
-    }
-
     func stringValue(for cell: PostgresCell) -> String? {
-        guard cell.bytes != nil else { return nil }
+        guard let buffer = cell.bytes else { return nil }
+
+        if cell.format == .text {
+            let readableBytes = buffer.readableBytes
+            guard readableBytes > 0 else { return "" }
+            let raw = buffer.getString(at: buffer.readerIndex, length: readableBytes) ?? ""
+            if cell.dataType == .bool {
+                if raw == "t" { return "true" }
+                if raw == "f" { return "false" }
+            }
+            return raw
+        }
 
         switch cell.dataType {
         case .bool:
@@ -762,60 +878,33 @@ private struct CellFormatterContext {
             return integerString(from: cell, as: Int64.self)
         case .float4:
             if let value = try? cell.decode(Float.self) {
-                return formatFloatingPoint(Double(value))
+                return String(value)
             }
         case .float8:
             if let value = try? cell.decode(Double.self) {
-                return formatFloatingPoint(value)
+                return String(value)
             }
         case .numeric, .money:
             if let decimalValue = try? cell.decode(Decimal.self, context: .default) {
                 return NSDecimalNumber(decimal: decimalValue).stringValue
             }
-        case .uuid:
-            if let uuid = try? cell.decode(UUID.self) {
-                return uuid.uuidString
-            }
-        case .date:
-            if let date = try? cell.decode(Date.self, context: .default) {
-                return dateFormatter.string(from: date)
-            }
-        case .timestamp, .timestamptz:
-            if let date = try? cell.decode(Date.self, context: .default) {
-                return timestampFormatter.string(from: date)
-            }
-        case .time:
-            if let value = decodeTime(from: cell, includeTimeZone: false) {
-                return value
-            }
-        case .timetz:
-            if let value = decodeTime(from: cell, includeTimeZone: true) {
-                return value
-            }
         case .json, .jsonb:
-            if let json = decodeJSON(from: cell) {
-                return json
+            if let string = try? cell.decode(String.self, context: .default) {
+                return string
             }
         case .bytea:
-            if var buffer = cell.bytes {
-                return hexString(from: &buffer)
+            if var mutableBuffer = cell.bytes {
+                return hexString(from: &mutableBuffer)
             }
         default:
-            break
+            if let string = try? cell.decode(String.self, context: .default) {
+                return string
+            }
         }
 
-        if let stringValue = try? cell.decode(String.self, context: .default) {
-            return stringValue
+        if var mutableBuffer = cell.bytes {
+            return hexString(from: &mutableBuffer)
         }
-
-        if let string = decodeTextualValue(from: cell) {
-            return string
-        }
-
-        if var buffer = cell.bytes {
-            return hexString(from: &buffer)
-        }
-
         return nil
     }
 
@@ -825,126 +914,9 @@ private struct CellFormatterContext {
         return String(value)
     }
 
-    private func decodeJSON(from cell: PostgresCell) -> String? {
-        if let direct = try? cell.decode(String.self, context: .default) {
-            return direct
-        }
-
-        guard var buffer = cell.bytes else { return nil }
-
-        switch cell.format {
-        case .text:
-            return buffer.readString(length: buffer.readableBytes)
-        case .binary:
-            if cell.dataType == .jsonb {
-                // First byte is the version; currently always 1.
-                guard buffer.readableBytes > 1 else { return nil }
-                buffer.moveReaderIndex(forwardBy: 1)
-            }
-            return buffer.readString(length: buffer.readableBytes)
-        }
-    }
-
-    private func decodeTime(from cell: PostgresCell, includeTimeZone: Bool) -> String? {
-        guard var buffer = cell.bytes else { return nil }
-
-        if cell.format == .text {
-            return buffer.readString(length: buffer.readableBytes)
-        }
-
-        switch cell.dataType {
-        case .time:
-            guard buffer.readableBytes == MemoryLayout<Int64>.size,
-                  let microseconds = buffer.readInteger(as: Int64.self) else {
-                return nil
-            }
-            return formatTime(microseconds: microseconds)
-        case .timetz where includeTimeZone:
-            guard buffer.readableBytes == MemoryLayout<Int64>.size + MemoryLayout<Int32>.size,
-                  let microseconds = buffer.readInteger(as: Int64.self),
-                  let timezone = buffer.readInteger(as: Int32.self) else {
-                return nil
-            }
-            let time = formatTime(microseconds: microseconds)
-            let offset = formatTimeZone(secondsWestOfUTC: timezone)
-            return "\(time)\(offset)"
-        default:
-            return nil
-        }
-    }
-
-    private func formatTime(microseconds: Int64) -> String {
-        let secondsPerHour: Int64 = 3_600
-        let secondsPerMinute: Int64 = 60
-
-        var remainingMicroseconds = microseconds
-        let hours = Int(remainingMicroseconds / (secondsPerHour * 1_000_000))
-        remainingMicroseconds %= secondsPerHour * 1_000_000
-
-        let minutes = Int(remainingMicroseconds / (secondsPerMinute * 1_000_000))
-        remainingMicroseconds %= secondsPerMinute * 1_000_000
-
-        let seconds = Int(remainingMicroseconds / 1_000_000)
-        remainingMicroseconds %= 1_000_000
-
-        var secondsString = String(format: "%02d", seconds)
-        if let fractional = fractionalMicrosecondsString(Int(remainingMicroseconds)) {
-            secondsString += ".\(fractional)"
-        }
-
-        return String(format: "%02d:%02d:%@", hours, minutes, secondsString)
-    }
-
-    private func formatTimeZone(secondsWestOfUTC: Int32) -> String {
-        // PostgreSQL stores the offset as seconds west of UTC; reverse the sign to get the human-readable offset.
-        let totalSecondsEast = -Int(secondsWestOfUTC)
-        let sign = totalSecondsEast >= 0 ? "+" : "-"
-        let absoluteSeconds = abs(totalSecondsEast)
-
-        let hours = absoluteSeconds / 3_600
-        let minutes = (absoluteSeconds % 3_600) / 60
-        let seconds = absoluteSeconds % 60
-
-        if seconds == 0 {
-            return String(format: "%@%02d:%02d", sign, hours, minutes)
-        } else {
-            return String(format: "%@%02d:%02d:%02d", sign, hours, minutes, seconds)
-        }
-    }
-
-    private func fractionalMicrosecondsString(_ value: Int) -> String? {
-        guard value != 0 else { return nil }
-        var fractional = String(format: "%06d", abs(value))
-        while fractional.last == "0" {
-            fractional.removeLast()
-        }
-        return fractional
-    }
-
-    private func decodeTextualValue(from cell: PostgresCell) -> String? {
-        guard var buffer = cell.bytes else { return nil }
-        if cell.format == .text {
-            return buffer.readString(length: buffer.readableBytes)
-        }
-        return nil
-    }
-
-    private func formatFloatingPoint(_ value: Double) -> String {
-        if value.isNaN { return "NaN" }
-        if value.isInfinite { return value > 0 ? "Infinity" : "-Infinity" }
-        // Avoid scientific notation for common magnitudes
-        let absValue = abs(value)
-        if (absValue >= 1e-4 && absValue < 1e6) || value == 0 {
-            return String(format: "%.15g", value)
-        }
-        return String(value)
-    }
-
     private func hexString(from buffer: inout ByteBuffer) -> String {
-        guard let bytes = buffer.readBytes(length: buffer.readableBytes) else { return "" }
-        return bytes.reduce(into: "0x") { partial, byte in
-            partial.append(String(format: "%02X", byte))
-        }
+        let bytes = buffer.readBytes(length: buffer.readableBytes) ?? []
+        return bytes.map { String(format: "%02x", $0) }.joined()
     }
 }
 

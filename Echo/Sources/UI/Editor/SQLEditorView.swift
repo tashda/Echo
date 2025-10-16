@@ -823,7 +823,9 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
         lineNumberRuler?.highlightedLines = selectedLineRange()
         lineNumberRuler?.setNeedsDisplay(lineNumberRuler?.bounds ?? .zero)
         sqlDelegate?.sqlTextView(self, didChangeSelection: selection)
-        refreshCompletions(immediate: true)
+        if !isApplyingCompletion && !suppressNextCompletionRefresh {
+            refreshCompletions(immediate: true)
+        }
     }
 
     private func notifySelectionPreview() {
@@ -927,9 +929,11 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
         let highlightColor = symbolHighlightColor(.strong)
         let caretLocation = location
 
-        layoutManager.addTemporaryAttribute(.backgroundColor, value: highlightColor, forCharacterRange: wordRange)
-        layoutManager.invalidateDisplay(forCharacterRange: wordRange)
-        matches.append(wordRange)
+        if !shouldSkipCaretHighlight(at: caretLocation) {
+            layoutManager.addTemporaryAttribute(.backgroundColor, value: highlightColor, forCharacterRange: wordRange)
+            layoutManager.invalidateDisplay(forCharacterRange: wordRange)
+            matches.append(wordRange)
+        }
 
         var searchLocation = 0
 
@@ -950,6 +954,15 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
         }
 
         return matches
+    }
+
+    private func shouldSkipCaretHighlight(at caretLocation: Int) -> Bool {
+        guard caretLocation != NSNotFound else { return false }
+        let caretRange = NSRange(location: caretLocation, length: 0)
+        guard let (_, suppression) = suppressedCompletionEntry(containing: caretRange, caretLocation: caretLocation) else {
+            return false
+        }
+        return suppression.hasFollowUps
     }
 
     private func clearSymbolHighlights() {
@@ -1162,15 +1175,17 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
 
     func tokenRange(at caretLocation: Int, in string: NSString) -> NSRange {
         var start = caretLocation
-        while start > 0 {
-            let character = string.character(at: start - 1)
-            if isCompletionCharacter(character) {
-                start -= 1
-            } else {
-                break
-            }
+        while start > 0 && isCompletionCharacter(string.character(at: start - 1)) {
+            start -= 1
         }
-        return NSRange(location: start, length: caretLocation - start)
+
+        var end = caretLocation
+        let length = string.length
+        while end < length && isCompletionCharacter(string.character(at: end)) {
+            end += 1
+        }
+
+        return NSRange(location: start, length: end - start)
     }
 
     private func isCompletionCharacter(_ char: unichar) -> Bool {
@@ -1265,6 +1280,8 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
         let trimmedToken = query.token.trimmingCharacters(in: .whitespacesAndNewlines)
         let tokenLower = trimmedToken.lowercased()
         let pathLower = query.pathComponents.map { $0.lowercased() }
+        let caretLocation = selectedRange().location
+        let usedColumnContext = buildUsedColumnContext(before: caretLocation, query: query)
         var seen = Set<String>()
         var result: [SQLAutoCompletionSuggestion] = []
         result.reserveCapacity(suggestions.count)
@@ -1272,21 +1289,195 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
         for suggestion in suggestions {
             let key = suggestion.insertText.lowercased()
             if !tokenLower.isEmpty {
-                if key == tokenLower {
+                let isExactInsertMatch = key == tokenLower
+                let isExactPathMatch: Bool = {
+                    guard !pathLower.isEmpty else { return false }
+                    let candidate = (pathLower + [key]).joined(separator: ".")
+                    return candidate == tokenLower
+                }()
+
+                if (isExactInsertMatch || isExactPathMatch),
+                   (suggestion.kind == .keyword || suggestion.kind == .function) {
                     continue
                 }
-                if !pathLower.isEmpty {
-                    let candidate = (pathLower + [key]).joined(separator: ".")
-                    if candidate == tokenLower {
-                        continue
-                    }
+            }
+
+            if suggestion.kind == .column,
+               let context = usedColumnContext,
+               let columnName = normalizedColumnName(for: suggestion) {
+                let candidateKeys = candidateColumnKeys(for: suggestion, query: query)
+                let isAlreadySelected = candidateKeys.contains { key in
+                    guard let used = context.byKey[key] else { return false }
+                    return used.contains(columnName)
+                }
+                if isAlreadySelected {
+                    continue
                 }
             }
+
             if seen.insert(key).inserted {
                 result.append(suggestion)
             }
         }
         return result
+    }
+
+    private struct UsedColumnContext {
+        var byKey: [String: Set<String>]
+        var unqualified: Set<String>
+    }
+
+    private func buildUsedColumnContext(before caretLocation: Int, query: SQLAutoCompletionQuery) -> UsedColumnContext? {
+        guard caretLocation != NSNotFound else { return nil }
+        let nsString = string as NSString
+        let clampedLocation = min(max(caretLocation, 0), nsString.length)
+        guard clampedLocation > 0 else { return nil }
+
+        let prefixRange = NSRange(location: 0, length: clampedLocation)
+        let prefixText = nsString.substring(with: prefixRange)
+        guard let selectRange = prefixText.range(of: "select", options: [.caseInsensitive, .backwards]) else {
+            return nil
+        }
+
+        let segmentStart = selectRange.upperBound
+        let segment = prefixText[segmentStart...]
+
+        if segment.range(of: "from", options: [.caseInsensitive]) != nil {
+            return nil
+        }
+
+        var context = UsedColumnContext(byKey: [:], unqualified: [])
+        let scopeTables = query.tablesInScope
+
+        for part in segment.split(separator: ",") {
+            let trimmed = part.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty else { continue }
+            guard let identifier = leadingIdentifier(in: trimmed) else { continue }
+            let loweredIdentifier = identifier.lowercased()
+            let components = loweredIdentifier.split(separator: ".", omittingEmptySubsequences: true)
+            guard let columnComponent = components.last else { continue }
+            let columnName = String(columnComponent)
+
+            if components.count > 1 {
+                let qualifierComponent = components[components.count - 2]
+                let qualifier = String(qualifierComponent)
+                if let aliasKeyValue = aliasKey(qualifier) {
+                    context.byKey[aliasKeyValue, default: []].insert(columnName)
+                }
+                if let focus = tableFocus(forQualifier: qualifier, in: scopeTables) {
+                    let key = tableKey(for: focus)
+                    context.byKey[key, default: []].insert(columnName)
+                    if let alias = focus.alias, let focusAliasKey = aliasKey(alias) {
+                        context.byKey[focusAliasKey, default: []].insert(columnName)
+                    }
+                }
+            } else {
+                context.unqualified.insert(columnName)
+                if scopeTables.count == 1 {
+                    let focus = scopeTables[0]
+                    let key = tableKey(for: focus)
+                    context.byKey[key, default: []].insert(columnName)
+                    if let alias = focus.alias, let focusAliasKey = aliasKey(alias) {
+                        context.byKey[focusAliasKey, default: []].insert(columnName)
+                    }
+                }
+            }
+        }
+
+        return context.byKey.isEmpty && context.unqualified.isEmpty ? nil : context
+    }
+
+    private func leadingIdentifier(in expression: String) -> String? {
+        var buffer = ""
+        for character in expression {
+            if character.isLetter || character.isNumber || character == "_" || character == "." || character == "\"" || character == "`" || character == "[" || character == "]" {
+                buffer.append(character)
+            } else {
+                break
+            }
+        }
+        guard !buffer.isEmpty else { return nil }
+        let normalized = normalizeIdentifier(buffer)
+        return normalized.isEmpty ? nil : normalized
+    }
+
+    private func tableFocus(forQualifier qualifier: String, in tables: [SQLAutoCompletionTableFocus]) -> SQLAutoCompletionTableFocus? {
+        let normalizedQualifier = normalizeIdentifier(qualifier).lowercased()
+        if let aliasMatch = tables.first(where: { $0.alias?.lowercased() == normalizedQualifier }) {
+            return aliasMatch
+        }
+        if let nameMatch = tables.first(where: { $0.name.lowercased() == normalizedQualifier }) {
+            return nameMatch
+        }
+        return nil
+    }
+
+    private func tableKey(for focus: SQLAutoCompletionTableFocus) -> String {
+        tableKey(schema: focus.schema, name: focus.name)
+    }
+
+    private func tableKey(schema: String?, name: String) -> String {
+        let schemaComponent = schema.map { normalizeIdentifier($0).lowercased() } ?? ""
+        let nameComponent = normalizeIdentifier(name).lowercased()
+        return "\(schemaComponent)|\(nameComponent)"
+    }
+
+    private func aliasKey(_ alias: String) -> String? {
+        let normalized = normalizeIdentifier(alias).lowercased()
+        return normalized.isEmpty ? nil : "alias:\(normalized)"
+    }
+
+    private func aliasKeys(for origin: SQLAutoCompletionSuggestion.Origin, tables: [SQLAutoCompletionTableFocus]) -> [String] {
+        guard let object = origin.object else { return [] }
+        let objectName = normalizeIdentifier(object).lowercased()
+        let schemaName = origin.schema.map { normalizeIdentifier($0).lowercased() }
+        return tables.compactMap { focus in
+            guard normalizeIdentifier(focus.name).lowercased() == objectName else { return nil }
+            if let schemaName,
+               let focusSchema = focus.schema.map({ normalizeIdentifier($0).lowercased() }),
+               focusSchema != schemaName {
+                return nil
+            }
+            guard let alias = focus.alias, let key = aliasKey(alias) else { return nil }
+            return key
+        }
+    }
+
+    private func candidateColumnKeys(for suggestion: SQLAutoCompletionSuggestion, query: SQLAutoCompletionQuery) -> [String] {
+        var keys: Set<String> = []
+
+        if let origin = suggestion.origin,
+           let object = origin.object, !object.isEmpty {
+            keys.insert(tableKey(schema: origin.schema, name: object))
+            aliasKeys(for: origin, tables: query.tablesInScope).forEach { keys.insert($0) }
+        }
+
+        let normalizedInsert = normalizeIdentifier(suggestion.insertText).lowercased()
+        let components = normalizedInsert.split(separator: ".", omittingEmptySubsequences: true)
+        if components.count > 1 {
+            let qualifier = String(components[components.count - 2])
+            if let qualifierKey = aliasKey(qualifier) {
+                keys.insert(qualifierKey)
+            }
+            if let focus = tableFocus(forQualifier: qualifier, in: query.tablesInScope) {
+                keys.insert(tableKey(for: focus))
+                if let alias = focus.alias, let focusAliasKey = aliasKey(alias) {
+                    keys.insert(focusAliasKey)
+                }
+            }
+        }
+
+        return Array(keys)
+    }
+
+    private func normalizedColumnName(for suggestion: SQLAutoCompletionSuggestion) -> String? {
+        if let column = suggestion.origin?.column, !column.isEmpty {
+            return normalizeIdentifier(column).lowercased()
+        }
+        let normalized = normalizeIdentifier(suggestion.insertText)
+        let components = normalized.split(separator: ".", omittingEmptySubsequences: true)
+        guard let last = components.last else { return nil }
+        return String(last).lowercased()
     }
 
     private func mergeSuggestions(primary: [SQLAutoCompletionSuggestion],
@@ -1474,8 +1665,11 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
 
         if suggestion.kind != .column {
             var lowerBound = range.location
+            let preserveQualifier = !query.pathComponents.isEmpty
+            let period: unichar = 46 // "."
             while lowerBound > 0 {
                 let character = nsString.character(at: lowerBound - 1)
+                if preserveQualifier && character == period { break }
                 if !isCompletionCharacter(character) { break }
                 lowerBound -= 1
             }
@@ -1495,14 +1689,18 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
         guard shouldChangeText(in: range, replacementString: insertion) else { return }
 
         isApplyingCompletion = true
-        defer { isApplyingCompletion = false }
+        defer {
+            isApplyingCompletion = false
+            suppressNextCompletionRefresh = false
+        }
 
         textStorage.replaceCharacters(in: range, with: insertion)
         let insertionNSString = insertion as NSString
         let insertionLength = insertionNSString.length
         let appliedRange = NSRange(location: range.location, length: insertionLength)
-        registerSuppressedCompletion(for: suggestion, appliedRange: appliedRange, insertion: insertionNSString)
+        finalizeAppliedCompletion(for: suggestion, appliedRange: appliedRange, insertion: insertionNSString)
         let newLocation = NSMaxRange(appliedRange)
+        suppressNextCompletionRefresh = true
         setSelectedRange(NSRange(location: newLocation, length: 0))
         hideCompletions()
         didChangeText()

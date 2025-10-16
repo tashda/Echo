@@ -153,7 +153,7 @@ private struct InspectorTabSelector: View {
     @Binding var selectedTab: InspectorTab
 
     var body: some View {
-        let controlHeight: CGFloat = WorkspaceChromeMetrics.chromeControlHeight
+        let controlHeight: CGFloat = WorkspaceChromeMetrics.chromeBackgroundHeight
         let controlCornerRadius: CGFloat = controlHeight / 2
         let segmentCornerRadius: CGFloat = controlCornerRadius - 4
 
@@ -166,6 +166,9 @@ private struct InspectorTabSelector: View {
             .overlay(
                 HStack(spacing: 0) {
                     ForEach(Array(InspectorTab.allCases.enumerated()), id: \.offset) { index, tab in
+                        let isEdgeSegment = index == 0 || index == InspectorTab.allCases.count - 1
+                        let highlightCornerRadius = isEdgeSegment ? controlCornerRadius : segmentCornerRadius
+
                         Button {
                             withAnimation(.easeInOut(duration: 0.15)) {
                                 selectedTab = tab
@@ -183,7 +186,7 @@ private struct InspectorTabSelector: View {
                         }
                         .buttonStyle(.plain)
                         .background(
-                            RoundedRectangle(cornerRadius: segmentCornerRadius, style: .continuous)
+                            RoundedRectangle(cornerRadius: highlightCornerRadius, style: .continuous)
                                 .fill(Color.accentColor)
                                 .opacity(selectedTab == tab ? 1 : 0)
                                 .animation(.easeInOut(duration: 0.15), value: selectedTab)
@@ -198,14 +201,13 @@ private struct InspectorTabSelector: View {
                             Rectangle()
                                 .fill(Color.primary.opacity(0.12))
                                 .frame(width: 0.5)
-                                .padding(.vertical, 7)
                                 .opacity(shouldShowDivider ? 1 : 0)
                                 .animation(.easeInOut(duration: 0.15), value: shouldShowDivider)
                         }
                     }
                 }
-                .padding(.horizontal, 4)
-                .padding(.vertical, 4)
+                .padding(.horizontal, 0)
+                .padding(.vertical, 0)
             )
             .frame(height: controlHeight)
     }

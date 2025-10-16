@@ -98,9 +98,6 @@ struct ManageConnectionsView: View {
 
     private var configuredSplitView: some View {
         splitView
-#if os(macOS)
-            .ignoresSafeArea(edges: .top)
-#endif
             .frame(minWidth: 900, minHeight: 600)
     }
 
@@ -113,6 +110,14 @@ struct ManageConnectionsView: View {
         }
 #if os(macOS)
         .toolbar(.hidden, for: .windowToolbar)
+        .toolbar(removing: .sidebarToggle)
+        .toolbarRole(.editor)
+        .toolbar {
+            ToolbarItem(placement: .navigation) {
+                EmptyView()
+            }
+        }
+        .ignoresSafeArea(edges: .top)
 #endif
     }
 }
@@ -121,14 +126,27 @@ struct ManageConnectionsView: View {
 
 private extension ManageConnectionsView {
     var detailContent: some View {
-        VStack(spacing: 0) {
-            detailHeader
-            Divider()
-            detailBody
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-        }
-        .accentColor(themeManager.accentColor)
-        .background(themeManager.surfaceBackgroundColor)
+        detailBody
+            .padding(.top, headerOverlayHeight)
+            .background(themeManager.surfaceBackgroundColor)
+            .accentColor(themeManager.accentColor)
+            .ignoresSafeArea(edges: .top)
+#if os(macOS)
+            .toolbar(removing: .sidebarToggle)
+            .toolbar {
+                ToolbarItem(placement: .navigation) {
+                    EmptyView()
+                }
+            }
+#endif
+            .overlay(alignment: .top) {
+                VStack(spacing: 0) {
+                    detailHeader
+                    Divider()
+                }
+                .background(themeManager.surfaceBackgroundColor)
+                .ignoresSafeArea(edges: .top)
+            }
     }
 
     private var navigationTitleText: String {
@@ -147,44 +165,63 @@ private extension ManageConnectionsView {
     }
 
     private var detailHeader: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .firstTextBaseline, spacing: 16) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(navigationTitleText)
-                        .font(.system(size: 20, weight: .semibold))
-                    if !navigationSubtitleText.isEmpty {
-                        Text(navigationSubtitleText)
-                            .font(.system(size: 12))
-                            .foregroundStyle(.secondary)
-                    }
+        HStack(alignment: .bottom, spacing: 16) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(navigationTitleText)
+                    .font(.system(size: titleFontSize, weight: .semibold))
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                if navigationSubtitleText.isEmpty {
+                    Text("placeholder")
+                        .font(.system(size: 12))
+                        .foregroundStyle(.clear)
+                        .accessibilityHidden(true)
+                        .lineLimit(1)
+                } else {
+                    Text(navigationSubtitleText)
+                        .font(.system(size: 12))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
                 }
-
-                Spacer()
-
-                HStack(spacing: 8) {
-                    addMenuToolbarItem
-                    detailSearchField
-                }
-                .frame(maxWidth: 360, alignment: .trailing)
             }
+            .frame(maxHeight: .infinity, alignment: .bottom)
+
+            Spacer(minLength: 12)
+
+            HStack(spacing: 10) {
+                addMenuToolbarItem
+                detailSearchField
+            }
+            .frame(height: controlAreaHeight, alignment: .bottom)
         }
-        .padding(.horizontal, 20)
-        .padding(.top, 0)
-        .padding(.bottom, 4)
-        .background(themeManager.surfaceBackgroundColor)
+        .frame(height: headerCoreHeight, alignment: .bottom)
+        .padding(.horizontal, headerHorizontalPadding)
+        .padding(.top, headerTopPadding)
+        .padding(.bottom, headerBottomPadding)
     }
 
     @ViewBuilder
     private var detailSearchField: some View {
 #if os(macOS)
         ManageConnectionsSearchField(text: $searchText, placeholder: activeSection.searchPlaceholder)
-            .frame(width: 260)
+            .frame(width: searchFieldWidth, height: searchFieldHeight)
 #else
         TextField(activeSection.searchPlaceholder, text: $searchText, prompt: Text(activeSection.searchPlaceholder))
             .textFieldStyle(.roundedBorder)
             .frame(maxWidth: 280)
 #endif
     }
+
+    private var headerCoreHeight: CGFloat { 44 }
+    private var headerTopPadding: CGFloat { 16 }
+    private var headerBottomPadding: CGFloat { 14 }
+    private var headerHorizontalPadding: CGFloat { 24 }
+    private var controlAreaHeight: CGFloat { 32 }
+    private var searchFieldWidth: CGFloat { 260 }
+    private var searchFieldHeight: CGFloat { 30 }
+    private var titleFontSize: CGFloat { 24 }
+    private var headerOverlayHeight: CGFloat { headerTopPadding + headerCoreHeight + headerBottomPadding + 1 }
 
     @ViewBuilder
     private var addMenuToolbarItem: some View {
@@ -1398,6 +1435,22 @@ private struct ConnectionIconCell: View {
     }
 }
 
+private struct IdentityIconCell: View {
+    let identity: SavedIdentity
+
+    var body: some View {
+        Image(systemName: "person.crop.circle.fill")
+            .resizable()
+            .aspectRatio(contentMode: .fit)
+            .symbolRenderingMode(.hierarchical)
+            .foregroundStyle(Color.primary)
+            .frame(width: 20, height: 20)
+            .padding(.vertical, 2)
+            .frame(maxWidth: .infinity, alignment: .center)
+            .accessibilityHidden(true)
+    }
+}
+
 private struct IdentitiesTableView: View {
     let identities: [SavedIdentity]
     @Binding var selection: Set<SavedIdentity.ID>
@@ -1412,35 +1465,61 @@ private struct IdentitiesTableView: View {
     var body: some View {
         ThemedTableContainer {
             Table(of: SavedIdentity.self, selection: $selection, sortOrder: $sortOrder) {
+                TableColumn("") { identity in
+                    IdentityIconCell(identity: identity)
+                }
+                .width(28)
+
                 TableColumn("Name", value: \.name) { identity in
-                    Text(identity.name)
+                    HStack(spacing: 6) {
+                        Text(identity.name)
+                        Spacer(minLength: 0)
+                    }
                 }
 
                 TableColumn("Username", value: \.username) { identity in
                     let username = identity.username.trimmingCharacters(in: .whitespacesAndNewlines)
                     if !username.isEmpty {
-                        Text(username)
+                        HStack(spacing: 6) {
+                            Text(username)
+                            Spacer(minLength: 0)
+                        }
                     } else {
-                        Text("—")
-                            .foregroundStyle(.secondary)
+                        HStack(spacing: 6) {
+                            Text("—")
+                                .foregroundStyle(.secondary)
+                            Spacer(minLength: 0)
+                        }
                     }
                 }
 
                 TableColumn("Folder") { identity in
                     if let folderID = identity.folderID,
                        let folder = folderLookup[folderID] {
-                        Text(folder.displayName)
+                        HStack(spacing: 6) {
+                            Text(folder.displayName)
+                            Spacer(minLength: 0)
+                        }
                     } else {
-                        Text("—")
-                            .foregroundStyle(.secondary)
+                        HStack(spacing: 6) {
+                            Text("—")
+                                .foregroundStyle(.secondary)
+                            Spacer(minLength: 0)
+                        }
                     }
                 }
 
                 TableColumn("Updated") { identity in
                     if let updatedAt = identity.updatedAt {
-                        Text(updatedAt, style: .date)
+                        HStack(spacing: 6) {
+                            Text(updatedAt, style: .date)
+                            Spacer(minLength: 0)
+                        }
                     } else {
-                        Text(identity.createdAt, style: .date)
+                        HStack(spacing: 6) {
+                            Text(identity.createdAt, style: .date)
+                            Spacer(minLength: 0)
+                        }
                     }
                 }
 
@@ -1562,6 +1641,20 @@ private struct ManageConnectionsSearchField: NSViewRepresentable {
         searchField.controlSize = .large
         searchField.font = NSFont.systemFont(ofSize: 14)
         searchField.focusRingType = .none
+        searchField.isBordered = true
+        searchField.isBezeled = true
+        searchField.drawsBackground = true
+        searchField.bezelStyle = .roundedBezel
+        if let cell = searchField.cell as? NSSearchFieldCell {
+            cell.controlSize = .large
+            cell.placeholderAttributedString = NSAttributedString(
+                string: placeholder,
+                attributes: [
+                    .foregroundColor: NSColor.placeholderTextColor.withAlphaComponent(0.9),
+                    .font: NSFont.systemFont(ofSize: 13)
+                ]
+            )
+        }
         searchField.translatesAutoresizingMaskIntoConstraints = false
         return searchField
     }
@@ -1597,16 +1690,23 @@ private struct RoundAddButtonLabel: View {
 
     var body: some View {
         let isDark = themeManager.effectiveColorScheme == .dark
-        let baseFill = isDark ? Color(nsColor: .controlAccentColor).opacity(0.16) : Color.black.opacity(0.03)
-        let hoverFill = isDark ? Color(nsColor: .controlAccentColor).opacity(0.22) : Color.black.opacity(0.05)
-        let fill = isHovered ? hoverFill : baseFill
-        let baseStroke = isDark ? Color.white.opacity(0.35) : Color.black.opacity(0.07)
-        let hoverStroke = isDark ? Color.white.opacity(0.45) : Color.black.opacity(0.12)
+        let baseFillTop = isDark ? Color.white.opacity(0.26) : Color.white
+        let baseFillBottom = isDark ? Color.white.opacity(0.18) : Color.white.opacity(0.88)
+        let hoverFillTop = isDark ? Color.white.opacity(0.32) : Color.white
+        let hoverFillBottom = isDark ? Color.white.opacity(0.24) : Color.white.opacity(0.95)
+        let fillGradient = LinearGradient(
+            colors: isHovered ? [hoverFillTop, hoverFillBottom] : [baseFillTop, baseFillBottom],
+            startPoint: .top,
+            endPoint: .bottom
+        )
+        let baseStroke = isDark ? Color.white.opacity(0.35) : Color.black.opacity(0.12)
+        let hoverStroke = isDark ? Color.white.opacity(0.45) : Color.black.opacity(0.18)
         let stroke = isHovered ? hoverStroke : baseStroke
-        let highlight = isDark ? Color.white.opacity(0.24) : Color.white.opacity(0.55)
+        let highlight = isDark ? Color.white.opacity(0.22) : Color.white.opacity(0.75)
+        let iconColor = Color(nsColor: isDark ? .secondaryLabelColor : .tertiaryLabelColor)
 
         return Circle()
-            .fill(fill)
+            .fill(fillGradient)
             .overlay(
                 Circle()
                     .strokeBorder(stroke, lineWidth: 1)
@@ -1619,11 +1719,12 @@ private struct RoundAddButtonLabel: View {
             .overlay(
                 Image(systemName: "plus")
                     .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(iconColor)
             )
-            .frame(width: 28, height: 28)
+            .frame(width: 30, height: 30)
             .contentShape(Circle())
             .onHover { isHovered = $0 }
+            .shadow(color: Color.black.opacity(isDark ? 0.25 : 0.08), radius: isHovered ? 1.5 : 1, y: 0.5)
     }
 }
 #endif

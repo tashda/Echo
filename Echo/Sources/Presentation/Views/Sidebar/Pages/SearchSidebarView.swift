@@ -10,8 +10,8 @@ struct SearchSidebarView: View {
     @State private var isFilterPopoverPresented = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            searchFieldContainer
+        VStack(spacing: 0) {
+            searchBar
             Divider()
             content
                 .padding(12)
@@ -64,40 +64,18 @@ struct SearchSidebarView: View {
         viewModel.selectedCategories.count != SearchSidebarCategory.allCases.count
     }
 
-    private var searchFieldContainer: some View {
-        HStack {
-            searchField
-        }
-        .padding(12)
-    }
-
-    private var searchField: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "magnifyingglass")
-                .foregroundStyle(.secondary)
-            TextField("Search tables, views, query tabs...", text: $viewModel.query)
-                .textFieldStyle(.plain)
-                .focused($isSearchFieldFocused)
-                .disabled(isSearchFieldDisabled)
-            if !viewModel.query.isEmpty {
-                Button {
-                    viewModel.clearQuery()
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .foregroundStyle(.tertiary)
-                }
-                .buttonStyle(.plain)
-                .keyboardShortcut(.cancelAction)
-            }
-            filterSeparator
+    private var searchBar: some View {
+        SidebarSearchBar(
+            placeholder: "Search tables, views, query tabs...",
+            text: $viewModel.query,
+            isDisabled: isSearchFieldDisabled,
+            showsClearButton: !viewModel.query.isEmpty,
+            onClear: { viewModel.clearQuery() },
+            focusBinding: $isSearchFieldFocused,
+            clearShortcut: .cancelAction
+        ) {
             filterButton
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 8)
-        .background(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(Color.primary.opacity(0.05))
-        )
     }
 
     private var filterButton: some View {
@@ -133,13 +111,6 @@ struct SearchSidebarView: View {
             .padding(14)
             .frame(minWidth: 220)
         }
-    }
-
-    private var filterSeparator: some View {
-        Rectangle()
-            .fill(Color.primary.opacity(0.08))
-            .frame(width: 1, height: 18)
-            .opacity(isSearchFieldDisabled ? 0.35 : 1)
     }
 
     private var filterLabel: String {

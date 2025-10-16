@@ -1,4 +1,5 @@
 import SwiftUI
+import Foundation
 #if canImport(AppKit)
 import AppKit
 #endif
@@ -859,7 +860,9 @@ private struct WorkspaceToolbarPreviewData {
     let themeManager: ThemeManager
 
     init(mode: Mode) {
-        let appModel = AppModel(clipboardHistory: ClipboardHistoryStore())
+        let previewCacheRoot = FileManager.default.temporaryDirectory.appendingPathComponent("EchoPreviewResultCache", isDirectory: true)
+        let spoolManager = ResultSpoolManager(configuration: ResultSpoolConfiguration.defaultConfiguration(rootDirectory: previewCacheRoot))
+        let appModel = AppModel(clipboardHistory: ClipboardHistoryStore(), resultSpoolManager: spoolManager)
         let appState = AppState()
         let navigationState = NavigationState()
         let themeManager = ThemeManager.shared
@@ -880,7 +883,12 @@ private struct WorkspaceToolbarPreviewData {
         appModel.connections = [connection]
         appModel.selectedConnectionID = connection.id
 
-        let previewSession = ConnectionSession(connection: connection, session: PreviewDatabaseSession())
+        let previewSession = ConnectionSession(
+            connection: connection,
+            session: PreviewDatabaseSession(),
+            defaultInitialBatchSize: appModel.globalSettings.resultsInitialRowLimit,
+            spoolManager: spoolManager
+        )
         previewSession.databaseStructure = DatabaseStructure(
             serverVersion: "16.2",
             databases: [

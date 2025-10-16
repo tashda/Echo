@@ -181,7 +181,7 @@ final class LineNumberRulerView: NSRulerView {
 
 final class CompletionAccessoryView: NSView {
     struct Layout {
-        static let padding = NSEdgeInsets(top: 2, left: 4, bottom: 2, right: 7)
+        static let padding = NSEdgeInsets(top: 2, left: 4, bottom: 2, right: 4)
         static let cornerRadius: CGFloat = 6
         static let strokeWidth: CGFloat = 1
     }

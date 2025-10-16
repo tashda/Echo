@@ -43,7 +43,13 @@ private func buildForeignKeyMapping(from details: TableStructureDetails) -> Fore
 fileprivate func applyForeignKeyMapping(to update: QueryStreamUpdate, mapping: ForeignKeyMapping) -> QueryStreamUpdate {
     guard !mapping.isEmpty else { return update }
     let columns = applyForeignKeyMapping(to: update.columns, mapping: mapping)
-    return QueryStreamUpdate(columns: columns, appendedRows: update.appendedRows, totalRowCount: update.totalRowCount)
+    return QueryStreamUpdate(
+        columns: columns,
+        appendedRows: update.appendedRows,
+        encodedRows: update.encodedRows,
+        totalRowCount: update.totalRowCount,
+        metrics: update.metrics
+    )
 }
 
 @MainActor
@@ -180,6 +186,9 @@ struct QueryTabsView: View {
             guard let state = await MainActor.run(body: { queryState }) else { return }
 
             do {
+                await MainActor.run {
+                    state.recordQueryDispatched()
+                }
                 let result = try await tab.session.simpleQuery(effectiveSQL) { [weak state] update in
                     guard let state else { return }
                     Task {
@@ -413,13 +422,15 @@ struct QueryTabStrip: View {
     }
 
     private let tabReorderAnimation = Animation.interactiveSpring(response: 0.72, dampingFraction: 0.86, blendDuration: 0.30)
-    private let tabStripHeight: CGFloat = WorkspaceChromeMetrics.chromeControlHeight
+    private let tabStripHeight: CGFloat = WorkspaceChromeMetrics.tabStripTotalHeight
     private let baseHorizontalInset: CGFloat = 4
     private let basePlateExtension: CGFloat = 0
     private let basePlateEdgeInset: CGFloat = 2
     private let basePlateCornerRadius: CGFloat = 14
-    private let tabContentVerticalPadding: CGFloat = 5
-    private var basePlateHeight: CGFloat { max(tabStripHeight - tabContentVerticalPadding * 2, 0) }
+    private var basePlateHeight: CGFloat { WorkspaceChromeMetrics.chromeBackgroundHeight }
+    private var tabContentVerticalPadding: CGFloat {
+        max((tabStripHeight - basePlateHeight) / 2, 0)
+    }
 
     var body: some View {
         GeometryReader { geo in
@@ -948,7 +959,7 @@ private struct WorkspaceContentView: View {
     @ObservedObject var tab: WorkspaceTab
     let runQuery: (String) async -> Void
     let cancelQuery: () -> Void
-    let gridState: QueryResultsGridState
+    let gridStateProvider: () -> QueryResultsGridState
     @EnvironmentObject private var themeManager: ThemeManager
 
     var body: some View {
@@ -968,7 +979,8 @@ private struct WorkspaceContentView: View {
                         tab: tab,
                         query: query,
                         runQuery: runQuery,
-                        cancelQuery: cancelQuery
+                        cancelQuery: cancelQuery,
+                        gridStateProvider: gridStateProvider
                     )
                 } else {
                     EmptyView()
@@ -983,6 +995,7 @@ private struct QueryEditorContainer: View {
     @ObservedObject var query: QueryEditorState
     let runQuery: (String) async -> Void
     let cancelQuery: () -> Void
+    let gridStateProvider: () -> QueryResultsGridState
     @EnvironmentObject private var themeManager: ThemeManager
     @EnvironmentObject private var appModel: AppModel
     @EnvironmentObject private var appState: AppState
@@ -1015,7 +1028,7 @@ private struct QueryEditorContainer: View {
                         query: query,
                         connection: connectionForDisplay,
                         activeDatabaseName: connectionDatabaseName,
-                        gridState: gridState,
+                        gridState: gridStateProvider(),
                         foreignKeyDisplayMode: foreignKeyDisplayMode,
                         foreignKeyInspectorBehavior: foreignKeyInspectorBehavior,
                         onForeignKeyEvent: handleForeignKeyEvent,
@@ -1029,7 +1042,7 @@ private struct QueryEditorContainer: View {
                         query: query,
                         connection: connectionForDisplay,
                         activeDatabaseName: connectionDatabaseName,
-                        gridState: gridState
+                        gridState: gridStateProvider()
                     )
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .background(backgroundColor)
@@ -1059,6 +1072,7 @@ private struct QueryEditorContainer: View {
                             query: query,
                             connection: connectionForDisplay,
                             activeDatabaseName: connectionDatabaseName,
+                            gridState: gridStateProvider(),
                             foreignKeyDisplayMode: foreignKeyDisplayMode,
                             foreignKeyInspectorBehavior: foreignKeyInspectorBehavior,
                             onForeignKeyEvent: handleForeignKeyEvent,
@@ -1071,7 +1085,8 @@ private struct QueryEditorContainer: View {
                         QueryResultsSection(
                             query: query,
                             connection: connectionForDisplay,
-                            activeDatabaseName: connectionDatabaseName
+                            activeDatabaseName: connectionDatabaseName,
+                            gridState: gridStateProvider()
                         )
                             .frame(height: totalHeight * (1 - ratioBinding.wrappedValue))
                             .background(backgroundColor)
