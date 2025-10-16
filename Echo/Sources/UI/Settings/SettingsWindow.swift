@@ -26,6 +26,7 @@ struct SettingsWindow: Scene {
 /// Hosts the sidebar/detail split view and renders each settings section.
 struct SettingsView: View {
     @EnvironmentObject private var appModel: AppModel
+    @EnvironmentObject private var appState: AppState
     @EnvironmentObject private var clipboardHistory: ClipboardHistoryStore
     @EnvironmentObject private var themeManager: ThemeManager
 
@@ -1324,25 +1325,19 @@ private struct AppearanceToneSection: View {
                 }
             }
 
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Font Size")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+            HStack(spacing: 12) {
+                FontSizeControl(
+                    value: fontSize,
+                    range: fontSizeRange,
+                    step: fontSizeStep,
+                    labelProvider: fontSizeLabel
+                )
+                .frame(height: fontControlHeight)
 
-                HStack(spacing: 12) {
-                    FontSizeControl(
-                        value: fontSize,
-                        range: fontSizeRange,
-                        step: fontSizeStep,
-                        labelProvider: fontSizeLabel
-                    )
+                Button("Choose Font from System", action: onRequestCustomFont)
+                    .buttonStyle(.bordered)
+                    .controlSize(.large)
                     .frame(height: fontControlHeight)
-
-                    Button("Choose from System…", action: onRequestCustomFont)
-                        .buttonStyle(.bordered)
-                        .controlSize(.large)
-                        .frame(height: fontControlHeight)
-                }
             }
             .padding(.top, 6)
         }
@@ -1362,7 +1357,7 @@ private struct AppearanceToneSection: View {
 
     private var heroPreview: some View {
         let theme = previewTheme
-        let palette = resolvedPalette(for: theme)
+        let palette = previewThemePalette
         return PreviewTile(
             title: theme.name,
             subtitle: nil,
@@ -1386,11 +1381,6 @@ private struct AppearanceToneSection: View {
                 Text(palette.name)
                     .font(.headline)
                     .foregroundStyle(.primary)
-                if let subtitle = paletteSubtitle, !subtitle.isEmpty {
-                    Text(subtitle)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
             }
 
             ZStack(alignment: .topTrailing) {
@@ -1449,7 +1439,7 @@ private struct AppearanceToneSection: View {
     private var previewPalette: SQLEditorTokenPalette {
         switch selection {
         case .theme:
-            return resolvedPalette(for: previewTheme)
+            return previewThemePalette
         case .palette:
             if let hoveredPaletteID,
                let match = palettes.first(where: { $0.id == hoveredPaletteID }) {
@@ -1457,11 +1447,15 @@ private struct AppearanceToneSection: View {
             }
             return palettes.first(where: { $0.id == selectedPaletteID })
                 ?? palettes.first
-                ?? resolvedPalette(for: activeTheme)
+                ?? previewThemePalette
         case .font:
             return palettes.first(where: { $0.id == selectedPaletteID })
-                ?? resolvedPalette(for: activeTheme)
+                ?? previewThemePalette
         }
+    }
+
+    private var previewThemePalette: SQLEditorTokenPalette {
+        resolvedPalette(for: previewTheme)
     }
 
     private var previewFontName: String {
@@ -1476,18 +1470,7 @@ private struct AppearanceToneSection: View {
     }
 
     private var manualSelectionActive: Bool {
-        selectedPaletteID != activeTheme.defaultPaletteID
-    }
-
-    private var paletteSubtitle: String? {
-        switch selection {
-        case .theme:
-            return nil
-        case .palette:
-            return nil
-        case .font:
-            return nil
-        }
+        selectedPaletteID != previewTheme.defaultPaletteID
     }
 
     @ViewBuilder
@@ -2232,17 +2215,21 @@ private struct QueryEditorPreview: View {
             tokenColors: palette.tokens,
             isDark: theme.tone == .dark,
             font: previewFont,
-            ligaturesEnabled: ligaturesEnabled
+            ligaturesEnabled: ligaturesEnabled,
+            fontPointSize: clampedFontSize
         )
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
     }
 
     private var previewFont: Font {
-        let clampedSize = CGFloat(min(max(fontSize, 8.0), 36.0))
         if fontName.isEmpty || SQLEditorTheme.isSystemFontIdentifier(fontName) {
-            return .system(size: clampedSize, weight: .medium, design: .monospaced)
+            return .system(size: clampedFontSize, weight: .medium, design: .monospaced)
         }
-        return .custom(fontName, size: clampedSize)
+        return .custom(fontName, size: clampedFontSize)
+    }
+
+    private var clampedFontSize: CGFloat {
+        CGFloat(min(max(fontSize, 8.0), 36.0))
     }
 }
 
@@ -2327,8 +2314,8 @@ private struct FontSizeControl: View {
                 .focused($isFocused)
                 .multilineTextAlignment(.center)
                 .font(.system(size: 13, weight: .semibold, design: .monospaced))
-                .frame(width: 56)
                 .textFieldStyle(.plain)
+                .frame(width: 56, height: controlHeight)
                 .onSubmit(commitText)
             separator
             stepButton(systemName: "plus", delta: step)
@@ -2350,14 +2337,15 @@ private struct FontSizeControl: View {
     }
 
     private func stepButton(systemName: String, delta: Double) -> some View {
-        Button {
-            adjust(by: delta)
-        } label: {
+        Button(action: { adjust(by: delta) }) {
             Image(systemName: systemName)
                 .font(.system(size: 12, weight: .semibold))
-                .frame(width: 34, height: controlHeight)
+                .foregroundColor(.primary)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .buttonStyle(.plain)
+        .frame(width: 34, height: controlHeight)
+        .contentShape(Rectangle())
         .accessibilityLabel(delta < 0 ? "Decrease font size" : "Increase font size")
     }
 
@@ -2436,10 +2424,9 @@ private struct FontChip: View {
                         }
                     }
                 }
-                .padding(.horizontal, 14)
-                .padding(.top, 12)
-                .padding(.bottom, 16)
-                .frame(minWidth: 140, maxWidth: .infinity, minHeight: 108, alignment: .leading)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 10)
+                .frame(minWidth: 136, maxWidth: .infinity, minHeight: 72, alignment: .leading)
                 .background(backgroundFill)
                 .overlay(borderOverlay)
             }
@@ -2450,7 +2437,7 @@ private struct FontChip: View {
 
             if showsLigatureBadge {
                 LigatureBadge(isEnabled: ligaturesEnabled)
-                    .padding(.trailing, 10)
+                    .padding(.trailing, 8)
                     .padding(.bottom, 8)
             }
         }
@@ -2661,6 +2648,7 @@ private struct PaletteSnippetPreview: View {
     let isDark: Bool
     let font: Font
     let ligaturesEnabled: Bool
+    let fontPointSize: CGFloat
 
     init(
         background: Color,
@@ -2672,7 +2660,8 @@ private struct PaletteSnippetPreview: View {
         tokenColors: SQLEditorPalette.TokenColors,
         isDark: Bool,
         font: Font = .system(size: 9, weight: .medium, design: .monospaced),
-        ligaturesEnabled: Bool = true
+        ligaturesEnabled: Bool = true,
+        fontPointSize: CGFloat = 12
     ) {
         self.background = background
         self.gutterBackground = gutterBackground
@@ -2684,6 +2673,7 @@ private struct PaletteSnippetPreview: View {
         self.isDark = isDark
         self.font = font
         self.ligaturesEnabled = ligaturesEnabled
+        self.fontPointSize = fontPointSize
     }
 
     var body: some View {
@@ -2702,80 +2692,97 @@ private struct PaletteSnippetPreview: View {
     }
 
     private var lineNumberColumn: some View {
-        VStack(alignment: .trailing, spacing: 6) {
-            ForEach(1...6, id: \.self) { index in
+        VStack(alignment: .trailing, spacing: 0) {
+            ForEach(1...lines.count, id: \.self) { index in
                 lineNumber(index)
+                    .frame(height: lineHeight, alignment: .center)
             }
         }
         .font(font)
         .frame(width: 32)
-        .padding(.vertical, 12)
-        .padding(.horizontal, 8)
+        .padding(.vertical, verticalInset)
+        .padding(.horizontal, 10)
+        .frame(maxHeight: .infinity)
         .foregroundStyle(gutterForeground.opacity(isDark ? 0.72 : 0.55))
-        .background(gutterBackground.opacity(isDark ? 0.92 : 0.88))
+        .background(
+            Rectangle()
+                .fill(gutterBackground.opacity(isDark ? 0.92 : 0.88))
+        )
     }
 
     private var codeColumn: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            codeLine(
-                [
-                    ("-- palette preview", tokenColors.comment.swiftColor.opacity(isDark ? 0.82 : 0.72))
-                ],
-                highlight: highlightColor(currentLine, fallbackOpacity: isDark ? 0.25 : 0.16)
-            )
-            codeLine(
-                [
-                    ("SELECT ", tokenColors.keyword.swiftColor),
-                    ("id", tokenColors.identifier.swiftColor),
-                    (", ", defaultText.opacity(isDark ? 0.7 : 0.6)),
-                    ("name", tokenColors.identifier.swiftColor),
-                    (", ", defaultText.opacity(isDark ? 0.7 : 0.6)),
-                    ("status", tokenColors.identifier.swiftColor)
-                ],
-                highlight: highlightColor(selection, fallbackOpacity: isDark ? 0.34 : 0.24)
-            )
-            codeLine(
-                [
-                    ("FROM ", tokenColors.keyword.swiftColor),
-                    ("Echo", tokenColors.identifier.swiftColor),
-                    (".", defaultText.opacity(isDark ? 0.75 : 0.6)),
-                    ("Table", tokenColors.identifier.swiftColor)
-                ]
-            )
-            codeLine(
-                [
-                    ("WHERE ", tokenColors.keyword.swiftColor),
-                    ("Table", tokenColors.identifier.swiftColor),
-                    (".", defaultText.opacity(isDark ? 0.75 : 0.6)),
-                    ("id", tokenColors.identifier.swiftColor),
-                    (" = ", tokenColors.operatorSymbol.swiftColor),
-                    ("12345", tokenColors.number.swiftColor)
-                ]
-            )
-            codeLine(
-                [
-                    ("  AND ", tokenColors.keyword.swiftColor),
-                    ("created_at", tokenColors.identifier.swiftColor),
-                    (" > ", tokenColors.operatorSymbol.swiftColor),
-                    ("NOW", tokenColors.function.swiftColor),
-                    ("()", defaultText.opacity(isDark ? 0.8 : 0.65))
-                ]
-            )
-            codeLine(
-                [
-                    ("ORDER BY ", tokenColors.keyword.swiftColor),
-                    ("status", tokenColors.identifier.swiftColor),
-                    (" DESC", tokenColors.keyword.swiftColor)
-                ]
-            )
+        VStack(alignment: .leading, spacing: 0) {
+            ForEach(Array(lines.enumerated()), id: \.offset) { index, segments in
+                codeLine(segments)
+                    .frame(height: lineHeight, alignment: .leading)
+                    .background(
+                        Group {
+                            if let color = highlight(for: index) {
+                                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                    .fill(color)
+                            }
+                        }
+                    )
+            }
         }
-        .padding(.vertical, 12)
+        .padding(.vertical, verticalInset)
         .padding(.horizontal, 14)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(background.opacity(isDark ? 0.03 : 0.08))
     }
 
-    private func codeLine(_ segments: [(String, Color)], highlight: Color? = nil) -> some View {
+    private var lines: [[(String, Color)]] {
+        [
+            [("-- palette preview", tokenColors.comment.swiftColor.opacity(isDark ? 0.82 : 0.72))],
+            [
+                ("SELECT ", tokenColors.keyword.swiftColor),
+                ("id", tokenColors.identifier.swiftColor),
+                (", ", defaultText.opacity(isDark ? 0.7 : 0.6)),
+                ("name", tokenColors.identifier.swiftColor),
+                (", ", defaultText.opacity(isDark ? 0.7 : 0.6)),
+                ("status", tokenColors.identifier.swiftColor)
+            ],
+            [
+                ("FROM ", tokenColors.keyword.swiftColor),
+                ("Echo", tokenColors.identifier.swiftColor),
+                (".", defaultText.opacity(isDark ? 0.75 : 0.6)),
+                ("Table", tokenColors.identifier.swiftColor)
+            ],
+            [
+                ("WHERE ", tokenColors.keyword.swiftColor),
+                ("Table", tokenColors.identifier.swiftColor),
+                (".", defaultText.opacity(isDark ? 0.75 : 0.6)),
+                ("id", tokenColors.identifier.swiftColor),
+                (" = ", tokenColors.operatorSymbol.swiftColor),
+                ("12345", tokenColors.number.swiftColor)
+            ],
+            [
+                ("  AND ", tokenColors.keyword.swiftColor),
+                ("created_at", tokenColors.identifier.swiftColor),
+                (" > ", tokenColors.operatorSymbol.swiftColor),
+                ("NOW", tokenColors.function.swiftColor),
+                ("()", defaultText.opacity(isDark ? 0.8 : 0.65))
+            ],
+            [
+                ("ORDER BY ", tokenColors.keyword.swiftColor),
+                ("status", tokenColors.identifier.swiftColor),
+                (" DESC", tokenColors.keyword.swiftColor)
+            ]
+        ]
+    }
+
+    private func highlight(for index: Int) -> Color? {
+        switch index {
+        case 0:
+            return highlightColor(currentLine, fallbackOpacity: isDark ? 0.25 : 0.16)
+        case 1:
+            return highlightColor(selection, fallbackOpacity: isDark ? 0.34 : 0.24)
+        default:
+            return nil
+        }
+    }
+
+    private func codeLine(_ segments: [(String, Color)]) -> some View {
         var attributed = AttributedString()
         for segment in segments {
             var span = AttributedString(segment.0)
@@ -2787,14 +2794,7 @@ private struct PaletteSnippetPreview: View {
 
         return Text(attributed)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.vertical, 1.5)
             .padding(.horizontal, 5)
-            .background(
-                highlight.map {
-                    RoundedRectangle(cornerRadius: 5, style: .continuous)
-                        .fill($0)
-                }
-            )
     }
 
     private func lineNumber(_ value: Int) -> Text {
@@ -2808,6 +2808,9 @@ private struct PaletteSnippetPreview: View {
     private var borderColor: Color {
         isDark ? Color.white.opacity(0.08) : Color.black.opacity(0.08)
     }
+
+    private var lineHeight: CGFloat { max(fontPointSize * 1.4, 16) }
+    private var verticalInset: CGFloat { max(lineHeight * 0.4, 10) }
 }
 
 private struct EditorTokenPreview: View {
@@ -3620,23 +3623,11 @@ struct ApplicationCacheSettingsView: View {
             } else {
                 VStack(alignment: .leading, spacing: 8) {
                     ForEach(tabs) { tab in
-                        let bytes = tab.estimatedMemoryUsageBytes()
-                        HStack(alignment: .firstTextBaseline, spacing: 12) {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(tab.title.isEmpty ? "Untitled" : tab.title)
-                                    .font(.system(size: 13, weight: .semibold))
-                                Text(tabMemoryContextLabel(for: tab))
-                                    .font(.system(size: 12))
-                                    .foregroundStyle(.secondary)
-                            }
-
-                            Spacer(minLength: 16)
-
-                            Text(formatter.string(fromByteCount: Int64(bytes)))
-                                .font(.system(size: 12, weight: .semibold))
-                                .foregroundStyle(.primary)
-                        }
-                        .padding(.vertical, 4)
+                        TabMemoryRow(
+                            tab: tab,
+                            formatter: formatter,
+                            contextProvider: { tabMemoryContextLabel(for: $0) }
+                        )
                     }
 
                     Divider()
@@ -3689,7 +3680,7 @@ struct ApplicationCacheSettingsView: View {
         )
     }
 
-    private func tabMemoryContextLabel(for tab: WorkspaceTab) -> String {
+private func tabMemoryContextLabel(for tab: WorkspaceTab) -> String {
         switch tab.kind {
         case .query:
             if let query = tab.query {
@@ -3709,6 +3700,12 @@ struct ApplicationCacheSettingsView: View {
                 return "Structure • \(columnCount) column\(columnCount == 1 ? "" : "s")"
             }
             return "Structure editor"
+        case .diagram:
+            if let diagram = tab.diagram {
+                let tableCount = diagram.nodes.count
+                return "Diagram • \(tableCount) table\(tableCount == 1 ? "" : "s")"
+            }
+            return "Diagram"
         }
     }
 
@@ -3819,6 +3816,33 @@ struct ApplicationCacheSettingsView: View {
                     .monospacedDigit()
             }
         }
+    }
+}
+
+private struct TabMemoryRow: View {
+    @ObservedObject var tab: WorkspaceTab
+    let formatter: ByteCountFormatter
+    let contextProvider: (WorkspaceTab) -> String
+
+    var body: some View {
+        let bytes = tab.estimatedMemoryUsageBytes()
+
+        return HStack(alignment: .firstTextBaseline, spacing: 12) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(tab.title.isEmpty ? "Untitled" : tab.title)
+                    .font(.system(size: 13, weight: .semibold))
+                Text(contextProvider(tab))
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer(minLength: 16)
+
+            Text(formatter.string(fromByteCount: Int64(bytes)))
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(.primary)
+        }
+        .padding(.vertical, 4)
     }
 }
 

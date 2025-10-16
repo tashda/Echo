@@ -53,6 +53,7 @@ final class AppModel: ObservableObject {
     @Published var selectedProject: Project?
     @Published var globalSettings: GlobalSettings = GlobalSettings()
     @Published var navigationState = NavigationState()
+    @Published var isWorkspaceWindowKey = false
     @Published var isManageConnectionsPresented = false
     @Published var showNewProjectSheet = false
     @Published var showManageProjectsSheet = false

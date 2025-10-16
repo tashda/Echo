@@ -25,29 +25,32 @@ struct WorkspaceView: View {
                     WorkspaceToolbarItems()
                 }
                 .inspector(isPresented: $appState.showInfoSidebar) {
-                    InfoSidebarView()
-                        .environmentObject(appModel)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                        .padding(.top, 6)
-                        .padding(.bottom, 12)
-                        .padding(.horizontal, 18)
-                        .background(
-                            GeometryReader { geo in
-                                Color.clear
-                                    .preference(key: InspectorWidthPreferenceKey.self, value: geo.size.width)
-                            }
-                        )
-                        .navigationSplitViewColumnWidth(
-                            min: WorkspaceLayoutMetrics.inspectorMinWidth,
-                            ideal: max(WorkspaceLayoutMetrics.inspectorMinWidth, appModel.inspectorWidth),
-                            max: WorkspaceLayoutMetrics.inspectorMaxWidth
-                        )
-                }
-                .onPreferenceChange(InspectorWidthPreferenceKey.self) { newWidth in
-                    guard newWidth > 0 else { return }
-                    appModel.updateInspectorWidth(
-                        newWidth,
+                    let widthBinding = Binding<CGFloat>(
+                        get: { appModel.inspectorWidth },
+                        set: { newValue in
+                            appModel.updateInspectorWidth(
+                                newValue,
+                                min: WorkspaceLayoutMetrics.inspectorMinWidth,
+                                max: WorkspaceLayoutMetrics.inspectorMaxWidth
+                            )
+                        }
+                    )
+
+                    ResizableInspectorContainer(
+                        width: widthBinding,
+                        minWidth: WorkspaceLayoutMetrics.inspectorMinWidth,
+                        maxWidth: WorkspaceLayoutMetrics.inspectorMaxWidth
+                    ) {
+                        InfoSidebarView()
+                            .environmentObject(appModel)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                            .padding(.top, WorkspaceChromeMetrics.chromeTopInset)
+                            .padding(.bottom, 12)
+                            .padding(.horizontal, 18)
+                    }
+                    .navigationSplitViewColumnWidth(
                         min: WorkspaceLayoutMetrics.inspectorMinWidth,
+                        ideal: max(WorkspaceLayoutMetrics.inspectorMinWidth, widthBinding.wrappedValue),
                         max: WorkspaceLayoutMetrics.inspectorMaxWidth
                     )
                 }
@@ -144,16 +147,68 @@ private enum WorkspaceLayoutMetrics {
 
     static let inspectorMinWidth: CGFloat = 300
     static let inspectorIdealWidth: CGFloat = 400
-    static let inspectorMaxWidth: CGFloat = .greatestFiniteMagnitude
+    static let inspectorMaxWidth: CGFloat = 1600
 }
 
-private struct InspectorWidthPreferenceKey: PreferenceKey {
-    static var defaultValue: CGFloat = 0
+private struct ResizableInspectorContainer<Content: View>: View {
+    @Binding var width: CGFloat
+    let minWidth: CGFloat
+    let maxWidth: CGFloat
+    @ViewBuilder var content: Content
 
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
-        let candidate = nextValue()
-        if candidate > 0 {
-            value = candidate
+    @State private var dragStartWidth: CGFloat?
+    @State private var isHoveringHandle = false
+
+    private let handleWidth: CGFloat = 6
+    private let dividerWidth: CGFloat = 1
+
+    private func clamped(_ value: CGFloat) -> CGFloat {
+        let upper = maxWidth.isFinite ? min(maxWidth, value) : value
+        return max(minWidth, upper)
+    }
+
+    var body: some View {
+        let contentWidth = clamped(width)
+        let totalWidth = contentWidth + handleWidth + dividerWidth
+
+        HStack(spacing: 0) {
+            Rectangle()
+                .fill(Color.primary.opacity(isHoveringHandle ? 0.18 : 0.08))
+                .frame(width: handleWidth)
+                .contentShape(Rectangle())
+                .gesture(
+                    DragGesture(minimumDistance: 0)
+                        .onChanged { value in
+                            if dragStartWidth == nil {
+                                dragStartWidth = width
+                            }
+                            let proposed = (dragStartWidth ?? width) - value.translation.width
+                            width = clamped(proposed)
+                        }
+                        .onEnded { _ in
+                            width = clamped(width)
+                            dragStartWidth = nil
+                        }
+                )
+#if os(macOS)
+                .onHover { hovering in
+                    withAnimation(.easeInOut(duration: 0.15)) {
+                        isHoveringHandle = hovering
+                    }
+                }
+#endif
+
+            Divider()
+                .frame(width: dividerWidth)
+
+            content
+                .frame(width: contentWidth, alignment: .topLeading)
+        }
+        .frame(width: totalWidth)
+        .frame(maxHeight: .infinity, alignment: .topLeading)
+        .background(Color.clear)
+        .onAppear {
+            width = contentWidth
         }
     }
 }

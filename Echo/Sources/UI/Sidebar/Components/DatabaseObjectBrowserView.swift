@@ -601,6 +601,7 @@ private struct DatabaseObjectRow: View {
         case drop
         case dropIfExists
         case select
+        case selectLimited(Int)
         case execute
     }
 
@@ -681,7 +682,7 @@ private struct DatabaseObjectRow: View {
                         title: "Truncate Table",
                         systemImage: "scissors",
                         role: .destructive,
-                        action: { openTruncateStatement() }
+                        action: { initiateTruncate() }
                     )
                 )
             }
@@ -746,6 +747,9 @@ private struct DatabaseObjectRow: View {
             actions.append(.dropIfExists)
             if shouldIncludeSelectScript || object.type == .function {
                 actions.append(.select)
+                if shouldIncludeSelectScript {
+                    actions.append(.selectLimited(1000))
+                }
             }
             return actions
 
@@ -762,6 +766,7 @@ private struct DatabaseObjectRow: View {
             actions.append(.drop)
             if shouldIncludeSelectScript {
                 actions.append(.select)
+                actions.append(.selectLimited(1000))
             }
             if object.type == .function {
                 actions.append(.execute)
@@ -771,7 +776,7 @@ private struct DatabaseObjectRow: View {
         case .sqlite:
             var actions: [ScriptAction] = [.create, .drop]
             if shouldIncludeSelectScript {
-                actions.append(.select)
+                actions.append(contentsOf: [.select, .selectLimited(1000)])
             }
             return actions
 
@@ -780,7 +785,7 @@ private struct DatabaseObjectRow: View {
             if object.type == .function {
                 actions.append(.execute)
             } else if shouldIncludeSelectScript {
-                actions.append(.select)
+                actions.append(contentsOf: [.select, .selectLimited(1000)])
             }
             return actions
         }
@@ -824,6 +829,8 @@ private struct DatabaseObjectRow: View {
             return "DROP IF EXISTS"
         case .select:
             return "SELECT"
+        case .selectLimited(let limit):
+            return "SELECT \(limit)"
         case .execute:
             return connection.databaseType == .microsoftSQL ? "SELECT / EXEC" : "EXECUTE"
         }
@@ -842,6 +849,8 @@ private struct DatabaseObjectRow: View {
         case .dropIfExists:
             return "trash.slash"
         case .select:
+            return "text.magnifyingglass"
+        case .selectLimited:
             return "text.magnifyingglass"
         case .execute:
             return "play.circle"
@@ -867,7 +876,9 @@ private struct DatabaseObjectRow: View {
         case .dropIfExists:
             openDropStatement(includeIfExists: true)
         case .select:
-            openSelectScript()
+            openSelectScript(limit: nil)
+        case .selectLimited(let limit):
+            openSelectScript(limit: limit)
         case .execute:
             openExecuteScript()
         }
@@ -884,7 +895,7 @@ private struct DatabaseObjectRow: View {
 
     private func openDataPreview() {
         guard let session = appModel.sessionManager.sessionForConnection(connection.id) else { return }
-        let sql = dataPreviewStatement(limit: nil)
+        let sql = selectStatement(limit: nil)
         appModel.openDataPreviewTab(
             for: session,
             object: object,
@@ -1015,12 +1026,12 @@ private struct DatabaseObjectRow: View {
         openScriptTab(with: statement)
     }
 
-    private func openSelectScript() {
+    private func openSelectScript(limit: Int? = nil) {
         let sql: String
         if object.type == .function {
             sql = executeStatement()
         } else {
-            sql = dataPreviewStatement(limit: 100)
+            sql = selectStatement(limit: limit)
         }
         openScriptTab(with: sql)
     }
@@ -1030,7 +1041,13 @@ private struct DatabaseObjectRow: View {
         openScriptTab(with: sql)
     }
 
-    private func openTruncateStatement() {
+    private func initiateTruncate() {
+#if os(macOS)
+        if object.type == .table {
+            Task { await presentTruncatePrompt() }
+            return
+        }
+#endif
         let statement = truncateStatement()
         openScriptTab(with: statement)
     }
@@ -1081,7 +1098,7 @@ private struct DatabaseObjectRow: View {
 
         Task {
             do {
-                try await appModel.executeUpdate(sql)
+                _ = try await appModel.executeUpdate(sql)
                 await appModel.refreshDatabaseStructure(
                     for: session.id,
                     scope: .selectedDatabase,
@@ -1133,12 +1150,51 @@ private struct DatabaseObjectRow: View {
 
         Task {
             do {
-                try await appModel.executeUpdate(statement)
+                _ = try await appModel.executeUpdate(statement)
                 if isPinned {
                     await MainActor.run {
                         onTogglePin()
                     }
                 }
+                await appModel.refreshDatabaseStructure(
+                    for: session.id,
+                    scope: .selectedDatabase,
+                    databaseOverride: session.selectedDatabaseName
+                )
+            } catch {
+                await MainActor.run {
+                    appModel.lastError = DatabaseError.from(error)
+                }
+            }
+        }
+    }
+
+    @MainActor
+    private func presentTruncatePrompt() async {
+        guard let session = appModel.sessionManager.sessionForConnection(connection.id) else { return }
+
+        let alert = NSAlert()
+        alert.messageText = "Truncate Table"
+        alert.informativeText = "Are you sure you want to truncate table \(object.fullName)? This action cannot be undone."
+        alert.alertStyle = .warning
+
+        let truncateButton = alert.addButton(withTitle: "Truncate")
+        if #available(macOS 11.0, *) {
+            truncateButton.hasDestructiveAction = true
+        }
+        alert.addButton(withTitle: "Cancel")
+
+        let response = alert.runModal()
+        guard response == .alertFirstButtonReturn else { return }
+
+        let statement = truncateStatement()
+
+        appModel.sessionManager.setActiveSession(session.id)
+        appModel.selectedConnectionID = session.connection.id
+
+        Task {
+            do {
+                _ = try await appModel.executeUpdate(statement)
                 await appModel.refreshDatabaseStructure(
                     for: session.id,
                     scope: .selectedDatabase,
@@ -1283,7 +1339,8 @@ private struct DatabaseObjectRow: View {
         guard !sortedColumns.isEmpty else { return nil }
 
         let columnClauses = sortedColumns.map { column in
-            "\(quoteIdentifier(column.name)) \(column.sortOrder.sqlKeyword.uppercased())"
+            let sortKeyword = column.sortOrder == .descending ? "DESC" : "ASC"
+            return "\(quoteIdentifier(column.name)) \(sortKeyword)"
         }.joined(separator: ", ")
 
         var statement = "CREATE "
@@ -1305,19 +1362,22 @@ private struct DatabaseObjectRow: View {
         return statement
     }
 
-    private func dataPreviewStatement(limit: Int?) -> String {
+    private func selectStatement(limit: Int?) -> String {
         let qualified = qualifiedName(schema: object.schema, name: object.name)
+        let columns = object.columns.isEmpty ? ["*"] : object.columns.map { quoteIdentifier($0.name) }
+        let columnLines = columns.joined(separator: ",\n    ")
+
         switch connection.databaseType {
         case .microsoftSQL:
+            let selectLead = limit.map { "SELECT TOP (\($0))" } ?? "SELECT"
+            return "\(selectLead)\n    \(columnLines)\nFROM \(qualified);"
+        case .postgresql, .mysql, .sqlite:
+            var statement = "SELECT\n    \(columnLines)\nFROM \(qualified)"
             if let limit {
-                return "SELECT TOP (\(limit)) *\nFROM \(qualified);"
+                statement += "\nLIMIT \(limit)"
             }
-            return "SELECT *\nFROM \(qualified);"
-        default:
-            if let limit {
-                return "SELECT *\nFROM \(qualified)\nLIMIT \(limit);"
-            }
-            return "SELECT *\nFROM \(qualified);"
+            statement += ";"
+            return statement
         }
     }
 
@@ -1404,7 +1464,6 @@ private struct DatabaseObjectRow: View {
             let escaped = effectiveName.replacingOccurrences(of: "'", with: "''")
             return "EXEC sp_rename '\(qualifiedForStoredProcedures())', '\(escaped)';"
         }
-        return nil
     }
 
     private func dropStatement(includeIfExists: Bool) -> String {

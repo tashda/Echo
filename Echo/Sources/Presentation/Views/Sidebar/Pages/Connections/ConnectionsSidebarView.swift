@@ -20,8 +20,6 @@ struct ConnectionsSidebarView: View {
     @State private var expandedFolders: Set<UUID> = []
     @State private var folderEditorState: FolderEditorState?
     @State private var pendingDeletion: DeletionTarget?
-    @State private var isAddMenuHovered = false
-
     private var currentProjectID: UUID? { appModel.selectedProject?.id }
     private var trimmedSearch: String { searchText.trimmingCharacters(in: .whitespacesAndNewlines) }
     private var isSearching: Bool { !trimmedSearch.isEmpty }
@@ -45,6 +43,9 @@ struct ConnectionsSidebarView: View {
             .scrollIndicators(.hidden)
         }
         .background(Color.clear)
+        .contextMenu {
+            addMenuContent()
+        }
         .sheet(item: $folderEditorState) { state in
             FolderEditorSheet(state: state)
                 .environmentObject(appModel)
@@ -96,31 +97,19 @@ struct ConnectionsSidebarView: View {
                     .frame(width: 1, height: 18)
 
                 Menu {
-                    Button("New Connection…", systemImage: "externaldrive.badge.plus") {
-                        onCreateConnection(selectedConnectionFolder)
-                        selectedIdentityID = nil
-                    }
-                    Button("New Connection Folder…", systemImage: "folder.badge.plus") {
-                        openFolderCreator(parent: selectedConnectionFolder)
-                        selectedIdentityID = nil
-                    }
-                    Divider()
-                    Button("Manage Connections…", systemImage: "gearshape") {
-                        openManageConnections()
-                        selectedIdentityID = nil
-                    }
+                    addMenuContent()
                 } label: {
                     Image(systemName: "plus.circle.fill")
                         .font(.system(size: 16, weight: .semibold))
-                        .foregroundStyle(isAddMenuHovered ? Color.accentColor : Color.secondary.opacity(0.6))
+                        .foregroundStyle(Color.secondary.opacity(0.6))
                         .padding(2)
+                        .background(
+                            Circle()
+                                .fill(Color.accentColor.opacity(0))
+                        )
                 }
                 .menuStyle(.borderlessButton)
-                .onHover { hovering in
-                    withAnimation(.easeInOut(duration: 0.12)) {
-                        isAddMenuHovered = hovering
-                    }
-                }
+                .menuIndicator(.hidden)
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 8)
@@ -170,7 +159,7 @@ struct ConnectionsSidebarView: View {
                     expandedFolders: $expandedFolders,
                     isSearching: isSearching,
                     selectedConnectionID: $selectedConnectionID,
-                    onSelectFolder: { folder in appModel.selectedFolderID = folder.id },
+                    onSelectFolder: { selectFolder($0) },
                     onSelectConnection: { selectConnection($0) },
                     onConnect: onConnect,
                     onEditConnection: onEditConnection,
@@ -197,6 +186,13 @@ struct ConnectionsSidebarView: View {
     private func selectConnection(_ connection: SavedConnection) {
         selectedIdentityID = nil
         selectedConnectionID = connection.id
+        appModel.selectedFolderID = nil
+    }
+
+    private func selectFolder(_ folder: SavedFolder) {
+        selectedIdentityID = nil
+        selectedConnectionID = nil
+        appModel.selectedFolderID = folder.id
     }
 
     private func openFolderCreator(parent: SavedFolder?) {
@@ -213,6 +209,23 @@ struct ConnectionsSidebarView: View {
 #else
         appModel.isManageConnectionsPresented = true
 #endif
+    }
+
+    @ViewBuilder
+    private func addMenuContent() -> some View {
+        Button("New Connection…", systemImage: "externaldrive.badge.plus") {
+            onCreateConnection(selectedConnectionFolder)
+            selectedIdentityID = nil
+        }
+        Button("New Connection Folder…", systemImage: "folder.badge.plus") {
+            openFolderCreator(parent: selectedConnectionFolder)
+            selectedIdentityID = nil
+        }
+        Divider()
+        Button("Manage Connections…", systemImage: "gearshape") {
+            openManageConnections()
+            selectedIdentityID = nil
+        }
     }
 
     private func performDeletion(for target: DeletionTarget) {
@@ -330,6 +343,10 @@ private struct ConnectionFolderView: View {
         isSearching || expandedFolders.contains(group.folder.id)
     }
 
+    private var isSelected: Bool {
+        appModel.selectedFolderID == group.folder.id
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             folderRow
@@ -442,7 +459,7 @@ private struct ConnectionFolderView: View {
 
     private var folderHighlight: some View {
         let base = RoundedRectangle(cornerRadius: 8, style: .continuous)
-        if expandedFolders.contains(group.folder.id) {
+        if isSelected {
             return AnyView(
                 base
                     .fill(Color.accentColor.opacity(0.2))
@@ -558,6 +575,7 @@ private struct ConnectionListRow: View {
                 }
             )
         }
+        .padding(.trailing, 4)
     }
 
     @ViewBuilder

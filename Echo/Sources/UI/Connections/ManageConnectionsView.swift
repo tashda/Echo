@@ -147,26 +147,30 @@ private extension ManageConnectionsView {
     }
 
     private var detailHeader: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(navigationTitleText)
-                    .font(.system(size: 20, weight: .semibold))
-                if !navigationSubtitleText.isEmpty {
-                    Text(navigationSubtitleText)
-                        .font(.system(size: 12))
-                        .foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .firstTextBaseline, spacing: 16) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(navigationTitleText)
+                        .font(.system(size: 20, weight: .semibold))
+                    if !navigationSubtitleText.isEmpty {
+                        Text(navigationSubtitleText)
+                            .font(.system(size: 12))
+                            .foregroundStyle(.secondary)
+                    }
                 }
-            }
 
-            HStack(spacing: 10) {
-                detailSearchField
                 Spacer()
-                addMenuToolbarItem
+
+                HStack(spacing: 8) {
+                    addMenuToolbarItem
+                    detailSearchField
+                }
+                .frame(maxWidth: 360, alignment: .trailing)
             }
         }
-        .padding(.horizontal, 16)
-        .padding(.top, 18)
-        .padding(.bottom, 14)
+        .padding(.horizontal, 20)
+        .padding(.top, 0)
+        .padding(.bottom, 4)
         .background(themeManager.surfaceBackgroundColor)
     }
 
@@ -174,7 +178,7 @@ private extension ManageConnectionsView {
     private var detailSearchField: some View {
 #if os(macOS)
         ManageConnectionsSearchField(text: $searchText, placeholder: activeSection.searchPlaceholder)
-            .frame(maxWidth: 280)
+            .frame(width: 260)
 #else
         TextField(activeSection.searchPlaceholder, text: $searchText, prompt: Text(activeSection.searchPlaceholder))
             .textFieldStyle(.roundedBorder)
@@ -210,14 +214,15 @@ private extension ManageConnectionsView {
                 }
             }
         } label: {
-            Image(systemName: "plus")
+            addButtonLabel
         }
         .menuIndicator(.hidden)
         .menuStyle(.borderlessButton)
-#if os(macOS)
-        .controlSize(.small)
-#endif
         .help(activeSection == .connections ? "Add connection or folder" : "Add identity or folder")
+    }
+
+    private var addButtonLabel: some View {
+        RoundAddButtonLabel(themeManager: themeManager)
     }
 
     @ViewBuilder
@@ -1554,8 +1559,8 @@ private struct ManageConnectionsSearchField: NSViewRepresentable {
         searchField.delegate = context.coordinator
         searchField.sendsSearchStringImmediately = true
         searchField.sendsWholeSearchString = true
-        searchField.controlSize = .small
-        searchField.font = NSFont.systemFont(ofSize: 13)
+        searchField.controlSize = .large
+        searchField.font = NSFont.systemFont(ofSize: 14)
         searchField.focusRingType = .none
         searchField.translatesAutoresizingMaskIntoConstraints = false
         return searchField
@@ -1583,6 +1588,42 @@ private struct ManageConnectionsSearchField: NSViewRepresentable {
                 text = searchField.stringValue
             }
         }
+    }
+}
+
+private struct RoundAddButtonLabel: View {
+    @ObservedObject var themeManager: ThemeManager
+    @State private var isHovered = false
+
+    var body: some View {
+        let isDark = themeManager.effectiveColorScheme == .dark
+        let baseFill = isDark ? Color(nsColor: .controlAccentColor).opacity(0.16) : Color.black.opacity(0.03)
+        let hoverFill = isDark ? Color(nsColor: .controlAccentColor).opacity(0.22) : Color.black.opacity(0.05)
+        let fill = isHovered ? hoverFill : baseFill
+        let baseStroke = isDark ? Color.white.opacity(0.35) : Color.black.opacity(0.07)
+        let hoverStroke = isDark ? Color.white.opacity(0.45) : Color.black.opacity(0.12)
+        let stroke = isHovered ? hoverStroke : baseStroke
+        let highlight = isDark ? Color.white.opacity(0.24) : Color.white.opacity(0.55)
+
+        return Circle()
+            .fill(fill)
+            .overlay(
+                Circle()
+                    .strokeBorder(stroke, lineWidth: 1)
+                    .overlay(
+                        Circle()
+                            .strokeBorder(highlight, lineWidth: 0.5)
+                            .blendMode(.plusLighter)
+                    )
+            )
+            .overlay(
+                Image(systemName: "plus")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.primary)
+            )
+            .frame(width: 28, height: 28)
+            .contentShape(Circle())
+            .onHover { isHovered = $0 }
     }
 }
 #endif

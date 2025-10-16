@@ -124,7 +124,8 @@ struct QueryTabsView: View {
                 WorkspaceContentView(
                     tab: currentTab,
                     runQuery: { sql in await runQuery(tabId: currentTab.id, sql: sql) },
-                    cancelQuery: { cancelQuery(tabId: currentTab.id) }
+                    cancelQuery: { cancelQuery(tabId: currentTab.id) },
+                    gridStateProvider: { currentTab.resultsGridState }
                 )
             } else {
                 RecentConnectionsPlaceholder(
@@ -412,7 +413,7 @@ struct QueryTabStrip: View {
     }
 
     private let tabReorderAnimation = Animation.interactiveSpring(response: 0.72, dampingFraction: 0.86, blendDuration: 0.30)
-    private let tabStripHeight: CGFloat = 38
+    private let tabStripHeight: CGFloat = WorkspaceChromeMetrics.chromeControlHeight
     private let baseHorizontalInset: CGFloat = 4
     private let basePlateExtension: CGFloat = 0
     private let basePlateEdgeInset: CGFloat = 2
@@ -947,6 +948,7 @@ private struct WorkspaceContentView: View {
     @ObservedObject var tab: WorkspaceTab
     let runQuery: (String) async -> Void
     let cancelQuery: () -> Void
+    let gridState: QueryResultsGridState
     @EnvironmentObject private var themeManager: ThemeManager
 
     var body: some View {
@@ -1013,6 +1015,7 @@ private struct QueryEditorContainer: View {
                         query: query,
                         connection: connectionForDisplay,
                         activeDatabaseName: connectionDatabaseName,
+                        gridState: gridState,
                         foreignKeyDisplayMode: foreignKeyDisplayMode,
                         foreignKeyInspectorBehavior: foreignKeyInspectorBehavior,
                         onForeignKeyEvent: handleForeignKeyEvent,
@@ -1025,7 +1028,8 @@ private struct QueryEditorContainer: View {
                     QueryResultsSection(
                         query: query,
                         connection: connectionForDisplay,
-                        activeDatabaseName: connectionDatabaseName
+                        activeDatabaseName: connectionDatabaseName,
+                        gridState: gridState
                     )
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .background(backgroundColor)

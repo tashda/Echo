@@ -71,7 +71,8 @@ final class SQLAutoCompletionController {
 
         updateContent()
 
-        guard let caretRect = caretRect(for: query) else {
+        guard textView.window != nil,
+              let caretRect = caretRect(for: query) else {
             hide()
             return
         }
