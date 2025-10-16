@@ -31,7 +31,7 @@ struct QueryResultsSection: View {
 
     private let statusChipMinWidth: CGFloat = 96
     private let statusChipHeight: CGFloat = 28
-    private let statusBarVerticalPadding: CGFloat = 4
+    private let statusBarVerticalPadding: CGFloat = 2
     private let statusBarHeight: CGFloat = 36
 
 #if !os(macOS)
@@ -154,8 +154,8 @@ struct QueryResultsSection: View {
                 case .messages:
                     messagesView
 #if os(macOS)
-                case .jsonDetail(let levelID):
-                    jsonDetailView(for: levelID)
+                case .jsonInspector:
+                    jsonInspectorView()
 #endif
                 }
             }
@@ -303,7 +303,7 @@ struct QueryResultsSection: View {
         case .selectionChanged:
             onJsonEvent(event)
         case .activate(let selection):
-            openJsonDetailRoot(with: selection)
+            openJsonInspector(with: selection)
             onJsonEvent(event)
         }
     }
@@ -615,10 +615,12 @@ struct QueryResultsSection: View {
                     .disabled(!isEnabled)
                     .onHover { isHovering = $0 && isEnabled }
                     .contentShape(interactionShape)
+                    .frame(maxHeight: .infinity, alignment: .center)
                 } else {
                     segmentContent
                         .onHover { isHovering = $0 && isEnabled }
                         .contentShape(interactionShape)
+                        .frame(maxHeight: .infinity, alignment: .center)
                 }
             }
         }
@@ -626,7 +628,7 @@ struct QueryResultsSection: View {
         private var segmentContent: some View {
             content()
                 .padding(.horizontal, 10)
-                .padding(.vertical, 3)
+                .padding(.vertical, 2)
                 .frame(height: chipHeight, alignment: .center)
                 .background(
                     RoundedRectangle(cornerRadius: 8, style: .continuous)
@@ -1014,105 +1016,33 @@ struct QueryResultsSection: View {
     }
 
 #if os(macOS)
-    private func openJsonDetailRoot(with selection: QueryResultsTableView.JsonSelection) {
+    private func openJsonInspector(with selection: QueryResultsTableView.JsonSelection) {
         let summary = jsonRowSummary(for: selection)
-        jsonDetailBase = JsonDetailBase(columnName: selection.columnName, rowSummary: summary)
-        let rootLevel = JsonDetailLevel(
-            id: UUID(),
-            title: summary,
-            path: [],
-            value: selection.jsonValue,
-            rows: selection.jsonValue.makeDetailRows()
+        let rootNode = selection.jsonValue.toOutlineNode()
+        jsonInspectorContext = JsonInspectorContext(
+            columnName: selection.columnName,
+            rowSummary: summary,
+            root: rootNode
         )
-        jsonDetailLevels = [rootLevel]
-        selectedTab = .jsonDetail(rootLevel.id)
-    }
-
-    private func openJsonDetailRow(_ row: JsonDetailRow, from level: JsonDetailLevel) {
-        guard row.value.isContainer else { return }
-        guard let index = jsonDetailLevels.firstIndex(where: { $0.id == level.id }) else { return }
-        let newPath = level.path + [row.key]
-        let nextLevel = JsonDetailLevel(
-            id: UUID(),
-            title: row.key.breadcrumbTitle,
-            path: newPath,
-            value: row.value,
-            rows: row.value.makeDetailRows()
-        )
-        let prefix = Array(jsonDetailLevels.prefix(index + 1))
-        jsonDetailLevels = prefix + [nextLevel]
-        selectedTab = .jsonDetail(nextLevel.id)
-    }
-
-    private func handleTabSelectionChange(_ tab: ResultTab) {
-        switch tab {
-        case .results, .messages:
-            break
-        case .jsonDetail(let levelID):
-            guard let index = jsonDetailLevels.firstIndex(where: { $0.id == levelID }) else { return }
-            if index < jsonDetailLevels.count - 1 {
-                jsonDetailLevels = Array(jsonDetailLevels.prefix(index + 1))
-            }
-        }
+        selectedTab = .jsonInspector
     }
 
     @ViewBuilder
-    private func jsonDetailView(for levelID: UUID) -> some View {
-        if let level = jsonDetailLevels.first(where: { $0.id == levelID }) {
+    private func jsonInspectorView() -> some View {
+        if let context = jsonInspectorContext {
             let background = Color(nsColor: gridBackgroundColor)
             VStack(alignment: .leading, spacing: 16) {
-                jsonDetailHeader(for: level)
-                JsonDetailGridView(
-                    rows: level.rows,
-                    isContainer: level.value.isContainer,
-                    valueSummary: level.value.summary,
-                    onOpenChild: { row in openJsonDetailRow(row, from: level) }
-                )
+                JsonInspectorHeader(context: context)
+                JsonOutlineContainer(root: context.root)
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 18)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .background(background)
         } else {
-            VStack(spacing: 12) {
-                Image(systemName: "curlybraces")
-                    .font(.system(size: 36))
-                    .foregroundStyle(.secondary)
-                Text("No JSON Data")
-                    .font(.headline)
-                Text("Double-click a JSON column to explore its structure here.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            JsonInspectorEmptyView()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-    }
-
-    private func jsonDetailHeader(for level: JsonDetailLevel) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(jsonDetailPathDescription(for: level))
-                .font(.title3.weight(.semibold))
-            if let context = jsonDetailBase {
-                Text(context.rowSummary)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            }
-            Text("\(level.value.kind.displayName) • \(level.value.summary)")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-        }
-    }
-
-    private func jsonDetailPathDescription(for level: JsonDetailLevel) -> String {
-        var components: [String] = []
-        if let base = jsonDetailBase {
-            components.append(base.columnName)
-        }
-        components.append(contentsOf: level.path.map { $0.breadcrumbTitle })
-        if components.isEmpty, let base = jsonDetailBase {
-            components.append(base.columnName)
-        }
-        return components.joined(separator: " › ")
     }
 
     private func jsonRowSummary(for selection: QueryResultsTableView.JsonSelection) -> String {
@@ -1135,150 +1065,239 @@ struct QueryResultsSection: View {
         return "\(tableColumns[index].name): \(trimmed)"
     }
 
-    private struct JsonDetailBase: Equatable {
+    private struct JsonInspectorContext: Equatable {
         let columnName: String
         let rowSummary: String
+        let root: JsonOutlineNode
+
+        var valueKind: JsonValue.Kind { root.value.kind }
+        var isContainer: Bool { root.value.isContainer }
+
+        var summaryLine: String {
+            switch root.value.kind {
+            case .object, .array:
+                return "\(valueKind.displayName) • \(root.value.summary)"
+            default:
+                return "\(valueKind.displayName) • \(JsonInspectorContext.preview(for: root.value, limit: 80))"
+            }
+        }
+
+        static func preview(for value: JsonValue, limit: Int = 160) -> String {
+            let raw: String
+            switch value {
+            case .object(let entries):
+                let count = entries.count
+                raw = count == 1 ? "1 key" : "\(count) keys"
+            case .array(let values):
+                let count = values.count
+                raw = count == 1 ? "1 item" : "\(count) items"
+            case .string(let text):
+                raw = "\"\(text)\""
+            case .number(let number):
+                raw = number
+            case .bool(let flag):
+                raw = flag ? "true" : "false"
+            case .null:
+                raw = "null"
+            }
+            return truncated(raw, limit: limit)
+        }
+
+        private static func truncated(_ text: String, limit: Int) -> String {
+            guard text.count > limit else { return text }
+            let index = text.index(text.startIndex, offsetBy: limit)
+            return String(text[text.startIndex..<index]) + "…"
+        }
     }
 
-    private struct JsonDetailLevel: Identifiable, Equatable {
-        let id: UUID
-        let title: String
-        let path: [JsonDetailRow.Key]
-        let value: JsonValue
-        let rows: [JsonDetailRow]
-    }
-
-    private struct JsonDetailGridView: View {
-        let rows: [JsonDetailRow]
-        let isContainer: Bool
-        let valueSummary: String
-        let onOpenChild: (JsonDetailRow) -> Void
+    private struct JsonInspectorHeader: View {
+        let context: JsonInspectorContext
 
         var body: some View {
-            VStack(spacing: 0) {
-                header
-                Divider().opacity(0.3)
-                if rows.isEmpty {
-                    JsonDetailEmptyState(isContainer: isContainer, valueSummary: valueSummary)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-                        .padding(24)
-                } else {
-                    ScrollView {
-                        LazyVStack(alignment: .leading, spacing: 0) {
-                            ForEach(Array(rows.enumerated()), id: \.1.id) { index, row in
-                                JsonDetailGridRow(row: row, index: index, onOpenChild: onOpenChild)
-                            }
-                        }
-                    }
-                }
+            VStack(alignment: .leading, spacing: 6) {
+                Text(context.columnName)
+                    .font(.title3.weight(.semibold))
+                Text(context.rowSummary)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                Text(context.summaryLine)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            .background(
+        }
+    }
+
+    private struct JsonOutlineContainer: View {
+        let root: JsonOutlineNode
+
+        var body: some View {
+            ZStack(alignment: .topLeading) {
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
                     .fill(Color(nsColor: NSColor.controlBackgroundColor))
-            )
+                ScrollView {
+                    VStack(spacing: 0) {
+                        JsonOutlineNodeView(node: root, depth: 0, isRoot: true)
+                    }
+                    .padding(.vertical, 8)
+                }
+            }
             .overlay(
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
                     .stroke(Color.primary.opacity(0.08), lineWidth: 0.6)
             )
         }
-
-        private var header: some View {
-            HStack(spacing: 12) {
-                Text("Key")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                    .frame(minWidth: 120, alignment: .leading)
-                    .layoutPriority(1)
-
-                Text("Type")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                    .frame(width: 90, alignment: .leading)
-
-                Text("Value")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            .padding(.horizontal, 18)
-            .padding(.vertical, 10)
-        }
     }
 
-    private struct JsonDetailGridRow: View {
-        let row: JsonDetailRow
-        let index: Int
-        let onOpenChild: (JsonDetailRow) -> Void
+    private struct JsonOutlineNodeView: View {
+        let node: JsonOutlineNode
+        let depth: Int
+        let isRoot: Bool
 
-        private var isContainer: Bool { row.value.isContainer }
+        @State private var isExpanded: Bool
+
+        init(node: JsonOutlineNode, depth: Int, isRoot: Bool = false) {
+            self.node = node
+            self.depth = depth
+            self.isRoot = isRoot
+            _isExpanded = State(initialValue: node.value.isContainer)
+        }
 
         var body: some View {
-            HStack(spacing: 12) {
-                Text(row.key.displayTitle)
-                    .font(.system(size: 13, weight: isContainer ? .semibold : .regular))
-                    .foregroundStyle(.primary)
-                    .lineLimit(1)
-                    .frame(minWidth: 120, alignment: .leading)
-                    .layoutPriority(1)
-
-                Text(row.typeDescription.uppercased())
-                    .font(.system(size: 11, weight: .medium, design: .monospaced))
-                    .foregroundStyle(.secondary)
-                    .frame(width: 90, alignment: .leading)
-
-                Text(row.preview)
-                    .font(.system(size: 13))
-                    .foregroundStyle(.primary)
-                    .lineLimit(2)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-
-                if isContainer {
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 0) {
+                row
+                if node.value.isContainer && isExpanded {
+                    VStack(spacing: 0) {
+                        ForEach(node.children) { child in
+                            JsonOutlineNodeView(node: child, depth: depth + 1)
+                        }
+                    }
                 }
             }
-            .padding(.horizontal, 18)
-            .padding(.vertical, 8)
+        }
+
+        private var row: some View {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                toggleIcon
+                    .frame(width: 14, height: 14)
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        guard node.value.isContainer else { return }
+                        withAnimation(.easeInOut(duration: 0.18)) {
+                            isExpanded.toggle()
+                        }
+                    }
+
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        if let title = node.key.displayTitle, !title.isEmpty {
+                            Text(title)
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundStyle(.primary)
+                        } else if isRoot {
+                            Text("JSON")
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundStyle(.primary)
+                        }
+                        JsonTypeBadge(kind: node.value.kind)
+                    }
+
+                    Text(JsonInspectorContext.preview(for: node.value))
+                        .font(.system(size: 12, design: .monospaced))
+                        .foregroundStyle(valueColor)
+                        .lineLimit(node.value.isContainer ? 1 : 4)
+                }
+            }
+            .padding(.vertical, 6)
+            .padding(.leading, CGFloat(depth) * 16 + 12)
+            .padding(.trailing, 12)
             .background(rowBackground)
             .contentShape(Rectangle())
-            .onTapGesture(count: 2) {
-                guard isContainer else { return }
-                onOpenChild(row)
+            .onTapGesture {
+                guard node.value.isContainer else { return }
+                withAnimation(.easeInOut(duration: 0.18)) {
+                    isExpanded.toggle()
+                }
             }
         }
 
-        private var rowBackground: some View {
-            let base = Color.primary.opacity(0.03)
-            return index.isMultiple(of: 2) ? base : Color.clear
+        private var toggleIcon: some View {
+            Group {
+                if node.value.isContainer {
+                    Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                        .padding(.vertical, 2)
+                        .padding(.horizontal, 2)
+                } else {
+                    Image(systemName: "circle.fill")
+                        .font(.system(size: 6, weight: .bold))
+                        .opacity(0)
+                }
+            }
+        }
+
+        private var valueColor: Color {
+            switch node.value.kind {
+            case .object, .array:
+                return .secondary
+            case .string:
+                return JsonTypeBadge.color(for: .string)
+            case .number:
+                return JsonTypeBadge.color(for: .number)
+            case .boolean:
+                return JsonTypeBadge.color(for: .boolean)
+            case .null:
+                return JsonTypeBadge.color(for: .null)
+            }
+        }
+
+        private var rowBackground: Color {
+            isRoot ? Color.primary.opacity(0.02) : Color.clear
         }
     }
 
-    private struct JsonDetailEmptyState: View {
-        let isContainer: Bool
-        let valueSummary: String
+    private struct JsonTypeBadge: View {
+        let kind: JsonValue.Kind
 
         var body: some View {
-            VStack(spacing: 12) {
-                Image(systemName: isContainer ? "square.stack.3d.up.slash" : "doc.text")
-                    .font(.system(size: 32, weight: .regular))
-                    .foregroundStyle(.secondary)
-                if isContainer {
-                    Text("No nested values")
-                        .font(.headline)
-                    Text("This object or array is empty.")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                } else {
-                    Text(valueSummary)
-                        .font(.headline)
-                    Text("Primitive value")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
+            Text(kind.displayName.uppercased())
+                .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                .foregroundStyle(color)
+                .padding(.horizontal, 6)
+                .padding(.vertical, 3)
+                .background(color.opacity(0.12), in: Capsule(style: .continuous))
+        }
+
+        var color: Color { Self.color(for: kind) }
+
+        static func color(for kind: JsonValue.Kind) -> Color {
+            switch kind {
+            case .object, .array:
+                return Color.teal
+            case .string:
+                return Color.blue
+            case .number:
+                return Color.purple
+            case .boolean:
+                return Color.orange
+            case .null:
+                return Color.gray
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+    }
+
+    private struct JsonInspectorEmptyView: View {
+        var body: some View {
+            VStack(spacing: 12) {
+                Image(systemName: "curlybraces")
+                    .font(.system(size: 36))
+                    .foregroundStyle(.secondary)
+                Text("No JSON Data")
+                    .font(.headline)
+                Text("Double-click a JSON column to explore its structure here.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
         }
     }
 #endif

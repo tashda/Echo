@@ -21,6 +21,7 @@ struct QueryResultsTableView: NSViewRepresentable {
     var foreignKeyInspectorBehavior: ForeignKeyInspectorBehavior
     var onForeignKeyEvent: (ForeignKeyEvent) -> Void
     var onJsonEvent: (JsonCellEvent) -> Void
+    var persistedState: QueryResultsGridState?
 
     @EnvironmentObject private var clipboardHistory: ClipboardHistoryStore
     struct SelectedCell: Equatable {
@@ -63,7 +64,7 @@ struct QueryResultsTableView: NSViewRepresentable {
     }
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(self, clipboardHistory: clipboardHistory)
+        Coordinator(self, clipboardHistory: clipboardHistory, persistedState: persistedState)
     }
 
     func makeNSView(context: Context) -> ResultTableContainerView {
@@ -105,6 +106,7 @@ struct QueryResultsTableView: NSViewRepresentable {
 
     func updateNSView(_ container: ResultTableContainerView, context: Context) {
         guard let tableView = container.tableView else { return }
+        context.coordinator.updatePersistedState(persistedState)
         tableView.backgroundColor = backgroundColor
         tableView.usesAlternatingRowBackgroundColors = ThemeManager.shared.showAlternateRowShading
         container.updateLeadingWidth(ThemeManager.shared.resultsGridLeadingInset)
@@ -124,6 +126,8 @@ struct QueryResultsTableView: NSViewRepresentable {
         private var cachedRowOrder: [Int] = []
         private var cachedSort: SortCriteria?
         private var lastRowCount: Int = 0
+        private var lastResultTokenSnapshot: UInt64 = 0
+        private var persistedState: QueryResultsGridState?
         private var selectionRegion: SelectedRegion?
         private var selectionAnchor: QueryResultsTableView.SelectedCell?
         private var isDraggingCellSelection = false
@@ -163,9 +167,17 @@ struct QueryResultsTableView: NSViewRepresentable {
         private func debugLog(_ message: String) {}
 #endif
 
-        init(_ parent: QueryResultsTableView, clipboardHistory: ClipboardHistoryStore) {
+        init(_ parent: QueryResultsTableView, clipboardHistory: ClipboardHistoryStore, persistedState: QueryResultsGridState?) {
             self.parent = parent
             self.clipboardHistory = clipboardHistory
+            self.persistedState = persistedState
+            if let state = persistedState {
+                self.cachedColumnIDs = state.cachedColumnIDs
+                self.cachedRowOrder = state.cachedRowOrder
+                self.cachedSort = state.cachedSort
+                self.lastRowCount = state.lastRowCount
+                self.lastResultTokenSnapshot = state.lastResultToken
+            }
             super.init()
             headerMenu.delegate = self
             cellMenu.delegate = self
@@ -228,6 +240,18 @@ struct QueryResultsTableView: NSViewRepresentable {
             lastForeignKeyInspectorBehavior = parent.foreignKeyInspectorBehavior
         }
 
+        func updatePersistedState(_ state: QueryResultsGridState?) {
+            guard persistedState !== state else { return }
+            persistedState = state
+            if let state {
+                cachedColumnIDs = state.cachedColumnIDs
+                cachedRowOrder = state.cachedRowOrder
+                cachedSort = state.cachedSort
+                lastRowCount = state.lastRowCount
+                lastResultTokenSnapshot = state.lastResultToken
+            }
+        }
+
         func update(parent: QueryResultsTableView, tableView: NSTableView) {
             self.parent = parent
             if self.tableView == nil {
@@ -254,13 +278,17 @@ struct QueryResultsTableView: NSViewRepresentable {
             let currentPaletteSignature = paletteSignature()
             let paletteChanged = currentPaletteSignature != cachedPaletteSignature
             cachedPaletteSignature = currentPaletteSignature
+            let dirtyToken = parent.query.resultChangeToken
+            let tokenChanged = dirtyToken != lastResultTokenSnapshot
+            let rowCountDecreased = currentRowCount < lastRowCount
+            let rowCountIncreased = currentRowCount > lastRowCount
 
             var performedFullReload = false
 
-            if columnsChanged || sortChanged || rowOrderChanged || currentRowCount < lastRowCount {
+            if columnsChanged || sortChanged || rowOrderChanged || rowCountDecreased || (tokenChanged && !rowCountIncreased) {
                 tableView.reloadData()
                 performedFullReload = true
-            } else if currentRowCount > lastRowCount {
+            } else if rowCountIncreased {
                 let range = lastRowCount..<currentRowCount
                 if !range.isEmpty {
                     if tableView.tableColumns.isEmpty {
@@ -284,6 +312,7 @@ struct QueryResultsTableView: NSViewRepresentable {
             cachedSort = parent.activeSort
             cachedRowOrder = currentRowOrder
             lastRowCount = currentRowCount
+            lastResultTokenSnapshot = dirtyToken
 
             if performedFullReload {
                 tableView.layoutSubtreeIfNeeded()
@@ -323,6 +352,14 @@ struct QueryResultsTableView: NSViewRepresentable {
                     performedFullReload = true
                 }
                 refreshVisibleRowBackgrounds(tableView)
+            }
+
+            if let state = persistedState {
+                state.cachedColumnIDs = cachedColumnIDs
+                state.cachedRowOrder = cachedRowOrder
+                state.cachedSort = cachedSort
+                state.lastRowCount = lastRowCount
+                state.lastResultToken = dirtyToken
             }
         }
 

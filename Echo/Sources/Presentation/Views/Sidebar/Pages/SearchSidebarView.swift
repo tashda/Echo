@@ -105,12 +105,16 @@ struct SearchSidebarView: View {
             isFilterPopoverPresented.toggle()
         } label: {
             Image(systemName: "line.3.horizontal.decrease.circle")
-                .font(.system(size: 14, weight: .medium))
-                .foregroundStyle(isFilterActive ? Color.accentColor : Color.secondary)
-                .padding(4)
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(
+                    isFilterActive
+                        ? Color.accentColor
+                        : Color.secondary.opacity(0.6)
+                )
+                .padding(2)
                 .background(
                     Circle()
-                        .fill(Color.primary.opacity(isFilterActive ? 0.12 : 0.05))
+                        .fill(Color.accentColor.opacity(isFilterActive ? 0.18 : 0))
                 )
         }
         .buttonStyle(.plain)

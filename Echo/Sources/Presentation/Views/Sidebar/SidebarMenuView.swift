@@ -55,7 +55,7 @@ struct SidebarMenu: View {
             contentView
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .safeAreaPadding(.top, 6)
+        .safeAreaPadding(.top, WorkspaceChromeMetrics.chromeTopInset)
         .confirmationDialog(
             "Duplicate Connection",
             isPresented: Binding(
@@ -93,7 +93,7 @@ struct SidebarMenu: View {
 
     @ViewBuilder
     private var xcodeStyleSegmentedControl: some View {
-        let controlHeight: CGFloat = 38
+        let controlHeight: CGFloat = WorkspaceChromeMetrics.chromeControlHeight
         let controlCornerRadius: CGFloat = controlHeight / 2
         let segmentCornerRadius: CGFloat = controlCornerRadius - 4
 

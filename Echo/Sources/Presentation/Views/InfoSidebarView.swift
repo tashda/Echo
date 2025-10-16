@@ -153,7 +153,7 @@ private struct InspectorTabSelector: View {
     @Binding var selectedTab: InspectorTab
 
     var body: some View {
-        let controlHeight: CGFloat = 38
+        let controlHeight: CGFloat = WorkspaceChromeMetrics.chromeControlHeight
         let controlCornerRadius: CGFloat = controlHeight / 2
         let segmentCornerRadius: CGFloat = controlCornerRadius - 4
 
@@ -263,6 +263,7 @@ private struct InspectorFieldRow: View {
                 .font(.callout.weight(.medium))
                 .foregroundStyle(themeManager.surfaceForegroundColor)
                 .frame(maxWidth: .infinity, alignment: .leading)
+                .layoutPriority(1)
                 .padding(.vertical, 8)
                 .padding(.horizontal, 10)
                 .background(

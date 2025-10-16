@@ -58,31 +58,37 @@ struct QueryCommands: Commands {
             .keyboardShortcut("t", modifiers: [.command])
             .disabled(!appModel.canOpenQueryTab)
 
-            Button("Next Tab") {
+            Button(action: {
                 guard appModel.isWorkspaceWindowKey else { return }
                 appModel.tabManager.activateNextTab()
                 if appState.showTabOverview {
                     appState.showTabOverview = false
                 }
+            }) {
+                Text("Next Tab")
             }
             .keyboardShortcut(.tab, modifiers: [.control])
 
-            Button("Previous Tab") {
+            Button(action: {
                 guard appModel.isWorkspaceWindowKey else { return }
                 appModel.tabManager.activatePreviousTab()
                 if appState.showTabOverview {
                     appState.showTabOverview = false
                 }
+            }) {
+                Text("Previous Tab")
             }
             .keyboardShortcut(.tab, modifiers: [.control, .shift])
 
-            Button("Reopen Closed Tab") {
+            Button(action: {
                 guard appModel.isWorkspaceWindowKey else { return }
                 if appModel.tabManager.reopenLastClosedTab(activate: true) != nil {
                     if appState.showTabOverview {
                         appState.showTabOverview = false
                     }
                 }
+            }) {
+                Text("Reopen Closed Tab")
             }
             .keyboardShortcut("t", modifiers: [.command, .shift])
 

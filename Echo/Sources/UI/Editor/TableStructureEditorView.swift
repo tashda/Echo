@@ -10,6 +10,7 @@ struct TableStructureEditorView: View {
     @ObservedObject var tab: WorkspaceTab
     @ObservedObject var viewModel: TableStructureEditorViewModel
     @EnvironmentObject private var appModel: AppModel
+    @EnvironmentObject private var themeManager: ThemeManager
 
     @State private var activeIndexEditor: IndexEditorPresentation?
     @State private var activeColumnEditor: ColumnEditorPresentation?
@@ -76,6 +77,7 @@ struct TableStructureEditorView: View {
                 ColumnEditorSheet(
                     column: binding,
                     databaseType: tab.connection.databaseType,
+                    accentColor: accentColor,
                     onDelete: {
                         let model = binding.wrappedValue
                         viewModel.removeColumn(model)
@@ -400,8 +402,12 @@ struct TableStructureEditorView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.vertical, 24)
             } else {
+#if os(macOS)
                 columnsTable
-                    .frame(minHeight: 220)
+                    .frame(height: columnsTableHeight)
+#else
+                columnsTable
+#endif
             }
         } label: {
             HStack(spacing: 8) {
@@ -422,71 +428,84 @@ struct TableStructureEditorView: View {
 #if os(macOS)
         Table(visibleColumns, selection: $selectedColumnIDs) {
             TableColumn("Name") { column in
-                Button(action: { presentColumnEditor(for: column) }) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(column.name)
-                            .font(.system(size: 13, weight: .semibold))
-                        Text(column.dataType.uppercased())
-                            .font(.system(size: 11, weight: .regular))
-                            .foregroundStyle(.secondary)
-                    }
+                doubleClickableCell(for: column) {
+                    Text(column.name)
+                        .font(.system(size: 13, weight: .semibold))
                 }
-                .buttonStyle(.plain)
+            }
+
+            TableColumn("Data Type") { column in
+                doubleClickableCell(for: column) {
+                    Text(column.dataType.uppercased())
+                        .font(.system(size: 11, weight: .regular))
+                        .foregroundStyle(.secondary)
+                }
             }
 
             TableColumn("Nullability") { column in
-                Label(
-                    column.isNullable ? "Allows NULL" : "Required",
-                    systemImage: column.isNullable ? "checkmark.circle" : "exclamationmark.triangle"
-                )
-                .labelStyle(.titleAndIcon)
-                .foregroundStyle(column.isNullable ? Color.secondary : Color.primary)
+                doubleClickableCell(for: column) {
+                    Label(
+                        column.isNullable ? "Allows NULL" : "Required",
+                        systemImage: column.isNullable ? "checkmark.circle" : "exclamationmark.triangle"
+                    )
+                    .labelStyle(.titleAndIcon)
+                    .foregroundStyle(column.isNullable ? Color.secondary : Color.primary)
+                }
             }
 
             TableColumn("Default") { column in
-                Text(column.defaultValue?.isEmpty == false ? column.defaultValue! : "—")
-                    .foregroundStyle(.secondary)
+                doubleClickableCell(for: column) {
+                    Text(column.defaultValue?.isEmpty == false ? column.defaultValue! : "—")
+                        .foregroundStyle(.secondary)
+                }
             }
 
             TableColumn("Generated") { column in
-                Text(column.generatedExpression?.isEmpty == false ? column.generatedExpression! : "—")
-                    .foregroundStyle(.secondary)
+                doubleClickableCell(for: column) {
+                    Text(column.generatedExpression?.isEmpty == false ? column.generatedExpression! : "—")
+                        .foregroundStyle(.secondary)
+                }
             }
 
             TableColumn("Status") { column in
-                let metadata = columnStatusMetadata(for: column)
-                Label(metadata.title, systemImage: metadata.systemImage)
-                    .labelStyle(.titleAndIcon)
-                    .foregroundStyle(metadata.tint)
+                doubleClickableCell(for: column) {
+                    let metadata = columnStatusMetadata(for: column)
+                    Label(metadata.title, systemImage: metadata.systemImage)
+                        .labelStyle(.titleAndIcon)
+                        .foregroundStyle(metadata.tint)
+                }
             }
 
             TableColumn("Changes") { column in
-                if let description = columnChangeDescription(for: column) {
-                    Text(description)
-                        .foregroundStyle(.secondary)
-                } else {
-                    Text("—")
-                        .foregroundStyle(Color.secondary.opacity(0.6))
-                }
-            }
-
-            TableColumn("Actions") { column in
-                Menu {
-                    Button("Edit Column", action: { presentColumnEditor(for: column) })
-                    Button("Remove Column", role: .destructive) {
-                        viewModel.removeColumn(column)
+                doubleClickableCell(for: column) {
+                    if let description = columnChangeDescription(for: column) {
+                        Text(description)
+                            .foregroundStyle(.secondary)
+                    } else {
+                        Text("—")
+                            .foregroundStyle(Color.secondary.opacity(0.6))
                     }
-                } label: {
-                    Image(systemName: "ellipsis.circle")
-                        .imageScale(.medium)
-                        .accessibilityLabel("Column actions")
                 }
-                .menuStyle(.borderlessButton)
-                .fixedSize()
             }
-            .width(60)
         }
         .tableStyle(.inset(alternatesRowBackgrounds: true))
+        .contextMenu(forSelectionType: TableStructureEditorViewModel.ColumnModel.ID.self) { selection in
+            let columns = columns(for: selection)
+            if columns.count == 1, let column = columns.first {
+                Button("Edit Column") {
+                    presentColumnEditor(for: column)
+                }
+            }
+            if !columns.isEmpty {
+                let title = columns.count == 1 ? "Remove Column" : "Remove Columns"
+                Button(title, role: .destructive) {
+                    removeColumns(columns)
+                }
+            }
+        }
+        .onTapGesture(count: 2) {
+            presentSelectedColumn()
+        }
 #else
         List(visibleColumns) { column in
             VStack(alignment: .leading, spacing: 4) {
@@ -507,6 +526,44 @@ struct TableStructureEditorView: View {
             }
         }
 #endif
+    }
+
+#if os(macOS)
+    private var columnsTableHeight: CGFloat {
+        let rowHeight: CGFloat = 28
+        let headerHeight: CGFloat = 28
+        return headerHeight + CGFloat(visibleColumns.count) * rowHeight
+    }
+
+    @ViewBuilder
+    private func doubleClickableCell<Content: View>(
+        for column: TableStructureEditorViewModel.ColumnModel,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        content()
+            .contentShape(Rectangle())
+            .onTapGesture(count: 2) {
+                presentColumnEditor(for: column)
+            }
+    }
+#endif
+
+    private func columns(for selection: Set<TableStructureEditorViewModel.ColumnModel.ID>) -> [TableStructureEditorViewModel.ColumnModel] {
+        guard !selection.isEmpty else { return [] }
+        return visibleColumns.filter { selection.contains($0.id) }
+    }
+
+    private func presentSelectedColumn() {
+        guard let column = columns(for: selectedColumnIDs).first else { return }
+        presentColumnEditor(for: column)
+    }
+
+    private func removeColumns(_ columns: [TableStructureEditorViewModel.ColumnModel]) {
+        guard !columns.isEmpty else { return }
+        columns.forEach { column in
+            viewModel.removeColumn(column)
+        }
+        pruneSelectedColumns()
     }
 
     private func columnStatusMetadata(for column: TableStructureEditorViewModel.ColumnModel) -> (title: String, systemImage: String, tint: Color) {
@@ -1246,20 +1303,24 @@ struct TableStructureEditorView: View {
 private struct ColumnEditorSheet: View {
     @Binding var column: TableStructureEditorViewModel.ColumnModel
     let databaseType: DatabaseType
+    let accentColor: Color
     let onDelete: () -> Void
     let onCancelNew: () -> Void
 
     @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var themeManager: ThemeManager
     @State private var draft: Draft
 
     init(
         column: Binding<TableStructureEditorViewModel.ColumnModel>,
         databaseType: DatabaseType,
+        accentColor: Color,
         onDelete: @escaping () -> Void,
         onCancelNew: @escaping () -> Void
     ) {
         self._column = column
         self.databaseType = databaseType
+        self.accentColor = accentColor
         self.onDelete = onDelete
         self.onCancelNew = onCancelNew
         _draft = State(initialValue: Draft(model: column.wrappedValue, databaseType: databaseType))
@@ -1269,6 +1330,7 @@ private struct ColumnEditorSheet: View {
         VStack(spacing: 0) {
             ZStack {
                 sheetBackgroundColor
+                sheetAccentOverlay
                 Form {
                     generalSection
                     behaviorSection
@@ -1297,18 +1359,21 @@ private struct ColumnEditorSheet: View {
         Section {
             TextField("Column Name", text: $draft.name)
             if isPostgres {
-                VStack(alignment: .leading, spacing: 6) {
-                    Picker("Data Type", selection: postgresTypeSelectionBinding) {
-                        Text("Custom").tag("")
-                        ForEach(Self.postgresDataTypes, id: \.self) { type in
-                            Text(type).tag(type)
-                        }
-                    }
-                    .pickerStyle(.menu)
-                    .labelsHidden()
+                LabeledContent("Data Type") {
+                    HStack(spacing: 8) {
+                        TextField("Data Type", text: $draft.dataType)
+                            .textFieldStyle(.roundedBorder)
 
-                    TextField("Custom Data Type", text: $draft.dataType)
-                        .textFieldStyle(.roundedBorder)
+                        Picker("", selection: postgresTypeSelectionBinding) {
+                            Text("Custom").tag("")
+                            ForEach(Self.postgresDataTypes, id: \.self) { type in
+                                Text(type).tag(type)
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        .labelsHidden()
+                        .frame(minWidth: 120)
+                    }
                 }
             } else {
                 TextField("Data Type", text: $draft.dataType)
@@ -1327,8 +1392,25 @@ private struct ColumnEditorSheet: View {
             Toggle("Allow NULL values", isOn: $draft.isNullable)
             TextField("Default Value", text: $draft.defaultValue)
                 .textFieldStyle(.roundedBorder)
-            TextField("Generated Expression", text: $draft.generatedExpression)
-                .textFieldStyle(.roundedBorder)
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Generated Expression")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                TextEditor(text: $draft.generatedExpression)
+                    .font(.system(size: 13))
+                    .frame(minHeight: generatedExpressionHeight, maxHeight: generatedExpressionHeight)
+                    .padding(.vertical, 6)
+                    .padding(.horizontal, 8)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .fill(fieldBackgroundColor)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .stroke(fieldStrokeColor, lineWidth: 1)
+                    )
+            }
         } header: {
             Text("Behavior")
         } footer: {
@@ -1390,10 +1472,55 @@ private struct ColumnEditorSheet: View {
 
     private var sheetBackgroundColor: Color {
         #if os(macOS)
-        return Color(nsColor: .windowBackgroundColor)
+        let base = themeManager.surfaceBackgroundNSColor
+        let accent = accentColor.nsColor ?? themeManager.accentNSColor
+        let blended = base.blended(withFraction: 0.25, of: accent) ?? base
+        return Color(nsColor: blended)
         #else
-        return Color(uiColor: .systemGroupedBackground)
+        let base = themeManager.surfaceBackgroundColor
+        let accent = accentColor
+        guard let baseColor = base.uiColor, let accentColor = accent.uiColor else { return base }
+        let blended = baseColor.blended(withFraction: 0.25, of: accentColor) ?? baseColor
+        return Color(uiColor: blended)
         #endif
+    }
+
+    private var fieldBackgroundColor: Color {
+        #if os(macOS)
+        let base = themeManager.surfaceBackgroundNSColor
+        let accent = accentColor.nsColor ?? themeManager.accentNSColor
+        let blended = base.blended(withFraction: 0.18, of: accent) ?? base
+        return Color(nsColor: blended.withAlphaComponent(0.85))
+        #else
+        let base = themeManager.surfaceBackgroundColor
+        let accent = accentColor
+        guard let baseColor = base.uiColor, let accentColor = accent.uiColor else { return base.opacity(0.85) }
+        let blended = baseColor.blended(withFraction: 0.18, of: accentColor) ?? baseColor
+        return Color(uiColor: blended.withAlphaComponent(0.85))
+        #endif
+    }
+
+    private var fieldStrokeColor: Color {
+        let foreground = themeManager.surfaceForegroundColor
+        return foreground.opacity(themeManager.effectiveColorScheme == .dark ? 0.18 : 0.25)
+    }
+
+    private var sheetAccentOverlay: some View {
+        let isDark = themeManager.effectiveColorScheme == .dark
+        return LinearGradient(
+            colors: [
+                accentColor.opacity(isDark ? 0.28 : 0.12),
+                accentColor.opacity(isDark ? 0.08 : 0.04)
+            ],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+        .blur(radius: 120)
+        .allowsHitTesting(false)
+    }
+
+    private var generatedExpressionHeight: CGFloat {
+        CGFloat(88) // approximate four lines of text
     }
 
     private var postgresTypeSelectionBinding: Binding<String> {

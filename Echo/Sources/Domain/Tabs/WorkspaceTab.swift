@@ -195,6 +195,24 @@ final class SchemaDiagramViewModel: ObservableObject {
     func node(for id: String) -> SchemaDiagramNodeModel? {
         nodes.first(where: { $0.id == id })
     }
+
+    func estimatedMemoryUsageBytes() -> Int {
+        let baseOverhead = 40 * 1024
+        let nodeBytes = nodes.reduce(0) { partial, node in
+            let nameBytes = node.displayName.utf8.count * 2
+            let columnBytes = node.columns.reduce(0) { sum, column in
+                sum + column.name.utf8.count * 2 + column.dataType.utf8.count * 2 + 96
+            }
+            return partial + 256 + nameBytes + columnBytes
+        }
+        let edgeBytes = edges.reduce(0) { partial, edge in
+            let fromBytes = edge.fromNodeID.utf8.count * 2
+            let toBytes = edge.toNodeID.utf8.count * 2
+            let nameBytes = (edge.relationshipName?.utf8.count ?? 0) * 2
+            return partial + fromBytes + toBytes + nameBytes + 160
+        }
+        return baseOverhead + nodeBytes + edgeBytes
+    }
 }
 
 final class QueryResultsGridState {
@@ -304,7 +322,11 @@ final class QueryResultsGridState {
             )
         }
         executionStartTime = nil
-        visibleRowLimit = nil
+        if isResultsOnly {
+            visibleRowLimit = initialVisibleRowBatch
+        } else {
+            visibleRowLimit = nil
+        }
     }
 
     func failExecution(with error: String) {
@@ -328,7 +350,11 @@ final class QueryResultsGridState {
         streamingColumns.removeAll(keepingCapacity: false)
         streamingRows.removeAll(keepingCapacity: false)
         results = nil
-        visibleRowLimit = nil
+        if isResultsOnly {
+            visibleRowLimit = initialVisibleRowBatch
+        } else {
+            visibleRowLimit = nil
+        }
         markResultDataChanged()
     }
 
@@ -416,6 +442,7 @@ final class QueryResultsGridState {
     func applyStreamUpdate(_ update: QueryStreamUpdate) {
         guard !update.columns.isEmpty else { return }
 
+        let columnsWereEmpty = streamingColumns.isEmpty
         if streamingColumns.isEmpty {
             streamingColumns = update.columns
         }
@@ -432,9 +459,13 @@ final class QueryResultsGridState {
             visibleRowLimit = cappedLimit
         }
 
+        let previousRowCount = currentRowCount ?? 0
         let runningCount = max(update.totalRowCount, streamingRows.count)
         updateRowCount(runningCount)
-        markResultDataChanged()
+        let columnsUpdated = columnsWereEmpty && !streamingColumns.isEmpty
+        if columnsUpdated || !update.appendedRows.isEmpty || runningCount != previousRowCount {
+            markResultDataChanged()
+        }
     }
 
     func consumeFinalResult(_ result: QueryResultSet) {
@@ -442,7 +473,11 @@ final class QueryResultsGridState {
         streamingRows = result.rows
         results = result
         updateRowCount(result.rows.count)
-        visibleRowLimit = nil
+        if isResultsOnly {
+            visibleRowLimit = min(initialVisibleRowBatch, result.rows.count)
+        } else {
+            visibleRowLimit = nil
+        }
         markResultDataChanged()
     }
 
@@ -453,7 +488,7 @@ final class QueryResultsGridState {
 
     var displayedRowCount: Int {
         let available = totalAvailableRowCount
-        if isExecuting, let limit = visibleRowLimit {
+        if let limit = visibleRowLimit {
             return min(limit, available)
         }
         return available
@@ -484,10 +519,10 @@ final class QueryResultsGridState {
     }
 
     func revealMoreRowsIfNeeded(forDisplayedRow row: Int) {
-        guard isExecuting else { return }
+        guard isExecuting || isResultsOnly else { return }
         guard let limit = visibleRowLimit else { return }
 
-        let available = streamingRows.count
+        let available = totalAvailableRowCount
         guard available > limit else { return }
 
         let threshold = max(limit - max(initialVisibleRowBatch / 4, 50), 0)
@@ -496,6 +531,9 @@ final class QueryResultsGridState {
         let newLimit = min(limit + initialVisibleRowBatch, available)
         if newLimit > limit {
             visibleRowLimit = newLimit
+            if isResultsOnly {
+                markResultDataChanged()
+            }
         }
     }
 
