@@ -128,71 +128,18 @@ final class MySQLSession: DatabaseSession {
 
     func simpleQuery(_ sql: String, progressHandler: QueryProgressHandler?) async throws -> QueryResultSet {
         var previewRows: [[String?]] = []
-        previewRows.reserveCapacity(4_096)
+        previewRows.reserveCapacity(512)
         var totalRowCount = 0
 
-        var pendingPreviewRows: [[String?]] = []
-        pendingPreviewRows.reserveCapacity(256)
-        var pendingEncodedRows: [ResultBinaryRow] = []
-        pendingEncodedRows.reserveCapacity(256)
         let operationStart = CFAbsoluteTimeGetCurrent()
-        var lastFlushTimestamp = operationStart
-        var batchDecodeDuration: TimeInterval = 0
         let streamingPreviewLimit = 512
-        let maxFlushLatency: TimeInterval = 0.05
+        let maxFlushLatency: TimeInterval = 0.015
 
         var columnMetadata: [MySQLProtocol.ColumnDefinition41] = []
         var columnInfo: [ColumnInfo] = []
         var encounteredError: Error?
         var wasCancelled = false
-
-        let flush: (_ force: Bool) -> Void = { force in
-            guard !pendingEncodedRows.isEmpty else { return }
-
-            if !force, progressHandler != nil, !columnInfo.isEmpty {
-                let flushThreshold: Int
-                switch totalRowCount {
-                case 0..<1024:
-                    flushThreshold = 128
-                case 1024..<4096:
-                    flushThreshold = 512
-                case 4096..<16_384:
-                    flushThreshold = 512
-                default:
-                    flushThreshold = 1024
-                }
-                let shouldFlushByCount = pendingEncodedRows.count >= flushThreshold
-                if !shouldFlushByCount {
-                    let elapsed = CFAbsoluteTimeGetCurrent() - lastFlushTimestamp
-                    guard elapsed >= maxFlushLatency else { return }
-                }
-            }
-
-            let previewBatch = pendingPreviewRows
-            let encodedBatch = pendingEncodedRows
-            pendingPreviewRows.removeAll(keepingCapacity: true)
-            pendingEncodedRows.removeAll(keepingCapacity: true)
-            let now = CFAbsoluteTimeGetCurrent()
-            let metrics = QueryStreamMetrics(
-                batchRowCount: encodedBatch.count,
-                loopElapsed: now - lastFlushTimestamp,
-                decodeDuration: batchDecodeDuration,
-                totalElapsed: now - operationStart,
-                cumulativeRowCount: totalRowCount
-            )
-            lastFlushTimestamp = now
-            batchDecodeDuration = 0
-
-            guard let handler = progressHandler, !columnInfo.isEmpty else { return }
-            let update = QueryStreamUpdate(
-                columns: columnInfo,
-                appendedRows: previewBatch,
-                encodedRows: encodedBatch,
-                totalRowCount: totalRowCount,
-                metrics: metrics
-            )
-            handler(update)
-        }
+        var worker: ResultStreamBatchWorker?
 
         let future = connection.simpleQuery(sql) { row in
             if Task.isCancelled {
@@ -216,20 +163,35 @@ final class MySQLSession: DatabaseSession {
                 }
             }
 
+            if worker == nil, let handler = progressHandler, !columnInfo.isEmpty {
+                worker = ResultStreamBatchWorker(
+                    label: "dk.tippr.echo.mysql.streamWorker",
+                    columns: columnInfo,
+                    streamingPreviewLimit: streamingPreviewLimit,
+                    maxFlushLatency: maxFlushLatency,
+                    operationStart: operationStart,
+                    progressHandler: handler
+                )
+            }
+
             let decodeStart = CFAbsoluteTimeGetCurrent()
             let values = self.makeRowValues(row, metadata: columnMetadata)
-            batchDecodeDuration += CFAbsoluteTimeGetCurrent() - decodeStart
-            let encoded = ResultBinaryRowCodec.encode(row: values)
-            pendingEncodedRows.append(encoded)
+            let decodeDuration = CFAbsoluteTimeGetCurrent() - decodeStart
             totalRowCount += 1
-            if totalRowCount <= streamingPreviewLimit {
-                pendingPreviewRows.append(values)
-            }
-            if previewRows.count < 4_096 {
+            if previewRows.count < streamingPreviewLimit {
                 previewRows.append(values)
             }
 
-            flush(false)
+            worker?.enqueue(
+                .init(
+                    previewValues: totalRowCount <= streamingPreviewLimit ? values : nil,
+                    totalRowCount: totalRowCount,
+                    decodeDuration: decodeDuration,
+                    encode: {
+                        ResultBinaryRowCodec.encode(row: values)
+                    }
+                )
+            )
         }
 
         do {
@@ -238,7 +200,7 @@ final class MySQLSession: DatabaseSession {
             encounteredError = error
         }
 
-        flush(true)
+        worker?.finish(totalRowCount: totalRowCount)
 
         if wasCancelled {
             throw CancellationError()

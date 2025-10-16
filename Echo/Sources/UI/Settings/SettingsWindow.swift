@@ -2330,18 +2330,12 @@ private struct FontSizeControl: View {
                 .frame(height: controlHeight)
                 .background(Color.primary.opacity(0.08))
                 .allowsHitTesting(false)
-            TextField("", text: $textValue)
-                .focused($isFocused)
-                .multilineTextAlignment(.center)
-                .font(.system(size: 13, weight: .semibold, design: .monospaced))
-                .textFieldStyle(.plain)
-                .frame(width: 60, height: controlHeight)
-                .contentShape(Rectangle())
-                .overlay(
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .fill(Color.clear)
-                )
-                .onSubmit(commitText)
+            CenterAlignedNumericField(
+                text: $textValue,
+                fontSize: 13,
+                onCommit: commitText
+            )
+            .frame(width: 60, height: controlHeight)
             Divider()
                 .frame(height: controlHeight)
                 .background(Color.primary.opacity(0.08))
@@ -2418,6 +2412,101 @@ private struct FontSizeControl: View {
         }
         return String(format: "%.1f", rounded)
     }
+
+#if os(macOS)
+    private struct CenterAlignedNumericField: NSViewRepresentable {
+        @Binding var text: String
+        var fontSize: CGFloat
+        var onCommit: () -> Void
+
+        func makeNSView(context: Context) -> NSTextField {
+            let field = NSTextField(string: text)
+            field.isBezeled = false
+            field.isBordered = false
+            field.drawsBackground = false
+            field.backgroundColor = .clear
+            field.focusRingType = .none
+            field.font = NSFont.monospacedSystemFont(ofSize: fontSize, weight: .semibold)
+            field.alignment = .center
+            field.delegate = context.coordinator
+            field.maximumNumberOfLines = 1
+            return field
+        }
+
+        func updateNSView(_ nsView: NSTextField, context: Context) {
+            if nsView.stringValue != text {
+                nsView.stringValue = text
+            }
+        }
+
+        func makeCoordinator() -> Coordinator {
+            Coordinator(parent: self)
+        }
+
+        final class Coordinator: NSObject, NSTextFieldDelegate {
+            var parent: CenterAlignedNumericField
+
+            init(parent: CenterAlignedNumericField) {
+                self.parent = parent
+            }
+
+            func controlTextDidChange(_ obj: Notification) {
+                guard let field = obj.object as? NSTextField else { return }
+                parent.text = field.stringValue
+            }
+
+            func controlTextDidEndEditing(_ obj: Notification) {
+                guard let field = obj.object as? NSTextField else { return }
+                parent.text = field.stringValue
+                parent.onCommit()
+            }
+        }
+    }
+#else
+    private struct CenterAlignedNumericField: UIViewRepresentable {
+        @Binding var text: String
+        var fontSize: CGFloat
+        var onCommit: () -> Void
+
+        func makeUIView(context: Context) -> UITextField {
+            let field = UITextField()
+            field.borderStyle = .none
+            field.backgroundColor = .clear
+            field.textAlignment = .center
+            field.font = .monospacedSystemFont(ofSize: fontSize, weight: .semibold)
+            field.delegate = context.coordinator
+            field.addTarget(context.coordinator, action: #selector(Coordinator.textChanged(_:)), for: .editingChanged)
+            field.addTarget(context.coordinator, action: #selector(Coordinator.editingDidEnd), for: .editingDidEnd)
+            return field
+        }
+
+        func updateUIView(_ uiView: UITextField, context: Context) {
+            if uiView.text != text {
+                uiView.text = text
+            }
+        }
+
+        func makeCoordinator() -> Coordinator {
+            Coordinator(parent: self)
+        }
+
+        final class Coordinator: NSObject, UITextFieldDelegate {
+            var parent: CenterAlignedNumericField
+
+            init(parent: CenterAlignedNumericField) {
+                self.parent = parent
+            }
+
+            @objc func textChanged(_ sender: UITextField) {
+                parent.text = sender.text ?? ""
+            }
+
+            @objc func editingDidEnd() {
+                parent.onCommit()
+            }
+        }
+    }
+#endif
 }
 
 private struct FontChip: View {

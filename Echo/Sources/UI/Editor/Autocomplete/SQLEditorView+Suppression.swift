@@ -46,6 +46,7 @@ extension SQLTextView {
             suggestions: suggestions,
             tokenRange: tokenRange,
             tokenText: tokenText,
+            clause: query.clause,
             objectContextKeywords: SQLTextView.objectContextKeywords,
             columnContextKeywords: SQLTextView.columnContextKeywords
         )
@@ -120,6 +121,11 @@ extension SQLTextView {
 
         let prefix = rawComponents.last ?? ""
         let pathComponents = rawComponents.dropLast().map { String($0) }
+
+        let parsedContext = SQLContextParser(text: string,
+                                             caretLocation: caretLocation,
+                                             dialect: currentSQLDialect(),
+                                             catalog: SQLDatabaseCatalog(schemas: [])).parse()
         let query = SQLAutoCompletionQuery(
             token: token,
             prefix: String(prefix),
@@ -128,7 +134,8 @@ extension SQLTextView {
             precedingKeyword: nil,
             precedingCharacter: nil,
             focusTable: nil,
-            tablesInScope: []
+            tablesInScope: [],
+            clause: parsedContext.clause
         )
 
         let request = SQLAutocompleteRuleEngine.SuppressionRequest(
@@ -138,6 +145,7 @@ extension SQLTextView {
             suggestions: [],
             tokenRange: tokenRange,
             tokenText: token,
+            clause: query.clause,
             objectContextKeywords: SQLTextView.objectContextKeywords,
             columnContextKeywords: SQLTextView.columnContextKeywords
         )
@@ -312,6 +320,11 @@ extension SQLTextView {
             let pathComponents = rawComponents.dropLast().map { String($0) }
             let prefix = rawComponents.last ?? canonical
 
+            let parsedContext = SQLContextParser(text: string,
+                                                 caretLocation: suppression.tokenRange.location,
+                                                 dialect: currentSQLDialect(),
+                                                 catalog: SQLDatabaseCatalog(schemas: [])).parse()
+
             let query = SQLAutoCompletionQuery(
                 token: canonical,
                 prefix: prefix,
@@ -320,7 +333,8 @@ extension SQLTextView {
                 precedingKeyword: nil,
                 precedingCharacter: nil,
                 focusTable: nil,
-                tablesInScope: []
+                tablesInScope: [],
+                clause: parsedContext.clause
             )
 
             controller.present(suggestions: fallback, query: query)

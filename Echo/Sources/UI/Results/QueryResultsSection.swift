@@ -590,6 +590,7 @@ struct QueryResultsSection: View {
             macStatusChipLabel(width: width, content: label)
         }
         .buttonStyle(.plain)
+        .frame(height: statusChipHeight, alignment: .center)
     }
 
     @ViewBuilder
@@ -624,7 +625,7 @@ struct QueryResultsSection: View {
                 contentBuilder()
             }
             .padding(.horizontal, 10)
-            .frame(minHeight: height, maxHeight: .infinity, alignment: .center)
+            .frame(height: height, alignment: .center) // Keep fixed height so baseline stays centered in the status bar
             .frame(width: width, alignment: .center)
             .background(
                 RoundedRectangle(cornerRadius: 8, style: .continuous)

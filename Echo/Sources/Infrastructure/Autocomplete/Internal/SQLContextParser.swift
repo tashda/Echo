@@ -35,9 +35,11 @@ struct SQLContext {
     let caretLocation: Int
     let currentToken: String
     let precedingKeyword: String?
+    let clause: SQLClause
     let pathComponents: [String]
     let tablesInScope: [TableReference]
     let focusTable: TableReference?
+    let cteColumns: [String: [String]]
 }
 
 final class SQLContextParser {
@@ -61,25 +63,31 @@ final class SQLContextParser {
     }
 
     func parse() -> SQLContext {
-        let trimmedLocation = max(0, min(caretLocation, text.count))
         let nsText = text as NSString
+        let trimmedLocation = max(0, min(caretLocation, nsText.length))
+        let tokens = SQLTokenizer.tokenize(nsText)
+
         let tokenRange = tokenRange(at: trimmedLocation, in: nsText)
         let token = tokenRange.length > 0 ? nsText.substring(with: tokenRange) : ""
 
         let components = token.split(separator: ".", omittingEmptySubsequences: false).map(String.init)
         let pathComponents = components.dropLast().filter { !$0.isEmpty }
 
-        let precedingKeyword = previousKeyword(before: tokenRange.location, in: nsText)
+        let precedingKeyword = previousKeyword(before: tokenRange.location, tokens: tokens)
+        let clause = inferClause(tokens: tokens, caretLocation: trimmedLocation)
         let tableMatches = parseTableMatches()
         let tables = deduplicatedReferences(from: tableMatches)
         let focusTable = inferFocusTable(matches: tableMatches, caretLocation: trimmedLocation)
+        let cteColumns = parseCTEColumns()
 
         return SQLContext(caretLocation: trimmedLocation,
                           currentToken: token,
                           precedingKeyword: precedingKeyword,
+                          clause: clause,
                           pathComponents: Array(pathComponents),
                           tablesInScope: tables,
-                          focusTable: focusTable)
+                          focusTable: focusTable,
+                          cteColumns: cteColumns)
     }
 
     private func tokenRange(at caretLocation: Int, in text: NSString) -> NSRange {
@@ -95,15 +103,138 @@ final class SQLContextParser {
         return NSRange(location: start, length: caretLocation - start)
     }
 
-    private func previousKeyword(before location: Int, in text: NSString) -> String? {
+    private func previousKeyword(before location: Int, tokens: [SQLToken]) -> String? {
         guard location > 0 else { return nil }
-        let range = NSRange(location: 0, length: location)
-        let substring = text.substring(with: range)
-        let trimmed = substring.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return nil }
-        let components = trimmed.components(separatedBy: SQLContextParser.nonWordCharacterSet)
-        guard let keyword = components.last(where: { !$0.isEmpty }) else { return nil }
-        return keyword.lowercased()
+        for token in tokens.reversed() {
+            guard token.range.location < location else { continue }
+            switch token.kind {
+            case .keyword:
+                return token.lowercased
+            case .identifier where SQLContextParser.keywordLikeIdentifiers.contains(token.lowercased):
+                return token.lowercased
+            default:
+                continue
+            }
+        }
+        return nil
+    }
+
+    private func inferClause(tokens: [SQLToken], caretLocation: Int) -> SQLClause {
+        var clause: SQLClause = .unknown
+        var pendingGroupBy = false
+        var pendingOrderBy = false
+        var encounteredInsert = false
+        var encounteredUpdate = false
+        var encounteredDelete = false
+        var insertColumnDepth = 0
+
+        for token in tokens {
+            guard token.range.location < caretLocation else { break }
+            let value = token.lowercased
+            switch token.kind {
+            case .keyword, .identifier:
+                switch value {
+                case "with":
+                    clause = .withCTE
+                case "select":
+                    clause = .selectList
+                    pendingGroupBy = false
+                    pendingOrderBy = false
+                    encounteredInsert = false
+                    encounteredUpdate = false
+                    encounteredDelete = false
+                    insertColumnDepth = 0
+                case "from":
+                    clause = .from
+                case "join", "inner", "left", "right", "full", "outer", "cross":
+                    clause = .joinTarget
+                case "on":
+                    clause = .joinCondition
+                case "where":
+                    clause = .whereClause
+                case "group":
+                    pendingGroupBy = true
+                case "order":
+                    pendingOrderBy = true
+                case "by":
+                    if pendingGroupBy {
+                        clause = .groupBy
+                        pendingGroupBy = false
+                    } else if pendingOrderBy {
+                        clause = .orderBy
+                        pendingOrderBy = false
+                    }
+                case "having":
+                    clause = .having
+                case "limit":
+                    clause = .limit
+                case "offset":
+                    clause = .offset
+                case "insert":
+                    encounteredInsert = true
+                    encounteredUpdate = false
+                    encounteredDelete = false
+                    insertColumnDepth = 0
+                    clause = .from
+                case "into" where encounteredInsert:
+                    clause = .from
+                case "values":
+                    clause = .values
+                    encounteredInsert = false
+                    insertColumnDepth = 0
+                case "update":
+                    encounteredUpdate = true
+                    encounteredInsert = false
+                    encounteredDelete = false
+                    insertColumnDepth = 0
+                    clause = .from
+                case "set" where encounteredUpdate:
+                    clause = .updateSet
+                case "delete":
+                    encounteredDelete = true
+                    encounteredInsert = false
+                    encounteredUpdate = false
+                    insertColumnDepth = 0
+                    clause = .from
+                case "returning":
+                    clause = .selectList
+                default:
+                    continue
+                }
+            default:
+                if token.text == "," {
+                    if clause == .insertColumns {
+                        clause = .insertColumns
+                    } else if clause == .from || clause == .joinTarget {
+                        clause = .from
+                    } else if clause == .selectList || clause == .groupBy || clause == .orderBy {
+                        // clause stays the same for comma-separated expressions
+                    }
+                } else if token.text == "(" {
+                    pendingGroupBy = false
+                    pendingOrderBy = false
+                    if encounteredInsert && clause == .from {
+                        clause = .insertColumns
+                        insertColumnDepth += 1
+                    } else if insertColumnDepth > 0 {
+                        insertColumnDepth += 1
+                    }
+                } else if token.text == ")" {
+                    if insertColumnDepth > 0 {
+                        insertColumnDepth -= 1
+                        if insertColumnDepth == 0 {
+                            clause = .from
+                        }
+                    }
+                }
+            }
+        }
+
+        if clause == .unknown, encounteredDelete {
+            clause = .deleteWhere
+        }
+
+        return clause
     }
 
     private func parseTableMatches() -> [TableMatch] {
@@ -193,13 +324,8 @@ final class SQLContextParser {
     private static let completionTokenCharacterSet: CharacterSet = {
         var set = CharacterSet.alphanumerics
         set.insert(charactersIn: "$_.")
+        set.insert(charactersIn: "*")
         return set
-    }()
-
-    private static let nonWordCharacterSet: CharacterSet = {
-        var set = CharacterSet.alphanumerics
-        set.insert(charactersIn: "_$")
-        return set.inverted
     }()
 
     static let objectContextKeywords: Set<String> = [
@@ -210,7 +336,50 @@ final class SQLContextParser {
         "WHERE", "INNER", "LEFT", "RIGHT", "ON", "JOIN", "SET", "ORDER", "GROUP", "HAVING", "LIMIT"
     ]
 
+    private static let keywordLikeIdentifiers: Set<String> = [
+        "select", "from", "join", "on", "where", "group", "by", "order", "having", "limit",
+        "offset", "insert", "into", "values", "update", "set", "delete", "with", "returning"
+    ]
+
     static let columnContextKeywords: Set<String> = [
         "select", "where", "on", "and", "or", "having", "group", "order", "by", "set", "values", "case", "when", "then", "else", "returning", "using"
     ]
+
+    private func parseCTEColumns() -> [String: [String]] {
+        var mapping: [String: [String]] = [:]
+
+        let patterns = [
+            "(?is)\\bwith\\s+([A-Za-z0-9_\"`\\[\\]]+)\\s*\\(([^)]+)\\)",
+            "(?is)\\)\\s+([A-Za-z0-9_]+)\\s*\\(([^)]+)\\)"
+        ]
+
+        for pattern in patterns {
+            guard let regex = try? NSRegularExpression(pattern: pattern, options: []) else { continue }
+            let nsRange = NSRange(text.startIndex..<text.endIndex, in: text)
+
+            regex.enumerateMatches(in: text, options: [], range: nsRange) { match, _, _ in
+                guard let match, match.numberOfRanges >= 3 else { return }
+
+                let identifierRange = match.range(at: 1)
+                guard let identifierSwift = Range(identifierRange, in: text) else { return }
+                let rawIdentifier = String(text[identifierSwift])
+                let normalizedIdentifier = SQLContextParser.normalizeIdentifier(rawIdentifier).lowercased()
+                guard !normalizedIdentifier.isEmpty else { return }
+
+                let columnsRange = match.range(at: 2)
+                guard let columnsSwift = Range(columnsRange, in: text) else { return }
+                let columnsString = String(text[columnsSwift])
+                let columns = columnsString
+                    .split(separator: ",")
+                    .map { SQLContextParser.normalizeIdentifier(String($0)).lowercased() }
+                    .filter { !$0.isEmpty }
+
+                if !columns.isEmpty {
+                    mapping[normalizedIdentifier] = columns
+                }
+            }
+        }
+
+        return mapping
+    }
 }

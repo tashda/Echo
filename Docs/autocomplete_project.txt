@@ -1,0 +1,586 @@
+SQL IntelliSense / Auto‑Complete for macOS
+Product & Technical Spec — v1.0
+Targets: PostgreSQL ≥ 11, MySQL ≥ 5.7/8.0, SQLite ≥ 3.34, SQL Server ≥ 2017
+Editor: AppKit NSTextView (TextKit 2 where available)
+OS: macOS 12+
+Threading: Main thread for UI; background for parsing/introspection
+1) Goals and Non‑Goals
+Goals
+Provide fast, context‑aware completions for SQL across the four target databases.
+Reduce syntax and naming errors by scoping suggestions to the current context (e.g., columns after SELECT, tables after FROM, etc.).
+Offer intelligent join suggestions based on detected foreign keys and recent user patterns.
+Support snippets (templates with tab‑stops), placeholders, auto‑quoting, and dialect‑aware options.
+Be non‑intrusive: predictable triggers, limited flicker, and clear escape/dismiss behaviors.
+Remain usable offline (core keyword and snippet suggestions) and robust under restricted database permissions.
+Non‑Goals
+Full static analysis/linting beyond lightweight checks.
+Executing any DML/DDL for the sake of completion (no side effects).
+Editing remote objects (e.g., creating DB objects) from within the popover.
+2) UX Principles (Top‑Level)
+P1. Predictability: The popover appears only when it’s likely helpful, and never reopens immediately after an insertion unless explicitly re‑triggered.
+P2. Control: Users can manually trigger (⌘. and Ctrl-Space) or suppress (Esc), and configure aggressiveness.
+P3. Context‑First: The top suggestions match where the caret is (e.g., columns inside SELECT, tables inside FROM/JOIN).
+P4. Low Friction, High Signal: Debounce keystrokes, fuzzy matching, minimal jitter; rank by context, proximity, history.
+P5. Dialect‑Aware: Respect identifier quoting, case rules, functions, parameters, and features per engine.
+P6. Accessibility: Full keyboard navigation, VoiceOver labels, high‑contrast mode support.
+3) Interaction Model & Shortcuts
+Triggers
+Automatic: after identifiers, dot (.) following schema/object, after JOIN, ON, WHERE, GROUP BY, ORDER BY, INSERT INTO, UPDATE, DELETE FROM, CREATE, ALTER, DROP, WITH, OVER (, PARTITION BY, HAVING, LIMIT/OFFSET (or TOP in T‑SQL), and after comma-separated lists.
+Manual: ⌘. (per your rule) and Ctrl-Space to open suggestions even if heuristic would not.
+Reinvoke: ⌘. immediately after a token to force show (e.g., to disambiguate).
+Selection & Commit
+Navigate: ↑/↓, Page Up/Down; group jump with ⌘↑/⌘↓ (between object type groups).
+Commit current item: Tab (preferred), Return (secondary).
+Commit and keep popover open: Shift‑Tab toggles “stay open for next placeholder”.
+Insert with snippet placeholders: advance with Tab, reverse with Shift‑Tab.
+Dismiss: Esc or click outside.
+Rule (existing): After a suggestion has been inserted, do not auto‑show the popover again until the user types a new trigger or manual invoke. (R‑UX‑001)
+Ambiguity Highlight (your “glow” rule)
+When a typed table or schema prefix is also a prefix of other objects, visually highlight (glow) the token (schema and/or table) and show a subtle inline affordance (e.g., a light outline).
+The user can press ⌘. to open suggestions scoped to that token/prefix. (R‑UX‑002)
+Popover Behavior
+Max height ~12 items; virtualized list.
+Sections (when applicable): Columns, Tables/Views, Functions, Keywords, Snippets, CTEs/Aliases, History.
+Each row shows: icon (type), display name, qualified name, tail info (data type / return type / schema), optional doc tooltip on hover.
+No flicker: recompute in background; update in place; keep selection stable.
+Don’t overlap caret line: nudge above/below, flip if near screen edge.
+Latency budget: first paint ≤ 75 ms; full enrich ≤ 150 ms (see §12).
+4) Contextual Suggestion Matrix
+The engine determines context by incremental parse and token lookback (see §10). Below are the top suggestion types in each context, in rank order.
+4.1 Anywhere (fallback)
+Keywords (SELECT, INSERT, UPDATE, DELETE, CREATE, ALTER, DROP, WITH, WHERE, JOIN, GROUP BY, ORDER BY, HAVING, LIMIT/OFFSET, RETURNING/OUTPUT, etc.)
+Snippets (common templates; see §7)
+History (frequently used objects in this connection/workspace)
+Functions (dialect‑specific built‑in list)
+Placeholders / Params (e.g., @param for T‑SQL, :name for SQLite/MySQL, $1 for PostgreSQL)
+4.2 After SELECT / SELECT DISTINCT / after comma in select list
+Columns from tables/CTEs/aliases in scope (honor alias and star *).
+Star expansion helpers:
+* → “Expand * to column list” (inserts explicit column list; user setting).
+alias.* expansions.
+Generated lists respect the active aliases; when multiple sources are present the inserted columns are fully qualified.
+Expressions (aggregates: COUNT, SUM, AVG, window functions if OVER used).
+Snippets: CASE WHEN, COALESCE, JSON field access for dialect, CAST(...).
+Functions appropriate to inferred type context (numeric, string, date/time).
+4.3 After FROM / JOIN target
+Tables/Views/Materialized Views in current/default schema.
+Schemas/Databases when typing <schema>. or database prefix (SQL Server/MySQL).
+CTE names (from WITH).
+Synonyms (SQL Server).
+Attached DB names (SQLite: main, temp, attached names).
+4.4 After JOIN keyword (before target)
+Join types (if started typing): INNER, LEFT [OUTER], RIGHT [OUTER], FULL [OUTER] (not MySQL), CROSS, NATURAL (PG/SQLite).
+Then Tables/Views, CTEs, Synonyms.
+4.5 After table/alias and dot (alias.)
+Columns of that object in rank order (PK first, then FKs, then others).
+For JSON/array types (PG): operators/functions e.g., ->, ->>, jsonb_extract_path_text(...).
+4.6 After ON (join condition)
+Column pairs suggested from foreign keys (e.g., orders.customer_id = customers.id) with a one‑shot snippet:
+ON <lhs_col> = <rhs_col> (prefill the logically matching pair).
+FK-based join suggestions rank ahead of the raw column list and always use the query’s aliases to avoid ambiguity.
+Previously used join patterns between same tables (from history).
+Columns from both sides of the join.
+Comparison operators and boolean helpers (AND, OR, IS NULL, LIKE, etc.).
+4.7 After WHERE
+Columns from reachable tables/aliases.
+Parameterized placeholders:
+PostgreSQL: $1, $2…
+SQL Server: @name
+MySQL: ?, :name (depending on client style, configurable)
+SQLite: ?, ?1, :name, @name (all allowed)
+Automatic numbering continues from the highest placeholder already present in the statement.
+Operators & type‑compatible functions (LIKE, ILIKE PG, IN (...), BETWEEN, date functions).
+Date/time shortcuts: CURRENT_DATE, now() (PG), GETDATE() (T‑SQL), CURRENT_TIMESTAMP, etc.
+4.8 GROUP BY / HAVING
+Columns/aliases in select list (with # markers for positional in MySQL if enabled).
+Aggregates in HAVING.
+Window functions (show but lower rank).
+4.9 ORDER BY
+Columns/aliases in select list (ranked first), then all available columns; ASC/DESC, NULLS FIRST/LAST (PG), collations (dialect aware).
+4.10 LIMIT/OFFSET (MySQL/PG/SQLite) or TOP (T‑SQL)
+Numeric placeholder snippet; dialect mapping (T‑SQL SELECT TOP (N)).
+4.11 INSERT INTO
+Table names first. After choosing a table:
+Suggested (<column list>) snippet with nullable columns last; PK identity columns optional (dialect aware).
+VALUES rows with correct placeholder syntax (per dialect).
+Post‑insert RETURNING (PG) or OUTPUT (T‑SQL) columns snippet.
+4.12 UPDATE
+Table name; SET suggestions with column names and = placeholders.
+FROM (PG/T‑SQL) joinable tables when applicable.
+WHERE columns.
+4.13 DELETE
+Table name; optional FROM (dialect).
+USING (PG) suggestions.
+WHERE columns.
+4.14 CREATE/ALTER/DROP object DDL
+Object types: TABLE, VIEW, INDEX, SCHEMA, FUNCTION, PROCEDURE, TRIGGER, MATERIALIZED VIEW (PG), SEQUENCE (PG), TYPE (PG).
+For CREATE INDEX: index methods (PG: btree, hash, gist, gin, brin), included columns (T‑SQL), UNIQUE, CONCURRENTLY (PG), IF NOT EXISTS where supported.
+Table options (MySQL: engine, charset; PG: partitioning).
+Column definitions: data types (dialect list), nullability, default, identity/auto‑increment (SERIAL/GENERATED AS IDENTITY PG; AUTO_INCREMENT MySQL; IDENTITY T‑SQL).
+ALTER TABLE helpers: ADD COLUMN, DROP COLUMN, ADD CONSTRAINT, DROP CONSTRAINT, RENAME TO, etc.
+DROP ... IF EXISTS where supported.
+4.15 WITH (CTEs)
+After WITH: snippet cte_name AS (\n\tSELECT …\n).
+Later scopes: CTE names and their derived column names (infer from SELECT list inside the CTE).
+4.16 Window functions (OVER clause)
+After OVER (: suggest PARTITION BY, ORDER BY, frame clauses ROWS/RANGE BETWEEN ….
+Window‑capable functions ranked higher in select context.
+4.17 Strings & Comments
+Never trigger inside single‑quoted or double‑quoted strings (unless user forces manual trigger).
+Never trigger inside line comments -- or # (MySQL), or block comments /* */.
+5) Dialect Awareness
+Identifier quoting
+PostgreSQL, SQLite, SQL Server: double quotes "ident".
+MySQL: backticks `ident` (and optionally ANSI_QUOTES may allow "ident", but default to backticks).
+SQL Server alternate: [ident] also valid; prefer [ ] when inserting for T‑SQL.
+Rule: Auto‑quote when:
+Identifier contains spaces/special chars,
+Mixed case (preserve exact case in PG/SQLite),
+Collides with reserved keywords (per dialect lists).
+Database object hierarchy
+PostgreSQL: database → schema → object. Respect search_path.
+MySQL: database (aka schema) → object.
+SQLite: attached DB (main, temp, custom) → object; no schemas.
+SQL Server: database → schema (default dbo) → object; include synonyms.
+Parameter placeholders (in suggestions & snippets)
+PG: $1, $2, …
+MySQL: ? (default) or named :name if user enabled named params
+SQLite: ?, ?1, :name, @name
+SQL Server: @name
+Functions & keywords
+Maintain dialect‑specific sets (built‑ins) and expose docs on hover (short one‑liners + signature). Allow user‑defined functions/routines discovered via introspection.
+6) Metadata & Introspection (Read‑Only)
+All introspection must use read‑only catalog views; never modify data.
+PostgreSQL
+Tables/Views/MVs: pg_class + pg_namespace (relkind in ('r','v','m','f','p'))
+Columns: information_schema.columns
+Indexes: pg_indexes
+Constraints/FKs: information_schema.table_constraints, key_column_usage, referential_constraints or pg_constraint
+Routines: pg_proc + pg_namespace with pg_get_function_arguments/result
+Search path: SHOW search_path
+MySQL
+Tables/Views: information_schema.tables WHERE TABLE_SCHEMA = DATABASE()
+Columns: information_schema.columns WHERE TABLE_SCHEMA = DATABASE()
+Indexes: information_schema.statistics
+FKs: information_schema.key_column_usage WHERE REFERENCED_TABLE_NAME IS NOT NULL
+Routines: information_schema.routines WHERE ROUTINE_SCHEMA = DATABASE()
+SQL Server
+Tables: sys.tables + sys.schemas
+Views: sys.views + sys.schemas
+Columns: sys.columns + sys.types
+Indexes: sys.indexes + sys.index_columns
+FKs: sys.foreign_keys + sys.foreign_key_columns
+Routines: sys.objects (P proc, FN scalar fn, IF inline TVF, TF multi‑stmt TVF)
+Synonyms: sys.synonyms
+SQLite
+Objects: sqlite_master WHERE type IN ('table','view') AND name NOT LIKE 'sqlite_%'
+Columns: PRAGMA table_info('<table>')
+Indexes: PRAGMA index_list('<table>'), PRAGMA index_info('<index>')
+FKs: PRAGMA foreign_key_list('<table>')
+(Built‑in function catalog: static list shipped in app; SQLite lacks a standard runtime function catalog.)
+Caching & invalidation
+Warm caches lazily (per connection) on first trigger or in idle background.
+Maintain SchemaCache keyed by connection‑id + database + schema (if applicable).
+TTL: 10 minutes idle; manual refresh action in UI; event‑based invalidation:
+After executing DDL, fast‑path update specific tables/schemas if the parser detects CREATE|ALTER|DROP.
+If detection fails, mark the connection “stale” and refresh next time.
+Permissions fallback
+If catalog access is denied/limited, display a banner in the popover section (“limited metadata; showing keywords and history”).
+7) Snippets & Templates
+Tab‑stop style with Xcode‑like placeholders <#placeholder#>.
+Examples (dialect‑aware placeholders):
+Select skeleton:
+SELECT <#columns#>\nFROM <#schema.table or table#> <#alias#>\nWHERE <#condition#>;
+Join with FK (auto‑filled columns if known):
+JOIN <#schema.table#> <#alias#> ON <#left_col#> = <#right_col#>
+Insert:
+PG: INSERT INTO <#schema.table#> (<#cols#>)\nVALUES (<#$1,$2,…#>)\nRETURNING <#cols#>;
+MySQL: INSERT INTO <#db.table#> (<#cols#>) VALUES (<#?,?…#>);
+SQL Server: INSERT INTO <#db.schema.table#> (<#cols#>) OUTPUT <#inserted.*#> VALUES (<#@p1,@p2…#>);
+Create index (PG):
+CREATE <#UNIQUE#> INDEX <#name#> ON <#schema.table#> USING <#btree#> (<#column#>);
+CASE:
+CASE\n\tWHEN <#condition#> THEN <#value#>\n\tELSE <#else#>\nEND
+Snippets appear as a dedicated section and can be toggled in Preferences.
+8) Ranking Algorithm
+Compute a score for each candidate and sort descending; top‑N truncated.
+Weighted features (tunable in config):
+Context fit (strong weight): e.g., columns score high in select list.
+Exact prefix match > fuzzy match > contains.
+Schema proximity: current schema/database matches + boost.
+Usage frequency & recency: per‑connection history (LRU).
+Relational relevance: PK/FK columns boosted; join partner tables boosted after JOIN.
+Visibility: Privilege/access filter; hidden objects (system schemas) down‑ranked.
+Type compatibility: numeric functions after numeric column; string funcs after text.
+Deduplicate by fully‑qualified name; merge aliases (e.g., same column appears via multiple join paths—prefer the shortest).
+9) Visual Design & Accessibility
+Popover
+Native NSPopover or a non‑activating NSPanel anchored to caret rect.
+Rows: 22–24 pt height; bold name, light secondary metadata.
+Icons: table, view, materialized view, column, function, keyword, snippet, CTE, schema, database, synonym.
+“Glow” highlight for ambiguous tokens: 2‑px rounded outline using NSColor.controlAccentColor with 30% opacity.
+Keyboard & VoiceOver
+All actions are accessible via keyboard.
+Each item has an accessibility label including object type, name, and schema.
+Provide high‑contrast mode colors and test with macOS Increase Contrast.
+10) Parsing & Tokenization
+Incremental parser purpose: determine the local/expected token class and available scopes (tables, aliases, CTEs).
+Tokenizer: SQL‑aware, whitespace and comment preserving, supports strings, quoted identifiers, numeric literals, parameters.
+Recovery: Gracefully handle incomplete statements (unclosed quotes/parentheses); fall back to heuristics.
+Scope tracking:
+FROM/JOIN introduce sources with alias map.
+WITH CTEs tracked with their column names if available (infer from select list).
+Nested subqueries maintain local alias table.
+Dialect switches:
+T‑SQL specific: TOP, OUTPUT, WITH (NOLOCK), temporary tables #temp, variables @name.
+MySQL: backticks, LIMIT offset, count, SQL_CALC_FOUND_ROWS (legacy), STRAIGHT_JOIN.
+PostgreSQL: RETURNING, ILIKE, DISTINCT ON, arrays, ->, ->>, JSONB ops, CTEs Materialized hints.
+SQLite: WITH RECURSIVE, PRAGMA, flexible params.
+Performance: Keep a lightweight AST for the current statement; update incrementally on each keystroke with a 15–30 ms budget.
+11) Auto‑Quoting & Case Rules
+Insert identifiers unquoted unless required; when quoted, choose dialect’s standard.
+Preserve typed case if user started the token in quotes; otherwise follow dialect defaults.
+Post‑insert transform: if user types select and setting is “Uppercase keywords”, transform to SELECT without moving caret.
+12) Performance Budgets
+Keystroke to first suggestions: ≤ 75 ms (cached metadata).
+Cold metadata fetch: show keywords/snippets immediately; async enrich with tables/columns as they arrive (progress pulse in section header).
+Ranking/render updates: ≤ 16 ms per frame (no main‑thread blocking IO).
+Introspection: batch queries; cap parallelism (e.g., max 4 concurrent).
+13) Failure Modes & Fallbacks
+No connection / offline: keywords + snippets + history; show banner “Disconnected — limited suggestions”.
+Limited privileges: hide protected objects; show message in section header.
+Timeouts: cancel stale tasks when user moves caret; never block typing.
+14) Privacy & Safety
+Never execute mutating queries for introspection.
+Do not log raw data values; store only object names, not contents.
+Telemetry (opt‑in): latency metrics, counts of accepted suggestions, non‑PII anonymized.
+15) Preferences (User Settings)
+Enable/disable auto‑popup; delay (ms).
+Manual trigger keys (default ⌘. and Ctrl‑Space, editable).
+Aggressiveness (strict context vs. broad).
+Star expansion behavior.
+Keyword casing: UPPER/mixed/as‑typed.
+Include system schemas (off by default).
+Named parameter style (per dialect where options exist).
+Show documentation tooltips (on by default).
+Snippet set (toggle groups).
+16) Data Model & API (Swift)
+16.1 Core Types
+enum SQLDialect { case postgres, mysql, sqlite, sqlserver }
+
+struct EditorContext {
+    let dialect: SQLDialect
+    let connectionID: UUID
+    let database: String?        // PG/MySQL/SQL Server; SQLite: attached DB name
+    let schema: String?          // PG/SQL Server only
+    let caretOffset: Int
+    let text: String             // current document or current statement
+    let tokenBeforeCaret: String // normalized
+    let scope: ScopeInfo         // from parser: aliases, ctes, tables in FROM
+    let expected: ExpectedToken  // e.g., .column, .table, .function, .keyword, .joinCondition
+}
+
+enum SuggestionKind {
+    case column, table, view, materializedView, schema, database, synonym
+    case function, keyword, snippet, cte, alias, parameter
+}
+
+struct SuggestionItem: Hashable {
+    let id: String                       // stable hash: fully qualified + kind + signature
+    let kind: SuggestionKind
+    let display: String                  // short name
+    let qualified: String?               // schema.table, db.schema.table
+    let detail: String?                  // data type, return type, “PK”, etc.
+    let insertText: String               // what to insert (with correct quoting)
+    let snippet: String?                 // optional snippet with placeholders
+    let score: Double                    // rank score
+    let rangeToReplace: NSRange          // token range
+    let documentation: String?           // short docstring
+}
+16.2 Providers & Orchestrator
+protocol SuggestionProvider {
+    func suggestions(for context: EditorContext,
+                     partial: String,
+                     budgetMs: Int) async -> [SuggestionItem]
+}
+
+final class Orchestrator {
+    private let providers: [SuggestionProvider]
+    private let ranker: SuggestionRanker
+    func requestSuggestions(context: EditorContext) async -> [SuggestionItem] { /* merge, rank */ }
+}
+
+protocol SuggestionRanker {
+    func rank(_ items: [SuggestionItem], with context: EditorContext) -> [SuggestionItem]
+}
+Providers:
+KeywordProvider (static)
+SnippetProvider (static/dialect)
+MetadataProvider (tables/views/schemas/databases; async cache)
+ColumnProvider (needs scope)
+FunctionProvider (built‑ins + user routines)
+JoinConditionProvider (FK hints + history)
+HistoryProvider (per connection)
+ParameterProvider (dialect‑specific)
+16.3 Schema Cache
+struct TableRef { let database: String?; let schema: String?; let name: String }
+struct ColumnRef { let table: TableRef; let name: String; let dataType: String; let isPK: Bool; let isFK: Bool }
+
+actor SchemaCache {
+    func tables(in ctx: EditorContext) async -> [TableRef]
+    func columns(for table: TableRef) async -> [ColumnRef]
+    func foreignKeys(for table: TableRef) async -> [ForeignKey]
+    func functions(in ctx: EditorContext) async -> [Routine]
+    func invalidate(_ scope: InvalidationScope)
+}
+17) Insertion Rules
+Replace only the current token range (as detected by tokenizer), not entire line.
+Respect surrounding quotes: if user started "Cus and picks Customers, insert "Customers".
+After insertion, do not auto‑reopen (R‑UX‑001).
+If insertion contains placeholders/snippet: enter snippet mode; on finish, allow ⌘. to reopen.
+For . trigger: do not insert extra characters; popover closes if the user types non‑identifier delimiter.
+18) Special Cases & Edge Handling
+CTE columns: if CTE WITH c(x,y) AS (...) then after c. suggest x, y.
+Derived tables: FROM (SELECT a,b FROM t) dt(a_alias, b_alias) → after dt. suggest a_alias, b_alias.
+Temporary objects:
+SQL Server #temp, ##global;
+PG TEMP TABLE in pg_temp schema—show when search_path includes it.
+Quoted mixed‑case identifiers (PG/SQLite): preserve case in insertion.
+MySQL lower_case_table_names: case‑insensitive match but preserve server returned name in display; insert with backticks.
+System schemas: PG (pg_catalog, information_schema) and SQL Server (sys) hidden unless user enables.
+Ambiguous column names in multi‑table queries: suggest alias.column form by default.
+Functions with overloads: show signature list; on accept, insert most common signature with placeholders.
+INSERT column order: prefer table column order; nullable last (toggle in settings).
+Star expansion: respect column visibility and ordering; one‑click revert (Undo).
+JSON paths: PG jsonb operator hints; MySQL JSON_EXTRACT(col, '$.path') snippet.
+19) Implementation Plan (Phased)
+Phase 1 — Foundations
+Tokenizer + incremental parser (scope detection).
+Providers: Keyword, Snippet, Metadata (tables/views/schemas).
+Popover UI & keyboard handling; basic ranking; settings pane.
+Dialect quoting & parameter insertion.
+Phase 2 — Columns & Joins
+5. Column provider with alias/CTE resolution.
+6. FK‑based join suggestions; ON‑clause helpers; star expansion.
+7. History and frequency ranking.
+Phase 3 — DDL & Advanced
+8. DDL assistance, index creation, function overloads.
+9. Window functions, OVER clause assistance.
+10. Telemetry, accessibility polish, performance tuning.
+20) Acceptance Criteria (Representative)
+Use Given/When/Then style. These are testable scenarios for QA/automation.
+AC‑01: No immediate reopen after selection
+Given the user selects a suggestion and it is inserted,
+When the caret remains at the end of the inserted token,
+Then the popover does not automatically reopen until the user types a fresh trigger or presses ⌘..
+AC‑02: Ambiguity highlight and manual trigger
+Given the user typed FROM cust and there are objects customer, customers, customer_orders,
+Then the token cust receives a glow highlight,
+And pressing ⌘. opens the popover filtered to matching tables/views.
+AC‑03: Contextual column suggestions
+Given SELECT FROM public.orders o JOIN public.customers c ON and caret after SELECT ,
+Then the first suggestions are columns from o and c, with o.id and FK/PK columns boosted.
+AC‑04: Join ON suggestion from FK
+Given ... FROM orders o JOIN customers c ON ,
+Then the top suggestion is o.customer_id = c.id if FK exists, inserted as a snippet with caret at end.
+AC‑05: Dot completion
+Given SELECT o. with alias o bound to orders,
+Then the popover lists columns of orders with PK first.
+AC‑06: Dialect quoting
+Given a PostgreSQL connection and the user selects a table named Order Lines,
+Then the inserted text is "Order Lines" (quoted), not unquoted.
+AC‑07: Parameters
+Given WHERE created_at >= in PostgreSQL,
+Then $1 appears in top suggestions; in SQL Server, @p1 appears; in MySQL, ?.
+AC‑08: DDL index helper
+Given CREATE INDEX ON public.orders USING ,
+Then btree, hash, gin, gist, brin appear (PG), with a snippet for column list.
+AC‑09: Strings & comments
+Given caret inside 'abc' or /* comment */,
+Then auto‑popup does not appear; manual trigger ⌘. shows a banner “Suggestions limited in strings/comments” and lists only keywords/snippets.
+AC‑10: Star expansion
+Given SELECT * FROM customers c,
+When the user accepts “Expand *”,
+Then * is replaced by c.id, c.name, c.email, ... matching column order; Undo restores *.
+AC‑11: Limited privileges
+Given a connection with no access to information_schema,
+Then popover shows keywords/snippets and a banner “Limited metadata”; no crash/timeouts.
+AC‑12: Performance
+Given cached metadata and typing an identifier,
+Then suggestions render within 75 ms (p95), verified via instrumentation.
+21) Example Introspection Queries (Read‑Only)
+Implement with parameter binding; avoid string concat. Batch where possible.
+PostgreSQL
+Tables/Views:
+SELECT n.nspname AS schema, c.relname AS name, c.relkind
+FROM pg_class c
+JOIN pg_namespace n ON n.oid = c.relnamespace
+WHERE c.relkind IN ('r','v','m','f','p')
+  AND n.nspname NOT IN ('pg_catalog','information_schema');
+Columns:
+SELECT table_schema, table_name, column_name, data_type, is_nullable
+FROM information_schema.columns
+WHERE table_schema NOT IN ('pg_catalog','information_schema');
+Indexes:
+SELECT schemaname, tablename, indexname, indexdef FROM pg_indexes;
+FK pairs (simple):
+SELECT tc.table_schema, tc.table_name, kcu.column_name,
+       ccu.table_schema AS foreign_table_schema,
+       ccu.table_name   AS foreign_table_name,
+       ccu.column_name  AS foreign_column_name
+FROM information_schema.table_constraints AS tc
+JOIN information_schema.key_column_usage AS kcu
+  ON tc.constraint_name = kcu.constraint_name
+JOIN information_schema.constraint_column_usage AS ccu
+  ON ccu.constraint_name = tc.constraint_name
+WHERE tc.constraint_type = 'FOREIGN KEY';
+MySQL
+Tables/Views:
+SELECT TABLE_SCHEMA, TABLE_NAME, TABLE_TYPE
+FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_SCHEMA = DATABASE();
+Columns:
+SELECT TABLE_NAME, COLUMN_NAME, DATA_TYPE, IS_NULLABLE
+FROM INFORMATION_SCHEMA.COLUMNS
+WHERE TABLE_SCHEMA = DATABASE();
+FKs:
+SELECT TABLE_NAME, COLUMN_NAME, REFERENCED_TABLE_NAME, REFERENCED_COLUMN_NAME
+FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE
+WHERE TABLE_SCHEMA = DATABASE()
+  AND REFERENCED_TABLE_NAME IS NOT NULL;
+SQL Server
+Tables/Views:
+SELECT s.name AS schema_name, t.name AS table_name FROM sys.tables t JOIN sys.schemas s ON s.schema_id = t.schema_id;
+SELECT s.name AS schema_name, v.name AS view_name  FROM sys.views  v JOIN sys.schemas s ON s.schema_id = v.schema_id;
+Columns:
+SELECT s.name AS schema_name, t.name AS table_name, c.name AS column_name, ty.name AS data_type, c.is_nullable
+FROM sys.columns c
+JOIN sys.types ty ON ty.user_type_id = c.user_type_id
+JOIN sys.tables t  ON t.object_id   = c.object_id
+JOIN sys.schemas s ON s.schema_id   = t.schema_id;
+FK pairs:
+SELECT sch1.name AS schema_name, t1.name AS table_name, c1.name AS column_name,
+       sch2.name AS ref_schema_name, t2.name AS ref_table_name, c2.name AS ref_column_name
+FROM sys.foreign_keys fk
+JOIN sys.foreign_key_columns fkc ON fkc.constraint_object_id = fk.object_id
+JOIN sys.tables t1  ON t1.object_id = fkc.parent_object_id
+JOIN sys.schemas sch1 ON sch1.schema_id = t1.schema_id
+JOIN sys.columns c1 ON c1.column_id = fkc.parent_column_id AND c1.object_id = t1.object_id
+JOIN sys.tables t2  ON t2.object_id = fkc.referenced_object_id
+JOIN sys.schemas sch2 ON sch2.schema_id = t2.schema_id
+JOIN sys.columns c2 ON c2.column_id = fkc.referenced_column_id AND c2.object_id = t2.object_id;
+Synonyms:
+SELECT s.name AS schema_name, sn.name AS synonym_name, sn.base_object_name
+FROM sys.synonyms sn JOIN sys.schemas s ON s.schema_id = sn.schema_id;
+SQLite
+Objects:
+SELECT name, type FROM sqlite_master WHERE type IN ('table','view') AND name NOT LIKE 'sqlite_%';
+Columns: PRAGMA table_info('<table>');
+FKs: PRAGMA foreign_key_list('<table>');
+22) History Model (Ranking Boost)
+Per connection LRU of chosen suggestions: (fullyQualifiedName, kind, lastUsed, count).
+Decay over time (e.g., halve count every 7 days).
+Expose simple “Clear history” in settings.
+23) Editor Integration (NSTextView)
+Hook into textView(_:shouldChangeTextIn:replacementString:) to capture edits.
+Maintain caret rect via firstRect(forCharacterRange:actualRange:).
+When text changes:
+Update parser (incremental).
+Determine expected token class.
+If auto‑popup is enabled and triggers match, ask Orchestrator for suggestions (debounced 60–90 ms).
+On insertion:
+Perform replacement via textStorage.replaceCharacters within a single undo group.
+If snippet: manage markers via custom layout manager or simple placeholder tokens (then replace sequentially).
+IME: Disable auto‑popup while the user is composing with an Input Method (respect NSTextInputClient composition).
+24) The “Glow” Implementation
+Compute the NSRange of the ambiguous token (schema and/or table segment).
+Overlay a lightweight CALayer behind the glyphs with corner radius 4, border width 2, border color controlAccentColor at 0.3 alpha.
+Remove layer when token becomes unique or when user inserts whitespace.
+⌘. on an ambiguous token opens the popover with a prefix filter set to that token.
+25) Telemetry (Opt‑In)
+p95/p99 latency from keystroke → first paint.
+Accept vs. dismiss rates; most used providers.
+Errors (introspection failures/timeouts, parser exceptions).
+No raw query text persisted; only event categories and counts.
+26) Internationalization / Localization
+Localize keyword descriptions and UI strings; keep SQL tokens in English.
+Full Unicode support in identifiers (quote when needed).
+BiDi safe rendering—no popover offset glitches.
+27) QA Test Matrix (Abbreviated)
+All contexts in §4 across all four dialects.
+Case sensitivity variations (PG quoted, MySQL insensitive, SQL Server collation).
+Large schemas (10k+ objects) → performance tests.
+Restricted permissions: simulate “no information_schema”.
+High latency connections (simulate 150–300 ms RTT).
+Accessibility: VoiceOver navigation of popover items.
+IME composition (Japanese/Chinese) with manual trigger.
+28) Future Enhancements (Backlog)
+AI‑assisted JOIN path discovery across multiple hops (without executing queries).
+Refactor‑rename for aliases within a statement.
+Explain plan integration to suggest indexes (view only).
+CTE materialization hints (PG) via code actions.
+Plugin system for custom function catalogs.
+Appendix A — Example Snippet & Insertion Texts (per Dialect)
+PostgreSQL
+Function suggestion: date_trunc(text, timestamp) → insert date_trunc(<#'day'#>, <#ts#>)
+JSON path: jsonb_extract_path_text(col, VARIADIC path_elems) → insert jsonb_extract_path_text(<#col#>, <#'a'#>, <#'b'#>)
+MySQL
+JSON: JSON_EXTRACT(col, '$.path')
+Upsert: INSERT ... ON DUPLICATE KEY UPDATE snippet with column assignments.
+SQL Server
+TOP: SELECT TOP (<#n#>) <#cols#> FROM <#table#>;
+OUTPUT: OUTPUT inserted.<#col#> snippet on INSERT/UPDATE.
+SQLite
+UPSERT: INSERT INTO t (...) VALUES (...) ON CONFLICT(<#col#>) DO UPDATE SET ...
+Date/time: date('now'), datetime('now')
+Appendix B — Reserved Words & Auto‑Quote Strategy
+Maintain curated lists per engine.
+On acceptance:
+If display is a reserved word under current dialect → insert quoted form directly.
+If display contains uppercase letters in PG/SQLite → quoted to preserve case.
+Appendix C — Minimal Code Skeletons (Swift)
+Orchestrator (merge + rank)
+final class DefaultOrchestrator: Orchestrator {
+    private let providers: [SuggestionProvider]
+    private let ranker: SuggestionRanker
+
+    init(providers: [SuggestionProvider], ranker: SuggestionRanker) {
+        self.providers = providers
+        self.ranker = ranker
+    }
+
+    func requestSuggestions(context: EditorContext) async -> [SuggestionItem] {
+        async let chunks = providers.map { $0.suggestions(for: context,
+                                                         partial: context.tokenBeforeCaret,
+                                                         budgetMs: 40) }
+        let flat = (try? await chunks.flatMap { $0 }) ?? []
+        let ranked = ranker.rank(flat, with: context)
+        // Deduplicate by id, keep highest score
+        var seen = Set<String>()
+        let unique = ranked.filter { seen.insert($0.id).inserted }
+        return Array(unique.prefix(50))
+    }
+}
+Quoting helper
+func quoteIdentifier(_ ident: String, dialect: SQLDialect) -> String {
+    let needsQuote = !ident.isSQLIdentifierSafe || ident.isReserved(dialect) || ident.hasMixedCase
+    guard needsQuote else { return ident }
+    switch dialect {
+    case .postgres, .sqlite: return "\"\(ident.replacingOccurrences(of: "\"", with: "\"\""))\""
+    case .mysql:             return "`\(ident.replacingOccurrences(of: "`", with: "``"))`"
+    case .sqlserver:         return "[\(ident.replacingOccurrences(of: "]", with: "]]"))]"
+    }
+}
+(Utility extensions isSQLIdentifierSafe, isReserved, hasMixedCase are straightforward.)
+Incorporation of Your Existing Rules
+R‑UX‑001: “When an AutoComplete suggestion has been selected, do not show the popover right after.” Implemented in §3, §17, AC‑01.
+R‑UX‑002: “When selecting a table in the query that has other tables/views in the database which start with the one written, put a glow around the table (and schema, if present) and allow ⌘. to show the suggestion popover.” Implemented in §3 (Ambiguity Highlight), §24, AC‑02.
+Deliverables (for the Codex agent / implementation)
+Tokenizer & Parser module with unit tests for all contexts in §4.
+SchemaCache (actor) with engine‑specific loaders in §6.
+Providers defined in §16 with integration tests.
+Popover UI (AppKit) per §9 with keyboard handlers.
+Settings pane (per §15) persisted per profile.
+Telemetry hooks (opt‑in) per §25.
+QA scripts implementing acceptance criteria in §20 and test matrix in §27.
+If you’d like, I can tailor this spec to your current codebase (e.g., your NSTextView subclass interface, how you manage connections, or the data models you use for database metadata) and produce starter Swift files for each provider and the orchestrator.
