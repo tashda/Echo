@@ -29,12 +29,18 @@ struct QueryResultsSection: View {
 
     @EnvironmentObject private var themeManager: ThemeManager
 
-    private let statusChipMinWidth: CGFloat = 96
+    private let statusChipMinWidth: CGFloat = 52
     private let statusChipHeight: CGFloat = 28
-    private let statusBarVerticalPadding: CGFloat = 2
     private let statusBarHeight: CGFloat = 36
+    private let statusBarHorizontalPadding: CGFloat = 12
+    private let statusBarChipSpacing: CGFloat = 10
 
-#if !os(macOS)
+#if os(macOS)
+    // Fixed widths for macOS to prevent shifting when content changes
+    private let rowCountChipWidth: CGFloat = 90
+    private let timeChipWidth: CGFloat = 110
+    private let statusChipWidth: CGFloat = 100
+#else
     private let connectionChipMinWidth: CGFloat = 180
     private let metricChipMinWidth: CGFloat = 82
     private let timeChipMinWidth: CGFloat = 112
@@ -445,22 +451,22 @@ struct QueryResultsSection: View {
     private var statusBar: some View {
         Group {
             if shouldShowStatusBar {
-                VStack(spacing: 0) {
-                    Divider().opacity(0.3)
-                    HStack(alignment: .center, spacing: 14) {
-                        connectionStatusItem
-                        Spacer(minLength: 12)
-                        rowCountStatusItem
-                        timeStatusItem
-                        statusSummaryItem
+                MacQueryResultsStatusBar(
+                    height: statusBarHeight,
+                    background: themeManager.windowBackground,
+                    dividerOpacity: 0.3
+                ) {
+                    HStack(alignment: .center, spacing: statusBarChipSpacing) {
+                        connectionStatusChip
+                        Spacer(minLength: 0)
+                        HStack(spacing: 6) {
+                            rowCountStatusChip
+                            timeStatusChip
+                            statusSummaryChip
+                        }
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, statusBarVerticalPadding)
-                    .frame(height: statusBarHeight, alignment: .center)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, statusBarHorizontalPadding)
                 }
-                .frame(height: statusBarHeight + 1, alignment: .top)
-                .background(themeManager.windowBackground)
             }
         }
         .transaction { transaction in
@@ -468,48 +474,45 @@ struct QueryResultsSection: View {
         }
     }
 
-    private var connectionStatusItem: some View {
-        StatusBarSegment(isEnabled: true, action: {
+    private var connectionStatusChip: some View {
+        macStatusChipButton {
             showConnectionInfoPopover.toggle()
-        }, chipHeight: statusChipHeight) {
-            HStack(alignment: .center, spacing: 6) {
-                Image(systemName: "server.rack")
-                    .font(.system(size: 11))
-                    .foregroundStyle(connection.color)
+        } label: {
+            Image(systemName: "server.rack")
+                .font(.system(size: 11))
+                .foregroundStyle(connection.color)
 
-                Text(connectionDisplayName)
-                    .font(.system(size: 11))
-                    .layoutPriority(1)
-                    .lineLimit(1)
+            Text(connectionDisplayName)
+                .font(.system(size: 11))
+                .layoutPriority(1)
+                .lineLimit(1)
 
-                if let database = effectiveDatabaseName {
-                    Text(database)
-                        .font(.system(size: 10))
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 4)
-                        .background(
-                            Capsule(style: .continuous)
-                                .fill(Color.primary.opacity(0.08))
-                        )
-                }
+            if let database = effectiveDatabaseName {
+                Text(database)
+                    .font(.system(size: 10))
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 4)
+                    .background(
+                        Capsule(style: .continuous)
+                            .fill(Color.primary.opacity(0.08))
+                    )
             }
-            .frame(maxHeight: .infinity, alignment: .center)
         }
         .popover(isPresented: $showConnectionInfoPopover, arrowEdge: .bottom) {
             connectionInfoPopover
         }
     }
 
-    private var rowCountStatusItem: some View {
+    private var rowCountStatusChip: some View {
         let total = query.totalAvailableRowCount
         let current = query.currentRowCount ?? rowCount
         let displayText = formattedRowCountShort(current, totalCount: total, executing: query.isExecuting)
         let isEnabled = !query.isExecuting && total > 0
 
-        return StatusBarSegment(isEnabled: isEnabled, action: {
+        return macStatusChipButton(width: rowCountChipWidth) {
             guard isEnabled else { return }
             showRowInfoPopover.toggle()
-        }, chipHeight: statusChipHeight) {
+        } label: {
             HStack(spacing: 6) {
                 statusIcon(named: "table.rows")
                 Text(displayText)
@@ -517,26 +520,26 @@ struct QueryResultsSection: View {
                     .foregroundStyle(query.isExecuting ? Color.secondary : Color.primary)
                     .lineLimit(1)
             }
-            .frame(minWidth: statusChipMinWidth, alignment: .leading)
-            .frame(maxHeight: .infinity, alignment: .center)
         }
+        .disabled(!isEnabled)
         .popover(isPresented: $showRowInfoPopover, arrowEdge: .bottom) {
             rowInfoPopover
         }
     }
 
-    private var timeStatusItem: some View {
+    private var timeStatusChip: some View {
         let elapsedSeconds = query.isExecuting
             ? max(0, Int(query.currentExecutionTime))
             : max(0, Int((query.lastExecutionTime ?? 0)))
         let hasDuration = query.isExecuting || query.lastExecutionTime != nil
         let displayText = hasDuration ? formattedDuration(elapsedSeconds) : "—"
         let textColor: Color = query.isExecuting ? .orange : (hasDuration ? .primary : .secondary)
+        let isEnabled = hasDuration && !query.isExecuting
 
-        return StatusBarSegment(isEnabled: hasDuration && !query.isExecuting, action: {
-            guard hasDuration, !query.isExecuting else { return }
+        return macStatusChipButton(width: timeChipWidth) {
+            guard isEnabled else { return }
             showTimeInfoPopover.toggle()
-        }, chipHeight: statusChipHeight) {
+        } label: {
             HStack(spacing: 6) {
                 Image(systemName: "clock")
                     .font(.system(size: 11))
@@ -546,28 +549,23 @@ struct QueryResultsSection: View {
                     .foregroundStyle(textColor)
                     .lineLimit(1)
             }
-            .frame(minWidth: statusChipMinWidth, alignment: .leading)
-            .frame(maxHeight: .infinity, alignment: .center)
         }
+        .disabled(!isEnabled)
         .popover(isPresented: $showTimeInfoPopover, arrowEdge: .bottom) {
             timeInfoPopover
         }
     }
 
-    private var statusSummaryItem: some View {
+    private var statusSummaryChip: some View {
         let config = statusBubbleConfiguration()
-        return StatusBarSegment(isEnabled: false, action: nil, chipHeight: statusChipHeight) {
-            HStack(spacing: 6) {
-                Image(systemName: config.icon)
-                    .font(.system(size: 11))
-                    .foregroundStyle(config.tint)
-                Text(config.label)
-                    .font(.system(size: 11))
-                    .foregroundStyle(config.tint)
-                    .lineLimit(1)
-            }
-            .frame(minWidth: statusChipMinWidth, alignment: .leading)
-            .frame(maxHeight: .infinity, alignment: .center)
+        return macStatusChipLabel(width: statusChipWidth) {
+            Image(systemName: config.icon)
+                .font(.system(size: 11))
+                .foregroundStyle(config.tint)
+            Text(config.label)
+                .font(.system(size: 11))
+                .foregroundStyle(config.tint)
+                .lineLimit(1)
         }
     }
 
@@ -583,57 +581,75 @@ struct QueryResultsSection: View {
             .foregroundStyle(Color.primary)
     }
 
-    private struct StatusBarSegment<Content: View>: View {
-        let isEnabled: Bool
-        let action: (() -> Void)?
-        let chipHeight: CGFloat
-        @ViewBuilder let content: () -> Content
+    private func macStatusChipButton<Label: View>(
+        width: CGFloat? = nil,
+        action: @escaping () -> Void,
+        @ViewBuilder label: @escaping () -> Label
+    ) -> some View {
+        Button(action: action) {
+            macStatusChipLabel(width: width, content: label)
+        }
+        .buttonStyle(.plain)
+    }
 
-        @State private var isHovering = false
+    @ViewBuilder
+    private func macStatusChipLabel<Content: View>(
+        width: CGFloat? = nil,
+        @ViewBuilder content: @escaping () -> Content
+    ) -> some View {
+        MacStatusChipLabel(
+            width: width,
+            height: statusChipHeight,
+            content: content
+        )
+    }
+
+    private struct MacStatusChipLabel<Content: View>: View {
+        let width: CGFloat?
+        let height: CGFloat
+        private let contentBuilder: () -> Content
 
         init(
-            isEnabled: Bool,
-            action: (() -> Void)?,
-            chipHeight: CGFloat,
+            width: CGFloat?,
+            height: CGFloat,
             @ViewBuilder content: @escaping () -> Content
         ) {
-            self.isEnabled = isEnabled
-            self.action = action
-            self.chipHeight = chipHeight
-            self.content = content
+            self.width = width
+            self.height = height
+            self.contentBuilder = content
         }
 
         var body: some View {
-            let interactionShape = RoundedRectangle(cornerRadius: 8, style: .continuous)
-
-            return Group {
-                if let action {
-                    Button(action: action) {
-                        segmentContent
-                    }
-                    .buttonStyle(.plain)
-                    .disabled(!isEnabled)
-                    .onHover { isHovering = $0 && isEnabled }
-                    .contentShape(interactionShape)
-                    .frame(maxHeight: .infinity, alignment: .center)
-                } else {
-                    segmentContent
-                        .onHover { isHovering = $0 && isEnabled }
-                        .contentShape(interactionShape)
-                        .frame(maxHeight: .infinity, alignment: .center)
-                }
+            HStack(spacing: 6) {
+                contentBuilder()
             }
+            .padding(.horizontal, 10)
+            .frame(minHeight: height, maxHeight: .infinity, alignment: .center)
+            .frame(width: width, alignment: .center)
+            .background(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(Color.clear)
+            )
+            .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
         }
+    }
 
-        private var segmentContent: some View {
-            content()
-                .padding(.horizontal, 10)
-                .padding(.vertical, 2)
-                .frame(height: chipHeight, alignment: .center)
-                .background(
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .fill(isHovering && isEnabled ? Color.primary.opacity(0.04) : Color.clear)
-                )
+    private struct MacQueryResultsStatusBar<Content: View>: View {
+        let height: CGFloat
+        let background: Color
+        let dividerOpacity: Double
+        @ViewBuilder var content: () -> Content
+
+        var body: some View {
+            ZStack(alignment: .center) {
+                background
+                content()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+            }
+            .frame(height: height)
+            .overlay(alignment: .top) {
+                Divider().opacity(dividerOpacity)
+            }
         }
     }
 #else

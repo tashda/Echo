@@ -80,7 +80,7 @@ struct QueryResultsTableView: NSViewRepresentable {
         let tableView = ResultTableView()
         tableView.usesAlternatingRowBackgroundColors = ThemeManager.shared.showAlternateRowShading
         tableView.rowHeight = 24
-        tableView.headerView = ResultTableHeaderView(coordinator: context.coordinator)
+        tableView.headerView = NSTableHeaderView()
         tableView.gridStyleMask = []
         tableView.columnAutoresizingStyle = .noColumnAutoresizing
         tableView.allowsColumnReordering = false
@@ -119,10 +119,12 @@ struct QueryResultsTableView: NSViewRepresentable {
         private let clipboardHistory: ClipboardHistoryStore
         private weak var tableView: NSTableView?
         private weak var scrollView: NSScrollView?
+        private weak var observedContentView: NSView?
         private let headerMenu = NSMenu()
         private let cellMenu = NSMenu()
         private var menuColumnIndex: Int?
         private var cachedColumnIDs: [String] = []
+        private var cachedColumnKinds: [ResultGridValueKind] = []
         private var cachedRowOrder: [Int] = []
         private var cachedSort: SortCriteria?
         private var lastRowCount: Int = 0
@@ -136,13 +138,20 @@ struct QueryResultsTableView: NSViewRepresentable {
         private var contextMenuCell: QueryResultsTableView.SelectedCell?
         private weak var activeSelectableField: NSTextField?
         private var cachedPaletteSignature: String?
+        private var cachedFontStyles: [SQLEditorTokenPalette.ResultGridStyle: NSFont] = [:]
         private let cellBaseFont = NSFont.systemFont(ofSize: 12)
         private var lastForeignKeySelection: QueryResultsTableView.ForeignKeySelection?
         private var lastForeignKeyDisplayMode: ForeignKeyDisplayMode?
         private var lastForeignKeyInspectorBehavior: ForeignKeyInspectorBehavior?
         private var lastJsonSelection: QueryResultsTableView.JsonSelection?
+        private static let isGridDiagnosticsEnabled: Bool = {
+            ProcessInfo.processInfo.environment["ECHO_GRID_DEBUG"] == "1"
+        }()
 
         private func resolvedFont(for style: SQLEditorTokenPalette.ResultGridStyle) -> NSFont {
+            if let cached = cachedFontStyles[style] {
+                return cached
+            }
             var traits: NSFontTraitMask = []
             if style.isBold {
                 traits.insert(.boldFontMask)
@@ -150,8 +159,14 @@ struct QueryResultsTableView: NSViewRepresentable {
             if style.isItalic {
                 traits.insert(.italicFontMask)
             }
-            guard !traits.isEmpty else { return cellBaseFont }
-            return NSFontManager.shared.convert(cellBaseFont, toHaveTrait: traits)
+            let font: NSFont
+            if traits.isEmpty {
+                font = cellBaseFont
+            } else {
+                font = NSFontManager.shared.convert(cellBaseFont, toHaveTrait: traits)
+            }
+            cachedFontStyles[style] = font
+            return font
         }
 
         var currentTableView: NSTableView? { tableView }
@@ -159,6 +174,7 @@ struct QueryResultsTableView: NSViewRepresentable {
 #if DEBUG
         private var debugLogEmissionCount = 0
         private func debugLog(_ message: String) {
+            guard Coordinator.isGridDiagnosticsEnabled else { return }
             guard debugLogEmissionCount < 200 else { return }
             debugLogEmissionCount += 1
             print("[GridDebug] \(message)")
@@ -215,19 +231,14 @@ struct QueryResultsTableView: NSViewRepresentable {
         func configure(tableView: NSTableView, scrollView: NSScrollView) {
             self.tableView = tableView
             self.scrollView = scrollView
+            registerScrollObservation(for: scrollView)
             tableView.delegate = self
             tableView.dataSource = self
             tableView.menu = cellMenu
-            if let header = tableView.headerView as? ResultTableHeaderView {
-                header.coordinator = self
-                header.menu = headerMenu
-                header.frame.size.height = max(header.frame.size.height, 28)
-                header.isHidden = false
-            } else {
-                tableView.headerView?.menu = headerMenu
-                tableView.headerView?.frame.size.height = max(tableView.headerView?.frame.size.height ?? 0, 28)
-                tableView.headerView?.isHidden = false
-            }
+            // Configure standard header view
+            tableView.headerView?.menu = headerMenu
+            tableView.headerView?.frame.size.height = max(tableView.headerView?.frame.size.height ?? 0, 28)
+            tableView.headerView?.isHidden = false
             tableView.selectionHighlightStyle = .regular
             tableView.usesAlternatingRowBackgroundColors = false
             _ = reloadColumns()
@@ -260,16 +271,13 @@ struct QueryResultsTableView: NSViewRepresentable {
             if scrollView == nil {
                 scrollView = tableView.enclosingScrollView
             }
-            if let header = tableView.headerView as? ResultTableHeaderView {
-                header.coordinator = self
-                header.menu = headerMenu
-                header.frame.size.height = max(header.frame.size.height, 28)
-                header.isHidden = false
-            } else {
-                tableView.headerView?.menu = headerMenu
-                tableView.headerView?.frame.size.height = max(tableView.headerView?.frame.size.height ?? 0, 28)
-                tableView.headerView?.isHidden = false
+            if let scrollView {
+                registerScrollObservation(for: scrollView)
             }
+            // Configure standard header view
+            tableView.headerView?.menu = headerMenu
+            tableView.headerView?.frame.size.height = max(tableView.headerView?.frame.size.height ?? 0, 28)
+            tableView.headerView?.isHidden = false
             let currentRowOrder = parent.rowOrder
             let currentRowCount = currentRowOrder.isEmpty ? parent.query.displayedRowCount : currentRowOrder.count
             let columnsChanged = reloadColumns()
@@ -295,10 +303,8 @@ struct QueryResultsTableView: NSViewRepresentable {
                         tableView.reloadData()
                         performedFullReload = true
                     } else {
+                        // Let NSTableView know the count changed; it will request visible rows lazily.
                         tableView.noteNumberOfRowsChanged()
-                        let rowIndexes = IndexSet(integersIn: range)
-                        let columnIndexes = IndexSet(integersIn: 0..<tableView.tableColumns.count)
-                        tableView.reloadData(forRowIndexes: rowIndexes, columnIndexes: columnIndexes)
                     }
                 }
             }
@@ -336,6 +342,7 @@ struct QueryResultsTableView: NSViewRepresentable {
 
             updateHeaderIndicators()
             adjustTableSize(rowCount: currentRowCount)
+            evaluatePaginationForVisibleRows()
 
             if lastForeignKeyDisplayMode != parent.foreignKeyDisplayMode || lastForeignKeyInspectorBehavior != parent.foreignKeyInspectorBehavior {
                 lastForeignKeyDisplayMode = parent.foreignKeyDisplayMode
@@ -346,12 +353,20 @@ struct QueryResultsTableView: NSViewRepresentable {
 
             if paletteChanged {
                 deactivateActiveSelectableField(in: tableView)
+                cachedFontStyles.removeAll(keepingCapacity: true)
                 applyHeaderStyle(to: tableView)
                 if !performedFullReload {
                     tableView.reloadData()
                     performedFullReload = true
                 }
                 refreshVisibleRowBackgrounds(tableView)
+            }
+
+            if performedFullReload || rowCountIncreased {
+                parent.query.recordTableViewUpdate(
+                    visibleRowCount: currentRowCount,
+                    totalAvailableRowCount: parent.query.totalAvailableRowCount
+                )
             }
 
             if let state = persistedState {
@@ -361,6 +376,59 @@ struct QueryResultsTableView: NSViewRepresentable {
                 state.lastRowCount = lastRowCount
                 state.lastResultToken = dirtyToken
             }
+
+            evaluatePaginationForVisibleRows()
+        }
+
+        private func registerScrollObservation(for scrollView: NSScrollView) {
+            let contentView = scrollView.contentView
+            if observedContentView === contentView { return }
+            if let observedContentView {
+                NotificationCenter.default.removeObserver(
+                    self,
+                    name: NSView.boundsDidChangeNotification,
+                    object: observedContentView
+                )
+            }
+            contentView.postsBoundsChangedNotifications = true
+            NotificationCenter.default.addObserver(
+                self,
+                selector: #selector(handleContentViewBoundsChange(_:)),
+                name: NSView.boundsDidChangeNotification,
+                object: contentView
+            )
+            observedContentView = contentView
+            evaluatePaginationForVisibleRows()
+        }
+
+        @objc private func handleContentViewBoundsChange(_ notification: Notification) {
+            evaluatePaginationForVisibleRows()
+        }
+
+        private func evaluatePaginationForVisibleRows() {
+            guard let tableView else { return }
+            let visibleRange = tableView.rows(in: tableView.visibleRect)
+            guard visibleRange.length > 0 else { return }
+            let lowerBound = max(visibleRange.location, 0)
+            let upperBound = min(tableView.numberOfRows, lowerBound + visibleRange.length)
+            guard upperBound > lowerBound else { return }
+
+            parent.query.revealMoreRowsIfNeeded(forDisplayedRow: upperBound - 1)
+
+            var sourceIndices: [Int] = []
+            sourceIndices.reserveCapacity(upperBound - lowerBound)
+            if parent.rowOrder.isEmpty {
+                for displayedRow in lowerBound..<upperBound {
+                    sourceIndices.append(displayedRow)
+                }
+            } else {
+                for displayedRow in lowerBound..<upperBound {
+                    guard displayedRow < parent.rowOrder.count else { continue }
+                    sourceIndices.append(parent.rowOrder[displayedRow])
+                }
+            }
+
+            parent.query.ensureRowsMaterialized(forSourceIndices: sourceIndices)
         }
 
         private func reloadColumns() -> Bool {
@@ -399,6 +467,9 @@ struct QueryResultsTableView: NSViewRepresentable {
             if headerNeedsRefresh {
                 applyHeaderStyle(to: tableView)
             }
+            cachedColumnKinds = parent.query.displayedColumns.map { column in
+                ResultGridValueClassifier.kind(for: column, value: "")
+            }
             cachedColumnIDs = columnIDs
             return columnsChanged
         }
@@ -423,39 +494,19 @@ struct QueryResultsTableView: NSViewRepresentable {
         }
 
         private func applyHeaderStyle(to tableView: NSTableView) {
-            let theme = ThemeManager.shared
-            if let headerView = tableView.headerView as? ResultTableHeaderView {
-                headerView.updateAppearance(with: theme)
-            } else if let headerView = tableView.headerView {
-                headerView.wantsLayer = true
-                headerView.layer?.backgroundColor = theme.resultsGridHeaderBackgroundNSColor.cgColor
-                headerView.layer?.borderColor = theme.resultsGridHeaderSeparatorNSColor.cgColor
-                let scale = headerView.window?.backingScaleFactor ?? NSScreen.main?.backingScaleFactor ?? 1
-                headerView.layer?.borderWidth = 1 / max(scale, 1)
-                headerView.needsDisplay = true
-            }
-
-            let paragraph = NSMutableParagraphStyle()
-            paragraph.alignment = .left
-
-            let attributes: [NSAttributedString.Key: Any] = [
-                .foregroundColor: theme.resultsGridHeaderTextNSColor,
-                .font: NSFont.systemFont(ofSize: 12, weight: .semibold),
-                .paragraphStyle: paragraph
-            ]
-
+            // Use system-styled headers with minimal customization
+            // Headers will automatically follow system appearance (light/dark mode)
             for column in tableView.tableColumns {
+                // Use standard NSTableHeaderCell for system styling
+                column.headerCell = NSTableHeaderCell(textCell: column.title)
                 column.headerCell.controlSize = .regular
                 column.headerCell.alignment = .left
-                if !(column.headerCell is ResultTableHeaderCell) {
-                    let cell = ResultTableHeaderCell(textCell: column.title)
-                    cell.controlSize = .regular
-                    cell.alignment = .left
-                    column.headerCell = cell
-                }
-                column.headerCell.attributedStringValue = NSAttributedString(string: column.title, attributes: attributes)
+                column.headerCell.title = column.title
                 column.headerCell.isHighlighted = false
             }
+
+            // Let the header view redraw with system appearance
+            tableView.headerView?.needsDisplay = true
         }
 
         private func updateHeaderIndicators() {
@@ -644,9 +695,11 @@ struct QueryResultsTableView: NSViewRepresentable {
             guard let tableView, let scrollView else { return }
             let contentWidth = tableView.tableColumns.reduce(CGFloat(0)) { $0 + $1.width }
             let targetWidth = max(contentWidth, scrollView.contentSize.width)
-            let effectiveRowCount = rowCount ?? (parent.rowOrder.isEmpty ? parent.query.displayedRowCount : parent.rowOrder.count)
+            let totalRows = rowCount ?? (parent.rowOrder.isEmpty ? parent.query.displayedRowCount : parent.rowOrder.count)
             let headerHeight = tableView.headerView?.frame.height ?? 0
-            let contentHeight = max(CGFloat(effectiveRowCount) * tableView.rowHeight + headerHeight, scrollView.contentSize.height)
+            let visibleEstimate = max(1, Int(scrollView.contentView.bounds.height / tableView.rowHeight) + 20)
+            let effectiveRows = max(visibleEstimate, min(totalRows, visibleEstimate * 4))
+            let contentHeight = max(CGFloat(effectiveRows) * tableView.rowHeight + headerHeight, scrollView.contentSize.height)
             let newSize = NSSize(width: targetWidth, height: contentHeight)
             if tableView.frame.size != newSize {
                 tableView.setFrameSize(newSize)
@@ -767,8 +820,18 @@ struct QueryResultsTableView: NSViewRepresentable {
             let sourceIndex = resolvedRowIndex(for: row)
             let rawValue = parent.query.valueForDisplay(row: sourceIndex, column: dataIndex)
             let columnInfo = dataIndex < parent.query.displayedColumns.count ? parent.query.displayedColumns[dataIndex] : nil
-            let kind = ResultGridValueClassifier.kind(for: columnInfo, value: rawValue)
-            let style = ThemeManager.shared.resultGridStyle(for: kind)
+
+            let kind: ResultGridValueKind
+            if rawValue == nil {
+                kind = .null
+            } else if dataIndex < cachedColumnKinds.count {
+                kind = cachedColumnKinds[dataIndex]
+            } else {
+                kind = ResultGridValueClassifier.kind(for: columnInfo, value: rawValue)
+            }
+
+            let theme = ThemeManager.shared
+            let style = theme.resultGridStyle(for: kind)
             let resolvedValue = rawValue ?? ""
 
             switch kind {
@@ -789,10 +852,10 @@ struct QueryResultsTableView: NSViewRepresentable {
             let cellSelection = QueryResultsTableView.SelectedCell(row: row, column: dataIndex)
             let isSelectedCell = selectionRegion?.contains(cellSelection) ?? false
             if isSelectedCell {
-                textField.textColor = ThemeManager.shared.resultsGridCellTextNSColor
+                textField.textColor = theme.resultsGridCellTextNSColor
             }
 
-            let showsIcon = shouldShowForeignKeyIcon(forColumn: dataIndex, value: rawValue)
+            let showsIcon = shouldShowForeignKeyIcon(forColumnInfo: columnInfo, value: rawValue)
             if showsIcon {
                 cellView.configureIcon { [weak self] in
                     self?.activateForeignKey(at: cellSelection)
@@ -821,10 +884,9 @@ struct QueryResultsTableView: NSViewRepresentable {
             return cellView
         }
 
-        private func shouldShowForeignKeyIcon(forColumn column: Int, value: String?) -> Bool {
+        private func shouldShowForeignKeyIcon(forColumnInfo column: ColumnInfo?, value: String?) -> Bool {
             guard parent.foreignKeyDisplayMode == .showIcon else { return false }
-            guard column >= 0, column < parent.query.displayedColumns.count else { return false }
-            guard parent.query.displayedColumns[column].foreignKey != nil else { return false }
+            guard let column, column.foreignKey != nil else { return false }
             guard let value = value?.trimmingCharacters(in: .whitespacesAndNewlines), !value.isEmpty else { return false }
             return true
         }

@@ -67,6 +67,7 @@ final class AppModel: ObservableObject {
     private let projectStore = ProjectStore()
     private let keychain = KeychainHelper()
     private let clipboardHistory: ClipboardHistoryStore
+    let resultSpoolManager: ResultSpoolManager
     private var cancellables: Set<AnyCancellable> = []
     private var sessionDatabaseCancellables: [UUID: AnyCancellable] = [:]
     private let defaultInspectorWidth: CGFloat = 360
@@ -102,17 +103,110 @@ final class AppModel: ObservableObject {
         var relatedKeys = Set<DiagramTableKey>()
 
         func normalize(_ identifier: String, fallbackSchema: String) -> DiagramTableKey {
-            let trimmed = identifier.trimmingCharacters(in: CharacterSet(charactersIn: "\"`[] ").union(.whitespacesAndNewlines))
-            if let dotIndex = trimmed.firstIndex(of: ".") {
-                let schema = String(trimmed[..<dotIndex])
-                let table = String(trimmed[trimmed.index(after: dotIndex)...])
-                return DiagramTableKey(schema: schema, name: table)
+            func clean(_ raw: String) -> String {
+                var value = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+
+                func stripWrapping(_ prefix: Character, _ suffix: Character) {
+                    if value.count >= 2,
+                       value.first == prefix,
+                       value.last == suffix {
+                        value.removeFirst()
+                        value.removeLast()
+                    }
+                }
+
+                let wrappers: [(Character, Character)] = [
+                    ("\"", "\""),
+                    ("`", "`"),
+                    ("[", "]")
+                ]
+
+                for (start, end) in wrappers where value.first == start && value.last == end {
+                    stripWrapping(start, end)
+                    break
+                }
+
+                // Collapse escaped quotes in identifiers such as ""name""
+                value = value.replacingOccurrences(of: "\"\"", with: "\"")
+                return value
             }
-            return DiagramTableKey(schema: fallbackSchema, name: trimmed)
+
+            func splitComponents(_ identifier: String) -> [String] {
+                guard !identifier.isEmpty else { return [] }
+                var components: [String] = []
+                var current = ""
+                var activeQuote: Character?
+                var bracketDepth = 0
+
+                var index = identifier.startIndex
+                while index < identifier.endIndex {
+                    let char = identifier[index]
+
+                    switch char {
+                    case "\"":
+                        current.append(char)
+                        if activeQuote == "\"" {
+                            let nextIndex = identifier.index(after: index)
+                            if nextIndex < identifier.endIndex && identifier[nextIndex] == "\"" {
+                                current.append(identifier[nextIndex])
+                                index = nextIndex
+                            } else {
+                                activeQuote = nil
+                            }
+                        } else if activeQuote == nil {
+                            activeQuote = "\""
+                        }
+
+                    case "`":
+                        current.append(char)
+                        if activeQuote == "`" {
+                            activeQuote = nil
+                        } else if activeQuote == nil {
+                            activeQuote = "`"
+                        }
+
+                    case "[":
+                        bracketDepth += 1
+                        current.append(char)
+
+                    case "]":
+                        if bracketDepth > 0 {
+                            bracketDepth -= 1
+                        }
+                        current.append(char)
+
+                    case "." where activeQuote == nil && bracketDepth == 0:
+                        components.append(current)
+                        current = ""
+
+                    default:
+                        current.append(char)
+                    }
+
+                    index = identifier.index(after: index)
+                }
+
+                components.append(current)
+                return components.filter { !$0.isEmpty }
+            }
+
+            let trimmed = identifier.trimmingCharacters(in: .whitespacesAndNewlines)
+            let components = splitComponents(trimmed)
+
+            if components.count >= 2 {
+                let schemaComponent = components[components.count - 2]
+                let tableComponent = components[components.count - 1]
+                return DiagramTableKey(schema: clean(schemaComponent), name: clean(tableComponent))
+            } else if let single = components.first {
+                return DiagramTableKey(schema: fallbackSchema, name: clean(single))
+            } else {
+                return DiagramTableKey(schema: fallbackSchema, name: clean(trimmed))
+            }
         }
 
         for fk in baseDetails.foreignKeys {
-            let key = DiagramTableKey(schema: fk.referencedSchema, name: fk.referencedTable)
+            let referencedSchema = fk.referencedSchema.isEmpty ? baseKey.schema : fk.referencedSchema
+            let key = DiagramTableKey(schema: referencedSchema, name: fk.referencedTable)
             relatedKeys.insert(key)
         }
 
@@ -124,19 +218,28 @@ final class AppModel: ObservableObject {
         relatedKeys.remove(baseKey)
 
         if !relatedKeys.isEmpty {
-            try await withThrowingTaskGroup(of: (DiagramTableKey, TableStructureDetails).self) { group in
+            await withTaskGroup(of: (DiagramTableKey, TableStructureDetails)?.self) { group in
                 for key in relatedKeys where tableDetails[key] == nil {
                     group.addTask {
-                        let details = try await session.session.getTableStructureDetails(
-                            schema: key.schema,
-                            table: key.name
-                        )
-                        return (key, details)
+                        do {
+                            let details = try await session.session.getTableStructureDetails(
+                                schema: key.schema,
+                                table: key.name
+                            )
+                            return (key, details)
+                        } catch {
+                            #if DEBUG
+                            print("Failed to fetch diagram details for \(key.schema).\(key.name): \(error)")
+                            #endif
+                            return nil
+                        }
                     }
                 }
 
-                for try await (key, details) in group {
-                    tableDetails[key] = details
+                for await result in group {
+                    if let (key, details) = result {
+                        tableDetails[key] = details
+                    }
                 }
             }
         }
@@ -159,7 +262,8 @@ final class AppModel: ObservableObject {
 
         func appendForeignKeyEdges(from tableKey: DiagramTableKey, details: TableStructureDetails) {
             for fk in details.foreignKeys {
-                let targetKey = DiagramTableKey(schema: fk.referencedSchema, name: fk.referencedTable)
+                let targetSchema = fk.referencedSchema.isEmpty ? tableKey.schema : fk.referencedSchema
+                let targetKey = DiagramTableKey(schema: targetSchema, name: fk.referencedTable)
                 guard tableDetails[targetKey] != nil else { continue }
 
                 for pair in zip(fk.columns, fk.referencedColumns) {
@@ -242,6 +346,27 @@ final class AppModel: ObservableObject {
         UserDefaults.standard.set(storage, forKey: Self.expandedConnectionFoldersKey)
     }
 
+    private func applyResultSpoolConfiguration(for settings: GlobalSettings) async {
+        let path = settings.resultSpoolCustomLocation?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let rootDirectory: URL
+        if let path, !path.isEmpty {
+            let expanded = (path as NSString).expandingTildeInPath
+            rootDirectory = URL(fileURLWithPath: expanded, isDirectory: true)
+        } else {
+            rootDirectory = ResultSpoolManager.defaultRootDirectory()
+        }
+
+        let normalizedLimit = max(settings.resultSpoolMaxBytes, 256 * 1_024 * 1_024)
+        let normalizedRetention = max(settings.resultSpoolRetentionHours, 1)
+        let config = ResultSpoolConfiguration(
+            rootDirectory: rootDirectory,
+            maximumBytes: UInt64(normalizedLimit),
+            retentionInterval: TimeInterval(normalizedRetention * 60 * 60),
+            inMemoryRowLimit: max(settings.resultsInitialRowLimit, 100)
+        )
+        await resultSpoolManager.update(configuration: config)
+    }
+
     // MARK: - Computed helpers
     var selectedConnection: SavedConnection? {
         guard let id = selectedConnectionID else { return nil }
@@ -249,8 +374,9 @@ final class AppModel: ObservableObject {
     }
 
     // MARK: - Initialization
-    init(clipboardHistory: ClipboardHistoryStore) {
+    init(clipboardHistory: ClipboardHistoryStore, resultSpoolManager: ResultSpoolManager) {
         self.clipboardHistory = clipboardHistory
+        self.resultSpoolManager = resultSpoolManager
         sessionManager.$activeSessionID
             .sink { [weak self] id in
                 guard let self else { return }
@@ -310,6 +436,14 @@ final class AppModel: ObservableObject {
             .removeDuplicates()
             .sink { [weak self] projectID in
                 self?.loadExpandedConnectionFolders(for: projectID)
+            }
+            .store(in: &cancellables)
+
+        $globalSettings
+            .removeDuplicates()
+            .sink { [weak self] settings in
+                guard let self else { return }
+                Task { await self.applyResultSpoolConfiguration(for: settings) }
             }
             .store(in: &cancellables)
     }
@@ -505,6 +639,27 @@ final class AppModel: ObservableObject {
     func updateGlobalEditorDisplay(_ update: (inout GlobalSettings) -> Void) async {
         update(&globalSettings)
         await persistGlobalSettings()
+    }
+
+    func updateResultsStreaming(initialRowLimit: Int? = nil, previewBatchSize: Int? = nil) async {
+        let clampedInitial = initialRowLimit.map { max(100, $0) }
+        let clampedPreview = previewBatchSize.map { max(100, $0) }
+        guard clampedInitial != nil || clampedPreview != nil else { return }
+
+        await updateGlobalEditorDisplay { settings in
+            if let value = clampedInitial {
+                settings.resultsInitialRowLimit = value
+            }
+            if let value = clampedPreview {
+                settings.resultsPreviewBatchSize = value
+            }
+        }
+
+        if let value = clampedInitial {
+            for session in sessionManager.activeSessions {
+                session.updateDefaultInitialBatchSize(value)
+            }
+        }
     }
 
     func upsertCustomPalette(_ palette: SQLEditorTokenPalette) async {
@@ -715,7 +870,11 @@ final class AppModel: ObservableObject {
             title = "\(baseTitle) \(existingCountForConnection + 1)"
         }
 
-        let queryState = QueryEditorState(sql: presetQuery.isEmpty ? "SELECT current_timestamp;" : presetQuery)
+        let queryState = QueryEditorState(
+            sql: presetQuery.isEmpty ? "SELECT current_timestamp;" : presetQuery,
+            initialVisibleRowBatch: max(100, globalSettings.resultsInitialRowLimit),
+            spoolManager: resultSpoolManager
+        )
 
         func normalized(_ value: String) -> String? {
             let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -746,20 +905,28 @@ final class AppModel: ObservableObject {
     func openDataPreviewTab(
         for session: ConnectionSession,
         object: SchemaObjectInfo,
-        sql: String,
-        initialBatchSize: Int = 500
+        sqlBuilder: @escaping (_ limit: Int, _ offset: Int) -> String,
+        initialBatchSize: Int? = nil
     ) {
         sessionManager.setActiveSession(session.id)
         selectedConnectionID = session.connection.id
+
+        let configuredBatchSize = max(100, initialBatchSize ?? globalSettings.resultsPreviewBatchSize)
+        let initialSQL = sqlBuilder(configuredBatchSize, 0)
 
         func normalized(_ value: String) -> String? {
             let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
             return trimmed.isEmpty ? nil : trimmed
         }
 
-        let queryState = QueryEditorState(sql: sql, initialVisibleRowBatch: initialBatchSize)
+        let queryState = QueryEditorState(sql: initialSQL, initialVisibleRowBatch: configuredBatchSize, spoolManager: resultSpoolManager)
         queryState.isResultsOnly = true
         queryState.shouldAutoExecuteOnAppear = true
+        let databaseSession = session.session
+        queryState.configureDataPreview(batchSize: configuredBatchSize) { offset, limit in
+            let sql = sqlBuilder(limit, offset)
+            return try await databaseSession.simpleQuery(sql)
+        }
 
         let serverName = normalized(session.connection.connectionName) ?? normalized(session.connection.host)
         let databaseName = normalized(session.selectedDatabaseName ?? session.connection.database)
@@ -827,7 +994,11 @@ final class AppModel: ObservableObject {
 
         sessionManager.setActiveSession(session.id)
 
-        let duplicateState = QueryEditorState(sql: queryState.sql)
+        let duplicateState = QueryEditorState(
+            sql: queryState.sql,
+            initialVisibleRowBatch: max(100, globalSettings.resultsInitialRowLimit),
+            spoolManager: resultSpoolManager
+        )
         duplicateState.splitRatio = queryState.splitRatio
         duplicateState.updateClipboardContext(
             serverName: queryState.clipboardMetadata.serverName,
@@ -1454,7 +1625,9 @@ final class AppModel: ObservableObject {
             let session = ConnectionSession(
                 id: reuseSessionID ?? UUID(),
                 connection: resolvedConnection,
-                session: databaseSession
+                session: databaseSession,
+                defaultInitialBatchSize: globalSettings.resultsInitialRowLimit,
+                spoolManager: resultSpoolManager
             )
 
             session.selectedDatabaseName = resolvedConnection.database.isEmpty ? nil : resolvedConnection.database

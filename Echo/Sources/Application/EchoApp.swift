@@ -34,6 +34,7 @@ struct EchoApp: App {
                           appState: coordinator.appState)
             AppSettingsCommands()
             AutocompleteManagementCommands()
+            PerformanceMonitorCommands()
 #if os(macOS)
             ConnectMenuCommands(appModel: coordinator.appModel)
 #endif
@@ -41,6 +42,7 @@ struct EchoApp: App {
 
         SettingsWindow()
         AutocompleteManagementWindow()
+        PerformanceMonitorWindow()
     }
 }
 
@@ -133,6 +135,19 @@ struct AutocompleteManagementCommands: Commands {
                 openWindow(id: AutocompleteManagementWindow.sceneID)
             }
             .keyboardShortcut("m", modifiers: [.command, .option])
+        }
+    }
+}
+
+struct PerformanceMonitorCommands: Commands {
+    @Environment(\.openWindow) private var openWindow
+
+    var body: some Commands {
+        CommandGroup(after: .help) {
+            Button("Performance Monitor…") {
+                openWindow(id: PerformanceMonitorWindow.sceneID)
+            }
+            .keyboardShortcut("p", modifiers: [.command, .option])
         }
     }
 }

@@ -12,6 +12,7 @@ struct SchemaDiagramView: View {
     @State private var contentOffset: CGSize = .zero
     @State private var lastDragOffset: CGSize = .zero
     @State private var hasCenteredDiagram = false
+    @State private var isDraggingNode = false
 
     private let minZoom: CGFloat = 0.4
     private let maxZoom: CGFloat = 2.5
@@ -24,8 +25,10 @@ struct SchemaDiagramView: View {
                 DiagramCanvas(
                     viewModel: viewModel,
                     zoom: zoom,
-                    offset: contentOffset
+                    offset: contentOffset,
+                    isDraggingNode: $isDraggingNode
                 )
+                .transaction { $0.animation = nil }
 
                 zoomControls
             }
@@ -94,12 +97,14 @@ struct SchemaDiagramView: View {
     private var panGesture: some Gesture {
         DragGesture(minimumDistance: 2, coordinateSpace: .local)
             .onChanged { value in
+                guard !isDraggingNode else { return }
                 contentOffset = CGSize(
                     width: lastDragOffset.width + value.translation.width,
                     height: lastDragOffset.height + value.translation.height
                 )
             }
             .onEnded { _ in
+                guard !isDraggingNode else { return }
                 lastDragOffset = contentOffset
             }
     }
@@ -131,23 +136,25 @@ struct SchemaDiagramView: View {
             guard step > 8 else { return }
             var path = Path()
 
-            var x: CGFloat = 0
-            while x <= canvasSize.width {
-                path.move(to: CGPoint(x: x, y: 0))
-                path.addLine(to: CGPoint(x: x, y: canvasSize.height))
+            let xRemainder = contentOffset.width.truncatingRemainder(dividingBy: step)
+            let yRemainder = contentOffset.height.truncatingRemainder(dividingBy: step)
+
+            var x: CGFloat = -step * 2 - xRemainder
+            while x <= canvasSize.width + step * 2 {
+                path.move(to: CGPoint(x: x, y: -step * 2))
+                path.addLine(to: CGPoint(x: x, y: canvasSize.height + step * 2))
                 x += step
             }
 
-            var y: CGFloat = 0
-            while y <= canvasSize.height {
-                path.move(to: CGPoint(x: 0, y: y))
-                path.addLine(to: CGPoint(x: canvasSize.width, y: y))
+            var y: CGFloat = -step * 2 - yRemainder
+            while y <= canvasSize.height + step * 2 {
+                path.move(to: CGPoint(x: -step * 2, y: y))
+                path.addLine(to: CGPoint(x: canvasSize.width + step * 2, y: y))
                 y += step
             }
 
             context.stroke(path, with: .color(gridColor), lineWidth: 1)
         }
-        .offset(contentOffset)
     }
 }
 
@@ -155,12 +162,17 @@ private struct DiagramCanvas: View {
     @ObservedObject var viewModel: SchemaDiagramViewModel
     let zoom: CGFloat
     let offset: CGSize
+    @Binding var isDraggingNode: Bool
 
     var body: some View {
         GeometryReader { geometry in
             ZStack(alignment: .topLeading) {
                 ForEach(viewModel.nodes) { node in
-                    SchemaDiagramNodeView(node: node, zoom: zoom)
+                    SchemaDiagramNodeView(
+                        node: node,
+                        zoom: zoom,
+                        isDraggingNode: $isDraggingNode
+                    )
                         .position(position(for: node.position))
                 }
             }
@@ -184,6 +196,7 @@ private struct DiagramCanvas: View {
                     }
             )
         }
+        .drawingGroup()
     }
 
     private func position(for basePoint: CGPoint) -> CGPoint {
@@ -227,11 +240,16 @@ private struct DiagramCanvas: View {
         from start: CGPoint,
         to end: CGPoint
     ) {
-        let pathWidth: CGFloat = 1.6
+        let strokeColor = Color.accentColor.opacity(0.85)
+        let pathWidth: CGFloat = 2.0
         var path = Path()
         path.move(to: start)
         path.addLine(to: end)
-        context.stroke(path, with: .color(.accentColor.opacity(0.9)), lineWidth: pathWidth)
+        context.stroke(
+            path,
+            with: .color(strokeColor),
+            style: StrokeStyle(lineWidth: pathWidth, lineCap: .round)
+        )
 
         let arrowLength: CGFloat = 14
         let arrowAngle: CGFloat = .pi / 7
@@ -251,27 +269,29 @@ private struct DiagramCanvas: View {
         arrowPath.addLine(to: point1)
         arrowPath.addLine(to: point2)
         arrowPath.closeSubpath()
-        context.fill(arrowPath, with: .color(.accentColor.opacity(0.9)))
+        context.fill(arrowPath, with: .color(strokeColor))
     }
 }
 
 private struct SchemaDiagramNodeView: View {
     @ObservedObject var node: SchemaDiagramNodeModel
     let zoom: CGFloat
+    @Binding var isDraggingNode: Bool
 
-    @State private var dragStartPosition: CGPoint = .zero
+    @GestureState private var dragTranslation: CGSize = .zero
+    @State private var dragStartPosition: CGPoint?
 
     private let headerColor = Color.accentColor.opacity(0.2)
     private let borderColor = Color.primary.opacity(0.12)
 
     var body: some View {
-        VStack(spacing: 0) {
+        VStack(alignment: .leading, spacing: 0) {
             header
             Divider()
                 .foregroundStyle(Color.primary.opacity(0.08))
             columnsList
         }
-        .frame(minWidth: 220, idealWidth: 240)
+        .fixedSize(horizontal: true, vertical: false)
         .background(
             RoundedRectangle(cornerRadius: 16, style: .continuous)
                 .fill(.thinMaterial)
@@ -281,22 +301,21 @@ private struct SchemaDiagramNodeView: View {
                 .stroke(borderColor, lineWidth: 1)
         )
         .shadow(color: Color.black.opacity(0.12), radius: 16, x: 0, y: 6)
-        .gesture(dragGesture)
-        .onAppear {
-            dragStartPosition = node.position
-        }
+        .offset(
+            x: dragTranslation.width / zoom,
+            y: dragTranslation.height / zoom
+        )
+        .highPriorityGesture(dragGesture)
     }
 
     private var header: some View {
-        VStack(spacing: 4) {
+        VStack(alignment: .leading, spacing: 4) {
             Text(node.name)
                 .font(.system(size: 14, weight: .semibold))
                 .foregroundStyle(Color.primary)
-                .frame(maxWidth: .infinity, alignment: .leading)
             Text(node.schema)
                 .font(.system(size: 11, weight: .medium))
                 .foregroundStyle(Color.secondary)
-                .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
@@ -318,19 +337,34 @@ private struct SchemaDiagramNodeView: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 12)
+        .fixedSize(horizontal: true, vertical: false)
     }
 
     private var dragGesture: some Gesture {
         DragGesture()
-            .onChanged { value in
-                let adjusted = CGPoint(
-                    x: dragStartPosition.x + value.translation.width / zoom,
-                    y: dragStartPosition.y + value.translation.height / zoom
-                )
-                node.position = adjusted
+            .updating($dragTranslation) { value, state, _ in
+                state = value.translation
             }
-            .onEnded { _ in
-                dragStartPosition = node.position
+            .onChanged { value in
+                if dragStartPosition == nil {
+                    dragStartPosition = node.position
+                }
+                if !isDraggingNode {
+                    isDraggingNode = true
+                }
+            }
+            .onEnded { value in
+                let start = dragStartPosition ?? node.position
+                let delta = CGSize(
+                    width: value.translation.width / zoom,
+                    height: value.translation.height / zoom
+                )
+                node.position = CGPoint(
+                    x: start.x + delta.width,
+                    y: start.y + delta.height
+                )
+                dragStartPosition = nil
+                isDraggingNode = false
             }
     }
 }
@@ -345,14 +379,18 @@ private struct ColumnRow: View {
                 .font(.system(size: 10, weight: .medium))
                 .foregroundStyle(iconColor)
             Text(column.name)
+                .lineLimit(1)
+                .layoutPriority(1)
                 .font(.system(size: 12, weight: column.isPrimaryKey ? .semibold : .regular))
                 .foregroundStyle(Color.primary)
-            Spacer()
+            Spacer(minLength: 12)
             Text(column.dataType)
+                .lineLimit(1)
                 .font(.system(size: 11))
                 .foregroundStyle(Color.secondary)
         }
         .padding(.vertical, 4)
+        .fixedSize(horizontal: true, vertical: false)
         .background(
             RoundedRectangle(cornerRadius: 8, style: .continuous)
                 .fill(Color.primary.opacity(column.isForeignKey ? 0.06 : 0))
@@ -417,17 +455,58 @@ private struct CommandScrollZoomCapture: NSViewRepresentable {
 
     final class ZoomCaptureView: NSView {
         var onZoom: ((CGFloat) -> Void)?
+        private var scrollMonitor: Any?
 
-        override func scrollWheel(with event: NSEvent) {
-            if event.modifierFlags.contains(.command) {
-                onZoom?(event.scrollingDeltaY)
-            } else {
-                super.scrollWheel(with: event)
+        override init(frame frameRect: NSRect) {
+            super.init(frame: frameRect)
+            translatesAutoresizingMaskIntoConstraints = false
+        }
+
+        required init?(coder: NSCoder) {
+            super.init(coder: coder)
+        }
+
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            if window != nil {
+                installMonitorIfNeeded()
             }
         }
 
-        override func acceptsFirstMouse(for event: NSEvent?) -> Bool {
-            true
+        override func viewWillMove(toWindow newWindow: NSWindow?) {
+            if newWindow == nil {
+                removeMonitor()
+            }
+            super.viewWillMove(toWindow: newWindow)
+        }
+
+        override func hitTest(_ point: NSPoint) -> NSView? {
+            nil
+        }
+
+        deinit {
+            removeMonitor()
+        }
+
+        private func installMonitorIfNeeded() {
+            guard scrollMonitor == nil else { return }
+            scrollMonitor = NSEvent.addLocalMonitorForEvents(matching: .scrollWheel) { [weak self] event in
+                guard let self,
+                      let window = self.window,
+                      event.window === window,
+                      event.modifierFlags.contains(.command) else {
+                    return event
+                }
+                self.onZoom?(event.scrollingDeltaY)
+                return nil
+            }
+        }
+
+        private func removeMonitor() {
+            if let monitor = scrollMonitor {
+                NSEvent.removeMonitor(monitor)
+                scrollMonitor = nil
+            }
         }
     }
 }

@@ -24,6 +24,7 @@ final class AppCoordinator: ObservableObject {
     let appState: AppState
     let clipboardHistory: ClipboardHistoryStore
     let themeManager: ThemeManager
+    let resultSpoolManager: ResultSpoolManager
     private var cancellables = Set<AnyCancellable>()
 #if os(macOS)
     private var windowFocusObservers: [NSObjectProtocol] = []
@@ -37,7 +38,10 @@ final class AppCoordinator: ObservableObject {
         self.appState = AppState()
         let clipboardHistory = ClipboardHistoryStore()
         self.clipboardHistory = clipboardHistory
-        self.appModel = AppModel(clipboardHistory: clipboardHistory)
+        let spoolRoot = ResultSpoolManager.defaultRootDirectory()
+        let spoolConfig = ResultSpoolConfiguration.defaultConfiguration(rootDirectory: spoolRoot)
+        self.resultSpoolManager = ResultSpoolManager(configuration: spoolConfig)
+        self.appModel = AppModel(clipboardHistory: clipboardHistory, resultSpoolManager: resultSpoolManager)
         self.themeManager = ThemeManager.shared
         self.appModel.tabManager.delegate = self
         setupBindings()

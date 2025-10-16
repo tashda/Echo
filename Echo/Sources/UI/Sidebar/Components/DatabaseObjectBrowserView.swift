@@ -895,12 +895,12 @@ private struct DatabaseObjectRow: View {
 
     private func openDataPreview() {
         guard let session = appModel.sessionManager.sessionForConnection(connection.id) else { return }
-        let sql = selectStatement(limit: nil)
         appModel.openDataPreviewTab(
             for: session,
             object: object,
-            sql: sql,
-            initialBatchSize: 500
+            sqlBuilder: { limit, offset in
+                selectStatement(limit: limit, offset: offset)
+            }
         )
     }
 
@@ -1068,12 +1068,48 @@ private struct DatabaseObjectRow: View {
         guard let session = appModel.sessionManager.sessionForConnection(connection.id) else { return }
 
         let alert = NSAlert()
-        alert.messageText = "Rename \(objectTypeKeyword())"
-        alert.informativeText = "Enter a new name for \(object.fullName)."
+        alert.icon = NSImage(size: .zero)
+        alert.messageText = "Rename \(objectTypeDisplayName())"
+        alert.alertStyle = .informational
+        alert.informativeText = ""
+        applyAppearance(to: alert)
+
+        let baseFont = NSFont.systemFont(ofSize: NSFont.systemFontSize)
+        let boldFont = NSFont.boldSystemFont(ofSize: NSFont.systemFontSize)
+
+        let message = NSMutableAttributedString(string: "Enter a new name for the \(objectTypeDisplayName().lowercased()) ", attributes: [
+            .font: baseFont
+        ])
+        message.append(NSAttributedString(string: object.fullName, attributes: [
+            .font: boldFont
+        ]))
+        message.append(NSAttributedString(string: ".", attributes: [
+            .font: baseFont
+        ]))
+
+        let messageLabel = NSTextField(labelWithAttributedString: message)
+        messageLabel.translatesAutoresizingMaskIntoConstraints = false
+        messageLabel.lineBreakMode = .byWordWrapping
+        messageLabel.maximumNumberOfLines = 0
+        messageLabel.preferredMaxLayoutWidth = 320
+        messageLabel.alignment = .left
 
         let textField = NSTextField(string: object.name)
-        textField.frame = NSRect(x: 0, y: 0, width: 240, height: 24)
-        alert.accessoryView = textField
+        textField.translatesAutoresizingMaskIntoConstraints = false
+        textField.widthAnchor.constraint(greaterThanOrEqualToConstant: 260).isActive = true
+
+        let stack = NSStackView()
+        stack.orientation = .vertical
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        stack.spacing = 8
+        stack.alignment = .leading
+        stack.edgeInsets = NSEdgeInsets(top: 4, left: 0, bottom: 0, right: 0)
+        stack.addArrangedSubview(messageLabel)
+        stack.addArrangedSubview(textField)
+        stack.setHuggingPriority(.defaultHigh, for: .vertical)
+        stack.setHuggingPriority(.defaultLow, for: .horizontal)
+
+        alert.accessoryView = stack
         alert.window.initialFirstResponder = textField
         textField.selectText(nil)
 
@@ -1130,9 +1166,44 @@ private struct DatabaseObjectRow: View {
         guard let session = appModel.sessionManager.sessionForConnection(connection.id) else { return }
 
         let alert = NSAlert()
-        alert.messageText = "Drop Table"
-        alert.informativeText = "Are you sure you want to drop table \(object.fullName)? This action cannot be undone."
+        alert.icon = NSImage(size: .zero)
+        alert.messageText = "Drop \(objectTypeDisplayName())"
         alert.alertStyle = .warning
+        alert.informativeText = ""
+        applyAppearance(to: alert)
+
+        let baseFont = NSFont.systemFont(ofSize: NSFont.systemFontSize)
+        let boldFont = NSFont.boldSystemFont(ofSize: NSFont.systemFontSize)
+
+        let message = NSMutableAttributedString()
+        message.append(NSAttributedString(string: "Are you sure you want to drop the \(objectTypeDisplayName().lowercased()) ", attributes: [
+            .font: baseFont
+        ]))
+        message.append(NSAttributedString(string: object.fullName, attributes: [
+            .font: boldFont
+        ]))
+        message.append(NSAttributedString(string: "?\nThis action cannot be undone.", attributes: [
+            .font: baseFont
+        ]))
+
+        let messageLabel = NSTextField(labelWithAttributedString: message)
+        messageLabel.translatesAutoresizingMaskIntoConstraints = false
+        messageLabel.lineBreakMode = .byWordWrapping
+        messageLabel.maximumNumberOfLines = 0
+        messageLabel.preferredMaxLayoutWidth = 320
+        messageLabel.alignment = .left
+
+        let stack = NSStackView()
+        stack.orientation = .vertical
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        stack.spacing = 6
+        stack.alignment = .leading
+        stack.edgeInsets = NSEdgeInsets(top: 4, left: 0, bottom: 0, right: 0)
+        stack.addArrangedSubview(messageLabel)
+        stack.setHuggingPriority(.required, for: .vertical)
+        stack.setHuggingPriority(.required, for: .horizontal)
+
+        alert.accessoryView = stack
 
         let dropButton = alert.addButton(withTitle: "Drop")
         if #available(macOS 11.0, *) {
@@ -1174,9 +1245,44 @@ private struct DatabaseObjectRow: View {
         guard let session = appModel.sessionManager.sessionForConnection(connection.id) else { return }
 
         let alert = NSAlert()
-        alert.messageText = "Truncate Table"
-        alert.informativeText = "Are you sure you want to truncate table \(object.fullName)? This action cannot be undone."
+        alert.icon = NSImage(size: .zero)
+        alert.messageText = "Truncate \(objectTypeDisplayName())"
         alert.alertStyle = .warning
+        alert.informativeText = ""
+        applyAppearance(to: alert)
+
+        let baseFont = NSFont.systemFont(ofSize: NSFont.systemFontSize)
+        let boldFont = NSFont.boldSystemFont(ofSize: NSFont.systemFontSize)
+
+        let message = NSMutableAttributedString()
+        message.append(NSAttributedString(string: "Are you sure you want to truncate the \(objectTypeDisplayName().lowercased()) ", attributes: [
+            .font: baseFont
+        ]))
+        message.append(NSAttributedString(string: object.fullName, attributes: [
+            .font: boldFont
+        ]))
+        message.append(NSAttributedString(string: "?\nThis action cannot be undone.", attributes: [
+            .font: baseFont
+        ]))
+
+        let messageLabel = NSTextField(labelWithAttributedString: message)
+        messageLabel.translatesAutoresizingMaskIntoConstraints = false
+        messageLabel.lineBreakMode = .byWordWrapping
+        messageLabel.maximumNumberOfLines = 0
+        messageLabel.preferredMaxLayoutWidth = 320
+        messageLabel.alignment = .left
+
+        let stack = NSStackView()
+        stack.orientation = .vertical
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        stack.spacing = 6
+        stack.alignment = .leading
+        stack.edgeInsets = NSEdgeInsets(top: 4, left: 0, bottom: 0, right: 0)
+        stack.addArrangedSubview(messageLabel)
+        stack.setHuggingPriority(.required, for: .vertical)
+        stack.setHuggingPriority(.required, for: .horizontal)
+
+        alert.accessoryView = stack
 
         let truncateButton = alert.addButton(withTitle: "Truncate")
         if #available(macOS 11.0, *) {
@@ -1362,19 +1468,28 @@ private struct DatabaseObjectRow: View {
         return statement
     }
 
-    private func selectStatement(limit: Int?) -> String {
+    private func selectStatement(limit: Int?, offset: Int = 0) -> String {
         let qualified = qualifiedName(schema: object.schema, name: object.name)
         let columns = object.columns.isEmpty ? ["*"] : object.columns.map { quoteIdentifier($0.name) }
         let columnLines = columns.joined(separator: ",\n    ")
 
         switch connection.databaseType {
         case .microsoftSQL:
-            let selectLead = limit.map { "SELECT TOP (\($0))" } ?? "SELECT"
-            return "\(selectLead)\n    \(columnLines)\nFROM \(qualified);"
+            var statement = "SELECT\n    \(columnLines)\nFROM \(qualified)"
+            if let limit {
+                statement += "\nORDER BY (SELECT NULL)\nOFFSET \(offset) ROWS\nFETCH NEXT \(limit) ROWS ONLY"
+            }
+            statement += ";"
+            return statement
         case .postgresql, .mysql, .sqlite:
             var statement = "SELECT\n    \(columnLines)\nFROM \(qualified)"
             if let limit {
                 statement += "\nLIMIT \(limit)"
+                if offset > 0 {
+                    statement += "\nOFFSET \(offset)"
+                }
+            } else if offset > 0 {
+                statement += "\nOFFSET \(offset)"
             }
             statement += ";"
             return statement
@@ -1528,6 +1643,31 @@ private struct DatabaseObjectRow: View {
             return "FUNCTION"
         case .trigger:
             return "TRIGGER"
+        }
+    }
+
+    private func objectTypeDisplayName() -> String {
+        switch object.type {
+        case .table:
+            return "Table"
+        case .view:
+            return "View"
+        case .materializedView:
+            return "Materialized View"
+        case .function:
+            return "Function"
+        case .trigger:
+            return "Trigger"
+        }
+    }
+
+    @MainActor
+    private func applyAppearance(to alert: NSAlert) {
+        let scheme = ThemeManager.shared.effectiveColorScheme
+        if scheme == .dark {
+            alert.window.appearance = NSAppearance(named: .darkAqua)
+        } else {
+            alert.window.appearance = NSAppearance(named: .aqua)
         }
     }
 

@@ -1058,6 +1058,11 @@ struct GlobalSettings: Codable, Hashable {
     var foreignKeyDisplayMode: ForeignKeyDisplayMode = .showInspector
     var foreignKeyInspectorBehavior: ForeignKeyInspectorBehavior = .respectInspectorVisibility
     var foreignKeyIncludeRelated: Bool = false
+    var resultsInitialRowLimit: Int = 500
+    var resultsPreviewBatchSize: Int = 500
+    var resultSpoolMaxBytes: Int = 5 * 1_024 * 1_024 * 1_024
+    var resultSpoolRetentionHours: Int = 72
+    var resultSpoolCustomLocation: String?
     var inspectorWidth: Double?
     var keepTabsInMemory: Bool = false
 
@@ -1090,6 +1095,11 @@ struct GlobalSettings: Codable, Hashable {
         foreignKeyDisplayMode: ForeignKeyDisplayMode = .showInspector,
         foreignKeyInspectorBehavior: ForeignKeyInspectorBehavior = .respectInspectorVisibility,
         foreignKeyIncludeRelated: Bool = false,
+        resultsInitialRowLimit: Int = 500,
+        resultsPreviewBatchSize: Int = 500,
+        resultSpoolMaxBytes: Int = 5 * 1_024 * 1_024 * 1_024,
+        resultSpoolRetentionHours: Int = 72,
+        resultSpoolCustomLocation: String? = nil,
         inspectorWidth: Double? = nil,
         defaultWindowWidth: Double? = nil,
         defaultWindowHeight: Double? = nil,
@@ -1121,6 +1131,11 @@ struct GlobalSettings: Codable, Hashable {
         self.foreignKeyDisplayMode = foreignKeyDisplayMode
         self.foreignKeyInspectorBehavior = foreignKeyInspectorBehavior
         self.foreignKeyIncludeRelated = foreignKeyIncludeRelated
+        self.resultsInitialRowLimit = resultsInitialRowLimit
+        self.resultsPreviewBatchSize = resultsPreviewBatchSize
+        self.resultSpoolMaxBytes = resultSpoolMaxBytes
+        self.resultSpoolRetentionHours = resultSpoolRetentionHours
+        self.resultSpoolCustomLocation = resultSpoolCustomLocation
         self.inspectorWidth = inspectorWidth
         self.defaultWindowWidth = defaultWindowWidth
         self.defaultWindowHeight = defaultWindowHeight
@@ -1159,6 +1174,11 @@ struct GlobalSettings: Codable, Hashable {
         case foreignKeyDisplayMode
         case foreignKeyInspectorBehavior
         case foreignKeyIncludeRelated
+        case resultsInitialRowLimit
+        case resultsPreviewBatchSize
+        case resultSpoolMaxBytes
+        case resultSpoolRetentionHours
+        case resultSpoolCustomLocation
         case inspectorWidth
         case keepTabsInMemory
     }
@@ -1219,6 +1239,8 @@ struct GlobalSettings: Codable, Hashable {
         foreignKeyDisplayMode = try container.decodeIfPresent(ForeignKeyDisplayMode.self, forKey: .foreignKeyDisplayMode) ?? .showInspector
         foreignKeyInspectorBehavior = try container.decodeIfPresent(ForeignKeyInspectorBehavior.self, forKey: .foreignKeyInspectorBehavior) ?? .respectInspectorVisibility
         foreignKeyIncludeRelated = try container.decodeIfPresent(Bool.self, forKey: .foreignKeyIncludeRelated) ?? false
+        resultsInitialRowLimit = max(100, try container.decodeIfPresent(Int.self, forKey: .resultsInitialRowLimit) ?? 500)
+        resultsPreviewBatchSize = max(100, try container.decodeIfPresent(Int.self, forKey: .resultsPreviewBatchSize) ?? 500)
         inspectorWidth = try container.decodeIfPresent(Double.self, forKey: .inspectorWidth)
         keepTabsInMemory = try container.decodeIfPresent(Bool.self, forKey: .keepTabsInMemory) ?? false
     }
@@ -1251,6 +1273,11 @@ struct GlobalSettings: Codable, Hashable {
         try container.encode(foreignKeyDisplayMode, forKey: .foreignKeyDisplayMode)
         try container.encode(foreignKeyInspectorBehavior, forKey: .foreignKeyInspectorBehavior)
         try container.encode(foreignKeyIncludeRelated, forKey: .foreignKeyIncludeRelated)
+        try container.encode(resultsInitialRowLimit, forKey: .resultsInitialRowLimit)
+        try container.encode(resultsPreviewBatchSize, forKey: .resultsPreviewBatchSize)
+        try container.encode(resultSpoolMaxBytes, forKey: .resultSpoolMaxBytes)
+        try container.encode(resultSpoolRetentionHours, forKey: .resultSpoolRetentionHours)
+        try container.encodeIfPresent(resultSpoolCustomLocation, forKey: .resultSpoolCustomLocation)
         try container.encodeIfPresent(inspectorWidth, forKey: .inspectorWidth)
         try container.encode(keepTabsInMemory, forKey: .keepTabsInMemory)
 

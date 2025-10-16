@@ -159,7 +159,7 @@ struct FolderEditorSheet: View {
     }
 
     var body: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: 16) {
             header
 
             Divider()
@@ -170,9 +170,9 @@ struct FolderEditorSheet: View {
 
             footerButtons
         }
-        .padding(.horizontal, 24)
-        .padding(.vertical, 20)
-        .frame(width: 540)
+        .padding(.horizontal, 20)
+        .padding(.vertical, 18)
+        .frame(width: 520)
         .background(themeManager.windowBackgroundColor)
         .sheet(item: $identityEditorState) { state in
             IdentityEditorSheet(state: state) { identity in
@@ -204,7 +204,7 @@ struct FolderEditorSheet: View {
         Section {
             LabeledContent("Folder Name") {
                 TextField("", text: $name, prompt: Text("Folder name"))
-                    .multilineTextAlignment(.trailing)
+                    .textFieldStyle(.roundedBorder)
             }
 
             LabeledContent("Color") {
@@ -232,11 +232,11 @@ struct FolderEditorSheet: View {
             case .manual:
                 LabeledContent("Username") {
                     TextField("", text: $manualUsername, prompt: Text("shared_user"))
-                        .multilineTextAlignment(.trailing)
+                        .textFieldStyle(.roundedBorder)
                 }
 
                 LabeledContent("Password") {
-                    VStack(alignment: .trailing, spacing: 4) {
+                    VStack(alignment: .leading, spacing: 4) {
                         SecureField(
                             "",
                             text: Binding<String>(
@@ -248,7 +248,7 @@ struct FolderEditorSheet: View {
                             ),
                             prompt: Text("••••••••")
                         )
-                        .multilineTextAlignment(.trailing)
+                        .textFieldStyle(.roundedBorder)
 
                         if editingFolderUsesManual && !manualPasswordDirty {
                             Text("Existing password retained")
@@ -365,6 +365,8 @@ struct FolderEditorSheet: View {
                 } label: {
                     Label("Delete Folder", systemImage: "trash")
                 }
+                .buttonStyle(.borderedProminent)
+                .tint(.red)
             }
 
             Spacer()
@@ -375,6 +377,7 @@ struct FolderEditorSheet: View {
                 Task { await saveFolder() }
             }
             .buttonStyle(.borderedProminent)
+            .tint(themeManager.accentColor)
             .disabled(!isValid)
         }
         .controlSize(.regular)
@@ -480,7 +483,7 @@ struct IdentityEditorSheet: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
+        VStack(alignment: .leading, spacing: 16) {
             Text(editingIdentity == nil ? "New Identity" : "Edit Identity")
                 .font(.system(size: 22, weight: .semibold))
 
@@ -492,8 +495,8 @@ struct IdentityEditorSheet: View {
 
             footerButtons
         }
-        .padding(.horizontal, 24)
-        .padding(.vertical, 20)
+        .padding(.horizontal, 20)
+        .padding(.vertical, 18)
         .frame(width: 420)
         .background(themeManager.windowBackgroundColor)
         .onAppear(perform: prepareInitialValues)
@@ -504,17 +507,17 @@ struct IdentityEditorSheet: View {
             Section {
                 LabeledContent("Name") {
                     TextField("", text: $name, prompt: Text("Production"))
-                        .multilineTextAlignment(.trailing)
+                        .textFieldStyle(.roundedBorder)
                 }
 
                 LabeledContent("Username") {
                     TextField("", text: $username, prompt: Text("db_admin"))
-                        .multilineTextAlignment(.trailing)
+                        .textFieldStyle(.roundedBorder)
                 }
 
                 LabeledContent("Password") {
                     SecureField("", text: $password, prompt: Text("••••••••"))
-                        .multilineTextAlignment(.trailing)
+                        .textFieldStyle(.roundedBorder)
                 }
             } header: {
                 Text("Identity Details")
@@ -554,6 +557,8 @@ struct IdentityEditorSheet: View {
                         dismiss()
                     }
                 }
+                .buttonStyle(.borderedProminent)
+                .tint(.red)
                 Spacer()
             } else {
                 Spacer()
@@ -565,6 +570,7 @@ struct IdentityEditorSheet: View {
                 Task { await saveIdentity() }
             }
             .buttonStyle(.borderedProminent)
+            .tint(themeManager.accentColor)
             .disabled(!isValid)
         }
         .controlSize(.regular)

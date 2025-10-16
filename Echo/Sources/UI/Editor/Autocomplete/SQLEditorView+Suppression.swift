@@ -171,9 +171,9 @@ extension SQLTextView {
         return suppression
     }
 
-    func registerSuppressedCompletion(for suggestion: SQLAutoCompletionSuggestion,
-                                              appliedRange: NSRange,
-                                              insertion: NSString) {
+    func finalizeAppliedCompletion(for suggestion: SQLAutoCompletionSuggestion,
+                                   appliedRange: NSRange,
+                                   insertion: NSString) {
         let eligibleKinds: Set<SQLAutoCompletionKind> = [.table, .view, .materializedView]
         guard eligibleKinds.contains(suggestion.kind) else { return }
         guard appliedRange.location != NSNotFound, appliedRange.length > 0 else { return }
@@ -187,20 +187,12 @@ extension SQLTextView {
         canonicalLength = max(0, min(canonicalLength, fullLength))
         guard canonicalLength > 0 else { return }
 
-        let canonicalText = insertion.substring(with: NSRange(location: 0, length: canonicalLength))
         let tokenRange = NSRange(location: appliedRange.location, length: canonicalLength)
         guard sqlRangeIsValid(tokenRange, upperBound: (string as NSString).length) else { return }
 
-        let hasFollowUps = ruleEngine.hasColumnFollowUps(for: suggestion,
-                                                         in: [],
-                                                         environment: suppressionEnvironment)
-
-        let suppression = SuppressedCompletion(tokenRange: tokenRange,
-                                               canonicalText: canonicalText,
-                                               hasFollowUps: hasFollowUps)
-
-        suppressedCompletions.removeAll { NSIntersectionRange($0.tokenRange, tokenRange).length > 0 }
-        suppressedCompletions.append(suppression)
+        suppressedCompletions.removeAll { existing in
+            NSIntersectionRange(existing.tokenRange, tokenRange).length > 0
+        }
         updateCompletionIndicator()
     }
 

@@ -2206,20 +2206,30 @@ private struct QueryEditorPreview: View {
 
     var body: some View {
         PaletteSnippetPreview(
-            background: theme.editorBackground.color,
-            gutterBackground: theme.editorGutterBackground.color,
-            gutterForeground: theme.editorGutterForeground.color,
-            selection: theme.editorSelection.color,
-            currentLine: theme.editorCurrentLine.color,
-            defaultText: theme.editorForeground.color,
+            background: resolvedBackground,
+            gutterBackground: resolvedGutterBackground,
+            gutterForeground: resolvedGutterForeground,
+            selection: resolvedSelection,
+            currentLine: resolvedCurrentLine,
+            defaultText: resolvedText,
             tokenColors: palette.tokens,
             isDark: theme.tone == .dark,
             font: previewFont,
             ligaturesEnabled: ligaturesEnabled,
-            fontPointSize: clampedFontSize
+            fontPointSize: clampedFontSize,
+            fontName: effectiveFontName
         )
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
     }
+
+    private var resolvedBackground: Color { theme.windowBackground.color }
+    private var resolvedGutterBackground: Color {
+        theme.windowBackground.color.lerp(to: theme.editorGutterBackground.color, fraction: 0.45)
+    }
+    private var resolvedGutterForeground: Color { theme.editorGutterForeground.color }
+    private var resolvedSelection: Color { theme.editorSelection.color }
+    private var resolvedCurrentLine: Color { theme.editorCurrentLine.color }
+    private var resolvedText: Color { theme.editorForeground.color }
 
     private var previewFont: Font {
         if fontName.isEmpty || SQLEditorTheme.isSystemFontIdentifier(fontName) {
@@ -2230,6 +2240,13 @@ private struct QueryEditorPreview: View {
 
     private var clampedFontSize: CGFloat {
         CGFloat(min(max(fontSize, 8.0), 36.0))
+    }
+
+    private var effectiveFontName: String {
+        if fontName.isEmpty {
+            return SQLEditorTheme.defaultFontName
+        }
+        return fontName
     }
 }
 
@@ -2308,27 +2325,39 @@ private struct FontSizeControl: View {
 
     private var control: some View {
         HStack(spacing: 0) {
-            stepButton(systemName: "minus", delta: -step)
-            separator
+            CapsuleButton(systemImage: "minus", action: { adjust(by: -step) })
+            Divider()
+                .frame(height: controlHeight)
+                .background(Color.primary.opacity(0.08))
+                .allowsHitTesting(false)
             TextField("", text: $textValue)
                 .focused($isFocused)
                 .multilineTextAlignment(.center)
                 .font(.system(size: 13, weight: .semibold, design: .monospaced))
                 .textFieldStyle(.plain)
-                .frame(width: 56, height: controlHeight)
+                .frame(width: 60, height: controlHeight)
+                .contentShape(Rectangle())
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(Color.clear)
+                )
                 .onSubmit(commitText)
-            separator
-            stepButton(systemName: "plus", delta: step)
+            Divider()
+                .frame(height: controlHeight)
+                .background(Color.primary.opacity(0.08))
+                .allowsHitTesting(false)
+            CapsuleButton(systemImage: "plus", action: { adjust(by: step) })
         }
         .frame(height: controlHeight)
         .background(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
                 .fill(Color.primary.opacity(0.05))
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
                 .stroke(Color.primary.opacity(0.08), lineWidth: 1)
         )
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         .onChange(of: isFocused) { _, newValue in
             if !newValue {
                 commitText()
@@ -2336,23 +2365,31 @@ private struct FontSizeControl: View {
         }
     }
 
-    private func stepButton(systemName: String, delta: Double) -> some View {
-        Button(action: { adjust(by: delta) }) {
-            Image(systemName: systemName)
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundColor(.primary)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+    private struct CapsuleButton: View {
+        let systemImage: String
+        let action: () -> Void
+
+        var body: some View {
+            Button(action: action) {
+                Image(systemName: systemImage)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(.primary)
+            }
+            .buttonStyle(FullWidthPlainButtonStyle())
+            .frame(width: 44, height: 32)
         }
-        .buttonStyle(.plain)
-        .frame(width: 34, height: controlHeight)
-        .contentShape(Rectangle())
-        .accessibilityLabel(delta < 0 ? "Decrease font size" : "Increase font size")
     }
 
-    private var separator: some View {
-        Rectangle()
-            .fill(Color.primary.opacity(0.08))
-            .frame(width: 1, height: controlHeight)
+    private struct FullWidthPlainButtonStyle: ButtonStyle {
+        func makeBody(configuration: Configuration) -> some View {
+            configuration.label
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .contentShape(Rectangle())
+                .background(
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(Color.primary.opacity(configuration.isPressed ? 0.08 : 0.0001))
+                )
+        }
     }
 
     private func adjust(by delta: Double) {
@@ -2649,6 +2686,7 @@ private struct PaletteSnippetPreview: View {
     let font: Font
     let ligaturesEnabled: Bool
     let fontPointSize: CGFloat
+    let fontName: String
 
     init(
         background: Color,
@@ -2661,7 +2699,8 @@ private struct PaletteSnippetPreview: View {
         isDark: Bool,
         font: Font = .system(size: 9, weight: .medium, design: .monospaced),
         ligaturesEnabled: Bool = true,
-        fontPointSize: CGFloat = 12
+        fontPointSize: CGFloat = 12,
+        fontName: String = SQLEditorTheme.defaultFontName
     ) {
         self.background = background
         self.gutterBackground = gutterBackground
@@ -2674,6 +2713,7 @@ private struct PaletteSnippetPreview: View {
         self.font = font
         self.ligaturesEnabled = ligaturesEnabled
         self.fontPointSize = fontPointSize
+        self.fontName = fontName
     }
 
     var body: some View {
@@ -2693,9 +2733,13 @@ private struct PaletteSnippetPreview: View {
 
     private var lineNumberColumn: some View {
         VStack(alignment: .trailing, spacing: 0) {
-            ForEach(1...lines.count, id: \.self) { index in
-                lineNumber(index)
-                    .frame(height: lineHeight, alignment: .center)
+            ForEach(Array(lines.indices), id: \.self) { index in
+                ZStack(alignment: .topTrailing) {
+                    lineNumber(index + 1)
+                        .padding(.horizontal, lineTextPaddingHorizontal * 0.5)
+                        .padding(.vertical, lineTextPaddingVertical)
+                }
+                .frame(height: lineHeight, alignment: .topTrailing)
             }
         }
         .font(font)
@@ -2713,22 +2757,25 @@ private struct PaletteSnippetPreview: View {
     private var codeColumn: some View {
         VStack(alignment: .leading, spacing: 0) {
             ForEach(Array(lines.enumerated()), id: \.offset) { index, segments in
-                codeLine(segments)
-                    .frame(height: lineHeight, alignment: .leading)
-                    .background(
-                        Group {
-                            if let color = highlight(for: index) {
-                                RoundedRectangle(cornerRadius: 6, style: .continuous)
-                                    .fill(color)
-                            }
-                        }
-                    )
+                ZStack(alignment: .topLeading) {
+                    if let color = highlight(for: index) {
+                        RoundedRectangle(cornerRadius: 6, style: .continuous)
+                            .fill(color)
+                            .padding(.vertical, lineBackgroundInset)
+                            .padding(.horizontal, lineBackgroundInsetHorizontal)
+                    }
+
+                    codeLine(segments)
+                        .padding(.horizontal, lineTextPaddingHorizontal)
+                        .padding(.vertical, lineTextPaddingVertical)
+                }
+                .frame(height: lineHeight, alignment: .topLeading)
             }
         }
         .padding(.vertical, verticalInset)
         .padding(.horizontal, 14)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .background(background.opacity(isDark ? 0.03 : 0.08))
+        .background(background)
     }
 
     private var lines: [[(String, Color)]] {
@@ -2794,7 +2841,6 @@ private struct PaletteSnippetPreview: View {
 
         return Text(attributed)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 5)
     }
 
     private func lineNumber(_ value: Int) -> Text {
@@ -2809,8 +2855,25 @@ private struct PaletteSnippetPreview: View {
         isDark ? Color.white.opacity(0.08) : Color.black.opacity(0.08)
     }
 
-    private var lineHeight: CGFloat { max(fontPointSize * 1.4, 16) }
-    private var verticalInset: CGFloat { max(lineHeight * 0.4, 10) }
+    private var metricLineHeight: CGFloat {
+#if os(macOS)
+        let nsFont = NSFontWithFallback(name: fontName, size: fontPointSize, ligaturesEnabled: ligaturesEnabled).font
+        return ceil(nsFont.ascender - nsFont.descender + nsFont.leading)
+#else
+        let uiFont = NSFontWithFallback(name: fontName, size: fontPointSize, ligaturesEnabled: ligaturesEnabled).font
+        return ceil(uiFont.lineHeight)
+#endif
+    }
+
+    private var lineHeight: CGFloat {
+        max(metricLineHeight, fontPointSize * 1.3)
+    }
+
+    private var verticalInset: CGFloat { max(lineHeight * 0.25, 6) }
+    private var lineBackgroundInset: CGFloat { max(lineHeight * 0.08, 1.5) }
+    private var lineBackgroundInsetHorizontal: CGFloat { max(lineHeight * 0.08, 3) }
+    private var lineTextPaddingHorizontal: CGFloat { max(lineHeight * 0.1, 4) }
+    private var lineTextPaddingVertical: CGFloat { max(lineHeight * 0.05, 2) }
 }
 
 private struct EditorTokenPreview: View {
@@ -3460,6 +3523,28 @@ struct QueryResultsSettingsView: View {
         )
     }
 
+    private var initialRowLimitBinding: Binding<Int> {
+        Binding(
+            get: { appModel.globalSettings.resultsInitialRowLimit },
+            set: { newValue in
+                let clamped = max(100, min(newValue, 100_000))
+                guard appModel.globalSettings.resultsInitialRowLimit != clamped else { return }
+                Task { await appModel.updateResultsStreaming(initialRowLimit: clamped) }
+            }
+        )
+    }
+
+    private var previewBatchSizeBinding: Binding<Int> {
+        Binding(
+            get: { appModel.globalSettings.resultsPreviewBatchSize },
+            set: { newValue in
+                let clamped = max(100, min(newValue, 100_000))
+                guard appModel.globalSettings.resultsPreviewBatchSize != clamped else { return }
+                Task { await appModel.updateResultsStreaming(previewBatchSize: clamped) }
+            }
+        )
+    }
+
     private var selectedDisplayMode: ForeignKeyDisplayMode { displayModeBinding.wrappedValue }
     private var selectedBehavior: ForeignKeyInspectorBehavior { inspectorBehaviorBinding.wrappedValue }
 
@@ -3497,6 +3582,34 @@ struct QueryResultsSettingsView: View {
                         .foregroundStyle(.secondary)
                         .padding(.top, 2)
                 }
+            }
+
+            Section("Result Streaming") {
+                Stepper(value: initialRowLimitBinding, in: 100...100_000, step: 100) {
+                    HStack {
+                        Text("Initial rows to display")
+                        Spacer()
+                        Text(formatRowCount(initialRowLimitBinding.wrappedValue))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                Text("Controls how many rows render immediately when a query begins streaming results.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+
+                Stepper(value: previewBatchSizeBinding, in: 100...100_000, step: 100) {
+                    HStack {
+                        Text("Data preview batch size")
+                        Spacer()
+                        Text(formatRowCount(previewBatchSizeBinding.wrappedValue))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                Text("Used when opening table previews from the sidebar. Additional batches keep loading in the background until the table finishes streaming.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
             }
         }
         .formStyle(.grouped)
@@ -3538,6 +3651,10 @@ struct QueryResultsSettingsView: View {
             return "Automatically open the inspector when a foreign key is activated and close it when the selection moves away."
         }
     }
+
+    private func formatRowCount(_ value: Int) -> String {
+        value.formatted()
+    }
 }
 
 struct ApplicationCacheSettingsView: View {
@@ -3546,6 +3663,8 @@ struct ApplicationCacheSettingsView: View {
     @EnvironmentObject private var clipboardHistory: ClipboardHistoryStore
     @EnvironmentObject private var themeManager: ThemeManager
     @State private var confirmDisableHistory = false
+    @State private var resultCacheUsage: UInt64 = 0
+    @State private var isRefreshingResultCache = false
 
     private let baseStorageOptions: [Int] = [
         256 * 1_024 * 1_024,
@@ -3561,6 +3680,7 @@ struct ApplicationCacheSettingsView: View {
 
         Form {
             workspaceTabSection
+            resultCacheSection
 
             Section("Clipboard History") {
                 Toggle("Enable clipboard history", isOn: clipboardEnabledBinding(for: store))
@@ -3646,6 +3766,51 @@ struct ApplicationCacheSettingsView: View {
         }
     }
 
+    private var resultCacheSection: some View {
+        Section("Result Cache") {
+            cacheLocationRow
+
+            Picker("Maximum storage", selection: resultCacheMaxBinding) {
+                ForEach(storageOptions(for: appModel.globalSettings.resultSpoolMaxBytes), id: \.self) { value in
+                    Text(ClipboardHistoryStore.formatByteCount(value)).tag(value)
+                }
+            }
+            .frame(maxWidth: 320)
+
+            Stepper(value: resultCacheRetentionBinding, in: 1...(24 * 14)) {
+                let hours = appModel.globalSettings.resultSpoolRetentionHours
+                let days = Double(hours) / 24.0
+                let formattedDays = String(format: "%.1f", days)
+                Text("Retention: \(hours) hour\(hours == 1 ? "" : "s") (~\(formattedDays) days)")
+            }
+
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text("Current usage")
+                    Spacer()
+                    if isRefreshingResultCache {
+                        ProgressView()
+                            .controlSize(.small)
+                    } else {
+                        Text(formatByteCount(resultCacheUsage))
+                            .font(.system(size: 12, weight: .semibold))
+                    }
+                }
+
+                Text("Echo stores streamed query results on disk so large result sets stay fast and light on memory. Change the limits above to tune cache size and automatic cleanup.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+
+            Button("Clear Result Cache", role: .destructive) {
+                clearResultCache()
+            }
+        }
+        .task(id: appModel.globalSettings.resultSpoolCustomLocation) {
+            await refreshResultCacheUsage()
+        }
+    }
+
     private func storageLimitSection(for store: ClipboardHistoryStore) -> some View {
         let usage = store.formattedUsageBreakdown()
         let options = storageOptions(for: store.storageLimit)
@@ -3669,6 +3834,109 @@ struct ApplicationCacheSettingsView: View {
             .padding(.top, 8)
         }
     }
+
+    @ViewBuilder
+    private var cacheLocationRow: some View {
+        let url = resolvedResultCacheURL()
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .firstTextBaseline) {
+                Text("Cache location")
+                Spacer()
+                Text(url.path)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .textSelection(.enabled)
+                    .lineLimit(2)
+            }
+
+#if os(macOS)
+            HStack(spacing: 12) {
+                Button("Change…") { presentResultCacheLocationPicker(current: url) }
+                Button("Reveal in Finder") { revealResultCacheLocation(url) }
+                if appModel.globalSettings.resultSpoolCustomLocation != nil {
+                    Button("Use Default") {
+                        Task { await appModel.updateGlobalEditorDisplay { $0.resultSpoolCustomLocation = nil } }
+                    }
+                }
+            }
+#endif
+        }
+    }
+
+    private var resultCacheMaxBinding: Binding<Int> {
+        Binding(
+            get: { appModel.globalSettings.resultSpoolMaxBytes },
+            set: { newValue in
+                Task { await appModel.updateGlobalEditorDisplay { $0.resultSpoolMaxBytes = max(256 * 1_024 * 1_024, newValue) } }
+                Task { await refreshResultCacheUsage() }
+            }
+        )
+    }
+
+    private var resultCacheRetentionBinding: Binding<Int> {
+        Binding(
+            get: { appModel.globalSettings.resultSpoolRetentionHours },
+            set: { newValue in
+                Task { await appModel.updateGlobalEditorDisplay { $0.resultSpoolRetentionHours = max(1, newValue) } }
+            }
+        )
+    }
+
+    private func resolvedResultCacheURL() -> URL {
+        if let custom = appModel.globalSettings.resultSpoolCustomLocation,
+           !custom.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return URL(fileURLWithPath: (custom as NSString).expandingTildeInPath, isDirectory: true)
+        }
+        return ResultSpoolManager.defaultRootDirectory()
+    }
+
+    private func refreshResultCacheUsage() async {
+        let shouldContinue = await MainActor.run { () -> Bool in
+            if isRefreshingResultCache { return false }
+            isRefreshingResultCache = true
+            return true
+        }
+        guard shouldContinue else { return }
+        let bytes = await appModel.resultSpoolManager.currentUsageBytes()
+        await MainActor.run {
+            self.resultCacheUsage = bytes
+            self.isRefreshingResultCache = false
+        }
+    }
+
+    private func clearResultCache() {
+        Task {
+            await appModel.resultSpoolManager.clearAll()
+            await refreshResultCacheUsage()
+        }
+    }
+
+    private func formatByteCount(_ bytes: UInt64) -> String {
+        let formatter = ByteCountFormatter()
+        formatter.allowedUnits = [.useBytes, .useKB, .useMB, .useGB]
+        formatter.countStyle = .memory
+        return formatter.string(fromByteCount: Int64(bytes))
+    }
+
+#if os(macOS)
+    private func presentResultCacheLocationPicker(current: URL) {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.allowsMultipleSelection = false
+        panel.prompt = "Choose"
+        panel.directoryURL = current
+        panel.title = "Select Result Cache Location"
+        if panel.runModal() == .OK, let selected = panel.url {
+            Task { await appModel.updateGlobalEditorDisplay { $0.resultSpoolCustomLocation = selected.path } }
+            Task { await refreshResultCacheUsage() }
+        }
+    }
+
+    private func revealResultCacheLocation(_ url: URL) {
+        NSWorkspace.shared.activateFileViewerSelecting([url])
+    }
+#endif
 
     private var keepTabsBinding: Binding<Bool> {
         Binding(

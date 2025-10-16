@@ -127,35 +127,141 @@ final class MySQLSession: DatabaseSession {
     }
 
     func simpleQuery(_ sql: String, progressHandler: QueryProgressHandler?) async throws -> QueryResultSet {
-        let rows = try await connection.simpleQuery(sql).get()
-        let metadata = rows.first?.columnDefinitions ?? []
-        let columns = metadata.map { column in
-            ColumnInfo(
-                name: column.name,
-                dataType: column.displayName,
-                isPrimaryKey: column.flags.contains(.PRIMARY_KEY),
-                isNullable: !column.flags.contains(.COLUMN_NOT_NULL),
-                maxLength: column.columnLength == 0 ? nil : Int(column.columnLength)
+        var previewRows: [[String?]] = []
+        previewRows.reserveCapacity(4_096)
+        var totalRowCount = 0
+
+        var pendingPreviewRows: [[String?]] = []
+        pendingPreviewRows.reserveCapacity(256)
+        var pendingEncodedRows: [ResultBinaryRow] = []
+        pendingEncodedRows.reserveCapacity(256)
+        let operationStart = CFAbsoluteTimeGetCurrent()
+        var lastFlushTimestamp = operationStart
+        var batchDecodeDuration: TimeInterval = 0
+        let streamingPreviewLimit = 512
+        let maxFlushLatency: TimeInterval = 0.05
+
+        var columnMetadata: [MySQLProtocol.ColumnDefinition41] = []
+        var columnInfo: [ColumnInfo] = []
+        var encounteredError: Error?
+        var wasCancelled = false
+
+        let flush: (_ force: Bool) -> Void = { force in
+            guard !pendingEncodedRows.isEmpty else { return }
+
+            if !force, progressHandler != nil, !columnInfo.isEmpty {
+                let flushThreshold: Int
+                switch totalRowCount {
+                case 0..<1024:
+                    flushThreshold = 128
+                case 1024..<4096:
+                    flushThreshold = 512
+                case 4096..<16_384:
+                    flushThreshold = 512
+                default:
+                    flushThreshold = 1024
+                }
+                let shouldFlushByCount = pendingEncodedRows.count >= flushThreshold
+                if !shouldFlushByCount {
+                    let elapsed = CFAbsoluteTimeGetCurrent() - lastFlushTimestamp
+                    guard elapsed >= maxFlushLatency else { return }
+                }
+            }
+
+            let previewBatch = pendingPreviewRows
+            let encodedBatch = pendingEncodedRows
+            pendingPreviewRows.removeAll(keepingCapacity: true)
+            pendingEncodedRows.removeAll(keepingCapacity: true)
+            let now = CFAbsoluteTimeGetCurrent()
+            let metrics = QueryStreamMetrics(
+                batchRowCount: encodedBatch.count,
+                loopElapsed: now - lastFlushTimestamp,
+                decodeDuration: batchDecodeDuration,
+                totalElapsed: now - operationStart,
+                cumulativeRowCount: totalRowCount
             )
-        }
+            lastFlushTimestamp = now
+            batchDecodeDuration = 0
 
-        var results: [[String?]] = []
-        results.reserveCapacity(rows.count)
-
-        for row in rows {
-            results.append(makeRowValues(row, metadata: metadata))
-        }
-
-        if let handler = progressHandler, !columns.isEmpty {
+            guard let handler = progressHandler, !columnInfo.isEmpty else { return }
             let update = QueryStreamUpdate(
-                columns: columns,
-                appendedRows: results,
-                totalRowCount: results.count
+                columns: columnInfo,
+                appendedRows: previewBatch,
+                encodedRows: encodedBatch,
+                totalRowCount: totalRowCount,
+                metrics: metrics
             )
             handler(update)
         }
 
-        return QueryResultSet(columns: columns.isEmpty ? [ColumnInfo(name: "result", dataType: "text")] : columns, rows: results)
+        let future = connection.simpleQuery(sql) { row in
+            if Task.isCancelled {
+                wasCancelled = true
+                return
+            }
+
+            if columnMetadata.isEmpty {
+                columnMetadata = row.columnDefinitions
+            }
+
+            if columnInfo.isEmpty, !columnMetadata.isEmpty {
+                columnInfo = columnMetadata.map { column in
+                    ColumnInfo(
+                        name: column.name,
+                        dataType: column.displayName,
+                        isPrimaryKey: column.flags.contains(.PRIMARY_KEY),
+                        isNullable: !column.flags.contains(.COLUMN_NOT_NULL),
+                        maxLength: column.columnLength == 0 ? nil : Int(column.columnLength)
+                    )
+                }
+            }
+
+            let decodeStart = CFAbsoluteTimeGetCurrent()
+            let values = self.makeRowValues(row, metadata: columnMetadata)
+            batchDecodeDuration += CFAbsoluteTimeGetCurrent() - decodeStart
+            let encoded = ResultBinaryRowCodec.encode(row: values)
+            pendingEncodedRows.append(encoded)
+            totalRowCount += 1
+            if totalRowCount <= streamingPreviewLimit {
+                pendingPreviewRows.append(values)
+            }
+            if previewRows.count < 4_096 {
+                previewRows.append(values)
+            }
+
+            flush(false)
+        }
+
+        do {
+            try await future.get()
+        } catch {
+            encounteredError = error
+        }
+
+        flush(true)
+
+        if wasCancelled {
+            throw CancellationError()
+        }
+
+        if let error = encounteredError {
+            throw DatabaseError.queryError(error.localizedDescription)
+        }
+
+        if columnInfo.isEmpty, !columnMetadata.isEmpty {
+            columnInfo = columnMetadata.map { column in
+                ColumnInfo(
+                    name: column.name,
+                    dataType: column.displayName,
+                    isPrimaryKey: column.flags.contains(.PRIMARY_KEY),
+                    isNullable: !column.flags.contains(.COLUMN_NOT_NULL),
+                    maxLength: column.columnLength == 0 ? nil : Int(column.columnLength)
+                )
+            }
+        }
+
+        let resolvedColumns = columnInfo.isEmpty ? [ColumnInfo(name: "result", dataType: "text")] : columnInfo
+        return QueryResultSet(columns: resolvedColumns, rows: previewRows, totalRowCount: totalRowCount)
     }
 
     func queryWithPaging(_ sql: String, limit: Int, offset: Int) async throws -> QueryResultSet {

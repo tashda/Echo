@@ -17,6 +17,7 @@ final class ConnectionSession: ObservableObject, Identifiable {
     let id: UUID
     let connection: SavedConnection
     let session: DatabaseSession
+    private let spoolManager: ResultSpoolManager
 
     @Published var selectedDatabaseName: String?
     @Published var databaseStructure: DatabaseStructure?
@@ -24,15 +25,18 @@ final class ConnectionSession: ObservableObject, Identifiable {
     @Published var lastActivity: Date = Date()
     @Published var structureLoadingState: StructureLoadingState = .idle
     @Published var structureLoadingMessage: String?
+    private var defaultInitialBatchSize: Int
 
     // Query tabs specific to this connection
     @Published var queryTabs: [WorkspaceTab] = []
     @Published var activeQueryTabID: UUID?
 
-    init(id: UUID = UUID(), connection: SavedConnection, session: DatabaseSession) {
+    init(id: UUID = UUID(), connection: SavedConnection, session: DatabaseSession, defaultInitialBatchSize: Int = 500, spoolManager: ResultSpoolManager) {
         self.id = id
         self.connection = connection
         self.session = session
+        self.defaultInitialBatchSize = max(100, defaultInitialBatchSize)
+        self.spoolManager = spoolManager
 
         // Auto-select database if one is saved in the connection
         if !connection.database.isEmpty {
@@ -64,7 +68,11 @@ final class ConnectionSession: ObservableObject, Identifiable {
     }
 
     func addQueryTab(withQuery query: String = "", database: String? = nil) {
-        let queryState = QueryEditorState(sql: query.isEmpty ? "SELECT current_timestamp;" : query)
+        let queryState = QueryEditorState(
+            sql: query.isEmpty ? "SELECT current_timestamp;" : query,
+            initialVisibleRowBatch: defaultInitialBatchSize,
+            spoolManager: spoolManager
+        )
 
         func normalized(_ value: String) -> String? {
             let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -119,6 +127,10 @@ final class ConnectionSession: ObservableObject, Identifiable {
 
     func updateActivity() {
         lastActivity = Date()
+    }
+
+    func updateDefaultInitialBatchSize(_ batchSize: Int) {
+        defaultInitialBatchSize = max(100, batchSize)
     }
 }
 
