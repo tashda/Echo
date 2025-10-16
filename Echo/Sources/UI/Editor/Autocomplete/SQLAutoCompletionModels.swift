@@ -27,6 +27,9 @@ enum SQLAutoCompletionKind: String, Equatable {
     case column
     case function
     case keyword
+    case snippet
+    case parameter
+    case join
 
     var iconSystemName: String {
         switch self {
@@ -37,6 +40,9 @@ enum SQLAutoCompletionKind: String, Equatable {
         case .column: return "doc.text"
         case .function: return "function"
         case .keyword: return "textformat"
+        case .snippet: return "text.badge.plus"
+        case .parameter: return "number"
+        case .join: return "link"
         }
     }
 }
@@ -118,6 +124,9 @@ extension SQLAutoCompletionSuggestion {
         case .column: return "Column"
         case .function: return "Function"
         case .keyword: return "Keyword"
+        case .snippet: return "Snippet"
+        case .parameter: return "Parameter"
+        case .join: return "Join"
         }
     }
 
@@ -150,6 +159,8 @@ extension SQLAutoCompletionSuggestion {
         case .function:
             return joined([origin.schema, origin.object])
         case .keyword:
+            return detail ?? subtitle
+        case .snippet, .parameter, .join:
             return detail ?? subtitle
         }
     }
@@ -190,6 +201,7 @@ struct SQLAutoCompletionQuery: Equatable {
     let precedingCharacter: Character?
     let focusTable: SQLAutoCompletionTableFocus?
     let tablesInScope: [SQLAutoCompletionTableFocus]
+    let clause: SQLClause
 
     var normalizedPrefix: String { prefix.trimmingCharacters(in: .whitespacesAndNewlines) }
     var hasNonEmptyPrefix: Bool { !normalizedPrefix.isEmpty }

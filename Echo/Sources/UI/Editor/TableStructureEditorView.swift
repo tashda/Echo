@@ -493,25 +493,69 @@ struct TableStructureEditorView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.vertical, 18)
             } else {
-                columnsGrid
+                columnsTable
             }
         }
         .padding(.vertical, 6)
     }
 
     @ViewBuilder
-    private var columnsGrid: some View {
+    private var columnsTable: some View {
 #if os(macOS)
         let indexMap = columnIndexMap
-        LazyVStack(spacing: 0) {
-            columnsHeaderRow
-            Divider()
-            ForEach(Array(visibleColumns.enumerated()), id: \.element.id) { index, column in
-                let binding = indexMap[column.id].map { $viewModel.columns[$0] }
-                columnRow(for: column, binding: binding, index: index)
-                if index < visibleColumns.count - 1 {
-                    Divider()
+        Table(visibleColumns, selection: $selectedColumnIDs) {
+            TableColumn("Name") { column in
+                Button { presentColumnEditor(for: column) } label: {
+                    Text(column.name)
+                        .font(.system(size: 13, weight: .semibold))
+                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
+                .buttonStyle(.plain)
+            }
+            .width(ColumnLayout.name)
+
+            TableColumn("Data Type") { column in
+                let binding = indexMap[column.id].map { $viewModel.columns[$0] }
+                dataTypeCell(for: column, binding: binding)
+            }
+            .width(ColumnLayout.dataType)
+
+            TableColumn("Allow Null") { column in
+                let binding = indexMap[column.id].map { $viewModel.columns[$0] }
+                allowNullCell(for: column, binding: binding)
+            }
+            .width(ColumnLayout.allowNull)
+
+            TableColumn("Default") { column in
+                let binding = indexMap[column.id].map { $viewModel.columns[$0] }
+                defaultValueCell(for: column, binding: binding)
+            }
+            .width(ColumnLayout.defaultValue)
+
+            TableColumn("Generated") { column in
+                let binding = indexMap[column.id].map { $viewModel.columns[$0] }
+                generatedExpressionCell(for: column, binding: binding)
+            }
+            .width(ColumnLayout.generated)
+
+            TableColumn("Status") { column in
+                statusCell(for: column)
+            }
+            .width(ColumnLayout.status)
+
+            TableColumn("Changes") { column in
+                changesCell(for: column)
+            }
+        }
+        .tableStyle(.inset(alternatesRowBackgrounds: true))
+        .contextMenu(forSelectionType: TableStructureEditorViewModel.ColumnModel.ID.self) { selection in
+            let targets = visibleColumns.filter { selection.contains($0.id) }
+            if let first = targets.first, targets.count == 1 {
+                Button("Edit Column") { presentColumnEditor(for: first) }
+            }
+            if !targets.isEmpty {
+                let title = targets.count == 1 ? "Remove Column" : "Remove Columns"
+                Button(title, role: .destructive) { removeColumns(targets) }
             }
         }
 #else
@@ -536,86 +580,9 @@ struct TableStructureEditorView: View {
 #endif
     }
 
-    private var columnsHeaderRow: some View {
-        HStack(spacing: ColumnLayout.spacing) {
-            headerLabel("Name")
-                .frame(width: ColumnLayout.name, alignment: .leading)
-            headerLabel("Data Type")
-                .frame(width: ColumnLayout.dataType, alignment: .leading)
-            headerLabel("Allow Null")
-                .frame(width: ColumnLayout.allowNull, alignment: .center)
-            headerLabel("Default")
-                .frame(width: ColumnLayout.defaultValue, alignment: .trailing)
-            headerLabel("Generated")
-                .frame(width: ColumnLayout.generated, alignment: .trailing)
-            headerLabel("Status")
-                .frame(width: ColumnLayout.status, alignment: .leading)
-            headerLabel("Changes")
-                .frame(maxWidth: .infinity, alignment: .leading)
-        }
-        .font(.system(size: 11, weight: .semibold))
-        .foregroundStyle(Color.secondary)
-        .padding(.horizontal, ColumnLayout.horizontalPadding)
-        .padding(.vertical, 4)
-    }
-
-    private func columnRow(
-        for column: TableStructureEditorViewModel.ColumnModel,
-        binding: Binding<TableStructureEditorViewModel.ColumnModel>?,
-        index: Int
-    ) -> some View {
-        let isSelected = selectedColumnIDs.contains(column.id)
-        return HStack(spacing: ColumnLayout.spacing) {
-            nameCell(for: column)
-                .frame(width: ColumnLayout.name, alignment: .leading)
-            dataTypeCell(for: column, binding: binding)
-                .frame(width: ColumnLayout.dataType, alignment: .leading)
-            allowNullCell(for: column, binding: binding)
-                .frame(width: ColumnLayout.allowNull, alignment: .center)
-            defaultValueCell(for: column, binding: binding)
-                .frame(width: ColumnLayout.defaultValue, alignment: .trailing)
-            generatedExpressionCell(for: column, binding: binding)
-                .frame(width: ColumnLayout.generated, alignment: .trailing)
-            statusCell(for: column)
-                .frame(width: ColumnLayout.status, alignment: .leading)
-            changesCell(for: column)
-                .frame(maxWidth: .infinity, alignment: .leading)
-        }
-        .padding(.horizontal, ColumnLayout.horizontalPadding)
-        .padding(.vertical, 6)
-        .background(rowBackgroundColor(for: index, isSelected: isSelected))
-        .contentShape(Rectangle())
-        .onTapGesture { handleRowSelection(column.id) }
-        .contextMenu {
-            Button("Edit Column") { presentColumnEditor(for: column) }
-            Button("Remove Column", role: .destructive) {
-                let targets = selectionTargets(for: column)
-                removeColumns(targets)
-            }
-        }
-    }
-
-    private func headerLabel(_ title: String) -> some View {
-        Text(title.uppercased())
-    }
-
-    private func nameCell(for column: TableStructureEditorViewModel.ColumnModel) -> some View {
-        Button {
-            presentColumnEditor(for: column)
-        } label: {
-            Text(column.name)
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(Color.primary)
-                .frame(maxWidth: .infinity, alignment: .leading)
-        }
-        .buttonStyle(.plain)
-    }
-
+#if os(macOS)
     @ViewBuilder
-    private func dataTypeCell(
-        for column: TableStructureEditorViewModel.ColumnModel,
-        binding: Binding<TableStructureEditorViewModel.ColumnModel>?
-    ) -> some View {
+    private func dataTypeCell(for column: TableStructureEditorViewModel.ColumnModel, binding: Binding<TableStructureEditorViewModel.ColumnModel>?) -> some View {
         if let binding {
             inlineEditableField(
                 text: Binding(
@@ -629,14 +596,10 @@ struct TableStructureEditorView: View {
             .overlay(alignment: .trailing) {
                 Menu {
                     ForEach(postgresDataTypeOptions, id: \.self) { option in
-                        Button(option) {
-                            binding.wrappedValue.dataType = option
-                        }
+                        Button(option) { binding.wrappedValue.dataType = option }
                     }
                     Divider()
-                    Button("Custom…") {
-                        focusedCustomColumnID = column.id
-                    }
+                    Button("Custom…") { focusedCustomColumnID = column.id }
                 } label: {
                     Image(systemName: "chevron.down")
                         .font(.system(size: 11, weight: .semibold))
@@ -647,9 +610,6 @@ struct TableStructureEditorView: View {
                         .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
                 }
                 .menuStyle(.borderlessButton)
-#if os(macOS)
-                .offset(x: -4)
-#endif
             }
         } else {
             Text(column.dataType.uppercased())
@@ -660,10 +620,7 @@ struct TableStructureEditorView: View {
     }
 
     @ViewBuilder
-    private func allowNullCell(
-        for column: TableStructureEditorViewModel.ColumnModel,
-        binding: Binding<TableStructureEditorViewModel.ColumnModel>?
-    ) -> some View {
+    private func allowNullCell(for column: TableStructureEditorViewModel.ColumnModel, binding: Binding<TableStructureEditorViewModel.ColumnModel>?) -> some View {
         if let binding {
             Toggle("", isOn: binding.isNullable)
                 .toggleStyle(.checkbox)
@@ -677,10 +634,7 @@ struct TableStructureEditorView: View {
     }
 
     @ViewBuilder
-    private func defaultValueCell(
-        for column: TableStructureEditorViewModel.ColumnModel,
-        binding: Binding<TableStructureEditorViewModel.ColumnModel>?
-    ) -> some View {
+    private func defaultValueCell(for column: TableStructureEditorViewModel.ColumnModel, binding: Binding<TableStructureEditorViewModel.ColumnModel>?) -> some View {
         if let binding {
             inlineEditableField(
                 text: Binding(
@@ -696,15 +650,11 @@ struct TableStructureEditorView: View {
         } else {
             Text(column.defaultValue?.isEmpty == false ? column.defaultValue! : "—")
                 .foregroundStyle(.secondary)
-                .frame(maxWidth: .infinity, alignment: .trailing)
         }
     }
 
     @ViewBuilder
-    private func generatedExpressionCell(
-        for column: TableStructureEditorViewModel.ColumnModel,
-        binding: Binding<TableStructureEditorViewModel.ColumnModel>?
-    ) -> some View {
+    private func generatedExpressionCell(for column: TableStructureEditorViewModel.ColumnModel, binding: Binding<TableStructureEditorViewModel.ColumnModel>?) -> some View {
         if let binding {
             inlineEditableField(
                 text: Binding(
@@ -720,7 +670,6 @@ struct TableStructureEditorView: View {
         } else {
             Text(column.generatedExpression?.isEmpty == false ? column.generatedExpression! : "—")
                 .foregroundStyle(.secondary)
-                .frame(maxWidth: .infinity, alignment: .trailing)
         }
     }
 
@@ -743,53 +692,7 @@ struct TableStructureEditorView: View {
         }
     }
 
-    private func rowBackgroundColor(for index: Int, isSelected: Bool) -> Color {
-        if isSelected {
-            return accentColor.opacity(0.18)
-        }
-        return index.isMultiple(of: 2) ? rowBackgroundPrimary : rowBackgroundSecondary
-    }
-
-    private var rowBackgroundPrimary: Color {
-#if os(macOS)
-        Color(nsColor: themeManager.surfaceBackgroundNSColor).opacity(themeManager.effectiveColorScheme == .dark ? 0.55 : 0.08)
-#else
-        themeManager.surfaceBackgroundColor.opacity(themeManager.effectiveColorScheme == .dark ? 0.55 : 0.08)
-#endif
-    }
-
-    private var rowBackgroundSecondary: Color {
-#if os(macOS)
-        Color(nsColor: themeManager.surfaceBackgroundNSColor).opacity(themeManager.effectiveColorScheme == .dark ? 0.45 : 0.04)
-#else
-        themeManager.surfaceBackgroundColor.opacity(themeManager.effectiveColorScheme == .dark ? 0.45 : 0.04)
-#endif
-    }
-
-    private func handleRowSelection(_ columnID: UUID) {
-#if os(macOS)
-        if let event = NSApp.currentEvent, event.modifierFlags.contains(.command) {
-            if selectedColumnIDs.contains(columnID) {
-                selectedColumnIDs.remove(columnID)
-            } else {
-                selectedColumnIDs.insert(columnID)
-            }
-        } else {
-            selectedColumnIDs = [columnID]
-        }
-#else
-        selectedColumnIDs = [columnID]
-#endif
-    }
-
-    private func selectionTargets(for column: TableStructureEditorViewModel.ColumnModel) -> [TableStructureEditorViewModel.ColumnModel] {
-        let ids = selectedColumnIDs.contains(column.id) ? selectedColumnIDs : [column.id]
-        return visibleColumns.filter { ids.contains($0.id) }
-    }
-
     private enum ColumnLayout {
-        static let horizontalPadding: CGFloat = 12
-        static let spacing: CGFloat = 12
         static let name: CGFloat = 220
         static let dataType: CGFloat = 160
         static let allowNull: CGFloat = 90
@@ -797,6 +700,45 @@ struct TableStructureEditorView: View {
         static let generated: CGFloat = 200
         static let status: CGFloat = 120
     }
+#else
+    private func dataTypeCell(for column: TableStructureEditorViewModel.ColumnModel) -> some View {
+        Text(column.dataType.uppercased())
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+    }
+
+    private func allowNullCell(for column: TableStructureEditorViewModel.ColumnModel) -> some View {
+        Image(systemName: column.isNullable ? "checkmark.circle" : "xmark.circle")
+            .foregroundStyle(column.isNullable ? Color.secondary : Color.primary)
+    }
+
+    private func defaultValueCell(for column: TableStructureEditorViewModel.ColumnModel) -> some View {
+        Text(column.defaultValue?.isEmpty == false ? column.defaultValue! : "—")
+            .foregroundStyle(.secondary)
+    }
+
+    private func generatedExpressionCell(for column: TableStructureEditorViewModel.ColumnModel) -> some View {
+        Text(column.generatedExpression?.isEmpty == false ? column.generatedExpression! : "—")
+            .foregroundStyle(.secondary)
+    }
+
+    private func statusCell(for column: TableStructureEditorViewModel.ColumnModel) -> some View {
+        let metadata = columnStatusMetadata(for: column)
+        Label(metadata.title, systemImage: metadata.systemImage)
+            .labelStyle(.titleAndIcon)
+            .foregroundStyle(metadata.tint)
+    }
+
+    private func changesCell(for column: TableStructureEditorViewModel.ColumnModel) -> some View {
+        if let description = columnChangeDescription(for: column) {
+            Text(description)
+                .foregroundStyle(.secondary)
+        } else {
+            Text("—")
+                .foregroundStyle(Color.secondary.opacity(0.6))
+        }
+    }
+#endif
 
     private func inlineEditableField(
         text: Binding<String>,

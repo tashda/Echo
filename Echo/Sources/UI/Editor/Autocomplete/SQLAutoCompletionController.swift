@@ -143,7 +143,8 @@ final class SQLAutoCompletionController {
                 suggestions: [],
                 selectedID: nil,
                 onSelect: { _ in },
-                detailResetID: detailResetToken
+                detailResetID: detailResetToken,
+                statusMessage: nil
             )
         )
 #else
@@ -152,7 +153,8 @@ final class SQLAutoCompletionController {
                 suggestions: [],
                 selectedID: nil,
                 onSelect: { _ in },
-                detailResetID: detailResetToken
+                detailResetID: detailResetToken,
+                statusMessage: nil
             )
         )
 #endif
@@ -164,13 +166,20 @@ final class SQLAutoCompletionController {
 
     private func updateContent() {
         let controller = ensureHostingController()
+        let statusMessage: String?
+        if textView?.completionEngine.isMetadataLimited == true {
+            statusMessage = "Limited metadata — showing keywords and recent items"
+        } else {
+            statusMessage = nil
+        }
         let updatedView = AutoCompletionListView(
             suggestions: flatSuggestions,
             selectedID: selectedSuggestion?.id,
             onSelect: { [weak self] suggestion in
                 self?.accept(suggestion)
             },
-            detailResetID: detailResetToken
+            detailResetID: detailResetToken,
+            statusMessage: statusMessage
         )
         controller.rootView = updatedView
 

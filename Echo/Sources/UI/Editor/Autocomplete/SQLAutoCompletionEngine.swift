@@ -96,6 +96,8 @@ final class SQLAutoCompletionEngine {
     private var catalog: Catalog?
     private var builtInFunctions: [String] = []
     private var useTableAliasShortcuts = false
+    private let historyStore = SQLAutoCompletionHistoryStore.shared
+    private(set) var isMetadataLimited: Bool = false
 
     private static let reservedLeadingKeywords: Set<String> = [
         "select", "from", "where", "join", "inner", "left", "right", "full",
@@ -121,14 +123,20 @@ final class SQLAutoCompletionEngine {
         if let newContext {
             catalog = Catalog(context: newContext)
             builtInFunctions = SQLAutoCompletionEngine.builtInFunctions(for: newContext.databaseType)
+            isMetadataLimited = newContext.structure == nil
         } else {
             catalog = nil
             builtInFunctions = []
+            isMetadataLimited = false
         }
     }
 
     func updateAliasPreference(useTableAliases: Bool) {
         useTableAliasShortcuts = useTableAliases
+    }
+
+    func recordSelection(_ suggestion: SQLAutoCompletionSuggestion, query: SQLAutoCompletionQuery) {
+        historyStore.record(suggestion, context: context)
     }
 
     func suggestions(for query: SQLAutoCompletionQuery) -> [SQLAutoCompletionSection] {
@@ -165,6 +173,27 @@ final class SQLAutoCompletionEngine {
             let schemas = makeSchemaSuggestions(query: query, catalog: catalog)
             if !schemas.isEmpty {
                 sections.append(SQLAutoCompletionSection(title: "Schemas", suggestions: schemas))
+            }
+        }
+
+        let historySuggestions = historyStore.suggestions(matching: query.normalizedPrefix,
+                                                          context: context,
+                                                          limit: 6)
+        if !historySuggestions.isEmpty {
+            let filteredHistory = historySuggestions.filter { candidate in
+                !sections.contains { section in
+                    section.suggestions.contains(where: { $0.id == candidate.id })
+                }
+            }
+            if !filteredHistory.isEmpty {
+                sections.insert(SQLAutoCompletionSection(title: "Recent", suggestions: filteredHistory), at: 0)
+            }
+        }
+
+        if sections.isEmpty {
+            let keywordFallback = makeKeywordFallbackSuggestions(query: query)
+            if !keywordFallback.isEmpty {
+                sections.append(SQLAutoCompletionSection(title: "Keywords", suggestions: keywordFallback))
             }
         }
 
@@ -685,6 +714,12 @@ final class SQLAutoCompletionEngine {
 
     private func isObjectContext(query: SQLAutoCompletionQuery) -> Bool {
         if !query.pathComponents.isEmpty { return true }
+        switch query.clause {
+        case .from, .joinTarget, .insertColumns, .deleteWhere, .withCTE:
+            return true
+        default:
+            break
+        }
         guard let keyword = query.precedingKeyword else { return false }
         return SQLTextView.objectContextKeywords.contains(keyword)
     }
@@ -692,6 +727,12 @@ final class SQLAutoCompletionEngine {
     private func isColumnContext(query: SQLAutoCompletionQuery) -> Bool {
         if query.precedingCharacter == "," { return true }
         if !query.pathComponents.isEmpty { return true }
+        switch query.clause {
+        case .selectList, .whereClause, .joinCondition, .groupBy, .orderBy, .having, .values, .updateSet:
+            return true
+        default:
+            break
+        }
         guard let keyword = query.precedingKeyword else { return false }
         if SQLTextView.objectContextKeywords.contains(keyword) {
             return false
@@ -716,6 +757,28 @@ final class SQLAutoCompletionEngine {
             }
         }
         return unique
+    }
+
+    private func makeKeywordFallbackSuggestions(query: SQLAutoCompletionQuery) -> [SQLAutoCompletionSuggestion] {
+        let prefixLower = query.normalizedPrefix.lowercased()
+        let sortedKeywords = SQLAutoCompletionEngine.reservedLeadingKeywords.sorted()
+        var results: [SQLAutoCompletionSuggestion] = []
+        for keyword in sortedKeywords {
+            if !prefixLower.isEmpty && !keyword.hasPrefix(prefixLower) {
+                continue
+            }
+            let display = keyword.uppercased()
+            results.append(SQLAutoCompletionSuggestion(
+                id: "keyword-fallback|\(keyword)",
+                title: display,
+                subtitle: nil,
+                detail: nil,
+                insertText: display,
+                kind: .keyword
+            ))
+            if results.count >= 12 { break }
+        }
+        return results
     }
 
     private func resolveTable(for qualifier: String, in scope: [SQLAutoCompletionTableFocus]) -> SQLAutoCompletionTableFocus? {

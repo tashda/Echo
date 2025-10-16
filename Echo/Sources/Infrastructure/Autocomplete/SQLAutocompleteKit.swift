@@ -28,58 +28,16 @@ public struct SQLCompletionRequest {
 
 public struct SQLCompletionResult {
     public let suggestions: [SQLCompletionSuggestion]
+    public let metadata: SQLCompletionMetadata
 
-    public init(suggestions: [SQLCompletionSuggestion]) {
+    public init(suggestions: [SQLCompletionSuggestion],
+                metadata: SQLCompletionMetadata) {
         self.suggestions = suggestions
+        self.metadata = metadata
     }
 }
 
 public struct SQLCompletionSuggestion: Identifiable, Equatable {
-    public struct Origin: Equatable {
-        public let database: String?
-        public let schema: String?
-        public let object: String?
-        public let column: String?
-
-        public init(database: String? = nil,
-                    schema: String? = nil,
-                    object: String? = nil,
-                    column: String? = nil) {
-            func clean(_ value: String?) -> String? {
-                guard let trimmed = value?.trimmingCharacters(in: .whitespacesAndNewlines), !trimmed.isEmpty else {
-                    return nil
-                }
-                return trimmed
-            }
-
-            self.database = clean(database)
-            self.schema = clean(schema)
-            self.object = clean(object)
-            self.column = clean(column)
-        }
-
-        public var hasContext: Bool {
-            return database != nil || schema != nil || object != nil || column != nil
-        }
-    }
-
-    public struct TableColumn: Equatable {
-        public let name: String
-        public let dataType: String
-        public let isNullable: Bool
-        public let isPrimaryKey: Bool
-
-        public init(name: String,
-                    dataType: String,
-                    isNullable: Bool,
-                    isPrimaryKey: Bool) {
-            self.name = name
-            self.dataType = dataType
-            self.isNullable = isNullable
-            self.isPrimaryKey = isPrimaryKey
-        }
-    }
-
     public enum Kind: String {
         case keyword
         case schema
@@ -90,6 +48,8 @@ public struct SQLCompletionSuggestion: Identifiable, Equatable {
         case function
         case procedure
         case snippet
+        case parameter
+        case join
     }
 
     public let id: String
@@ -99,9 +59,6 @@ public struct SQLCompletionSuggestion: Identifiable, Equatable {
     public let insertText: String
     public let kind: Kind
     public let priority: Int
-    public let origin: Origin?
-    public let dataType: String?
-    public let tableColumns: [TableColumn]?
 
     public init(id: String = UUID().uuidString,
                 title: String,
@@ -109,10 +66,7 @@ public struct SQLCompletionSuggestion: Identifiable, Equatable {
                 detail: String? = nil,
                 insertText: String,
                 kind: Kind,
-                priority: Int = 1000,
-                origin: Origin? = nil,
-                dataType: String? = nil,
-                tableColumns: [TableColumn]? = nil) {
+                priority: Int = 1000) {
         self.id = id
         self.title = title
         self.subtitle = subtitle
@@ -120,9 +74,6 @@ public struct SQLCompletionSuggestion: Identifiable, Equatable {
         self.insertText = insertText
         self.kind = kind
         self.priority = priority
-        self.origin = origin?.hasContext == true ? origin : nil
-        self.dataType = dataType
-        self.tableColumns = tableColumns?.isEmpty == true ? nil : tableColumns
     }
 }
 
@@ -131,6 +82,25 @@ public enum SQLDialect: String {
     case mysql
     case sqlite
     case microsoftSQL
+}
+
+public enum SQLClause: Equatable {
+    case unknown
+    case selectList
+    case from
+    case joinTarget
+    case joinCondition
+    case whereClause
+    case groupBy
+    case orderBy
+    case having
+    case limit
+    case offset
+    case insertColumns
+    case values
+    case updateSet
+    case deleteWhere
+    case withCTE
 }
 
 public struct SQLEngineOptions {
@@ -185,21 +155,91 @@ public struct SQLObject {
     public let name: String
     public let type: ObjectType
     public let columns: [SQLColumn]
+    public let foreignKeys: [SQLForeignKey]
 
-    public init(name: String, type: ObjectType, columns: [SQLColumn] = []) {
+    public init(name: String,
+                type: ObjectType,
+                columns: [SQLColumn] = [],
+                foreignKeys: [SQLForeignKey] = []) {
         self.name = name
         self.type = type
         self.columns = columns
+        self.foreignKeys = foreignKeys
     }
 }
 
 public struct SQLColumn {
     public let name: String
     public let dataType: String
+    public let isPrimaryKey: Bool
+    public let isForeignKey: Bool
 
-    public init(name: String, dataType: String) {
+    public init(name: String,
+                dataType: String,
+                isPrimaryKey: Bool = false,
+                isForeignKey: Bool = false) {
         self.name = name
         self.dataType = dataType
+        self.isPrimaryKey = isPrimaryKey
+        self.isForeignKey = isForeignKey
+    }
+}
+
+public struct SQLCompletionMetadata {
+    public struct TableReference: Equatable {
+        public let schema: String?
+        public let name: String
+        public let alias: String?
+
+        public init(schema: String?, name: String, alias: String?) {
+            self.schema = schema
+            self.name = name
+            self.alias = alias
+        }
+    }
+
+    public let clause: SQLClause
+    public let currentToken: String
+    public let precedingKeyword: String?
+    public let pathComponents: [String]
+    public let tablesInScope: [TableReference]
+    public let focusTable: TableReference?
+    public let cteColumns: [String: [String]]
+
+    public init(clause: SQLClause,
+                currentToken: String,
+                precedingKeyword: String?,
+                pathComponents: [String],
+                tablesInScope: [TableReference],
+                focusTable: TableReference?,
+                cteColumns: [String: [String]]) {
+        self.clause = clause
+        self.currentToken = currentToken
+        self.precedingKeyword = precedingKeyword
+        self.pathComponents = pathComponents
+        self.tablesInScope = tablesInScope
+        self.focusTable = focusTable
+        self.cteColumns = cteColumns
+    }
+}
+
+public struct SQLForeignKey {
+    public let name: String?
+    public let columns: [String]
+    public let referencedSchema: String?
+    public let referencedTable: String
+    public let referencedColumns: [String]
+
+    public init(name: String? = nil,
+                columns: [String],
+                referencedSchema: String? = nil,
+                referencedTable: String,
+                referencedColumns: [String]) {
+        self.name = name
+        self.columns = columns
+        self.referencedSchema = referencedSchema
+        self.referencedTable = referencedTable
+        self.referencedColumns = referencedColumns
     }
 }
 

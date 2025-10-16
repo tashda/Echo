@@ -9,11 +9,23 @@ final class SQLCompletionEngine: SQLCompletionEngineProtocol {
 
     func completions(for request: SQLCompletionRequest) -> SQLCompletionResult {
         guard request.caretLocation >= 0, request.caretLocation <= request.text.count else {
-            return SQLCompletionResult(suggestions: [])
+            return SQLCompletionResult(suggestions: [], metadata: .init(clause: .unknown,
+                                                                        currentToken: "",
+                                                                        precedingKeyword: nil,
+                                                                        pathComponents: [],
+                                                                        tablesInScope: [],
+                                                                        focusTable: nil,
+                                                                        cteColumns: [:]))
         }
 
         guard let catalog = request.metadata.catalog(for: request.selectedDatabase) else {
-            return SQLCompletionResult(suggestions: [])
+            return SQLCompletionResult(suggestions: [], metadata: .init(clause: .unknown,
+                                                                        currentToken: "",
+                                                                        precedingKeyword: nil,
+                                                                        pathComponents: [],
+                                                                        tablesInScope: [],
+                                                                        focusTable: nil,
+                                                                        cteColumns: [:]))
         }
 
         let parser = SQLContextParser(text: request.text,
@@ -33,6 +45,24 @@ final class SQLCompletionEngine: SQLCompletionEngineProtocol {
                 return lhs.priority > rhs.priority
             }
 
-        return SQLCompletionResult(suggestions: suggestions)
+        let metadata = SQLCompletionMetadata(
+            clause: context.clause,
+            currentToken: context.currentToken,
+            precedingKeyword: context.precedingKeyword,
+            pathComponents: context.pathComponents,
+            tablesInScope: context.tablesInScope.map { ref in
+                SQLCompletionMetadata.TableReference(schema: ref.schema,
+                                                     name: ref.name,
+                                                     alias: ref.alias)
+            },
+            focusTable: context.focusTable.map { ref in
+                SQLCompletionMetadata.TableReference(schema: ref.schema,
+                                                     name: ref.name,
+                                                     alias: ref.alias)
+            },
+            cteColumns: context.cteColumns
+        )
+
+        return SQLCompletionResult(suggestions: suggestions, metadata: metadata)
     }
 }

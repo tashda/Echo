@@ -125,18 +125,10 @@ final class PostgresSession: DatabaseSession {
 
         var columns: [ColumnInfo] = []
         var previewRows: [[String?]] = []
-        previewRows.reserveCapacity(4_096)
-        var pendingPreviewRows: [[String?]] = []
-        pendingPreviewRows.reserveCapacity(512)
-        var pendingEncodedRows: [ResultBinaryRow] = []
-        pendingEncodedRows.reserveCapacity(512)
-
+        previewRows.reserveCapacity(512)
         let operationStart = CFAbsoluteTimeGetCurrent()
-        var lastFlushTimestamp = operationStart
-        var batchDecodeDuration: TimeInterval = 0
         let streamingPreviewLimit = 512
-        let previewResultLimit = 4_096
-        let maxFlushLatency: TimeInterval = 0.05
+        let maxFlushLatency: TimeInterval = 0.015
 
         func rawData(for cell: PostgresCell) -> Data? {
             guard var buffer = cell.bytes else { return nil }
@@ -148,50 +140,11 @@ final class PostgresSession: DatabaseSession {
             return Data()
         }
 
-        func flushThreshold(for totalCount: Int) -> Int {
-            switch totalCount {
-            case 0..<1024:
-                return 128
-            case 1024..<8192:
-                return 512
-            case 8192..<32_768:
-                return 1_024
-            default:
-                return 2_048
-            }
-        }
-
-        func dispatchBatch(totalRowCount: Int) {
-            guard !pendingEncodedRows.isEmpty, !columns.isEmpty else { return }
-            let previewBatch = pendingPreviewRows
-            let encodedBatch = pendingEncodedRows
-            pendingPreviewRows.removeAll(keepingCapacity: true)
-            pendingEncodedRows.removeAll(keepingCapacity: true)
-            let now = CFAbsoluteTimeGetCurrent()
-            let metrics = QueryStreamMetrics(
-                batchRowCount: encodedBatch.count,
-                loopElapsed: now - lastFlushTimestamp,
-                decodeDuration: batchDecodeDuration,
-                totalElapsed: now - operationStart,
-                cumulativeRowCount: totalRowCount
-            )
-            lastFlushTimestamp = now
-            batchDecodeDuration = 0
-
-            let update = QueryStreamUpdate(
-                columns: columns,
-                appendedRows: previewBatch,
-                encodedRows: encodedBatch,
-                totalRowCount: totalRowCount,
-                metrics: metrics
-            )
-            progressHandler(update)
-        }
-
         let query = PostgresQuery(unsafeSQL: sanitizedSQL)
         let sequence = try await client.query(query, logger: logger)
 
         var totalRowCount = 0
+        var worker: ResultStreamBatchWorker?
 
         for try await row in sequence {
             if columns.isEmpty {
@@ -207,8 +160,19 @@ final class PostgresSession: DatabaseSession {
                 }
             }
 
+            if worker == nil, !columns.isEmpty {
+                worker = ResultStreamBatchWorker(
+                    label: "dk.tippr.echo.postgres.streamWorker",
+                    columns: columns,
+                    streamingPreviewLimit: streamingPreviewLimit,
+                    maxFlushLatency: maxFlushLatency,
+                    operationStart: operationStart,
+                    progressHandler: progressHandler
+                )
+            }
+
             let currentIndex = totalRowCount
-            let capturePreview = currentIndex < streamingPreviewLimit || previewRows.count < previewResultLimit
+            let capturePreview = currentIndex < streamingPreviewLimit
 
             var rawCells: [Data?] = []
             rawCells.reserveCapacity(row.count)
@@ -231,31 +195,33 @@ final class PostgresSession: DatabaseSession {
                 }
             }
 
-            batchDecodeDuration += CFAbsoluteTimeGetCurrent() - conversionStart
-
-            pendingEncodedRows.append(ResultBinaryRowCodec.encodeRaw(cells: rawCells))
+            let decodeDuration = CFAbsoluteTimeGetCurrent() - conversionStart
 
             if let values = previewValues {
-                if previewRows.count < previewResultLimit {
+                if previewRows.count < streamingPreviewLimit {
                     previewRows.append(values)
-                }
-                if currentIndex < streamingPreviewLimit {
-                    pendingPreviewRows.append(values)
                 }
             }
 
             totalRowCount += 1
 
-            let threshold = flushThreshold(for: totalRowCount)
-            let elapsedSinceFlush = CFAbsoluteTimeGetCurrent() - lastFlushTimestamp
-            if pendingEncodedRows.count >= threshold || elapsedSinceFlush >= maxFlushLatency {
-                dispatchBatch(totalRowCount: totalRowCount)
+            worker?.enqueue(
+                .init(
+                    previewValues: previewValues,
+                    totalRowCount: totalRowCount,
+                    decodeDuration: decodeDuration,
+                    encode: {
+                        ResultBinaryRowCodec.encodeRaw(cells: rawCells)
+                    }
+                )
+            )
+
+            if totalRowCount % 512 == 0 {
+                await Task.yield()
             }
         }
 
-        if !pendingEncodedRows.isEmpty {
-            dispatchBatch(totalRowCount: totalRowCount)
-        }
+        worker?.finish(totalRowCount: totalRowCount)
 
         let resolvedColumns = columns.isEmpty
             ? [ColumnInfo(name: "result", dataType: "text")]

@@ -8,6 +8,7 @@ struct AutoCompletionListView: View {
     let selectedID: String?
     let onSelect: (SQLAutoCompletionSuggestion) -> Void
     let detailResetID: UUID
+    let statusMessage: String?
 
     @Environment(\.colorScheme) private var colorScheme
 
@@ -62,7 +63,16 @@ struct AutoCompletionListView: View {
 
     private var content: some View {
         HStack(alignment: .top, spacing: Layout.containerSpacing) {
-            listView
+            VStack(alignment: .leading, spacing: 6) {
+                if let statusMessage {
+                    Text(statusMessage)
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(Color.secondary)
+                        .transition(.opacity)
+                        .padding(.horizontal, Layout.rowHorizontalPadding)
+                }
+                listView
+            }
 
             if shouldDisplayDetail, let suggestion = selectedSuggestion {
                 AutoCompletionDetailView(suggestion: suggestion)

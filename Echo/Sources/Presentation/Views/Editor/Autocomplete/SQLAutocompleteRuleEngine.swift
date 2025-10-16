@@ -13,6 +13,7 @@ struct SQLAutocompleteRuleEngine {
         let suggestions: [SQLAutoCompletionSuggestion]
         let tokenRange: NSRange
         let tokenText: String
+        let clause: SQLClause
         let objectContextKeywords: Set<String>
         let columnContextKeywords: Set<String>
     }
@@ -138,8 +139,25 @@ struct SQLAutocompleteRuleEngine {
         }
 
         let keyword = request.query.precedingKeyword?.lowercased()
-        let isObjectContext = keyword.map { request.objectContextKeywords.contains($0) } ?? false
-        let isColumnContext = keyword.map { request.columnContextKeywords.contains($0) } ?? false
+        let clause = request.clause
+        let clauseIsObjectContext: Bool = {
+            switch clause {
+            case .from, .joinTarget, .insertColumns, .deleteWhere, .withCTE:
+                return true
+            default:
+                return false
+            }
+        }()
+        let clauseIsColumnContext: Bool = {
+            switch clause {
+            case .selectList, .whereClause, .joinCondition, .having, .groupBy, .orderBy, .values, .updateSet:
+                return true
+            default:
+                return false
+            }
+        }()
+        let isObjectContext = clauseIsObjectContext || (keyword.map { request.objectContextKeywords.contains($0) } ?? false)
+        let isColumnContext = clauseIsColumnContext || (keyword.map { request.columnContextKeywords.contains($0) } ?? false)
 
         let hasAlternativeObjects: Bool = request.suggestions.contains { candidate in
             guard matchingSuggestion != nil else { return false }

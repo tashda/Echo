@@ -245,12 +245,14 @@ final class QueryResultsGridState {
     private let initialVisibleRowBatch: Int
     private let spoolManager: ResultSpoolManager
     private var spoolHandle: ResultSpoolHandle?
+    private var ingestionQueue: ResultStreamIngestionQueue?
     private var spoolStatsTask: Task<Void, Never>?
     @Published private(set) var resultSpoolID: UUID?
     private var didReceiveStreamingUpdate = false
     private let rowCache = ResultSpoolRowCache(pageSize: 512, maxPages: 32)
     private var streamedRowCount: Int = 0
     private let frontBufferLimit: Int
+    private var isRowCountSpoolDriven: Bool = false
 
     private var executionStartTime: Date?
     private var executionTimer: Timer?
@@ -312,6 +314,7 @@ final class QueryResultsGridState {
         livePerformanceReport = nil
         prepareSpoolForNewExecution()
         didReceiveStreamingUpdate = false
+        isRowCountSpoolDriven = false
         executionStartTime = Date()
         currentExecutionTime = 0
         currentRowCount = 0
@@ -553,8 +556,6 @@ final class QueryResultsGridState {
         }
 
         if !update.appendedRows.isEmpty {
-            let startIndex = streamedRowCount
-            rowCache.ingest(rows: update.appendedRows, startingAt: startIndex)
             streamedRowCount += update.appendedRows.count
 
             if streamingRows.count < frontBufferLimit {
@@ -592,7 +593,9 @@ final class QueryResultsGridState {
 
         let previousRowCount = currentRowCount ?? 0
         let runningCount = max(estimatedTotal, currentRowCount ?? 0)
-        updateRowCount(runningCount)
+        if !isRowCountSpoolDriven {
+            updateRowCount(runningCount)
+        }
         let columnsUpdated = columnsWereEmpty && !streamingColumns.isEmpty
         if columnsUpdated || !update.appendedRows.isEmpty || runningCount != previousRowCount {
             markResultDataChanged()
@@ -718,6 +721,14 @@ final class QueryResultsGridState {
     private func prepareSpoolForNewExecution() {
         spoolStatsTask?.cancel()
         spoolStatsTask = nil
+
+        if let existingQueue = ingestionQueue {
+            Task.detached(priority: .utility) {
+                await existingQueue.cancel()
+            }
+        }
+        ingestionQueue = nil
+
         rowCache.reset()
         streamedRowCount = 0
         if let previousID = resultSpoolID {
@@ -728,100 +739,78 @@ final class QueryResultsGridState {
         }
         spoolHandle = nil
         resultSpoolID = nil
+
+        let manager = spoolManager
+        ingestionQueue = ResultStreamIngestionQueue(
+            spoolManager: manager,
+            rowCache: rowCache,
+            onSpoolReady: { [weak self] handle in
+                guard let self else { return }
+                self.spoolHandle = handle
+                self.resultSpoolID = handle.id
+                self.isRowCountSpoolDriven = true
+                self.attachSpoolStats(from: handle)
+            }
+        )
     }
 
     private func submitToSpool(update: QueryStreamUpdate) {
-        guard !update.appendedRows.isEmpty || !update.encodedRows.isEmpty else { return }
-        Task.detached(priority: .utility) { [weak self] in
-            guard let self else { return }
-            do {
-                let handle = try await self.resolveSpoolHandle()
-                let chunkSize = 128
-                let rows = update.appendedRows
-                let encodedRows = update.encodedRows
-                var rowIndex = rows.startIndex
-                var encodedIndex = encodedRows.startIndex
-
-                func nextRowsChunk(limit: Int) -> [[String?]] {
-                    guard rowIndex < rows.endIndex else { return [] }
-                    let upper = rows.index(rowIndex, offsetBy: limit, limitedBy: rows.endIndex) ?? rows.endIndex
-                    let slice = Array(rows[rowIndex..<upper])
-                    rowIndex = upper
-                    return slice
-                }
-
-                while encodedIndex < encodedRows.endIndex {
-                    let upper = encodedRows.index(encodedIndex, offsetBy: chunkSize, limitedBy: encodedRows.endIndex) ?? encodedRows.endIndex
-                    let encodedChunk = Array(encodedRows[encodedIndex..<upper])
-                    let stringChunk = nextRowsChunk(limit: chunkSize)
-                    let metrics = upper == encodedRows.endIndex && rowIndex == rows.endIndex ? update.metrics : nil
-                    try await handle.append(columns: update.columns, rows: stringChunk, encodedRows: encodedChunk, metrics: metrics)
-                    encodedIndex = upper
-                }
-
-                while rowIndex < rows.endIndex {
-                    let stringChunk = nextRowsChunk(limit: chunkSize)
-                    let metrics = rowIndex == rows.endIndex ? update.metrics : nil
-                    try await handle.append(columns: update.columns, rows: stringChunk, encodedRows: [], metrics: metrics)
-                }
-            } catch {
-#if DEBUG
-                print("ResultSpool append failed: \(error)")
-#endif
-            }
+        guard let queue = ingestionQueue else { return }
+        Task.detached(priority: .utility) {
+            await queue.ingest(update: update)
         }
     }
 
     private func finalizeSpool(with result: QueryResultSet) {
+        let queue = ingestionQueue
         Task.detached(priority: .utility) { [weak self] in
             guard let self else { return }
-            do {
-                let streamed = await MainActor.run { self.didReceiveStreamingUpdate }
-                if streamed {
-                    guard let handle = await self.currentSpoolHandle() else { return }
+            if let queue {
+                await queue.finalize(with: result)
+            } else if !result.columns.isEmpty || !result.rows.isEmpty {
+                do {
+                    let handle = try await self.spoolManager.makeSpoolHandle()
+                    if !result.rows.isEmpty {
+                        try await handle.append(columns: result.columns, rows: result.rows, encodedRows: [], metrics: nil)
+                    }
                     try await handle.markFinished(commandTag: result.commandTag, metrics: nil)
-                } else if !result.columns.isEmpty && !result.rows.isEmpty {
-                    let handle = try await self.resolveSpoolHandle()
-                    try await handle.append(columns: result.columns, rows: result.rows, encodedRows: [], metrics: nil)
-                    try await handle.markFinished(commandTag: result.commandTag, metrics: nil)
-                } else if let handle = await self.currentSpoolHandle() {
-                    try await handle.markFinished(commandTag: result.commandTag, metrics: nil)
+                    await MainActor.run {
+                        self.spoolHandle = handle
+                        self.resultSpoolID = handle.id
+                        self.attachSpoolStats(from: handle)
+                    }
+                } catch {
+#if DEBUG
+                    print("ResultSpool finalize failed: \(error)")
+#endif
                 }
-            } catch {
-#if DEBUG
-                print("ResultSpool finalize failed: \(error)")
-#endif
             }
         }
     }
 
-    private func finalizeSpoolOnCompletion(cancelled: Bool) {
+    private func finalizeSpoolOnCompletion(cancelled _: Bool) {
+        let queue = ingestionQueue
         Task.detached(priority: .utility) { [weak self] in
             guard let self else { return }
-            guard let handle = await self.currentSpoolHandle() else { return }
-            do {
-                try await handle.markFinished(commandTag: nil, metrics: nil)
-            } catch {
+            if let queue {
+                await queue.finalize(commandTag: nil, metrics: nil)
+            } else {
+                let handle = await MainActor.run { self.spoolHandle }
 #if DEBUG
-                print("ResultSpool completion finalize failed: \(error)")
+                if handle == nil {
+                    print("ResultSpoolOnCompletion skipped: no active spool")
+                }
 #endif
+                guard let handle else { return }
+                do {
+                    try await handle.markFinished(commandTag: nil, metrics: nil)
+                } catch {
+#if DEBUG
+                    print("ResultSpool completion finalize failed: \(error)")
+#endif
+                }
             }
         }
-    }
-
-    private func resolveSpoolHandle() async throws -> ResultSpoolHandle {
-        if let existing = spoolHandle {
-            return existing
-        }
-        let handle = try await spoolManager.makeSpoolHandle()
-        spoolHandle = handle
-        resultSpoolID = handle.id
-        attachSpoolStats(from: handle)
-        return handle
-    }
-
-    private func currentSpoolHandle() async -> ResultSpoolHandle? {
-        await MainActor.run { self.spoolHandle }
     }
 
     private func attachSpoolStats(from handle: ResultSpoolHandle) {

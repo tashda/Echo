@@ -123,66 +123,14 @@ actor SQLiteSession: DatabaseSession {
         var rawColumns: [SQLiteRawColumn] = []
         var resolvedColumns: [ColumnInfo] = []
         var previewRows: [[String?]] = []
-        previewRows.reserveCapacity(4_096)
+        previewRows.reserveCapacity(512)
         var totalRowCount = 0
 
-        var pendingPreviewRows: [[String?]] = []
-        pendingPreviewRows.reserveCapacity(256)
-        var pendingEncodedRows: [ResultBinaryRow] = []
-        pendingEncodedRows.reserveCapacity(256)
         let operationStart = CFAbsoluteTimeGetCurrent()
-        var lastFlushTimestamp = operationStart
-        var batchDecodeDuration: TimeInterval = 0
         let streamingPreviewLimit = 512
-        let maxFlushLatency: TimeInterval = 0.05
+        let maxFlushLatency: TimeInterval = 0.015
 
-        let flush: (_ force: Bool) -> Void = { force in
-            guard !pendingEncodedRows.isEmpty else { return }
-
-            if !force, progressHandler != nil, !resolvedColumns.isEmpty {
-                let threshold: Int
-                switch totalRowCount {
-                case 0..<1024:
-                    threshold = 128
-                case 1024..<4096:
-                    threshold = 512
-                case 4096..<16_384:
-                    threshold = 512
-                default:
-                    threshold = 1024
-                }
-                let shouldFlushByCount = pendingEncodedRows.count >= threshold
-                if !shouldFlushByCount {
-                    let elapsed = CFAbsoluteTimeGetCurrent() - lastFlushTimestamp
-                    guard elapsed >= maxFlushLatency else { return }
-                }
-            }
-
-            let previewBatch = pendingPreviewRows
-            let encodedBatch = pendingEncodedRows
-            pendingPreviewRows.removeAll(keepingCapacity: true)
-            pendingEncodedRows.removeAll(keepingCapacity: true)
-            let now = CFAbsoluteTimeGetCurrent()
-            let metrics = QueryStreamMetrics(
-                batchRowCount: encodedBatch.count,
-                loopElapsed: now - lastFlushTimestamp,
-                decodeDuration: batchDecodeDuration,
-                totalElapsed: now - operationStart,
-                cumulativeRowCount: totalRowCount
-            )
-            lastFlushTimestamp = now
-            batchDecodeDuration = 0
-
-            guard let handler = progressHandler, !resolvedColumns.isEmpty else { return }
-            let update = QueryStreamUpdate(
-                columns: resolvedColumns,
-                appendedRows: previewBatch,
-                encodedRows: encodedBatch,
-                totalRowCount: totalRowCount,
-                metrics: metrics
-            )
-            handler(update)
-        }
+        var worker: ResultStreamBatchWorker?
 
         try withSQLiteStatement(connection: conn, sql: sql) { statement in
             let columnCount = Int(sqlite3_column_count(statement))
@@ -216,19 +164,34 @@ actor SQLiteSession: DatabaseSession {
                 let stepResult = sqlite3_step(statement)
                 switch stepResult {
                 case SQLITE_ROW:
+                    if worker == nil, let handler = progressHandler, !resolvedColumns.isEmpty {
+                        worker = ResultStreamBatchWorker(
+                            label: "dk.tippr.echo.sqlite.streamWorker",
+                            columns: resolvedColumns,
+                            streamingPreviewLimit: streamingPreviewLimit,
+                            maxFlushLatency: maxFlushLatency,
+                            operationStart: operationStart,
+                            progressHandler: handler
+                        )
+                    }
+
                     let decodeStart = CFAbsoluteTimeGetCurrent()
                     let rowValues = try makeRow(statement: statement, columnCount: columnCount)
-                    batchDecodeDuration += CFAbsoluteTimeGetCurrent() - decodeStart
-                    let encoded = ResultBinaryRowCodec.encode(row: rowValues)
-                    pendingEncodedRows.append(encoded)
+                    let decodeDuration = CFAbsoluteTimeGetCurrent() - decodeStart
                     totalRowCount += 1
-                    if totalRowCount <= streamingPreviewLimit {
-                        pendingPreviewRows.append(rowValues)
-                    }
-                    if previewRows.count < 4_096 {
+                    if previewRows.count < streamingPreviewLimit {
                         previewRows.append(rowValues)
                     }
-                    flush(false)
+                    worker?.enqueue(
+                        .init(
+                            previewValues: totalRowCount <= streamingPreviewLimit ? rowValues : nil,
+                            totalRowCount: totalRowCount,
+                            decodeDuration: decodeDuration,
+                            encode: {
+                                ResultBinaryRowCodec.encode(row: rowValues)
+                            }
+                        )
+                    )
                 case SQLITE_DONE:
                     return
                 default:
@@ -237,7 +200,7 @@ actor SQLiteSession: DatabaseSession {
             }
         }
 
-        flush(true)
+        worker?.finish(totalRowCount: totalRowCount)
 
         if resolvedColumns.isEmpty {
             resolvedColumns = rawColumns.map { column in

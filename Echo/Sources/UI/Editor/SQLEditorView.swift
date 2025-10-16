@@ -1122,6 +1122,16 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
         makeCompletionQuery()
     }
 
+    func currentSQLDialect() -> SQLDialect {
+        let type = completionContext?.databaseType ?? .postgresql
+        switch type {
+        case .postgresql: return .postgresql
+        case .mysql: return .mysql
+        case .microsoftSQL: return .microsoftSQL
+        case .sqlite: return .sqlite
+        }
+    }
+
     func makeCompletionQuery() -> SQLAutoCompletionQuery? {
         guard textStorage != nil else { return nil }
         let selection = selectedRange()
@@ -1154,6 +1164,11 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
             scopeTables.append(table)
         }
 
+        let parsedContext = SQLContextParser(text: string,
+                                             caretLocation: selection.location,
+                                             dialect: currentSQLDialect(),
+                                             catalog: SQLDatabaseCatalog(schemas: [])).parse()
+
         return SQLAutoCompletionQuery(
             token: token,
             prefix: prefix,
@@ -1162,7 +1177,8 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
             precedingKeyword: precedingKeyword,
             precedingCharacter: precedingCharacter,
             focusTable: focusTable,
-            tablesInScope: scopeTables
+            tablesInScope: scopeTables,
+            clause: parsedContext.clause
         )
     }
 
@@ -1704,6 +1720,7 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
         setSelectedRange(NSRange(location: newLocation, length: 0))
         hideCompletions()
         didChangeText()
+        completionEngine.recordSelection(suggestion, query: query)
     }
 
     private enum SymbolHighlightStrength {
