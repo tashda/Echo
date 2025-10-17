@@ -277,6 +277,29 @@ final class SQLAutoCompletionEngine {
         "using"
     ]
 
+    private static let postObjectClauseKeywordOrder: [String] = [
+        "where",
+        "inner",
+        "left",
+        "right",
+        "full",
+        "outer",
+        "join",
+        "on",
+        "group",
+        "order",
+        "having",
+        "limit",
+        "offset"
+    ]
+
+    private static let relationLikeKinds: Set<SQLAutoCompletionKind> = [
+        .schema,
+        .table,
+        .view,
+        .materializedView
+    ]
+
     func updateContext(_ newContext: SQLEditorCompletionContext?) {
         context = newContext
         if let newContext {
@@ -467,6 +490,7 @@ final class SQLAutoCompletionEngine {
 
         var ranked: [(index: Int, suggestion: SQLAutoCompletionSuggestion, score: Double, relevance: ClauseRelevance)] = []
         ranked.reserveCapacity(suggestions.count)
+        let promoteClauseKeywords = shouldPromoteClauseKeywords(query: query)
 
         for (index, suggestion) in suggestions.enumerated() {
             let (relevance, boost) = clauseBoost(for: query.clause, kind: suggestion.kind)
@@ -503,7 +527,14 @@ final class SQLAutoCompletionEngine {
             }
 
             if suggestion.kind == .keyword {
-                score -= 90
+                if promoteClauseKeywords {
+                    score += clauseKeywordPromotionBonus(for: suggestion)
+                } else {
+                    score -= 90
+                }
+            } else if promoteClauseKeywords &&
+                        SQLAutoCompletionEngine.relationLikeKinds.contains(suggestion.kind) {
+                score -= 140
             }
 
             ranked.append((index, suggestion, score, relevance))
@@ -524,6 +555,27 @@ final class SQLAutoCompletionEngine {
         }
 
         return ranked.map { $0.suggestion }
+    }
+
+    private func shouldPromoteClauseKeywords(query: SQLAutoCompletionQuery) -> Bool {
+        if query.clause != .from { return false }
+        if !query.token.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return false }
+        if !query.pathComponents.isEmpty { return false }
+        if query.precedingCharacter == "," { return false }
+        if let keyword = query.precedingKeyword,
+           SQLAutoCompletionEngine.objectContextKeywords.contains(keyword) {
+            return false
+        }
+        return !query.tablesInScope.isEmpty
+    }
+
+    private func clauseKeywordPromotionBonus(for suggestion: SQLAutoCompletionSuggestion) -> Double {
+        let normalized = suggestion.title.lowercased()
+        if let orderIndex = SQLAutoCompletionEngine.postObjectClauseKeywordOrder.firstIndex(of: normalized) {
+            let base = 1900.0
+            return base - Double(orderIndex) * 25.0
+        }
+        return 900.0
     }
 
     private func stripSnippetMarkers(from snippet: String) -> String {

@@ -75,7 +75,7 @@ extension SQLTextView {
             tokenRange: result.suppression.tokenRange,
             canonicalText: result.suppression.canonicalText,
             hasFollowUps: result.suppression.hasFollowUps,
-            allowTrailingWhitespace: !result.suppression.hasFollowUps
+            allowTrailingWhitespace: shouldAllowTrailingWhitespace(for: result.suppression)
         )
 
         suppressedCompletions.removeAll { NSIntersectionRange($0.tokenRange, newSuppression.tokenRange).length > 0 }
@@ -103,6 +103,10 @@ extension SQLTextView {
             }
         }
         return nil
+    }
+
+    private func shouldAllowTrailingWhitespace(for suppression: SQLAutocompleteRuleEngine.Suppression) -> Bool {
+        suppression.hasFollowUps
     }
 
     private func suppressionForTrigger(at caretLocation: Int) -> SuppressedCompletion? {
@@ -173,7 +177,8 @@ extension SQLTextView {
 
         let suppression = SuppressedCompletion(tokenRange: result.suppression.tokenRange,
                                                canonicalText: result.suppression.canonicalText,
-                                               hasFollowUps: result.suppression.hasFollowUps)
+                                               hasFollowUps: result.suppression.hasFollowUps,
+                                               allowTrailingWhitespace: shouldAllowTrailingWhitespace(for: result.suppression))
         suppressedCompletions.removeAll { NSIntersectionRange($0.tokenRange, suppression.tokenRange).length > 0 }
         suppressedCompletions.append(suppression)
         updateCompletionIndicator()

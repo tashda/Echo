@@ -154,9 +154,12 @@ final class PostgresSession: DatabaseSession {
         let cursorName = "echo_cursor_\(UUID().uuidString.replacingOccurrences(of: "-", with: ""))"
         let previewFetchSize = streamingPreviewLimit
         let storedFetchSize = UserDefaults.standard.integer(forKey: ResultStreamingFetchSizeDefaultsKey)
-        let resolvedFetchSize = storedFetchSize >= 128 ? storedFetchSize : 1_024
+        let resolvedFetchSize = storedFetchSize >= 128 ? storedFetchSize : 4_096
         let configuredFetchSize = min(max(resolvedFetchSize, 128), 16_384)
-        let backgroundFetchSize = max(streamingPreviewLimit, configuredFetchSize)
+        let backgroundFetchBaseline = max(streamingPreviewLimit, configuredFetchSize)
+        var dynamicBackgroundFetchSize = backgroundFetchBaseline
+
+        let client = self.client
 
         var transactionBegan = false
         var cursorActive = false
@@ -179,28 +182,7 @@ final class PostgresSession: DatabaseSession {
             logger.debug(.init(stringLiteral: readyMessage))
             print(readyMessage)
 
-            struct PendingFetch {
-                let size: Int
-                let startTime: CFAbsoluteTime
-                let task: Task<PostgresQueryResult, Error>
-            }
-
-            func scheduleFetch(size: Int) -> PendingFetch {
-                let startTime = CFAbsoluteTimeGetCurrent()
-                let fetchSQL = "FETCH FORWARD \(size) FROM \(cursorName)"
-                return PendingFetch(
-                    size: size,
-                    startTime: startTime,
-                    task: Task {
-                        try Task.checkCancellation()
-                        let fetchQuery = PostgresQuery(unsafeSQL: fetchSQL)
-                        return try await client.query(fetchQuery, logger: logger)
-                    }
-                )
-            }
-
             var fetchSize = previewFetchSize
-            var pendingFetch = scheduleFetch(size: fetchSize)
 
             let proxiedHandler: QueryProgressHandler = { update in
                 guard !update.appendedRows.isEmpty || !update.encodedRows.isEmpty else {
@@ -227,14 +209,14 @@ final class PostgresSession: DatabaseSession {
             fetchLoop: while true {
                 try Task.checkCancellation()
 
-                let currentFetch = pendingFetch
-                let fetchStart = currentFetch.startTime
-                let batchSequence = try await currentFetch.task.value
+                let fetchStart = CFAbsoluteTimeGetCurrent()
+                let fetchSQL = "FETCH FORWARD \(fetchSize) FROM \(cursorName)"
+                let fetchQuery = PostgresQuery(unsafeSQL: fetchSQL)
+                let batchSequence = try await client.query(fetchQuery, logger: logger)
 
                 var batchCount = 0
                 var fetchDecodeDuration: TimeInterval = 0
-                var nextFetchSize = currentFetch.size
-                var nextFetch: PendingFetch?
+                var nextFetchSize = fetchSize
 
                 for try await row in batchSequence {
                     try Task.checkCancellation()
@@ -299,13 +281,6 @@ final class PostgresSession: DatabaseSession {
                     totalRowCount += 1
                     batchCount += 1
 
-                    if batchCount == currentFetch.size, nextFetch == nil {
-                        if currentFetch.size == previewFetchSize, totalRowCount >= streamingPreviewLimit {
-                            nextFetchSize = backgroundFetchSize
-                        }
-                        nextFetch = scheduleFetch(size: nextFetchSize)
-                    }
-
                     if !firstRowLogged {
                         firstRowLogged = true
                         let firstRowLatency = CFAbsoluteTimeGetCurrent() - operationStart
@@ -335,7 +310,7 @@ final class PostgresSession: DatabaseSession {
                 let networkWait = max(fetchDuration - fetchDecodeDuration, 0)
                 let fetchMessage = String(
                     format: "[PostgresStream] fetch requested=%d rows=%d duration=%.3fs wait=%.3fs",
-                    currentFetch.size,
+                    fetchSize,
                     batchCount,
                     fetchDuration,
                     networkWait
@@ -350,7 +325,7 @@ final class PostgresSession: DatabaseSession {
                         decodeDuration: fetchDecodeDuration,
                         totalElapsed: CFAbsoluteTimeGetCurrent() - operationStart,
                         cumulativeRowCount: totalRowCount,
-                        fetchRequestRowCount: currentFetch.size,
+                        fetchRequestRowCount: fetchSize,
                         fetchRowCount: batchCount,
                         fetchDuration: fetchDuration,
                         fetchWait: networkWait
@@ -366,17 +341,43 @@ final class PostgresSession: DatabaseSession {
                 }
 
                 if batchCount == 0 {
-                    nextFetch?.task.cancel()
                     break fetchLoop
                 }
 
-                if batchCount < currentFetch.size {
-                    nextFetch?.task.cancel()
+                if batchCount < fetchSize {
                     break fetchLoop
+                }
+
+                if totalRowCount >= streamingPreviewLimit {
+                    nextFetchSize = dynamicBackgroundFetchSize
+                } else {
+                    nextFetchSize = previewFetchSize
+                }
+
+                if batchCount == fetchSize {
+                    if networkWait > 0.25, dynamicBackgroundFetchSize < 16_384 {
+                        if dynamicBackgroundFetchSize < 4_096 {
+                            dynamicBackgroundFetchSize = 4_096
+                        } else if dynamicBackgroundFetchSize < 8_192 {
+                            dynamicBackgroundFetchSize = 8_192
+                        } else {
+                            dynamicBackgroundFetchSize = 16_384
+                        }
+                    } else if networkWait < 0.12,
+                              dynamicBackgroundFetchSize > backgroundFetchBaseline {
+                        if dynamicBackgroundFetchSize > 16_384 {
+                            dynamicBackgroundFetchSize = 16_384
+                        } else if dynamicBackgroundFetchSize > 8_192 {
+                            dynamicBackgroundFetchSize = 8_192
+                        } else if dynamicBackgroundFetchSize > 4_096 {
+                            dynamicBackgroundFetchSize = 4_096
+                        } else {
+                            dynamicBackgroundFetchSize = backgroundFetchBaseline
+                        }
+                    }
                 }
 
                 fetchSize = nextFetchSize
-                pendingFetch = nextFetch ?? scheduleFetch(size: fetchSize)
 
                 await Task.yield()
             }

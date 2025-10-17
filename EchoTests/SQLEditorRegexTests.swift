@@ -424,6 +424,67 @@ final class SQLAutoCompletionEngineTests: XCTestCase {
         engine.updateAggressiveness(.balanced)
     }
 
+    func testClauseKeywordsPromotedAfterTableCommit() {
+        let tableSuggestion = SQLCompletionSuggestion(
+            id: "object:table:testdb.public.fixture",
+            title: "fixture",
+            subtitle: "public",
+            detail: "public.fixture",
+            insertText: "public.fixture",
+            kind: .table,
+            priority: 1300
+        )
+        let keywordSuggestion = SQLCompletionSuggestion(
+            id: "keyword|where",
+            title: "WHERE",
+            subtitle: nil,
+            detail: nil,
+            insertText: "WHERE",
+            kind: .keyword,
+            priority: 700
+        )
+
+        let tableReference = SQLCompletionMetadata.TableReference(schema: "public", name: "fixture", alias: nil)
+        let metadata = SQLCompletionMetadata(clause: .from,
+                                             currentToken: "",
+                                             precedingKeyword: nil,
+                                             pathComponents: [],
+                                             tablesInScope: [tableReference],
+                                             focusTable: tableReference,
+                                             cteColumns: [:])
+        stubCompletionEngine.result = SQLCompletionResult(suggestions: [tableSuggestion, keywordSuggestion],
+                                                          metadata: metadata)
+        engine.updateContext(sampleContext())
+
+        let focus = SQLAutoCompletionTableFocus(schema: "public", name: "fixture", alias: nil)
+        let query = SQLAutoCompletionQuery(token: "",
+                                           prefix: "",
+                                           pathComponents: [],
+                                           replacementRange: NSRange(location: 0, length: 0),
+                                           precedingKeyword: nil,
+                                           precedingCharacter: nil,
+                                           focusTable: focus,
+                                           tablesInScope: [focus],
+                                           clause: .from)
+
+        let text = "SELECT *\nFROM public.fixture"
+        let caretLocation = text.count
+        let result = engine.suggestions(for: query, text: text, caretLocation: caretLocation)
+        let suggestions = result.sections.flatMap { $0.suggestions }
+
+        guard let keywordIndex = suggestions.firstIndex(where: { $0.kind == .keyword && $0.title == "WHERE" }) else {
+            XCTFail("Expected WHERE keyword suggestion to be present")
+            return
+        }
+
+        guard let tableIndex = suggestions.firstIndex(where: { $0.kind == .table }) else {
+            XCTFail("Expected table suggestion to be present")
+            return
+        }
+
+        XCTAssertLessThan(keywordIndex, tableIndex)
+    }
+
     func testTableSuppressionSurvivesTrailingSpace() {
         let theme = makeTestTheme()
         let display = SQLEditorDisplayOptions()

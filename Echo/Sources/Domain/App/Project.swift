@@ -1071,12 +1071,18 @@ struct GlobalSettings: Codable, Hashable {
     var resultsInitialRowLimit: Int = 500
     var resultsPreviewBatchSize: Int = 500
     var resultsBackgroundStreamingThreshold: Int = 512
-    var resultsStreamingFetchSize: Int = 1024
+    var resultsStreamingFetchSize: Int = 4_096
     var resultSpoolMaxBytes: Int = 5 * 1_024 * 1_024 * 1_024
     var resultSpoolRetentionHours: Int = 72
     var resultSpoolCustomLocation: String?
     var inspectorWidth: Double?
     var keepTabsInMemory: Bool = false
+    var diagramPrefetchMode: DiagramPrefetchMode = .off
+    var diagramRefreshCadence: DiagramRefreshCadence = .never
+    var diagramCacheMaxBytes: Int = 512 * 1_024 * 1_024
+    var diagramVerifyBeforeRefresh: Bool = true
+    var diagramRenderRelationshipsForLargeDiagrams: Bool = true
+    var diagramCacheKeyAliases: [UUID: String] = [:]
 
     // Window preferences
     var defaultWindowWidth: Double?
@@ -1120,7 +1126,7 @@ struct GlobalSettings: Codable, Hashable {
         resultsInitialRowLimit: Int = 500,
         resultsPreviewBatchSize: Int = 500,
         resultsBackgroundStreamingThreshold: Int = 512,
-        resultsStreamingFetchSize: Int = 1024,
+        resultsStreamingFetchSize: Int = 4_096,
         resultSpoolMaxBytes: Int = 5 * 1_024 * 1_024 * 1_024,
         resultSpoolRetentionHours: Int = 72,
         resultSpoolCustomLocation: String? = nil,
@@ -1129,7 +1135,13 @@ struct GlobalSettings: Codable, Hashable {
         defaultWindowHeight: Double? = nil,
         activeThemeIDLight: AppColorTheme.ID? = nil,
         activeThemeIDDark: AppColorTheme.ID? = nil,
-        keepTabsInMemory: Bool = false
+        keepTabsInMemory: Bool = false,
+        diagramPrefetchMode: DiagramPrefetchMode = .off,
+        diagramRefreshCadence: DiagramRefreshCadence = .never,
+        diagramCacheMaxBytes: Int = 512 * 1_024 * 1_024,
+        diagramVerifyBeforeRefresh: Bool = true,
+        diagramRenderRelationshipsForLargeDiagrams: Bool = true,
+        diagramCacheKeyAliases: [UUID: String] = [:]
     ) {
         self.appearanceMode = appearanceMode
         self.defaultEditorFontSize = defaultEditorFontSize
@@ -1178,6 +1190,12 @@ struct GlobalSettings: Codable, Hashable {
         self.activeThemeIDLight = activeThemeIDLight
         self.activeThemeIDDark = activeThemeIDDark
         self.keepTabsInMemory = keepTabsInMemory
+        self.diagramPrefetchMode = diagramPrefetchMode
+        self.diagramRefreshCadence = diagramRefreshCadence
+        self.diagramCacheMaxBytes = max(64 * 1_024 * 1_024, diagramCacheMaxBytes)
+        self.diagramVerifyBeforeRefresh = diagramVerifyBeforeRefresh
+        self.diagramRenderRelationshipsForLargeDiagrams = diagramRenderRelationshipsForLargeDiagrams
+        self.diagramCacheKeyAliases = diagramCacheKeyAliases
     }
 
     enum CodingKeys: String, CodingKey {
@@ -1300,7 +1318,7 @@ struct GlobalSettings: Codable, Hashable {
         resultsInitialRowLimit = max(100, try container.decodeIfPresent(Int.self, forKey: .resultsInitialRowLimit) ?? 500)
         resultsPreviewBatchSize = max(100, try container.decodeIfPresent(Int.self, forKey: .resultsPreviewBatchSize) ?? 500)
         resultsBackgroundStreamingThreshold = max(100, try container.decodeIfPresent(Int.self, forKey: .resultsBackgroundStreamingThreshold) ?? 512)
-        resultsStreamingFetchSize = max(128, try container.decodeIfPresent(Int.self, forKey: .resultsStreamingFetchSize) ?? 1024)
+        resultsStreamingFetchSize = max(128, try container.decodeIfPresent(Int.self, forKey: .resultsStreamingFetchSize) ?? 4_096)
         inspectorWidth = try container.decodeIfPresent(Double.self, forKey: .inspectorWidth)
         keepTabsInMemory = try container.decodeIfPresent(Bool.self, forKey: .keepTabsInMemory) ?? false
     }
