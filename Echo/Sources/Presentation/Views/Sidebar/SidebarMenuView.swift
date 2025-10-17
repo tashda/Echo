@@ -7,7 +7,7 @@ struct SidebarMenu: View {
     @EnvironmentObject var appState: AppState
     let onAddConnection: () -> Void
 
-    @State private var selectedNavSection: NavSection = .code
+    @State private var selectedNavSection: NavSection = .folder
     @State private var pendingDuplicateConnection: SavedConnection?
 
     enum NavSection: String, CaseIterable {
@@ -15,7 +15,6 @@ struct SidebarMenu: View {
         case bookmark = "Bookmarks"
         case search = "Search"
         case clipboard = "Clipboard"
-        case code = "Development"
         case history = "History"
         case connections = "Connections"
         case database = "Database Administration"
@@ -26,7 +25,6 @@ struct SidebarMenu: View {
             case .bookmark: return "bookmark"
             case .search: return "magnifyingglass"
             case .clipboard: return "clipboard"
-            case .code: return "curlybraces"
             case .history: return "clock"
             case .connections: return "externaldrive"
             case .database: return "cylinder.split.1x2"
@@ -39,7 +37,6 @@ struct SidebarMenu: View {
             case .bookmark: return "bookmark.fill"
             case .search: return "magnifyingglass"
             case .clipboard: return "clipboard.fill"
-            case .code: return "curlybraces"
             case .history: return "clock.fill"
             case .connections: return "externaldrive.fill"
             case .database: return "cylinder.split.1x2.fill"
@@ -53,12 +50,12 @@ struct SidebarMenu: View {
         VStack(spacing: 0) {
             navigationBar
                 .padding(.horizontal, 6)
-                .padding(.top, 12)
                 .padding(.bottom, 8)
 
             contentView
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
+        .padding(.top, WorkspaceChromeMetrics.chromeTopInset)
         .confirmationDialog(
             "Duplicate Connection",
             isPresented: Binding(
@@ -92,33 +89,36 @@ struct SidebarMenu: View {
 
     private var navigationBar: some View {
         xcodeStyleSegmentedControl
-            .frame(height: 32)
     }
 
     @ViewBuilder
     private var xcodeStyleSegmentedControl: some View {
-        RoundedRectangle(cornerRadius: 16, style: .continuous)
+        let controlHeight: CGFloat = WorkspaceChromeMetrics.chromeBackgroundHeight
+        let controlCornerRadius: CGFloat = controlHeight / 2
+        let segmentCornerRadius: CGFloat = controlCornerRadius - 4
+
+        RoundedRectangle(cornerRadius: controlCornerRadius, style: .continuous)
             .fill(.primary.opacity(0.04))
             .overlay(
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                RoundedRectangle(cornerRadius: controlCornerRadius, style: .continuous)
                     .stroke(.primary.opacity(0.08), lineWidth: 0.5)
             )
             .overlay(
                 HStack(spacing: 0) {
                     ForEach(Array(NavSection.allCases.enumerated()), id: \.element.rawValue) { index, section in
-                        // Full-height button that fills the space
+                        let isEdgeSegment = index == 0 || index == NavSection.allCases.count - 1
+                        let highlightCornerRadius = isEdgeSegment ? controlCornerRadius : segmentCornerRadius
+
                         Button {
                             withAnimation(.easeInOut(duration: 0.15)) {
                                 selectedNavSection = section
                             }
                         } label: {
                             ZStack {
-                                // Invisible background for full click area
                                 Rectangle()
                                     .fill(.clear)
                                     .contentShape(Rectangle())
 
-                                // Icon centered in the area
                                 Image(systemName: selectedNavSection == section ? section.activeIcon : section.icon)
                                     .font(.system(size: 14, weight: selectedNavSection == section ? .medium : .regular))
                                     .foregroundStyle(selectedNavSection == section ? .white : .secondary)
@@ -126,36 +126,35 @@ struct SidebarMenu: View {
                         }
                         .buttonStyle(.plain)
                         .background(
-                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            RoundedRectangle(cornerRadius: highlightCornerRadius, style: .continuous)
                                 .fill(.tint)
                                 .opacity(selectedNavSection == section ? 1 : 0)
-                                .animation(.easeInOut(duration: 0.15), value: selectedNavSection == section)
+                                .animation(.easeInOut(duration: 0.15), value: selectedNavSection)
                         )
                         .help(section.displayName)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-                        // Divider after each item (except the last)
                         if index < NavSection.allCases.count - 1 {
                             let shouldShowDivider = selectedNavSection != section &&
-                                                   selectedNavSection != NavSection.allCases[index + 1]
+                                selectedNavSection != NavSection.allCases[index + 1]
                             Rectangle()
                                 .fill(.primary.opacity(0.15))
                                 .frame(width: 0.5)
-                                .padding(.vertical, 6)
                                 .opacity(shouldShowDivider ? 1 : 0)
                                 .animation(.easeInOut(duration: 0.15), value: shouldShowDivider)
                         }
                     }
                 }
-                .padding(.horizontal, 3)
-                .padding(.vertical, 3)
+                .padding(.horizontal, 0)
+                .padding(.vertical, 0)
             )
+            .frame(height: controlHeight)
     }
 
     @ViewBuilder
     private var contentView: some View {
         switch selectedNavSection {
-        case .folder, .code:
+        case .folder:
             ExplorerSidebarView(selectedConnectionID: $selectedConnectionID)
         case .bookmark:
             BookmarksSidebarView()

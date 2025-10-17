@@ -1,0 +1,3305 @@
+import SwiftUI
+import Foundation
+import UniformTypeIdentifiers
+#if os(macOS)
+import AppKit
+#else
+import UIKit
+#endif
+
+#if os(macOS)
+private func tabHairlineWidth() -> CGFloat {
+    let scale = NSScreen.main?.backingScaleFactor ?? 2
+    return max(1.0 / scale, 0.5)
+}
+#else
+private func tabHairlineWidth() -> CGFloat { 1 }
+#endif
+
+fileprivate typealias ForeignKeyMapping = [String: ColumnInfo.ForeignKeyReference]
+
+#if os(macOS)
+private func buildForeignKeyMapping(from details: TableStructureDetails) -> ForeignKeyMapping {
+    var mapping: ForeignKeyMapping = [:]
+    for foreignKey in details.foreignKeys {
+        guard foreignKey.columns.count == foreignKey.referencedColumns.count,
+              foreignKey.columns.count == 1,
+              let localColumn = foreignKey.columns.first,
+              let referencedColumn = foreignKey.referencedColumns.first else { continue }
+
+        let reference = ColumnInfo.ForeignKeyReference(
+            constraintName: foreignKey.name,
+            referencedSchema: foreignKey.referencedSchema,
+            referencedTable: foreignKey.referencedTable,
+            referencedColumn: referencedColumn
+        )
+        mapping[localColumn.lowercased()] = reference
+    }
+    return mapping
+}
+#endif
+
+@MainActor
+fileprivate func applyForeignKeyMapping(to update: QueryStreamUpdate, mapping: ForeignKeyMapping) -> QueryStreamUpdate {
+    guard !mapping.isEmpty else { return update }
+    let columns = applyForeignKeyMapping(to: update.columns, mapping: mapping)
+    return QueryStreamUpdate(
+        columns: columns,
+        appendedRows: update.appendedRows,
+        encodedRows: update.encodedRows,
+        totalRowCount: update.totalRowCount,
+        metrics: update.metrics
+    )
+}
+
+@MainActor
+fileprivate func applyForeignKeyMapping(to columns: [ColumnInfo], mapping: ForeignKeyMapping) -> [ColumnInfo] {
+    guard !mapping.isEmpty else { return columns }
+    return columns.map { column in
+        var updated = column
+        if updated.foreignKey == nil, let reference = mapping[column.name.lowercased()] {
+            updated.foreignKey = reference
+        }
+        return updated
+    }
+}
+
+struct QueryTabsView: View {
+    @EnvironmentObject private var appModel: AppModel
+    @EnvironmentObject private var appState: AppState
+    @EnvironmentObject private var themeManager: ThemeManager
+    @Environment(\.hostedWorkspaceTabID) private var hostedWorkspaceTabID
+
+
+    var showsTabStrip: Bool = true
+    var tabBarLeadingPadding: CGFloat = 6
+    var tabBarTrailingPadding: CGFloat = 6
+    private var recentConnectionItems: [RecentConnectionItem] {
+        appModel.recentConnections.compactMap { record in
+            guard let connection = appModel.connections.first(where: { $0.id == record.connectionID }) else {
+                return nil
+            }
+
+            let trimmedName = connection.connectionName.trimmingCharacters(in: .whitespacesAndNewlines)
+            let displayName = trimmedName.isEmpty ? connection.host : trimmedName
+            let trimmedDatabase = record.databaseName?.trimmingCharacters(in: .whitespacesAndNewlines)
+            let database = (trimmedDatabase?.isEmpty == false) ? trimmedDatabase : nil
+
+            return RecentConnectionItem(
+                id: record.id,
+                record: record,
+                name: displayName,
+                server: connection.host,
+                database: database,
+                lastConnectedAt: record.lastConnectedAt,
+                databaseType: connection.databaseType
+            )
+        }
+    }
+    private var currentWorkspaceTab: WorkspaceTab? {
+        if let hostedWorkspaceTabID,
+           let hostedTab = appModel.tabManager.getTab(id: hostedWorkspaceTabID) {
+            return hostedTab
+        }
+
+        return appModel.tabManager.activeTab
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            if showsTabStrip {
+                QueryTabStrip(
+                    leadingPadding: tabBarLeadingPadding,
+                    trailingPadding: tabBarTrailingPadding
+                )
+            }
+
+            if appState.showTabOverview {
+                TabOverviewView(
+                    tabs: appModel.tabManager.tabs,
+                    activeTabId: appModel.tabManager.activeTabId,
+                    onSelectTab: { tabId in
+                        appModel.tabManager.activeTabId = tabId
+                        appState.showTabOverview = false
+                    },
+                    onCloseTab: { tabId in
+                        appModel.tabManager.closeTab(id: tabId)
+                    }
+                )
+            } else if let currentTab = currentWorkspaceTab {
+                WorkspaceContentView(
+                    tab: currentTab,
+                    runQuery: { sql in await runQuery(tabId: currentTab.id, sql: sql) },
+                    cancelQuery: { cancelQuery(tabId: currentTab.id) },
+                    gridStateProvider: { currentTab.resultsGridState }
+                )
+            } else {
+                RecentConnectionsPlaceholder(
+                    connections: recentConnectionItems,
+                    onSelectConnection: connectToRecentConnection
+                )
+            }
+        }
+        .onAppear(perform: createInitialTabIfNeeded)
+        .onChange(of: appModel.selectedConnection) { _, _ in
+            createInitialTabIfNeeded()
+        }
+        .onChange(of: appModel.tabManager.activeTabId) { _, _ in
+            if appState.showTabOverview {
+                appState.showTabOverview = false
+            }
+        }
+    }
+
+    private func createInitialTabIfNeeded() {
+        guard appModel.tabManager.tabs.isEmpty,
+              let activeSession = appModel.sessionManager.activeSession else { return }
+
+        appModel.openQueryTab(for: activeSession)
+    }
+
+    private func runQuery(tabId: UUID, sql: String) async {
+        guard let tab = appModel.tabManager.getTab(id: tabId),
+              let queryState = tab.query else { return }
+
+        let trimmedSQL = sql.trimmingCharacters(in: .whitespacesAndNewlines)
+        var effectiveSQL = trimmedSQL.isEmpty ? sql : trimmedSQL
+        while effectiveSQL.last == ";" {
+            effectiveSQL.removeLast()
+        }
+        effectiveSQL = effectiveSQL.trimmingCharacters(in: .whitespacesAndNewlines)
+        if effectiveSQL.isEmpty {
+            effectiveSQL = trimmedSQL.isEmpty ? sql : trimmedSQL
+        }
+        let inferredObject = inferPrimaryObjectName(from: effectiveSQL)
+        await MainActor.run {
+            queryState.updateClipboardObjectName(inferredObject)
+        }
+        let foreignKeyMode = await MainActor.run { appModel.globalSettings.foreignKeyDisplayMode }
+        let shouldResolveForeignKeys = foreignKeyMode != .disabled
+        let foreignKeyMappingTask = Task<ForeignKeyMapping, Never> {
+            guard shouldResolveForeignKeys else { return [:] }
+            return await loadForeignKeyMapping(for: tab, inferredObject: inferredObject)
+        }
+
+        let task = Task { [weak queryState] in
+            guard let state = await MainActor.run(body: { queryState }) else { return }
+
+            do {
+                await MainActor.run {
+                    state.recordQueryDispatched()
+                }
+                let result = try await tab.session.simpleQuery(effectiveSQL) { [weak state] update in
+                    guard let state else { return }
+
+                    Task { @MainActor in
+                        var transaction = Transaction()
+                        transaction.disablesAnimations = true
+                        withTransaction(transaction) {
+                            state.applyStreamUpdate(update)
+                        }
+                    }
+                }
+                try Task.checkCancellation()
+                let mapping = await foreignKeyMappingTask.value
+                var enrichedResult = result
+                if !mapping.isEmpty {
+                    enrichedResult.columns = await MainActor.run {
+                        applyForeignKeyMapping(to: result.columns, mapping: mapping)
+                    }
+                }
+                await MainActor.run {
+                    state.consumeFinalResult(enrichedResult)
+                    state.finishExecution()
+
+                    var metadata: [String: String] = [
+                        "rows": "\(enrichedResult.rows.count)"
+                    ]
+                    let columnNames = enrichedResult.columns.map(\.name).joined(separator: ", ")
+                    if !columnNames.isEmpty {
+                        metadata["columns"] = columnNames
+                    }
+                    if let commandTag = enrichedResult.commandTag, !commandTag.isEmpty {
+                        metadata["commandTag"] = commandTag
+                    }
+
+                    state.appendMessage(
+                        message: "Returned \(enrichedResult.rows.count) row\(enrichedResult.rows.count == 1 ? "" : "s")",
+                        severity: .info,
+                        metadata: metadata
+                    )
+                    appState.addToQueryHistory(effectiveSQL, resultCount: enrichedResult.rows.count, duration: state.lastExecutionTime ?? 0)
+                }
+            } catch is CancellationError {
+                foreignKeyMappingTask.cancel()
+                await MainActor.run {
+                    state.markCancellationCompleted()
+                }
+            } catch {
+                foreignKeyMappingTask.cancel()
+                await MainActor.run {
+                    state.errorMessage = error.localizedDescription
+                    state.failExecution(with: "Query execution failed: \(error.localizedDescription)")
+                }
+            }
+        }
+
+        await MainActor.run {
+            queryState.errorMessage = nil
+            queryState.startExecution()
+            queryState.setExecutingTask(task)
+            appModel.dataInspectorContent = nil
+        }
+    }
+
+    private func cancelQuery(tabId: UUID) {
+        guard let tab = appModel.tabManager.getTab(id: tabId),
+              let queryState = tab.query else { return }
+        queryState.cancelExecution()
+    }
+
+    private func connectToRecentConnection(_ item: RecentConnectionItem) {
+        Task {
+            await appModel.connectToRecentConnection(item.record)
+        }
+    }
+
+    private func inferPrimaryObjectName(from sql: String) -> String? {
+        let cleanedSQL = sql.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !cleanedSQL.isEmpty else { return nil }
+
+        let patterns = [
+            #"(?i)\bfrom\s+([A-Za-z0-9_\.\"`]+)"#,
+            #"(?i)\binto\s+([A-Za-z0-9_\.\"`]+)"#,
+            #"(?i)\bupdate\s+([A-Za-z0-9_\.\"`]+)"#,
+            #"(?i)\bdelete\s+from\s+([A-Za-z0-9_\.\"`]+)"#
+        ]
+
+        for pattern in patterns {
+            if let match = firstMatch(in: cleanedSQL, pattern: pattern) {
+                return normalizeIdentifier(match)
+            }
+        }
+
+        return nil
+    }
+
+    private func firstMatch(in sql: String, pattern: String) -> String? {
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: []) else { return nil }
+        let range = NSRange(location: 0, length: (sql as NSString).length)
+        guard let match = regex.firstMatch(in: sql, options: [], range: range), match.numberOfRanges > 1 else { return nil }
+        let matchRange = match.range(at: 1)
+        guard let rangeInString = Range(matchRange, in: sql) else { return nil }
+        return String(sql[rangeInString])
+    }
+
+    private func normalizeIdentifier(_ identifier: String) -> String {
+        let trimmed = identifier.trimmingCharacters(in: CharacterSet(charactersIn: "`\"'[]"))
+        return trimmed
+            .replacingOccurrences(of: "\"", with: "")
+            .replacingOccurrences(of: "].[", with: ".")
+    }
+    private func loadForeignKeyMapping(for tab: WorkspaceTab, inferredObject: String?) async -> ForeignKeyMapping {
+        guard let components = resolveSchemaAndTable(for: inferredObject, connection: tab.connection) else { return [:] }
+        do {
+            let details = try await tab.session.getTableStructureDetails(schema: components.schema, table: components.table)
+            return buildForeignKeyMapping(from: details)
+        } catch {
+            return [:]
+        }
+    }
+
+    private func resolveSchemaAndTable(for identifier: String?, connection: SavedConnection) -> (schema: String, table: String)? {
+        guard let identifier, !identifier.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
+        let components = parseQualifiedIdentifier(identifier)
+        guard let table = components.last, !table.isEmpty else { return nil }
+        let schemaCandidate = components.count >= 2 ? components[components.count - 2] : nil
+        let effectiveSchema: String?
+        if let schemaCandidate, !schemaCandidate.isEmpty {
+            effectiveSchema = schemaCandidate
+        } else {
+            effectiveSchema = defaultSchema(for: connection.databaseType, connection: connection)
+        }
+
+        switch connection.databaseType {
+        case .mysql, .sqlite:
+            let schema = effectiveSchema ?? connection.database.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !schema.isEmpty else { return nil }
+            return (schema: schema, table: table)
+        default:
+            guard let schema = effectiveSchema, !schema.isEmpty else { return nil }
+            return (schema: schema, table: table)
+        }
+    }
+
+    private func parseQualifiedIdentifier(_ identifier: String) -> [String] {
+        let trimmed = identifier.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return [] }
+        let sanitized = trimmed
+            .replacingOccurrences(of: "\"", with: "")
+            .replacingOccurrences(of: "`", with: "")
+            .replacingOccurrences(of: "[", with: "")
+            .replacingOccurrences(of: "]", with: "")
+        return sanitized.split(separator: ".").map { String($0).trimmingCharacters(in: .whitespacesAndNewlines) }
+    }
+
+    private func defaultSchema(for type: DatabaseType, connection: SavedConnection) -> String? {
+        switch type {
+        case .microsoftSQL:
+            return "dbo"
+        case .postgresql:
+            return "public"
+        case .mysql:
+            let database = connection.database.trimmingCharacters(in: .whitespacesAndNewlines)
+            return database.isEmpty ? nil : database
+        case .sqlite:
+            return "main"
+        }
+    }
+
+}
+
+struct QueryTabStrip: View {
+    let leadingPadding: CGFloat
+    let trailingPadding: CGFloat
+
+    @EnvironmentObject private var appModel: AppModel
+    @EnvironmentObject private var appState: AppState
+    @Environment(\.colorScheme) private var colorScheme
+    @EnvironmentObject private var themeManager: ThemeManager
+
+    @State private var hoveredTabID: UUID?
+    @State private var dragState = TabDragState()
+    @State private var measuredTabGroupWidth: CGFloat = 0
+
+    private var themedAppearance: TabChromePalette? {
+#if os(macOS)
+        guard appState.themeTabs else { return nil }
+        return TabChromePalette(
+            theme: themeManager.activeTheme,
+            accent: themeManager.accentNSColor,
+            fallbackScheme: colorScheme
+        )
+#else
+        return nil
+#endif
+    }
+
+    private var tabStripStyle: TabStripBackground.Style {
+        if let appearance = themedAppearance {
+            return .themed(appearance)
+        }
+        return .standard(colorScheme)
+    }
+
+    private struct TabDragState: Equatable {
+        var id: UUID?
+        var originalIndex: Int = 0
+        var currentIndex: Int = 0
+        var translation: CGFloat = 0
+        var minIndex: Int = 0
+        var maxIndex: Int = 0
+
+        var isActive: Bool { id != nil }
+
+        mutating func begin(id: UUID, originalIndex: Int, minIndex: Int, maxIndex: Int) {
+            self.id = id
+            self.originalIndex = originalIndex
+            self.currentIndex = originalIndex
+            self.translation = 0
+            self.minIndex = minIndex
+            self.maxIndex = maxIndex
+        }
+
+        mutating func reset() {
+            self = TabDragState()
+        }
+    }
+
+    private let tabReorderAnimation = Animation.interactiveSpring(response: 0.72, dampingFraction: 0.86, blendDuration: 0.30)
+    private let tabStripHeight: CGFloat = WorkspaceChromeMetrics.tabStripTotalHeight
+    private let baseHorizontalInset: CGFloat = 4
+    private let basePlateExtension: CGFloat = 0
+    private let basePlateEdgeInset: CGFloat = 2
+    private let basePlateCornerRadius: CGFloat = 14
+    private var basePlateHeight: CGFloat { WorkspaceChromeMetrics.chromeBackgroundHeight }
+    private var tabContentVerticalPadding: CGFloat {
+        max((tabStripHeight - basePlateHeight) / 2, 0)
+    }
+
+    var body: some View {
+        GeometryReader { geo in
+            let tabs = appModel.tabManager.tabs
+            let hasTabs = !tabs.isEmpty
+            let orderedTabs = combinedTabs(from: tabs)
+
+            let effectiveLeadingPadding = leadingPadding + baseHorizontalInset
+            let effectiveTrailingPadding = trailingPadding + baseHorizontalInset
+            let availableWidth = max(geo.size.width - effectiveLeadingPadding - effectiveTrailingPadding, 0)
+            let separatorWidth = CGFloat(max(orderedTabs.count - 1, 0)) * tabHairlineWidth()
+            let effectiveWidth = max(availableWidth - separatorWidth, 0)
+            let tabWidth = orderedTabs.isEmpty ? 0 : effectiveWidth / CGFloat(orderedTabs.count)
+            let tabContentWidth = max(tabWidth * CGFloat(orderedTabs.count), 0)
+            let widthSource = measuredTabGroupWidth > 0 ? measuredTabGroupWidth : tabContentWidth
+            let basePlateLeading = max(effectiveLeadingPadding - basePlateExtension - basePlateEdgeInset, 0)
+            let basePlateTrailing = max(effectiveTrailingPadding - basePlateExtension - basePlateEdgeInset, 0)
+            let plateAvailableWidth = max(geo.size.width - basePlateLeading - basePlateTrailing, 0)
+            let desiredPlateWidth = min(max(widthSource + basePlateEdgeInset * 2, widthSource), plateAvailableWidth)
+            let basePlateWidth = hasTabs ? desiredPlateWidth : 0
+            let basePlateOffset = basePlateLeading
+
+            ZStack(alignment: .leading) {
+#if os(macOS)
+                if hasTabs {
+                    TabStripBackground(style: tabStripStyle, height: basePlateHeight, cornerRadius: basePlateCornerRadius)
+                        .frame(width: basePlateWidth, height: basePlateHeight)
+                        .offset(x: basePlateOffset)
+                }
+#endif
+
+                HStack(spacing: 0) {
+                    tabGroup(orderedTabs: orderedTabs, tabWidth: tabWidth)
+                        .background(
+                            GeometryReader { contentGeo in
+                                Color.clear
+                                    .preference(key: TabGroupWidthPreferenceKey.self, value: contentGeo.size.width)
+                            }
+                        )
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .padding(.leading, effectiveLeadingPadding)
+                .padding(.trailing, effectiveTrailingPadding)
+                .padding(.vertical, tabContentVerticalPadding)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .animation(tabReorderAnimation, value: appModel.tabManager.tabs.map(\.id))
+            }
+        }
+        .frame(height: tabStripHeight)
+        .clipped()
+        .onPreferenceChange(TabGroupWidthPreferenceKey.self) { width in
+            measuredTabGroupWidth = width
+        }
+        .onChange(of: appModel.tabManager.tabs.isEmpty) { _, isEmpty in
+            if isEmpty {
+                hoveredTabID = nil
+            }
+        }
+        .onChange(of: appModel.tabManager.tabs.map(\.id)) { _, ids in
+            if let hovered = hoveredTabID, !ids.contains(hovered) {
+                hoveredTabID = nil
+            }
+        }
+    }
+
+    private func combinedTabs(from tabs: [WorkspaceTab]) -> [(WorkspaceTab, Bool)] {
+        let pinned = tabs.filter { $0.isPinned }.map { ($0, true) }
+        let regular = tabs.filter { !$0.isPinned }.map { ($0, false) }
+        return pinned + regular
+    }
+
+    private func tabGroup(orderedTabs: [(WorkspaceTab, Bool)], tabWidth: CGFloat) -> some View {
+        HStack(spacing: 0) {
+            ForEach(Array(orderedTabs.enumerated()), id: \.element.0.id) { index, element in
+                let tab = element.0
+
+                tabButtonView(tab: tab, targetWidth: tabWidth, index: index, totalCount: orderedTabs.count, appearance: themedAppearance)
+                    .offset(x: tabOffset(for: tab, index: index, tabWidth: tabWidth))
+                    .zIndex(tabZIndex(for: tab))
+                    .overlay(alignment: .trailing) {
+                        if index < orderedTabs.count - 1 {
+                            let nextTab = orderedTabs[index + 1].0
+                            tabSeparator()
+                                .padding(.vertical, 8)
+                                .opacity(separatorOpacity(between: tab, and: nextTab, separatorIndex: index))
+                        }
+                    }
+                    .highPriorityGesture(
+                        dragGesture(
+                            for: tab,
+                            tabWidth: tabWidth,
+                            index: index,
+                            totalCount: orderedTabs.count
+                        )
+                    )
+            }
+        }
+        .fixedSize()
+    }
+
+    private func tabOffset(for tab: WorkspaceTab, index: Int, tabWidth: CGFloat) -> CGFloat {
+        guard dragState.isActive, let draggingId = dragState.id else { return 0 }
+        if draggingId == tab.id {
+            return dragState.translation
+        }
+        guard tabWidth > 0 else { return 0 }
+
+        if dragState.currentIndex > dragState.originalIndex {
+            if index > dragState.originalIndex && index <= dragState.currentIndex {
+                return -tabWidth
+            }
+        } else if dragState.currentIndex < dragState.originalIndex {
+            if index >= dragState.currentIndex && index < dragState.originalIndex {
+                return tabWidth
+            }
+        }
+
+        return 0
+    }
+
+    private func tabZIndex(for tab: WorkspaceTab) -> Double {
+        dragState.id == tab.id ? 1 : 0
+    }
+
+    private func tabSeparator() -> some View {
+        Capsule(style: .continuous)
+            .fill(separatorFill)
+            .frame(width: tabHairlineWidth(), height: 18)
+            .animation(nil, value: dragState)
+    }
+
+    private var separatorFill: LinearGradient {
+#if os(macOS)
+        if let palette = themedAppearance {
+            return palette.separatorGradient
+        }
+        if colorScheme == .dark {
+            return LinearGradient(colors: [
+                Color.white.opacity(0.28),
+                Color.white.opacity(0.16)
+            ], startPoint: .top, endPoint: .bottom)
+        }
+        return LinearGradient(colors: [
+            Color(white: 0.88),
+            Color(white: 0.75)
+        ], startPoint: .top, endPoint: .bottom)
+#else
+        return LinearGradient(colors: [Color(white: 0.8), Color(white: 0.7)], startPoint: .top, endPoint: .bottom)
+#endif
+    }
+
+    private func separatorOpacity(between current: WorkspaceTab, and next: WorkspaceTab, separatorIndex: Int) -> Double {
+        if dragState.isActive,
+           let draggingId = dragState.id {
+            let orderedTabs = combinedTabs(from: appModel.tabManager.tabs).map { $0.0 }
+            guard let originalIndex = orderedTabs.firstIndex(where: { $0.id == draggingId }) else {
+                return 1
+            }
+
+            let (preview, destination) = currentTabOrderApplyingDrag(to: orderedTabs, draggingIndex: originalIndex)
+
+            // Hide separators adjacent to the original slot while the tab occupies it
+            if separatorIndex == originalIndex - 1 || separatorIndex == originalIndex {
+                return 0
+            }
+
+            if let gap = liveGapIndex(originalIndex: originalIndex, destinationIndex: destination, totalTabs: preview.count),
+               separatorIndex == gap {
+                return 0
+            }
+
+            if destination != originalIndex,
+               (separatorIndex == destination - 1 || separatorIndex == destination) {
+                return 0
+            }
+
+            if current.id == draggingId || next.id == draggingId {
+                return 0
+            }
+        }
+
+        if current.id == appModel.tabManager.activeTabId || next.id == appModel.tabManager.activeTabId {
+            return 0
+        }
+        if current.id == hoveredTabID || next.id == hoveredTabID {
+            return 0
+        }
+
+        return 1
+    }
+
+    private func liveGapIndex(originalIndex: Int, destinationIndex: Int, totalTabs: Int) -> Int? {
+        guard dragState.isActive, totalTabs > 1 else { return nil }
+
+        let lastSeparator = max(totalTabs - 2, 0)
+
+        if destinationIndex == originalIndex {
+            if dragState.translation > 0 {
+                let candidate = min(originalIndex, lastSeparator)
+                return candidate >= 0 ? candidate : nil
+            } else if dragState.translation < 0 {
+                let candidate = originalIndex - 1
+                return candidate >= 0 ? candidate : nil
+            } else {
+                return nil
+            }
+        }
+
+        if destinationIndex > originalIndex {
+            let candidate = destinationIndex - 1
+            return candidate >= 0 && candidate <= lastSeparator ? candidate : nil
+        } else {
+            let candidate = destinationIndex
+            return candidate >= 0 && candidate <= lastSeparator ? candidate : nil
+        }
+    }
+
+    private func currentTabOrderApplyingDrag(to tabs: [WorkspaceTab], draggingIndex: Int) -> ([WorkspaceTab], Int) {
+        var result = tabs
+        guard dragState.isActive,
+              let bounds = boundsForDraggingTab(tabs[draggingIndex]) else {
+            return (result, draggingIndex)
+        }
+        let dragged = result.remove(at: draggingIndex)
+        let clamped = min(max(dragState.currentIndex, bounds.min), bounds.max)
+        result.insert(dragged, at: clamped)
+        return (result, clamped)
+    }
+
+    private func boundsForDraggingTab(_ tab: WorkspaceTab) -> (min: Int, max: Int)? {
+        let total = combinedTabs(from: appModel.tabManager.tabs).count
+        guard total > 0 else { return nil }
+        let bounds = tabBounds(for: tab, totalCount: total)
+        return bounds
+    }
+
+    private func dragGesture(for tab: WorkspaceTab, tabWidth: CGFloat, index: Int, totalCount: Int) -> some Gesture {
+        DragGesture(minimumDistance: 4, coordinateSpace: .local)
+            .onChanged { value in
+                guard tabWidth > 0 else { return }
+
+                if !dragState.isActive {
+                    let bounds = tabBounds(for: tab, totalCount: totalCount)
+                    dragState.begin(
+                        id: tab.id,
+                        originalIndex: index,
+                        minIndex: bounds.min,
+                        maxIndex: bounds.max
+                    )
+                    hoveredTabID = tab.id
+                }
+
+                guard dragState.id == tab.id else { return }
+
+                let rawTranslation = value.translation.width
+                let clampedTranslation = clampTranslation(rawTranslation, for: dragState, tabWidth: tabWidth)
+
+                let moveThreshold = tabWidth * 0.5
+                var proposedIndex = dragState.originalIndex
+                var remainder = clampedTranslation
+
+                while remainder > moveThreshold && proposedIndex < dragState.maxIndex {
+                    remainder -= tabWidth
+                    proposedIndex += 1
+                }
+
+                while remainder < -moveThreshold && proposedIndex > dragState.minIndex {
+                    remainder += tabWidth
+                    proposedIndex -= 1
+                }
+
+                if proposedIndex != dragState.currentIndex {
+                    withAnimation(tabReorderAnimation) {
+                        dragState.currentIndex = proposedIndex
+                    }
+                }
+
+                dragState.translation = clampedTranslation
+            }
+            .onEnded { _ in
+                guard dragState.isActive, dragState.id == tab.id else { return }
+                let finalIndex = dragState.currentIndex
+                let shouldMove = finalIndex != dragState.originalIndex
+
+                if shouldMove {
+                    withAnimation(tabReorderAnimation) {
+                        appModel.tabManager.moveTab(id: tab.id, to: finalIndex)
+                    }
+                }
+
+                withAnimation(tabReorderAnimation) {
+                    dragState.reset()
+                }
+                hoveredTabID = nil
+            }
+    }
+
+    private func clampTranslation(_ translation: CGFloat, for state: TabDragState, tabWidth: CGFloat) -> CGFloat {
+        let maxRight = CGFloat(state.maxIndex - state.originalIndex) * tabWidth
+        let maxLeft = CGFloat(state.originalIndex - state.minIndex) * tabWidth
+        return min(max(translation, -maxLeft), maxRight)
+    }
+
+    private func tabBounds(for tab: WorkspaceTab, totalCount: Int) -> (min: Int, max: Int) {
+        let pinnedCount = appModel.tabManager.tabs.filter { $0.isPinned }.count
+        if tab.isPinned {
+            return (0, max(pinnedCount - 1, 0))
+        } else {
+            return (pinnedCount, max(totalCount - 1, pinnedCount))
+        }
+    }
+
+    @ViewBuilder
+    private func tabButtonView(tab: WorkspaceTab, targetWidth: CGFloat, index: Int, totalCount: Int, appearance: TabChromePalette?) -> some View {
+        let isActive = appModel.tabManager.activeTabId == tab.id
+        let tabIndex = appModel.tabManager.index(of: tab.id) ?? 0
+        let hasLeft = tabIndex > 0
+        let hasRight = tabIndex < totalCount - 1
+        let canDuplicate = tab.kind == .query
+        let closeOthersDisabled = totalCount <= 1
+        let isBeingDragged = dragState.isActive && dragState.id == tab.id
+
+        QueryTabButton(
+            tab: tab,
+            isActive: isActive,
+            onSelect: { appModel.tabManager.activeTabId = tab.id },
+            onClose: { appModel.tabManager.closeTab(id: tab.id) },
+            onAddBookmark: tab.query == nil ? nil : { bookmark(tab: tab) },
+            onPinToggle: { appModel.tabManager.togglePin(for: tab.id) },
+            onDuplicate: { appModel.duplicateTab(tab) },
+            onCloseOthers: { appModel.tabManager.closeOtherTabs(keeping: tab.id) },
+            onCloseLeft: { appModel.tabManager.closeTabsLeft(of: tab.id) },
+            onCloseRight: { appModel.tabManager.closeTabsRight(of: tab.id) },
+            canDuplicate: canDuplicate,
+            closeOthersDisabled: closeOthersDisabled,
+            closeTabsLeftDisabled: !hasLeft,
+            closeTabsRightDisabled: !hasRight,
+            isDropTarget: false,
+            isBeingDragged: isBeingDragged,
+            appearance: appearance,
+            onHoverChanged: { hovering in
+                if hovering {
+                    hoveredTabID = tab.id
+                } else if hoveredTabID == tab.id {
+                    hoveredTabID = nil
+                }
+            }
+        )
+        .frame(width: targetWidth > 0 ? targetWidth : nil)
+        .id(tab.id)
+        .transaction { transaction in
+            if isBeingDragged {
+                transaction.animation = nil
+            }
+        }
+    }
+
+    private func bookmark(tab: WorkspaceTab) {
+        guard let queryState = tab.query else { return }
+        let trimmed = queryState.sql.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        let database = queryState.clipboardMetadata.databaseName ?? tab.connection.database
+        Task {
+            await appModel.addBookmark(
+                for: tab.connection,
+                databaseName: database,
+                title: tab.title,
+                query: trimmed,
+                source: .tab
+            )
+        }
+    }
+}
+
+private struct RecentConnectionItem: Identifiable {
+    let id: String
+    let record: RecentConnectionRecord
+    let name: String
+    let server: String
+    let database: String?
+    let lastConnectedAt: Date
+    let databaseType: DatabaseType
+
+    var subtitle: String {
+        if let database, !database.isEmpty {
+            return "\(database) @ \(server)"
+        }
+        return server
+    }
+}
+
+private struct RecentConnectionsPlaceholder: View {
+    let connections: [RecentConnectionItem]
+    let onSelectConnection: (RecentConnectionItem) -> Void
+
+    var body: some View {
+        VStack(spacing: 24) {
+            Text(connections.isEmpty ? "No Recent Connections" : "Recent Connections")
+                .font(.title3.weight(.semibold))
+
+            if connections.isEmpty {
+                EmptyRecentConnectionsView()
+            } else {
+                RecentConnectionsList(
+                    connections: connections,
+                    onSelectConnection: onSelectConnection
+                )
+            }
+        }
+        .frame(maxWidth: 420)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+        .padding(.horizontal, 28)
+        .padding(.vertical, 44)
+    }
+}
+
+private struct RecentConnectionsList: View {
+    let connections: [RecentConnectionItem]
+    let onSelectConnection: (RecentConnectionItem) -> Void
+
+    var body: some View {
+        VStack(spacing: 8) {
+            let lastID = connections.last?.id
+            ForEach(connections) { connection in
+                RecentConnectionRow(
+                    item: connection,
+                    onTap: { onSelectConnection(connection) }
+                )
+                .padding(.horizontal, 12)
+
+                if connection.id != lastID {
+                    Divider()
+                        .padding(.leading, 44)
+                }
+            }
+        }
+    }
+}
+
+private struct RecentConnectionRow: View {
+    let item: RecentConnectionItem
+    let onTap: () -> Void
+
+    private var formattedTimestamp: String {
+        item.lastConnectedAt.formatted(date: .abbreviated, time: .shortened)
+    }
+
+    var body: some View {
+        Button(action: onTap) {
+            HStack(alignment: .center, spacing: 12) {
+                ConnectionIconView(databaseType: item.databaseType)
+                    .frame(width: 28, height: 28)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(item.name)
+                        .font(.body.weight(.medium))
+                        .foregroundStyle(.primary)
+                    Text(item.subtitle)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+
+                Text(formattedTimestamp)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.vertical, 6)
+        }
+        .buttonStyle(.plain)
+        .contentShape(Rectangle())
+    }
+}
+
+private struct ConnectionIconView: View {
+    let databaseType: DatabaseType
+
+    var body: some View {
+#if os(macOS)
+        if let nsImage = NSImage(named: databaseType.iconName) {
+            Image(nsImage: nsImage)
+                .resizable()
+                .scaledToFit()
+        } else {
+            fallbackIcon
+        }
+#else
+        if let uiImage = UIImage(named: databaseType.iconName) {
+            Image(uiImage: uiImage)
+                .resizable()
+                .scaledToFit()
+        } else {
+            fallbackIcon
+        }
+#endif
+    }
+
+    private var fallbackIcon: some View {
+        Image(systemName: "server.rack")
+            .resizable()
+            .scaledToFit()
+            .foregroundStyle(.secondary)
+    }
+}
+
+private struct EmptyRecentConnectionsView: View {
+    var body: some View {
+        VStack(spacing: 6) {
+            Text("You have not connected to any servers yet.")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+            Text("Use the sidebar to add a server and it will appear here next time.")
+                .font(.footnote)
+                .foregroundStyle(.tertiary)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity)
+    }
+}
+
+// MARK: - Workspace Content
+
+private struct WorkspaceContentView: View {
+    @ObservedObject var tab: WorkspaceTab
+    let runQuery: (String) async -> Void
+    let cancelQuery: () -> Void
+    let gridStateProvider: () -> QueryResultsGridState
+    @EnvironmentObject private var themeManager: ThemeManager
+
+    var body: some View {
+        ZStack {
+            themeManager.windowBackground
+                .ignoresSafeArea()
+
+            Group {
+                if let structureEditor = tab.structureEditor {
+                    TableStructureEditorView(tab: tab, viewModel: structureEditor)
+                        .background(themeManager.windowBackground)
+                } else if let diagram = tab.diagram {
+                    SchemaDiagramView(viewModel: diagram)
+                        .background(themeManager.windowBackground)
+                } else if let query = tab.query {
+                    QueryEditorContainer(
+                        tab: tab,
+                        query: query,
+                        runQuery: runQuery,
+                        cancelQuery: cancelQuery,
+                        gridStateProvider: gridStateProvider
+                    )
+                } else {
+                    EmptyView()
+                }
+            }
+        }
+    }
+}
+
+private struct QueryEditorContainer: View {
+    @ObservedObject var tab: WorkspaceTab
+    @ObservedObject var query: QueryEditorState
+    let runQuery: (String) async -> Void
+    let cancelQuery: () -> Void
+    let gridStateProvider: () -> QueryResultsGridState
+    @EnvironmentObject private var themeManager: ThemeManager
+    @EnvironmentObject private var appModel: AppModel
+    @EnvironmentObject private var appState: AppState
+
+    private let minRatio: CGFloat = 0.25
+    private let maxRatio: CGFloat = 0.8
+#if os(macOS)
+    @State private var latestForeignKeySelection: QueryResultsTableView.ForeignKeySelection?
+    @State private var latestJsonSelection: QueryResultsTableView.JsonSelection?
+    @State private var foreignKeyFetchTask: Task<Void, Never>?
+    @State private var autoOpenedInspector = false
+#endif
+
+    var body: some View {
+        GeometryReader { geometry in
+            let totalHeight = geometry.size.height
+            let backgroundColor = themeManager.windowBackground
+            let shouldShowResultsOnly = query.isResultsOnly
+            let ratioBinding = Binding<CGFloat>(
+                get: { min(max(query.splitRatio, minRatio), maxRatio) },
+                set: { newValue in
+                    query.splitRatio = min(max(newValue, minRatio), maxRatio)
+                }
+            )
+
+            VStack(spacing: 0) {
+                if shouldShowResultsOnly {
+                #if os(macOS)
+                    QueryResultsSection(
+                        query: query,
+                        connection: connectionForDisplay,
+                        activeDatabaseName: connectionDatabaseName,
+                        gridState: gridStateProvider(),
+                        foreignKeyDisplayMode: foreignKeyDisplayMode,
+                        foreignKeyInspectorBehavior: foreignKeyInspectorBehavior,
+                        onForeignKeyEvent: handleForeignKeyEvent,
+                        onJsonEvent: handleJsonEvent
+                    )
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .background(backgroundColor)
+                        .transition(.opacity)
+                #else
+                    QueryResultsSection(
+                        query: query,
+                        connection: connectionForDisplay,
+                        activeDatabaseName: connectionDatabaseName,
+                        gridState: gridStateProvider()
+                    )
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .background(backgroundColor)
+                        .transition(.opacity)
+                #endif
+                } else {
+                    QueryInputSection(
+                        query: query,
+                        onExecute: { sql in await runQuery(sql) },
+                        onCancel: cancelQuery,
+                        onAddBookmark: handleBookmarkRequest,
+                        completionContext: editorCompletionContext
+                    )
+                    .frame(height: query.hasExecutedAtLeastOnce ? totalHeight * ratioBinding.wrappedValue : totalHeight)
+                    .background(backgroundColor)
+
+                    if query.hasExecutedAtLeastOnce {
+                        ResizeHandle(
+                            ratio: ratioBinding,
+                            minRatio: minRatio,
+                            maxRatio: maxRatio,
+                            availableHeight: totalHeight
+                        )
+
+                    #if os(macOS)
+                        QueryResultsSection(
+                            query: query,
+                            connection: connectionForDisplay,
+                            activeDatabaseName: connectionDatabaseName,
+                            gridState: gridStateProvider(),
+                            foreignKeyDisplayMode: foreignKeyDisplayMode,
+                            foreignKeyInspectorBehavior: foreignKeyInspectorBehavior,
+                            onForeignKeyEvent: handleForeignKeyEvent,
+                            onJsonEvent: handleJsonEvent
+                        )
+                            .frame(height: totalHeight * (1 - ratioBinding.wrappedValue))
+                            .background(backgroundColor)
+                            .transition(.opacity)
+                    #else
+                        QueryResultsSection(
+                            query: query,
+                            connection: connectionForDisplay,
+                            activeDatabaseName: connectionDatabaseName,
+                            gridState: gridStateProvider()
+                        )
+                            .frame(height: totalHeight * (1 - ratioBinding.wrappedValue))
+                            .background(backgroundColor)
+                            .transition(.opacity)
+                    #endif
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .background(backgroundColor)
+        }
+        .background(themeManager.windowBackground)
+        .onAppear(perform: updateClipboardContext)
+        .onChange(of: tab.connection.connectionName) { _, _ in
+            updateClipboardContext()
+        }
+        .onChange(of: tab.connection.database) { _, _ in
+            updateClipboardContext()
+        }
+        .task {
+            await triggerAutoExecutionIfNeeded()
+        }
+        .onChange(of: query.shouldAutoExecuteOnAppear) { _, newValue in
+            guard newValue else { return }
+            Task {
+                await triggerAutoExecutionIfNeeded()
+            }
+        }
+    }
+
+    private var connectionSession: ConnectionSession? {
+        appModel.sessionManager.activeSessions.first { $0.id == tab.connectionSessionID }
+    }
+
+    private var connectionServerName: String? {
+        let name = (connectionSession?.connection.connectionName ?? tab.connection.connectionName)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        if !name.isEmpty { return name }
+        let host = (connectionSession?.connection.host ?? tab.connection.host)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return host.isEmpty ? nil : host
+    }
+
+    private var connectionDatabaseName: String? {
+        if let selected = connectionSession?.selectedDatabaseName?.trimmingCharacters(in: .whitespacesAndNewlines), !selected.isEmpty {
+            return selected
+        }
+        let database = tab.connection.database.trimmingCharacters(in: .whitespacesAndNewlines)
+        return database.isEmpty ? nil : database
+    }
+
+#if os(macOS)
+    private var foreignKeyDisplayMode: ForeignKeyDisplayMode {
+        appModel.globalSettings.foreignKeyDisplayMode
+    }
+
+    private var foreignKeyInspectorBehavior: ForeignKeyInspectorBehavior {
+        appModel.globalSettings.foreignKeyInspectorBehavior
+    }
+
+    private var includeRelatedForeignKeys: Bool {
+        appModel.globalSettings.foreignKeyIncludeRelated
+    }
+#endif
+
+    @MainActor
+    private func triggerAutoExecutionIfNeeded() async {
+        guard query.isResultsOnly else { return }
+        guard !query.hasExecutedAtLeastOnce, !query.isExecuting else { return }
+        guard query.shouldAutoExecuteOnAppear else { return }
+        query.shouldAutoExecuteOnAppear = false
+        await runQuery(query.sql)
+    }
+
+    private func updateClipboardContext() {
+        query.updateClipboardContext(
+            serverName: connectionServerName,
+            databaseName: connectionDatabaseName,
+            connectionColorHex: connectionColorHex
+        )
+    }
+
+    private var connectionServerVersion: String? {
+        let candidates: [String?] = [
+            connectionSession?.databaseStructure?.serverVersion,
+            connectionSession?.connection.serverVersion,
+            tab.connection.serverVersion
+        ]
+        for candidate in candidates {
+            if let value = candidate?.trimmingCharacters(in: .whitespacesAndNewlines), !value.isEmpty {
+                return value
+            }
+        }
+        return nil
+    }
+
+    private var connectionForDisplay: SavedConnection {
+        var snapshot = connectionSession?.connection ?? tab.connection
+        snapshot.serverVersion = connectionServerVersion
+        return snapshot
+    }
+
+    private var connectionColorHex: String? {
+        if let sessionHex = connectionSession?.connection.metadataColorHex {
+            return sessionHex
+        }
+        return tab.connection.metadataColorHex
+    }
+
+    private var editorCompletionContext: SQLEditorCompletionContext? {
+        let session = connectionSession
+        let baseConnection = session?.connection ?? tab.connection
+        let databaseType = baseConnection.databaseType
+        let selectedDatabase = normalized(session?.selectedDatabaseName)
+            ?? normalized(baseConnection.database)
+        let structure = session?.databaseStructure
+            ?? session?.connection.cachedStructure
+            ?? tab.connection.cachedStructure
+        let defaultSchema = defaultSchema(for: databaseType)
+
+        return SQLEditorCompletionContext(
+            databaseType: databaseType,
+            selectedDatabase: selectedDatabase,
+            defaultSchema: defaultSchema,
+            structure: structure
+        )
+    }
+
+    private func defaultSchema(for type: DatabaseType) -> String? {
+        switch type {
+        case .microsoftSQL:
+            return "dbo"
+        case .postgresql:
+            return "public"
+        case .mysql, .sqlite:
+            return nil
+        }
+    }
+
+    private func normalized(_ value: String?) -> String? {
+        guard let value else { return nil }
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
+    }
+
+#if os(macOS)
+    private func handleForeignKeyEvent(_ event: QueryResultsTableView.ForeignKeyEvent) {
+        switch event {
+        case .selectionChanged(let selection):
+            latestForeignKeySelection = selection
+            if selection != nil {
+                latestJsonSelection = nil
+            }
+            if let selection {
+                if shouldAutoActivate(for: selection, triggeredByIcon: false) {
+                    performForeignKeyActivation(for: selection)
+                } else {
+                    if foreignKeyDisplayMode == .showInspector,
+                       foreignKeyInspectorBehavior == .respectInspectorVisibility,
+                       !appState.showInfoSidebar {
+                        if case .foreignKey = appModel.dataInspectorContent {
+                            appModel.dataInspectorContent = nil
+                        }
+                    }
+                }
+            } else {
+                foreignKeyFetchTask?.cancel()
+                foreignKeyFetchTask = nil
+                if case .foreignKey = appModel.dataInspectorContent {
+                    appModel.dataInspectorContent = nil
+                }
+                if foreignKeyInspectorBehavior == .autoOpenAndClose && autoOpenedInspector {
+                    autoOpenedInspector = false
+                    if appState.showInfoSidebar {
+                        appState.showInfoSidebar = false
+                    }
+                }
+            }
+
+        case .activate(let selection):
+            performForeignKeyActivation(for: selection)
+        }
+    }
+
+    private func handleJsonEvent(_ event: QueryResultsTableView.JsonCellEvent) {
+        switch event {
+        case .selectionChanged(let selection):
+            latestJsonSelection = selection
+            if let selection {
+                let content = makeJsonInspectorContent(for: selection)
+                appModel.dataInspectorContent = .json(content)
+            } else if case .json = appModel.dataInspectorContent {
+                appModel.dataInspectorContent = nil
+            }
+        case .activate(let selection):
+            latestJsonSelection = selection
+            let content = makeJsonInspectorContent(for: selection)
+            appModel.dataInspectorContent = .json(content)
+        }
+    }
+
+    private func shouldAutoActivate(for selection: QueryResultsTableView.ForeignKeySelection, triggeredByIcon: Bool) -> Bool {
+        guard foreignKeyDisplayMode != .disabled else { return false }
+        switch foreignKeyDisplayMode {
+        case .showInspector:
+            if foreignKeyInspectorBehavior == .autoOpenAndClose {
+                return true
+            }
+            return appState.showInfoSidebar
+        case .showIcon:
+            if foreignKeyInspectorBehavior == .autoOpenAndClose {
+                return true
+            }
+            return triggeredByIcon
+        case .disabled:
+            return false
+        }
+    }
+
+    private func performForeignKeyActivation(for selection: QueryResultsTableView.ForeignKeySelection) {
+        guard foreignKeyDisplayMode != .disabled else { return }
+
+        foreignKeyFetchTask?.cancel()
+
+        foreignKeyFetchTask = Task {
+            if foreignKeyInspectorBehavior == .autoOpenAndClose {
+                await MainActor.run {
+                    if !appState.showInfoSidebar {
+                        appState.showInfoSidebar = true
+                        autoOpenedInspector = true
+                    }
+                }
+            }
+
+            guard let content = await fetchForeignKeyInspectorContent(for: selection, includeRelated: includeRelatedForeignKeys, depth: 0) else {
+                await MainActor.run {
+                    if case .foreignKey = appModel.dataInspectorContent {
+                        appModel.dataInspectorContent = nil
+                    }
+                }
+                return
+            }
+
+            await MainActor.run {
+                appModel.dataInspectorContent = .foreignKey(content)
+            }
+        }
+    }
+
+    private func makeJsonInspectorContent(for selection: QueryResultsTableView.JsonSelection) -> JsonInspectorContent {
+        let outline = selection.jsonValue.toOutlineNode()
+        let subtitle = jsonRowSummary(for: selection)
+        return JsonInspectorContent(title: selection.columnName, subtitle: subtitle, outline: outline)
+    }
+
+    private func jsonRowSummary(for selection: QueryResultsTableView.JsonSelection) -> String {
+        if let descriptor = primaryKeyDescriptor(for: selection) {
+            return descriptor
+        }
+        return "Row \(selection.displayedRowIndex + 1)"
+    }
+
+    private func primaryKeyDescriptor(for selection: QueryResultsTableView.JsonSelection) -> String? {
+        guard let index = query.displayedColumns.firstIndex(where: { $0.isPrimaryKey }),
+              index < query.displayedColumns.count else {
+            return nil
+        }
+        let column = query.displayedColumns[index]
+        guard let raw = query.valueForDisplay(row: selection.sourceRowIndex, column: index) else {
+            return nil
+        }
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        return "\(column.name): \(trimmed)"
+    }
+
+    private func fetchForeignKeyInspectorContent(for selection: QueryResultsTableView.ForeignKeySelection, includeRelated: Bool, depth: Int) async -> ForeignKeyInspectorContent? {
+        guard let query = makeForeignKeyLookupQuery(for: selection) else { return nil }
+        do {
+            let result = try await tab.session.simpleQuery(query)
+            guard let row = result.rows.first else { return nil }
+
+            var fields: [ForeignKeyInspectorContent.Field] = []
+            for (column, value) in zip(result.columns, row) {
+                let displayValue = value ?? "NULL"
+                fields.append(ForeignKeyInspectorContent.Field(label: column.name, value: displayValue))
+            }
+
+            let title = selection.reference.referencedTable
+            let subtitle = selection.reference.referencedSchema.trimmingCharacters(in: .whitespacesAndNewlines)
+            var related: [ForeignKeyInspectorContent] = []
+
+            if includeRelated, depth < 1 {
+                let mapping = await loadForeignKeyMapping(schema: selection.reference.referencedSchema, table: selection.reference.referencedTable)
+                if !mapping.isEmpty {
+                    related = await loadRelatedForeignKeyContent(mapping: mapping, baseRow: row, columns: result.columns, parentDepth: depth)
+                }
+            }
+
+            return ForeignKeyInspectorContent(
+                title: title,
+                subtitle: subtitle.isEmpty ? nil : subtitle,
+                fields: fields,
+                related: related
+            )
+        } catch {
+            return nil
+        }
+    }
+
+    private func loadRelatedForeignKeyContent(mapping: ForeignKeyMapping, baseRow: [String?], columns: [ColumnInfo], parentDepth: Int) async -> [ForeignKeyInspectorContent] {
+        var related: [ForeignKeyInspectorContent] = []
+        for (index, column) in columns.enumerated() {
+            guard let reference = mapping[column.name.lowercased()] else { continue }
+            guard index < baseRow.count, let raw = baseRow[index] else { continue }
+
+            let trimmedValue = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmedValue.isEmpty else { continue }
+
+            let selection = QueryResultsTableView.ForeignKeySelection(
+                row: 0,
+                column: index,
+                value: trimmedValue,
+                columnName: column.name,
+                reference: reference,
+                valueKind: ResultGridValueClassifier.kind(forDataType: column.dataType, value: trimmedValue)
+            )
+
+            if let nested = await fetchForeignKeyInspectorContent(for: selection, includeRelated: includeRelatedForeignKeys, depth: parentDepth + 1) {
+                related.append(nested)
+            }
+        }
+        return related
+    }
+
+    private func loadForeignKeyMapping(schema: String, table: String) async -> ForeignKeyMapping {
+        do {
+            let details = try await tab.session.getTableStructureDetails(schema: schema, table: table)
+            return buildForeignKeyMapping(from: details)
+        } catch {
+            return [:]
+        }
+    }
+
+    private func makeForeignKeyLookupQuery(for selection: QueryResultsTableView.ForeignKeySelection) -> String? {
+        let databaseType = tab.connection.databaseType
+        guard let literal = makeForeignKeyLiteral(for: selection, databaseType: databaseType) else { return nil }
+        let reference = selection.reference
+        let tableIdentifier = qualifiedTable(schema: reference.referencedSchema, table: reference.referencedTable, databaseType: databaseType)
+        let columnIdentifier = quoteIdentifier(reference.referencedColumn, databaseType: databaseType)
+
+        switch databaseType {
+        case .microsoftSQL:
+            return "SELECT TOP 1 * FROM \(tableIdentifier) WHERE \(columnIdentifier) = \(literal);"
+        default:
+            return "SELECT * FROM \(tableIdentifier) WHERE \(columnIdentifier) = \(literal) LIMIT 1;"
+        }
+    }
+
+    private func qualifiedTable(schema: String, table: String, databaseType: DatabaseType) -> String {
+        let trimmedSchema = schema.trimmingCharacters(in: .whitespacesAndNewlines)
+        let tablePart = quoteIdentifier(table, databaseType: databaseType)
+        guard !trimmedSchema.isEmpty else { return tablePart }
+        return "\(quoteIdentifier(trimmedSchema, databaseType: databaseType)).\(tablePart)"
+    }
+
+    private func quoteIdentifier(_ identifier: String, databaseType: DatabaseType) -> String {
+        switch databaseType {
+        case .postgresql, .sqlite:
+            let escaped = identifier.replacingOccurrences(of: "\"", with: "\"\"")
+            return "\"\(escaped)\""
+        case .mysql:
+            let escaped = identifier.replacingOccurrences(of: "`", with: "``")
+            return "`\(escaped)`"
+        case .microsoftSQL:
+            let escaped = identifier.replacingOccurrences(of: "]", with: "]]")
+            return "[\(escaped)]"
+        }
+    }
+
+    private func makeForeignKeyLiteral(for selection: QueryResultsTableView.ForeignKeySelection, databaseType: DatabaseType) -> String? {
+        let rawValue = selection.value.trimmingCharacters(in: .whitespacesAndNewlines)
+        switch selection.valueKind {
+        case .numeric:
+            return rawValue.isEmpty ? nil : rawValue
+        case .boolean:
+            let normalized = rawValue.lowercased()
+            let truthy: Set<String> = ["true", "t", "1", "yes", "y"]
+            let isTrue = truthy.contains(normalized)
+            switch databaseType {
+            case .mysql, .microsoftSQL:
+                return isTrue ? "1" : "0"
+            case .postgresql, .sqlite:
+                return isTrue ? "TRUE" : "FALSE"
+            }
+        default:
+            let escaped = rawValue.replacingOccurrences(of: "'", with: "''")
+            return "'\(escaped)'"
+        }
+    }
+#endif
+
+private func handleBookmarkRequest(_ sql: String) {
+        Task {
+            await appModel.addBookmark(
+                for: tab.connection,
+                databaseName: connectionDatabaseName,
+                title: tabTitleForBookmark,
+                query: sql,
+                source: .queryEditorSelection
+            )
+        }
+    }
+
+    private var tabTitleForBookmark: String? {
+        let trimmed = tab.title.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
+    }
+}
+
+// MARK: - Tab Button
+
+private struct QueryTabButton: View {
+    @ObservedObject var tab: WorkspaceTab
+    let isActive: Bool
+    let onSelect: () -> Void
+    let onClose: () -> Void
+    let onAddBookmark: (() -> Void)?
+    let onPinToggle: () -> Void
+    let onDuplicate: () -> Void
+    let onCloseOthers: () -> Void
+    let onCloseLeft: () -> Void
+    let onCloseRight: () -> Void
+    let canDuplicate: Bool
+    let closeOthersDisabled: Bool
+    let closeTabsLeftDisabled: Bool
+    let closeTabsRightDisabled: Bool
+    let isDropTarget: Bool
+    let isBeingDragged: Bool
+    let appearance: TabChromePalette?
+    let onHoverChanged: (Bool) -> Void
+
+    @State private var isHovering = false
+    @State private var isHoveringClose = false
+
+    private var shouldShowClose: Bool {
+        guard !tab.isPinned else { return false }
+#if os(macOS)
+        return isHovering
+#else
+        return true
+#endif
+    }
+
+#if os(macOS)
+    @Environment(\.colorScheme) private var colorScheme
+#endif
+
+    private var tabCornerRadius: CGFloat { 15 }
+
+    private var tabShape: RoundedRectangle {
+        RoundedRectangle(cornerRadius: tabCornerRadius, style: .continuous)
+    }
+
+    private var hairlineWidth: CGFloat { tabHairlineWidth() }
+
+    var body: some View {
+        HStack(spacing: 3) {
+            leadingControl
+
+            Text(displayedTitle)
+                .font(tabTitleFont)
+                .lineLimit(1)
+                .foregroundStyle(tabTitleColor)
+                .frame(maxWidth: .infinity, alignment: .center)
+
+            closeButtonPlaceholder
+        }
+        .padding(.horizontal, tab.isPinned ? 13 : 18)
+        .padding(.vertical, 3)
+        .frame(minHeight: 24)
+        .background(tabBackground)
+        .overlay(tabStroke)
+        .overlay(hoverOutline)
+        .shadow(color: tabShadowColor, radius: tabShadowRadius, y: tabShadowYOffset)
+        .contentShape(tabShape)
+#if os(macOS)
+        .onHover { hovering in
+            isHovering = hovering
+            if !hovering { isHoveringClose = false }
+            onHoverChanged(hovering)
+        }
+        .onMiddleClick(perform: onClose)
+#endif
+        .onTapGesture {
+            onSelect()
+        }
+        .contextMenu {
+            Button(tab.isPinned ? "Unpin Tab" : "Pin Tab", action: onPinToggle)
+
+            Button("Duplicate Tab", action: onDuplicate)
+                .disabled(!canDuplicate)
+
+            Divider()
+
+            Button("Close Tab", action: onClose)
+
+            Button("Close Other Tabs", action: onCloseOthers)
+                .disabled(closeOthersDisabled)
+
+            Button("Close Tabs to the Left", action: onCloseLeft)
+                .disabled(closeTabsLeftDisabled)
+
+            Button("Close Tabs to the Right", action: onCloseRight)
+                .disabled(closeTabsRightDisabled)
+
+            if let onAddBookmark {
+                Divider()
+                Button("Add to Bookmarks", action: onAddBookmark)
+            }
+        }
+        .onChange(of: shouldShowClose) { _, visible in
+            if !visible {
+                isHoveringClose = false
+            }
+        }
+    }
+
+    private var leadingControl: some View {
+        Group {
+            if tab.isPinned {
+                closeButtonPlaceholder
+            } else {
+                closeButtonArea
+            }
+        }
+    }
+
+    private var displayedTitle: String {
+        let trimmed = tab.title.trimmingCharacters(in: .whitespacesAndNewlines)
+        if tab.isPinned {
+            if let first = trimmed.first {
+                return String(first).uppercased()
+            }
+            return "•"
+        }
+        return trimmed.isEmpty ? "Untitled" : trimmed
+    }
+
+    private var tabTitleFont: Font {
+        if tab.isPinned {
+            return .system(size: 11, weight: .semibold)
+        }
+        return .system(size: 11)
+    }
+
+    @ViewBuilder
+    private var tabBackground: some View {
+#if os(macOS)
+        if let gradient = macTabFillGradient {
+            tabShape.fill(gradient)
+        } else {
+            tabShape.fill(Color.clear)
+        }
+#else
+        tabShape.fill(tabFillGradient)
+#endif
+    }
+
+    @ViewBuilder
+    private var tabStroke: some View {
+#if os(macOS)
+        if isDropTarget {
+            tabShape.stroke(tabDropBorderColor, lineWidth: hairlineWidth)
+        } else if let color = macTabBorderColor {
+            tabShape.stroke(color, lineWidth: hairlineWidth)
+        }
+#else
+        tabShape.stroke(isDropTarget ? tabDropBorderColor : tabBorderColor, lineWidth: hairlineWidth)
+#endif
+    }
+
+    @ViewBuilder
+    private var hoverOutline: some View {
+#if os(macOS)
+        if shouldShowHoverOutline {
+            tabShape
+                .stroke(hoverHighlightColor, lineWidth: 1.1)
+        }
+#else
+        tabShape
+            .stroke(hoverHighlightColor, lineWidth: 1.1)
+            .opacity(shouldShowHoverOutline ? 1 : 0)
+#endif
+    }
+
+#if os(macOS)
+    private var macTabFillGradient: LinearGradient? {
+        if let appearance {
+            if isDropTarget {
+                return appearance.dropTabFill
+            }
+
+            if isActive {
+                return effectiveHovering ? appearance.activeTabHoverFill : appearance.activeTabFill
+            }
+
+            if shouldTreatAsHover {
+                return appearance.hoverTabFill
+            }
+
+            return nil
+        }
+        if isDropTarget {
+            return tabDropHighlightGradient
+        }
+
+        if isActive {
+            return effectiveHovering ? activeHoverGradient : activeIdleGradient
+        }
+
+        if shouldTreatAsHover {
+            return inactiveHoverGradient
+        }
+
+        return nil
+    }
+
+    private var activeIdleGradient: LinearGradient {
+        if colorScheme == .dark {
+            return LinearGradient(colors: [
+                Color.white.opacity(0.26),
+                Color.white.opacity(0.18)
+            ], startPoint: .top, endPoint: .bottom)
+        }
+        return LinearGradient(colors: [
+            Color(white: 0.99),
+            Color(white: 0.95)
+        ], startPoint: .top, endPoint: .bottom)
+    }
+
+    private var activeHoverGradient: LinearGradient {
+        if colorScheme == .dark {
+            return LinearGradient(colors: [
+                Color.white.opacity(0.32),
+                Color.white.opacity(0.24)
+            ], startPoint: .top, endPoint: .bottom)
+        }
+        return LinearGradient(colors: [
+            Color(white: 1.0),
+            Color(white: 0.97)
+        ], startPoint: .top, endPoint: .bottom)
+    }
+
+    private var inactiveHoverGradient: LinearGradient {
+        if colorScheme == .dark {
+            return LinearGradient(colors: [
+                Color.white.opacity(0.18),
+                Color.white.opacity(0.12)
+            ], startPoint: .top, endPoint: .bottom)
+        }
+        return LinearGradient(colors: [
+            Color(white: 0.94),
+            Color(white: 0.90)
+        ], startPoint: .top, endPoint: .bottom)
+    }
+
+    private var macTabBorderColor: Color? {
+        if let appearance {
+            if isDropTarget {
+                return appearance.dropTabBorder
+            }
+
+            if isActive {
+                return effectiveHovering ? appearance.activeTabHoverBorder : appearance.activeTabBorder
+            }
+
+            if shouldTreatAsHover {
+                return appearance.hoverTabBorder
+            }
+
+            return nil
+        }
+        if isDropTarget {
+            return tabDropBorderColor
+        }
+
+        if isActive {
+            return colorScheme == .dark ? Color.white.opacity(0.30) : Color(white: 0.86)
+        }
+
+        if shouldTreatAsHover {
+            return colorScheme == .dark ? Color.white.opacity(0.22) : Color.white.opacity(0.68)
+        }
+
+        return nil
+    }
+
+    private var effectiveHovering: Bool {
+        isHovering || isBeingDragged
+    }
+
+    private var shouldTreatAsHover: Bool {
+        !isActive && effectiveHovering && !isDropTarget
+    }
+#else
+    private var tabFillGradient: LinearGradient {
+        LinearGradient(colors: [Color.white.opacity(0.75), Color.white.opacity(0.6)], startPoint: .top, endPoint: .bottom)
+    }
+#endif
+
+    private var tabDropHighlightGradient: LinearGradient {
+#if os(macOS)
+        if let appearance {
+            return appearance.dropTabFill
+        }
+        if colorScheme == .dark {
+            return LinearGradient(colors: [Color.white.opacity(0.24), Color.white.opacity(0.18)], startPoint: .top, endPoint: .bottom)
+        } else {
+            return LinearGradient(colors: [Color(white: 0.90), Color(white: 0.86)], startPoint: .top, endPoint: .bottom)
+        }
+#else
+        LinearGradient(colors: [Color.accentColor.opacity(0.4), Color.accentColor.opacity(0.28)], startPoint: .top, endPoint: .bottom)
+#endif
+    }
+
+    private var tabBorderColor: Color {
+#if os(macOS)
+        Color.clear
+#else
+        return Color.black.opacity(0.1)
+#endif
+    }
+
+    private var tabDropBorderColor: Color {
+#if os(macOS)
+        if let appearance {
+            return appearance.dropTabBorder
+        }
+        if colorScheme == .dark {
+            return Color.white.opacity(0.15)
+        } else {
+            return Color.black.opacity(0.05)
+        }
+#else
+        return Color.accentColor.opacity(0.6)
+#endif
+    }
+
+    private var hoverHighlightColor: Color {
+#if os(macOS)
+        if let appearance {
+            return appearance.hoverTabBorder
+        }
+        return colorScheme == .dark ? Color.white.opacity(0.38) : Color.white.opacity(0.55)
+#else
+        return Color.white.opacity(0.4)
+#endif
+    }
+
+    private var shouldShowHoverOutline: Bool {
+#if os(macOS)
+        false
+#else
+        return false
+#endif
+    }
+
+    private var tabShadowColor: Color {
+#if os(macOS)
+        if let appearance {
+            return isActive ? appearance.shadowColor : Color.clear
+        }
+
+        if !isActive { return Color.clear }
+        return colorScheme == .dark ? Color.black.opacity(0.28) : Color.black.opacity(0.10)
+#else
+        return Color.black.opacity(isActive ? 0.2 : 0)
+#endif
+    }
+
+    private var tabShadowRadius: CGFloat { isActive ? 2.5 : 0 }
+    private var tabShadowYOffset: CGFloat { isActive ? 1.2 : 0 }
+
+    private var tabTitleColor: Color {
+#if os(macOS)
+        if isDropTarget {
+            return Color.white
+        }
+        if let appearance {
+            return isActive ? appearance.activeTitle : appearance.inactiveTitle
+        }
+        if tab.isPinned {
+            return Color(nsColor: isActive ? .labelColor : .secondaryLabelColor.withAlphaComponent(0.75))
+        }
+        return Color(nsColor: isActive ? .labelColor : .secondaryLabelColor)
+#else
+        if isDropTarget {
+            return .white
+        }
+        return isActive ? .primary : .secondary
+#endif
+    }
+
+    private var closeButtonForeground: Color {
+#if os(macOS)
+        if let appearance {
+            if isDropTarget { return Color.white }
+            if isHoveringClose { return appearance.closeHoverForeground }
+            if isActive { return appearance.closeForeground }
+            return appearance.closeForeground.opacity(0.85)
+        }
+        if isDropTarget { return Color.white }
+        if isHoveringClose {
+            return Color(nsColor: .labelColor)
+        }
+        if isActive {
+            return Color(nsColor: .secondaryLabelColor)
+        }
+        return Color(nsColor: .tertiaryLabelColor)
+#else
+        return .secondary
+#endif
+    }
+
+    private var closeButtonBackground: Color {
+#if os(macOS)
+        if let appearance, shouldShowClose, isHoveringClose {
+            return appearance.closeHoverBackground
+        }
+        guard shouldShowClose, isHoveringClose else { return Color.clear }
+        if colorScheme == .dark {
+            return Color.white.opacity(0.18)
+        } else {
+            return Color.black.opacity(0.08)
+        }
+#else
+        return Color.black.opacity(0.12)
+#endif
+    }
+
+    private var closeButtonArea: some View {
+        Button(action: onClose) {
+            Image(systemName: "xmark")
+                .font(.system(size: 9, weight: .semibold))
+                .foregroundStyle(closeButtonForeground)
+                .frame(width: closeButtonSize, height: closeButtonSize)
+                .background(
+                    Circle()
+                        .fill(closeButtonBackground)
+                )
+        }
+        .buttonStyle(.plain)
+        .opacity(shouldShowClose ? 1 : 0)
+        .allowsHitTesting(shouldShowClose)
+        .contentShape(Circle())
+#if os(macOS)
+        .help("Close tab")
+        .onHover { hovering in
+            isHoveringClose = hovering
+        }
+#endif
+        .frame(width: closeButtonSize, height: closeButtonSize, alignment: .leading)
+    }
+
+    private var closeButtonPlaceholder: some View {
+        let width: CGFloat
+#if os(macOS)
+        if tab.isPinned {
+            width = 0
+        } else {
+            width = closeButtonSize
+        }
+#else
+        width = closeButtonSize
+#endif
+        return Rectangle()
+            .fill(Color.clear)
+            .frame(width: width, height: closeButtonSize)
+    }
+
+    private var closeButtonSize: CGFloat { 16 }
+}
+
+private struct ResizeHandle: View {
+    @Binding var ratio: CGFloat
+    let minRatio: CGFloat
+    let maxRatio: CGFloat
+    let availableHeight: CGFloat
+
+    @State private var dragStartRatio: CGFloat = 0
+    @State private var isDragging = false
+
+    var body: some View {
+        ZStack {
+            Rectangle()
+                .fill(Color.secondary.opacity(0.15))
+                .frame(height: 2)
+            Capsule()
+                .fill(Color.secondary.opacity(0.35))
+                .frame(width: 60, height: 3)
+        }
+        .frame(height: 8)
+        .background(Color.clear)
+        .gesture(
+            DragGesture(minimumDistance: 0)
+                .onChanged { value in
+                    if !isDragging {
+                        dragStartRatio = ratio
+                        isDragging = true
+                    }
+
+                    let delta = value.translation.height / max(availableHeight, 1)
+                    let proposed = dragStartRatio + delta
+                    self.ratio = min(max(proposed, minRatio), maxRatio)
+                }
+                .onEnded { _ in
+                    isDragging = false
+                }
+        )
+#if os(macOS)
+        .onHover { hovering in
+            if hovering {
+                NSCursor.resizeUpDown.set()
+            } else {
+                NSCursor.arrow.set()
+            }
+        }
+#endif
+    }
+}
+
+// MARK: - Tab Overview
+
+private struct TabOverviewView: View {
+    let tabs: [WorkspaceTab]
+    let activeTabId: UUID?
+    let onSelectTab: (UUID) -> Void
+    let onCloseTab: (UUID) -> Void
+
+    @EnvironmentObject private var themeManager: ThemeManager
+    @EnvironmentObject private var appModel: AppModel
+
+    @State private var animateIn = false
+    @State private var collapsedServers: Set<UUID> = []
+    @State private var collapsedDatabases: Set<String> = []
+    @State private var focusedTabId: UUID?
+    @State private var columnCount: Int = 1
+    @State private var lastVisibleTabIDs: [UUID] = []
+    @State private var draggingTabId: UUID?
+    @State private var dropTargetTabId: UUID?
+
+    private let minCardWidth: CGFloat = 260
+    private let maxCardWidth: CGFloat = 360
+    private let gridSpacing: CGFloat = 16
+
+    private var gridColumns: [GridItem] {
+        Array(
+            repeating: GridItem(.flexible(minimum: minCardWidth, maximum: maxCardWidth), spacing: gridSpacing),
+            count: max(columnCount, 1)
+        )
+    }
+
+    private var orderedTabIDs: [UUID] { tabs.map(\.id) }
+    private var animation: Animation { .spring(response: 0.45, dampingFraction: 0.82, blendDuration: 0.2) }
+
+    var body: some View {
+        VStack(spacing: 16) {
+            header
+
+            ScrollView {
+                if groupedTabs.isEmpty {
+                    emptyState
+                        .padding(.top, 80)
+                        .padding(.horizontal, 24)
+                } else {
+                    LazyVStack(alignment: .leading, spacing: 24) {
+                        ForEach(groupedTabs) { serverGroup in
+                            serverGroupView(serverGroup)
+                                .transition(.move(edge: .top).combined(with: .opacity))
+                        }
+                    }
+                    .padding(.horizontal, 24)
+                    .padding(.bottom, 32)
+#if os(macOS)
+                    Color.clear
+                        .frame(height: 1)
+                        .frame(maxWidth: .infinity)
+                        .onDrop(of: [UTType.plainText], delegate: TabOverviewDropDelegate(
+                            targetTabID: nil,
+                            isTrailingPlaceholder: true,
+                            appModel: appModel,
+                            draggingTabId: $draggingTabId,
+                            dropTargetTabId: $dropTargetTabId
+                        ))
+#endif
+                }
+            }
+        }
+        .background(themeManager.windowBackground)
+        .onAppear {
+            triggerAnimation()
+            initializeFocus()
+        }
+        .onDisappear {
+            draggingTabId = nil
+            dropTargetTabId = nil
+        }
+        .onChange(of: tabs.map(\.id)) { _, _ in
+            resetAnimation()
+            ensureFocusedTabIsVisible(previousVisibleTabIDs: lastVisibleTabIDs)
+        }
+        .onChange(of: collapsedServers) { _, _ in
+            ensureFocusedTabIsVisible(previousVisibleTabIDs: lastVisibleTabIDs)
+        }
+        .onChange(of: collapsedDatabases) { _, _ in
+            ensureFocusedTabIsVisible(previousVisibleTabIDs: lastVisibleTabIDs)
+        }
+        .onChange(of: activeTabId) { oldValue, newValue in
+            handleActiveTabChange(from: oldValue, to: newValue)
+        }
+        .onPreferenceChange(TabOverviewWidthPreferenceKey.self) { width in
+            updateColumnCount(for: width)
+        }
+#if os(macOS)
+        .background(
+            TabOverviewKeyCapture(onKeyDown: handleKeyEvent)
+                .allowsHitTesting(false)
+        )
+#endif
+    }
+
+    private var header: some View {
+        HStack(spacing: 16) {
+            Text("Tab Overview")
+                .font(.system(size: 18, weight: .semibold))
+
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 24)
+        .padding(.top, 20)
+    }
+
+    private var emptyState: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "square.grid.2x2")
+                .font(.system(size: 40))
+                .foregroundStyle(.secondary)
+            Text("No tabs open")
+                .font(.title3.weight(.semibold))
+            Text("Create a new tab to see it appear here.")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private func serverGroupView(_ group: ServerGroup) -> some View {
+        let serverID = group.connection.id
+        let isExpanded = !collapsedServers.contains(serverID)
+        let isActiveServer = group.connection.id == activeConnectionID
+
+        return VStack(alignment: .leading, spacing: 16) {
+            Button {
+                withAnimation(.easeInOut(duration: 0.25)) {
+                    toggleServerExpansion(serverID: serverID)
+                }
+            } label: {
+                HStack(spacing: 12) {
+                    Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(.secondary)
+
+                    serverHeader(for: group.connection)
+
+                    Spacer(minLength: 0)
+
+                    Text("\(group.totalTabCount) tab\(group.totalTabCount == 1 ? "" : "s")")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(.secondary)
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+
+            if isExpanded {
+                VStack(alignment: .leading, spacing: 18) {
+                    ForEach(group.databaseGroups) { databaseGroup in
+                        databaseSectionView(databaseGroup, serverID: serverID)
+                    }
+                }
+                .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+        }
+        .padding(20)
+        .background(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .fill(Color.primary.opacity(0.04))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .stroke(
+                    isActiveServer ? Color.accentColor.opacity(0.35) : Color.primary.opacity(0.08),
+                    lineWidth: isActiveServer ? 1.5 : 1
+                )
+        )
+    }
+
+    private func serverHeader(for connection: SavedConnection) -> some View {
+        let displayName = connection.connectionName.isEmpty ? connection.host : connection.connectionName
+        let rawInitials = displayName
+            .split(separator: " ")
+            .prefix(2)
+            .map { String($0.prefix(1)) }
+            .joined()
+            .uppercased()
+        let initials = String(rawInitials.prefix(2))
+
+        return HStack(spacing: 12) {
+            Circle()
+                .fill(connection.color.opacity(0.16))
+                .frame(width: 34, height: 34)
+                .overlay(
+                    Text(initials.isEmpty ? "DB" : initials)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(connection.color)
+                )
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(displayName)
+                    .font(.system(size: 15, weight: .semibold))
+                Text("\(connection.host) • \(connection.databaseType.displayName)")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private func databaseSectionView(_ databaseGroup: DatabaseGroup, serverID: UUID) -> some View {
+        let identifier = databaseIdentifier(for: databaseGroup.key, serverID: serverID)
+        let isExpanded = !collapsedDatabases.contains(identifier)
+        let isActiveDatabase = activeDatabaseName(for: serverID) == databaseGroup.activeDatabaseComparisonKey
+
+        return VStack(alignment: .leading, spacing: 12) {
+            Button {
+                withAnimation(.easeInOut(duration: 0.22)) {
+                    toggleDatabaseExpansion(identifier: identifier)
+                }
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(.secondary)
+
+                    Text(databaseGroup.title)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(isActiveDatabase ? .primary : .secondary)
+
+                    Spacer(minLength: 0)
+
+                    Text("\(databaseGroup.totalTabCount) tab\(databaseGroup.totalTabCount == 1 ? "" : "s")")
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundStyle(.tertiary)
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+
+            if isExpanded {
+                ForEach(databaseGroup.sections) { section in
+                    tabSectionView(section)
+                }
+                .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+        }
+    }
+
+    private func tabSectionView(_ section: TabSection) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            if let title = section.title {
+                Text(title)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(.secondary)
+            }
+
+            LazyVGrid(columns: gridColumns, spacing: gridSpacing) {
+                ForEach(section.tabs) { tab in
+                    tabCard(for: tab)
+                }
+            }
+            .background(
+                GeometryReader { proxy in
+                    Color.clear.preference(key: TabOverviewWidthPreferenceKey.self, value: proxy.size.width)
+                }
+            )
+        }
+        .animation(animation, value: section.tabs.map(\.id))
+    }
+
+    private func tabCard(for tab: WorkspaceTab) -> some View {
+        TabPreviewCard(
+            tab: tab,
+            isActive: tab.id == activeTabId,
+            isFocused: tab.id == focusedTabId,
+            isDropTarget: dropTargetTabId == tab.id,
+            onSelect: { onSelectTab(tab.id) },
+            onClose: { onCloseTab(tab.id) }
+        )
+        .environmentObject(themeManager)
+        .scaleEffect(animateIn ? 1 : 0.92)
+        .opacity(animateIn ? 1 : 0)
+        .animation(animation.delay(0.03 * Double(appearIndex(for: tab))), value: animateIn)
+        .transition(.scale(scale: 0.92).combined(with: .opacity))
+#if os(macOS)
+        .onDrag {
+            draggingTabId = tab.id
+            dropTargetTabId = nil
+            return NSItemProvider(object: NSString(string: tab.id.uuidString))
+        }
+        .onDrop(of: [UTType.plainText], delegate: TabOverviewDropDelegate(
+            targetTabID: tab.id,
+            isTrailingPlaceholder: false,
+            appModel: appModel,
+            draggingTabId: $draggingTabId,
+            dropTargetTabId: $dropTargetTabId
+        ))
+#endif
+    }
+
+    private var visibleTabIDs: [UUID] {
+        groupedTabs.reduce(into: [UUID]()) { result, serverGroup in
+            let serverID = serverGroup.connection.id
+            guard !collapsedServers.contains(serverID) else { return }
+
+            for databaseGroup in serverGroup.databaseGroups {
+                let identifier = databaseIdentifier(for: databaseGroup.key, serverID: serverID)
+                guard !collapsedDatabases.contains(identifier) else { continue }
+
+                for section in databaseGroup.sections {
+                    result.append(contentsOf: section.tabs.map(\.id))
+                }
+            }
+        }
+    }
+
+    private func initializeFocus() {
+        let visible = visibleTabIDs
+        lastVisibleTabIDs = visible
+
+        guard !visible.isEmpty else {
+            focusedTabId = nil
+            return
+        }
+
+        if let activeTabId, visible.contains(activeTabId) {
+            focusedTabId = activeTabId
+        } else {
+            focusedTabId = visible.first
+        }
+    }
+
+    private func ensureFocusedTabIsVisible(previousVisibleTabIDs: [UUID]? = nil) {
+        let visible = visibleTabIDs
+        defer { lastVisibleTabIDs = visible }
+
+        guard !visible.isEmpty else {
+            focusedTabId = nil
+            return
+        }
+
+        if let focusedTabId, visible.contains(focusedTabId) {
+            return
+        }
+
+        if let previous = previousVisibleTabIDs,
+           let focused = focusedTabId,
+           let previousIndex = previous.firstIndex(of: focused) {
+            let clampedIndex = min(previousIndex, visible.count - 1)
+            focusedTabId = visible[clampedIndex]
+            return
+        }
+
+        if let activeTabId, visible.contains(activeTabId) {
+            focusedTabId = activeTabId
+        } else {
+            focusedTabId = visible.first
+        }
+    }
+
+    private func handleActiveTabChange(from oldValue: UUID?, to newValue: UUID?) {
+        guard let newValue else {
+            ensureFocusedTabIsVisible(previousVisibleTabIDs: lastVisibleTabIDs)
+            return
+        }
+
+        let visible = visibleTabIDs
+        if visible.isEmpty {
+            focusedTabId = nil
+            lastVisibleTabIDs = visible
+            return
+        }
+
+        if focusedTabId == nil || focusedTabId == oldValue {
+            if visible.contains(newValue) {
+                focusedTabId = newValue
+            } else {
+                ensureFocusedTabIsVisible(previousVisibleTabIDs: lastVisibleTabIDs)
+            }
+        } else if let focusedTabId, !visible.contains(focusedTabId) {
+            ensureFocusedTabIsVisible(previousVisibleTabIDs: lastVisibleTabIDs)
+        }
+    }
+
+    private func updateColumnCount(for width: CGFloat) {
+        guard width > 0 else { return }
+        let effectiveWidth = width + gridSpacing
+        let base = minCardWidth + gridSpacing
+        let calculated = max(Int(effectiveWidth / base), 1)
+        if calculated != columnCount {
+            columnCount = calculated
+        }
+    }
+
+    private func focusIndex(in ids: [UUID]) -> Int? {
+        guard let focusedTabId else { return nil }
+        return ids.firstIndex(of: focusedTabId)
+    }
+
+    @discardableResult
+    private func moveFocus(by offset: Int, wrap: Bool) -> Bool {
+        let ids = visibleTabIDs
+        guard !ids.isEmpty else { return false }
+
+        let currentIndex: Int
+        if let existing = focusIndex(in: ids) {
+            currentIndex = existing
+        } else {
+            currentIndex = offset > 0 ? -1 : ids.count
+        }
+
+        var targetIndex = currentIndex + offset
+
+        if wrap {
+            let count = ids.count
+            if count == 0 { return false }
+            targetIndex = (targetIndex % count + count) % count
+        } else if targetIndex < 0 || targetIndex >= ids.count {
+            return false
+        }
+
+        focusedTabId = ids[targetIndex]
+        return true
+    }
+
+    @discardableResult
+    private func moveFocusVertically(by rows: Int) -> Bool {
+        guard rows != 0 else { return false }
+
+        let ids = visibleTabIDs
+        guard !ids.isEmpty else { return false }
+        let columns = max(columnCount, 1)
+
+        guard let currentIndex = focusIndex(in: ids) else {
+            focusedTabId = ids.first
+            return true
+        }
+
+        let targetIndex = currentIndex + rows * columns
+        guard targetIndex >= 0, targetIndex < ids.count else { return false }
+
+        focusedTabId = ids[targetIndex]
+        focusedTabId = ids[targetIndex]
+        return true
+    }
+
+    @discardableResult
+    private func focusNext(wrap: Bool) -> Bool {
+        moveFocus(by: 1, wrap: wrap)
+    }
+
+    @discardableResult
+    private func focusPrevious(wrap: Bool) -> Bool {
+        moveFocus(by: -1, wrap: wrap)
+    }
+
+    private func activateFocusedTab() -> Bool {
+        guard let focusedTabId, visibleTabIDs.contains(focusedTabId) else { return false }
+        onSelectTab(focusedTabId)
+        return true
+    }
+
+    private func closeFocusedTab() -> Bool {
+        guard let focusedTabId, visibleTabIDs.contains(focusedTabId) else { return false }
+        onCloseTab(focusedTabId)
+        return true
+    }
+
+#if os(macOS)
+    private func handleKeyEvent(_ event: NSEvent) -> Bool {
+        let flags = event.modifierFlags.intersection([.shift, .command, .control, .option])
+
+        switch event.keyCode {
+        case 123: // Left arrow
+            if flags.contains(.command) || flags.contains(.control) || flags.contains(.option) { return false }
+            return focusPrevious(wrap: true)
+
+        case 124: // Right arrow
+            if flags.contains(.command) || flags.contains(.control) || flags.contains(.option) { return false }
+            return focusNext(wrap: true)
+
+        case 125: // Down arrow
+            if flags.contains(.command) || flags.contains(.control) || flags.contains(.option) { return false }
+            return moveFocusVertically(by: 1)
+
+        case 126: // Up arrow
+            if flags.contains(.command) || flags.contains(.control) || flags.contains(.option) { return false }
+            return moveFocusVertically(by: -1)
+
+        case 48: // Tab
+            if flags.contains(.control) || flags.contains(.command) || flags.contains(.option) {
+                return false
+            }
+            if flags.contains(.shift) {
+                return focusPrevious(wrap: true)
+            } else {
+                return focusNext(wrap: true)
+            }
+
+        case 36, 76: // Return / keypad enter
+            if flags.contains(.command) || flags.contains(.control) || flags.contains(.option) { return false }
+            return activateFocusedTab()
+
+        case 51, 117: // Delete / forward delete
+            if flags.contains(.control) || flags.contains(.option) { return false }
+            return closeFocusedTab()
+
+        default:
+            return false
+        }
+    }
+
+    private struct TabOverviewDropDelegate: DropDelegate {
+        let targetTabID: UUID?
+        let isTrailingPlaceholder: Bool
+        let appModel: AppModel
+        @Binding var draggingTabId: UUID?
+        @Binding var dropTargetTabId: UUID?
+
+        func validateDrop(info: DropInfo) -> Bool {
+            draggingTabId != nil
+        }
+
+        func dropEntered(info: DropInfo) {
+            guard let draggingID = draggingTabId else { return }
+
+            Task { @MainActor in
+                if isTrailingPlaceholder {
+                    let count = appModel.tabManager.tabs.count
+                    guard count > 0 else { return }
+                    let destinationIndex = count - 1
+                    appModel.tabManager.moveTab(id: draggingID, to: destinationIndex)
+                    dropTargetTabId = nil
+                } else if let targetID = targetTabID,
+                          targetID != draggingID,
+                          let targetIndex = appModel.tabManager.index(of: targetID) {
+                    appModel.tabManager.moveTab(id: draggingID, to: targetIndex)
+                    dropTargetTabId = targetID
+                }
+            }
+        }
+
+        func dropExited(info: DropInfo) {
+            if isTrailingPlaceholder {
+                dropTargetTabId = nil
+            } else if dropTargetTabId == targetTabID {
+                dropTargetTabId = nil
+            }
+        }
+
+        func performDrop(info: DropInfo) -> Bool {
+            draggingTabId = nil
+            dropTargetTabId = nil
+            return true
+        }
+    }
+#endif
+
+    private func triggerAnimation() {
+        guard !animateIn else { return }
+        resetAnimation()
+    }
+
+    private func resetAnimation() {
+        animateIn = false
+        DispatchQueue.main.async {
+            withAnimation(animation) {
+                animateIn = true
+            }
+        }
+    }
+
+    private func appearIndex(for tab: WorkspaceTab) -> Int {
+        orderedTabIDs.firstIndex(of: tab.id) ?? 0
+    }
+
+    private var groupedTabs: [ServerGroup] {
+        var orderedServerIDs: [UUID] = []
+        var seenServers = Set<UUID>()
+        for tab in tabs {
+            if seenServers.insert(tab.connection.id).inserted {
+                orderedServerIDs.append(tab.connection.id)
+            }
+        }
+
+        if let activeID = activeConnectionID,
+           let activeIndex = orderedServerIDs.firstIndex(of: activeID) {
+            orderedServerIDs.remove(at: activeIndex)
+            orderedServerIDs.insert(activeID, at: 0)
+        }
+
+        return orderedServerIDs.compactMap { connectionID in
+            let serverTabs = tabs.filter { $0.connection.id == connectionID }
+            guard let connection = serverTabs.first?.connection else { return nil }
+            let databaseGroups = databaseGroupsForTabs(serverTabs)
+            return ServerGroup(connection: connection, databaseGroups: databaseGroups, totalTabCount: serverTabs.count)
+        }
+    }
+
+    private func databaseGroupsForTabs(_ serverTabs: [WorkspaceTab]) -> [DatabaseGroup] {
+        var orderedDatabaseKeys: [DatabaseKey] = []
+        var seenDatabases = Set<String>()
+        var includedNil = false
+
+        for tab in serverTabs {
+            let key = databaseKey(for: tab)
+            switch key {
+            case .named(let name):
+                if seenDatabases.insert(name).inserted {
+                    orderedDatabaseKeys.append(.named(name))
+                }
+            case .none:
+                if !includedNil {
+                    includedNil = true
+                    orderedDatabaseKeys.append(.none)
+                }
+            }
+        }
+
+        if orderedDatabaseKeys.isEmpty {
+            orderedDatabaseKeys.append(.none)
+        }
+
+        return orderedDatabaseKeys.map { key in
+            let matchingTabs = serverTabs.filter { databaseKey(for: $0) == key }
+            return DatabaseGroup(
+                key: key,
+                sections: sections(for: matchingTabs),
+                totalTabCount: matchingTabs.count
+            )
+        }
+    }
+
+    private func sections(for tabs: [WorkspaceTab]) -> [TabSection] {
+        guard !tabs.isEmpty else { return [] }
+
+        return [TabSection(id: "all", title: nil, tabs: tabs)]
+    }
+
+    private enum DatabaseKey: Equatable {
+        case named(String)
+        case none
+    }
+
+    private func databaseKey(for tab: WorkspaceTab) -> DatabaseKey {
+        guard let name = databaseName(for: tab) else { return .none }
+        return .named(name)
+    }
+
+    private func databaseName(for tab: WorkspaceTab) -> String? {
+        if let session = appModel.sessionManager.activeSessions.first(where: { $0.id == tab.connectionSessionID }),
+           let selected = session.selectedDatabaseName, !selected.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return selected
+        }
+
+        let trimmed = tab.connection.database.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
+    }
+
+    private struct ServerGroup: Identifiable {
+        let connection: SavedConnection
+        let databaseGroups: [DatabaseGroup]
+        let totalTabCount: Int
+
+        var id: UUID { connection.id }
+    }
+
+    private struct DatabaseGroup: Identifiable {
+        let key: DatabaseKey
+        let sections: [TabSection]
+        let totalTabCount: Int
+
+        var id: String {
+            switch key {
+            case .named(let name): return name
+            case .none: return "__none"
+            }
+        }
+
+        var title: String {
+            switch key {
+            case .named(let name): return "Database • \(name)"
+            case .none: return "Database • Not Selected"
+            }
+        }
+
+        var activeDatabaseComparisonKey: String? {
+            switch key {
+            case .named(let name): return name.lowercased()
+            case .none: return nil
+            }
+        }
+    }
+
+    private var activeConnectionID: UUID? {
+        appModel.sessionManager.activeSession?.connection.id
+    }
+
+    private func activeDatabaseName(for serverID: UUID) -> String? {
+        guard let session = appModel.sessionManager.activeSessions.first(where: { $0.connection.id == serverID }) else {
+            return nil
+        }
+        return session.selectedDatabaseName?.lowercased()
+    }
+
+    private func databaseIdentifier(for key: DatabaseKey, serverID: UUID) -> String {
+        switch key {
+        case .named(let name):
+            return "\(serverID.uuidString)|\(name.lowercased())"
+        case .none:
+            return "\(serverID.uuidString)|__none"
+        }
+    }
+
+    private func toggleServerExpansion(serverID: UUID) {
+        if collapsedServers.contains(serverID) {
+            collapsedServers.remove(serverID)
+        } else {
+            collapsedServers.insert(serverID)
+        }
+    }
+
+    private func toggleDatabaseExpansion(identifier: String) {
+        if collapsedDatabases.contains(identifier) {
+            collapsedDatabases.remove(identifier)
+        } else {
+            collapsedDatabases.insert(identifier)
+        }
+    }
+
+    private struct TabSection: Identifiable {
+        let id: String
+        let title: String?
+        let tabs: [WorkspaceTab]
+    }
+
+}
+
+private struct TabPreviewCard: View {
+    @ObservedObject var tab: WorkspaceTab
+    let isActive: Bool
+    let isFocused: Bool
+    let isDropTarget: Bool
+    let onSelect: () -> Void
+    let onClose: () -> Void
+
+    @State private var isHovering = false
+    @EnvironmentObject private var themeManager: ThemeManager
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text(tab.title)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+
+                Spacer()
+
+                if isHovering {
+                    Button(action: onClose) {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 16))
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            
+            VStack(alignment: .leading, spacing: 8) {
+                Text(tab.connection.connectionName)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(.secondary)
+
+                previewContent
+
+                if let query = tab.query {
+                    if query.isExecuting {
+                        HStack(spacing: 6) {
+                            ProgressView()
+                                .scaleEffect(0.7)
+                                .frame(width: 12, height: 12)
+                            Text("Running")
+                                .font(.system(size: 11, weight: .medium))
+                        }
+                        .foregroundStyle(.orange)
+                    } else if query.hasExecutedAtLeastOnce {
+                        if query.errorMessage != nil {
+                            HStack(spacing: 6) {
+                                Image(systemName: "exclamationmark.triangle.fill")
+                                    .font(.system(size: 10))
+                                Text("Error")
+                                    .font(.system(size: 11, weight: .medium))
+                            }
+                            .foregroundStyle(.orange)
+                        } else {
+                            HStack(spacing: 6) {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .font(.system(size: 10))
+                                Text("Success")
+                                    .font(.system(size: 11, weight: .medium))
+                            }
+                            .foregroundStyle(.green)
+                        }
+                    }
+                }
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, minHeight: 160)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(cardBackgroundColor)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .strokeBorder(cardBorderColor, lineWidth: cardBorderWidth)
+        )
+        .shadow(color: Color.black.opacity((isActive || isDropTarget) ? 0.18 : 0.1),
+                radius: (isActive || isDropTarget) ? 12 : 8,
+                x: 0,
+                y: (isActive || isDropTarget) ? 8 : 5)
+        .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+#if os(macOS)
+        .onMiddleClick(perform: onClose)
+#endif
+        .onTapGesture(perform: onSelect)
+        .platformHover { hovering in isHovering = hovering }
+    }
+
+    @ViewBuilder
+    private var previewContent: some View {
+        if let query = tab.query {
+            if !query.sql.isEmpty {
+                Text(query.sql)
+                    .font(.system(size: 11, design: .monospaced))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(4)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(8)
+                    .background(Color.secondary.opacity(0.1))
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+            } else {
+                Text("Empty query")
+                    .font(.system(size: 11, design: .monospaced))
+                    .foregroundStyle(.tertiary)
+                    .italic()
+            }
+        } else if let editor = tab.structureEditor {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Structure view")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(.secondary)
+                Text("\(editor.schemaName).\(editor.tableName)")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(.primary)
+            }
+        }
+    }
+
+    private var cardBackgroundColor: Color {
+        if isDropTarget {
+            return Color.accentColor.opacity(0.18)
+        }
+        if isActive {
+            return Color.accentColor.opacity(0.12)
+        }
+        if isFocused {
+            return Color.accentColor.opacity(0.08)
+        }
+        return themeManager.windowBackground.opacity(0.98)
+    }
+
+    private var cardBorderColor: Color {
+        if isDropTarget {
+            return Color.accentColor
+        }
+        if isFocused {
+            return Color.accentColor.opacity(isActive ? 0.75 : 0.6)
+        }
+        if isActive {
+            return Color.accentColor.opacity(0.5)
+        }
+        return Color.primary.opacity(0.08)
+    }
+
+    private var cardBorderWidth: CGFloat {
+        if isDropTarget { return 2.2 }
+        if isFocused { return 1.8 }
+        if isActive { return 1.5 }
+        return 1
+    }
+}
+
+private struct TabGroupWidthPreferenceKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
+    }
+}
+
+private struct TabOverviewWidthPreferenceKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
+    }
+}
+
+
+#if os(macOS)
+// MARK: - Tab Overview Key Capture
+
+private struct TabOverviewKeyCapture: NSViewRepresentable {
+    let onKeyDown: (NSEvent) -> Bool
+
+    func makeNSView(context: Context) -> KeyCaptureView {
+        let view = KeyCaptureView()
+        view.onKeyDown = onKeyDown
+        DispatchQueue.main.async {
+            view.window?.makeFirstResponder(view)
+        }
+        return view
+    }
+
+    func updateNSView(_ nsView: KeyCaptureView, context: Context) {
+        nsView.onKeyDown = onKeyDown
+        DispatchQueue.main.async {
+            if nsView.window?.firstResponder !== nsView {
+                nsView.window?.makeFirstResponder(nsView)
+            }
+        }
+    }
+
+    final class KeyCaptureView: NSView {
+        var onKeyDown: ((NSEvent) -> Bool)?
+
+        override var acceptsFirstResponder: Bool { true }
+
+        override func keyDown(with event: NSEvent) {
+            if onKeyDown?(event) ?? false {
+                return
+            }
+            super.keyDown(with: event)
+        }
+
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            DispatchQueue.main.async { [weak self] in
+                guard let self else { return }
+                self.window?.makeFirstResponder(self)
+            }
+        }
+    }
+}
+
+// MARK: - Safari-Style Tab Bar Chrome
+
+private struct TabChromePalette {
+    let baseFill: LinearGradient
+    let baseStroke: Color
+    let baseShadow: Color
+    let activeTabFill: LinearGradient
+    let activeTabHoverFill: LinearGradient
+    let inactiveTabFill: LinearGradient
+    let hoverTabFill: LinearGradient
+    let dropTabFill: LinearGradient
+    let activeTabBorder: Color
+    let activeTabHoverBorder: Color
+    let hoverTabBorder: Color
+    let inactiveTabBorder: Color
+    let dropTabBorder: Color
+    let activeTitle: Color
+    let inactiveTitle: Color
+    let activeIcon: Color
+    let inactiveIcon: Color
+    let closeForeground: Color
+    let closeHoverForeground: Color
+    let closeHoverBackground: Color
+    let shadowColor: Color
+    let actionButtonFill: LinearGradient
+    let actionButtonFillHover: LinearGradient
+    let actionButtonFillInactive: LinearGradient
+    let actionButtonBorder: Color
+    let actionButtonIcon: Color
+    let separatorGradient: LinearGradient
+
+    init(theme: AppColorTheme, accent: NSColor, fallbackScheme: ColorScheme) {
+        _ = fallbackScheme
+        let baseBackground = theme.surfaceBackground.nsColor.usingColorSpace(.deviceRGB) ?? theme.surfaceBackground.nsColor
+        let selection = theme.editorSelection.nsColor.usingColorSpace(.deviceRGB) ?? theme.editorSelection.nsColor
+        let textColor = theme.surfaceForeground.nsColor.usingColorSpace(.deviceRGB) ?? theme.surfaceForeground.nsColor
+        let accentColor = (theme.accent?.nsColor ?? accent).usingColorSpace(.deviceRGB) ?? accent
+        let toneIsDark = theme.tone == .dark
+
+        let neutralBase = blend(baseBackground, with: toneIsDark ? .black : .white, amount: toneIsDark ? 0.05 : 0.04)
+        let baseTop = lighten(neutralBase, by: toneIsDark ? 0.02 : 0.03)
+        let baseBottom = darken(neutralBase, by: toneIsDark ? 0.06 : 0.05)
+        baseFill = LinearGradient(colors: [Color(nsColor: baseTop), Color(nsColor: baseBottom)], startPoint: .top, endPoint: .bottom)
+        let baseStrokeColor = darken(neutralBase, by: toneIsDark ? 0.14 : 0.10).withAlphaComponent(toneIsDark ? 0.45 : 0.26)
+        baseStroke = Color(nsColor: baseStrokeColor)
+        baseShadow = toneIsDark ? Color.black.opacity(0.28) : Color.black.opacity(0.08)
+
+        let softenedAccent = blend(accentColor, with: baseBackground, amount: toneIsDark ? 0.68 : 0.72)
+        let activeTop = lighten(softenedAccent, by: toneIsDark ? 0.05 : 0.08)
+        let activeBottom = darken(softenedAccent, by: toneIsDark ? 0.10 : 0.12)
+        activeTabFill = LinearGradient(colors: [Color(nsColor: activeTop), Color(nsColor: activeBottom)], startPoint: .top, endPoint: .bottom)
+
+        let activeHoverTop = lighten(softenedAccent, by: toneIsDark ? 0.08 : 0.11)
+        let activeHoverBottom = darken(softenedAccent, by: toneIsDark ? 0.08 : 0.10)
+        activeTabHoverFill = LinearGradient(colors: [Color(nsColor: activeHoverTop), Color(nsColor: activeHoverBottom)], startPoint: .top, endPoint: .bottom)
+
+        let inactiveTop = lighten(baseBackground, by: toneIsDark ? 0.05 : 0.04)
+        let inactiveBottom = darken(baseBackground, by: toneIsDark ? 0.08 : 0.05)
+        inactiveTabFill = LinearGradient(colors: [Color(nsColor: inactiveTop), Color(nsColor: inactiveBottom)], startPoint: .top, endPoint: .bottom)
+
+        let softenedSelection = blend(selection, with: baseBackground, amount: toneIsDark ? 0.6 : 0.7)
+        let hoverTop = lighten(softenedSelection, by: toneIsDark ? 0.06 : 0.08)
+        let hoverBottom = darken(softenedSelection, by: toneIsDark ? 0.08 : 0.09)
+        hoverTabFill = LinearGradient(colors: [Color(nsColor: hoverTop), Color(nsColor: hoverBottom)], startPoint: .top, endPoint: .bottom)
+
+        let dropAccent = blend(accentColor, with: softenedAccent, amount: 0.25)
+        let dropTop = lighten(dropAccent, by: toneIsDark ? 0.12 : 0.16)
+        let dropBottom = darken(dropAccent, by: toneIsDark ? 0.18 : 0.20)
+        dropTabFill = LinearGradient(colors: [Color(nsColor: dropTop), Color(nsColor: dropBottom)], startPoint: .top, endPoint: .bottom)
+
+        let activeBorderColor = darken(softenedAccent, by: toneIsDark ? 0.14 : 0.12).withAlphaComponent(toneIsDark ? 0.55 : 0.48)
+        activeTabBorder = Color(nsColor: activeBorderColor)
+        let activeHoverBorderColor = darken(softenedAccent, by: toneIsDark ? 0.10 : 0.10).withAlphaComponent(toneIsDark ? 0.65 : 0.55)
+        activeTabHoverBorder = Color(nsColor: activeHoverBorderColor)
+        let hoverBorderColor = darken(softenedSelection, by: toneIsDark ? 0.10 : 0.08).withAlphaComponent(toneIsDark ? 0.55 : 0.38)
+        hoverTabBorder = Color(nsColor: hoverBorderColor)
+        inactiveTabBorder = Color.clear
+        let dropBorderColor = darken(dropAccent, by: toneIsDark ? 0.22 : 0.24).withAlphaComponent(toneIsDark ? 1.0 : 0.92)
+        dropTabBorder = Color(nsColor: dropBorderColor)
+
+        activeTitle = Color(nsColor: textColor)
+        let inactiveTitleColor = blend(textColor, with: baseBackground, amount: toneIsDark ? 0.32 : 0.55)
+        inactiveTitle = Color(nsColor: inactiveTitleColor)
+        activeIcon = activeTitle
+        inactiveIcon = inactiveTitle
+
+        let closeBase = blend(textColor, with: baseBackground, amount: toneIsDark ? 0.24 : 0.40)
+        closeForeground = Color(nsColor: closeBase)
+        closeHoverForeground = Color.white
+        let closeBackgroundColor = lighten(softenedAccent, by: toneIsDark ? 0.18 : 0.22).withAlphaComponent(0.92)
+        closeHoverBackground = Color(nsColor: closeBackgroundColor)
+
+        shadowColor = toneIsDark ? Color.black.opacity(0.38) : Color.black.opacity(0.14)
+
+        let actionTop = lighten(softenedAccent, by: toneIsDark ? 0.14 : 0.18)
+        let actionBottom = darken(softenedAccent, by: toneIsDark ? 0.16 : 0.18)
+        actionButtonFill = LinearGradient(colors: [Color(nsColor: actionTop), Color(nsColor: actionBottom)], startPoint: .top, endPoint: .bottom)
+
+        let actionHoverTop = lighten(softenedAccent, by: toneIsDark ? 0.18 : 0.22)
+        let actionHoverBottom = darken(softenedAccent, by: toneIsDark ? 0.12 : 0.14)
+        actionButtonFillHover = LinearGradient(colors: [Color(nsColor: actionHoverTop), Color(nsColor: actionHoverBottom)], startPoint: .top, endPoint: .bottom)
+
+        let inactiveActionTop = lighten(baseBackground, by: toneIsDark ? 0.08 : 0.06)
+        let inactiveActionBottom = darken(baseBackground, by: toneIsDark ? 0.10 : 0.06)
+        actionButtonFillInactive = LinearGradient(colors: [Color(nsColor: inactiveActionTop), Color(nsColor: inactiveActionBottom)], startPoint: .top, endPoint: .bottom)
+
+        let actionBorderColor = darken(softenedAccent, by: toneIsDark ? 0.22 : 0.20).withAlphaComponent(toneIsDark ? 0.9 : 0.82)
+        actionButtonBorder = Color(nsColor: actionBorderColor)
+        actionButtonIcon = Color.white
+
+        let separatorTop = lighten(baseBackground, by: toneIsDark ? 0.08 : 0.05)
+        let separatorBottom = darken(baseBackground, by: toneIsDark ? 0.18 : 0.10)
+        separatorGradient = LinearGradient(
+            colors: [
+                Color(nsColor: separatorTop).opacity(toneIsDark ? 0.55 : 0.62),
+                Color(nsColor: separatorBottom).opacity(toneIsDark ? 0.72 : 0.74)
+            ],
+            startPoint: .top,
+            endPoint: .bottom
+        )
+    }
+}
+
+private func clamp(_ value: CGFloat) -> CGFloat { min(max(value, 0), 1) }
+
+private func lighten(_ color: NSColor, by amount: CGFloat) -> NSColor {
+    let rgb = color.usingColorSpace(.deviceRGB) ?? color
+    return NSColor(red: clamp(rgb.redComponent + amount),
+                   green: clamp(rgb.greenComponent + amount),
+                   blue: clamp(rgb.blueComponent + amount),
+                   alpha: rgb.alphaComponent)
+}
+
+private func darken(_ color: NSColor, by amount: CGFloat) -> NSColor {
+    let rgb = color.usingColorSpace(.deviceRGB) ?? color
+    return NSColor(red: clamp(rgb.redComponent - amount),
+                   green: clamp(rgb.greenComponent - amount),
+                   blue: clamp(rgb.blueComponent - amount),
+                   alpha: rgb.alphaComponent)
+}
+
+private func blend(_ color: NSColor, with other: NSColor, amount: CGFloat) -> NSColor {
+    let t = clamp(amount)
+    let rgb1 = color.usingColorSpace(.deviceRGB) ?? color
+    let rgb2 = other.usingColorSpace(.deviceRGB) ?? other
+    return NSColor(
+        red: rgb1.redComponent * (1 - t) + rgb2.redComponent * t,
+        green: rgb1.greenComponent * (1 - t) + rgb2.greenComponent * t,
+        blue: rgb1.blueComponent * (1 - t) + rgb2.blueComponent * t,
+        alpha: rgb1.alphaComponent * (1 - t) + rgb2.alphaComponent * t
+    )
+}
+
+private struct TabStripBackground: View {
+    enum Style {
+        case standard(ColorScheme)
+        case themed(TabChromePalette)
+    }
+
+    var style: Style
+    var height: CGFloat = 24
+    var cornerRadius: CGFloat = 15
+
+    private var shape: RoundedRectangle {
+        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+    }
+
+    var body: some View {
+        shape
+            .fill(baseFill)
+            .overlay(topEdgeOverlay)
+            .overlay(bottomEdgeOverlay)
+            .frame(height: height)
+            .allowsHitTesting(false)
+    }
+
+    private var baseFill: AnyShapeStyle {
+        switch style {
+        case .standard(let scheme):
+            let color = scheme == .dark ? Color(white: 0.22) : Color(white: 0.90)
+            return AnyShapeStyle(color)
+        case .themed(let palette):
+            return AnyShapeStyle(palette.baseFill)
+        }
+    }
+
+    @ViewBuilder
+    private var topEdgeOverlay: some View {
+        if case .themed(let palette) = style {
+            shape.stroke(palette.baseStroke, lineWidth: tabHairlineWidth())
+        } else {
+            EmptyView()
+        }
+    }
+
+    @ViewBuilder
+    private var bottomEdgeOverlay: some View {
+        EmptyView()
+    }
+}
+
+private struct SafariTabBarBackground: View {
+    var body: some View {
+        LinearGradient(colors: [Color.white.opacity(0.16), Color.black.opacity(0.14)], startPoint: .top, endPoint: .bottom)
+            .allowsHitTesting(false)
+    }
+}
+
+private struct SafariTabBarTopEdge: View {
+    var body: some View {
+        Rectangle()
+            .fill(Color.white.opacity(0.45))
+            .frame(height: tabHairlineWidth())
+    }
+}
+
+// MARK: - Middle Click Support
+
+private struct MiddleClickGestureModifier: ViewModifier {
+    let action: () -> Void
+
+    func body(content: Content) -> some View {
+        content.background(MiddleClickCapture(onMiddleClick: action))
+    }
+}
+
+private struct MiddleClickCapture: NSViewRepresentable {
+    let onMiddleClick: () -> Void
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(onMiddleClick: onMiddleClick)
+    }
+
+    func makeNSView(context: Context) -> MiddleClickReceiverView {
+        let view = MiddleClickReceiverView()
+        view.onSuperviewChanged = { superview in
+            if let superview {
+                context.coordinator.attach(to: superview)
+            } else {
+                context.coordinator.detach()
+            }
+        }
+        return view
+    }
+
+    func updateNSView(_ nsView: MiddleClickReceiverView, context: Context) {
+        context.coordinator.onMiddleClick = onMiddleClick
+        if let superview = nsView.superview {
+            context.coordinator.attach(to: superview)
+        } else {
+            context.coordinator.detach()
+        }
+    }
+
+    final class Coordinator: NSObject {
+        var onMiddleClick: () -> Void
+        private weak var attachedView: NSView?
+        private var monitor: Any?
+
+        init(onMiddleClick: @escaping () -> Void) {
+            self.onMiddleClick = onMiddleClick
+        }
+
+        func attach(to view: NSView) {
+            guard attachedView !== view else { return }
+            detach()
+            attachedView = view
+            monitor = NSEvent.addLocalMonitorForEvents(matching: [.otherMouseUp]) { [weak self] event in
+                guard let self,
+                      let attachedView = self.attachedView,
+                      event.window === attachedView.window else {
+                    return event
+                }
+
+                let location = attachedView.convert(event.locationInWindow, from: nil)
+                if attachedView.bounds.contains(location) {
+                    self.onMiddleClick()
+                    return nil
+                }
+
+                return event
+            }
+        }
+
+        func detach() {
+            if let monitor {
+                NSEvent.removeMonitor(monitor)
+            }
+            monitor = nil
+            attachedView = nil
+        }
+
+        deinit {
+            detach()
+        }
+    }
+}
+
+private final class MiddleClickReceiverView: NSView {
+    var onSuperviewChanged: ((NSView?) -> Void)?
+
+    override func viewDidMoveToSuperview() {
+        super.viewDidMoveToSuperview()
+        onSuperviewChanged?(superview)
+    }
+
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        nil
+    }
+}
+
+extension View {
+    func onMiddleClick(perform action: @escaping () -> Void) -> some View {
+        modifier(MiddleClickGestureModifier(action: action))
+    }
+}
+#else
+private struct TabChromePalette {}
+
+private struct TabStripBackground: View {
+    var body: some View {
+        RoundedRectangle(cornerRadius: 15, style: .continuous)
+            .fill(Color(white: 0.92))
+            .allowsHitTesting(false)
+    }
+}
+
+extension View {
+    func onMiddleClick(perform action: @escaping () -> Void) -> some View {
+        self
+    }
+}
+#endif

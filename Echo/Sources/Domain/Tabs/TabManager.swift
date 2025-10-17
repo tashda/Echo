@@ -26,6 +26,16 @@ final class TabManager: ObservableObject {
         }
     }
 
+    private struct ClosedTabSnapshot {
+        let tab: WorkspaceTab
+        let index: Int
+    }
+
+    private var closedTabHistory: [ClosedTabSnapshot] = []
+    private let closedTabHistoryLimit = 100
+
+    var canReopenClosedTab: Bool { !closedTabHistory.isEmpty }
+
     var activeTab: WorkspaceTab? {
         guard let activeID = activeTabId else { return nil }
         return tabs.first { $0.id == activeID }
@@ -82,8 +92,10 @@ final class TabManager: ObservableObject {
 
     @discardableResult
     func closeTab(id: UUID) -> Bool {
-        guard let tab = getTab(id: id) else { return false }
+        guard let index = index(of: id) else { return false }
+        let tab = tabs[index]
         guard delegate?.tabManager(self, shouldClose: tab) ?? true else { return false }
+        recordClosedTab(tab, index: index)
         removeTab(withID: id)
         return true
     }
@@ -100,6 +112,26 @@ final class TabManager: ObservableObject {
 
     func index(of id: UUID) -> Int? {
         tabs.firstIndex { $0.id == id }
+    }
+
+    func activateNextTab() {
+        guard !tabs.isEmpty else { return }
+        if let activeID = activeTabId, let currentIndex = index(of: activeID) {
+            let nextIndex = (currentIndex + 1) % tabs.count
+            activeTabId = tabs[nextIndex].id
+        } else {
+            activeTabId = tabs.first?.id
+        }
+    }
+
+    func activatePreviousTab() {
+        guard !tabs.isEmpty else { return }
+        if let activeID = activeTabId, let currentIndex = index(of: activeID) {
+            let previousIndex = (currentIndex - 1 + tabs.count) % tabs.count
+            activeTabId = tabs[previousIndex].id
+        } else {
+            activeTabId = tabs.last?.id
+        }
     }
 
     // MARK: - Reordering
@@ -122,13 +154,7 @@ final class TabManager: ObservableObject {
             maxIndex = finalCountAfterInsertion - 1
         }
 
-        var destination = min(max(proposedIndex, minIndex), maxIndex)
-
-        if currentIndex < destination {
-            destination -= 1
-        }
-
-        destination = min(max(destination, minIndex), maxIndex)
+        let destination = min(max(proposedIndex, minIndex), maxIndex)
 
         tabs.insert(tab, at: destination)
 
@@ -189,6 +215,14 @@ final class TabManager: ObservableObject {
     }
 
     // MARK: - Closing Helpers
+
+    @discardableResult
+    func reopenLastClosedTab(activate shouldActivate: Bool = true) -> WorkspaceTab? {
+        guard let snapshot = closedTabHistory.popLast() else { return nil }
+        let insertionIndex = min(max(snapshot.index, 0), tabs.count)
+        insertTab(snapshot.tab, at: insertionIndex, activate: shouldActivate, notifyDelegate: true)
+        return snapshot.tab
+    }
 
     func closeOtherTabs(keeping id: UUID) {
         guard tabs.contains(where: { $0.id == id }) else { return }
@@ -262,5 +296,13 @@ final class TabManager: ObservableObject {
 
         tabs = orderedTabs
         delegate?.tabManagerDidReorderTabs(self)
+    }
+
+    private func recordClosedTab(_ tab: WorkspaceTab, index: Int) {
+        closedTabHistory.removeAll { $0.tab.id == tab.id }
+        closedTabHistory.append(.init(tab: tab, index: index))
+        if closedTabHistory.count > closedTabHistoryLimit {
+            closedTabHistory.removeFirst(closedTabHistory.count - closedTabHistoryLimit)
+        }
     }
 }

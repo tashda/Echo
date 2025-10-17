@@ -148,33 +148,109 @@ final class MSSQLSession: DatabaseSession {
 
     func simpleQuery(_ sql: String, progressHandler: QueryProgressHandler?) async throws -> QueryResultSet {
         var resolvedColumns = (try? await describeColumns(for: sql)) ?? []
-        let rows = try await fetchRows(sql)
+        var shouldDropRowNumberColumn = false
+
+        if let first = resolvedColumns.first, first.name == "__rownum" {
+            resolvedColumns.removeFirst()
+            shouldDropRowNumberColumn = true
+        }
+
+        var previewRows: [[String?]] = []
+        previewRows.reserveCapacity(512)
+        var totalRowCount = 0
+
+        let operationStart = CFAbsoluteTimeGetCurrent()
+        let streamingPreviewLimit = 512
+        let maxFlushLatency: TimeInterval = 0.015
+
+        var encounteredError: Error?
+        var wasCancelled = false
+
+        var worker: ResultStreamBatchWorker?
+
+        let future = connection.rawSql(sql, onRow: { rawRow in
+            if Task.isCancelled {
+                wasCancelled = true
+                throw CancellationError()
+            }
+
+            let wrappedRow = MSSQLRow(row: rawRow, formatter: self.formatter)
+
+            if resolvedColumns.isEmpty {
+                resolvedColumns = self.makeColumnInfo(from: wrappedRow)
+                if let first = resolvedColumns.first, first.name == "__rownum" {
+                    resolvedColumns.removeFirst()
+                    shouldDropRowNumberColumn = true
+                }
+            }
+
+            guard !resolvedColumns.isEmpty else { return }
+
+            if worker == nil, let handler = progressHandler, !resolvedColumns.isEmpty {
+                worker = ResultStreamBatchWorker(
+                    label: "dk.tippr.echo.mssql.streamWorker",
+                    columns: resolvedColumns,
+                    streamingPreviewLimit: streamingPreviewLimit,
+                    maxFlushLatency: maxFlushLatency,
+                    operationStart: operationStart,
+                    progressHandler: handler
+                )
+            }
+
+            let decodeStart = CFAbsoluteTimeGetCurrent()
+            var formatted = self.formatRow(wrappedRow, columns: resolvedColumns)
+            if shouldDropRowNumberColumn, formatted.count > resolvedColumns.count {
+                formatted.removeFirst()
+            }
+            let decodeDuration = CFAbsoluteTimeGetCurrent() - decodeStart
+            let finalRow = formatted
+            totalRowCount += 1
+            if previewRows.count < streamingPreviewLimit {
+                previewRows.append(finalRow)
+            }
+
+            let previewForWorker: [String?]? = totalRowCount <= streamingPreviewLimit ? finalRow : nil
+            let encodedRow = ResultBinaryRowCodec.encode(row: finalRow)
+
+            worker?.enqueue(
+                .init(
+                    previewValues: previewForWorker,
+                    encodedRow: encodedRow,
+                    totalRowCount: totalRowCount,
+                    decodeDuration: decodeDuration
+                )
+            )
+        })
+
+        do {
+            try await future.get()
+        } catch is CancellationError {
+            encounteredError = CancellationError()
+        } catch {
+            encounteredError = error
+        }
+
+        worker?.finish(totalRowCount: totalRowCount)
+
+        if wasCancelled || encounteredError is CancellationError {
+            throw CancellationError()
+        }
+
+        if let error = encounteredError {
+            throw DatabaseError.queryError(error.localizedDescription)
+        }
 
         if resolvedColumns.isEmpty {
-            if let firstRow = rows.first {
-                resolvedColumns = makeColumnInfo(from: firstRow)
+            if let firstRow = previewRows.first {
+                resolvedColumns = firstRow.enumerated().map { index, _ in
+                    ColumnInfo(name: "column\(index + 1)", dataType: "text")
+                }
             } else {
                 resolvedColumns = [ColumnInfo(name: "result", dataType: "text")]
             }
         }
 
-        var formattedRows = rows.map { formatRow($0, columns: resolvedColumns) }
-
-        if let first = resolvedColumns.first, first.name == "__rownum" {
-            resolvedColumns.removeFirst()
-            formattedRows = formattedRows.map { Array($0.dropFirst()) }
-        }
-
-        if let progressHandler, !resolvedColumns.isEmpty {
-            let update = QueryStreamUpdate(
-                columns: resolvedColumns,
-                appendedRows: formattedRows,
-                totalRowCount: formattedRows.count
-            )
-            progressHandler(update)
-        }
-
-        return QueryResultSet(columns: resolvedColumns, rows: formattedRows)
+        return QueryResultSet(columns: resolvedColumns, rows: previewRows, totalRowCount: totalRowCount)
     }
 
     func listTablesAndViews(schema: String?) async throws -> [SchemaObjectInfo] {

@@ -1,5 +1,4 @@
 import SwiftUI
-import UniformTypeIdentifiers
 #if os(macOS)
 import AppKit
 #endif
@@ -17,39 +16,38 @@ struct ConnectionsSidebarView: View {
     let onMoveFolder: (UUID, UUID?) -> Void
     let onDuplicateConnection: (SavedConnection) -> Void
 
-    @State private var expandedConnectionFolders: Set<UUID> = []
-    @State private var expandedIdentityFolders: Set<UUID> = []
+    @State private var searchText: String = ""
+    @State private var expandedFolders: Set<UUID> = []
     @State private var folderEditorState: FolderEditorState?
-    @State private var identityEditorState: IdentityEditorState?
     @State private var pendingDeletion: DeletionTarget?
-    @State private var activeDropTarget: DropTarget?
+    private var currentProjectID: UUID? { appModel.selectedProject?.id }
+    private var trimmedSearch: String { searchText.trimmingCharacters(in: .whitespacesAndNewlines) }
+    private var isSearching: Bool { !trimmedSearch.isEmpty }
 
-    private var connectionItems: [SidebarItem] { buildConnectionItems(parentID: nil) }
-    private var identityItems: [IdentityNode] { buildIdentityItems(parentID: nil) }
+    private var rootConnections: [SavedConnection] { connections(in: nil) }
+    private var connectionGroups: [ConnectionFolderGroup] { buildGroups(parentID: nil, depth: 0) }
+
+    private var displayedRootConnections: [SavedConnection] { filterConnections(rootConnections) }
+    private var displayedGroups: [ConnectionFolderGroup] { filterGroups(connectionGroups) }
 
     var body: some View {
         VStack(spacing: 0) {
-            addToolbar
+            searchBar
             Divider()
-            List {
-                Section(header: Text("Connections")) {
-                    connectionsSection
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 0) {
+                    connectionsContent
                 }
-
-                Section(header: Text("Identities")) {
-                    identitiesSection
-                }
+                .padding(.vertical, 8)
             }
-            .scrollContentBackground(.hidden)
-            .listStyle(.sidebar)
+            .scrollIndicators(.hidden)
         }
-        .contextMenu { contextMenuContent() }
+        .background(Color.clear)
+        .contextMenu {
+            addMenuContent()
+        }
         .sheet(item: $folderEditorState) { state in
             FolderEditorSheet(state: state)
-                .environmentObject(appModel)
-        }
-        .sheet(item: $identityEditorState) { state in
-            IdentityEditorSheet(state: state)
                 .environmentObject(appModel)
         }
         .alert(
@@ -62,243 +60,148 @@ struct ConnectionsSidebarView: View {
         } message: { target in
             Text("Are you sure you want to delete \(target.displayName)? This action cannot be undone.")
         }
+        .onAppear(perform: syncExpandedFoldersFromModel)
+        .onChange(of: appModel.expandedConnectionFolderIDs) { _, newValue in
+            if newValue != expandedFolders {
+                expandedFolders = newValue
+            }
+        }
+        .onChange(of: expandedFolders) { _, newValue in
+            appModel.updateExpandedConnectionFolders(newValue)
+        }
     }
 
-    private var addToolbar: some View {
-        HStack {
-            Spacer()
+    // MARK: - Search & Toolbar
+
+    private var searchBar: some View {
+        SidebarSearchBar(
+            placeholder: "Search connections",
+            text: $searchText,
+            showsClearButton: !trimmedSearch.isEmpty,
+            onClear: { searchText = "" }
+        ) {
             Menu {
-                menuContent()
+                addMenuContent()
             } label: {
-                Label("Add new", systemImage: "plus")
-                    .labelStyle(.titleAndIcon)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
+                Image(systemName: "plus.circle.fill")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(Color.secondary.opacity(0.6))
+                    .padding(2)
                     .background(
-                        Capsule().fill(Color.secondary.opacity(0.15))
+                        Circle()
+                            .fill(Color.accentColor.opacity(0))
                     )
             }
             .menuStyle(.borderlessButton)
-            Spacer()
+            .menuIndicator(.hidden)
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
-        .background(addToolbarHighlight)
-        .onDrop(of: [.utf8PlainText], delegate: ConnectionsDropDelegate(
-            targetFolderID: nil,
-            targetKind: .connections,
-            activeDropTarget: $activeDropTarget,
-            onMoveConnection: onMoveConnection,
-            onMoveFolder: onMoveFolder
-        ))
     }
 
-    private var addToolbarHighlight: Color {
-        activeDropTarget == DropTarget(folderID: nil, kind: .connections) ? Color.accentColor.opacity(0.12) : .clear
-    }
+    // MARK: - Content
 
     @ViewBuilder
-    private var connectionsSection: some View {
-        if connectionItems.isEmpty {
-            VStack(spacing: 12) {
-                Image(systemName: "externaldrive")
-                    .font(.system(size: 32))
-                    .foregroundStyle(.tertiary)
-                Text("No Connections")
-                    .font(.headline)
-                Text("Use the plus button to add your first connection or organize folders.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 32)
-            .listRowBackground(Color.clear)
-        } else {
-            DropInsertionRow(isActive: activeDropTarget == DropTarget(folderID: nil, kind: .connections))
-                .onDrop(of: [.utf8PlainText], delegate: ConnectionsDropDelegate(
-                    targetFolderID: nil,
-                    targetKind: .connections,
-                    activeDropTarget: $activeDropTarget,
-                    onMoveConnection: onMoveConnection,
-                    onMoveFolder: onMoveFolder
-                ))
-                .listRowBackground(Color.clear)
+    private var connectionsContent: some View {
+        let roots = displayedRootConnections
+        let groups = displayedGroups
 
-            ForEach(connectionItems, id: \.id) { item in
-                ConnectionSidebarItemView(
-                    item: item,
-                    selectedConnectionID: $selectedConnectionID,
-                    expandedFolders: $expandedConnectionFolders,
-                    activeDropTarget: $activeDropTarget,
-                    onCreateConnection: onCreateConnection,
-                    onCreateFolder: { parent in openFolderCreator(kind: .connections, parent: parent) },
-                    onEditConnection: { connection in
-                        selectedConnectionID = connection.id
-                        onEditConnection(connection)
-                    },
-                    onEditFolder: { folder in openFolderEditor(folder) },
-                    onDelete: { target in pendingDeletion = target },
-                    onConnect: { connection in
-                        selectedConnectionID = connection.id
+        if roots.isEmpty && groups.isEmpty {
+            ConnectionsEmptyState(query: trimmedSearch, isSearching: isSearching)
+                .padding(.horizontal, 16)
+                .padding(.top, 36)
+        } else {
+            ForEach(roots, id: \.id) { connection in
+                ConnectionListRow(
+                    connection: connection,
+                    isSelected: selectedConnectionID == connection.id,
+                    indent: 0,
+                    onTap: { selectConnection(connection) },
+                    onConnect: {
+                        selectConnection(connection)
                         onConnect(connection)
                     },
-                    onSelectFolder: { folder in appModel.selectedFolderID = folder.id },
-                    onDuplicate: { connection in onDuplicateConnection(connection) },
-                    onMoveConnection: onMoveConnection,
-                    onMoveFolder: onMoveFolder
-                )
-            }
-
-            DropInsertionRow(isActive: activeDropTarget == DropTarget(folderID: nil, kind: .connections))
-                .onDrop(of: [.utf8PlainText], delegate: ConnectionsDropDelegate(
-                    targetFolderID: nil,
-                    targetKind: .connections,
-                    activeDropTarget: $activeDropTarget,
-                    onMoveConnection: onMoveConnection,
-                    onMoveFolder: onMoveFolder
-                ))
-                .listRowBackground(Color.clear)
-        }
-    }
-
-    @ViewBuilder
-    private var identitiesSection: some View {
-        if identityItems.isEmpty && appModel.identities.isEmpty {
-            VStack(spacing: 12) {
-                Image(systemName: "person.crop.circle")
-                    .font(.system(size: 32))
-                    .foregroundStyle(.tertiary)
-                Text("No Identities")
-                    .font(.headline)
-                Text("Create identities to reuse credentials across multiple connections.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 32)
-            .listRowBackground(Color.clear)
-        } else {
-            DropInsertionRow(isActive: activeDropTarget == DropTarget(folderID: nil, kind: .identities))
-                .onDrop(of: [.utf8PlainText], delegate: ConnectionsDropDelegate(
-                    targetFolderID: nil,
-                    targetKind: .identities,
-                    activeDropTarget: $activeDropTarget,
-                    onMoveConnection: onMoveConnection,
-                    onMoveFolder: onMoveFolder
-                ))
-                .listRowBackground(Color.clear)
-
-            ForEach(identityItems) { item in
-                IdentityNodeView(
-                    node: item,
-                    selectedIdentityID: $selectedIdentityID,
-                    expandedFolders: $expandedIdentityFolders,
-                    onCreateIdentity: { parent in openIdentityCreator(parent: parent) },
-                    onCreateFolder: { parent in openFolderCreator(kind: .identities, parent: parent) },
-                    onEditIdentity: { identity in
-                        selectedIdentityID = identity.id
-                        openIdentityEditor(identity)
+                    onEdit: {
+                        selectConnection(connection)
+                        onEditConnection(connection)
                     },
-                    onEditFolder: { folder in openFolderEditor(folder) },
-                    onDelete: { target in pendingDeletion = target }
+                    onDuplicate: { onDuplicateConnection(connection) },
+                    onDelete: { pendingDeletion = .connection(connection) }
                 )
+                .environmentObject(appModel)
             }
 
-            DropInsertionRow(isActive: activeDropTarget == DropTarget(folderID: nil, kind: .identities))
-                .onDrop(of: [.utf8PlainText], delegate: ConnectionsDropDelegate(
-                    targetFolderID: nil,
-                    targetKind: .identities,
-                    activeDropTarget: $activeDropTarget,
+            ForEach(groups) { group in
+                ConnectionFolderView(
+                    group: group,
+                    expandedFolders: $expandedFolders,
+                    isSearching: isSearching,
+                    selectedConnectionID: $selectedConnectionID,
+                    onSelectFolder: { selectFolder($0) },
+                    onSelectConnection: { selectConnection($0) },
+                    onConnect: onConnect,
+                    onEditConnection: onEditConnection,
+                    onDuplicate: onDuplicateConnection,
+                    onDelete: { pendingDeletion = $0 },
+                    onCreateConnection: { onCreateConnection($0) },
+                    onCreateFolder: { openFolderCreator(parent: $0) },
+                    onEditFolder: { openFolderEditor($0) },
                     onMoveConnection: onMoveConnection,
                     onMoveFolder: onMoveFolder
-                ))
-                .listRowBackground(Color.clear)
-        }
-    }
-
-    @ViewBuilder
-    private func menuContent() -> some View {
-        Section("Connections") {
-            Button("New Connection", systemImage: "externaldrive.badge.plus") {
-                onCreateConnection(selectedConnectionFolder)
-            }
-            Button("New Connection Folder", systemImage: "folder.badge.plus") {
-                openFolderCreator(kind: .connections, parent: selectedConnectionFolder)
-            }
-        }
-
-        Section("Identities") {
-            Button("New Identity", systemImage: "person.badge.plus") {
-                openIdentityCreator(parent: selectedIdentityFolder)
-            }
-            Button("New Identity Folder", systemImage: "folder.badge.plus") {
-                let parent = appModel.folders.first(where: { $0.kind == .identities && $0.id == selectedIdentityParentID })
-                openFolderCreator(kind: .identities, parent: parent)
+                )
+                .environmentObject(appModel)
             }
         }
     }
 
-    @ViewBuilder
-    private func contextMenuContent() -> some View {
-        Button {
-            onCreateConnection(selectedConnectionFolder)
-        } label: {
-            Label("New Connection", systemImage: "externaldrive.badge.plus")
-        }
-        Button {
-            openFolderCreator(kind: .connections, parent: selectedConnectionFolder)
-        } label: {
-            Label("New Connection Folder", systemImage: "folder.badge.plus")
-        }
-        Divider()
-        Button {
-            openIdentityCreator(parent: selectedIdentityFolder)
-        } label: {
-            Label("New Identity", systemImage: "person.badge.plus")
-        }
-        Button {
-            let parent = appModel.folders.first(where: { $0.kind == .identities && $0.id == selectedIdentityParentID })
-            openFolderCreator(kind: .identities, parent: parent)
-        } label: {
-            Label("New Identity Folder", systemImage: "folder.badge.plus")
-        }
-    }
-
-    private var selectedIdentityParentID: UUID? {
-        if let identityID = selectedIdentityID,
-           let identity = appModel.identities.first(where: { $0.id == identityID }) {
-            return identity.folderID
-        }
-        return nil
-    }
-
-    private var selectedIdentityFolder: SavedFolder? {
-        selectedIdentityParentID.flatMap { id in
-            appModel.folders.first { $0.id == id && $0.kind == .identities }
-        }
-    }
+    // MARK: - Helpers
 
     private var selectedConnectionFolder: SavedFolder? {
         guard let id = appModel.selectedFolderID else { return nil }
         return appModel.folders.first { $0.id == id && $0.kind == .connections }
     }
 
-    private func openFolderCreator(kind: FolderKind, parent: SavedFolder?) {
-        folderEditorState = .create(kind: kind, parent: parent, token: UUID())
+    private func selectConnection(_ connection: SavedConnection) {
+        selectedIdentityID = nil
+        selectedConnectionID = connection.id
+        appModel.selectedFolderID = nil
+    }
+
+    private func selectFolder(_ folder: SavedFolder) {
+        selectedIdentityID = nil
+        selectedConnectionID = nil
+        appModel.selectedFolderID = folder.id
+    }
+
+    private func openFolderCreator(parent: SavedFolder?) {
+        folderEditorState = .create(kind: .connections, parent: parent, token: UUID())
     }
 
     private func openFolderEditor(_ folder: SavedFolder) {
         folderEditorState = .edit(folder: folder)
     }
 
-    private func openIdentityCreator(parent: SavedFolder?) {
-        identityEditorState = .create(parent: parent, token: UUID())
+    private func openManageConnections() {
+#if os(macOS)
+        ManageConnectionsWindowController.shared.present()
+#else
+        appModel.isManageConnectionsPresented = true
+#endif
     }
 
-    private func openIdentityEditor(_ identity: SavedIdentity) {
-        identityEditorState = .edit(identity: identity)
+    @ViewBuilder
+    private func addMenuContent() -> some View {
+        Button("New Connection…", systemImage: "externaldrive.badge.plus") {
+            onCreateConnection(selectedConnectionFolder)
+            selectedIdentityID = nil
+        }
+        Button("New Connection Folder…", systemImage: "folder.badge.plus") {
+            openFolderCreator(parent: selectedConnectionFolder)
+            selectedIdentityID = nil
+        }
+        Divider()
+        Button("Manage Connections…", systemImage: "gearshape") {
+            openManageConnections()
+            selectedIdentityID = nil
+        }
     }
 
     private func performDeletion(for target: DeletionTarget) {
@@ -308,573 +211,440 @@ struct ConnectionsSidebarView: View {
             Task { await appModel.deleteConnection(connection) }
         case .folder(let folder):
             Task { await appModel.deleteFolder(folder) }
-        case .identity(let identity):
-            Task { await appModel.deleteIdentity(identity) }
+        case .identity:
+            break
         }
     }
 
-    private func buildConnectionItems(parentID: UUID?) -> [SidebarItem] {
-        let currentProjectID = appModel.selectedProject?.id
-        let folders = appModel.folders
-            .filter { $0.kind == .connections && $0.parentFolderID == parentID && $0.projectID == currentProjectID }
-            .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
-        let connections = appModel.connections
-            .filter { $0.folderID == parentID && $0.projectID == currentProjectID }
+    private func syncExpandedFoldersFromModel() {
+        expandedFolders = appModel.expandedConnectionFolderIDs
+    }
+
+    private func connections(in folderID: UUID?) -> [SavedConnection] {
+        guard let projectID = currentProjectID else { return [] }
+        return appModel.connections
+            .filter { $0.folderID == folderID && $0.projectID == projectID }
             .sorted { $0.connectionName.localizedCaseInsensitiveCompare($1.connectionName) == .orderedAscending }
-
-        var items: [SidebarItem] = folders.map { folder in
-            var copy = folder
-            copy.children = buildConnectionItems(parentID: folder.id)
-            return .folder(copy)
-        }
-        items += connections.map { .connection($0) }
-        return items
     }
 
-    private func buildIdentityItems(parentID: UUID?) -> [IdentityNode] {
-        let currentProjectID = appModel.selectedProject?.id
+    private func buildGroups(parentID: UUID?, depth: Int) -> [ConnectionFolderGroup] {
+        guard let projectID = currentProjectID else { return [] }
         let folders = appModel.folders
-            .filter { $0.kind == .identities && $0.parentFolderID == parentID && $0.projectID == currentProjectID }
-            .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
-        let identities = appModel.identities
-            .filter { $0.folderID == parentID && $0.projectID == currentProjectID }
+            .filter { $0.kind == .connections && $0.parentFolderID == parentID && $0.projectID == projectID }
             .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
 
-        var items: [IdentityNode] = folders.map { folder in
-            IdentityNode(kind: .folder(folder), children: buildIdentityItems(parentID: folder.id))
+        return folders.map { folder in
+            ConnectionFolderGroup(
+                folder: folder,
+                depth: depth,
+                connections: connections(in: folder.id),
+                children: buildGroups(parentID: folder.id, depth: depth + 1)
+            )
         }
-        items += identities.map { IdentityNode(kind: .identity($0)) }
-        return items
+    }
+
+    private func filterGroups(_ groups: [ConnectionFolderGroup]) -> [ConnectionFolderGroup] {
+        guard isSearching else { return groups }
+        return groups.compactMap { filterGroup($0) }
+    }
+
+    private func filterGroup(_ group: ConnectionFolderGroup) -> ConnectionFolderGroup? {
+        let folderMatches = matchesSearch(in: group.folder.name)
+        let filteredConnections = folderMatches ? group.connections : filterConnections(group.connections)
+        let filteredChildren = folderMatches ? group.children : filterGroups(group.children)
+
+        if folderMatches || !filteredConnections.isEmpty || !filteredChildren.isEmpty {
+            return ConnectionFolderGroup(
+                folder: group.folder,
+                depth: group.depth,
+                connections: filteredConnections,
+                children: filteredChildren
+            )
+        }
+        return nil
+    }
+
+    private func filterConnections(_ connections: [SavedConnection]) -> [SavedConnection] {
+        guard isSearching else { return connections }
+        return connections.filter { matchesSearch(for: $0) }
+    }
+
+    private func matchesSearch(for connection: SavedConnection) -> Bool {
+        guard !trimmedSearch.isEmpty else { return true }
+        return connection.connectionName.localizedCaseInsensitiveContains(trimmedSearch) ||
+            connection.host.localizedCaseInsensitiveContains(trimmedSearch)
+    }
+
+    private func matchesSearch(in text: String) -> Bool {
+        guard !trimmedSearch.isEmpty else { return true }
+        return text.localizedCaseInsensitiveContains(trimmedSearch)
     }
 }
 
-// MARK: - Drag & Drop Helpers
+// MARK: - Connection Folder Group
 
-private enum DragPayload {
-    case connection(UUID)
-    case folder(UUID)
+private struct ConnectionFolderGroup: Identifiable {
+    let folder: SavedFolder
+    let depth: Int
+    var connections: [SavedConnection]
+    var children: [ConnectionFolderGroup]
 
-    init?(string: String) {
-        let parts = string.split(separator: ":")
-        guard parts.count == 2, let id = UUID(uuidString: String(parts[1])) else { return nil }
-        switch parts[0] {
-        case "connection": self = .connection(id)
-        case "folder": self = .folder(id)
-        default: return nil
-        }
-    }
-
-    var stringValue: String {
-        switch self {
-        case .connection(let id): return "connection:\(id.uuidString)"
-        case .folder(let id): return "folder:\(id.uuidString)"
-        }
+    var id: UUID { folder.id }
+    var totalConnectionCount: Int {
+        connections.count + children.reduce(0) { $0 + $1.totalConnectionCount }
     }
 }
 
-private struct DropTarget: Equatable {
-    let folderID: UUID?
-    let kind: FolderKind
-}
-
-private struct DropInsertionRow: View {
-    let isActive: Bool
-
-    var body: some View {
-        RoundedRectangle(cornerRadius: 2, style: .continuous)
-            .fill(isActive ? Color.accentColor.opacity(0.6) : Color.clear)
-            .frame(height: isActive ? 6 : 2)
-            .padding(.vertical, 4)
-    }
-}
-
-private struct ConnectionsDropDelegate: DropDelegate {
-    let targetFolderID: UUID?
-    let targetKind: FolderKind
-    @Binding var activeDropTarget: DropTarget?
-    let onMoveConnection: (UUID, UUID?) -> Void
-    let onMoveFolder: (UUID, UUID?) -> Void
-
-    func validateDrop(info: DropInfo) -> Bool {
-        info.hasItemsConforming(to: [UTType.utf8PlainText])
-    }
-
-    func dropEntered(info: DropInfo) {
-        activeDropTarget = DropTarget(folderID: targetFolderID, kind: targetKind)
-    }
-
-    func dropExited(info: DropInfo) {
-        if activeDropTarget == DropTarget(folderID: targetFolderID, kind: targetKind) {
-            activeDropTarget = nil
-        }
-    }
-
-    func performDrop(info: DropInfo) -> Bool {
-        guard let provider = info.itemProviders(for: [UTType.utf8PlainText]).first else {
-            activeDropTarget = nil
-            return false
-        }
-
-        provider.loadItem(forTypeIdentifier: UTType.utf8PlainText.identifier, options: nil) { item, _ in
-            let string: String?
-            if let data = item as? Data {
-                string = String(data: data, encoding: .utf8)
-            } else if let text = item as? String {
-                string = text
-            } else if let nsText = item as? NSString {
-                string = String(nsText)
-            } else {
-                string = nil
-            }
-
-            guard let raw = string,
-                  let payload = DragPayload(string: raw) else {
-                return
-            }
-
-            switch payload {
-            case .connection(let id):
-                guard targetKind == .connections else { return }
-                DispatchQueue.main.async {
-                    onMoveConnection(id, targetFolderID)
-                }
-            case .folder(let id):
-                DispatchQueue.main.async {
-                    onMoveFolder(id, targetFolderID)
-                }
-            }
-        }
-
-        activeDropTarget = nil
-        return true
-    }
-}
-
-// MARK: - Connection Tree Views
-
-private struct ConnectionSidebarItemView: View {
-    let item: SidebarItem
-    @Binding var selectedConnectionID: UUID?
+private struct ConnectionFolderView: View {
+    let group: ConnectionFolderGroup
     @Binding var expandedFolders: Set<UUID>
-    @Binding var activeDropTarget: DropTarget?
+    let isSearching: Bool
+    @Binding var selectedConnectionID: UUID?
+    let onSelectFolder: (SavedFolder) -> Void
+    let onSelectConnection: (SavedConnection) -> Void
+    let onConnect: (SavedConnection) -> Void
+    let onEditConnection: (SavedConnection) -> Void
+    let onDuplicate: (SavedConnection) -> Void
+    let onDelete: (DeletionTarget) -> Void
     let onCreateConnection: (SavedFolder?) -> Void
     let onCreateFolder: (SavedFolder?) -> Void
-    let onEditConnection: (SavedConnection) -> Void
     let onEditFolder: (SavedFolder) -> Void
-    let onDelete: (DeletionTarget) -> Void
-    let onConnect: (SavedConnection) -> Void
-    let onSelectFolder: (SavedFolder) -> Void
-    let onDuplicate: (SavedConnection) -> Void
     let onMoveConnection: (UUID, UUID?) -> Void
     let onMoveFolder: (UUID, UUID?) -> Void
 
+    @State private var isHovering = false
+    @EnvironmentObject private var appModel: AppModel
+
+    private var isExpanded: Bool {
+        isSearching || expandedFolders.contains(group.folder.id)
+    }
+
+    private var isSelected: Bool {
+        appModel.selectedFolderID == group.folder.id
+    }
+
     var body: some View {
-        switch item {
-        case .connection(let connection):
-            ConnectionRowView(
-                connection: connection,
-                isSelected: selectedConnectionID == connection.id,
-                onTap: {
-                    selectedConnectionID = connection.id
-                },
-                onConnect: {
-                    selectedConnectionID = connection.id
-                    onConnect(connection)
-                },
-                onEdit: { onEditConnection(connection) },
-                onDuplicate: { onDuplicate(connection) },
-                onDelete: { onDelete(.connection(connection)) }
-            )
-            .onDrag {
-                NSItemProvider(object: DragPayload.connection(connection.id).stringValue as NSString)
-            }
-        case .folder(let folder):
-            ConnectionFolderRow(
-                folder: folder,
-                isExpanded: Binding(
-                    get: { expandedFolders.contains(folder.id) },
-                    set: { isExpanded in
-                        if isExpanded {
-                            expandedFolders.insert(folder.id)
-                        } else {
-                            expandedFolders.remove(folder.id)
-                        }
-                    }
-                ),
-                isHighlighted: activeDropTarget == DropTarget(folderID: folder.id, kind: .connections),
-                onCreateConnection: { onCreateConnection(folder) },
-                onCreateFolder: { onCreateFolder(folder) },
-                onEdit: { onEditFolder(folder) },
-                onDelete: { onDelete(.folder(folder)) },
-                onSelect: { onSelectFolder(folder) }
-            ) {
-                ForEach(folder.children, id: \.id) { child in
-                    ConnectionSidebarItemView(
-                        item: child,
-                        selectedConnectionID: $selectedConnectionID,
+        VStack(alignment: .leading, spacing: 0) {
+            folderRow
+
+            if isExpanded {
+                ForEach(group.connections, id: \.id) { connection in
+                    ConnectionListRow(
+                        connection: connection,
+                        isSelected: selectedConnectionID == connection.id,
+                        indent: CGFloat(group.depth + 1) * 16,
+                        onTap: {
+                            onSelectConnection(connection)
+                        },
+                        onConnect: {
+                            onSelectConnection(connection)
+                            onConnect(connection)
+                        },
+                        onEdit: {
+                            onSelectConnection(connection)
+                            onEditConnection(connection)
+                        },
+                        onDuplicate: { onDuplicate(connection) },
+                        onDelete: { onDelete(.connection(connection)) }
+                    )
+                    .environmentObject(appModel)
+                }
+
+                ForEach(group.children) { child in
+                    ConnectionFolderView(
+                        group: child,
                         expandedFolders: $expandedFolders,
-                        activeDropTarget: $activeDropTarget,
+                        isSearching: isSearching,
+                        selectedConnectionID: $selectedConnectionID,
+                        onSelectFolder: onSelectFolder,
+                        onSelectConnection: onSelectConnection,
+                        onConnect: onConnect,
+                        onEditConnection: onEditConnection,
+                        onDuplicate: onDuplicate,
+                        onDelete: onDelete,
                         onCreateConnection: onCreateConnection,
                         onCreateFolder: onCreateFolder,
-                        onEditConnection: onEditConnection,
                         onEditFolder: onEditFolder,
-                    onDelete: onDelete,
-                    onConnect: onConnect,
-                    onSelectFolder: onSelectFolder,
-                    onDuplicate: onDuplicate,
-                    onMoveConnection: onMoveConnection,
-                    onMoveFolder: onMoveFolder
-                )
+                        onMoveConnection: onMoveConnection,
+                        onMoveFolder: onMoveFolder
+                    )
+                    .environmentObject(appModel)
+                }
+
+                if group.connections.isEmpty && group.children.isEmpty {
+                    EmptyFolderPlaceholder(indent: CGFloat(group.depth + 1) * 16)
+                }
             }
+        }
+    }
+
+    private var folderRow: some View {
+        let indent = CGFloat(group.depth) * 16
+        return HStack(spacing: 6) {
+            Spacer().frame(width: indent)
+
+            HStack(spacing: 8) {
+                Image(systemName: "chevron.right")
+                    .rotationEffect(.degrees(isExpanded ? 90 : 0))
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(.secondary)
+
+                Image(systemName: "folder.fill")
+                    .font(.system(size: 15))
+                    .foregroundStyle(group.folder.color)
+
+                Text(group.folder.name)
+                    .font(.system(size: 12))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+
+                Spacer(minLength: 4)
+
+                Text("\(group.totalConnectionCount)")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(.secondary.opacity(0.8))
             }
-            .onDrag {
-                NSItemProvider(object: DragPayload.folder(folder.id).stringValue as NSString)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 5)
+            .background(folderHighlight)
+            .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .onTapGesture { toggleExpansion() }
+            .onHover { hovering in
+                withAnimation(.easeInOut(duration: 0.12)) {
+                    isHovering = hovering
+                }
             }
-            .onDrop(
-                of: [.utf8PlainText],
-                delegate: ConnectionsDropDelegate(
-                    targetFolderID: folder.id,
-                    targetKind: .connections,
-                    activeDropTarget: $activeDropTarget,
-                    onMoveConnection: onMoveConnection,
-                    onMoveFolder: onMoveFolder
-                )
+            .contextMenu {
+                Button("New Connection", systemImage: "externaldrive.badge.plus") {
+                    onCreateConnection(group.folder)
+                }
+                Button("New Folder", systemImage: "folder.badge.plus") {
+                    onCreateFolder(group.folder)
+                }
+                Divider()
+                Button("Rename Folder", systemImage: "square.and.pencil") {
+                    onEditFolder(group.folder)
+                }
+                Button("Delete Folder", systemImage: "trash", role: .destructive) {
+                    onDelete(.folder(group.folder))
+                }
+            }
+        }
+        .padding(.horizontal, 4)
+    }
+
+    private var folderHighlight: some View {
+        let base = RoundedRectangle(cornerRadius: 8, style: .continuous)
+        if isSelected {
+            return AnyView(
+                base
+                    .fill(Color.accentColor.opacity(0.2))
+                    .overlay(base.stroke(Color.accentColor.opacity(0.4), lineWidth: 0.9))
             )
         }
+        if isHovering {
+            return AnyView(
+                base
+                    .fill(Color.accentColor.opacity(0.12))
+                    .overlay(base.stroke(Color.accentColor.opacity(0.35), lineWidth: 0.8))
+            )
+        }
+        return AnyView(Color.clear)
+    }
+
+    private func toggleExpansion() {
+        onSelectFolder(group.folder)
+        guard !isSearching else { return }
+        if expandedFolders.contains(group.folder.id) {
+            expandedFolders.remove(group.folder.id)
+        } else {
+            expandedFolders.insert(group.folder.id)
+        }
     }
 }
 
-private struct ConnectionFolderRow<Content: View>: View {
-    let folder: SavedFolder
-    @Binding var isExpanded: Bool
-    let isHighlighted: Bool
-    let onCreateConnection: () -> Void
-    let onCreateFolder: () -> Void
-    let onEdit: () -> Void
-    let onDelete: () -> Void
-    let onSelect: () -> Void
-    @ViewBuilder var content: Content
+// MARK: - Rows / Empty State
 
-    var body: some View {
-        DisclosureGroup(isExpanded: $isExpanded) {
-            content
-        } label: {
-            HStack(spacing: 10) {
-                Image(systemName: "folder.fill")
-                    .font(.system(size: 20))
-                    .foregroundStyle(folder.color)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(folder.name)
-                        .font(.subheadline)
-                        .fontWeight(.medium)
-                    Text(folderSubtitle)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                Spacer()
-            }
-            .contentShape(Rectangle())
-        }
-        .padding(.vertical, 4)
-        .background(
-            isHighlighted ? Color.accentColor.opacity(0.12) : Color.clear,
-            in: RoundedRectangle(cornerRadius: 10, style: .continuous)
-        )
-        .contextMenu {
-            Button("New Connection", systemImage: "externaldrive.badge.plus", action: onCreateConnection)
-            Button("New Folder", systemImage: "folder.badge.plus", action: onCreateFolder)
-            Divider()
-            Button("Edit", systemImage: "square.and.pencil", action: onEdit)
-            Button("Delete", systemImage: "trash", role: .destructive, action: onDelete)
-        }
-        .simultaneousGesture(TapGesture().onEnded { onSelect() })
-    }
-
-    private var folderSubtitle: String {
-        switch folder.credentialMode {
-        case .none:
-            return "No credentials"
-        case .manual:
-            let username = folder.manualUsername?.trimmingCharacters(in: .whitespacesAndNewlines)
-            if let username, !username.isEmpty {
-                return "Manual credentials (\(username))"
-            }
-            return "Manual credentials"
-        case .identity:
-            if let identity = folder.identityID.flatMap({ id in appModel.identities.first(where: { $0.id == id }) }) {
-                return "Uses identity \(identity.name)"
-            }
-            return "Identity unavailable"
-        case .inherit:
-            if let identity = appModel.folderIdentity(for: folder.id) {
-                return "Inherits credentials (\(identity.name))"
-            }
-            return "Inherits credentials"
-        }
-    }
-
-    @EnvironmentObject private var appModel: AppModel
-}
-
-private struct ConnectionRowView: View {
+private struct ConnectionListRow: View {
     let connection: SavedConnection
     let isSelected: Bool
+    let indent: CGFloat
     let onTap: () -> Void
     let onConnect: () -> Void
     let onEdit: () -> Void
     let onDuplicate: () -> Void
     let onDelete: () -> Void
 
+    @EnvironmentObject private var appModel: AppModel
+    @Environment(\.colorScheme) private var colorScheme
     @State private var isHovering = false
 
+    private var accentColor: Color {
+        appModel.useServerColorAsAccent ? connection.color : Color.accentColor
+    }
+
+    private var displayName: String {
+        let trimmed = connection.connectionName.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? connection.host : trimmed
+    }
+
     var body: some View {
-        HStack(spacing: 12) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(connection.color.opacity(0.16))
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .stroke(connection.color.opacity(0.4), lineWidth: 1)
-                Image(connection.databaseType.iconName)
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: 18, height: 18)
-                    .foregroundStyle(connection.color)
-            }
-            .frame(width: 30, height: 30)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(connection.connectionName.isEmpty ? "Untitled" : connection.connectionName)
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-                Text("\(connection.host):\(String(connection.port))")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            Spacer()
-            if isHovering {
-                HStack(spacing: 8) {
+        HStack(spacing: 0) {
+            Spacer().frame(width: indent + 12)
+
+            HStack(spacing: 8) {
+                connectionIcon
+                    .frame(width: 14, height: 14)
+
+                Text(displayName)
+                    .font(.system(size: 12))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+
+                Spacer(minLength: 4)
+
+                if isHovering {
                     Button(action: onConnect) {
-                        Image(systemName: "bolt.horizontal.circle")
+                        connectIcon
+                            .frame(width: 12, height: 12)
                     }
-                    .buttonStyle(.borderless)
-
-                    Button(action: onEdit) {
-                        Image(systemName: "square.and.pencil")
-                    }
-                    .buttonStyle(.borderless)
-
-                    Button(action: onDuplicate) {
-                        Image(systemName: "plus.square.on.square")
-                    }
-                    .buttonStyle(.borderless)
-
-                    Button(action: onDelete) {
-                        Image(systemName: "trash")
-                    }
-                    .buttonStyle(.borderless)
-                }
-                .foregroundStyle(.secondary)
-            }
-        }
-        .padding(.vertical, 6)
-        .padding(.horizontal, 4)
-        .background(
-            isSelected ? Color.accentColor.opacity(0.15) : Color.clear,
-            in: RoundedRectangle(cornerRadius: 10, style: .continuous)
-        )
-        .contentShape(Rectangle())
-        .onTapGesture(perform: onTap)
-        .onTapGesture(count: 2, perform: onConnect)
-        .onHover { hovering in
-            withAnimation(.easeInOut(duration: 0.1)) {
-                isHovering = hovering
-            }
-        }
-        .contextMenu {
-            Button(action: onConnect) {
-                Label("Connect", systemImage: "bolt.horizontal.circle")
-            }
-            Divider()
-            Button(action: onEdit) {
-                Label("Edit", systemImage: "square.and.pencil")
-            }
-            Button(action: onDuplicate) {
-                Label("Duplicate", systemImage: "plus.square.on.square")
-            }
-            Button(role: .destructive, action: onDelete) {
-                Label("Delete", systemImage: "trash")
-            }
-        }
-    }
-}
-
-// MARK: - Identity Tree
-
-private struct IdentityNode: Identifiable {
-    enum Kind {
-        case folder(SavedFolder)
-        case identity(SavedIdentity)
-    }
-
-    var kind: Kind
-    var children: [IdentityNode] = []
-
-    var id: UUID {
-        switch kind {
-        case .folder(let folder): return folder.id
-        case .identity(let identity): return identity.id
-        }
-    }
-}
-
-private struct IdentityNodeView: View {
-    let node: IdentityNode
-    @Binding var selectedIdentityID: UUID?
-    @Binding var expandedFolders: Set<UUID>
-    let onCreateIdentity: (SavedFolder?) -> Void
-    let onCreateFolder: (SavedFolder?) -> Void
-    let onEditIdentity: (SavedIdentity) -> Void
-    let onEditFolder: (SavedFolder) -> Void
-    let onDelete: (DeletionTarget) -> Void
-
-    var body: some View {
-        switch node.kind {
-        case .folder(let folder):
-            IdentityFolderRow(
-                folder: folder,
-                isExpanded: Binding(
-                    get: { expandedFolders.contains(folder.id) },
-                    set: { value in
-                        if value {
-                            expandedFolders.insert(folder.id)
-                        } else {
-                            expandedFolders.remove(folder.id)
-                        }
-                    }
-                ),
-                onCreateIdentity: { onCreateIdentity(folder) },
-                onCreateFolder: { onCreateFolder(folder) },
-                onEdit: { onEditFolder(folder) },
-                onDelete: { onDelete(.folder(folder)) }
-            ) {
-                ForEach(node.children) { child in
-                    IdentityNodeView(
-                        node: child,
-                        selectedIdentityID: $selectedIdentityID,
-                        expandedFolders: $expandedFolders,
-                        onCreateIdentity: onCreateIdentity,
-                        onCreateFolder: onCreateFolder,
-                        onEditIdentity: onEditIdentity,
-                        onEditFolder: onEditFolder,
-                        onDelete: onDelete
-                    )
+                    .buttonStyle(.plain)
+                    .foregroundStyle(connectGlyphColor)
                 }
             }
-        case .identity(let identity):
-            IdentityRowView(
-                identity: identity,
-                isSelected: selectedIdentityID == identity.id,
-                onTap: { selectedIdentityID = identity.id },
-                onEdit: { onEditIdentity(identity) },
-                onDelete: { onDelete(.identity(identity)) }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(highlightBackground)
+            .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .onTapGesture(perform: onTap)
+            .onHover { hovering in
+                withAnimation(.easeInOut(duration: 0.12)) {
+                    isHovering = hovering
+                }
+            }
+            .contextMenu {
+                Button(action: onConnect) {
+                    Label {
+                        Text("Connect")
+                    } icon: {
+                        connectIcon
+                            .frame(width: 12, height: 12)
+                            .foregroundStyle(connectGlyphColor)
+                    }
+                }
+                Divider()
+                Button(action: onEdit) {
+                    Label("Edit", systemImage: "square.and.pencil")
+                }
+                Button(action: onDuplicate) {
+                    Label("Duplicate", systemImage: "plus.square.on.square")
+                }
+                Button(role: .destructive, action: onDelete) {
+                    Label("Delete", systemImage: "trash")
+                }
+            }
+            .highPriorityGesture(
+                TapGesture(count: 2).onEnded {
+                    onTap()
+                    onConnect()
+                }
             )
         }
+        .padding(.trailing, 4)
+    }
+
+    @ViewBuilder
+    private var connectionIcon: some View {
+#if os(macOS)
+        if let logoData = connection.logo,
+           let nsImage = NSImage(data: logoData) {
+            Image(nsImage: nsImage)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
+        } else {
+            Image(connection.databaseType.iconName)
+                .resizable()
+                .renderingMode(.template)
+                .aspectRatio(contentMode: .fit)
+                .foregroundStyle(accentColor)
+        }
+#else
+        Image(connection.databaseType.iconName)
+            .resizable()
+            .renderingMode(.template)
+            .aspectRatio(contentMode: .fit)
+            .foregroundStyle(accentColor)
+#endif
+    }
+
+    @ViewBuilder
+    private var highlightBackground: some View {
+        let base = RoundedRectangle(cornerRadius: 8, style: .continuous)
+
+        if isSelected {
+            base
+                .fill(accentColor.opacity(0.2))
+                .overlay(base.stroke(accentColor.opacity(0.4), lineWidth: 1))
+        } else if isHovering {
+            base
+                .fill(accentColor.opacity(0.12))
+                .overlay(base.stroke(accentColor.opacity(0.35), lineWidth: 0.8))
+        } else {
+            Color.clear
+        }
+    }
+
+    private var connectIcon: some View {
+        Image("connect.cables")
+            .resizable()
+            .renderingMode(.template)
+            .aspectRatio(contentMode: .fit)
+    }
+
+    private var connectGlyphColor: Color {
+        colorScheme == .dark ? .white : .black
     }
 }
 
-private struct IdentityFolderRow<Content: View>: View {
-    let folder: SavedFolder
-    @Binding var isExpanded: Bool
-    let onCreateIdentity: () -> Void
-    let onCreateFolder: () -> Void
-    let onEdit: () -> Void
-    let onDelete: () -> Void
-    @ViewBuilder var content: Content
+private struct EmptyFolderPlaceholder: View {
+    let indent: CGFloat
 
     var body: some View {
-        DisclosureGroup(isExpanded: $isExpanded) {
-            content
-        } label: {
-            HStack(spacing: 9) {
-                Image(systemName: "folder.fill")
-                    .font(.system(size: 18))
-                    .foregroundStyle(folder.color)
-                Text(folder.name)
-                    .font(.subheadline)
-                Spacer()
-            }
-            .padding(.vertical, 4)
-        }
-        .background(
-            Color.clear,
-            in: RoundedRectangle(cornerRadius: 10, style: .continuous)
-        )
-        .contextMenu {
-            Button("New Identity", systemImage: "person.badge.plus", action: onCreateIdentity)
-            Button("New Folder", systemImage: "folder.badge.plus", action: onCreateFolder)
-            Divider()
-            Button("Edit", systemImage: "square.and.pencil", action: onEdit)
-            Button("Delete", systemImage: "trash", role: .destructive, action: onDelete)
-        }
+        Text("No connections in this folder")
+            .font(.system(size: 11))
+            .foregroundStyle(.secondary)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .padding(.leading, indent)
     }
 }
 
-private struct IdentityRowView: View {
-    let identity: SavedIdentity
-    let isSelected: Bool
-    let onTap: () -> Void
-    let onEdit: () -> Void
-    let onDelete: () -> Void
-
-    @State private var isHovering = false
+private struct ConnectionsEmptyState: View {
+    let query: String
+    let isSearching: Bool
 
     var body: some View {
-        HStack(spacing: 12) {
-            Image(systemName: "person.crop.circle")
-                .font(.system(size: 18))
+        VStack(spacing: 12) {
+            Image(systemName: isSearching ? "magnifyingglass" : "externaldrive")
+                .font(.system(size: 32))
+                .foregroundStyle(.tertiary)
+
+            if isSearching {
+                Text("No matches for \(query.isEmpty ? "your search" : "\"\(query)\"")")
+                    .font(.headline)
+            } else {
+                Text("No Connections")
+                    .font(.headline)
+            }
+
+            Text(isSearching ? "Try adjusting your search." : "Use the plus button to add your first connection or organize folders.")
+                .font(.subheadline)
                 .foregroundStyle(.secondary)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(identity.name)
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-                Text(identity.username)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            Spacer()
-            if isHovering {
-                HStack(spacing: 8) {
-                    Button(action: onEdit) {
-                        Image(systemName: "square.and.pencil")
-                    }
-                    .buttonStyle(.borderless)
-                    Button(action: onDelete) {
-                        Image(systemName: "trash")
-                    }
-                    .buttonStyle(.borderless)
-                }
-                .foregroundStyle(.secondary)
-            }
+                .multilineTextAlignment(.center)
         }
-        .padding(.vertical, 6)
-        .padding(.horizontal, 4)
-        .background(
-            isSelected ? Color.accentColor.opacity(0.15) : Color.clear,
-            in: RoundedRectangle(cornerRadius: 10, style: .continuous)
-        )
-        .contentShape(Rectangle())
-        .onTapGesture(perform: onTap)
-        .onHover { hovering in
-            withAnimation(.easeInOut(duration: 0.1)) {
-                isHovering = hovering
-            }
-        }
-        .contextMenu {
-            Button(action: onEdit) {
-                Label("Edit", systemImage: "square.and.pencil")
-            }
-            Button(role: .destructive, action: onDelete) {
-                Label("Delete", systemImage: "trash")
-            }
-        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 40)
     }
 }

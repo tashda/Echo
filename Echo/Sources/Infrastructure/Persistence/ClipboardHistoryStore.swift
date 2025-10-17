@@ -7,8 +7,11 @@ struct ClipboardHistoryUsageBreakdown: Equatable {
     var gridBytes: Int
 
     var totalBytes: Int { queryBytes + gridBytes }
-
-    static let empty = ClipboardHistoryUsageBreakdown(queryBytes: 0, gridBytes: 0)
+    
+    init(queryBytes: Int = 0, gridBytes: Int = 0) {
+        self.queryBytes = queryBytes
+        self.gridBytes = gridBytes
+    }
 }
 
 struct ClipboardHistoryEntry: Identifiable, Equatable, Codable {
@@ -91,7 +94,17 @@ struct ClipboardHistoryEntry: Identifiable, Equatable, Codable {
             )
         }
 
-        static var empty: Metadata { Metadata(serverName: nil, databaseName: nil, objectName: nil, connectionColorHex: nil) }
+        init(
+            serverName: String? = nil,
+            databaseName: String? = nil,
+            objectName: String? = nil,
+            connectionColorHex: String? = nil
+        ) {
+            self.serverName = serverName
+            self.databaseName = databaseName
+            self.objectName = objectName
+            self.connectionColorHex = connectionColorHex
+        }
     }
 
     let id: UUID
@@ -100,7 +113,7 @@ struct ClipboardHistoryEntry: Identifiable, Equatable, Codable {
     var timestamp: Date
     var metadata: Metadata
 
-    init(id: UUID = UUID(), source: Source, content: String, timestamp: Date = Date(), metadata: Metadata = .empty) {
+    init(id: UUID = UUID(), source: Source, content: String, timestamp: Date = Date(), metadata: Metadata = Metadata()) {
         self.id = id
         self.source = source
         self.content = content
@@ -160,6 +173,10 @@ struct ClipboardHistoryEntry: Identifiable, Equatable, Codable {
     }
 }
 
+extension ClipboardHistoryEntry.Metadata {
+    static let empty = ClipboardHistoryEntry.Metadata()
+}
+
 @MainActor
 final class ClipboardHistoryStore: ObservableObject {
     typealias UsageBreakdown = ClipboardHistoryUsageBreakdown
@@ -186,7 +203,7 @@ final class ClipboardHistoryStore: ObservableObject {
 
     @Published private(set) var entries: [Entry] = []
     @Published var lastCopiedEntryID: UUID?
-    @Published private(set) var usage: UsageBreakdown = .empty
+    @Published private(set) var usage: UsageBreakdown = UsageBreakdown()
     @Published private(set) var storageLimit: Int
     @Published var isEnabled: Bool
 
@@ -241,12 +258,12 @@ final class ClipboardHistoryStore: ObservableObject {
         }
     }
 
-    func record(_ source: Entry.Source, content: String, metadata: Entry.Metadata = .empty) {
+    func record(_ source: Entry.Source, content: String, metadata: Entry.Metadata? = nil) {
         guard isEnabled else { return }
         let trimmed = content.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
 
-        var entry = Entry(source: source, content: content, metadata: metadata)
+        var entry = Entry(source: source, content: content, metadata: metadata ?? .empty)
         let entrySize = entry.estimatedSizeInBytes
 
         if storageLimit > 0 && entrySize > storageLimit {
@@ -437,7 +454,7 @@ final class ClipboardHistoryStore: ObservableObject {
         pendingSaveWorkItem?.cancel()
         pendingSaveWorkItem = nil
         entries = []
-        usage = .empty
+        usage = UsageBreakdown()
         lastCopiedEntryID = nil
     }
 

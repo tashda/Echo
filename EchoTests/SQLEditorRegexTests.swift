@@ -43,3 +43,217 @@ final class SQLEditorRegexTests: XCTestCase {
         XCTAssertEqual(matches.count, 0)
     }
 }
+
+final class SQLAutoCompletionEngineTests: XCTestCase {
+    private let stubCompletionEngine = StubCompletionEngine(result: SQLCompletionResult(suggestions: [],
+                                                                                        metadata: SQLCompletionMetadata(clause: .unknown,
+                                                                                                                         currentToken: "",
+                                                                                                                         precedingKeyword: nil,
+                                                                                                                         pathComponents: [],
+                                                                                                                         tablesInScope: [],
+                                                                                                                         focusTable: nil,
+                                                                                                                         cteColumns: [:])))
+    private lazy var engine = SQLAutoCompletionEngine(completionEngine: stubCompletionEngine)
+
+    override func setUp() {
+        super.setUp()
+        stubCompletionEngine.result = SQLCompletionResult(suggestions: [],
+                                                          metadata: SQLCompletionMetadata(clause: .unknown,
+                                                                                           currentToken: "",
+                                                                                           precedingKeyword: nil,
+                                                                                           pathComponents: [],
+                                                                                           tablesInScope: [],
+                                                                                           focusTable: nil,
+                                                                                           cteColumns: [:]))
+        engine.updateContext(nil)
+    }
+
+    func testColumnSuggestionsIncludeOriginAndDataType() {
+        let suggestion = SQLCompletionSuggestion(
+            id: "column|public|orders|customer_id",
+            title: "customer_id",
+            subtitle: "orders • public",
+            detail: nil,
+            insertText: "customer_id",
+            kind: .column,
+            priority: 1500
+        )
+        let metadata = SQLCompletionMetadata(clause: .selectList,
+                                             currentToken: "",
+                                             precedingKeyword: nil,
+                                             pathComponents: [],
+                                             tablesInScope: [],
+                                             focusTable: nil,
+                                             cteColumns: [:])
+        stubCompletionEngine.result = SQLCompletionResult(suggestions: [suggestion], metadata: metadata)
+        engine.updateContext(sampleContext())
+
+        let text = "SELECT o.\nFROM public.orders o"
+        let caretLocation = (text as NSString).range(of: "SELECT o.").length
+
+        let focus = SQLAutoCompletionTableFocus(schema: "public", name: "orders", alias: "o")
+        let query = SQLAutoCompletionQuery(
+            token: "o.",
+            prefix: "",
+            pathComponents: ["o"],
+            replacementRange: NSRange(location: caretLocation, length: 0),
+            precedingKeyword: "select",
+            precedingCharacter: nil,
+            focusTable: focus,
+            tablesInScope: [focus],
+            clause: .selectList
+        )
+
+        let result = engine.suggestions(for: query, text: text, caretLocation: caretLocation)
+        let columnSuggestions = result.sections.flatMap { $0.suggestions }.filter { $0.kind == .column }
+
+        XCTAssertFalse(columnSuggestions.isEmpty)
+        guard let first = columnSuggestions.first else { return }
+        XCTAssertEqual(first.origin?.database, "testdb")
+        XCTAssertEqual(first.origin?.schema, "public")
+        XCTAssertEqual(first.origin?.object, "orders")
+        XCTAssertEqual(first.origin?.column, "customer_id")
+        XCTAssertEqual(first.dataType, "uuid")
+        XCTAssertEqual(first.insertText, "customer_id")
+    }
+
+    func testTableSuggestionsExposeColumnMetadata() {
+        let suggestion = SQLCompletionSuggestion(
+            id: "object:table:testdb.public.fixture",
+            title: "fixture",
+            subtitle: "public",
+            detail: "public.fixture",
+            insertText: "public.fixture",
+            kind: .table,
+            priority: 1300
+        )
+        let metadata = SQLCompletionMetadata(clause: .from,
+                                             currentToken: "public.fi",
+                                             precedingKeyword: "from",
+                                             pathComponents: ["public"],
+                                             tablesInScope: [],
+                                             focusTable: nil,
+                                             cteColumns: [:])
+        stubCompletionEngine.result = SQLCompletionResult(suggestions: [suggestion], metadata: metadata)
+        engine.updateContext(sampleContext())
+
+        let text = "SELECT * FROM public.fi"
+        let caretLocation = text.count
+
+        let query = SQLAutoCompletionQuery(token: "public.fi",
+                                           prefix: "fi",
+                                           pathComponents: ["public"],
+                                           replacementRange: NSRange(location: caretLocation, length: 0),
+                                           precedingKeyword: "from",
+                                           precedingCharacter: " ",
+                                           focusTable: nil,
+                                           tablesInScope: [],
+                                           clause: .from)
+
+        let result = engine.suggestions(for: query, text: text, caretLocation: caretLocation)
+        let tableSuggestions = result.sections.flatMap { $0.suggestions }.filter { $0.kind == .table }
+
+        XCTAssertFalse(tableSuggestions.isEmpty)
+        guard let first = tableSuggestions.first else { return }
+        XCTAssertEqual(first.origin?.database, "testdb")
+        XCTAssertEqual(first.origin?.schema, "public")
+        XCTAssertEqual(first.origin?.object, "fixture")
+        XCTAssertEqual(first.tableColumns?.count, 2)
+        XCTAssertEqual(first.insertText, "fixture")
+    }
+
+    func testTableSuggestionsFilterByTypedPrefix() {
+        let suggestions = [
+            SQLCompletionSuggestion(id: "object:table:testdb.public.fixture",
+                                    title: "fixture",
+                                    subtitle: "public",
+                                    detail: "public.fixture",
+                                    insertText: "public.fixture",
+                                    kind: .table,
+                                    priority: 1300),
+            SQLCompletionSuggestion(id: "object:table:testdb.public.cache_config",
+                                    title: "cache_config",
+                                    subtitle: "public",
+                                    detail: "public.cache_config",
+                                    insertText: "public.cache_config",
+                                    kind: .table,
+                                    priority: 1290)
+        ]
+        let metadata = SQLCompletionMetadata(clause: .from,
+                                             currentToken: "public.fi",
+                                             precedingKeyword: "from",
+                                             pathComponents: ["public"],
+                                             tablesInScope: [],
+                                             focusTable: nil,
+                                             cteColumns: [:])
+        stubCompletionEngine.result = SQLCompletionResult(suggestions: suggestions, metadata: metadata)
+        engine.updateContext(sampleContext())
+
+        let text = "SELECT * FROM public.fi"
+        let caretLocation = text.count
+        let query = SQLAutoCompletionQuery(token: "public.fi",
+                                           prefix: "fi",
+                                           pathComponents: ["public"],
+                                           replacementRange: NSRange(location: caretLocation, length: 0),
+                                           precedingKeyword: "from",
+                                           precedingCharacter: " ",
+                                           focusTable: nil,
+                                           tablesInScope: [],
+                                           clause: .from)
+
+        let result = engine.suggestions(for: query, text: text, caretLocation: caretLocation)
+        let tableSuggestions = result.sections.flatMap { $0.suggestions }.filter { $0.kind == .table }
+
+        XCTAssertEqual(tableSuggestions.count, 1)
+        XCTAssertEqual(tableSuggestions.first?.title, "fixture")
+        XCTAssertEqual(tableSuggestions.first?.insertText, "fixture")
+    }
+
+    func testMetadataLimitedFlagReflectsStructureAvailability() {
+        let limitedContext = SQLEditorCompletionContext(databaseType: .postgresql,
+                                                        selectedDatabase: nil,
+                                                        defaultSchema: nil,
+                                                        structure: nil)
+        stubCompletionEngine.result = SQLCompletionResult(suggestions: [],
+                                                          metadata: SQLCompletionMetadata(clause: .unknown,
+                                                                                           currentToken: "",
+                                                                                           precedingKeyword: nil,
+                                                                                           pathComponents: [],
+                                                                                           tablesInScope: [],
+                                                                                           focusTable: nil,
+                                                                                           cteColumns: [:]))
+        engine.updateContext(limitedContext)
+        XCTAssertTrue(engine.isMetadataLimited)
+
+        engine.updateContext(sampleContext())
+        XCTAssertFalse(engine.isMetadataLimited)
+    }
+
+    private func sampleContext() -> SQLEditorCompletionContext {
+        let columns = [
+            ColumnInfo(name: "id", dataType: "integer", isPrimaryKey: true, isNullable: false),
+            ColumnInfo(name: "customer_id", dataType: "uuid", isPrimaryKey: false, isNullable: false)
+        ]
+        let orders = SchemaObjectInfo(name: "orders", schema: "public", type: .table, columns: columns)
+        let fixture = SchemaObjectInfo(name: "fixture", schema: "public", type: .table, columns: columns)
+        let schema = SchemaInfo(name: "public", objects: [orders, fixture])
+        let database = DatabaseInfo(name: "testdb", schemas: [schema])
+        let structure = DatabaseStructure(serverVersion: nil, databases: [database])
+        return SQLEditorCompletionContext(databaseType: .postgresql,
+                                          selectedDatabase: "testdb",
+                                          defaultSchema: "public",
+                                          structure: structure)
+    }
+
+    private final class StubCompletionEngine: SQLCompletionEngineProtocol {
+        var result: SQLCompletionResult
+
+        init(result: SQLCompletionResult) {
+            self.result = result
+        }
+
+        func completions(for request: SQLCompletionRequest) -> SQLCompletionResult {
+            result
+        }
+    }
+}

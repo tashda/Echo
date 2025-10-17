@@ -686,6 +686,43 @@ final class TableStructureEditorViewModel: ObservableObject {
         return statements
     }
 
+    func estimatedMemoryUsageBytes() -> Int {
+        let baseOverhead = 48 * 1024
+
+        let columnBytes = columns.reduce(0) { partial, column in
+            let nameBytes = column.name.utf8.count * 2
+            let typeBytes = column.dataType.utf8.count * 2
+            let defaultBytes = (column.defaultValue?.utf8.count ?? 0) * 2
+            let expressionBytes = (column.generatedExpression?.utf8.count ?? 0) * 2
+            return partial + 256 + nameBytes + typeBytes + defaultBytes + expressionBytes
+        }
+
+        let indexBytes = indexes.reduce(0) { partial, index in
+            let nameBytes = index.name.utf8.count * 2
+            let columnBytes = index.columns.reduce(0) { $0 + $1.name.utf8.count * 2 + 64 }
+            let filterBytes = index.filterCondition.utf8.count * 2
+            return partial + 320 + nameBytes + columnBytes + filterBytes
+        }
+
+        let uniqueBytes = uniqueConstraints.reduce(0) { partial, constraint in
+            let nameBytes = constraint.name.utf8.count * 2
+            let columnsBytes = constraint.columns.reduce(0) { $0 + $1.utf8.count * 2 + 32 }
+            return partial + 240 + nameBytes + columnsBytes
+        }
+
+        let foreignKeyBytes = foreignKeys.reduce(0) { partial, fk in
+            let nameBytes = fk.name.utf8.count * 2
+            let localColumns = fk.columns.reduce(0) { $0 + $1.utf8.count * 2 + 32 }
+            let referencedColumns = fk.referencedColumns.reduce(0) { $0 + $1.utf8.count * 2 + 32 }
+            let schemaBytes = fk.referencedSchema.utf8.count * 2
+            let tableBytes = fk.referencedTable.utf8.count * 2
+            let actionBytes = ((fk.onUpdate?.utf8.count ?? 0) + (fk.onDelete?.utf8.count ?? 0)) * 2
+            return partial + 360 + nameBytes + localColumns + referencedColumns + schemaBytes + tableBytes + actionBytes
+        }
+
+        return baseOverhead + columnBytes + indexBytes + uniqueBytes + foreignKeyBytes
+    }
+
     private func quoteIdentifier(_ value: String) -> String {
         "\"\(value.replacingOccurrences(of: "\"", with: "\"\""))\""
     }

@@ -11,7 +11,7 @@ enum UITestConfiguration {
 
 struct QueryEditorUITestHost: View {
     @State private var text = "SELECT \"identifier\" FROM table_name;"
-    private let theme = SQLEditorTheme()
+    private let theme = SQLEditorTheme.fallback()
     private let display = SQLEditorDisplayOptions()
 
     var body: some View {

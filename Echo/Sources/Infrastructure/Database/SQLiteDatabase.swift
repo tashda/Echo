@@ -14,7 +14,9 @@ struct SQLiteFactory: DatabaseFactory {
         let resolvedPath = try resolveDatabasePath(host: host, database: database)
         do {
             let connection = try Connection(resolvedPath)
-            return SQLiteSession(connection: connection)
+            let session = SQLiteSession()
+            await session.bootstrap(with: connection)
+            return session
         } catch {
             throw DatabaseError.connectionFailed("Failed to open SQLite database: \(error.localizedDescription)")
         }
@@ -57,22 +59,12 @@ private extension FileManager {
     }
 }
 
-@inline(__always)
-private func sqliteTransientDestructor() -> sqlite3_destructor_type {
-    unsafeBitCast(-1, to: sqlite3_destructor_type.self)
-}
-
 private struct SQLiteRawColumn: Sendable {
     let name: String
     let dataType: String
     let isPrimaryKey: Bool
     let isNullable: Bool
     let maxLength: Int?
-}
-
-private struct SQLiteQueryData: Sendable {
-    let columns: [SQLiteRawColumn]
-    let rows: [[String?]]
 }
 
 private struct SQLiteSchemaObjectRecord: Sendable {
@@ -103,14 +95,22 @@ private struct SQLiteRawForeignKey: Sendable {
 }
 
 actor SQLiteSession: DatabaseSession {
-    private var connection: Connection?
+    private var connectionRef: Unmanaged<Connection>?
 
-    init(connection: Connection) {
-        self.connection = connection
+    init() {}
+
+    func bootstrap(with connection: Connection) {
+        connectionRef?.release()
+        connectionRef = Unmanaged.passRetained(connection)
     }
 
     func close() async {
-        connection = nil
+        connectionRef?.release()
+        connectionRef = nil
+    }
+
+    deinit {
+        connectionRef?.release()
     }
 
     func simpleQuery(_ sql: String) async throws -> QueryResultSet {
@@ -119,39 +119,106 @@ actor SQLiteSession: DatabaseSession {
 
     func simpleQuery(_ sql: String, progressHandler: QueryProgressHandler?) async throws -> QueryResultSet {
         let conn = try requireConnection()
-        let rawResult = try withSQLiteStatement(connection: conn, sql: sql) { statement in
+
+        var rawColumns: [SQLiteRawColumn] = []
+        var resolvedColumns: [ColumnInfo] = []
+        var previewRows: [[String?]] = []
+        previewRows.reserveCapacity(512)
+        var totalRowCount = 0
+
+        let operationStart = CFAbsoluteTimeGetCurrent()
+        let streamingPreviewLimit = 512
+        let maxFlushLatency: TimeInterval = 0.015
+
+        var worker: ResultStreamBatchWorker?
+
+        try withSQLiteStatement(connection: conn, sql: sql) { statement in
             let columnCount = Int(sqlite3_column_count(statement))
-            var columns: [SQLiteRawColumn] = []
-            columns.reserveCapacity(columnCount)
-            for index in 0..<columnCount {
-                let name = sqlite3_column_name(statement, Int32(index)).flatMap { String(cString: $0) } ?? "column\(index + 1)"
-                let declaredType = sqlite3_column_decltype(statement, Int32(index)).flatMap { String(cString: $0) }
-                columns.append(
-                    SQLiteRawColumn(
-                        name: name,
-                        dataType: declaredType?.uppercased() ?? "TEXT",
-                        isPrimaryKey: false,
-                        isNullable: true,
-                        maxLength: nil
+            if rawColumns.isEmpty {
+                rawColumns.reserveCapacity(columnCount)
+                for index in 0..<columnCount {
+                    let name = sqlite3_column_name(statement, Int32(index)).flatMap { String(cString: $0) } ?? "column\(index + 1)"
+                    let declaredType = sqlite3_column_decltype(statement, Int32(index)).flatMap { String(cString: $0) }
+                    rawColumns.append(
+                        SQLiteRawColumn(
+                            name: name,
+                            dataType: declaredType?.uppercased() ?? "TEXT",
+                            isPrimaryKey: false,
+                            isNullable: true,
+                            maxLength: nil
+                        )
                     )
-                )
+                }
+                resolvedColumns = rawColumns.map { column in
+                    ColumnInfo(
+                        name: column.name,
+                        dataType: column.dataType,
+                        isPrimaryKey: column.isPrimaryKey,
+                        isNullable: column.isNullable,
+                        maxLength: column.maxLength
+                    )
+                }
             }
 
-            var rows: [[String?]] = []
             while true {
                 let stepResult = sqlite3_step(statement)
                 switch stepResult {
                 case SQLITE_ROW:
-                    rows.append(try makeRow(statement: statement, columnCount: columnCount))
+                    if worker == nil, let handler = progressHandler, !resolvedColumns.isEmpty {
+                        worker = ResultStreamBatchWorker(
+                            label: "dk.tippr.echo.sqlite.streamWorker",
+                            columns: resolvedColumns,
+                            streamingPreviewLimit: streamingPreviewLimit,
+                            maxFlushLatency: maxFlushLatency,
+                            operationStart: operationStart,
+                            progressHandler: handler
+                        )
+                    }
+
+                    let decodeStart = CFAbsoluteTimeGetCurrent()
+                    let rowValues = try makeRow(statement: statement, columnCount: columnCount)
+                    let decodeDuration = CFAbsoluteTimeGetCurrent() - decodeStart
+                    totalRowCount += 1
+                    if previewRows.count < streamingPreviewLimit {
+                        previewRows.append(rowValues)
+                    }
+                    let previewForWorker: [String?]? = totalRowCount <= streamingPreviewLimit ? rowValues : nil
+                    let encodedRow = ResultBinaryRowCodec.encode(row: rowValues)
+                    worker?.enqueue(
+                        .init(
+                            previewValues: previewForWorker,
+                            encodedRow: encodedRow,
+                            totalRowCount: totalRowCount,
+                            decodeDuration: decodeDuration
+                        )
+                    )
                 case SQLITE_DONE:
-                    return SQLiteQueryData(columns: columns, rows: rows)
+                    return
                 default:
                     throw DatabaseError.queryError(String(cString: sqlite3_errmsg(conn.handle)))
                 }
             }
         }
 
-        return await assembleQueryResult(from: rawResult, progressHandler: progressHandler)
+        worker?.finish(totalRowCount: totalRowCount)
+
+        if resolvedColumns.isEmpty {
+            resolvedColumns = rawColumns.map { column in
+                ColumnInfo(
+                    name: column.name,
+                    dataType: column.dataType,
+                    isPrimaryKey: column.isPrimaryKey,
+                    isNullable: column.isNullable,
+                    maxLength: column.maxLength
+                )
+            }
+        }
+
+        if resolvedColumns.isEmpty {
+            resolvedColumns = [ColumnInfo(name: "result", dataType: "TEXT")]
+        }
+
+        return QueryResultSet(columns: resolvedColumns, rows: previewRows, totalRowCount: totalRowCount)
     }
 
     func listTablesAndViews(schema: String?) async throws -> [SchemaObjectInfo] {
@@ -407,7 +474,8 @@ actor SQLiteSession: DatabaseSession {
     }
 
     private func fetchIndexWhereClause(databaseName: String, indexName: String) -> String? {
-        guard let conn = connection else { return nil }
+        guard let connectionRef else { return nil }
+        let conn = connectionRef.takeUnretainedValue()
         let sql = """
         SELECT sql
         FROM \(quoteIdentifier(databaseName)).sqlite_master
@@ -464,33 +532,6 @@ actor SQLiteSession: DatabaseSession {
         }
     }
 
-    private func assembleQueryResult(from raw: SQLiteQueryData, progressHandler: QueryProgressHandler?) async -> QueryResultSet {
-        await MainActor.run {
-            let columns = raw.columns.map { column in
-                ColumnInfo(
-                    name: column.name,
-                    dataType: column.dataType,
-                    isPrimaryKey: column.isPrimaryKey,
-                    isNullable: column.isNullable,
-                    maxLength: column.maxLength
-                )
-            }
-
-            let effectiveColumns = columns.isEmpty ? [ColumnInfo(name: "result", dataType: "TEXT")] : columns
-
-            if let handler = progressHandler {
-                let update = QueryStreamUpdate(
-                    columns: effectiveColumns,
-                    appendedRows: raw.rows,
-                    totalRowCount: raw.rows.count
-                )
-                handler(update)
-            }
-
-            return QueryResultSet(columns: effectiveColumns, rows: raw.rows)
-        }
-    }
-
     private func makeRow(statement: OpaquePointer?, columnCount: Int) throws -> [String?] {
         var row: [String?] = []
         row.reserveCapacity(columnCount)
@@ -535,10 +576,10 @@ actor SQLiteSession: DatabaseSession {
     }
 
     private func requireConnection() throws -> Connection {
-        guard let connection else {
+        guard let connectionRef else {
             throw DatabaseError.connectionFailed("SQLite connection has been closed")
         }
-        return connection
+        return connectionRef.takeUnretainedValue()
     }
 
     private func normalizedDatabaseName(_ name: String?) -> String {
@@ -567,8 +608,9 @@ actor SQLiteSession: DatabaseSession {
     }
 
     private func bindText(_ statement: OpaquePointer?, index: Int32, value: String, connection: Connection) throws {
+        let destructor = unsafeBitCast(-1, to: sqlite3_destructor_type.self)
         let result = value.withCString { cString in
-            sqlite3_bind_text(statement, index, cString, -1, sqliteTransientDestructor())
+            sqlite3_bind_text(statement, index, cString, -1, destructor)
         }
         guard result == SQLITE_OK else {
             throw DatabaseError.queryError(String(cString: sqlite3_errmsg(connection.handle)))
