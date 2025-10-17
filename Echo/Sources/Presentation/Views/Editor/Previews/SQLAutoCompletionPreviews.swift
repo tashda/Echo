@@ -56,7 +56,8 @@ private struct AutoCompletionListPreview: View {
             suggestions: data,
             selectedID: data[1].id,
             onSelect: { _ in },
-            detailResetID: resetID
+            detailResetID: resetID,
+            statusMessage: nil
         )
         .padding(24)
 #if os(macOS)

@@ -168,7 +168,7 @@ final class SQLAutoCompletionController {
         let controller = ensureHostingController()
         let statusMessage: String?
         if textView?.completionEngine.isMetadataLimited == true {
-            statusMessage = "Limited metadata — showing keywords and recent items"
+            statusMessage = "Limited metadata — showing keywords and history"
         } else {
             statusMessage = nil
         }

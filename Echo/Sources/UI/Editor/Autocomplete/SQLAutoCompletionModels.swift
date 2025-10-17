@@ -172,6 +172,11 @@ struct SQLAutoCompletionSection: Identifiable, Equatable {
     let suggestions: [SQLAutoCompletionSuggestion]
 }
 
+struct SQLAutoCompletionResult {
+    let sections: [SQLAutoCompletionSection]
+    let metadata: SQLCompletionMetadata
+}
+
 struct SQLAutoCompletionTableFocus: Equatable {
     let schema: String?
     let name: String

@@ -1,9 +1,40 @@
 import Foundation
 
 final class SQLAutoCompletionEngine {
-    private struct SchemaEntry {
-        let database: String
-        let schema: String
+    private let completionEngine: SQLCompletionEngineProtocol
+    private struct SQLStructureMetadataProvider: SQLMetadataProvider {
+        let catalogsByDatabase: [String: SQLDatabaseCatalog]
+        let defaultCatalog: SQLDatabaseCatalog
+
+        func catalog(for database: String?) -> SQLDatabaseCatalog? {
+            if let database,
+               let catalog = catalogsByDatabase[database.lowercased()] {
+                return catalog
+            }
+            return defaultCatalog
+        }
+
+        static var empty: SQLStructureMetadataProvider {
+            SQLStructureMetadataProvider(catalogsByDatabase: [:],
+                                         defaultCatalog: SQLDatabaseCatalog(schemas: []))
+        }
+    }
+
+    private final class CachingSuggestionBuilderFactory: SQLSuggestionBuilderFactory {
+        private var cache: [SQLDialect: SQLSuggestionBuilder] = [:]
+
+        func makeBuilder(for dialect: SQLDialect) -> SQLSuggestionBuilder {
+            if let existing = cache[dialect] {
+                return existing
+            }
+            let builder = DefaultSuggestionBuilder(dialect: dialect)
+            cache[dialect] = builder
+            return builder
+        }
+    }
+
+    init(completionEngine: SQLCompletionEngineProtocol = SQLCompletionEngine(builderFactory: CachingSuggestionBuilderFactory())) {
+        self.completionEngine = completionEngine
     }
 
     private struct ObjectEntry {
@@ -12,85 +43,175 @@ final class SQLAutoCompletionEngine {
         let object: SchemaObjectInfo
     }
 
-    private struct ColumnEntry {
-        let database: String
-        let schema: String
-        let objectName: String
-        let column: ColumnInfo
-    }
-
     private struct Catalog {
-        let schemas: [SchemaEntry]
-        let tables: [ObjectEntry]
-        let views: [ObjectEntry]
-        let materializedViews: [ObjectEntry]
-        let functions: [ObjectEntry]
-        let columns: [ColumnEntry]
+        struct ObjectKey: Hashable {
+            let database: String
+            let schema: String
+            let name: String
+        }
 
-        init(context: SQLEditorCompletionContext) {
+        let objectsByKey: [ObjectKey: [ObjectEntry]]
+        let metadataProvider: SQLStructureMetadataProvider
+
+        init(context: SQLEditorCompletionContext, builtInFunctions: [String]) {
             guard let structure = context.structure else {
-                self.schemas = []
-                self.tables = []
-                self.views = []
-                self.materializedViews = []
-                self.functions = []
-                self.columns = []
+                let builtIns = Catalog.builtInSchema(functions: builtInFunctions)
+                let defaultCatalog = builtIns.objects.isEmpty ? SQLDatabaseCatalog(schemas: []) : SQLDatabaseCatalog(schemas: [builtIns])
+                self.objectsByKey = [:]
+                self.metadataProvider = SQLStructureMetadataProvider(catalogsByDatabase: [:],
+                                                                     defaultCatalog: defaultCatalog)
                 return
             }
 
-            var schemaEntries: [SchemaEntry] = []
-            var tableEntries: [ObjectEntry] = []
-            var viewEntries: [ObjectEntry] = []
-            var materializedEntries: [ObjectEntry] = []
-            var functionEntries: [ObjectEntry] = []
-            var columnEntries: [ColumnEntry] = []
+            var objectsIndex: [ObjectKey: [ObjectEntry]] = [:]
+            var catalogsByDatabase: [String: SQLDatabaseCatalog] = [:]
 
             for database in structure.databases {
-                let databaseName = database.name
+                let databaseLower = database.name.lowercased()
+                var schemasForDatabase: [SQLSchema] = []
+
                 for schema in database.schemas {
                     let schemaName = schema.name
-                    schemaEntries.append(SchemaEntry(database: databaseName, schema: schemaName))
-                    for object in schema.objects {
-                        let entry = ObjectEntry(database: databaseName, schema: schemaName, object: object)
-                        switch object.type {
-                        case .table:
-                            tableEntries.append(entry)
-                        case .view:
-                            viewEntries.append(entry)
-                        case .materializedView:
-                            materializedEntries.append(entry)
-                        case .function:
-                            functionEntries.append(entry)
-                        case .trigger:
-                            break
-                        }
+                    let schemaLower = schemaName.lowercased()
+                    var sqlObjects: [SQLObject] = []
 
-                        if !object.columns.isEmpty {
-                            for column in object.columns {
-                                columnEntries.append(ColumnEntry(
-                                    database: databaseName,
-                                    schema: schemaName,
-                                    objectName: object.name,
-                                    column: column
-                                ))
-                            }
-                        }
+                    for object in schema.objects {
+                        guard let sqlObject = Catalog.sqlObject(from: object) else { continue }
+                        sqlObjects.append(sqlObject)
+
+                        let key = ObjectKey(database: databaseLower,
+                                            schema: schemaLower,
+                                            name: object.name.lowercased())
+                        let entry = ObjectEntry(database: database.name,
+                                                schema: schemaName,
+                                                object: object)
+                        objectsIndex[key, default: []].append(entry)
                     }
+
+                    schemasForDatabase.append(SQLSchema(name: schemaName, objects: sqlObjects))
+                }
+
+                if !builtInFunctions.isEmpty {
+                    schemasForDatabase.append(Catalog.builtInSchema(functions: builtInFunctions))
+                }
+
+                catalogsByDatabase[databaseLower] = SQLDatabaseCatalog(schemas: schemasForDatabase)
+            }
+
+            let defaultCatalog: SQLDatabaseCatalog
+            if let selected = context.selectedDatabase?.lowercased(),
+               let selectedCatalog = catalogsByDatabase[selected] {
+                defaultCatalog = selectedCatalog
+            } else if let first = catalogsByDatabase.values.first {
+                defaultCatalog = first
+            } else {
+                let builtIns = Catalog.builtInSchema(functions: builtInFunctions)
+                defaultCatalog = builtIns.objects.isEmpty ? SQLDatabaseCatalog(schemas: []) : SQLDatabaseCatalog(schemas: [builtIns])
+            }
+
+            self.objectsByKey = objectsIndex
+            self.metadataProvider = SQLStructureMetadataProvider(catalogsByDatabase: catalogsByDatabase,
+                                                                 defaultCatalog: defaultCatalog)
+        }
+
+        func object(database: String?, schema: String, name: String) -> ObjectEntry? {
+            let schemaLower = schema.lowercased()
+            let nameLower = name.lowercased()
+
+            if let database {
+                let key = ObjectKey(database: database.lowercased(),
+                                    schema: schemaLower,
+                                    name: nameLower)
+                if let entries = objectsByKey[key], !entries.isEmpty {
+                    return entries.first
                 }
             }
 
-            self.schemas = schemaEntries
-            self.tables = tableEntries
-            self.views = viewEntries
-            self.materializedViews = materializedEntries
-            self.functions = functionEntries
-            self.columns = columnEntries
+            let matches: [ObjectEntry] = objectsByKey
+                .filter { key, _ in key.schema == schemaLower && key.name == nameLower }
+                .flatMap { $0.value }
+
+            guard !matches.isEmpty else { return nil }
+
+            if let database {
+                let lowered = database.lowercased()
+                if let match = matches.first(where: { $0.database.lowercased() == lowered }) {
+                    return match
+                }
+            }
+
+            return matches.first
+        }
+
+        func objects(named name: String) -> [ObjectEntry] {
+            let lower = name.lowercased()
+            return objectsByKey.compactMap { key, entries in
+                key.name == lower ? entries : nil
+            }.flatMap { $0 }
+        }
+
+        private static func sqlObject(from object: SchemaObjectInfo) -> SQLObject? {
+            let type: SQLObject.ObjectType
+            switch object.type {
+            case .table:
+                type = .table
+            case .view:
+                type = .view
+            case .materializedView:
+                type = .materializedView
+            case .function:
+                type = .function
+            case .trigger:
+                return nil
+            }
+
+            let columns = object.columns.map {
+                SQLColumn(name: $0.name,
+                          dataType: $0.dataType,
+                          isPrimaryKey: $0.isPrimaryKey,
+                          isForeignKey: $0.foreignKey != nil,
+                          isNullable: $0.isNullable)
+            }
+            let foreignKeys = Catalog.foreignKeys(from: object.columns)
+
+            return SQLObject(name: object.name,
+                             type: type,
+                             columns: columns,
+                             foreignKeys: foreignKeys)
+        }
+
+        private static func foreignKeys(from columns: [ColumnInfo]) -> [SQLForeignKey] {
+            var grouped: [String: (columns: [String], schema: String?, table: String, referenced: [String])] = [:]
+
+            for column in columns {
+                guard let fk = column.foreignKey else { continue }
+                var entry = grouped[fk.constraintName] ?? ([], fk.referencedSchema, fk.referencedTable, [])
+                entry.columns.append(column.name)
+                entry.referenced.append(fk.referencedColumn)
+                entry.schema = fk.referencedSchema
+                entry.table = fk.referencedTable
+                grouped[fk.constraintName] = entry
+            }
+
+            return grouped.map { name, payload in
+                SQLForeignKey(name: name,
+                              columns: payload.columns,
+                              referencedSchema: payload.schema,
+                              referencedTable: payload.table,
+                              referencedColumns: payload.referenced)
+            }
+        }
+
+        private static func builtInSchema(functions: [String]) -> SQLSchema {
+            let objects = functions.map { functionName in
+                SQLObject(name: functionName,
+                          type: .function,
+                          columns: [],
+                          foreignKeys: [])
+            }
+            return SQLSchema(name: "Built-in", objects: objects)
         }
     }
-
-    private let maxSectionItems = 40
-    private let maxColumnItems = 60
-    private let maxFunctionItems = 40
 
     private var context: SQLEditorCompletionContext?
     private var catalog: Catalog?
@@ -98,6 +219,14 @@ final class SQLAutoCompletionEngine {
     private var useTableAliasShortcuts = false
     private let historyStore = SQLAutoCompletionHistoryStore.shared
     private(set) var isMetadataLimited: Bool = false
+    private var metadataProvider: SQLStructureMetadataProvider = .empty
+    private static let emptyMetadata = SQLCompletionMetadata(clause: .unknown,
+                                                             currentToken: "",
+                                                             precedingKeyword: nil,
+                                                             pathComponents: [],
+                                                             tablesInScope: [],
+                                                             focusTable: nil,
+                                                             cteColumns: [:])
 
     private static let reservedLeadingKeywords: Set<String> = [
         "select", "from", "where", "join", "inner", "left", "right", "full",
@@ -121,12 +250,15 @@ final class SQLAutoCompletionEngine {
     func updateContext(_ newContext: SQLEditorCompletionContext?) {
         context = newContext
         if let newContext {
-            catalog = Catalog(context: newContext)
             builtInFunctions = SQLAutoCompletionEngine.builtInFunctions(for: newContext.databaseType)
+            let newCatalog = Catalog(context: newContext, builtInFunctions: builtInFunctions)
+            catalog = newCatalog
+            metadataProvider = newCatalog.metadataProvider
             isMetadataLimited = newContext.structure == nil
         } else {
             catalog = nil
             builtInFunctions = []
+            metadataProvider = .empty
             isMetadataLimited = false
         }
     }
@@ -139,65 +271,270 @@ final class SQLAutoCompletionEngine {
         historyStore.record(suggestion, context: context)
     }
 
-    func suggestions(for query: SQLAutoCompletionQuery) -> [SQLAutoCompletionSection] {
-        guard let catalog, let context else { return [] }
-        guard shouldProvideCompletions(for: query) else { return [] }
+    func suggestions(for query: SQLAutoCompletionQuery,
+                     text: String,
+                     caretLocation: Int) -> SQLAutoCompletionResult {
+        guard let context else {
+            return SQLAutoCompletionResult(sections: [],
+                                           metadata: SQLAutoCompletionEngine.emptyMetadata)
+        }
 
-        var sections: [SQLAutoCompletionSection] = []
+        guard shouldProvideCompletions(for: query) else {
+            return SQLAutoCompletionResult(sections: [],
+                                           metadata: SQLAutoCompletionEngine.emptyMetadata)
+        }
 
-        if query.pathComponents.count <= 1, isObjectContext(query: query) {
-            let tables = makeObjectSuggestions(kind: .table, entries: catalog.tables, query: query, context: context)
-            if !tables.isEmpty {
-                sections.append(SQLAutoCompletionSection(title: "Tables", suggestions: tables))
+        let options = SQLEngineOptions(enableAliasShortcuts: useTableAliasShortcuts,
+                                       keywordCasing: .upper)
+
+        let request = SQLCompletionRequest(text: text,
+                                           caretLocation: caretLocation,
+                                           dialect: context.databaseType.sqlDialect,
+                                           selectedDatabase: context.selectedDatabase,
+                                           defaultSchema: context.defaultSchema,
+                                           metadata: metadataProvider,
+                                           options: options)
+
+        let result = completionEngine.completions(for: request)
+
+        let mapped = mapSuggestions(result.suggestions,
+                                    query: query,
+                                    context: context)
+        let combined = injectHistorySuggestions(base: mapped,
+                                                query: query,
+                                                context: context)
+
+        let sections = [SQLAutoCompletionSection(title: "Suggestions", suggestions: combined)]
+        return SQLAutoCompletionResult(sections: sections, metadata: result.metadata)
+    }
+
+    private func mapSuggestions(_ suggestions: [SQLCompletionSuggestion],
+                                query: SQLAutoCompletionQuery,
+                                context: SQLEditorCompletionContext) -> [SQLAutoCompletionSuggestion] {
+        var results: [SQLAutoCompletionSuggestion] = []
+        results.reserveCapacity(suggestions.count)
+
+        for suggestion in suggestions {
+            guard let mapped = mapSuggestion(suggestion,
+                                             context: context) else { continue }
+            results.append(mapped)
+        }
+        return results
+    }
+
+    private func mapSuggestion(_ suggestion: SQLCompletionSuggestion,
+                               context: SQLEditorCompletionContext) -> SQLAutoCompletionSuggestion? {
+        guard let mappedKind = mapKind(suggestion.kind) else { return nil }
+
+        var origin: SQLAutoCompletionSuggestion.Origin?
+        var dataType: String?
+        var tableColumns: [SQLAutoCompletionSuggestion.TableColumn]?
+
+        switch suggestion.kind {
+        case .table, .view, .materializedView:
+            let schemaName = suggestion.subtitle ?? context.defaultSchema
+            if let entry = lookupObject(schema: schemaName,
+                                        name: suggestion.title,
+                                        context: context) {
+                origin = SQLAutoCompletionSuggestion.Origin(database: entry.database,
+                                                            schema: entry.schema,
+                                                            object: entry.object.name)
+                tableColumns = self.tableColumns(from: entry.object)
+            } else {
+                origin = SQLAutoCompletionSuggestion.Origin(database: context.selectedDatabase,
+                                                            schema: schemaName,
+                                                            object: suggestion.title)
             }
+        case .schema:
+            origin = SQLAutoCompletionSuggestion.Origin(database: context.selectedDatabase,
+                                                        schema: suggestion.title)
+        case .column:
+            let details = mapColumnSuggestion(suggestion, context: context)
+            origin = details.origin
+            dataType = details.dataType
+        case .function, .procedure:
+            origin = mapFunctionOrigin(suggestion, context: context)
+        default:
+            break
+        }
 
-            let views = makeObjectSuggestions(kind: .view, entries: catalog.views, query: query, context: context)
-            if !views.isEmpty {
-                sections.append(SQLAutoCompletionSection(title: "Views", suggestions: views))
+        return SQLAutoCompletionSuggestion(id: suggestion.id,
+                                           title: suggestion.title,
+                                           subtitle: suggestion.subtitle,
+                                           detail: suggestion.detail,
+                                           insertText: suggestion.insertText,
+                                           kind: mappedKind,
+                                           origin: origin,
+                                           dataType: dataType,
+                                           tableColumns: tableColumns)
+    }
+
+    private func mapKind(_ kind: SQLCompletionSuggestion.Kind) -> SQLAutoCompletionKind? {
+        switch kind {
+        case .schema: return .schema
+        case .table: return .table
+        case .view: return .view
+        case .materializedView: return .materializedView
+        case .column: return .column
+        case .function, .procedure: return .function
+        case .keyword: return .keyword
+        case .snippet: return .snippet
+        case .parameter: return .parameter
+        case .join: return .join
+        }
+    }
+
+    private func lookupObject(schema: String?,
+                              name: String,
+                              context: SQLEditorCompletionContext) -> ObjectEntry? {
+        guard let catalog else { return nil }
+
+        if let schema,
+           let entry = catalog.object(database: context.selectedDatabase,
+                                      schema: schema,
+                                      name: name) {
+            return entry
+        }
+
+        if let schema,
+           let entry = catalog.object(database: nil,
+                                      schema: schema,
+                                      name: name) {
+            return entry
+        }
+
+        let matches = catalog.objects(named: name)
+        guard !matches.isEmpty else { return nil }
+
+        if let schema,
+           let match = matches.first(where: { $0.schema.caseInsensitiveCompare(schema) == .orderedSame }) {
+            return match
+        }
+
+        if let selected = context.selectedDatabase?.lowercased(),
+           let match = matches.first(where: { $0.database.lowercased() == selected }) {
+            return match
+        }
+
+        return matches.first
+    }
+
+    private func tableColumns(from object: SchemaObjectInfo) -> [SQLAutoCompletionSuggestion.TableColumn]? {
+        guard !object.columns.isEmpty else { return nil }
+        return object.columns.map {
+            SQLAutoCompletionSuggestion.TableColumn(name: $0.name,
+                                                    dataType: $0.dataType,
+                                                    isNullable: $0.isNullable,
+                                                    isPrimaryKey: $0.isPrimaryKey)
+        }
+    }
+
+    private func mapColumnSuggestion(_ suggestion: SQLCompletionSuggestion,
+                                     context: SQLEditorCompletionContext) -> (origin: SQLAutoCompletionSuggestion.Origin?, dataType: String?) {
+        guard let components = parseColumnIdentifier(from: suggestion.id) else {
+            return (nil, nil)
+        }
+
+        if components.isCTE {
+            let qualifier = components.table ?? ""
+            let origin = SQLAutoCompletionSuggestion.Origin(database: context.selectedDatabase,
+                                                            schema: nil,
+                                                            object: qualifier,
+                                                            column: components.column)
+            return (origin, nil)
+        }
+
+        guard let tableName = components.table else {
+            let origin = SQLAutoCompletionSuggestion.Origin(database: context.selectedDatabase,
+                                                            schema: components.schema,
+                                                            object: nil,
+                                                            column: components.column)
+            return (origin, nil)
+        }
+
+        if let entry = lookupObject(schema: components.schema,
+                                    name: tableName,
+                                    context: context) {
+            let origin = SQLAutoCompletionSuggestion.Origin(database: entry.database,
+                                                            schema: entry.schema,
+                                                            object: entry.object.name,
+                                                            column: components.column)
+            if let columnInfo = entry.object.columns.first(where: { $0.name.caseInsensitiveCompare(components.column) == .orderedSame }) {
+                return (origin, columnInfo.dataType)
             }
+            return (origin, nil)
+        }
 
-            if !catalog.materializedViews.isEmpty {
-                let materialized = makeObjectSuggestions(kind: .materializedView, entries: catalog.materializedViews, query: query, context: context)
-                if !materialized.isEmpty {
-                    sections.append(SQLAutoCompletionSection(title: "Materialized Views", suggestions: materialized))
-                }
+        let origin = SQLAutoCompletionSuggestion.Origin(database: context.selectedDatabase,
+                                                        schema: components.schema,
+                                                        object: tableName,
+                                                        column: components.column)
+        return (origin, nil)
+    }
+
+    private func parseColumnIdentifier(from identifier: String) -> (schema: String?, table: String?, column: String, isCTE: Bool)? {
+        let parts = identifier.split(separator: "|")
+        guard let prefix = parts.first else { return nil }
+
+        switch prefix {
+        case "column":
+            guard parts.count >= 4 else { return nil }
+            let schema = parts[1].isEmpty ? nil : String(parts[1])
+            let table = parts[2].isEmpty ? nil : String(parts[2])
+            let column = String(parts[3])
+            return (schema, table, column, false)
+        case "cte":
+            guard parts.count >= 3 else { return nil }
+            let qualifier = String(parts[1])
+            let column = String(parts[2])
+            return (schema: nil, table: qualifier, column: column, isCTE: true)
+        default:
+            return nil
+        }
+    }
+
+    private func mapFunctionOrigin(_ suggestion: SQLCompletionSuggestion,
+                                   context: SQLEditorCompletionContext) -> SQLAutoCompletionSuggestion.Origin? {
+        if let schemaName = suggestion.subtitle,
+           let entry = lookupObject(schema: schemaName,
+                                    name: suggestion.title,
+                                    context: context) {
+            return SQLAutoCompletionSuggestion.Origin(database: entry.database,
+                                                      schema: entry.schema,
+                                                      object: entry.object.name)
+        }
+
+        if suggestion.subtitle == "Built-in" {
+            return SQLAutoCompletionSuggestion.Origin(database: nil,
+                                                      schema: "Built-in",
+                                                      object: suggestion.title)
+        }
+
+        return SQLAutoCompletionSuggestion.Origin(database: context.selectedDatabase,
+                                                  schema: suggestion.subtitle,
+                                                  object: suggestion.title)
+    }
+
+    private func injectHistorySuggestions(base: [SQLAutoCompletionSuggestion],
+                                          query: SQLAutoCompletionQuery,
+                                          context: SQLEditorCompletionContext) -> [SQLAutoCompletionSuggestion] {
+        let history = historyStore.suggestions(matching: query.normalizedPrefix,
+                                               context: context,
+                                               limit: 6)
+        guard !history.isEmpty else { return base }
+
+        var seen = Set(base.map { $0.id.lowercased() })
+        var combined: [SQLAutoCompletionSuggestion] = []
+
+        for suggestion in history {
+            let key = suggestion.id.lowercased()
+            if seen.insert(key).inserted {
+                combined.append(suggestion)
             }
         }
 
-        let columns = makeColumnSuggestions(query: query, catalog: catalog, context: context)
-        if !columns.isEmpty {
-            sections.append(SQLAutoCompletionSection(title: "Columns", suggestions: columns))
-        }
-
-        if query.pathComponents.isEmpty && !isColumnContext(query: query) {
-            let schemas = makeSchemaSuggestions(query: query, catalog: catalog)
-            if !schemas.isEmpty {
-                sections.append(SQLAutoCompletionSection(title: "Schemas", suggestions: schemas))
-            }
-        }
-
-        let historySuggestions = historyStore.suggestions(matching: query.normalizedPrefix,
-                                                          context: context,
-                                                          limit: 6)
-        if !historySuggestions.isEmpty {
-            let filteredHistory = historySuggestions.filter { candidate in
-                !sections.contains { section in
-                    section.suggestions.contains(where: { $0.id == candidate.id })
-                }
-            }
-            if !filteredHistory.isEmpty {
-                sections.insert(SQLAutoCompletionSection(title: "Recent", suggestions: filteredHistory), at: 0)
-            }
-        }
-
-        if sections.isEmpty {
-            let keywordFallback = makeKeywordFallbackSuggestions(query: query)
-            if !keywordFallback.isEmpty {
-                sections.append(SQLAutoCompletionSection(title: "Keywords", suggestions: keywordFallback))
-            }
-        }
-
-        return sections
+        combined.append(contentsOf: base)
+        return combined
     }
 
     private func shouldProvideCompletions(for query: SQLAutoCompletionQuery) -> Bool {
@@ -206,6 +543,9 @@ final class SQLAutoCompletionEngine {
         if trimmedToken.isEmpty && query.pathComponents.isEmpty {
             if query.precedingCharacter == "*" {
                 return false
+            }
+            if isObjectContext(query: query) {
+                return true
             }
             if isColumnContext(query: query) || query.precedingCharacter == "," {
                 let scopeTables = tablesForColumnSuggestions(query: query)
@@ -223,406 +563,6 @@ final class SQLAutoCompletionEngine {
             return false
         }
         return true
-    }
-
-    private func makeSchemaSuggestions(query: SQLAutoCompletionQuery, catalog: Catalog) -> [SQLAutoCompletionSuggestion] {
-        guard !catalog.schemas.isEmpty else { return [] }
-        let prefixLower = query.normalizedPrefix.lowercased()
-        var filtered = catalog.schemas.filter { entry in
-            prefixLower.isEmpty || entry.schema.lowercased().hasPrefix(prefixLower)
-        }
-        filtered.sort { $0.schema.localizedCaseInsensitiveCompare($1.schema) == .orderedAscending }
-        if filtered.count > maxSectionItems {
-            filtered = Array(filtered.prefix(maxSectionItems))
-        }
-        return filtered.map { entry in
-            let subtitle = entry.database.isEmpty ? nil : entry.database
-            return SQLAutoCompletionSuggestion(
-                id: "schema:\(entry.database).\(entry.schema)".lowercased(),
-                title: entry.schema,
-                subtitle: subtitle,
-                detail: nil,
-                insertText: "\(entry.schema).",
-                kind: .schema,
-                origin: .init(database: entry.database, schema: entry.schema)
-            )
-        }
-    }
-
-    private func makeObjectSuggestions(kind: SQLAutoCompletionKind,
-                                       entries: [ObjectEntry],
-                                       query: SQLAutoCompletionQuery,
-                                       context: SQLEditorCompletionContext) -> [SQLAutoCompletionSuggestion] {
-        guard !entries.isEmpty else { return [] }
-        let prefixLower = query.normalizedPrefix.lowercased()
-        let (databaseFilter, schemaFilter) = objectFilters(for: query, context: context)
-
-        if query.pathComponents.isEmpty && !isObjectContext(query: query) {
-            return []
-        }
-
-        var filtered = entries.filter { entry in
-            if let databaseFilter, entry.database.lowercased() != databaseFilter { return false }
-            if let schemaFilter, entry.schema.lowercased() != schemaFilter { return false }
-            if !prefixLower.isEmpty && !entry.object.name.lowercased().hasPrefix(prefixLower) { return false }
-            return true
-        }
-
-        if filtered.isEmpty && !prefixLower.isEmpty {
-            filtered = entries.filter { entry in
-                if let databaseFilter, entry.database.lowercased() != databaseFilter { return false }
-                if let schemaFilter, entry.schema.lowercased() != schemaFilter { return false }
-                return entry.object.name.lowercased().contains(prefixLower)
-            }
-        }
-
-        filtered.sort { lhs, rhs in
-            let nameComparison = lhs.object.name.localizedCaseInsensitiveCompare(rhs.object.name)
-            if nameComparison != .orderedSame { return nameComparison == .orderedAscending }
-            let schemaComparison = lhs.schema.localizedCaseInsensitiveCompare(rhs.schema)
-            if schemaComparison != .orderedSame { return schemaComparison == .orderedAscending }
-            return lhs.database.localizedCaseInsensitiveCompare(rhs.database) == .orderedAscending
-        }
-
-        if filtered.count > maxSectionItems {
-            filtered = Array(filtered.prefix(maxSectionItems))
-        }
-
-        return filtered.map { entry in
-            let subtitle = makeObjectSubtitle(entry: entry, context: context)
-            let aliasShortcut = useTableAliasShortcuts && (kind == .table || kind == .view || kind == .materializedView)
-                ? tableAliasShortcut(for: entry.object.name)
-                : nil
-            var insertText = makeObjectInsertText(entry: entry, query: query, context: context)
-            if let aliasShortcut {
-                insertText += " \(aliasShortcut)"
-            }
-            let detail = makeDetail(kind: kind,
-                                    database: entry.database,
-                                    schema: entry.schema,
-                                    object: entry.object.name)
-            let enrichedDetail: String?
-            if let detail {
-                enrichedDetail = aliasShortcut != nil ? "\(detail) • alias \(aliasShortcut!)" : detail
-            } else if let aliasShortcut {
-                enrichedDetail = "alias \(aliasShortcut)"
-            } else {
-                enrichedDetail = nil
-            }
-            let tableColumns: [SQLAutoCompletionSuggestion.TableColumn]? = {
-                guard kind == .table || kind == .view || kind == .materializedView else { return nil }
-                let mapped = entry.object.columns.map {
-                    SQLAutoCompletionSuggestion.TableColumn(
-                        name: $0.name,
-                        dataType: $0.dataType,
-                        isNullable: $0.isNullable,
-                        isPrimaryKey: $0.isPrimaryKey
-                    )
-                }
-                return mapped.isEmpty ? nil : mapped
-            }()
-            return SQLAutoCompletionSuggestion(
-                id: "object:\(kind.rawValue):\(entry.database).\(entry.schema).\(entry.object.name)".lowercased(),
-                title: entry.object.name,
-                subtitle: subtitle,
-                detail: enrichedDetail,
-                insertText: insertText,
-                kind: kind,
-                origin: .init(database: entry.database, schema: entry.schema, object: entry.object.name),
-                tableColumns: tableColumns
-            )
-        }
-    }
-
-    private func makeColumnSuggestions(query: SQLAutoCompletionQuery,
-                                       catalog: Catalog,
-                                       context: SQLEditorCompletionContext) -> [SQLAutoCompletionSuggestion] {
-        guard !catalog.columns.isEmpty else { return [] }
-
-        if !isColumnContext(query: query) {
-            return []
-        }
-
-        let scopeTables = tablesForColumnSuggestions(query: query)
-        guard !scopeTables.isEmpty else { return [] }
-
-        let prefixLower = query.normalizedPrefix.lowercased()
-
-        let filters = columnFilters(for: query, context: context)
-        var results: [SQLAutoCompletionSuggestion] = []
-        var seen: Set<String> = []
-
-        func append(_ entry: ColumnEntry) {
-            guard results.count < maxColumnItems else { return }
-            let subtitlePieces = [entry.objectName, entry.schema]
-            let subtitle = subtitlePieces.filter { !$0.isEmpty }.joined(separator: " • ")
-            let detail = makeDetail(kind: .column,
-                                    database: entry.database,
-                                    schema: entry.schema,
-                                    object: entry.objectName,
-                                    column: entry.column.name)
-
-            let identifierBase = "column:\(entry.database).\(entry.schema).\(entry.objectName).\(entry.column.name)".lowercased()
-            let matchingScopes = scopeTables.filter { $0.matches(schema: entry.schema, name: entry.objectName) }
-
-            var emittedAlias = false
-            for focus in matchingScopes {
-                guard let alias = focus.alias, !alias.isEmpty else { continue }
-                let aliasKey = identifierBase + "|alias=" + alias.lowercased()
-                guard seen.insert(aliasKey).inserted else { continue }
-                emittedAlias = true
-                let display = "\(alias).\(entry.column.name)"
-                results.append(
-                    SQLAutoCompletionSuggestion(
-                        id: aliasKey,
-                        title: display,
-                        subtitle: subtitle.isEmpty ? nil : subtitle,
-                        detail: detail,
-                        insertText: display,
-                        kind: .column,
-                        origin: .init(database: entry.database,
-                                      schema: entry.schema,
-                                      object: entry.objectName,
-                                      column: entry.column.name),
-                        dataType: entry.column.dataType
-                    )
-                )
-                if results.count >= maxColumnItems { return }
-            }
-
-            guard !emittedAlias else { return }
-            guard seen.insert(identifierBase).inserted else { return }
-            results.append(
-                SQLAutoCompletionSuggestion(
-                    id: identifierBase,
-                    title: entry.column.name,
-                    subtitle: subtitle.isEmpty ? nil : subtitle,
-                    detail: detail,
-                    insertText: entry.column.name,
-                    kind: .column,
-                    origin: .init(database: entry.database,
-                                  schema: entry.schema,
-                                  object: entry.objectName,
-                                  column: entry.column.name),
-                    dataType: entry.column.dataType
-                )
-            )
-        }
-
-        let primaryMatches = catalog.columns.filter { entry in
-            guard matches(entry, scope: scopeTables) else { return false }
-            if let schemaFilter = filters.schema, entry.schema.lowercased() != schemaFilter { return false }
-            if let databaseFilter = filters.database, entry.database.lowercased() != databaseFilter { return false }
-            if let tableFilter = filters.table, entry.objectName.lowercased() != tableFilter { return false }
-            if !prefixLower.isEmpty && !entry.column.name.lowercased().hasPrefix(prefixLower) { return false }
-            return true
-        }
-
-        for entry in primaryMatches {
-            append(entry)
-        }
-
-        return results
-    }
-
-    private func makeFunctionSuggestions(query: SQLAutoCompletionQuery,
-                                         catalog: Catalog,
-                                         context: SQLEditorCompletionContext) -> [SQLAutoCompletionSuggestion] {
-        let prefixLower = query.normalizedPrefix.lowercased()
-        if prefixLower.isEmpty && builtInFunctions.isEmpty && catalog.functions.isEmpty { return [] }
-
-        if !isColumnContext(query: query) && query.pathComponents.isEmpty {
-            return []
-        }
-
-        let (_, schemaFilter) = objectFilters(for: query, context: context)
-        var results: [SQLAutoCompletionSuggestion] = []
-        var seen: Set<String> = []
-
-        func append(title: String,
-                   subtitle: String?,
-                   originKey: String,
-                   detail: String?,
-                   originContext: SQLAutoCompletionSuggestion.Origin? = nil) {
-            let identifier = "function:\(originKey):\(title)".lowercased()
-            guard !seen.contains(identifier) else { return }
-            seen.insert(identifier)
-            results.append(
-                SQLAutoCompletionSuggestion(
-                    id: identifier,
-                    title: title,
-                    subtitle: subtitle,
-                    detail: detail,
-                    insertText: makeFunctionInsertText(title),
-                    kind: .function,
-                    origin: originContext
-                )
-            )
-        }
-
-        for entry in catalog.functions {
-            if let schemaFilter, entry.schema.lowercased() != schemaFilter { continue }
-            let nameLower = entry.object.name.lowercased()
-            if !prefixLower.isEmpty && !nameLower.hasPrefix(prefixLower) { continue }
-            let subtitlePieces = [entry.schema, entry.database == context.selectedDatabase ? nil : entry.database].compactMap { $0 }
-            let subtitle = subtitlePieces.isEmpty ? nil : subtitlePieces.joined(separator: " • ")
-            let detail = makeDetail(kind: .function,
-                                    database: entry.database,
-                                    schema: entry.schema,
-                                    object: entry.object.name)
-            let originContext = SQLAutoCompletionSuggestion.Origin(
-                database: entry.database,
-                schema: entry.schema,
-                object: entry.object.name
-            )
-            append(title: entry.object.name,
-                   subtitle: subtitle,
-                   originKey: "catalog",
-                   detail: detail,
-                   originContext: originContext)
-            if results.count >= maxFunctionItems { break }
-        }
-
-        if results.count < maxFunctionItems {
-            for function in builtInFunctions {
-                if !prefixLower.isEmpty && !function.lowercased().hasPrefix(prefixLower) { continue }
-                let detail = makeDetail(kind: .function,
-                                        database: nil,
-                                        schema: nil,
-                                        object: function)
-                append(title: function,
-                       subtitle: "Built-in",
-                       originKey: "builtin",
-                       detail: detail,
-                       originContext: nil)
-                if results.count >= maxFunctionItems { break }
-            }
-        }
-
-        return results
-    }
-
-    private func objectFilters(for query: SQLAutoCompletionQuery,
-                               context: SQLEditorCompletionContext) -> (database: String?, schema: String?) {
-        let components = query.pathComponents
-        if components.isEmpty {
-            return (context.selectedDatabase?.lowercased(), nil)
-        }
-        if components.count == 1 {
-            return (context.selectedDatabase?.lowercased(), components.last?.lowercased())
-        }
-        let schema = components.last?.lowercased()
-        let database = components.dropLast().last?.lowercased() ?? context.selectedDatabase?.lowercased()
-        return (database, schema)
-    }
-
-    private func columnFilters(for query: SQLAutoCompletionQuery,
-                               context: SQLEditorCompletionContext) -> (database: String?, schema: String?, table: String?) {
-        let components = query.pathComponents
-        if components.isEmpty {
-            return (context.selectedDatabase?.lowercased(), nil, nil)
-        }
-        if components.count == 1 {
-            guard let rawCandidate = components.last else {
-                return (context.selectedDatabase?.lowercased(), nil, nil)
-            }
-            let candidate = rawCandidate.lowercased()
-            if let resolved = resolveTable(for: candidate, in: query.tablesInScope) {
-                return (
-                    context.selectedDatabase?.lowercased(),
-                    resolved.schema?.lowercased(),
-                    resolved.name.lowercased()
-                )
-            }
-            let matchesSchema = query.tablesInScope.contains { table in
-                table.schema?.lowercased() == candidate
-            }
-            return (context.selectedDatabase?.lowercased(), matchesSchema ? candidate : nil, nil)
-        }
-        let table = components.last?.lowercased()
-        let schema = components.dropLast().last?.lowercased()
-        let database = components.dropLast(2).last?.lowercased() ?? context.selectedDatabase?.lowercased()
-        return (database, schema, table)
-    }
-
-    private func makeObjectInsertText(entry: ObjectEntry,
-                                      query: SQLAutoCompletionQuery,
-                                      context: SQLEditorCompletionContext) -> String {
-        if !query.pathComponents.isEmpty {
-            return entry.object.name
-        }
-        if let defaultSchema = context.defaultSchema?.lowercased(), entry.schema.lowercased() == defaultSchema {
-            return entry.object.name
-        }
-        return "\(entry.schema).\(entry.object.name)"
-    }
-
-    private func tableAliasShortcut(for name: String) -> String? {
-        let components = name.split { !$0.isLetter && !$0.isNumber }
-        var letters: [Character] = []
-
-        for segment in components where !segment.isEmpty {
-            if let first = segment.first {
-                letters.append(Character(first.lowercased()))
-            }
-            for scalar in segment.unicodeScalars.dropFirst() {
-                if CharacterSet.uppercaseLetters.contains(scalar) {
-                    letters.append(Character(String(scalar).lowercased()))
-                }
-            }
-        }
-
-        if !letters.isEmpty {
-            return String(letters)
-        }
-
-        let trimmed = name.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
-        guard !trimmed.isEmpty else { return nil }
-        let fallback = trimmed.prefix(3).map { Character(String($0).lowercased()) }
-        return fallback.isEmpty ? nil : String(fallback)
-    }
-
-    private func makeObjectSubtitle(entry: ObjectEntry,
-                                    context: SQLEditorCompletionContext) -> String? {
-        var parts: [String] = [entry.schema]
-        if let selectedDatabase = context.selectedDatabase, !selectedDatabase.isEmpty {
-            if entry.database.caseInsensitiveCompare(selectedDatabase) != .orderedSame {
-                parts.append(entry.database)
-            }
-        } else if !entry.database.isEmpty {
-            parts.append(entry.database)
-        }
-        return parts.isEmpty ? nil : parts.joined(separator: " • ")
-    }
-
-    private func detailTitle(for kind: SQLAutoCompletionKind) -> String {
-        switch kind {
-        case .schema: return "Schema"
-        case .table: return "Table"
-        case .view: return "View"
-        case .materializedView: return "Materialized View"
-        case .column: return "Column"
-        case .function: return "Function"
-        case .keyword: return "Keyword"
-        }
-    }
-
-    private func makeDetail(kind: SQLAutoCompletionKind,
-                            database: String?,
-                            schema: String?,
-                            object: String?,
-                            column: String? = nil) -> String? {
-        var components: [String] = []
-        if let database, !database.isEmpty { components.append(database) }
-        if let schema, !schema.isEmpty { components.append(schema) }
-        if let object, !object.isEmpty { components.append(object) }
-        if let column, !column.isEmpty { components.append(column) }
-        guard !components.isEmpty else { return nil }
-        return "\(detailTitle(for: kind)) \(components.joined(separator: "."))"
-    }
-
-    private func makeFunctionInsertText(_ name: String) -> String {
-        "\(name)("
     }
 
     private static func builtInFunctions(for databaseType: DatabaseType) -> [String] {
@@ -759,49 +699,19 @@ final class SQLAutoCompletionEngine {
         return unique
     }
 
-    private func makeKeywordFallbackSuggestions(query: SQLAutoCompletionQuery) -> [SQLAutoCompletionSuggestion] {
-        let prefixLower = query.normalizedPrefix.lowercased()
-        let sortedKeywords = SQLAutoCompletionEngine.reservedLeadingKeywords.sorted()
-        var results: [SQLAutoCompletionSuggestion] = []
-        for keyword in sortedKeywords {
-            if !prefixLower.isEmpty && !keyword.hasPrefix(prefixLower) {
-                continue
-            }
-            let display = keyword.uppercased()
-            results.append(SQLAutoCompletionSuggestion(
-                id: "keyword-fallback|\(keyword)",
-                title: display,
-                subtitle: nil,
-                detail: nil,
-                insertText: display,
-                kind: .keyword
-            ))
-            if results.count >= 12 { break }
-        }
-        return results
-    }
+}
 
-    private func resolveTable(for qualifier: String, in scope: [SQLAutoCompletionTableFocus]) -> SQLAutoCompletionTableFocus? {
-        let lowered = qualifier.lowercased()
-        if let aliasMatch = scope.first(where: { $0.alias?.lowercased() == lowered }) {
-            return aliasMatch
+private extension DatabaseType {
+    var sqlDialect: SQLDialect {
+        switch self {
+        case .postgresql:
+            return .postgresql
+        case .mysql:
+            return .mysql
+        case .sqlite:
+            return .sqlite
+        case .microsoftSQL:
+            return .microsoftSQL
         }
-        if let nameMatch = scope.first(where: { $0.name.lowercased() == lowered }) {
-            return nameMatch
-        }
-        return nil
-    }
-
-    private func matches(_ entry: ColumnEntry, scope: [SQLAutoCompletionTableFocus]) -> Bool {
-        guard !scope.isEmpty else { return true }
-        for table in scope {
-            if table.matches(schema: entry.schema, name: entry.objectName) {
-                return true
-            }
-            if table.schema == nil && entry.objectName.lowercased() == table.name.lowercased() {
-                return true
-            }
-        }
-        return false
     }
 }

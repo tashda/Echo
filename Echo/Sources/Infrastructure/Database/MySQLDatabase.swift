@@ -182,14 +182,15 @@ final class MySQLSession: DatabaseSession {
                 previewRows.append(values)
             }
 
+            let previewForWorker: [String?]? = totalRowCount <= streamingPreviewLimit ? values : nil
+            let encodedRow = ResultBinaryRowCodec.encode(row: values)
+
             worker?.enqueue(
                 .init(
-                    previewValues: totalRowCount <= streamingPreviewLimit ? values : nil,
+                    previewValues: previewForWorker,
+                    encodedRow: encodedRow,
                     totalRowCount: totalRowCount,
-                    decodeDuration: decodeDuration,
-                    encode: {
-                        ResultBinaryRowCodec.encode(row: values)
-                    }
+                    decodeDuration: decodeDuration
                 )
             )
         }

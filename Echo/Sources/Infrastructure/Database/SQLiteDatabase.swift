@@ -182,14 +182,14 @@ actor SQLiteSession: DatabaseSession {
                     if previewRows.count < streamingPreviewLimit {
                         previewRows.append(rowValues)
                     }
+                    let previewForWorker: [String?]? = totalRowCount <= streamingPreviewLimit ? rowValues : nil
+                    let encodedRow = ResultBinaryRowCodec.encode(row: rowValues)
                     worker?.enqueue(
                         .init(
-                            previewValues: totalRowCount <= streamingPreviewLimit ? rowValues : nil,
+                            previewValues: previewForWorker,
+                            encodedRow: encodedRow,
                             totalRowCount: totalRowCount,
-                            decodeDuration: decodeDuration,
-                            encode: {
-                                ResultBinaryRowCodec.encode(row: rowValues)
-                            }
+                            decodeDuration: decodeDuration
                         )
                     )
                 case SQLITE_DONE:

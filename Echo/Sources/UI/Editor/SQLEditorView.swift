@@ -1017,9 +1017,15 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
 
             let selectionRange = self.selectedRange()
             let caretLocation = selectionRange.location
+            let fullText = self.string
 
-            var baseSuggestions = self.filteredSuggestions(from: self.completionEngine.suggestions(for: query), for: query)
-            baseSuggestions = self.filterSuggestionsForContext(baseSuggestions, query: query)
+            let engineResult = self.completionEngine.suggestions(for: query,
+                                                                 text: fullText,
+                                                                 caretLocation: caretLocation)
+            let activeQuery = self.enrichedQuery(query, with: engineResult.metadata)
+
+            var baseSuggestions = self.filteredSuggestions(from: engineResult.sections, for: activeQuery)
+            baseSuggestions = self.filterSuggestionsForContext(baseSuggestions, query: activeQuery)
             baseSuggestions = self.limitSuggestions(baseSuggestions)
 
             if baseSuggestions.isEmpty,
@@ -1031,7 +1037,7 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
                 baseSuggestions = fallback
             }
 
-            if self.shouldSuppressCompletions(query: query,
+            if self.shouldSuppressCompletions(query: activeQuery,
                                               selection: selectionRange,
                                               caretLocation: caretLocation,
                                               suggestions: baseSuggestions,
@@ -1044,11 +1050,12 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
                 self.hideCompletions()
             } else {
                 self.removeCompletionIndicator()
-                controller.present(suggestions: baseSuggestions, query: query)
+                controller.present(suggestions: baseSuggestions, query: activeQuery)
             }
 
             let currentContext = self.completionContext
-            let fullText = self.string
+            let baseForAsync = baseSuggestions
+            let asyncQuery = activeQuery
 
             self.completionTask = Task { [weak self] in
                 guard let self else { return }
@@ -1063,21 +1070,21 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
 
                 let updatedCaretLocation = self.currentSelectionDescriptor().range.location
 
-                let external = await self.fetchSqruffSuggestions(for: query,
+                let external = await self.fetchSqruffSuggestions(for: asyncQuery,
                                                                   text: fullText,
                                                                   caretLocation: updatedCaretLocation,
                                                                   context: context)
                 guard !external.isEmpty, !Task.isCancelled else { return }
 
-                var combined = self.mergeSuggestions(primary: baseSuggestions, secondary: external, query: query)
-                combined = self.filterSuggestionsForContext(combined, query: query)
+                var combined = self.mergeSuggestions(primary: baseForAsync, secondary: external, query: asyncQuery)
+                combined = self.filterSuggestionsForContext(combined, query: asyncQuery)
                 combined = self.limitSuggestions(combined)
 
                 guard !combined.isEmpty, !Task.isCancelled, generation == self.completionGeneration else { return }
 
                 await MainActor.run {
                     guard !Task.isCancelled, generation == self.completionGeneration else { return }
-                    if self.shouldSuppressCompletions(query: query,
+                    if self.shouldSuppressCompletions(query: asyncQuery,
                                                       selection: self.selectedRange(),
                                                       caretLocation: updatedCaretLocation,
                                                       suggestions: combined,
@@ -1086,7 +1093,7 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
                         return
                     }
                     self.removeCompletionIndicator()
-                    controller.present(suggestions: combined, query: query)
+                    controller.present(suggestions: combined, query: asyncQuery)
                 }
             }
         }
@@ -1179,6 +1186,44 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
             focusTable: focusTable,
             tablesInScope: scopeTables,
             clause: parsedContext.clause
+        )
+    }
+
+    func enrichedQuery(_ query: SQLAutoCompletionQuery,
+                       with metadata: SQLCompletionMetadata) -> SQLAutoCompletionQuery {
+        let metadataTables = metadata.tablesInScope.map { reference in
+            SQLAutoCompletionTableFocus(schema: reference.schema,
+                                        name: reference.name,
+                                        alias: reference.alias)
+        }
+
+        var mergedTables = query.tablesInScope
+        if !metadataTables.isEmpty {
+            for candidate in metadataTables where !mergedTables.contains(where: { $0.isEquivalent(to: candidate) }) {
+                mergedTables.append(candidate)
+            }
+        }
+
+        let metadataFocus = metadata.focusTable.map {
+            SQLAutoCompletionTableFocus(schema: $0.schema,
+                                        name: $0.name,
+                                        alias: $0.alias)
+        }
+
+        let resolvedClause: SQLClause = metadata.clause == .unknown ? query.clause : metadata.clause
+        let resolvedKeyword = metadata.precedingKeyword ?? query.precedingKeyword
+        let resolvedPathComponents = metadata.pathComponents.isEmpty ? query.pathComponents : metadata.pathComponents
+
+        return SQLAutoCompletionQuery(
+            token: query.token,
+            prefix: query.prefix,
+            pathComponents: resolvedPathComponents,
+            replacementRange: query.replacementRange,
+            precedingKeyword: resolvedKeyword,
+            precedingCharacter: query.precedingCharacter,
+            focusTable: metadataFocus ?? query.focusTable,
+            tablesInScope: mergedTables,
+            clause: resolvedClause
         )
     }
 
@@ -1516,7 +1561,7 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
 
     func filterSuggestionsForContext(_ suggestions: [SQLAutoCompletionSuggestion],
                                              query: SQLAutoCompletionQuery) -> [SQLAutoCompletionSuggestion] {
-        suggestions.filter { $0.kind != .function }
+        suggestions
     }
 
     func limitSuggestions(_ suggestions: [SQLAutoCompletionSuggestion]) -> [SQLAutoCompletionSuggestion] {
