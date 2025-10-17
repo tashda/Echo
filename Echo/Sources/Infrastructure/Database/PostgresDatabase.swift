@@ -153,7 +153,10 @@ final class PostgresSession: DatabaseSession {
 
         let cursorName = "echo_cursor_\(UUID().uuidString.replacingOccurrences(of: "-", with: ""))"
         let previewFetchSize = streamingPreviewLimit
-        let backgroundFetchSize = max(4096, streamingPreviewLimit * 4)
+        let storedFetchSize = UserDefaults.standard.integer(forKey: ResultStreamingFetchSizeDefaultsKey)
+        let resolvedFetchSize = storedFetchSize >= 128 ? storedFetchSize : 1_024
+        let configuredFetchSize = min(max(resolvedFetchSize, 128), 16_384)
+        let backgroundFetchSize = max(streamingPreviewLimit, configuredFetchSize)
 
         var transactionBegan = false
         var cursorActive = false
@@ -176,7 +179,28 @@ final class PostgresSession: DatabaseSession {
             logger.debug(.init(stringLiteral: readyMessage))
             print(readyMessage)
 
+            struct PendingFetch {
+                let size: Int
+                let startTime: CFAbsoluteTime
+                let task: Task<PostgresQueryResult, Error>
+            }
+
+            func scheduleFetch(size: Int) -> PendingFetch {
+                let startTime = CFAbsoluteTimeGetCurrent()
+                let fetchSQL = "FETCH FORWARD \(size) FROM \(cursorName)"
+                return PendingFetch(
+                    size: size,
+                    startTime: startTime,
+                    task: Task {
+                        try Task.checkCancellation()
+                        let fetchQuery = PostgresQuery(unsafeSQL: fetchSQL)
+                        return try await client.query(fetchQuery, logger: logger)
+                    }
+                )
+            }
+
             var fetchSize = previewFetchSize
+            var pendingFetch = scheduleFetch(size: fetchSize)
 
             let proxiedHandler: QueryProgressHandler = { update in
                 guard !update.appendedRows.isEmpty || !update.encodedRows.isEmpty else {
@@ -203,11 +227,14 @@ final class PostgresSession: DatabaseSession {
             fetchLoop: while true {
                 try Task.checkCancellation()
 
-                let fetchSQL = "FETCH FORWARD \(fetchSize) FROM \(cursorName)"
-                let fetchQuery = PostgresQuery(unsafeSQL: fetchSQL)
-                let batchSequence = try await client.query(fetchQuery, logger: logger)
+                let currentFetch = pendingFetch
+                let fetchStart = currentFetch.startTime
+                let batchSequence = try await currentFetch.task.value
 
                 var batchCount = 0
+                var fetchDecodeDuration: TimeInterval = 0
+                var nextFetchSize = currentFetch.size
+                var nextFetch: PendingFetch?
 
                 for try await row in batchSequence {
                     try Task.checkCancellation()
@@ -260,6 +287,7 @@ final class PostgresSession: DatabaseSession {
                     }
 
                     let decodeDuration = CFAbsoluteTimeGetCurrent() - conversionStart
+                    fetchDecodeDuration += decodeDuration
 
                     if let values = previewValues {
                         if previewRows.count < streamingPreviewLimit {
@@ -270,6 +298,13 @@ final class PostgresSession: DatabaseSession {
                     let encodedRow = ResultBinaryRowCodec.encodeRaw(cells: rawCells)
                     totalRowCount += 1
                     batchCount += 1
+
+                    if batchCount == currentFetch.size, nextFetch == nil {
+                        if currentFetch.size == previewFetchSize, totalRowCount >= streamingPreviewLimit {
+                            nextFetchSize = backgroundFetchSize
+                        }
+                        nextFetch = scheduleFetch(size: nextFetchSize)
+                    }
 
                     if !firstRowLogged {
                         firstRowLogged = true
@@ -296,17 +331,52 @@ final class PostgresSession: DatabaseSession {
                     }
                 }
 
+                let fetchDuration = CFAbsoluteTimeGetCurrent() - fetchStart
+                let networkWait = max(fetchDuration - fetchDecodeDuration, 0)
+                let fetchMessage = String(
+                    format: "[PostgresStream] fetch requested=%d rows=%d duration=%.3fs wait=%.3fs",
+                    currentFetch.size,
+                    batchCount,
+                    fetchDuration,
+                    networkWait
+                )
+                logger.debug(.init(stringLiteral: fetchMessage))
+                print(fetchMessage)
+
+                if let worker {
+                    let fetchMetrics = QueryStreamMetrics(
+                        batchRowCount: batchCount,
+                        loopElapsed: fetchDuration,
+                        decodeDuration: fetchDecodeDuration,
+                        totalElapsed: CFAbsoluteTimeGetCurrent() - operationStart,
+                        cumulativeRowCount: totalRowCount,
+                        fetchRequestRowCount: currentFetch.size,
+                        fetchRowCount: batchCount,
+                        fetchDuration: fetchDuration,
+                        fetchWait: networkWait
+                    )
+                    let update = QueryStreamUpdate(
+                        columns: columns,
+                        appendedRows: [],
+                        encodedRows: [],
+                        totalRowCount: totalRowCount,
+                        metrics: fetchMetrics
+                    )
+                    proxiedHandler(update)
+                }
+
                 if batchCount == 0 {
+                    nextFetch?.task.cancel()
                     break fetchLoop
                 }
 
-                if batchCount < fetchSize {
+                if batchCount < currentFetch.size {
+                    nextFetch?.task.cancel()
                     break fetchLoop
                 }
 
-                if fetchSize == previewFetchSize, totalRowCount >= streamingPreviewLimit {
-                    fetchSize = backgroundFetchSize
-                }
+                fetchSize = nextFetchSize
+                pendingFetch = nextFetch ?? scheduleFetch(size: fetchSize)
 
                 await Task.yield()
             }

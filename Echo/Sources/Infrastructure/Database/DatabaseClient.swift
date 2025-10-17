@@ -1,5 +1,7 @@
 import Foundation
 
+let ResultStreamingFetchSizeDefaultsKey = "dk.tippr.echo.streaming.fetchSize"
+
 public struct QueryResultSet: Sendable {
     public var columns: [ColumnInfo]
     public var rows: [[String?]]
@@ -404,23 +406,38 @@ public struct QueryStreamMetrics: Sendable, Codable {
     public let decodeDuration: TimeInterval
     public let totalElapsed: TimeInterval
     public let cumulativeRowCount: Int
+    public let fetchRequestRowCount: Int?
+    public let fetchRowCount: Int?
+    public let fetchDuration: TimeInterval?
+    public let fetchWait: TimeInterval?
 
     public nonisolated init(
         batchRowCount: Int,
         loopElapsed: TimeInterval,
         decodeDuration: TimeInterval,
         totalElapsed: TimeInterval,
-        cumulativeRowCount: Int
+        cumulativeRowCount: Int,
+        fetchRequestRowCount: Int? = nil,
+        fetchRowCount: Int? = nil,
+        fetchDuration: TimeInterval? = nil,
+        fetchWait: TimeInterval? = nil
     ) {
         self.batchRowCount = batchRowCount
         self.loopElapsed = loopElapsed
         self.decodeDuration = decodeDuration
         self.totalElapsed = totalElapsed
         self.cumulativeRowCount = cumulativeRowCount
+        self.fetchRequestRowCount = fetchRequestRowCount
+        self.fetchRowCount = fetchRowCount
+        self.fetchDuration = fetchDuration
+        self.fetchWait = fetchWait
     }
 
     public nonisolated var networkWaitEstimate: TimeInterval {
-        max(loopElapsed - decodeDuration, 0)
+        if let fetchWait {
+            return fetchWait
+        }
+        return max(loopElapsed - decodeDuration, 0)
     }
 }
 

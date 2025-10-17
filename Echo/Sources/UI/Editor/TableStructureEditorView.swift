@@ -2187,24 +2187,22 @@ private struct BulkColumnEditorSheet: View {
     private var content: some View {
         switch mode {
         case .dataType:
-            FormRow(label: "Data Type") {
+            formRow(label: "Data Type") {
                 dataTypePicker
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 8)
             if needsCustomTypeField {
-                FormRow(label: "Custom Type") {
+                formRow(label: "Custom Type") {
                     plainField(text: $dataType, alignment: .trailing)
                 }
                 .padding(.horizontal, 20)
                 .padding(.vertical, 8)
             }
         case .defaultValue:
-            FormRow(label: "Default Value") {
+            formRow(label: "Default Value") {
                 plainField(text: $defaultValue, alignment: .trailing)
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 8)
 
         case .generatedExpression:
             VStack(alignment: .leading, spacing: 6) {
@@ -2225,6 +2223,17 @@ private struct BulkColumnEditorSheet: View {
                     )
             }
         }
+    }
+
+    private func formRow(label: String, @ViewBuilder content: () -> some View) -> some View {
+        HStack(alignment: .center, spacing: 12) {
+            Text(label)
+                .frame(minWidth: 120, alignment: .leading)
+            Spacer(minLength: 0)
+            content()
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 8)
     }
 
     private var needsCustomTypeField: Bool {
@@ -2281,7 +2290,7 @@ private struct BulkColumnEditorSheet: View {
     private var sectionFooter: some View {
         switch mode {
         case .dataType:
-            Text("Leave blank to retain current types. Choosing a value applies to all selected columns.")
+            EmptyView()
         case .defaultValue, .generatedExpression:
             Text("Leave empty to clear the value on all selected columns.")
         }

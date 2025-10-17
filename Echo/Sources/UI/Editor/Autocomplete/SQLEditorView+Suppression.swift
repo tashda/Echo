@@ -74,7 +74,8 @@ extension SQLTextView {
         let newSuppression = SuppressedCompletion(
             tokenRange: result.suppression.tokenRange,
             canonicalText: result.suppression.canonicalText,
-            hasFollowUps: result.suppression.hasFollowUps
+            hasFollowUps: result.suppression.hasFollowUps,
+            allowTrailingWhitespace: !result.suppression.hasFollowUps
         )
 
         suppressedCompletions.removeAll { NSIntersectionRange($0.tokenRange, newSuppression.tokenRange).length > 0 }
@@ -201,6 +202,17 @@ extension SQLTextView {
         suppressedCompletions.removeAll { existing in
             NSIntersectionRange(existing.tokenRange, tokenRange).length > 0
         }
+
+        if suppressionForTrigger(at: tokenRange.location) != nil {
+            return
+        }
+
+        let canonicalText = insertion.substring(with: NSRange(location: 0, length: canonicalLength))
+        let suppression = SuppressedCompletion(tokenRange: tokenRange,
+                                               canonicalText: canonicalText,
+                                               hasFollowUps: false,
+                                               allowTrailingWhitespace: true)
+        suppressedCompletions.append(suppression)
         updateCompletionIndicator()
     }
 

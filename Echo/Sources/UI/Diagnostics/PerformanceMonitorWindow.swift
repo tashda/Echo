@@ -59,6 +59,7 @@ private struct PerformanceMonitorView: View {
                 .background(themeManager.windowBackground)
             }
         }
+        .preferredColorScheme(themeManager.effectiveColorScheme)
     }
 
     private var header: some View {

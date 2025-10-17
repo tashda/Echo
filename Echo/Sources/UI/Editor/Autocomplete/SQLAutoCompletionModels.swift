@@ -79,6 +79,12 @@ struct SQLAutoCompletionSuggestion: Identifiable, Equatable {
         let isPrimaryKey: Bool
     }
 
+    enum Source: Equatable {
+        case engine
+        case history
+        case fallback
+    }
+
     let id: String
     let title: String
     let subtitle: String?
@@ -89,6 +95,8 @@ struct SQLAutoCompletionSuggestion: Identifiable, Equatable {
     let dataType: String?
     let tableColumns: [TableColumn]?
     let snippetText: String?
+    let priority: Int
+    let source: Source
 
     init(id: String = UUID().uuidString,
          title: String,
@@ -99,7 +107,9 @@ struct SQLAutoCompletionSuggestion: Identifiable, Equatable {
          origin: Origin? = nil,
          dataType: String? = nil,
          tableColumns: [TableColumn]? = nil,
-         snippetText: String? = nil) {
+         snippetText: String? = nil,
+         priority: Int = 1000,
+         source: Source = .engine) {
         self.id = id
         self.title = title
         self.subtitle = subtitle
@@ -114,6 +124,8 @@ struct SQLAutoCompletionSuggestion: Identifiable, Equatable {
         self.dataType = dataType
         self.tableColumns = tableColumns?.isEmpty == true ? nil : tableColumns
         self.snippetText = snippetText
+        self.priority = priority
+        self.source = source
     }
 }
 
@@ -166,6 +178,24 @@ extension SQLAutoCompletionSuggestion {
         case .snippet, .parameter, .join:
             return detail ?? subtitle
         }
+    }
+}
+
+extension SQLAutoCompletionSuggestion {
+    func withSource(_ newSource: Source) -> SQLAutoCompletionSuggestion {
+        guard source != newSource else { return self }
+        return SQLAutoCompletionSuggestion(id: id,
+                                           title: title,
+                                           subtitle: subtitle,
+                                           detail: detail,
+                                           insertText: insertText,
+                                           kind: kind,
+                                           origin: origin,
+                                           dataType: dataType,
+                                           tableColumns: tableColumns,
+                                           snippetText: snippetText,
+                                           priority: priority,
+                                           source: newSource)
     }
 }
 

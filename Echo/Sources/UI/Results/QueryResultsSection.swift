@@ -40,6 +40,9 @@ struct QueryResultsSection: View {
     private let rowCountChipWidth: CGFloat = 90
     private let timeChipWidth: CGFloat = 110
     private let statusChipWidth: CGFloat = 100
+    private var statusBarVerticalPadding: CGFloat {
+        max(0, (statusBarHeight - statusChipHeight) / 2)
+    }
 #else
     private let connectionChipMinWidth: CGFloat = 180
     private let metricChipMinWidth: CGFloat = 82
@@ -453,6 +456,7 @@ struct QueryResultsSection: View {
             if shouldShowStatusBar {
                 MacQueryResultsStatusBar(
                     height: statusBarHeight,
+                    verticalPadding: statusBarVerticalPadding,
                     background: themeManager.windowBackground,
                     dividerOpacity: 0.3
                 ) {
@@ -637,6 +641,7 @@ struct QueryResultsSection: View {
 
     private struct MacQueryResultsStatusBar<Content: View>: View {
         let height: CGFloat
+        let verticalPadding: CGFloat
         let background: Color
         let dividerOpacity: Double
         @ViewBuilder var content: () -> Content
@@ -644,8 +649,13 @@ struct QueryResultsSection: View {
         var body: some View {
             ZStack(alignment: .center) {
                 background
-                content()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                VStack(spacing: 0) {
+                    Spacer(minLength: verticalPadding)
+                    content()
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .frame(height: height - (verticalPadding * 2), alignment: .center)
+                    Spacer(minLength: verticalPadding)
+                }
             }
             .frame(height: height)
             .overlay(alignment: .top) {
