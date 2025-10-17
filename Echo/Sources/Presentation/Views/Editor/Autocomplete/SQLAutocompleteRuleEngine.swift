@@ -159,7 +159,10 @@ struct SQLAutocompleteRuleEngine {
         let isObjectContext = clauseIsObjectContext || (keyword.map { request.objectContextKeywords.contains($0) } ?? false)
         let isColumnContext = clauseIsColumnContext || (keyword.map { request.columnContextKeywords.contains($0) } ?? false)
 
-        let hasAlternativeObjects: Bool = request.suggestions.contains { candidate in
+        let treatJoinHelpersAsAlternatives = clause == .joinTarget || keyword == "join"
+        let hasJoinHelpers = treatJoinHelpersAsAlternatives && request.suggestions.contains { $0.kind == .join }
+
+        let baseAlternativeObjects = request.suggestions.contains { candidate in
             guard matchingSuggestion != nil else { return false }
             guard objectKinds.contains(candidate.kind) else { return false }
             return !candidateMatchesObject(
@@ -169,6 +172,9 @@ struct SQLAutocompleteRuleEngine {
                 object: typedObject
             )
         }
+
+        let hasAlternativeObjects = baseAlternativeObjects || hasJoinHelpers
+
         if hasAlternativeObjects {
             trace?.addStep(title: "Alternative Objects Available", details: ["Glow should consider additional tables/views"])
         }

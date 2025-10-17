@@ -455,19 +455,22 @@ public struct QueryStreamUpdate: Sendable {
     public let encodedRows: [ResultBinaryRow]
     public let totalRowCount: Int
     public let metrics: QueryStreamMetrics?
+    public let rowRange: Range<Int>?
 
     public nonisolated init(
         columns: [ColumnInfo],
         appendedRows: [[String?]],
         encodedRows: [ResultBinaryRow] = [],
         totalRowCount: Int,
-        metrics: QueryStreamMetrics? = nil
+        metrics: QueryStreamMetrics? = nil,
+        rowRange: Range<Int>? = nil
     ) {
         self.columns = columns
         self.appendedRows = appendedRows
         self.encodedRows = encodedRows
         self.totalRowCount = totalRowCount
         self.metrics = metrics
+        self.rowRange = rowRange
     }
 }
 

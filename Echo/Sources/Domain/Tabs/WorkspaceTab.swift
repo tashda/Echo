@@ -173,6 +173,14 @@ final class SchemaDiagramNodeModel: ObservableObject, Identifiable {
     }
 }
 
+struct SchemaDiagramContext: Hashable {
+    let projectID: UUID?
+    let connectionID: UUID
+    let connectionSessionID: UUID
+    let object: SchemaObjectInfo
+    let cacheKey: DiagramCacheKey?
+}
+
 @MainActor
 final class SchemaDiagramViewModel: ObservableObject {
     @Published var nodes: [SchemaDiagramNodeModel]
@@ -182,6 +190,8 @@ final class SchemaDiagramViewModel: ObservableObject {
     @Published var errorMessage: String?
     let title: String
     let baseNodeID: String
+    var layoutIdentifier: String
+    var context: SchemaDiagramContext?
 
     init(
         nodes: [SchemaDiagramNodeModel],
@@ -190,7 +200,9 @@ final class SchemaDiagramViewModel: ObservableObject {
         title: String,
         isLoading: Bool = false,
         statusMessage: String? = nil,
-        errorMessage: String? = nil
+        errorMessage: String? = nil,
+        layoutIdentifier: String = DiagramLayoutSnapshot.defaultLayoutIdentifier,
+        context: SchemaDiagramContext? = nil
     ) {
         self.nodes = nodes
         self.edges = edges
@@ -199,6 +211,8 @@ final class SchemaDiagramViewModel: ObservableObject {
         self.isLoading = isLoading
         self.statusMessage = statusMessage
         self.errorMessage = errorMessage
+        self.layoutIdentifier = layoutIdentifier
+        self.context = context
     }
 
     func node(for id: String) -> SchemaDiagramNodeModel? {
@@ -221,6 +235,17 @@ final class SchemaDiagramViewModel: ObservableObject {
             return partial + fromBytes + toBytes + nameBytes + 160
         }
         return baseOverhead + nodeBytes + edgeBytes
+    }
+
+    func layoutSnapshot() -> DiagramLayoutSnapshot {
+        let positions = nodes.map { node in
+            DiagramLayoutSnapshot.NodePosition(
+                nodeID: node.id,
+                x: Double(node.position.x),
+                y: Double(node.position.y)
+            )
+        }
+        return DiagramLayoutSnapshot(layoutID: layoutIdentifier, nodePositions: positions)
     }
 }
 
@@ -269,6 +294,20 @@ final class QueryResultsGridState {
     @Published private(set) var resultSpoolID: UUID?
     private var didReceiveStreamingUpdate = false
     private let rowCache = ResultSpoolRowCache(pageSize: 512, maxPages: 32)
+    private let gridViewportForwardPrefetchRows: Int
+    private let gridViewportBackfillRows: Int
+    private var lastVisibleDisplayRange: Range<Int> = 0..<0
+    private var lastPrefetchedSourceRange: Range<Int> = 0..<0
+
+    var gridViewportPadding: Int {
+        gridViewportForwardPrefetchRows + gridViewportBackfillRows
+    }
+
+    var gridViewportLayoutPadding: Int {
+        let forwardContribution = gridViewportForwardPrefetchRows / 2
+        let total = forwardContribution + gridViewportBackfillRows
+        return min(max(total, 128), 256)
+    }
     private var streamedRowCount: Int = 0
     private let frontBufferLimit: Int
     private var isRowCountSpoolDriven: Bool = false
@@ -294,21 +333,25 @@ final class QueryResultsGridState {
     private var dataPreviewState: DataPreviewState?
     private var dataPreviewFetchTask: Task<Void, Never>?
     private var performanceTracker: QueryPerformanceTracker
-    private var pendingSpoolStats: ResultSpoolStats?
-    private var spoolStatsDispatchTask: Task<Void, Never>?
 
     init(
         sql: String = "SELECT current_timestamp;",
         initialVisibleRowBatch: Int = 500,
         previewRowLimit: Int = 512,
-        spoolManager: ResultSpoolManager
+        spoolManager: ResultSpoolManager,
+        backgroundFetchSize: Int = 4_096
     ) {
         self.sql = sql
-        self.initialVisibleRowBatch = max(100, initialVisibleRowBatch)
-        self.previewRowLimit = max(100, previewRowLimit)
+        let normalizedInitial = max(100, initialVisibleRowBatch)
+        let normalizedPreview = max(normalizedInitial, previewRowLimit)
+        let normalizedFetchSize = max(128, min(backgroundFetchSize, 16_384))
+        self.initialVisibleRowBatch = normalizedInitial
+        self.previewRowLimit = normalizedPreview
         self.spoolManager = spoolManager
         self.performanceTracker = QueryPerformanceTracker(initialBatchTarget: self.initialVisibleRowBatch)
         self.frontBufferLimit = max(self.initialVisibleRowBatch, self.previewRowLimit)
+        self.gridViewportForwardPrefetchRows = max(normalizedFetchSize * 2, self.previewRowLimit)
+        self.gridViewportBackfillRows = max(self.initialVisibleRowBatch / 2, 128)
     }
 
     @MainActor deinit {
@@ -805,6 +848,8 @@ final class QueryResultsGridState {
 
         rowCache.reset()
         streamedRowCount = 0
+        lastVisibleDisplayRange = 0..<0
+        lastPrefetchedSourceRange = 0..<0
         if let previousID = resultSpoolID {
             let manager = spoolManager
             Task.detached(priority: .utility) {
@@ -846,7 +891,13 @@ final class QueryResultsGridState {
                 do {
                     let handle = try await self.spoolManager.makeSpoolHandle()
                     if !result.rows.isEmpty {
-                        try await handle.append(columns: result.columns, rows: result.rows, encodedRows: [], metrics: nil)
+                        try await handle.append(
+                            columns: result.columns,
+                            rows: result.rows,
+                            encodedRows: [],
+                            rowRange: 0..<result.rows.count,
+                            metrics: nil
+                        )
                     }
                     try await handle.markFinished(commandTag: result.commandTag, metrics: nil)
                     await MainActor.run {
@@ -901,40 +952,13 @@ final class QueryResultsGridState {
             let stream = await handle.statsStream()
             for await stats in stream {
                 await MainActor.run {
-                    self.enqueueSpoolStats(stats)
+                    self.applySpoolStats(stats)
                 }
                 if stats.isFinished { break }
             }
             await MainActor.run {
                 if self.spoolStatsTask?.isCancelled == false {
                     self.spoolStatsTask = nil
-                }
-            }
-        }
-    }
-
-    private func enqueueSpoolStats(_ stats: ResultSpoolStats) {
-        pendingSpoolStats = stats
-        guard spoolStatsDispatchTask == nil else { return }
-        let delay: UInt64 = stats.isFinished ? 0 : 120_000_000
-        scheduleSpoolStatsProcessing(after: delay)
-    }
-
-    private func scheduleSpoolStatsProcessing(after delay: UInt64) {
-        spoolStatsDispatchTask = Task { [weak self] in
-            if delay > 0 {
-                try? await Task.sleep(nanoseconds: delay)
-            }
-            await MainActor.run {
-                guard let self else { return }
-                let stats = self.pendingSpoolStats
-                self.pendingSpoolStats = nil
-                self.spoolStatsDispatchTask = nil
-                guard let stats else { return }
-                self.applySpoolStats(stats)
-                if let next = self.pendingSpoolStats {
-                    let nextDelay: UInt64 = next.isFinished ? 0 : 120_000_000
-                    self.scheduleSpoolStatsProcessing(after: nextDelay)
                 }
             }
         }
@@ -959,6 +983,9 @@ final class QueryResultsGridState {
                 markResultDataChanged()
             }
             shouldRefreshReport = true
+            if !lastPrefetchedSourceRange.isEmpty {
+                ensureRowsMaterialized(range: lastPrefetchedSourceRange)
+            }
         }
 
         if stats.isFinished {
@@ -971,28 +998,25 @@ final class QueryResultsGridState {
         }
     }
 
-    func ensureRowsMaterialized(forSourceIndices indices: [Int]) {
-        guard !indices.isEmpty else { return }
-        let sorted = Array(Set(indices)).sorted()
-        guard let first = sorted.first else { return }
+    func updateVisibleGridWindow(displayedRange: Range<Int>, sourceIndices: [Int]) {
+        lastVisibleDisplayRange = displayedRange
+        guard !sourceIndices.isEmpty else { return }
 
-        var rangeStart = first
-        var previous = first
-
-        func flushRange() {
-            ensureRowsMaterialized(range: rangeStart..<(previous + 1))
+        let sorted = Array(Set(sourceIndices)).sorted()
+        guard let minSource = sorted.first, let maxSource = sorted.last else {
+            return
         }
 
-        for index in sorted.dropFirst() {
-            if index == previous + 1 {
-                previous = index
-                continue
-            }
-            flushRange()
-            rangeStart = index
-            previous = index
-        }
-        flushRange()
+        let available = totalAvailableRowCount
+        let lower = max(minSource - gridViewportBackfillRows, 0)
+        let desiredUpper = maxSource + 1 + gridViewportForwardPrefetchRows
+        let upper = max(lower, min(desiredUpper, max(available, desiredUpper)))
+        let targetRange = lower..<upper
+        guard !targetRange.isEmpty else { return }
+
+        lastPrefetchedSourceRange = targetRange
+
+        ensureRowsMaterialized(range: targetRange)
     }
 
     private func ensureRowsMaterialized(range: Range<Int>) {

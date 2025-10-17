@@ -309,6 +309,58 @@ final class SQLAutoCompletionEngineTests: XCTestCase {
         XCTAssertEqual(produced.snippetText, joinInsert)
     }
 
+    func testJoinHelpersTriggerSuppressionFollowUp() {
+        let ruleEngine = SQLAutocompleteRuleEngine()
+        let context = sampleContext()
+        let environment = SQLAutocompleteRuleEngine.Environment(completionContext: context)
+
+        let joinSuggestion = SQLAutoCompletionSuggestion(
+            id: "join-target|public|orders|customer_id|public|customers",
+            title: "customers",
+            subtitle: "Join helper",
+            detail: "FK orders_customer",
+            insertText: "public.customers c ON o.customer_id = c.id<# #>",
+            kind: .join,
+            priority: 1680
+        )
+
+        let query = SQLAutoCompletionQuery(
+            token: "cu",
+            prefix: "cu",
+            pathComponents: [],
+            replacementRange: NSRange(location: 0, length: 2),
+            precedingKeyword: "join",
+            precedingCharacter: " ",
+            focusTable: nil,
+            tablesInScope: [
+                SQLAutoCompletionTableFocus(schema: "public", name: "orders", alias: "o")
+            ],
+            clause: .joinTarget
+        )
+
+        let request = SQLAutocompleteRuleEngine.SuppressionRequest(
+            query: query,
+            selection: NSRange(location: 2, length: 0),
+            caretLocation: 2,
+            suggestions: [joinSuggestion],
+            tokenRange: NSRange(location: 0, length: 2),
+            tokenText: "cu",
+            clause: .joinTarget,
+            objectContextKeywords: SQLTextView.objectContextKeywords,
+            columnContextKeywords: SQLTextView.columnContextKeywords
+        )
+
+        var trace: SQLAutocompleteTrace?
+        let result = ruleEngine.buildSuppressionIfNeeded(request: request, environment: environment, trace: &trace)
+
+        guard let suppression = result?.suppression else {
+            XCTFail("Expected suppression result with follow-ups")
+            return
+        }
+
+        XCTAssertTrue(suppression.hasFollowUps, "Join helpers should mark the token as having follow-ups for glow indicator.")
+    }
+
     func testMetadataLimitedFlagReflectsStructureAvailability() {
         let limitedContext = SQLEditorCompletionContext(databaseType: .postgresql,
                                                         selectedDatabase: nil,
@@ -327,6 +379,11 @@ final class SQLAutoCompletionEngineTests: XCTestCase {
 
         engine.updateContext(sampleContext())
         XCTAssertFalse(engine.isMetadataLimited)
+    }
+
+    func testStatusMessageReflectsMetadataAvailability() {
+        XCTAssertNil(SQLAutoCompletionController.statusMessage(isMetadataLimited: false))
+        XCTAssertEqual(SQLAutoCompletionController.statusMessage(isMetadataLimited: true), "Limited metadata — showing keywords and history")
     }
 
     func testSelectClauseRanksColumnsBeforeTables() {
@@ -485,6 +542,165 @@ final class SQLAutoCompletionEngineTests: XCTestCase {
         XCTAssertLessThan(keywordIndex, tableIndex)
     }
 
+    func testHistorySelectionsAreSurfacedFirst() {
+        SQLAutoCompletionHistoryStore.shared.reset()
+
+        let tableSuggestion = SQLCompletionSuggestion(
+            id: "object:table:testdb.public.fixture",
+            title: "fixture",
+            subtitle: "public",
+            detail: "public.fixture",
+            insertText: "public.fixture",
+            kind: .table,
+            priority: 1300
+        )
+
+        let metadata = SQLCompletionMetadata(clause: .from,
+                                             currentToken: "fi",
+                                             precedingKeyword: "from",
+                                             pathComponents: [],
+                                             tablesInScope: [],
+                                             focusTable: nil,
+                                             cteColumns: [:])
+        stubCompletionEngine.result = SQLCompletionResult(suggestions: [tableSuggestion], metadata: metadata)
+        engine.updateContext(sampleContext())
+
+        let text = "SELECT * FROM fi"
+        let caretLocation = text.count
+        let query = SQLAutoCompletionQuery(token: "fi",
+                                           prefix: "fi",
+                                           pathComponents: [],
+                                           replacementRange: NSRange(location: caretLocation - 2, length: 2),
+                                           precedingKeyword: "from",
+                                           precedingCharacter: " ",
+                                           focusTable: nil,
+                                           tablesInScope: [],
+                                           clause: .from)
+
+        let initialResult = engine.suggestions(for: query, text: text, caretLocation: caretLocation)
+        guard let accepted = initialResult.sections.first?.suggestions.first else {
+            XCTFail("Expected table suggestion")
+            return
+        }
+
+        engine.recordSelection(accepted, query: query)
+
+        let subsequentResult = engine.suggestions(for: query, text: text, caretLocation: caretLocation)
+        let suggestions = subsequentResult.sections.flatMap { $0.suggestions }
+
+        XCTAssertEqual(suggestions.first?.source, .history)
+        XCTAssertEqual(suggestions.first?.id, accepted.id)
+    }
+
+    func testHistorySnapshotRoundTrip() {
+        let store = SQLAutoCompletionHistoryStore.shared
+        store.reset()
+        defer { store.reset() }
+
+        let suggestion = SQLAutoCompletionSuggestion(
+            id: "object:table:testdb.public.fixture",
+            title: "fixture",
+            subtitle: "public",
+            detail: "public.fixture",
+            insertText: "public.fixture",
+            kind: .table,
+            origin: SQLAutoCompletionSuggestion.Origin(database: "testdb", schema: "public", object: "fixture"),
+            priority: 1300
+        )
+
+        let context = sampleContext()
+        store.record(suggestion, context: context)
+
+        guard let snapshot = store.snapshot() else {
+            XCTFail("Expected history snapshot")
+            return
+        }
+
+        store.reset()
+        store.importSnapshot(snapshot, merge: false)
+
+        let hydrated = store.suggestions(matching: "fi", context: context, limit: 5)
+        XCTAssertEqual(hydrated.first?.id, suggestion.id)
+        XCTAssertEqual(hydrated.first?.source, .history)
+    }
+
+    func testStarExpansionUndoRestoresAsterisk() {
+        let theme = makeTestTheme()
+        let display = SQLEditorDisplayOptions()
+        let textView = SQLTextView(theme: theme,
+                                   displayOptions: display,
+                                   backgroundOverride: nil,
+                                   completionContext: nil)
+
+        let originalSQL = "SELECT * FROM public.fixture"
+        textView.textStorage?.setAttributedString(NSAttributedString(string: originalSQL))
+
+        let nsString = textView.string as NSString
+        let starRange = nsString.range(of: "*")
+        XCTAssertNotEqual(starRange.location, NSNotFound)
+        textView.setSelectedRange(NSRange(location: NSMaxRange(starRange), length: 0))
+
+        let suggestion = SQLAutoCompletionSuggestion(
+            id: "star|fixture",
+            title: "Expand * to columns",
+            subtitle: "Star Expansion",
+            detail: nil,
+            insertText: "public.fixture.id, public.fixture.name",
+            kind: .snippet,
+            priority: 1600
+        )
+
+        let query = SQLAutoCompletionQuery(token: "*",
+                                           prefix: "*",
+                                           pathComponents: [],
+                                           replacementRange: starRange,
+                                           precedingKeyword: "select",
+                                           precedingCharacter: " ",
+                                           focusTable: nil,
+                                           tablesInScope: [],
+                                           clause: .selectList)
+
+        textView.applyCompletion(suggestion, query: query)
+        advanceMainRunLoop(for: 0.15)
+
+        XCTAssertTrue(textView.string.contains("public.fixture.id"))
+
+        textView.undoManager?.undo()
+        advanceMainRunLoop(for: 0.05)
+        XCTAssertEqual(textView.string, originalSQL)
+
+        textView.undoManager?.redo()
+        advanceMainRunLoop(for: 0.05)
+        XCTAssertTrue(textView.string.contains("public.fixture.id"))
+    }
+
+    func testCommandPeriodManualTriggerDelegatesToSuppressedCompletions() {
+        let theme = makeTestTheme()
+        let display = SQLEditorDisplayOptions()
+        let textView = CommandShortcutTextView(theme: theme,
+                                               displayOptions: display,
+                                               backgroundOverride: nil,
+                                               completionContext: nil)
+
+        guard let event = NSEvent.keyEvent(with: .keyDown,
+                                           location: .zero,
+                                           modifierFlags: [.command],
+                                           timestamp: 0,
+                                           windowNumber: 0,
+                                           context: nil,
+                                           characters: ".",
+                                           charactersIgnoringModifiers: ".",
+                                           isARepeat: false,
+                                           keyCode: 47) else {
+            XCTFail("Failed to create command-period event")
+            return
+        }
+
+        XCTAssertTrue(textView.handleCommandShortcut(event))
+        XCTAssertTrue(textView.didTriggerSuppressed)
+        XCTAssertFalse(textView.didForcePresent)
+    }
+
     func testTableSuppressionSurvivesTrailingSpace() {
         let theme = makeTestTheme()
         let display = SQLEditorDisplayOptions()
@@ -534,6 +750,10 @@ final class SQLAutoCompletionEngineTests: XCTestCase {
                               tokenPalette: palette)
     }
 
+    private func advanceMainRunLoop(for interval: TimeInterval) {
+        RunLoop.main.run(until: Date().addingTimeInterval(interval))
+    }
+
     private func sampleContext() -> SQLEditorCompletionContext {
         let columns = [
             ColumnInfo(name: "id", dataType: "integer", isPrimaryKey: true, isNullable: false),
@@ -560,5 +780,34 @@ final class SQLAutoCompletionEngineTests: XCTestCase {
         func completions(for request: SQLCompletionRequest) -> SQLCompletionResult {
             result
         }
+    }
+}
+
+private final class CommandShortcutTextView: SQLTextView {
+    var didTriggerSuppressed = false
+    var didForcePresent = false
+
+    override init(theme: SQLEditorTheme,
+                  displayOptions: SQLEditorDisplayOptions,
+                  backgroundOverride: NSColor?,
+                  completionContext: SQLEditorCompletionContext?) {
+        super.init(theme: theme,
+                   displayOptions: displayOptions,
+                   backgroundOverride: backgroundOverride,
+                   completionContext: completionContext)
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    override func triggerSuppressedCompletionsIfAvailable() -> Bool {
+        didTriggerSuppressed = true
+        return true
+    }
+
+    override func forcePresentImmediateCompletions() -> Bool {
+        didForcePresent = true
+        return false
     }
 }

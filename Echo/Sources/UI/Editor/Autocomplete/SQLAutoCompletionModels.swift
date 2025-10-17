@@ -19,7 +19,7 @@ struct SQLEditorCompletionContext: Equatable {
     }
 }
 
-enum SQLAutoCompletionKind: String, Equatable {
+enum SQLAutoCompletionKind: String, Equatable, Codable {
     case schema
     case table
     case view
@@ -47,8 +47,8 @@ enum SQLAutoCompletionKind: String, Equatable {
     }
 }
 
-struct SQLAutoCompletionSuggestion: Identifiable, Equatable {
-    struct Origin: Equatable {
+struct SQLAutoCompletionSuggestion: Identifiable, Equatable, Codable {
+    struct Origin: Equatable, Codable {
         let database: String?
         let schema: String?
         let object: String?
@@ -72,14 +72,14 @@ struct SQLAutoCompletionSuggestion: Identifiable, Equatable {
         }
     }
 
-    struct TableColumn: Equatable {
+    struct TableColumn: Equatable, Codable {
         let name: String
         let dataType: String
         let isNullable: Bool
         let isPrimaryKey: Bool
     }
 
-    enum Source: Equatable {
+    enum Source: Equatable, Codable {
         case engine
         case history
         case fallback

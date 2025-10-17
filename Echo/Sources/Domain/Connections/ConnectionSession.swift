@@ -27,6 +27,7 @@ final class ConnectionSession: ObservableObject, Identifiable {
     @Published var structureLoadingMessage: String?
     private var defaultInitialBatchSize: Int
     private var defaultBackgroundStreamingThreshold: Int
+    private var defaultBackgroundFetchSize: Int
 
     // Query tabs specific to this connection
     @Published var queryTabs: [WorkspaceTab] = []
@@ -38,6 +39,7 @@ final class ConnectionSession: ObservableObject, Identifiable {
         session: DatabaseSession,
         defaultInitialBatchSize: Int = 500,
         defaultBackgroundStreamingThreshold: Int = 512,
+        defaultBackgroundFetchSize: Int = 4_096,
         spoolManager: ResultSpoolManager
     ) {
         self.id = id
@@ -45,6 +47,7 @@ final class ConnectionSession: ObservableObject, Identifiable {
         self.session = session
         self.defaultInitialBatchSize = max(100, defaultInitialBatchSize)
         self.defaultBackgroundStreamingThreshold = max(100, defaultBackgroundStreamingThreshold)
+        self.defaultBackgroundFetchSize = max(128, min(defaultBackgroundFetchSize, 16_384))
         self.spoolManager = spoolManager
 
         // Auto-select database if one is saved in the connection
@@ -82,7 +85,8 @@ final class ConnectionSession: ObservableObject, Identifiable {
             sql: query.isEmpty ? "SELECT current_timestamp;" : query,
             initialVisibleRowBatch: defaultInitialBatchSize,
             previewRowLimit: previewLimit,
-            spoolManager: spoolManager
+            spoolManager: spoolManager,
+            backgroundFetchSize: defaultBackgroundFetchSize
         )
 
         func normalized(_ value: String) -> String? {
@@ -146,6 +150,10 @@ final class ConnectionSession: ObservableObject, Identifiable {
 
     func updateDefaultBackgroundStreamingThreshold(_ threshold: Int) {
         defaultBackgroundStreamingThreshold = max(100, threshold)
+    }
+
+    func updateDefaultBackgroundFetchSize(_ fetchSize: Int) {
+        defaultBackgroundFetchSize = max(128, min(fetchSize, 16_384))
     }
 }
 

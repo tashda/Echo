@@ -393,7 +393,7 @@ final class SQLAutoCompletionEngine {
         let combined = injectHistorySuggestions(base: mapped,
                                                 query: query,
                                                 context: context)
-        let ranked = rankSuggestions(combined, query: query)
+        let ranked = rankSuggestions(combined, query: query, context: context)
 
         let sections = [SQLAutoCompletionSection(title: "Suggestions", suggestions: ranked)]
         return SQLAutoCompletionResult(sections: sections, metadata: result.metadata)
@@ -485,7 +485,8 @@ final class SQLAutoCompletionEngine {
     }
 
     private func rankSuggestions(_ suggestions: [SQLAutoCompletionSuggestion],
-                                 query: SQLAutoCompletionQuery) -> [SQLAutoCompletionSuggestion] {
+                                 query: SQLAutoCompletionQuery,
+                                 context: SQLEditorCompletionContext) -> [SQLAutoCompletionSuggestion] {
         guard !suggestions.isEmpty else { return suggestions }
 
         var ranked: [(index: Int, suggestion: SQLAutoCompletionSuggestion, score: Double, relevance: ClauseRelevance)] = []
@@ -511,7 +512,8 @@ final class SQLAutoCompletionEngine {
             var score = Double(suggestion.priority) + boost
 
             if suggestion.source == .history {
-                score += 120
+                let historyBoost = historyStore.weight(for: suggestion, context: context)
+                score += historyBoost
             } else if suggestion.source == .fallback {
                 score -= 40
             }

@@ -428,7 +428,10 @@ struct QueryResultsTableView: NSViewRepresentable {
                 }
             }
 
-            parent.query.ensureRowsMaterialized(forSourceIndices: sourceIndices)
+            parent.query.updateVisibleGridWindow(
+                displayedRange: lowerBound..<upperBound,
+                sourceIndices: sourceIndices
+            )
         }
 
         private func reloadColumns() -> Bool {
@@ -697,8 +700,12 @@ struct QueryResultsTableView: NSViewRepresentable {
             let targetWidth = max(contentWidth, scrollView.contentSize.width)
             let totalRows = rowCount ?? (parent.rowOrder.isEmpty ? parent.query.displayedRowCount : parent.rowOrder.count)
             let headerHeight = tableView.headerView?.frame.height ?? 0
-            let visibleEstimate = max(1, Int(scrollView.contentView.bounds.height / tableView.rowHeight) + 20)
-            let effectiveRows = max(visibleEstimate, min(totalRows, visibleEstimate * 4))
+            let visibleEstimate = max(1, Int(scrollView.contentView.bounds.height / tableView.rowHeight) + 12)
+            let paddingRows = max(parent.query.gridViewportLayoutPadding, visibleEstimate / 2)
+            let effectiveRows = max(
+                visibleEstimate,
+                min(totalRows, visibleEstimate + paddingRows)
+            )
             let contentHeight = max(CGFloat(effectiveRows) * tableView.rowHeight + headerHeight, scrollView.contentSize.height)
             let newSize = NSSize(width: targetWidth, height: contentHeight)
             if tableView.frame.size != newSize {

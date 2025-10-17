@@ -25,7 +25,7 @@ struct DiagramCacheKey: Hashable, Codable, Sendable {
         self.layoutID = layoutID
     }
 
-    var canonicalFilename: String {
+    nonisolated var canonicalFilename: String {
         let identifier = "\(schema.lowercased()).\(table.lowercased())"
         let sanitized = identifier.replacingOccurrences(of: "[^a-z0-9._-]", with: "-", options: .regularExpression)
         let fingerprintInput = [
@@ -186,7 +186,7 @@ private extension Sequence where Element == UInt8 {
             let chunk = String(format: "%02X", byte)
             if let prefixLength, processedCharacters + 2 > prefixLength {
                 let remaining = prefixLength - processedCharacters
-                result.append(chunk.prefix(remaining))
+                result.append(String(chunk.prefix(remaining)))
                 processedCharacters = prefixLength
                 break
             } else {

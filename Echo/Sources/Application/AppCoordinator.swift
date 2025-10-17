@@ -25,6 +25,8 @@ final class AppCoordinator: ObservableObject {
     let clipboardHistory: ClipboardHistoryStore
     let themeManager: ThemeManager
     let resultSpoolManager: ResultSpoolManager
+    let diagramCacheManager: DiagramCacheManager
+    let diagramKeyStore: DiagramEncryptionKeyStore
     private var cancellables = Set<AnyCancellable>()
 #if os(macOS)
     private var windowFocusObservers: [NSObjectProtocol] = []
@@ -41,7 +43,23 @@ final class AppCoordinator: ObservableObject {
         let spoolRoot = ResultSpoolManager.defaultRootDirectory()
         let spoolConfig = ResultSpoolConfiguration.defaultConfiguration(rootDirectory: spoolRoot)
         self.resultSpoolManager = ResultSpoolManager(configuration: spoolConfig)
-        self.appModel = AppModel(clipboardHistory: clipboardHistory, resultSpoolManager: resultSpoolManager)
+        let cacheRoot = DiagramCacheManager.defaultRootDirectory()
+        let diagramConfig = DiagramCacheManager.Configuration(rootDirectory: cacheRoot)
+        let keyStore = DiagramEncryptionKeyStore()
+        let cacheManager = DiagramCacheManager(configuration: diagramConfig)
+        self.diagramCacheManager = cacheManager
+        self.diagramKeyStore = keyStore
+        Task {
+            await cacheManager.updateKeyProvider { projectID in
+                try keyStore.symmetricKey(forProjectID: projectID)
+            }
+        }
+        self.appModel = AppModel(
+            clipboardHistory: clipboardHistory,
+            resultSpoolManager: resultSpoolManager,
+            diagramCacheManager: cacheManager,
+            diagramKeyStore: keyStore
+        )
         self.themeManager = ThemeManager.shared
         self.appModel.tabManager.delegate = self
         setupBindings()

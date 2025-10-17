@@ -68,6 +68,7 @@ actor ProjectStore {
         folders: [SavedFolder],
         globalSettings: GlobalSettings?,
         clipboardHistory: [ClipboardHistoryStore.Entry]?,
+        autocompleteHistory: SQLAutoCompletionHistoryStore.Snapshot?,
         password: String
     ) async throws -> Data {
         let jsonData = try await MainActor.run { () -> Data in
@@ -78,6 +79,7 @@ actor ProjectStore {
                 folders: folders,
                 globalSettings: globalSettings,
                 clipboardHistory: clipboardHistory,
+                autocompleteHistory: autocompleteHistory,
                 bookmarks: project.bookmarks
             )
 

@@ -11,7 +11,7 @@ actor ResultSpoolHandle {
     private var writeHandle: FileHandle?
     private var readHandle: FileHandle?
     private var fileOffset: UInt64 = 0
-    private var rowRecords: [RowRecord] = []
+    private var chunkRecords: [ChunkRecord] = []
     private var inMemoryRows: [[String?]] = []
     private var statContinuations: [UUID: AsyncStream<ResultSpoolStats>.Continuation] = [:]
     private var totalBytesWritten: UInt64 = 0
@@ -21,9 +21,12 @@ actor ResultSpoolHandle {
     private let transientDispatchInterval: UInt64 = 20_000_000 // 20 ms trailing flush
     private let transientImmediateInterval: UInt64 = 5_000_000  // 5 ms (~200 Hz)
 
-    private struct RowRecord: Sendable {
+    private struct ChunkRecord: Sendable {
+        let startRow: Int
+        let rowCount: Int
         let offset: UInt64
-        let length: UInt64
+        let byteLength: UInt64
+        let rowLengths: ContiguousArray<UInt32>
     }
 
     private struct HeaderPayload: Encodable {
@@ -106,7 +109,13 @@ actor ResultSpoolHandle {
         statContinuations.removeValue(forKey: id)
     }
 
-    func append(columns: [ColumnInfo], rows: [[String?]], encodedRows: [ResultBinaryRow], metrics: QueryStreamMetrics?) throws {
+    func append(
+        columns: [ColumnInfo],
+        rows: [[String?]],
+        encodedRows: [ResultBinaryRow],
+        rowRange: Range<Int>?,
+        metrics: QueryStreamMetrics?
+    ) throws {
         guard let writeHandle else {
             throw ResultSpoolError.fileClosed
         }
@@ -115,10 +124,23 @@ actor ResultSpoolHandle {
             try writeHeader(columns: columns, using: writeHandle)
         }
 
+        let startRow: Int
+        if let range = rowRange {
+            startRow = range.lowerBound
+            if range.upperBound > metadata.totalRowCount {
+                metadata.totalRowCount = range.upperBound
+            }
+        } else {
+            startRow = metadata.totalRowCount
+        }
+
         var bytesWritten: UInt64 = 0
-        var newRecords: [RowRecord] = []
         let appendCount = max(rows.count, encodedRows.count)
-        newRecords.reserveCapacity(appendCount)
+        guard appendCount > 0 else { return }
+
+        var rowLengths = ContiguousArray<UInt32>()
+        rowLengths.reserveCapacity(appendCount)
+
         var buffer = Data()
         buffer.reserveCapacity(max(appendCount, 1) * 64)
         var currentOffset = fileOffset
@@ -139,10 +161,9 @@ actor ResultSpoolHandle {
             buffer.append(Self.newlineData)
 
             bytesWritten += rowBytes
-            newRecords.append(RowRecord(offset: currentOffset, length: recordLength))
+            rowLengths.append(UInt32(clamping: recordLength))
             currentOffset += rowBytes
 
-            metadata.totalRowCount += 1
             metadata.cumulativeBytes += rowBytes
             metadata.updatedAt = Date()
 
@@ -154,7 +175,19 @@ actor ResultSpoolHandle {
             fileOffset = currentOffset
         }
 
-        rowRecords.append(contentsOf: newRecords)
+        let chunkRecord = ChunkRecord(
+            startRow: startRow,
+            rowCount: payloads.count,
+            offset: fileOffset - UInt64(bytesWritten),
+            byteLength: bytesWritten,
+            rowLengths: rowLengths
+        )
+        chunkRecords.append(chunkRecord)
+
+        if rowRange == nil {
+            metadata.totalRowCount += payloads.count
+        }
+
         metadata.latestMetrics = metrics
         totalBytesWritten += bytesWritten
         appendInMemoryRows(rows)
@@ -189,31 +222,47 @@ actor ResultSpoolHandle {
             return results
         }
 
-        if offset < inMemoryRows.count {
-            results.append(contentsOf: inMemoryRows[offset..<min(endIndex, inMemoryRows.count)])
+        var currentIndex = offset
+        if currentIndex < inMemoryRows.count {
+            let upper = min(endIndex, inMemoryRows.count)
+            if upper > currentIndex {
+                results.append(contentsOf: inMemoryRows[currentIndex..<upper])
+                currentIndex = upper
+            }
         }
 
-        guard offset < rowRecords.count else {
+        guard currentIndex < endIndex else {
             return results
         }
 
-        let startIndex = max(offset, inMemoryRows.count)
+        guard !chunkRecords.isEmpty else {
+            return results
+        }
+
         let readHandle = try resolvedReadHandle()
 
-        for index in startIndex..<endIndex {
-            guard index < rowRecords.count else { break }
-            let record = rowRecords[index]
-            try readHandle.seek(toOffset: record.offset)
-            var data = try readHandle.read(upToCount: Int(record.length)) ?? Data()
-            if data.count < record.length {
-                let remaining = Int(record.length) - data.count
-                if remaining > 0 {
-                    let trailing = try readHandle.read(upToCount: remaining) ?? Data()
-                    data.append(trailing)
-                }
+        while currentIndex < endIndex {
+            guard let chunkIndex = chunkIndex(forRow: currentIndex) else {
+                break
             }
-            let decodedRow = decodeRowData(data)
-            results.append(decodedRow)
+            let chunk = chunkRecords[chunkIndex]
+            let localStart = currentIndex - chunk.startRow
+            if localStart >= chunk.rowCount {
+                currentIndex = chunk.startRow + chunk.rowCount
+                continue
+            }
+            let localLimit = min(chunk.rowCount - localStart, endIndex - currentIndex)
+            let decoded = try readRows(
+                from: chunk,
+                localStart: localStart,
+                count: localLimit,
+                using: readHandle
+            )
+            if decoded.isEmpty {
+                break
+            }
+            results.append(contentsOf: decoded)
+            currentIndex += decoded.count
         }
 
         return results
@@ -222,6 +271,92 @@ actor ResultSpoolHandle {
     func dropInMemoryRowsBeyond(limit: Int) {
         guard limit < inMemoryRows.count else { return }
         inMemoryRows.removeSubrange(limit..<inMemoryRows.count)
+    }
+
+    private func chunkIndex(forRow row: Int) -> Int? {
+        guard !chunkRecords.isEmpty else { return nil }
+        var lower = 0
+        var upper = chunkRecords.count - 1
+
+        while lower <= upper {
+            let mid = (lower + upper) / 2
+            let chunk = chunkRecords[mid]
+            if row < chunk.startRow {
+                if mid == 0 {
+                    return nil
+                }
+                upper = mid - 1
+            } else {
+                let chunkEnd = chunk.startRow + chunk.rowCount
+                if row < chunkEnd {
+                    return mid
+                }
+                if mid == chunkRecords.count - 1 {
+                    return nil
+                }
+                lower = mid + 1
+            }
+        }
+
+        return nil
+    }
+
+    private func readRows(
+        from chunk: ChunkRecord,
+        localStart: Int,
+        count: Int,
+        using handle: FileHandle
+    ) throws -> [[String?]] {
+        guard count > 0 else { return [] }
+        guard localStart < chunk.rowCount else { return [] }
+
+        let clampedCount = min(count, chunk.rowCount - localStart)
+        guard clampedCount > 0 else { return [] }
+
+        try handle.seek(toOffset: chunk.offset)
+        var remaining = Int(chunk.byteLength)
+        var data = Data()
+        data.reserveCapacity(remaining)
+
+        while remaining > 0 {
+            let fetched = try handle.read(upToCount: min(remaining, 64 * 1024)) ?? Data()
+            if fetched.isEmpty {
+                break
+            }
+            data.append(fetched)
+            remaining -= fetched.count
+        }
+
+        if data.isEmpty {
+            return []
+        }
+
+        var rows: [[String?]] = []
+        rows.reserveCapacity(clampedCount)
+
+        var cursor = 0
+        if localStart > 0 {
+            for index in 0..<localStart {
+                if index >= chunk.rowLengths.count { break }
+                cursor &+= Int(chunk.rowLengths[index])
+                cursor &+= Int(Self.newlineData.count)
+            }
+        }
+
+        for index in localStart..<(localStart + clampedCount) {
+            guard index < chunk.rowLengths.count else { break }
+            let length = Int(chunk.rowLengths[index])
+            let upper = cursor + length
+            if upper > data.count {
+                break
+            }
+            let slice = data[cursor..<upper]
+            let decodedRow = decodeRowData(Data(slice))
+            rows.append(decodedRow)
+            cursor = upper + Int(Self.newlineData.count)
+        }
+
+        return rows
     }
 
     private func appendInMemoryRows(_ rows: [[String?]]) {
