@@ -1082,7 +1082,6 @@ struct GlobalSettings: Codable, Hashable {
     var diagramCacheMaxBytes: Int = 512 * 1_024 * 1_024
     var diagramVerifyBeforeRefresh: Bool = true
     var diagramRenderRelationshipsForLargeDiagrams: Bool = true
-    var diagramCacheKeyAliases: [UUID: String] = [:]
 
     // Window preferences
     var defaultWindowWidth: Double?
@@ -1140,8 +1139,7 @@ struct GlobalSettings: Codable, Hashable {
         diagramRefreshCadence: DiagramRefreshCadence = .never,
         diagramCacheMaxBytes: Int = 512 * 1_024 * 1_024,
         diagramVerifyBeforeRefresh: Bool = true,
-        diagramRenderRelationshipsForLargeDiagrams: Bool = true,
-        diagramCacheKeyAliases: [UUID: String] = [:]
+        diagramRenderRelationshipsForLargeDiagrams: Bool = true
     ) {
         self.appearanceMode = appearanceMode
         self.defaultEditorFontSize = defaultEditorFontSize
@@ -1195,7 +1193,6 @@ struct GlobalSettings: Codable, Hashable {
         self.diagramCacheMaxBytes = max(64 * 1_024 * 1_024, diagramCacheMaxBytes)
         self.diagramVerifyBeforeRefresh = diagramVerifyBeforeRefresh
         self.diagramRenderRelationshipsForLargeDiagrams = diagramRenderRelationshipsForLargeDiagrams
-        self.diagramCacheKeyAliases = diagramCacheKeyAliases
     }
 
     enum CodingKeys: String, CodingKey {
@@ -1247,6 +1244,11 @@ struct GlobalSettings: Codable, Hashable {
         case resultSpoolCustomLocation
         case inspectorWidth
         case keepTabsInMemory
+        case diagramPrefetchMode
+        case diagramRefreshCadence
+        case diagramCacheMaxBytes
+        case diagramVerifyBeforeRefresh
+        case diagramRenderRelationshipsForLargeDiagrams
     }
 
     init(from decoder: Decoder) throws {
@@ -1319,8 +1321,16 @@ struct GlobalSettings: Codable, Hashable {
         resultsPreviewBatchSize = max(100, try container.decodeIfPresent(Int.self, forKey: .resultsPreviewBatchSize) ?? 500)
         resultsBackgroundStreamingThreshold = max(100, try container.decodeIfPresent(Int.self, forKey: .resultsBackgroundStreamingThreshold) ?? 512)
         resultsStreamingFetchSize = max(128, try container.decodeIfPresent(Int.self, forKey: .resultsStreamingFetchSize) ?? 4_096)
+        resultSpoolMaxBytes = try container.decodeIfPresent(Int.self, forKey: .resultSpoolMaxBytes) ?? 5 * 1_024 * 1_024 * 1_024
+        resultSpoolRetentionHours = try container.decodeIfPresent(Int.self, forKey: .resultSpoolRetentionHours) ?? 72
+        resultSpoolCustomLocation = try container.decodeIfPresent(String.self, forKey: .resultSpoolCustomLocation)
         inspectorWidth = try container.decodeIfPresent(Double.self, forKey: .inspectorWidth)
         keepTabsInMemory = try container.decodeIfPresent(Bool.self, forKey: .keepTabsInMemory) ?? false
+        diagramPrefetchMode = try container.decodeIfPresent(DiagramPrefetchMode.self, forKey: .diagramPrefetchMode) ?? .off
+        diagramRefreshCadence = try container.decodeIfPresent(DiagramRefreshCadence.self, forKey: .diagramRefreshCadence) ?? .never
+        diagramCacheMaxBytes = max(64 * 1_024 * 1_024, try container.decodeIfPresent(Int.self, forKey: .diagramCacheMaxBytes) ?? 512 * 1_024 * 1_024)
+        diagramVerifyBeforeRefresh = try container.decodeIfPresent(Bool.self, forKey: .diagramVerifyBeforeRefresh) ?? true
+        diagramRenderRelationshipsForLargeDiagrams = try container.decodeIfPresent(Bool.self, forKey: .diagramRenderRelationshipsForLargeDiagrams) ?? true
     }
 
     func encode(to encoder: Encoder) throws {
@@ -1370,6 +1380,11 @@ struct GlobalSettings: Codable, Hashable {
         try container.encodeIfPresent(resultSpoolCustomLocation, forKey: .resultSpoolCustomLocation)
         try container.encodeIfPresent(inspectorWidth, forKey: .inspectorWidth)
         try container.encode(keepTabsInMemory, forKey: .keepTabsInMemory)
+        try container.encode(diagramPrefetchMode, forKey: .diagramPrefetchMode)
+        try container.encode(diagramRefreshCadence, forKey: .diagramRefreshCadence)
+        try container.encode(diagramCacheMaxBytes, forKey: .diagramCacheMaxBytes)
+        try container.encode(diagramVerifyBeforeRefresh, forKey: .diagramVerifyBeforeRefresh)
+        try container.encode(diagramRenderRelationshipsForLargeDiagrams, forKey: .diagramRenderRelationshipsForLargeDiagrams)
 
         try container.encode(defaultEditorPaletteIDLight, forKey: .defaultEditorPaletteIDLight)
         try container.encode(defaultEditorPaletteIDDark, forKey: .defaultEditorPaletteIDDark)
@@ -1402,6 +1417,7 @@ struct ProjectExportData: Codable {
     let folders: [SavedFolder]
     let globalSettings: GlobalSettings?
     let clipboardHistory: [ClipboardHistoryStore.Entry]?
+    let autocompleteHistory: SQLAutoCompletionHistoryStore.Snapshot?
     let bookmarks: [Bookmark]
     let exportedAt: Date
     let version: String
@@ -1413,6 +1429,7 @@ struct ProjectExportData: Codable {
         folders: [SavedFolder],
         globalSettings: GlobalSettings?,
         clipboardHistory: [ClipboardHistoryStore.Entry]? = nil,
+        autocompleteHistory: SQLAutoCompletionHistoryStore.Snapshot? = nil,
         bookmarks: [Bookmark] = [],
         exportedAt: Date = Date(),
         version: String = "1.0"
@@ -1423,6 +1440,7 @@ struct ProjectExportData: Codable {
         self.folders = folders
         self.globalSettings = globalSettings
         self.clipboardHistory = clipboardHistory
+        self.autocompleteHistory = autocompleteHistory
         self.bookmarks = bookmarks
         self.exportedAt = exportedAt
         self.version = version

@@ -15,6 +15,7 @@ struct ManageProjectsSheet: View {
     @State private var importPassword = ""
     @State private var includeGlobalSettings = false
     @State private var includeClipboardHistory = false
+    @State private var includeAutocompleteHistory = false
     @State private var exportError: String?
     @State private var importError: String?
     @State private var isExporting = false
@@ -392,6 +393,10 @@ struct ManageProjectsSheet: View {
                 Toggle("Include Clipboard History", isOn: $includeClipboardHistory)
                     .font(.system(size: 13))
                     .help("Adds saved clipboard items to the export so they can be restored when imported.")
+
+                Toggle("Include Autocomplete History", isOn: $includeAutocompleteHistory)
+                    .font(.system(size: 13))
+                    .help("Preserves accepted autocomplete suggestions so ranking feels familiar after import.")
             }
             .padding(.horizontal, 20)
 
@@ -489,6 +494,7 @@ struct ManageProjectsSheet: View {
                     project,
                     includeGlobalSettings: includeGlobalSettings,
                     includeClipboardHistory: includeClipboardHistory,
+                    includeAutocompleteHistory: includeAutocompleteHistory,
                     password: exportPassword
                 )
 

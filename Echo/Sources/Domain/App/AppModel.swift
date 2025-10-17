@@ -72,6 +72,10 @@ final class AppModel: ObservableObject {
     private let keychain = KeychainHelper()
     private let clipboardHistory: ClipboardHistoryStore
     let resultSpoolManager: ResultSpoolManager
+    let diagramCacheManager: DiagramCacheManager
+    let diagramKeyStore: DiagramEncryptionKeyStore
+    private let diagramPrefetchService = DiagramPrefetchService()
+    private var diagramRefreshTask: Task<Void, Never>?
     private var cancellables: Set<AnyCancellable> = []
     private var sessionDatabaseCancellables: [UUID: AnyCancellable] = [:]
     private let defaultInspectorWidth: CGFloat = 360
@@ -93,10 +97,123 @@ final class AppModel: ObservableObject {
         var identifier: String { "\(schema).\(name)" }
     }
 
+    private func makeDiagramViewModel(
+        title: String,
+        baseKey: DiagramTableKey,
+        tableDetails: [DiagramTableKey: TableStructureDetails],
+        layoutSnapshot: DiagramLayoutSnapshot?
+    ) -> SchemaDiagramViewModel {
+        func buildColumns(for details: TableStructureDetails) -> [SchemaDiagramColumn] {
+            let primaryKeys = Set(details.primaryKey?.columns.map { $0.lowercased() } ?? [])
+            let foreignKeys = Set(details.foreignKeys.flatMap { $0.columns.map { $0.lowercased() } })
+
+            return details.columns.map { column in
+                SchemaDiagramColumn(
+                    name: column.name,
+                    dataType: column.dataType,
+                    isPrimaryKey: primaryKeys.contains(column.name.lowercased()),
+                    isForeignKey: foreignKeys.contains(column.name.lowercased())
+                )
+            }
+        }
+
+        var edges: [SchemaDiagramEdge] = []
+
+        func appendForeignKeyEdges(from tableKey: DiagramTableKey, details: TableStructureDetails) {
+            for fk in details.foreignKeys {
+                let targetSchema = fk.referencedSchema.isEmpty ? tableKey.schema : fk.referencedSchema
+                let targetKey = DiagramTableKey(schema: targetSchema, name: fk.referencedTable)
+
+                for pair in zip(fk.columns, fk.referencedColumns) {
+                    edges.append(
+                        SchemaDiagramEdge(
+                            fromNodeID: tableKey.identifier,
+                            fromColumn: pair.0,
+                            toNodeID: targetKey.identifier,
+                            toColumn: pair.1,
+                            relationshipName: fk.name
+                        )
+                    )
+                }
+            }
+        }
+
+        let positions: [String: CGPoint] = layoutSnapshot?
+            .nodePositions
+            .reduce(into: [:]) { partial, entry in
+                partial[entry.nodeID] = CGPoint(x: entry.x, y: entry.y)
+            } ?? [:]
+
+        var nodeModels: [SchemaDiagramNodeModel] = []
+
+        if let baseDetails = tableDetails[baseKey] {
+            let baseNode = SchemaDiagramNodeModel(
+                schema: baseKey.schema,
+                name: baseKey.name,
+                columns: buildColumns(for: baseDetails),
+                position: positions[baseKey.identifier] ?? .zero
+            )
+            nodeModels.append(baseNode)
+        }
+
+        let otherKeys = tableDetails.keys.filter { $0 != baseKey }
+        if !otherKeys.isEmpty {
+            let radius: CGFloat = 520
+            for (index, key) in otherKeys.enumerated() {
+                guard let details = tableDetails[key] else { continue }
+                let defaultAngle = CGFloat(index) / max(CGFloat(otherKeys.count), 1) * 2 * .pi
+                let defaultPosition = CGPoint(
+                    x: cos(defaultAngle) * radius,
+                    y: sin(defaultAngle) * radius
+                )
+                let position = positions[key.identifier] ?? defaultPosition
+                let node = SchemaDiagramNodeModel(
+                    schema: key.schema,
+                    name: key.name,
+                    columns: buildColumns(for: details),
+                    position: position
+                )
+                nodeModels.append(node)
+            }
+        }
+
+        for (key, details) in tableDetails {
+            appendForeignKeyEdges(from: key, details: details)
+        }
+
+        return SchemaDiagramViewModel(
+            nodes: nodeModels,
+            edges: edges,
+            baseNodeID: baseKey.identifier,
+            title: title,
+            layoutIdentifier: layoutSnapshot?.layoutID ?? DiagramLayoutSnapshot.defaultLayoutIdentifier
+        )
+    }
+
+    private func hydrateCachedDiagram(from payload: DiagramCachePayload) -> SchemaDiagramViewModel {
+        let baseKey = DiagramTableKey(schema: payload.key.schema, name: payload.key.table)
+        var tableDetails: [DiagramTableKey: TableStructureDetails] = [:]
+        tableDetails[baseKey] = payload.structure.baseTable.details
+        for entry in payload.structure.relatedTables {
+            let key = DiagramTableKey(schema: entry.schema, name: entry.name)
+            tableDetails[key] = entry.details
+        }
+
+        let title = "\(payload.key.schema).\(payload.key.table)"
+        return makeDiagramViewModel(
+            title: title,
+            baseKey: baseKey,
+            tableDetails: tableDetails,
+            layoutSnapshot: payload.layout
+        )
+    }
+
     private func buildSchemaDiagram(
         for session: ConnectionSession,
         object: SchemaObjectInfo,
-        progress: (@Sendable (String) -> Void)? = nil
+        cacheKey: DiagramCacheKey?,
+        progress: (@Sendable (String) -> Void)? = nil,
+        isPrefetch: Bool = false
     ) async throws -> SchemaDiagramViewModel {
         let baseKey = DiagramTableKey(schema: object.schema, name: object.name)
         progress?("Loading \(baseKey.schema).\(baseKey.name)…")
@@ -334,87 +451,47 @@ final class AppModel: ObservableObject {
             }
         }
 
-        progress?("Preparing diagram…")
-        func buildColumns(for details: TableStructureDetails) -> [SchemaDiagramColumn] {
-            let primaryKeys = Set(details.primaryKey?.columns.map { $0.lowercased() } ?? [])
-            let foreignKeys = Set(details.foreignKeys.flatMap { $0.columns.map { $0.lowercased() } })
-
-            return details.columns.map { column in
-                SchemaDiagramColumn(
-                    name: column.name,
-                    dataType: column.dataType,
-                    isPrimaryKey: primaryKeys.contains(column.name.lowercased()),
-                    isForeignKey: foreignKeys.contains(column.name.lowercased())
-                )
-            }
-        }
-
-        var edges: [SchemaDiagramEdge] = []
-
-        func appendForeignKeyEdges(from tableKey: DiagramTableKey, details: TableStructureDetails) {
-            for fk in details.foreignKeys {
-                let targetSchema = fk.referencedSchema.isEmpty ? tableKey.schema : fk.referencedSchema
-                let targetKey = DiagramTableKey(schema: targetSchema, name: fk.referencedTable)
-
-                for pair in zip(fk.columns, fk.referencedColumns) {
-                    edges.append(
-                        SchemaDiagramEdge(
-                            fromNodeID: tableKey.identifier,
-                            fromColumn: pair.0,
-                            toNodeID: targetKey.identifier,
-                            toColumn: pair.1,
-                            relationshipName: fk.name
-                        )
-                    )
-                }
-            }
-        }
-
-        var nodeModels: [SchemaDiagramNodeModel] = []
-
-        if let baseColumns = tableDetails[baseKey].map(buildColumns) {
-            let baseNode = SchemaDiagramNodeModel(
-                schema: baseKey.schema,
-                name: baseKey.name,
-                columns: baseColumns,
-                position: CGPoint(x: 0, y: 0)
-            )
-            nodeModels.append(baseNode)
-        }
-
-        let otherKeys = tableDetails.keys.filter { $0 != baseKey }
-        if !otherKeys.isEmpty {
-            let radius: CGFloat = 520
-            for (index, key) in otherKeys.enumerated() {
-                guard let details = tableDetails[key] else { continue }
-                let columns = buildColumns(for: details)
-                let angle = CGFloat(index) / CGFloat(otherKeys.count) * 2 * .pi
-                let position = CGPoint(
-                    x: cos(angle) * radius,
-                    y: sin(angle) * radius
-                )
-                let node = SchemaDiagramNodeModel(
-                    schema: key.schema,
-                    name: key.name,
-                    columns: columns,
-                    position: position
-                )
-                nodeModels.append(node)
-            }
-        }
-
-        for (key, details) in tableDetails {
-            appendForeignKeyEdges(from: key, details: details)
-        }
-
         progress?("Finalizing diagram…")
         let title = "\(object.schema).\(object.name)"
-        return SchemaDiagramViewModel(
-            nodes: nodeModels,
-            edges: edges,
-            baseNodeID: baseKey.identifier,
-            title: title
+        let viewModel = makeDiagramViewModel(
+            title: title,
+            baseKey: baseKey,
+            tableDetails: tableDetails,
+            layoutSnapshot: nil
         )
+
+        if let cacheKey,
+           let baseDetails = tableDetails[baseKey] {
+            let relatedEntries = tableDetails
+                .filter { $0.key != baseKey }
+                .map { DiagramStructureSnapshot.TableEntry(schema: $0.key.schema, name: $0.key.name, details: $0.value) }
+            let structure = DiagramStructureSnapshot(
+                baseTable: .init(schema: baseKey.schema, name: baseKey.name, details: baseDetails),
+                relatedTables: relatedEntries
+            )
+            let checksum = DiagramChecksum.makeChecksum(base: baseDetails, related: relatedEntries)
+            let layout = viewModel.layoutSnapshot()
+            let payload = DiagramCachePayload(
+                key: cacheKey,
+                checksum: checksum,
+                structure: structure,
+                layout: layout,
+                loadingSummary: nil
+            )
+            Task {
+                try? await diagramCacheManager.stashPayload(payload)
+            }
+        }
+
+        if !isPrefetch {
+            await scheduleRelatedPrefetch(
+                for: session,
+                baseKey: baseKey,
+                relatedKeys: Array(relatedKeys)
+            )
+        }
+
+        return viewModel
     }
 
     private func loadExpandedConnectionFolders(for projectID: UUID?) {
@@ -458,6 +535,168 @@ final class AppModel: ObservableObject {
         await resultSpoolManager.update(configuration: config)
     }
 
+    private func applyDiagramCacheConfiguration(for settings: GlobalSettings) async {
+        let rootDirectory = DiagramCacheManager.defaultRootDirectory()
+        let normalizedLimit = max(settings.diagramCacheMaxBytes, 64 * 1_024 * 1_024)
+        let configuration = DiagramCacheManager.Configuration(
+            rootDirectory: rootDirectory,
+            maximumBytes: UInt64(normalizedLimit)
+        )
+        await diagramCacheManager.updateConfiguration(configuration)
+    }
+    
+    private func restartDiagramRefreshTask() {
+        diagramRefreshTask?.cancel()
+        diagramRefreshTask = nil
+        guard globalSettings.diagramPrefetchMode == .full else { return }
+        let cadence = globalSettings.diagramRefreshCadence
+        guard cadence != .never else { return }
+        let intervalSeconds: TimeInterval
+        switch cadence {
+        case .never:
+            return
+        case .daily:
+            intervalSeconds = 24 * 60 * 60
+        case .weekly:
+            intervalSeconds = 7 * 24 * 60 * 60
+        }
+        let intervalNanoseconds = UInt64(intervalSeconds) * 1_000_000_000
+        diagramRefreshTask = Task { [weak self] in
+            guard let self else { return }
+            while !Task.isCancelled {
+                try await Task.sleep(nanoseconds: intervalNanoseconds)
+                if Task.isCancelled { break }
+                await self.runDiagramRefreshSweep()
+            }
+        }
+    }
+
+    @MainActor
+    private func runDiagramRefreshSweep() async {
+        guard globalSettings.diagramPrefetchMode == .full else { return }
+        await enqueueFullPrefetchSweep(isBackground: true)
+    }
+
+    @MainActor
+    private func handleDiagramSettingsChange(_ settings: GlobalSettings) async {
+        await diagramPrefetchService.cancelAll()
+        restartDiagramRefreshTask()
+        if settings.diagramPrefetchMode == .full {
+            await enqueueFullPrefetchSweep(isBackground: false)
+        }
+    }
+
+    @MainActor
+    private func handlePrefetchRequest(_ request: DiagramPrefetchService.Request) async -> Bool {
+        guard globalSettings.diagramPrefetchMode != .off else { return false }
+        if let _ = try? await diagramCacheManager.payload(for: request.cacheKey) {
+            return true
+        }
+        guard let session = sessionManager.activeSessions.first(where: { $0.id == request.connectionSessionID }) else {
+            return false
+        }
+        do {
+            _ = try await buildSchemaDiagram(
+                for: session,
+                object: request.object,
+                cacheKey: request.cacheKey,
+                progress: nil,
+                isPrefetch: true
+            )
+            return true
+        } catch {
+            #if DEBUG
+            print("Diagram prefetch failed for \(request.cacheKey.schema).\(request.cacheKey.table): \(error)")
+            #endif
+            return false
+        }
+    }
+
+    @MainActor
+    private func scheduleRelatedPrefetch(
+        for session: ConnectionSession,
+        baseKey: DiagramTableKey,
+        relatedKeys: [DiagramTableKey]
+    ) async {
+        guard globalSettings.diagramPrefetchMode != .off else { return }
+        guard let projectID = session.connection.projectID ?? selectedProject?.id else { return }
+        let filteredKeys = relatedKeys.filter { $0 != baseKey }
+        guard !filteredKeys.isEmpty else { return }
+        let sortedKeys = filteredKeys.sorted {
+            if $0.schema.caseInsensitiveCompare($1.schema) == .orderedSame {
+                return $0.name.lowercased() < $1.name.lowercased()
+            }
+            return $0.schema.lowercased() < $1.schema.lowercased()
+        }
+        let keysToQueue: [DiagramTableKey]
+        switch globalSettings.diagramPrefetchMode {
+        case .off:
+            return
+        case .recentlyOpened:
+            keysToQueue = Array(sortedKeys.prefix(8))
+        case .full:
+            keysToQueue = sortedKeys
+        }
+        guard !keysToQueue.isEmpty else { return }
+        for key in keysToQueue {
+            let cacheKey = DiagramCacheKey(
+                projectID: projectID,
+                connectionID: session.connection.id,
+                schema: key.schema,
+                table: key.name
+            )
+            let object = SchemaObjectInfo(name: key.name, schema: key.schema, type: .table)
+            let request = DiagramPrefetchService.Request(
+                cacheKey: cacheKey,
+                connectionSessionID: session.id,
+                object: object,
+                isBackgroundSweep: false
+            )
+            await diagramPrefetchService.enqueue(request, prioritize: true)
+        }
+    }
+
+    @MainActor
+    private func enqueueFullPrefetchSweep(isBackground: Bool) async {
+        guard globalSettings.diagramPrefetchMode == .full else { return }
+        for session in sessionManager.activeSessions {
+            await enqueueFullPrefetch(for: session, isBackground: isBackground)
+        }
+    }
+
+    @MainActor
+    private func enqueueFullPrefetch(for session: ConnectionSession, isBackground: Bool) async {
+        guard globalSettings.diagramPrefetchMode == .full else { return }
+        guard let projectID = session.connection.projectID ?? selectedProject?.id else { return }
+        guard let structure = session.databaseStructure else { return }
+        let targetDatabase = session.selectedDatabaseName ?? session.connection.database
+        for database in structure.databases where database.name.caseInsensitiveCompare(targetDatabase) == .orderedSame {
+            for schema in database.schemas {
+                for object in schema.tables {
+                    let cacheKey = DiagramCacheKey(
+                        projectID: projectID,
+                        connectionID: session.connection.id,
+                        schema: object.schema,
+                        table: object.name
+                    )
+                    let request = DiagramPrefetchService.Request(
+                        cacheKey: cacheKey,
+                        connectionSessionID: session.id,
+                        object: object,
+                        isBackgroundSweep: isBackground
+                    )
+                    await diagramPrefetchService.enqueue(request, prioritize: !isBackground)
+                }
+            }
+        }
+    }
+
+    @MainActor
+    private func enqueuePrefetchForSessionIfNeeded(_ session: ConnectionSession) async {
+        guard globalSettings.diagramPrefetchMode == .full else { return }
+        await enqueueFullPrefetch(for: session, isBackground: false)
+    }
+
     // MARK: - Computed helpers
     var selectedConnection: SavedConnection? {
         guard let id = selectedConnectionID else { return nil }
@@ -465,9 +704,16 @@ final class AppModel: ObservableObject {
     }
 
     // MARK: - Initialization
-    init(clipboardHistory: ClipboardHistoryStore, resultSpoolManager: ResultSpoolManager) {
+    init(
+        clipboardHistory: ClipboardHistoryStore,
+        resultSpoolManager: ResultSpoolManager,
+        diagramCacheManager: DiagramCacheManager,
+        diagramKeyStore: DiagramEncryptionKeyStore
+    ) {
         self.clipboardHistory = clipboardHistory
         self.resultSpoolManager = resultSpoolManager
+        self.diagramCacheManager = diagramCacheManager
+        self.diagramKeyStore = diagramKeyStore
         sessionManager.$activeSessionID
             .sink { [weak self] id in
                 guard let self else { return }
@@ -489,6 +735,7 @@ final class AppModel: ObservableObject {
 
                 for session in sessions where self.sessionDatabaseCancellables[session.id] == nil {
                     self.observeSession(session)
+                    Task { await self.enqueuePrefetchForSessionIfNeeded(session) }
                 }
 
                 if let activeID = self.sessionManager.activeSessionID,
@@ -534,9 +781,32 @@ final class AppModel: ObservableObject {
             .removeDuplicates()
             .sink { [weak self] settings in
                 guard let self else { return }
-                Task { await self.applyResultSpoolConfiguration(for: settings) }
+                Task {
+                    await self.applyResultSpoolConfiguration(for: settings)
+                    await self.applyDiagramCacheConfiguration(for: settings)
+                    await self.handleDiagramSettingsChange(settings)
+                }
             }
             .store(in: &cancellables)
+
+        Task {
+            await applyResultSpoolConfiguration(for: globalSettings)
+            await applyDiagramCacheConfiguration(for: globalSettings)
+        }
+
+        Task {
+            await diagramCacheManager.updateKeyProvider { projectID in
+                try diagramKeyStore.symmetricKey(forProjectID: projectID)
+            }
+        }
+        Task { [weak self] in
+            guard let self else { return }
+            await self.diagramPrefetchService.setHandler { [weak self] request in
+                guard let self else { return false }
+                return await self.handlePrefetchRequest(request)
+            }
+            await self.handleDiagramSettingsChange(self.globalSettings)
+        }
     }
 
     // MARK: - Persistence
@@ -771,6 +1041,9 @@ final class AppModel: ObservableObject {
         }
         if let value = clampedFetch {
             UserDefaults.standard.set(value, forKey: ResultStreamingFetchSizeDefaultsKey)
+            for session in sessionManager.activeSessions {
+                session.updateDefaultBackgroundFetchSize(value)
+            }
         }
     }
 
@@ -988,7 +1261,8 @@ final class AppModel: ObservableObject {
             sql: presetQuery.isEmpty ? "SELECT current_timestamp;" : presetQuery,
             initialVisibleRowBatch: initialBatch,
             previewRowLimit: previewLimit,
-            spoolManager: resultSpoolManager
+            spoolManager: resultSpoolManager,
+            backgroundFetchSize: globalSettings.resultsStreamingFetchSize
         )
 
         func normalized(_ value: String) -> String? {
@@ -1039,7 +1313,8 @@ final class AppModel: ObservableObject {
             sql: initialSQL,
             initialVisibleRowBatch: configuredBatchSize,
             previewRowLimit: previewLimit,
-            spoolManager: resultSpoolManager
+            spoolManager: resultSpoolManager,
+            backgroundFetchSize: globalSettings.resultsStreamingFetchSize
         )
         queryState.isResultsOnly = true
         queryState.shouldAutoExecuteOnAppear = true
@@ -1082,6 +1357,15 @@ final class AppModel: ObservableObject {
         selectedConnectionID = session.connection.id
 
         let baseIdentifier = "\(object.schema).\(object.name)"
+        let projectID = session.connection.projectID ?? selectedProject?.id
+        let cacheKey = projectID.map {
+            DiagramCacheKey(
+                projectID: $0,
+                connectionID: session.connection.id,
+                schema: object.schema,
+                table: object.name
+            )
+        }
 
         Task {
             let placeholderViewModel = await MainActor.run { () -> SchemaDiagramViewModel in
@@ -1092,7 +1376,14 @@ final class AppModel: ObservableObject {
                     title: "\(object.schema).\(object.name)",
                     isLoading: true,
                     statusMessage: "Loading \(baseIdentifier)…",
-                    errorMessage: nil
+                    errorMessage: nil,
+                    context: SchemaDiagramContext(
+                        projectID: projectID,
+                        connectionID: session.connection.id,
+                        connectionSessionID: session.id,
+                        object: object,
+                        cacheKey: cacheKey
+                    )
                 )
 
                 let newTab = WorkspaceTab(
@@ -1107,13 +1398,31 @@ final class AppModel: ObservableObject {
                 return viewModel
             }
 
+            if let cacheKey,
+               let cachedPayload = try? await diagramCacheManager.payload(for: cacheKey) {
+                let cachedModel = hydrateCachedDiagram(from: cachedPayload)
+                await MainActor.run {
+                    placeholderViewModel.nodes = cachedModel.nodes
+                    placeholderViewModel.edges = cachedModel.edges
+                    placeholderViewModel.layoutIdentifier = cachedModel.layoutIdentifier
+                    placeholderViewModel.isLoading = false
+                    placeholderViewModel.statusMessage = nil
+                    placeholderViewModel.errorMessage = nil
+                }
+
+                if !globalSettings.diagramVerifyBeforeRefresh {
+                    return
+                }
+            }
+
             do {
                 let diagramModel = try await buildSchemaDiagram(
                     for: session,
                     object: object,
+                    cacheKey: cacheKey,
                     progress: { status in
                         Task { @MainActor in
-                            placeholderViewModel.statusMessage = status
+                            placeholderViewModel.statusMessage = cacheKey == nil ? status : nil
                         }
                     }
                 )
@@ -1123,6 +1432,7 @@ final class AppModel: ObservableObject {
                     placeholderViewModel.isLoading = false
                     placeholderViewModel.statusMessage = nil
                     placeholderViewModel.errorMessage = nil
+                    placeholderViewModel.layoutIdentifier = diagramModel.layoutIdentifier
                 }
             } catch {
                 let databaseError = DatabaseError.from(error)
@@ -1141,6 +1451,55 @@ final class AppModel: ObservableObject {
         tabManager.closeTab(id: activeTab.id)
     }
 
+    func refreshDiagram(_ viewModel: SchemaDiagramViewModel) async {
+        guard let context = viewModel.context else { return }
+        guard let session = sessionManager.activeSessions.first(where: { $0.id == context.connectionSessionID }) else { return }
+        let projectID = session.connection.projectID ?? selectedProject?.id
+        let cacheKey = context.cacheKey ?? projectID.map {
+            DiagramCacheKey(
+                projectID: $0,
+                connectionID: session.connection.id,
+                schema: context.object.schema,
+                table: context.object.name
+            )
+        }
+
+        await MainActor.run {
+            viewModel.isLoading = true
+            viewModel.statusMessage = "Refreshing diagram…"
+            viewModel.errorMessage = nil
+        }
+
+        do {
+            let diagramModel = try await buildSchemaDiagram(
+                for: session,
+                object: context.object,
+                cacheKey: cacheKey,
+                progress: { status in
+                    Task { @MainActor in
+                        viewModel.statusMessage = status
+                    }
+                }
+            )
+            await MainActor.run {
+                viewModel.nodes = diagramModel.nodes
+                viewModel.edges = diagramModel.edges
+                viewModel.layoutIdentifier = diagramModel.layoutIdentifier
+                viewModel.isLoading = false
+                viewModel.statusMessage = nil
+                viewModel.errorMessage = nil
+            }
+        } catch {
+            let databaseError = DatabaseError.from(error)
+            await MainActor.run {
+                viewModel.isLoading = false
+                viewModel.statusMessage = nil
+                viewModel.errorMessage = databaseError.localizedDescription
+                self.lastError = databaseError
+            }
+        }
+    }
+
     func duplicateTab(_ tab: WorkspaceTab) {
         guard let queryState = tab.query else { return }
         guard let session = sessionManager.activeSessions.first(where: { $0.id == tab.connectionSessionID }) else { return }
@@ -1153,7 +1512,8 @@ final class AppModel: ObservableObject {
             sql: queryState.sql,
             initialVisibleRowBatch: initialBatch,
             previewRowLimit: previewLimit,
-            spoolManager: resultSpoolManager
+            spoolManager: resultSpoolManager,
+            backgroundFetchSize: globalSettings.resultsStreamingFetchSize
         )
         duplicateState.splitRatio = queryState.splitRatio
         duplicateState.updateClipboardContext(
@@ -1784,6 +2144,7 @@ final class AppModel: ObservableObject {
                 session: databaseSession,
                 defaultInitialBatchSize: globalSettings.resultsInitialRowLimit,
                 defaultBackgroundStreamingThreshold: globalSettings.resultsBackgroundStreamingThreshold,
+                defaultBackgroundFetchSize: globalSettings.resultsStreamingFetchSize,
                 spoolManager: resultSpoolManager
             )
 
@@ -2321,12 +2682,14 @@ final class AppModel: ObservableObject {
         _ project: Project,
         includeGlobalSettings: Bool,
         includeClipboardHistory: Bool,
+        includeAutocompleteHistory: Bool,
         password: String
     ) async throws -> Data {
         let projectConnections = connections.filter { $0.projectID == project.id }
         let projectIdentities = identities.filter { $0.projectID == project.id }
         let projectFolders = folders.filter { $0.projectID == project.id }
         let clipboardEntries = includeClipboardHistory ? clipboardHistory.entries : nil
+        let autocompleteSnapshot = includeAutocompleteHistory ? SQLAutoCompletionHistoryStore.shared.snapshot() : nil
 
         return try await projectStore.exportProject(
             project,
@@ -2335,6 +2698,7 @@ final class AppModel: ObservableObject {
             folders: projectFolders,
             globalSettings: includeGlobalSettings ? globalSettings : nil,
             clipboardHistory: clipboardEntries,
+            autocompleteHistory: autocompleteSnapshot,
             password: password
         )
     }
@@ -2396,6 +2760,10 @@ final class AppModel: ObservableObject {
 
         if let importedHistory = exportData.clipboardHistory {
             mergeImportedClipboardEntries(importedHistory)
+        }
+
+        if let autocompleteHistory = exportData.autocompleteHistory {
+            SQLAutoCompletionHistoryStore.shared.importSnapshot(autocompleteHistory, merge: true)
         }
 
         // Optionally import global settings
@@ -2774,4 +3142,5 @@ private extension AppModel {
             sessionDatabaseCancellables.removeValue(forKey: id)
         }
     }
+
 }

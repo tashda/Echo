@@ -7,12 +7,14 @@ import AppKit
 struct SchemaDiagramView: View {
     @ObservedObject var viewModel: SchemaDiagramViewModel
     @Environment(\.colorScheme) private var colorScheme
+    @EnvironmentObject private var appModel: AppModel
 
     @State private var zoom: CGFloat = 1.0
     @State private var contentOffset: CGSize = .zero
     @State private var lastDragOffset: CGSize = .zero
     @State private var hasCenteredDiagram = false
     @State private var isDraggingNode = false
+    @State private var isRefreshing = false
 
     private let minZoom: CGFloat = 0.4
     private let maxZoom: CGFloat = 2.5
@@ -45,8 +47,42 @@ struct SchemaDiagramView: View {
                 centerDiagramIfNeeded(in: newSize)
             }
             .overlay(statusOverlay)
+            .overlay(alignment: .topTrailing) {
+                toolbarOverlay
+                    .padding(.top, 16)
+                    .padding(.trailing, 16)
+            }
         }
         .navigationTitle(viewModel.title)
+    }
+
+    private var toolbarOverlay: some View {
+        HStack(spacing: 12) {
+            if isRefreshing || viewModel.isLoading {
+                ProgressView()
+                    .controlSize(.small)
+            }
+            Button {
+                guard !isRefreshing else { return }
+                isRefreshing = true
+                Task {
+                    await appModel.refreshDiagram(viewModel)
+                    await MainActor.run {
+                        isRefreshing = false
+                    }
+                }
+            } label: {
+                Label("Refresh", systemImage: "arrow.clockwise")
+                    .labelStyle(.iconOnly)
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.small)
+            .disabled(viewModel.isLoading)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(.ultraThinMaterial, in: Capsule())
+        .shadow(color: .black.opacity(0.12), radius: 12, x: 0, y: 6)
     }
 
     private var zoomControls: some View {

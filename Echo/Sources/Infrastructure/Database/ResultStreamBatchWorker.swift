@@ -20,7 +20,6 @@ final class ResultStreamBatchWorker: @unchecked Sendable {
     private var lastFlushTimestamp: CFAbsoluteTime
     private var batchDecodeDuration: TimeInterval = 0
     private var previewRowsEmitted: Int = 0
-    private var hasEmittedBatch = false
 
     init(
         label: String,
@@ -52,22 +51,11 @@ final class ResultStreamBatchWorker: @unchecked Sendable {
             let threshold = self.flushThreshold(for: payload.totalRowCount)
             let elapsed = CFAbsoluteTimeGetCurrent() - self.lastFlushTimestamp
             let latencyBudget = self.latencyBudget(for: payload.totalRowCount)
-            let previewPhase = payload.totalRowCount <= self.streamingPreviewLimit
-            let minLatencyBatch = previewPhase ? min(16, threshold) : min(64, threshold)
-            let fallbackBudget: TimeInterval = previewPhase
-                ? max(latencyBudget * 2, 1.0)
-                : max(latencyBudget * 1.5, 0.8)
+            let fallbackBudget = self.fallbackLatency(for: payload.totalRowCount)
 
-            var shouldFlush = false
-            if self.pendingEncodedRows.count >= threshold {
-                shouldFlush = true
-            } else if elapsed >= latencyBudget && self.pendingEncodedRows.count >= minLatencyBatch {
-                shouldFlush = true
-            } else if elapsed >= fallbackBudget {
-                shouldFlush = true
-            }
-
-            if shouldFlush {
+            if self.pendingEncodedRows.count >= threshold
+                || (elapsed >= latencyBudget && !self.pendingEncodedRows.isEmpty)
+                || elapsed >= fallbackBudget {
                 self.flush(totalRowCount: payload.totalRowCount)
             }
         }
@@ -84,12 +72,13 @@ final class ResultStreamBatchWorker: @unchecked Sendable {
 
         let previewBatch = pendingPreviewRows
         let encodedBatch = pendingEncodedRows
+        let batchCount = encodedBatch.count
         pendingPreviewRows.removeAll(keepingCapacity: true)
         pendingEncodedRows.removeAll(keepingCapacity: true)
 
         let now = CFAbsoluteTimeGetCurrent()
         let metrics = QueryStreamMetrics(
-            batchRowCount: encodedBatch.count,
+            batchRowCount: batchCount,
             loopElapsed: now - lastFlushTimestamp,
             decodeDuration: batchDecodeDuration,
             totalElapsed: now - operationStart,
@@ -97,43 +86,58 @@ final class ResultStreamBatchWorker: @unchecked Sendable {
         )
         lastFlushTimestamp = now
         batchDecodeDuration = 0
-        hasEmittedBatch = true
 
 #if DEBUG
-        if encodedBatch.count <= 2 && metrics.loopElapsed > 0.25 {
-            print("[ResultStreamBatchWorker] small flush size=\(encodedBatch.count) total=\(totalRowCount) elapsed=\(metrics.totalElapsed)s latency=\(metrics.loopElapsed)s")
+        if batchCount <= 2 && metrics.loopElapsed > 0.2 {
+            print("[ResultStreamBatchWorker] small flush size=\(batchCount) total=\(totalRowCount) elapsed=\(metrics.totalElapsed)s latency=\(metrics.loopElapsed)s")
         } else if totalRowCount >= 1_000 && totalRowCount % 5_000 == 0 {
             print("[ResultStreamBatchWorker] checkpoint total=\(totalRowCount) elapsed=\(metrics.totalElapsed)s")
         }
 #endif
+
+        let batchStartIndex = max(totalRowCount - batchCount, 0)
 
         let update = QueryStreamUpdate(
             columns: columns,
             appendedRows: previewBatch,
             encodedRows: encodedBatch,
             totalRowCount: totalRowCount,
-            metrics: metrics
+            metrics: metrics,
+            rowRange: batchCount > 0 ? (batchStartIndex..<totalRowCount) : nil
         )
         progressHandler(update)
     }
 
     private func flushThreshold(for totalCount: Int) -> Int {
         if totalCount <= streamingPreviewLimit {
-            return 64
+            return 24
         }
         if totalCount <= streamingPreviewLimit * 4 {
-            return 1_024
+            return 256
         }
         if totalCount <= 128_000 {
-            return 2_048
+            return 512
         }
-        return 4_096
+        return 1_024
     }
 
     private func latencyBudget(for totalCount: Int) -> TimeInterval {
         if totalCount <= streamingPreviewLimit {
-            return maxFlushLatency
+            return min(maxFlushLatency, 0.035)
         }
-        return max(maxFlushLatency, 0.5)
+        if totalCount <= streamingPreviewLimit * 4 {
+            return min(maxFlushLatency, 0.05)
+        }
+        return min(maxFlushLatency, 0.075)
+    }
+
+    private func fallbackLatency(for totalCount: Int) -> TimeInterval {
+        if totalCount <= streamingPreviewLimit {
+            return max(0.12, maxFlushLatency * 0.5)
+        }
+        if totalCount <= streamingPreviewLimit * 4 {
+            return max(0.18, maxFlushLatency * 0.6)
+        }
+        return max(0.25, maxFlushLatency * 0.7)
     }
 }

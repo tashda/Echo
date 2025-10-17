@@ -40,10 +40,18 @@ actor ResultStreamIngestionService {
         guard !update.appendedRows.isEmpty || !update.encodedRows.isEmpty else { return }
 
         do {
+            let appendCountEstimate = max(update.appendedRows.count, update.encodedRows.count)
+            let resolvedRange: Range<Int>? = {
+                if let range = update.rowRange, range.count == appendCountEstimate {
+                    return range
+                }
+                return nil
+            }()
+
             let handle = try await ensureHandle()
 
             if isPreview, !update.appendedRows.isEmpty {
-                let startIndex = totalRowCount
+                let startIndex = resolvedRange?.lowerBound ?? totalRowCount
                 rowCache.ingest(rows: update.appendedRows, startingAt: startIndex)
             }
 
@@ -68,7 +76,16 @@ actor ResultStreamIngestionService {
             let appendCount = max(rowsForAppend.count, encodedRows.count)
             guard appendCount > 0 else { return }
 
-            totalRowCount &+= appendCount
+            let rangeForAppend: Range<Int>
+            if let resolvedRange = resolvedRange {
+                rangeForAppend = resolvedRange
+                totalRowCount = max(totalRowCount, resolvedRange.upperBound)
+            } else {
+                let start = totalRowCount
+                let end = start + appendCount
+                rangeForAppend = start..<end
+                totalRowCount = end
+            }
 
             let previousTask = appendTask
             let columns = update.columns
@@ -89,6 +106,7 @@ actor ResultStreamIngestionService {
                         columns: columns,
                         rows: rowsForAppend,
                         encodedRows: encodedRows,
+                        rowRange: rangeForAppend,
                         metrics: metrics
                     )
 #if DEBUG
@@ -140,6 +158,7 @@ actor ResultStreamIngestionService {
                         columns: result.columns,
                         rows: result.rows,
                         encodedRows: [],
+                        rowRange: 0..<result.rows.count,
                         metrics: nil
                     )
                     totalRowCount = result.rows.count
@@ -170,6 +189,7 @@ actor ResultStreamIngestionService {
                     columns: result.columns,
                     rows: result.rows,
                     encodedRows: [],
+                    rowRange: 0..<result.rows.count,
                     metrics: nil
                 )
                 totalRowCount = result.rows.count

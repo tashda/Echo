@@ -12,31 +12,45 @@ actor DiagramCacheManager {
             self.maximumBytes = maximumBytes
         }
     }
+    
+    static func defaultRootDirectory() -> URL {
+        let fm = FileManager.default
+        #if os(macOS)
+        let base = fm.urls(for: .cachesDirectory, in: .userDomainMask).first ?? fm.temporaryDirectory
+        #else
+        let base = fm.urls(for: .cachesDirectory, in: .userDomainMask).first ?? fm.temporaryDirectory
+        #endif
+        return base.appendingPathComponent("Echo", isDirectory: true).appendingPathComponent("DiagramCache", isDirectory: true)
+    }
 
     private var configuration: Configuration
-    private let keyProvider: @Sendable (UUID) throws -> SymmetricKey
+    private var keyProvider: (@Sendable (UUID) throws -> SymmetricKey)?
     private let fileManager = FileManager.default
-    private let encoder = JSONEncoder()
-    private let decoder = JSONDecoder()
 
-    init(configuration: Configuration, keyProvider: @escaping @Sendable (UUID) throws -> SymmetricKey) {
+    init(configuration: Configuration) {
         self.configuration = configuration
-        self.keyProvider = keyProvider
-        ensureDirectoryExists(at: configuration.rootDirectory)
+        Self.ensureDirectoryExists(at: configuration.rootDirectory, using: fileManager)
+    }
+
+    func updateKeyProvider(_ provider: @escaping @Sendable (UUID) throws -> SymmetricKey) {
+        keyProvider = provider
     }
 
     func updateConfiguration(_ configuration: Configuration) {
         guard self.configuration != configuration else { return }
         self.configuration = configuration
-        ensureDirectoryExists(at: configuration.rootDirectory)
+        Self.ensureDirectoryExists(at: configuration.rootDirectory, using: fileManager)
         Task { await self.enforceSizeLimitIfNeeded() }
     }
 
     func stashPayload(_ payload: DiagramCachePayload) async throws {
         let url = cacheURL(for: payload.key)
-        ensureDirectoryExists(at: url.deletingLastPathComponent())
+        Self.ensureDirectoryExists(at: url.deletingLastPathComponent(), using: fileManager)
 
-        let json = try encoder.encode(payload)
+        let json = try await MainActor.run {
+            try JSONEncoder().encode(payload)
+        }
+        guard let keyProvider else { throw EncryptionError.missingKeyProvider }
         let key = try keyProvider(payload.key.projectID)
         let encrypted = try encrypt(json, with: key)
 
@@ -47,11 +61,13 @@ actor DiagramCacheManager {
     func payload(for key: DiagramCacheKey) async throws -> DiagramCachePayload? {
         let url = cacheURL(for: key)
         guard fileManager.fileExists(atPath: url.path) else { return nil }
-
+        guard let keyProvider else { throw EncryptionError.missingKeyProvider }
         let data = try Data(contentsOf: url, options: [.mappedIfSafe])
         let symmetricKey = try keyProvider(key.projectID)
         let decrypted = try decrypt(data, with: symmetricKey)
-        return try decoder.decode(DiagramCachePayload.self, from: decrypted)
+        return try await MainActor.run {
+            try JSONDecoder().decode(DiagramCachePayload.self, from: decrypted)
+        }
     }
 
     func removePayload(for key: DiagramCacheKey) {
@@ -64,20 +80,24 @@ actor DiagramCacheManager {
         try? fileManager.removeItem(at: directory)
     }
 
+    func removeAll() {
+        try? fileManager.removeItem(at: configuration.rootDirectory)
+        Self.ensureDirectoryExists(at: configuration.rootDirectory, using: fileManager)
+    }
+
     func listPayloads(for projectID: UUID) -> [DiagramCachePayload] {
         let directory = projectDirectory(for: projectID)
         guard let contents = try? fileManager.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil, options: [.skipsHiddenFiles]) else {
             return []
         }
 
-        guard let encryptionKey = try? keyProvider(projectID) else { return [] }
-
+        guard let keyProvider, let encryptionKey = try? keyProvider(projectID) else { return [] }
         var results: [DiagramCachePayload] = []
         for url in contents where url.pathExtension == Self.cacheExtension {
             do {
                 let data = try Data(contentsOf: url, options: [.mappedIfSafe])
                 let decrypted = try decrypt(data, with: encryptionKey)
-                let payload = try decoder.decode(DiagramCachePayload.self, from: decrypted)
+                let payload = try JSONDecoder().decode(DiagramCachePayload.self, from: decrypted)
                 results.append(payload)
             } catch {
                 // Best effort: remove corrupt entries.
@@ -97,8 +117,8 @@ actor DiagramCacheManager {
         }
 
         var total: UInt64 = 0
-        for case let url as URL in enumerator {
-            total += Self.fileSize(for: url)
+        while let next = enumerator.nextObject() as? URL {
+            total += Self.fileSize(for: next)
         }
         return total
     }
@@ -122,11 +142,12 @@ actor DiagramCacheManager {
         var items: [(url: URL, size: UInt64, modified: Date)] = []
         var total: UInt64 = 0
 
-        for case let url as URL in enumerator where url.pathExtension == Self.cacheExtension {
-            let size = Self.fileSize(for: url)
-            let modified = (try? url.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? Date()
+        while let next = enumerator.nextObject() as? URL {
+            guard next.pathExtension == Self.cacheExtension else { continue }
+            let size = Self.fileSize(for: next)
+            let modified = (try? next.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? Date()
             total += size
-            items.append((url, size, modified))
+            items.append((next, size, modified))
         }
 
         guard total > maxBytes else { return }
@@ -157,11 +178,11 @@ actor DiagramCacheManager {
 
     private func projectDirectory(for projectID: UUID) -> URL {
         let directory = configuration.rootDirectory.appendingPathComponent(projectID.uuidString, isDirectory: true)
-        ensureDirectoryExists(at: directory)
+        Self.ensureDirectoryExists(at: directory, using: fileManager)
         return directory
     }
 
-    private func ensureDirectoryExists(at url: URL) {
+    private static func ensureDirectoryExists(at url: URL, using fileManager: FileManager) {
         if !fileManager.fileExists(atPath: url.path) {
             try? fileManager.createDirectory(at: url, withIntermediateDirectories: true)
         }
@@ -173,8 +194,9 @@ actor DiagramCacheManager {
         }
 
         var total: UInt64 = 0
-        for case let url as URL in enumerator where url.pathExtension == Self.cacheExtension {
-            total += Self.fileSize(for: url)
+        while let next = enumerator.nextObject() as? URL {
+            guard next.pathExtension == Self.cacheExtension else { continue }
+            total += Self.fileSize(for: next)
         }
         return total
     }
@@ -219,6 +241,7 @@ actor DiagramCacheManager {
 extension DiagramCacheManager {
     enum EncryptionError: Error {
         case invalidPayload
+        case missingKeyProvider
     }
 
     private static let cacheExtension = "diagram"

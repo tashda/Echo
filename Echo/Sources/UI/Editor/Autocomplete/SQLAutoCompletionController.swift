@@ -167,12 +167,7 @@ final class SQLAutoCompletionController {
 
     private func updateContent() {
         let controller = ensureHostingController()
-        let statusMessage: String?
-        if textView?.completionEngine.isMetadataLimited == true {
-            statusMessage = "Limited metadata — showing keywords and history"
-        } else {
-            statusMessage = nil
-        }
+        let statusMessage = SQLAutoCompletionController.statusMessage(isMetadataLimited: textView?.completionEngine.isMetadataLimited == true)
         let updatedView = AutoCompletionListView(
             suggestions: flatSuggestions,
             selectedID: selectedSuggestion?.id,
@@ -191,6 +186,10 @@ final class SQLAutoCompletionController {
         let width = min(maxWidth, max(minWidth, fittingSize.width))
         let height = min(maxHeight, max(72, fittingSize.height))
         popover.contentSize = NSSize(width: width, height: height)
+    }
+
+    static func statusMessage(isMetadataLimited: Bool) -> String? {
+        isMetadataLimited ? "Limited metadata — showing keywords and history" : nil
     }
 
     private func moveSelection(_ delta: Int) {

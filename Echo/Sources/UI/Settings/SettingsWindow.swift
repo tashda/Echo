@@ -45,6 +45,7 @@ struct SettingsView: View {
         case appearance
         case queryResults
         case autocomplete
+        case diagrams
         case applicationCache
         case keyboardShortcuts
 
@@ -55,9 +56,10 @@ struct SettingsView: View {
             case .appearance: return "Appearance"
             case .queryResults: return "Query Results"
             case .autocomplete: return "Autocomplete"
+            case .diagrams: return "Diagrams"
             case .applicationCache: return "Application Cache"
             case .keyboardShortcuts: return "Keyboard Shortcuts"
-            }
+        }
         }
 
         var systemImage: String {
@@ -65,9 +67,10 @@ struct SettingsView: View {
             case .appearance: return "paintbrush"
             case .queryResults: return "tablecells"
             case .autocomplete: return "text.insert"
+            case .diagrams: return "rectangle.connected.to.line.below"
             case .applicationCache: return "internaldrive"
             case .keyboardShortcuts: return "command"
-            }
+        }
         }
     }
 
@@ -164,6 +167,11 @@ struct SettingsView: View {
                 .environmentObject(appState)
                 .environmentObject(themeManager)
 
+        case .diagrams:
+            DiagramSettingsView()
+                .environmentObject(appModel)
+                .environmentObject(themeManager)
+
         case .applicationCache:
             ApplicationCacheSettingsView()
                 .environmentObject(clipboardHistory)
@@ -244,6 +252,180 @@ struct KeyboardShortcutsSettingsView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .background(Color.clear)
+    }
+}
+
+struct DiagramSettingsView: View {
+    @EnvironmentObject private var appModel: AppModel
+    @EnvironmentObject private var themeManager: ThemeManager
+    @State private var cacheUsage: UInt64 = 0
+    @State private var isRefreshingUsage = false
+
+    private let cacheOptions: [Int] = [
+        128 * 1_024 * 1_024,
+        256 * 1_024 * 1_024,
+        512 * 1_024 * 1_024,
+        1 * 1_024 * 1_024 * 1_024,
+        2 * 1_024 * 1_024 * 1_024,
+        5 * 1_024 * 1_024 * 1_024
+    ]
+
+    var body: some View {
+        Form {
+            prefetchSection
+            refreshSection
+            cacheSection
+        }
+        .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
+        .background(themeManager.surfaceBackgroundColor)
+        .task {
+            await refreshUsage()
+        }
+        .task(id: appModel.globalSettings.diagramCacheMaxBytes) {
+            await refreshUsage()
+        }
+    }
+
+    private var prefetchSection: some View {
+        Section("Prefetching") {
+            Picker("Diagram prefetch", selection: prefetchBinding) {
+                ForEach(DiagramPrefetchMode.allCases, id: \.self) { mode in
+                    Text(mode.displayName).tag(mode)
+                }
+            }
+            .pickerStyle(.segmented)
+            .frame(maxWidth: 360)
+
+            Picker("Background refresh", selection: refreshCadenceBinding) {
+                ForEach(DiagramRefreshCadence.allCases, id: \.self) { cadence in
+                    Text(cadence.displayName).tag(cadence)
+                }
+            }
+            .frame(maxWidth: 360)
+
+            Text("Echo can warm diagram data in the background for faster opens. Prefetching is optional so large databases do not fetch unused metadata.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .padding(.top, 6)
+        }
+    }
+
+    private var refreshSection: some View {
+        Section("Refresh & Rendering") {
+            Toggle("Verify diagram data before refresh", isOn: verifyBinding)
+                .toggleStyle(.switch)
+
+            Toggle("Render relationships in large diagrams", isOn: renderRelationshipsBinding)
+                .toggleStyle(.switch)
+
+            Text("Disable relationship rendering if diagrams with thousands of edges feel heavy; you can still re-enable it on demand.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .padding(.top, 6)
+        }
+    }
+
+    private var cacheSection: some View {
+        Section("Cache") {
+            Picker("Maximum cache size", selection: cacheLimitBinding) {
+                ForEach(cacheOptions, id: \.self) { value in
+                    Text(formatByteCount(value)).tag(value)
+                }
+            }
+            .frame(maxWidth: 320)
+
+            HStack {
+                Text("Current usage")
+                Spacer()
+                if isRefreshingUsage {
+                    ProgressView()
+                        .controlSize(.small)
+                } else {
+                    Text(formatByteCount(cacheUsage))
+                        .font(.system(size: 12, weight: .semibold))
+                }
+            }
+
+            HStack(spacing: 12) {
+                Button("Refresh Usage") {
+                    Task { await refreshUsage() }
+                }
+                Button("Clear Diagram Cache", role: .destructive) {
+                    Task { await clearCache() }
+                }
+            }
+        }
+    }
+
+    private var prefetchBinding: Binding<DiagramPrefetchMode> {
+        Binding(
+            get: { appModel.globalSettings.diagramPrefetchMode },
+            set: { newValue in
+                Task { await appModel.updateGlobalEditorDisplay { $0.diagramPrefetchMode = newValue } }
+            }
+        )
+    }
+
+    private var refreshCadenceBinding: Binding<DiagramRefreshCadence> {
+        Binding(
+            get: { appModel.globalSettings.diagramRefreshCadence },
+            set: { newValue in
+                Task { await appModel.updateGlobalEditorDisplay { $0.diagramRefreshCadence = newValue } }
+            }
+        )
+    }
+
+    private var verifyBinding: Binding<Bool> {
+        Binding(
+            get: { appModel.globalSettings.diagramVerifyBeforeRefresh },
+            set: { newValue in
+                Task { await appModel.updateGlobalEditorDisplay { $0.diagramVerifyBeforeRefresh = newValue } }
+            }
+        )
+    }
+
+    private var renderRelationshipsBinding: Binding<Bool> {
+        Binding(
+            get: { appModel.globalSettings.diagramRenderRelationshipsForLargeDiagrams },
+            set: { newValue in
+                Task { await appModel.updateGlobalEditorDisplay { $0.diagramRenderRelationshipsForLargeDiagrams = newValue } }
+            }
+        )
+    }
+
+    private var cacheLimitBinding: Binding<Int> {
+        Binding(
+            get: { appModel.globalSettings.diagramCacheMaxBytes },
+            set: { newValue in
+                Task { await appModel.updateGlobalEditorDisplay { $0.diagramCacheMaxBytes = max(64 * 1_024 * 1_024, newValue) } }
+            }
+        )
+    }
+
+    private func refreshUsage() async {
+        await MainActor.run { isRefreshingUsage = true }
+        let usage = await appModel.diagramCacheManager.currentUsageBytes()
+        await MainActor.run {
+            cacheUsage = usage
+            isRefreshingUsage = false
+        }
+    }
+
+    private func clearCache() async {
+        await appModel.diagramCacheManager.removeAll()
+        await refreshUsage()
+    }
+
+    private func formatByteCount(_ count: Int) -> String {
+        formatByteCount(UInt64(count))
+    }
+
+    private func formatByteCount(_ count: UInt64) -> String {
+        let formatter = ByteCountFormatter()
+        formatter.allowedUnits = [.useBytes, .useKB, .useMB, .useGB]
+        formatter.countStyle = .memory
+        return formatter.string(fromByteCount: Int64(count))
     }
 }
 
@@ -4429,6 +4611,8 @@ struct ApplicationCacheSettingsView: View {
     @State private var confirmDisableHistory = false
     @State private var resultCacheUsage: UInt64 = 0
     @State private var isRefreshingResultCache = false
+    @State private var autocompleteHistoryUsage: UInt64 = 0
+    @State private var isRefreshingAutocompleteHistory = false
 
     private let baseStorageOptions: [Int] = [
         256 * 1_024 * 1_024,
@@ -4445,6 +4629,7 @@ struct ApplicationCacheSettingsView: View {
         Form {
             workspaceTabSection
             resultCacheSection
+            autocompleteHistorySection
 
             Section("Clipboard History") {
                 Toggle("Enable clipboard history", isOn: clipboardEnabledBinding(for: store))
@@ -4470,6 +4655,10 @@ struct ApplicationCacheSettingsView: View {
         .formStyle(.grouped)
         .scrollContentBackground(.hidden)
         .background(themeManager.surfaceBackgroundColor)
+        .task {
+            await refreshResultCacheUsage()
+            await refreshAutocompleteHistoryUsage()
+        }
         .alert("Disable Clipboard History?", isPresented: $confirmDisableHistory) {
             Button("Disable", role: .destructive) {
                 confirmDisableHistory = false
@@ -4579,6 +4768,46 @@ struct ApplicationCacheSettingsView: View {
         }
     }
 
+    private var autocompleteHistorySection: some View {
+        Section("Autocomplete History") {
+            HStack {
+                Text("Stored suggestions")
+                Spacer()
+                if isRefreshingAutocompleteHistory {
+                    ProgressView()
+                        .controlSize(.small)
+                        .progressViewStyle(.circular)
+                        .frame(width: 18, height: 18)
+                        .frame(minWidth: 18, idealWidth: 18, maxWidth: 18, minHeight: 18, idealHeight: 18, maxHeight: 18)
+                        .fixedSize()
+                } else {
+                    Text(formatByteCount(autocompleteHistoryUsage))
+                        .font(.system(size: 12, weight: .semibold))
+                }
+            }
+
+            Text("Echo remembers the autocomplete suggestions you accept so the most relevant tables, columns, joins, and snippets appear first. History is stored locally on this Mac.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+
+            HStack(spacing: 12) {
+                Button("Clear Autocomplete History", role: .destructive) {
+                    clearAutocompleteHistory()
+                }
+                .buttonStyle(.bordered)
+
+                Button("Refresh Size") {
+                    Task { await refreshAutocompleteHistoryUsage() }
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(.accentColor)
+
+                Spacer()
+            }
+            .padding(.top, 6)
+        }
+    }
+
     private func storageLimitSection(for store: ClipboardHistoryStore) -> some View {
         let usage = store.formattedUsageBreakdown()
         let options = storageOptions(for: store.storageLimit)
@@ -4676,6 +4905,26 @@ struct ApplicationCacheSettingsView: View {
         Task {
             await appModel.resultSpoolManager.clearAll()
             await refreshResultCacheUsage()
+        }
+    }
+
+    private func clearAutocompleteHistory() {
+        SQLAutoCompletionHistoryStore.shared.reset()
+        autocompleteHistoryUsage = 0
+    }
+
+    private func refreshAutocompleteHistoryUsage() async {
+        let shouldContinue = await MainActor.run { () -> Bool in
+            if isRefreshingAutocompleteHistory { return false }
+            isRefreshingAutocompleteHistory = true
+            return true
+        }
+        guard shouldContinue else { return }
+
+        let usage = SQLAutoCompletionHistoryStore.shared.currentUsageBytes()
+        await MainActor.run {
+            autocompleteHistoryUsage = usage
+            isRefreshingAutocompleteHistory = false
         }
     }
 

@@ -107,7 +107,7 @@ struct TableStructureEditorView: View {
                 viewModel.requestedSection = nil
             }
         }
-        .onChange(of: viewModel.columns) { _ in
+        .onReceive(viewModel.$columns) { _ in
             pruneSelectedColumns()
             rebuildColumnIndexLookup()
         }
@@ -1640,14 +1640,6 @@ private struct ColumnEditorSheet: View {
         }
         .frame(minWidth: 440, idealWidth: 500, minHeight: 360)
         .navigationTitle(draft.isEditingExisting ? "Edit Column" : "New Column")
-        .onChange(of: draft.dataType) { newValue in
-            guard isPostgres else { return }
-            if let match = postgresDataTypeOptions.first(where: { $0.caseInsensitiveCompare(newValue) == .orderedSame }) {
-                draft.selectedDataType = match
-            } else {
-                draft.selectedDataType = nil
-            }
-        }
     }
 
     private var generalSection: some View {
@@ -1670,13 +1662,13 @@ private struct ColumnEditorSheet: View {
                 }
                 if draft.selectedDataType == nil {
                     labeledRow(title: "Custom Data Type") {
-                        TextField("", text: $draft.dataType)
+                        TextField("", text: dataTypeInputBinding)
                             .frame(maxWidth: .infinity, alignment: .trailing)
                     }
                 }
             } else {
                 labeledRow(title: "Data Type") {
-                    TextField("", text: $draft.dataType)
+                    TextField("", text: dataTypeInputBinding)
                         .frame(maxWidth: .infinity, alignment: .trailing)
                 }
             }
@@ -1853,6 +1845,25 @@ private struct ColumnEditorSheet: View {
                 }
             }
         )
+    }
+
+    private var dataTypeInputBinding: Binding<String> {
+        Binding(
+            get: { draft.dataType },
+            set: { newValue in
+                draft.dataType = newValue
+                updateSelectedPreset(for: newValue)
+            }
+        )
+    }
+
+    private func updateSelectedPreset(for value: String) {
+        guard isPostgres else { return }
+        if let match = postgresDataTypeOptions.first(where: { $0.caseInsensitiveCompare(value) == .orderedSame }) {
+            draft.selectedDataType = match
+        } else {
+            draft.selectedDataType = nil
+        }
     }
 
     private struct Draft {
@@ -2200,18 +2211,13 @@ private struct BulkColumnEditorSheet: View {
     private var contentForm: some View {
         Form {
             Section {
-                columnSummary
-            } header: {
-                Text("Selected Columns")
-            }
-
-            Section {
                 sectionContent
             } header: {
-                Text(sectionTitle)
+                sectionHeader
             } footer: {
                 sectionFooter
             }
+            .textCase(nil)
         }
         .formStyle(.grouped)
         .scrollContentBackground(.hidden)
@@ -2270,26 +2276,27 @@ private struct BulkColumnEditorSheet: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private var columnSummary: some View {
+    private var sectionHeader: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(columnSummaryTitle)
-                .font(.system(size: 13, weight: .semibold))
-
+                .font(.system(size: 12, weight: .semibold))
             if columnNames.isEmpty {
                 Text("No columns selected")
-                    .font(.system(size: 12))
+                    .font(.system(size: 11))
                     .foregroundStyle(.secondary)
             } else {
-                VStack(alignment: .leading, spacing: 3) {
-                    ForEach(Array(columnNames.enumerated()), id: \.offset) { _, name in
-                        Text("• \(name)")
-                            .font(.system(size: 12))
-                            .foregroundStyle(.secondary)
-                    }
+                ForEach(Array(columnNames.enumerated()), id: \.offset) { _, name in
+                    Text("• \(name)")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
                 }
             }
+
+            Text(sectionTitle)
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(.secondary)
+                .padding(.top, 6)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var columnNames: [String] {
@@ -2314,7 +2321,7 @@ private struct BulkColumnEditorSheet: View {
     @ViewBuilder
     private var dataTypePicker: some View {
         if databaseType == .postgresql {
-            Picker("", selection: $selectedPresetType) {
+            Picker("", selection: presetTypeBinding) {
                 ForEach(postgresDataTypeOptions, id: \.self) { option in
                     Text(option).tag(Optional(option))
                 }
@@ -2323,14 +2330,21 @@ private struct BulkColumnEditorSheet: View {
             .labelsHidden()
             .pickerStyle(.menu)
             .frame(width: 180, alignment: .trailing)
-            .onChange(of: selectedPresetType) { newValue in
+        } else {
+            inlineField(text: $dataType, alignment: .trailing)
+        }
+    }
+
+    private var presetTypeBinding: Binding<String?> {
+        Binding(
+            get: { selectedPresetType },
+            set: { newValue in
+                selectedPresetType = newValue
                 if let preset = newValue {
                     dataType = preset
                 }
             }
-        } else {
-            inlineField(text: $dataType, alignment: .trailing)
-        }
+        )
     }
 
     private func inlineField(text: Binding<String>, alignment: TextAlignment) -> some View {

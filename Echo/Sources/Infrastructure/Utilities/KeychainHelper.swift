@@ -1,7 +1,7 @@
 import Foundation
 import Security
 
-struct KeychainHelper {
+struct KeychainHelper: Sendable {
     enum KeychainError: Error {
         case unexpectedStatus(OSStatus)
         case stringEncoding

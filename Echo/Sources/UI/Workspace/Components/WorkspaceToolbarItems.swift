@@ -862,7 +862,20 @@ private struct WorkspaceToolbarPreviewData {
     init(mode: Mode) {
         let previewCacheRoot = FileManager.default.temporaryDirectory.appendingPathComponent("EchoPreviewResultCache", isDirectory: true)
         let spoolManager = ResultSpoolManager(configuration: ResultSpoolConfiguration.defaultConfiguration(rootDirectory: previewCacheRoot))
-        let appModel = AppModel(clipboardHistory: ClipboardHistoryStore(), resultSpoolManager: spoolManager)
+        let diagramCacheRoot = FileManager.default.temporaryDirectory.appendingPathComponent("EchoPreviewDiagramCache", isDirectory: true)
+        let diagramManager = DiagramCacheManager(configuration: DiagramCacheManager.Configuration(rootDirectory: diagramCacheRoot))
+        let diagramKeyStore = DiagramEncryptionKeyStore()
+        Task {
+            await diagramManager.updateKeyProvider { projectID in
+                try diagramKeyStore.symmetricKey(forProjectID: projectID)
+            }
+        }
+        let appModel = AppModel(
+            clipboardHistory: ClipboardHistoryStore(),
+            resultSpoolManager: spoolManager,
+            diagramCacheManager: diagramManager,
+            diagramKeyStore: diagramKeyStore
+        )
         let appState = AppState()
         let navigationState = NavigationState()
         let themeManager = ThemeManager.shared
@@ -916,13 +929,13 @@ private struct WorkspaceToolbarPreviewData {
 
         switch mode {
         case .idle:
-            previewSession.structureLoadingState = .idle
+            previewSession.structureLoadingState = StructureLoadingState.idle
             previewSession.structureLoadingMessage = nil
         case .refreshing:
-            previewSession.structureLoadingState = .loading(progress: 0.45)
+            previewSession.structureLoadingState = StructureLoadingState.loading(progress: 0.45)
             previewSession.structureLoadingMessage = "Updating tables…"
         case .completed:
-            previewSession.structureLoadingState = .ready
+            previewSession.structureLoadingState = StructureLoadingState.ready
             previewSession.structureLoadingMessage = "Completed"
         }
 

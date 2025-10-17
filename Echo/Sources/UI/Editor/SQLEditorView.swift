@@ -1810,9 +1810,13 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
                 let formatted = await self.prepareStarExpansionInsertion(for: suggestion,
                                                                          context: context)
                 await MainActor.run {
-                    self.performCompletionInsertion(suggestion: suggestion,
-                                                    query: query,
-                                                    insertion: formatted)
+                    if let result = self.performCompletionInsertion(suggestion: suggestion,
+                                                                    query: query,
+                                                                    insertion: formatted) {
+                        self.registerStarExpansionUndo(originalText: result.originalText,
+                                                       expandedText: formatted,
+                                                       appliedRange: result.appliedRange)
+                    }
                 }
             }
             return
@@ -1820,17 +1824,17 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
 
         if let snippetSource = suggestion.snippetText {
             let (insertion, placeholders) = makeSnippetInsertion(from: snippetSource)
-            performCompletionInsertion(suggestion: suggestion,
-                                       query: query,
-                                       insertion: insertion,
-                                       snippetPlaceholders: placeholders)
+            _ = performCompletionInsertion(suggestion: suggestion,
+                                           query: query,
+                                           insertion: insertion,
+                                           snippetPlaceholders: placeholders)
             return
         }
 
         clearSnippetPlaceholders()
-        performCompletionInsertion(suggestion: suggestion,
-                                   query: query,
-                                   insertion: suggestion.insertText)
+        _ = performCompletionInsertion(suggestion: suggestion,
+                                       query: query,
+                                       insertion: suggestion.insertText)
     }
 
     private enum SymbolHighlightStrength {
@@ -1838,13 +1842,19 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
         case strong
     }
 
+    private struct CompletionInsertionResult {
+        let appliedRange: NSRange
+        let originalText: String
+    }
+
     @MainActor
+    @discardableResult
     private func performCompletionInsertion(suggestion: SQLAutoCompletionSuggestion,
                                             query: SQLAutoCompletionQuery,
                                             insertion: String,
-                                            snippetPlaceholders: [NSRange] = []) {
+                                            snippetPlaceholders: [NSRange] = []) -> CompletionInsertionResult? {
         var range = query.replacementRange
-        guard let textStorage else { return }
+        guard let textStorage else { return nil }
         let nsString = string as NSString
 
         if suggestion.kind != .column {
@@ -1870,7 +1880,7 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
         }
         range.length = upperBound - range.location
 
-        guard shouldChangeText(in: range, replacementString: insertion) else { return }
+        guard shouldChangeText(in: range, replacementString: insertion) else { return nil }
 
         isApplyingCompletion = true
         defer {
@@ -1878,6 +1888,7 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
             suppressNextCompletionRefresh = false
         }
 
+        let originalText = nsString.substring(with: range)
         textStorage.replaceCharacters(in: range, with: insertion)
         let insertionNSString = insertion as NSString
         let insertionLength = insertionNSString.length
@@ -1900,6 +1911,7 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
         hideCompletions()
         didChangeText()
         completionEngine.recordSelection(suggestion, query: query)
+        return CompletionInsertionResult(appliedRange: appliedRange, originalText: originalText)
     }
 
     private func symbolHighlightColor(_ strength: SymbolHighlightStrength) -> NSColor {
@@ -2061,6 +2073,74 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
         }
 
         return rawColumns
+    }
+
+    private struct StarExpansionSnapshot {
+        let location: Int
+        let originalText: String
+        let expandedText: String
+
+        var expandedRange: NSRange {
+            NSRange(location: location, length: (expandedText as NSString).length)
+        }
+
+        var originalRange: NSRange {
+            NSRange(location: location, length: (originalText as NSString).length)
+        }
+    }
+
+    @MainActor
+    private func registerStarExpansionUndo(originalText: String,
+                                           expandedText: String,
+                                           appliedRange: NSRange) {
+        guard let undoManager = undoManager else { return }
+        let snapshot = StarExpansionSnapshot(location: appliedRange.location,
+                                             originalText: originalText,
+                                             expandedText: expandedText)
+        undoManager.registerUndo(withTarget: self) { textView in
+            textView.restoreStarExpansion(snapshot: snapshot)
+        }
+        undoManager.setActionName("Expand Columns")
+    }
+
+    @MainActor
+    private func restoreStarExpansion(snapshot: StarExpansionSnapshot) {
+        guard let undoManager = undoManager else { return }
+        undoManager.registerUndo(withTarget: self) { textView in
+            textView.reapplyStarExpansion(snapshot: snapshot)
+        }
+        undoManager.setActionName("Expand Columns")
+        replaceStarExpansion(range: snapshot.expandedRange, with: snapshot.originalText)
+        completionEngine.clearPostCommitSuppression()
+    }
+
+    @MainActor
+    private func reapplyStarExpansion(snapshot: StarExpansionSnapshot) {
+        guard let undoManager = undoManager else { return }
+        undoManager.registerUndo(withTarget: self) { textView in
+            textView.restoreStarExpansion(snapshot: snapshot)
+        }
+        undoManager.setActionName("Expand Columns")
+        replaceStarExpansion(range: snapshot.originalRange, with: snapshot.expandedText)
+        completionEngine.clearPostCommitSuppression()
+    }
+
+    @MainActor
+    private func replaceStarExpansion(range: NSRange, with text: String) {
+        guard let textStorage else { return }
+        guard sqlRangeIsValid(range, upperBound: textStorage.length) else { return }
+        guard shouldChangeText(in: range, replacementString: text) else { return }
+
+        undoManager?.disableUndoRegistration()
+        textStorage.replaceCharacters(in: range, with: text)
+        undoManager?.enableUndoRegistration()
+
+        clearSnippetPlaceholders()
+        suppressNextCompletionRefresh = true
+        let newLocation = range.location + (text as NSString).length
+        setSelectedRange(NSRange(location: newLocation, length: 0))
+        hideCompletions()
+        didChangeText()
     }
 
     private func makeSnippetInsertion(from snippet: String) -> (String, [NSRange]) {
