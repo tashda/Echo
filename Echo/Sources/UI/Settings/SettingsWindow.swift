@@ -10,12 +10,16 @@ import UIKit
 private let streamingRowPresets: [Int] = [100, 250, 500, 750, 1_000, 2_000, 5_000, 10_000]
 private let streamingThresholdPresets: [Int] = [512, 1_000, 2_000, 5_000, 10_000, 20_000, 50_000, 100_000, 250_000, 500_000, 1_000_000]
 private let streamingFetchPresets: [Int] = [128, 256, 384, 512, 768, 1_024, 2_048, 4_096, 8_192, 16_384]
+private let streamingFetchRampMultiplierPresets: [Int] = [2, 4, 6, 8, 12, 16, 24, 32, 48, 64]
+private let streamingFetchRampMaxPresets: [Int] = [32_768, 65_536, 131_072, 262_144, 524_288, 786_432, 1_048_576]
 
 private enum ResultStreamingDefaults {
     static let initialRows = 500
     static let previewBatch = 500
     static let backgroundThreshold = 512
     static let fetchSize = 4_096
+    static let fetchRampMultiplier = 24
+    static let fetchRampMax = 524_288
 }
 
 /// Primary settings scene built with a native `NavigationSplitView`.
@@ -4290,6 +4294,28 @@ struct QueryResultsSettingsView: View {
         )
     }
 
+    private var fetchRampMultiplierBinding: Binding<Int> {
+        Binding(
+            get: { appModel.globalSettings.resultsStreamingFetchRampMultiplier },
+            set: { newValue in
+                let clamped = max(1, min(newValue, 64))
+                guard appModel.globalSettings.resultsStreamingFetchRampMultiplier != clamped else { return }
+                Task { await appModel.updateResultsStreaming(backgroundFetchRampMultiplier: clamped) }
+            }
+        )
+    }
+
+    private var fetchRampMaxBinding: Binding<Int> {
+        Binding(
+            get: { appModel.globalSettings.resultsStreamingFetchRampMax },
+            set: { newValue in
+                let clamped = max(256, min(newValue, 1_048_576))
+                guard appModel.globalSettings.resultsStreamingFetchRampMax != clamped else { return }
+                Task { await appModel.updateResultsStreaming(backgroundFetchRampMax: clamped) }
+            }
+        )
+    }
+
     private var selectedDisplayMode: ForeignKeyDisplayMode { displayModeBinding.wrappedValue }
     private var selectedBehavior: ForeignKeyInspectorBehavior { inspectorBehaviorBinding.wrappedValue }
 
@@ -4298,7 +4324,9 @@ struct QueryResultsSettingsView: View {
         return settings.resultsInitialRowLimit == ResultStreamingDefaults.initialRows &&
         settings.resultsPreviewBatchSize == ResultStreamingDefaults.previewBatch &&
         settings.resultsBackgroundStreamingThreshold == ResultStreamingDefaults.backgroundThreshold &&
-        settings.resultsStreamingFetchSize == ResultStreamingDefaults.fetchSize
+        settings.resultsStreamingFetchSize == ResultStreamingDefaults.fetchSize &&
+        settings.resultsStreamingFetchRampMultiplier == ResultStreamingDefaults.fetchRampMultiplier &&
+        settings.resultsStreamingFetchRampMax == ResultStreamingDefaults.fetchRampMax
     }
 
     var body: some View {
@@ -4378,6 +4406,26 @@ struct QueryResultsSettingsView: View {
                     defaultValue: ResultStreamingDefaults.fetchSize
                 )
 
+                StreamingPresetPickerControl(
+                    title: "Fetch ramp multiplier",
+                    value: fetchRampMultiplierBinding,
+                    description: "Determines how aggressively Echo expands background fetch sizes once the initial preview is loaded.",
+                    presets: streamingFetchRampMultiplierPresets,
+                    range: 1...64,
+                    formatter: formatMultiplier,
+                    defaultValue: ResultStreamingDefaults.fetchRampMultiplier
+                )
+
+                StreamingPresetPickerControl(
+                    title: "Fetch ramp maximum",
+                    value: fetchRampMaxBinding,
+                    description: "Caps the largest background fetch Echo will request to help balance latency with memory usage.",
+                    presets: streamingFetchRampMaxPresets,
+                    range: 256...1_048_576,
+                    formatter: formatRowCount,
+                    defaultValue: ResultStreamingDefaults.fetchRampMax
+                )
+
                 HStack {
                     Spacer()
                     Button("Revert to Default") {
@@ -4386,7 +4434,9 @@ struct QueryResultsSettingsView: View {
                                 initialRowLimit: ResultStreamingDefaults.initialRows,
                                 previewBatchSize: ResultStreamingDefaults.previewBatch,
                                 backgroundStreamingThreshold: ResultStreamingDefaults.backgroundThreshold,
-                                backgroundFetchSize: ResultStreamingDefaults.fetchSize
+                                backgroundFetchSize: ResultStreamingDefaults.fetchSize,
+                                backgroundFetchRampMultiplier: ResultStreamingDefaults.fetchRampMultiplier,
+                                backgroundFetchRampMax: ResultStreamingDefaults.fetchRampMax
                             )
                         }
                     }
@@ -4434,6 +4484,10 @@ struct QueryResultsSettingsView: View {
         case .autoOpenAndClose:
             return "Automatically open the inspector when a foreign key is activated and close it when the selection moves away."
         }
+    }
+
+    private func formatMultiplier(_ value: Int) -> String {
+        "\(value)x"
     }
 
     private func formatRowCount(_ value: Int) -> String {

@@ -31,6 +31,8 @@ final class QueryPerformanceTracker {
             var networkWaitDuration: TimeInterval
             var batchRowCount: Int
             var cumulativeRowCount: Int
+            var fetchRequestRowCount: Int?
+            var fetchRowCount: Int?
         }
 
         var timings: Timings
@@ -134,7 +136,9 @@ final class QueryPerformanceTracker {
             decodeDuration: metrics.decodeDuration,
             networkWaitDuration: metrics.networkWaitEstimate,
             batchRowCount: metrics.batchRowCount,
-            cumulativeRowCount: metrics.cumulativeRowCount
+            cumulativeRowCount: metrics.cumulativeRowCount,
+            fetchRequestRowCount: metrics.fetchRequestRowCount,
+            fetchRowCount: metrics.fetchRowCount
         )
         backendSamples.append(sample)
     }

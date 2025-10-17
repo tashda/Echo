@@ -141,16 +141,28 @@ actor ResultSpoolHandle {
         var rowLengths = ContiguousArray<UInt32>()
         rowLengths.reserveCapacity(appendCount)
 
-        var buffer = Data()
-        buffer.reserveCapacity(max(appendCount, 1) * 64)
-        var currentOffset = fileOffset
-
         let payloads: [ResultBinaryRow]
         if !encodedRows.isEmpty {
             payloads = encodedRows
         } else {
             payloads = rows.map { ResultBinaryRowCodec.encode(row: $0) }
         }
+
+        var buffer = Data()
+        var estimatedCapacity = 0
+        for payload in payloads {
+            let rowBytes = payload.data.count + Self.newlineData.count
+            if estimatedCapacity <= Int.max - rowBytes {
+                estimatedCapacity += rowBytes
+            } else {
+                estimatedCapacity = Int.max
+                break
+            }
+        }
+        if estimatedCapacity > 0 {
+            buffer.reserveCapacity(estimatedCapacity)
+        }
+        var currentOffset = fileOffset
 
         for payload in payloads {
             let data = payload.data

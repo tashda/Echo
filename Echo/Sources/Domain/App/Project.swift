@@ -1072,6 +1072,8 @@ struct GlobalSettings: Codable, Hashable {
     var resultsPreviewBatchSize: Int = 500
     var resultsBackgroundStreamingThreshold: Int = 512
     var resultsStreamingFetchSize: Int = 4_096
+    var resultsStreamingFetchRampMultiplier: Int = 24
+    var resultsStreamingFetchRampMax: Int = 524_288
     var resultSpoolMaxBytes: Int = 5 * 1_024 * 1_024 * 1_024
     var resultSpoolRetentionHours: Int = 72
     var resultSpoolCustomLocation: String?
@@ -1127,6 +1129,8 @@ struct GlobalSettings: Codable, Hashable {
         resultsPreviewBatchSize: Int = 500,
         resultsBackgroundStreamingThreshold: Int = 512,
         resultsStreamingFetchSize: Int = 4_096,
+        resultsStreamingFetchRampMultiplier: Int = 24,
+        resultsStreamingFetchRampMax: Int = 524_288,
         resultSpoolMaxBytes: Int = 5 * 1_024 * 1_024 * 1_024,
         resultSpoolRetentionHours: Int = 72,
         resultSpoolCustomLocation: String? = nil,
@@ -1181,6 +1185,8 @@ struct GlobalSettings: Codable, Hashable {
         self.resultsPreviewBatchSize = max(100, resultsPreviewBatchSize)
         self.resultsBackgroundStreamingThreshold = max(100, resultsBackgroundStreamingThreshold)
         self.resultsStreamingFetchSize = max(128, resultsStreamingFetchSize)
+        self.resultsStreamingFetchRampMultiplier = max(1, min(resultsStreamingFetchRampMultiplier, 64))
+        self.resultsStreamingFetchRampMax = max(256, min(resultsStreamingFetchRampMax, 1_048_576))
         self.resultSpoolMaxBytes = resultSpoolMaxBytes
         self.resultSpoolRetentionHours = resultSpoolRetentionHours
         self.resultSpoolCustomLocation = resultSpoolCustomLocation
@@ -1242,6 +1248,8 @@ struct GlobalSettings: Codable, Hashable {
         case resultsPreviewBatchSize
         case resultsBackgroundStreamingThreshold
         case resultsStreamingFetchSize
+        case resultsStreamingFetchRampMultiplier
+        case resultsStreamingFetchRampMax
         case resultSpoolMaxBytes
         case resultSpoolRetentionHours
         case resultSpoolCustomLocation
@@ -1325,6 +1333,14 @@ struct GlobalSettings: Codable, Hashable {
         resultsPreviewBatchSize = max(100, try container.decodeIfPresent(Int.self, forKey: .resultsPreviewBatchSize) ?? 500)
         resultsBackgroundStreamingThreshold = max(100, try container.decodeIfPresent(Int.self, forKey: .resultsBackgroundStreamingThreshold) ?? 512)
         resultsStreamingFetchSize = max(128, try container.decodeIfPresent(Int.self, forKey: .resultsStreamingFetchSize) ?? 4_096)
+        resultsStreamingFetchRampMultiplier = {
+            let raw = (try? container.decodeIfPresent(Int.self, forKey: .resultsStreamingFetchRampMultiplier)) ?? 24
+            return max(1, min(raw, 64))
+        }()
+        resultsStreamingFetchRampMax = {
+            let raw = (try? container.decodeIfPresent(Int.self, forKey: .resultsStreamingFetchRampMax)) ?? 524_288
+            return max(256, min(raw, 1_048_576))
+        }()
         resultSpoolMaxBytes = try container.decodeIfPresent(Int.self, forKey: .resultSpoolMaxBytes) ?? 5 * 1_024 * 1_024 * 1_024
         resultSpoolRetentionHours = try container.decodeIfPresent(Int.self, forKey: .resultSpoolRetentionHours) ?? 72
         resultSpoolCustomLocation = try container.decodeIfPresent(String.self, forKey: .resultSpoolCustomLocation)
@@ -1380,6 +1396,8 @@ struct GlobalSettings: Codable, Hashable {
         try container.encode(resultsPreviewBatchSize, forKey: .resultsPreviewBatchSize)
         try container.encode(resultsBackgroundStreamingThreshold, forKey: .resultsBackgroundStreamingThreshold)
         try container.encode(resultsStreamingFetchSize, forKey: .resultsStreamingFetchSize)
+        try container.encode(resultsStreamingFetchRampMultiplier, forKey: .resultsStreamingFetchRampMultiplier)
+        try container.encode(resultsStreamingFetchRampMax, forKey: .resultsStreamingFetchRampMax)
         try container.encode(resultSpoolMaxBytes, forKey: .resultSpoolMaxBytes)
         try container.encode(resultSpoolRetentionHours, forKey: .resultSpoolRetentionHours)
         try container.encodeIfPresent(resultSpoolCustomLocation, forKey: .resultSpoolCustomLocation)

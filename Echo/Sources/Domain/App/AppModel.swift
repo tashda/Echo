@@ -54,6 +54,8 @@ final class AppModel: ObservableObject {
     @Published var globalSettings: GlobalSettings = GlobalSettings() {
         didSet {
             UserDefaults.standard.set(globalSettings.resultsStreamingFetchSize, forKey: ResultStreamingFetchSizeDefaultsKey)
+            UserDefaults.standard.set(globalSettings.resultsStreamingFetchRampMultiplier, forKey: ResultStreamingFetchRampMultiplierDefaultsKey)
+            UserDefaults.standard.set(globalSettings.resultsStreamingFetchRampMax, forKey: ResultStreamingFetchRampMaxDefaultsKey)
         }
     }
     @Published var navigationState = NavigationState()
@@ -1031,13 +1033,17 @@ final class AppModel: ObservableObject {
         initialRowLimit: Int? = nil,
         previewBatchSize: Int? = nil,
         backgroundStreamingThreshold: Int? = nil,
-        backgroundFetchSize: Int? = nil
+        backgroundFetchSize: Int? = nil,
+        backgroundFetchRampMultiplier: Int? = nil,
+        backgroundFetchRampMax: Int? = nil
     ) async {
         let clampedInitial = initialRowLimit.map { max(100, $0) }
         let clampedPreview = previewBatchSize.map { max(100, $0) }
         let clampedBackground = backgroundStreamingThreshold.map { max(100, $0) }
         let clampedFetch = backgroundFetchSize.map { max(128, min($0, 16_384)) }
-        guard [clampedInitial, clampedPreview, clampedBackground, clampedFetch].contains(where: { $0 != nil }) else { return }
+        let clampedRampMultiplier = backgroundFetchRampMultiplier.map { max(1, min($0, 64)) }
+        let clampedRampMax = backgroundFetchRampMax.map { max(256, min($0, 1_048_576)) }
+        guard [clampedInitial, clampedPreview, clampedBackground, clampedFetch, clampedRampMultiplier, clampedRampMax].contains(where: { $0 != nil }) else { return }
 
         await updateGlobalEditorDisplay { settings in
             if let value = clampedInitial {
@@ -1051,6 +1057,12 @@ final class AppModel: ObservableObject {
             }
             if let value = clampedFetch {
                 settings.resultsStreamingFetchSize = value
+            }
+            if let value = clampedRampMultiplier {
+                settings.resultsStreamingFetchRampMultiplier = value
+            }
+            if let value = clampedRampMax {
+                settings.resultsStreamingFetchRampMax = value
             }
         }
 
@@ -1069,6 +1081,12 @@ final class AppModel: ObservableObject {
             for session in sessionManager.activeSessions {
                 session.updateDefaultBackgroundFetchSize(value)
             }
+        }
+        if let value = clampedRampMultiplier {
+            UserDefaults.standard.set(value, forKey: ResultStreamingFetchRampMultiplierDefaultsKey)
+        }
+        if let value = clampedRampMax {
+            UserDefaults.standard.set(value, forKey: ResultStreamingFetchRampMaxDefaultsKey)
         }
     }
 

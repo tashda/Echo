@@ -52,6 +52,11 @@ final class PostgresStreamingBenchmarkTests: XCTestCase {
             throw XCTSkip("Postgres credentials not configured (set ECHO_POSTGRES_* environment variables).")
         }
         let factory = await MainActor.run { PostgresNIOFactory() }
+
+        UserDefaults.standard.set(4_096, forKey: ResultStreamingFetchSizeDefaultsKey)
+        UserDefaults.standard.set(24, forKey: ResultStreamingFetchRampMultiplierDefaultsKey)
+        UserDefaults.standard.set(524_288, forKey: ResultStreamingFetchRampMaxDefaultsKey)
+
         let authentication = DatabaseAuthenticationConfiguration(
             method: .sqlPassword,
             username: config.username,
@@ -194,6 +199,28 @@ final class PostgresStreamingBenchmarkTests: XCTestCase {
         }
         if let est = result.report.estimatedMemoryBytes {
             lines.append("estimated grid memory: \(formatBytes(est))")
+        }
+
+        if !result.report.backendSamples.isEmpty {
+            let waits = result.report.backendSamples.map { $0.networkWaitDuration }
+            let avgWait = waits.reduce(0, +) / Double(waits.count)
+            let maxWait = waits.max() ?? 0
+            let requestSizes = Set(result.report.backendSamples.compactMap { $0.fetchRequestRowCount })
+            let actualSizes = result.report.backendSamples.compactMap { $0.fetchRowCount }
+            let avgFetch = actualSizes.isEmpty ? 0 : Double(actualSizes.reduce(0, +)) / Double(actualSizes.count)
+            if !requestSizes.isEmpty {
+                let sortedRequests = requestSizes.sorted()
+                let requestSummary = sortedRequests.map { "\($0)" }.joined(separator: ",")
+                lines.append(String(format: "fetch-req sizes: %@", requestSummary))
+            }
+            if !actualSizes.isEmpty {
+                let actualSummary = actualSizes.map { "\($0)" }.joined(separator: ",")
+                lines.append("fetch-rows counts: \(actualSummary)")
+            }
+            if avgFetch > 0 {
+                lines.append(String(format: "fetch-rows avg: %.1f", avgFetch))
+            }
+            lines.append(String(format: "wait avg/max: %.3f/%.3f s", avgWait, maxWait))
         }
 
         return lines.joined(separator: "\n")

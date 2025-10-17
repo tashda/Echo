@@ -1,9 +1,21 @@
 import Foundation
+import NIOCore
 
 final class ResultStreamBatchWorker: @unchecked Sendable {
+    struct RawRow: @unchecked Sendable {
+        let buffers: [ByteBuffer?]
+        let lengths: [Int]
+        let totalLength: Int
+    }
+
+    enum BinaryRowStorage: @unchecked Sendable {
+        case encoded(ResultBinaryRow)
+        case raw(RawRow)
+    }
+
     struct Payload: Sendable {
         let previewValues: [String?]?
-        let encodedRow: ResultBinaryRow
+        let storage: BinaryRowStorage
         let totalRowCount: Int
         let decodeDuration: TimeInterval
     }
@@ -16,7 +28,7 @@ final class ResultStreamBatchWorker: @unchecked Sendable {
     private let operationStart: CFAbsoluteTime
 
     private var pendingPreviewRows: [[String?]] = []
-    private var pendingEncodedRows: [ResultBinaryRow] = []
+    private var pendingRows: [BinaryRowStorage] = []
     private var lastFlushTimestamp: CFAbsoluteTime
     private var batchDecodeDuration: TimeInterval = 0
     private var previewRowsEmitted: Int = 0
@@ -49,26 +61,27 @@ final class ResultStreamBatchWorker: @unchecked Sendable {
 
     nonisolated func enqueue(_ payload: Payload) {
         queue.async {
-            if let preview = payload.previewValues, self.previewRowsEmitted < self.streamingPreviewLimit {
-                self.pendingPreviewRows.append(preview)
-                self.previewRowsEmitted += 1
-            }
+            self.processPayload(payload)
+        }
+    }
 
-            self.pendingEncodedRows.append(payload.encodedRow)
-            self.batchDecodeDuration += payload.decodeDuration
-
-            let elapsed = CFAbsoluteTimeGetCurrent() - self.lastFlushTimestamp
-            let policy = self.flushPolicy(for: payload.totalRowCount)
-            let pendingCount = self.pendingEncodedRows.count
-
-            let meetsThreshold = pendingCount >= policy.threshold
-            let meetsMinimumBatch = pendingCount >= policy.minimumBatch
-            let meetsLatencyBatch = elapsed >= policy.latencyBudget && pendingCount >= policy.latencyBatch
-            let meetsFallback = elapsed >= policy.fallbackLatency && pendingCount >= policy.fallbackBatch
-
-            if meetsThreshold || meetsMinimumBatch || meetsLatencyBatch || meetsFallback {
-                self.flush(totalRowCount: payload.totalRowCount)
-            }
+    nonisolated func enqueueRaw(
+        previewValues: [String?]?,
+        buffers: [ByteBuffer?],
+        lengths: [Int],
+        totalLength: Int,
+        totalRowCount: Int,
+        decodeDuration: TimeInterval
+    ) {
+        queue.async {
+            let raw = RawRow(buffers: buffers, lengths: lengths, totalLength: totalLength)
+            let payload = Payload(
+                previewValues: previewValues,
+                storage: .raw(raw),
+                totalRowCount: totalRowCount,
+                decodeDuration: decodeDuration
+            )
+            self.processPayload(payload)
         }
     }
 
@@ -78,14 +91,55 @@ final class ResultStreamBatchWorker: @unchecked Sendable {
         }
     }
 
+    private func processPayload(_ payload: Payload) {
+        if let preview = payload.previewValues, previewRowsEmitted < streamingPreviewLimit {
+            pendingPreviewRows.append(preview)
+            previewRowsEmitted += 1
+        }
+
+        pendingRows.append(payload.storage)
+        batchDecodeDuration += payload.decodeDuration
+
+        let elapsed = CFAbsoluteTimeGetCurrent() - lastFlushTimestamp
+        let policy = flushPolicy(for: payload.totalRowCount)
+        let pendingCount = pendingRows.count
+
+        let meetsThreshold = pendingCount >= policy.threshold
+        let meetsMinimumBatch = pendingCount >= policy.minimumBatch
+        let meetsLatencyBatch = elapsed >= policy.latencyBudget && pendingCount >= policy.latencyBatch
+        let meetsFallback = elapsed >= policy.fallbackLatency && pendingCount >= policy.fallbackBatch
+
+        if meetsThreshold || meetsMinimumBatch || meetsLatencyBatch || meetsFallback {
+            flush(totalRowCount: payload.totalRowCount)
+        }
+    }
+
     private func flush(totalRowCount: Int) {
-        guard !pendingEncodedRows.isEmpty else { return }
+        guard !pendingRows.isEmpty else { return }
 
         let previewBatch = pendingPreviewRows
-        let encodedBatch = pendingEncodedRows
-        let batchCount = encodedBatch.count
+        let storageBatch = pendingRows
+        let batchCount = storageBatch.count
+        var encodedBatch: [ResultBinaryRow] = []
+        encodedBatch.reserveCapacity(batchCount)
+
+        for storage in storageBatch {
+            switch storage {
+            case .encoded(let row):
+                encodedBatch.append(row)
+            case .raw(let raw):
+                let row = ResultStreamBatchWorker.encodeBinaryRow(
+                    totalLength: raw.totalLength,
+                    buffers: raw.buffers,
+                    lengths: raw.lengths
+                )
+                encodedBatch.append(row)
+            }
+        }
+
+        pendingRows.removeAll(keepingCapacity: true)
         pendingPreviewRows.removeAll(keepingCapacity: true)
-        pendingEncodedRows.removeAll(keepingCapacity: true)
+        let finalBatch = encodedBatch
 
         let now = CFAbsoluteTimeGetCurrent()
         let metrics = QueryStreamMetrics(
@@ -111,7 +165,7 @@ final class ResultStreamBatchWorker: @unchecked Sendable {
         let update = QueryStreamUpdate(
             columns: columns,
             appendedRows: previewBatch,
-            encodedRows: encodedBatch,
+            encodedRows: finalBatch,
             totalRowCount: totalRowCount,
             metrics: metrics,
             rowRange: batchCount > 0 ? (batchStartIndex..<totalRowCount) : nil
@@ -157,5 +211,39 @@ final class ResultStreamBatchWorker: @unchecked Sendable {
         if value < min { return min }
         if value > max { return max }
         return value
+    }
+
+    static func encodeBinaryRow(totalLength: Int, buffers: [ByteBuffer?], lengths: [Int]) -> ResultBinaryRow {
+        var data = Data(count: totalLength)
+        data.withUnsafeMutableBytes { mutableBytes in
+            guard let baseAddress = mutableBytes.baseAddress else { return }
+            var offset = 0
+
+            for index in 0..<lengths.count {
+                let length = lengths[index]
+                if length < 0 {
+                    baseAddress.storeBytes(of: UInt8(0x00), toByteOffset: offset, as: UInt8.self)
+                    offset &+= 1
+                    continue
+                }
+
+                baseAddress.storeBytes(of: UInt8(0x01), toByteOffset: offset, as: UInt8.self)
+                offset &+= 1
+
+                var littleEndianLength = UInt32(length).littleEndian
+                withUnsafeBytes(of: &littleEndianLength) { pointer in
+                    memcpy(baseAddress.advanced(by: offset), pointer.baseAddress!, 4)
+                }
+                offset &+= 4
+
+                if length > 0, let buffer = buffers[index] {
+                    buffer.withUnsafeReadableBytes { rawBuffer in
+                        memcpy(baseAddress.advanced(by: offset), rawBuffer.baseAddress!, length)
+                    }
+                }
+                offset &+= length
+            }
+        }
+        return ResultBinaryRow(data: data)
     }
 }
