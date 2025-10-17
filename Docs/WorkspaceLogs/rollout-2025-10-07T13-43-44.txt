@@ -1,0 +1,42 @@
+Added a macOS status bar menu so you can reach connections and identities even when the primary UI misbehaves.
+
+- `Echo/Sources/Platform/macOS/MenuBar/StatusBarMenuController.swift:1` creates an `NSStatusItem` with live “Connections” and “Identities” submenus, highlights active sessions, and exposes actions to connect, add, or open the manage window.
+- `Echo/Sources/Application/AppCoordinator.swift:28` keeps the status controller alive and funnels menu actions through new helpers that reuse existing connection/identity flows while selecting the right project context.
+- `Echo/Sources/Domain/App/AppModel.swift:52` and `Echo/Sources/Presentation/Views/ManageConnectionsTab.swift:64` add a `pendingManageConnectionsAction` bridge so the menu can request new/edit/manage operations inside the dedicated Connections window.
+- `Echo/Sources/Domain/App/ManageConnectionsAction.swift:3` centralizes the action payloads shared between the menu, coordinator, and manage view.
+
+`xcodebuild -scheme Echo -configuration Debug -sdk macosx build` still fails in `Echo/Sources/Platform/macOS/Windows/WorkspaceWindowController.swift:333` because `NavigatorOverlayView` lacks `leadingInteractiveArea`; that pre-existing issue needs to be fixed before the project builds cleanly.
+
+Next steps: 1) Resolve the `WorkspaceWindowController.swift` compile error so the build succeeds; 2) launch a debug build to confirm the new status menu wiring behaves as expected.
+They’re attached to the new status-bar item. Once the app launches, you’ll see an “Echo” item in the macOS status bar (up by the clock). That dropdown is the menu:
+
+- `Connections` submenu (lists saved connections, plus “Add…”/“Manage…” items)
+- `Identities` submenu (lists identities, plus “Add…”/“Manage…” items)
+- separator
+- `Show Workspace`
+- `Quit Echo`
+
+So all the requested entries live inside the Echo status-bar menu rather than the main app menu.
+**Connect Menu**
+- Added `ConnectMenuCommands` to the command builder so a top-level `Connect` menu now appears with dynamic connection and identity lists plus “Add…”/“Manage…” actions; see `Echo/Sources/Application/EchoApp.swift:22` and `Echo/Sources/Application/EchoApp.swift:87`.
+- Shared the existing helpers by renaming them to menu-agnostic forms (`connectFromMenu`, `inspectIdentityFromMenu`, `presentManageConnections`) within `Echo/Sources/Application/AppCoordinator.swift:84`, keeping the navigation/project selection logic consistent for both menus.
+- Updated the status-bar controller to call the renamed helpers, so the status bar menu continues to function alongside the new top-level menu (`Echo/Sources/Platform/macOS/MenuBar/StatusBarMenuController.swift:228`).
+
+Build still fails with the pre-existing compiler error in `Echo/Sources/Platform/macOS/Windows/WorkspaceWindowController.swift:333` (`NavigatorOverlayView` lacks `leadingInteractiveArea`), so the new menu hasn’t been exercised in a successful build yet.
+
+Next steps:
+1. Fix that `WorkspaceWindowController.swift` compile error so the app builds.
+2. Launch the debug build and verify the new `Connect` menu items trigger the expected connection and identity workflows.
+Connect menu now mirrors your preferred layout:
+
+- `Echo/Sources/Application/EchoApp.swift:20`’s `ConnectMenuCommands` lists the current connections, then identities, and ends with a single `Manage Connections & Identities…` option. “Add Connection…” and “Add Identity…” remain within their respective sections so you can spin up new items quickly.
+
+- The status bar dropdown mirrors that structure: `Echo/Sources/Platform/macOS/MenuBar/StatusBarMenuController.swift:68` introduces the combined manage item, while the per-section “Add …” entries still live inside their submenus for quick access.
+
+Existing helpers in `AppCoordinator` handle all actions, so both menus stay in sync. Build still fails on the unrelated `WorkspaceWindowController` compile error; resolve that to run the app and verify the updated menu.
+Removed the “Add Connection…” and “Add Identity…” shortcuts from both menu surfaces while keeping everything else intact.
+
+- Top-menu `Connect` command now just lists connections, then identities, and finishes with the combined manage entry (`Echo/Sources/Application/EchoApp.swift:92`). No divider or button appears after each section anymore.
+- Status-bar dropdown mirrors that layout—lists only the existing items in each submenu and adds a single “Manage Connections & Identities…” command at the root (`Echo/Sources/Platform/macOS/MenuBar/StatusBarMenuController.swift:68`). Support code for the removed buttons was deleted, and the shared coordinator helpers still drive the actions.
+
+`xcodebuild -scheme Echo -configuration Debug -sdk macosx build` succeeds. Launch the debug build to confirm the revised menus feel right.

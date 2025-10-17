@@ -1,37 +1,88 @@
 import SwiftUI
 import CoreGraphics
-#if os(macOS)
-import AppKit
-#else
-import UIKit
-#endif
+import CoreText
+
+struct SQLEditorSurfaceColors: Codable, Equatable {
+    var background: ColorRepresentable
+    var text: ColorRepresentable
+    var gutterBackground: ColorRepresentable
+    var gutterText: ColorRepresentable
+    var gutterAccent: ColorRepresentable
+    var selection: ColorRepresentable
+    var currentLine: ColorRepresentable
+    var symbolHighlightStrong: ColorRepresentable?
+    var symbolHighlightBright: ColorRepresentable?
+}
 
 struct SQLEditorTheme: Codable, Equatable {
     static let defaultFontName = "JetBrainsMono-Regular"
+    static let systemFontIdentifier = "__system_monospaced__"
     static let defaultFontSize: CGFloat = 12
     static let defaultLineHeight: CGFloat = 1.0
 
     var fontName: String
     var fontSize: CGFloat
     var lineHeightMultiplier: CGFloat
-    var palette: SQLEditorPalette
+    var ligaturesEnabled: Bool = true
+    var surfaces: SQLEditorSurfaceColors
+    var tokenPalette: SQLEditorTokenPalette
+    var palette: SQLEditorTokenPalette { tokenPalette }
 
     init(
         fontName: String = SQLEditorTheme.defaultFontName,
         fontSize: CGFloat = SQLEditorTheme.defaultFontSize,
         lineHeightMultiplier: CGFloat = SQLEditorTheme.defaultLineHeight,
-        palette: SQLEditorPalette = .aurora
+        ligaturesEnabled: Bool = true,
+        surfaces: SQLEditorSurfaceColors,
+        tokenPalette: SQLEditorTokenPalette
     ) {
         self.fontName = fontName
         self.fontSize = fontSize
         self.lineHeightMultiplier = lineHeightMultiplier
-        self.palette = palette
+        self.ligaturesEnabled = ligaturesEnabled
+        self.surfaces = surfaces
+        self.tokenPalette = tokenPalette
     }
 
-    var tokenColors: SQLEditorPalette.TokenColors { palette.tokens }
+    enum CodingKeys: String, CodingKey {
+        case fontName
+        case fontSize
+        case lineHeightMultiplier
+        case ligaturesEnabled
+        case surfaces
+        case tokenPalette
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        fontName = try container.decode(String.self, forKey: .fontName)
+        fontSize = try container.decode(CGFloat.self, forKey: .fontSize)
+        lineHeightMultiplier = try container.decode(CGFloat.self, forKey: .lineHeightMultiplier)
+        ligaturesEnabled = try container.decodeIfPresent(Bool.self, forKey: .ligaturesEnabled) ?? true
+        surfaces = try container.decode(SQLEditorSurfaceColors.self, forKey: .surfaces)
+        tokenPalette = try container.decode(SQLEditorTokenPalette.self, forKey: .tokenPalette)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(fontName, forKey: .fontName)
+        try container.encode(fontSize, forKey: .fontSize)
+        try container.encode(lineHeightMultiplier, forKey: .lineHeightMultiplier)
+        try container.encode(ligaturesEnabled, forKey: .ligaturesEnabled)
+        try container.encode(surfaces, forKey: .surfaces)
+        try container.encode(tokenPalette, forKey: .tokenPalette)
+    }
+
+    var tone: SQLEditorPalette.Tone { tokenPalette.tone }
+
+    var tokenColors: SQLEditorPalette.TokenColors { tokenPalette.tokens }
 
     var font: NSFontWithFallback {
-        NSFontWithFallback(name: fontName, size: fontSize)
+        NSFontWithFallback(name: fontName, size: fontSize, ligaturesEnabled: ligaturesEnabled)
+    }
+
+    static func isSystemFontIdentifier(_ value: String) -> Bool {
+        value == systemFontIdentifier
     }
 
 #if os(macOS)
@@ -39,6 +90,47 @@ struct SQLEditorTheme: Codable, Equatable {
 #else
     var uiFont: UIFont { font.font }
 #endif
+
+    static func fallback(tone: SQLEditorPalette.Tone = .light) -> SQLEditorTheme {
+        let baseTheme = AppColorTheme.builtInThemes(for: tone).first
+            ?? AppColorTheme.fromPalette(tone == .dark ? SQLEditorPalette.midnight : SQLEditorPalette.aurora)
+
+        let palette = SQLEditorTokenPalette.builtIn.first(where: { $0.id == baseTheme.defaultPaletteID })
+            ?? SQLEditorTokenPalette.builtIn.first(where: { $0.tone == tone })
+            ?? SQLEditorTokenPalette(from: tone == .dark ? SQLEditorPalette.midnight : SQLEditorPalette.aurora)
+
+        let strongHighlight = baseTheme.editorSymbolHighlightStrong
+            ?? SQLEditorTokenPalette.defaultSymbolHighlightStrong(
+                selection: baseTheme.editorSelection,
+                accent: baseTheme.accent,
+                background: baseTheme.editorBackground,
+                isDark: tone == .dark
+            )
+        let brightHighlight = baseTheme.editorSymbolHighlightBright
+            ?? SQLEditorTokenPalette.defaultSymbolHighlightBright(
+                selection: baseTheme.editorSelection,
+                accent: baseTheme.accent,
+                background: baseTheme.editorBackground,
+                isDark: tone == .dark
+            )
+
+        let surfaces = SQLEditorSurfaceColors(
+            background: baseTheme.editorBackground,
+            text: baseTheme.editorForeground,
+            gutterBackground: baseTheme.editorGutterBackground,
+            gutterText: baseTheme.editorGutterForeground,
+            gutterAccent: baseTheme.accent ?? baseTheme.editorForeground,
+            selection: baseTheme.editorSelection,
+            currentLine: baseTheme.editorCurrentLine,
+            symbolHighlightStrong: strongHighlight,
+            symbolHighlightBright: brightHighlight
+        )
+
+        return SQLEditorTheme(
+            surfaces: surfaces,
+            tokenPalette: palette
+        )
+    }
 }
 
 struct SQLEditorDisplayOptions: Codable, Equatable {
@@ -49,6 +141,12 @@ struct SQLEditorDisplayOptions: Codable, Equatable {
     var indentWrappedLines: Int
     var autoCompletionEnabled: Bool
     var suggestTableAliasesInCompletion: Bool
+    var qualifyTableCompletions: Bool
+    var suggestKeywordsInCompletion: Bool
+    var suggestFunctionsInCompletion: Bool
+    var suggestSnippetsInCompletion: Bool
+    var suggestHistoryInCompletion: Bool
+    var suggestJoinsInCompletion: Bool
 
     init(
         showLineNumbers: Bool = true,
@@ -57,7 +155,13 @@ struct SQLEditorDisplayOptions: Codable, Equatable {
         wrapLines: Bool = true,
         indentWrappedLines: Int = 4,
         autoCompletionEnabled: Bool = true,
-        suggestTableAliasesInCompletion: Bool = false
+        suggestTableAliasesInCompletion: Bool = false,
+        qualifyTableCompletions: Bool = false,
+        suggestKeywordsInCompletion: Bool = true,
+        suggestFunctionsInCompletion: Bool = true,
+        suggestSnippetsInCompletion: Bool = true,
+        suggestHistoryInCompletion: Bool = true,
+        suggestJoinsInCompletion: Bool = true
     ) {
         self.showLineNumbers = showLineNumbers
         self.highlightSelectedSymbol = highlightSelectedSymbol
@@ -66,6 +170,12 @@ struct SQLEditorDisplayOptions: Codable, Equatable {
         self.indentWrappedLines = indentWrappedLines
         self.autoCompletionEnabled = autoCompletionEnabled
         self.suggestTableAliasesInCompletion = suggestTableAliasesInCompletion
+        self.qualifyTableCompletions = qualifyTableCompletions
+        self.suggestKeywordsInCompletion = suggestKeywordsInCompletion
+        self.suggestFunctionsInCompletion = suggestFunctionsInCompletion
+        self.suggestSnippetsInCompletion = suggestSnippetsInCompletion
+        self.suggestHistoryInCompletion = suggestHistoryInCompletion
+        self.suggestJoinsInCompletion = suggestJoinsInCompletion
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -76,6 +186,12 @@ struct SQLEditorDisplayOptions: Codable, Equatable {
         case indentWrappedLines
         case autoCompletionEnabled
         case suggestTableAliasesInCompletion
+        case qualifyTableCompletions
+        case suggestKeywordsInCompletion
+        case suggestFunctionsInCompletion
+        case suggestSnippetsInCompletion
+        case suggestHistoryInCompletion
+        case suggestJoinsInCompletion
     }
 
     init(from decoder: Decoder) throws {
@@ -87,6 +203,12 @@ struct SQLEditorDisplayOptions: Codable, Equatable {
         indentWrappedLines = try container.decode(Int.self, forKey: .indentWrappedLines)
         autoCompletionEnabled = try container.decode(Bool.self, forKey: .autoCompletionEnabled)
         suggestTableAliasesInCompletion = try container.decodeIfPresent(Bool.self, forKey: .suggestTableAliasesInCompletion) ?? false
+        qualifyTableCompletions = try container.decodeIfPresent(Bool.self, forKey: .qualifyTableCompletions) ?? false
+        suggestKeywordsInCompletion = try container.decodeIfPresent(Bool.self, forKey: .suggestKeywordsInCompletion) ?? true
+        suggestFunctionsInCompletion = try container.decodeIfPresent(Bool.self, forKey: .suggestFunctionsInCompletion) ?? true
+        suggestSnippetsInCompletion = try container.decodeIfPresent(Bool.self, forKey: .suggestSnippetsInCompletion) ?? true
+        suggestHistoryInCompletion = try container.decodeIfPresent(Bool.self, forKey: .suggestHistoryInCompletion) ?? true
+        suggestJoinsInCompletion = try container.decodeIfPresent(Bool.self, forKey: .suggestJoinsInCompletion) ?? true
     }
 
     func encode(to encoder: Encoder) throws {
@@ -98,6 +220,221 @@ struct SQLEditorDisplayOptions: Codable, Equatable {
         try container.encode(indentWrappedLines, forKey: .indentWrappedLines)
         try container.encode(autoCompletionEnabled, forKey: .autoCompletionEnabled)
         try container.encode(suggestTableAliasesInCompletion, forKey: .suggestTableAliasesInCompletion)
+        try container.encode(qualifyTableCompletions, forKey: .qualifyTableCompletions)
+        try container.encode(suggestKeywordsInCompletion, forKey: .suggestKeywordsInCompletion)
+        try container.encode(suggestFunctionsInCompletion, forKey: .suggestFunctionsInCompletion)
+        try container.encode(suggestSnippetsInCompletion, forKey: .suggestSnippetsInCompletion)
+        try container.encode(suggestHistoryInCompletion, forKey: .suggestHistoryInCompletion)
+        try container.encode(suggestJoinsInCompletion, forKey: .suggestJoinsInCompletion)
+    }
+}
+
+struct SQLEditorTokenPalette: Codable, Equatable, Hashable, Identifiable {
+    enum Kind: String, Codable {
+        case builtIn
+        case custom
+    }
+
+    struct ResultGridStyle: Codable, Equatable, Hashable {
+        var color: ColorRepresentable
+        var isBold: Bool
+        var isItalic: Bool
+
+        init(color: ColorRepresentable, isBold: Bool = false, isItalic: Bool = false) {
+            self.color = color
+            self.isBold = isBold
+            self.isItalic = isItalic
+        }
+
+        var swiftColor: Color { color.color }
+
+#if os(macOS)
+        var nsColor: NSColor { color.nsColor }
+#elseif canImport(UIKit)
+        var uiColor: UIColor { color.uiColor }
+#endif
+    }
+
+    struct ResultGridColors: Codable, Equatable, Hashable {
+        var null: ResultGridStyle
+        var numeric: ResultGridStyle
+        var boolean: ResultGridStyle
+        var temporal: ResultGridStyle
+        var binary: ResultGridStyle
+        var identifier: ResultGridStyle
+        var json: ResultGridStyle
+
+        static func defaults(for tone: SQLEditorPalette.Tone) -> ResultGridColors {
+            switch tone {
+            case .light:
+                return ResultGridColors(
+                    null: ResultGridStyle(color: ColorRepresentable(hex: 0x6B7280, alpha: 0.7), isItalic: true),
+                    numeric: ResultGridStyle(color: ColorRepresentable(hex: 0x1D4ED8)),
+                    boolean: ResultGridStyle(color: ColorRepresentable(hex: 0x047857)),
+                    temporal: ResultGridStyle(color: ColorRepresentable(hex: 0xB45309)),
+                    binary: ResultGridStyle(color: ColorRepresentable(hex: 0x7C3AED)),
+                    identifier: ResultGridStyle(color: ColorRepresentable(hex: 0x4338CA)),
+                    json: ResultGridStyle(color: ColorRepresentable(hex: 0x0F766E))
+                )
+            case .dark:
+                return ResultGridColors(
+                    null: ResultGridStyle(color: ColorRepresentable(hex: 0xCBD5F5, alpha: 0.85), isItalic: true),
+                    numeric: ResultGridStyle(color: ColorRepresentable(hex: 0x60A5FA)),
+                    boolean: ResultGridStyle(color: ColorRepresentable(hex: 0x34D399)),
+                    temporal: ResultGridStyle(color: ColorRepresentable(hex: 0xFBBF24)),
+                    binary: ResultGridStyle(color: ColorRepresentable(hex: 0xC084FC)),
+                    identifier: ResultGridStyle(color: ColorRepresentable(hex: 0xA5B4FF)),
+                    json: ResultGridStyle(color: ColorRepresentable(hex: 0x5EEAD4))
+                )
+            }
+        }
+    }
+
+    var id: String
+    var name: String
+    var kind: Kind
+    var tone: SQLEditorPalette.Tone
+    var tokens: SQLEditorPalette.TokenColors
+    var resultGrid: ResultGridColors
+
+    init(
+        id: String,
+        name: String,
+        kind: Kind,
+        tone: SQLEditorPalette.Tone,
+        tokens: SQLEditorPalette.TokenColors,
+        resultGrid: ResultGridColors? = nil
+    ) {
+        self.id = id
+        self.name = name
+        self.kind = kind
+        self.tone = tone
+        self.tokens = tokens
+        self.resultGrid = resultGrid ?? ResultGridColors.defaults(for: tone)
+    }
+
+    init(from palette: SQLEditorPalette) {
+        self.init(
+            id: palette.id,
+            name: palette.name,
+            kind: palette.kind == .custom ? .custom : .builtIn,
+            tone: palette.tone,
+            tokens: palette.tokens,
+            resultGrid: ResultGridColors.defaults(for: palette.tone)
+        )
+    }
+
+    func asCustomCopy(named name: String? = nil) -> SQLEditorTokenPalette {
+        SQLEditorTokenPalette(
+            id: "custom-\(UUID().uuidString)",
+            name: name ?? "\(self.name) Copy",
+            kind: .custom,
+            tone: tone,
+            tokens: tokens,
+            resultGrid: resultGrid
+        )
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id
+        case name
+        case kind
+        case tone
+        case tokens
+        case resultGrid
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        name = try container.decode(String.self, forKey: .name)
+        kind = try container.decode(Kind.self, forKey: .kind)
+        tone = try container.decode(SQLEditorPalette.Tone.self, forKey: .tone)
+        tokens = try container.decode(SQLEditorPalette.TokenColors.self, forKey: .tokens)
+        resultGrid = try container.decodeIfPresent(ResultGridColors.self, forKey: .resultGrid)
+            ?? ResultGridColors.defaults(for: tone)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(name, forKey: .name)
+        try container.encode(kind, forKey: .kind)
+        try container.encode(tone, forKey: .tone)
+        try container.encode(tokens, forKey: .tokens)
+        try container.encode(resultGrid, forKey: .resultGrid)
+    }
+
+    static let builtIn: [SQLEditorTokenPalette] = SQLEditorPalette.builtIn.map { SQLEditorTokenPalette(from: $0) }
+
+    static func palette(withID id: String, customPalettes: [SQLEditorTokenPalette] = []) -> SQLEditorTokenPalette? {
+        if let custom = customPalettes.first(where: { $0.id == id }) {
+            return custom
+        }
+        return builtIn.first(where: { $0.id == id })
+    }
+
+    static func defaultSymbolHighlightStrong(
+        selection: ColorRepresentable,
+        accent: ColorRepresentable?,
+        background: ColorRepresentable,
+        isDark: Bool
+    ) -> ColorRepresentable {
+        let base = accent ?? selection
+        let blend = isDark ? 0.24 : 0.32
+        let alpha = isDark ? 0.48 : 0.42
+        let tinted = base.blended(with: background, fraction: blend)
+        return tinted.withAlpha(alpha)
+    }
+
+    static func defaultSymbolHighlightBright(
+        selection: ColorRepresentable,
+        accent: ColorRepresentable?,
+        background: ColorRepresentable,
+        isDark: Bool
+    ) -> ColorRepresentable {
+        let base = accent ?? selection
+        let blend = isDark ? 0.55 : 0.68
+        let alpha = isDark ? 0.3 : 0.26
+        let tinted = base.blended(with: background, fraction: blend)
+        return tinted.withAlpha(alpha)
+    }
+}
+
+extension SQLEditorTokenPalette {
+    var showcaseColors: [Color] {
+        [
+            tokens.keyword.swiftColor,
+            tokens.string.swiftColor,
+            tokens.operatorSymbol.swiftColor,
+            tokens.identifier.swiftColor,
+            tokens.comment.swiftColor
+        ]
+    }
+
+    func style(for kind: ResultGridValueKind) -> SQLEditorTokenPalette.ResultGridStyle {
+        switch kind {
+        case .null:
+            return resultGrid.null
+        case .numeric:
+            return resultGrid.numeric
+        case .boolean:
+            return resultGrid.boolean
+        case .temporal:
+            return resultGrid.temporal
+        case .binary:
+            return resultGrid.binary
+        case .identifier:
+            return resultGrid.identifier
+        case .json:
+            return resultGrid.json
+        case .text:
+#if os(macOS)
+            return SQLEditorTokenPalette.ResultGridStyle(color: ColorRepresentable(color: Color(nsColor: .labelColor)))
+#else
+            return SQLEditorTokenPalette.ResultGridStyle(color: ColorRepresentable(color: Color(uiColor: .label)))
+#endif
+        }
     }
 }
 
@@ -112,15 +449,100 @@ struct SQLEditorPalette: Codable, Equatable, Hashable, Identifiable {
         case dark
     }
 
+    struct TokenStyle: Codable, Equatable, Hashable {
+        var color: ColorRepresentable
+        var isBold: Bool
+        var isItalic: Bool
+
+        init(color: ColorRepresentable, isBold: Bool = false, isItalic: Bool = false) {
+            self.color = color
+            self.isBold = isBold
+            self.isItalic = isItalic
+        }
+
+        init(from decoder: Decoder) throws {
+            if let single = try? decoder.singleValueContainer(),
+               let color = try? single.decode(ColorRepresentable.self) {
+                self.init(color: color)
+                return
+            }
+
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            let color = try container.decode(ColorRepresentable.self, forKey: .color)
+            let isBold = try container.decodeIfPresent(Bool.self, forKey: .isBold) ?? false
+            let isItalic = try container.decodeIfPresent(Bool.self, forKey: .isItalic) ?? false
+            self.init(color: color, isBold: isBold, isItalic: isItalic)
+        }
+
+        func encode(to encoder: Encoder) throws {
+            var container = encoder.container(keyedBy: CodingKeys.self)
+            try container.encode(color, forKey: .color)
+            if isBold {
+                try container.encode(isBold, forKey: .isBold)
+            }
+            if isItalic {
+                try container.encode(isItalic, forKey: .isItalic)
+            }
+        }
+
+        private enum CodingKeys: String, CodingKey {
+            case color
+            case isBold
+            case isItalic
+        }
+
+        var swiftColor: Color { color.color }
+
+#if os(macOS)
+        var nsColor: NSColor { color.nsColor }
+#else
+        var uiColor: UIColor { color.uiColor }
+#endif
+
+        func platformFont(from base: PlatformFont) -> PlatformFont {
+#if os(macOS)
+            var traits: NSFontTraitMask = []
+            if isBold {
+                traits.insert(.boldFontMask)
+            }
+            if isItalic {
+                traits.insert(.italicFontMask)
+            }
+            guard !traits.isEmpty else { return base }
+            return NSFontManager.shared.convert(base, toHaveTrait: traits)
+#else
+            var traits = base.fontDescriptor.symbolicTraits
+            if isBold {
+                traits.insert(.traitBold)
+            }
+            if isItalic {
+                traits.insert(.traitItalic)
+            }
+            guard let descriptor = base.fontDescriptor.withSymbolicTraits(traits) else {
+                return base
+            }
+            return UIFont(descriptor: descriptor, size: base.pointSize)
+#endif
+        }
+
+        func swiftUIFont(from base: PlatformFont) -> Font {
+#if os(macOS)
+            Font(platformFont(from: base))
+#else
+            Font(platformFont(from: base))
+#endif
+        }
+    }
+
     struct TokenColors: Codable, Equatable, Hashable {
-        var keyword: ColorRepresentable
-        var string: ColorRepresentable
-        var number: ColorRepresentable
-        var comment: ColorRepresentable
-        var plain: ColorRepresentable
-        var function: ColorRepresentable
-        var operatorSymbol: ColorRepresentable
-        var identifier: ColorRepresentable
+        var keyword: TokenStyle
+        var string: TokenStyle
+        var number: TokenStyle
+        var comment: TokenStyle
+        var plain: TokenStyle
+        var function: TokenStyle
+        var operatorSymbol: TokenStyle
+        var identifier: TokenStyle
 
         private enum CodingKeys: String, CodingKey {
             case keyword
@@ -136,14 +558,14 @@ struct SQLEditorPalette: Codable, Equatable, Hashable, Identifiable {
         }
 
         init(
-            keyword: ColorRepresentable,
-            string: ColorRepresentable,
-            number: ColorRepresentable,
-            comment: ColorRepresentable,
-            plain: ColorRepresentable,
-            function: ColorRepresentable,
-            operatorSymbol: ColorRepresentable,
-            identifier: ColorRepresentable
+            keyword: TokenStyle,
+            string: TokenStyle,
+            number: TokenStyle,
+            comment: TokenStyle,
+            plain: TokenStyle,
+            function: TokenStyle,
+            operatorSymbol: TokenStyle,
+            identifier: TokenStyle
         ) {
             self.keyword = keyword
             self.string = string
@@ -155,25 +577,47 @@ struct SQLEditorPalette: Codable, Equatable, Hashable, Identifiable {
             self.identifier = identifier
         }
 
+        init(
+            keyword: ColorRepresentable,
+            string: ColorRepresentable,
+            number: ColorRepresentable,
+            comment: ColorRepresentable,
+            plain: ColorRepresentable,
+            function: ColorRepresentable,
+            operatorSymbol: ColorRepresentable,
+            identifier: ColorRepresentable
+        ) {
+            self.init(
+                keyword: TokenStyle(color: keyword, isBold: true),
+                string: TokenStyle(color: string),
+                number: TokenStyle(color: number),
+                comment: TokenStyle(color: comment),
+                plain: TokenStyle(color: plain),
+                function: TokenStyle(color: function),
+                operatorSymbol: TokenStyle(color: operatorSymbol),
+                identifier: TokenStyle(color: identifier)
+            )
+        }
+
         init(from decoder: Decoder) throws {
             let container = try decoder.container(keyedBy: CodingKeys.self)
-            if let explicit = try container.decodeIfPresent(ColorRepresentable.self, forKey: .keyword) {
+            if let explicit = try container.decodeIfPresent(TokenStyle.self, forKey: .keyword) {
                 keyword = explicit
             } else if let legacyPrimary = try container.decodeIfPresent(ColorRepresentable.self, forKey: .primaryKeyword) {
-                keyword = legacyPrimary
+                keyword = TokenStyle(color: legacyPrimary, isBold: true)
             } else if let legacySecondary = try container.decodeIfPresent(ColorRepresentable.self, forKey: .secondaryKeyword) {
-                keyword = legacySecondary
+                keyword = TokenStyle(color: legacySecondary, isBold: true)
             } else {
-                keyword = ColorRepresentable(hex: 0x3367D6)
+                keyword = TokenStyle(color: ColorRepresentable(hex: 0x3367D6), isBold: true)
             }
 
-            string = try container.decode(ColorRepresentable.self, forKey: .string)
-            number = try container.decode(ColorRepresentable.self, forKey: .number)
-            comment = try container.decode(ColorRepresentable.self, forKey: .comment)
-            plain = try container.decode(ColorRepresentable.self, forKey: .plain)
-            function = try container.decode(ColorRepresentable.self, forKey: .function)
-            operatorSymbol = try container.decode(ColorRepresentable.self, forKey: .operatorSymbol)
-            identifier = try container.decode(ColorRepresentable.self, forKey: .identifier)
+            string = try container.decode(TokenStyle.self, forKey: .string)
+            number = try container.decode(TokenStyle.self, forKey: .number)
+            comment = try container.decode(TokenStyle.self, forKey: .comment)
+            plain = try container.decode(TokenStyle.self, forKey: .plain)
+            function = try container.decode(TokenStyle.self, forKey: .function)
+            operatorSymbol = try container.decode(TokenStyle.self, forKey: .operatorSymbol)
+            identifier = try container.decode(TokenStyle.self, forKey: .identifier)
         }
 
         func encode(to encoder: Encoder) throws {
@@ -231,6 +675,16 @@ struct SQLEditorPalette: Codable, Equatable, Hashable, Identifiable {
     }
 }
 
+extension SQLEditorPalette.TokenStyle {
+    init(color: Color, isBold: Bool = false, isItalic: Bool = false) {
+        self.init(color: ColorRepresentable(color: color), isBold: isBold, isItalic: isItalic)
+    }
+
+    func withColor(_ color: Color) -> SQLEditorPalette.TokenStyle {
+        SQLEditorPalette.TokenStyle(color: ColorRepresentable(color: color), isBold: isBold, isItalic: isItalic)
+    }
+}
+
 extension SQLEditorPalette {
     var tone: Tone { isDark ? .dark : .light }
 
@@ -240,21 +694,21 @@ extension SQLEditorPalette {
         kind: .builtIn,
         isDark: false,
         background: ColorRepresentable(hex: 0xFFFFFF),
-        text: ColorRepresentable(hex: 0x1C2434),
-        gutterBackground: ColorRepresentable(hex: 0xF2F4F8),
-        gutterText: ColorRepresentable(hex: 0x7B8798),
-        gutterAccent: ColorRepresentable(hex: 0xC8D2E4),
-        selection: ColorRepresentable(hex: 0xD8E7FF, alpha: 0.85),
-        currentLine: ColorRepresentable(hex: 0xEEF4FF),
+        text: ColorRepresentable(hex: 0x1E1E1E),
+        gutterBackground: ColorRepresentable(hex: 0xF3F4F6),
+        gutterText: ColorRepresentable(hex: 0x6D6D6D),
+        gutterAccent: ColorRepresentable(hex: 0xD9D9DC),
+        selection: ColorRepresentable(hex: 0xCCE8FF, alpha: 0.85),
+        currentLine: ColorRepresentable(hex: 0xF3F3F3),
         tokens: .init(
-            keyword: ColorRepresentable(hex: 0x3367D6),
-            string: ColorRepresentable(hex: 0x0C9A6F),
-            number: ColorRepresentable(hex: 0xB25D07),
-            comment: ColorRepresentable(hex: 0x94A3B8),
-            plain: ColorRepresentable(hex: 0x1C2434),
-            function: ColorRepresentable(hex: 0xC44191),
-            operatorSymbol: ColorRepresentable(hex: 0xAF3041),
-            identifier: ColorRepresentable(hex: 0x24314A)
+            keyword: ColorRepresentable(hex: 0x0000FF),
+            string: ColorRepresentable(hex: 0xA31515),
+            number: ColorRepresentable(hex: 0x098658),
+            comment: ColorRepresentable(hex: 0x008000),
+            plain: ColorRepresentable(hex: 0x1E1E1E),
+            function: ColorRepresentable(hex: 0x795E26),
+            operatorSymbol: ColorRepresentable(hex: 0x1B1B1B),
+            identifier: ColorRepresentable(hex: 0x267F99)
         )
     )
 
@@ -263,22 +717,22 @@ extension SQLEditorPalette {
         name: "Midnight",
         kind: .builtIn,
         isDark: true,
-        background: ColorRepresentable(hex: 0x0B1220),
-        text: ColorRepresentable(hex: 0xE5E9F0),
-        gutterBackground: ColorRepresentable(hex: 0x121C2F),
-        gutterText: ColorRepresentable(hex: 0x5B6A83),
-        gutterAccent: ColorRepresentable(hex: 0x1F2A3D),
-        selection: ColorRepresentable(hex: 0x1F3A5C, alpha: 0.9),
-        currentLine: ColorRepresentable(hex: 0x16233A),
+        background: ColorRepresentable(hex: 0x1E1E1E),
+        text: ColorRepresentable(hex: 0xD4D4D4),
+        gutterBackground: ColorRepresentable(hex: 0x252526),
+        gutterText: ColorRepresentable(hex: 0x858585),
+        gutterAccent: ColorRepresentable(hex: 0x2D2D30),
+        selection: ColorRepresentable(hex: 0x264F78, alpha: 0.9),
+        currentLine: ColorRepresentable(hex: 0x2A2A2A),
         tokens: .init(
-            keyword: ColorRepresentable(hex: 0x7DD3FC),
-            string: ColorRepresentable(hex: 0x34D399),
-            number: ColorRepresentable(hex: 0xF87171),
-            comment: ColorRepresentable(hex: 0x6B7280),
-            plain: ColorRepresentable(hex: 0xE5E9F0),
-            function: ColorRepresentable(hex: 0xC084FC),
-            operatorSymbol: ColorRepresentable(hex: 0xF97316),
-            identifier: ColorRepresentable(hex: 0xA5B4FC)
+            keyword: ColorRepresentable(hex: 0xC586C0),
+            string: ColorRepresentable(hex: 0xCE9178),
+            number: ColorRepresentable(hex: 0xB5CEA8),
+            comment: ColorRepresentable(hex: 0x6A9955),
+            plain: ColorRepresentable(hex: 0xD4D4D4),
+            function: ColorRepresentable(hex: 0xDCDCAA),
+            operatorSymbol: ColorRepresentable(hex: 0x569CD6),
+            identifier: ColorRepresentable(hex: 0x9CDCFE)
         )
     )
 
@@ -407,22 +861,22 @@ extension SQLEditorPalette {
         name: "Orchard",
         kind: .builtIn,
         isDark: false,
-        background: ColorRepresentable(hex: 0xFBFDF7),
-        text: ColorRepresentable(hex: 0x2F3A1F),
-        gutterBackground: ColorRepresentable(hex: 0xE7F0E0),
-        gutterText: ColorRepresentable(hex: 0x6E8163),
-        gutterAccent: ColorRepresentable(hex: 0xC4D7B5),
-        selection: ColorRepresentable(hex: 0xDCEFD0, alpha: 0.85),
-        currentLine: ColorRepresentable(hex: 0xEEF6E4),
+        background: ColorRepresentable(hex: 0xECEFF4),
+        text: ColorRepresentable(hex: 0x2E3440),
+        gutterBackground: ColorRepresentable(hex: 0xD8DEE9),
+        gutterText: ColorRepresentable(hex: 0x4C566A),
+        gutterAccent: ColorRepresentable(hex: 0xCBD6E2),
+        selection: ColorRepresentable(hex: 0xE5EEF6, alpha: 0.85),
+        currentLine: ColorRepresentable(hex: 0xDEE6F0),
         tokens: .init(
-            keyword: ColorRepresentable(hex: 0x5A8C2D),
-            string: ColorRepresentable(hex: 0xB3682D),
-            number: ColorRepresentable(hex: 0xD19C27),
-            comment: ColorRepresentable(hex: 0x94A281),
-            plain: ColorRepresentable(hex: 0x2F3A1F),
-            function: ColorRepresentable(hex: 0x4A7FB6),
-            operatorSymbol: ColorRepresentable(hex: 0xBF4F56),
-            identifier: ColorRepresentable(hex: 0x3A5C2D)
+            keyword: ColorRepresentable(hex: 0x5E81AC),
+            string: ColorRepresentable(hex: 0xA3BE8C),
+            number: ColorRepresentable(hex: 0xEBCB8B),
+            comment: ColorRepresentable(hex: 0x7D8899),
+            plain: ColorRepresentable(hex: 0x2E3440),
+            function: ColorRepresentable(hex: 0x81A1C1),
+            operatorSymbol: ColorRepresentable(hex: 0xBF616A),
+            identifier: ColorRepresentable(hex: 0x88C0D0)
         )
     )
 
@@ -431,22 +885,22 @@ extension SQLEditorPalette {
         name: "Paperwhite",
         kind: .builtIn,
         isDark: false,
-        background: ColorRepresentable(hex: 0xFAFAF5),
-        text: ColorRepresentable(hex: 0x2C2F3C),
-        gutterBackground: ColorRepresentable(hex: 0xECEDE5),
-        gutterText: ColorRepresentable(hex: 0x7A7F8C),
-        gutterAccent: ColorRepresentable(hex: 0xC7C9BE),
-        selection: ColorRepresentable(hex: 0xD7DEF6, alpha: 0.82),
-        currentLine: ColorRepresentable(hex: 0xEEEFE8),
+        background: ColorRepresentable(hex: 0xFAFAFA),
+        text: ColorRepresentable(hex: 0x383A42),
+        gutterBackground: ColorRepresentable(hex: 0xEDEEED),
+        gutterText: ColorRepresentable(hex: 0x8B9098),
+        gutterAccent: ColorRepresentable(hex: 0xCFD0D4),
+        selection: ColorRepresentable(hex: 0xE0E8FF, alpha: 0.82),
+        currentLine: ColorRepresentable(hex: 0xF1F2F4),
         tokens: .init(
-            keyword: ColorRepresentable(hex: 0x2948B2),
-            string: ColorRepresentable(hex: 0x1F7F5F),
-            number: ColorRepresentable(hex: 0xB25C3B),
-            comment: ColorRepresentable(hex: 0xA0A3AD),
-            plain: ColorRepresentable(hex: 0x2C2F3C),
-            function: ColorRepresentable(hex: 0x6C4FB2),
-            operatorSymbol: ColorRepresentable(hex: 0xB23745),
-            identifier: ColorRepresentable(hex: 0x44506B)
+            keyword: ColorRepresentable(hex: 0xA626A4),
+            string: ColorRepresentable(hex: 0x50A14F),
+            number: ColorRepresentable(hex: 0x986801),
+            comment: ColorRepresentable(hex: 0xA0A1A7),
+            plain: ColorRepresentable(hex: 0x383A42),
+            function: ColorRepresentable(hex: 0x4078F2),
+            operatorSymbol: ColorRepresentable(hex: 0x0184BC),
+            identifier: ColorRepresentable(hex: 0xE45649)
         )
     )
 
@@ -527,22 +981,22 @@ extension SQLEditorPalette {
         name: "Ember Dark",
         kind: .builtIn,
         isDark: true,
-        background: ColorRepresentable(hex: 0x1B0F12),
-        text: ColorRepresentable(hex: 0xF5E6E1),
-        gutterBackground: ColorRepresentable(hex: 0x241517),
-        gutterText: ColorRepresentable(hex: 0x8B5F61),
-        gutterAccent: ColorRepresentable(hex: 0x3A1E22),
-        selection: ColorRepresentable(hex: 0x3E1C27, alpha: 0.9),
-        currentLine: ColorRepresentable(hex: 0x2A161B),
+        background: ColorRepresentable(hex: 0x272822),
+        text: ColorRepresentable(hex: 0xF8F8F2),
+        gutterBackground: ColorRepresentable(hex: 0x2F2E29),
+        gutterText: ColorRepresentable(hex: 0x9D9D91),
+        gutterAccent: ColorRepresentable(hex: 0x3B3A32),
+        selection: ColorRepresentable(hex: 0x49483E, alpha: 0.9),
+        currentLine: ColorRepresentable(hex: 0x3B3A32),
         tokens: .init(
-            keyword: ColorRepresentable(hex: 0xF27C5B),
-            string: ColorRepresentable(hex: 0xF2C879),
-            number: ColorRepresentable(hex: 0xF59F5A),
-            comment: ColorRepresentable(hex: 0xA77679),
-            plain: ColorRepresentable(hex: 0xF5E6E1),
-            function: ColorRepresentable(hex: 0xFF87B7),
-            operatorSymbol: ColorRepresentable(hex: 0xF25A7A),
-            identifier: ColorRepresentable(hex: 0xF0B27A)
+            keyword: ColorRepresentable(hex: 0xF92672),
+            string: ColorRepresentable(hex: 0xE6DB74),
+            number: ColorRepresentable(hex: 0xAE81FF),
+            comment: ColorRepresentable(hex: 0x75715E),
+            plain: ColorRepresentable(hex: 0xF8F8F2),
+            function: ColorRepresentable(hex: 0x66D9EF),
+            operatorSymbol: ColorRepresentable(hex: 0xFD971F),
+            identifier: ColorRepresentable(hex: 0xA6E22E)
         )
     )
 
@@ -551,22 +1005,70 @@ extension SQLEditorPalette {
         name: "Charcoal",
         kind: .builtIn,
         isDark: true,
-        background: ColorRepresentable(hex: 0x111418),
+        background: ColorRepresentable(hex: 0x16161E),
         text: ColorRepresentable(hex: 0xD8DEE6),
-        gutterBackground: ColorRepresentable(hex: 0x161B21),
-        gutterText: ColorRepresentable(hex: 0x5A636E),
-        gutterAccent: ColorRepresentable(hex: 0x222831),
-        selection: ColorRepresentable(hex: 0x1F2A37, alpha: 0.92),
-        currentLine: ColorRepresentable(hex: 0x1A232D),
+        gutterBackground: ColorRepresentable(hex: 0x1F1F2A),
+        gutterText: ColorRepresentable(hex: 0x6B7285),
+        gutterAccent: ColorRepresentable(hex: 0x2A2B38),
+        selection: ColorRepresentable(hex: 0x1F2533, alpha: 0.92),
+        currentLine: ColorRepresentable(hex: 0x20222F),
         tokens: .init(
             keyword: ColorRepresentable(hex: 0x5DA9F6),
             string: ColorRepresentable(hex: 0x4BD0A0),
             number: ColorRepresentable(hex: 0xF2A65A),
-            comment: ColorRepresentable(hex: 0x6E7A88),
+            comment: ColorRepresentable(hex: 0x606B7D),
             plain: ColorRepresentable(hex: 0xD8DEE6),
             function: ColorRepresentable(hex: 0x7D8CFF),
             operatorSymbol: ColorRepresentable(hex: 0xF5546B),
             identifier: ColorRepresentable(hex: 0x8AD1FF)
+        )
+    )
+
+    static let catppuccinMocha = SQLEditorPalette(
+        id: "catppuccin-mocha",
+        name: "Catppuccin Mocha",
+        kind: .builtIn,
+        isDark: true,
+        background: ColorRepresentable(hex: 0x1E1E2E),
+        text: ColorRepresentable(hex: 0xCDD6F4),
+        gutterBackground: ColorRepresentable(hex: 0x242438),
+        gutterText: ColorRepresentable(hex: 0x8388B5),
+        gutterAccent: ColorRepresentable(hex: 0x2D2D45),
+        selection: ColorRepresentable(hex: 0x3A3A58, alpha: 0.9),
+        currentLine: ColorRepresentable(hex: 0x2A2A40),
+        tokens: .init(
+            keyword: ColorRepresentable(hex: 0xCBA6F7),
+            string: ColorRepresentable(hex: 0xA6E3A1),
+            number: ColorRepresentable(hex: 0xF5C2E7),
+            comment: ColorRepresentable(hex: 0x6E738D),
+            plain: ColorRepresentable(hex: 0xCDD6F4),
+            function: ColorRepresentable(hex: 0x94E2D5),
+            operatorSymbol: ColorRepresentable(hex: 0xF5C2E7),
+            identifier: ColorRepresentable(hex: 0x89B4FA)
+        )
+    )
+
+    static let solarizedDark = SQLEditorPalette(
+        id: "solarized-dark",
+        name: "Solarized Dark",
+        kind: .builtIn,
+        isDark: true,
+        background: ColorRepresentable(hex: 0x002B36),
+        text: ColorRepresentable(hex: 0x839496),
+        gutterBackground: ColorRepresentable(hex: 0x01313C),
+        gutterText: ColorRepresentable(hex: 0x586E75),
+        gutterAccent: ColorRepresentable(hex: 0x0A3944),
+        selection: ColorRepresentable(hex: 0x073642, alpha: 0.92),
+        currentLine: ColorRepresentable(hex: 0x003541),
+        tokens: .init(
+            keyword: ColorRepresentable(hex: 0x859900),
+            string: ColorRepresentable(hex: 0x2AA198),
+            number: ColorRepresentable(hex: 0xD33682),
+            comment: ColorRepresentable(hex: 0x586E75),
+            plain: ColorRepresentable(hex: 0x93A1A1),
+            function: ColorRepresentable(hex: 0x268BD2),
+            operatorSymbol: ColorRepresentable(hex: 0xB58900),
+            identifier: ColorRepresentable(hex: 0xCB4B16)
         )
     )
 
@@ -618,7 +1120,56 @@ extension SQLEditorPalette {
         )
     )
 
+    static let echoLight = SQLEditorPalette(
+        id: "echo-light",
+        name: "Echo Light",
+        kind: .builtIn,
+        isDark: false,
+        background: ColorRepresentable(hex: 0xFFFFFF),
+        text: ColorRepresentable(hex: 0x1C1C1E),
+        gutterBackground: ColorRepresentable(hex: 0xEEF1F6),
+        gutterText: ColorRepresentable(hex: 0x8E8E93),
+        gutterAccent: ColorRepresentable(hex: 0xD7DAE1),
+        selection: ColorRepresentable(hex: 0xD6E8FF, alpha: 0.78),
+        currentLine: ColorRepresentable(hex: 0xF5F7FE),
+        tokens: .init(
+            keyword: ColorRepresentable(hex: 0x056CF2),
+            string: ColorRepresentable(hex: 0x0F8F6A),
+            number: ColorRepresentable(hex: 0xCE8A22),
+            comment: ColorRepresentable(hex: 0x8E8E93),
+            plain: ColorRepresentable(hex: 0x1C1C1E),
+            function: ColorRepresentable(hex: 0x3E4CA3),
+            operatorSymbol: ColorRepresentable(hex: 0x2C5CC5),
+            identifier: ColorRepresentable(hex: 0x1F6CAD)
+        )
+    )
+
+    static let echoDark = SQLEditorPalette(
+        id: "echo-dark",
+        name: "Echo Dark",
+        kind: .builtIn,
+        isDark: true,
+        background: ColorRepresentable(hex: 0x1D1E27),
+        text: ColorRepresentable(hex: 0xE9E9EC),
+        gutterBackground: ColorRepresentable(hex: 0x161721),
+        gutterText: ColorRepresentable(hex: 0x7A7A86),
+        gutterAccent: ColorRepresentable(hex: 0x2D3039),
+        selection: ColorRepresentable(hex: 0x2E3A50, alpha: 0.78),
+        currentLine: ColorRepresentable(hex: 0x252631),
+        tokens: .init(
+            keyword: ColorRepresentable(hex: 0x87B7FF),
+            string: ColorRepresentable(hex: 0x7FD8B8),
+            number: ColorRepresentable(hex: 0xFFC86B),
+            comment: ColorRepresentable(hex: 0x7A7A86),
+            plain: ColorRepresentable(hex: 0xE9E9EC),
+            function: ColorRepresentable(hex: 0xA7C6FF),
+            operatorSymbol: ColorRepresentable(hex: 0x5CAFFF),
+            identifier: ColorRepresentable(hex: 0x8AD6FF)
+        )
+    )
+
     static let builtIn: [SQLEditorPalette] = [
+        echoLight,
         aurora,
         solstice,
         githubLight,
@@ -627,6 +1178,7 @@ extension SQLEditorPalette {
         seaBreeze,
         orchard,
         paperwhite,
+        echoDark,
         midnight,
         oneDark,
         dracula,
@@ -634,6 +1186,8 @@ extension SQLEditorPalette {
         nebulaNight,
         emberDark,
         charcoal,
+        catppuccinMocha,
+        solarizedDark,
         violetStorm
     ]
 
@@ -723,34 +1277,55 @@ struct ColorRepresentable: Codable, Equatable, Hashable {
         UIColor(red: red, green: green, blue: blue, alpha: alpha)
     }
 #endif
+
+    func withAlpha(_ alpha: Double) -> ColorRepresentable {
+        ColorRepresentable(red: red, green: green, blue: blue, alpha: alpha)
+    }
+
+    func blended(with other: ColorRepresentable, fraction: Double) -> ColorRepresentable {
+        let t = max(0.0, min(1.0, fraction))
+        let blendedRed = red + (other.red - red) * t
+        let blendedGreen = green + (other.green - green) * t
+        let blendedBlue = blue + (other.blue - blue) * t
+        let blendedAlpha = alpha + (other.alpha - alpha) * t
+        return ColorRepresentable(red: blendedRed, green: blendedGreen, blue: blendedBlue, alpha: blendedAlpha)
+    }
 }
 
 struct NSFontWithFallback {
     var name: String
     var size: CGFloat
+    var ligaturesEnabled: Bool
 
-    init(name: String, size: CGFloat) {
+    init(name: String, size: CGFloat, ligaturesEnabled: Bool = true) {
         self.name = name
         self.size = size
+        self.ligaturesEnabled = ligaturesEnabled
     }
 
 #if os(macOS)
     var font: NSFont {
+        if SQLEditorTheme.isSystemFontIdentifier(name) {
+            return .monospacedSystemFont(ofSize: size, weight: .regular)
+        }
         if let custom = NSFont(name: name, size: size) {
             return custom
         }
-        if let familyFont = NSFont(name: SQLEditorTheme.defaultFontName, size: size) {
-            return familyFont
+        if let fallback = NSFont(name: SQLEditorTheme.defaultFontName, size: size) {
+            return fallback
         }
         return .monospacedSystemFont(ofSize: size, weight: .regular)
     }
 #else
     var font: UIFont {
+        if SQLEditorTheme.isSystemFontIdentifier(name) {
+            return .monospacedSystemFont(ofSize: size, weight: .regular)
+        }
         if let custom = UIFont(name: name, size: size) {
             return custom
         }
-        if let familyFont = UIFont(name: SQLEditorTheme.defaultFontName, size: size) {
-            return familyFont
+        if let fallback = UIFont(name: SQLEditorTheme.defaultFontName, size: size) {
+            return fallback
         }
         return .monospacedSystemFont(ofSize: size, weight: .regular)
     }
@@ -759,7 +1334,10 @@ struct NSFontWithFallback {
 
 enum SQLEditorThemeResolver {
     static func resolve(globalSettings: GlobalSettings, project: Project?, tone: SQLEditorPalette.Tone) -> SQLEditorTheme {
-        let palette = resolvePalette(globalSettings: globalSettings, project: project, tone: tone)
+        FontRegistrar.registerBundledFonts()
+
+        let applicationTheme = resolveApplicationTheme(globalSettings: globalSettings, tone: tone)
+        let tokenPalette = resolveTokenPalette(globalSettings: globalSettings, project: project, tone: tone)
 
         let projectFontName = sanitizedFontName(project?.settings.editorFontFamily)
         let globalFontName = sanitizedFontName(globalSettings.defaultEditorFontFamily)
@@ -770,80 +1348,143 @@ enum SQLEditorThemeResolver {
         let fontSize = max(8, CGFloat(fontSizeValue))
         let lineHeight = max(1.0, CGFloat(lineHeightValue))
 
+        let strongHighlight = applicationTheme.editorSymbolHighlightStrong
+            ?? SQLEditorTokenPalette.defaultSymbolHighlightStrong(
+                selection: applicationTheme.editorSelection,
+                accent: applicationTheme.accent,
+                background: applicationTheme.editorBackground,
+                isDark: tone == .dark
+            )
+        let brightHighlight = applicationTheme.editorSymbolHighlightBright
+            ?? SQLEditorTokenPalette.defaultSymbolHighlightBright(
+                selection: applicationTheme.editorSelection,
+                accent: applicationTheme.accent,
+                background: applicationTheme.editorBackground,
+                isDark: tone == .dark
+            )
+
+        let surfaces = SQLEditorSurfaceColors(
+            background: applicationTheme.editorBackground,
+            text: applicationTheme.editorForeground,
+            gutterBackground: applicationTheme.editorGutterBackground,
+            gutterText: applicationTheme.editorGutterForeground,
+            gutterAccent: applicationTheme.accent ?? applicationTheme.editorForeground,
+            selection: applicationTheme.editorSelection,
+            currentLine: applicationTheme.editorCurrentLine,
+            symbolHighlightStrong: strongHighlight,
+            symbolHighlightBright: brightHighlight
+        )
+
         return SQLEditorTheme(
             fontName: fontName,
             fontSize: fontSize,
             lineHeightMultiplier: lineHeight,
-            palette: palette
+            ligaturesEnabled: globalSettings.ligaturesEnabled(for: fontName),
+            surfaces: surfaces,
+            tokenPalette: tokenPalette
         )
     }
 
-    static func resolveDisplayOptions(globalSettings: GlobalSettings, project: Project?) -> SQLEditorDisplayOptions {
-        let showLineNumbers = project?.settings.showLineNumbers ?? globalSettings.editorShowLineNumbers
-        let highlightSelected = project?.settings.highlightSelectedSymbol ?? globalSettings.editorHighlightSelectedSymbol
-        let highlightDelay = clamped(project?.settings.highlightDelay ?? globalSettings.editorHighlightDelay, min: 0.0, max: 5.0)
-        let wrapLines = project?.settings.wrapLines ?? globalSettings.editorWrapLines
-        let indentWrappedLines = max(0, project?.settings.indentWrappedLines ?? globalSettings.editorIndentWrappedLines)
-        let autoCompletionEnabled = project?.settings.enableAutocomplete ?? globalSettings.editorEnableAutocomplete
-
-        return SQLEditorDisplayOptions(
-            showLineNumbers: showLineNumbers,
-            highlightSelectedSymbol: highlightSelected,
-            highlightDelay: highlightDelay,
-            wrapLines: wrapLines,
-            indentWrappedLines: indentWrappedLines,
-            autoCompletionEnabled: autoCompletionEnabled
+    static func resolveDisplayOptions(globalSettings: GlobalSettings, project _: Project?) -> SQLEditorDisplayOptions {
+        SQLEditorDisplayOptions(
+            showLineNumbers: globalSettings.editorShowLineNumbers,
+            highlightSelectedSymbol: globalSettings.editorHighlightSelectedSymbol,
+            highlightDelay: clamped(globalSettings.editorHighlightDelay, min: 0.0, max: 5.0),
+            wrapLines: globalSettings.editorWrapLines,
+            indentWrappedLines: max(0, globalSettings.editorIndentWrappedLines),
+            autoCompletionEnabled: globalSettings.editorEnableAutocomplete,
+            qualifyTableCompletions: globalSettings.editorQualifyTableCompletions,
+            suggestKeywordsInCompletion: globalSettings.editorSuggestKeywords,
+            suggestFunctionsInCompletion: globalSettings.editorSuggestFunctions,
+            suggestSnippetsInCompletion: globalSettings.editorSuggestSnippets,
+            suggestHistoryInCompletion: globalSettings.editorSuggestHistory,
+            suggestJoinsInCompletion: globalSettings.editorSuggestJoins
         )
     }
 
-    private static func resolvePalette(globalSettings: GlobalSettings, project: Project?, tone: SQLEditorPalette.Tone) -> SQLEditorPalette {
-        if let projectPalette = project?.settings.customEditorPalette {
-            return projectPalette
+    private static func resolveApplicationTheme(globalSettings: GlobalSettings, tone: SQLEditorPalette.Tone) -> AppColorTheme {
+        if let themeID = globalSettings.activeThemeID(for: tone),
+           let theme = globalSettings.theme(withID: themeID, tone: tone) {
+            return theme
         }
 
-        if let paletteID = project?.settings.effectivePaletteIdentifier,
-           let palette = palette(withID: paletteID, globalSettings: globalSettings, project: project) {
-            return palette
+        if let fallback = AppColorTheme.builtInThemes(for: tone).first {
+            return fallback
         }
 
+        return AppColorTheme.fromPalette(tone == .dark ? SQLEditorPalette.midnight : SQLEditorPalette.aurora)
+    }
+
+    private static func resolveTokenPalette(globalSettings: GlobalSettings, project _: Project?, tone: SQLEditorPalette.Tone) -> SQLEditorTokenPalette {
         if let palette = globalSettings.defaultPalette(for: tone) {
             return palette
         }
 
-        // Fall back to the opposite tone if available (e.g. missing dark default but light exists).
         let alternateTone: SQLEditorPalette.Tone = tone == .light ? .dark : .light
         if let palette = globalSettings.defaultPalette(for: alternateTone) {
             return palette
         }
 
-        if let legacy = palette(withID: globalSettings.defaultEditorTheme, globalSettings: globalSettings, project: project) {
+        if let legacy = palette(withID: globalSettings.defaultEditorTheme, globalSettings: globalSettings) {
             return legacy
         }
 
-        return SQLEditorPalette.aurora
+        let fallback = tone == .dark ? SQLEditorPalette.midnight : SQLEditorPalette.aurora
+        return SQLEditorTokenPalette(from: fallback)
     }
 
     private static func sanitizedFontName(_ value: String?) -> String? {
         guard let value else { return nil }
         let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmed.isEmpty ? nil : trimmed
+        guard !trimmed.isEmpty else { return nil }
+
+        switch trimmed {
+        case SQLEditorTheme.systemFontIdentifier, "System", "system", "MonospacedSystem", ".monospacedSystemFont", ".SystemMonospaced":
+            return SQLEditorTheme.systemFontIdentifier
+        case "IBMPlexMono-Regular":
+            return "IBMPlexMono"
+        case "Iosevka-Regular":
+            return "Iosevka"
+        default:
+            return trimmed
+        }
     }
 
-    private static func palette(withID id: String, globalSettings: GlobalSettings, project: Project?) -> SQLEditorPalette? {
-        if let projectPalette = project?.settings.customEditorPalette, projectPalette.id == id {
-            return projectPalette
-        }
+    static func normalizedFontName(_ value: String?) -> String {
+        sanitizedFontName(value) ?? SQLEditorTheme.defaultFontName
+    }
 
+    private static func palette(withID id: String, globalSettings: GlobalSettings) -> SQLEditorTokenPalette? {
         if let custom = globalSettings.customEditorPalettes.first(where: { $0.id == id }) {
             return custom
         }
 
-        return SQLEditorPalette.builtIn.first(where: { $0.id == id })
+        return SQLEditorTokenPalette.builtIn.first(where: { $0.id == id })
     }
 
     private static func clamped(_ value: Double, min: Double, max: Double) -> Double {
         if value < min { return min }
         if value > max { return max }
         return value
+    }
+}
+
+extension SQLEditorTokenPalette.ResultGridColors {
+    func style(for kind: ResultGridValueKind) -> SQLEditorTokenPalette.ResultGridStyle {
+        switch kind {
+        case .null: return null
+        case .numeric: return numeric
+        case .boolean: return boolean
+        case .temporal: return temporal
+        case .binary: return binary
+        case .identifier: return identifier
+        case .json: return json
+        case .text:
+#if os(macOS)
+            return SQLEditorTokenPalette.ResultGridStyle(color: ColorRepresentable(color: Color(nsColor: .labelColor)))
+#else
+            return SQLEditorTokenPalette.ResultGridStyle(color: ColorRepresentable(color: Color(uiColor: .label)))
+#endif
+        }
     }
 }

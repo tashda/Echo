@@ -45,16 +45,20 @@ final class AppModel: ObservableObject {
     @Published private(set) var recentConnections: [RecentConnectionRecord] = []
     @Published var pendingExplorerFocus: ExplorerFocus?
     @Published var searchSidebarCaches: [SearchSidebarContextKey: SearchSidebarCache] = [:]
+    @Published var dataInspectorContent: DataInspectorContent?
+    @Published private(set) var expandedConnectionFolderIDs: Set<UUID> = []
 
     // Project management
     @Published var projects: [Project] = []
     @Published var selectedProject: Project?
     @Published var globalSettings: GlobalSettings = GlobalSettings()
     @Published var navigationState = NavigationState()
-    @Published var showManageConnectionsTab = false
+    @Published var isWorkspaceWindowKey = false
+    @Published var isManageConnectionsPresented = false
     @Published var showNewProjectSheet = false
     @Published var showManageProjectsSheet = false
     @Published var lastError: DatabaseError?
+    @Published var inspectorWidth: CGFloat = 360
 
     // MARK: - Dependencies
     private let store = ConnectionStore()
@@ -63,8 +67,11 @@ final class AppModel: ObservableObject {
     private let projectStore = ProjectStore()
     private let keychain = KeychainHelper()
     private let clipboardHistory: ClipboardHistoryStore
+    let resultSpoolManager: ResultSpoolManager
     private var cancellables: Set<AnyCancellable> = []
     private var sessionDatabaseCancellables: [UUID: AnyCancellable] = [:]
+    private let defaultInspectorWidth: CGFloat = 360
+    private static let expandedConnectionFoldersKey = "expandedConnectionFoldersByProject"
 
     private func makeDatabaseFactory(for type: DatabaseType) -> DatabaseFactory? {
         DatabaseFactoryProvider.makeFactory(for: type)
@@ -75,6 +82,280 @@ final class AppModel: ObservableObject {
         return DatabaseStructureFetcher(factory: factory, databaseType: connection.databaseType)
     }
 
+    private struct DiagramTableKey: Hashable {
+        let schema: String
+        let name: String
+
+        var identifier: String { "\(schema).\(name)" }
+    }
+
+    private func buildSchemaDiagram(
+        for session: ConnectionSession,
+        object: SchemaObjectInfo
+    ) async throws -> SchemaDiagramViewModel {
+        let baseKey = DiagramTableKey(schema: object.schema, name: object.name)
+        let baseDetails = try await session.session.getTableStructureDetails(
+            schema: object.schema,
+            table: object.name
+        )
+
+        var tableDetails: [DiagramTableKey: TableStructureDetails] = [baseKey: baseDetails]
+        var relatedKeys = Set<DiagramTableKey>()
+
+        func normalize(_ identifier: String, fallbackSchema: String) -> DiagramTableKey {
+            func clean(_ raw: String) -> String {
+                var value = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+
+                func stripWrapping(_ prefix: Character, _ suffix: Character) {
+                    if value.count >= 2,
+                       value.first == prefix,
+                       value.last == suffix {
+                        value.removeFirst()
+                        value.removeLast()
+                    }
+                }
+
+                let wrappers: [(Character, Character)] = [
+                    ("\"", "\""),
+                    ("`", "`"),
+                    ("[", "]")
+                ]
+
+                for (start, end) in wrappers where value.first == start && value.last == end {
+                    stripWrapping(start, end)
+                    break
+                }
+
+                // Collapse escaped quotes in identifiers such as ""name""
+                value = value.replacingOccurrences(of: "\"\"", with: "\"")
+                return value
+            }
+
+            func splitComponents(_ identifier: String) -> [String] {
+                guard !identifier.isEmpty else { return [] }
+                var components: [String] = []
+                var current = ""
+                var activeQuote: Character?
+                var bracketDepth = 0
+
+                var index = identifier.startIndex
+                while index < identifier.endIndex {
+                    let char = identifier[index]
+
+                    switch char {
+                    case "\"":
+                        current.append(char)
+                        if activeQuote == "\"" {
+                            let nextIndex = identifier.index(after: index)
+                            if nextIndex < identifier.endIndex && identifier[nextIndex] == "\"" {
+                                current.append(identifier[nextIndex])
+                                index = nextIndex
+                            } else {
+                                activeQuote = nil
+                            }
+                        } else if activeQuote == nil {
+                            activeQuote = "\""
+                        }
+
+                    case "`":
+                        current.append(char)
+                        if activeQuote == "`" {
+                            activeQuote = nil
+                        } else if activeQuote == nil {
+                            activeQuote = "`"
+                        }
+
+                    case "[":
+                        bracketDepth += 1
+                        current.append(char)
+
+                    case "]":
+                        if bracketDepth > 0 {
+                            bracketDepth -= 1
+                        }
+                        current.append(char)
+
+                    case "." where activeQuote == nil && bracketDepth == 0:
+                        components.append(current)
+                        current = ""
+
+                    default:
+                        current.append(char)
+                    }
+
+                    index = identifier.index(after: index)
+                }
+
+                components.append(current)
+                return components.filter { !$0.isEmpty }
+            }
+
+            let trimmed = identifier.trimmingCharacters(in: .whitespacesAndNewlines)
+            let components = splitComponents(trimmed)
+
+            if components.count >= 2 {
+                let schemaComponent = components[components.count - 2]
+                let tableComponent = components[components.count - 1]
+                return DiagramTableKey(schema: clean(schemaComponent), name: clean(tableComponent))
+            } else if let single = components.first {
+                return DiagramTableKey(schema: fallbackSchema, name: clean(single))
+            } else {
+                return DiagramTableKey(schema: fallbackSchema, name: clean(trimmed))
+            }
+        }
+
+        for fk in baseDetails.foreignKeys {
+            let referencedSchema = fk.referencedSchema.isEmpty ? baseKey.schema : fk.referencedSchema
+            let key = DiagramTableKey(schema: referencedSchema, name: fk.referencedTable)
+            relatedKeys.insert(key)
+        }
+
+        for dependency in baseDetails.dependencies {
+            let key = normalize(dependency.referencedTable, fallbackSchema: object.schema)
+            relatedKeys.insert(key)
+        }
+
+        relatedKeys.remove(baseKey)
+
+        if !relatedKeys.isEmpty {
+            for key in relatedKeys where tableDetails[key] == nil {
+                do {
+                    let details = try await session.session.getTableStructureDetails(
+                        schema: key.schema,
+                        table: key.name
+                    )
+                    tableDetails[key] = details
+                } catch {
+                    #if DEBUG
+                    print("Failed to fetch diagram details for \(key.schema).\(key.name): \(String(reflecting: error))")
+                    #endif
+                }
+            }
+        }
+
+        func buildColumns(for details: TableStructureDetails) -> [SchemaDiagramColumn] {
+            let primaryKeys = Set(details.primaryKey?.columns.map { $0.lowercased() } ?? [])
+            let foreignKeys = Set(details.foreignKeys.flatMap { $0.columns.map { $0.lowercased() } })
+
+            return details.columns.map { column in
+                SchemaDiagramColumn(
+                    name: column.name,
+                    dataType: column.dataType,
+                    isPrimaryKey: primaryKeys.contains(column.name.lowercased()),
+                    isForeignKey: foreignKeys.contains(column.name.lowercased())
+                )
+            }
+        }
+
+        var edges: [SchemaDiagramEdge] = []
+
+        func appendForeignKeyEdges(from tableKey: DiagramTableKey, details: TableStructureDetails) {
+            for fk in details.foreignKeys {
+                let targetSchema = fk.referencedSchema.isEmpty ? tableKey.schema : fk.referencedSchema
+                let targetKey = DiagramTableKey(schema: targetSchema, name: fk.referencedTable)
+                guard tableDetails[targetKey] != nil else { continue }
+
+                for pair in zip(fk.columns, fk.referencedColumns) {
+                    edges.append(
+                        SchemaDiagramEdge(
+                            fromNodeID: tableKey.identifier,
+                            fromColumn: pair.0,
+                            toNodeID: targetKey.identifier,
+                            toColumn: pair.1,
+                            relationshipName: fk.name
+                        )
+                    )
+                }
+            }
+        }
+
+        var nodeModels: [SchemaDiagramNodeModel] = []
+
+        if let baseColumns = tableDetails[baseKey].map(buildColumns) {
+            let baseNode = SchemaDiagramNodeModel(
+                schema: baseKey.schema,
+                name: baseKey.name,
+                columns: baseColumns,
+                position: CGPoint(x: 0, y: 0)
+            )
+            nodeModels.append(baseNode)
+        }
+
+        let otherKeys = tableDetails.keys.filter { $0 != baseKey }
+        if !otherKeys.isEmpty {
+            let radius: CGFloat = 520
+            for (index, key) in otherKeys.enumerated() {
+                guard let details = tableDetails[key] else { continue }
+                let columns = buildColumns(for: details)
+                let angle = CGFloat(index) / CGFloat(otherKeys.count) * 2 * .pi
+                let position = CGPoint(
+                    x: cos(angle) * radius,
+                    y: sin(angle) * radius
+                )
+                let node = SchemaDiagramNodeModel(
+                    schema: key.schema,
+                    name: key.name,
+                    columns: columns,
+                    position: position
+                )
+                nodeModels.append(node)
+            }
+        }
+
+        for (key, details) in tableDetails {
+            appendForeignKeyEdges(from: key, details: details)
+        }
+
+        let title = "\(object.schema).\(object.name)"
+        return SchemaDiagramViewModel(
+            nodes: nodeModels,
+            edges: edges,
+            baseNodeID: baseKey.identifier,
+            title: title
+        )
+    }
+
+    private func loadExpandedConnectionFolders(for projectID: UUID?) {
+        let storage = UserDefaults.standard.dictionary(forKey: Self.expandedConnectionFoldersKey) as? [String: [String]] ?? [:]
+        let key = projectID?.uuidString ?? "global"
+        let ids = storage[key]?.compactMap(UUID.init) ?? []
+        expandedConnectionFolderIDs = Set(ids)
+    }
+
+    func updateExpandedConnectionFolders(_ ids: Set<UUID>) {
+        guard expandedConnectionFolderIDs != ids else { return }
+        expandedConnectionFolderIDs = ids
+        persistExpandedConnectionFolders(ids: ids, projectID: selectedProject?.id)
+    }
+
+    private func persistExpandedConnectionFolders(ids: Set<UUID>, projectID: UUID?) {
+        let key = projectID?.uuidString ?? "global"
+        var storage = UserDefaults.standard.dictionary(forKey: Self.expandedConnectionFoldersKey) as? [String: [String]] ?? [:]
+        storage[key] = ids.map { $0.uuidString }
+        UserDefaults.standard.set(storage, forKey: Self.expandedConnectionFoldersKey)
+    }
+
+    private func applyResultSpoolConfiguration(for settings: GlobalSettings) async {
+        let path = settings.resultSpoolCustomLocation?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let rootDirectory: URL
+        if let path, !path.isEmpty {
+            let expanded = (path as NSString).expandingTildeInPath
+            rootDirectory = URL(fileURLWithPath: expanded, isDirectory: true)
+        } else {
+            rootDirectory = ResultSpoolManager.defaultRootDirectory()
+        }
+
+        let normalizedLimit = max(settings.resultSpoolMaxBytes, 256 * 1_024 * 1_024)
+        let normalizedRetention = max(settings.resultSpoolRetentionHours, 1)
+        let config = ResultSpoolConfiguration(
+            rootDirectory: rootDirectory,
+            maximumBytes: UInt64(normalizedLimit),
+            retentionInterval: TimeInterval(normalizedRetention * 60 * 60),
+            inMemoryRowLimit: max(settings.resultsInitialRowLimit, 100)
+        )
+        await resultSpoolManager.update(configuration: config)
+    }
+
     // MARK: - Computed helpers
     var selectedConnection: SavedConnection? {
         guard let id = selectedConnectionID else { return nil }
@@ -82,8 +363,9 @@ final class AppModel: ObservableObject {
     }
 
     // MARK: - Initialization
-    init(clipboardHistory: ClipboardHistoryStore) {
+    init(clipboardHistory: ClipboardHistoryStore, resultSpoolManager: ResultSpoolManager) {
         self.clipboardHistory = clipboardHistory
+        self.resultSpoolManager = resultSpoolManager
         sessionManager.$activeSessionID
             .sink { [weak self] id in
                 guard let self else { return }
@@ -137,6 +419,22 @@ final class AppModel: ObservableObject {
             .store(in: &cancellables)
 
         loadRecentConnections()
+
+        $selectedProject
+            .map { $0?.id }
+            .removeDuplicates()
+            .sink { [weak self] projectID in
+                self?.loadExpandedConnectionFolders(for: projectID)
+            }
+            .store(in: &cancellables)
+
+        $globalSettings
+            .removeDuplicates()
+            .sink { [weak self] settings in
+                guard let self else { return }
+                Task { await self.applyResultSpoolConfiguration(for: settings) }
+            }
+            .store(in: &cancellables)
     }
 
     // MARK: - Persistence
@@ -161,6 +459,7 @@ final class AppModel: ObservableObject {
             identities = loadedIdentities
             projects = loadedProjects
             globalSettings = loadedGlobalSettings
+            inspectorWidth = CGFloat(loadedGlobalSettings.inspectorWidth ?? Double(defaultInspectorWidth))
 
             await normalizeEditorPreferences()
 
@@ -181,9 +480,26 @@ final class AppModel: ObservableObject {
                 selectedIdentityID = identities.first?.id
             }
 
+            await ensureActiveThemesApplied()
             synchronizeRecentConnectionsWithConnections()
+            loadExpandedConnectionFolders(for: selectedProject?.id)
         } catch {
             print("Failed to load data: \(error)")
+        }
+    }
+
+    @MainActor
+    func updateInspectorWidth(_ width: CGFloat, min: CGFloat, max: CGFloat) {
+        let clamped = Swift.max(min, Swift.min(max, width))
+        guard abs(inspectorWidth - clamped) > 0.5 else {
+            inspectorWidth = clamped
+            return
+        }
+        inspectorWidth = clamped
+        Task {
+            await updateGlobalEditorDisplay { settings in
+                settings.inspectorWidth = Double(clamped)
+            }
         }
     }
 
@@ -221,10 +537,10 @@ final class AppModel: ObservableObject {
 
         if globalSettings.defaultPaletteID(for: .light).isEmpty
             || globalSettings.palette(withID: globalSettings.defaultPaletteID(for: .light)) == nil {
-            if let legacyPalette, !legacyPalette.isDark {
+            if let legacyPalette, legacyPalette.tone == .light {
                 globalSettings.defaultEditorPaletteIDLight = legacyPalette.id
-            } else if let fallback = SQLEditorPalette.builtIn.first(where: { !$0.isDark }) {
-                globalSettings.defaultEditorPaletteIDLight = fallback.id
+            } else if let fallbackLight = SQLEditorTokenPalette.builtIn.first(where: { $0.tone == .light }) {
+                globalSettings.defaultEditorPaletteIDLight = fallbackLight.id
             } else {
                 globalSettings.defaultEditorPaletteIDLight = SQLEditorPalette.aurora.id
             }
@@ -233,10 +549,10 @@ final class AppModel: ObservableObject {
 
         if globalSettings.defaultPaletteID(for: .dark).isEmpty
             || globalSettings.palette(withID: globalSettings.defaultPaletteID(for: .dark)) == nil {
-            if let legacyPalette, legacyPalette.isDark {
+            if let legacyPalette, legacyPalette.tone == .dark {
                 globalSettings.defaultEditorPaletteIDDark = legacyPalette.id
-            } else if let fallback = SQLEditorPalette.builtIn.first(where: { $0.isDark }) {
-                globalSettings.defaultEditorPaletteIDDark = fallback.id
+            } else if let fallbackDark = SQLEditorTokenPalette.builtIn.first(where: { $0.tone == .dark }) {
+                globalSettings.defaultEditorPaletteIDDark = fallbackDark.id
             } else {
                 globalSettings.defaultEditorPaletteIDDark = SQLEditorPalette.midnight.id
             }
@@ -314,7 +630,41 @@ final class AppModel: ObservableObject {
         await persistGlobalSettings()
     }
 
-    func upsertCustomPalette(_ palette: SQLEditorPalette) async {
+    func updateResultsStreaming(
+        initialRowLimit: Int? = nil,
+        previewBatchSize: Int? = nil,
+        backgroundStreamingThreshold: Int? = nil
+    ) async {
+        let clampedInitial = initialRowLimit.map { max(100, $0) }
+        let clampedPreview = previewBatchSize.map { max(100, $0) }
+        let clampedBackground = backgroundStreamingThreshold.map { max(100, $0) }
+        guard [clampedInitial, clampedPreview, clampedBackground].contains(where: { $0 != nil }) else { return }
+
+        await updateGlobalEditorDisplay { settings in
+            if let value = clampedInitial {
+                settings.resultsInitialRowLimit = value
+            }
+            if let value = clampedPreview {
+                settings.resultsPreviewBatchSize = value
+            }
+            if let value = clampedBackground {
+                settings.resultsBackgroundStreamingThreshold = value
+            }
+        }
+
+        if let value = clampedInitial {
+            for session in sessionManager.activeSessions {
+                session.updateDefaultInitialBatchSize(value)
+            }
+        }
+        if let value = clampedBackground {
+            for session in sessionManager.activeSessions {
+                session.updateDefaultBackgroundStreamingThreshold(value)
+            }
+        }
+    }
+
+    func upsertCustomPalette(_ palette: SQLEditorTokenPalette) async {
         if let index = globalSettings.customEditorPalettes.firstIndex(where: { $0.id == palette.id }) {
             globalSettings.customEditorPalettes[index] = palette
         } else {
@@ -362,21 +712,53 @@ final class AppModel: ObservableObject {
         }
     }
 
-    func updateProjectAppearance(projectID: UUID, update: (inout ProjectSettings) -> Void) async {
-        guard let index = projects.firstIndex(where: { $0.id == projectID }) else { return }
-        update(&projects[index].settings)
-        projects[index].updatedAt = Date()
-        let updatedProject = projects[index]
-
-        do {
-            try await projectStore.save(projects)
-        } catch {
-            print("Failed to persist project appearance: \(error)")
+    func upsertCustomTheme(_ theme: AppColorTheme) async {
+        if let index = globalSettings.customThemes.firstIndex(where: { $0.id == theme.id }) {
+            globalSettings.customThemes[index] = theme
+        } else {
+            globalSettings.customThemes.append(theme)
         }
+        await persistGlobalSettings()
+        await ensureActiveThemesApplied()
+    }
 
-        if selectedProject?.id == projectID {
-            selectedProject = updatedProject
+    func deleteCustomTheme(withID id: AppColorTheme.ID) async {
+        globalSettings.customThemes.removeAll { $0.id == id }
+        if globalSettings.activeThemeIDLight == id {
+            globalSettings.activeThemeIDLight = nil
         }
+        if globalSettings.activeThemeIDDark == id {
+            globalSettings.activeThemeIDDark = nil
+        }
+        await persistGlobalSettings()
+        await ensureActiveThemesApplied()
+    }
+
+    func setActiveTheme(_ themeID: AppColorTheme.ID?, for tone: SQLEditorPalette.Tone) async {
+        globalSettings.setActiveThemeID(themeID, for: tone)
+        await persistGlobalSettings()
+        applyChrome(for: tone)
+    }
+
+    private func ensureActiveThemesApplied() async {
+        applyChrome(for: .light)
+        applyChrome(for: .dark)
+    }
+
+    private func applyChrome(for tone: SQLEditorPalette.Tone) {
+        let theme = activeTheme(for: tone)
+        let palette = globalSettings.palette(withID: theme.defaultPaletteID)
+            ?? SQLEditorTokenPalette.builtIn.first(where: { $0.id == theme.defaultPaletteID })
+            ?? SQLEditorTokenPalette.builtIn.first(where: { $0.tone == tone })
+        ThemeManager.shared.applyChrome(theme: theme, tone: tone, palette: palette)
+    }
+
+    private func activeTheme(for tone: SQLEditorPalette.Tone) -> AppColorTheme {
+        if let theme = globalSettings.theme(withID: globalSettings.activeThemeID(for: tone), tone: tone) {
+            return theme
+        }
+        return AppColorTheme.builtInThemes(for: tone).first
+            ?? AppColorTheme.fromPalette(tone == .dark ? SQLEditorPalette.midnight : SQLEditorPalette.aurora)
     }
 
     func upsertConnection(_ connection: SavedConnection, password: String?) async {
@@ -490,7 +872,14 @@ final class AppModel: ObservableObject {
             title = "\(baseTitle) \(existingCountForConnection + 1)"
         }
 
-        let queryState = QueryEditorState(sql: presetQuery.isEmpty ? "SELECT current_timestamp;" : presetQuery)
+        let initialBatch = max(100, globalSettings.resultsInitialRowLimit)
+        let previewLimit = max(globalSettings.resultsBackgroundStreamingThreshold, initialBatch)
+        let queryState = QueryEditorState(
+            sql: presetQuery.isEmpty ? "SELECT current_timestamp;" : presetQuery,
+            initialVisibleRowBatch: initialBatch,
+            previewRowLimit: previewLimit,
+            spoolManager: resultSpoolManager
+        )
 
         func normalized(_ value: String) -> String? {
             let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -517,6 +906,94 @@ final class AppModel: ObservableObject {
         tabManager.addTab(newTab)
     }
 
+    @MainActor
+    func openDataPreviewTab(
+        for session: ConnectionSession,
+        object: SchemaObjectInfo,
+        sqlBuilder: @escaping (_ limit: Int, _ offset: Int) -> String,
+        initialBatchSize: Int? = nil
+    ) {
+        sessionManager.setActiveSession(session.id)
+        selectedConnectionID = session.connection.id
+
+        let configuredBatchSize = max(100, initialBatchSize ?? globalSettings.resultsPreviewBatchSize)
+        let initialSQL = sqlBuilder(configuredBatchSize, 0)
+
+        func normalized(_ value: String) -> String? {
+            let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+            return trimmed.isEmpty ? nil : trimmed
+        }
+
+        let previewLimit = max(globalSettings.resultsBackgroundStreamingThreshold, configuredBatchSize)
+        let queryState = QueryEditorState(
+            sql: initialSQL,
+            initialVisibleRowBatch: configuredBatchSize,
+            previewRowLimit: previewLimit,
+            spoolManager: resultSpoolManager
+        )
+        queryState.isResultsOnly = true
+        queryState.shouldAutoExecuteOnAppear = true
+        let databaseSession = session.session
+        queryState.configureDataPreview(batchSize: configuredBatchSize) { offset, limit in
+            let sql = sqlBuilder(limit, offset)
+            return try await databaseSession.simpleQuery(sql)
+        }
+
+        let serverName = normalized(session.connection.connectionName) ?? normalized(session.connection.host)
+        let databaseName = normalized(session.selectedDatabaseName ?? session.connection.database)
+
+        queryState.updateClipboardContext(
+            serverName: serverName,
+            databaseName: databaseName,
+            connectionColorHex: session.connection.metadataColorHex
+        )
+        queryState.updateClipboardObjectName(object.fullName)
+
+        let title = "\(object.name) Data"
+
+        let newTab = WorkspaceTab(
+            connection: session.connection,
+            session: session.session,
+            connectionSessionID: session.id,
+            title: title,
+            content: .query(queryState)
+        )
+
+        tabManager.addTab(newTab)
+        tabManager.activeTabId = newTab.id
+    }
+
+    @MainActor
+    func openDiagramTab(
+        for session: ConnectionSession,
+        object: SchemaObjectInfo
+    ) {
+        sessionManager.setActiveSession(session.id)
+        selectedConnectionID = session.connection.id
+
+        Task {
+            do {
+                let diagramModel = try await buildSchemaDiagram(for: session, object: object)
+                await MainActor.run {
+                    let title = "\(object.name) Diagram"
+                    let newTab = WorkspaceTab(
+                        connection: session.connection,
+                        session: session.session,
+                        connectionSessionID: session.id,
+                        title: title,
+                        content: .diagram(diagramModel)
+                    )
+                    tabManager.addTab(newTab)
+                    tabManager.activeTabId = newTab.id
+                }
+            } catch {
+                await MainActor.run {
+                    self.lastError = DatabaseError.from(error)
+                }
+            }
+        }
+    }
+
     func closeActiveQueryTab() {
         guard let activeTab = tabManager.activeTab else { return }
         tabManager.closeTab(id: activeTab.id)
@@ -528,7 +1005,14 @@ final class AppModel: ObservableObject {
 
         sessionManager.setActiveSession(session.id)
 
-        let duplicateState = QueryEditorState(sql: queryState.sql)
+        let initialBatch = max(100, globalSettings.resultsInitialRowLimit)
+        let previewLimit = max(globalSettings.resultsBackgroundStreamingThreshold, initialBatch)
+        let duplicateState = QueryEditorState(
+            sql: queryState.sql,
+            initialVisibleRowBatch: initialBatch,
+            previewRowLimit: previewLimit,
+            spoolManager: resultSpoolManager
+        )
         duplicateState.splitRatio = queryState.splitRatio
         duplicateState.updateClipboardContext(
             serverName: queryState.clipboardMetadata.serverName,
@@ -1155,7 +1639,10 @@ final class AppModel: ObservableObject {
             let session = ConnectionSession(
                 id: reuseSessionID ?? UUID(),
                 connection: resolvedConnection,
-                session: databaseSession
+                session: databaseSession,
+                defaultInitialBatchSize: globalSettings.resultsInitialRowLimit,
+                defaultBackgroundStreamingThreshold: globalSettings.resultsBackgroundStreamingThreshold,
+                spoolManager: resultSpoolManager
             )
 
             session.selectedDatabaseName = resolvedConnection.database.isEmpty ? nil : resolvedConnection.database
@@ -1274,7 +1761,9 @@ final class AppModel: ObservableObject {
     }
 
     // MARK: - Database Metadata
-func loadDatabaseStructureForSession(_ connectionSession: ConnectionSession) async throws -> DatabaseStructure {
+    func loadDatabaseStructureForSession(_ connectionSession: ConnectionSession) async throws -> DatabaseStructure {
+        try Task.checkCancellation()
+
         connectionSession.structureLoadingState = .loading(progress: 0)
         connectionSession.structureLoadingMessage = "Preparing update…"
 
@@ -1309,6 +1798,8 @@ func loadDatabaseStructureForSession(_ connectionSession: ConnectionSession) asy
             connectionSession.structureLoadingState = .failed(message: "Unsupported database type")
             throw DatabaseError.connectionFailed("Unsupported database type: \(connectionSession.connection.databaseType.displayName)")
         }
+
+        try Task.checkCancellation()
 
         do {
             let structure = try await fetcher.fetchStructure(
@@ -1360,8 +1851,13 @@ func loadDatabaseStructureForSession(_ connectionSession: ConnectionSession) asy
 
             return structure
         } catch {
-            connectionSession.structureLoadingMessage = error.localizedDescription
-            connectionSession.structureLoadingState = .failed(message: error.localizedDescription)
+            if error is CancellationError {
+                connectionSession.structureLoadingMessage = nil
+                connectionSession.structureLoadingState = .idle
+            } else {
+                connectionSession.structureLoadingMessage = error.localizedDescription
+                connectionSession.structureLoadingState = .failed(message: error.localizedDescription)
+            }
             throw error
         }
     }
@@ -1436,12 +1932,24 @@ func loadDatabaseStructureForSession(_ connectionSession: ConnectionSession) asy
 
         switch scope {
         case .full:
+            if Task.isCancelled {
+                session.structureLoadingMessage = nil
+                session.structureLoadingState = .idle
+                return
+            }
+
             do {
                 let structure = try await loadDatabaseStructureForSession(session)
                 session.databaseStructure = structure
                 cacheStructure(structure, for: session.connection.id)
             } catch {
-                session.structureLoadingState = .failed(message: error.localizedDescription)
+                if error is CancellationError {
+                    session.structureLoadingMessage = nil
+                    session.structureLoadingState = .idle
+                } else {
+                    session.structureLoadingMessage = error.localizedDescription
+                    session.structureLoadingState = .failed(message: error.localizedDescription)
+                }
             }
 
         case .selectedDatabase:
@@ -1462,15 +1970,21 @@ func loadDatabaseStructureForSession(_ connectionSession: ConnectionSession) asy
             session.structureLoadingState = .loading(progress: 0)
             session.structureLoadingMessage = "Updating \(targetDatabase)…"
 
+            if Task.isCancelled {
+                session.structureLoadingMessage = nil
+                session.structureLoadingState = .idle
+                return
+            }
+
             guard let fetcher = makeStructureFetcher(for: session.connection) else {
                 session.structureLoadingState = .failed(message: "Unsupported database type")
                 return
             }
 
             do {
-            let structure = try await fetcher.fetchStructure(
-                for: session.connection,
-                credentials: .init(authentication: credentials),
+                let structure = try await fetcher.fetchStructure(
+                    for: session.connection,
+                    credentials: .init(authentication: credentials),
                     selectedDatabase: targetDatabase,
                     reuseSession: session.session,
                     databaseFilter: [targetDatabase],
@@ -1509,8 +2023,13 @@ func loadDatabaseStructureForSession(_ connectionSession: ConnectionSession) asy
                 cacheStructure(updatedStructure, for: session.connection.id)
 
             } catch {
-                session.structureLoadingMessage = error.localizedDescription
-                session.structureLoadingState = .failed(message: error.localizedDescription)
+                if error is CancellationError {
+                    session.structureLoadingMessage = nil
+                    session.structureLoadingState = .idle
+                } else {
+                    session.structureLoadingMessage = error.localizedDescription
+                    session.structureLoadingState = .failed(message: error.localizedDescription)
+                }
             }
         }
     }

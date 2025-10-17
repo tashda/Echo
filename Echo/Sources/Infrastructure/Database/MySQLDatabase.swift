@@ -127,35 +127,123 @@ final class MySQLSession: DatabaseSession {
     }
 
     func simpleQuery(_ sql: String, progressHandler: QueryProgressHandler?) async throws -> QueryResultSet {
-        let rows = try await connection.simpleQuery(sql).get()
-        let metadata = rows.first?.columnDefinitions ?? []
-        let columns = metadata.map { column in
-            ColumnInfo(
-                name: column.name,
-                dataType: column.displayName,
-                isPrimaryKey: column.flags.contains(.PRIMARY_KEY),
-                isNullable: !column.flags.contains(.COLUMN_NOT_NULL),
-                maxLength: column.columnLength == 0 ? nil : Int(column.columnLength)
+        var previewRows: [[String?]] = []
+        previewRows.reserveCapacity(512)
+        var totalRowCount = 0
+
+        let operationStart = CFAbsoluteTimeGetCurrent()
+        let streamingPreviewLimit = 512
+        let maxFlushLatency: TimeInterval = 0.015
+
+        var columnMetadata: [MySQLProtocol.ColumnDefinition41] = []
+        var columnInfo: [ColumnInfo] = []
+        var encounteredError: Error?
+        var wasCancelled = false
+        var worker: ResultStreamBatchWorker?
+
+        let future = connection.simpleQuery(sql) { row in
+            if Task.isCancelled {
+                wasCancelled = true
+                return
+            }
+
+            if columnMetadata.isEmpty {
+                columnMetadata = row.columnDefinitions
+            }
+
+            if columnInfo.isEmpty, !columnMetadata.isEmpty {
+                columnInfo = columnMetadata.map { column in
+                    ColumnInfo(
+                        name: column.name,
+                        dataType: column.displayName,
+                        isPrimaryKey: column.flags.contains(.PRIMARY_KEY),
+                        isNullable: !column.flags.contains(.COLUMN_NOT_NULL),
+                        maxLength: column.columnLength == 0 ? nil : Int(column.columnLength)
+                    )
+                }
+            }
+
+            if worker == nil, let handler = progressHandler, !columnInfo.isEmpty {
+                worker = ResultStreamBatchWorker(
+                    label: "dk.tippr.echo.mysql.streamWorker",
+                    columns: columnInfo,
+                    streamingPreviewLimit: streamingPreviewLimit,
+                    maxFlushLatency: maxFlushLatency,
+                    operationStart: operationStart,
+                    progressHandler: handler
+                )
+            }
+
+            let capturePreview = totalRowCount < streamingPreviewLimit
+            var previewValues: [String?]? = capturePreview ? [] : nil
+            previewValues?.reserveCapacity(columnMetadata.count)
+            var rawCells: [Data?] = []
+            rawCells.reserveCapacity(columnMetadata.count)
+
+            let decodeStart = CFAbsoluteTimeGetCurrent()
+            for (definition, buffer) in zip(columnMetadata, row.values) {
+                rawCells.append(self.rawCellData(from: buffer))
+                if capturePreview {
+                    let data = MySQLData(
+                        type: definition.columnType,
+                        format: row.format,
+                        buffer: buffer,
+                        isUnsigned: definition.flags.contains(.COLUMN_UNSIGNED)
+                    )
+                    previewValues?.append(self.formatter.stringValue(for: data))
+                }
+            }
+            let decodeDuration = CFAbsoluteTimeGetCurrent() - decodeStart
+
+            totalRowCount += 1
+            if let previewRow = previewValues {
+                if previewRows.count < streamingPreviewLimit {
+                    previewRows.append(previewRow)
+                }
+            }
+
+            let encodedRow = ResultBinaryRowCodec.encodeRaw(cells: rawCells)
+
+            worker?.enqueue(
+                .init(
+                    previewValues: previewValues,
+                    encodedRow: encodedRow,
+                    totalRowCount: totalRowCount,
+                    decodeDuration: decodeDuration
+                )
             )
         }
 
-        var results: [[String?]] = []
-        results.reserveCapacity(rows.count)
-
-        for row in rows {
-            results.append(makeRowValues(row, metadata: metadata))
+        do {
+            try await future.get()
+        } catch {
+            encounteredError = error
         }
 
-        if let handler = progressHandler, !columns.isEmpty {
-            let update = QueryStreamUpdate(
-                columns: columns,
-                appendedRows: results,
-                totalRowCount: results.count
-            )
-            handler(update)
+        worker?.finish(totalRowCount: totalRowCount)
+
+        if wasCancelled {
+            throw CancellationError()
         }
 
-        return QueryResultSet(columns: columns.isEmpty ? [ColumnInfo(name: "result", dataType: "text")] : columns, rows: results)
+        if let error = encounteredError {
+            throw DatabaseError.queryError(error.localizedDescription)
+        }
+
+        if columnInfo.isEmpty, !columnMetadata.isEmpty {
+            columnInfo = columnMetadata.map { column in
+                ColumnInfo(
+                    name: column.name,
+                    dataType: column.displayName,
+                    isPrimaryKey: column.flags.contains(.PRIMARY_KEY),
+                    isNullable: !column.flags.contains(.COLUMN_NOT_NULL),
+                    maxLength: column.columnLength == 0 ? nil : Int(column.columnLength)
+                )
+            }
+        }
+
+        let resolvedColumns = columnInfo.isEmpty ? [ColumnInfo(name: "result", dataType: "text")] : columnInfo
+        return QueryResultSet(columns: resolvedColumns, rows: previewRows, totalRowCount: totalRowCount)
     }
 
     func queryWithPaging(_ sql: String, limit: Int, offset: Int) async throws -> QueryResultSet {
@@ -345,19 +433,12 @@ final class MySQLSession: DatabaseSession {
             .filter { !$0.isEmpty && !excludedSchemas.contains($0.lowercased()) }
     }
 
-    private func makeRowValues(_ row: MySQLRow, metadata: [MySQLProtocol.ColumnDefinition41]) -> [String?] {
-        var values: [String?] = []
-        values.reserveCapacity(metadata.count)
-        for (definition, buffer) in zip(metadata, row.values) {
-            let data = MySQLData(
-                type: definition.columnType,
-                format: row.format,
-                buffer: buffer,
-                isUnsigned: definition.flags.contains(.COLUMN_UNSIGNED)
-            )
-            values.append(formatter.stringValue(for: data))
-        }
-        return values
+    private func rawCellData(from buffer: ByteBuffer?) -> Data? {
+        guard var buffer else { return nil }
+        let readable = buffer.readableBytes
+        guard readable > 0 else { return Data() }
+        guard let bytes = buffer.readBytes(length: readable) else { return nil }
+        return Data(bytes)
     }
 
     private func makeString(_ row: MySQLRow, index: Int) -> String? {

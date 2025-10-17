@@ -8,7 +8,9 @@
 import Foundation
 import SwiftUI
 import Combine
+#if os(macOS)
 import AppKit
+#endif
 
 /// Central coordinator that manages the app's main dependencies and initialization
 @MainActor
@@ -21,79 +23,41 @@ final class AppCoordinator: ObservableObject {
     let appModel: AppModel
     let appState: AppState
     let clipboardHistory: ClipboardHistoryStore
+    let themeManager: ThemeManager
+    let resultSpoolManager: ResultSpoolManager
     private var cancellables = Set<AnyCancellable>()
-    
-    private var workspaceWindowController: WorkspaceWindowController?
-    private var connectionsWindowController: ConnectionsWindowController?
-    
+#if os(macOS)
+    private var windowFocusObservers: [NSObjectProtocol] = []
+#endif
+
     // MARK: - Initialization State
     @Published private(set) var isInitialized = false
-    
+
     // MARK: - Private Init (Singleton)
     private init() {
-        // Initialize dependencies in the correct order
         self.appState = AppState()
         let clipboardHistory = ClipboardHistoryStore()
         self.clipboardHistory = clipboardHistory
-        self.appModel = AppModel(clipboardHistory: clipboardHistory)
+        let spoolRoot = ResultSpoolManager.defaultRootDirectory()
+        let spoolConfig = ResultSpoolConfiguration.defaultConfiguration(rootDirectory: spoolRoot)
+        self.resultSpoolManager = ResultSpoolManager(configuration: spoolConfig)
+        self.appModel = AppModel(clipboardHistory: clipboardHistory, resultSpoolManager: resultSpoolManager)
+        self.themeManager = ThemeManager.shared
         self.appModel.tabManager.delegate = self
         setupBindings()
+#if os(macOS)
+        observeWindowFocusChanges()
+#endif
     }
-    
+
     // MARK: - Public Methods
     func initialize() async {
         guard !isInitialized else { return }
 
-        // Perform any async initialization here
         await appModel.load()
 
         isInitialized = true
-        ensureWorkspaceWindow(makeKey: true)
-        workspaceWindowController?.bind(to: appModel.tabManager.activeTab)
-    }
-
-    // MARK: - Window Lifecycle
-
-    private func ensureWorkspaceWindow(makeKey: Bool) {
-        if workspaceWindowController == nil {
-            workspaceWindowController = WorkspaceWindowController(coordinator: self)
-        }
-        workspaceWindowController?.show(makeKey: makeKey)
-    }
-
-    func openInitialWorkspaceIfNeeded() {
-        guard appModel.tabManager.tabs.isEmpty else { return }
-        ensureWorkspaceWindow(makeKey: true)
-        if appModel.sessionManager.activeSessions.isEmpty {
-            showConnectionsWindowIfNeeded(makeKey: true)
-        } else {
-            appModel.openQueryTab()
-        }
-    }
-
-    func openQueryTabDuplicatingSession(of tab: WorkspaceTab) {
-        if let session = appModel.sessionManager.activeSessions.first(where: { $0.id == tab.connectionSessionID }) {
-            appModel.openQueryTab(for: session)
-        } else {
-            appModel.openQueryTab()
-        }
-    }
-
-    func workspaceWindowDidBecomeMain(_ controller: WorkspaceWindowController) {
-        guard controller === workspaceWindowController else { return }
-        if let activeTab = appModel.tabManager.activeTab {
-            appModel.sessionManager.setActiveSession(activeTab.connectionSessionID)
-            workspaceWindowController?.bind(to: activeTab)
-        }
-    }
-
-    func workspaceWindowWillClose(_ controller: WorkspaceWindowController) {
-        guard controller === workspaceWindowController else { return }
-        workspaceWindowController = nil
-    }
-
-    func reopenLastWindow() {
-        ensureWorkspaceWindow(makeKey: true)
+        ensureInitialWorkspaceState()
     }
 
     // MARK: - Theme Binding
@@ -107,6 +71,14 @@ final class AppCoordinator: ObservableObject {
             .store(in: &cancellables)
 
         ThemeManager.shared.$effectiveColorScheme
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                guard let self else { return }
+                self.applyEditorTheme(project: self.appModel.selectedProject, global: self.appModel.globalSettings)
+            }
+            .store(in: &cancellables)
+
+        ThemeManager.shared.$activeTheme
             .receive(on: RunLoop.main)
             .sink { [weak self] _ in
                 guard let self else { return }
@@ -129,18 +101,25 @@ final class AppCoordinator: ObservableObject {
             .sink { [weak self] sessions in
                 guard let self else { return }
                 if sessions.isEmpty {
-                    if self.appModel.tabManager.tabs.isEmpty {
-                        self.showConnectionsWindowIfNeeded(makeKey: true)
-                    }
+#if !os(macOS)
+                    self.presentConnectionsIfNeeded()
+#endif
                 } else {
-                    self.hideConnectionsWindowIfNeeded()
+                    self.dismissConnectionsIfNeeded()
                 }
             }
             .store(in: &cancellables)
     }
 
     private func applyEditorAppearance(project: Project?, global: GlobalSettings) {
+        ThemeManager.shared.applyAppearanceMode(global.appearanceMode)
+        ThemeManager.shared.applyResultsGridPreferences(
+            themeResultsGrid: global.themeResultsGrid,
+            alternateRowShading: global.resultsAlternateRowShading
+        )
         appState.sqlEditorDisplay = SQLEditorThemeResolver.resolveDisplayOptions(globalSettings: global, project: project)
+        appState.themeTabs = global.themeTabs
+        appState.keepTabsInMemory = global.keepTabsInMemory
         applyEditorTheme(project: project, global: global)
     }
 
@@ -149,20 +128,88 @@ final class AppCoordinator: ObservableObject {
         appState.sqlEditorTheme = SQLEditorThemeResolver.resolve(globalSettings: global, project: project, tone: tone)
     }
 
-    private func updateWindowBindingForActiveTab() {
-        workspaceWindowController?.bind(to: appModel.tabManager.activeTab)
+    private func ensureInitialWorkspaceState() {
+        if appModel.sessionManager.activeSessions.isEmpty {
+#if !os(macOS)
+            presentConnectionsIfNeeded()
+#endif
+        } else if appModel.tabManager.tabs.isEmpty {
+            appModel.openQueryTab()
+        }
     }
+
+    private func presentConnectionsIfNeeded() {
+        guard !appModel.isManageConnectionsPresented else { return }
+#if os(macOS)
+        ManageConnectionsWindowController.shared.present()
+#else
+        appModel.isManageConnectionsPresented = true
+#endif
+    }
+
+    private func dismissConnectionsIfNeeded() {
+#if os(macOS)
+        if appModel.isManageConnectionsPresented {
+            ManageConnectionsWindowController.shared.closeWindow()
+        }
+#else
+        appModel.isManageConnectionsPresented = false
+#endif
+    }
+
+#if os(macOS)
+    private func observeWindowFocusChanges() {
+        let center = NotificationCenter.default
+
+        let keyObserver = center.addObserver(
+            forName: NSWindow.didBecomeKeyNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.updateWorkspaceKeyState()
+            }
+        }
+
+        let resignObserver = center.addObserver(
+            forName: NSWindow.didResignKeyNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.updateWorkspaceKeyState()
+            }
+        }
+
+        windowFocusObservers = [keyObserver, resignObserver]
+
+        Task { @MainActor [weak self] in
+            self?.updateWorkspaceKeyState()
+        }
+    }
+
+    private func updateWorkspaceKeyState() {
+        guard let keyWindow = NSApplication.shared.keyWindow else {
+            appModel.isWorkspaceWindowKey = false
+            return
+        }
+        appModel.isWorkspaceWindowKey = keyWindow.identifier == AppWindowIdentifier.workspace
+    }
+#endif
+
+#if os(macOS)
+    deinit {
+        windowFocusObservers.forEach { NotificationCenter.default.removeObserver($0) }
+    }
+#endif
 }
 
 // MARK: - TabManagerDelegate
 
 extension AppCoordinator: TabManagerDelegate {
     func tabManager(_ manager: TabManager, didAdd tab: WorkspaceTab) {
-        hideConnectionsWindowIfNeeded()
-        ensureWorkspaceWindow(makeKey: manager.activeTabId == tab.id)
         if manager.activeTabId == tab.id {
             appModel.sessionManager.setActiveSession(tab.connectionSessionID)
-            workspaceWindowController?.bind(to: tab)
         }
     }
 
@@ -201,44 +248,24 @@ extension AppCoordinator: TabManagerDelegate {
     func tabManager(_ manager: TabManager, didRemoveTabID tabID: UUID) {
         if let activeTab = manager.activeTab {
             appModel.sessionManager.setActiveSession(activeTab.connectionSessionID)
-            workspaceWindowController?.bind(to: activeTab)
         } else {
             appModel.sessionManager.activeSessionID = nil
-            workspaceWindowController?.bind(to: nil)
         }
     }
 
     func tabManager(_ manager: TabManager, didSetActiveTabID tabID: UUID?) {
         guard let tabID, let tab = manager.getTab(id: tabID) else {
             appModel.sessionManager.activeSessionID = nil
-            workspaceWindowController?.bind(to: nil)
+#if !os(macOS)
+            presentConnectionsIfNeeded()
+#endif
             return
         }
 
-        ensureWorkspaceWindow(makeKey: true)
         appModel.sessionManager.setActiveSession(tab.connectionSessionID)
-        workspaceWindowController?.bind(to: tab)
     }
 
     func tabManagerDidReorderTabs(_ manager: TabManager) {
-        updateWindowBindingForActiveTab()
-    }
-}
-
-// MARK: - Connections Window
-
-private extension AppCoordinator {
-    func showConnectionsWindowIfNeeded(makeKey: Bool) {
-        if connectionsWindowController == nil {
-            connectionsWindowController = ConnectionsWindowController(coordinator: self)
-        }
-        connectionsWindowController?.show(makeKey: makeKey)
-    }
-
-    func hideConnectionsWindowIfNeeded() {
-        if let controller = connectionsWindowController {
-            controller.window?.close()
-            connectionsWindowController = nil
-        }
+        // Future hook for syncing external UI
     }
 }

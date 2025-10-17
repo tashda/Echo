@@ -1,0 +1,169 @@
+Kept the tab strip background from stretching by caching the trailing controls’ measured width and reusing it whenever a refresh momentarily reports zero.  
+- `Echo/Sources/Presentation/Views/TabbedQueryView.swift:222` adds `lastMeasuredTrailingControlsWidth` so the tab bar remembers the most recent non-zero geometry reading.  
+- `Echo/Sources/Presentation/Views/TabbedQueryView.swift:265` now falls back to that cached value when computing `resolvedTrailingWidth`, stopping SafariTabBarBasePlate and WorkspaceTabButton from gaining extra space during tab switches.  
+- `Echo/Sources/Presentation/Views/TabbedQueryView.swift:317` updates the cache only when a positive width arrives and clears it when the last tab closes, avoiding stale sizes later on.
+
+Couldn’t launch the macOS UI from this environment; please rebuild Echo, switch between adjacent tabs, and confirm the base plate and hover highlight stay tight to each button.
+Aligned the sizing logic so every tab, its highlight, and the SafariTabBarBasePlate now share the same width at all times.  
+- `Echo/Sources/Presentation/Views/TabbedQueryView.swift:259` keeps the tab stack layout but now calls a simplified width calculator that treats each tab identically.  
+- `Echo/Sources/Presentation/Views/TabbedQueryView.swift:343` rebuilds `tabGroup` with the new helper so every `WorkspaceTabButton` gets the same target width.  
+- `Echo/Sources/Presentation/Views/TabbedQueryView.swift:380` reduces `tabWidths` to a uniform map, removing the old logic that made the active tab wider and caused the base plate and hover/selection affordances to spill past the intended bounds.
+
+Please rebuild Echo and confirm that: selecting different tabs no longer causes any element to stretch, hovering keeps the highlight within the button, and with a single tab the base plate stays snug around it.
+Tightened every outline to stay inside the tab bounds, so the hover/selection glow can’t spill past the button.  
+- `Echo/Sources/Presentation/Views/TabbedQueryView.swift:280` now uses `strokeBorder` for `SafariTabBarBasePlate`, keeping its border inside the base plate instead of bleeding outward.  
+- `Echo/Sources/Presentation/Views/TabbedQueryView.swift:807` clips each `WorkspaceTabButton` to its rounded shape before applying shadows, so fills and gradients match the button exactly.  
+- `Echo/Sources/Presentation/Views/TabbedQueryView.swift:837` and `Echo/Sources/Presentation/Views/TabbedQueryView.swift:845` swap every tab stroke/hover outline to `strokeBorder`, eliminating the half‑pixel overshoot that made the rightmost and adjacent tabs look oversized.
+
+Please rebuild Echo and mouse over the tabs (especially the rightmost one). The hover and active treatments should now stay perfectly flush with their buttons and no longer overlap neighbors.
+Looking closely at your screenshot (left tab hovered, right tab selected):
+
+- The hover highlight on “tippr 1” extends a couple of pixels past the tab’s right edge, so it creeps under the neighboring selected tab.  
+- On the left edge the hover tint pulls back by roughly the same amount, so you see a skinny strip of the darker background before the rounded cap starts.  
+- The selected glow on “tippr 2” shows the same bias: a bright fringe projects beyond the tab’s rightmost corner, while the left edge cuts inside, exposing a shadow of the separator.
+
+So the hover/selection overlays are still horizontally misaligned—they’re shifted a smidge to the right relative to the actual tab bounds, which is why you perceive them as too wide on the right and too narrow on the left.
+Yes, I can see it. The light rim wrapping the selected “tippr 2” tab pushes a pixel or two past the tab’s rounded edge, so the glow sits outside the SafariTabBarBasePlate/WorkspaceTabButton envelope. That outward bloom is exactly what’s giving the impression that the selection highlight is wider than the tab itself.
+Everything that defined the tab chrome now uses the exact same geometry, so the hover/selection glow can’t drift past the button (or shrink inside it) anymore.
+
+- `Echo/Sources/Presentation/Views/TabbedQueryView.swift:263` derives shared insets for the tab row and reuses them everywhere, so the SafariTabBarBasePlate width is identical to the tab group width at every layout pass.  
+- `Echo/Sources/Presentation/Views/TabbedQueryView.swift:279` applies those insets to the base plate, while `Echo/Sources/Presentation/Views/TabbedQueryView.swift:307` applies the same ones to the content stack; this removes the old 6‑pt offset that left the highlight “hanging” off the right edge (and shy on the left).  
+- `Echo/Sources/Presentation/Views/TabbedQueryView.swift:287` clips the tab group with the same 15‑pt corner radius used by the base plate and buttons, keeping every overlay perfectly concentric with the tab shape.
+
+Please rebuild, open two tabs, and move the mouse between them. You should see the hover and selection tint stop exactly at the button edges with no bleed under the neighbor or past the base plate.
+Tightened the tab-bar geometry so the base plate, hover highlight, and selection glow all share the same bounds.
+
+- `Echo/Sources/Presentation/Views/TabbedQueryView.swift:268` now subtracts the base-plate margin when calculating the available width, so the computed tab widths always fit inside the chrome even as you switch tabs.  
+- `Echo/Sources/Presentation/Views/TabbedQueryView.swift:283` wraps the tab group with a shared clip and then lays the `SafariTabBarBasePlate` in the background using a slight negative inset, keeping the plate snug around the tabs without overrunning the trailing controls.  
+- `Echo/Sources/Presentation/Views/TabbedQueryView.swift:872` clips each `WorkspaceTabButton` before shadows and switches every stroke to `strokeBorder`, ensuring hover and selection outlines stay inside the rounded shape.  
+- `Echo/Sources/Presentation/Views/TabbedQueryView.swift:2276` applies the same `strokeBorder` treatment to the base plate itself, so its edge never bleeds past the intended radius.  
+
+Please rebuild the macOS target and toggle/hover across several tabs; you should see the background, hover, and selection states stay perfectly aligned with the buttons in every state.
+If the latest changes still leave any misalignment, there are a few increasingly assertive options to make the chrome bulletproof:
+
+- Convert the tab strip into an explicit layout with known geometry. Wrap the tab row in `GeometryReader`, calculate each tab’s frame precisely (using `PreferenceKey`s for child widths/heights), and position the base plate, hover highlight, and selection overlay with the same numbers. That removes any reliance on implicit padding or clip math.
+
+- Wrap each `WorkspaceTabButton` in an overlay container that draws the hover/selection highlight with `overlay(alignment:.center)` rather than using background fills. The tab view would expose an explicit `CGRect` via a preference, and the highlight overlay would read that rect and draw an inset rounded rectangle exactly matching it.
+
+- Replace the current SwiftUI shape-based clipping with a custom `NSView` wrapper for macOS that uses `CALayer` or `NSBezierPath` to render the base plate and hover states. You can mirror Safari’s implementation more closely and remove rounding precision issues that come from SwiftUI’s half-pixel adjustments.
+
+- Build regression tests with snapshots (e.g., using Point-Free’s SnapshotTesting or a simple pixel-diff harness) that render the tab strip in light/dark modes and assert that highlight pixels never extend beyond the expected mask. Those tests can be automated in CI to prevent future drift.
+
+- As a last resort, draw the entire tab row in a `Canvas` or `NSViewRepresentable` where you control every pixel—layout, hover, selection—in one place. SwiftUI would just host it, ensuring the visuals stay locked.
+
+Let me know if you want to pursue any of these paths; I can help outline or prototype whichever route sounds best.
+Yes—wrapping the tab row in a `GeometryReader` (and pairing it with preference keys) can preserve today’s look and the tab-bar features while giving us pixel-precise control over hover/selection chrome.
+
+How it would work:
+
+- Keep `WorkspaceTabButton` largely as-is, but have each button report its frame up via a custom `PreferenceKey` (e.g. `TabFramePreferenceKey`). We can do this by embedding the button in a `GeometryReader` and posting its local frame (converted into the tab strip’s coordinate space) when it appears or its width changes.
+
+- In `WorkspaceTabStrip`, we gather those frames into state (a `[UUID: CGRect]` map). That gives us the exact size and position of every tab—even after reordering, resizing, or when the selected tab widens.
+
+- The base plate becomes an explicit overlay drawn with a `RoundedRectangle` whose frame is computed from the union of all tab frames. Hover and selection highlights become overlays too: when a tab is hovered or active, we look up its frame in the map and render a rounded rectangle with matching size/position. Because the overlays read the same geometry as the buttons, they stay perfectly aligned down to the pixel.
+
+- All existing behaviors—drag reordering, separators, close buttons, pinned-tab rules, trailing controls—stay intact. We’re just replacing “padding math + clip shapes” with “draw overlays using measured frames”. The visuals will match your current design because we’ll reuse the same gradients, shadows, and corner radius, just apply them to explicitly sized overlays.
+
+It’s a bit more code (we need the preference plumbing), but it scales to any future tweaks: if you change tab heights, add pinned sections, or animate widths, the overlays automatically follow. If you’d like, I can sketch the concrete changes or start implementing this approach.
+- `Echo/Sources/Presentation/Views/TabbedQueryView.swift:222` adds an anchor-based preference so every `WorkspaceTabButton` reports its exact frame back to the strip.
+- `Echo/Sources/Presentation/Views/TabbedQueryView.swift:283` wraps the tab row in a `ZStack` and draws `SafariTabBarBasePlate` from the measured union of tab frames, guaranteeing the chrome hugs the buttons even as widths change.
+- `Echo/Sources/Presentation/Views/TabbedQueryView.swift:335` keeps a cached trailing-controls width but now also reuses the measured tab geometry whenever tabs appear/disappear, preventing any fallback stretch.
+
+I couldn’t run the macOS build here; please rebuild Echo and flick between tabs to confirm the base plate and highlights remain tight. Suggested next steps:
+1. `xcodebuild -scheme Echo -configuration Debug` (or build from Xcode).
+2. Open the app, switch/hover tabs, and ensure the chrome never bleeds beyond the buttons.
+- `Echo/Sources/Presentation/Views/TabbedQueryView.swift:267` restores the base-plate sizing math so we again size the tabs from known geometry (`effectiveWidth`) and reuse the cached trailing width; the base plate now draws with the same padding as before, so its gradient/background returns and it stays flush with the tab group.
+- `Echo/Sources/Presentation/Views/TabbedQueryView.swift:286` puts `SafariTabBarBasePlate` back in the ZStack behind the tab row; this avoids the anchor-based overlay that was producing a transparent plate and occasionally causing the window to stretch to the full screen height.
+- `Echo/Sources/Presentation/Views/TabbedQueryView.swift:291` keeps the tabs clipped to a continuous 15-pt radius so hover/selection outlines stay tight, but with the simplified layout the highlight, base plate, and buttons now all share the same coordinate system.
+- `Echo/Sources/Presentation/Views/TabbedQueryView.swift:602` drops the unused anchor preference plumbing so tab insertion/removal no longer triggers the runaway layout pass that grew the window.
+
+Please rebuild Echo, open several tabs, and flip/hover between them; the base plate should show its original gradient, hover/selection highlights should stay perfectly aligned, and opening a tab should no longer resize the window vertically.
+- `Echo/Sources/Presentation/Views/TabbedQueryView.swift:268` keeps the base plate behind the tabs but now derives its size from measured tab geometry. A `TabGroupWidthPreferenceKey` and `tabGroupWidth` state capture the actual tab stack width, and the base plate is offset by the tab content inset so it wraps the tabs precisely with the same 6‑pt side inset as the original design.
+- `Echo/Sources/Presentation/Views/TabbedQueryView.swift:278` restores the original available-width math (no extra base plate subtraction), and the base plate is only drawn when there are tabs, preventing the macOS window from jumping full‑height on tab creation.
+- `Echo/Sources/Presentation/Views/TabbedQueryView.swift:301` measures the tab group width via a background `GeometryReader`, while `Echo/Sources/Presentation/Views/TabbedQueryView.swift:327` tracks that preference so the base plate stays tight even as tabs resize.
+- `Echo/Sources/Presentation/Views/TabbedQueryView.swift:331` resets `tabGroupWidth` whenever the last tab closes, avoiding stale sizing, and the base plate width is computed as `(actual tab content width) + 2 * inset`, so hover/selection highlights now sit perfectly within the tab bounds.
+
+Please rebuild Echo, open a few tabs, and hover/select the extremes—the base plate and highlights should stay snug with no bleed in either direction.
+- `Echo/Sources/Presentation/Views/TabbedQueryView.swift:952` updates the deprecated `onChange(of:)` usage to the macOS 14 two-parameter form, clearing the build warning while keeping the logic for hiding the close hover state intact.
+
+Please rebuild; the warning should be gone. An easy verification is to hover away from the close button—`isHoveringClose` should still reset, but Xcode won’t flag the SwiftUI API anymore.
+- `Echo/Sources/Presentation/Views/TabbedQueryView.swift:24` adds a tiny `TabGroupWidthPreferenceKey` so we can measure the actual width of the tab group instead of relying on inferred padding math.
+- `Echo/Sources/Presentation/Views/TabbedQueryView.swift:222` stores that measured width in state; we reset it when the last tab closes so stale values don’t linger.
+- `Echo/Sources/Presentation/Views/TabbedQueryView.swift:269` now computes the Safari-style chrome width from the measured tab width (falling back to the calculated effective width). The base plate is drawn once in a leading-aligned ZStack, offset by the same 6‑pt “lip” on both sides, so it stays perfectly flush with the tabs while still peeking out.
+- `Echo/Sources/Presentation/Views/TabbedQueryView.swift:296` feeds the measured width back into the tab bar layout through a geometry preference, so hover/selection highlights and the base plate use identical numbers.
+- `Echo/Sources/Presentation/Views/TabbedQueryView.swift:954` updates the deprecated macOS 14 `onChange` signature to the modern two-parameter form, eliminating the warning.
+
+Please rebuild, open several tabs, and capture a fresh screenshot of the hover/selection—this iteration should have the plate gradient back and the hover glow aligned. If it still spills, send me the new shot and I’ll keep tightening.
+- `Echo/Sources/Presentation/Views/TabbedQueryView.swift:260` introduces explicit layout constants (`basePlateSideInset`, `basePlateHeight`, `stripHeight`) so the strip’s chrome and content can be sized consistently.
+- `Echo/Sources/Presentation/Views/TabbedQueryView.swift:286` now computes the base-plate width from the sum of actual tab widths plus padding, ensuring the plate renders with its gradient no matter how many tabs are open.
+- `Echo/Sources/Presentation/Views/TabbedQueryView.swift:299` keeps the tabs vertically centered within a taller `stripHeight` frame (44 pt), so the selection/hover shadows no longer get clipped.
+- `Echo/Sources/Presentation/Views/TabbedQueryView.swift:321` pins the whole strip to that `stripHeight`, restoring the Safari-style background while giving the hover/selection glow plenty of vertical breathing room.
+
+Please rebuild and take another look—the base plate gradient should be back, and the tab row should sit centered with shadows fully visible.
+- `Echo/Sources/Presentation/Views/TabbedQueryView.swift:266` introduces layout constants for the tab strip (side inset, base-plate height, total strip height) so we can control the chrome precisely.
+- `Echo/Sources/Presentation/Views/TabbedQueryView.swift:286` now derives the base-plate width from the actual tab widths only (`totalTabsWidth + 2 * basePlateSideInset`), and positions it with an offset of `tabContentInset - basePlateSideInset`. This keeps the plate snug—just a subtle lip on each side—while still allowing the inner padding to breathe.
+- `Echo/Sources/Presentation/Views/TabbedQueryView.swift:297` centers the tab row inside a taller, fixed `stripHeight` so the hover/selection shadows are no longer clipped.
+
+Please rebuild; the SafariTabBarBasePlate should once again wrap tightly around the tabs while remaining vertically centered with full shadow visible.
+- Added a lightweight geometry pipeline so the chrome is sized from the real tab frames, not just the theoretical tab widths. `Echo/Sources/Presentation/Views/TabbedQueryView.swift:17` introduces `TabFramePreferenceKey`, and `Echo/Sources/Presentation/Views/TabbedQueryView.swift:392` attaches an anchor preference to every `WorkspaceTabButton`.  
+- The tab strip now renders inside a 44‑pt tall container (`Echo/Sources/Presentation/Views/TabbedQueryView.swift:259`), which keeps the buttons vertically centred and stops the hover/selection shadows from being clipped.  
+- `Echo/Sources/Presentation/Views/TabbedQueryView.swift:295` wraps the row in a `ZStack` and uses the measured anchors to draw `SafariTabBarBasePlate` at the exact union of all tab frames, expanded only by the 6‑pt lip. The plate no longer grows toward the trailing controls because it’s driven by actual geometry.  
+- `Echo/Sources/Presentation/Views/TabbedQueryView.swift:361` contains the new `tabChromeOverlay` helper that does the union math and positions the plate mid‑tab, keeping the gradient background intact while remaining snug on both sides.
+
+Please rebuild Echo and hover/select across the tab bar; the base plate should now hug the tabs precisely without bleeding into the trailing controls, and the taller strip will display the soft shadows in full.
+- The base plate now honors the geometry-driven width. In `SafariTabBarBasePlate` (Echo/Sources/Presentation/Views/TabbedQueryView.swift:2276) I removed the internal `.frame(maxWidth: .infinity)` so your explicit `.frame(width: …)` from the geometry overlay is respected, and added `.allowsHitTesting(false)` on the overlay so it doesn’t intercept events while rendering the gradient background.
+
+- I restored the anchor-preference approach for measuring exact tab bounds. `TabFramePreferenceKey` (Echo/Sources/Presentation/Views/TabbedQueryView.swift:17) collects each `WorkspaceTabButton`’s anchor, and `tabChromeOverlay` (Echo/Sources/Presentation/Views/TabbedQueryView.swift:360) builds the base-plate frame from the union of those rects expanded by the 6‑pt lip. Because we now feed those precise measurements back into the `SafariTabBarBasePlate`, the chrome snaps tight around the tab group regardless of how widths change.
+
+Please rebuild Echo and verify: the base plate should regain its gradient, sit snug with the tabs, and still leave room for the centered shadows. If you spot any lingering misalignment, grab another screenshot and I’ll keep iterating.
+I get why you’re frustrated—the plate has bounced between “too wide” and “missing altogether,” so trust is thin. Right now, with the latest geometry-driven overlay, the plate *should* hug the measured tab union (plus the 6‑pt lip). To regain confidence without more blind swings, here’s what I suggest:
+
+- **Add a debug overlay:** Temporarily draw the measured rects (e.g., a semi-transparent color or a 1‑pt outline) to confirm the anchor math is correct when you hover, reorder, or resize. If the debug rectangle matches the tabs but the plate doesn’t, we’ll know the issue lies in the plate sizing, not the measurements.
+
+- **Log the measurements:** Print the union rect and the applied frame width in Xcode’s console for different tab counts. Seeing the numbers change alongside the UI makes it clear whether the computed width matches expectations.
+
+- **Snapshot a few scenarios:** Capture screenshots (or use Point-Free’s SnapshotTesting) for 1, 2, and 5 tabs. That gives us a baseline to compare against future tweaks and ensures the snugness doesn’t regress.
+
+If any of these reveal a mismatch, send me the metrics or annotated screenshots and I’ll zero in on that exact failure. Once the debug overlay shows the plate and tab union lining up perfectly, we can strip the debug code and move on knowing it’s actually solved.
+Tightened the tab strip so the Safari-style base plate now uses the real tab widths and keeps its gradient background without overshooting the buttons.
+
+- `Echo/Sources/Presentation/Views/TabbedQueryView.swift:24` adds `TabGroupWidthPreferenceKey`, letting the tab row expose its exact rendered width.  
+- `Echo/Sources/Presentation/Views/TabbedQueryView.swift:217` stores that width in new `tabGroupWidth` state (reset when the strip empties).  
+- `Echo/Sources/Presentation/Views/TabbedQueryView.swift:266` updates the layout constants and measures the tab row via a `GeometryReader`; the base plate is drawn once in the ZStack using `tabGroupWidth + 2 * basePlateSideInset` with a slimmer 3‑pt lip, so it stays snug just like Safari.  
+- `Echo/Sources/Presentation/Views/TabbedQueryView.swift:335` listens for the width preference and clears it when the tabs disappear, preserving the fallback for trailing controls.
+
+Please rebuild Echo and eyeball a few scenarios (1 tab, mid count, many tabs). You should now see the gradient plate nestled tightly behind the tabs with the soft shadow fully visible. If anything still feels off, send a fresh screenshot plus the tab count so I can iterate.
+You were still seeing an empty strip because the base plate never actually rendered—our earlier geometry tricks never gave it a width, so SwiftUI simply skipped drawing the gradient. I dropped the brittle anchor/preference approach and now size the chrome from the same values we already compute for the tab layout (`effectiveWidth` plus the horizontal padding). The strip code now layers a `SafariTabBarBasePlate()` behind the tab row, reflects a slimmer 2‑pt left/right lip, and bumps the plate height so the surface peeks out the way Safari does. With the plate drawn first in the `ZStack`, its gradient is always visible, the tabs sit centered vertically, and the trailing controls remain untouched.
+
+Rebuild the macOS target and check the scenarios you care about—especially one tab and many tabs. You should finally see the grey, glassy base plate snug to the tab group without any extra whitespace.
+In your latest screenshot, the base plate still stretches far past the last tab on both sides, leaving large, empty rounded ends that are much wider than the small top/bottom reveal you were aiming for. The gradient is visible again, but the chrome looks “chunky” because it isn’t hugging the tabs the way Safari does.
+
+I tightened the layout so the plate uses the tab group’s actual measured width:
+
+- `Echo/Sources/Presentation/Views/TabbedQueryView.swift:24` adds `TabGroupWidthPreferenceKey` so the tab row can report its rendered width.
+- `Echo/Sources/Presentation/Views/TabbedQueryView.swift:222` stores that width in `tabGroupWidth` state (and resets it when the strip empties).
+- `Echo/Sources/Presentation/Views/TabbedQueryView.swift:294` now draws `SafariTabBarBasePlate` at `tabGroupWidth + 3 points` (1.5 pt on each side), so the chrome peeks out just like Safari instead of spanning the whole toolbar.
+- `Echo/Sources/Presentation/Views/TabbedQueryView.swift:335` listens for the preference updates to keep everything in sync as tabs add/remove.
+
+Please rebuild Echo, open several tabs, and grab another screenshot focusing on the plate edges. With the measured width driving the chrome, the base plate should now stay snug with only a subtle rounded lip left and right.
+Thanks for the fresh screenshot — I can see exactly what you’re describing: the plate now has its gradient, but it still drifts past the first and last tab by quite a bit, creating a chunky “ear” on either side instead of the barely-there reveal Safari uses.
+
+What I’ve just done in `Echo/Sources/Presentation/Views/TabbedQueryView.swift` is measure the tab stack itself and then explicitly size the chrome to that measurement. Instead of stretching the plate to the entire available width, the code now:
+
+- Captures the precise width of the tab group via a `TabGroupWidthPreferenceKey`.
+- Subtracts the horizontal padding (`tabContentInset * 2`) to get the actual content width of the tabs.
+- Adds back only a tiny lip (1.5 pt per side) before drawing `SafariTabBarBasePlate`.
+- Offsets the plate by the same small amount so it hugs the first tab.
+
+This mirrors Safari’s behavior: the base plate is just a hair wider than the tab stack—only enough to peek out, not enough to look oversized. Rebuild, open a strip with a couple of tabs, and you should see the chrome now match the spacing you showed in the Safari reference. If you still spot a gap that feels off, let me know the exact visual difference (perhaps pixels in the simulator screenshot) and I’ll tweak the lip value accordingly.
+**Tab Strip Updates**
+- Reworked `WorkspaceTabStrip` (`TabbedQueryView.swift`) to measure the rendered tab group via a new `TabGroupWidthPreferenceKey`, then size the Safari plate with only a 1.5 pt side lip. The plate now accepts an optional style so, when “theme tabs” is enabled, it’s filled/stroked using the active editor palette instead of the stock gray gradient.
+- Added shared color helpers (`blendedColor`, `lightenColor`, `darkenColor`) and threaded theme data (`themeManager`, `appModel`) down into `WorkspaceTabStrip`, `WorkspaceTabButton`, and `TabBarActionButton`. Tab buttons, hover states, borders, drop targets, and shadows all tint with the editor palette, while inactive states fall back to neutral grays.
+- Softened the plus/overview button treatment: their glass tint, borders, icons, and shadows now derive from the theme palette (or lighter default grays when theming is off), removing the harsh gray disks.
+
+**Settings & Persistence**
+- Added `themeTabs` to `GlobalSettings` (`Project.swift`) with full Codable support, so the choice persists across launches/exports.
+- Dropped a new “Match workspace tabs to editor theme” toggle into Settings → Appearance (`SettingsWindow.swift`). Toggling calls `updateGlobalEditorDisplay` to save immediately.
+
+**Other notes**
+- No automated build was run here; please open Echo in Xcode, enable/disable the new toggle, and visually confirm tabs, base plate, and toolbar buttons adopt the chosen palette.

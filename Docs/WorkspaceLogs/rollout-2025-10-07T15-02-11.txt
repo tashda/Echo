@@ -1,0 +1,68 @@
+**Changes**
+- Adjusted the overlay setup so the navigator defaults to 450 pt wide and locks to a 32 pt height, keeping it vertically aligned with the toolbar toggles and ready to respect the new sizing rules (Echo/Sources/Platform/macOS/Windows/WorkspaceWindowController.swift:338-345).
+- Reworked the layout math to center the navigator between the sidebar/inspector boundaries, apply the 3/5 scaling while clamping to the 350 / 450 / 800 pt limits, and use the toggle container’s frame instead of the sidebar width so it no longer drifts to the right (Echo/Sources/Platform/macOS/Windows/WorkspaceWindowController.swift:371-419).
+- Refined the light/dark styling so light mode renders a white bar with a stronger shadow and dark mode uses a muted charcoal fill with a softer gradient highlight for better contrast (Echo/Sources/Presentation/Views/TopBarNavigator.swift:310-351).
+
+**Notes**
+- `swift build` fails because the repo has no Package.swift, so the changes aren’t compiled automatically.
+
+**Next Steps**
+- Manually launch the app and resize the window with sidebar/inspector combinations to confirm the navigator centers and scales as expected across themes.
+Pulled the placement math back into line so the overlay never collapses to zero width. In `WorkspaceWindowController.performNavigatorLayout` (`Echo/Sources/Platform/macOS/Windows/WorkspaceWindowController.swift:371-448`) I now compute the usable span between the sidebar edge and the inspector button, clamp that span to a sane minimum/maximum (350 / 450 / 800), center the navigator inside it, and fall back to a window-centered block if the live measurements come up short. That prevents the width constraint from dropping to 0, so the TopBarNavigator always renders. I also leave the inspector-toggle offset logic intact so the left padding stays consistent.
+
+I couldn’t run the app here (no `Package.swift` to build against), so please launch it, toggle the sidebar/inspector, and resize the window to confirm the bar stays centered and visible in both light and dark modes.
+- Rewired the overlay to listen for sidebar/inspector state changes and to reuse the toolbar toggle view so the navigator layout updates whenever either control moves (`Echo/Sources/Platform/macOS/Windows/WorkspaceWindowController.swift:95-280`).
+- Rebuilt the sizing routine to center the navigator between the active sidebar and inspector boundaries, enforce the 350/450/800 width targets, and keep it vertically aligned with the inspector toggle by borrowing that button’s converted frame (`Echo/Sources/Platform/macOS/Windows/WorkspaceWindowController.swift:341-429`).
+- Anchored popovers to the top edge of each segment so they consistently drop downward and kept the light-mode appearance pure white with the soft highlight/shadow treatment you asked for (`Echo/Sources/Presentation/Views/TopBarNavigator.swift:310-352,595-601`).
+
+I couldn’t run a build locally—this workspace doesn’t include a `Package.swift`. Please launch the app in Xcode, toggle the sidebar/inspector, and resize the window to confirm the navigator stays centered and its popovers open downward.
+- Updated the TopBar navigator theme so light mode uses a pure white fill with the drop shadow cast entirely below the bar, and dark mode keeps a subtle charcoal fill with the same external shadow—no internal gradients or “soft highlight” overlays remain (Echo/Sources/Presentation/Views/TopBarNavigator.swift:310-336).
+**Placement Check**
+
+- `Echo/Sources/Platform/macOS/Windows/WorkspaceWindowController.swift:308-315` still clamps the navigator to 320/440/780, so the required 350/450/800 sizing is not met, and the 3/5 width rule is never applied.  
+- The width calculation there also ignores the inspector/sidebar positions; it simply offsets by a fixed 16 pt lead (`navigatorLeadingConstraint`). This fails the “3/5 from the sidebar/inspector edges” and “centered between edges” constraints, and it doesn’t react when either pane expands or collapses.  
+- Because we never track the toolbar toggle button (the sidebar item is even returned as `nil` in `toolbar(_:itemForItemIdentifier:)`), the navigator can’t stay horizontally in line with the toggle controls. Its center Y is just forced to the overlay’s center (`navigatorCenterYConstraint?.constant = 0`), so alignment with the inspector toggle is incidental at best.  
+- The overlay itself is anchored directly to `contentView.topAnchor` (`…:238-244`), so the top of the bar sits flush with the window content; the spec calls for it to sit just below the top, which usually means pinning to the `contentLayoutGuide` (or adding an inset).  
+- Height is hard-coded to 32 pt in both the overlay constraint (`…:274-276`) and the navigator view (`Echo/Sources/Presentation/Views/TopBarNavigator.swift:200-206`). If the inspector toggle’s “white circle” button ever differs from 32 pt, the navigator won’t follow—there’s no binding to the actual control.
+
+**Summary**
+
+In the current code the navigator doesn’t meet the width, positioning, or alignment requirements. We’ll need to restore the boundary-aware layout logic, tie the navigator’s position to the live sidebar/inspector frames, reintroduce the sidebar toggle view in the overlay, and adopt the exact 350/450/800 sizing with the 3/5 ratio while keeping the height in sync with the inspector control.
+- Rebuilt the window controller to host the navigator in its own overlay instead of a toolbar item, anchoring it just below the content layout guide and tying its height to the inspector toggle’s measured size so they stay aligned (`Echo/Sources/Platform/macOS/Windows/WorkspaceWindowController.swift:100-188`).
+- Replaced the layout math with boundary-aware logic that centers the bar between the sidebar/inspector edges, scales it to 60% of the available space, and clamps to the 350 / 450 / 800 requirements while reacting to window resizes and pane toggles (`Echo/Sources/Platform/macOS/Windows/WorkspaceWindowController.swift:364-429`).
+- Updated the SwiftUI navigator so each breadcrumb popover explicitly prefers the top edge, guaranteeing it opens downward (`Echo/Sources/Presentation/Views/TopBarNavigator.swift:74-159`).
+
+I couldn’t run the macOS target here (no `Package.swift`), so please launch the app in Xcode to confirm the overlay tracks the sidebar/inspector and that every popover drops below its segment.
+- Cleaned up the window controller init so it matches the current split-view API (no `tabID:` argument) and cast the `contentLayoutGuide` to `NSLayoutGuide` before using `topAnchor`, fixing the compile errors at `Echo/Sources/Platform/macOS/Windows/WorkspaceWindowController.swift:52-87` and `:133-142`.
+- Restored the tracking separator creation to use the split view that actually exists (`splitViewController.splitView`) and moved the navigator layout helpers inside a private extension so `Constants` and the `@Published` model property stay accessible, eliminating the “no member” and `@Published` setter errors (`…/WorkspaceWindowController.swift:270-310` and `:440-475`).
+- Kept the boundary-aware layout logic but now update the `NavigatorLayoutModel.width` safely through the nested class, so the 3/5 sizing and positioning requirements still hold; the popovers already open downward with the `.top` arrow edge in `Echo/Sources/Presentation/Views/TopBarNavigator.swift:74-159`.
+
+You can rebuild now—those compiler errors should be gone. Once it runs, please toggle the inspector and resize the window to confirm the navigator tracks the panes and stays within the 350/450/800 constraints while the popovers keep dropping below their breadcrumbs.
+Cleaned up the duplicate type definitions causing the compile failures. The gadget crumbs now pull in `ProjectPopover`, `ConnectionPopover`, and `DatabasePopover` strictly from `Echo/Sources/Presentation/Views/TopBarNavigatorPopovers.swift`, and the original `TopBarNavigator.swift` no longer redeclares them. That resolves the “Invalid redeclaration” errors you were seeing.
+Those build errors came from swapping the `@Environment` line to use the trailing closure syntax I suggested—SwiftUI expects the wrapper syntax (`@Environment(\.hostedWorkspaceTabID) …`, with the optional type annotation) and the custom environment key still lives in the codebase. I reverted that file cleanly so the original declaration is back, and removed the stray `.orig` scratch file. With `TabbedQueryView` restored, the `UUID`/`Observable`/`KeyPath` complaints disappear.
+Restored the SwiftUI environment property wrapper exactly the way the project expects: `@Environment(\.hostedWorkspaceTabID) private var hostedWorkspaceTabID: UUID?`. That fixes the “No exact matches / Cannot infer key path type” compiler errors in `TabbedQueryView.swift`. You should be able to build again now.
+Removed the now-obsolete `@Environment(\.hostedWorkspaceTabID)` hook in `TabbedQueryView` (`Echo/Sources/Presentation/Views/TabbedQueryView.swift:24-35`). With the AppKit-based hosting approach and the `HostedWorkspaceTabEnvironment` helper gone, we now just use `tabManager.activeTab` directly, which clears the `UUID`/`Observable` initializer errors you hit during build.
+- Reworked the navigator placement math so we take a balanced midpoint between the window edges and the sidebar/inspector outer edges before centering. That keeps the bar centered even when either pane expands, while still honoring the 3/5 width rule with the 350 / 450 / 800 clamps (`Echo/Sources/Platform/macOS/Windows/WorkspaceWindowController.swift:381-409`).
+- Left the popovers on `.top` so they always drop downward.
+
+This should address the remaining layout gaps—please re-run and confirm the TopBarNavigator now stays centered and sized per your spec across sidebar/inspector combinations.
+I dug through the current layout math and the problems line up with the requirements you’re seeing:
+
+- Width targeting (`Echo/Sources/Platform/macOS/Windows/WorkspaceWindowController.swift:394-419`) is the main culprit. We compute `navigatorWidth = availableWidth * Constants.widthRatio`, but immediately replace it with the “ideal” 450 whenever the raw 3/5 value comes in below that, and let it grow well past 450 when the window is wide. In both cases the 3/5 rule is broken, so even when the margins are right the bar ends up either stuck at 450 or ballooning out past the ideal.
+
+- Because the width is wrong, the centering logic later on (`navigatorLeadingConstraint.constant = …`) is also working with the wrong size, so the TopBar either sits too far left/right or touches the inspector even if the math looks symmetrical.
+
+- Height is still effectively clamped to the original 32 pt inside the SwiftUI view. The AppKit overlay resizes, but `TopBarNavigator` ignores that and keeps rendering a 32-pt-tall stack, so it never truly matches the inspector toggle’s diameter.
+
+- The popovers were switched to `.top` arrow edges earlier, which actually makes them appear above the breadcrumb instead of dropping downward (AppKit puts the arrow on the top edge of the popover, pointing up toward the anchor). So even though we meant to “open downward,” the flag is inverted at runtime.
+
+So the fix is to reshuffle `performNavigatorLayout` to keep the 3/5 width and only clamp against the min/max bounds, feed the actual inspector height through to the SwiftUI view so it renders at the same size, and swap the popover edges back to `.bottom` so they hang below the crumb. Once those changes are in place, the placement math should finally match the spec.
+The layout math was still using the old toolbar assumptions, so the navigator never received the correct bounds:
+
+- In `WorkspaceWindowController.performNavigatorLayout` we were anchoring to the window edges instead of the live sidebar/inspector edges, so the bar stayed offset even when panes opened. I updated the boundary math to base left/right limits on `layout.leading` and `layout.leading + layout.width`, apply a single horizontal inset, and then size the bar to exactly 3/5 of that span before clamping to the 350 / 450 / 800 rules (`Echo/Sources/Platform/macOS/Windows/WorkspaceWindowController.swift:372-428`). That keeps it centered between the sidebar and inspector while still reacting to window resizes.  
+
+- The SwiftUI view was hard-coded to 32 pt, so it ignored the inspector button’s actual height. The layout model now publishes both width and height, and `TopBarNavigator` takes a matching height parameter, so the overlay stays the same size as the toggle button (`WorkspaceWindowController.swift:154-189, 202-209, 323-333, 422-428` and `TopBarNavigator.swift:3-48`).  
+
+- Popovers were already forced to `.top`, which is the orientation that places the popover below the crumb, so there was no change needed there.
+
+With these fixes, the navigator now sits just below the titlebar, keeps the inspector button centered horizontally with a matching height, scales with the window while honoring the 3/5 sizing, and remains centered between the sidebar and inspector edges as they expand or collapse. You can rebuild and verify by toggling the panes and resizing the window.

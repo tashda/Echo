@@ -10,13 +10,12 @@ struct SearchSidebarView: View {
     @State private var isFilterPopoverPresented = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            searchField
+        VStack(spacing: 0) {
+            searchBar
             Divider()
-                .padding(.vertical, 4)
             content
+                .padding(12)
         }
-        .padding(12)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .onAppear {
             if !didRestoreCache {
@@ -30,18 +29,18 @@ struct SearchSidebarView: View {
             }
             viewModel.notifyQueryTabsChanged()
         }
-        .onChange(of: appModel.selectedConnectionID) { _ in syncContext() }
-        .onChange(of: activeSession?.id) { _ in syncContext() }
-        .onChange(of: activeSession?.selectedDatabaseName) { _ in syncContext() }
+        .onChange(of: appModel.selectedConnectionID) { _, _ in syncContext() }
+        .onChange(of: activeSession?.id) { _, _ in syncContext() }
+        .onChange(of: activeSession?.selectedDatabaseName) { _, _ in syncContext() }
         .onReceive(viewModel.$query.removeDuplicates()) { _ in cacheState() }
         .onReceive(viewModel.$selectedCategories.removeDuplicates()) { _ in cacheState() }
         .onReceive(viewModel.$results) { _ in cacheState() }
         .onReceive(viewModel.$errorMessage.removeDuplicates()) { _ in cacheState() }
         .onReceive(viewModel.$isSearching.removeDuplicates()) { _ in cacheState() }
-        .onChange(of: appModel.tabManager.tabs.map(\.id)) { _ in
+        .onChange(of: appModel.tabManager.tabs.map(\.id)) { _, _ in
             viewModel.notifyQueryTabsChanged()
         }
-        .onChange(of: appModel.tabManager.activeTabId) { _ in
+        .onChange(of: appModel.tabManager.activeTabId) { _, _ in
             viewModel.notifyQueryTabsChanged()
         }
         .onDisappear { persistActiveCache() }
@@ -65,33 +64,18 @@ struct SearchSidebarView: View {
         viewModel.selectedCategories.count != SearchSidebarCategory.allCases.count
     }
 
-    private var searchField: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "magnifyingglass")
-                .foregroundStyle(.secondary)
-            TextField("Search tables, views, query tabs...", text: $viewModel.query)
-                .textFieldStyle(.plain)
-                .focused($isSearchFieldFocused)
-                .disabled(isSearchFieldDisabled)
-            if !viewModel.query.isEmpty {
-                Button {
-                    viewModel.clearQuery()
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .foregroundStyle(.tertiary)
-                }
-                .buttonStyle(.plain)
-                .keyboardShortcut(.cancelAction)
-            }
-            filterSeparator
+    private var searchBar: some View {
+        SidebarSearchBar(
+            placeholder: "Search tables, views, query tabs...",
+            text: $viewModel.query,
+            isDisabled: isSearchFieldDisabled,
+            showsClearButton: !viewModel.query.isEmpty,
+            onClear: { viewModel.clearQuery() },
+            focusBinding: $isSearchFieldFocused,
+            clearShortcut: .cancelAction
+        ) {
             filterButton
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 8)
-        .background(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(Color.primary.opacity(0.05))
-        )
     }
 
     private var filterButton: some View {
@@ -99,12 +83,16 @@ struct SearchSidebarView: View {
             isFilterPopoverPresented.toggle()
         } label: {
             Image(systemName: "line.3.horizontal.decrease.circle")
-                .font(.system(size: 14, weight: .medium))
-                .foregroundStyle(isFilterActive ? Color.accentColor : Color.secondary)
-                .padding(4)
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(
+                    isFilterActive
+                        ? Color.accentColor
+                        : Color.secondary.opacity(0.6)
+                )
+                .padding(2)
                 .background(
                     Circle()
-                        .fill(Color.primary.opacity(isFilterActive ? 0.12 : 0.05))
+                        .fill(Color.accentColor.opacity(isFilterActive ? 0.18 : 0))
                 )
         }
         .buttonStyle(.plain)
@@ -123,13 +111,6 @@ struct SearchSidebarView: View {
             .padding(14)
             .frame(minWidth: 220)
         }
-    }
-
-    private var filterSeparator: some View {
-        Rectangle()
-            .fill(Color.primary.opacity(0.08))
-            .frame(width: 1, height: 18)
-            .opacity(isSearchFieldDisabled ? 0.35 : 1)
     }
 
     private var filterLabel: String {
@@ -513,7 +494,7 @@ private struct SearchResultRow: View {
                 isHovered = hovering
             }
 #endif
-            .onChange(of: isInfoPresented) { newValue in
+            .onChange(of: isInfoPresented) { _, newValue in
                 if !newValue {
                     infoState = .idle
                 }

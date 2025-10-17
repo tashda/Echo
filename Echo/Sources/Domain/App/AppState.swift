@@ -12,12 +12,14 @@ import Combine
     @Published var activeSheet: ActiveSheet?
     @Published var showTabOverview = false
     @Published var showInfoSidebar = false
+    @Published var themeTabs = false
+    @Published var keepTabsInMemory = false
 
     // MARK: - Query State
     @Published var isQueryRunning = false
     @Published var queryHistory: [QueryHistoryItem] = []
     @Published var currentQuery = "SELECT NOW();"
-    @Published var sqlEditorTheme = SQLEditorTheme()
+    @Published var sqlEditorTheme = SQLEditorTheme.fallback()
     @Published var sqlEditorDisplay = SQLEditorDisplayOptions()
 
     // MARK: - Connection State

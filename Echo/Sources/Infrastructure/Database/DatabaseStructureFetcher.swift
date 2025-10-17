@@ -24,6 +24,8 @@ struct DatabaseStructureFetcher {
         progressHandler: (@Sendable (Progress) async -> Void)? = nil,
         databaseHandler: (@Sendable (DatabaseInfo, Int, Int) async -> Void)? = nil
     ) async throws -> DatabaseStructure {
+        try Task.checkCancellation()
+
         let progressCallback = progressHandler
 
         func emitProgress(
@@ -33,6 +35,7 @@ struct DatabaseStructureFetcher {
             message: String?
         ) async {
             guard let progressCallback else { return }
+            guard !Task.isCancelled else { return }
             let clamped = min(max(fraction, 0), 1)
             await progressCallback(Progress(fraction: clamped, databaseName: databaseName, schemaName: schemaName, message: message))
         }
@@ -56,6 +59,7 @@ struct DatabaseStructureFetcher {
         if let reuseSession {
             baseSession = reuseSession
         } else {
+            try Task.checkCancellation()
             baseSession = try await factory.connect(
                 host: connection.host,
                 port: connection.port,
@@ -63,6 +67,7 @@ struct DatabaseStructureFetcher {
                 tls: connection.useTLS,
                 authentication: credentials.authentication
             )
+            try Task.checkCancellation()
         }
 
         defer {
@@ -113,6 +118,7 @@ struct DatabaseStructureFetcher {
         var baseSessionDatabaseName: String?
         switch databaseType {
         case .postgresql:
+            try Task.checkCancellation()
             if let currentDatabase = try? await baseSession.simpleQuery("SELECT current_database()"),
                let rawValue = currentDatabase.rows.first?.first,
                let databaseName = rawValue,
@@ -120,6 +126,7 @@ struct DatabaseStructureFetcher {
                 baseSessionDatabaseName = databaseName
             }
         case .mysql:
+            try Task.checkCancellation()
             if let currentDatabase = try? await baseSession.simpleQuery("SELECT DATABASE()"),
                let rawValue = currentDatabase.rows.first?.first,
                let databaseName = rawValue,
@@ -129,6 +136,7 @@ struct DatabaseStructureFetcher {
         case .sqlite:
             baseSessionDatabaseName = "main"
         case .microsoftSQL:
+            try Task.checkCancellation()
             if let currentDatabase = try? await baseSession.simpleQuery("SELECT DB_NAME()"),
                let rawValue = currentDatabase.rows.first?.first,
                let databaseName = rawValue,
@@ -143,12 +151,14 @@ struct DatabaseStructureFetcher {
         if let databaseFilter, !databaseFilter.isEmpty {
             var unique: [String] = []
             for name in databaseFilter where !name.isEmpty {
+                try Task.checkCancellation()
                 if !unique.contains(where: { $0.caseInsensitiveCompare(name) == .orderedSame }) {
                     unique.append(name)
                 }
             }
             databaseNames = unique.sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
         } else {
+            try Task.checkCancellation()
             var fetched = try await baseSession.listDatabases()
             let explicitDatabase = connection.database
             if !explicitDatabase.isEmpty && !fetched.contains(explicitDatabase) {
@@ -182,11 +192,13 @@ struct DatabaseStructureFetcher {
         }
 
         for (databaseIndex, databaseName) in databaseNames.enumerated() {
+            try Task.checkCancellation()
             let loadMetadata = shouldLoadMetadata(for: databaseName)
             let databaseStartFraction = Double(databaseIndex) / Double(totalDatabases)
             let initialMessage = loadMetadata
                 ? "Updating database \(databaseName)…"
                 : "Metadata deferred until database selection"
+            try Task.checkCancellation()
             await emitProgress(databaseStartFraction, databaseName: databaseName, schemaName: nil, message: initialMessage)
 
             var sessionForDatabase: DatabaseSession?
@@ -194,6 +206,7 @@ struct DatabaseStructureFetcher {
             var connectionError: Error?
 
             if loadMetadata {
+                try Task.checkCancellation()
                 if let reuseSession,
                    let selectedDatabase,
                    databaseName.caseInsensitiveCompare(selectedDatabase) == .orderedSame {
@@ -204,6 +217,7 @@ struct DatabaseStructureFetcher {
                     sessionForDatabase = baseSession
                 } else {
                     do {
+                        try Task.checkCancellation()
                         sessionForDatabase = try await factory.connect(
                             host: connection.host,
                             port: connection.port,
@@ -211,6 +225,7 @@ struct DatabaseStructureFetcher {
                             tls: connection.useTLS,
                             authentication: credentials.authentication
                         )
+                        try Task.checkCancellation()
                         shouldCloseSession = (sessionForDatabase != nil)
                     } catch {
                         connectionError = error
@@ -219,6 +234,9 @@ struct DatabaseStructureFetcher {
             }
 
             guard loadMetadata, let activeSession = sessionForDatabase else {
+                if Task.isCancelled {
+                    throw CancellationError()
+                }
                 if loadMetadata, let error = connectionError {
                     print("Failed to connect to database \(databaseName) for connection \(connection.connectionName): \(error.localizedDescription)")
                 }
@@ -226,6 +244,9 @@ struct DatabaseStructureFetcher {
                 let placeholder = DatabaseInfo(name: databaseName, schemas: [], schemaCount: 0)
                 databaseInfos.append(placeholder)
                 if let databaseHandler {
+                    if Task.isCancelled {
+                        throw CancellationError()
+                    }
                     await databaseHandler(placeholder, databaseIndex, totalDatabases)
                 }
 
@@ -233,6 +254,9 @@ struct DatabaseStructureFetcher {
                 let completionMessage = loadMetadata && connectionError != nil
                     ? "Database \(databaseName) skipped due to connection error"
                     : "Select a database to load metadata"
+                if Task.isCancelled {
+                    throw CancellationError()
+                }
                 await emitProgress(completionFraction, databaseName: databaseName, schemaName: nil, message: completionMessage)
                 continue
             }
@@ -245,25 +269,35 @@ struct DatabaseStructureFetcher {
             }
 
             do {
+                try Task.checkCancellation()
                 let schemaNames = try await activeSession.listSchemas()
                 var schemas: [SchemaInfo] = []
                 let totalSchemas = max(schemaNames.count, 1)
 
                 if schemaNames.isEmpty {
                     let completionFraction = Double(databaseIndex + 1) / Double(totalDatabases)
+                    if Task.isCancelled {
+                        throw CancellationError()
+                    }
                     await emitProgress(completionFraction, databaseName: databaseName, schemaName: nil, message: "No schemas found")
                 }
 
                 for (schemaIndex, schemaName) in schemaNames.enumerated() {
+                    try Task.checkCancellation()
                     let schemaBaseFraction = (
                         Double(databaseIndex)
                         + Double(schemaIndex) / Double(totalSchemas)
                     ) / Double(totalDatabases)
+                    if Task.isCancelled {
+                        throw CancellationError()
+                    }
                     await emitProgress(schemaBaseFraction, databaseName: databaseName, schemaName: schemaName, message: "Updating schema \(schemaName)…")
 
                     let schemaInfo: SchemaInfo
                     if let metadataSession = activeSession as? DatabaseMetadataSession {
+                        try Task.checkCancellation()
                         schemaInfo = try await metadataSession.loadSchemaInfo(schemaName) { objectType, currentIndex, total in
+                            guard !Task.isCancelled else { return }
                             let normalizedTotal = max(total, 1)
                             let objectFraction = Double(currentIndex) / Double(normalizedTotal)
                             let schemaFraction = (
@@ -275,6 +309,7 @@ struct DatabaseStructureFetcher {
                             await emitProgress(overallFraction, databaseName: databaseName, schemaName: schemaName, message: message(for: objectType))
                         }
                     } else {
+                        try Task.checkCancellation()
                         let objects = try await activeSession.listTablesAndViews(schema: schemaName)
                         schemaInfo = SchemaInfo(name: schemaName, objects: objects)
                     }
@@ -285,12 +320,18 @@ struct DatabaseStructureFetcher {
                         Double(databaseIndex)
                         + Double(schemaIndex + 1) / Double(totalSchemas)
                     ) / Double(totalDatabases)
+                    if Task.isCancelled {
+                        throw CancellationError()
+                    }
                     await emitProgress(schemaCompletionFraction, databaseName: databaseName, schemaName: schemaName, message: "Schema \(schemaName) updated")
                 }
 
                 let info = DatabaseInfo(name: databaseName, schemas: schemas, schemaCount: schemas.count)
                 databaseInfos.append(info)
                 if let databaseHandler {
+                    if Task.isCancelled {
+                        throw CancellationError()
+                    }
                     await databaseHandler(info, databaseIndex, totalDatabases)
                 }
             } catch {
@@ -298,11 +339,17 @@ struct DatabaseStructureFetcher {
                 let info = DatabaseInfo(name: databaseName, schemas: [], schemaCount: 0)
                 databaseInfos.append(info)
                 if let databaseHandler {
+                    if Task.isCancelled {
+                        throw CancellationError()
+                    }
                     await databaseHandler(info, databaseIndex, totalDatabases)
                 }
             }
 
             let databaseCompletionFraction = Double(databaseIndex + 1) / Double(totalDatabases)
+            if Task.isCancelled {
+                throw CancellationError()
+            }
             await emitProgress(databaseCompletionFraction, databaseName: databaseName, schemaName: nil, message: "Database \(databaseName) updated")
         }
 
@@ -311,6 +358,9 @@ struct DatabaseStructureFetcher {
             databases: databaseInfos.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
         )
 
+        if Task.isCancelled {
+            throw CancellationError()
+        }
         await emitProgress(1.0, databaseName: "", schemaName: nil, message: "Metadata cached")
 
         return structure

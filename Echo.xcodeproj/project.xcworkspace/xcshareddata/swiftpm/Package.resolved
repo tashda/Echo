@@ -1,5 +1,5 @@
 {
-  "originHash" : "75a0df313b45ba1a990c2f839fb05c035ad2b24855f4bde0aeffbe052a3b12e9",
+  "originHash" : "59d11a4981c975a9d78eeead8d46a00afbd6720a7074b384cc35d57a67a2a82a",
   "pins" : [
     {
       "identity" : "mysql-nio",
@@ -11,30 +11,12 @@
       }
     },
     {
-      "identity" : "perfect-crud",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/PerfectlySoft/Perfect-CRUD.git",
-      "state" : {
-        "revision" : "5a947634b7ce0b991e8f455a61ce02449f2e6f36",
-        "version" : "1.2.3"
-      }
-    },
-    {
-      "identity" : "perfect-mariadb",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/PerfectlySoft/Perfect-MariaDB.git",
-      "state" : {
-        "revision" : "06a7fa15402ca4b4c1bf0b5c7f5b450321250d9f",
-        "version" : "3.0.4"
-      }
-    },
-    {
       "identity" : "postgres-nio",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/vapor/postgres-nio.git",
       "state" : {
-        "revision" : "8ee6118c03501196be183b0938d2ec4478c18954",
-        "version" : "1.27.0"
+        "revision" : "4795a0b0762c5cca843a720969c9dfee378e5120",
+        "version" : "1.29.0"
       }
     },
     {
@@ -60,8 +42,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-asn1.git",
       "state" : {
-        "revision" : "f70225981241859eb4aa1a18a75531d26637c8cc",
-        "version" : "1.4.0"
+        "revision" : "40d25bbb2fc5b557a9aa8512210bded327c0f60d",
+        "version" : "1.5.0"
       }
     },
     {
@@ -123,8 +105,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-nio.git",
       "state" : {
-        "revision" : "a18bddb0acf7a40d982b2f128ce73ce4ee31f352",
-        "version" : "2.86.2"
+        "revision" : "4e8f4b1c9adaa59315c523540c1ff2b38adc20a9",
+        "version" : "2.87.0"
       }
     },
     {
@@ -132,8 +114,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-nio-ssl.git",
       "state" : {
-        "revision" : "b2b043a8810ab6d51b3ff4df17f057d87ef1ec7c",
-        "version" : "2.34.1"
+        "revision" : "d3bad3847c53015fe8ec1e6c3ab54e53a5b6f15f",
+        "version" : "2.35.0"
       }
     },
     {
@@ -141,8 +123,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-nio-transport-services.git",
       "state" : {
-        "revision" : "e645014baea2ec1c2db564410c51a656cf47c923",
-        "version" : "1.25.1"
+        "revision" : "df6c28355051c72c884574a6c858bc54f7311ff9",
+        "version" : "1.25.2"
       }
     },
     {
@@ -159,8 +141,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/swift-server/swift-service-lifecycle.git",
       "state" : {
-        "revision" : "e7187309187695115033536e8fc9b2eb87fd956d",
-        "version" : "2.8.0"
+        "revision" : "0fcc4c9c2d58dd98504c06f7308c86de775396ff",
+        "version" : "2.9.0"
       }
     },
     {
@@ -179,15 +161,6 @@
       "state" : {
         "revision" : "b626d3002773b1a1304166643e7f118f724b2132",
         "version" : "1.0.4"
-      }
-    },
-    {
-      "identity" : "tds-nio",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/tashda/tds-nio.git",
-      "state" : {
-        "branch" : "master",
-        "revision" : "e32fec4d11ee91ed97e029a475e28505979f7627"
       }
     }
   ],

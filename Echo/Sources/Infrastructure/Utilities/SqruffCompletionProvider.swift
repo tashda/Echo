@@ -36,8 +36,9 @@ actor SqruffCompletionProvider {
     private nonisolated let delimiterData = "\r\n\r\n".data(using: .utf8)!
 
     deinit {
-        Task {
-            await shutdownProcess()
+        Task { [weak self] in
+            guard let self else { return }
+            await self.shutdownProcess()
         }
     }
 
@@ -55,7 +56,7 @@ actor SqruffCompletionProvider {
         ]
 
         let result = try await sendRequest(method: "textDocument/completion", params: params)
-        let suggestions = SqruffCompletionProvider.parseCompletionResult(result)
+        let suggestions = await SqruffCompletionProvider.parseCompletionResult(result)
         return suggestions
     }
 
@@ -69,7 +70,7 @@ actor SqruffCompletionProvider {
     }
 
     private func startProcess(for dialect: DatabaseType) async throws {
-        try await shutdownProcess()
+        await shutdownProcess()
 
         guard let binaryURL = resolveBinaryURL() else {
             throw ProviderError.binaryNotFound
@@ -83,7 +84,9 @@ actor SqruffCompletionProvider {
         process.standardError = Pipe()
 
         process.terminationHandler = { [weak self] _ in
-            Task { await self?.handleTermination() }
+            Task { [weak self] in
+                await self?.handleTermination()
+            }
         }
 
         try process.run()
@@ -107,7 +110,9 @@ actor SqruffCompletionProvider {
         stdoutHandle?.readabilityHandler = { [weak self] handle in
             let data = handle.availableData
             guard !data.isEmpty else { return }
-            Task { await self?.receive(data: data) }
+            Task { [weak self] in
+                await self?.receive(data: data)
+            }
         }
 
         stderrHandle?.readabilityHandler = { [weak self] handle in
@@ -368,7 +373,7 @@ actor SqruffCompletionProvider {
         }
     }
 
-    private static func parseCompletionResult(_ result: Any) -> [SQLAutoCompletionSuggestion] {
+    private static func parseCompletionResult(_ result: Any) async -> [SQLAutoCompletionSuggestion] {
         let itemsArray: [[String: Any]]
 
         if let dict = result as? [String: Any], let items = dict["items"] as? [[String: Any]] {
@@ -387,17 +392,17 @@ actor SqruffCompletionProvider {
         for item in itemsArray {
             guard let label = item["label"] as? String else { continue }
 
-            var insertText: String
+            let rawInsertText: String
             if let textEdit = item["textEdit"] as? [String: Any], let newText = textEdit["newText"] as? String {
-                insertText = newText
+                rawInsertText = newText
             } else if let providedInsert = item["insertText"] as? String {
-                insertText = providedInsert
+                rawInsertText = providedInsert
             } else {
-                insertText = label
+                rawInsertText = label
             }
 
-            insertText = cleanInsertText(insertText)
-            let key = insertText.lowercased()
+            let cleanedInsertText = cleanInsertText(rawInsertText)
+            let key = cleanedInsertText.lowercased()
             if seen.contains(key) { continue }
             seen.insert(key)
 
@@ -406,17 +411,18 @@ actor SqruffCompletionProvider {
             let kindValue = item["kind"] as? Int
             let kind = mapCompletionKind(kindValue, detail: detail, label: label)
 
-            let id = "sqruff::\(label)::\(insertText)"
-            suggestions.append(
+            let suggestionID = "sqruff::\(label)::\(cleanedInsertText)"
+            let suggestion = await MainActor.run {
                 SQLAutoCompletionSuggestion(
-                    id: id,
+                    id: suggestionID,
                     title: label,
                     subtitle: detail,
                     detail: detail,
-                    insertText: insertText,
+                    insertText: cleanedInsertText,
                     kind: kind
                 )
-            )
+            }
+            suggestions.append(suggestion)
         }
 
         return suggestions

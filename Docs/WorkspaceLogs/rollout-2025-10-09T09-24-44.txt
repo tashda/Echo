@@ -1,0 +1,36 @@
+You can’t. The CLI resets to the safest approval level whenever a session starts, and there’s no knob to make it jump straight to level 3/full access automatically. The only workaround is to run the usual approval-escalation command manually (or via a little wrapper script/alias) right after the session starts, but you’ll still have to confirm the escalation.
+- Refined the shared toolbar label so the icon, title, and chevron have consistent spacing and added horizontal padding, giving the Projects/Servers/Database buttons the Safari-style pill shape you wanted (`Echo/Sources/UI/Workspace/Components/WorkspaceToolbarItems.swift:187`).
+- Tests not run; please launch the app to confirm the adjusted padding looks right in context.
+
+Natural next step: 1) Build and run the app to verify the visual change.
+Moved the add-tab controls out of the tab strip and into the trailing toolbar with the requested gating.
+
+- `Echo/Sources/UI/Workspace/Tabs/QueryTabsView.swift:301` now computes tab widths using the full strip and no longer renders the trailing control capsule, so the tab bar just shows tabs.
+- `Echo/Sources/UI/Workspace/WorkspaceView.swift:121` inserts a new `ToolbarItem` for the right-side group and wires it to helper methods (`WorkspaceView.swift:181`), keeping “Add Tab” disabled until a session exists and “Tab Overview” disabled until tabs exist.
+- `Echo/Sources/UI/Workspace/WorkspaceView.swift:195` provides `TabActionsToolbarGroup`, a two-button `ControlGroup` that highlights the overview state and keeps inspector toggle at the far right.
+
+Build/tests not run (project isn’t a Swift Package; please build from Xcode).
+
+Next step: run the app to confirm the new toolbar layout and button enablement behave as expected.
+- Shuffled the trailing toolbar so refresh now lives in its own padded slot, the new pill-styled Add Tab/Tab Overview control sits beside it, and the inspector toggle keeps its independent anchor (`Echo/Sources/UI/Workspace/WorkspaceView.swift:121`).
+- Rebuilt the tab actions group as a segmented pill that matches the other toolbar capsules, honors the enabled states, and highlights the overview segment with the accent tint when active (`Echo/Sources/UI/Workspace/WorkspaceView.swift:195`).
+- Let the tab strip breathe all the way to the window edge by tightening the default trailing padding, keeping the tabs aligned with the inspector toggle’s background (`Echo/Sources/UI/Workspace/Tabs/QueryTabsView.swift:15`).
+
+Tests not run (project isn’t a Swift Package); please build in Xcode to verify the spacing, highlighting, and inspector behavior.
+Added explicit trailing padding on both the icon and the text inside `ToolbarMenuLabel` so the Projects, Servers, and Database toolbar pills now show the desired breathing room between the symbol and label (`Echo/Sources/UI/Workspace/Components/WorkspaceToolbarItems.swift:192`). Build in Xcode to confirm the updated spacing in the UI.
+Reverted the right-side toolbar to the original layout (refresh on its own, Add Tab + Overview grouped, Inspector untouched) and kept the grouped buttons uniform by using the default-size control group so their hover/press highlight matches the refresh button (`Echo/Sources/UI/Workspace/WorkspaceView.swift:195`). Build in Xcode to verify the visuals.
+Reworked the shared toolbar label so the icon, text, and chevron each get their own deliberate spacing: the HStack now uses a 10‑point gap, with the chevron nudged away from the title. This should give the Projects/Servers/Database buttons the breathing room you were missing (`Echo/Sources/UI/Workspace/Components/WorkspaceToolbarItems.swift:191`). Build in Xcode to confirm the updated look.
+Addressed both issues:
+
+- Reworked the tab actions on the right so they’re plain toolbar buttons sized like the refresh control. When inactive they render with the same secondary tint as refresh, and only light up in accent when Tab Overview is active (`Echo/Sources/UI/Workspace/WorkspaceView.swift:208`).
+- Rebuilt the shared toolbar label using a custom `LabelStyle`, which enforces a 12‑point gap between icon, title, and chevron—matching the Safari pill spacing you described (`Echo/Sources/UI/Workspace/Components/WorkspaceToolbarItems.swift:188`).
+
+Please rebuild/run in Xcode to confirm the visuals.
+Brought back the button-based navigator strip and matched its behavior to the design you and I had before the reset.
+
+- Replaced the old breadcrumb-style `TopBarNavigator` with the button toolbar you wanted: Projects, Servers, and Databases now render as pill buttons with consistent icon/text spacing, plus status refresh, Add Tab/Tab Overview, and the Inspector toggle (`Echo/Sources/Presentation/Views/TopBarNavigator.swift:9`).
+- Restored the menu logic for projects/servers/databases, including nested server menus and manage actions (`TopBarNavigator.swift:97`, `TopBarNavigator.swift:139`, `TopBarNavigator.swift:224`), while keeping the status refresh animation and messages (`TopBarNavigator.swift:341`).
+- Normalized icon sizing and tint so refresh, add tab, and tab overview all share the same 28×28 footprint and grey-out states match when inactive (`TopBarNavigator.swift:264`, `TopBarNavigator.swift:481`).
+- Wired the macOS toolbar item back into the new SwiftUI view by passing `AppState` down so the inspector button and tab overview state stay in sync (`Echo/Sources/Platform/macOS/Windows/WorkspaceWindowController.swift:175` and `WorkspaceWindowController.swift:332`).
+
+Build the app in Xcode to confirm the toolbar layout and hover states.
