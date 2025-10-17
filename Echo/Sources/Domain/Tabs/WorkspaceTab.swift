@@ -242,10 +242,20 @@ final class QueryResultsGridState {
     @Published private(set) var lastPerformanceReport: QueryPerformanceTracker.Report?
     @Published private(set) var livePerformanceReport: QueryPerformanceTracker.Report?
 
+    enum StreamingMode: Equatable {
+        case idle
+        case preview
+        case background
+        case completed
+    }
+
+    @Published private(set) var streamingMode: StreamingMode = .idle
+
     private let initialVisibleRowBatch: Int
+    private let previewRowLimit: Int
     private let spoolManager: ResultSpoolManager
     private var spoolHandle: ResultSpoolHandle?
-    private var ingestionQueue: ResultStreamIngestionQueue?
+    private var ingestionService: ResultStreamIngestionService?
     private var spoolStatsTask: Task<Void, Never>?
     @Published private(set) var resultSpoolID: UUID?
     private var didReceiveStreamingUpdate = false
@@ -276,12 +286,18 @@ final class QueryResultsGridState {
     private var dataPreviewFetchTask: Task<Void, Never>?
     private var performanceTracker: QueryPerformanceTracker
 
-    init(sql: String = "SELECT current_timestamp;", initialVisibleRowBatch: Int = 500, spoolManager: ResultSpoolManager) {
+    init(
+        sql: String = "SELECT current_timestamp;",
+        initialVisibleRowBatch: Int = 500,
+        previewRowLimit: Int = 512,
+        spoolManager: ResultSpoolManager
+    ) {
         self.sql = sql
         self.initialVisibleRowBatch = max(100, initialVisibleRowBatch)
+        self.previewRowLimit = max(100, previewRowLimit)
         self.spoolManager = spoolManager
         self.performanceTracker = QueryPerformanceTracker(initialBatchTarget: self.initialVisibleRowBatch)
-        self.frontBufferLimit = max(self.initialVisibleRowBatch, 512)
+        self.frontBufferLimit = max(self.initialVisibleRowBatch, self.previewRowLimit)
     }
 
     @MainActor deinit {
@@ -344,6 +360,7 @@ final class QueryResultsGridState {
         messages.removeAll()
         streamingColumns.removeAll(keepingCapacity: false)
         streamingRows.removeAll(keepingCapacity: false)
+        streamingMode = .preview
         results = nil
         markResultDataChanged()
 
@@ -391,6 +408,8 @@ final class QueryResultsGridState {
         executingTask = nil
         executionTimer?.invalidate()
         executionTimer = nil
+        streamingMode = .completed
+        streamingMode = .completed
         let endTime = Date()
         if let startTime = executionStartTime {
             appendMessage(
@@ -507,6 +526,7 @@ final class QueryResultsGridState {
         isExecuting = false
         executionTimer?.invalidate()
         executionTimer = nil
+        streamingMode = .completed
 
         let endTime = Date()
         if let startTime = executionStartTime {
@@ -550,32 +570,63 @@ final class QueryResultsGridState {
     func applyStreamUpdate(_ update: QueryStreamUpdate) {
         guard !update.columns.isEmpty else { return }
 
+        if streamingMode == .idle {
+            streamingMode = .preview
+        }
+
+        let modeForSpool = streamingMode
+
         let columnsWereEmpty = streamingColumns.isEmpty
-        if streamingColumns.isEmpty {
+        if columnsWereEmpty {
             streamingColumns = update.columns
         }
 
-        if !update.appendedRows.isEmpty {
-            streamedRowCount += update.appendedRows.count
+        let appendedRowCount = update.metrics?.batchRowCount
+            ?? (!update.appendedRows.isEmpty ? update.appendedRows.count : update.encodedRows.count)
 
-            if streamingRows.count < frontBufferLimit {
-                let remainingCapacity = frontBufferLimit - streamingRows.count
-                if remainingCapacity > 0 {
-                    streamingRows.append(contentsOf: update.appendedRows.prefix(remainingCapacity))
-                }
+        if appendedRowCount > 0 {
+            streamedRowCount &+= appendedRowCount
+        }
+
+        if streamingMode == .preview, !update.appendedRows.isEmpty, streamingRows.count < previewRowLimit {
+            let remainingCapacity = frontBufferLimit - streamingRows.count
+            if remainingCapacity > 0 {
+                streamingRows.append(contentsOf: update.appendedRows.prefix(remainingCapacity))
             }
         }
 
         if !update.appendedRows.isEmpty || !update.encodedRows.isEmpty {
             didReceiveStreamingUpdate = true
-            submitToSpool(update: update)
+            submitToSpool(update: update, mode: modeForSpool)
         }
 
+        switch streamingMode {
+        case .preview:
+            handlePreviewStreamUpdate(update: update, columnsWereEmpty: columnsWereEmpty, appendedRowCount: appendedRowCount)
+        case .background:
+            if let metrics = update.metrics {
+                performanceTracker.recordBackendMetrics(metrics)
+                refreshLivePerformanceReport()
+            }
+        case .completed:
+            if let metrics = update.metrics {
+                performanceTracker.recordBackendMetrics(metrics)
+            }
+        case .idle:
+            break
+        }
+    }
+
+    private func handlePreviewStreamUpdate(
+        update: QueryStreamUpdate,
+        columnsWereEmpty: Bool,
+        appendedRowCount: Int
+    ) {
         let estimatedTotal = max(update.totalRowCount, streamedRowCount)
 
-        let appendedCount = update.metrics?.batchRowCount
-            ?? (update.encodedRows.isEmpty ? update.appendedRows.count : update.encodedRows.count)
-        performanceTracker.recordStreamUpdate(appendedRowCount: appendedCount, totalRowCount: estimatedTotal)
+        if appendedRowCount > 0 {
+            performanceTracker.recordStreamUpdate(appendedRowCount: appendedRowCount, totalRowCount: estimatedTotal)
+        }
         if estimatedTotal >= initialVisibleRowBatch {
             performanceTracker.recordInitialBatchReady(totalRowCount: estimatedTotal)
         }
@@ -592,21 +643,32 @@ final class QueryResultsGridState {
         }
 
         let previousRowCount = currentRowCount ?? 0
-        let runningCount = max(estimatedTotal, currentRowCount ?? 0)
+        var rowCountChanged = false
         if !isRowCountSpoolDriven {
+            let runningCount = max(estimatedTotal, previousRowCount)
             updateRowCount(runningCount)
+            rowCountChanged = (currentRowCount ?? 0) != previousRowCount
         }
-        let columnsUpdated = columnsWereEmpty && !streamingColumns.isEmpty
-        if columnsUpdated || !update.appendedRows.isEmpty || runningCount != previousRowCount {
+
+        if columnsWereEmpty || !update.appendedRows.isEmpty || rowCountChanged {
             markResultDataChanged()
         }
 
         refreshLivePerformanceReport()
+
+        if streamedRowCount >= previewRowLimit {
+            streamingMode = .background
+            if !isResultsOnly, visibleRowLimit != nil {
+                visibleRowLimit = nil
+                markResultDataChanged()
+            }
+        }
     }
 
     func consumeFinalResult(_ result: QueryResultSet) {
         let totalRowCount = result.totalRowCount ?? result.rows.count
         performanceTracker.markResultSetReceived(totalRowCount: totalRowCount)
+        streamingMode = .completed
         streamingColumns = result.columns
 
         let truncatedRows = Array(result.rows.prefix(frontBufferLimit))
@@ -721,13 +783,14 @@ final class QueryResultsGridState {
     private func prepareSpoolForNewExecution() {
         spoolStatsTask?.cancel()
         spoolStatsTask = nil
+        streamingMode = .idle
 
-        if let existingQueue = ingestionQueue {
+        if let existingService = ingestionService {
             Task.detached(priority: .utility) {
-                await existingQueue.cancel()
+                await existingService.cancel()
             }
         }
-        ingestionQueue = nil
+        ingestionService = nil
 
         rowCache.reset()
         streamedRowCount = 0
@@ -741,7 +804,7 @@ final class QueryResultsGridState {
         resultSpoolID = nil
 
         let manager = spoolManager
-        ingestionQueue = ResultStreamIngestionQueue(
+        ingestionService = ResultStreamIngestionService(
             spoolManager: manager,
             rowCache: rowCache,
             onSpoolReady: { [weak self] handle in
@@ -754,19 +817,20 @@ final class QueryResultsGridState {
         )
     }
 
-    private func submitToSpool(update: QueryStreamUpdate) {
-        guard let queue = ingestionQueue else { return }
+    private func submitToSpool(update: QueryStreamUpdate, mode: StreamingMode) {
+        guard let service = ingestionService else { return }
+        let treatAsPreview = (mode == .preview || mode == .idle)
         Task.detached(priority: .utility) {
-            await queue.ingest(update: update)
+            await service.enqueue(update: update, isPreview: treatAsPreview)
         }
     }
 
     private func finalizeSpool(with result: QueryResultSet) {
-        let queue = ingestionQueue
+        let service = ingestionService
         Task.detached(priority: .utility) { [weak self] in
             guard let self else { return }
-            if let queue {
-                await queue.finalize(with: result)
+            if let service {
+                await service.finalize(with: result)
             } else if !result.columns.isEmpty || !result.rows.isEmpty {
                 do {
                     let handle = try await self.spoolManager.makeSpoolHandle()
@@ -785,15 +849,18 @@ final class QueryResultsGridState {
 #endif
                 }
             }
+            await MainActor.run {
+                self.ingestionService = nil
+            }
         }
     }
 
     private func finalizeSpoolOnCompletion(cancelled _: Bool) {
-        let queue = ingestionQueue
+        let service = ingestionService
         Task.detached(priority: .utility) { [weak self] in
             guard let self else { return }
-            if let queue {
-                await queue.finalize(commandTag: nil, metrics: nil)
+            if let service {
+                await service.finalize(commandTag: nil, metrics: nil)
             } else {
                 let handle = await MainActor.run { self.spoolHandle }
 #if DEBUG
@@ -810,6 +877,9 @@ final class QueryResultsGridState {
 #endif
                 }
             }
+            await MainActor.run {
+                self.ingestionService = nil
+            }
         }
     }
 
@@ -825,11 +895,22 @@ final class QueryResultsGridState {
                         self.performanceTracker.recordBackendMetrics(metrics)
                         shouldRefresh = true
                     }
-                    if stats.rowCount > (self.currentRowCount ?? 0) {
+                    let previousCount = self.currentRowCount ?? 0
+                    if stats.rowCount > previousCount {
                         self.updateRowCount(stats.rowCount)
+                        if self.streamingMode == .background {
+                            if !self.isResultsOnly, self.visibleRowLimit != nil {
+                                self.visibleRowLimit = nil
+                            }
+                            self.markResultDataChanged()
+                        } else if self.streamingMode == .preview {
+                            self.markResultDataChanged()
+                        }
+                        shouldRefresh = true
                     }
                     if stats.isFinished {
                         shouldRefresh = true
+                        self.markResultDataChanged()
                     }
                     if shouldRefresh {
                         self.refreshLivePerformanceReport()

@@ -220,6 +220,9 @@ final class SQLAutoCompletionEngine {
     private let historyStore = SQLAutoCompletionHistoryStore.shared
     private(set) var isMetadataLimited: Bool = false
     private var metadataProvider: SQLStructureMetadataProvider = .empty
+    private var suppressEmptyTokenCompletions = false
+    private var includeHistorySuggestions = true
+    private var preferQualifiedTableInsertions = false
     private static let emptyMetadata = SQLCompletionMetadata(clause: .unknown,
                                                              currentToken: "",
                                                              precedingKeyword: nil,
@@ -267,8 +270,21 @@ final class SQLAutoCompletionEngine {
         useTableAliasShortcuts = useTableAliases
     }
 
+    func updateHistoryPreference(includeHistory: Bool) {
+        includeHistorySuggestions = includeHistory
+    }
+
+    func updateQualifiedInsertionPreference(includeSchema: Bool) {
+        preferQualifiedTableInsertions = includeSchema
+    }
+
+    func clearPostCommitSuppression() {
+        suppressEmptyTokenCompletions = false
+    }
+
     func recordSelection(_ suggestion: SQLAutoCompletionSuggestion, query: SQLAutoCompletionQuery) {
         historyStore.record(suggestion, context: context)
+        suppressEmptyTokenCompletions = true
     }
 
     func suggestions(for query: SQLAutoCompletionQuery,
@@ -277,6 +293,16 @@ final class SQLAutoCompletionEngine {
         guard let context else {
             return SQLAutoCompletionResult(sections: [],
                                            metadata: SQLAutoCompletionEngine.emptyMetadata)
+        }
+
+        let trimmedToken = query.token.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmedToken.isEmpty && query.pathComponents.isEmpty {
+            if suppressEmptyTokenCompletions {
+                return SQLAutoCompletionResult(sections: [],
+                                               metadata: SQLAutoCompletionEngine.emptyMetadata)
+            }
+        } else {
+            suppressEmptyTokenCompletions = false
         }
 
         guard shouldProvideCompletions(for: query) else {
@@ -316,13 +342,15 @@ final class SQLAutoCompletionEngine {
 
         for suggestion in suggestions {
             guard let mapped = mapSuggestion(suggestion,
+                                             query: query,
                                              context: context) else { continue }
             results.append(mapped)
         }
-        return results
+        return results.filter { matchesQuery($0, query: query) }
     }
 
     private func mapSuggestion(_ suggestion: SQLCompletionSuggestion,
+                               query: SQLAutoCompletionQuery,
                                context: SQLEditorCompletionContext) -> SQLAutoCompletionSuggestion? {
         guard let mappedKind = mapKind(suggestion.kind) else { return nil }
 
@@ -358,15 +386,28 @@ final class SQLAutoCompletionEngine {
             break
         }
 
+        let insertText = makeInsertText(from: suggestion,
+                                        mappedKind: mappedKind,
+                                        query: query,
+                                        origin: origin)
+
+        let snippetText: String?
+        if mappedKind == .snippet && !suggestion.id.hasPrefix("star|") {
+            snippetText = suggestion.insertText
+        } else {
+            snippetText = nil
+        }
+
         return SQLAutoCompletionSuggestion(id: suggestion.id,
                                            title: suggestion.title,
                                            subtitle: suggestion.subtitle,
                                            detail: suggestion.detail,
-                                           insertText: suggestion.insertText,
+                                           insertText: insertText,
                                            kind: mappedKind,
                                            origin: origin,
                                            dataType: dataType,
-                                           tableColumns: tableColumns)
+                                           tableColumns: tableColumns,
+                                           snippetText: snippetText)
     }
 
     private func mapKind(_ kind: SQLCompletionSuggestion.Kind) -> SQLAutoCompletionKind? {
@@ -382,6 +423,151 @@ final class SQLAutoCompletionEngine {
         case .parameter: return .parameter
         case .join: return .join
         }
+    }
+
+    private func adjustedInsertText(original: String,
+                                    for kind: SQLCompletionSuggestion.Kind,
+                                    query: SQLAutoCompletionQuery) -> String {
+        switch kind {
+        case .table, .view, .materializedView, .column, .function, .procedure:
+            break
+        default:
+            return original
+        }
+
+        guard !query.pathComponents.isEmpty else { return original }
+
+        let originalComponents = original.split(separator: ".").map(String.init)
+        var remaining = originalComponents
+        let typedComponents = query.pathComponents.map { $0.lowercased() }
+
+        var index = 0
+        while index < min(typedComponents.count, remaining.count),
+              remaining[index].lowercased() == typedComponents[index] {
+            index += 1
+        }
+
+        if index > 0 {
+            remaining = Array(remaining.dropFirst(index))
+            if remaining.isEmpty, let last = originalComponents.last {
+                return last
+            }
+            return remaining.joined(separator: ".")
+        }
+
+        return original
+    }
+
+    private func makeInsertText(from suggestion: SQLCompletionSuggestion,
+                                mappedKind: SQLAutoCompletionKind,
+                                query: SQLAutoCompletionQuery,
+                                origin: SQLAutoCompletionSuggestion.Origin?) -> String {
+        let adjusted = adjustedInsertText(original: suggestion.insertText,
+                                          for: suggestion.kind,
+                                          query: query)
+
+        guard preferQualifiedTableInsertions,
+              query.pathComponents.isEmpty,
+              (mappedKind == .table || mappedKind == .view || mappedKind == .materializedView),
+              let schema = origin?.schema?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !schema.isEmpty,
+              !adjusted.contains(".") else {
+            return adjusted
+        }
+
+        return qualifiedInsertText(schema: schema,
+                                   object: adjusted)
+    }
+
+    private func qualifiedInsertText(schema: String,
+                                     object: String) -> String {
+        let trimmedSchema = schema.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedSchema.isEmpty else { return object }
+
+        if let delimiters = identifierDelimiters(for: object) {
+            let quotedSchema = apply(delimiters: delimiters, to: trimmedSchema)
+            return "\(quotedSchema).\(object)"
+        }
+
+        return "\(trimmedSchema).\(object)"
+    }
+
+    private func identifierDelimiters(for text: String) -> (start: Character, end: Character)? {
+        guard let first = text.first,
+              let last = text.last else { return nil }
+        let pairs: [Character: Character] = [
+            "\"": "\"",
+            "`": "`",
+            "[": "]"
+        ]
+        guard let expected = pairs[first], expected == last else { return nil }
+        return (first, last)
+    }
+
+    private func apply(delimiters: (start: Character, end: Character),
+                       to identifier: String) -> String {
+        switch delimiters.start {
+        case "[":
+            return "[\(identifier)]"
+        default:
+            return "\(delimiters.start)\(identifier)\(delimiters.end)"
+        }
+    }
+
+    private func matchesQuery(_ suggestion: SQLAutoCompletionSuggestion,
+                              query: SQLAutoCompletionQuery) -> Bool {
+        let tokenLower = query.token.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let prefixLower = query.prefix.lowercased()
+        let pathLower = query.pathComponents.map { $0.lowercased() }
+        let insertLower = suggestion.insertText.lowercased()
+        let recomposed = (pathLower + [insertLower]).joined(separator: ".")
+
+        if !tokenLower.isEmpty && recomposed.hasPrefix(tokenLower) {
+            return true
+        }
+
+        if !prefixLower.isEmpty && insertLower.hasPrefix(prefixLower) {
+            return true
+        }
+
+        if tokenLower.isEmpty && prefixLower.isEmpty && !pathLower.isEmpty {
+            let aliasMatch = query.tablesInScope.contains { focus in
+                focus.alias?.lowercased() == pathLower.first
+            }
+            if aliasMatch {
+                return true
+            }
+
+            if let origin = suggestion.origin {
+                var originComponents: [String] = []
+                if let schema = origin.schema?.lowercased() {
+                    originComponents.append(schema)
+                }
+                if let object = origin.object?.lowercased() {
+                    originComponents.append(object)
+                }
+                if pathLower.count == 1 {
+                    return originComponents.first == pathLower.first
+                }
+                if pathLower.count <= originComponents.count {
+                    for (lhs, rhs) in zip(pathLower, originComponents) where lhs != rhs {
+                        return false
+                    }
+                    return true
+                }
+            }
+            return false
+        }
+
+        if tokenLower.isEmpty && prefixLower.isEmpty && pathLower.isEmpty {
+            return true
+        }
+
+        if !tokenLower.isEmpty {
+            return suggestion.title.lowercased().hasPrefix(tokenLower)
+        }
+
+        return true
     }
 
     private func lookupObject(schema: String?,
@@ -518,9 +704,11 @@ final class SQLAutoCompletionEngine {
     private func injectHistorySuggestions(base: [SQLAutoCompletionSuggestion],
                                           query: SQLAutoCompletionQuery,
                                           context: SQLEditorCompletionContext) -> [SQLAutoCompletionSuggestion] {
+        guard includeHistorySuggestions else { return base }
         let history = historyStore.suggestions(matching: query.normalizedPrefix,
                                                context: context,
                                                limit: 6)
+            .filter { matchesQuery($0, query: query) }
         guard !history.isEmpty else { return base }
 
         var seen = Set(base.map { $0.id.lowercased() })
@@ -533,6 +721,7 @@ final class SQLAutoCompletionEngine {
             }
         }
 
+        combined.append(contentsOf: base)
         combined.append(contentsOf: base)
         return combined
     }

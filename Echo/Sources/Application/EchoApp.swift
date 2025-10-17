@@ -35,6 +35,7 @@ struct EchoApp: App {
             AppSettingsCommands()
             AutocompleteManagementCommands()
             PerformanceMonitorCommands()
+            StreamingTestHarnessCommands()
 #if os(macOS)
             ConnectMenuCommands(appModel: coordinator.appModel)
 #endif
@@ -43,6 +44,7 @@ struct EchoApp: App {
         SettingsWindow()
         AutocompleteManagementWindow()
         PerformanceMonitorWindow()
+        StreamingTestHarnessWindow()
     }
 }
 
@@ -148,6 +150,19 @@ struct PerformanceMonitorCommands: Commands {
                 openWindow(id: PerformanceMonitorWindow.sceneID)
             }
             .keyboardShortcut("p", modifiers: [.command, .option])
+        }
+    }
+}
+
+struct StreamingTestHarnessCommands: Commands {
+    @Environment(\.openWindow) private var openWindow
+
+    var body: some Commands {
+        CommandGroup(after: .help) {
+            Button("Streaming Test Harness…") {
+                openWindow(id: StreamingTestHarnessWindow.sceneID)
+            }
+            .keyboardShortcut("t", modifiers: [.command, .option, .shift])
         }
     }
 }

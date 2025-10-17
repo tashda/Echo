@@ -440,6 +440,13 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
     var completionController: SQLAutoCompletionController?
     private var isApplyingCompletion = false
     private var suppressNextCompletionRefresh = false
+    private var manualCompletionSuppression = false
+    private struct SnippetPlaceholderPosition {
+        var range: NSRange
+    }
+    private var activeSnippetPlaceholders: [SnippetPlaceholderPosition] = []
+    private var currentSnippetPlaceholderIndex: Int = -1
+    private var isAdjustingSnippetSelection = false
     var isRuleTracingEnabled: Bool = false
     var onRuleTrace: ((SQLAutocompleteTrace) -> Void)?
 
@@ -536,6 +543,11 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
         let pattern = "\\b(?:" + keywords.joined(separator: "|") + ")\\b"
         return try! NSRegularExpression(pattern: pattern, options: [.caseInsensitive])
     }()
+
+    private static let identifierRegex = try! NSRegularExpression(
+        pattern: "\\b[A-Za-z_][A-Za-z0-9_]*(?:\\.[A-Za-z_][A-Za-z0-9_]*)*\\b",
+        options: []
+    )
 
     private static let allKeywords: Set<String> = {
         Set(keywords.map { $0.lowercased() })
@@ -646,6 +658,9 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
     }
 
     override func keyDown(with event: NSEvent) {
+        if handleSnippetNavigation(event) {
+            return
+        }
         if completionController?.handleKeyDown(event) == true {
             return
         }
@@ -713,6 +728,7 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
 
     private func triggerCompletion(immediate: Bool) {
         guard displayOptions.autoCompletionEnabled else { return }
+        guard !manualCompletionSuppression else { return }
         suppressNextCompletionRefresh = true
         refreshCompletions(immediate: immediate)
     }
@@ -766,6 +782,18 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
         notifySelectionChanged()
         lineNumberRuler?.highlightedLines = selectedLineRange()
         lineNumberRuler?.setNeedsDisplay(lineNumberRuler?.bounds ?? .zero)
+        guard !isAdjustingSnippetSelection else { return }
+        guard !activeSnippetPlaceholders.isEmpty else { return }
+        let selection = selectedRange()
+        if selection.location == NSNotFound {
+            clearSnippetPlaceholders()
+            return
+        }
+        if let index = snippetPlaceholderIndex(containing: selection) {
+            currentSnippetPlaceholderIndex = index
+        } else {
+            clearSnippetPlaceholders()
+        }
     }
 
     override func mouseDragged(with event: NSEvent) {
@@ -997,6 +1025,11 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
             return
         }
 
+        if manualCompletionSuppression {
+            hideCompletions()
+            return
+        }
+
         completionWorkItem?.cancel()
         completionTask?.cancel()
 
@@ -1009,6 +1042,10 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
             guard let self else { return }
             defer { self.completionWorkItem = nil }
             guard !self.isApplyingCompletion else { return }
+            if self.manualCompletionSuppression {
+                self.hideCompletions()
+                return
+            }
             guard let controller = self.ensureCompletionController() else { return }
             guard let query = self.makeCompletionQuery() else {
                 self.hideCompletions()
@@ -1061,6 +1098,12 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
                 guard let self else { return }
                 if Task.isCancelled { return }
                 guard generation == self.completionGeneration else { return }
+                if self.manualCompletionSuppression {
+                    await MainActor.run {
+                        self.hideCompletions()
+                    }
+                    return
+                }
                 defer {
                     if generation == self.completionGeneration {
                         self.completionTask = nil
@@ -1111,6 +1154,20 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
         completionTask = nil
         completionController?.hide()
         updateCompletionIndicator()
+    }
+
+    func activateManualCompletionSuppression() {
+        manualCompletionSuppression = true
+        completionGeneration += 1
+        completionWorkItem?.cancel()
+        completionWorkItem = nil
+        completionTask?.cancel()
+        completionTask = nil
+    }
+
+    func deactivateManualCompletionSuppression() {
+        guard manualCompletionSuppression else { return }
+        manualCompletionSuppression = false
     }
 
     func cancelPendingCompletions() {
@@ -1337,6 +1394,21 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
         return sanitizeSuggestions(flattened, for: query)
     }
 
+    private func isSuggestionKindEnabled(_ kind: SQLAutoCompletionKind) -> Bool {
+        switch kind {
+        case .keyword:
+            return displayOptions.suggestKeywordsInCompletion
+        case .function:
+            return displayOptions.suggestFunctionsInCompletion
+        case .snippet:
+            return displayOptions.suggestSnippetsInCompletion
+        case .join:
+            return displayOptions.suggestJoinsInCompletion
+        default:
+            return true
+        }
+    }
+
     private func sanitizeSuggestions(_ suggestions: [SQLAutoCompletionSuggestion], for query: SQLAutoCompletionQuery) -> [SQLAutoCompletionSuggestion] {
         let trimmedToken = query.token.trimmingCharacters(in: .whitespacesAndNewlines)
         let tokenLower = trimmedToken.lowercased()
@@ -1348,6 +1420,7 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
         result.reserveCapacity(suggestions.count)
 
         for suggestion in suggestions {
+            guard isSuggestionKindEnabled(suggestion.kind) else { continue }
             let key = suggestion.insertText.lowercased()
             if !tokenLower.isEmpty {
                 let isExactInsertMatch = key == tokenLower
@@ -1719,7 +1792,46 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
     }
 
     func applyCompletion(_ suggestion: SQLAutoCompletionSuggestion, query: SQLAutoCompletionQuery) {
-        let insertion = suggestion.insertText
+        if isStarExpansionSuggestion(suggestion) {
+            let context = completionContext
+            Task { [weak self] in
+                guard let self else { return }
+                let formatted = await self.prepareStarExpansionInsertion(for: suggestion,
+                                                                         context: context)
+                await MainActor.run {
+                    self.performCompletionInsertion(suggestion: suggestion,
+                                                    query: query,
+                                                    insertion: formatted)
+                }
+            }
+            return
+        }
+
+        if let snippetSource = suggestion.snippetText {
+            let (insertion, placeholders) = makeSnippetInsertion(from: snippetSource)
+            performCompletionInsertion(suggestion: suggestion,
+                                       query: query,
+                                       insertion: insertion,
+                                       snippetPlaceholders: placeholders)
+            return
+        }
+
+        clearSnippetPlaceholders()
+        performCompletionInsertion(suggestion: suggestion,
+                                   query: query,
+                                   insertion: suggestion.insertText)
+    }
+
+    private enum SymbolHighlightStrength {
+        case bright
+        case strong
+    }
+
+    @MainActor
+    private func performCompletionInsertion(suggestion: SQLAutoCompletionSuggestion,
+                                            query: SQLAutoCompletionQuery,
+                                            insertion: String,
+                                            snippetPlaceholders: [NSRange] = []) {
         var range = query.replacementRange
         guard let textStorage else { return }
         let nsString = string as NSString
@@ -1760,17 +1872,23 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
         let insertionLength = insertionNSString.length
         let appliedRange = NSRange(location: range.location, length: insertionLength)
         finalizeAppliedCompletion(for: suggestion, appliedRange: appliedRange, insertion: insertionNSString)
-        let newLocation = NSMaxRange(appliedRange)
         suppressNextCompletionRefresh = true
-        setSelectedRange(NSRange(location: newLocation, length: 0))
+
+        if snippetPlaceholders.isEmpty {
+            clearSnippetPlaceholders()
+            let newLocation = NSMaxRange(appliedRange)
+            setSelectedRange(NSRange(location: newLocation, length: 0))
+        } else {
+            let absolute = snippetPlaceholders.map { placeholder in
+                NSRange(location: range.location + placeholder.location,
+                        length: placeholder.length)
+            }
+            activateSnippetPlaceholders(absolute)
+        }
+
         hideCompletions()
         didChangeText()
         completionEngine.recordSelection(suggestion, query: query)
-    }
-
-    private enum SymbolHighlightStrength {
-        case bright
-        case strong
     }
 
     private func symbolHighlightColor(_ strength: SymbolHighlightStrength) -> NSColor {
@@ -1843,6 +1961,255 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
         return SQLTextView.wordCharacterSet.contains(scalar)
     }
 
+    private func isStarExpansionSuggestion(_ suggestion: SQLAutoCompletionSuggestion) -> Bool {
+        suggestion.kind == .snippet && suggestion.id.hasPrefix("star|")
+    }
+
+    private func formatterDialect(for databaseType: DatabaseType) -> SQLFormatterService.Dialect {
+        switch databaseType {
+        case .postgresql:
+            return .postgres
+        case .mysql:
+            return .mysql
+        case .sqlite:
+            return .sqlite
+        case .microsoftSQL:
+            return .duckdb
+        }
+    }
+
+    private func extractFormattedColumns(from formatted: String) -> String? {
+        let normalized = formatted.replacingOccurrences(of: "\r\n", with: "\n")
+        let lines = normalized.components(separatedBy: "\n")
+
+        var collecting = false
+        var collected: [String] = []
+
+        for line in lines {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+
+            if !collecting {
+                let lower = trimmed.lowercased()
+                if lower.hasPrefix("select ") {
+                    let remainder = line.replacingOccurrences(of: #"(?i)^\s*select\s*"#,
+                                                              with: "",
+                                                              options: .regularExpression)
+                    if !remainder.trimmingCharacters(in: .whitespaces).isEmpty {
+                        collected.append(remainder)
+                    }
+                    collecting = true
+                } else if lower == "select" {
+                    collecting = true
+                }
+                continue
+            }
+
+            if trimmed.lowercased().hasPrefix("from") {
+                break
+            }
+
+            collected.append(line)
+        }
+
+        while let first = collected.first,
+              first.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            collected.removeFirst()
+        }
+        while let last = collected.last,
+              last.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            collected.removeLast()
+        }
+
+        guard !collected.isEmpty else { return nil }
+
+        var result = collected.joined(separator: "\n")
+        if collected.count > 1 || collected.first?.first?.isWhitespace == true {
+            if !result.hasPrefix("\n") {
+                result = "\n" + result
+            }
+        }
+
+        return result
+    }
+
+    private func prepareStarExpansionInsertion(for suggestion: SQLAutoCompletionSuggestion,
+                                               context: SQLEditorCompletionContext?) async -> String {
+        let rawColumns = suggestion.insertText
+        guard let context else { return rawColumns }
+
+        let dialect = formatterDialect(for: context.databaseType)
+        let stub = "SELECT \(rawColumns)\nFROM sqruff_placeholder;"
+
+        do {
+            let formatted = try await SQLFormatterService.shared.format(sql: stub, dialect: dialect)
+            if let extracted = extractFormattedColumns(from: formatted) {
+                return extracted
+            }
+        } catch {
+            // Sqruff formatting failed; fall back to the unformatted expansion.
+        }
+
+        return rawColumns
+    }
+
+    private func makeSnippetInsertion(from snippet: String) -> (String, [NSRange]) {
+        var output = ""
+        var placeholders: [NSRange] = []
+
+        var searchStart = snippet.startIndex
+        var currentLocation = 0
+
+        while let startRange = snippet.range(of: "<#", range: searchStart..<snippet.endIndex) {
+            let prefix = String(snippet[searchStart..<startRange.lowerBound])
+            output.append(prefix)
+            currentLocation += (prefix as NSString).length
+
+            guard let endRange = snippet.range(of: "#>", range: startRange.upperBound..<snippet.endIndex) else {
+                // No closing marker; append the rest and exit.
+                let remainder = String(snippet[startRange.lowerBound..<snippet.endIndex])
+                output.append(remainder)
+                currentLocation += (remainder as NSString).length
+                return (output, placeholders)
+            }
+
+            let placeholderContent = String(snippet[startRange.upperBound..<endRange.lowerBound])
+            let placeholderText = placeholderContent
+            let placeholderLength = (placeholderText as NSString).length
+            let placeholderRange = NSRange(location: currentLocation, length: placeholderLength)
+            placeholders.append(placeholderRange)
+
+            output.append(placeholderText)
+            currentLocation += placeholderLength
+            searchStart = endRange.upperBound
+        }
+
+        if searchStart < snippet.endIndex {
+            let remainder = String(snippet[searchStart..<snippet.endIndex])
+            output.append(remainder)
+        }
+
+        return (output, placeholders)
+    }
+
+    private func activateSnippetPlaceholders(_ ranges: [NSRange]) {
+        let sorted = ranges.sorted { $0.location < $1.location }
+        activeSnippetPlaceholders = sorted.map { SnippetPlaceholderPosition(range: $0) }
+        if activeSnippetPlaceholders.isEmpty {
+            currentSnippetPlaceholderIndex = -1
+            return
+        }
+        currentSnippetPlaceholderIndex = 0
+        isAdjustingSnippetSelection = true
+        setSelectedRange(activeSnippetPlaceholders[0].range)
+        isAdjustingSnippetSelection = false
+    }
+
+    func clearSnippetPlaceholders() {
+        activeSnippetPlaceholders.removeAll()
+        currentSnippetPlaceholderIndex = -1
+    }
+
+    private func selectSnippetPlaceholder(at index: Int) {
+        guard index >= 0,
+              index < activeSnippetPlaceholders.count else { return }
+        currentSnippetPlaceholderIndex = index
+        let range = activeSnippetPlaceholders[index].range
+        isAdjustingSnippetSelection = true
+        setSelectedRange(range)
+        isAdjustingSnippetSelection = false
+    }
+
+    private func snippetPlaceholderIndex(containing selection: NSRange) -> Int? {
+        guard selection.location != NSNotFound else { return nil }
+        for (index, placeholder) in activeSnippetPlaceholders.enumerated() {
+            let placeholderRange = placeholder.range
+            if selection.length == 0 {
+                if NSLocationInRange(selection.location, placeholderRange) ||
+                    selection.location == NSMaxRange(placeholderRange) {
+                    return index
+                }
+            } else {
+                let start = selection.location
+                let end = NSMaxRange(selection)
+                if start >= placeholderRange.location &&
+                    end <= NSMaxRange(placeholderRange) {
+                    return index
+                }
+            }
+        }
+        return nil
+    }
+
+    private func adjustSnippetPlaceholders(forChange affectedRange: NSRange,
+                                           replacementLength: Int) {
+        guard !activeSnippetPlaceholders.isEmpty else { return }
+        let delta = replacementLength - affectedRange.length
+        if delta == 0 { return }
+
+        for index in activeSnippetPlaceholders.indices {
+            var placeholder = activeSnippetPlaceholders[index]
+            let placeholderRange = placeholder.range
+
+            if NSMaxRange(affectedRange) <= placeholderRange.location {
+                placeholder.range.location = max(0, placeholderRange.location + delta)
+            } else if NSIntersectionRange(placeholderRange, affectedRange).length > 0 ||
+                        NSLocationInRange(affectedRange.location, placeholderRange) {
+                let newLength = max(0, placeholderRange.length + delta)
+                placeholder.range.length = newLength
+                placeholder.range.location = min(placeholderRange.location, affectedRange.location)
+            }
+
+            activeSnippetPlaceholders[index] = placeholder
+        }
+    }
+
+    private func handleSnippetNavigation(_ event: NSEvent) -> Bool {
+        guard !activeSnippetPlaceholders.isEmpty else { return false }
+
+        if event.keyCode == 53 { // Escape
+            clearSnippetPlaceholders()
+            return true
+        }
+
+        guard let characters = event.charactersIgnoringModifiers,
+              characters == "\t" else { return false }
+
+        if currentSnippetPlaceholderIndex >= 0 &&
+            currentSnippetPlaceholderIndex < activeSnippetPlaceholders.count {
+            activeSnippetPlaceholders[currentSnippetPlaceholderIndex].range = selectedRange()
+        }
+
+        let isShiftHeld = event.modifierFlags.contains(.shift)
+
+        if isShiftHeld {
+            if currentSnippetPlaceholderIndex > 0 {
+                selectSnippetPlaceholder(at: currentSnippetPlaceholderIndex - 1)
+            } else {
+#if os(macOS)
+                NSSound.beep()
+#endif
+            }
+        } else {
+            if currentSnippetPlaceholderIndex < activeSnippetPlaceholders.count - 1 {
+                selectSnippetPlaceholder(at: currentSnippetPlaceholderIndex + 1)
+            } else {
+                let endLocation = NSMaxRange(activeSnippetPlaceholders.last?.range ?? selectedRange())
+                clearSnippetPlaceholders()
+                setSelectedRange(NSRange(location: endLocation, length: 0))
+            }
+        }
+
+        return true
+    }
+
+    override func shouldChangeText(in affectedCharRange: NSRange, replacementString: String?) -> Bool {
+        if !activeSnippetPlaceholders.isEmpty {
+            let replacementLength = (replacementString as NSString?)?.length ?? 0
+            adjustSnippetPlaceholders(forChange: affectedCharRange, replacementLength: replacementLength)
+        }
+        return super.shouldChangeText(in: affectedCharRange, replacementString: replacementString)
+    }
+
     private func scheduleHighlighting(after delay: TimeInterval = 0.05) {
         highlightWorkItem?.cancel()
         let workItem = DispatchWorkItem { [weak self] in
@@ -1877,11 +2244,21 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
         excludedRanges += applyRegex(SQLTextView.blockCommentRegex, in: nsString, style: theme.tokenColors.comment)
         excludedRanges += applyRegex(SQLTextView.singleLineCommentRegex, in: nsString, style: theme.tokenColors.comment)
 
-        _ = applyRegex(SQLTextView.numberRegex, in: nsString, style: theme.tokenColors.number, skip: excludedRanges)
-        _ = applyRegex(SQLTextView.operatorRegex, in: nsString, style: theme.tokenColors.operatorSymbol, skip: excludedRanges)
-        _ = applyRegex(SQLTextView.keywordRegex, in: nsString, style: theme.tokenColors.keyword, skip: excludedRanges)
+        var occupiedRanges = excludedRanges
 
-        applyFunctionHighlights(in: nsString, skip: excludedRanges)
+        let numberRanges = applyRegex(SQLTextView.numberRegex, in: nsString, style: theme.tokenColors.number, skip: occupiedRanges)
+        occupiedRanges += numberRanges
+
+        let operatorRanges = applyRegex(SQLTextView.operatorRegex, in: nsString, style: theme.tokenColors.operatorSymbol, skip: occupiedRanges)
+        occupiedRanges += operatorRanges
+
+        let keywordRanges = applyRegex(SQLTextView.keywordRegex, in: nsString, style: theme.tokenColors.keyword, skip: occupiedRanges)
+        occupiedRanges += keywordRanges
+
+        let functionRanges = applyFunctionHighlights(in: nsString, skip: occupiedRanges)
+        occupiedRanges += functionRanges
+
+        applyIdentifierHighlights(in: nsString, skip: occupiedRanges)
 
         textStorage.endEditing()
         lineNumberRuler?.setNeedsDisplay(lineNumberRuler?.bounds ?? .zero)
@@ -1919,9 +2296,10 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
 #endif
     }
 
-    private func applyFunctionHighlights(in string: NSString, skip: [NSRange]) {
-        guard let textStorage = textStorage else { return }
+    private func applyFunctionHighlights(in string: NSString, skip: [NSRange]) -> [NSRange] {
+        guard let textStorage = textStorage else { return [] }
         let fullRange = NSRange(location: 0, length: string.length)
+        var applied: [NSRange] = []
         SQLTextView.functionRegex.enumerateMatches(in: string as String, options: [], range: fullRange) { match, _, _ in
             guard let match = match else { return }
             let nameRange = match.range(at: 1)
@@ -1936,6 +2314,39 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
                 attributes[.font] = font
             }
             textStorage.addAttributes(attributes, range: nameRange)
+            applied.append(nameRange)
+        }
+        return applied
+    }
+
+    private func applyIdentifierHighlights(in string: NSString, skip: [NSRange]) {
+        guard let textStorage = textStorage else { return }
+        let fullRange = NSRange(location: 0, length: string.length)
+        let style = theme.tokenColors.identifier
+        let font = font(for: style)
+        SQLTextView.identifierRegex.enumerateMatches(in: string as String, options: [], range: fullRange) { match, _, _ in
+            guard let match = match else { return }
+            let targetRange = match.range(at: 0)
+            guard targetRange.length > 0 else { return }
+            guard !intersectsExcluded(targetRange, excluded: skip) else { return }
+            if targetRange.location > 0 {
+                let precedingChar = string.character(at: targetRange.location - 1)
+                if let scalar = UnicodeScalar(precedingChar) {
+                    let preceding = Character(scalar)
+                    if preceding == ":" || preceding == "@" {
+                        return
+                    }
+                }
+            }
+            let token = string.substring(with: targetRange).lowercased()
+            guard !SQLTextView.allKeywords.contains(token) else { return }
+            var attributes: [NSAttributedString.Key: Any] = [
+                .foregroundColor: style.nsColor
+            ]
+            if let font {
+                attributes[.font] = font
+            }
+            textStorage.addAttributes(attributes, range: targetRange)
         }
     }
 
@@ -1968,6 +2379,8 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
 
     private func applyDisplayOptions() {
         completionEngine.updateAliasPreference(useTableAliases: displayOptions.suggestTableAliasesInCompletion)
+        completionEngine.updateHistoryPreference(includeHistory: displayOptions.suggestHistoryInCompletion)
+        completionEngine.updateQualifiedInsertionPreference(includeSchema: displayOptions.qualifyTableCompletions)
         updateParagraphStyle()
         textContainer?.widthTracksTextView = displayOptions.wrapLines
         lineNumberRuler?.highlightedLines = selectedLineRange()

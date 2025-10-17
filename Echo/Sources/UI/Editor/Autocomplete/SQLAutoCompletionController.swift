@@ -107,6 +107,7 @@ final class SQLAutoCompletionController {
             return true
         case 53: // escape
             hide()
+            textView?.activateManualCompletionSuppression()
             return true
         case 36, 76: // return, enter
             acceptCurrentSuggestion()

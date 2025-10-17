@@ -74,7 +74,7 @@ final class QueryPerformanceTrackerTests: XCTestCase {
         let cacheRoot = FileManager.default.temporaryDirectory.appendingPathComponent("EchoBenchmarkResultCache", isDirectory: true)
         let spoolManager = ResultSpoolManager(configuration: ResultSpoolConfiguration.defaultConfiguration(rootDirectory: cacheRoot))
         let state = await MainActor.run {
-            QueryEditorState(sql: sql, initialVisibleRowBatch: 500, spoolManager: spoolManager)
+            QueryEditorState(sql: sql, initialVisibleRowBatch: 500, previewRowLimit: 512, spoolManager: spoolManager)
         }
 
         await MainActor.run {

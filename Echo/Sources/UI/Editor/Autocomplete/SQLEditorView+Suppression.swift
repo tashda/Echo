@@ -275,6 +275,10 @@ extension SQLTextView {
     }
 
     func forcePresentImmediateCompletions() -> Bool {
+        deactivateManualCompletionSuppression()
+        clearSnippetPlaceholders()
+        completionEngine.clearPostCommitSuppression()
+
         if let query = makeCompletionQuery() {
             let caretLocation = query.replacementRange.location
             let engineResult = completionEngine.suggestions(for: query,
@@ -351,7 +355,10 @@ extension SQLTextView {
 
     func handleCommandShortcut(_ event: NSEvent) -> Bool {
         guard isCommandPeriod(event) else { return false }
-        return triggerSuppressedCompletionsIfAvailable()
+        if triggerSuppressedCompletionsIfAvailable() {
+            return true
+        }
+        return forcePresentImmediateCompletions()
     }
 
     func isCommandPeriod(_ event: NSEvent) -> Bool {

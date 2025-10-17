@@ -174,20 +174,39 @@ final class MySQLSession: DatabaseSession {
                 )
             }
 
+            let capturePreview = totalRowCount < streamingPreviewLimit
+            var previewValues: [String?]? = capturePreview ? [] : nil
+            previewValues?.reserveCapacity(columnMetadata.count)
+            var rawCells: [Data?] = []
+            rawCells.reserveCapacity(columnMetadata.count)
+
             let decodeStart = CFAbsoluteTimeGetCurrent()
-            let values = self.makeRowValues(row, metadata: columnMetadata)
+            for (definition, buffer) in zip(columnMetadata, row.values) {
+                rawCells.append(self.rawCellData(from: buffer))
+                if capturePreview {
+                    let data = MySQLData(
+                        type: definition.columnType,
+                        format: row.format,
+                        buffer: buffer,
+                        isUnsigned: definition.flags.contains(.COLUMN_UNSIGNED)
+                    )
+                    previewValues?.append(self.formatter.stringValue(for: data))
+                }
+            }
             let decodeDuration = CFAbsoluteTimeGetCurrent() - decodeStart
+
             totalRowCount += 1
-            if previewRows.count < streamingPreviewLimit {
-                previewRows.append(values)
+            if let previewRow = previewValues {
+                if previewRows.count < streamingPreviewLimit {
+                    previewRows.append(previewRow)
+                }
             }
 
-            let previewForWorker: [String?]? = totalRowCount <= streamingPreviewLimit ? values : nil
-            let encodedRow = ResultBinaryRowCodec.encode(row: values)
+            let encodedRow = ResultBinaryRowCodec.encodeRaw(cells: rawCells)
 
             worker?.enqueue(
                 .init(
-                    previewValues: previewForWorker,
+                    previewValues: previewValues,
                     encodedRow: encodedRow,
                     totalRowCount: totalRowCount,
                     decodeDuration: decodeDuration
@@ -414,19 +433,12 @@ final class MySQLSession: DatabaseSession {
             .filter { !$0.isEmpty && !excludedSchemas.contains($0.lowercased()) }
     }
 
-    private func makeRowValues(_ row: MySQLRow, metadata: [MySQLProtocol.ColumnDefinition41]) -> [String?] {
-        var values: [String?] = []
-        values.reserveCapacity(metadata.count)
-        for (definition, buffer) in zip(metadata, row.values) {
-            let data = MySQLData(
-                type: definition.columnType,
-                format: row.format,
-                buffer: buffer,
-                isUnsigned: definition.flags.contains(.COLUMN_UNSIGNED)
-            )
-            values.append(formatter.stringValue(for: data))
-        }
-        return values
+    private func rawCellData(from buffer: ByteBuffer?) -> Data? {
+        guard var buffer else { return nil }
+        let readable = buffer.readableBytes
+        guard readable > 0 else { return Data() }
+        guard let bytes = buffer.readBytes(length: readable) else { return nil }
+        return Data(bytes)
     }
 
     private func makeString(_ row: MySQLRow, index: Int) -> String? {

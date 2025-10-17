@@ -887,6 +887,7 @@ private struct WorkspaceToolbarPreviewData {
             connection: connection,
             session: PreviewDatabaseSession(),
             defaultInitialBatchSize: appModel.globalSettings.resultsInitialRowLimit,
+            defaultBackgroundStreamingThreshold: appModel.globalSettings.resultsBackgroundStreamingThreshold,
             spoolManager: spoolManager
         )
         previewSession.databaseStructure = DatabaseStructure(

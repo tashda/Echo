@@ -20,6 +20,7 @@ final class ResultStreamBatchWorker: @unchecked Sendable {
     private var lastFlushTimestamp: CFAbsoluteTime
     private var batchDecodeDuration: TimeInterval = 0
     private var previewRowsEmitted: Int = 0
+    private var hasEmittedBatch = false
 
     init(
         label: String,
@@ -50,7 +51,26 @@ final class ResultStreamBatchWorker: @unchecked Sendable {
 
             let threshold = self.flushThreshold(for: payload.totalRowCount)
             let elapsed = CFAbsoluteTimeGetCurrent() - self.lastFlushTimestamp
-            if self.pendingEncodedRows.count >= threshold || elapsed >= self.maxFlushLatency {
+            let latencyBudget = self.latencyBudget(for: payload.totalRowCount)
+            let previewPhase = payload.totalRowCount <= self.streamingPreviewLimit
+            let minLatencyBatch = previewPhase ? min(8, threshold) : min(32, threshold)
+            let gracePeriod: TimeInterval = previewPhase ? 0.05 : 0.2
+            let fallbackBudget: TimeInterval = previewPhase
+                ? max(latencyBudget * 3, 1.5)
+                : max(latencyBudget * 2, 1.0)
+
+            var shouldFlush = false
+            if self.pendingEncodedRows.count >= threshold {
+                shouldFlush = true
+            } else if !self.hasEmittedBatch && elapsed >= gracePeriod {
+                shouldFlush = true
+            } else if elapsed >= latencyBudget && self.pendingEncodedRows.count >= minLatencyBatch {
+                shouldFlush = true
+            } else if elapsed >= fallbackBudget {
+                shouldFlush = true
+            }
+
+            if shouldFlush {
                 self.flush(totalRowCount: payload.totalRowCount)
             }
         }
@@ -80,6 +100,15 @@ final class ResultStreamBatchWorker: @unchecked Sendable {
         )
         lastFlushTimestamp = now
         batchDecodeDuration = 0
+        hasEmittedBatch = true
+
+#if DEBUG
+        if encodedBatch.count <= 2 && metrics.loopElapsed > 0.25 {
+            print("[ResultStreamBatchWorker] small flush size=\(encodedBatch.count) total=\(totalRowCount) elapsed=\(metrics.totalElapsed)s latency=\(metrics.loopElapsed)s")
+        } else if totalRowCount >= 1_000 && totalRowCount % 5_000 == 0 {
+            print("[ResultStreamBatchWorker] checkpoint total=\(totalRowCount) elapsed=\(metrics.totalElapsed)s")
+        }
+#endif
 
         let update = QueryStreamUpdate(
             columns: columns,
@@ -92,15 +121,22 @@ final class ResultStreamBatchWorker: @unchecked Sendable {
     }
 
     private func flushThreshold(for totalCount: Int) -> Int {
-        switch totalCount {
-        case 0..<1024:
+        if totalCount <= streamingPreviewLimit {
             return 32
-        case 1024..<8192:
-            return 128
-        case 8192..<32_768:
-            return 512
-        default:
+        }
+        if totalCount <= streamingPreviewLimit * 4 {
             return 1_024
         }
+        if totalCount <= 128_000 {
+            return 2_048
+        }
+        return 4_096
+    }
+
+    private func latencyBudget(for totalCount: Int) -> TimeInterval {
+        if totalCount <= streamingPreviewLimit {
+            return maxFlushLatency
+        }
+        return max(maxFlushLatency, 0.5)
     }
 }

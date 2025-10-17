@@ -218,28 +218,17 @@ final class AppModel: ObservableObject {
         relatedKeys.remove(baseKey)
 
         if !relatedKeys.isEmpty {
-            await withTaskGroup(of: (DiagramTableKey, TableStructureDetails)?.self) { group in
-                for key in relatedKeys where tableDetails[key] == nil {
-                    group.addTask {
-                        do {
-                            let details = try await session.session.getTableStructureDetails(
-                                schema: key.schema,
-                                table: key.name
-                            )
-                            return (key, details)
-                        } catch {
-                            #if DEBUG
-                            print("Failed to fetch diagram details for \(key.schema).\(key.name): \(error)")
-                            #endif
-                            return nil
-                        }
-                    }
-                }
-
-                for await result in group {
-                    if let (key, details) = result {
-                        tableDetails[key] = details
-                    }
+            for key in relatedKeys where tableDetails[key] == nil {
+                do {
+                    let details = try await session.session.getTableStructureDetails(
+                        schema: key.schema,
+                        table: key.name
+                    )
+                    tableDetails[key] = details
+                } catch {
+                    #if DEBUG
+                    print("Failed to fetch diagram details for \(key.schema).\(key.name): \(String(reflecting: error))")
+                    #endif
                 }
             }
         }
@@ -641,10 +630,15 @@ final class AppModel: ObservableObject {
         await persistGlobalSettings()
     }
 
-    func updateResultsStreaming(initialRowLimit: Int? = nil, previewBatchSize: Int? = nil) async {
+    func updateResultsStreaming(
+        initialRowLimit: Int? = nil,
+        previewBatchSize: Int? = nil,
+        backgroundStreamingThreshold: Int? = nil
+    ) async {
         let clampedInitial = initialRowLimit.map { max(100, $0) }
         let clampedPreview = previewBatchSize.map { max(100, $0) }
-        guard clampedInitial != nil || clampedPreview != nil else { return }
+        let clampedBackground = backgroundStreamingThreshold.map { max(100, $0) }
+        guard [clampedInitial, clampedPreview, clampedBackground].contains(where: { $0 != nil }) else { return }
 
         await updateGlobalEditorDisplay { settings in
             if let value = clampedInitial {
@@ -653,11 +647,19 @@ final class AppModel: ObservableObject {
             if let value = clampedPreview {
                 settings.resultsPreviewBatchSize = value
             }
+            if let value = clampedBackground {
+                settings.resultsBackgroundStreamingThreshold = value
+            }
         }
 
         if let value = clampedInitial {
             for session in sessionManager.activeSessions {
                 session.updateDefaultInitialBatchSize(value)
+            }
+        }
+        if let value = clampedBackground {
+            for session in sessionManager.activeSessions {
+                session.updateDefaultBackgroundStreamingThreshold(value)
             }
         }
     }
@@ -870,9 +872,12 @@ final class AppModel: ObservableObject {
             title = "\(baseTitle) \(existingCountForConnection + 1)"
         }
 
+        let initialBatch = max(100, globalSettings.resultsInitialRowLimit)
+        let previewLimit = max(globalSettings.resultsBackgroundStreamingThreshold, initialBatch)
         let queryState = QueryEditorState(
             sql: presetQuery.isEmpty ? "SELECT current_timestamp;" : presetQuery,
-            initialVisibleRowBatch: max(100, globalSettings.resultsInitialRowLimit),
+            initialVisibleRowBatch: initialBatch,
+            previewRowLimit: previewLimit,
             spoolManager: resultSpoolManager
         )
 
@@ -919,7 +924,13 @@ final class AppModel: ObservableObject {
             return trimmed.isEmpty ? nil : trimmed
         }
 
-        let queryState = QueryEditorState(sql: initialSQL, initialVisibleRowBatch: configuredBatchSize, spoolManager: resultSpoolManager)
+        let previewLimit = max(globalSettings.resultsBackgroundStreamingThreshold, configuredBatchSize)
+        let queryState = QueryEditorState(
+            sql: initialSQL,
+            initialVisibleRowBatch: configuredBatchSize,
+            previewRowLimit: previewLimit,
+            spoolManager: resultSpoolManager
+        )
         queryState.isResultsOnly = true
         queryState.shouldAutoExecuteOnAppear = true
         let databaseSession = session.session
@@ -994,9 +1005,12 @@ final class AppModel: ObservableObject {
 
         sessionManager.setActiveSession(session.id)
 
+        let initialBatch = max(100, globalSettings.resultsInitialRowLimit)
+        let previewLimit = max(globalSettings.resultsBackgroundStreamingThreshold, initialBatch)
         let duplicateState = QueryEditorState(
             sql: queryState.sql,
-            initialVisibleRowBatch: max(100, globalSettings.resultsInitialRowLimit),
+            initialVisibleRowBatch: initialBatch,
+            previewRowLimit: previewLimit,
             spoolManager: resultSpoolManager
         )
         duplicateState.splitRatio = queryState.splitRatio
@@ -1627,6 +1641,7 @@ final class AppModel: ObservableObject {
                 connection: resolvedConnection,
                 session: databaseSession,
                 defaultInitialBatchSize: globalSettings.resultsInitialRowLimit,
+                defaultBackgroundStreamingThreshold: globalSettings.resultsBackgroundStreamingThreshold,
                 spoolManager: resultSpoolManager
             )
 

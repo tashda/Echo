@@ -28,7 +28,6 @@ struct SchemaDiagramView: View {
                     offset: contentOffset,
                     isDraggingNode: $isDraggingNode
                 )
-                .transaction { $0.animation = nil }
 
                 zoomControls
             }
@@ -196,7 +195,6 @@ private struct DiagramCanvas: View {
                     }
             )
         }
-        .drawingGroup()
     }
 
     private func position(for basePoint: CGPoint) -> CGPoint {
@@ -278,7 +276,6 @@ private struct SchemaDiagramNodeView: View {
     let zoom: CGFloat
     @Binding var isDraggingNode: Bool
 
-    @GestureState private var dragTranslation: CGSize = .zero
     @State private var dragStartPosition: CGPoint?
 
     private let headerColor = Color.accentColor.opacity(0.2)
@@ -301,10 +298,6 @@ private struct SchemaDiagramNodeView: View {
                 .stroke(borderColor, lineWidth: 1)
         )
         .shadow(color: Color.black.opacity(0.12), radius: 16, x: 0, y: 6)
-        .offset(
-            x: dragTranslation.width / zoom,
-            y: dragTranslation.height / zoom
-        )
         .highPriorityGesture(dragGesture)
     }
 
@@ -319,6 +312,7 @@ private struct SchemaDiagramNodeView: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .background(
             RoundedRectangle(cornerRadius: 16, style: .continuous)
                 .fill(headerColor)
@@ -342,9 +336,6 @@ private struct SchemaDiagramNodeView: View {
 
     private var dragGesture: some Gesture {
         DragGesture()
-            .updating($dragTranslation) { value, state, _ in
-                state = value.translation
-            }
             .onChanged { value in
                 if dragStartPosition == nil {
                     dragStartPosition = node.position
@@ -352,17 +343,24 @@ private struct SchemaDiagramNodeView: View {
                 if !isDraggingNode {
                     isDraggingNode = true
                 }
-            }
-            .onEnded { value in
                 let start = dragStartPosition ?? node.position
                 let delta = CGSize(
                     width: value.translation.width / zoom,
                     height: value.translation.height / zoom
                 )
-                node.position = CGPoint(
+                let newPosition = CGPoint(
                     x: start.x + delta.width,
                     y: start.y + delta.height
                 )
+                if node.position != newPosition {
+                    var transaction = Transaction()
+                    transaction.disablesAnimations = true
+                    withTransaction(transaction) {
+                        node.position = newPosition
+                    }
+                }
+            }
+            .onEnded { _ in
                 dragStartPosition = nil
                 isDraggingNode = false
             }
