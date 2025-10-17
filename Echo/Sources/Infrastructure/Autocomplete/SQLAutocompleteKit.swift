@@ -173,15 +173,18 @@ public struct SQLColumn {
     public let dataType: String
     public let isPrimaryKey: Bool
     public let isForeignKey: Bool
+    public let isNullable: Bool
 
     public init(name: String,
                 dataType: String,
                 isPrimaryKey: Bool = false,
-                isForeignKey: Bool = false) {
+                isForeignKey: Bool = false,
+                isNullable: Bool = true) {
         self.name = name
         self.dataType = dataType
         self.isPrimaryKey = isPrimaryKey
         self.isForeignKey = isForeignKey
+        self.isNullable = isNullable
     }
 }
 

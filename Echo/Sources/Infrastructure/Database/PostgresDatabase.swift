@@ -205,14 +205,14 @@ final class PostgresSession: DatabaseSession {
 
             totalRowCount += 1
 
+            let encodedRow = ResultBinaryRowCodec.encodeRaw(cells: rawCells)
+
             worker?.enqueue(
                 .init(
                     previewValues: previewValues,
+                    encodedRow: encodedRow,
                     totalRowCount: totalRowCount,
-                    decodeDuration: decodeDuration,
-                    encode: {
-                        ResultBinaryRowCodec.encodeRaw(cells: rawCells)
-                    }
+                    decodeDuration: decodeDuration
                 )
             )
 

@@ -18,12 +18,8 @@ actor ResultSpoolHandle {
     private var headerLength: UInt64 = 0
     private var transientDispatchTask: Task<Void, Never>?
     private var lastTransientEmission: UInt64 = 0
-    private let transientDispatchInterval: UInt64 = 8_000_000 // 8 ms trailing flush
-    private let transientImmediateInterval: UInt64 = 1_000_000  // 1 ms (~1 kHz)
-    private var pendingStats: ResultSpoolStats?
-    private var statsFlushTask: Task<Void, Never>?
-    private var lastStatsWriteTimestamp: UInt64 = 0
-    private let statsFlushInterval: UInt64 = 12_000_000
+    private let transientDispatchInterval: UInt64 = 20_000_000 // 20 ms trailing flush
+    private let transientImmediateInterval: UInt64 = 5_000_000  // 5 ms (~200 Hz)
 
     private struct RowRecord: Sendable {
         let offset: UInt64
@@ -71,9 +67,6 @@ actor ResultSpoolHandle {
     deinit {
         transientDispatchTask?.cancel()
         transientDispatchTask = nil
-        statsFlushTask?.cancel()
-        statsFlushTask = nil
-        flushPendingStats()
         try? writeHandle?.close()
         try? readHandle?.close()
         statContinuations.values.forEach { $0.finish() }
@@ -82,9 +75,6 @@ actor ResultSpoolHandle {
     func close() {
         transientDispatchTask?.cancel()
         transientDispatchTask = nil
-        statsFlushTask?.cancel()
-        statsFlushTask = nil
-        flushPendingStats()
         try? writeHandle?.close()
         writeHandle = nil
         try? readHandle?.close()
@@ -334,33 +324,6 @@ actor ResultSpoolHandle {
 
     private func persistStats(lastBatch: Int, metrics: QueryStreamMetrics?, isFinished: Bool) {
         let stats = currentStats(lastBatch: lastBatch, metrics: metrics, isFinished: isFinished)
-        pendingStats = stats
-        statContinuations.values.forEach { $0.yield(stats) }
-        lastTransientEmission = DispatchTime.now().uptimeNanoseconds
-
-        let now = DispatchTime.now().uptimeNanoseconds
-        let elapsed = now &- lastStatsWriteTimestamp
-        if isFinished || elapsed >= statsFlushInterval {
-            flushPendingStats()
-        } else if statsFlushTask == nil {
-            let delay = max(statsFlushInterval - elapsed, 1)
-            statsFlushTask = Task { [weak self] in
-                try? await Task.sleep(nanoseconds: delay)
-                await self?.flushPendingStats()
-            }
-        }
-    }
-
-    private func flushPendingStats() {
-        statsFlushTask?.cancel()
-        statsFlushTask = nil
-        guard let stats = pendingStats else { return }
-        pendingStats = nil
-        writeStats(stats)
-        lastStatsWriteTimestamp = DispatchTime.now().uptimeNanoseconds
-    }
-
-    private func writeStats(_ stats: ResultSpoolStats) {
         let statsURL = directory.appendingPathComponent("stats.json")
         let encoder = makeJSONEncoder()
         do {
@@ -369,6 +332,8 @@ actor ResultSpoolHandle {
         } catch {
             print("ResultSpoolHandle: Failed to persist stats \(error)")
         }
+        statContinuations.values.forEach { $0.yield(stats) }
+        lastTransientEmission = DispatchTime.now().uptimeNanoseconds
     }
 
     private func emitTransientStatsIfAppropriate() {

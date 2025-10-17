@@ -1,11 +1,11 @@
 import Foundation
 
-final class ResultStreamBatchWorker {
-    struct Payload {
+final class ResultStreamBatchWorker: @unchecked Sendable {
+    struct Payload: Sendable {
         let previewValues: [String?]?
+        let encodedRow: ResultBinaryRow
         let totalRowCount: Int
         let decodeDuration: TimeInterval
-        let encode: @Sendable () -> ResultBinaryRow
     }
 
     private let queue: DispatchQueue
@@ -38,15 +38,14 @@ final class ResultStreamBatchWorker {
         self.lastFlushTimestamp = operationStart
     }
 
-    func enqueue(_ payload: Payload) {
+    nonisolated func enqueue(_ payload: Payload) {
         queue.async {
             if let preview = payload.previewValues, self.previewRowsEmitted < self.streamingPreviewLimit {
                 self.pendingPreviewRows.append(preview)
                 self.previewRowsEmitted += 1
             }
 
-            let encodedRow = payload.encode()
-            self.pendingEncodedRows.append(encodedRow)
+            self.pendingEncodedRows.append(payload.encodedRow)
             self.batchDecodeDuration += payload.decodeDuration
 
             let threshold = self.flushThreshold(for: payload.totalRowCount)
@@ -57,7 +56,7 @@ final class ResultStreamBatchWorker {
         }
     }
 
-    func finish(totalRowCount: Int) {
+    nonisolated func finish(totalRowCount: Int) {
         queue.sync {
             self.flush(totalRowCount: totalRowCount)
         }

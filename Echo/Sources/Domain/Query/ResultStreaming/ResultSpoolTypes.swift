@@ -16,7 +16,7 @@ struct ResultSpoolConfiguration: Equatable, Sendable {
     }
 }
 
-struct ResultSpoolStats: Sendable, Codable {
+@preconcurrency struct ResultSpoolStats: Sendable, Codable {
     let spoolID: UUID
     let rowCount: Int
     let lastBatchCount: Int
@@ -26,7 +26,7 @@ struct ResultSpoolStats: Sendable, Codable {
     let isFinished: Bool
 }
 
-struct ResultSpoolMetadata: Sendable, Codable {
+@preconcurrency struct ResultSpoolMetadata: Sendable, Codable {
     let id: UUID
     let createdAt: Date
     var updatedAt: Date

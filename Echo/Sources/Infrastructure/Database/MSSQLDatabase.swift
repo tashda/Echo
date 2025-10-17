@@ -203,19 +203,21 @@ final class MSSQLSession: DatabaseSession {
                 formatted.removeFirst()
             }
             let decodeDuration = CFAbsoluteTimeGetCurrent() - decodeStart
+            let finalRow = formatted
             totalRowCount += 1
             if previewRows.count < streamingPreviewLimit {
-                previewRows.append(formatted)
+                previewRows.append(finalRow)
             }
+
+            let previewForWorker: [String?]? = totalRowCount <= streamingPreviewLimit ? finalRow : nil
+            let encodedRow = ResultBinaryRowCodec.encode(row: finalRow)
 
             worker?.enqueue(
                 .init(
-                    previewValues: totalRowCount <= streamingPreviewLimit ? formatted : nil,
+                    previewValues: previewForWorker,
+                    encodedRow: encodedRow,
                     totalRowCount: totalRowCount,
-                    decodeDuration: decodeDuration,
-                    encode: {
-                        ResultBinaryRowCodec.encode(row: formatted)
-                    }
+                    decodeDuration: decodeDuration
                 )
             )
         })

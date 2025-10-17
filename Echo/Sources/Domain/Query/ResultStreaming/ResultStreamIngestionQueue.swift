@@ -54,7 +54,10 @@ actor ResultStreamIngestionQueue {
 
             if !update.appendedRows.isEmpty {
                 let start = totalRowCount
-                rowCache.ingest(rows: update.appendedRows, startingAt: start)
+                let rowsCopy = update.appendedRows
+                await MainActor.run { [rowsCopy, start, cache = rowCache] in
+                    cache.ingest(rows: rowsCopy, startingAt: start)
+                }
             }
 
             let appendedCount = !update.encodedRows.isEmpty ? update.encodedRows.count : update.appendedRows.count

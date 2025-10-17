@@ -276,12 +276,17 @@ extension SQLTextView {
 
     func forcePresentImmediateCompletions() -> Bool {
         if let query = makeCompletionQuery() {
-            var suggestions = filteredSuggestions(from: completionEngine.suggestions(for: query), for: query)
-            suggestions = filterSuggestionsForContext(suggestions, query: query)
+            let caretLocation = query.replacementRange.location
+            let engineResult = completionEngine.suggestions(for: query,
+                                                            text: string,
+                                                            caretLocation: caretLocation)
+            let activeQuery = enrichedQuery(query, with: engineResult.metadata)
+            var suggestions = filteredSuggestions(from: engineResult.sections, for: activeQuery)
+            suggestions = filterSuggestionsForContext(suggestions, query: activeQuery)
             suggestions = limitSuggestions(suggestions)
 
             if suggestions.isEmpty,
-               let suppression = suppressionForTrigger(at: query.replacementRange.location),
+               let suppression = suppressionForTrigger(at: activeQuery.replacementRange.location),
                suppression.hasFollowUps,
                let fallback = ruleEngine.fallbackSuggestions(for: suppression.asRuleSuppression,
                                                              environment: ruleEnvironment),
@@ -299,7 +304,7 @@ extension SQLTextView {
             completionTask = nil
 
             removeCompletionIndicator()
-            controller.present(suggestions: suggestions, query: query)
+            controller.present(suggestions: suggestions, query: activeQuery)
             return true
         } else if let suppression = suppressionForTrigger(at: selectedRange().location),
                   suppression.hasFollowUps,
