@@ -177,6 +177,9 @@ final class SchemaDiagramNodeModel: ObservableObject, Identifiable {
 final class SchemaDiagramViewModel: ObservableObject {
     @Published var nodes: [SchemaDiagramNodeModel]
     @Published var edges: [SchemaDiagramEdge]
+    @Published var isLoading: Bool
+    @Published var statusMessage: String?
+    @Published var errorMessage: String?
     let title: String
     let baseNodeID: String
 
@@ -184,12 +187,18 @@ final class SchemaDiagramViewModel: ObservableObject {
         nodes: [SchemaDiagramNodeModel],
         edges: [SchemaDiagramEdge],
         baseNodeID: String,
-        title: String
+        title: String,
+        isLoading: Bool = false,
+        statusMessage: String? = nil,
+        errorMessage: String? = nil
     ) {
         self.nodes = nodes
         self.edges = edges
         self.baseNodeID = baseNodeID
         self.title = title
+        self.isLoading = isLoading
+        self.statusMessage = statusMessage
+        self.errorMessage = errorMessage
     }
 
     func node(for id: String) -> SchemaDiagramNodeModel? {

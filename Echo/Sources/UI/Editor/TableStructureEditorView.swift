@@ -63,6 +63,7 @@ struct TableStructureEditorView: View {
     @State private var activeForeignKeyEditor: ForeignKeyEditorPresentation?
     @State private var selectedSection: TableStructureSection
     @State private var selectedColumnIDs: Set<TableStructureEditorViewModel.ColumnModel.ID> = []
+    @State private var columnIndexLookup: [UUID: Int] = [:]
     @FocusState private var focusedCustomColumnID: TableStructureEditorViewModel.ColumnModel.ID?
     @State private var bulkColumnEditor: BulkColumnEditorPresentation?
     @EnvironmentObject private var themeManager: ThemeManager
@@ -71,6 +72,14 @@ struct TableStructureEditorView: View {
         _tab = ObservedObject(initialValue: tab)
         _viewModel = ObservedObject(initialValue: viewModel)
         _selectedSection = State(initialValue: viewModel.requestedSection ?? .columns)
+        _columnIndexLookup = State(
+            initialValue: Dictionary(
+                uniqueKeysWithValues: viewModel.columns.enumerated().map { pair in
+                    let (index, column) = pair
+                    return (column.id, index)
+                }
+            )
+        )
     }
 
     private var visibleColumns: [TableStructureEditorViewModel.ColumnModel] {
@@ -92,6 +101,7 @@ struct TableStructureEditorView: View {
             viewModel.lastSuccessMessage = nil
         }
         .onAppear {
+            rebuildColumnIndexLookup()
             if let requested = viewModel.requestedSection {
                 selectedSection = requested
                 viewModel.requestedSection = nil
@@ -99,6 +109,7 @@ struct TableStructureEditorView: View {
         }
         .onChange(of: viewModel.columns) { _ in
             pruneSelectedColumns()
+            rebuildColumnIndexLookup()
         }
         .onReceive(viewModel.$requestedSection.compactMap { $0 }) { section in
             selectedSection = section
@@ -862,6 +873,15 @@ struct TableStructureEditorView: View {
         selectedColumnIDs = selectedColumnIDs.intersection(valid)
     }
 
+    private func rebuildColumnIndexLookup() {
+        columnIndexLookup = Dictionary(
+            uniqueKeysWithValues: viewModel.columns.enumerated().map { pair in
+                let (index, column) = pair
+                return (column.id, index)
+            }
+        )
+    }
+
     private func presentNewColumn() {
         let model = viewModel.addColumn()
         activeColumnEditor = ColumnEditorPresentation(columnID: model.id, isNew: true)
@@ -1305,7 +1325,7 @@ struct TableStructureEditorView: View {
     }
 
     private func columnBinding(for columnID: UUID) -> Binding<TableStructureEditorViewModel.ColumnModel>? {
-        guard let index = viewModel.columns.firstIndex(where: { $0.id == columnID }) else { return nil }
+        guard let index = columnIndexLookup[columnID], index < viewModel.columns.count else { return nil }
         return $viewModel.columns[index]
     }
 
@@ -2160,84 +2180,135 @@ private struct BulkColumnEditorSheet: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            contentContainer
+            contentForm
 
             Divider()
 
             toolbar
         }
         .frame(minWidth: 360, idealWidth: 420, minHeight: formHeight)
-        .background(Color(nsColor: .windowBackgroundColor))
-        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-        .shadow(color: Color.black.opacity(0.12), radius: 18, y: 10)
+        .background(sheetBackgroundColor)
+        .clipShape(sheetShape)
+        .overlay(
+            sheetShape
+                .stroke(sheetBorderColor, lineWidth: 1)
+        )
+        .shadow(color: sheetShadowColor, radius: 18, y: 10)
         .navigationTitle("Edit Columns")
     }
 
-    private var contentContainer: some View {
-        VStack(spacing: 0) {
-            Section(header: Text(sectionTitle), footer: sectionFooter) {
-                content
+    private var contentForm: some View {
+        Form {
+            Section {
+                columnSummary
+            } header: {
+                Text("Selected Columns")
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 16)
+
+            Section {
+                sectionContent
+            } header: {
+                Text(sectionTitle)
+            } footer: {
+                sectionFooter
+            }
         }
+        .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
+        .background(sheetBackgroundColor)
     }
 
     @ViewBuilder
-    private var content: some View {
+    private var sectionContent: some View {
         switch mode {
-        case .dataType:
-            formRow(label: "Data Type") {
+        case .dataType: dataTypeFields
+        case .defaultValue: defaultValueField
+        case .generatedExpression: generatedExpressionField
+        }
+    }
+
+    private var dataTypeFields: some View {
+        Group {
+            labeledRow(title: "Data Type") {
                 dataTypePicker
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 8)
-            if needsCustomTypeField {
-                formRow(label: "Custom Type") {
-                    plainField(text: $dataType, alignment: .trailing)
-                }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 8)
-            }
-        case .defaultValue:
-            formRow(label: "Default Value") {
-                plainField(text: $defaultValue, alignment: .trailing)
-            }
 
-        case .generatedExpression:
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Generated Expression")
-                    .frame(minWidth: 120, alignment: .leading)
-                TextEditor(text: $generatedExpression)
-                    .font(.system(size: 13))
-                    .frame(minHeight: 120)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 8)
-                    .background(
-                        RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .fill(Color(nsColor: .textBackgroundColor))
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .stroke(Color.secondary.opacity(0.25))
-                    )
+            if needsCustomTypeField {
+                labeledRow(title: "Custom Data Type") {
+                    inlineField(text: $dataType, alignment: .trailing)
+                }
             }
         }
     }
 
-    private func formRow(label: String, @ViewBuilder content: () -> some View) -> some View {
-        HStack(alignment: .center, spacing: 12) {
-            Text(label)
-                .frame(minWidth: 120, alignment: .leading)
-            Spacer(minLength: 0)
-            content()
+    private var defaultValueField: some View {
+        labeledRow(title: "Default Value") {
+            inlineField(text: $defaultValue, alignment: .trailing)
         }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 8)
+    }
+
+    private var generatedExpressionField: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Generated Expression")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            TextEditor(text: $generatedExpression)
+                .font(.system(size: 13))
+                .frame(minHeight: 120)
+                .padding(.vertical, 6)
+                .padding(.horizontal, 8)
+                .background(
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .fill(fieldBackgroundColor)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .stroke(fieldStrokeColor, lineWidth: 1)
+                )
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var columnSummary: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(columnSummaryTitle)
+                .font(.system(size: 13, weight: .semibold))
+
+            if columnNames.isEmpty {
+                Text("No columns selected")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+            } else {
+                VStack(alignment: .leading, spacing: 3) {
+                    ForEach(Array(columnNames.enumerated()), id: \.offset) { _, name in
+                        Text("• \(name)")
+                            .font(.system(size: 12))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var columnNames: [String] {
+        columns.map { $0.wrappedValue.name }
+    }
+
+    private var columnSummaryTitle: String {
+        let count = columnNames.count
+        if count == 0 {
+            return "Applying changes"
+        } else if count == 1 {
+            return "Applying changes to 1 column"
+        } else {
+            return "Applying changes to \(count) columns"
+        }
     }
 
     private var needsCustomTypeField: Bool {
-        mode == .dataType && (databaseType != .postgresql || selectedPresetType == nil)
+        mode == .dataType && databaseType == .postgresql && selectedPresetType == nil
     }
 
     @ViewBuilder
@@ -2251,18 +2322,18 @@ private struct BulkColumnEditorSheet: View {
             }
             .labelsHidden()
             .pickerStyle(.menu)
-            .frame(width: 200, alignment: .trailing)
+            .frame(width: 180, alignment: .trailing)
             .onChange(of: selectedPresetType) { newValue in
                 if let preset = newValue {
                     dataType = preset
                 }
             }
         } else {
-            plainField(text: $dataType, alignment: .trailing)
+            inlineField(text: $dataType, alignment: .trailing)
         }
     }
 
-    private func plainField(text: Binding<String>, alignment: TextAlignment) -> some View {
+    private func inlineField(text: Binding<String>, alignment: TextAlignment) -> some View {
         let frameAlignment: Alignment
         switch alignment {
         case .trailing: frameAlignment = .trailing
@@ -2274,8 +2345,17 @@ private struct BulkColumnEditorSheet: View {
             .textFieldStyle(.plain)
             .font(.system(size: 13))
             .multilineTextAlignment(alignment)
-            .padding(.vertical, 6)
             .frame(maxWidth: .infinity, alignment: frameAlignment)
+    }
+
+    private func labeledRow<Content: View>(title: String, @ViewBuilder content: () -> Content) -> some View {
+        HStack(alignment: .center, spacing: 12) {
+            Text(title)
+                .frame(minWidth: 120, alignment: .leading)
+            Spacer(minLength: 0)
+            content()
+        }
+        .frame(maxWidth: .infinity)
     }
 
     private var sectionTitle: String {
@@ -2327,10 +2407,17 @@ private struct BulkColumnEditorSheet: View {
             .keyboardShortcut(.defaultAction)
             .buttonStyle(.borderedProminent)
             .disabled(!canApply)
+            .tint(themeManager.accentColor)
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 14)
-        .background(.ultraThinMaterial)
+        .background(toolbarBackgroundColor)
+        .overlay(
+            Rectangle()
+                .fill(toolbarBorderColor)
+                .frame(height: 1),
+            alignment: .top
+        )
     }
 
     private var canApply: Bool {
@@ -2349,31 +2436,61 @@ private struct BulkColumnEditorSheet: View {
 
     private var formHeight: CGFloat {
         switch mode {
-        case .dataType, .defaultValue:
-            return 240
+        case .dataType:
+            return 280
+        case .defaultValue:
+            return 250
         case .generatedExpression:
-            return 340
+            return 360
         }
     }
-}
 
+    private var sheetCornerRadius: CGFloat { 18 }
 
-private struct FormRow<Content: View>: View {
-    let label: String
-    let content: Content
-
-    init(label: String, @ViewBuilder content: () -> Content) {
-        self.label = label
-        self.content = content()
+    private var sheetShape: RoundedRectangle {
+        RoundedRectangle(cornerRadius: sheetCornerRadius, style: .continuous)
     }
 
-    var body: some View {
-        HStack(alignment: .center, spacing: 12) {
-            Text(label)
-                .frame(minWidth: 120, alignment: .leading)
-            Spacer(minLength: 0)
-            content
-        }
+    private var sheetBackgroundColor: Color {
+#if os(macOS)
+        Color(nsColor: themeManager.windowBackgroundNSColor)
+#else
+        themeManager.windowBackgroundColor
+#endif
+    }
+
+    private var sheetBorderColor: Color {
+        let foreground = themeManager.surfaceForegroundColor
+        return foreground.opacity(themeManager.effectiveColorScheme == .dark ? 0.2 : 0.08)
+    }
+
+    private var sheetShadowColor: Color {
+        themeManager.effectiveColorScheme == .dark ? Color.black.opacity(0.45) : Color.black.opacity(0.16)
+    }
+
+    private var fieldBackgroundColor: Color {
+#if os(macOS)
+        Color(nsColor: themeManager.surfaceBackgroundNSColor).opacity(0.9)
+#else
+        themeManager.surfaceBackgroundColor.opacity(0.9)
+#endif
+    }
+
+    private var fieldStrokeColor: Color {
+        let foreground = themeManager.surfaceForegroundColor
+        return foreground.opacity(themeManager.effectiveColorScheme == .dark ? 0.18 : 0.25)
+    }
+
+    private var toolbarBackgroundColor: Color {
+#if os(macOS)
+        Color(nsColor: themeManager.surfaceBackgroundNSColor)
+#else
+        themeManager.surfaceBackgroundColor
+#endif
+    }
+
+    private var toolbarBorderColor: Color {
+        themeManager.surfaceForegroundColor.opacity(themeManager.effectiveColorScheme == .dark ? 0.3 : 0.12)
     }
 }
 // MARK: - Unique Constraint Editor Sheet

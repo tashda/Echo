@@ -8,8 +8,15 @@ import UIKit
 #endif
 
 private let streamingRowPresets: [Int] = [100, 250, 500, 750, 1_000, 2_000, 5_000, 10_000]
-private let streamingThresholdPresets: [Int] = [500, 1_000, 2_000, 5_000, 10_000, 20_000, 50_000, 100_000, 250_000, 500_000, 1_000_000]
+private let streamingThresholdPresets: [Int] = [512, 1_000, 2_000, 5_000, 10_000, 20_000, 50_000, 100_000, 250_000, 500_000, 1_000_000]
 private let streamingFetchPresets: [Int] = [128, 256, 384, 512, 768, 1_024, 2_048, 4_096, 8_192, 16_384]
+
+private enum ResultStreamingDefaults {
+    static let initialRows = 500
+    static let previewBatch = 500
+    static let backgroundThreshold = 512
+    static let fetchSize = 4_096
+}
 
 /// Primary settings scene built with a native `NavigationSplitView`.
 struct SettingsWindow: Scene {
@@ -3176,65 +3183,59 @@ private struct PaletteSnippetPreview: View {
     }
 
     var body: some View {
-        ZStack {
+        ZStack(alignment: .topLeading) {
             RoundedRectangle(cornerRadius: 20, style: .continuous)
                 .fill(background)
             RoundedRectangle(cornerRadius: 20, style: .continuous)
                 .strokeBorder(borderColor, lineWidth: isDark ? 0.6 : 1)
 
-            HStack(spacing: 0) {
-                lineNumberColumn
-                codeColumn
-            }
-            .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-        }
-    }
+            GeometryReader { geometry in
+                let size = geometry.size
+                let gutterFillHeight = max(size.height - verticalPadding * 2, 0)
+                let gutterFillWidth = gutterBackgroundWidth
+                let highlightStartX = outerHorizontalPadding + gutterInset + gutterWidth + columnSpacing - highlightHorizontalInset
+                let highlightEndX = size.width - outerHorizontalPadding + highlightHorizontalInset
+                let highlightWidth = max(0, highlightEndX - highlightStartX)
+                let lineAdvance = lineAdvanceHeight
 
-    private var lineNumberColumn: some View {
-        VStack(alignment: .trailing, spacing: 0) {
-            ForEach(Array(lines.indices), id: \.self) { index in
-                lineNumber(index + 1)
-                    .padding(.horizontal, lineTextPaddingHorizontal * 0.5)
-                    .frame(height: rowHeight, alignment: .center)
-                    .frame(maxWidth: .infinity, alignment: .trailing)
-            }
-        }
-        .font(font)
-        .frame(width: 32)
-        .padding(.vertical, verticalInset)
-        .padding(.horizontal, 10)
-        .frame(maxHeight: .infinity)
-        .foregroundStyle(gutterForeground.opacity(isDark ? 0.72 : 0.55))
-        .background(
-            Rectangle()
-                .fill(gutterBackground.opacity(isDark ? 0.92 : 0.88))
-        )
-    }
+                Rectangle()
+                    .fill(gutterFillColor)
+                    .frame(width: gutterFillWidth, height: gutterFillHeight)
+                    .offset(x: outerHorizontalPadding, y: verticalPadding)
 
-    private var codeColumn: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            ForEach(Array(lines.enumerated()), id: \.offset) { index, segments in
-                ZStack(alignment: .leading) {
+                ForEach(Array(lines.enumerated()), id: \.offset) { index, _ in
                     if let color = highlight(for: index) {
-                        RoundedRectangle(cornerRadius: 6, style: .continuous)
+                        RoundedRectangle(cornerRadius: highlightCornerRadius, style: .continuous)
                             .fill(color)
-                            .frame(height: highlightHeight)
-                            .padding(.vertical, lineBackgroundInset)
-                            .padding(.horizontal, lineBackgroundInsetHorizontal)
+                            .frame(width: highlightWidth, height: highlightHeight)
+                            .offset(
+                                x: highlightStartX,
+                                y: verticalPadding + CGFloat(index) * lineAdvance - highlightVerticalPadding
+                            )
                     }
+                }
 
-                    codeLine(segments)
-                        .padding(.horizontal, lineTextPaddingHorizontal)
-                        .padding(.vertical, lineTextPaddingVertical)
+                HStack(alignment: .top, spacing: columnSpacing) {
+                    Text(lineNumbersText)
+                        .font(font)
+                        .lineSpacing(interLineSpacing)
+                        .multilineTextAlignment(.trailing)
+                        .foregroundStyle(gutterForegroundColor)
+                        .frame(width: gutterWidth, alignment: .trailing)
+                        .monospacedDigit()
+
+                    Text(codeAttributedString)
+                        .lineSpacing(interLineSpacing)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                .frame(height: rowHeight, alignment: .center)
+                .padding(.leading, outerHorizontalPadding + gutterInset)
+                .padding(.trailing, outerHorizontalPadding)
+                .padding(.top, verticalPadding)
+                .padding(.bottom, verticalPadding)
             }
         }
-        .padding(.vertical, verticalInset)
-        .padding(.horizontal, 14)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .background(background)
+        .frame(height: contentHeight)
+        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
     }
 
     private var lines: [[(String, Color)]] {
@@ -3277,6 +3278,32 @@ private struct PaletteSnippetPreview: View {
         ]
     }
 
+    private var lineNumbersText: String {
+        lines.indices
+            .map { String($0 + 1) }
+            .joined(separator: "\n")
+    }
+
+    private var codeAttributedString: AttributedString {
+        var attributed = AttributedString()
+
+        for (lineIndex, segments) in lines.enumerated() {
+            if lineIndex > 0 {
+                attributed.append(AttributedString("\n"))
+            }
+
+            for segment in segments {
+                var span = AttributedString(segment.0)
+                span.font = font
+                span.foregroundColor = segment.1
+                span.ligature = ligaturesEnabled ? 1 : 0
+                attributed.append(span)
+            }
+        }
+
+        return attributed
+    }
+
     private func highlight(for index: Int) -> Color? {
         switch index {
         case 0:
@@ -3288,26 +3315,16 @@ private struct PaletteSnippetPreview: View {
         }
     }
 
-    private func codeLine(_ segments: [(String, Color)]) -> some View {
-        var attributed = AttributedString()
-        for segment in segments {
-            var span = AttributedString(segment.0)
-            span.font = font
-            span.foregroundColor = segment.1
-            span.ligature = ligaturesEnabled ? 1 : 0
-            attributed.append(span)
-        }
-
-        return Text(attributed)
-            .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    private func lineNumber(_ value: Int) -> Text {
-        Text("\(value)")
-    }
-
     private func highlightColor(_ color: Color, fallbackOpacity: Double) -> Color {
         color.opacity(fallbackOpacity)
+    }
+
+    private var gutterForegroundColor: Color {
+        gutterForeground.opacity(isDark ? 0.72 : 0.55)
+    }
+
+    private var gutterFillColor: Color {
+        gutterBackground.opacity(isDark ? 0.92 : 0.88)
     }
 
     private var borderColor: Color {
@@ -3317,27 +3334,66 @@ private struct PaletteSnippetPreview: View {
     private var metricLineHeight: CGFloat {
 #if os(macOS)
         let nsFont = NSFontWithFallback(name: fontName, size: fontPointSize, ligaturesEnabled: ligaturesEnabled).font
-        return ceil(nsFont.ascender - nsFont.descender + nsFont.leading)
+        return max(0, nsFont.ascender - nsFont.descender + nsFont.leading).rounded(.up)
 #else
         let uiFont = NSFontWithFallback(name: fontName, size: fontPointSize, ligaturesEnabled: ligaturesEnabled).font
         return ceil(uiFont.lineHeight)
 #endif
     }
 
-    private var lineHeight: CGFloat {
-        max(metricLineHeight, fontPointSize * 1.3)
+    private var interLineSpacing: CGFloat {
+        max(fontPointSize * 0.32, 5)
     }
 
-    private var rowHeight: CGFloat { lineHeight + lineTextPaddingVertical * 2 }
+    private var lineAdvanceHeight: CGFloat {
+        metricLineHeight + interLineSpacing
+    }
+
+    private var verticalPadding: CGFloat {
+        max(fontPointSize * 1.05, 18)
+    }
+
+    private var outerHorizontalPadding: CGFloat {
+        max(fontPointSize * 0.9, 16)
+    }
+
+    private var columnSpacing: CGFloat {
+        max(fontPointSize * 0.45, 10)
+    }
+
+    private var gutterWidth: CGFloat {
+        max(fontPointSize * 1.6, 32)
+    }
+
+    private var gutterInset: CGFloat {
+        max(fontPointSize * 0.2, 6)
+    }
+
+    private var gutterBackgroundWidth: CGFloat {
+        gutterInset + gutterWidth + columnSpacing * 0.5
+    }
+
+    private var highlightHorizontalInset: CGFloat {
+        max(fontPointSize * 0.18, 4)
+    }
+
+    private var highlightVerticalPadding: CGFloat {
+        max(fontPointSize * 0.18, 3)
+    }
+
+    private var highlightCornerRadius: CGFloat { 8 }
+
     private var highlightHeight: CGFloat {
-        max(rowHeight - (lineBackgroundInset * 2), lineHeight)
+        metricLineHeight + highlightVerticalPadding * 2
     }
 
-    private var verticalInset: CGFloat { max(lineHeight * 0.25, 6) }
-    private var lineBackgroundInset: CGFloat { max(lineHeight * 0.08, 1.5) }
-    private var lineBackgroundInsetHorizontal: CGFloat { max(lineHeight * 0.08, 3) }
-    private var lineTextPaddingHorizontal: CGFloat { max(lineHeight * 0.1, 4) }
-    private var lineTextPaddingVertical: CGFloat { max(lineHeight * 0.05, 2) }
+    private var contentHeight: CGFloat {
+        let lineCount = CGFloat(lines.count)
+        guard lineCount > 0 else { return verticalPadding * 2 }
+        let textHeight = lineCount * metricLineHeight
+        let spacingHeight = max(0, lineCount - 1) * interLineSpacing
+        return verticalPadding * 2 + textHeight + spacingHeight
+    }
 }
 
 private struct EditorTokenPreview: View {
@@ -4042,6 +4098,14 @@ struct QueryResultsSettingsView: View {
     private var selectedDisplayMode: ForeignKeyDisplayMode { displayModeBinding.wrappedValue }
     private var selectedBehavior: ForeignKeyInspectorBehavior { inspectorBehaviorBinding.wrappedValue }
 
+    private var streamingSettingsAreDefault: Bool {
+        let settings = appModel.globalSettings
+        return settings.resultsInitialRowLimit == ResultStreamingDefaults.initialRows &&
+        settings.resultsPreviewBatchSize == ResultStreamingDefaults.previewBatch &&
+        settings.resultsBackgroundStreamingThreshold == ResultStreamingDefaults.backgroundThreshold &&
+        settings.resultsStreamingFetchSize == ResultStreamingDefaults.fetchSize
+    }
+
     var body: some View {
         Form {
             Section("Foreign Keys") {
@@ -4079,41 +4143,62 @@ struct QueryResultsSettingsView: View {
             }
 
             Section("Result Streaming") {
-                StreamingNumericControl(
+                StreamingPresetPickerControl(
                     title: "Initial rows to display",
                     value: initialRowLimitBinding,
                     description: "Controls how many rows render immediately when a query begins streaming results.",
                     presets: streamingRowPresets,
                     range: 100...100_000,
-                    formatter: formatRowCount
+                    formatter: formatRowCount,
+                    defaultValue: ResultStreamingDefaults.initialRows
                 )
 
-                StreamingNumericControl(
+                StreamingPresetPickerControl(
                     title: "Data preview batch size",
                     value: previewBatchSizeBinding,
                     description: "Used when opening table previews from the sidebar. Additional batches keep loading in the background until the table finishes streaming.",
                     presets: streamingRowPresets,
                     range: 100...100_000,
-                    formatter: formatRowCount
+                    formatter: formatRowCount,
+                    defaultValue: ResultStreamingDefaults.previewBatch
                 )
 
-                StreamingNumericControl(
+                StreamingPresetPickerControl(
                     title: "Background streaming threshold",
                     value: backgroundStreamingThresholdBinding,
                     description: "After this many rows are streamed, Echo hands off ingestion to a background worker so the grid stays responsive. Increase the value if you prefer more live rows in memory, decrease it for faster background streaming.",
                     presets: streamingThresholdPresets,
                     range: 100...1_000_000,
-                    formatter: formatRowCount
+                    formatter: formatRowCount,
+                    defaultValue: ResultStreamingDefaults.backgroundThreshold
                 )
 
-                StreamingNumericControl(
+                StreamingPresetPickerControl(
                     title: "Background fetch batch size",
                     value: backgroundFetchSizeBinding,
                     description: "Controls how many rows Echo asks the server for in each background fetch. Smaller batches stream more frequently; larger batches minimize network round-trips but can increase latency before updates appear.",
                     presets: streamingFetchPresets,
                     range: 128...16_384,
-                    formatter: formatRowCount
+                    formatter: formatRowCount,
+                    defaultValue: ResultStreamingDefaults.fetchSize
                 )
+
+                HStack {
+                    Spacer()
+                    Button("Revert to Default") {
+                        Task {
+                            await appModel.updateResultsStreaming(
+                                initialRowLimit: ResultStreamingDefaults.initialRows,
+                                previewBatchSize: ResultStreamingDefaults.previewBatch,
+                                backgroundStreamingThreshold: ResultStreamingDefaults.backgroundThreshold,
+                                backgroundFetchSize: ResultStreamingDefaults.fetchSize
+                            )
+                        }
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(streamingSettingsAreDefault)
+                }
+                .padding(.top, 6)
             }
         }
         .formStyle(.grouped)
@@ -4161,29 +4246,46 @@ struct QueryResultsSettingsView: View {
     }
 }
 
-private struct StreamingNumericControl: View {
+private struct StreamingPresetPickerControl: View {
+    private enum Selection: Hashable {
+        case preset(Int)
+        case custom
+    }
+
     let title: String
     @Binding var value: Int
     let description: String
     let presets: [Int]
     let range: ClosedRange<Int>
     let formatter: (Int) -> String
+    let defaultValue: Int
 
-    @State private var text: String
+    @State private var selection: Selection
+    @State private var customText: String
+    @FocusState private var customFieldFocused: Bool
 
     init(title: String,
          value: Binding<Int>,
          description: String,
          presets: [Int],
          range: ClosedRange<Int>,
-         formatter: @escaping (Int) -> String) {
+         formatter: @escaping (Int) -> String,
+         defaultValue: Int) {
         self.title = title
         self._value = value
         self.description = description
         self.presets = presets
         self.range = range
         self.formatter = formatter
-        _text = State(initialValue: String(value.wrappedValue))
+        self.defaultValue = defaultValue
+
+        let initialValue = value.wrappedValue
+        if presets.contains(initialValue) {
+            _selection = State(initialValue: .preset(initialValue))
+        } else {
+            _selection = State(initialValue: .custom)
+        }
+        _customText = State(initialValue: String(initialValue))
     }
 
     var body: some View {
@@ -4195,52 +4297,127 @@ private struct StreamingNumericControl: View {
                     .foregroundStyle(.secondary)
             }
 
-            HStack(spacing: 8) {
-                TextField("", text: $text)
-                    .textFieldStyle(.roundedBorder)
-                    .frame(width: 100)
-                    .onSubmit(applyTextFieldValue)
-                    .onChange(of: text) { newValue in
-                        let filtered = newValue.filter { $0.isNumber }
-                        if filtered != newValue {
-                            text = filtered
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 12) {
+                    Picker(selection: $selection) {
+                        ForEach(presets, id: \.self) { preset in
+                            Text(label(for: preset)).tag(Selection.preset(preset))
                         }
+                        Text("Custom…").tag(Selection.custom)
+                    } label: {
+                        Text(selectionButtonLabel)
                     }
+                    .pickerStyle(.menu)
+                    .labelsHidden()
 
-                Button("Apply", action: applyTextFieldValue)
-                    .buttonStyle(.bordered)
-
-                Menu("Presets") {
-                    ForEach(presets, id: \.self) { preset in
-                        Button(formatter(preset)) {
-                            setValue(preset)
-                        }
+                    if case .custom = selection {
+                        TextField("Custom value", text: $customText)
+                            .textFieldStyle(.roundedBorder)
+                            .frame(width: 120)
+                            .focused($customFieldFocused)
+                            .onSubmit(applyCustomValue)
+                            .onChange(of: customText) { newValue in
+                                let filtered = newValue.filter { $0.isNumber }
+                                if filtered != newValue {
+                                    customText = filtered
+                                }
+                            }
                     }
                 }
-                .menuStyle(.borderedButton)
+
+                if case .custom = selection {
+                    Text("Enter \(formatter(range.lowerBound)) – \(formatter(range.upperBound))")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
             }
 
             Text(description)
                 .font(.footnote)
                 .foregroundStyle(.secondary)
         }
+        .onChange(of: selection) { newSelection in
+            handleSelectionChange(newSelection)
+        }
         .onChange(of: value) { newValue in
-            text = String(newValue)
+            syncSelection(with: newValue)
+        }
+        .onChange(of: customFieldFocused) { isFocused in
+            if !isFocused, case .custom = selection {
+                applyCustomValue()
+            }
         }
     }
 
-    private func applyTextFieldValue() {
-        guard let raw = Int(text) else {
-            text = String(value)
+    private func handleSelectionChange(_ newSelection: Selection) {
+        switch newSelection {
+        case .preset(let preset):
+            setValue(preset)
+            if customFieldFocused {
+                customFieldFocused = false
+            }
+        case .custom:
+            customText = String(value)
+            DispatchQueue.main.async {
+                customFieldFocused = true
+            }
+        }
+    }
+
+    private func syncSelection(with newValue: Int) {
+        if presets.contains(newValue) {
+            let target = Selection.preset(newValue)
+            if selection != target {
+                selection = target
+            }
+            customText = String(newValue)
+            return
+        }
+        if selection != .custom {
+            selection = .custom
+        }
+        customText = String(newValue)
+    }
+
+    private func applyCustomValue() {
+        guard let raw = Int(customText) else {
+            customText = String(value)
             return
         }
         setValue(raw)
     }
 
     private func setValue(_ newValue: Int) {
-        let clamped = min(max(newValue, range.lowerBound), range.upperBound)
+        let clamped = clamp(newValue)
         value = clamped
-        text = String(clamped)
+        customText = String(clamped)
+    }
+
+    private func clamp(_ candidate: Int) -> Int {
+        min(max(candidate, range.lowerBound), range.upperBound)
+    }
+
+    private func label(for preset: Int) -> String {
+        if preset == defaultValue {
+            return "\(formatter(preset)) (Default)"
+        }
+        return formatter(preset)
+    }
+
+    private var selectionButtonLabel: String {
+        switch selection {
+        case .preset(let preset):
+            return label(for: preset)
+        case .custom:
+            if let parsed = Int(customText) {
+                let value = clamp(parsed)
+                if presets.contains(value) {
+                    return label(for: value)
+                }
+                return formatter(value)
+            }
+            return "Custom…"
+        }
     }
 }
 

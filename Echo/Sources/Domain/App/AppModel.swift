@@ -95,9 +95,11 @@ final class AppModel: ObservableObject {
 
     private func buildSchemaDiagram(
         for session: ConnectionSession,
-        object: SchemaObjectInfo
+        object: SchemaObjectInfo,
+        progress: (@Sendable (String) -> Void)? = nil
     ) async throws -> SchemaDiagramViewModel {
         let baseKey = DiagramTableKey(schema: object.schema, name: object.name)
+        progress?("Loading \(baseKey.schema).\(baseKey.name)…")
         let baseDetails = try await session.session.getTableStructureDetails(
             schema: object.schema,
             table: object.name
@@ -105,6 +107,33 @@ final class AppModel: ObservableObject {
 
         var tableDetails: [DiagramTableKey: TableStructureDetails] = [baseKey: baseDetails]
         var relatedKeys = Set<DiagramTableKey>()
+
+        struct PlaceholderAccumulator {
+            var columns: [String] = []
+            var columnSet: Set<String> = []
+            var foreignKeys: [TableStructureDetails.ForeignKey] = []
+
+            mutating func addColumn(_ name: String) {
+                guard !name.isEmpty else { return }
+                let key = name.lowercased()
+                if columnSet.insert(key).inserted {
+                    columns.append(name)
+                }
+            }
+
+            mutating func addColumns(_ names: [String]) {
+                for name in names {
+                    addColumn(name)
+                }
+            }
+
+            mutating func addForeignKey(_ foreignKey: TableStructureDetails.ForeignKey) {
+                foreignKeys.append(foreignKey)
+            }
+        }
+
+        var dependencyPlaceholders: [DiagramTableKey: PlaceholderAccumulator] = [:]
+        var referencedColumnPlaceholders: [DiagramTableKey: PlaceholderAccumulator] = [:]
 
         func normalize(_ identifier: String, fallbackSchema: String) -> DiagramTableKey {
             func clean(_ raw: String) -> String {
@@ -212,18 +241,41 @@ final class AppModel: ObservableObject {
             let referencedSchema = fk.referencedSchema.isEmpty ? baseKey.schema : fk.referencedSchema
             let key = DiagramTableKey(schema: referencedSchema, name: fk.referencedTable)
             relatedKeys.insert(key)
+
+            var accumulator = referencedColumnPlaceholders[key] ?? PlaceholderAccumulator()
+            accumulator.addColumns(fk.referencedColumns)
+            referencedColumnPlaceholders[key] = accumulator
         }
 
         for dependency in baseDetails.dependencies {
             let key = normalize(dependency.referencedTable, fallbackSchema: object.schema)
             relatedKeys.insert(key)
+
+            guard key != baseKey else { continue }
+
+            var accumulator = dependencyPlaceholders[key] ?? PlaceholderAccumulator()
+            accumulator.addColumns(dependency.baseColumns)
+
+            let foreignKey = TableStructureDetails.ForeignKey(
+                name: dependency.name,
+                columns: dependency.baseColumns,
+                referencedSchema: baseKey.schema,
+                referencedTable: baseKey.name,
+                referencedColumns: dependency.referencedColumns,
+                onUpdate: dependency.onUpdate,
+                onDelete: dependency.onDelete
+            )
+            accumulator.addForeignKey(foreignKey)
+            dependencyPlaceholders[key] = accumulator
         }
 
         relatedKeys.remove(baseKey)
 
         if !relatedKeys.isEmpty {
+            progress?("Loading related tables…")
             for key in relatedKeys where tableDetails[key] == nil {
                 do {
+                    progress?("Fetching \(key.schema).\(key.name)…")
                     let details = try await session.session.getTableStructureDetails(
                         schema: key.schema,
                         table: key.name
@@ -235,8 +287,54 @@ final class AppModel: ObservableObject {
                     #endif
                 }
             }
+
+            for key in relatedKeys where tableDetails[key] == nil {
+                if var accumulator = dependencyPlaceholders[key] {
+                    if let referenced = referencedColumnPlaceholders[key] {
+                        accumulator.addColumns(referenced.columns)
+                    }
+                    let columns = accumulator.columns.map {
+                        TableStructureDetails.Column(
+                            name: $0,
+                            dataType: "unknown",
+                            isNullable: true,
+                            defaultValue: nil,
+                            generatedExpression: nil
+                        )
+                    }
+                    let details = TableStructureDetails(
+                        columns: columns,
+                        primaryKey: nil,
+                        indexes: [],
+                        uniqueConstraints: [],
+                        foreignKeys: accumulator.foreignKeys,
+                        dependencies: []
+                    )
+                    tableDetails[key] = details
+                } else if let referenced = referencedColumnPlaceholders[key] {
+                    let columns = referenced.columns.map {
+                        TableStructureDetails.Column(
+                            name: $0,
+                            dataType: "unknown",
+                            isNullable: true,
+                            defaultValue: nil,
+                            generatedExpression: nil
+                        )
+                    }
+                    let details = TableStructureDetails(
+                        columns: columns,
+                        primaryKey: nil,
+                        indexes: [],
+                        uniqueConstraints: [],
+                        foreignKeys: [],
+                        dependencies: []
+                    )
+                    tableDetails[key] = details
+                }
+            }
         }
 
+        progress?("Preparing diagram…")
         func buildColumns(for details: TableStructureDetails) -> [SchemaDiagramColumn] {
             let primaryKeys = Set(details.primaryKey?.columns.map { $0.lowercased() } ?? [])
             let foreignKeys = Set(details.foreignKeys.flatMap { $0.columns.map { $0.lowercased() } })
@@ -257,7 +355,6 @@ final class AppModel: ObservableObject {
             for fk in details.foreignKeys {
                 let targetSchema = fk.referencedSchema.isEmpty ? tableKey.schema : fk.referencedSchema
                 let targetKey = DiagramTableKey(schema: targetSchema, name: fk.referencedTable)
-                guard tableDetails[targetKey] != nil else { continue }
 
                 for pair in zip(fk.columns, fk.referencedColumns) {
                     edges.append(
@@ -310,6 +407,7 @@ final class AppModel: ObservableObject {
             appendForeignKeyEdges(from: key, details: details)
         }
 
+        progress?("Finalizing diagram…")
         let title = "\(object.schema).\(object.name)"
         return SchemaDiagramViewModel(
             nodes: nodeModels,
@@ -983,24 +1081,56 @@ final class AppModel: ObservableObject {
         sessionManager.setActiveSession(session.id)
         selectedConnectionID = session.connection.id
 
+        let baseIdentifier = "\(object.schema).\(object.name)"
+
         Task {
+            let placeholderViewModel = await MainActor.run { () -> SchemaDiagramViewModel in
+                let viewModel = SchemaDiagramViewModel(
+                    nodes: [],
+                    edges: [],
+                    baseNodeID: baseIdentifier,
+                    title: "\(object.schema).\(object.name)",
+                    isLoading: true,
+                    statusMessage: "Loading \(baseIdentifier)…",
+                    errorMessage: nil
+                )
+
+                let newTab = WorkspaceTab(
+                    connection: session.connection,
+                    session: session.session,
+                    connectionSessionID: session.id,
+                    title: "\(object.name) Diagram",
+                    content: .diagram(viewModel)
+                )
+                tabManager.addTab(newTab)
+                tabManager.activeTabId = newTab.id
+                return viewModel
+            }
+
             do {
-                let diagramModel = try await buildSchemaDiagram(for: session, object: object)
+                let diagramModel = try await buildSchemaDiagram(
+                    for: session,
+                    object: object,
+                    progress: { status in
+                        Task { @MainActor in
+                            placeholderViewModel.statusMessage = status
+                        }
+                    }
+                )
                 await MainActor.run {
-                    let title = "\(object.name) Diagram"
-                    let newTab = WorkspaceTab(
-                        connection: session.connection,
-                        session: session.session,
-                        connectionSessionID: session.id,
-                        title: title,
-                        content: .diagram(diagramModel)
-                    )
-                    tabManager.addTab(newTab)
-                    tabManager.activeTabId = newTab.id
+                    placeholderViewModel.nodes = diagramModel.nodes
+                    placeholderViewModel.edges = diagramModel.edges
+                    placeholderViewModel.isLoading = false
+                    placeholderViewModel.statusMessage = nil
+                    placeholderViewModel.errorMessage = nil
                 }
             } catch {
+                let databaseError = DatabaseError.from(error)
                 await MainActor.run {
-                    self.lastError = DatabaseError.from(error)
+                    placeholderViewModel.isLoading = false
+                    placeholderViewModel.statusMessage = nil
+                    placeholderViewModel.errorMessage = databaseError.localizedDescription
+                    self.lastError = databaseError
                 }
             }
         }

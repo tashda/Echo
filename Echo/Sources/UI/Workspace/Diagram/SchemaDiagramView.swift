@@ -44,6 +44,7 @@ struct SchemaDiagramView: View {
             .onChange(of: geometry.size) { _, newSize in
                 centerDiagramIfNeeded(in: newSize)
             }
+            .overlay(statusOverlay)
         }
         .navigationTitle(viewModel.title)
     }
@@ -153,6 +154,54 @@ struct SchemaDiagramView: View {
             }
 
             context.stroke(path, with: .color(gridColor), lineWidth: 1)
+        }
+    }
+
+    @ViewBuilder
+    private var statusOverlay: some View {
+        if viewModel.isLoading || viewModel.errorMessage != nil || viewModel.statusMessage != nil {
+            ZStack {
+                Color.black.opacity(0.28)
+                    .ignoresSafeArea()
+                    .allowsHitTesting(true)
+                VStack(spacing: 16) {
+                    if viewModel.isLoading {
+                        ProgressView()
+                            .progressViewStyle(.linear)
+                            .frame(width: 240)
+                    } else if viewModel.errorMessage != nil {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .font(.system(size: 40, weight: .bold))
+                            .foregroundStyle(Color.accentColor)
+                    }
+                    VStack(spacing: 6) {
+                        if viewModel.isLoading {
+                            Text("Loading Diagram…")
+                                .font(.headline)
+                        } else if viewModel.errorMessage != nil {
+                            Text("Unable to Load Diagram")
+                                .font(.headline)
+                        }
+                        if let message = viewModel.statusMessage, !message.isEmpty {
+                            Text(message)
+                                .font(.subheadline)
+                                .foregroundStyle(Color.secondary)
+                        } else if let error = viewModel.errorMessage {
+                            Text(error)
+                                .font(.subheadline)
+                                .foregroundStyle(Color.secondary)
+                        }
+                    }
+                    .multilineTextAlignment(.center)
+                }
+                .padding(24)
+                .background(
+                    RoundedRectangle(cornerRadius: 20, style: .continuous)
+                        .fill(Color(nsColor: .windowBackgroundColor).opacity(0.95))
+                )
+                .shadow(color: .black.opacity(0.2), radius: 18, x: 0, y: 12)
+            }
+            .allowsHitTesting(true)
         }
     }
 }
@@ -432,7 +481,7 @@ private struct DiagramColumnAnchor: Identifiable {
     let bounds: Anchor<CGRect>
 
     static func key(nodeID: String, columnName: String) -> String {
-        "\(nodeID)#\(columnName)"
+        "\(nodeID.diagramAnchorComponent)#\(columnName.diagramAnchorComponent)"
     }
 }
 
@@ -523,3 +572,9 @@ private struct CommandScrollZoomCapture: View {
     var body: some View { Color.clear }
 }
 #endif
+
+private extension String {
+    var diagramAnchorComponent: String {
+        trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+    }
+}
