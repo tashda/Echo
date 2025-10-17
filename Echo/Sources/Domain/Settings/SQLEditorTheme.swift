@@ -141,6 +141,12 @@ struct SQLEditorDisplayOptions: Codable, Equatable {
     var indentWrappedLines: Int
     var autoCompletionEnabled: Bool
     var suggestTableAliasesInCompletion: Bool
+    var qualifyTableCompletions: Bool
+    var suggestKeywordsInCompletion: Bool
+    var suggestFunctionsInCompletion: Bool
+    var suggestSnippetsInCompletion: Bool
+    var suggestHistoryInCompletion: Bool
+    var suggestJoinsInCompletion: Bool
 
     init(
         showLineNumbers: Bool = true,
@@ -149,7 +155,13 @@ struct SQLEditorDisplayOptions: Codable, Equatable {
         wrapLines: Bool = true,
         indentWrappedLines: Int = 4,
         autoCompletionEnabled: Bool = true,
-        suggestTableAliasesInCompletion: Bool = false
+        suggestTableAliasesInCompletion: Bool = false,
+        qualifyTableCompletions: Bool = false,
+        suggestKeywordsInCompletion: Bool = true,
+        suggestFunctionsInCompletion: Bool = true,
+        suggestSnippetsInCompletion: Bool = true,
+        suggestHistoryInCompletion: Bool = true,
+        suggestJoinsInCompletion: Bool = true
     ) {
         self.showLineNumbers = showLineNumbers
         self.highlightSelectedSymbol = highlightSelectedSymbol
@@ -158,6 +170,12 @@ struct SQLEditorDisplayOptions: Codable, Equatable {
         self.indentWrappedLines = indentWrappedLines
         self.autoCompletionEnabled = autoCompletionEnabled
         self.suggestTableAliasesInCompletion = suggestTableAliasesInCompletion
+        self.qualifyTableCompletions = qualifyTableCompletions
+        self.suggestKeywordsInCompletion = suggestKeywordsInCompletion
+        self.suggestFunctionsInCompletion = suggestFunctionsInCompletion
+        self.suggestSnippetsInCompletion = suggestSnippetsInCompletion
+        self.suggestHistoryInCompletion = suggestHistoryInCompletion
+        self.suggestJoinsInCompletion = suggestJoinsInCompletion
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -168,6 +186,12 @@ struct SQLEditorDisplayOptions: Codable, Equatable {
         case indentWrappedLines
         case autoCompletionEnabled
         case suggestTableAliasesInCompletion
+        case qualifyTableCompletions
+        case suggestKeywordsInCompletion
+        case suggestFunctionsInCompletion
+        case suggestSnippetsInCompletion
+        case suggestHistoryInCompletion
+        case suggestJoinsInCompletion
     }
 
     init(from decoder: Decoder) throws {
@@ -179,6 +203,12 @@ struct SQLEditorDisplayOptions: Codable, Equatable {
         indentWrappedLines = try container.decode(Int.self, forKey: .indentWrappedLines)
         autoCompletionEnabled = try container.decode(Bool.self, forKey: .autoCompletionEnabled)
         suggestTableAliasesInCompletion = try container.decodeIfPresent(Bool.self, forKey: .suggestTableAliasesInCompletion) ?? false
+        qualifyTableCompletions = try container.decodeIfPresent(Bool.self, forKey: .qualifyTableCompletions) ?? false
+        suggestKeywordsInCompletion = try container.decodeIfPresent(Bool.self, forKey: .suggestKeywordsInCompletion) ?? true
+        suggestFunctionsInCompletion = try container.decodeIfPresent(Bool.self, forKey: .suggestFunctionsInCompletion) ?? true
+        suggestSnippetsInCompletion = try container.decodeIfPresent(Bool.self, forKey: .suggestSnippetsInCompletion) ?? true
+        suggestHistoryInCompletion = try container.decodeIfPresent(Bool.self, forKey: .suggestHistoryInCompletion) ?? true
+        suggestJoinsInCompletion = try container.decodeIfPresent(Bool.self, forKey: .suggestJoinsInCompletion) ?? true
     }
 
     func encode(to encoder: Encoder) throws {
@@ -190,6 +220,12 @@ struct SQLEditorDisplayOptions: Codable, Equatable {
         try container.encode(indentWrappedLines, forKey: .indentWrappedLines)
         try container.encode(autoCompletionEnabled, forKey: .autoCompletionEnabled)
         try container.encode(suggestTableAliasesInCompletion, forKey: .suggestTableAliasesInCompletion)
+        try container.encode(qualifyTableCompletions, forKey: .qualifyTableCompletions)
+        try container.encode(suggestKeywordsInCompletion, forKey: .suggestKeywordsInCompletion)
+        try container.encode(suggestFunctionsInCompletion, forKey: .suggestFunctionsInCompletion)
+        try container.encode(suggestSnippetsInCompletion, forKey: .suggestSnippetsInCompletion)
+        try container.encode(suggestHistoryInCompletion, forKey: .suggestHistoryInCompletion)
+        try container.encode(suggestJoinsInCompletion, forKey: .suggestJoinsInCompletion)
     }
 }
 
@@ -1356,7 +1392,13 @@ enum SQLEditorThemeResolver {
             highlightDelay: clamped(globalSettings.editorHighlightDelay, min: 0.0, max: 5.0),
             wrapLines: globalSettings.editorWrapLines,
             indentWrappedLines: max(0, globalSettings.editorIndentWrappedLines),
-            autoCompletionEnabled: globalSettings.editorEnableAutocomplete
+            autoCompletionEnabled: globalSettings.editorEnableAutocomplete,
+            qualifyTableCompletions: globalSettings.editorQualifyTableCompletions,
+            suggestKeywordsInCompletion: globalSettings.editorSuggestKeywords,
+            suggestFunctionsInCompletion: globalSettings.editorSuggestFunctions,
+            suggestSnippetsInCompletion: globalSettings.editorSuggestSnippets,
+            suggestHistoryInCompletion: globalSettings.editorSuggestHistory,
+            suggestJoinsInCompletion: globalSettings.editorSuggestJoins
         )
     }
 

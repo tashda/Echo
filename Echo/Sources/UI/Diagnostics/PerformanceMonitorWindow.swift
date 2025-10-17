@@ -17,33 +17,48 @@ struct PerformanceMonitorWindow: Scene {
 private struct PerformanceMonitorView: View {
     @EnvironmentObject private var appModel: AppModel
     @EnvironmentObject private var themeManager: ThemeManager
+    @ObservedObject private var coordinator = AppCoordinator.shared
 
     private var queryTabs: [WorkspaceTab] {
-        appModel.tabManager.tabs.filter { $0.query != nil }
+        guard coordinator.isInitialized else { return [] }
+        return appModel.tabManager.tabs.filter { $0.query != nil }
     }
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                header
-
-                if queryTabs.isEmpty {
-                    ContentUnavailableView {
-                        Label("No Query Tabs", systemImage: "table")
-                    } description: {
-                        Text("Run a query to start capturing live performance metrics.")
-                    }
-                    .frame(maxWidth: .infinity)
-                } else {
-                    ForEach(queryTabs) { tab in
-                        PerformanceMonitorRow(tab: tab)
-                    }
+        Group {
+            if !coordinator.isInitialized {
+                VStack(spacing: 16) {
+                    ProgressView()
+                    Text("Preparing live metrics…")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
                 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(themeManager.windowBackground)
+            } else {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 16) {
+                        header
+
+                        if queryTabs.isEmpty {
+                            EmptyStateView(
+                                title: "No Query Tabs",
+                                message: "Run a query to start capturing live performance metrics.",
+                                systemImage: "table"
+                            )
+                            .frame(maxWidth: .infinity)
+                        } else {
+                            ForEach(queryTabs) { tab in
+                                PerformanceMonitorRow(tab: tab)
+                            }
+                        }
+                    }
+                    .padding(.vertical, 24)
+                    .padding(.horizontal, 32)
+                }
+                .background(themeManager.windowBackground)
             }
-            .padding(.vertical, 24)
-            .padding(.horizontal, 32)
         }
-        .background(themeManager.windowBackground)
     }
 
     private var header: some View {
@@ -54,6 +69,27 @@ private struct PerformanceMonitorView: View {
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
         }
+    }
+}
+
+private struct EmptyStateView: View {
+    let title: String
+    let message: String
+    let systemImage: String
+
+    var body: some View {
+        VStack(spacing: 12) {
+            Image(systemName: systemImage)
+                .font(.system(size: 32, weight: .light))
+                .foregroundStyle(.secondary)
+            Text(title)
+                .font(.headline)
+            Text(message)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+        }
+        .padding(40)
     }
 }
 

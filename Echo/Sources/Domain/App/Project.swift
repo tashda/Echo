@@ -1049,6 +1049,12 @@ struct GlobalSettings: Codable, Hashable {
     var editorWrapLines: Bool = true
     var editorIndentWrappedLines: Int = 4
     var editorEnableAutocomplete: Bool = true
+    var editorQualifyTableCompletions: Bool = false
+    var editorSuggestKeywords: Bool = true
+    var editorSuggestFunctions: Bool = true
+    var editorSuggestSnippets: Bool = true
+    var editorSuggestHistory: Bool = true
+    var editorSuggestJoins: Bool = true
     var useServerColorAsAccent: Bool
     var activeThemeIDLight: AppColorTheme.ID?
     var activeThemeIDDark: AppColorTheme.ID?
@@ -1060,6 +1066,7 @@ struct GlobalSettings: Codable, Hashable {
     var foreignKeyIncludeRelated: Bool = false
     var resultsInitialRowLimit: Int = 500
     var resultsPreviewBatchSize: Int = 500
+    var resultsBackgroundStreamingThreshold: Int = 512
     var resultSpoolMaxBytes: Int = 5 * 1_024 * 1_024 * 1_024
     var resultSpoolRetentionHours: Int = 72
     var resultSpoolCustomLocation: String?
@@ -1088,6 +1095,12 @@ struct GlobalSettings: Codable, Hashable {
         editorWrapLines: Bool = true,
         editorIndentWrappedLines: Int = 4,
         editorEnableAutocomplete: Bool = true,
+        editorQualifyTableCompletions: Bool = false,
+        editorSuggestKeywords: Bool = true,
+        editorSuggestFunctions: Bool = true,
+        editorSuggestSnippets: Bool = true,
+        editorSuggestHistory: Bool = true,
+        editorSuggestJoins: Bool = true,
         useServerColorAsAccent: Bool = true,
         themeTabs: Bool = false,
         themeResultsGrid: Bool = true,
@@ -1097,6 +1110,7 @@ struct GlobalSettings: Codable, Hashable {
         foreignKeyIncludeRelated: Bool = false,
         resultsInitialRowLimit: Int = 500,
         resultsPreviewBatchSize: Int = 500,
+        resultsBackgroundStreamingThreshold: Int = 512,
         resultSpoolMaxBytes: Int = 5 * 1_024 * 1_024 * 1_024,
         resultSpoolRetentionHours: Int = 72,
         resultSpoolCustomLocation: String? = nil,
@@ -1124,6 +1138,12 @@ struct GlobalSettings: Codable, Hashable {
         self.editorWrapLines = editorWrapLines
         self.editorIndentWrappedLines = editorIndentWrappedLines
         self.editorEnableAutocomplete = editorEnableAutocomplete
+        self.editorQualifyTableCompletions = editorQualifyTableCompletions
+        self.editorSuggestKeywords = editorSuggestKeywords
+        self.editorSuggestFunctions = editorSuggestFunctions
+        self.editorSuggestSnippets = editorSuggestSnippets
+        self.editorSuggestHistory = editorSuggestHistory
+        self.editorSuggestJoins = editorSuggestJoins
         self.useServerColorAsAccent = useServerColorAsAccent
         self.themeTabs = themeTabs
         self.themeResultsGrid = themeResultsGrid
@@ -1131,8 +1151,9 @@ struct GlobalSettings: Codable, Hashable {
         self.foreignKeyDisplayMode = foreignKeyDisplayMode
         self.foreignKeyInspectorBehavior = foreignKeyInspectorBehavior
         self.foreignKeyIncludeRelated = foreignKeyIncludeRelated
-        self.resultsInitialRowLimit = resultsInitialRowLimit
-        self.resultsPreviewBatchSize = resultsPreviewBatchSize
+        self.resultsInitialRowLimit = max(100, resultsInitialRowLimit)
+        self.resultsPreviewBatchSize = max(100, resultsPreviewBatchSize)
+        self.resultsBackgroundStreamingThreshold = max(100, resultsBackgroundStreamingThreshold)
         self.resultSpoolMaxBytes = resultSpoolMaxBytes
         self.resultSpoolRetentionHours = resultSpoolRetentionHours
         self.resultSpoolCustomLocation = resultSpoolCustomLocation
@@ -1163,6 +1184,12 @@ struct GlobalSettings: Codable, Hashable {
         case editorWrapLines
         case editorIndentWrappedLines
         case editorEnableAutocomplete
+        case editorQualifyTableCompletions
+        case editorSuggestKeywords
+        case editorSuggestFunctions
+        case editorSuggestSnippets
+        case editorSuggestHistory
+        case editorSuggestJoins
         case useServerColorAsAccent
         case defaultWindowWidth
         case defaultWindowHeight
@@ -1176,6 +1203,7 @@ struct GlobalSettings: Codable, Hashable {
         case foreignKeyIncludeRelated
         case resultsInitialRowLimit
         case resultsPreviewBatchSize
+        case resultsBackgroundStreamingThreshold
         case resultSpoolMaxBytes
         case resultSpoolRetentionHours
         case resultSpoolCustomLocation
@@ -1228,6 +1256,12 @@ struct GlobalSettings: Codable, Hashable {
         editorWrapLines = try container.decodeIfPresent(Bool.self, forKey: .editorWrapLines) ?? true
         editorIndentWrappedLines = try container.decodeIfPresent(Int.self, forKey: .editorIndentWrappedLines) ?? 4
         editorEnableAutocomplete = try container.decodeIfPresent(Bool.self, forKey: .editorEnableAutocomplete) ?? true
+        editorQualifyTableCompletions = try container.decodeIfPresent(Bool.self, forKey: .editorQualifyTableCompletions) ?? false
+        editorSuggestKeywords = try container.decodeIfPresent(Bool.self, forKey: .editorSuggestKeywords) ?? true
+        editorSuggestFunctions = try container.decodeIfPresent(Bool.self, forKey: .editorSuggestFunctions) ?? true
+        editorSuggestSnippets = try container.decodeIfPresent(Bool.self, forKey: .editorSuggestSnippets) ?? true
+        editorSuggestHistory = try container.decodeIfPresent(Bool.self, forKey: .editorSuggestHistory) ?? true
+        editorSuggestJoins = try container.decodeIfPresent(Bool.self, forKey: .editorSuggestJoins) ?? true
         useServerColorAsAccent = try container.decodeIfPresent(Bool.self, forKey: .useServerColorAsAccent) ?? true
         defaultWindowWidth = try container.decodeIfPresent(Double.self, forKey: .defaultWindowWidth)
         defaultWindowHeight = try container.decodeIfPresent(Double.self, forKey: .defaultWindowHeight)
@@ -1241,6 +1275,7 @@ struct GlobalSettings: Codable, Hashable {
         foreignKeyIncludeRelated = try container.decodeIfPresent(Bool.self, forKey: .foreignKeyIncludeRelated) ?? false
         resultsInitialRowLimit = max(100, try container.decodeIfPresent(Int.self, forKey: .resultsInitialRowLimit) ?? 500)
         resultsPreviewBatchSize = max(100, try container.decodeIfPresent(Int.self, forKey: .resultsPreviewBatchSize) ?? 500)
+        resultsBackgroundStreamingThreshold = max(100, try container.decodeIfPresent(Int.self, forKey: .resultsBackgroundStreamingThreshold) ?? 512)
         inspectorWidth = try container.decodeIfPresent(Double.self, forKey: .inspectorWidth)
         keepTabsInMemory = try container.decodeIfPresent(Bool.self, forKey: .keepTabsInMemory) ?? false
     }
@@ -1262,6 +1297,12 @@ struct GlobalSettings: Codable, Hashable {
         try container.encode(editorWrapLines, forKey: .editorWrapLines)
         try container.encode(editorIndentWrappedLines, forKey: .editorIndentWrappedLines)
         try container.encode(editorEnableAutocomplete, forKey: .editorEnableAutocomplete)
+        try container.encode(editorQualifyTableCompletions, forKey: .editorQualifyTableCompletions)
+        try container.encode(editorSuggestKeywords, forKey: .editorSuggestKeywords)
+        try container.encode(editorSuggestFunctions, forKey: .editorSuggestFunctions)
+        try container.encode(editorSuggestSnippets, forKey: .editorSuggestSnippets)
+        try container.encode(editorSuggestHistory, forKey: .editorSuggestHistory)
+        try container.encode(editorSuggestJoins, forKey: .editorSuggestJoins)
         try container.encode(useServerColorAsAccent, forKey: .useServerColorAsAccent)
         try container.encode(defaultWindowWidth, forKey: .defaultWindowWidth)
         try container.encode(defaultWindowHeight, forKey: .defaultWindowHeight)
@@ -1275,6 +1316,7 @@ struct GlobalSettings: Codable, Hashable {
         try container.encode(foreignKeyIncludeRelated, forKey: .foreignKeyIncludeRelated)
         try container.encode(resultsInitialRowLimit, forKey: .resultsInitialRowLimit)
         try container.encode(resultsPreviewBatchSize, forKey: .resultsPreviewBatchSize)
+        try container.encode(resultsBackgroundStreamingThreshold, forKey: .resultsBackgroundStreamingThreshold)
         try container.encode(resultSpoolMaxBytes, forKey: .resultSpoolMaxBytes)
         try container.encode(resultSpoolRetentionHours, forKey: .resultSpoolRetentionHours)
         try container.encodeIfPresent(resultSpoolCustomLocation, forKey: .resultSpoolCustomLocation)

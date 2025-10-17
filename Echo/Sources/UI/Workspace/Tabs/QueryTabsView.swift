@@ -191,17 +191,12 @@ struct QueryTabsView: View {
                 }
                 let result = try await tab.session.simpleQuery(effectiveSQL) { [weak state] update in
                     guard let state else { return }
-                    Task {
-                        let mapping = await foreignKeyMappingTask.value
-                        let enrichedUpdate = await MainActor.run {
-                            applyForeignKeyMapping(to: update, mapping: mapping)
-                        }
-                        await MainActor.run {
-                            var transaction = Transaction()
-                            transaction.disablesAnimations = true
-                            withTransaction(transaction) {
-                                state.applyStreamUpdate(enrichedUpdate)
-                            }
+
+                    Task { @MainActor in
+                        var transaction = Transaction()
+                        transaction.disablesAnimations = true
+                        withTransaction(transaction) {
+                            state.applyStreamUpdate(update)
                         }
                     }
                 }

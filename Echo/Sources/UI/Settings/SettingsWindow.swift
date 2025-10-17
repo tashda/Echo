@@ -33,6 +33,7 @@ struct SettingsView: View {
     enum SettingsSection: String, CaseIterable, Identifiable {
         case appearance
         case queryResults
+        case autocomplete
         case applicationCache
         case keyboardShortcuts
 
@@ -42,6 +43,7 @@ struct SettingsView: View {
             switch self {
             case .appearance: return "Appearance"
             case .queryResults: return "Query Results"
+            case .autocomplete: return "Autocomplete"
             case .applicationCache: return "Application Cache"
             case .keyboardShortcuts: return "Keyboard Shortcuts"
             }
@@ -51,6 +53,7 @@ struct SettingsView: View {
             switch self {
             case .appearance: return "paintbrush"
             case .queryResults: return "tablecells"
+            case .autocomplete: return "text.insert"
             case .applicationCache: return "internaldrive"
             case .keyboardShortcuts: return "command"
             }
@@ -144,6 +147,12 @@ struct SettingsView: View {
                 .environmentObject(appState)
                 .environmentObject(themeManager)
 
+        case .autocomplete:
+            AutocompleteSettingsView()
+                .environmentObject(appModel)
+                .environmentObject(appState)
+                .environmentObject(themeManager)
+
         case .applicationCache:
             ApplicationCacheSettingsView()
                 .environmentObject(clipboardHistory)
@@ -175,7 +184,8 @@ struct KeyboardShortcutsSettingsView: View {
             title: "Query Editing",
             items: [
                 .init(title: "Run Selected Query", context: "Execute the highlighted SQL in the query editor.", keys: ["⌘", "Return"]),
-                .init(title: "Format Query", context: "Format the current SQL using the configured style.", keys: ["⌘", "⇧", "F"])
+                .init(title: "Format Query", context: "Format the current SQL using the configured style.", keys: ["⌘", "⇧", "F"]),
+                .init(title: "Show Autocomplete Suggestions", context: "Reopen the autocomplete popover after dismissal.", keys: ["⌘", "."])
             ]
         ),
         .init(
@@ -222,6 +232,228 @@ struct KeyboardShortcutsSettingsView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .background(Color.clear)
+    }
+}
+
+struct AutocompleteSettingsView: View {
+    @EnvironmentObject private var appModel: AppModel
+    @EnvironmentObject private var appState: AppState
+    @EnvironmentObject private var themeManager: ThemeManager
+    @State private var activeInfoTopic: InfoTopic?
+
+    private var suggestKeywordsBinding: Binding<Bool> {
+        Binding(
+            get: { appModel.globalSettings.editorSuggestKeywords },
+            set: { newValue in
+                guard appModel.globalSettings.editorSuggestKeywords != newValue else { return }
+                Task { await appModel.updateGlobalEditorDisplay { $0.editorSuggestKeywords = newValue } }
+            }
+        )
+    }
+
+    private var suggestFunctionsBinding: Binding<Bool> {
+        Binding(
+            get: { appModel.globalSettings.editorSuggestFunctions },
+            set: { newValue in
+                guard appModel.globalSettings.editorSuggestFunctions != newValue else { return }
+                Task { await appModel.updateGlobalEditorDisplay { $0.editorSuggestFunctions = newValue } }
+            }
+        )
+    }
+
+    private var suggestSnippetsBinding: Binding<Bool> {
+        Binding(
+            get: { appModel.globalSettings.editorSuggestSnippets },
+            set: { newValue in
+                guard appModel.globalSettings.editorSuggestSnippets != newValue else { return }
+                Task { await appModel.updateGlobalEditorDisplay { $0.editorSuggestSnippets = newValue } }
+            }
+        )
+    }
+
+    private var qualifyTablesBinding: Binding<Bool> {
+        Binding(
+            get: { appModel.globalSettings.editorQualifyTableCompletions },
+            set: { newValue in
+                guard appModel.globalSettings.editorQualifyTableCompletions != newValue else { return }
+                Task { await appModel.updateGlobalEditorDisplay { $0.editorQualifyTableCompletions = newValue } }
+            }
+        )
+    }
+
+    private var suggestHistoryBinding: Binding<Bool> {
+        Binding(
+            get: { appModel.globalSettings.editorSuggestHistory },
+            set: { newValue in
+                guard appModel.globalSettings.editorSuggestHistory != newValue else { return }
+                Task { await appModel.updateGlobalEditorDisplay { $0.editorSuggestHistory = newValue } }
+            }
+        )
+    }
+
+    private var suggestJoinsBinding: Binding<Bool> {
+        Binding(
+            get: { appModel.globalSettings.editorSuggestJoins },
+            set: { newValue in
+                guard appModel.globalSettings.editorSuggestJoins != newValue else { return }
+                Task { await appModel.updateGlobalEditorDisplay { $0.editorSuggestJoins = newValue } }
+            }
+        )
+    }
+
+    private var dismissalHint: String {
+        "Press Esc to clear suggestions until you manually reopen them with ⌘ + ." + (appState.sqlEditorDisplay.autoCompletionEnabled ? "" : " Auto-complete is currently disabled globally.")
+    }
+
+    var body: some View {
+        Form {
+            Section("Suggestion Types") {
+                ToggleRow(
+                    title: "Suggest keywords",
+                    subtitle: "Show context-aware SQL keywords when no better match is available.",
+                    isOn: suggestKeywordsBinding,
+                    infoAction: { showInfo(.keywords) }
+                )
+                ToggleRow(
+                    title: "Suggest functions",
+                    subtitle: "Include built-in and connection-specific functions in the popover.",
+                    isOn: suggestFunctionsBinding,
+                    infoAction: { showInfo(.functions) }
+                )
+                ToggleRow(
+                    title: "Suggest snippets",
+                    subtitle: "Offer templates like CASE...END with editable placeholders.",
+                    isOn: suggestSnippetsBinding,
+                    infoAction: { showInfo(.snippets) }
+                )
+                ToggleRow(
+                    title: "Suggest join helpers",
+                    subtitle: "Surface ON-clause helpers derived from known foreign keys.",
+                    isOn: suggestJoinsBinding,
+                    infoAction: { showInfo(.joins) }
+                )
+            }
+
+            Section("Insertion & History") {
+                ToggleRow(
+                    title: "Insert schema-qualified table names",
+                    subtitle: "When enabled, table completions insert schema.table if a schema is known.",
+                    isOn: qualifyTablesBinding,
+                    infoAction: { showInfo(.qualifiedTables) }
+                )
+                ToggleRow(
+                    title: "Remember recent selections",
+                    subtitle: "Boost tables, columns, and joins you've picked recently.",
+                    isOn: suggestHistoryBinding,
+                    infoAction: { showInfo(.history) }
+                )
+            }
+
+            Section("Dismissal") {
+                Text(dismissalHint)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
+        .background(themeManager.surfaceBackgroundColor)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .popover(item: $activeInfoTopic, arrowEdge: .top) { topic in
+            InfoPopover(topic: topic)
+        }
+    }
+
+    private func showInfo(_ topic: InfoTopic) {
+        activeInfoTopic = topic
+    }
+}
+
+private enum InfoTopic: String, Identifiable, CaseIterable {
+    case keywords
+    case functions
+    case snippets
+    case joins
+    case qualifiedTables
+    case history
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .keywords: return "Keyword Suggestions"
+        case .functions: return "Function Suggestions"
+        case .snippets: return "Snippet Templates"
+        case .joins: return "Join Helpers"
+        case .qualifiedTables: return "Schema-qualified Insertion"
+        case .history: return "Recent Selections"
+        }
+    }
+
+    var message: String {
+        switch self {
+        case .keywords:
+            return "When enabled, the autocomplete popover lists SQL keywords that match the current clause. Turning this off hides keyword entries, but it will not remove snippets or objects that explicitly match what you type."
+        case .functions:
+            return "Shows built-in and database-specific functions ranked by context. Disabling this leaves typed function names untouched and does not affect user-defined functions you type manually."
+        case .snippets:
+            return "Provides templated completions (for example CASE, JSON helpers) with tab-stop placeholders. When disabled, no snippet rows appear, but regular keywords and objects remain available."
+        case .joins:
+            return "Offers ON-clause suggestions derived from foreign keys and recent join history. Turning it off keeps JOIN keywords and table suggestions, but removes the one-click join conditions."
+        case .qualifiedTables:
+            return "Automatically inserts schema-qualified names (schema.table) when a completion knows the schema. Existing text is never rewritten, and column completions keep their current behaviour."
+        case .history:
+            return "Remember tables, columns, and joins you accept so the engine can boost them later. History stays on your Mac and does not sync or leave the application."
+        }
+    }
+}
+
+private struct ToggleRow: View {
+    let title: String
+    let subtitle: String?
+    @Binding var isOn: Bool
+    let infoAction: () -> Void
+
+    var body: some View {
+        HStack(alignment: subtitle == nil ? .center : .top, spacing: 12) {
+            VStack(alignment: .leading, spacing: subtitle == nil ? 0 : 4) {
+                Text(title)
+                    .font(.body.weight(.semibold))
+                if let subtitle {
+                    Text(subtitle)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            Spacer(minLength: 12)
+            Button(action: infoAction) {
+                Image(systemName: "info.circle")
+                    .font(.system(size: 15, weight: .medium))
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("More information about \(title)")
+            Toggle("", isOn: $isOn)
+                .labelsHidden()
+                .toggleStyle(.switch)
+                .accessibilityLabel(Text(title))
+        }
+        .padding(.vertical, subtitle == nil ? 4 : 6)
+    }
+}
+
+private struct InfoPopover: View {
+    let topic: InfoTopic
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(topic.title)
+                .font(.headline)
+            Text(topic.message)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+        }
+        .padding(16)
+        .frame(maxWidth: 320)
     }
 }
 
@@ -1654,6 +1886,8 @@ private struct ThemeChip<ContextMenuContent: View>: View {
                 if isBusy {
                     ProgressView()
                         .controlSize(.small)
+                        .progressViewStyle(.circular)
+                        .frame(width: 16, height: 16)
                         .padding(12)
                         .background(.ultraThinMaterial, in: Circle())
                 }
@@ -3634,6 +3868,17 @@ struct QueryResultsSettingsView: View {
         )
     }
 
+    private var backgroundStreamingThresholdBinding: Binding<Int> {
+        Binding(
+            get: { appModel.globalSettings.resultsBackgroundStreamingThreshold },
+            set: { newValue in
+                let clamped = max(100, min(newValue, 1_000_000))
+                guard appModel.globalSettings.resultsBackgroundStreamingThreshold != clamped else { return }
+                Task { await appModel.updateResultsStreaming(backgroundStreamingThreshold: clamped) }
+            }
+        )
+    }
+
     private var selectedDisplayMode: ForeignKeyDisplayMode { displayModeBinding.wrappedValue }
     private var selectedBehavior: ForeignKeyInspectorBehavior { inspectorBehaviorBinding.wrappedValue }
 
@@ -3697,6 +3942,19 @@ struct QueryResultsSettingsView: View {
                 }
 
                 Text("Used when opening table previews from the sidebar. Additional batches keep loading in the background until the table finishes streaming.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+
+                Stepper(value: backgroundStreamingThresholdBinding, in: 100...1_000_000, step: 100) {
+                    HStack {
+                        Text("Background streaming threshold")
+                        Spacer()
+                        Text(formatRowCount(backgroundStreamingThresholdBinding.wrappedValue))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                Text("After this many rows are streamed, Echo hands off ingestion to a background worker so the grid stays responsive. Increase the value if you prefer more live rows in memory, decrease it for faster background streaming.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }

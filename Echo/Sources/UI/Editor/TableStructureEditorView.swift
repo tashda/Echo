@@ -55,8 +55,7 @@ struct TableStructureEditorView: View {
     @ObservedObject var tab: WorkspaceTab
     @ObservedObject var viewModel: TableStructureEditorViewModel
     @EnvironmentObject private var appModel: AppModel
-    @EnvironmentObject private var themeManager: ThemeManager
-
+    
     @State private var activeIndexEditor: IndexEditorPresentation?
     @State private var activeColumnEditor: ColumnEditorPresentation?
     @State private var activePrimaryKeyEditor: PrimaryKeyEditorPresentation?
@@ -65,6 +64,8 @@ struct TableStructureEditorView: View {
     @State private var selectedSection: TableStructureSection
     @State private var selectedColumnIDs: Set<TableStructureEditorViewModel.ColumnModel.ID> = []
     @FocusState private var focusedCustomColumnID: TableStructureEditorViewModel.ColumnModel.ID?
+    @State private var bulkColumnEditor: BulkColumnEditorPresentation?
+    @EnvironmentObject private var themeManager: ThemeManager
 
     init(tab: WorkspaceTab, viewModel: TableStructureEditorViewModel) {
         _tab = ObservedObject(initialValue: tab)
@@ -74,15 +75,6 @@ struct TableStructureEditorView: View {
 
     private var visibleColumns: [TableStructureEditorViewModel.ColumnModel] {
         viewModel.columns.filter { !$0.isDeleted }
-    }
-
-    private var columnIndexMap: [UUID: Int] {
-        var mapping: [UUID: Int] = [:]
-        mapping.reserveCapacity(viewModel.columns.count)
-        for (index, column) in viewModel.columns.enumerated() {
-            mapping[column.id] = index
-        }
-        return mapping
     }
 
     var body: some View {
@@ -105,7 +97,7 @@ struct TableStructureEditorView: View {
                 viewModel.requestedSection = nil
             }
         }
-        .onChange(of: viewModel.columns) { _, _ in
+        .onChange(of: viewModel.columns) { _ in
             pruneSelectedColumns()
         }
         .onReceive(viewModel.$requestedSection.compactMap { $0 }) { section in
@@ -201,6 +193,17 @@ struct TableStructureEditorView: View {
                     }
                 )
             }
+        }
+        .sheet(item: $bulkColumnEditor) { presentation in
+            let bindings = presentation.columnIDs.compactMap { columnBinding(for: $0) }
+            BulkColumnEditorSheet(
+                mode: presentation.mode,
+                columns: bindings,
+                databaseType: tab.connection.databaseType,
+                onApply: { value in
+                    applyBulkEdit(mode: presentation.mode, value: value, bindings: bindings)
+                }
+            )
         }
     }
 
@@ -454,23 +457,11 @@ struct TableStructureEditorView: View {
     }
     #endif
 
-    private var inlineFieldBackground: Color {
-#if os(macOS)
-        Color(nsColor: themeManager.surfaceBackgroundNSColor).opacity(themeManager.effectiveColorScheme == .dark ? 0.55 : 0.7)
-#else
-        themeManager.surfaceBackgroundColor.opacity(themeManager.effectiveColorScheme == .dark ? 0.55 : 0.7)
-#endif
-    }
-
-    private var inlineFieldStroke: Color {
-        themeManager.surfaceForegroundColor.opacity(themeManager.effectiveColorScheme == .dark ? 0.25 : 0.15)
-    }
-
     private var inlineButtonBackground: Color {
 #if os(macOS)
-        Color(nsColor: themeManager.surfaceBackgroundNSColor).opacity(themeManager.effectiveColorScheme == .dark ? 0.45 : 0.6)
+        Color(nsColor: themeManager.surfaceBackgroundNSColor).opacity(0.2)
 #else
-        themeManager.surfaceBackgroundColor.opacity(themeManager.effectiveColorScheme == .dark ? 0.45 : 0.6)
+        themeManager.surfaceBackgroundColor.opacity(0.2)
 #endif
     }
 
@@ -502,12 +493,11 @@ struct TableStructureEditorView: View {
     @ViewBuilder
     private var columnsTable: some View {
 #if os(macOS)
-        let indexMap = columnIndexMap
         Table(visibleColumns, selection: $selectedColumnIDs) {
             TableColumn("Name") { column in
                 Button { presentColumnEditor(for: column) } label: {
                     Text(column.name)
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(.system(size: 13))
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 .buttonStyle(.plain)
@@ -515,26 +505,22 @@ struct TableStructureEditorView: View {
             .width(ColumnLayout.name)
 
             TableColumn("Data Type") { column in
-                let binding = indexMap[column.id].map { $viewModel.columns[$0] }
-                dataTypeCell(for: column, binding: binding)
+                dataTypeCell(for: column, binding: columnBinding(for: column.id))
             }
             .width(ColumnLayout.dataType)
 
             TableColumn("Allow Null") { column in
-                let binding = indexMap[column.id].map { $viewModel.columns[$0] }
-                allowNullCell(for: column, binding: binding)
+                allowNullCell(for: column, binding: columnBinding(for: column.id))
             }
             .width(ColumnLayout.allowNull)
 
             TableColumn("Default") { column in
-                let binding = indexMap[column.id].map { $viewModel.columns[$0] }
-                defaultValueCell(for: column, binding: binding)
+                defaultValueCell(for: column, binding: columnBinding(for: column.id))
             }
             .width(ColumnLayout.defaultValue)
 
             TableColumn("Generated") { column in
-                let binding = indexMap[column.id].map { $viewModel.columns[$0] }
-                generatedExpressionCell(for: column, binding: binding)
+                generatedExpressionCell(for: column, binding: columnBinding(for: column.id))
             }
             .width(ColumnLayout.generated)
 
@@ -553,11 +539,20 @@ struct TableStructureEditorView: View {
             if let first = targets.first, targets.count == 1 {
                 Button("Edit Column") { presentColumnEditor(for: first) }
             }
+            if targets.count > 1 {
+                Menu("Edit Columns") {
+                    Button("Edit Data Type") { presentBulkEditor(mode: .dataType, columns: targets) }
+                    Button("Edit Default Value") { presentBulkEditor(mode: .defaultValue, columns: targets) }
+                    Button("Edit Generated Expression") { presentBulkEditor(mode: .generatedExpression, columns: targets) }
+                }
+            }
             if !targets.isEmpty {
                 let title = targets.count == 1 ? "Remove Column" : "Remove Columns"
                 Button(title, role: .destructive) { removeColumns(targets) }
             }
         }
+        .modifier(DisableTableScrolling())
+        .frame(height: columnsTableHeight)
 #else
         List(visibleColumns) { column in
             VStack(alignment: .leading, spacing: 4) {
@@ -582,34 +577,58 @@ struct TableStructureEditorView: View {
 
 #if os(macOS)
     @ViewBuilder
-    private func dataTypeCell(for column: TableStructureEditorViewModel.ColumnModel, binding: Binding<TableStructureEditorViewModel.ColumnModel>?) -> some View {
+    private func dataTypeCell(
+        for column: TableStructureEditorViewModel.ColumnModel,
+        binding: Binding<TableStructureEditorViewModel.ColumnModel>?
+    ) -> some View {
         if let binding {
-            inlineEditableField(
-                text: Binding(
-                    get: { binding.wrappedValue.dataType },
-                    set: { binding.wrappedValue.dataType = $0 }
-                ),
-                placeholder: "Data Type",
-                alignment: .leading
-            )
-            .focused($focusedCustomColumnID, equals: column.id)
-            .overlay(alignment: .trailing) {
-                Menu {
-                    ForEach(postgresDataTypeOptions, id: \.self) { option in
-                        Button(option) { binding.wrappedValue.dataType = option }
+            HStack(spacing: 4) {
+                inlineEditableField(
+                    text: Binding(
+                        get: { binding.wrappedValue.dataType },
+                        set: { binding.wrappedValue.dataType = $0 }
+                    ),
+                    placeholder: "Data Type",
+                    alignment: .leading
+                )
+                .focused($focusedCustomColumnID, equals: column.id)
+
+                if #available(macOS 13.0, *) {
+                    Menu {
+                        ForEach(postgresDataTypeOptions, id: \.self) { option in
+                            Button(option) { binding.wrappedValue.dataType = option }
+                        }
+                        Divider()
+                        Button("Custom…") { focusedCustomColumnID = column.id }
+                    } label: {
+                        Image(systemName: "chevron.down")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(.secondary)
+                            .padding(.vertical, 3)
+                            .padding(.horizontal, 5)
+                            .background(inlineButtonBackground)
+                            .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
                     }
-                    Divider()
-                    Button("Custom…") { focusedCustomColumnID = column.id }
-                } label: {
-                    Image(systemName: "chevron.down")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(.secondary)
-                        .padding(.vertical, 4)
-                        .padding(.horizontal, 6)
-                        .background(inlineButtonBackground)
-                        .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+                    .menuStyle(.borderlessButton)
+                    .menuIndicator(.hidden)
+                } else {
+                    Menu {
+                        ForEach(postgresDataTypeOptions, id: \.self) { option in
+                            Button(option) { binding.wrappedValue.dataType = option }
+                        }
+                        Divider()
+                        Button("Custom…") { focusedCustomColumnID = column.id }
+                    } label: {
+                        Image(systemName: "chevron.down")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(.secondary)
+                            .padding(.vertical, 3)
+                            .padding(.horizontal, 5)
+                            .background(inlineButtonBackground)
+                            .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
+                    }
+                    .menuStyle(.borderlessButton)
                 }
-                .menuStyle(.borderlessButton)
             }
         } else {
             Text(column.dataType.uppercased())
@@ -618,7 +637,6 @@ struct TableStructureEditorView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
-
     @ViewBuilder
     private func allowNullCell(for column: TableStructureEditorViewModel.ColumnModel, binding: Binding<TableStructureEditorViewModel.ColumnModel>?) -> some View {
         if let binding {
@@ -692,6 +710,12 @@ struct TableStructureEditorView: View {
         }
     }
 
+    private var columnsTableHeight: CGFloat {
+        let header: CGFloat = 30
+        let row: CGFloat = 28
+        return max(header + CGFloat(max(visibleColumns.count, 1)) * row, header + row * 3)
+    }
+
     private enum ColumnLayout {
         static let name: CGFloat = 220
         static let dataType: CGFloat = 160
@@ -751,23 +775,13 @@ struct TableStructureEditorView: View {
             if text.wrappedValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 Text(placeholder)
                     .foregroundStyle(Color.secondary.opacity(0.5))
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 6)
             }
 
             TextField("", text: text)
                 .textFieldStyle(.plain)
                 .font(.system(size: 12))
                 .multilineTextAlignment(alignment)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 6)
         }
-        .background(inlineFieldBackground)
-        .overlay(
-            RoundedRectangle(cornerRadius: 7, style: .continuous)
-                .stroke(inlineFieldStroke, lineWidth: 1)
-        )
-        .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
         .frame(maxWidth: .infinity, alignment: resolvedAlignment)
     }
 
@@ -811,6 +825,36 @@ struct TableStructureEditorView: View {
             viewModel.removeColumn(column)
         }
         pruneSelectedColumns()
+    }
+
+    private func presentBulkEditor(mode: BulkColumnEditorPresentation.Mode, columns: [TableStructureEditorViewModel.ColumnModel]) {
+        guard !columns.isEmpty else { return }
+        bulkColumnEditor = BulkColumnEditorPresentation(columnIDs: columns.map(\.id), mode: mode)
+    }
+
+    private func applyBulkEdit(
+        mode: BulkColumnEditorPresentation.Mode,
+        value: BulkColumnEditValue,
+        bindings: [Binding<TableStructureEditorViewModel.ColumnModel>]
+    ) {
+        for binding in bindings {
+            switch mode {
+            case .dataType:
+                if case let .dataType(newType) = value {
+                    binding.wrappedValue.dataType = newType
+                }
+            case .defaultValue:
+                if case let .defaultValue(newValue) = value {
+                    binding.wrappedValue.defaultValue = newValue
+                }
+            case .generatedExpression:
+                if case let .generatedExpression(newValue) = value {
+                    binding.wrappedValue.generatedExpression = newValue
+                }
+            }
+        }
+
+        bulkColumnEditor = nil
     }
 
     private func pruneSelectedColumns() {
@@ -1491,6 +1535,20 @@ struct TableStructureEditorView: View {
         var id: UUID { indexID }
     }
 
+    fileprivate struct BulkColumnEditorPresentation: Identifiable {
+        enum Mode: String, Identifiable {
+            case dataType
+            case defaultValue
+            case generatedExpression
+
+            var id: String { rawValue }
+        }
+
+        let id = UUID()
+        let columnIDs: [UUID]
+        let mode: Mode
+    }
+
     private struct SectionAction {
         enum Style {
             case plain
@@ -1507,6 +1565,17 @@ struct TableStructureEditorView: View {
             self.systemImage = systemImage
             self.style = style
             self.action = action
+        }
+    }
+}
+
+
+private struct DisableTableScrolling: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(macOS 13.0, *) {
+            content.scrollDisabled(true)
+        } else {
+            content
         }
     }
 }
@@ -1551,7 +1620,7 @@ private struct ColumnEditorSheet: View {
         }
         .frame(minWidth: 440, idealWidth: 500, minHeight: 360)
         .navigationTitle(draft.isEditingExisting ? "Edit Column" : "New Column")
-        .onChange(of: draft.dataType) { _, newValue in
+        .onChange(of: draft.dataType) { newValue in
             guard isPostgres else { return }
             if let match = postgresDataTypeOptions.first(where: { $0.caseInsensitiveCompare(newValue) == .orderedSame }) {
                 draft.selectedDataType = match
@@ -1951,7 +2020,7 @@ private struct PrimaryKeyEditorSheet: View {
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 14)
-        .background(.ultraThinMaterial)
+        .background(Color(nsColor: .windowBackgroundColor))
     }
 
     private func applyDraft() {
@@ -2036,6 +2105,268 @@ private struct PrimaryKeyEditorSheet: View {
     }
 }
 
+fileprivate enum BulkColumnEditValue {
+    case dataType(String)
+    case defaultValue(String?)
+    case generatedExpression(String?)
+}
+
+// MARK: - Bulk Column Editor
+
+private struct BulkColumnEditorSheet: View {
+    let mode: TableStructureEditorView.BulkColumnEditorPresentation.Mode
+    let columns: [Binding<TableStructureEditorViewModel.ColumnModel>]
+    let databaseType: DatabaseType
+    let onApply: (BulkColumnEditValue) -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var themeManager: ThemeManager
+    @State private var dataType: String = ""
+    @State private var defaultValue: String = ""
+    @State private var generatedExpression: String = ""
+    @State private var selectedPresetType: String? = nil
+
+    init(
+        mode: TableStructureEditorView.BulkColumnEditorPresentation.Mode,
+        columns: [Binding<TableStructureEditorViewModel.ColumnModel>],
+        databaseType: DatabaseType,
+        onApply: @escaping (BulkColumnEditValue) -> Void
+    ) {
+        self.mode = mode
+        self.columns = columns
+        self.databaseType = databaseType
+        self.onApply = onApply
+
+        if let first = columns.first?.wrappedValue {
+            switch mode {
+            case .dataType:
+                if databaseType == .postgresql,
+                   let preset = postgresDataTypeOptions.first(where: { $0.caseInsensitiveCompare(first.dataType) == .orderedSame }) {
+                    _selectedPresetType = State(initialValue: preset)
+                    _dataType = State(initialValue: preset)
+                } else {
+                    _selectedPresetType = State(initialValue: nil)
+                    _dataType = State(initialValue: first.dataType)
+                }
+            case .defaultValue:
+                _selectedPresetType = State(initialValue: nil)
+                _defaultValue = State(initialValue: first.defaultValue ?? "")
+            case .generatedExpression:
+                _selectedPresetType = State(initialValue: nil)
+                _generatedExpression = State(initialValue: first.generatedExpression ?? "")
+            }
+        }
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            contentContainer
+
+            Divider()
+
+            toolbar
+        }
+        .frame(minWidth: 360, idealWidth: 420, minHeight: formHeight)
+        .background(Color(nsColor: .windowBackgroundColor))
+        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .shadow(color: Color.black.opacity(0.12), radius: 18, y: 10)
+        .navigationTitle("Edit Columns")
+    }
+
+    private var contentContainer: some View {
+        VStack(spacing: 0) {
+            Section(header: Text(sectionTitle), footer: sectionFooter) {
+                content
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 16)
+        }
+    }
+
+    @ViewBuilder
+    private var content: some View {
+        switch mode {
+        case .dataType:
+            FormRow(label: "Data Type") {
+                dataTypePicker
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 8)
+            if needsCustomTypeField {
+                FormRow(label: "Custom Type") {
+                    plainField(text: $dataType, alignment: .trailing)
+                }
+                .padding(.horizontal, 20)
+                .padding(.vertical, 8)
+            }
+        case .defaultValue:
+            FormRow(label: "Default Value") {
+                plainField(text: $defaultValue, alignment: .trailing)
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 8)
+
+        case .generatedExpression:
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Generated Expression")
+                    .frame(minWidth: 120, alignment: .leading)
+                TextEditor(text: $generatedExpression)
+                    .font(.system(size: 13))
+                    .frame(minHeight: 120)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 8)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .fill(Color(nsColor: .textBackgroundColor))
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .stroke(Color.secondary.opacity(0.25))
+                    )
+            }
+        }
+    }
+
+    private var needsCustomTypeField: Bool {
+        mode == .dataType && (databaseType != .postgresql || selectedPresetType == nil)
+    }
+
+    @ViewBuilder
+    private var dataTypePicker: some View {
+        if databaseType == .postgresql {
+            Picker("", selection: $selectedPresetType) {
+                ForEach(postgresDataTypeOptions, id: \.self) { option in
+                    Text(option).tag(Optional(option))
+                }
+                Text("Custom…").tag(Optional<String>.none)
+            }
+            .labelsHidden()
+            .pickerStyle(.menu)
+            .frame(width: 200, alignment: .trailing)
+            .onChange(of: selectedPresetType) { newValue in
+                if let preset = newValue {
+                    dataType = preset
+                }
+            }
+        } else {
+            plainField(text: $dataType, alignment: .trailing)
+        }
+    }
+
+    private func plainField(text: Binding<String>, alignment: TextAlignment) -> some View {
+        let frameAlignment: Alignment
+        switch alignment {
+        case .trailing: frameAlignment = .trailing
+        case .center: frameAlignment = .center
+        default: frameAlignment = .leading
+        }
+
+        return TextField("", text: text)
+            .textFieldStyle(.plain)
+            .font(.system(size: 13))
+            .multilineTextAlignment(alignment)
+            .padding(.vertical, 6)
+            .frame(maxWidth: .infinity, alignment: frameAlignment)
+    }
+
+    private var sectionTitle: String {
+        switch mode {
+        case .dataType: return "Data Type"
+        case .defaultValue: return "Default"
+        case .generatedExpression: return "Generated Expression"
+        }
+    }
+
+    @ViewBuilder
+    private var sectionFooter: some View {
+        switch mode {
+        case .dataType:
+            Text("Leave blank to retain current types. Choosing a value applies to all selected columns.")
+        case .defaultValue, .generatedExpression:
+            Text("Leave empty to clear the value on all selected columns.")
+        }
+    }
+
+    private var toolbar: some View {
+        HStack(spacing: 12) {
+            Button("Cancel") { dismiss() }
+                .keyboardShortcut(.cancelAction)
+
+            Spacer()
+
+            Button("Apply") {
+                switch mode {
+                case .dataType:
+                    let resolved: String
+                    if databaseType == .postgresql, let preset = selectedPresetType {
+                        resolved = preset
+                    } else {
+                        let trimmed = dataType.trimmingCharacters(in: .whitespacesAndNewlines)
+                        guard !trimmed.isEmpty else { dismiss(); return }
+                        resolved = trimmed
+                    }
+                    onApply(.dataType(resolved))
+                case .defaultValue:
+                    let trimmed = defaultValue.trimmingCharacters(in: .whitespacesAndNewlines)
+                    onApply(.defaultValue(trimmed.isEmpty ? nil : trimmed))
+                case .generatedExpression:
+                    let trimmed = generatedExpression.trimmingCharacters(in: .whitespacesAndNewlines)
+                    onApply(.generatedExpression(trimmed.isEmpty ? nil : trimmed))
+                }
+                dismiss()
+            }
+            .keyboardShortcut(.defaultAction)
+            .buttonStyle(.borderedProminent)
+            .disabled(!canApply)
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 14)
+        .background(.ultraThinMaterial)
+    }
+
+    private var canApply: Bool {
+        switch mode {
+        case .dataType:
+            if databaseType == .postgresql {
+                if let preset = selectedPresetType {
+                    return !preset.isEmpty
+                }
+            }
+            return !dataType.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        case .defaultValue, .generatedExpression:
+            return true
+        }
+    }
+
+    private var formHeight: CGFloat {
+        switch mode {
+        case .dataType, .defaultValue:
+            return 240
+        case .generatedExpression:
+            return 340
+        }
+    }
+}
+
+
+private struct FormRow<Content: View>: View {
+    let label: String
+    let content: Content
+
+    init(label: String, @ViewBuilder content: () -> Content) {
+        self.label = label
+        self.content = content()
+    }
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 12) {
+            Text(label)
+                .frame(minWidth: 120, alignment: .leading)
+            Spacer(minLength: 0)
+            content
+        }
+    }
+}
 // MARK: - Unique Constraint Editor Sheet
 
 private struct UniqueConstraintEditorSheet: View {

@@ -88,6 +88,7 @@ struct SQLAutoCompletionSuggestion: Identifiable, Equatable {
     let origin: Origin?
     let dataType: String?
     let tableColumns: [TableColumn]?
+    let snippetText: String?
 
     init(id: String = UUID().uuidString,
          title: String,
@@ -97,7 +98,8 @@ struct SQLAutoCompletionSuggestion: Identifiable, Equatable {
          kind: SQLAutoCompletionKind,
          origin: Origin? = nil,
          dataType: String? = nil,
-         tableColumns: [TableColumn]? = nil) {
+         tableColumns: [TableColumn]? = nil,
+         snippetText: String? = nil) {
         self.id = id
         self.title = title
         self.subtitle = subtitle
@@ -111,6 +113,7 @@ struct SQLAutoCompletionSuggestion: Identifiable, Equatable {
         }
         self.dataType = dataType
         self.tableColumns = tableColumns?.isEmpty == true ? nil : tableColumns
+        self.snippetText = snippetText
     }
 }
 
