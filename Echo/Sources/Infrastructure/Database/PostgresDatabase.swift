@@ -1,6 +1,7 @@
 import Foundation
-import PostgresNIO
 import NIOCore
+import NIOFoundationCompat
+import PostgresNIO
 import Logging
 
 typealias PostgresQueryResult = PostgresRowSequence
@@ -139,10 +140,12 @@ final class PostgresSession: DatabaseSession {
             guard var buffer = cell.bytes else { return nil }
             let readable = buffer.readableBytes
             guard readable > 0 else { return Data() }
-            if let bytes = buffer.readBytes(length: readable) {
-                return Data(bytes)
+            if let data = buffer.readData(length: readable) {
+                return data
             }
-            return Data()
+            return buffer.withUnsafeReadableBytes { pointer in
+                Data(pointer)
+            }
         }
 
         func executeVoidStatement(_ sql: String) async throws {
@@ -158,6 +161,13 @@ final class PostgresSession: DatabaseSession {
         let configuredFetchSize = min(max(resolvedFetchSize, 128), 16_384)
         let backgroundFetchBaseline = max(streamingPreviewLimit, configuredFetchSize)
         var dynamicBackgroundFetchSize = backgroundFetchBaseline
+        let rampedBaselineForTotal: (Int) -> Int = { totalCount in
+            var target = backgroundFetchBaseline
+            if totalCount >= streamingPreviewLimit {
+                target = max(target, min(backgroundFetchBaseline * 12, 524_288))
+            }
+            return min(target, 524_288)
+        }
 
         let client = self.client
 
@@ -348,6 +358,11 @@ final class PostgresSession: DatabaseSession {
                     break fetchLoop
                 }
 
+                let rampedBaseline = rampedBaselineForTotal(totalRowCount)
+                if dynamicBackgroundFetchSize < rampedBaseline {
+                    dynamicBackgroundFetchSize = rampedBaseline
+                }
+
                 if totalRowCount >= streamingPreviewLimit {
                     nextFetchSize = dynamicBackgroundFetchSize
                 } else {
@@ -364,15 +379,25 @@ final class PostgresSession: DatabaseSession {
                             dynamicBackgroundFetchSize = 16_384
                         }
                     } else if networkWait < 0.12,
-                              dynamicBackgroundFetchSize > backgroundFetchBaseline {
-                        if dynamicBackgroundFetchSize > 16_384 {
+                              dynamicBackgroundFetchSize > rampedBaseline {
+                        if dynamicBackgroundFetchSize > 524_288 {
+                            dynamicBackgroundFetchSize = 524_288
+                        } else if dynamicBackgroundFetchSize > 262_144 {
+                            dynamicBackgroundFetchSize = 262_144
+                        } else if dynamicBackgroundFetchSize > 131_072 {
+                            dynamicBackgroundFetchSize = 131_072
+                        } else if dynamicBackgroundFetchSize > 65_536 {
+                            dynamicBackgroundFetchSize = 65_536
+                        } else if dynamicBackgroundFetchSize > 32_768 {
+                            dynamicBackgroundFetchSize = 32_768
+                        } else if dynamicBackgroundFetchSize > 16_384 {
                             dynamicBackgroundFetchSize = 16_384
                         } else if dynamicBackgroundFetchSize > 8_192 {
                             dynamicBackgroundFetchSize = 8_192
                         } else if dynamicBackgroundFetchSize > 4_096 {
                             dynamicBackgroundFetchSize = 4_096
                         } else {
-                            dynamicBackgroundFetchSize = backgroundFetchBaseline
+                            dynamicBackgroundFetchSize = rampedBaseline
                         }
                     }
                 }

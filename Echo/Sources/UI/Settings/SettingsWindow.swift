@@ -1050,7 +1050,10 @@ struct AppearanceSettingsView: View {
             Toggle("Match workspace tabs to editor theme", isOn: themeTabsBinding)
                 .toggleStyle(.switch)
 
-            Text("Apply connection colors outside the editor and sync workspace tabs with the active theme.")
+            Toggle("Use application theme for diagrams", isOn: diagramUseThemeBinding)
+                .toggleStyle(.switch)
+
+            Text("Apply connection colors outside the editor, sync workspace tabs with the active theme, and optionally theme diagrams.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
         }
@@ -1516,6 +1519,16 @@ struct AppearanceSettingsView: View {
             set: { newValue in
                 guard appModel.globalSettings.themeTabs != newValue else { return }
                 Task { await appModel.updateGlobalEditorDisplay { $0.themeTabs = newValue } }
+            }
+        )
+    }
+
+    private var diagramUseThemeBinding: Binding<Bool> {
+        Binding(
+            get: { appModel.globalSettings.diagramUseThemedAppearance },
+            set: { newValue in
+                guard appModel.globalSettings.diagramUseThemedAppearance != newValue else { return }
+                Task { await appModel.updateGlobalEditorDisplay { $0.diagramUseThemedAppearance = newValue } }
             }
         )
     }

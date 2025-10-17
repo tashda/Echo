@@ -150,6 +150,11 @@ struct SchemaDiagramColumn: Identifiable, Hashable {
     }
 }
 
+enum DiagramLoadSource: Equatable {
+    case live(Date)
+    case cache(Date)
+}
+
 final class SchemaDiagramNodeModel: ObservableObject, Identifiable {
     let id: String
     let schema: String
@@ -188,10 +193,13 @@ final class SchemaDiagramViewModel: ObservableObject {
     @Published var isLoading: Bool
     @Published var statusMessage: String?
     @Published var errorMessage: String?
+    @Published var loadSource: DiagramLoadSource = .live(Date())
     let title: String
     let baseNodeID: String
     var layoutIdentifier: String
     var context: SchemaDiagramContext?
+    var cachedStructure: DiagramStructureSnapshot?
+    var cachedChecksum: String?
 
     init(
         nodes: [SchemaDiagramNodeModel],
@@ -202,7 +210,10 @@ final class SchemaDiagramViewModel: ObservableObject {
         statusMessage: String? = nil,
         errorMessage: String? = nil,
         layoutIdentifier: String = DiagramLayoutSnapshot.defaultLayoutIdentifier,
-        context: SchemaDiagramContext? = nil
+        context: SchemaDiagramContext? = nil,
+        cachedStructure: DiagramStructureSnapshot? = nil,
+        cachedChecksum: String? = nil,
+        loadSource: DiagramLoadSource = .live(Date())
     ) {
         self.nodes = nodes
         self.edges = edges
@@ -213,6 +224,9 @@ final class SchemaDiagramViewModel: ObservableObject {
         self.errorMessage = errorMessage
         self.layoutIdentifier = layoutIdentifier
         self.context = context
+        self.cachedStructure = cachedStructure
+        self.cachedChecksum = cachedChecksum
+        self.loadSource = loadSource
     }
 
     func node(for id: String) -> SchemaDiagramNodeModel? {
@@ -308,9 +322,17 @@ final class QueryResultsGridState {
         let total = forwardContribution + gridViewportBackfillRows
         return min(max(total, 128), 256)
     }
+
+    private struct BufferedSpoolUpdate {
+        let update: QueryStreamUpdate
+        let mode: StreamingMode
+    }
+
     private var streamedRowCount: Int = 0
     private let frontBufferLimit: Int
     private var isRowCountSpoolDriven: Bool = false
+    private var deferredSpoolUpdates: [BufferedSpoolUpdate] = []
+    private var isSpoolActivationDeferred: Bool = true
 
     private var executionStartTime: Date?
     private var executionTimer: Timer?
@@ -669,6 +691,8 @@ final class QueryResultsGridState {
         case .idle:
             break
         }
+
+        activateSpoolIfNeeded()
     }
 
     private func handlePreviewStreamUpdate(
@@ -747,6 +771,7 @@ final class QueryResultsGridState {
         }
         markResultDataChanged()
         refreshLivePerformanceReport()
+        activateSpoolIfNeeded()
         finalizeSpool(with: result)
     }
 
@@ -834,10 +859,12 @@ final class QueryResultsGridState {
 
     // MARK: - Result Spooling
 
+    @MainActor
     private func prepareSpoolForNewExecution() {
         spoolStatsTask?.cancel()
         spoolStatsTask = nil
         streamingMode = .idle
+        isRowCountSpoolDriven = false
 
         if let existingService = ingestionService {
             Task.detached(priority: .utility) {
@@ -845,6 +872,8 @@ final class QueryResultsGridState {
             }
         }
         ingestionService = nil
+        deferredSpoolUpdates.removeAll(keepingCapacity: false)
+        isSpoolActivationDeferred = true
 
         rowCache.reset()
         streamedRowCount = 0
@@ -858,9 +887,36 @@ final class QueryResultsGridState {
         }
         spoolHandle = nil
         resultSpoolID = nil
+    }
 
+    @MainActor
+    private func submitToSpool(update: QueryStreamUpdate, mode: StreamingMode) {
+        if shouldDeferSpool(for: mode) {
+            deferredSpoolUpdates.append(.init(update: update, mode: mode))
+            return
+        }
+
+        let service = ensureIngestionService()
+        let treatAsPreview = (mode == .preview || mode == .idle)
+        Task.detached(priority: .utility) {
+            await service.enqueue(update: update, isPreview: treatAsPreview)
+        }
+    }
+
+    @MainActor
+    private func shouldDeferSpool(for mode: StreamingMode) -> Bool {
+        guard isSpoolActivationDeferred else { return false }
+        return mode == .preview || mode == .idle
+    }
+
+    @MainActor
+    @discardableResult
+    private func ensureIngestionService() -> ResultStreamIngestionService {
+        if let service = ingestionService {
+            return service
+        }
         let manager = spoolManager
-        ingestionService = ResultStreamIngestionService(
+        let service = ResultStreamIngestionService(
             spoolManager: manager,
             rowCache: rowCache,
             onSpoolReady: { [weak self] handle in
@@ -871,16 +927,33 @@ final class QueryResultsGridState {
                 self.attachSpoolStats(from: handle)
             }
         )
+        ingestionService = service
+        return service
     }
 
-    private func submitToSpool(update: QueryStreamUpdate, mode: StreamingMode) {
-        guard let service = ingestionService else { return }
-        let treatAsPreview = (mode == .preview || mode == .idle)
+    @MainActor
+    private func activateSpoolIfNeeded(force: Bool = false) {
+        guard isSpoolActivationDeferred else { return }
+        if !force {
+            guard streamingMode == .background || streamingMode == .completed else { return }
+        }
+
+        isSpoolActivationDeferred = false
+
+        guard !deferredSpoolUpdates.isEmpty else { return }
+        let buffered = deferredSpoolUpdates
+        deferredSpoolUpdates.removeAll(keepingCapacity: false)
+        let service = ensureIngestionService()
+
         Task.detached(priority: .utility) {
-            await service.enqueue(update: update, isPreview: treatAsPreview)
+            for entry in buffered {
+                let treatAsPreview = (entry.mode == .preview || entry.mode == .idle)
+                await service.enqueue(update: entry.update, isPreview: treatAsPreview)
+            }
         }
     }
 
+    @MainActor
     private func finalizeSpool(with result: QueryResultSet) {
         let service = ingestionService
         Task.detached(priority: .utility) { [weak self] in
@@ -917,7 +990,11 @@ final class QueryResultsGridState {
         }
     }
 
+    @MainActor
     private func finalizeSpoolOnCompletion(cancelled _: Bool) {
+        if isSpoolActivationDeferred {
+            deferredSpoolUpdates.removeAll(keepingCapacity: false)
+        }
         let service = ingestionService
         Task.detached(priority: .utility) { [weak self] in
             guard let self else { return }
