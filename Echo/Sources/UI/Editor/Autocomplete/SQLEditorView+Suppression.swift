@@ -298,6 +298,8 @@ extension SQLTextView {
 
         if let query = makeCompletionQuery() {
             let caretLocation = query.replacementRange.location
+            completionEngine.beginManualTrigger()
+            defer { completionEngine.endManualTrigger() }
             let engineResult = completionEngine.suggestions(for: query,
                                                             text: string,
                                                             caretLocation: caretLocation)

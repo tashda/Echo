@@ -250,6 +250,7 @@ final class SQLAutoCompletionEngine {
     private var preferQualifiedTableInsertions = false
     private var aggressiveness: SQLCompletionAggressiveness = .balanced
     private var includeSystemSchemas = false
+    private var manualTriggerInProgress = false
     private static let emptyMetadata = SQLCompletionMetadata(clause: .unknown,
                                                              currentToken: "",
                                                              precedingKeyword: nil,
@@ -340,6 +341,14 @@ final class SQLAutoCompletionEngine {
         if let current = context {
             updateContext(current)
         }
+    }
+
+    func beginManualTrigger() {
+        manualTriggerInProgress = true
+    }
+
+    func endManualTrigger() {
+        manualTriggerInProgress = false
     }
 
     func clearPostCommitSuppression() {
@@ -1091,7 +1100,7 @@ final class SQLAutoCompletionEngine {
             return false
         }
         if trimmedToken == "*" && query.pathComponents.isEmpty {
-            return false
+            return manualTriggerInProgress
         }
         let tokenLower = trimmedToken.lowercased()
         if SQLAutoCompletionEngine.reservedLeadingKeywords.contains(tokenLower) && query.pathComponents.isEmpty {

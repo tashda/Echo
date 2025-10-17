@@ -69,6 +69,7 @@ actor ProjectStore {
         globalSettings: GlobalSettings?,
         clipboardHistory: [ClipboardHistoryStore.Entry]?,
         autocompleteHistory: SQLAutoCompletionHistoryStore.Snapshot?,
+        diagramCaches: [DiagramCachePayload]?,
         password: String
     ) async throws -> Data {
         let jsonData = try await MainActor.run { () -> Data in
@@ -80,6 +81,7 @@ actor ProjectStore {
                 globalSettings: globalSettings,
                 clipboardHistory: clipboardHistory,
                 autocompleteHistory: autocompleteHistory,
+                diagramCaches: diagramCaches,
                 bookmarks: project.bookmarks
             )
 

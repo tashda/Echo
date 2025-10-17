@@ -101,7 +101,10 @@ final class AppModel: ObservableObject {
         title: String,
         baseKey: DiagramTableKey,
         tableDetails: [DiagramTableKey: TableStructureDetails],
-        layoutSnapshot: DiagramLayoutSnapshot?
+        layoutSnapshot: DiagramLayoutSnapshot?,
+        structureSnapshot: DiagramStructureSnapshot? = nil,
+        checksum: String? = nil,
+        loadSource: DiagramLoadSource = .live(Date())
     ) -> SchemaDiagramViewModel {
         func buildColumns(for details: TableStructureDetails) -> [SchemaDiagramColumn] {
             let primaryKeys = Set(details.primaryKey?.columns.map { $0.lowercased() } ?? [])
@@ -181,13 +184,17 @@ final class AppModel: ObservableObject {
             appendForeignKeyEdges(from: key, details: details)
         }
 
-        return SchemaDiagramViewModel(
+        let viewModel = SchemaDiagramViewModel(
             nodes: nodeModels,
             edges: edges,
             baseNodeID: baseKey.identifier,
             title: title,
-            layoutIdentifier: layoutSnapshot?.layoutID ?? DiagramLayoutSnapshot.defaultLayoutIdentifier
+            layoutIdentifier: layoutSnapshot?.layoutID ?? DiagramLayoutSnapshot.defaultLayoutIdentifier,
+            cachedStructure: structureSnapshot,
+            cachedChecksum: checksum,
+            loadSource: loadSource
         )
+        return viewModel
     }
 
     private func hydrateCachedDiagram(from payload: DiagramCachePayload) -> SchemaDiagramViewModel {
@@ -204,7 +211,10 @@ final class AppModel: ObservableObject {
             title: title,
             baseKey: baseKey,
             tableDetails: tableDetails,
-            layoutSnapshot: payload.layout
+            layoutSnapshot: payload.layout,
+            structureSnapshot: payload.structure,
+            checksum: payload.checksum,
+            loadSource: .cache(payload.generatedAt)
         )
     }
 
@@ -453,29 +463,36 @@ final class AppModel: ObservableObject {
 
         progress?("Finalizing diagram…")
         let title = "\(object.schema).\(object.name)"
+        let baseStructure = tableDetails[baseKey]
+        let relatedEntries = tableDetails
+            .filter { $0.key != baseKey }
+            .map { DiagramStructureSnapshot.TableEntry(schema: $0.key.schema, name: $0.key.name, details: $0.value) }
+        let structureSnapshot: DiagramStructureSnapshot? = baseStructure.map { details in
+            DiagramStructureSnapshot(
+                baseTable: .init(schema: baseKey.schema, name: baseKey.name, details: details),
+                relatedTables: relatedEntries
+            )
+        }
+        let checksum = baseStructure.map { DiagramChecksum.makeChecksum(base: $0, related: relatedEntries) }
+
         let viewModel = makeDiagramViewModel(
             title: title,
             baseKey: baseKey,
             tableDetails: tableDetails,
-            layoutSnapshot: nil
+            layoutSnapshot: nil,
+            structureSnapshot: structureSnapshot,
+            checksum: checksum,
+            loadSource: .live(Date())
         )
 
         if let cacheKey,
-           let baseDetails = tableDetails[baseKey] {
-            let relatedEntries = tableDetails
-                .filter { $0.key != baseKey }
-                .map { DiagramStructureSnapshot.TableEntry(schema: $0.key.schema, name: $0.key.name, details: $0.value) }
-            let structure = DiagramStructureSnapshot(
-                baseTable: .init(schema: baseKey.schema, name: baseKey.name, details: baseDetails),
-                relatedTables: relatedEntries
-            )
-            let checksum = DiagramChecksum.makeChecksum(base: baseDetails, related: relatedEntries)
-            let layout = viewModel.layoutSnapshot()
+           let structureSnapshot,
+           let checksum {
             let payload = DiagramCachePayload(
                 key: cacheKey,
                 checksum: checksum,
-                structure: structure,
-                layout: layout,
+                structure: structureSnapshot,
+                layout: viewModel.layoutSnapshot(),
                 loadingSummary: nil
             )
             Task {
@@ -561,13 +578,8 @@ final class AppModel: ObservableObject {
             intervalSeconds = 7 * 24 * 60 * 60
         }
         let intervalNanoseconds = UInt64(intervalSeconds) * 1_000_000_000
-        diagramRefreshTask = Task { [weak self] in
-            guard let self else { return }
-            while !Task.isCancelled {
-                try await Task.sleep(nanoseconds: intervalNanoseconds)
-                if Task.isCancelled { break }
-                await self.runDiagramRefreshSweep()
-            }
+        diagramRefreshTask = Task.detached(priority: .utility) { [weak self] in
+            await self?.runDiagramRefreshLoop(intervalNanoseconds: intervalNanoseconds)
         }
     }
 
@@ -575,6 +587,19 @@ final class AppModel: ObservableObject {
     private func runDiagramRefreshSweep() async {
         guard globalSettings.diagramPrefetchMode == .full else { return }
         await enqueueFullPrefetchSweep(isBackground: true)
+    }
+
+    @MainActor
+    private func runDiagramRefreshLoop(intervalNanoseconds: UInt64) async {
+        while !Task.isCancelled {
+            do {
+                try await Task.sleep(nanoseconds: intervalNanoseconds)
+            } catch {
+                break
+            }
+            if Task.isCancelled { break }
+            await runDiagramRefreshSweep()
+        }
     }
 
     @MainActor
@@ -1405,6 +1430,9 @@ final class AppModel: ObservableObject {
                     placeholderViewModel.nodes = cachedModel.nodes
                     placeholderViewModel.edges = cachedModel.edges
                     placeholderViewModel.layoutIdentifier = cachedModel.layoutIdentifier
+                    placeholderViewModel.cachedStructure = cachedModel.cachedStructure
+                    placeholderViewModel.cachedChecksum = cachedModel.cachedChecksum
+                    placeholderViewModel.loadSource = cachedModel.loadSource
                     placeholderViewModel.isLoading = false
                     placeholderViewModel.statusMessage = nil
                     placeholderViewModel.errorMessage = nil
@@ -1433,6 +1461,9 @@ final class AppModel: ObservableObject {
                     placeholderViewModel.statusMessage = nil
                     placeholderViewModel.errorMessage = nil
                     placeholderViewModel.layoutIdentifier = diagramModel.layoutIdentifier
+                    placeholderViewModel.cachedStructure = diagramModel.cachedStructure
+                    placeholderViewModel.cachedChecksum = diagramModel.cachedChecksum
+                    placeholderViewModel.loadSource = diagramModel.loadSource
                 }
             } catch {
                 let databaseError = DatabaseError.from(error)
@@ -1485,6 +1516,9 @@ final class AppModel: ObservableObject {
                 viewModel.nodes = diagramModel.nodes
                 viewModel.edges = diagramModel.edges
                 viewModel.layoutIdentifier = diagramModel.layoutIdentifier
+                viewModel.cachedStructure = diagramModel.cachedStructure
+                viewModel.cachedChecksum = diagramModel.cachedChecksum
+                viewModel.loadSource = diagramModel.loadSource
                 viewModel.isLoading = false
                 viewModel.statusMessage = nil
                 viewModel.errorMessage = nil
@@ -1498,6 +1532,23 @@ final class AppModel: ObservableObject {
                 self.lastError = databaseError
             }
         }
+    }
+
+    @MainActor
+    func persistDiagramLayout(_ viewModel: SchemaDiagramViewModel) async {
+        guard let context = viewModel.context,
+              let cacheKey = context.cacheKey else { return }
+        guard let structure = viewModel.cachedStructure,
+              let checksum = viewModel.cachedChecksum else { return }
+        let payload = DiagramCachePayload(
+            key: cacheKey,
+            checksum: checksum,
+            structure: structure,
+            layout: viewModel.layoutSnapshot(),
+            loadingSummary: nil
+        )
+        try? await diagramCacheManager.stashPayload(payload)
+        viewModel.loadSource = .cache(Date())
     }
 
     func duplicateTab(_ tab: WorkspaceTab) {
@@ -2688,8 +2739,9 @@ final class AppModel: ObservableObject {
         let projectConnections = connections.filter { $0.projectID == project.id }
         let projectIdentities = identities.filter { $0.projectID == project.id }
         let projectFolders = folders.filter { $0.projectID == project.id }
+        _ = includeAutocompleteHistory
         let clipboardEntries = includeClipboardHistory ? clipboardHistory.entries : nil
-        let autocompleteSnapshot = includeAutocompleteHistory ? SQLAutoCompletionHistoryStore.shared.snapshot() : nil
+        let diagramCaches = await diagramCacheManager.listPayloads(for: project.id)
 
         return try await projectStore.exportProject(
             project,
@@ -2698,7 +2750,8 @@ final class AppModel: ObservableObject {
             folders: projectFolders,
             globalSettings: includeGlobalSettings ? globalSettings : nil,
             clipboardHistory: clipboardEntries,
-            autocompleteHistory: autocompleteSnapshot,
+            autocompleteHistory: nil,
+            diagramCaches: diagramCaches,
             password: password
         )
     }
@@ -2735,6 +2788,28 @@ final class AppModel: ObservableObject {
             importedFolders[i].projectID = importedProject.id
         }
 
+        if let diagramCaches = exportData.diagramCaches {
+            for payload in diagramCaches {
+                guard let newConnectionID = connectionIDMap[payload.key.connectionID] else { continue }
+                let newKey = DiagramCacheKey(
+                    projectID: importedProject.id,
+                    connectionID: newConnectionID,
+                    schema: payload.key.schema,
+                    table: payload.key.table,
+                    layoutID: payload.key.layoutID
+                )
+                let updatedPayload = DiagramCachePayload(
+                    key: newKey,
+                    checksum: payload.checksum,
+                    generatedAt: payload.generatedAt,
+                    structure: payload.structure,
+                    layout: payload.layout,
+                    loadingSummary: payload.loadingSummary
+                )
+                try? await diagramCacheManager.stashPayload(updatedPayload)
+            }
+        }
+
         let sourceBookmarks = exportData.bookmarks.isEmpty ? exportData.project.bookmarks : exportData.bookmarks
         let remappedBookmarks: [Bookmark] = sourceBookmarks.compactMap { bookmark in
             guard let newConnectionID = connectionIDMap[bookmark.connectionID] else { return nil }
@@ -2760,10 +2835,6 @@ final class AppModel: ObservableObject {
 
         if let importedHistory = exportData.clipboardHistory {
             mergeImportedClipboardEntries(importedHistory)
-        }
-
-        if let autocompleteHistory = exportData.autocompleteHistory {
-            SQLAutoCompletionHistoryStore.shared.importSnapshot(autocompleteHistory, merge: true)
         }
 
         // Optionally import global settings

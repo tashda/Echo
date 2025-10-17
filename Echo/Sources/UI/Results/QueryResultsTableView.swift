@@ -706,7 +706,8 @@ struct QueryResultsTableView: NSViewRepresentable {
                 visibleEstimate,
                 min(totalRows, visibleEstimate + paddingRows)
             )
-            let contentHeight = max(CGFloat(effectiveRows) * tableView.rowHeight + headerHeight, scrollView.contentSize.height)
+            let viewportHeight = scrollView.contentView.bounds.height
+            let contentHeight = max(CGFloat(effectiveRows) * tableView.rowHeight + headerHeight, viewportHeight)
             let newSize = NSSize(width: targetWidth, height: contentHeight)
             if tableView.frame.size != newSize {
                 tableView.setFrameSize(newSize)

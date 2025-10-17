@@ -45,6 +45,19 @@ final class SQLAutoCompletionController {
             return
         }
 
+        if shouldPresentInlineKeywords(suggestions) {
+            if popover.isShown {
+                popover.performClose(nil)
+            }
+            flatSuggestions.removeAll(keepingCapacity: false)
+            selectedIndex = 0
+            lastQuery = query
+            textView.showInlineKeywordSuggestions(suggestions, query: query)
+            return
+        } else {
+            textView.hideInlineKeywordSuggestion()
+        }
+
         let appearance = textView.window?.effectiveAppearance ?? textView.effectiveAppearance
         popover.appearance = appearance
         hostingController?.view.appearance = appearance
@@ -81,6 +94,7 @@ final class SQLAutoCompletionController {
     }
 
     func hide() {
+        textView?.hideInlineKeywordSuggestion()
         flatSuggestions.removeAll(keepingCapacity: false)
         lastQuery = nil
         selectedIndex = 0
@@ -186,6 +200,11 @@ final class SQLAutoCompletionController {
         let width = min(maxWidth, max(minWidth, fittingSize.width))
         let height = min(maxHeight, max(72, fittingSize.height))
         popover.contentSize = NSSize(width: width, height: height)
+    }
+
+    private func shouldPresentInlineKeywords(_ suggestions: [SQLAutoCompletionSuggestion]) -> Bool {
+        guard !suggestions.isEmpty else { return false }
+        return suggestions.allSatisfy { $0.kind == .keyword }
     }
 
     static func statusMessage(isMetadataLimited: Bool) -> String? {

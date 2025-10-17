@@ -485,6 +485,16 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
 
     var suppressedCompletions: [SuppressedCompletion] = []
     var completionIndicatorView: CompletionAccessoryView?
+    private var inlineSuggestionView: InlineSuggestionLabel?
+    private var inlineKeywordSuggestions: [SQLAutoCompletionSuggestion] = []
+    private var inlineSuggestionQuery: SQLAutoCompletionQuery?
+    private var inlineSuggestionNextIndex: Int = 0
+    private var inlineInsertedRange: NSRange?
+    private var inlineInsertedIndex: Int?
+    private var isInlineSuggestionActive: Bool {
+        !inlineKeywordSuggestions.isEmpty || inlineInsertedRange != nil
+    }
+    private var inlineAcceptanceInProgress = false
 
     var ruleEnvironment: SQLAutocompleteRuleEngine.Environment {
         SQLAutocompleteRuleEngine.Environment(completionContext: completionContext)
@@ -669,6 +679,9 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
     }
 
     override func keyDown(with event: NSEvent) {
+        if handleInlineSuggestionKey(event) {
+            return
+        }
         if handleSnippetNavigation(event) {
             return
         }
@@ -862,6 +875,7 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
         lineNumberRuler?.highlightedLines = selectedLineRange()
         lineNumberRuler?.setNeedsDisplay(lineNumberRuler?.bounds ?? .zero)
         sqlDelegate?.sqlTextView(self, didChangeSelection: selection)
+        handleInlineSelectionChange()
         if !isApplyingCompletion && !suppressNextCompletionRefresh {
             refreshCompletions(immediate: true)
         }
@@ -1832,9 +1846,13 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
         }
 
         clearSnippetPlaceholders()
+        var insertionText = suggestion.insertText
+        if suggestion.kind == .keyword && !insertionText.hasSuffix(" ") {
+            insertionText += " "
+        }
         _ = performCompletionInsertion(suggestion: suggestion,
                                        query: query,
-                                       insertion: suggestion.insertText)
+                                       insertion: insertionText)
     }
 
     private enum SymbolHighlightStrength {
@@ -2143,7 +2161,195 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
         didChangeText()
     }
 
-    private func makeSnippetInsertion(from snippet: String) -> (String, [NSRange]) {
+    // MARK: - Inline keyword suggestions
+
+    func showInlineKeywordSuggestions(_ suggestions: [SQLAutoCompletionSuggestion], query: SQLAutoCompletionQuery) {
+        guard !suggestions.isEmpty else {
+            hideInlineKeywordSuggestion()
+            return
+        }
+        inlineKeywordSuggestions = suggestions
+        inlineSuggestionQuery = query
+        inlineSuggestionNextIndex = 0
+        inlineInsertedRange = nil
+        inlineInsertedIndex = nil
+        let view = ensureInlineSuggestionView()
+        view.font = theme.nsFont
+        view.textColor = theme.tokenColors.keyword.nsColor.withAlphaComponent(0.32)
+        view.isHidden = false
+        updateInlineSuggestionText()
+        updateInlineSuggestionPosition()
+    }
+
+    func hideInlineKeywordSuggestion(preserveState: Bool = false) {
+        inlineSuggestionView?.removeFromSuperview()
+        inlineSuggestionView = nil
+        if !preserveState && !inlineAcceptanceInProgress {
+            clearInlineSuggestionState()
+        }
+    }
+
+    private func ensureInlineSuggestionView() -> InlineSuggestionLabel {
+        if let view = inlineSuggestionView {
+            return view
+        }
+        let view = InlineSuggestionLabel()
+        view.alphaValue = 0.35
+        addSubview(view)
+        inlineSuggestionView = view
+        return view
+    }
+
+    private func updateInlineSuggestionText() {
+        guard let view = inlineSuggestionView,
+              !inlineKeywordSuggestions.isEmpty else { return }
+        let index = min(max(inlineSuggestionNextIndex, 0), inlineKeywordSuggestions.count - 1)
+        view.stringValue = inlineKeywordSuggestions[index].insertText
+        view.invalidateIntrinsicContentSize()
+    }
+
+    private func updateInlineSuggestionPosition() {
+        guard let view = inlineSuggestionView,
+              inlineInsertedRange == nil,
+              !inlineKeywordSuggestions.isEmpty else { return }
+        let caretLocation = selectedRange().location
+        guard caretLocation != NSNotFound else { return }
+        let caretRectOnScreen = firstRect(forCharacterRange: NSRange(location: caretLocation, length: 0), actualRange: nil)
+        let caretRect = convert(caretRectOnScreen, from: nil)
+        let baseline = caretRect.origin.y - theme.nsFont.descender
+        let lineHeight = theme.nsFont.ascender - theme.nsFont.descender + theme.nsFont.leading
+        let width = max(view.intrinsicContentSize.width, 24)
+        view.frame = NSRect(x: caretRect.origin.x,
+                            y: baseline - lineHeight,
+                            width: width,
+                            height: lineHeight)
+    }
+
+    private func handleInlineSelectionChange() {
+        if let range = inlineInsertedRange {
+            let selection = selectedRange()
+            if selection.location != range.location || selection.length != range.length {
+                hideInlineKeywordSuggestion()
+            }
+        } else if inlineSuggestionView != nil {
+            updateInlineSuggestionPosition()
+        }
+    }
+
+    private func handleInlineSuggestionKey(_ event: NSEvent) -> Bool {
+        guard isInlineSuggestionActive else { return false }
+
+        switch event.keyCode {
+        case 48: // Tab
+            let backwards = event.modifierFlags.contains(.shift)
+            return acceptInlineSuggestion(backwards: backwards)
+        case 53: // Escape
+            hideInlineKeywordSuggestion()
+            return true
+        default:
+            if event.modifierFlags.contains(.command) {
+                return false
+            }
+            if let chars = event.charactersIgnoringModifiers,
+               !chars.isEmpty,
+               chars != "\t" {
+                hideInlineKeywordSuggestion()
+            }
+            return false
+        }
+    }
+
+    private func acceptInlineSuggestion(backwards: Bool) -> Bool {
+        guard !inlineKeywordSuggestions.isEmpty else { return false }
+
+        if inlineInsertedRange == nil {
+            var index = inlineSuggestionNextIndex
+            if backwards {
+                index = normalizedInlineIndex(index - 1)
+            }
+            let suggestion = inlineKeywordSuggestions[index]
+            let insertion = appendedKeywordText(for: suggestion)
+            let query = inlineSuggestionQuery ?? makeCompletionQuery()
+            guard let resolvedQuery = query else { return false }
+            inlineAcceptanceInProgress = true
+            defer { inlineAcceptanceInProgress = false }
+            guard let insertionResult = performCompletionInsertion(suggestion: suggestion,
+                                                                    query: resolvedQuery,
+                                                                    insertion: insertion) else { return false }
+            inlineInsertedRange = insertionResult.appliedRange
+            inlineInsertedIndex = index
+            inlineSuggestionNextIndex = normalizedInlineIndex(index + 1)
+            setSelectedRange(insertionResult.appliedRange)
+            hideInlineKeywordSuggestion(preserveState: true)
+            return true
+        } else {
+            return cycleInlineSuggestion(backwards: backwards)
+        }
+    }
+
+    private func cycleInlineSuggestion(backwards: Bool) -> Bool {
+        guard let range = inlineInsertedRange else { return false }
+        let selection = selectedRange()
+        if selection.location != range.location || selection.length != range.length {
+            hideInlineKeywordSuggestion()
+            return false
+        }
+        guard inlineKeywordSuggestions.count > 1 else {
+            hideInlineKeywordSuggestion()
+            return true
+        }
+
+        let targetIndex: Int
+        if backwards {
+            let current = inlineInsertedIndex ?? 0
+            targetIndex = normalizedInlineIndex(current - 1)
+        } else {
+            targetIndex = inlineSuggestionNextIndex
+        }
+
+        let suggestion = inlineKeywordSuggestions[targetIndex]
+        let replacement = appendedKeywordText(for: suggestion)
+        guard shouldChangeText(in: range, replacementString: replacement) else { return false }
+        textStorage?.replaceCharacters(in: range, with: replacement)
+        let newRange = NSRange(location: range.location, length: (replacement as NSString).length)
+        inlineInsertedRange = newRange
+        inlineInsertedIndex = targetIndex
+        inlineSuggestionNextIndex = normalizedInlineIndex(targetIndex + 1)
+        setSelectedRange(newRange)
+        if let query = makeCompletionQuery() {
+            completionEngine.recordSelection(suggestion, query: query)
+        }
+        suppressNextCompletionRefresh = true
+        didChangeText()
+        return true
+    }
+
+    private func normalizedInlineIndex(_ index: Int) -> Int {
+        guard !inlineKeywordSuggestions.isEmpty else { return 0 }
+        var value = index % inlineKeywordSuggestions.count
+        if value < 0 {
+            value += inlineKeywordSuggestions.count
+        }
+        return value
+    }
+
+    private func appendedKeywordText(for suggestion: SQLAutoCompletionSuggestion) -> String {
+        var text = suggestion.insertText
+        if !text.hasSuffix(" ") {
+            text += " "
+        }
+        return text
+    }
+
+    private func clearInlineSuggestionState() {
+        inlineKeywordSuggestions.removeAll()
+        inlineSuggestionQuery = nil
+        inlineSuggestionNextIndex = 0
+        inlineInsertedRange = nil
+        inlineInsertedIndex = nil
+    }
+
+private func makeSnippetInsertion(from snippet: String) -> (String, [NSRange]) {
         var output = ""
         var placeholders: [NSRange] = []
 
@@ -2580,6 +2786,23 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
         let length = (string as NSString).length
         if length == 0 { return NSRange(location: 0, length: 0) }
         return makeSafeRange(range, documentLength: length)
+    }
+}
+
+private final class InlineSuggestionLabel: NSTextField {
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        isBordered = false
+        isEditable = false
+        isSelectable = false
+        drawsBackground = false
+        lineBreakMode = .byClipping
+        alignment = .left
+        stringValue = ""
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
     }
 }
 

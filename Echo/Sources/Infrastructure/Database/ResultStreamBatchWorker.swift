@@ -21,6 +21,15 @@ final class ResultStreamBatchWorker: @unchecked Sendable {
     private var batchDecodeDuration: TimeInterval = 0
     private var previewRowsEmitted: Int = 0
 
+    private struct FlushPolicy {
+        let threshold: Int
+        let minimumBatch: Int
+        let latencyBatch: Int
+        let latencyBudget: TimeInterval
+        let fallbackLatency: TimeInterval
+        let fallbackBatch: Int
+    }
+
     init(
         label: String,
         columns: [ColumnInfo],
@@ -48,14 +57,16 @@ final class ResultStreamBatchWorker: @unchecked Sendable {
             self.pendingEncodedRows.append(payload.encodedRow)
             self.batchDecodeDuration += payload.decodeDuration
 
-            let threshold = self.flushThreshold(for: payload.totalRowCount)
             let elapsed = CFAbsoluteTimeGetCurrent() - self.lastFlushTimestamp
-            let latencyBudget = self.latencyBudget(for: payload.totalRowCount)
-            let fallbackBudget = self.fallbackLatency(for: payload.totalRowCount)
+            let policy = self.flushPolicy(for: payload.totalRowCount)
+            let pendingCount = self.pendingEncodedRows.count
 
-            if self.pendingEncodedRows.count >= threshold
-                || (elapsed >= latencyBudget && !self.pendingEncodedRows.isEmpty)
-                || elapsed >= fallbackBudget {
+            let meetsThreshold = pendingCount >= policy.threshold
+            let meetsMinimumBatch = pendingCount >= policy.minimumBatch
+            let meetsLatencyBatch = elapsed >= policy.latencyBudget && pendingCount >= policy.latencyBatch
+            let meetsFallback = elapsed >= policy.fallbackLatency && pendingCount >= policy.fallbackBatch
+
+            if meetsThreshold || meetsMinimumBatch || meetsLatencyBatch || meetsFallback {
                 self.flush(totalRowCount: payload.totalRowCount)
             }
         }
@@ -108,36 +119,43 @@ final class ResultStreamBatchWorker: @unchecked Sendable {
         progressHandler(update)
     }
 
-    private func flushThreshold(for totalCount: Int) -> Int {
+    private func flushPolicy(for totalCount: Int) -> FlushPolicy {
         if totalCount <= streamingPreviewLimit {
-            return 24
+            let threshold = clamp(streamingPreviewLimit / 8, min: 32, max: 128)
+            let minimumBatch = threshold
+            let latencyBatch = threshold
+            let fallbackBatch = max(threshold / 2, 24)
+            let latencyBudget = min(maxFlushLatency, 0.045)
+            let fallbackLatency = max(0.18, maxFlushLatency * 0.45)
+            return FlushPolicy(
+                threshold: threshold,
+                minimumBatch: minimumBatch,
+                latencyBatch: latencyBatch,
+                latencyBudget: latencyBudget,
+                fallbackLatency: fallbackLatency,
+                fallbackBatch: fallbackBatch
+            )
+        } else {
+            let threshold = max(streamingPreviewLimit, 512)
+            let minimumBatch = threshold
+            let latencyBatch = threshold
+            let fallbackBatch = max(threshold / 4, 128)
+            let latencyBudget = min(maxFlushLatency, 0.08)
+            let fallbackLatency = max(0.32, maxFlushLatency * 0.6)
+            return FlushPolicy(
+                threshold: threshold,
+                minimumBatch: minimumBatch,
+                latencyBatch: latencyBatch,
+                latencyBudget: latencyBudget,
+                fallbackLatency: fallbackLatency,
+                fallbackBatch: fallbackBatch
+            )
         }
-        if totalCount <= streamingPreviewLimit * 4 {
-            return 256
-        }
-        if totalCount <= 128_000 {
-            return 512
-        }
-        return 1_024
     }
 
-    private func latencyBudget(for totalCount: Int) -> TimeInterval {
-        if totalCount <= streamingPreviewLimit {
-            return min(maxFlushLatency, 0.035)
-        }
-        if totalCount <= streamingPreviewLimit * 4 {
-            return min(maxFlushLatency, 0.05)
-        }
-        return min(maxFlushLatency, 0.075)
-    }
-
-    private func fallbackLatency(for totalCount: Int) -> TimeInterval {
-        if totalCount <= streamingPreviewLimit {
-            return max(0.12, maxFlushLatency * 0.5)
-        }
-        if totalCount <= streamingPreviewLimit * 4 {
-            return max(0.18, maxFlushLatency * 0.6)
-        }
-        return max(0.25, maxFlushLatency * 0.7)
+    private func clamp(_ value: Int, min: Int, max: Int) -> Int {
+        if value < min { return min }
+        if value > max { return max }
+        return value
     }
 }

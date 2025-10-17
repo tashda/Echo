@@ -68,19 +68,38 @@ struct ResultBinaryRowCodec {
     }
 
     nonisolated static func encodeRaw(cells: [Data?]) -> ResultBinaryRow {
-        var data = Data()
-        data.reserveCapacity(cells.count * 16)
+        var totalLength = cells.count // flag byte per column
         for cell in cells {
-            switch cell {
-            case .some(let raw):
-                data.append(0x01)
-                var length = UInt32(raw.count).littleEndian
-                withUnsafeBytes(of: &length) { pointer in
-                    data.append(contentsOf: pointer)
+            if let raw = cell {
+                totalLength &+= 4
+                totalLength &+= raw.count
+            }
+        }
+
+        var data = Data(count: totalLength)
+        data.withUnsafeMutableBytes { mutableBytes in
+            guard let baseAddress = mutableBytes.baseAddress else { return }
+            var offset = 0
+
+            for cell in cells {
+                if let raw = cell {
+                    baseAddress.storeBytes(of: UInt8(0x01), toByteOffset: offset, as: UInt8.self)
+                    offset &+= 1
+
+                    var length = UInt32(raw.count).littleEndian
+                    withUnsafeBytes(of: &length) { pointer in
+                        memcpy(baseAddress.advanced(by: offset), pointer.baseAddress!, 4)
+                    }
+                    offset &+= 4
+
+                    raw.withUnsafeBytes { rawPointer in
+                        memcpy(baseAddress.advanced(by: offset), rawPointer.baseAddress!, raw.count)
+                    }
+                    offset &+= raw.count
+                } else {
+                    baseAddress.storeBytes(of: UInt8(0x00), toByteOffset: offset, as: UInt8.self)
+                    offset &+= 1
                 }
-                data.append(raw)
-            case .none:
-                data.append(0x00)
             }
         }
         return ResultBinaryRow(data: data)
