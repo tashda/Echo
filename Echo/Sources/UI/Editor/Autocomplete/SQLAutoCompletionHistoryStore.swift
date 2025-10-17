@@ -2,7 +2,7 @@ import Foundation
 
 final class SQLAutoCompletionHistoryStore {
     struct Entry {
-        let suggestion: SQLAutoCompletionSuggestion
+        var suggestion: SQLAutoCompletionSuggestion
         var lastUsed: Date
     }
 
@@ -22,10 +22,12 @@ final class SQLAutoCompletionHistoryStore {
 
         queue.async(flags: .barrier) {
             var entries = self.storage[key] ?? []
+            let storedSuggestion = suggestion.withSource(.history)
             if let index = entries.firstIndex(where: { $0.suggestion.id == suggestion.id }) {
+                entries[index].suggestion = storedSuggestion
                 entries[index].lastUsed = now
             } else {
-                entries.append(Entry(suggestion: suggestion, lastUsed: now))
+                entries.append(Entry(suggestion: storedSuggestion, lastUsed: now))
             }
             if entries.count > self.maxEntriesPerContext {
                 entries.sort { $0.lastUsed > $1.lastUsed }
@@ -49,7 +51,7 @@ final class SQLAutoCompletionHistoryStore {
                 .compactMap { entry -> SQLAutoCompletionSuggestion? in
                     let titleLower = entry.suggestion.title.lowercased()
                     if normalizedPrefix.isEmpty || titleLower.hasPrefix(normalizedPrefix) {
-                        return entry.suggestion
+                        return entry.suggestion.withSource(.history)
                     }
                     return nil
                 }

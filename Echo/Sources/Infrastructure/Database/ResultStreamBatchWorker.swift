@@ -53,16 +53,13 @@ final class ResultStreamBatchWorker: @unchecked Sendable {
             let elapsed = CFAbsoluteTimeGetCurrent() - self.lastFlushTimestamp
             let latencyBudget = self.latencyBudget(for: payload.totalRowCount)
             let previewPhase = payload.totalRowCount <= self.streamingPreviewLimit
-            let minLatencyBatch = previewPhase ? min(8, threshold) : min(32, threshold)
-            let gracePeriod: TimeInterval = previewPhase ? 0.05 : 0.2
+            let minLatencyBatch = previewPhase ? min(16, threshold) : min(64, threshold)
             let fallbackBudget: TimeInterval = previewPhase
-                ? max(latencyBudget * 3, 1.5)
-                : max(latencyBudget * 2, 1.0)
+                ? max(latencyBudget * 2, 1.0)
+                : max(latencyBudget * 1.5, 0.8)
 
             var shouldFlush = false
             if self.pendingEncodedRows.count >= threshold {
-                shouldFlush = true
-            } else if !self.hasEmittedBatch && elapsed >= gracePeriod {
                 shouldFlush = true
             } else if elapsed >= latencyBudget && self.pendingEncodedRows.count >= minLatencyBatch {
                 shouldFlush = true
@@ -122,7 +119,7 @@ final class ResultStreamBatchWorker: @unchecked Sendable {
 
     private func flushThreshold(for totalCount: Int) -> Int {
         if totalCount <= streamingPreviewLimit {
-            return 32
+            return 64
         }
         if totalCount <= streamingPreviewLimit * 4 {
             return 1_024

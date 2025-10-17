@@ -51,7 +51,11 @@ final class AppModel: ObservableObject {
     // Project management
     @Published var projects: [Project] = []
     @Published var selectedProject: Project?
-    @Published var globalSettings: GlobalSettings = GlobalSettings()
+    @Published var globalSettings: GlobalSettings = GlobalSettings() {
+        didSet {
+            UserDefaults.standard.set(globalSettings.resultsStreamingFetchSize, forKey: ResultStreamingFetchSizeDefaultsKey)
+        }
+    }
     @Published var navigationState = NavigationState()
     @Published var isWorkspaceWindowKey = false
     @Published var isManageConnectionsPresented = false
@@ -633,12 +637,14 @@ final class AppModel: ObservableObject {
     func updateResultsStreaming(
         initialRowLimit: Int? = nil,
         previewBatchSize: Int? = nil,
-        backgroundStreamingThreshold: Int? = nil
+        backgroundStreamingThreshold: Int? = nil,
+        backgroundFetchSize: Int? = nil
     ) async {
         let clampedInitial = initialRowLimit.map { max(100, $0) }
         let clampedPreview = previewBatchSize.map { max(100, $0) }
         let clampedBackground = backgroundStreamingThreshold.map { max(100, $0) }
-        guard [clampedInitial, clampedPreview, clampedBackground].contains(where: { $0 != nil }) else { return }
+        let clampedFetch = backgroundFetchSize.map { max(128, min($0, 16_384)) }
+        guard [clampedInitial, clampedPreview, clampedBackground, clampedFetch].contains(where: { $0 != nil }) else { return }
 
         await updateGlobalEditorDisplay { settings in
             if let value = clampedInitial {
@@ -649,6 +655,9 @@ final class AppModel: ObservableObject {
             }
             if let value = clampedBackground {
                 settings.resultsBackgroundStreamingThreshold = value
+            }
+            if let value = clampedFetch {
+                settings.resultsStreamingFetchSize = value
             }
         }
 
@@ -661,6 +670,9 @@ final class AppModel: ObservableObject {
             for session in sessionManager.activeSessions {
                 session.updateDefaultBackgroundStreamingThreshold(value)
             }
+        }
+        if let value = clampedFetch {
+            UserDefaults.standard.set(value, forKey: ResultStreamingFetchSizeDefaultsKey)
         }
     }
 

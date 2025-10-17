@@ -1,4 +1,10 @@
+import Foundation
 import SwiftUI
+#if os(macOS)
+import AppKit
+#elseif canImport(UIKit)
+import UIKit
+#endif
 
 struct StreamingTestHarnessWindow: Scene {
     static let sceneID = "streaming-test-harness"
@@ -27,6 +33,10 @@ private struct StreamingTestHarnessView: View {
     @State private var report: QueryPerformanceTracker.Report?
     @State private var runTask: Task<Void, Never>?
     @State private var tracker: QueryPerformanceTracker = QueryPerformanceTracker(initialBatchTarget: 512)
+    @State private var logFilter: LogVisibility = .simple
+    @State private var pendingDebugLogs: [StreamingLogEntry] = []
+    @State private var debugFlushTask: Task<Void, Never>?
+    @State private var debugAggregator = DebugLogAggregator()
 
     private var availableSessions: [ConnectionSession] {
         guard coordinator.isInitialized else { return [] }
@@ -46,9 +56,20 @@ private struct StreamingTestHarnessView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(themeManager.windowBackground)
+        .preferredColorScheme(themeManager.effectiveColorScheme)
         .onAppear {
             if selectedSessionID == nil {
                 selectedSessionID = availableSessions.first?.id
+            }
+        }
+        .onChange(of: logFilter) { _, newValue in
+            if newValue == .debug {
+                flushPendingDebugLogs(immediate: true)
+            } else {
+                pendingDebugLogs.removeAll(keepingCapacity: true)
+                debugFlushTask?.cancel()
+                debugFlushTask = nil
+                debugAggregator.reset()
             }
         }
         .onChange(of: availableSessions.count) { _, _ in
@@ -211,6 +232,17 @@ private struct StreamingTestHarnessView: View {
                 Text("Stream Log")
                     .font(.headline)
                 Spacer()
+                Picker("", selection: $logFilter) {
+                    ForEach(LogVisibility.allCases) { visibility in
+                        Text(visibility.title).tag(visibility)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .frame(width: 180)
+                Button("Copy Log") {
+                    copyLogsToClipboard()
+                }
+                .disabled(filteredLogs.isEmpty)
                 Button("Clear") {
                     logs.removeAll()
                 }
@@ -219,7 +251,7 @@ private struct StreamingTestHarnessView: View {
 
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 6) {
-                    ForEach(logs) { entry in
+                    ForEach(filteredLogs) { entry in
                         HStack(alignment: .top, spacing: 12) {
                             Text(entry.timestamp.formatted(.dateTime.hour().minute().second()))
                                 .font(.caption2.monospacedDigit())
@@ -250,6 +282,8 @@ private struct StreamingTestHarnessView: View {
             return
         }
 
+        flushPendingDebugLogs(immediate: true)
+        pendingDebugLogs.removeAll(keepingCapacity: true)
         cancelRunningTest()
 
         let sql = sqlInput.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -263,6 +297,8 @@ private struct StreamingTestHarnessView: View {
         statusMessage = nil
         report = nil
         isRunning = true
+        debugAggregator.reset()
+        appendLog("[Start] Executing diagnostic query (\(sql.count) chars).", debug: false)
 
         let initialBatchTarget = max(100, appModel.globalSettings.resultsInitialRowLimit)
         let newTracker = QueryPerformanceTracker(initialBatchTarget: initialBatchTarget)
@@ -287,18 +323,31 @@ private struct StreamingTestHarnessView: View {
                     report = finalReport
                     statusMessage = "Completed in \(Self.formattedDuration(CFAbsoluteTimeGetCurrent() - runStart))."
                     isRunning = false
+                    appendLog("[Complete] rows=\(rowCount) batches=\(finalReport.batchCount)", debug: false)
+                    appendLog(
+                        "[Report] firstBatch=\(finalReport.firstBatchSize ?? 0) largestBatch=\(finalReport.largestBatchSize) totalRows=\(finalReport.totalRows)",
+                        debug: false
+                    )
+                    flushDebugSummaries()
+                    flushPendingDebugLogs(immediate: true)
                     runTask = nil
                 }
             } catch is CancellationError {
                 await MainActor.run {
                     statusMessage = "Test cancelled."
                     isRunning = false
+                    appendLog("[Cancelled]", debug: false)
+                    flushDebugSummaries()
+                    flushPendingDebugLogs(immediate: true)
                     runTask = nil
                 }
             } catch {
                 await MainActor.run {
                     errorMessage = error.localizedDescription
                     isRunning = false
+                    appendLog("[Error] \(error.localizedDescription)", debug: false)
+                    flushDebugSummaries()
+                    flushPendingDebugLogs(immediate: true)
                     runTask = nil
                 }
             }
@@ -309,6 +358,8 @@ private struct StreamingTestHarnessView: View {
         runTask?.cancel()
         runTask = nil
         isRunning = false
+        flushDebugSummaries()
+        flushPendingDebugLogs(immediate: true)
     }
 
     @MainActor
@@ -317,23 +368,34 @@ private struct StreamingTestHarnessView: View {
             ?? (!update.appendedRows.isEmpty ? update.appendedRows.count : update.encodedRows.count)
 
         tracker.recordStreamUpdate(appendedRowCount: appendedCount, totalRowCount: update.totalRowCount)
-        if appendedCount > 0 {
-            logs.append(.init(message: "[Batch] rows=\(appendedCount) total=\(update.totalRowCount)"))
-        }
 
         if let metrics = update.metrics {
             tracker.recordBackendMetrics(metrics)
-            let message = String(
-                format: "[Metrics] batch=%d total=%d loop=%.3fs decode=%.3fs wait=%.3fs",
-                metrics.batchRowCount,
-                metrics.cumulativeRowCount,
-                metrics.loopElapsed,
-                metrics.decodeDuration,
-                metrics.networkWaitEstimate
-            )
-            logs.append(.init(message: message))
-        } else if appendedCount == 0 {
-            logs.append(.init(message: "[Update] total=\(update.totalRowCount) (no metrics)"))
+            emitDebugSummaries(for: metrics)
+            if metrics.fetchRowCount == 0 {
+                flushDebugSummaries()
+            }
+        }
+    }
+
+    @MainActor
+    private func emitDebugSummaries(for metrics: QueryStreamMetrics) {
+        if let summaries = debugAggregator.record(metrics: metrics), logFilter == .debug {
+            for summary in summaries {
+                appendLog(summary, debug: true)
+            }
+        }
+    }
+
+    @MainActor
+    private func flushDebugSummaries() {
+        if let summaries = logFilter == .debug ? debugAggregator.flushRemaining() : nil {
+            for summary in summaries {
+                appendLog(summary, debug: true)
+            }
+        }
+        if logFilter != .debug {
+            debugAggregator.reset()
         }
     }
 
@@ -344,12 +406,157 @@ private struct StreamingTestHarnessView: View {
         formatter.maximumUnitCount = 2
         return formatter.string(from: seconds) ?? String(format: "%.2fs", seconds)
     }
+
+    private var filteredLogs: [StreamingLogEntry] {
+        switch logFilter {
+        case .simple:
+            return logs.filter { !$0.isDebug }
+        case .debug:
+            return logs
+        }
+    }
+
+    private func appendLog(_ message: String, debug: Bool) {
+        let entry = StreamingLogEntry(message: message, isDebug: debug)
+        if !debug {
+            logs.append(entry)
+            trimLogsIfNeeded()
+            return
+        }
+
+        guard logFilter == .debug else { return }
+        pendingDebugLogs.append(entry)
+        if pendingDebugLogs.count >= 20 {
+            flushPendingDebugLogs()
+        } else {
+            scheduleDebugLogFlush()
+        }
+    }
+
+    private func copyLogsToClipboard() {
+        flushPendingDebugLogs(immediate: true)
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm:ss"
+        let text = filteredLogs
+            .map { "[\u{200E}\(formatter.string(from: $0.timestamp))] \($0.message)" }
+            .joined(separator: "\n")
+#if os(macOS)
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setString(text, forType: .string)
+#elseif canImport(UIKit)
+        UIPasteboard.general.string = text
+#endif
+    }
+
+    private func scheduleDebugLogFlush() {
+        guard debugFlushTask == nil else { return }
+        debugFlushTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 200_000_000)
+            flushPendingDebugLogs()
+        }
+    }
+
+    private func flushPendingDebugLogs(immediate: Bool = false) {
+        if immediate {
+            debugFlushTask?.cancel()
+        }
+        debugFlushTask = nil
+        guard !pendingDebugLogs.isEmpty else { return }
+        logs.append(contentsOf: pendingDebugLogs)
+        pendingDebugLogs.removeAll(keepingCapacity: true)
+        trimLogsIfNeeded()
+    }
+
+    private func trimLogsIfNeeded() {
+        let overflow = logs.count - 600
+        if overflow > 0 {
+            logs.removeFirst(overflow)
+        }
+    }
+}
+
+private enum LogVisibility: String, CaseIterable, Identifiable {
+    case simple
+    case debug
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .simple: return "Simple"
+        case .debug: return "Debug"
+        }
+    }
 }
 
 private struct StreamingLogEntry: Identifiable {
     let id = UUID()
-    let timestamp = Date()
-    let message: String
+   let timestamp = Date()
+   let message: String
+   let isDebug: Bool
+}
+
+private struct DebugLogAggregator {
+    private(set) var nextFetchIndex: Int = 1
+    private var pendingMetrics: [QueryStreamMetrics] = []
+    private var lastFlushTime: CFAbsoluteTime = CFAbsoluteTimeGetCurrent()
+
+    mutating func reset() {
+        nextFetchIndex = 1
+        pendingMetrics.removeAll(keepingCapacity: true)
+        lastFlushTime = CFAbsoluteTimeGetCurrent()
+    }
+
+    mutating func record(metrics: QueryStreamMetrics) -> [String]? {
+        guard metrics.batchRowCount > 0 || (metrics.fetchRowCount ?? 0) > 0 else {
+            return nil
+        }
+        if let request = metrics.fetchRequestRowCount,
+           let rows = metrics.fetchRowCount,
+           request == 0,
+           rows == 0 {
+            return nil
+        }
+        pendingMetrics.append(metrics)
+        let now = CFAbsoluteTimeGetCurrent()
+        if pendingMetrics.count >= 4 || now - lastFlushTime >= 0.5 {
+            return flush(currentTime: now)
+        }
+        return nil
+    }
+
+    mutating func flushRemaining() -> [String]? {
+        guard !pendingMetrics.isEmpty else { return nil }
+        return flush(currentTime: CFAbsoluteTimeGetCurrent())
+    }
+
+    private mutating func flush(currentTime: CFAbsoluteTime) -> [String] {
+        let startIndex = nextFetchIndex
+        nextFetchIndex += pendingMetrics.count
+        let messages = pendingMetrics.enumerated().map { offset, metric -> String in
+            let fetchNumber = startIndex + offset
+            let requested = metric.fetchRequestRowCount ?? metric.batchRowCount
+            let rows = metric.fetchRowCount ?? metric.batchRowCount
+            let duration = metric.fetchDuration ?? metric.loopElapsed
+            let wait = metric.fetchWait ?? max(duration - metric.decodeDuration, 0)
+            let throughput = (duration > 0 && rows > 0) ? Double(rows) / duration : 0
+            return String(
+                format: "[Fetch #%d] requested=%d rows=%d wait=%.3fs decode=%.3fs loop=%.3fs rows/s=%.0f total=%d",
+                fetchNumber,
+                requested,
+                rows,
+                wait,
+                metric.decodeDuration,
+                duration,
+                throughput,
+                metric.cumulativeRowCount
+            )
+        }
+        pendingMetrics.removeAll(keepingCapacity: true)
+        lastFlushTime = currentTime
+        return messages
+    }
 }
 
 private struct StreamingReportSummary: View {

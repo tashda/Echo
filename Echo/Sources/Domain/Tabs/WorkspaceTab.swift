@@ -285,6 +285,8 @@ final class QueryResultsGridState {
     private var dataPreviewState: DataPreviewState?
     private var dataPreviewFetchTask: Task<Void, Never>?
     private var performanceTracker: QueryPerformanceTracker
+    private var pendingSpoolStats: ResultSpoolStats?
+    private var spoolStatsDispatchTask: Task<Void, Never>?
 
     init(
         sql: String = "SELECT current_timestamp;",
@@ -890,31 +892,7 @@ final class QueryResultsGridState {
             let stream = await handle.statsStream()
             for await stats in stream {
                 await MainActor.run {
-                    var shouldRefresh = false
-                    if let metrics = stats.metrics {
-                        self.performanceTracker.recordBackendMetrics(metrics)
-                        shouldRefresh = true
-                    }
-                    let previousCount = self.currentRowCount ?? 0
-                    if stats.rowCount > previousCount {
-                        self.updateRowCount(stats.rowCount)
-                        if self.streamingMode == .background {
-                            if !self.isResultsOnly, self.visibleRowLimit != nil {
-                                self.visibleRowLimit = nil
-                            }
-                            self.markResultDataChanged()
-                        } else if self.streamingMode == .preview {
-                            self.markResultDataChanged()
-                        }
-                        shouldRefresh = true
-                    }
-                    if stats.isFinished {
-                        shouldRefresh = true
-                        self.markResultDataChanged()
-                    }
-                    if shouldRefresh {
-                        self.refreshLivePerformanceReport()
-                    }
+                    self.enqueueSpoolStats(stats)
                 }
                 if stats.isFinished { break }
             }
@@ -923,6 +901,64 @@ final class QueryResultsGridState {
                     self.spoolStatsTask = nil
                 }
             }
+        }
+    }
+
+    private func enqueueSpoolStats(_ stats: ResultSpoolStats) {
+        pendingSpoolStats = stats
+        guard spoolStatsDispatchTask == nil else { return }
+        let delay: UInt64 = stats.isFinished ? 0 : 120_000_000
+        scheduleSpoolStatsProcessing(after: delay)
+    }
+
+    private func scheduleSpoolStatsProcessing(after delay: UInt64) {
+        spoolStatsDispatchTask = Task { [weak self] in
+            if delay > 0 {
+                try? await Task.sleep(nanoseconds: delay)
+            }
+            await MainActor.run {
+                guard let self else { return }
+                let stats = self.pendingSpoolStats
+                self.pendingSpoolStats = nil
+                self.spoolStatsDispatchTask = nil
+                guard let stats else { return }
+                self.applySpoolStats(stats)
+                if let next = self.pendingSpoolStats {
+                    let nextDelay: UInt64 = next.isFinished ? 0 : 120_000_000
+                    self.scheduleSpoolStatsProcessing(after: nextDelay)
+                }
+            }
+        }
+    }
+
+    private func applySpoolStats(_ stats: ResultSpoolStats) {
+        var shouldRefreshReport = false
+        if let metrics = stats.metrics {
+            performanceTracker.recordBackendMetrics(metrics)
+            shouldRefreshReport = true
+        }
+
+        let previousCount = currentRowCount ?? 0
+        if stats.rowCount > previousCount {
+            updateRowCount(stats.rowCount)
+            if streamingMode == .background {
+                if !isResultsOnly, visibleRowLimit != nil {
+                    visibleRowLimit = nil
+                }
+                markResultDataChanged()
+            } else if streamingMode == .preview {
+                markResultDataChanged()
+            }
+            shouldRefreshReport = true
+        }
+
+        if stats.isFinished {
+            markResultDataChanged()
+            shouldRefreshReport = true
+        }
+
+        if shouldRefreshReport {
+            refreshLivePerformanceReport()
         }
     }
 

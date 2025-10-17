@@ -1,4 +1,5 @@
 import XCTest
+import AppKit
 @testable import Echo
 
 final class SQLEditorRegexTests: XCTestCase {
@@ -66,6 +67,8 @@ final class SQLAutoCompletionEngineTests: XCTestCase {
                                                                                            focusTable: nil,
                                                                                            cteColumns: [:]))
         engine.updateContext(nil)
+        engine.updateAggressiveness(.balanced)
+        engine.updateSystemSchemaVisibility(includeSystemSchemas: false)
     }
 
     func testColumnSuggestionsIncludeOriginAndDataType() {
@@ -209,6 +212,103 @@ final class SQLAutoCompletionEngineTests: XCTestCase {
         XCTAssertEqual(tableSuggestions.first?.insertText, "fixture")
     }
 
+    func testJoinConditionSuggestionProducesSnippet() {
+        let joinExpression = "o.customer_id = c.id<# #>"
+        let suggestion = SQLCompletionSuggestion(
+            id: "join|public|orders|customer_id|c",
+            title: "o.customer_id = c.id",
+            subtitle: "Join Condition",
+            detail: "FK orders_customer",
+            insertText: joinExpression,
+            kind: .join,
+            priority: 1700
+        )
+        let metadata = SQLCompletionMetadata(clause: .joinCondition,
+                                             currentToken: "",
+                                             precedingKeyword: "on",
+                                             pathComponents: [],
+                                             tablesInScope: [
+                                                SQLCompletionMetadata.TableReference(schema: "public", name: "orders", alias: "o"),
+                                                SQLCompletionMetadata.TableReference(schema: "public", name: "customers", alias: "c")
+                                             ],
+                                             focusTable: SQLCompletionMetadata.TableReference(schema: "public", name: "orders", alias: "o"),
+                                             cteColumns: [:])
+        stubCompletionEngine.result = SQLCompletionResult(suggestions: [suggestion], metadata: metadata)
+        engine.updateContext(sampleContext())
+
+        let query = SQLAutoCompletionQuery(token: "",
+                                           prefix: "",
+                                           pathComponents: [],
+                                           replacementRange: NSRange(location: 0, length: 0),
+                                           precedingKeyword: "on",
+                                           precedingCharacter: " ",
+                                           focusTable: SQLAutoCompletionTableFocus(schema: "public", name: "orders", alias: "o"),
+                                           tablesInScope: [
+                                               SQLAutoCompletionTableFocus(schema: "public", name: "orders", alias: "o"),
+                                               SQLAutoCompletionTableFocus(schema: "public", name: "customers", alias: "c")
+                                           ],
+                                           clause: .joinCondition)
+
+        let result = engine.suggestions(for: query, text: "JOIN customers c ON ", caretLocation: 0)
+        guard let produced = result.sections.first?.suggestions.first else {
+            XCTFail("Expected join suggestion")
+            return
+        }
+
+        XCTAssertEqual(produced.kind, .join)
+        XCTAssertEqual(produced.insertText, "o.customer_id = c.id")
+        XCTAssertEqual(produced.snippetText, joinExpression)
+    }
+
+    func testJoinTargetSuggestionMatchesPrefix() {
+        let joinInsert = "public.customers c ON o.customer_id = c.id<# #>"
+        let suggestion = SQLCompletionSuggestion(
+            id: "join-target|out|public|orders|customer_id|public|customers",
+            title: "customers",
+            subtitle: "Join helper",
+            detail: "FK orders_customer",
+            insertText: joinInsert,
+            kind: .join,
+            priority: 1680
+        )
+        let metadata = SQLCompletionMetadata(
+            clause: .joinTarget,
+            currentToken: "cu",
+            precedingKeyword: "join",
+            pathComponents: [],
+            tablesInScope: [
+                SQLCompletionMetadata.TableReference(schema: "public", name: "orders", alias: "o")
+            ],
+            focusTable: nil,
+            cteColumns: [:]
+        )
+        stubCompletionEngine.result = SQLCompletionResult(suggestions: [suggestion], metadata: metadata)
+        engine.updateContext(sampleContext())
+
+        let query = SQLAutoCompletionQuery(token: "cu",
+                                           prefix: "cu",
+                                           pathComponents: [],
+                                           replacementRange: NSRange(location: 0, length: 0),
+                                           precedingKeyword: "join",
+                                           precedingCharacter: " ",
+                                           focusTable: nil,
+                                           tablesInScope: [
+                                               SQLAutoCompletionTableFocus(schema: "public", name: "orders", alias: "o")
+                                           ],
+                                           clause: .joinTarget)
+
+        let result = engine.suggestions(for: query, text: "SELECT * FROM orders o JOIN cu", caretLocation: 0)
+        guard let produced = result.sections.first?.suggestions.first else {
+            XCTFail("Expected join helper suggestion")
+            return
+        }
+
+        XCTAssertEqual(produced.kind, .join)
+        XCTAssertEqual(produced.title, "customers")
+        XCTAssertEqual(produced.insertText, "public.customers c ON o.customer_id = c.id")
+        XCTAssertEqual(produced.snippetText, joinInsert)
+    }
+
     func testMetadataLimitedFlagReflectsStructureAvailability() {
         let limitedContext = SQLEditorCompletionContext(databaseType: .postgresql,
                                                         selectedDatabase: nil,
@@ -227,6 +327,150 @@ final class SQLAutoCompletionEngineTests: XCTestCase {
 
         engine.updateContext(sampleContext())
         XCTAssertFalse(engine.isMetadataLimited)
+    }
+
+    func testSelectClauseRanksColumnsBeforeTables() {
+        let columnSuggestion = SQLCompletionSuggestion(
+            id: "column|public|orders|id",
+            title: "id",
+            subtitle: "orders • public",
+            detail: nil,
+            insertText: "id",
+            kind: .column,
+            priority: 1500
+        )
+        let tableSuggestion = SQLCompletionSuggestion(
+            id: "object:table:testdb.public.orders",
+            title: "orders",
+            subtitle: "public",
+            detail: "public.orders",
+            insertText: "orders",
+            kind: .table,
+            priority: 1300
+        )
+        let metadata = SQLCompletionMetadata(clause: .selectList,
+                                             currentToken: "",
+                                             precedingKeyword: "select",
+                                             pathComponents: [],
+                                             tablesInScope: [SQLCompletionMetadata.TableReference(schema: "public", name: "orders", alias: "o")],
+                                             focusTable: SQLCompletionMetadata.TableReference(schema: "public", name: "orders", alias: "o"),
+                                             cteColumns: [:])
+        stubCompletionEngine.result = SQLCompletionResult(suggestions: [tableSuggestion, columnSuggestion], metadata: metadata)
+        engine.updateContext(sampleContext())
+
+        let query = SQLAutoCompletionQuery(token: "",
+                                           prefix: "",
+                                           pathComponents: [],
+                                           replacementRange: NSRange(location: 0, length: 0),
+                                           precedingKeyword: "select",
+                                           precedingCharacter: nil,
+                                           focusTable: SQLAutoCompletionTableFocus(schema: "public", name: "orders", alias: "o"),
+                                           tablesInScope: [SQLAutoCompletionTableFocus(schema: "public", name: "orders", alias: "o")],
+                                           clause: .selectList)
+
+        let result = engine.suggestions(for: query, text: "SELECT ", caretLocation: 7)
+        let kinds = result.sections.flatMap { $0.suggestions }.map { $0.kind }
+
+        XCTAssertEqual(kinds.first, .column)
+        XCTAssertTrue(kinds.contains(.table))
+    }
+
+    func testFocusedAggressivenessFiltersKeywordSuggestions() {
+        let columnSuggestion = SQLCompletionSuggestion(
+            id: "column|public|orders|id",
+            title: "id",
+            subtitle: "orders • public",
+            detail: nil,
+            insertText: "id",
+            kind: .column,
+            priority: 1500
+        )
+        let keywordSuggestion = SQLCompletionSuggestion(
+            id: "keyword|select",
+            title: "SELECT",
+            subtitle: nil,
+            detail: nil,
+            insertText: "SELECT",
+            kind: .keyword,
+            priority: 900
+        )
+        let metadata = SQLCompletionMetadata(clause: .selectList,
+                                             currentToken: "",
+                                             precedingKeyword: "select",
+                                             pathComponents: [],
+                                             tablesInScope: [SQLCompletionMetadata.TableReference(schema: "public", name: "orders", alias: "o")],
+                                             focusTable: SQLCompletionMetadata.TableReference(schema: "public", name: "orders", alias: "o"),
+                                             cteColumns: [:])
+        stubCompletionEngine.result = SQLCompletionResult(suggestions: [keywordSuggestion, columnSuggestion], metadata: metadata)
+        engine.updateContext(sampleContext())
+        engine.updateAggressiveness(.focused)
+
+        let query = SQLAutoCompletionQuery(token: "",
+                                           prefix: "",
+                                           pathComponents: [],
+                                           replacementRange: NSRange(location: 0, length: 0),
+                                           precedingKeyword: "select",
+                                           precedingCharacter: nil,
+                                           focusTable: SQLAutoCompletionTableFocus(schema: "public", name: "orders", alias: "o"),
+                                           tablesInScope: [SQLAutoCompletionTableFocus(schema: "public", name: "orders", alias: "o")],
+                                           clause: .selectList)
+
+        let result = engine.suggestions(for: query, text: "SELECT ", caretLocation: 7)
+        let suggestions = result.sections.flatMap { $0.suggestions }
+
+        XCTAssertEqual(suggestions.count, 1)
+        XCTAssertEqual(suggestions.first?.kind, .column)
+
+        engine.updateAggressiveness(.balanced)
+    }
+
+    func testTableSuppressionSurvivesTrailingSpace() {
+        let theme = makeTestTheme()
+        let display = SQLEditorDisplayOptions()
+        let textView = SQLTextView(theme: theme,
+                                   displayOptions: display,
+                                   backgroundOverride: nil,
+                                   completionContext: nil)
+
+        textView.textStorage?.setAttributedString(NSAttributedString(string: "SELECT * FROM public.fixture"))
+        let nsString = textView.string as NSString
+        let tokenRange = nsString.range(of: "public.fixture")
+        XCTAssertNotEqual(tokenRange.location, NSNotFound)
+
+        let suppression = SQLTextView.SuppressedCompletion(tokenRange: tokenRange,
+                                                           canonicalText: "public.fixture",
+                                                           hasFollowUps: false,
+                                                           allowTrailingWhitespace: true)
+        textView.suppressedCompletions = [suppression]
+
+        textView.textStorage?.replaceCharacters(in: NSRange(location: NSMaxRange(tokenRange), length: 0), with: " ")
+        let caretLocation = NSMaxRange(tokenRange) + 1
+        textView.setSelectedRange(NSRange(location: caretLocation, length: 0))
+        let entry = textView.suppressedCompletionEntry(containing: NSRange(location: caretLocation, length: 0),
+                                                       caretLocation: caretLocation)
+        XCTAssertNotNil(entry)
+    }
+
+    private func makeTestTheme() -> SQLEditorTheme {
+        let palette = SQLEditorTokenPalette.builtIn.first ?? SQLEditorTokenPalette(from: SQLEditorPalette.aurora)
+        let surfaces = SQLEditorSurfaceColors(
+            background: ColorRepresentable(hex: 0xFFFFFF),
+            text: ColorRepresentable(hex: 0x1F2933),
+            gutterBackground: ColorRepresentable(hex: 0xF5F7FA),
+            gutterText: ColorRepresentable(hex: 0x6B7280),
+            gutterAccent: ColorRepresentable(hex: 0x2563EB),
+            selection: ColorRepresentable(hex: 0xDDE5FF),
+            currentLine: ColorRepresentable(hex: 0xF3F4F6),
+            symbolHighlightStrong: nil,
+            symbolHighlightBright: nil
+        )
+
+        return SQLEditorTheme(fontName: SQLEditorTheme.defaultFontName,
+                              fontSize: SQLEditorTheme.defaultFontSize,
+                              lineHeightMultiplier: SQLEditorTheme.defaultLineHeight,
+                              ligaturesEnabled: true,
+                              surfaces: surfaces,
+                              tokenPalette: palette)
     }
 
     private func sampleContext() -> SQLEditorCompletionContext {

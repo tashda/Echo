@@ -352,7 +352,8 @@ struct SQLAutocompleteRuleEngine {
                           schema: match.schema.name,
                           object: match.object.name),
             dataType: nil,
-            tableColumns: tableColumns.isEmpty ? nil : tableColumns
+            tableColumns: tableColumns.isEmpty ? nil : tableColumns,
+            source: .fallback
         )
         results.append(tableSuggestion)
 
@@ -368,7 +369,8 @@ struct SQLAutocompleteRuleEngine {
                               schema: match.schema.name,
                               object: match.object.name,
                               column: column.name),
-                dataType: column.dataType
+                dataType: column.dataType,
+                source: .fallback
             )
             results.append(columnSuggestion)
         }

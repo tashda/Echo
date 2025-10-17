@@ -7,6 +7,10 @@ import AppKit
 import UIKit
 #endif
 
+private let streamingRowPresets: [Int] = [100, 250, 500, 750, 1_000, 2_000, 5_000, 10_000]
+private let streamingThresholdPresets: [Int] = [500, 1_000, 2_000, 5_000, 10_000, 20_000, 50_000, 100_000, 250_000, 500_000, 1_000_000]
+private let streamingFetchPresets: [Int] = [128, 256, 384, 512, 768, 1_024, 2_048, 4_096, 8_192, 16_384]
+
 /// Primary settings scene built with a native `NavigationSplitView`.
 struct SettingsWindow: Scene {
     static let sceneID = "settings"
@@ -185,7 +189,8 @@ struct KeyboardShortcutsSettingsView: View {
             items: [
                 .init(title: "Run Selected Query", context: "Execute the highlighted SQL in the query editor.", keys: ["⌘", "Return"]),
                 .init(title: "Format Query", context: "Format the current SQL using the configured style.", keys: ["⌘", "⇧", "F"]),
-                .init(title: "Show Autocomplete Suggestions", context: "Reopen the autocomplete popover after dismissal.", keys: ["⌘", "."])
+                .init(title: "Show Autocomplete Suggestions", context: "Reopen the autocomplete popover after dismissal.", keys: ["⌘", "."]),
+                .init(title: "Manual Autocomplete Trigger", context: "Force suggestions even when auto-popup is suppressed.", keys: ["Ctrl", "Space"])
             ]
         ),
         .init(
@@ -301,8 +306,65 @@ struct AutocompleteSettingsView: View {
         )
     }
 
+    private var aggressivenessBinding: Binding<SQLCompletionAggressiveness> {
+        Binding(
+            get: { appModel.globalSettings.editorCompletionAggressiveness },
+            set: { newValue in
+                guard appModel.globalSettings.editorCompletionAggressiveness != newValue else { return }
+                Task { await appModel.updateGlobalEditorDisplay { $0.editorCompletionAggressiveness = newValue } }
+            }
+        )
+    }
+
+    private var showSystemSchemasBinding: Binding<Bool> {
+        Binding(
+            get: { appModel.globalSettings.editorShowSystemSchemas },
+            set: { newValue in
+                guard appModel.globalSettings.editorShowSystemSchemas != newValue else { return }
+                Task { await appModel.updateGlobalEditorDisplay { $0.editorShowSystemSchemas = newValue } }
+            }
+        )
+    }
+
+    private var commandTriggerBinding: Binding<Bool> {
+        Binding(
+            get: { appModel.globalSettings.editorAllowCommandPeriodTrigger },
+            set: { newValue in
+                guard appModel.globalSettings.editorAllowCommandPeriodTrigger != newValue else { return }
+                Task { await appModel.updateGlobalEditorDisplay { $0.editorAllowCommandPeriodTrigger = newValue } }
+            }
+        )
+    }
+
+    private var controlTriggerBinding: Binding<Bool> {
+        Binding(
+            get: { appModel.globalSettings.editorAllowControlSpaceTrigger },
+            set: { newValue in
+                guard appModel.globalSettings.editorAllowControlSpaceTrigger != newValue else { return }
+                Task { await appModel.updateGlobalEditorDisplay { $0.editorAllowControlSpaceTrigger = newValue } }
+            }
+        )
+    }
+
     private var dismissalHint: String {
-        "Press Esc to clear suggestions until you manually reopen them with ⌘ + ." + (appState.sqlEditorDisplay.autoCompletionEnabled ? "" : " Auto-complete is currently disabled globally.")
+        let triggers: [String] = [
+            appState.sqlEditorDisplay.allowCommandPeriodTrigger ? "⌘ + ." : nil,
+            appState.sqlEditorDisplay.allowControlSpaceTrigger ? "Ctrl + Space" : nil
+        ].compactMap { $0 }
+
+        let triggerText: String
+        switch triggers.count {
+        case 0:
+            triggerText = "the manual trigger"
+        case 1:
+            triggerText = triggers[0]
+        default:
+            let head = triggers.dropLast().joined(separator: ", ")
+            triggerText = head + " or " + triggers.last!
+        }
+
+        let suffix = appState.sqlEditorDisplay.autoCompletionEnabled ? "" : " Auto-complete is currently disabled globally."
+        return "Press Esc to clear suggestions until you manually reopen them with \(triggerText)." + suffix
     }
 
     var body: some View {
@@ -334,6 +396,43 @@ struct AutocompleteSettingsView: View {
                 )
             }
 
+            Section("Behaviour") {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(alignment: .top, spacing: 12) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Suggestion aggressiveness")
+                                .font(.body.weight(.semibold))
+                            Text("Control how strictly autocomplete favours clause-relevant items.")
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer(minLength: 12)
+                        Button(action: { showInfo(.aggressiveness) }) {
+                            Image(systemName: "info.circle")
+                                .font(.system(size: 15, weight: .medium))
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("More information about suggestion aggressiveness")
+                    }
+                    Picker("Suggestion aggressiveness", selection: aggressivenessBinding) {
+                        ForEach(SQLCompletionAggressiveness.allCases, id: \.self) { mode in
+                            Text(mode.displayName).tag(mode)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
+                    .accessibilityLabel("Suggestion aggressiveness")
+                    .frame(maxWidth: 280)
+                }
+
+                ToggleRow(
+                    title: "Show system schemas",
+                    subtitle: "Include schemas like pg_catalog and information_schema when browsing objects.",
+                    isOn: showSystemSchemasBinding,
+                    infoAction: { showInfo(.systemSchemas) }
+                )
+            }
+
             Section("Insertion & History") {
                 ToggleRow(
                     title: "Insert schema-qualified table names",
@@ -346,6 +445,21 @@ struct AutocompleteSettingsView: View {
                     subtitle: "Boost tables, columns, and joins you've picked recently.",
                     isOn: suggestHistoryBinding,
                     infoAction: { showInfo(.history) }
+                )
+            }
+
+            Section("Manual Triggers") {
+                ToggleRow(
+                    title: "Enable Command + Period",
+                    subtitle: "Use ⌘ + . to reopen the autocomplete popover after dismissal.",
+                    isOn: commandTriggerBinding,
+                    infoAction: { showInfo(.commandTrigger) }
+                )
+                ToggleRow(
+                    title: "Enable Control + Space",
+                    subtitle: "Keep Ctrl + Space available as an alternative manual trigger.",
+                    isOn: controlTriggerBinding,
+                    infoAction: { showInfo(.controlTrigger) }
                 )
             }
 
@@ -376,6 +490,10 @@ private enum InfoTopic: String, Identifiable, CaseIterable {
     case joins
     case qualifiedTables
     case history
+    case aggressiveness
+    case systemSchemas
+    case commandTrigger
+    case controlTrigger
 
     var id: String { rawValue }
 
@@ -387,6 +505,10 @@ private enum InfoTopic: String, Identifiable, CaseIterable {
         case .joins: return "Join Helpers"
         case .qualifiedTables: return "Schema-qualified Insertion"
         case .history: return "Recent Selections"
+        case .aggressiveness: return "Suggestion Aggressiveness"
+        case .systemSchemas: return "System Schemas"
+        case .commandTrigger: return "Command + Period"
+        case .controlTrigger: return "Control + Space"
         }
     }
 
@@ -404,6 +526,14 @@ private enum InfoTopic: String, Identifiable, CaseIterable {
             return "Automatically inserts schema-qualified names (schema.table) when a completion knows the schema. Existing text is never rewritten, and column completions keep their current behaviour."
         case .history:
             return "Remember tables, columns, and joins you accept so the engine can boost them later. History stays on your Mac and does not sync or leave the application."
+        case .aggressiveness:
+            return "Focused shows only clause-relevant entries, Balanced keeps a mix with light fallbacks, and Eager keeps the full list. Switch modes depending on whether you prefer concise or generous suggestions."
+        case .systemSchemas:
+            return "System schemas such as pg_catalog or information_schema contain internal objects. Enable this when you want to browse them in autocomplete; otherwise they stay hidden to reduce noise."
+        case .commandTrigger:
+            return "Keeps the ⌘ + . shortcut available as a manual autocomplete trigger even after you dismiss the popover. Turn it off if you rely on ⌘ + . for another workflow."
+        case .controlTrigger:
+            return "Keeps Ctrl + Space available as an alternative manual trigger for autocomplete, mirroring common editor behaviour. Disable it if Ctrl + Space is bound to another action on your system."
         }
     }
 }
@@ -1887,7 +2017,9 @@ private struct ThemeChip<ContextMenuContent: View>: View {
                     ProgressView()
                         .controlSize(.small)
                         .progressViewStyle(.circular)
-                        .frame(width: 16, height: 16)
+                        .frame(width: 18, height: 18)
+                        .frame(minWidth: 18, idealWidth: 18, maxWidth: 18, minHeight: 18, idealHeight: 18, maxHeight: 18)
+                        .fixedSize()
                         .padding(12)
                         .background(.ultraThinMaterial, in: Circle())
                 }
@@ -1964,6 +2096,10 @@ private struct PaletteChip<ContextMenuContent: View>: View {
                 if isBusy {
                     ProgressView()
                         .controlSize(.small)
+                        .progressViewStyle(.circular)
+                        .frame(width: 18, height: 18)
+                        .frame(minWidth: 18, idealWidth: 18, maxWidth: 18, minHeight: 18, idealHeight: 18, maxHeight: 18)
+                        .fixedSize()
                         .padding(12)
                         .background(.ultraThinMaterial, in: Circle())
                 }
@@ -3057,12 +3193,10 @@ private struct PaletteSnippetPreview: View {
     private var lineNumberColumn: some View {
         VStack(alignment: .trailing, spacing: 0) {
             ForEach(Array(lines.indices), id: \.self) { index in
-                ZStack(alignment: .topTrailing) {
-                    lineNumber(index + 1)
-                        .padding(.horizontal, lineTextPaddingHorizontal * 0.5)
-                        .padding(.vertical, lineTextPaddingVertical)
-                }
-                .frame(height: lineHeight, alignment: .topTrailing)
+                lineNumber(index + 1)
+                    .padding(.horizontal, lineTextPaddingHorizontal * 0.5)
+                    .frame(height: rowHeight, alignment: .center)
+                    .frame(maxWidth: .infinity, alignment: .trailing)
             }
         }
         .font(font)
@@ -3080,10 +3214,11 @@ private struct PaletteSnippetPreview: View {
     private var codeColumn: some View {
         VStack(alignment: .leading, spacing: 0) {
             ForEach(Array(lines.enumerated()), id: \.offset) { index, segments in
-                ZStack(alignment: .topLeading) {
+                ZStack(alignment: .leading) {
                     if let color = highlight(for: index) {
                         RoundedRectangle(cornerRadius: 6, style: .continuous)
                             .fill(color)
+                            .frame(height: highlightHeight)
                             .padding(.vertical, lineBackgroundInset)
                             .padding(.horizontal, lineBackgroundInsetHorizontal)
                     }
@@ -3091,8 +3226,9 @@ private struct PaletteSnippetPreview: View {
                     codeLine(segments)
                         .padding(.horizontal, lineTextPaddingHorizontal)
                         .padding(.vertical, lineTextPaddingVertical)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                .frame(height: lineHeight, alignment: .topLeading)
+                .frame(height: rowHeight, alignment: .center)
             }
         }
         .padding(.vertical, verticalInset)
@@ -3190,6 +3326,11 @@ private struct PaletteSnippetPreview: View {
 
     private var lineHeight: CGFloat {
         max(metricLineHeight, fontPointSize * 1.3)
+    }
+
+    private var rowHeight: CGFloat { lineHeight + lineTextPaddingVertical * 2 }
+    private var highlightHeight: CGFloat {
+        max(rowHeight - (lineBackgroundInset * 2), lineHeight)
     }
 
     private var verticalInset: CGFloat { max(lineHeight * 0.25, 6) }
@@ -3424,6 +3565,10 @@ private struct ThemeEditorSheet: View {
                     if isSaving {
                         ProgressView()
                             .controlSize(.small)
+                            .progressViewStyle(.circular)
+                            .frame(width: 18, height: 18)
+                            .frame(minWidth: 18, idealWidth: 18, maxWidth: 18, minHeight: 18, idealHeight: 18, maxHeight: 18)
+                            .fixedSize()
                     } else {
                         Text(mode == .create ? "Create Theme" : "Save Changes")
                             .fontWeight(.semibold)
@@ -3625,6 +3770,10 @@ private struct TokenPaletteEditorSheet: View {
                     if isSaving {
                         ProgressView()
                             .controlSize(.small)
+                            .progressViewStyle(.circular)
+                            .frame(width: 18, height: 18)
+                            .frame(minWidth: 18, idealWidth: 18, maxWidth: 18, minHeight: 18, idealHeight: 18, maxHeight: 18)
+                            .fixedSize()
                     } else {
                         Text(mode == .create ? "Create Palette" : "Save Changes")
                             .fontWeight(.semibold)
@@ -3879,6 +4028,17 @@ struct QueryResultsSettingsView: View {
         )
     }
 
+    private var backgroundFetchSizeBinding: Binding<Int> {
+        Binding(
+            get: { appModel.globalSettings.resultsStreamingFetchSize },
+            set: { newValue in
+                let clamped = max(128, min(newValue, 16_384))
+                guard appModel.globalSettings.resultsStreamingFetchSize != clamped else { return }
+                Task { await appModel.updateResultsStreaming(backgroundFetchSize: clamped) }
+            }
+        )
+    }
+
     private var selectedDisplayMode: ForeignKeyDisplayMode { displayModeBinding.wrappedValue }
     private var selectedBehavior: ForeignKeyInspectorBehavior { inspectorBehaviorBinding.wrappedValue }
 
@@ -3919,44 +4079,41 @@ struct QueryResultsSettingsView: View {
             }
 
             Section("Result Streaming") {
-                Stepper(value: initialRowLimitBinding, in: 100...100_000, step: 100) {
-                    HStack {
-                        Text("Initial rows to display")
-                        Spacer()
-                        Text(formatRowCount(initialRowLimitBinding.wrappedValue))
-                            .foregroundStyle(.secondary)
-                    }
-                }
+                StreamingNumericControl(
+                    title: "Initial rows to display",
+                    value: initialRowLimitBinding,
+                    description: "Controls how many rows render immediately when a query begins streaming results.",
+                    presets: streamingRowPresets,
+                    range: 100...100_000,
+                    formatter: formatRowCount
+                )
 
-                Text("Controls how many rows render immediately when a query begins streaming results.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
+                StreamingNumericControl(
+                    title: "Data preview batch size",
+                    value: previewBatchSizeBinding,
+                    description: "Used when opening table previews from the sidebar. Additional batches keep loading in the background until the table finishes streaming.",
+                    presets: streamingRowPresets,
+                    range: 100...100_000,
+                    formatter: formatRowCount
+                )
 
-                Stepper(value: previewBatchSizeBinding, in: 100...100_000, step: 100) {
-                    HStack {
-                        Text("Data preview batch size")
-                        Spacer()
-                        Text(formatRowCount(previewBatchSizeBinding.wrappedValue))
-                            .foregroundStyle(.secondary)
-                    }
-                }
+                StreamingNumericControl(
+                    title: "Background streaming threshold",
+                    value: backgroundStreamingThresholdBinding,
+                    description: "After this many rows are streamed, Echo hands off ingestion to a background worker so the grid stays responsive. Increase the value if you prefer more live rows in memory, decrease it for faster background streaming.",
+                    presets: streamingThresholdPresets,
+                    range: 100...1_000_000,
+                    formatter: formatRowCount
+                )
 
-                Text("Used when opening table previews from the sidebar. Additional batches keep loading in the background until the table finishes streaming.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-
-                Stepper(value: backgroundStreamingThresholdBinding, in: 100...1_000_000, step: 100) {
-                    HStack {
-                        Text("Background streaming threshold")
-                        Spacer()
-                        Text(formatRowCount(backgroundStreamingThresholdBinding.wrappedValue))
-                            .foregroundStyle(.secondary)
-                    }
-                }
-
-                Text("After this many rows are streamed, Echo hands off ingestion to a background worker so the grid stays responsive. Increase the value if you prefer more live rows in memory, decrease it for faster background streaming.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
+                StreamingNumericControl(
+                    title: "Background fetch batch size",
+                    value: backgroundFetchSizeBinding,
+                    description: "Controls how many rows Echo asks the server for in each background fetch. Smaller batches stream more frequently; larger batches minimize network round-trips but can increase latency before updates appear.",
+                    presets: streamingFetchPresets,
+                    range: 128...16_384,
+                    formatter: formatRowCount
+                )
             }
         }
         .formStyle(.grouped)
@@ -4001,6 +4158,89 @@ struct QueryResultsSettingsView: View {
 
     private func formatRowCount(_ value: Int) -> String {
         value.formatted()
+    }
+}
+
+private struct StreamingNumericControl: View {
+    let title: String
+    @Binding var value: Int
+    let description: String
+    let presets: [Int]
+    let range: ClosedRange<Int>
+    let formatter: (Int) -> String
+
+    @State private var text: String
+
+    init(title: String,
+         value: Binding<Int>,
+         description: String,
+         presets: [Int],
+         range: ClosedRange<Int>,
+         formatter: @escaping (Int) -> String) {
+        self.title = title
+        self._value = value
+        self.description = description
+        self.presets = presets
+        self.range = range
+        self.formatter = formatter
+        _text = State(initialValue: String(value.wrappedValue))
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text(title)
+                Spacer()
+                Text(formatter(value))
+                    .foregroundStyle(.secondary)
+            }
+
+            HStack(spacing: 8) {
+                TextField("", text: $text)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(width: 100)
+                    .onSubmit(applyTextFieldValue)
+                    .onChange(of: text) { newValue in
+                        let filtered = newValue.filter { $0.isNumber }
+                        if filtered != newValue {
+                            text = filtered
+                        }
+                    }
+
+                Button("Apply", action: applyTextFieldValue)
+                    .buttonStyle(.bordered)
+
+                Menu("Presets") {
+                    ForEach(presets, id: \.self) { preset in
+                        Button(formatter(preset)) {
+                            setValue(preset)
+                        }
+                    }
+                }
+                .menuStyle(.borderedButton)
+            }
+
+            Text(description)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        }
+        .onChange(of: value) { newValue in
+            text = String(newValue)
+        }
+    }
+
+    private func applyTextFieldValue() {
+        guard let raw = Int(text) else {
+            text = String(value)
+            return
+        }
+        setValue(raw)
+    }
+
+    private func setValue(_ newValue: Int) {
+        let clamped = min(max(newValue, range.lowerBound), range.upperBound)
+        value = clamped
+        text = String(clamped)
     }
 }
 
@@ -4138,6 +4378,10 @@ struct ApplicationCacheSettingsView: View {
                     if isRefreshingResultCache {
                         ProgressView()
                             .controlSize(.small)
+                            .progressViewStyle(.circular)
+                            .frame(width: 18, height: 18)
+                            .frame(minWidth: 18, idealWidth: 18, maxWidth: 18, minHeight: 18, idealHeight: 18, maxHeight: 18)
+                            .fixedSize()
                     } else {
                         Text(formatByteCount(resultCacheUsage))
                             .font(.system(size: 12, weight: .semibold))

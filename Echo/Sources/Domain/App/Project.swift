@@ -1055,6 +1055,10 @@ struct GlobalSettings: Codable, Hashable {
     var editorSuggestSnippets: Bool = true
     var editorSuggestHistory: Bool = true
     var editorSuggestJoins: Bool = true
+    var editorCompletionAggressiveness: SQLCompletionAggressiveness = .balanced
+    var editorShowSystemSchemas: Bool = false
+    var editorAllowCommandPeriodTrigger: Bool = true
+    var editorAllowControlSpaceTrigger: Bool = true
     var useServerColorAsAccent: Bool
     var activeThemeIDLight: AppColorTheme.ID?
     var activeThemeIDDark: AppColorTheme.ID?
@@ -1067,6 +1071,7 @@ struct GlobalSettings: Codable, Hashable {
     var resultsInitialRowLimit: Int = 500
     var resultsPreviewBatchSize: Int = 500
     var resultsBackgroundStreamingThreshold: Int = 512
+    var resultsStreamingFetchSize: Int = 1024
     var resultSpoolMaxBytes: Int = 5 * 1_024 * 1_024 * 1_024
     var resultSpoolRetentionHours: Int = 72
     var resultSpoolCustomLocation: String?
@@ -1101,6 +1106,10 @@ struct GlobalSettings: Codable, Hashable {
         editorSuggestSnippets: Bool = true,
         editorSuggestHistory: Bool = true,
         editorSuggestJoins: Bool = true,
+        editorCompletionAggressiveness: SQLCompletionAggressiveness = .balanced,
+        editorShowSystemSchemas: Bool = false,
+        editorAllowCommandPeriodTrigger: Bool = true,
+        editorAllowControlSpaceTrigger: Bool = true,
         useServerColorAsAccent: Bool = true,
         themeTabs: Bool = false,
         themeResultsGrid: Bool = true,
@@ -1111,6 +1120,7 @@ struct GlobalSettings: Codable, Hashable {
         resultsInitialRowLimit: Int = 500,
         resultsPreviewBatchSize: Int = 500,
         resultsBackgroundStreamingThreshold: Int = 512,
+        resultsStreamingFetchSize: Int = 1024,
         resultSpoolMaxBytes: Int = 5 * 1_024 * 1_024 * 1_024,
         resultSpoolRetentionHours: Int = 72,
         resultSpoolCustomLocation: String? = nil,
@@ -1144,6 +1154,10 @@ struct GlobalSettings: Codable, Hashable {
         self.editorSuggestSnippets = editorSuggestSnippets
         self.editorSuggestHistory = editorSuggestHistory
         self.editorSuggestJoins = editorSuggestJoins
+        self.editorCompletionAggressiveness = editorCompletionAggressiveness
+        self.editorShowSystemSchemas = editorShowSystemSchemas
+        self.editorAllowCommandPeriodTrigger = editorAllowCommandPeriodTrigger
+        self.editorAllowControlSpaceTrigger = editorAllowControlSpaceTrigger
         self.useServerColorAsAccent = useServerColorAsAccent
         self.themeTabs = themeTabs
         self.themeResultsGrid = themeResultsGrid
@@ -1154,6 +1168,7 @@ struct GlobalSettings: Codable, Hashable {
         self.resultsInitialRowLimit = max(100, resultsInitialRowLimit)
         self.resultsPreviewBatchSize = max(100, resultsPreviewBatchSize)
         self.resultsBackgroundStreamingThreshold = max(100, resultsBackgroundStreamingThreshold)
+        self.resultsStreamingFetchSize = max(128, resultsStreamingFetchSize)
         self.resultSpoolMaxBytes = resultSpoolMaxBytes
         self.resultSpoolRetentionHours = resultSpoolRetentionHours
         self.resultSpoolCustomLocation = resultSpoolCustomLocation
@@ -1190,6 +1205,10 @@ struct GlobalSettings: Codable, Hashable {
         case editorSuggestSnippets
         case editorSuggestHistory
         case editorSuggestJoins
+        case editorCompletionAggressiveness
+        case editorShowSystemSchemas
+        case editorAllowCommandPeriodTrigger
+        case editorAllowControlSpaceTrigger
         case useServerColorAsAccent
         case defaultWindowWidth
         case defaultWindowHeight
@@ -1204,6 +1223,7 @@ struct GlobalSettings: Codable, Hashable {
         case resultsInitialRowLimit
         case resultsPreviewBatchSize
         case resultsBackgroundStreamingThreshold
+        case resultsStreamingFetchSize
         case resultSpoolMaxBytes
         case resultSpoolRetentionHours
         case resultSpoolCustomLocation
@@ -1262,6 +1282,10 @@ struct GlobalSettings: Codable, Hashable {
         editorSuggestSnippets = try container.decodeIfPresent(Bool.self, forKey: .editorSuggestSnippets) ?? true
         editorSuggestHistory = try container.decodeIfPresent(Bool.self, forKey: .editorSuggestHistory) ?? true
         editorSuggestJoins = try container.decodeIfPresent(Bool.self, forKey: .editorSuggestJoins) ?? true
+        editorCompletionAggressiveness = try container.decodeIfPresent(SQLCompletionAggressiveness.self, forKey: .editorCompletionAggressiveness) ?? .balanced
+        editorShowSystemSchemas = try container.decodeIfPresent(Bool.self, forKey: .editorShowSystemSchemas) ?? false
+        editorAllowCommandPeriodTrigger = try container.decodeIfPresent(Bool.self, forKey: .editorAllowCommandPeriodTrigger) ?? true
+        editorAllowControlSpaceTrigger = try container.decodeIfPresent(Bool.self, forKey: .editorAllowControlSpaceTrigger) ?? true
         useServerColorAsAccent = try container.decodeIfPresent(Bool.self, forKey: .useServerColorAsAccent) ?? true
         defaultWindowWidth = try container.decodeIfPresent(Double.self, forKey: .defaultWindowWidth)
         defaultWindowHeight = try container.decodeIfPresent(Double.self, forKey: .defaultWindowHeight)
@@ -1276,6 +1300,7 @@ struct GlobalSettings: Codable, Hashable {
         resultsInitialRowLimit = max(100, try container.decodeIfPresent(Int.self, forKey: .resultsInitialRowLimit) ?? 500)
         resultsPreviewBatchSize = max(100, try container.decodeIfPresent(Int.self, forKey: .resultsPreviewBatchSize) ?? 500)
         resultsBackgroundStreamingThreshold = max(100, try container.decodeIfPresent(Int.self, forKey: .resultsBackgroundStreamingThreshold) ?? 512)
+        resultsStreamingFetchSize = max(128, try container.decodeIfPresent(Int.self, forKey: .resultsStreamingFetchSize) ?? 1024)
         inspectorWidth = try container.decodeIfPresent(Double.self, forKey: .inspectorWidth)
         keepTabsInMemory = try container.decodeIfPresent(Bool.self, forKey: .keepTabsInMemory) ?? false
     }
@@ -1303,6 +1328,10 @@ struct GlobalSettings: Codable, Hashable {
         try container.encode(editorSuggestSnippets, forKey: .editorSuggestSnippets)
         try container.encode(editorSuggestHistory, forKey: .editorSuggestHistory)
         try container.encode(editorSuggestJoins, forKey: .editorSuggestJoins)
+        try container.encode(editorCompletionAggressiveness, forKey: .editorCompletionAggressiveness)
+        try container.encode(editorShowSystemSchemas, forKey: .editorShowSystemSchemas)
+        try container.encode(editorAllowCommandPeriodTrigger, forKey: .editorAllowCommandPeriodTrigger)
+        try container.encode(editorAllowControlSpaceTrigger, forKey: .editorAllowControlSpaceTrigger)
         try container.encode(useServerColorAsAccent, forKey: .useServerColorAsAccent)
         try container.encode(defaultWindowWidth, forKey: .defaultWindowWidth)
         try container.encode(defaultWindowHeight, forKey: .defaultWindowHeight)
@@ -1317,6 +1346,7 @@ struct GlobalSettings: Codable, Hashable {
         try container.encode(resultsInitialRowLimit, forKey: .resultsInitialRowLimit)
         try container.encode(resultsPreviewBatchSize, forKey: .resultsPreviewBatchSize)
         try container.encode(resultsBackgroundStreamingThreshold, forKey: .resultsBackgroundStreamingThreshold)
+        try container.encode(resultsStreamingFetchSize, forKey: .resultsStreamingFetchSize)
         try container.encode(resultSpoolMaxBytes, forKey: .resultSpoolMaxBytes)
         try container.encode(resultSpoolRetentionHours, forKey: .resultSpoolRetentionHours)
         try container.encodeIfPresent(resultSpoolCustomLocation, forKey: .resultSpoolCustomLocation)

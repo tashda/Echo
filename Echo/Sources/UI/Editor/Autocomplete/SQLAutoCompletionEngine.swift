@@ -53,7 +53,9 @@ final class SQLAutoCompletionEngine {
         let objectsByKey: [ObjectKey: [ObjectEntry]]
         let metadataProvider: SQLStructureMetadataProvider
 
-        init(context: SQLEditorCompletionContext, builtInFunctions: [String]) {
+        init(context: SQLEditorCompletionContext,
+             builtInFunctions: [String],
+             includeSystemSchemas: Bool) {
             guard let structure = context.structure else {
                 let builtIns = Catalog.builtInSchema(functions: builtInFunctions)
                 let defaultCatalog = builtIns.objects.isEmpty ? SQLDatabaseCatalog(schemas: []) : SQLDatabaseCatalog(schemas: [builtIns])
@@ -71,6 +73,10 @@ final class SQLAutoCompletionEngine {
                 var schemasForDatabase: [SQLSchema] = []
 
                 for schema in database.schemas {
+                    if !includeSystemSchemas,
+                       Catalog.isSystemSchema(schema.name, databaseType: context.databaseType) {
+                        continue
+                    }
                     let schemaName = schema.name
                     let schemaLower = schemaName.lowercased()
                     var sqlObjects: [SQLObject] = []
@@ -211,6 +217,25 @@ final class SQLAutoCompletionEngine {
             }
             return SQLSchema(name: "Built-in", objects: objects)
         }
+
+        private static func isSystemSchema(_ name: String, databaseType: DatabaseType) -> Bool {
+            let lower = name.lowercased()
+            switch databaseType {
+            case .postgresql:
+                if lower == "pg_catalog" || lower == "information_schema" { return true }
+                if lower.hasPrefix("pg_temp") || lower.hasPrefix("pg_toast") { return true }
+                return false
+            case .mysql:
+                return lower == "information_schema" ||
+                    lower == "performance_schema" ||
+                    lower == "mysql" ||
+                    lower == "sys"
+            case .microsoftSQL:
+                return lower == "sys" || lower == "information_schema"
+            case .sqlite:
+                return false
+            }
+        }
     }
 
     private var context: SQLEditorCompletionContext?
@@ -223,6 +248,8 @@ final class SQLAutoCompletionEngine {
     private var suppressEmptyTokenCompletions = false
     private var includeHistorySuggestions = true
     private var preferQualifiedTableInsertions = false
+    private var aggressiveness: SQLCompletionAggressiveness = .balanced
+    private var includeSystemSchemas = false
     private static let emptyMetadata = SQLCompletionMetadata(clause: .unknown,
                                                              currentToken: "",
                                                              precedingKeyword: nil,
@@ -254,7 +281,9 @@ final class SQLAutoCompletionEngine {
         context = newContext
         if let newContext {
             builtInFunctions = SQLAutoCompletionEngine.builtInFunctions(for: newContext.databaseType)
-            let newCatalog = Catalog(context: newContext, builtInFunctions: builtInFunctions)
+            let newCatalog = Catalog(context: newContext,
+                                     builtInFunctions: builtInFunctions,
+                                     includeSystemSchemas: includeSystemSchemas)
             catalog = newCatalog
             metadataProvider = newCatalog.metadataProvider
             isMetadataLimited = newContext.structure == nil
@@ -276,6 +305,18 @@ final class SQLAutoCompletionEngine {
 
     func updateQualifiedInsertionPreference(includeSchema: Bool) {
         preferQualifiedTableInsertions = includeSchema
+    }
+
+    func updateAggressiveness(_ level: SQLCompletionAggressiveness) {
+        aggressiveness = level
+    }
+
+    func updateSystemSchemaVisibility(includeSystemSchemas: Bool) {
+        guard self.includeSystemSchemas != includeSystemSchemas else { return }
+        self.includeSystemSchemas = includeSystemSchemas
+        if let current = context {
+            updateContext(current)
+        }
     }
 
     func clearPostCommitSuppression() {
@@ -329,8 +370,9 @@ final class SQLAutoCompletionEngine {
         let combined = injectHistorySuggestions(base: mapped,
                                                 query: query,
                                                 context: context)
+        let ranked = rankSuggestions(combined, query: query)
 
-        let sections = [SQLAutoCompletionSection(title: "Suggestions", suggestions: combined)]
+        let sections = [SQLAutoCompletionSection(title: "Suggestions", suggestions: ranked)]
         return SQLAutoCompletionResult(sections: sections, metadata: result.metadata)
     }
 
@@ -386,16 +428,17 @@ final class SQLAutoCompletionEngine {
             break
         }
 
-        let insertText = makeInsertText(from: suggestion,
+        var insertText = makeInsertText(from: suggestion,
                                         mappedKind: mappedKind,
                                         query: query,
                                         origin: origin)
 
-        let snippetText: String?
+        var snippetText: String?
         if mappedKind == .snippet && !suggestion.id.hasPrefix("star|") {
             snippetText = suggestion.insertText
-        } else {
-            snippetText = nil
+        } else if mappedKind == .join, suggestion.insertText.contains("<#") {
+            snippetText = suggestion.insertText
+            insertText = stripSnippetMarkers(from: suggestion.insertText)
         }
 
         return SQLAutoCompletionSuggestion(id: suggestion.id,
@@ -407,7 +450,105 @@ final class SQLAutoCompletionEngine {
                                            origin: origin,
                                            dataType: dataType,
                                            tableColumns: tableColumns,
-                                           snippetText: snippetText)
+                                           snippetText: snippetText,
+                                           priority: suggestion.priority)
+    }
+
+    private enum ClauseRelevance: Int {
+        case primary = 3
+        case secondary = 2
+        case peripheral = 1
+        case irrelevant = 0
+    }
+
+    private func rankSuggestions(_ suggestions: [SQLAutoCompletionSuggestion],
+                                 query: SQLAutoCompletionQuery) -> [SQLAutoCompletionSuggestion] {
+        guard !suggestions.isEmpty else { return suggestions }
+
+        var ranked: [(index: Int, suggestion: SQLAutoCompletionSuggestion, score: Double, relevance: ClauseRelevance)] = []
+        ranked.reserveCapacity(suggestions.count)
+
+        for (index, suggestion) in suggestions.enumerated() {
+            let (relevance, boost) = clauseBoost(for: query.clause, kind: suggestion.kind)
+
+            switch aggressiveness {
+            case .focused:
+                if relevance == .peripheral || relevance == .irrelevant {
+                    continue
+                }
+            case .balanced:
+                if relevance == .irrelevant {
+                    continue
+                }
+            case .eager:
+                break
+            }
+
+            var score = Double(suggestion.priority) + boost
+
+            if suggestion.source == .history {
+                score += 120
+            } else if suggestion.source == .fallback {
+                score -= 40
+            }
+
+            if suggestion.kind == .column,
+               let focus = query.focusTable,
+               matchesFocus(suggestion, focus: focus) {
+                score += 80
+            }
+
+            if suggestion.kind == .column {
+                score += aliasBonus(for: suggestion, query: query)
+            }
+
+            if suggestion.kind == .keyword {
+                score -= 90
+            }
+
+            ranked.append((index, suggestion, score, relevance))
+        }
+
+        ranked.sort { lhs, rhs in
+            if lhs.score == rhs.score {
+                if lhs.relevance.rawValue == rhs.relevance.rawValue {
+                    let comparison = lhs.suggestion.title.localizedCaseInsensitiveCompare(rhs.suggestion.title)
+                    if comparison == .orderedSame {
+                        return lhs.index < rhs.index
+                    }
+                    return comparison == .orderedAscending
+                }
+                return lhs.relevance.rawValue > rhs.relevance.rawValue
+            }
+            return lhs.score > rhs.score
+        }
+
+        return ranked.map { $0.suggestion }
+    }
+
+    private func stripSnippetMarkers(from snippet: String) -> String {
+        var output = ""
+        var searchStart = snippet.startIndex
+
+        while let startRange = snippet.range(of: "<#", range: searchStart..<snippet.endIndex) {
+            output.append(contentsOf: snippet[searchStart..<startRange.lowerBound])
+            guard let endRange = snippet.range(of: "#>", range: startRange.upperBound..<snippet.endIndex) else {
+                output.append(contentsOf: snippet[startRange.lowerBound..<snippet.endIndex])
+                return output
+            }
+            let placeholderContent = String(snippet[startRange.upperBound..<endRange.lowerBound])
+            let trimmed = placeholderContent.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !trimmed.isEmpty {
+                output.append(contentsOf: trimmed)
+            }
+            searchStart = endRange.upperBound
+        }
+
+        if searchStart < snippet.endIndex {
+            output.append(contentsOf: snippet[searchStart..<snippet.endIndex])
+        }
+
+        return output
     }
 
     private func mapKind(_ kind: SQLCompletionSuggestion.Kind) -> SQLAutoCompletionKind? {
@@ -423,6 +564,129 @@ final class SQLAutoCompletionEngine {
         case .parameter: return .parameter
         case .join: return .join
         }
+    }
+
+    private func clauseBoost(for clause: SQLClause,
+                             kind: SQLAutoCompletionKind) -> (ClauseRelevance, Double) {
+        switch clause {
+        case .selectList, .whereClause, .groupBy, .orderBy, .having, .values, .updateSet:
+            return columnContextBoost(for: kind)
+        case .joinCondition:
+            return joinConditionBoost(for: kind)
+        case .from, .joinTarget, .insertColumns, .deleteWhere, .withCTE:
+            return objectContextBoost(for: kind)
+        case .limit, .offset:
+            return limitContextBoost(for: kind)
+        case .unknown:
+            return fallbackBoost(for: kind)
+        }
+    }
+
+    private func columnContextBoost(for kind: SQLAutoCompletionKind) -> (ClauseRelevance, Double) {
+        switch kind {
+        case .column:
+            return (.primary, 520)
+        case .function, .snippet, .parameter:
+            return (.secondary, 260)
+        case .keyword:
+            return (.peripheral, -220)
+        case .table, .view, .materializedView, .schema, .join:
+            return (.peripheral, -260)
+        default:
+            return (.peripheral, -200)
+        }
+    }
+
+    private func joinConditionBoost(for kind: SQLAutoCompletionKind) -> (ClauseRelevance, Double) {
+        switch kind {
+        case .join:
+            return (.primary, 560)
+        case .column:
+            return (.primary, 500)
+        case .function, .snippet, .parameter:
+            return (.secondary, 220)
+        case .keyword:
+            return (.peripheral, -260)
+        default:
+            return (.peripheral, -280)
+        }
+    }
+
+    private func objectContextBoost(for kind: SQLAutoCompletionKind) -> (ClauseRelevance, Double) {
+        switch kind {
+        case .table, .view, .materializedView:
+            return (.primary, 520)
+        case .join:
+            return (.primary, 500)
+        case .schema, .snippet:
+            return (.secondary, 200)
+        case .column, .function:
+            return (.peripheral, -220)
+        case .keyword:
+            return (.peripheral, -260)
+        default:
+            return (.peripheral, -220)
+        }
+    }
+
+    private func limitContextBoost(for kind: SQLAutoCompletionKind) -> (ClauseRelevance, Double) {
+        switch kind {
+        case .keyword:
+            return (.primary, 420)
+        case .parameter, .snippet:
+            return (.secondary, 160)
+        default:
+            return (.peripheral, -200)
+        }
+    }
+
+    private func fallbackBoost(for kind: SQLAutoCompletionKind) -> (ClauseRelevance, Double) {
+        switch kind {
+        case .column, .table, .view, .materializedView, .function:
+            return (.secondary, 140)
+        case .keyword, .snippet, .parameter, .schema:
+            return (.peripheral, -120)
+        case .join:
+            return (.peripheral, -180)
+        }
+    }
+
+    private func matchesFocus(_ suggestion: SQLAutoCompletionSuggestion,
+                              focus: SQLAutoCompletionTableFocus) -> Bool {
+        guard let origin = suggestion.origin else { return false }
+
+        if let object = origin.object,
+           object.caseInsensitiveCompare(focus.name) != .orderedSame {
+            return false
+        }
+
+        if let focusSchema = focus.schema,
+           let originSchema = origin.schema,
+           focusSchema.caseInsensitiveCompare(originSchema) != .orderedSame {
+            return false
+        }
+
+        if origin.object == nil {
+            return false
+        }
+
+        return true
+    }
+
+    private func aliasBonus(for suggestion: SQLAutoCompletionSuggestion,
+                            query: SQLAutoCompletionQuery) -> Double {
+        guard suggestion.kind == .column else { return 0 }
+        guard !query.tablesInScope.isEmpty else { return 0 }
+
+        let insertLower = suggestion.insertText.lowercased()
+        for table in query.tablesInScope {
+            if let alias = table.alias?.lowercased(),
+               insertLower.hasPrefix("\(alias).") {
+                return 60
+            }
+        }
+
+        return 0
     }
 
     private func adjustedInsertText(original: String,
@@ -519,6 +783,29 @@ final class SQLAutoCompletionEngine {
         let tokenLower = query.token.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         let prefixLower = query.prefix.lowercased()
         let pathLower = query.pathComponents.map { $0.lowercased() }
+
+        if suggestion.kind == .join {
+            if tokenLower.isEmpty && prefixLower.isEmpty {
+                return true
+            }
+
+            let comparisonPool: [String] = [
+                suggestion.title.lowercased(),
+                suggestion.insertText.lowercased(),
+                suggestion.detail?.lowercased() ?? ""
+            ]
+
+            if !tokenLower.isEmpty &&
+                comparisonPool.contains(where: { $0.hasPrefix(tokenLower) }) {
+                return true
+            }
+
+            if !prefixLower.isEmpty &&
+                comparisonPool.contains(where: { $0.hasPrefix(prefixLower) }) {
+                return true
+            }
+        }
+
         let insertLower = suggestion.insertText.lowercased()
         let recomposed = (pathLower + [insertLower]).joined(separator: ".")
 
@@ -711,18 +998,23 @@ final class SQLAutoCompletionEngine {
             .filter { matchesQuery($0, query: query) }
         guard !history.isEmpty else { return base }
 
-        var seen = Set(base.map { $0.id.lowercased() })
+        var seen = Set<String>()
         var combined: [SQLAutoCompletionSuggestion] = []
 
-        for suggestion in history {
+        for suggestion in history.map({ $0.withSource(.history) }) {
             let key = suggestion.id.lowercased()
             if seen.insert(key).inserted {
                 combined.append(suggestion)
             }
         }
 
-        combined.append(contentsOf: base)
-        combined.append(contentsOf: base)
+        for suggestion in base {
+            let key = suggestion.id.lowercased()
+            if seen.insert(key).inserted {
+                combined.append(suggestion)
+            }
+        }
+
         return combined
     }
 

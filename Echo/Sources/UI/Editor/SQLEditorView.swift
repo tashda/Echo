@@ -454,6 +454,17 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
         var tokenRange: NSRange
         let canonicalText: String
         let hasFollowUps: Bool
+        var allowTrailingWhitespace: Bool
+
+        init(tokenRange: NSRange,
+             canonicalText: String,
+             hasFollowUps: Bool,
+             allowTrailingWhitespace: Bool) {
+            self.tokenRange = tokenRange
+            self.canonicalText = canonicalText
+            self.hasFollowUps = hasFollowUps
+            self.allowTrailingWhitespace = allowTrailingWhitespace
+        }
 
         var isValid: Bool {
             tokenRange.location != NSNotFound && tokenRange.length > 0
