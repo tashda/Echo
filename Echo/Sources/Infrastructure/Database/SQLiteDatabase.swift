@@ -187,7 +187,7 @@ actor SQLiteSession: DatabaseSession {
                     worker?.enqueue(
                         .init(
                             previewValues: previewForWorker,
-                            encodedRow: encodedRow,
+                            storage: .encoded(encodedRow),
                             totalRowCount: totalRowCount,
                             decodeDuration: decodeDuration
                         )

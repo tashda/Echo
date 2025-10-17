@@ -207,7 +207,7 @@ final class MySQLSession: DatabaseSession {
             worker?.enqueue(
                 .init(
                     previewValues: previewValues,
-                    encodedRow: encodedRow,
+                    storage: .encoded(encodedRow),
                     totalRowCount: totalRowCount,
                     decodeDuration: decodeDuration
                 )

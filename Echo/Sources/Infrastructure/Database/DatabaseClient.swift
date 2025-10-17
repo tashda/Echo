@@ -1,6 +1,8 @@
 import Foundation
 
 let ResultStreamingFetchSizeDefaultsKey = "dk.tippr.echo.streaming.fetchSize"
+let ResultStreamingFetchRampMultiplierDefaultsKey = "dk.tippr.echo.streaming.fetchRampMultiplier"
+let ResultStreamingFetchRampMaxDefaultsKey = "dk.tippr.echo.streaming.fetchRampMax"
 
 public struct QueryResultSet: Sendable {
     public var columns: [ColumnInfo]

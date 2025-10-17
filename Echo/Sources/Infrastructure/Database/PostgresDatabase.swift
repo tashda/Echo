@@ -135,18 +135,24 @@ final class PostgresSession: DatabaseSession {
         var worker: ResultStreamBatchWorker?
         var firstBatchLogged = false
         var firstRowLogged = false
+        var previewScratch: [String?] = []
+        previewScratch.reserveCapacity(streamingPreviewLimit)
+        var encodingScratch = RowEncodingScratch()
 
-        func rawData(for cell: PostgresCell) -> Data? {
-            guard var buffer = cell.bytes else { return nil }
-            let readable = buffer.readableBytes
-            guard readable > 0 else { return Data() }
-            if let data = buffer.readData(length: readable) {
-                return data
-            }
-            return buffer.withUnsafeReadableBytes { pointer in
-                Data(pointer)
+        struct RowEncodingScratch {
+            var buffers: [ByteBuffer?] = []
+            var lengths: [Int] = []
+
+            mutating func reset(expectedCount: Int) {
+                if buffers.capacity < expectedCount {
+                    buffers.reserveCapacity(expectedCount)
+                    lengths.reserveCapacity(expectedCount)
+                }
+                buffers.removeAll(keepingCapacity: true)
+                lengths.removeAll(keepingCapacity: true)
             }
         }
+
 
         func executeVoidStatement(_ sql: String) async throws {
             let statement = PostgresQuery(unsafeSQL: sql)
@@ -160,13 +166,23 @@ final class PostgresSession: DatabaseSession {
         let resolvedFetchSize = storedFetchSize >= 128 ? storedFetchSize : 4_096
         let configuredFetchSize = min(max(resolvedFetchSize, 128), 16_384)
         let backgroundFetchBaseline = max(streamingPreviewLimit, configuredFetchSize)
+
+        let storedRampMultiplier = UserDefaults.standard.integer(forKey: ResultStreamingFetchRampMultiplierDefaultsKey)
+        let resolvedRampMultiplier = storedRampMultiplier >= 1 ? storedRampMultiplier : 12
+        let rampMultiplier = min(max(resolvedRampMultiplier, 1), 64)
+
+        let storedRampMax = UserDefaults.standard.integer(forKey: ResultStreamingFetchRampMaxDefaultsKey)
+        let resolvedRampMax = storedRampMax >= 256 ? storedRampMax : 524_288
+        let rampCeiling = max(backgroundFetchBaseline, min(resolvedRampMax, 1_048_576))
+
         var dynamicBackgroundFetchSize = backgroundFetchBaseline
         let rampedBaselineForTotal: (Int) -> Int = { totalCount in
             var target = backgroundFetchBaseline
             if totalCount >= streamingPreviewLimit {
-                target = max(target, min(backgroundFetchBaseline * 12, 524_288))
+                let scaled = min(backgroundFetchBaseline * rampMultiplier, rampCeiling)
+                target = max(target, scaled)
             }
-            return min(target, 524_288)
+            return min(target, rampCeiling)
         }
 
         let client = self.client
@@ -257,37 +273,40 @@ final class PostgresSession: DatabaseSession {
                     let currentIndex = totalRowCount
                     let capturePreview = currentIndex < streamingPreviewLimit
 
-                    var rawCells: [Data?] = []
-                    rawCells.reserveCapacity(row.count)
-
-                    var previewValues: [String?]? = nil
+                    encodingScratch.reset(expectedCount: row.count)
+                    var totalEncodedLength = row.count
+                    if capturePreview {
+                        previewScratch.removeAll(keepingCapacity: true)
+                        previewScratch.reserveCapacity(row.count)
+                    }
 
                     let conversionStart = CFAbsoluteTimeGetCurrent()
-
-                    if capturePreview {
-                        var values: [String?] = []
-                        values.reserveCapacity(row.count)
-                        for cell in row {
-                            rawCells.append(rawData(for: cell))
-                            values.append(formatterContext.stringValue(for: cell))
+                    for cell in row {
+                        if capturePreview {
+                            previewScratch.append(formatterContext.stringValue(for: cell))
                         }
-                        previewValues = values
-                    } else {
-                        for cell in row {
-                            rawCells.append(rawData(for: cell))
+                        if var buffer = cell.bytes {
+                            let readable = buffer.readableBytes
+                            encodingScratch.buffers.append(buffer)
+                            encodingScratch.lengths.append(readable)
+                            totalEncodedLength &+= 4
+                            totalEncodedLength &+= readable
+                        } else {
+                            encodingScratch.buffers.append(nil)
+                            encodingScratch.lengths.append(-1)
                         }
                     }
 
                     let decodeDuration = CFAbsoluteTimeGetCurrent() - conversionStart
                     fetchDecodeDuration += decodeDuration
 
+                    let previewValues: [String?]? = capturePreview ? Array(previewScratch) : nil
                     if let values = previewValues {
                         if previewRows.count < streamingPreviewLimit {
                             previewRows.append(values)
                         }
                     }
 
-                    let encodedRow = ResultBinaryRowCodec.encodeRaw(cells: rawCells)
                     totalRowCount += 1
                     batchCount += 1
 
@@ -302,14 +321,41 @@ final class PostgresSession: DatabaseSession {
                         print(message)
                     }
 
-                    worker?.enqueue(
-                        .init(
+                    let rowBuffers = encodingScratch.buffers
+                    let rowLengths = encodingScratch.lengths
+
+                    if let worker {
+                        worker.enqueueRaw(
                             previewValues: previewValues,
-                            encodedRow: encodedRow,
+                            buffers: rowBuffers,
+                            lengths: rowLengths,
+                            totalLength: totalEncodedLength,
                             totalRowCount: totalRowCount,
                             decodeDuration: decodeDuration
                         )
-                    )
+                    } else {
+                        let encodedRow = ResultStreamBatchWorker.encodeBinaryRow(
+                            totalLength: totalEncodedLength,
+                            buffers: rowBuffers,
+                            lengths: rowLengths
+                        )
+                        proxiedHandler(
+                            QueryStreamUpdate(
+                                columns: columns,
+                                appendedRows: previewValues.map { [$0] } ?? [],
+                                encodedRows: [encodedRow],
+                                totalRowCount: totalRowCount,
+                                metrics: QueryStreamMetrics(
+                                    batchRowCount: 1,
+                                    loopElapsed: 0,
+                                    decodeDuration: decodeDuration,
+                                    totalElapsed: CFAbsoluteTimeGetCurrent() - operationStart,
+                                    cumulativeRowCount: totalRowCount
+                                ),
+                                rowRange: (totalRowCount - 1)..<totalRowCount
+                            )
+                        )
+                    }
 
                     if totalRowCount % 2048 == 0 {
                         await Task.yield()
@@ -370,34 +416,10 @@ final class PostgresSession: DatabaseSession {
                 }
 
                 if batchCount == fetchSize {
-                    if networkWait > 0.25, dynamicBackgroundFetchSize < 16_384 {
-                        if dynamicBackgroundFetchSize < 4_096 {
-                            dynamicBackgroundFetchSize = 4_096
-                        } else if dynamicBackgroundFetchSize < 8_192 {
-                            dynamicBackgroundFetchSize = 8_192
-                        } else {
-                            dynamicBackgroundFetchSize = 16_384
-                        }
-                    } else if networkWait < 0.12,
-                              dynamicBackgroundFetchSize > rampedBaseline {
-                        if dynamicBackgroundFetchSize > 524_288 {
-                            dynamicBackgroundFetchSize = 524_288
-                        } else if dynamicBackgroundFetchSize > 262_144 {
-                            dynamicBackgroundFetchSize = 262_144
-                        } else if dynamicBackgroundFetchSize > 131_072 {
-                            dynamicBackgroundFetchSize = 131_072
-                        } else if dynamicBackgroundFetchSize > 65_536 {
-                            dynamicBackgroundFetchSize = 65_536
-                        } else if dynamicBackgroundFetchSize > 32_768 {
-                            dynamicBackgroundFetchSize = 32_768
-                        } else if dynamicBackgroundFetchSize > 16_384 {
-                            dynamicBackgroundFetchSize = 16_384
-                        } else if dynamicBackgroundFetchSize > 8_192 {
-                            dynamicBackgroundFetchSize = 8_192
-                        } else if dynamicBackgroundFetchSize > 4_096 {
-                            dynamicBackgroundFetchSize = 4_096
-                        } else {
-                            dynamicBackgroundFetchSize = rampedBaseline
+                    if dynamicBackgroundFetchSize < rampCeiling {
+                        let increased = min(dynamicBackgroundFetchSize * 2, rampCeiling)
+                        if increased > dynamicBackgroundFetchSize {
+                            dynamicBackgroundFetchSize = increased
                         }
                     }
                 }
