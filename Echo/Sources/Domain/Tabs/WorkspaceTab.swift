@@ -301,6 +301,7 @@ final class QueryResultsGridState {
 
     private let initialVisibleRowBatch: Int
     private let previewRowLimit: Int
+    private let spoolActivationThreshold: Int
     private let spoolManager: ResultSpoolManager
     private var spoolHandle: ResultSpoolHandle?
     private var ingestionService: ResultStreamIngestionService?
@@ -372,7 +373,11 @@ final class QueryResultsGridState {
         self.previewRowLimit = normalizedPreview
         self.spoolManager = spoolManager
         self.performanceTracker = QueryPerformanceTracker(initialBatchTarget: self.initialVisibleRowBatch)
-        self.frontBufferLimit = max(self.initialVisibleRowBatch, self.previewRowLimit)
+        let spoolThresholdCandidate = max(normalizedInitial * 4, 1_024)
+        let activationCap = max(normalizedPreview, 8_192)
+        let resolvedActivation = min(max(normalizedPreview, spoolThresholdCandidate), activationCap)
+        self.spoolActivationThreshold = resolvedActivation
+        self.frontBufferLimit = max(self.initialVisibleRowBatch, self.spoolActivationThreshold)
         self.gridViewportForwardPrefetchRows = max(normalizedFetchSize * 2, self.previewRowLimit)
         self.gridViewportBackfillRows = max(self.initialVisibleRowBatch / 2, 128)
     }
@@ -743,7 +748,7 @@ final class QueryResultsGridState {
 
         refreshLivePerformanceReport()
 
-        if streamedRowCount >= previewRowLimit {
+        if streamedRowCount >= spoolActivationThreshold {
             streamingMode = .background
             if !isResultsOnly, visibleRowLimit != nil {
                 visibleRowLimit = nil
