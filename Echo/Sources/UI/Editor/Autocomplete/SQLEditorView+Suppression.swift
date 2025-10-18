@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import EchoSense
 
 extension SQLTextView {
     private var suppressionEnvironment: SQLAutocompleteRuleEngine.Environment { ruleEnvironment }
@@ -86,9 +87,10 @@ extension SQLTextView {
 
     func suppressedCompletionEntry(containing selection: NSRange, caretLocation: Int) -> (Int, SuppressedCompletion)? {
         guard selection.location != NSNotFound else { return nil }
+        let nsString = string as NSString
         for (index, entry) in suppressedCompletions.enumerated() {
             let tokenRange = entry.tokenRange
-            guard sqlRangeIsValid(tokenRange, upperBound: (string as NSString).length) else {
+            guard sqlRangeIsValid(tokenRange, upperBound: nsString.length) else {
                 continue
             }
 
@@ -97,7 +99,13 @@ extension SQLTextView {
                     return (index, entry)
                 }
             } else {
-                if caretLocation >= tokenRange.location && caretLocation <= NSMaxRange(tokenRange) {
+                let lowerBound = tokenRange.location
+                var upperBound = NSMaxRange(tokenRange)
+                if entry.allowTrailingWhitespace {
+                    let extraSpan = trailingWhitespaceSpan(after: upperBound, in: nsString)
+                    upperBound = min(nsString.length, upperBound + extraSpan)
+                }
+                if caretLocation >= lowerBound && caretLocation <= upperBound {
                     return (index, entry)
                 }
             }
@@ -183,6 +191,24 @@ extension SQLTextView {
         suppressedCompletions.append(suppression)
         updateCompletionIndicator()
         return suppression
+    }
+
+    private func trailingWhitespaceSpan(after index: Int, in string: NSString) -> Int {
+        guard index < string.length else { return 0 }
+        let whitespace = CharacterSet.whitespacesAndNewlines
+        var span = 0
+        var cursor = index
+        while cursor < string.length {
+            let value = string.character(at: cursor)
+            guard let scalar = UnicodeScalar(UInt32(value)) else { break }
+            if whitespace.contains(scalar) {
+                span += 1
+                cursor += 1
+            } else {
+                break
+            }
+        }
+        return span
     }
 
     func finalizeAppliedCompletion(for suggestion: SQLAutoCompletionSuggestion,

@@ -7,6 +7,15 @@ actor ResultStreamIngestionService {
     private let rowCache: ResultSpoolRowCache
     private let onSpoolReady: SpoolReadyHandler?
 
+#if DEBUG
+    private let debugID = String(UUID().uuidString.prefix(8))
+    private func debugLog(_ message: @autoclosure () -> String) {
+        print("[ResultStreamIngestionService][\(debugID)] \(message())")
+    }
+#else
+    private func debugLog(_ message: @autoclosure () -> String) {}
+#endif
+
     private var spoolHandle: ResultSpoolHandle?
     private var hasNotifiedReady = false
     private var totalRowCount: Int = 0
@@ -40,6 +49,10 @@ actor ResultStreamIngestionService {
         guard !update.appendedRows.isEmpty || !update.encodedRows.isEmpty else { return }
 
         do {
+#if DEBUG
+            let enqueueStart = CFAbsoluteTimeGetCurrent()
+            debugLog("enqueue start preview=\(isPreview) appended=\(update.appendedRows.count) encoded=\(update.encodedRows.count) total=\(update.totalRowCount)")
+#endif
             let appendCountEstimate = max(update.appendedRows.count, update.encodedRows.count)
             let resolvedRange: Range<Int>? = {
                 if let range = update.rowRange, range.count == appendCountEstimate {
@@ -100,6 +113,9 @@ actor ResultStreamIngestionService {
             logDiagnostics(event: enqueueEvent, rows: appendCount, metrics: metrics)
 #endif
             appendTask = Task.detached(priority: .utility) {
+#if DEBUG
+                await self.debugLog("append task start preview=\(isPreview) rows=\(appendCount)")
+#endif
                 if let previousTask {
                     await previousTask.value
                 }
@@ -123,6 +139,8 @@ actor ResultStreamIngestionService {
 #endif
                 }
 #if DEBUG
+                let duration = CFAbsoluteTimeGetCurrent() - enqueueStart
+                await self.debugLog("append task finished preview=\(isPreview) rows=\(appendCount) duration=\(String(format: "%.3f", duration))")
                 let flushEvent = isPreview ? "flush-preview" : "flush-background"
                 await self.recordAppendCompletion(rows: appendCount, metrics: metrics, event: flushEvent)
 #endif
@@ -234,12 +252,18 @@ actor ResultStreamIngestionService {
         let handle = try await spoolManager.makeSpoolHandle()
         spoolHandle = handle
         await notifyHandleReady(handle)
+#if DEBUG
+        debugLog("ensureHandle created new spool id=\(handle.id.uuidString.prefix(8))")
+#endif
         return handle
     }
 
     private func notifyHandleReady(_ handle: ResultSpoolHandle) async {
         guard !hasNotifiedReady else { return }
         hasNotifiedReady = true
+#if DEBUG
+        debugLog("notifyHandleReady spool id=\(handle.id.uuidString.prefix(8))")
+#endif
         if let onSpoolReady {
             await onSpoolReady(handle)
         }

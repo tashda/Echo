@@ -1,6 +1,7 @@
 import SwiftUI
 import Foundation
 import UniformTypeIdentifiers
+import EchoSense
 #if os(macOS)
 import AppKit
 #else
@@ -1194,7 +1195,7 @@ private struct QueryEditorContainer: View {
     private var editorCompletionContext: SQLEditorCompletionContext? {
         let session = connectionSession
         let baseConnection = session?.connection ?? tab.connection
-        let databaseType = baseConnection.databaseType
+        let databaseType = EchoSenseDatabaseType(baseConnection.databaseType)
         let selectedDatabase = normalized(session?.selectedDatabaseName)
             ?? normalized(baseConnection.database)
         let structure = session?.databaseStructure
@@ -1206,11 +1207,11 @@ private struct QueryEditorContainer: View {
             databaseType: databaseType,
             selectedDatabase: selectedDatabase,
             defaultSchema: defaultSchema,
-            structure: structure
+            structure: structure.map { $0.toEchoSense() }
         )
     }
 
-    private func defaultSchema(for type: DatabaseType) -> String? {
+    private func defaultSchema(for type: EchoSenseDatabaseType) -> String? {
         switch type {
         case .microsoftSQL:
             return "dbo"

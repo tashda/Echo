@@ -291,22 +291,49 @@ struct QueryResultsTableView: NSViewRepresentable {
             let rowCountDecreased = currentRowCount < lastRowCount
             let rowCountIncreased = currentRowCount > lastRowCount
 
-            var performedFullReload = false
+#if DEBUG
+            print("[QueryResultsTableView] update rowCount=\(currentRowCount) displayed=\(parent.query.displayedRowCount) tokenChanged=\(tokenChanged) columnsChanged=\(columnsChanged) mode=\(parent.query.streamingMode)")
+#endif
 
-            if columnsChanged || sortChanged || rowOrderChanged || rowCountDecreased || (tokenChanged && !rowCountIncreased) {
-                tableView.reloadData()
+            var performedFullReload = false
+            var reloadWorkItem: DispatchWorkItem?
+            var rowCountUpdateWorkItem: DispatchWorkItem?
+
+            if columnsChanged || sortChanged || rowOrderChanged || rowCountDecreased {
                 performedFullReload = true
+                reloadWorkItem = DispatchWorkItem { [weak tableView] in
+                    guard let tableView else { return }
+                    tableView.reloadData()
+#if DEBUG
+                    print("[QueryResultsTableView] reloadData executed (columnsChanged=\(columnsChanged) sortChanged=\(sortChanged) rowOrderChanged=\(rowOrderChanged) rowCountDecreased=\(rowCountDecreased) tokenChanged=\(tokenChanged))")
+#endif
+                    tableView.layoutSubtreeIfNeeded()
+                }
             } else if rowCountIncreased {
                 let range = lastRowCount..<currentRowCount
                 if !range.isEmpty {
                     if tableView.tableColumns.isEmpty {
-                        tableView.reloadData()
                         performedFullReload = true
+                        reloadWorkItem = DispatchWorkItem { [weak tableView] in
+                            guard let tableView else { return }
+                            tableView.reloadData()
+#if DEBUG
+                            print("[QueryResultsTableView] reloadData due to empty columns rowIncrease range=\(range)")
+#endif
+                            tableView.layoutSubtreeIfNeeded()
+                        }
                     } else {
-                        // Let NSTableView know the count changed; it will request visible rows lazily.
-                        tableView.noteNumberOfRowsChanged()
+                        rowCountUpdateWorkItem = DispatchWorkItem { [weak tableView] in
+                            guard let tableView else { return }
+                            tableView.noteNumberOfRowsChanged()
+#if DEBUG
+                            print("[QueryResultsTableView] noteNumberOfRowsChanged range=\(range)")
+#endif
+                        }
                     }
                 }
+            } else if tokenChanged {
+                // token changed but no structural difference; just update caches below
             }
 
             if columnsChanged {
@@ -319,10 +346,6 @@ struct QueryResultsTableView: NSViewRepresentable {
             cachedRowOrder = currentRowOrder
             lastRowCount = currentRowCount
             lastResultTokenSnapshot = dirtyToken
-
-            if performedFullReload {
-                tableView.layoutSubtreeIfNeeded()
-            }
 
             if rowOrderChanged {
                 setSelectionRegion(nil, tableView: tableView)
@@ -347,7 +370,19 @@ struct QueryResultsTableView: NSViewRepresentable {
             if lastForeignKeyDisplayMode != parent.foreignKeyDisplayMode || lastForeignKeyInspectorBehavior != parent.foreignKeyInspectorBehavior {
                 lastForeignKeyDisplayMode = parent.foreignKeyDisplayMode
                 lastForeignKeyInspectorBehavior = parent.foreignKeyInspectorBehavior
-                tableView.reloadData()
+                if reloadWorkItem == nil {
+                    performedFullReload = true
+                    reloadWorkItem = DispatchWorkItem { [weak tableView] in
+                        guard let tableView else { return }
+                        tableView.reloadData()
+#if DEBUG
+                        print("[QueryResultsTableView] reloadData executed (foreign key display mode change)")
+#endif
+                        tableView.layoutSubtreeIfNeeded()
+                    }
+                } else {
+                    performedFullReload = true
+                }
                 notifyForeignKeySelection(selectionRegion)
             }
 
@@ -355,8 +390,17 @@ struct QueryResultsTableView: NSViewRepresentable {
                 deactivateActiveSelectableField(in: tableView)
                 cachedFontStyles.removeAll(keepingCapacity: true)
                 applyHeaderStyle(to: tableView)
-                if !performedFullReload {
-                    tableView.reloadData()
+                if reloadWorkItem == nil {
+                    performedFullReload = true
+                    reloadWorkItem = DispatchWorkItem { [weak tableView] in
+                        guard let tableView else { return }
+                        tableView.reloadData()
+#if DEBUG
+                        print("[QueryResultsTableView] reloadData executed (palette change)")
+#endif
+                        tableView.layoutSubtreeIfNeeded()
+                    }
+                } else {
                     performedFullReload = true
                 }
                 refreshVisibleRowBackgrounds(tableView)
@@ -375,6 +419,12 @@ struct QueryResultsTableView: NSViewRepresentable {
                 state.cachedSort = cachedSort
                 state.lastRowCount = lastRowCount
                 state.lastResultToken = dirtyToken
+            }
+
+            if let reloadWorkItem {
+                DispatchQueue.main.async(execute: reloadWorkItem)
+            } else if let rowCountUpdateWorkItem {
+                DispatchQueue.main.async(execute: rowCountUpdateWorkItem)
             }
 
             evaluatePaginationForVisibleRows()

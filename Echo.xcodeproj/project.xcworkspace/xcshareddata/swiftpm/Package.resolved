@@ -1,5 +1,5 @@
 {
-  "originHash" : "59d11a4981c975a9d78eeead8d46a00afbd6720a7074b384cc35d57a67a2a82a",
+  "originHash" : "25a89b7aab16332cac517469be30cd63eaeebc3d2f96846917f9ce9e1b359c5b",
   "pins" : [
     {
       "identity" : "mysql-nio",
@@ -11,12 +11,12 @@
       }
     },
     {
-      "identity" : "postgres-nio",
+      "identity" : "postgres-nio-copyout",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/vapor/postgres-nio.git",
+      "location" : "https://github.com/tashda/postgres-nio-copyout.git",
       "state" : {
-        "revision" : "4795a0b0762c5cca843a720969c9dfee378e5120",
-        "version" : "1.29.0"
+        "branch" : "main",
+        "revision" : "4795a0b0762c5cca843a720969c9dfee378e5120"
       }
     },
     {

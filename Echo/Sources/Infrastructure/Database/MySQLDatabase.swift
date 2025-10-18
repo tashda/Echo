@@ -204,14 +204,15 @@ final class MySQLSession: DatabaseSession {
 
             let encodedRow = ResultBinaryRowCodec.encodeRaw(cells: rawCells)
 
-            worker?.enqueue(
-                .init(
+            if let worker {
+                let payload = ResultStreamBatchWorker.Payload(
                     previewValues: previewValues,
                     storage: .encoded(encodedRow),
                     totalRowCount: totalRowCount,
                     decodeDuration: decodeDuration
                 )
-            )
+                worker.enqueue(payload)
+            }
         }
 
         do {

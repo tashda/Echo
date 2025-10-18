@@ -3,7 +3,6 @@ import NIOCore
 import NIOFoundationCompat
 import PostgresNIO
 import Logging
-import Atomics
 
 typealias PostgresQueryResult = PostgresRowSequence
 
@@ -123,38 +122,25 @@ final class PostgresSession: DatabaseSession {
     }
 
     private func streamQuery(sanitizedSQL: String, progressHandler: @escaping QueryProgressHandler) async throws -> QueryResultSet {
-        let formatterContext = CellFormatterContext()
-
         let logger = self.logger
         let operationStart = CFAbsoluteTimeGetCurrent()
+#if DEBUG
+        let streamDebugID = String(UUID().uuidString.prefix(8))
+        func debugLog(_ message: @autoclosure () -> String) {
+            let elapsed = CFAbsoluteTimeGetCurrent() - operationStart
+            print("[PostgresStream][\(streamDebugID)] t=\(String(format: "%.3f", elapsed)) \(message())")
+        }
+#else
+        func debugLog(_ message: @autoclosure () -> String) {}
+#endif
         var columns: [ColumnInfo] = []
         let streamingPreviewLimit = 512
-        let metricsPulseLimit = min(max(streamingPreviewLimit * 4, streamingPreviewLimit), 8_192)
-        let maxFlushLatency: TimeInterval = 0.5
+        let formatterContext = CellFormatterContext()
         var previewRows: [[String?]] = []
         previewRows.reserveCapacity(streamingPreviewLimit)
         var totalRowCount = 0
-        var worker: ResultStreamBatchWorker?
-        let firstBatchLogged = ManagedAtomic(false)
+        var firstBatchDelivered = false
         var firstRowLogged = false
-        var previewScratch: [String?] = []
-        previewScratch.reserveCapacity(streamingPreviewLimit)
-        var encodingScratch = RowEncodingScratch()
-
-        struct RowEncodingScratch {
-            var buffers: [ByteBuffer?] = []
-            var lengths: [Int] = []
-
-            mutating func reset(expectedCount: Int) {
-                if buffers.capacity < expectedCount {
-                    buffers.reserveCapacity(expectedCount)
-                    lengths.reserveCapacity(expectedCount)
-                }
-                buffers.removeAll(keepingCapacity: true)
-                lengths.removeAll(keepingCapacity: true)
-            }
-        }
-
 
         func executeVoidStatement(_ sql: String) async throws {
             let statement = PostgresQuery(unsafeSQL: sql)
@@ -176,7 +162,7 @@ final class PostgresSession: DatabaseSession {
         let storedRampMax = UserDefaults.standard.integer(forKey: ResultStreamingFetchRampMaxDefaultsKey)
         let resolvedRampMax = storedRampMax >= 256 ? storedRampMax : 524_288
         let rampCeiling = max(backgroundFetchBaseline, min(resolvedRampMax, 1_048_576))
-        let maxAutoFetchSize = min(rampCeiling, 65_536)
+        let maxAutoFetchSize = min(rampCeiling, 262_144)
 
         var dynamicBackgroundFetchSize = backgroundFetchBaseline
         let rampedBaselineForTotal: (Int) -> Int = { totalCount in
@@ -194,6 +180,7 @@ final class PostgresSession: DatabaseSession {
         var transactionBegan = false
         var cursorActive = false
 
+        debugLog("BEGIN transaction")
         try await executeVoidStatement("BEGIN")
         transactionBegan = true
 
@@ -202,6 +189,7 @@ final class PostgresSession: DatabaseSession {
 
         let declareSQL = "DECLARE \(cursorName) CURSOR FOR \(sanitizedSQL)"
             try await executeVoidStatement(declareSQL)
+            debugLog("Declared cursor \(cursorName) for sanitized SQL (length=\(sanitizedSQL.count))")
             cursorActive = true
 
             let readyTimestamp = CFAbsoluteTimeGetCurrent()
@@ -213,27 +201,7 @@ final class PostgresSession: DatabaseSession {
             print(readyMessage)
 
             var fetchSize = previewFetchSize
-
-            let proxiedHandler: QueryProgressHandler = { update in
-                guard !update.appendedRows.isEmpty || !update.encodedRows.isEmpty else {
-                    progressHandler(update)
-                    return
-                }
-
-                if firstBatchLogged.compareExchange(expected: false, desired: true, ordering: .relaxed).exchanged {
-                    let now = CFAbsoluteTimeGetCurrent()
-                    let batchSize = max(update.encodedRows.count, update.appendedRows.count)
-                    let message = String(
-                        format: "[PostgresStream] first-batch rows=%d latency=%.3fs",
-                        batchSize,
-                        now - operationStart
-                    )
-                    logger.debug(.init(stringLiteral: message))
-                    print(message)
-                }
-
-                progressHandler(update)
-            }
+            debugLog("Fetch loop start initial fetchSize=\(fetchSize)")
 
             fetchLoop: while true {
                 try Task.checkCancellation()
@@ -241,8 +209,13 @@ final class PostgresSession: DatabaseSession {
                 let fetchStart = CFAbsoluteTimeGetCurrent()
                 let fetchSQL = "FETCH FORWARD \(fetchSize) FROM \(cursorName)"
                 let fetchQuery = PostgresQuery(unsafeSQL: fetchSQL)
+#if DEBUG
+                debugLog("Issuing fetch size=\(fetchSize) currentTotal=\(totalRowCount)")
+#endif
                 let batchSequence = try await client.query(fetchQuery, logger: logger)
 
+                var batchRows: [[String?]] = []
+                batchRows.reserveCapacity(fetchSize)
                 var batchCount = 0
                 var fetchDecodeDuration: TimeInterval = 0
                 var nextFetchSize = fetchSize
@@ -261,57 +234,24 @@ final class PostgresSession: DatabaseSession {
                                 maxLength: nil
                             ))
                         }
-                        if worker == nil {
-                            worker = ResultStreamBatchWorker(
-                                label: "dk.tippr.echo.postgres.streamWorker",
-                                columns: columns,
-                                streamingPreviewLimit: streamingPreviewLimit,
-                                maxFlushLatency: maxFlushLatency,
-                                operationStart: operationStart,
-                                progressHandler: proxiedHandler
-                            )
-                        }
-                    }
-
-                    let currentIndex = totalRowCount
-                    let capturePreview = currentIndex < streamingPreviewLimit
-
-                    encodingScratch.reset(expectedCount: row.count)
-                    var totalEncodedLength = row.count
-                    if capturePreview {
-                        previewScratch.removeAll(keepingCapacity: true)
-                        previewScratch.reserveCapacity(row.count)
                     }
 
                     let conversionStart = CFAbsoluteTimeGetCurrent()
+                    var rowValues: [String?] = []
+                    rowValues.reserveCapacity(row.count)
                     for cell in row {
-                        if capturePreview {
-                            previewScratch.append(formatterContext.stringValue(for: cell))
-                        }
-                        if let buffer = cell.bytes {
-                            let readable = buffer.readableBytes
-                            encodingScratch.buffers.append(buffer)
-                            encodingScratch.lengths.append(readable)
-                            totalEncodedLength &+= 4
-                            totalEncodedLength &+= readable
-                        } else {
-                            encodingScratch.buffers.append(nil)
-                            encodingScratch.lengths.append(-1)
-                        }
+                        rowValues.append(formatterContext.stringValue(for: cell))
                     }
-
                     let decodeDuration = CFAbsoluteTimeGetCurrent() - conversionStart
                     fetchDecodeDuration += decodeDuration
 
-                    let previewValues: [String?]? = capturePreview ? Array(previewScratch) : nil
-                    if let values = previewValues {
-                        if previewRows.count < streamingPreviewLimit {
-                            previewRows.append(values)
-                        }
-                    }
-
                     totalRowCount += 1
                     batchCount += 1
+                    batchRows.append(rowValues)
+
+                    if previewRows.count < streamingPreviewLimit {
+                        previewRows.append(rowValues)
+                    }
 
                     if !firstRowLogged {
                         firstRowLogged = true
@@ -322,61 +262,6 @@ final class PostgresSession: DatabaseSession {
                         )
                         logger.debug(.init(stringLiteral: message))
                         print(message)
-                    }
-
-                    let rowBuffers = encodingScratch.buffers
-                    let rowLengths = encodingScratch.lengths
-
-                    if totalRowCount <= metricsPulseLimit {
-                        let pulseMetrics = QueryStreamMetrics(
-                            batchRowCount: 0,
-                            loopElapsed: 0,
-                            decodeDuration: decodeDuration,
-                            totalElapsed: CFAbsoluteTimeGetCurrent() - operationStart,
-                            cumulativeRowCount: totalRowCount
-                        )
-                        let pulseUpdate = QueryStreamUpdate(
-                            columns: columns,
-                            appendedRows: [],
-                            encodedRows: [],
-                            totalRowCount: totalRowCount,
-                            metrics: pulseMetrics,
-                            rowRange: nil
-                        )
-                        proxiedHandler(pulseUpdate)
-                    }
-
-                    if let worker {
-                        worker.enqueueRaw(
-                            previewValues: previewValues,
-                            buffers: rowBuffers,
-                            lengths: rowLengths,
-                            totalLength: totalEncodedLength,
-                            totalRowCount: totalRowCount,
-                            decodeDuration: decodeDuration
-                        )
-                    } else {
-                        let encodedRow = ResultStreamBatchWorker.encodeBinaryRow(
-                            totalLength: totalEncodedLength,
-                            buffers: rowBuffers,
-                            lengths: rowLengths
-                        )
-                        proxiedHandler(
-                            QueryStreamUpdate(
-                                columns: columns,
-                                appendedRows: previewValues.map { [$0] } ?? [],
-                                encodedRows: [encodedRow],
-                                totalRowCount: totalRowCount,
-                                metrics: QueryStreamMetrics(
-                                    batchRowCount: 1,
-                                    loopElapsed: 0,
-                                    decodeDuration: decodeDuration,
-                                    totalElapsed: CFAbsoluteTimeGetCurrent() - operationStart,
-                                    cumulativeRowCount: totalRowCount
-                                ),
-                                rowRange: (totalRowCount - 1)..<totalRowCount
-                            )
-                        )
                     }
 
                     if totalRowCount % 2048 == 0 {
@@ -395,31 +280,53 @@ final class PostgresSession: DatabaseSession {
                 )
                 logger.debug(.init(stringLiteral: fetchMessage))
                 print(fetchMessage)
-
-                if worker != nil {
-                    let fetchMetrics = QueryStreamMetrics(
-                        batchRowCount: batchCount,
-                        loopElapsed: fetchDuration,
-                        decodeDuration: fetchDecodeDuration,
-                        totalElapsed: CFAbsoluteTimeGetCurrent() - operationStart,
-                        cumulativeRowCount: totalRowCount,
-                        fetchRequestRowCount: fetchSize,
-                        fetchRowCount: batchCount,
-                        fetchDuration: fetchDuration,
-                        fetchWait: networkWait
-                    )
-                    let update = QueryStreamUpdate(
-                        columns: columns,
-                        appendedRows: [],
-                        encodedRows: [],
-                        totalRowCount: totalRowCount,
-                        metrics: fetchMetrics
-                    )
-                    proxiedHandler(update)
-                }
+#if DEBUG
+                debugLog("Fetch completed rows=\(batchCount) totalRowCount=\(totalRowCount) decode=\(String(format: "%.3f", fetchDecodeDuration)) wait=\(String(format: "%.3f", networkWait))")
+#endif
 
                 if batchCount == 0 {
                     break fetchLoop
+                }
+
+                let rowRange = (totalRowCount - batchCount)..<totalRowCount
+                let metrics = QueryStreamMetrics(
+                    batchRowCount: batchCount,
+                    loopElapsed: fetchDuration,
+                    decodeDuration: fetchDecodeDuration,
+                    totalElapsed: CFAbsoluteTimeGetCurrent() - operationStart,
+                    cumulativeRowCount: totalRowCount,
+                    fetchRequestRowCount: fetchSize,
+                    fetchRowCount: batchCount,
+                    fetchDuration: fetchDuration,
+                    fetchWait: networkWait
+                )
+
+                let update = QueryStreamUpdate(
+                    columns: columns,
+                    appendedRows: batchRows,
+                    encodedRows: [],
+                    totalRowCount: totalRowCount,
+                    metrics: metrics,
+                    rowRange: rowRange
+                )
+
+                if !firstBatchDelivered {
+                    firstBatchDelivered = true
+                    let now = CFAbsoluteTimeGetCurrent()
+                    let message = String(
+                        format: "[PostgresStream] first-batch rows=%d latency=%.3fs",
+                        batchCount,
+                        now - operationStart
+                    )
+                    logger.debug(.init(stringLiteral: message))
+                    print(message)
+#if DEBUG
+                    debugLog("First batch handler rows=\(batchCount)")
+#endif
+                }
+
+                Task { @MainActor in
+                    progressHandler(update)
                 }
 
                 if batchCount < fetchSize {
@@ -454,8 +361,6 @@ final class PostgresSession: DatabaseSession {
                 await Task.yield()
             }
 
-            worker?.finish(totalRowCount: totalRowCount)
-
             if cursorActive {
                 try await executeVoidStatement("CLOSE \(cursorName)")
                 cursorActive = false
@@ -465,8 +370,6 @@ final class PostgresSession: DatabaseSession {
                 transactionBegan = false
             }
         } catch {
-            worker?.finish(totalRowCount: totalRowCount)
-
             if cursorActive {
                 try? await executeVoidStatement("CLOSE \(cursorName)")
             }
@@ -488,6 +391,9 @@ final class PostgresSession: DatabaseSession {
         )
         logger.debug(.init(stringLiteral: completionMessage))
         print(completionMessage)
+#if DEBUG
+        debugLog("Streaming complete totalRows=\(totalRowCount)")
+#endif
 
         let resolvedColumns = columns.isEmpty
             ? [ColumnInfo(name: "result", dataType: "text")]

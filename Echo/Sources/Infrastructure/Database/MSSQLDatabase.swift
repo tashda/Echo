@@ -212,14 +212,15 @@ final class MSSQLSession: DatabaseSession {
             let previewForWorker: [String?]? = totalRowCount <= streamingPreviewLimit ? finalRow : nil
             let encodedRow = ResultBinaryRowCodec.encode(row: finalRow)
 
-            worker?.enqueue(
-                .init(
+            if let worker {
+                let payload = ResultStreamBatchWorker.Payload(
                     previewValues: previewForWorker,
                     storage: .encoded(encodedRow),
                     totalRowCount: totalRowCount,
                     decodeDuration: decodeDuration
                 )
-            )
+                worker.enqueue(payload)
+            }
         })
 
         do {

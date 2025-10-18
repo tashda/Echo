@@ -1,7 +1,8 @@
 import Foundation
+import NIOCore
 
 actor ResultSpoolHandle {
-    private static let newlineData = Data([0x0A])
+    private static let newlineByte: UInt8 = 0x0A
     let id: UUID
     let directory: URL
     private(set) var metadata: ResultSpoolMetadata
@@ -18,8 +19,17 @@ actor ResultSpoolHandle {
     private var headerLength: UInt64 = 0
     private var transientDispatchTask: Task<Void, Never>?
     private var lastTransientEmission: UInt64 = 0
-    private let transientDispatchInterval: UInt64 = 20_000_000 // 20 ms trailing flush
-    private let transientImmediateInterval: UInt64 = 5_000_000  // 5 ms (~200 Hz)
+    private let transientDispatchInterval: UInt64 = 80_000_000 // 80 ms trailing flush
+    private let transientImmediateInterval: UInt64 = 25_000_000  // 25 ms (~40 Hz)
+
+#if DEBUG
+    private let debugID = String(UUID().uuidString.prefix(8))
+    private func debugLog(_ message: @autoclosure () -> String) {
+        print("[ResultSpoolHandle][\(debugID)][spool=\(id.uuidString.prefix(8))] \(message())")
+    }
+#else
+    private func debugLog(_ message: @autoclosure () -> String) {}
+#endif
 
     private struct ChunkRecord: Sendable {
         let startRow: Int
@@ -92,10 +102,18 @@ actor ResultSpoolHandle {
             continuation.onTermination = { [weak self] _ in
                 Task {
                     await self?.removeContinuation(identifier)
+#if DEBUG
+                    if let self {
+                        await self.debugLog("statsStream terminated id=\(identifier.uuidString.prefix(8))")
+                    }
+#endif
                 }
             }
             Task {
                 await self.addContinuation(identifier, continuation)
+#if DEBUG
+                await self.debugLog("statsStream subscribed id=\(identifier.uuidString.prefix(8)) continuations=\(self.statContinuations.count)")
+#endif
             }
         }
     }
@@ -107,6 +125,9 @@ actor ResultSpoolHandle {
 
     private func removeContinuation(_ id: UUID) async {
         statContinuations.removeValue(forKey: id)
+#if DEBUG
+        debugLog("statsStream removed id=\(id.uuidString.prefix(8)) remaining=\(statContinuations.count)")
+#endif
     }
 
     func append(
@@ -123,6 +144,10 @@ actor ResultSpoolHandle {
         if !headerWritten {
             try writeHeader(columns: columns, using: writeHandle)
         }
+#if DEBUG
+        let appendStart = CFAbsoluteTimeGetCurrent()
+        debugLog("append start rows=\(rows.count) encoded=\(encodedRows.count) rowRange=\(String(describing: rowRange))")
+#endif
 
         let startRow: Int
         if let range = rowRange {
@@ -134,7 +159,6 @@ actor ResultSpoolHandle {
             startRow = metadata.totalRowCount
         }
 
-        var bytesWritten: UInt64 = 0
         let appendCount = max(rows.count, encodedRows.count)
         guard appendCount > 0 else { return }
 
@@ -148,49 +172,28 @@ actor ResultSpoolHandle {
             payloads = rows.map { ResultBinaryRowCodec.encode(row: $0) }
         }
 
+        let chunkStartOffset = fileOffset
         var buffer = Data()
-        var estimatedCapacity = 0
-        for payload in payloads {
-            let rowBytes = payload.data.count + Self.newlineData.count
-            if estimatedCapacity <= Int.max - rowBytes {
-                estimatedCapacity += rowBytes
-            } else {
-                estimatedCapacity = Int.max
-                break
-            }
-        }
-        if estimatedCapacity > 0 {
-            buffer.reserveCapacity(estimatedCapacity)
-        }
-        var currentOffset = fileOffset
+        buffer.reserveCapacity(payloads.reduce(0) { $0 + bytesForPayload($1) + 1 })
 
         for payload in payloads {
-            let data = payload.data
-            let recordLength = UInt64(data.count)
-            let rowBytes = recordLength + UInt64(Self.newlineData.count)
-
-            buffer.append(data)
-            buffer.append(Self.newlineData)
-
-            bytesWritten += rowBytes
-            rowLengths.append(UInt32(clamping: recordLength))
-            currentOffset += rowBytes
-
-            metadata.cumulativeBytes += rowBytes
+            let rowData = payload.data
+            buffer.append(rowData)
+            buffer.append(Self.newlineByte)
+            rowLengths.append(UInt32(clamping: rowData.count))
+            metadata.cumulativeBytes &+= UInt64(rowData.count + 1)
             metadata.updatedAt = Date()
-
             emitTransientStatsIfAppropriate()
         }
 
-        if !buffer.isEmpty {
-            writeHandle.write(buffer)
-            fileOffset = currentOffset
-        }
+        writeHandle.write(buffer)
+        let bytesWritten = UInt64(buffer.count)
+        fileOffset &+= bytesWritten
 
         let chunkRecord = ChunkRecord(
             startRow: startRow,
             rowCount: payloads.count,
-            offset: fileOffset - UInt64(bytesWritten),
+            offset: chunkStartOffset,
             byteLength: bytesWritten,
             rowLengths: rowLengths
         )
@@ -204,6 +207,19 @@ actor ResultSpoolHandle {
         totalBytesWritten += bytesWritten
         appendInMemoryRows(rows)
         persistStats(lastBatch: payloads.count, metrics: metrics, isFinished: false)
+#if DEBUG
+        let duration = CFAbsoluteTimeGetCurrent() - appendStart
+        debugLog("append finished batchCount=\(payloads.count) totalRowCount=\(metadata.totalRowCount) bytes=\(bytesWritten) duration=\(String(format: "%.3f", duration))")
+#endif
+    }
+
+    private func bytesForPayload(_ payload: ResultBinaryRow) -> Int {
+        switch payload.storage {
+        case .data(let data):
+            return data.count
+        case .raw(let raw):
+            return raw.totalLength
+        }
     }
 
     func markFinished(commandTag: String?, metrics: QueryStreamMetrics?) throws {
@@ -214,6 +230,9 @@ actor ResultSpoolHandle {
         persistMetadata()
         persistStats(lastBatch: 0, metrics: metrics, isFinished: true)
         try writeHandle?.synchronize()
+#if DEBUG
+        debugLog("markFinished commandTag=\(String(describing: commandTag)) totalRowCount=\(metadata.totalRowCount)")
+#endif
     }
 
     func loadRows(offset: Int, limit: Int) throws -> [[String?]] {
@@ -351,7 +370,7 @@ actor ResultSpoolHandle {
             for index in 0..<localStart {
                 if index >= chunk.rowLengths.count { break }
                 cursor &+= Int(chunk.rowLengths[index])
-                cursor &+= Int(Self.newlineData.count)
+                cursor &+= 1
             }
         }
 
@@ -365,7 +384,7 @@ actor ResultSpoolHandle {
             let slice = data[cursor..<upper]
             let decodedRow = decodeRowData(Data(slice))
             rows.append(decodedRow)
-            cursor = upper + Int(Self.newlineData.count)
+            cursor = upper + 1
         }
 
         return rows
@@ -438,8 +457,8 @@ actor ResultSpoolHandle {
         let encoder = makeJSONEncoder()
         let headerData = try encoder.encode(payload)
         handle.write(headerData)
-        handle.write(Self.newlineData)
-        headerLength = UInt64(headerData.count + Self.newlineData.count)
+        handle.write(Data([Self.newlineByte]))
+        headerLength = UInt64(headerData.count + 1)
         fileOffset += headerLength
         metadata.cumulativeBytes += headerLength
         totalBytesWritten += headerLength
@@ -461,7 +480,7 @@ actor ResultSpoolHandle {
     private func persistMetadata() {
         let snapshot = metadata
         let metaURL = directory.appendingPathComponent("meta.json")
-        Task { @MainActor in
+        Task.detached(priority: .utility) {
             let encoder = JSONEncoder()
             encoder.outputFormatting = []
             encoder.dateEncodingStrategy = .iso8601
@@ -477,7 +496,7 @@ actor ResultSpoolHandle {
     private func persistStats(lastBatch: Int, metrics: QueryStreamMetrics?, isFinished: Bool) {
         let stats = currentStats(lastBatch: lastBatch, metrics: metrics, isFinished: isFinished)
         let statsURL = directory.appendingPathComponent("stats.json")
-        Task { @MainActor in
+        Task.detached(priority: .utility) {
             let encoder = JSONEncoder()
             encoder.outputFormatting = []
             encoder.dateEncodingStrategy = .iso8601

@@ -1,4 +1,5 @@
 import Foundation
+import NIOCore
 
 let ResultStreamingFetchSizeDefaultsKey = "dk.tippr.echo.streaming.fetchSize"
 let ResultStreamingFetchRampMultiplierDefaultsKey = "dk.tippr.echo.streaming.fetchRampMultiplier"
@@ -444,10 +445,62 @@ public struct QueryStreamMetrics: Sendable, Codable {
 }
 
 public struct ResultBinaryRow: Sendable {
-    public let data: Data
+    public enum Storage: Sendable {
+        case data(Data)
+        case raw(Raw)
+    }
+
+    public struct Raw: @unchecked Sendable {
+        public let buffers: [ByteBuffer?]
+        public let lengths: [Int]
+        public let totalLength: Int
+
+        public init(buffers: [ByteBuffer?], lengths: [Int], totalLength: Int) {
+            self.buffers = buffers
+            self.lengths = lengths
+            self.totalLength = totalLength
+        }
+    }
+
+    public let storage: Storage
 
     public nonisolated init(data: Data) {
-        self.data = data
+        self.storage = .data(data)
+    }
+
+    internal nonisolated init(raw: Raw) {
+        self.storage = .raw(raw)
+    }
+
+    public nonisolated var data: Data {
+        switch storage {
+        case .data(let data):
+            return data
+        case .raw(let raw):
+            var result = Data()
+            result.reserveCapacity(raw.totalLength)
+
+            var flagNull: UInt8 = 0x00
+            var flagValue: UInt8 = 0x01
+
+            for (index, length) in raw.lengths.enumerated() {
+                if length < 0 {
+                    result.append(&flagNull, count: 1)
+                    continue
+                }
+
+                result.append(&flagValue, count: 1)
+                var le = UInt32(length).littleEndian
+                withUnsafeBytes(of: &le) { pointer in
+                    result.append(pointer.bindMemory(to: UInt8.self))
+                }
+                if length > 0, let buffer = raw.buffers[index] {
+                    var copy = buffer
+                    result.append(contentsOf: copy.readableBytesView)
+                }
+            }
+            return result
+        }
     }
 }
 
