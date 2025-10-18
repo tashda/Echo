@@ -86,7 +86,7 @@ final class ResultStreamBatchWorker: @unchecked Sendable {
     }
 
     nonisolated func finish(totalRowCount: Int) {
-        queue.sync {
+        queue.async {
             self.flush(totalRowCount: totalRowCount)
         }
     }
@@ -101,7 +101,10 @@ final class ResultStreamBatchWorker: @unchecked Sendable {
         batchDecodeDuration += payload.decodeDuration
 
         let elapsed = CFAbsoluteTimeGetCurrent() - lastFlushTimestamp
-        let policy = flushPolicy(for: payload.totalRowCount)
+        let policy = flushPolicy(
+            totalCount: payload.totalRowCount,
+            hasPreviewRows: !pendingPreviewRows.isEmpty
+        )
         let pendingCount = pendingRows.count
 
         let meetsThreshold = pendingCount >= policy.threshold
@@ -207,14 +210,14 @@ final class ResultStreamBatchWorker: @unchecked Sendable {
         progressHandler(update)
     }
 
-    private func flushPolicy(for totalCount: Int) -> FlushPolicy {
-        if totalCount <= streamingPreviewLimit {
-            let threshold = min(streamingPreviewLimit, 512)
-            let minimumBatch = max(threshold / 2, 64)
-            let latencyBatch = max(threshold / 3, 48)
-            let fallbackBatch = max(latencyBatch / 2, 32)
-            let latencyBudget = min(maxFlushLatency, 0.060)
-            let fallbackLatency = max(0.15, maxFlushLatency * 0.35)
+    private func flushPolicy(totalCount: Int, hasPreviewRows: Bool) -> FlushPolicy {
+        if hasPreviewRows || totalCount <= streamingPreviewLimit {
+            let threshold = min(max(streamingPreviewLimit / 4, 48), 196)
+            let minimumBatch = max(threshold / 2, 32)
+            let latencyBatch = max(threshold / 2, 32)
+            let fallbackBatch = max(min(threshold / 2, 64), 24)
+            let latencyBudget = min(maxFlushLatency, 0.040)
+            let fallbackLatency = max(0.12, maxFlushLatency * 0.30)
             return FlushPolicy(
                 threshold: threshold,
                 minimumBatch: minimumBatch,
@@ -225,12 +228,12 @@ final class ResultStreamBatchWorker: @unchecked Sendable {
             )
         } else {
             let baseline = max(streamingPreviewLimit, 512)
-            let threshold = min(max(baseline * 2, 1024), 4_096)
-            let minimumBatch = max(threshold / 2, 512)
-            let latencyBatch = minimumBatch
-            let fallbackBatch = max(threshold / 4, 256)
-            let latencyBudget = min(maxFlushLatency, 0.12)
-            let fallbackLatency = max(0.45, maxFlushLatency * 0.75)
+            let threshold = min(max(baseline, 512), 4_096)
+            let minimumBatch = threshold
+            let latencyBatch = threshold
+            let fallbackBatch = max(threshold / 4, 128)
+            let latencyBudget = min(maxFlushLatency, 0.35)
+            let fallbackLatency = max(0.70, maxFlushLatency * 0.90)
             return FlushPolicy(
                 threshold: threshold,
                 minimumBatch: minimumBatch,
