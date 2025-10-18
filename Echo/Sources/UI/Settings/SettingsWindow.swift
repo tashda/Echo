@@ -1,6 +1,7 @@
 import SwiftUI
 import Foundation
 import Combine
+import EchoSense
 #if os(macOS)
 import AppKit
 #elseif canImport(UIKit)

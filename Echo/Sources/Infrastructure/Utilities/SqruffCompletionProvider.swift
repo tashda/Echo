@@ -1,5 +1,6 @@
 import Foundation
 import OSLog
+import EchoSense
 
 actor SqruffCompletionProvider {
     static let shared = SqruffCompletionProvider()

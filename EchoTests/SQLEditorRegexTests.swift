@@ -1,5 +1,6 @@
 import XCTest
 import AppKit
+import EchoSense
 @testable import Echo
 
 final class SQLEditorRegexTests: XCTestCase {
@@ -363,9 +364,9 @@ final class SQLAutoCompletionEngineTests: XCTestCase {
 
     func testMetadataLimitedFlagReflectsStructureAvailability() {
         let limitedContext = SQLEditorCompletionContext(databaseType: .postgresql,
-                                                        selectedDatabase: nil,
-                                                        defaultSchema: nil,
-                                                        structure: nil)
+                                                         selectedDatabase: nil,
+                                                         defaultSchema: nil,
+                                                         structure: nil)
         stubCompletionEngine.result = SQLCompletionResult(suggestions: [],
                                                           metadata: SQLCompletionMetadata(clause: .unknown,
                                                                                            currentToken: "",
@@ -783,7 +784,7 @@ final class SQLAutoCompletionEngineTests: XCTestCase {
         return SQLEditorCompletionContext(databaseType: .postgresql,
                                           selectedDatabase: "testdb",
                                           defaultSchema: "public",
-                                          structure: structure)
+                                          structure: structure.toEchoSense())
     }
 
     private final class StubCompletionEngine: SQLCompletionEngineProtocol {

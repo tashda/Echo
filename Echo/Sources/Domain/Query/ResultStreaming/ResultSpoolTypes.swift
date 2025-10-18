@@ -15,7 +15,7 @@ struct ResultSpoolConfiguration: Equatable, Sendable {
         )
     }
 
-    static func == (lhs: ResultSpoolConfiguration, rhs: ResultSpoolConfiguration) -> Bool {
+    nonisolated static func == (lhs: ResultSpoolConfiguration, rhs: ResultSpoolConfiguration) -> Bool {
         lhs.rootDirectory.path == rhs.rootDirectory.path
             && lhs.maximumBytes == rhs.maximumBytes
             && lhs.retentionInterval == rhs.retentionInterval

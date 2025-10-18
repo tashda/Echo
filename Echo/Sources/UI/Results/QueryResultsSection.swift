@@ -20,6 +20,7 @@ struct QueryResultsSection: View {
     @State private var sortCriteria: SortCriteria?
     @State private var highlightedColumnIndex: Int?
     @State private var rowOrder: [Int] = []
+    @State private var lastObservedColumnIDs: [String] = []
     @State private var showConnectionInfoPopover = false
     @State private var showRowInfoPopover = false
     @State private var showTimeInfoPopover = false
@@ -69,60 +70,21 @@ struct QueryResultsSection: View {
             statusBar
         }
         .background(themeManager.windowBackground)
-        .onChange(of: query.results?.rows.count) { _, newCount in
-            if newCount != nil {
-                selectedTab = .results
-                highlightedColumnIndex = nil
-                rebuildRowOrder()
-                showRowInfoPopover = false
-                showTimeInfoPopover = false
-#if os(macOS)
-                jsonInspectorContext = nil
-#endif
-            }
+        .onChange(of: query.resultChangeToken) { _, _ in
+            handleResultTokenChange()
         }
         .onChange(of: query.errorMessage) { _, error in
             if error != nil {
                 selectedTab = .messages
             }
         }
-        .onChange(of: query.results?.columns.map(\.id)) { _, _ in
-            highlightedColumnIndex = nil
-            rebuildRowOrder()
-        }
-        .onChange(of: query.streamingColumns.map(\.id)) { _, _ in
-            rebuildRowOrder()
-        }
-        .onChange(of: query.results?.commandTag) { _, _ in
-            rebuildRowOrder()
-        }
-        .onChange(of: query.streamingRows.count) { _, newCount in
-            if newCount > 0 {
-                selectedTab = .results
-            }
-            if sortCriteria != nil {
-                rebuildRowOrder()
-            }
-        }
-        .onChange(of: query.displayedRowCount) { _, _ in
-            if sortCriteria != nil {
-                rebuildRowOrder()
-            }
-        }
-        .task { rebuildRowOrder() }
         .onChange(of: query.isExecuting) { _, executing in
-            if executing {
-                sortCriteria = nil
-                highlightedColumnIndex = nil
-                rowOrder = []
-                showRowInfoPopover = false
-                showTimeInfoPopover = false
-#if os(macOS)
-                if selectedTab == .jsonInspector {
-                    selectedTab = .results
-                }
-                jsonInspectorContext = nil
-#endif
+            handleExecutionStateChange(isExecuting: executing)
+        }
+        .task {
+            lastObservedColumnIDs = tableColumns.map(\.id)
+            if activeSort != nil {
+                rebuildRowOrder()
             }
         }
     }
@@ -368,6 +330,45 @@ struct QueryResultsSection: View {
         }
     }
 #endif
+
+    private func handleResultTokenChange() {
+        if query.displayedRowCount > 0 {
+            selectedTab = .results
+        }
+
+        showRowInfoPopover = false
+        showTimeInfoPopover = false
+
+        let newColumnIDs = tableColumns.map(\.id)
+        if newColumnIDs != lastObservedColumnIDs {
+            lastObservedColumnIDs = newColumnIDs
+            highlightedColumnIndex = nil
+#if os(macOS)
+            jsonInspectorContext = nil
+#endif
+        }
+
+        if activeSort != nil {
+            rebuildRowOrder()
+        } else if !rowOrder.isEmpty {
+            rowOrder = []
+        }
+    }
+
+    private func handleExecutionStateChange(isExecuting: Bool) {
+        guard isExecuting else { return }
+        sortCriteria = nil
+        highlightedColumnIndex = nil
+        rowOrder = []
+        showRowInfoPopover = false
+        showTimeInfoPopover = false
+#if os(macOS)
+        if selectedTab == .jsonInspector {
+            selectedTab = .results
+        }
+        jsonInspectorContext = nil
+#endif
+    }
 
     private func rebuildRowOrder() {
         guard let sort = activeSort,

@@ -1,5 +1,6 @@
 #if DEBUG && canImport(SwiftUI)
 import SwiftUI
+import EchoSense
 #if os(macOS)
 import AppKit
 #endif

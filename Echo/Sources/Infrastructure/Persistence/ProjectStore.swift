@@ -1,5 +1,6 @@
 import Foundation
 import CryptoKit
+import EchoSense
 
 actor ProjectStore {
     private let fileURL: URL

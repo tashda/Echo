@@ -1,5 +1,6 @@
 import SwiftUI
 import Foundation
+import EchoSense
 
 struct AutocompleteManagementRootView: View {
     @EnvironmentObject private var appModel: AppModel
@@ -34,7 +35,7 @@ struct AutocompleteManagementRootView: View {
     private var completionContext: SQLEditorCompletionContext? {
         guard let session = appModel.sessionManager.activeSession else { return nil }
         let connection = session.connection
-        let databaseType = connection.databaseType
+        let databaseType = EchoSenseDatabaseType(connection.databaseType)
         let selectedDatabase = normalize(session.selectedDatabaseName)
             ?? normalize(connection.database)
         let structure = session.databaseStructure
@@ -43,7 +44,7 @@ struct AutocompleteManagementRootView: View {
             databaseType: databaseType,
             selectedDatabase: selectedDatabase,
             defaultSchema: defaultSchema(for: databaseType),
-            structure: structure
+            structure: structure.map { $0.toEchoSense() }
         )
     }
 
@@ -266,7 +267,7 @@ struct AutocompleteManagementRootView: View {
         return trimmed.isEmpty ? nil : trimmed
     }
 
-    private func defaultSchema(for type: DatabaseType) -> String? {
+    private func defaultSchema(for type: EchoSenseDatabaseType) -> String? {
         switch type {
         case .microsoftSQL:
             return "dbo"

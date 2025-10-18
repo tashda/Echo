@@ -1,6 +1,7 @@
 import SwiftUI
 import Combine
 import Foundation
+import EchoSense
 #if os(macOS)
 import AppKit
 #else
@@ -449,6 +450,13 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
     private var isAdjustingSnippetSelection = false
     var isRuleTracingEnabled: Bool = false
     var onRuleTrace: ((SQLAutocompleteTrace) -> Void)?
+    private lazy var localUndoManager = UndoManager()
+
+    override var undoManager: UndoManager? {
+        let manager = super.undoManager ?? localUndoManager
+        NSLog("[SQLTextView] undoManager property -> %@", manager)
+        return manager
+    }
 
     struct SuppressedCompletion: Equatable {
         var tokenRange: NSRange
@@ -1681,7 +1689,7 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
                 forText: text,
                 line: position.line,
                 character: position.character,
-                dialect: context.databaseType
+                dialect: DatabaseType(context.databaseType)
             )
             suggestions = sanitizeSuggestions(suggestions, for: query)
             return suggestions
@@ -2006,7 +2014,7 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
         suggestion.kind == .snippet && suggestion.id.hasPrefix("star|")
     }
 
-    private func formatterDialect(for databaseType: DatabaseType) -> SQLFormatterService.Dialect {
+    private func formatterDialect(for databaseType: EchoSenseDatabaseType) -> SQLFormatterService.Dialect {
         switch databaseType {
         case .postgresql:
             return .postgres
@@ -2111,7 +2119,10 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
     private func registerStarExpansionUndo(originalText: String,
                                            expandedText: String,
                                            appliedRange: NSRange) {
-        guard let undoManager = undoManager else { return }
+        guard let undoManager = undoManager else {
+            preconditionFailure("SQLTextView undoManager is nil during star expansion registration")
+        }
+        NSLog("[StarExpansion] Undo manager: %@", undoManager)
         let snapshot = StarExpansionSnapshot(location: appliedRange.location,
                                              originalText: originalText,
                                              expandedText: expandedText)
