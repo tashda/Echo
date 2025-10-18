@@ -174,15 +174,17 @@ final class PostgresSession: DatabaseSession {
         let storedRampMax = UserDefaults.standard.integer(forKey: ResultStreamingFetchRampMaxDefaultsKey)
         let resolvedRampMax = storedRampMax >= 256 ? storedRampMax : 524_288
         let rampCeiling = max(backgroundFetchBaseline, min(resolvedRampMax, 1_048_576))
+        let maxAutoFetchSize = min(rampCeiling, 65_536)
 
         var dynamicBackgroundFetchSize = backgroundFetchBaseline
         let rampedBaselineForTotal: (Int) -> Int = { totalCount in
-            var target = backgroundFetchBaseline
-            if totalCount >= streamingPreviewLimit {
-                let scaled = min(backgroundFetchBaseline * rampMultiplier, rampCeiling)
-                target = max(target, scaled)
+            guard totalCount >= streamingPreviewLimit else {
+                return backgroundFetchBaseline
             }
-            return min(target, rampCeiling)
+            let stage = max(Double(totalCount) / Double(streamingPreviewLimit), 1.0)
+            let factor = min(Double(rampMultiplier), max(1.0, sqrt(stage)))
+            let scaled = Int(Double(backgroundFetchBaseline) * factor)
+            return min(max(backgroundFetchBaseline, scaled), rampCeiling)
         }
 
         let client = self.client
@@ -410,14 +412,17 @@ final class PostgresSession: DatabaseSession {
                 }
 
                 if totalRowCount >= streamingPreviewLimit {
-                    nextFetchSize = dynamicBackgroundFetchSize
+                    nextFetchSize = min(dynamicBackgroundFetchSize, maxAutoFetchSize)
                 } else {
                     nextFetchSize = previewFetchSize
                 }
 
                 if batchCount == fetchSize {
-                    if dynamicBackgroundFetchSize < rampCeiling {
-                        let increased = min(dynamicBackgroundFetchSize * 2, rampCeiling)
+                    if dynamicBackgroundFetchSize < maxAutoFetchSize {
+                        let increased = min(
+                            max(dynamicBackgroundFetchSize + previewFetchSize, dynamicBackgroundFetchSize * 3 / 2),
+                            maxAutoFetchSize
+                        )
                         if increased > dynamicBackgroundFetchSize {
                             dynamicBackgroundFetchSize = increased
                         }
