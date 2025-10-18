@@ -128,6 +128,7 @@ final class PostgresSession: DatabaseSession {
         let operationStart = CFAbsoluteTimeGetCurrent()
         var columns: [ColumnInfo] = []
         let streamingPreviewLimit = 512
+        let metricsPulseLimit = min(max(streamingPreviewLimit * 4, streamingPreviewLimit), 8_192)
         let maxFlushLatency: TimeInterval = 0.5
         var previewRows: [[String?]] = []
         previewRows.reserveCapacity(streamingPreviewLimit)
@@ -325,6 +326,25 @@ final class PostgresSession: DatabaseSession {
 
                     let rowBuffers = encodingScratch.buffers
                     let rowLengths = encodingScratch.lengths
+
+                    if totalRowCount <= metricsPulseLimit {
+                        let pulseMetrics = QueryStreamMetrics(
+                            batchRowCount: 0,
+                            loopElapsed: 0,
+                            decodeDuration: decodeDuration,
+                            totalElapsed: CFAbsoluteTimeGetCurrent() - operationStart,
+                            cumulativeRowCount: totalRowCount
+                        )
+                        let pulseUpdate = QueryStreamUpdate(
+                            columns: columns,
+                            appendedRows: [],
+                            encodedRows: [],
+                            totalRowCount: totalRowCount,
+                            metrics: pulseMetrics,
+                            rowRange: nil
+                        )
+                        proxiedHandler(pulseUpdate)
+                    }
 
                     if let worker {
                         worker.enqueueRaw(
