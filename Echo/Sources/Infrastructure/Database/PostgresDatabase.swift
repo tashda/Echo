@@ -3,6 +3,7 @@ import NIOCore
 import NIOFoundationCompat
 import PostgresNIO
 import Logging
+import Atomics
 
 typealias PostgresQueryResult = PostgresRowSequence
 
@@ -134,7 +135,7 @@ final class PostgresSession: DatabaseSession {
         previewRows.reserveCapacity(streamingPreviewLimit)
         var totalRowCount = 0
         var worker: ResultStreamBatchWorker?
-        var firstBatchLogged = false
+        let firstBatchLogged = ManagedAtomic(false)
         var firstRowLogged = false
         var previewScratch: [String?] = []
         previewScratch.reserveCapacity(streamingPreviewLimit)
@@ -199,7 +200,7 @@ final class PostgresSession: DatabaseSession {
         do {
             try Task.checkCancellation()
 
-            let declareSQL = "DECLARE \(cursorName) BINARY CURSOR FOR \(sanitizedSQL)"
+        let declareSQL = "DECLARE \(cursorName) CURSOR FOR \(sanitizedSQL)"
             try await executeVoidStatement(declareSQL)
             cursorActive = true
 
@@ -219,8 +220,7 @@ final class PostgresSession: DatabaseSession {
                     return
                 }
 
-                if !firstBatchLogged {
-                    firstBatchLogged = true
+                if firstBatchLogged.compareExchange(expected: false, desired: true, ordering: .relaxed).exchanged {
                     let now = CFAbsoluteTimeGetCurrent()
                     let batchSize = max(update.encodedRows.count, update.appendedRows.count)
                     let message = String(
@@ -288,7 +288,7 @@ final class PostgresSession: DatabaseSession {
                         if capturePreview {
                             previewScratch.append(formatterContext.stringValue(for: cell))
                         }
-                        if var buffer = cell.bytes {
+                        if let buffer = cell.bytes {
                             let readable = buffer.readableBytes
                             encodingScratch.buffers.append(buffer)
                             encodingScratch.lengths.append(readable)
@@ -396,7 +396,7 @@ final class PostgresSession: DatabaseSession {
                 logger.debug(.init(stringLiteral: fetchMessage))
                 print(fetchMessage)
 
-                if let worker {
+                if worker != nil {
                     let fetchMetrics = QueryStreamMetrics(
                         batchRowCount: batchCount,
                         loopElapsed: fetchDuration,

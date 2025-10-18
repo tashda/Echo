@@ -459,25 +459,34 @@ actor ResultSpoolHandle {
     }
 
     private func persistMetadata() {
+        let snapshot = metadata
         let metaURL = directory.appendingPathComponent("meta.json")
-        let encoder = makeJSONEncoder()
-        do {
-            let data = try encoder.encode(metadata)
-            try data.write(to: metaURL, options: .atomic)
-        } catch {
-            print("ResultSpoolHandle: Failed to persist metadata \(error)")
+        Task { @MainActor in
+            let encoder = JSONEncoder()
+            encoder.outputFormatting = []
+            encoder.dateEncodingStrategy = .iso8601
+            do {
+                let data = try encoder.encode(snapshot)
+                try data.write(to: metaURL, options: .atomic)
+            } catch {
+                print("ResultSpoolHandle: Failed to persist metadata \(error)")
+            }
         }
     }
 
     private func persistStats(lastBatch: Int, metrics: QueryStreamMetrics?, isFinished: Bool) {
         let stats = currentStats(lastBatch: lastBatch, metrics: metrics, isFinished: isFinished)
         let statsURL = directory.appendingPathComponent("stats.json")
-        let encoder = makeJSONEncoder()
-        do {
-            let data = try encoder.encode(stats)
-            try data.write(to: statsURL, options: .atomic)
-        } catch {
-            print("ResultSpoolHandle: Failed to persist stats \(error)")
+        Task { @MainActor in
+            let encoder = JSONEncoder()
+            encoder.outputFormatting = []
+            encoder.dateEncodingStrategy = .iso8601
+            do {
+                let data = try encoder.encode(stats)
+                try data.write(to: statsURL, options: .atomic)
+            } catch {
+                print("ResultSpoolHandle: Failed to persist stats \(error)")
+            }
         }
         statContinuations.values.forEach { $0.yield(stats) }
         lastTransientEmission = DispatchTime.now().uptimeNanoseconds

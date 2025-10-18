@@ -4565,7 +4565,7 @@ private struct StreamingPresetPickerControl: View {
                             .frame(width: 120)
                             .focused($customFieldFocused)
                             .onSubmit(applyCustomValue)
-                            .onChange(of: customText) { newValue in
+                            .onChange(of: customText, initial: false) { _, newValue in
                                 let filtered = newValue.filter { $0.isNumber }
                                 if filtered != newValue {
                                     customText = filtered
@@ -4585,13 +4585,13 @@ private struct StreamingPresetPickerControl: View {
                 .font(.footnote)
                 .foregroundStyle(.secondary)
         }
-        .onChange(of: selection) { newSelection in
+        .onChange(of: selection, initial: false) { _, newSelection in
             handleSelectionChange(newSelection)
         }
-        .onChange(of: value) { newValue in
+        .onChange(of: value, initial: false) { _, newValue in
             syncSelection(with: newValue)
         }
-        .onChange(of: customFieldFocused) { isFocused in
+        .onChange(of: customFieldFocused, initial: false) { _, isFocused in
             if !isFocused, case .custom = selection {
                 applyCustomValue()
             }

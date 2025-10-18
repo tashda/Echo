@@ -867,7 +867,9 @@ private struct WorkspaceToolbarPreviewData {
         let diagramKeyStore = DiagramEncryptionKeyStore()
         Task {
             await diagramManager.updateKeyProvider { projectID in
-                try diagramKeyStore.symmetricKey(forProjectID: projectID)
+                try await MainActor.run {
+                    try diagramKeyStore.symmetricKey(forProjectID: projectID)
+                }
             }
         }
         let appModel = AppModel(

@@ -823,7 +823,9 @@ final class AppModel: ObservableObject {
 
         Task {
             await diagramCacheManager.updateKeyProvider { projectID in
-                try diagramKeyStore.symmetricKey(forProjectID: projectID)
+                try await MainActor.run {
+                    try diagramKeyStore.symmetricKey(forProjectID: projectID)
+                }
             }
         }
         Task { [weak self] in

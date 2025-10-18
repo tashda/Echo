@@ -52,7 +52,10 @@ actor ResultStreamIngestionService {
 
             if isPreview, !update.appendedRows.isEmpty {
                 let startIndex = resolvedRange?.lowerBound ?? totalRowCount
-                rowCache.ingest(rows: update.appendedRows, startingAt: startIndex)
+                let rowsForCache = update.appendedRows
+                DispatchQueue.global(qos: .utility).async { [rowCache] in
+                    rowCache.ingest(rows: rowsForCache, startingAt: startIndex)
+                }
             }
 
             let encodedRows: [ResultBinaryRow]

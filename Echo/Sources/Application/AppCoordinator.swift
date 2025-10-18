@@ -51,7 +51,9 @@ final class AppCoordinator: ObservableObject {
         self.diagramKeyStore = keyStore
         Task {
             await cacheManager.updateKeyProvider { projectID in
-                try keyStore.symmetricKey(forProjectID: projectID)
+                try await MainActor.run {
+                    try keyStore.symmetricKey(forProjectID: projectID)
+                }
             }
         }
         self.appModel = AppModel(
