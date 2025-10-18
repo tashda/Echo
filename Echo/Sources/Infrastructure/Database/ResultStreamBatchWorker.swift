@@ -120,22 +120,56 @@ final class ResultStreamBatchWorker: @unchecked Sendable {
         let previewBatch = pendingPreviewRows
         let storageBatch = pendingRows
         let batchCount = storageBatch.count
-        var encodedBatch: [ResultBinaryRow] = []
-        encodedBatch.reserveCapacity(batchCount)
-
-        for storage in storageBatch {
-            switch storage {
-            case .encoded(let row):
-                encodedBatch.append(row)
-            case .raw(let raw):
-                let row = ResultStreamBatchWorker.encodeBinaryRow(
-                    totalLength: raw.totalLength,
-                    buffers: raw.buffers,
-                    lengths: raw.lengths
-                )
-                encodedBatch.append(row)
+        let shouldParallelize = batchCount >= 1_024
+        let encodedBatch: [ResultBinaryRow] = {
+            if !shouldParallelize {
+                var rows: [ResultBinaryRow] = []
+                rows.reserveCapacity(batchCount)
+                for storage in storageBatch {
+                    switch storage {
+                    case .encoded(let row):
+                        rows.append(row)
+                    case .raw(let raw):
+                        let row = ResultStreamBatchWorker.encodeBinaryRow(
+                            totalLength: raw.totalLength,
+                            buffers: raw.buffers,
+                            lengths: raw.lengths
+                        )
+                        rows.append(row)
+                    }
+                }
+                return rows
             }
-        }
+
+            let concurrency = min(ProcessInfo.processInfo.activeProcessorCount, batchCount)
+#if DEBUG
+            if concurrency > 1 {
+                print("[ResultStreamBatchWorker] parallel encode batchCount=\(batchCount) concurrency=\(concurrency)")
+            }
+#endif
+            return Array(unsafeUninitializedCapacity: batchCount) { buffer, initializedCount in
+                DispatchQueue.concurrentPerform(iterations: concurrency) { workerIndex in
+                    var index = workerIndex
+                    while index < batchCount {
+                        let storage = storageBatch[index]
+                        let encodedRow: ResultBinaryRow
+                        switch storage {
+                        case .encoded(let row):
+                            encodedRow = row
+                        case .raw(let raw):
+                            encodedRow = ResultStreamBatchWorker.encodeBinaryRow(
+                                totalLength: raw.totalLength,
+                                buffers: raw.buffers,
+                                lengths: raw.lengths
+                            )
+                        }
+                        buffer[index] = encodedRow
+                        index &+= concurrency
+                    }
+                }
+                initializedCount = batchCount
+            }
+        }()
 
         pendingRows.removeAll(keepingCapacity: true)
         pendingPreviewRows.removeAll(keepingCapacity: true)
@@ -175,12 +209,12 @@ final class ResultStreamBatchWorker: @unchecked Sendable {
 
     private func flushPolicy(for totalCount: Int) -> FlushPolicy {
         if totalCount <= streamingPreviewLimit {
-            let threshold = clamp(streamingPreviewLimit / 8, min: 32, max: 128)
-            let minimumBatch = threshold
-            let latencyBatch = threshold
-            let fallbackBatch = max(threshold / 2, 24)
-            let latencyBudget = min(maxFlushLatency, 0.045)
-            let fallbackLatency = max(0.18, maxFlushLatency * 0.45)
+            let threshold = min(streamingPreviewLimit, 512)
+            let minimumBatch = max(threshold / 2, 64)
+            let latencyBatch = max(threshold / 3, 48)
+            let fallbackBatch = max(latencyBatch / 2, 32)
+            let latencyBudget = min(maxFlushLatency, 0.060)
+            let fallbackLatency = max(0.15, maxFlushLatency * 0.35)
             return FlushPolicy(
                 threshold: threshold,
                 minimumBatch: minimumBatch,
@@ -190,12 +224,13 @@ final class ResultStreamBatchWorker: @unchecked Sendable {
                 fallbackBatch: fallbackBatch
             )
         } else {
-            let threshold = max(streamingPreviewLimit, 512)
-            let minimumBatch = threshold
-            let latencyBatch = threshold
-            let fallbackBatch = max(threshold / 4, 128)
-            let latencyBudget = min(maxFlushLatency, 0.08)
-            let fallbackLatency = max(0.32, maxFlushLatency * 0.6)
+            let baseline = max(streamingPreviewLimit, 512)
+            let threshold = min(max(baseline * 2, 1024), 4_096)
+            let minimumBatch = max(threshold / 2, 512)
+            let latencyBatch = minimumBatch
+            let fallbackBatch = max(threshold / 4, 256)
+            let latencyBudget = min(maxFlushLatency, 0.12)
+            let fallbackLatency = max(0.45, maxFlushLatency * 0.75)
             return FlushPolicy(
                 threshold: threshold,
                 minimumBatch: minimumBatch,
@@ -205,12 +240,6 @@ final class ResultStreamBatchWorker: @unchecked Sendable {
                 fallbackBatch: fallbackBatch
             )
         }
-    }
-
-    private func clamp(_ value: Int, min: Int, max: Int) -> Int {
-        if value < min { return min }
-        if value > max { return max }
-        return value
     }
 
     static func encodeBinaryRow(totalLength: Int, buffers: [ByteBuffer?], lengths: [Int]) -> ResultBinaryRow {
