@@ -14,6 +14,13 @@ struct ResultSpoolConfiguration: Equatable, Sendable {
             inMemoryRowLimit: 500
         )
     }
+
+    static func == (lhs: ResultSpoolConfiguration, rhs: ResultSpoolConfiguration) -> Bool {
+        lhs.rootDirectory.path == rhs.rootDirectory.path
+            && lhs.maximumBytes == rhs.maximumBytes
+            && lhs.retentionInterval == rhs.retentionInterval
+            && lhs.inMemoryRowLimit == rhs.inMemoryRowLimit
+    }
 }
 
 @preconcurrency struct ResultSpoolStats: Sendable, Codable {
@@ -87,12 +94,12 @@ struct ResultBinaryRowCodec {
                     offset &+= 1
 
                     var length = UInt32(raw.count).littleEndian
-                    withUnsafeBytes(of: &length) { pointer in
-                        memcpy(baseAddress.advanced(by: offset), pointer.baseAddress!, 4)
-                    }
+                _ = withUnsafeBytes(of: &length) { pointer in
+                    memcpy(baseAddress.advanced(by: offset), pointer.baseAddress!, 4)
+                }
                     offset &+= 4
 
-                    raw.withUnsafeBytes { rawPointer in
+                    _ = raw.withUnsafeBytes { rawPointer in
                         memcpy(baseAddress.advanced(by: offset), rawPointer.baseAddress!, raw.count)
                     }
                     offset &+= raw.count

@@ -655,7 +655,7 @@ final class SQLAutoCompletionEngine {
             return (.peripheral, -220)
         case .table, .view, .materializedView, .schema, .join:
             return (.peripheral, -260)
-        default:
+        @unknown default:
             return (.peripheral, -200)
         }
     }
@@ -670,7 +670,7 @@ final class SQLAutoCompletionEngine {
             return (.secondary, 220)
         case .keyword:
             return (.peripheral, -260)
-        default:
+        case .table, .view, .materializedView, .schema:
             return (.peripheral, -280)
         }
     }
@@ -681,14 +681,14 @@ final class SQLAutoCompletionEngine {
             return (.primary, 520)
         case .join:
             return (.primary, 500)
-        case .schema, .snippet:
+        case .schema:
             return (.secondary, 200)
+        case .snippet, .parameter:
+            return (.secondary, 180)
         case .column, .function:
             return (.peripheral, -220)
         case .keyword:
             return (.peripheral, -260)
-        default:
-            return (.peripheral, -220)
         }
     }
 
@@ -698,7 +698,7 @@ final class SQLAutoCompletionEngine {
             return (.primary, 420)
         case .parameter, .snippet:
             return (.secondary, 160)
-        default:
+        case .column, .table, .view, .materializedView, .function, .schema, .join:
             return (.peripheral, -200)
         }
     }

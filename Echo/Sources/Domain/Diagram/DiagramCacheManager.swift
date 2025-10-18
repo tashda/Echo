@@ -24,7 +24,7 @@ actor DiagramCacheManager {
     }
 
     private var configuration: Configuration
-    private var keyProvider: (@Sendable (UUID) throws -> SymmetricKey)?
+    private var keyProvider: (@Sendable (UUID) async throws -> SymmetricKey)?
     private let fileManager = FileManager.default
 
     init(configuration: Configuration) {
@@ -32,7 +32,7 @@ actor DiagramCacheManager {
         Self.ensureDirectoryExists(at: configuration.rootDirectory, using: fileManager)
     }
 
-    func updateKeyProvider(_ provider: @escaping @Sendable (UUID) throws -> SymmetricKey) {
+    func updateKeyProvider(_ provider: @escaping @Sendable (UUID) async throws -> SymmetricKey) {
         keyProvider = provider
     }
 
@@ -51,7 +51,7 @@ actor DiagramCacheManager {
             try JSONEncoder().encode(payload)
         }
         guard let keyProvider else { throw EncryptionError.missingKeyProvider }
-        let key = try keyProvider(payload.key.projectID)
+        let key = try await keyProvider(payload.key.projectID)
         let encrypted = try encrypt(json, with: key)
 
         try encrypted.write(to: url, options: .atomic)
@@ -63,7 +63,7 @@ actor DiagramCacheManager {
         guard fileManager.fileExists(atPath: url.path) else { return nil }
         guard let keyProvider else { throw EncryptionError.missingKeyProvider }
         let data = try Data(contentsOf: url, options: [.mappedIfSafe])
-        let symmetricKey = try keyProvider(key.projectID)
+        let symmetricKey = try await keyProvider(key.projectID)
         let decrypted = try decrypt(data, with: symmetricKey)
         return try await MainActor.run {
             try JSONDecoder().decode(DiagramCachePayload.self, from: decrypted)
@@ -85,19 +85,21 @@ actor DiagramCacheManager {
         Self.ensureDirectoryExists(at: configuration.rootDirectory, using: fileManager)
     }
 
-    func listPayloads(for projectID: UUID) -> [DiagramCachePayload] {
+    func listPayloads(for projectID: UUID) async -> [DiagramCachePayload] {
         let directory = projectDirectory(for: projectID)
         guard let contents = try? fileManager.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil, options: [.skipsHiddenFiles]) else {
             return []
         }
 
-        guard let keyProvider, let encryptionKey = try? keyProvider(projectID) else { return [] }
+        guard let keyProvider, let encryptionKey = try? await keyProvider(projectID) else { return [] }
         var results: [DiagramCachePayload] = []
         for url in contents where url.pathExtension == Self.cacheExtension {
             do {
                 let data = try Data(contentsOf: url, options: [.mappedIfSafe])
                 let decrypted = try decrypt(data, with: encryptionKey)
-                let payload = try JSONDecoder().decode(DiagramCachePayload.self, from: decrypted)
+                let payload = try await MainActor.run {
+                    try JSONDecoder().decode(DiagramCachePayload.self, from: decrypted)
+                }
                 results.append(payload)
             } catch {
                 // Best effort: remove corrupt entries.

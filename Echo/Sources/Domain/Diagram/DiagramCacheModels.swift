@@ -173,27 +173,34 @@ enum DiagramChecksum {
 }
 
 private extension Sequence where Element == UInt8 {
-    func hexEncodedString(prefixLength: Int? = nil) -> String {
-        var result = String()
-        if let prefixLength {
-            result.reserveCapacity(prefixLength)
-        }
-        var processedCharacters = 0
+    nonisolated func hexEncodedString(prefixLength: Int? = nil) -> String {
+        let digits = Array("0123456789ABCDEF")
+        let capacity = prefixLength ?? (underestimatedCount * 2)
+        var output = String()
+        output.reserveCapacity(capacity)
+        var remaining = prefixLength
+
         for byte in self {
-            if let prefixLength, processedCharacters >= prefixLength {
-                break
-            }
-            let chunk = String(format: "%02X", byte)
-            if let prefixLength, processedCharacters + 2 > prefixLength {
-                let remaining = prefixLength - processedCharacters
-                result.append(String(chunk.prefix(remaining)))
-                processedCharacters = prefixLength
-                break
+            if let limit = remaining, limit <= 0 { break }
+            let high = digits[Int(byte >> 4)]
+            let low = digits[Int(byte & 0x0F)]
+
+            if var limit = remaining {
+                if limit > 0 {
+                    output.append(high)
+                    limit -= 1
+                }
+                if limit > 0 {
+                    output.append(low)
+                    limit -= 1
+                }
+                remaining = limit
             } else {
-                result.append(chunk)
-                processedCharacters += 2
+                output.append(high)
+                output.append(low)
             }
         }
-        return result
+
+        return output
     }
 }

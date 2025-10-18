@@ -125,6 +125,17 @@ final class WorkspaceTab: ObservableObject, Identifiable {
     }
 }
 
+private extension QueryEditorState.StreamingMode {
+    nonisolated var isPreviewPhase: Bool {
+        switch self {
+        case .idle, .preview:
+            return true
+        case .background, .completed:
+            return false
+        }
+    }
+}
+
 struct SchemaDiagramEdge: Identifiable, Hashable {
     let id = UUID()
     let fromNodeID: String
@@ -209,7 +220,7 @@ final class SchemaDiagramViewModel: ObservableObject {
         isLoading: Bool = false,
         statusMessage: String? = nil,
         errorMessage: String? = nil,
-        layoutIdentifier: String = DiagramLayoutSnapshot.defaultLayoutIdentifier,
+        layoutIdentifier: String? = nil,
         context: SchemaDiagramContext? = nil,
         cachedStructure: DiagramStructureSnapshot? = nil,
         cachedChecksum: String? = nil,
@@ -222,7 +233,7 @@ final class SchemaDiagramViewModel: ObservableObject {
         self.isLoading = isLoading
         self.statusMessage = statusMessage
         self.errorMessage = errorMessage
-        self.layoutIdentifier = layoutIdentifier
+        self.layoutIdentifier = layoutIdentifier ?? DiagramLayoutSnapshot.defaultLayoutIdentifier
         self.context = context
         self.cachedStructure = cachedStructure
         self.cachedChecksum = cachedChecksum
@@ -911,7 +922,7 @@ final class QueryResultsGridState {
         }
 
         let service = ensureIngestionService()
-        let treatAsPreview = (mode == .preview || mode == .idle)
+        let treatAsPreview = mode.isPreviewPhase
         Task.detached(priority: .utility) {
             await service.enqueue(update: update, isPreview: treatAsPreview)
         }
@@ -920,7 +931,7 @@ final class QueryResultsGridState {
     @MainActor
     private func shouldDeferSpool(for mode: StreamingMode) -> Bool {
         guard isSpoolActivationDeferred else { return false }
-        return mode == .preview || mode == .idle
+        return mode.isPreviewPhase
     }
 
     @MainActor
@@ -961,7 +972,7 @@ final class QueryResultsGridState {
 
         Task.detached(priority: .utility) {
             for entry in buffered {
-                let treatAsPreview = (entry.mode == .preview || entry.mode == .idle)
+                let treatAsPreview = entry.mode.isPreviewPhase
                 await service.enqueue(update: entry.update, isPreview: treatAsPreview)
             }
         }

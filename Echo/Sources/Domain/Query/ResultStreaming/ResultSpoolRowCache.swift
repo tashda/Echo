@@ -1,6 +1,6 @@
 import Foundation
 
-final class ResultSpoolRowCache {
+final class ResultSpoolRowCache: @unchecked Sendable {
     private struct Page {
         var rows: ContiguousArray<[String?]?>
         var terminalCount: Int?

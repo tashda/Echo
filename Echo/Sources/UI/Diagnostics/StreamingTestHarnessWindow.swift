@@ -559,6 +559,25 @@ private struct DebugLogAggregator {
     }
 }
 
+private func formatBytesBinary(_ bytes: Int) -> String {
+    let units: [String] = ["B", "KB", "MB", "GB", "TB", "PB"]
+    guard bytes > 0 else { return "0 B" }
+    var value = Double(bytes)
+    var index = 0
+    while value >= 1024, index < units.count - 1 {
+        value /= 1024
+        index += 1
+    }
+    if index == 0 {
+        return "\(bytes) B"
+    }
+    let rounded = (value * 100).rounded() / 100
+    if rounded.truncatingRemainder(dividingBy: 1) == 0 {
+        return "\(Int(rounded)) \(units[index])"
+    }
+    return "\(rounded) \(units[index])"
+}
+
 private struct StreamingReportSummary: View {
     let report: QueryPerformanceTracker.Report
 
@@ -602,7 +621,7 @@ private struct StreamingReportSummary: View {
                 metric("Largest batch", value: "\(report.largestBatchSize)")
                 metric("First batch", value: report.firstBatchSize.map { "\($0)" } ?? "—")
                 metric("Throughput", value: throughput)
-                metric("Estimated memory", value: report.estimatedMemoryBytes.map(Self.formatBytes) ?? "—")
+                metric("Estimated memory", value: report.estimatedMemoryBytes.map(formatBytesBinary) ?? "—")
             }
 
             if !timings.isEmpty {
@@ -658,7 +677,4 @@ private struct StreamingReportSummary: View {
         return String(format: "%.2f s", time)
     }
 
-    private static func formatBytes(_ bytes: Int) -> String {
-        ByteCountFormatter.string(fromByteCount: Int64(bytes), countStyle: .binary)
-    }
 }

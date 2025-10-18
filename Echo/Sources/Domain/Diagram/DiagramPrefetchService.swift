@@ -8,11 +8,21 @@ actor DiagramPrefetchService {
         let isBackgroundSweep: Bool
 
         func hash(into hasher: inout Hasher) {
-            hasher.combine(cacheKey)
+            hasher.combine(cacheKey.projectID)
+            hasher.combine(cacheKey.connectionID)
+            hasher.combine(cacheKey.schema)
+            hasher.combine(cacheKey.table)
+            hasher.combine(cacheKey.layoutID)
+            hasher.combine(connectionSessionID)
         }
 
         static func == (lhs: Request, rhs: Request) -> Bool {
-            lhs.cacheKey == rhs.cacheKey
+            lhs.cacheKey.projectID == rhs.cacheKey.projectID
+                && lhs.cacheKey.connectionID == rhs.cacheKey.connectionID
+                && lhs.cacheKey.schema == rhs.cacheKey.schema
+                && lhs.cacheKey.table == rhs.cacheKey.table
+                && lhs.cacheKey.layoutID == rhs.cacheKey.layoutID
+                && lhs.connectionSessionID == rhs.connectionSessionID
         }
     }
 

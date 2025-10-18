@@ -42,7 +42,7 @@ final class ResultStreamBatchWorker: @unchecked Sendable {
         let fallbackBatch: Int
     }
 
-    init(
+    nonisolated init(
         label: String,
         columns: [ColumnInfo],
         streamingPreviewLimit: Int,
@@ -215,9 +215,9 @@ final class ResultStreamBatchWorker: @unchecked Sendable {
             let threshold = min(max(streamingPreviewLimit / 4, 48), 196)
             let minimumBatch = max(threshold / 2, 32)
             let latencyBatch = max(threshold / 2, 32)
-            let fallbackBatch = max(min(threshold / 2, 64), 24)
-            let latencyBudget = min(maxFlushLatency, 0.040)
-            let fallbackLatency = max(0.12, maxFlushLatency * 0.30)
+            let fallbackBatch = max(min(threshold / 3, 48), 16)
+            let latencyBudget = min(maxFlushLatency, 0.020)
+            let fallbackLatency = max(0.08, maxFlushLatency * 0.20)
             return FlushPolicy(
                 threshold: threshold,
                 minimumBatch: minimumBatch,
@@ -263,13 +263,13 @@ final class ResultStreamBatchWorker: @unchecked Sendable {
                 offset &+= 1
 
                 var littleEndianLength = UInt32(length).littleEndian
-                withUnsafeBytes(of: &littleEndianLength) { pointer in
+                _ = withUnsafeBytes(of: &littleEndianLength) { pointer in
                     memcpy(baseAddress.advanced(by: offset), pointer.baseAddress!, 4)
                 }
                 offset &+= 4
 
                 if length > 0, let buffer = buffers[index] {
-                    buffer.withUnsafeReadableBytes { rawBuffer in
+                    _ = buffer.withUnsafeReadableBytes { rawBuffer in
                         memcpy(baseAddress.advanced(by: offset), rawBuffer.baseAddress!, length)
                     }
                 }
