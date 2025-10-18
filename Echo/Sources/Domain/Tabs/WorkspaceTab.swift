@@ -333,6 +333,7 @@ final class QueryResultsGridState {
     private var isRowCountSpoolDriven: Bool = false
     private var deferredSpoolUpdates: [BufferedSpoolUpdate] = []
     private var isSpoolActivationDeferred: Bool = true
+    private var isResultChangeCoalesced: Bool = false
 
     private var executionStartTime: Date?
     private var executionTimer: Timer?
@@ -657,8 +658,16 @@ final class QueryResultsGridState {
             streamingColumns = update.columns
         }
 
-        let appendedRowCount = update.metrics?.batchRowCount
-            ?? (!update.appendedRows.isEmpty ? update.appendedRows.count : update.encodedRows.count)
+        let appendedRowCount: Int
+        if let range = update.rowRange {
+            appendedRowCount = range.count
+        } else if !update.appendedRows.isEmpty {
+            appendedRowCount = update.appendedRows.count
+        } else if !update.encodedRows.isEmpty {
+            appendedRowCount = update.encodedRows.count
+        } else {
+            appendedRowCount = 0
+        }
 
         if appendedRowCount > 0 {
             streamedRowCount &+= appendedRowCount
@@ -1124,7 +1133,13 @@ final class QueryResultsGridState {
     }
 
     private func markResultDataChanged() {
-        resultChangeToken &+= 1
+        if isResultChangeCoalesced { return }
+        isResultChangeCoalesced = true
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            self.resultChangeToken &+= 1
+            self.isResultChangeCoalesced = false
+        }
     }
 
     private func requestAdditionalDataPreviewRows() {
