@@ -315,6 +315,8 @@ private extension NSSplitView {
 
 #if os(macOS)
 private struct WorkspaceWindowConfigurator: NSViewRepresentable {
+    var tabBarStyle: WorkspaceTabBarStyle
+
     func makeNSView(context: Context) -> NSView {
         let view = NSView()
         DispatchQueue.main.async {
@@ -352,12 +354,88 @@ private struct WorkspaceWindowConfigurator: NSViewRepresentable {
 
         AppCoordinator.shared.appModel.isWorkspaceWindowKey =
             window.identifier == AppWindowIdentifier.workspace && window.isKeyWindow
+
+        updateAccessory(for: window)
+    }
+
+    private func updateAccessory(for window: NSWindow) {
+        switch tabBarStyle {
+        case .toolbarCompact:
+            DispatchQueue.main.async {
+                let insets = self.toolbarInsets(for: window)
+                if let accessory = window.workspaceTabAccessory {
+                    accessory.update(style: self.tabBarStyle, insets: insets, window: window)
+                } else {
+                    let accessory = WorkspaceToolbarAccessoryController(style: self.tabBarStyle, insets: insets, window: window)
+                    window.addTitlebarAccessoryViewController(accessory)
+                    window.workspaceTabAccessory = accessory
+                }
+            }
+        case .floating:
+            if let accessory = window.workspaceTabAccessory,
+               let index = window.titlebarAccessoryViewControllers.firstIndex(of: accessory) {
+                window.removeTitlebarAccessoryViewController(at: index)
+                window.workspaceTabAccessory = nil
+            }
+        }
+    }
+
+    private func toolbarInsets(for window: NSWindow) -> WorkspaceToolbarEdgeInsets {
+        guard
+            let toolbar = window.toolbar,
+            let root = topmostToolbarContainer(from: toolbar)
+        else {
+            return WorkspaceToolbarEdgeInsets(leading: 72, trailing: 72)
+        }
+
+        let navigationPrefix = "workspace.navigation"
+        let primaryPrefix = "workspace.primary"
+
+        let navigationItems = toolbar.items.filter { $0.itemIdentifier.rawValue.hasPrefix(navigationPrefix) }
+        let primaryItems = toolbar.items.filter { $0.itemIdentifier.rawValue.hasPrefix(primaryPrefix) }
+
+        let leadingMax = navigationItems.compactMap { item -> CGFloat? in
+            guard let frame = frame(of: item.view, in: root) else { return nil }
+            return frame.maxX
+        }.max() ?? 0
+
+        let containerWidth = root.bounds.width
+
+        let trailingMin = primaryItems.compactMap { item -> CGFloat? in
+            guard let frame = frame(of: item.view, in: root) else { return nil }
+            return frame.minX
+        }.min() ?? containerWidth
+
+        let inspectorWidth = AppCoordinator.shared.appState.showInfoSidebar ? AppCoordinator.shared.appModel.inspectorWidth : 0
+        let inspectorBoundary = max(containerWidth - inspectorWidth - 16, 120)
+        let trailingLimit = min(trailingMin, inspectorBoundary)
+
+        let leadingInset = max(leadingMax + 12, 12)
+        let trailingInset = max(containerWidth - trailingLimit + 12, 12)
+
+        return WorkspaceToolbarEdgeInsets(leading: leadingInset, trailing: trailingInset)
+    }
+
+    private func topmostToolbarContainer(from toolbar: NSToolbar) -> NSView? {
+        guard let firstView = toolbar.items.compactMap({ $0.view?.superview }).first else { return nil }
+        var current: NSView = firstView
+        while let superview = current.superview { current = superview }
+        return current
+    }
+
+    private func frame(of view: NSView?, in root: NSView) -> CGRect? {
+        guard let view else { return nil }
+        return root.convert(view.bounds, from: view)
     }
 }
 
 #else
 private struct WorkspaceWindowConfigurator: UIViewRepresentable {
-    func makeUIView(context: Context) -> UIView { UIView() }
+    var tabBarStyle: WorkspaceTabBarStyle
+    func makeUIView(context: Context) -> UIView {
+        _ = tabBarStyle
+        return UIView()
+    }
     func updateUIView(_ uiView: UIView, context: Context) {}
 }
 #endif

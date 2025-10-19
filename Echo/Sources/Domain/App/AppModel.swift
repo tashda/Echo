@@ -56,6 +56,8 @@ final class AppModel: ObservableObject {
             UserDefaults.standard.set(globalSettings.resultsStreamingFetchSize, forKey: ResultStreamingFetchSizeDefaultsKey)
             UserDefaults.standard.set(globalSettings.resultsStreamingFetchRampMultiplier, forKey: ResultStreamingFetchRampMultiplierDefaultsKey)
             UserDefaults.standard.set(globalSettings.resultsStreamingFetchRampMax, forKey: ResultStreamingFetchRampMaxDefaultsKey)
+            UserDefaults.standard.set(globalSettings.resultsEnableTypeFormatting, forKey: ResultFormattingEnabledDefaultsKey)
+            UserDefaults.standard.set(globalSettings.resultsFormattingMode.rawValue, forKey: ResultFormattingModeDefaultsKey)
         }
     }
     @Published var navigationState = NavigationState()
@@ -1227,6 +1229,11 @@ final class AppModel: ObservableObject {
 
     func updateGlobalEditorDisplay(_ update: (inout GlobalSettings) -> Void) async {
         update(&globalSettings)
+        let formattingEnabled = globalSettings.resultsEnableTypeFormatting
+        let formattingMode = globalSettings.resultsFormattingMode
+        for tab in tabManager.tabs {
+            tab.query?.updateResultsFormattingSettings(enabled: formattingEnabled, mode: formattingMode)
+        }
         await persistGlobalSettings()
     }
 
@@ -1509,6 +1516,10 @@ final class AppModel: ObservableObject {
             spoolManager: resultSpoolManager,
             backgroundFetchSize: globalSettings.resultsStreamingFetchSize
         )
+        queryState.updateResultsFormattingSettings(
+            enabled: globalSettings.resultsEnableTypeFormatting,
+            mode: globalSettings.resultsFormattingMode
+        )
         queryState.shouldAutoExecuteOnAppear = autoExecute
 
         func normalized(_ value: String) -> String? {
@@ -1561,6 +1572,10 @@ final class AppModel: ObservableObject {
             previewRowLimit: previewLimit,
             spoolManager: resultSpoolManager,
             backgroundFetchSize: globalSettings.resultsStreamingFetchSize
+        )
+        queryState.updateResultsFormattingSettings(
+            enabled: globalSettings.resultsEnableTypeFormatting,
+            mode: globalSettings.resultsFormattingMode
         )
         queryState.isResultsOnly = true
         queryState.shouldAutoExecuteOnAppear = true
@@ -1801,6 +1816,10 @@ final class AppModel: ObservableObject {
             previewRowLimit: previewLimit,
             spoolManager: resultSpoolManager,
             backgroundFetchSize: globalSettings.resultsStreamingFetchSize
+        )
+        duplicateState.updateResultsFormattingSettings(
+            enabled: globalSettings.resultsEnableTypeFormatting,
+            mode: globalSettings.resultsFormattingMode
         )
         duplicateState.splitRatio = queryState.splitRatio
         duplicateState.updateClipboardContext(

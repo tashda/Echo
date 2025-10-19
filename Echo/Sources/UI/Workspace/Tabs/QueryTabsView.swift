@@ -178,10 +178,6 @@ struct QueryTabsView: View {
         }
         let foreignKeyMode = await MainActor.run { appModel.globalSettings.foreignKeyDisplayMode }
         let shouldResolveForeignKeys = foreignKeyMode != .disabled
-        let foreignKeyMappingTask = Task<ForeignKeyMapping, Never> {
-            guard shouldResolveForeignKeys else { return [:] }
-            return await loadForeignKeyMapping(for: tab, inferredObject: inferredObject)
-        }
 
         let task = Task { [weak queryState] in
             guard let state = await MainActor.run(body: { queryState }) else { return }
@@ -202,7 +198,13 @@ struct QueryTabsView: View {
                     }
                 }
                 try Task.checkCancellation()
-                let mapping = await foreignKeyMappingTask.value
+                let mapping: ForeignKeyMapping
+                if shouldResolveForeignKeys {
+                    mapping = await loadForeignKeyMapping(for: tab, inferredObject: inferredObject)
+                } else {
+                    mapping = [:]
+                }
+                try Task.checkCancellation()
                 var enrichedResult = result
                 if !mapping.isEmpty {
                     enrichedResult.columns = await MainActor.run {
@@ -232,12 +234,10 @@ struct QueryTabsView: View {
                     appState.addToQueryHistory(effectiveSQL, resultCount: enrichedResult.rows.count, duration: state.lastExecutionTime ?? 0)
                 }
             } catch is CancellationError {
-                foreignKeyMappingTask.cancel()
                 await MainActor.run {
                     state.markCancellationCompleted()
                 }
             } catch {
-                foreignKeyMappingTask.cancel()
                 await MainActor.run {
                     state.errorMessage = error.localizedDescription
                     state.failExecution(with: "Query execution failed: \(error.localizedDescription)")
@@ -1227,7 +1227,7 @@ private struct QueryEditorContainer: View {
             databaseType: databaseType,
             selectedDatabase: selectedDatabase,
             defaultSchema: defaultSchema,
-            structure: structure.map { $0.toEchoSense() }
+            structure: structure.flatMap { EchoSenseBridge.makeStructure(from: $0) }
         )
     }
 

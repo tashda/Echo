@@ -15,8 +15,7 @@ extension WorkspaceTabBarStyle {
         case .floating:
             return 0
         case .toolbarCompact:
-            // Pull content up to sit flush beneath the toolbar when tabs live inside it.
-            return -WorkspaceChromeMetrics.tabStripTotalHeight
+            return -WorkspaceChromeMetrics.toolbarTabBarHeight
         }
     }
 }

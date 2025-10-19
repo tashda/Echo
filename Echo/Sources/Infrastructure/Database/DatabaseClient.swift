@@ -4,6 +4,24 @@ import NIOCore
 let ResultStreamingFetchSizeDefaultsKey = "dk.tippr.echo.streaming.fetchSize"
 let ResultStreamingFetchRampMultiplierDefaultsKey = "dk.tippr.echo.streaming.fetchRampMultiplier"
 let ResultStreamingFetchRampMaxDefaultsKey = "dk.tippr.echo.streaming.fetchRampMax"
+let ResultFormattingEnabledDefaultsKey = "dk.tippr.echo.results.formattingEnabled"
+let ResultFormattingModeDefaultsKey = "dk.tippr.echo.results.formattingMode"
+
+public enum ResultsFormattingMode: String, Sendable, Codable, CaseIterable, Identifiable {
+    case immediate
+    case deferred
+
+    public var id: String { rawValue }
+
+    public var displayName: String {
+        switch self {
+        case .immediate:
+            return "Wait for formatting"
+        case .deferred:
+            return "Show immediately, format later"
+        }
+    }
+}
 
 public struct QueryResultSet: Sendable {
     public var columns: [ColumnInfo]

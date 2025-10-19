@@ -979,7 +979,7 @@ final class SQLAutoCompletionEngineTests: XCTestCase {
         return SQLEditorCompletionContext(databaseType: .postgresql,
                                           selectedDatabase: "testdb",
                                           defaultSchema: "public",
-                                          structure: structure.toEchoSense())
+                                          structure: EchoSenseBridge.makeStructure(from: structure))
     }
 
     private final class StubCompletionEngine: SQLCompletionEngineProtocol {

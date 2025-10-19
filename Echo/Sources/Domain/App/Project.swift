@@ -1067,6 +1067,8 @@ struct GlobalSettings: Codable, Hashable {
     var workspaceTabBarStyle: WorkspaceTabBarStyle = .floating
     var themeResultsGrid: Bool = true
     var resultsAlternateRowShading: Bool = false
+    var resultsEnableTypeFormatting: Bool = true
+    var resultsFormattingMode: ResultsFormattingMode = .immediate
     var foreignKeyDisplayMode: ForeignKeyDisplayMode = .showInspector
     var foreignKeyInspectorBehavior: ForeignKeyInspectorBehavior = .respectInspectorVisibility
     var foreignKeyIncludeRelated: Bool = false
@@ -1125,6 +1127,8 @@ struct GlobalSettings: Codable, Hashable {
         workspaceTabBarStyle: WorkspaceTabBarStyle = .floating,
         themeResultsGrid: Bool = true,
         resultsAlternateRowShading: Bool = false,
+        resultsEnableTypeFormatting: Bool = true,
+        resultsFormattingMode: ResultsFormattingMode = .immediate,
         foreignKeyDisplayMode: ForeignKeyDisplayMode = .showInspector,
         foreignKeyInspectorBehavior: ForeignKeyInspectorBehavior = .respectInspectorVisibility,
         foreignKeyIncludeRelated: Bool = false,
@@ -1182,6 +1186,8 @@ struct GlobalSettings: Codable, Hashable {
         self.workspaceTabBarStyle = workspaceTabBarStyle
         self.themeResultsGrid = themeResultsGrid
         self.resultsAlternateRowShading = resultsAlternateRowShading
+        self.resultsEnableTypeFormatting = resultsEnableTypeFormatting
+        self.resultsFormattingMode = resultsFormattingMode
         self.foreignKeyDisplayMode = foreignKeyDisplayMode
         self.foreignKeyInspectorBehavior = foreignKeyInspectorBehavior
         self.foreignKeyIncludeRelated = foreignKeyIncludeRelated
@@ -1246,6 +1252,8 @@ struct GlobalSettings: Codable, Hashable {
         case workspaceTabBarStyle
         case themeResultsGrid
         case resultsAlternateRowShading
+        case resultsEnableTypeFormatting
+        case resultsFormattingMode
         case foreignKeyDisplayMode
         case foreignKeyInspectorBehavior
         case foreignKeyIncludeRelated
@@ -1332,6 +1340,8 @@ struct GlobalSettings: Codable, Hashable {
         workspaceTabBarStyle = try container.decodeIfPresent(WorkspaceTabBarStyle.self, forKey: .workspaceTabBarStyle) ?? .floating
         themeResultsGrid = try container.decodeIfPresent(Bool.self, forKey: .themeResultsGrid) ?? true
         resultsAlternateRowShading = try container.decodeIfPresent(Bool.self, forKey: .resultsAlternateRowShading) ?? false
+        resultsEnableTypeFormatting = try container.decodeIfPresent(Bool.self, forKey: .resultsEnableTypeFormatting) ?? true
+        resultsFormattingMode = (try? container.decodeIfPresent(ResultsFormattingMode.self, forKey: .resultsFormattingMode)) ?? .immediate
         foreignKeyDisplayMode = try container.decodeIfPresent(ForeignKeyDisplayMode.self, forKey: .foreignKeyDisplayMode) ?? .showInspector
         foreignKeyInspectorBehavior = try container.decodeIfPresent(ForeignKeyInspectorBehavior.self, forKey: .foreignKeyInspectorBehavior) ?? .respectInspectorVisibility
         foreignKeyIncludeRelated = try container.decodeIfPresent(Bool.self, forKey: .foreignKeyIncludeRelated) ?? false
@@ -1396,6 +1406,8 @@ struct GlobalSettings: Codable, Hashable {
         try container.encode(workspaceTabBarStyle, forKey: .workspaceTabBarStyle)
         try container.encode(themeResultsGrid, forKey: .themeResultsGrid)
         try container.encode(resultsAlternateRowShading, forKey: .resultsAlternateRowShading)
+        try container.encode(resultsEnableTypeFormatting, forKey: .resultsEnableTypeFormatting)
+        try container.encode(resultsFormattingMode, forKey: .resultsFormattingMode)
         try container.encode(foreignKeyDisplayMode, forKey: .foreignKeyDisplayMode)
         try container.encode(foreignKeyInspectorBehavior, forKey: .foreignKeyInspectorBehavior)
         try container.encode(foreignKeyIncludeRelated, forKey: .foreignKeyIncludeRelated)

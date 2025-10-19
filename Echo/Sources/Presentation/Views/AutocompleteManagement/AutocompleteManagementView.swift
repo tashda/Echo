@@ -44,7 +44,7 @@ struct AutocompleteManagementRootView: View {
             databaseType: databaseType,
             selectedDatabase: selectedDatabase,
             defaultSchema: defaultSchema(for: databaseType),
-            structure: structure.map { $0.toEchoSense() }
+            structure: structure.flatMap { EchoSenseBridge.makeStructure(from: $0) }
         )
     }
 

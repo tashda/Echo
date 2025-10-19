@@ -37,27 +37,27 @@ struct WorkspaceToolbarItems: ToolbarContent {
 #if os(macOS)
     @ToolbarContentBuilder
     private var macToolbar: some ToolbarContent {
-        ToolbarItem(placement: .navigation) {
+        ToolbarItem(id: "workspace.navigation.project", placement: .navigation) {
             projectMenu
         }
 
         ToolbarItem(placement: .principal) {
-            if appState.workspaceTabBarStyle == .toolbarCompact {
-                ToolbarFlexibleContainer {
-                    WorkspaceToolbarTabBar(maxVisibleTabs: appState.workspaceTabBarStyle.maxVisibleToolbarTabs)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .frame(height: WorkspaceToolbarTabBar.toolbarHeight)
-                        .padding(.leading, -6)
-                }
-            } else {
-                ToolbarPrincipalSpacer()
-            }
+            ToolbarPrincipalSpacer()
         }
 
-        ToolbarItemGroup(placement: .primaryAction) {
+        ToolbarItem(id: "workspace.primary.refresh", placement: .primaryAction) {
             refreshButton
+        }
+
+        ToolbarItem(id: "workspace.primary.newtab", placement: .primaryAction) {
             newTabButton
+        }
+
+        ToolbarItem(id: "workspace.primary.taboverview", placement: .primaryAction) {
             tabOverviewButton
+        }
+
+        ToolbarItem(id: "workspace.primary.inspector", placement: .primaryAction) {
             inspectorButton
         }
     }
@@ -1132,17 +1132,15 @@ private extension ToolbarIcon {
 #endif
 
 #if os(macOS)
-private struct WorkspaceToolbarTabBar: View {
+struct WorkspaceToolbarTabBar: View {
     let maxVisibleTabs: Int
 
     @EnvironmentObject private var appModel: AppModel
     @EnvironmentObject private var themeManager: ThemeManager
     @Environment(\.colorScheme) private var colorScheme
 
-    static let toolbarHeight: CGFloat = 32
-
     private let tabSpacing: CGFloat = 6
-    private let chipHeight: CGFloat = WorkspaceToolbarTabBar.toolbarHeight
+    private let chipHeight: CGFloat = WorkspaceChromeMetrics.toolbarTabBarHeight
     private let comfortableMinTabWidth: CGFloat = 92
     private let absoluteMinTabWidth: CGFloat = 56
     private let maxTabWidth: CGFloat = 172
@@ -1372,7 +1370,7 @@ private struct WorkspaceToolbarTabBar: View {
     }
 }
 
-private struct ToolbarWorkspaceTabChip: View {
+struct ToolbarWorkspaceTabChip: View {
     @ObservedObject var tab: WorkspaceTab
     let isActive: Bool
     let accent: Color
@@ -1419,9 +1417,11 @@ private struct ToolbarWorkspaceTabChip: View {
         }
         .padding(.horizontal, horizontalPadding)
         .frame(height: height)
-        .background(capsule.fill(tabFill))
-        .overlay(capsule.stroke(tabStroke, lineWidth: 1))
+        .background(glassBackground)
+        .overlay(glassBorder)
+        .overlay(glassHighlight)
         .contentShape(capsule)
+        .shadow(color: tabShadowColor, radius: glassShadowRadius, y: glassShadowYOffset)
         .onTapGesture(perform: onSelect)
         .contextMenu {
             Button(tab.isPinned ? "Unpin Tab" : "Pin Tab", action: onPinToggle)
@@ -1472,37 +1472,57 @@ private struct ToolbarWorkspaceTabChip: View {
         return trimmed.isEmpty ? "Untitled" : trimmed
     }
 
-    private var tabFill: some ShapeStyle {
-        if isActive {
-            let top = accent.opacity(colorScheme == .dark ? 0.38 : 0.24)
-            let bottom = accent.opacity(colorScheme == .dark ? 0.26 : 0.18)
-            return AnyShapeStyle(LinearGradient(colors: [top, bottom], startPoint: .top, endPoint: .bottom))
-        }
-        return AnyShapeStyle(Color.clear)
+    private var glassBackground: some View {
+        capsule.fill(glassGradient)
     }
 
-    private var tabStroke: Color {
+    private var glassBorder: some View {
+        capsule.stroke(glassBorderColor, lineWidth: 1)
+    }
+
+    private var glassHighlight: some View {
+        capsule
+            .stroke(Color.white.opacity(isActive ? 0.65 : 0.35), lineWidth: 0.7)
+            .blendMode(.screen)
+            .opacity(0.9)
+            .offset(y: -0.6)
+    }
+
+    private var glassGradient: LinearGradient {
         if isActive {
-            return accent.opacity(colorScheme == .dark ? 0.6 : 0.38)
+            let top = accent.opacity(colorScheme == .dark ? 0.40 : 0.30)
+            let mid = accent.opacity(colorScheme == .dark ? 0.24 : 0.16)
+            let bottom = Color.white.opacity(colorScheme == .dark ? 0.12 : 0.20)
+            return LinearGradient(colors: [top, mid, bottom], startPoint: .topLeading, endPoint: .bottomTrailing)
         }
-        return colorScheme == .dark ? Color.white.opacity(0.22) : Color.black.opacity(0.16)
+
+        let top = Color.white.opacity(colorScheme == .dark ? 0.22 : 0.65)
+        let bottom = Color.white.opacity(colorScheme == .dark ? 0.12 : 0.35)
+        return LinearGradient(colors: [top, bottom], startPoint: .top, endPoint: .bottom)
+    }
+
+    private var glassBorderColor: Color {
+        if isActive {
+            return accent.opacity(colorScheme == .dark ? 0.55 : 0.42)
+        }
+        return colorScheme == .dark ? Color.white.opacity(0.28) : Color.black.opacity(0.12)
     }
 
     private var titleColor: Color {
         if isActive {
-            return Color.white
+            return colorScheme == .dark ? Color.white.opacity(0.95) : Color.white
         }
         if tab.isPinned {
-            return colorScheme == .dark ? Color.white.opacity(0.78) : Color.primary.opacity(0.7)
+            return colorScheme == .dark ? Color.white.opacity(0.8) : Color.primary.opacity(0.72)
         }
-        return colorScheme == .dark ? Color.white.opacity(0.85) : Color.primary.opacity(0.78)
+        return colorScheme == .dark ? Color.white.opacity(0.78) : Color.primary.opacity(0.68)
     }
 
     private var closeIconColor: Color {
         if isActive {
-            return Color.white.opacity(0.9)
+            return Color.white.opacity(0.92)
         }
-        return colorScheme == .dark ? Color.white.opacity(0.75) : Color.black.opacity(0.55)
+        return colorScheme == .dark ? Color.white.opacity(0.75) : Color.black.opacity(0.5)
     }
 
     private var closeButtonOpacity: Double {
@@ -1516,6 +1536,16 @@ private struct ToolbarWorkspaceTabChip: View {
     private var horizontalPadding: CGFloat {
         tab.isPinned ? 12 : 16
     }
+
+    private var tabShadowColor: Color {
+        if isActive {
+            return accent.opacity(colorScheme == .dark ? 0.55 : 0.28)
+        }
+        return Color.black.opacity(colorScheme == .dark ? 0.35 : 0.08)
+    }
+
+    private var glassShadowRadius: CGFloat { isActive ? 6 : 3 }
+    private var glassShadowYOffset: CGFloat { isActive ? 3 : 1.5 }
 }
 #endif
 

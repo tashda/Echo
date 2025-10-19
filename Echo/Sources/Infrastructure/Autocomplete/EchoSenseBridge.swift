@@ -39,8 +39,4 @@ enum EchoSenseBridge {
                                           databases: databases)
     }
 
-    static func makeStructure(from structure: DatabaseStructure?) -> EchoSenseDatabaseStructure? {
-        guard let structure else { return nil }
-        return makeStructure(from: structure)
-    }
 }
