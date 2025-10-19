@@ -151,36 +151,65 @@ struct AutoCompletionListView: View {
 
         @State private var textWidth: CGFloat = 0
 
+        private enum Layout {
+            static let rowHeight: CGFloat = 16
+            static let scrollThreshold: CGFloat = 6
+        }
+
         var body: some View {
             GeometryReader { geometry in
-                let available = geometry.size.width
-                TimelineView(.animation) { timeline in
-                    Text(text)
-                        .font(font)
-                        .lineLimit(1)
-                        .background(widthReader)
-                        .offset(x: offset(for: timeline.date.timeIntervalSinceReferenceDate, available: available))
+                let availableWidth = geometry.size.width
+                let overflow = max(0, textWidth - availableWidth)
+                let shouldAnimate = isActive && overflow > Layout.scrollThreshold
+
+                Group {
+                    if shouldAnimate {
+                        TimelineView(.animation) { timeline in
+                            textLabel
+                                .offset(x: offset(for: timeline.date.timeIntervalSinceReferenceDate, overflow: overflow))
+                        }
+                    } else {
+                        textLabel
+                    }
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .frame(height: 16)
+            .frame(height: Layout.rowHeight)
+            .onChange(of: text) { _, _ in
+                textWidth = 0
+            }
+        }
+
+        private var textLabel: some View {
+            Text(text)
+                .font(font)
+                .lineLimit(1)
+                .background(widthReader)
         }
 
         private var widthReader: some View {
             GeometryReader { geo in
                 Color.clear
-                    .onAppear { textWidth = geo.size.width }
+                    .onAppear { updateTextWidth(geo.size.width) }
                     .onChange(of: geo.size.width) { _, newValue in
-                        textWidth = newValue
+                        updateTextWidth(newValue)
                     }
             }
         }
 
-        private func offset(for time: TimeInterval, available: CGFloat) -> CGFloat {
-            let delta = textWidth - available
-            guard isActive, delta > 6 else { return 0 }
-            let period = max(Double(delta / 32), 1.6)
-            let progress = (sin((time.truncatingRemainder(dividingBy: period)) / period * .pi * 2) + 1) / 2
-            return -CGFloat(progress) * delta
+        private func updateTextWidth(_ newValue: CGFloat) {
+            let clamped = max(0, newValue)
+            if abs(textWidth - clamped) > .leastNonzeroMagnitude {
+                textWidth = clamped
+            }
+        }
+
+        private func offset(for time: TimeInterval, overflow: CGFloat) -> CGFloat {
+            guard overflow > Layout.scrollThreshold else { return 0 }
+            let period = max(Double(overflow / 32), 1.6)
+            let normalizedTime = (time.truncatingRemainder(dividingBy: period)) / period
+            let progress = (sin(normalizedTime * .pi * 2) + 1) / 2
+            return -CGFloat(progress) * overflow
         }
     }
 

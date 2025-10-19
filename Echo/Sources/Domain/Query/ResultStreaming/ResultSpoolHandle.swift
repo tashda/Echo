@@ -27,18 +27,8 @@ actor ResultSpoolHandle {
     private func debugLog(_ message: @autoclosure () -> String) {
         print("[ResultSpoolHandle][\(debugID)][spool=\(id.uuidString.prefix(8))] \(message())")
     }
-
-    private func logStatsSubscribed(_ identifier: UUID) {
-        debugLog("statsStream subscribed id=\(identifier.uuidString.prefix(8)) continuations=\(statContinuations.count)")
-    }
-
-    private func logStatsTerminated(_ identifier: UUID) {
-        debugLog("statsStream terminated id=\(identifier.uuidString.prefix(8))")
-    }
 #else
     private func debugLog(_ message: @autoclosure () -> String) {}
-    private func logStatsSubscribed(_ identifier: UUID) {}
-    private func logStatsTerminated(_ identifier: UUID) {}
 #endif
 
     private struct ChunkRecord: Sendable {
@@ -112,24 +102,19 @@ actor ResultSpoolHandle {
             continuation.onTermination = { [weak self] _ in
                 Task {
                     await self?.removeContinuation(identifier)
-#if DEBUG
-                    if let self {
-                        self.logStatsTerminated(identifier)
-                    }
-#endif
                 }
             }
             Task {
                 await self.addContinuation(identifier, continuation)
-#if DEBUG
-                self.logStatsSubscribed(identifier)
-#endif
             }
         }
     }
 
     private func addContinuation(_ id: UUID, _ continuation: AsyncStream<ResultSpoolStats>.Continuation) async {
         statContinuations[id] = continuation
+#if DEBUG
+        debugLog("statsStream subscribed id=\(id.uuidString.prefix(8)) continuations=\(statContinuations.count)")
+#endif
         continuation.yield(currentStats(lastBatch: 0, metrics: nil, isFinished: metadata.isFinished))
     }
 
@@ -427,14 +412,14 @@ actor ResultSpoolHandle {
         return []
     }
 
-    private func makeJSONEncoder() -> JSONEncoder {
+    private nonisolated func makeJSONEncoder() -> JSONEncoder {
         let encoder = JSONEncoder()
         encoder.outputFormatting = []
         encoder.dateEncodingStrategy = .iso8601
         return encoder
     }
 
-    private func makeJSONDecoder() -> JSONDecoder {
+    private nonisolated func makeJSONDecoder() -> JSONDecoder {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
         return decoder
@@ -490,16 +475,13 @@ actor ResultSpoolHandle {
     private func persistMetadata() {
         let snapshot = metadata
         let metaURL = directory.appendingPathComponent("meta.json")
-        let encoder = makeJSONEncoder()
-        let data: Data
-        do {
-            data = try encoder.encode(snapshot)
-        } catch {
-            print("ResultSpoolHandle: Failed to encode metadata \(error)")
-            return
-        }
-        Task.detached(priority: .utility) {
+        Task.detached(priority: .utility) { [weak self, snapshot] in
+            guard let self else { return }
             do {
+                let data = try await MainActor.run { () -> Data in
+                    let encoder = self.makeJSONEncoder()
+                    return try encoder.encode(snapshot)
+                }
                 try data.write(to: metaURL, options: .atomic)
             } catch {
                 print("ResultSpoolHandle: Failed to persist metadata \(error)")
@@ -510,16 +492,13 @@ actor ResultSpoolHandle {
     private func persistStats(lastBatch: Int, metrics: QueryStreamMetrics?, isFinished: Bool) {
         let stats = currentStats(lastBatch: lastBatch, metrics: metrics, isFinished: isFinished)
         let statsURL = directory.appendingPathComponent("stats.json")
-        let encoder = makeJSONEncoder()
-        let data: Data
-        do {
-            data = try encoder.encode(stats)
-        } catch {
-            print("ResultSpoolHandle: Failed to encode stats \(error)")
-            return
-        }
-        Task.detached(priority: .utility) {
+        Task.detached(priority: .utility) { [weak self, stats] in
+            guard let self else { return }
             do {
+                let data = try await MainActor.run { () -> Data in
+                    let encoder = self.makeJSONEncoder()
+                    return try encoder.encode(stats)
+                }
                 try data.write(to: statsURL, options: .atomic)
             } catch {
                 print("ResultSpoolHandle: Failed to persist stats \(error)")

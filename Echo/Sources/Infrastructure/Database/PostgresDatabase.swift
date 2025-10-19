@@ -52,6 +52,8 @@ struct PostgresNIOFactory: DatabaseFactory {
     }
 }
 
+extension PostgresSession: @unchecked Sendable {}
+
 final class PostgresSession: DatabaseSession {
     private let client: PostgresClient
     private let clientTask: Task<Void, Never>
@@ -82,43 +84,47 @@ final class PostgresSession: DatabaseSession {
 
     private func executeSimpleQuery(_ sql: String) async throws -> QueryResultSet {
         let query = PostgresQuery(unsafeSQL: sql)
-        let result = try await client.query(query, logger: logger)
+        do {
+            let result = try await client.query(query, logger: logger)
 
-        var columns: [ColumnInfo] = []
-        var rows: [[String?]] = []
-        rows.reserveCapacity(512)
+            var columns: [ColumnInfo] = []
+            var rows: [[String?]] = []
+            rows.reserveCapacity(512)
 
-        let formatterContext = CellFormatterContext()
+            let formatterContext = CellFormatterContext()
 
-        for try await row in result {
-            if columns.isEmpty {
-                for cell in row {
-                    columns.append(ColumnInfo(
-                        name: cell.columnName,
-                        dataType: "\(cell.dataType)",
-                        isPrimaryKey: false,
-                        isNullable: true,
-                        maxLength: nil
-                    ))
+            for try await row in result {
+                if columns.isEmpty {
+                    for cell in row {
+                        columns.append(ColumnInfo(
+                            name: cell.columnName,
+                            dataType: "\(cell.dataType)",
+                            isPrimaryKey: false,
+                            isNullable: true,
+                            maxLength: nil
+                        ))
+                    }
                 }
+
+                var rowValues: [String?] = []
+                rowValues.reserveCapacity(row.count)
+                for cell in row {
+                    rowValues.append(formatterContext.stringValue(for: cell))
+                }
+                rows.append(rowValues)
             }
 
-            var rowValues: [String?] = []
-            rowValues.reserveCapacity(row.count)
-            for cell in row {
-                rowValues.append(formatterContext.stringValue(for: cell))
-            }
-            rows.append(rowValues)
+            let resolvedColumns = columns.isEmpty
+                ? [ColumnInfo(name: "result", dataType: "text")]
+                : columns
+
+            return QueryResultSet(
+                columns: resolvedColumns,
+                rows: rows
+            )
+        } catch {
+            throw normalizeError(error, contextSQL: sql)
         }
-
-        let resolvedColumns = columns.isEmpty
-            ? [ColumnInfo(name: "result", dataType: "text")]
-            : columns
-
-        return QueryResultSet(
-            columns: resolvedColumns,
-            rows: rows
-        )
     }
 
     private func streamQuery(sanitizedSQL: String, progressHandler: @escaping QueryProgressHandler) async throws -> QueryResultSet {
@@ -144,8 +150,12 @@ final class PostgresSession: DatabaseSession {
 
         func executeVoidStatement(_ sql: String) async throws {
             let statement = PostgresQuery(unsafeSQL: sql)
-            let result = try await client.query(statement, logger: logger)
-            for try await _ in result {}
+            do {
+                let result = try await client.query(statement, logger: logger)
+                for try await _ in result {}
+            } catch {
+                throw normalizeError(error, contextSQL: sql)
+            }
         }
 
         let cursorName = "echo_cursor_\(UUID().uuidString.replacingOccurrences(of: "-", with: ""))"
@@ -187,7 +197,7 @@ final class PostgresSession: DatabaseSession {
         do {
             try Task.checkCancellation()
 
-        let declareSQL = "DECLARE \(cursorName) CURSOR FOR \(sanitizedSQL)"
+            let declareSQL = "DECLARE \(cursorName) CURSOR FOR \(sanitizedSQL)"
             try await executeVoidStatement(declareSQL)
             debugLog("Declared cursor \(cursorName) for sanitized SQL (length=\(sanitizedSQL.count))")
             cursorActive = true
@@ -212,7 +222,25 @@ final class PostgresSession: DatabaseSession {
 #if DEBUG
                 debugLog("Issuing fetch size=\(fetchSize) currentTotal=\(totalRowCount)")
 #endif
-                let batchSequence = try await client.query(fetchQuery, logger: logger)
+                var optionalSequence: PostgresRowSequence?
+                do {
+                    optionalSequence = try await client.query(fetchQuery, logger: logger)
+                } catch let error as PSQLError {
+                    if let stateString = error.serverInfo?[.sqlState] {
+                        let code = PostgresError.Code(stringLiteral: stateString)
+                        if code == .invalidCursorState || code == .invalidCursorName {
+                            debugLog("Cursor exhausted (sqlState=\(stateString)); stopping fetch loop")
+                            break fetchLoop
+                        }
+                    }
+                    throw normalizeError(error, contextSQL: fetchSQL)
+                } catch {
+                    throw normalizeError(error, contextSQL: fetchSQL)
+                }
+
+                guard let batchSequence = optionalSequence else {
+                    break fetchLoop
+                }
 
                 var batchRows: [[String?]] = []
                 batchRows.reserveCapacity(fetchSize)
@@ -380,7 +408,7 @@ final class PostgresSession: DatabaseSession {
             if let cancellation = error as? CancellationError {
                 throw cancellation
             }
-            throw error
+            throw normalizeError(error, contextSQL: sanitizedSQL)
         }
 
         let totalElapsed = CFAbsoluteTimeGetCurrent() - operationStart
@@ -413,6 +441,42 @@ final class PostgresSession: DatabaseSession {
             trimmed = trimmed.trimmingCharacters(in: .whitespacesAndNewlines)
         }
         return trimmed
+    }
+
+    private func normalizeError(_ error: Error, contextSQL: String? = nil) -> Error {
+        guard let pgError = error as? PSQLError else { return error }
+
+        var lines: [String] = []
+        if let message = pgError.serverInfo?[.message], !message.isEmpty {
+            lines.append(message)
+        } else {
+            lines.append(pgError.localizedDescription)
+        }
+        if let detail = pgError.serverInfo?[.detail], !detail.isEmpty {
+            lines.append(detail)
+        }
+        if let hint = pgError.serverInfo?[.hint], !hint.isEmpty {
+            lines.append("Hint: \(hint)")
+        }
+        if let sqlState = pgError.serverInfo?[.sqlState], !sqlState.isEmpty {
+            lines.append("SQLSTATE: \(sqlState)")
+        }
+        if
+            let positionString = pgError.serverInfo?[.position],
+            let position = Int(positionString),
+            position > 0,
+            let sql = contextSQL
+        {
+            let limitedSQL = sql.prefix(2_000)
+            lines.append(String(limitedSQL))
+            let caretPosition = min(position - 1, limitedSQL.count - 1)
+            let pointer = String(repeating: " ", count: max(0, caretPosition)) + "^"
+            lines.append(pointer)
+        }
+
+        let message = lines.joined(separator: "\n")
+        logger.error(.init(stringLiteral: "PostgreSQL error: \(message)"))
+        return DatabaseError.queryError(message)
     }
 
     func queryWithPaging(_ sql: String, limit: Int, offset: Int) async throws -> QueryResultSet {
@@ -476,9 +540,10 @@ final class PostgresSession: DatabaseSession {
     }
 
     func getTableStructureDetails(schema: String, table: String) async throws -> TableStructureDetails {
-        var columns: [TableStructureDetails.Column] = []
+        @Sendable func fetchColumns() async throws -> [TableStructureDetails.Column] {
+            var columns: [TableStructureDetails.Column] = []
 
-        let columnsSQL = """
+            let columnsSQL = """
         SELECT
             column_name,
             data_type,
@@ -491,22 +556,25 @@ final class PostgresSession: DatabaseSession {
         ORDER BY ordinal_position;
         """
 
-        let columnResult = try await performQuery(columnsSQL, binds: [PostgresData(string: schema), PostgresData(string: table)])
-        for try await (name, dataType, nullable, defaultValue, generated, _) in columnResult.decode((String, String, String, String?, String?, Int).self) {
-            let column = TableStructureDetails.Column(
-                name: name,
-                dataType: dataType,
-                isNullable: nullable.uppercased() == "YES",
-                defaultValue: defaultValue,
-                generatedExpression: generated
-            )
-            columns.append(column)
+            let columnResult = try await performQuery(columnsSQL, binds: [PostgresData(string: schema), PostgresData(string: table)])
+            for try await (name, dataType, nullable, defaultValue, generated, _) in columnResult.decode((String, String, String, String?, String?, Int).self) {
+                let column = TableStructureDetails.Column(
+                    name: name,
+                    dataType: dataType,
+                    isNullable: nullable.uppercased() == "YES",
+                    defaultValue: defaultValue,
+                    generatedExpression: generated
+                )
+                columns.append(column)
+            }
+            return columns
         }
 
-        // Primary key
-        var primaryKeyName: String?
-        var primaryKeyColumns: [String] = []
-        let primaryKeySQL = """
+        @Sendable func fetchPrimaryKey() async throws -> TableStructureDetails.PrimaryKey? {
+            var primaryKeyName: String?
+            var primaryKeyColumns: [String] = []
+
+            let primaryKeySQL = """
         SELECT tc.constraint_name, kcu.column_name
         FROM information_schema.table_constraints AS tc
         JOIN information_schema.key_column_usage AS kcu
@@ -518,26 +586,27 @@ final class PostgresSession: DatabaseSession {
         ORDER BY kcu.ordinal_position;
         """
 
-        let pkResult = try await performQuery(primaryKeySQL, binds: [PostgresData(string: schema), PostgresData(string: table)])
-        for try await (name, column) in pkResult.decode((String, String).self) {
-            primaryKeyName = name
-            primaryKeyColumns.append(column)
+            let pkResult = try await performQuery(primaryKeySQL, binds: [PostgresData(string: schema), PostgresData(string: table)])
+            for try await (name, column) in pkResult.decode((String, String).self) {
+                primaryKeyName = name
+                primaryKeyColumns.append(column)
+            }
+
+            if let pkName = primaryKeyName {
+                return TableStructureDetails.PrimaryKey(name: pkName, columns: primaryKeyColumns)
+            }
+            return nil
         }
 
-        var primaryKey: TableStructureDetails.PrimaryKey?
-        if let pkName = primaryKeyName {
-            primaryKey = TableStructureDetails.PrimaryKey(name: pkName, columns: primaryKeyColumns)
-        }
+        @Sendable func fetchIndexes() async throws -> [TableStructureDetails.Index] {
+            struct IndexAccumulator {
+                var isUnique: Bool
+                var columns: [TableStructureDetails.Index.Column]
+                var filterCondition: String?
+            }
 
-        // Indexes (non-primary)
-        struct IndexAccumulator {
-            var isUnique: Bool
-            var columns: [TableStructureDetails.Index.Column]
-            var filterCondition: String?
-        }
-
-        var indexes: [String: IndexAccumulator] = [:]
-        let indexSQL = """
+            var indexes: [String: IndexAccumulator] = [:]
+            let indexSQL = """
         SELECT
             idx.relname AS index_name,
             ix.indisunique,
@@ -557,37 +626,38 @@ final class PostgresSession: DatabaseSession {
         ORDER BY idx.relname, ord.position;
         """
 
-        let indexResult = try await performQuery(indexSQL, binds: [PostgresData(string: schema), PostgresData(string: table)])
-        for try await (indexName, isUnique, position, column, isDescendingRaw, predicate) in indexResult.decode((String, Bool, Int, String?, Bool?, String?).self) {
-            var entry = indexes[indexName] ?? IndexAccumulator(isUnique: isUnique, columns: [], filterCondition: predicate)
-            entry.filterCondition = predicate
-            if let column {
-                let isDescending = isDescendingRaw ?? false
-                let sortOrder: TableStructureDetails.Index.Column.SortOrder = isDescending ? .descending : .ascending
-                entry.columns.append(
-                    TableStructureDetails.Index.Column(
-                        name: column,
-                        position: position,
-                        sortOrder: sortOrder
+            let indexResult = try await performQuery(indexSQL, binds: [PostgresData(string: schema), PostgresData(string: table)])
+            for try await (indexName, isUnique, position, column, isDescendingRaw, predicate) in indexResult.decode((String, Bool, Int, String?, Bool?, String?).self) {
+                var entry = indexes[indexName] ?? IndexAccumulator(isUnique: isUnique, columns: [], filterCondition: predicate)
+                entry.filterCondition = predicate
+                if let column {
+                    let isDescending = isDescendingRaw ?? false
+                    let sortOrder: TableStructureDetails.Index.Column.SortOrder = isDescending ? .descending : .ascending
+                    entry.columns.append(
+                        TableStructureDetails.Index.Column(
+                            name: column,
+                            position: position,
+                            sortOrder: sortOrder
+                        )
                     )
-                )
+                }
+                indexes[indexName] = entry
             }
-            indexes[indexName] = entry
+
+            return indexes.map { name, value in
+                let sortedColumns = value.columns.sorted { $0.position < $1.position }
+                return TableStructureDetails.Index(
+                    name: name,
+                    columns: sortedColumns,
+                    isUnique: value.isUnique,
+                    filterCondition: value.filterCondition?.trimmingCharacters(in: .whitespacesAndNewlines)
+                )
+            }.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
         }
 
-        let indexModels: [TableStructureDetails.Index] = indexes.map { name, value in
-            let sortedColumns = value.columns.sorted { $0.position < $1.position }
-            return TableStructureDetails.Index(
-                name: name,
-                columns: sortedColumns,
-                isUnique: value.isUnique,
-                filterCondition: value.filterCondition?.trimmingCharacters(in: .whitespacesAndNewlines)
-            )
-        }.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
-
-        // Unique constraints
-        var uniqueConstraints: [String: [String]] = [:]
-        let uniqueSQL = """
+        @Sendable func fetchUniqueConstraints() async throws -> [TableStructureDetails.UniqueConstraint] {
+            var uniqueConstraints: [String: [String]] = [:]
+            let uniqueSQL = """
         SELECT tc.constraint_name, kcu.column_name, kcu.ordinal_position
         FROM information_schema.table_constraints AS tc
         JOIN information_schema.key_column_usage AS kcu
@@ -599,29 +669,30 @@ final class PostgresSession: DatabaseSession {
         ORDER BY tc.constraint_name, kcu.ordinal_position;
         """
 
-        let uniqueResult = try await performQuery(uniqueSQL, binds: [PostgresData(string: schema), PostgresData(string: table)])
-        for try await (name, column, _) in uniqueResult.decode((String, String, Int).self) {
-            uniqueConstraints[name, default: []].append(column)
+            let uniqueResult = try await performQuery(uniqueSQL, binds: [PostgresData(string: schema), PostgresData(string: table)])
+            for try await (name, column, _) in uniqueResult.decode((String, String, Int).self) {
+                uniqueConstraints[name, default: []].append(column)
+            }
+
+            return uniqueConstraints.map { name, columns in
+                TableStructureDetails.UniqueConstraint(name: name, columns: columns)
+            }.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
         }
 
-        let uniqueModels: [TableStructureDetails.UniqueConstraint] = uniqueConstraints.map { name, columns in
-            TableStructureDetails.UniqueConstraint(name: name, columns: columns)
-        }.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+        @Sendable func fetchForeignKeys() async throws -> [TableStructureDetails.ForeignKey] {
+            struct ForeignKeyRow {
+                let name: String
+                let column: String
+                let referencedSchema: String
+                let referencedTable: String
+                let referencedColumn: String
+                let onUpdate: String?
+                let onDelete: String?
+                let position: Int
+            }
 
-        // Foreign keys
-        struct ForeignKeyRow {
-            let name: String
-            let column: String
-            let referencedSchema: String
-            let referencedTable: String
-            let referencedColumn: String
-            let onUpdate: String?
-            let onDelete: String?
-            let position: Int
-        }
-
-        var foreignKeyRows: [ForeignKeyRow] = []
-        let foreignKeySQL = """
+            var foreignKeyRows: [ForeignKeyRow] = []
+            let foreignKeySQL = """
         SELECT
             tc.constraint_name,
             kcu.column_name,
@@ -647,49 +718,50 @@ final class PostgresSession: DatabaseSession {
         ORDER BY tc.constraint_name, kcu.ordinal_position;
         """
 
-        let foreignResult = try await performQuery(foreignKeySQL, binds: [PostgresData(string: schema), PostgresData(string: table)])
-        for try await (name, column, refSchema, refTable, refColumn, onUpdate, onDelete, position) in foreignResult.decode((String, String, String, String, String, String?, String?, Int).self) {
-            foreignKeyRows.append(
-                ForeignKeyRow(
-                    name: name,
-                    column: column,
-                    referencedSchema: refSchema,
-                    referencedTable: refTable,
-                    referencedColumn: refColumn,
-                    onUpdate: onUpdate,
-                    onDelete: onDelete,
-                    position: position
+            let foreignResult = try await performQuery(foreignKeySQL, binds: [PostgresData(string: schema), PostgresData(string: table)])
+            for try await (name, column, refSchema, refTable, refColumn, onUpdate, onDelete, position) in foreignResult.decode((String, String, String, String, String, String?, String?, Int).self) {
+                foreignKeyRows.append(
+                    ForeignKeyRow(
+                        name: name,
+                        column: column,
+                        referencedSchema: refSchema,
+                        referencedTable: refTable,
+                        referencedColumn: refColumn,
+                        onUpdate: onUpdate,
+                        onDelete: onDelete,
+                        position: position
+                    )
                 )
-            )
+            }
+
+            let groupedFK = Dictionary(grouping: foreignKeyRows, by: { $0.name })
+            return groupedFK.map { name, rows in
+                let sortedRows = rows.sorted { $0.position < $1.position }
+                return TableStructureDetails.ForeignKey(
+                    name: name,
+                    columns: sortedRows.map { $0.column },
+                    referencedSchema: sortedRows.first?.referencedSchema ?? schema,
+                    referencedTable: sortedRows.first?.referencedTable ?? "",
+                    referencedColumns: sortedRows.map { $0.referencedColumn },
+                    onUpdate: sortedRows.first?.onUpdate,
+                    onDelete: sortedRows.first?.onDelete
+                )
+            }.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
         }
 
-        let groupedFK = Dictionary(grouping: foreignKeyRows, by: { $0.name })
-        let foreignKeyModels: [TableStructureDetails.ForeignKey] = groupedFK.map { name, rows in
-            let sortedRows = rows.sorted { $0.position < $1.position }
-            return TableStructureDetails.ForeignKey(
-                name: name,
-                columns: sortedRows.map { $0.column },
-                referencedSchema: sortedRows.first?.referencedSchema ?? schema,
-                referencedTable: sortedRows.first?.referencedTable ?? "",
-                referencedColumns: sortedRows.map { $0.referencedColumn },
-                onUpdate: sortedRows.first?.onUpdate,
-                onDelete: sortedRows.first?.onDelete
-            )
-        }.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+        @Sendable func fetchDependencies() async throws -> [TableStructureDetails.Dependency] {
+            struct DependencyRow {
+                let name: String
+                let sourceTable: String
+                let referencingColumn: String
+                let referencedColumn: String
+                let onUpdate: String?
+                let onDelete: String?
+                let position: Int
+            }
 
-        // Dependencies (incoming foreign keys)
-        struct DependencyRow {
-            let name: String
-            let sourceTable: String
-            let referencingColumn: String
-            let referencedColumn: String
-            let onUpdate: String?
-            let onDelete: String?
-            let position: Int
-        }
-
-        var dependencyRows: [DependencyRow] = []
-        let dependencySQL = """
+            var dependencyRows: [DependencyRow] = []
+            let dependencySQL = """
         SELECT
             tc.constraint_name,
             kcu.table_schema,
@@ -714,48 +786,65 @@ final class PostgresSession: DatabaseSession {
         ORDER BY tc.constraint_name, kcu.ordinal_position;
         """
 
-        let dependencyResult = try await performQuery(dependencySQL, binds: [PostgresData(string: schema), PostgresData(string: table)])
-        for try await (name, sourceSchema, sourceTable, sourceColumn, targetColumn, onUpdate, onDelete, position) in dependencyResult.decode((String, String, String, String, String, String?, String?, Int).self) {
-            let fullSourceTable: String
-            if sourceSchema == schema {
-                fullSourceTable = sourceTable
-            } else {
-                fullSourceTable = "\(sourceSchema).\(sourceTable)"
+            let dependencyResult = try await performQuery(dependencySQL, binds: [PostgresData(string: schema), PostgresData(string: table)])
+            for try await (name, sourceSchema, sourceTable, sourceColumn, targetColumn, onUpdate, onDelete, position) in dependencyResult.decode((String, String, String, String, String, String?, String?, Int).self) {
+                let fullSourceTable: String
+                if sourceSchema == schema {
+                    fullSourceTable = sourceTable
+                } else {
+                    fullSourceTable = "\(sourceSchema).\(sourceTable)"
+                }
+
+                dependencyRows.append(
+                    DependencyRow(
+                        name: name,
+                        sourceTable: fullSourceTable,
+                        referencingColumn: sourceColumn,
+                        referencedColumn: targetColumn,
+                        onUpdate: onUpdate,
+                        onDelete: onDelete,
+                        position: position
+                    )
+                )
             }
 
-            dependencyRows.append(
-                DependencyRow(
+            let groupedDependencies = Dictionary(grouping: dependencyRows, by: { $0.name })
+            return groupedDependencies.map { name, rows in
+                let sortedRows = rows.sorted { $0.position < $1.position }
+                return TableStructureDetails.Dependency(
                     name: name,
-                    sourceTable: fullSourceTable,
-                    referencingColumn: sourceColumn,
-                    referencedColumn: targetColumn,
-                    onUpdate: onUpdate,
-                    onDelete: onDelete,
-                    position: position
+                    baseColumns: sortedRows.map { $0.referencingColumn },
+                    referencedTable: sortedRows.first?.sourceTable ?? "",
+                    referencedColumns: sortedRows.map { $0.referencedColumn },
+                    onUpdate: sortedRows.first?.onUpdate,
+                    onDelete: sortedRows.first?.onDelete
                 )
-            )
+            }.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
         }
 
-        let groupedDependencies = Dictionary(grouping: dependencyRows, by: { $0.name })
-        let dependencyModels: [TableStructureDetails.Dependency] = groupedDependencies.map { name, rows in
-            let sortedRows = rows.sorted { $0.position < $1.position }
-            return TableStructureDetails.Dependency(
-                name: name,
-                baseColumns: sortedRows.map { $0.referencingColumn },
-                referencedTable: sortedRows.first?.sourceTable ?? "",
-                referencedColumns: sortedRows.map { $0.referencedColumn },
-                onUpdate: sortedRows.first?.onUpdate,
-                onDelete: sortedRows.first?.onDelete
-            )
-        }.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+        async let columnsTask = fetchColumns()
+        async let primaryKeyTask = fetchPrimaryKey()
+        async let indexesTask = fetchIndexes()
+        async let uniqueConstraintsTask = fetchUniqueConstraints()
+        async let foreignKeysTask = fetchForeignKeys()
+        async let dependenciesTask = fetchDependencies()
+
+        let (columns, primaryKey, indexes, uniqueConstraints, foreignKeys, dependencies) = try await (
+            columnsTask,
+            primaryKeyTask,
+            indexesTask,
+            uniqueConstraintsTask,
+            foreignKeysTask,
+            dependenciesTask
+        )
 
         return TableStructureDetails(
             columns: columns,
             primaryKey: primaryKey,
-            indexes: indexModels,
-            uniqueConstraints: uniqueModels,
-            foreignKeys: foreignKeyModels,
-            dependencies: dependencyModels
+            indexes: indexes,
+            uniqueConstraints: uniqueConstraints,
+            foreignKeys: foreignKeys,
+            dependencies: dependencies
         )
     }
 
@@ -990,6 +1079,28 @@ final class PostgresSession: DatabaseSession {
 }
 
 private struct CellFormatterContext {
+    private static let postgresEpoch: Date = {
+        var components = DateComponents()
+        components.calendar = Calendar(identifier: .gregorian)
+        components.timeZone = TimeZone(secondsFromGMT: 0)
+        components.year = 2000
+        components.month = 1
+        components.day = 1
+        return components.date!
+    }()
+
+    private static var utcCalendar: Calendar {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        return calendar
+    }
+
+    private static var localCalendar: Calendar {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone.current
+        return calendar
+    }
+
     func stringValue(for cell: PostgresCell) -> String? {
         guard let buffer = cell.bytes else { return nil }
 
@@ -1035,6 +1146,32 @@ private struct CellFormatterContext {
             if var mutableBuffer = cell.bytes {
                 return hexString(from: &mutableBuffer)
             }
+        case .timestamp:
+            if var mutableBuffer = cell.bytes,
+               let microseconds: Int64 = mutableBuffer.readInteger(as: Int64.self) {
+                return formatTimestamp(microseconds: microseconds)
+            }
+        case .timestamptz:
+            if var mutableBuffer = cell.bytes,
+               let microseconds: Int64 = mutableBuffer.readInteger(as: Int64.self) {
+                return formatTimestampWithTimeZone(microseconds: microseconds)
+            }
+        case .date:
+            if var mutableBuffer = cell.bytes,
+               let days: Int32 = mutableBuffer.readInteger(as: Int32.self) {
+                return formatDate(days: Int(days))
+            }
+        case .time:
+            if var mutableBuffer = cell.bytes,
+               let microseconds: Int64 = mutableBuffer.readInteger(as: Int64.self) {
+                return formatTime(microseconds: microseconds)
+            }
+        case .timetz:
+            if var mutableBuffer = cell.bytes,
+               let microseconds: Int64 = mutableBuffer.readInteger(as: Int64.self),
+               let tzOffset: Int32 = mutableBuffer.readInteger(as: Int32.self) {
+                return formatTimeWithTimeZone(microseconds: microseconds, offsetMinutesWest: Int(tzOffset))
+            }
         default:
             if let string = try? cell.decode(String.self, context: .default) {
                 return string
@@ -1056,6 +1193,111 @@ private struct CellFormatterContext {
     private func hexString(from buffer: inout ByteBuffer) -> String {
         let bytes = buffer.readBytes(length: buffer.readableBytes) ?? []
         return bytes.map { String(format: "%02x", $0) }.joined()
+    }
+
+    private func formatTimestamp(microseconds: Int64) -> String {
+        let (seconds, microsRemainder) = Self.splitMicroseconds(microseconds)
+        let date = Date(timeInterval: TimeInterval(seconds), since: Self.postgresEpoch)
+        let calendar = Self.utcCalendar
+        let components = calendar.dateComponents([.year, .month, .day, .hour, .minute, .second], from: date)
+        guard
+            let year = components.year,
+            let month = components.month,
+            let day = components.day,
+            let hour = components.hour,
+            let minute = components.minute,
+            let second = components.second
+        else {
+            return ""
+        }
+        let fractional = formatFractionalMicroseconds(microsRemainder)
+        return String(format: "%04d-%02d-%02d %02d:%02d:%02d%@", year, month, day, hour, minute, second, fractional)
+    }
+
+    private func formatTimestampWithTimeZone(microseconds: Int64) -> String {
+        let (seconds, microsRemainder) = Self.splitMicroseconds(microseconds)
+        let date = Date(timeInterval: TimeInterval(seconds), since: Self.postgresEpoch)
+        let calendar = Self.localCalendar
+        let components = calendar.dateComponents([.year, .month, .day, .hour, .minute, .second, .timeZone], from: date)
+        guard
+            let year = components.year,
+            let month = components.month,
+            let day = components.day,
+            let hour = components.hour,
+            let minute = components.minute,
+            let second = components.second
+        else {
+            return ""
+        }
+        let fractional = formatFractionalMicroseconds(microsRemainder)
+        let timeZone = components.timeZone ?? TimeZone.current
+        let offsetSeconds = timeZone.secondsFromGMT(for: date)
+        let offsetSign = offsetSeconds >= 0 ? "+" : "-"
+        let offset = abs(offsetSeconds)
+        let offsetHours = offset / 3600
+        let offsetMinutes = (offset % 3600) / 60
+        return String(
+            format: "%04d-%02d-%02d %02d:%02d:%02d%@%@%02d:%02d",
+            year,
+            month,
+            day,
+            hour,
+            minute,
+            second,
+            fractional,
+            offsetSign,
+            offsetHours,
+            offsetMinutes
+        )
+    }
+
+    private func formatDate(days: Int) -> String {
+        if let date = Self.utcCalendar.date(byAdding: .day, value: days, to: Self.postgresEpoch) {
+            let components = Self.utcCalendar.dateComponents([.year, .month, .day], from: date)
+            if let year = components.year, let month = components.month, let day = components.day {
+                return String(format: "%04d-%02d-%02d", year, month, day)
+            }
+        }
+        return ""
+    }
+
+    private func formatTime(microseconds: Int64) -> String {
+        let (seconds, microsRemainder) = Self.splitMicroseconds(microseconds)
+        let normalizedSeconds = ((seconds % 86_400) + 86_400) % 86_400
+        let hour = normalizedSeconds / 3_600
+        let minute = (normalizedSeconds % 3_600) / 60
+        let second = normalizedSeconds % 60
+        let fractional = formatFractionalMicroseconds(microsRemainder)
+        return String(format: "%02d:%02d:%02d%@", hour, minute, second, fractional)
+    }
+
+    private func formatTimeWithTimeZone(microseconds: Int64, offsetMinutesWest: Int) -> String {
+        let timeString = formatTime(microseconds: microseconds)
+        let minutesEast = -offsetMinutesWest
+        let sign = minutesEast >= 0 ? "+" : "-"
+        let absoluteMinutes = abs(minutesEast)
+        let hours = absoluteMinutes / 60
+        let minutes = absoluteMinutes % 60
+        return String(format: "%@%@%02d:%02d", timeString, sign, hours, minutes)
+    }
+
+    private static func splitMicroseconds(_ value: Int64) -> (seconds: Int64, remainder: Int64) {
+        var seconds = value / 1_000_000
+        var remainder = value % 1_000_000
+        if remainder < 0 {
+            remainder += 1_000_000
+            seconds -= 1
+        }
+        return (seconds, remainder)
+    }
+
+    private func formatFractionalMicroseconds(_ value: Int64) -> String {
+        guard value != 0 else { return "" }
+        var fractional = String(format: "%06lld", value)
+        while fractional.last == "0" {
+            fractional.removeLast()
+        }
+        return "." + fractional
     }
 }
 

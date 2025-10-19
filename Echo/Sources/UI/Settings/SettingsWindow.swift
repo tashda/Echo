@@ -1055,10 +1055,17 @@ struct AppearanceSettingsView: View {
             Toggle("Match workspace tabs to editor theme", isOn: themeTabsBinding)
                 .toggleStyle(.switch)
 
+            Picker("Tab Bar Layout", selection: tabBarStyleBinding) {
+                ForEach(WorkspaceTabBarStyle.allCases, id: \.self) { style in
+                    Text(style.displayName).tag(style)
+                }
+            }
+            .pickerStyle(.segmented)
+
             Toggle("Use application theme for diagrams", isOn: diagramUseThemeBinding)
                 .toggleStyle(.switch)
 
-            Text("Apply connection colors outside the editor, sync workspace tabs with the active theme, and optionally theme diagrams.")
+            Text("Choose where tabs live, sync them with the active theme, and apply connection colors beyond the editor.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
         }
@@ -1524,6 +1531,16 @@ struct AppearanceSettingsView: View {
             set: { newValue in
                 guard appModel.globalSettings.themeTabs != newValue else { return }
                 Task { await appModel.updateGlobalEditorDisplay { $0.themeTabs = newValue } }
+            }
+        )
+    }
+
+    private var tabBarStyleBinding: Binding<WorkspaceTabBarStyle> {
+        Binding(
+            get: { appModel.globalSettings.workspaceTabBarStyle },
+            set: { newValue in
+                guard appModel.globalSettings.workspaceTabBarStyle != newValue else { return }
+                Task { await appModel.updateGlobalEditorDisplay { $0.workspaceTabBarStyle = newValue } }
             }
         )
     }
@@ -3434,7 +3451,6 @@ private struct PaletteSnippetPreview: View {
                 .padding(.bottom, verticalPadding)
             }
         }
-        .frame(height: contentHeight)
         .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
     }
 
@@ -3585,14 +3601,6 @@ private struct PaletteSnippetPreview: View {
 
     private var highlightHeight: CGFloat {
         metricLineHeight + highlightVerticalPadding * 2
-    }
-
-    private var contentHeight: CGFloat {
-        let lineCount = CGFloat(lines.count)
-        guard lineCount > 0 else { return verticalPadding * 2 }
-        let textHeight = lineCount * metricLineHeight
-        let spacingHeight = max(0, lineCount - 1) * interLineSpacing
-        return verticalPadding * 2 + textHeight + spacingHeight
     }
 }
 

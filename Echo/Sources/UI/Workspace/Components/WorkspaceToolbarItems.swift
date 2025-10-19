@@ -24,6 +24,7 @@ struct WorkspaceToolbarItems: ToolbarContent {
     @EnvironmentObject private var appModel: AppModel
     @EnvironmentObject private var appState: AppState
     @EnvironmentObject private var navigationState: NavigationState
+    @EnvironmentObject private var themeManager: ThemeManager
 
     var body: some ToolbarContent {
 #if os(macOS)
@@ -41,7 +42,16 @@ struct WorkspaceToolbarItems: ToolbarContent {
         }
 
         ToolbarItem(placement: .principal) {
-            ToolbarPrincipalSpacer()
+            if appState.workspaceTabBarStyle == .toolbarCompact {
+                ToolbarFlexibleContainer {
+                    WorkspaceToolbarTabBar(maxVisibleTabs: appState.workspaceTabBarStyle.maxVisibleToolbarTabs)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .frame(height: WorkspaceToolbarTabBar.toolbarHeight)
+                        .padding(.leading, -6)
+                }
+            } else {
+                ToolbarPrincipalSpacer()
+            }
         }
 
         ToolbarItemGroup(placement: .primaryAction) {
@@ -1122,25 +1132,390 @@ private extension ToolbarIcon {
 #endif
 
 #if os(macOS)
-private struct ToolbarGap: NSViewRepresentable {
-    let width: CGFloat
+private struct WorkspaceToolbarTabBar: View {
+    let maxVisibleTabs: Int
 
-    func makeNSView(context: Context) -> NSView {
-        let view = NSView(frame: NSRect(x: 0, y: 0, width: width, height: 10))
-        view.translatesAutoresizingMaskIntoConstraints = false
-        NSLayoutConstraint.activate([
-            view.widthAnchor.constraint(equalToConstant: width),
-            view.heightAnchor.constraint(equalToConstant: 10)
-        ])
-        return view
+    @EnvironmentObject private var appModel: AppModel
+    @EnvironmentObject private var themeManager: ThemeManager
+    @Environment(\.colorScheme) private var colorScheme
+
+    static let toolbarHeight: CGFloat = 32
+
+    private let tabSpacing: CGFloat = 6
+    private let chipHeight: CGFloat = WorkspaceToolbarTabBar.toolbarHeight
+    private let comfortableMinTabWidth: CGFloat = 92
+    private let absoluteMinTabWidth: CGFloat = 56
+    private let maxTabWidth: CGFloat = 172
+    private let pinnedComfortableMinWidth: CGFloat = 56
+    private let pinnedAbsoluteMinWidth: CGFloat = 44
+    private let pinnedMaxWidth: CGFloat = 96
+    private let overflowThreshold: Int = 10
+    private let overflowButtonWidth: CGFloat = 28
+    private let overflowSpacing: CGFloat = 8
+
+    var body: some View {
+        GeometryReader { proxy in
+            let fullWidth = max(proxy.size.width, 1)
+            let reserved = shouldShowOverflow ? (overflowButtonWidth + overflowSpacing) : 0
+            let rawScrollerWidth = max(fullWidth - reserved, 0)
+            let scrollerWidth = max(rawScrollerWidth, min(fullWidth, comfortableMinTabWidth))
+
+            HStack(spacing: overflowSpacing) {
+                tabScroller(availableWidth: scrollerWidth)
+                    .frame(width: scrollerWidth, height: chipHeight, alignment: .leading)
+
+                if shouldShowOverflow {
+                    overflowMenu
+                        .frame(width: overflowButtonWidth, height: chipHeight)
+                }
+            }
+            .frame(width: fullWidth, height: chipHeight, alignment: .leading)
+        }
+        .frame(height: chipHeight)
     }
 
-    func updateNSView(_ nsView: NSView, context: Context) {}
+    private func tabScroller(availableWidth: CGFloat) -> some View {
+        let tabs = visibleTabs
+        guard !tabs.isEmpty else { return AnyView(EmptyView()) }
+
+        let baseWidth = computedTabWidth(
+            availableWidth: availableWidth,
+            visibleCount: tabs.count
+        )
+
+        return AnyView(
+            ScrollViewReader { proxy in
+                ScrollView(.horizontal, showsIndicators: false) {
+                    LazyHStack(spacing: tabSpacing) {
+                        ForEach(Array(tabs.enumerated()), id: \.element.id) { index, tab in
+                        let totalCount = appModel.tabManager.tabs.count
+                        let tabIndex = appModel.tabManager.index(of: tab.id) ?? index
+                        let hasLeft = tabIndex > 0
+                        let hasRight = tabIndex < totalCount - 1
+                        ToolbarWorkspaceTabChip(
+                            tab: tab,
+                            isActive: appModel.tabManager.activeTabId == tab.id,
+                            accent: themeManager.accentColor,
+                            height: chipHeight,
+                            onSelect: { appModel.tabManager.activeTabId = tab.id },
+                            onClose: { appModel.tabManager.closeTab(id: tab.id) },
+                            onAddBookmark: tab.query == nil ? nil : { bookmark(tab: tab) },
+                            onPinToggle: { appModel.tabManager.togglePin(for: tab.id) },
+                            onDuplicate: { appModel.duplicateTab(tab) },
+                            onCloseOthers: { appModel.tabManager.closeOtherTabs(keeping: tab.id) },
+                            onCloseLeft: { appModel.tabManager.closeTabsLeft(of: tab.id) },
+                            onCloseRight: { appModel.tabManager.closeTabsRight(of: tab.id) },
+                            canDuplicate: tab.kind == .query,
+                            closeOthersDisabled: totalCount <= 1,
+                            closeTabsLeftDisabled: !hasLeft,
+                            closeTabsRightDisabled: !hasRight
+                        )
+                        .frame(
+                            width: chipWidth(for: tab, baseWidth: baseWidth),
+                            height: chipHeight
+                        )
+                        .id(tab.id)
+                    }
+                }
+                .padding(.vertical, 0)
+            }
+            .frame(height: chipHeight)
+            .contentShape(Rectangle())
+            .onChange(of: appModel.tabManager.activeTabId) { _, newValue in
+                guard let target = newValue else { return }
+                withAnimation(.easeInOut(duration: 0.22)) {
+                    proxy.scrollTo(target, anchor: .center)
+                }
+            }
+        }
+        .animation(.easeInOut(duration: 0.18), value: tabs.map(\.id))
+        )
+    }
+
+    private var orderedTabs: [WorkspaceTab] {
+        let tabs = appModel.tabManager.tabs
+        let pinned = tabs.filter { $0.isPinned }
+        let regular = tabs.filter { !$0.isPinned }
+        return pinned + regular
+    }
+
+    private var visibleTabs: [WorkspaceTab] {
+        let tabs = orderedTabs
+        guard !tabs.isEmpty else { return [] }
+
+        if tabs.count < overflowThreshold {
+            return tabs
+        }
+
+        let limit = min(maxVisibleTabs, tabs.count)
+        var selection = Array(tabs.prefix(limit))
+        if let activeID = appModel.tabManager.activeTabId,
+           let activeIndex = tabs.firstIndex(where: { $0.id == activeID }),
+           !selection.contains(where: { $0.id == activeID }) {
+            selection.removeLast()
+            selection.append(tabs[activeIndex])
+        }
+        return selection
+    }
+
+    private var shouldShowOverflow: Bool {
+        orderedTabs.count >= overflowThreshold
+    }
+
+    private func computedTabWidth(availableWidth: CGFloat, visibleCount: Int) -> CGFloat {
+        guard visibleCount > 0 else { return maxTabWidth }
+        let spacingTotal = tabSpacing * CGFloat(max(visibleCount - 1, 0))
+        let widthPool = max(availableWidth - spacingTotal, 0)
+        let widthPerTab = widthPool / CGFloat(max(visibleCount, 1))
+
+        let comfortableThreshold = CGFloat(visibleCount) * comfortableMinTabWidth
+        let absoluteThreshold = CGFloat(visibleCount) * absoluteMinTabWidth
+
+        let resolvedWidth: CGFloat
+        if widthPool >= comfortableThreshold {
+            resolvedWidth = max(comfortableMinTabWidth, widthPerTab)
+        } else if widthPool >= absoluteThreshold {
+            resolvedWidth = max(absoluteMinTabWidth, widthPerTab)
+        } else {
+            resolvedWidth = max(1, widthPerTab)
+        }
+
+        return min(maxTabWidth, resolvedWidth)
+    }
+
+    private func chipWidth(for tab: WorkspaceTab, baseWidth: CGFloat) -> CGFloat {
+        guard tab.isPinned else { return baseWidth }
+        let pinnedLowerBound: CGFloat
+        if baseWidth >= pinnedComfortableMinWidth {
+            pinnedLowerBound = pinnedComfortableMinWidth
+        } else {
+            pinnedLowerBound = min(baseWidth, pinnedAbsoluteMinWidth)
+        }
+        let capped = min(baseWidth, pinnedMaxWidth)
+        return max(pinnedLowerBound, capped)
+    }
+
+    private var overflowMenu: some View {
+        Menu {
+            ForEach(orderedTabs) { tab in
+                Button {
+                    appModel.tabManager.activeTabId = tab.id
+                } label: {
+                    HStack {
+                        Text(displayTitle(for: tab))
+                        if appModel.tabManager.activeTabId == tab.id {
+                            Spacer()
+                            Image(systemName: "checkmark")
+                        }
+                    }
+                }
+            }
+        } label: {
+            ZStack {
+                Capsule(style: .continuous)
+                    .fill(overflowFill)
+                Capsule(style: .continuous)
+                    .stroke(overflowStroke, lineWidth: 1)
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(overflowForeground)
+            }
+        }
+        .menuStyle(.borderlessButton)
+        .accessibilityLabel("All Tabs")
+        .help("Show all open tabs")
+    }
+
+    private var overflowFill: Color {
+        if colorScheme == .dark {
+            return Color.white.opacity(0.10)
+        }
+        return Color.white.opacity(0.65)
+    }
+
+    private var overflowStroke: Color {
+        if colorScheme == .dark {
+            return Color.white.opacity(0.25)
+        }
+        return Color.black.opacity(0.12)
+    }
+
+    private var overflowForeground: Color {
+        colorScheme == .dark ? Color.white.opacity(0.9) : Color.black.opacity(0.7)
+    }
+
+    private func displayTitle(for tab: WorkspaceTab) -> String {
+        let trimmed = tab.title.trimmingCharacters(in: .whitespacesAndNewlines)
+        if tab.isPinned {
+            if let first = trimmed.first {
+                return String(first).uppercased()
+            }
+            return "•"
+        }
+        return trimmed.isEmpty ? "Untitled" : trimmed
+    }
+
+    private func bookmark(tab: WorkspaceTab) {
+        guard let queryState = tab.query else { return }
+        let trimmed = queryState.sql.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        let database = queryState.clipboardMetadata.databaseName ?? tab.connection.database
+        Task {
+            await appModel.addBookmark(
+                for: tab.connection,
+                databaseName: database,
+                title: tab.title,
+                query: trimmed,
+                source: .tab
+            )
+        }
+    }
 }
+
+private struct ToolbarWorkspaceTabChip: View {
+    @ObservedObject var tab: WorkspaceTab
+    let isActive: Bool
+    let accent: Color
+    let height: CGFloat
+    let onSelect: () -> Void
+    let onClose: () -> Void
+    let onAddBookmark: (() -> Void)?
+    let onPinToggle: () -> Void
+    let onDuplicate: () -> Void
+    let onCloseOthers: () -> Void
+    let onCloseLeft: () -> Void
+    let onCloseRight: () -> Void
+    let canDuplicate: Bool
+    let closeOthersDisabled: Bool
+    let closeTabsLeftDisabled: Bool
+    let closeTabsRightDisabled: Bool
+
+    @Environment(\.colorScheme) private var colorScheme
+    @State private var isHovering = false
+
+    private var capsule: Capsule { Capsule(style: .continuous) }
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Text(displayTitle)
+                .font(.system(size: 12, weight: .regular))
+                .lineLimit(1)
+                .foregroundStyle(titleColor)
+
+            Spacer(minLength: 4)
+
+            if showCloseButton {
+                Button(action: onClose) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 9, weight: .semibold))
+                        .foregroundStyle(closeIconColor)
+                        .frame(width: 16, height: 16)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .opacity(closeButtonOpacity)
+                .accessibilityLabel("Close Tab")
+            }
+        }
+        .padding(.horizontal, horizontalPadding)
+        .frame(height: height)
+        .background(capsule.fill(tabFill))
+        .overlay(capsule.stroke(tabStroke, lineWidth: 1))
+        .contentShape(capsule)
+        .onTapGesture(perform: onSelect)
+        .contextMenu {
+            Button(tab.isPinned ? "Unpin Tab" : "Pin Tab", action: onPinToggle)
+
+            Button("Duplicate Tab", action: onDuplicate)
+                .disabled(!canDuplicate)
+
+            Divider()
+
+            Button("Close Tab", action: onClose)
+
+            Button("Close Other Tabs", action: onCloseOthers)
+                .disabled(closeOthersDisabled)
+
+            Button("Close Tabs to the Left", action: onCloseLeft)
+                .disabled(closeTabsLeftDisabled)
+
+            Button("Close Tabs to the Right", action: onCloseRight)
+                .disabled(closeTabsRightDisabled)
+
+            if let onAddBookmark {
+                Divider()
+                Button("Add to Bookmarks", action: onAddBookmark)
+            }
+        }
+#if os(macOS)
+        .onHover { hovering in
+            isHovering = hovering
+        }
+        .onMiddleClick(perform: onClose)
+#endif
+        .animation(.easeInOut(duration: 0.15), value: isHovering)
+        .accessibilityAddTraits(isActive ? .isSelected : [])
+    }
+
+    private var showCloseButton: Bool {
+        !tab.isPinned
+    }
+
+    private var displayTitle: String {
+        let trimmed = tab.title.trimmingCharacters(in: .whitespacesAndNewlines)
+        if tab.isPinned {
+            if let first = trimmed.first {
+                return String(first).uppercased()
+            }
+            return "•"
+        }
+        return trimmed.isEmpty ? "Untitled" : trimmed
+    }
+
+    private var tabFill: some ShapeStyle {
+        if isActive {
+            let top = accent.opacity(colorScheme == .dark ? 0.38 : 0.24)
+            let bottom = accent.opacity(colorScheme == .dark ? 0.26 : 0.18)
+            return AnyShapeStyle(LinearGradient(colors: [top, bottom], startPoint: .top, endPoint: .bottom))
+        }
+        return AnyShapeStyle(Color.clear)
+    }
+
+    private var tabStroke: Color {
+        if isActive {
+            return accent.opacity(colorScheme == .dark ? 0.6 : 0.38)
+        }
+        return colorScheme == .dark ? Color.white.opacity(0.22) : Color.black.opacity(0.16)
+    }
+
+    private var titleColor: Color {
+        if isActive {
+            return Color.white
+        }
+        if tab.isPinned {
+            return colorScheme == .dark ? Color.white.opacity(0.78) : Color.primary.opacity(0.7)
+        }
+        return colorScheme == .dark ? Color.white.opacity(0.85) : Color.primary.opacity(0.78)
+    }
+
+    private var closeIconColor: Color {
+        if isActive {
+            return Color.white.opacity(0.9)
+        }
+        return colorScheme == .dark ? Color.white.opacity(0.75) : Color.black.opacity(0.55)
+    }
+
+    private var closeButtonOpacity: Double {
+#if os(macOS)
+        (isActive || isHovering) ? 1 : 0
 #else
-private struct ToolbarGap: View {
-    let width: CGFloat
-    var body: some View { Spacer().frame(width: width) }
+        1
+#endif
+    }
+
+    private var horizontalPadding: CGFloat {
+        tab.isPinned ? 12 : 16
+    }
 }
 #endif
 

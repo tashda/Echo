@@ -117,7 +117,7 @@ final class ResultSpoolRowCache: @unchecked Sendable {
         return page.row(at: offset)
     }
 
-    func prefetch(range: Range<Int>, using handle: ResultSpoolHandle, onPageLoaded: @escaping () -> Void) {
+    func prefetch(range: Range<Int>, using handle: ResultSpoolHandle, onPageLoaded: @escaping (Range<Int>) -> Void) {
         guard !range.isEmpty else { return }
         let clampedLower = max(range.lowerBound, 0)
         let clampedUpper = max(range.upperBound, clampedLower + 1)
@@ -160,8 +160,15 @@ final class ResultSpoolRowCache: @unchecked Sendable {
                     let rows = try await handle.loadRows(offset: offset, limit: self.pageSize)
                     let isTerminal = rows.count < self.pageSize
                     self.storeFetchedPage(rows: rows, pageIndex: pageIndex, isTerminal: isTerminal)
-                    await MainActor.run {
-                        onPageLoaded()
+                    if !rows.isEmpty {
+                        let fetchedRange = offset..<(offset + rows.count)
+                        await MainActor.run {
+                            onPageLoaded(fetchedRange)
+                        }
+                    } else {
+                        await MainActor.run {
+                            onPageLoaded(offset..<offset)
+                        }
                     }
                 } catch {
                     self.handlePrefetchFailure(pageIndex: pageIndex)

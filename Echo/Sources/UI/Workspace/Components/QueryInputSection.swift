@@ -208,10 +208,11 @@ struct QueryInputSection: View {
     }
 
     private func handleSelectionChange(_ selection: SQLEditorSelection) {
-        currentSelection = selection
         let trimmed = selection.selectedText.trimmingCharacters(in: .whitespacesAndNewlines)
         let hasSelection = !trimmed.isEmpty
-        if hasSelection != isSelectionActive {
+        DispatchQueue.main.async {
+            currentSelection = selection
+            guard hasSelection != isSelectionActive else { return }
             withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
                 isSelectionActive = hasSelection
             }

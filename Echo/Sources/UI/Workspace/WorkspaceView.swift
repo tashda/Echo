@@ -39,7 +39,7 @@ struct WorkspaceView: View {
                     InfoSidebarView()
                         .environmentObject(appModel)
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                        .padding(.top, WorkspaceChromeMetrics.chromeTopInset)
+                        .padding(.top, appState.workspaceTabBarStyle.chromeTopPadding)
                         .padding(.bottom, 12)
                         .padding(.horizontal, 18)
 #if os(macOS)
@@ -128,14 +128,16 @@ private struct WorkspaceMainContent: View {
     @EnvironmentObject private var themeManager: ThemeManager
 
     var body: some View {
+        let tabBarStyle = appState.workspaceTabBarStyle
         QueryTabsView(
-            showsTabStrip: true,
+            showsTabStrip: tabBarStyle.showsFloatingStrip,
             tabBarLeadingPadding: 8,
             tabBarTrailingPadding: 8
         )
         .environment(\.useNativeTabBar, false)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(themeManager.windowBackgroundColor)
+        .offset(y: tabBarStyle.contentVerticalOffset)
     }
 }
 

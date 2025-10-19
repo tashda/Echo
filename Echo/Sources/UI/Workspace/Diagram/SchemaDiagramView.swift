@@ -17,12 +17,20 @@ struct SchemaDiagramView: View {
     @State private var isDraggingNode = false
     @State private var persistTask: Task<Void, Never>?
     @State private var isRefreshing = false
+    @State private var lastKnownNodeCount: Int = 0
+    @State private var lastLoadingState: Bool = false
 
     private let minZoom: CGFloat = 0.4
     private let maxZoom: CGFloat = 2.5
 
     var body: some View {
         GeometryReader { geometry in
+            let shouldRenderEdges: Bool = {
+                if viewModel.edges.count <= 200 {
+                    return true
+                }
+                return appModel.globalSettings.diagramRenderRelationshipsForLargeDiagrams
+            }()
             ZStack {
                 backgroundGrid(in: geometry.size)
 
@@ -31,6 +39,7 @@ struct SchemaDiagramView: View {
                     zoom: zoom,
                     offset: contentOffset,
                     palette: palette,
+                    renderEdges: shouldRenderEdges,
                     isDraggingNode: $isDraggingNode,
                     onLayoutCommitted: persistLayout
                 )
@@ -45,10 +54,24 @@ struct SchemaDiagramView: View {
                 applyZoom(from: delta)
             })
             .onAppear {
-                centerDiagramIfNeeded(in: geometry.size)
+                centerDiagram(in: geometry.size)
+                lastKnownNodeCount = viewModel.nodes.count
+                lastLoadingState = viewModel.isLoading
             }
             .onChange(of: geometry.size) { _, newSize in
-                centerDiagramIfNeeded(in: newSize)
+                centerDiagram(in: newSize)
+            }
+            .onChange(of: viewModel.nodes.count) { oldValue, newValue in
+                if oldValue == 1 && newValue > 1 {
+                    centerDiagram(in: geometry.size, force: true)
+                }
+                lastKnownNodeCount = newValue
+            }
+            .onChange(of: viewModel.isLoading) { oldValue, newValue in
+                if oldValue && !newValue {
+                    centerDiagram(in: geometry.size, force: true)
+                }
+                lastLoadingState = newValue
             }
             .overlay(statusOverlay)
             .overlay(alignment: .topTrailing) {
@@ -253,7 +276,20 @@ struct SchemaDiagramView: View {
 
     private func updateZoom(to newValue: CGFloat) {
         let clamped = max(minZoom, min(maxZoom, newValue))
+        let basePosition = viewModel.node(for: viewModel.baseNodeID)?.position ?? .zero
+        let currentCenter = CGPoint(x: basePosition.x * zoom, y: basePosition.y * zoom)
+        let newCenter = CGPoint(x: basePosition.x * clamped, y: basePosition.y * clamped)
+        let deltaOffset = CGSize(
+            width: currentCenter.x - newCenter.x,
+            height: currentCenter.y - newCenter.y
+        )
         zoom = clamped
+        let adjustedOffset = CGSize(
+            width: contentOffset.width + deltaOffset.width,
+            height: contentOffset.height + deltaOffset.height
+        )
+        contentOffset = adjustedOffset
+        lastDragOffset = adjustedOffset
     }
 
     private func applyZoom(from delta: CGFloat) {
@@ -262,12 +298,22 @@ struct SchemaDiagramView: View {
         updateZoom(to: zoom * adjustment)
     }
 
-    private func centerDiagramIfNeeded(in size: CGSize) {
+    private func centerDiagram(in size: CGSize, force: Bool = false) {
+        if force {
+            hasCenteredDiagram = false
+        }
         guard !hasCenteredDiagram else { return }
+        guard size.width.isFinite, size.height.isFinite else { return }
+        let basePosition = viewModel.node(for: viewModel.baseNodeID)?.position ?? .zero
+        let centerPoint = CGPoint(x: size.width / 2, y: size.height / 2)
+        let scaledBase = CGPoint(x: basePosition.x * zoom, y: basePosition.y * zoom)
+        let targetOffset = CGSize(
+            width: centerPoint.x - scaledBase.x,
+            height: centerPoint.y - scaledBase.y
+        )
+        contentOffset = targetOffset
+        lastDragOffset = targetOffset
         hasCenteredDiagram = true
-        let initialOffset = CGSize(width: size.width / 2, height: size.height / 2)
-        contentOffset = initialOffset
-        lastDragOffset = initialOffset
     }
 
     private func backgroundGrid(in size: CGSize) -> some View {
@@ -408,6 +454,7 @@ private struct DiagramCanvas: View {
     let zoom: CGFloat
     let offset: CGSize
     let palette: DiagramPalette
+    let renderEdges: Bool
     @Binding var isDraggingNode: Bool
     let onLayoutCommitted: () -> Void
 
@@ -431,17 +478,21 @@ private struct DiagramCanvas: View {
             .background(
                 Color.clear
                     .overlayPreferenceValue(DiagramColumnAnchorPreferenceKey.self) { anchors in
-                        Canvas { context, size in
-                            renderEdges(
-                                context: &context,
-                                anchors: anchors,
-                                size: size,
-                                geometry: geometry
-                            )
+                        if renderEdges {
+                            Canvas { context, size in
+                                renderEdges(
+                                    context: &context,
+                                    anchors: anchors,
+                                    size: size,
+                                    geometry: geometry
+                                )
+                            }
+                            .allowsHitTesting(false)
+                            .scaleEffect(zoom, anchor: .topLeading)
+                            .offset(offset)
+                        } else {
+                            EmptyView()
                         }
-                        .allowsHitTesting(false)
-                        .scaleEffect(zoom, anchor: .topLeading)
-                        .offset(offset)
                     }
             )
         }
@@ -489,7 +540,16 @@ private struct DiagramCanvas: View {
                 to end: CGPoint
     ) {
         let strokeColor = palette.edgeColor
-        let pathWidth: CGFloat = 2.0
+        var backgroundPath = Path()
+        backgroundPath.move(to: start)
+        backgroundPath.addLine(to: end)
+        context.stroke(
+            backgroundPath,
+            with: .color(strokeColor.opacity(0.2)),
+            style: StrokeStyle(lineWidth: 5.0, lineCap: .round, lineJoin: .round)
+        )
+
+        let pathWidth: CGFloat = 2.4
         var path = Path()
         path.move(to: start)
         path.addLine(to: end)
@@ -607,7 +667,21 @@ private struct SchemaDiagramNodeView: View {
                     node.position = newPosition
                 }
             }
-            .onEnded { _ in
+            .onEnded { value in
+                let origin = dragStartPosition ?? node.position
+                let delta = CGSize(
+                    width: value.translation.width / zoom,
+                    height: value.translation.height / zoom
+                )
+                let newPosition = CGPoint(
+                    x: origin.x + delta.width,
+                    y: origin.y + delta.height
+                )
+                var transaction = Transaction()
+                transaction.disablesAnimations = true
+                withTransaction(transaction) {
+                    node.position = newPosition
+                }
                 dragStartPosition = nil
                 isDraggingNode = false
                 onPositionCommitted()

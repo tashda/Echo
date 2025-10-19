@@ -55,7 +55,7 @@ struct SidebarMenu: View {
             contentView
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .padding(.top, WorkspaceChromeMetrics.chromeTopInset)
+        .padding(.top, appState.workspaceTabBarStyle.chromeTopPadding)
         .confirmationDialog(
             "Duplicate Connection",
             isPresented: Binding(
