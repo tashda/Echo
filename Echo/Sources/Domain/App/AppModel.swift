@@ -106,7 +106,9 @@ final class AppModel: ObservableObject {
         layoutSnapshot: DiagramLayoutSnapshot?,
         structureSnapshot: DiagramStructureSnapshot? = nil,
         checksum: String? = nil,
-        loadSource: DiagramLoadSource = .live(Date())
+        loadSource: DiagramLoadSource = .live(Date()),
+        inboundKeys: Set<DiagramTableKey> = [],
+        outboundKeys: Set<DiagramTableKey> = []
     ) -> SchemaDiagramViewModel {
         func buildColumns(for details: TableStructureDetails) -> [SchemaDiagramColumn] {
             let primaryKeys = Set(details.primaryKey?.columns.map { $0.lowercased() } ?? [])
@@ -143,11 +145,139 @@ final class AppModel: ObservableObject {
             }
         }
 
-        let positions: [String: CGPoint] = layoutSnapshot?
+        let spacingX: CGFloat = 420
+        let spacingY: CGFloat = 320
+        let baseIdentifier = baseKey.identifier
+
+        let inboundIdentifiers = Set(inboundKeys.map(\.identifier))
+        let outboundIdentifiers = Set(outboundKeys.map(\.identifier))
+        let overlapIdentifiers = inboundIdentifiers.intersection(outboundIdentifiers)
+        let inboundOnlyIdentifiers = inboundIdentifiers.subtracting(overlapIdentifiers)
+        let outboundOnlyIdentifiers = outboundIdentifiers.subtracting(overlapIdentifiers)
+
+        var storedPositions: [String: CGPoint] = layoutSnapshot?
             .nodePositions
             .reduce(into: [:]) { partial, entry in
                 partial[entry.nodeID] = CGPoint(x: entry.x, y: entry.y)
             } ?? [:]
+
+        let snapshotHasMeaningfulLayout: Bool = {
+            guard let snapshot = layoutSnapshot, !snapshot.nodePositions.isEmpty else { return false }
+            let uniqueKeys = Set(snapshot.nodePositions.map { node -> String in
+                let xKey = Int((node.x * 1000).rounded(.toNearestOrEven))
+                let yKey = Int((node.y * 1000).rounded(.toNearestOrEven))
+                return "\(xKey)-\(yKey)"
+            })
+            return uniqueKeys.count > 1
+        }()
+
+        if !snapshotHasMeaningfulLayout {
+            storedPositions.removeAll()
+        }
+
+        func rowsRequired(for count: Int, columns: Int) -> Int {
+            guard count > 0 else { return 0 }
+            return Int(ceil(Double(count) / Double(columns)))
+        }
+
+        func makeLeftPosition(index: inout Int, total: Int) -> CGPoint {
+            guard total > 0 else { return .zero }
+            let columns = max(1, min(3, total))
+            let column = index % columns
+            let row = index / columns
+            index += 1
+            let x = -CGFloat(column + 1) * spacingX
+            let y = CGFloat(row) * spacingY
+            return CGPoint(x: x, y: y)
+        }
+
+        func makeRightPosition(index: inout Int, total: Int) -> CGPoint {
+            guard total > 0 else { return .zero }
+            let columns = max(1, min(3, total))
+            let column = index % columns
+            let row = index / columns
+            index += 1
+            let x = CGFloat(column + 1) * spacingX
+            let y = CGFloat(row) * spacingY
+            return CGPoint(x: x, y: y)
+        }
+
+        func makeTopPosition(index: inout Int, total: Int) -> CGPoint {
+            guard total > 0 else { return .zero }
+            let columns = max(1, min(4, total))
+            let column = index % columns
+            let row = index / columns
+            index += 1
+            let centeredColumn = CGFloat(column) - CGFloat(columns - 1) / 2
+            let x = centeredColumn * spacingX * 0.9
+            let y = -CGFloat(row + 1) * spacingY
+            return CGPoint(x: x, y: y)
+        }
+
+        func makeBottomPosition(index: inout Int, total: Int, verticalOffset: Int) -> CGPoint {
+            guard total > 0 else { return .zero }
+            let columns = max(2, min(4, total))
+            let column = index % columns
+            let row = index / columns
+            index += 1
+            let centeredColumn = CGFloat(column) - CGFloat(columns - 1) / 2
+            let x = centeredColumn * spacingX * 0.9
+            let y = CGFloat(verticalOffset + row + 1) * spacingY
+            return CGPoint(x: x, y: y)
+        }
+
+        let sortedKeys = tableDetails.keys.sorted { lhs, rhs in
+            if lhs.schema.caseInsensitiveCompare(rhs.schema) == .orderedSame {
+                return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
+            }
+            return lhs.schema.localizedCaseInsensitiveCompare(rhs.schema) == .orderedAscending
+        }
+
+        let overlapKeys = sortedKeys.filter { overlapIdentifiers.contains($0.identifier) }
+        let inboundKeysOrdered = sortedKeys.filter { inboundOnlyIdentifiers.contains($0.identifier) }
+        let outboundKeysOrdered = sortedKeys.filter { outboundOnlyIdentifiers.contains($0.identifier) }
+        let neutralKeys = sortedKeys.filter {
+            $0 != baseKey
+                && !inboundIdentifiers.contains($0.identifier)
+                && !outboundIdentifiers.contains($0.identifier)
+        }
+
+        let inboundRows = rowsRequired(for: inboundKeysOrdered.count, columns: max(1, min(3, inboundKeysOrdered.count)))
+        let outboundRows = rowsRequired(for: outboundKeysOrdered.count, columns: max(1, min(3, outboundKeysOrdered.count)))
+        let verticalOffsetForBottom = max(inboundRows, outboundRows)
+
+        var leftIndex = 0
+        var rightIndex = 0
+        var topIndex = 0
+        var bottomIndex = 0
+
+        if storedPositions[baseIdentifier] == nil {
+            storedPositions[baseIdentifier] = .zero
+        }
+
+        if overlapKeys.contains(baseKey) {
+            storedPositions[baseIdentifier] = .zero
+        }
+
+        for key in overlapKeys where key != baseKey && storedPositions[key.identifier] == nil {
+            storedPositions[key.identifier] = makeTopPosition(index: &topIndex, total: overlapKeys.count)
+        }
+
+        for key in inboundKeysOrdered where storedPositions[key.identifier] == nil {
+            storedPositions[key.identifier] = makeLeftPosition(index: &leftIndex, total: inboundKeysOrdered.count)
+        }
+
+        for key in outboundKeysOrdered where storedPositions[key.identifier] == nil {
+            storedPositions[key.identifier] = makeRightPosition(index: &rightIndex, total: outboundKeysOrdered.count)
+        }
+
+        for key in neutralKeys where storedPositions[key.identifier] == nil {
+            storedPositions[key.identifier] = makeBottomPosition(
+                index: &bottomIndex,
+                total: neutralKeys.count,
+                verticalOffset: max(1, verticalOffsetForBottom)
+            )
+        }
 
         var nodeModels: [SchemaDiagramNodeModel] = []
 
@@ -156,29 +286,68 @@ final class AppModel: ObservableObject {
                 schema: baseKey.schema,
                 name: baseKey.name,
                 columns: buildColumns(for: baseDetails),
-                position: positions[baseKey.identifier] ?? .zero
+                position: storedPositions[baseKey.identifier] ?? .zero
             )
             nodeModels.append(baseNode)
         }
 
-        let otherKeys = tableDetails.keys.filter { $0 != baseKey }
-        if !otherKeys.isEmpty {
-            let radius: CGFloat = 520
-            for (index, key) in otherKeys.enumerated() {
-                guard let details = tableDetails[key] else { continue }
-                let defaultAngle = CGFloat(index) / max(CGFloat(otherKeys.count), 1) * 2 * .pi
-                let defaultPosition = CGPoint(
-                    x: cos(defaultAngle) * radius,
-                    y: sin(defaultAngle) * radius
-                )
-                let position = positions[key.identifier] ?? defaultPosition
-                let node = SchemaDiagramNodeModel(
-                    schema: key.schema,
-                    name: key.name,
-                    columns: buildColumns(for: details),
-                    position: position
-                )
-                nodeModels.append(node)
+        let remainingKeys = sortedKeys.filter { $0 != baseKey }
+        for key in remainingKeys {
+            guard let details = tableDetails[key] else { continue }
+            let position = storedPositions[key.identifier] ?? .zero
+            let node = SchemaDiagramNodeModel(
+                schema: key.schema,
+                name: key.name,
+                columns: buildColumns(for: details),
+                position: position
+            )
+            nodeModels.append(node)
+        }
+
+        if !snapshotHasMeaningfulLayout {
+            // Lightweight pass to nudge overlapping nodes apart.
+            let minimumSeparation: CGFloat = 320
+            let iterations = 12
+            for _ in 0..<iterations {
+                var didAdjust = false
+                for i in nodeModels.indices {
+                    for j in nodeModels.indices where j > i {
+                        let lhs = nodeModels[i]
+                        let rhs = nodeModels[j]
+                        if lhs.id == rhs.id { continue }
+                        let vector = CGPoint(x: rhs.position.x - lhs.position.x, y: rhs.position.y - lhs.position.y)
+                        let distance = max(0.001, hypot(vector.x, vector.y))
+                        if distance < minimumSeparation {
+                            let overlap = (minimumSeparation - distance) / 2
+                            let angle = distance < 0.01 ? (Double(i + j).truncatingRemainder(dividingBy: 8) / 8.0) * 2 * .pi : atan2(vector.y, vector.x)
+                            let adjustX = CGFloat(cos(angle)) * overlap
+                            let adjustY = CGFloat(sin(angle)) * overlap
+
+                            if lhs.id == baseIdentifier {
+                                nodeModels[j].position = CGPoint(
+                                    x: nodeModels[j].position.x + adjustX * 2,
+                                    y: nodeModels[j].position.y + adjustY * 2
+                                )
+                            } else if rhs.id == baseIdentifier {
+                                nodeModels[i].position = CGPoint(
+                                    x: nodeModels[i].position.x - adjustX * 2,
+                                    y: nodeModels[i].position.y - adjustY * 2
+                                )
+                            } else {
+                                nodeModels[i].position = CGPoint(
+                                    x: nodeModels[i].position.x - adjustX,
+                                    y: nodeModels[i].position.y - adjustY
+                                )
+                                nodeModels[j].position = CGPoint(
+                                    x: nodeModels[j].position.x + adjustX,
+                                    y: nodeModels[j].position.y + adjustY
+                                )
+                            }
+                            didAdjust = true
+                        }
+                    }
+                }
+                if !didAdjust { break }
             }
         }
 
@@ -208,6 +377,28 @@ final class AppModel: ObservableObject {
             tableDetails[key] = entry.details
         }
 
+        var outboundKeys: Set<DiagramTableKey> = []
+        var inboundKeys: Set<DiagramTableKey> = []
+
+        if let baseDetails = tableDetails[baseKey] {
+            for fk in baseDetails.foreignKeys {
+                let schema = fk.referencedSchema.isEmpty ? baseKey.schema : fk.referencedSchema
+                outboundKeys.insert(DiagramTableKey(schema: schema, name: fk.referencedTable))
+            }
+        }
+
+        for entry in payload.structure.relatedTables {
+            let key = DiagramTableKey(schema: entry.schema, name: entry.name)
+            let referencesBase = entry.details.foreignKeys.contains { fk in
+                let referencedSchema = fk.referencedSchema.isEmpty ? entry.schema : fk.referencedSchema
+                return referencedSchema.caseInsensitiveCompare(baseKey.schema) == .orderedSame
+                    && fk.referencedTable.caseInsensitiveCompare(baseKey.name) == .orderedSame
+            }
+            if referencesBase {
+                inboundKeys.insert(key)
+            }
+        }
+
         let title = "\(payload.key.schema).\(payload.key.table)"
         return makeDiagramViewModel(
             title: title,
@@ -216,7 +407,9 @@ final class AppModel: ObservableObject {
             layoutSnapshot: payload.layout,
             structureSnapshot: payload.structure,
             checksum: payload.checksum,
-            loadSource: .cache(payload.generatedAt)
+            loadSource: .cache(payload.generatedAt),
+            inboundKeys: inboundKeys,
+            outboundKeys: outboundKeys
         )
     }
 
@@ -236,6 +429,8 @@ final class AppModel: ObservableObject {
 
         var tableDetails: [DiagramTableKey: TableStructureDetails] = [baseKey: baseDetails]
         var relatedKeys = Set<DiagramTableKey>()
+        var inboundRelationshipKeys = Set<DiagramTableKey>()
+        var outboundRelationshipKeys = Set<DiagramTableKey>()
 
         struct PlaceholderAccumulator {
             var columns: [String] = []
@@ -370,6 +565,7 @@ final class AppModel: ObservableObject {
             let referencedSchema = fk.referencedSchema.isEmpty ? baseKey.schema : fk.referencedSchema
             let key = DiagramTableKey(schema: referencedSchema, name: fk.referencedTable)
             relatedKeys.insert(key)
+            outboundRelationshipKeys.insert(key)
 
             var accumulator = referencedColumnPlaceholders[key] ?? PlaceholderAccumulator()
             accumulator.addColumns(fk.referencedColumns)
@@ -379,6 +575,7 @@ final class AppModel: ObservableObject {
         for dependency in baseDetails.dependencies {
             let key = normalize(dependency.referencedTable, fallbackSchema: object.schema)
             relatedKeys.insert(key)
+            inboundRelationshipKeys.insert(key)
 
             guard key != baseKey else { continue }
 
@@ -484,7 +681,9 @@ final class AppModel: ObservableObject {
             layoutSnapshot: nil,
             structureSnapshot: structureSnapshot,
             checksum: checksum,
-            loadSource: .live(Date())
+            loadSource: .live(Date()),
+            inboundKeys: inboundRelationshipKeys,
+            outboundKeys: outboundRelationshipKeys
         )
 
         if let cacheKey,

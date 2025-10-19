@@ -31,6 +31,10 @@ private enum InspectorTab: CaseIterable {
     }
 }
 
+private enum InspectorLayout {
+    static let horizontalPadding: CGFloat = 12
+}
+
 struct InfoSidebarView: View {
     @EnvironmentObject private var appModel: AppModel
     @EnvironmentObject private var themeManager: ThemeManager
@@ -44,7 +48,7 @@ struct InfoSidebarView: View {
     var body: some View {
         VStack(spacing: 0) {
             InspectorTabSelector(selectedTab: $selectedTab)
-                .padding(.horizontal, 16)
+                .padding(.horizontal, InspectorLayout.horizontalPadding)
                 .padding(.top, 0)
                 .padding(.bottom, 8)
 
@@ -60,7 +64,7 @@ struct InfoSidebarView: View {
                         connectionInspectorContent
                     }
                 }
-                .padding(.horizontal, 16)
+                .padding(.horizontal, InspectorLayout.horizontalPadding)
                 .padding(.vertical, 12)
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
@@ -237,6 +241,7 @@ private struct InspectorPanelView: View {
                 }
                 Spacer(minLength: 8)
                 if let query = resolvedLookupQuery {
+                    let targetTitle = content.title.isEmpty ? "record" : content.title
                     Button {
                         openForeignRecord(with: query)
                     } label: {
@@ -250,7 +255,7 @@ private struct InspectorPanelView: View {
                             )
                     }
                     .buttonStyle(.plain)
-                    .help("Open \(content.title.isEmpty ? "record" : content.title) in a new query tab")
+                    .help("Open \(targetTitle) in a new query tab")
                 }
             }
 

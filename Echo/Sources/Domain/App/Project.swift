@@ -1064,6 +1064,7 @@ struct GlobalSettings: Codable, Hashable {
     var activeThemeIDLight: AppColorTheme.ID?
     var activeThemeIDDark: AppColorTheme.ID?
     var themeTabs: Bool = false
+    var workspaceTabBarStyle: WorkspaceTabBarStyle = .floating
     var themeResultsGrid: Bool = true
     var resultsAlternateRowShading: Bool = false
     var foreignKeyDisplayMode: ForeignKeyDisplayMode = .showInspector
@@ -1121,6 +1122,7 @@ struct GlobalSettings: Codable, Hashable {
         editorAllowControlSpaceTrigger: Bool = true,
         useServerColorAsAccent: Bool = true,
         themeTabs: Bool = false,
+        workspaceTabBarStyle: WorkspaceTabBarStyle = .floating,
         themeResultsGrid: Bool = true,
         resultsAlternateRowShading: Bool = false,
         foreignKeyDisplayMode: ForeignKeyDisplayMode = .showInspector,
@@ -1177,6 +1179,7 @@ struct GlobalSettings: Codable, Hashable {
         self.editorAllowControlSpaceTrigger = editorAllowControlSpaceTrigger
         self.useServerColorAsAccent = useServerColorAsAccent
         self.themeTabs = themeTabs
+        self.workspaceTabBarStyle = workspaceTabBarStyle
         self.themeResultsGrid = themeResultsGrid
         self.resultsAlternateRowShading = resultsAlternateRowShading
         self.foreignKeyDisplayMode = foreignKeyDisplayMode
@@ -1240,6 +1243,7 @@ struct GlobalSettings: Codable, Hashable {
         case activeThemeIDLight
         case activeThemeIDDark
         case themeTabs
+        case workspaceTabBarStyle
         case themeResultsGrid
         case resultsAlternateRowShading
         case foreignKeyDisplayMode
@@ -1325,6 +1329,7 @@ struct GlobalSettings: Codable, Hashable {
         activeThemeIDLight = try container.decodeIfPresent(AppColorTheme.ID.self, forKey: .activeThemeIDLight)
         activeThemeIDDark = try container.decodeIfPresent(AppColorTheme.ID.self, forKey: .activeThemeIDDark)
         themeTabs = try container.decodeIfPresent(Bool.self, forKey: .themeTabs) ?? false
+        workspaceTabBarStyle = try container.decodeIfPresent(WorkspaceTabBarStyle.self, forKey: .workspaceTabBarStyle) ?? .floating
         themeResultsGrid = try container.decodeIfPresent(Bool.self, forKey: .themeResultsGrid) ?? true
         resultsAlternateRowShading = try container.decodeIfPresent(Bool.self, forKey: .resultsAlternateRowShading) ?? false
         foreignKeyDisplayMode = try container.decodeIfPresent(ForeignKeyDisplayMode.self, forKey: .foreignKeyDisplayMode) ?? .showInspector
@@ -1388,6 +1393,7 @@ struct GlobalSettings: Codable, Hashable {
         try container.encodeIfPresent(activeThemeIDLight, forKey: .activeThemeIDLight)
         try container.encodeIfPresent(activeThemeIDDark, forKey: .activeThemeIDDark)
         try container.encode(themeTabs, forKey: .themeTabs)
+        try container.encode(workspaceTabBarStyle, forKey: .workspaceTabBarStyle)
         try container.encode(themeResultsGrid, forKey: .themeResultsGrid)
         try container.encode(resultsAlternateRowShading, forKey: .resultsAlternateRowShading)
         try container.encode(foreignKeyDisplayMode, forKey: .foreignKeyDisplayMode)

@@ -76,7 +76,6 @@ struct QueryResultsTableView: NSViewRepresentable {
         if #available(macOS 13.0, *) {
             scrollView.automaticallyAdjustsContentInsets = false
         }
-        scrollView.contentView.copiesOnScroll = false
 
         let tableView = ResultTableView()
         tableView.usesAlternatingRowBackgroundColors = ThemeManager.shared.showAlternateRowShading
@@ -292,6 +291,7 @@ struct QueryResultsTableView: NSViewRepresentable {
             cachedPaletteSignature = currentPaletteSignature
             let dirtyToken = parent.query.resultChangeToken
             let tokenChanged = dirtyToken != lastResultTokenSnapshot
+            let pendingRowReloadIndexes = parent.query.consumePendingVisibleRowReloadIndexes()
             let rowCountDecreased = currentRowCount < lastRowCount
             let rowCountIncreased = currentRowCount > lastRowCount
             let currentViewportSize = scrollView?.contentView.bounds.size ?? .zero
@@ -350,11 +350,25 @@ struct QueryResultsTableView: NSViewRepresentable {
                 }
             } else if tokenChanged {
                 let visibleRows = tableView.rows(in: tableView.visibleRect)
-                if reloadWorkItem == nil, visibleRows.length > 0 {
-                    let lower = max(visibleRows.location, 0)
-                    let upper = min(tableView.numberOfRows, lower + visibleRows.length)
-                    if upper > lower, !tableView.tableColumns.isEmpty {
-                        let rowIndexes = IndexSet(integersIn: lower..<upper)
+                if reloadWorkItem == nil, !tableView.tableColumns.isEmpty {
+                    let rowIndexes: IndexSet
+                    if var pendingRows = pendingRowReloadIndexes, !pendingRows.isEmpty {
+                        let clampedVisible = IndexSet(integersIn: 0..<tableView.numberOfRows)
+                        pendingRows = pendingRows.intersection(clampedVisible)
+                        rowIndexes = pendingRows
+                    } else if visibleRows.length > 0 {
+                        let lower = max(visibleRows.location, 0)
+                        let upper = min(tableView.numberOfRows, lower + visibleRows.length)
+                        if upper <= lower {
+                            rowIndexes = IndexSet()
+                        } else {
+                            rowIndexes = IndexSet(integersIn: lower..<upper)
+                        }
+                    } else {
+                        rowIndexes = IndexSet()
+                    }
+
+                    if !rowIndexes.isEmpty {
                         let columnIndexes = IndexSet(0..<tableView.tableColumns.count)
                         reloadWorkItem = DispatchWorkItem { [weak tableView] in
                             guard let tableView else { return }

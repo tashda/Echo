@@ -139,6 +139,7 @@ final class AppCoordinator: ObservableObject {
         )
         appState.sqlEditorDisplay = SQLEditorThemeResolver.resolveDisplayOptions(globalSettings: global, project: project)
         appState.themeTabs = global.themeTabs
+        appState.workspaceTabBarStyle = global.workspaceTabBarStyle
         appState.keepTabsInMemory = global.keepTabsInMemory
         applyEditorTheme(project: project, global: global)
     }

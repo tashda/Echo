@@ -72,7 +72,11 @@ final class ManageConnectionsWindowController: NSWindowController, NSWindowDeleg
         toolbar.allowsUserCustomization = false
         toolbar.autosavesConfiguration = false
         toolbar.displayMode = .iconOnly
-        toolbar.showsBaselineSeparator = false
+        if #available(macOS 15, *) {
+            // showsBaselineSeparator removed on macOS 15
+        } else {
+            toolbar.showsBaselineSeparator = false
+        }
         window.toolbar = toolbar
         window.contentViewController = hosting
         window.delegate = self

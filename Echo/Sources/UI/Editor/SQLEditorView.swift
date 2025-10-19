@@ -2125,7 +2125,7 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
         inlineInsertedIndex = nil
         let view = ensureInlineSuggestionView()
         view.font = theme.nsFont
-        view.textColor = theme.tokenColors.keyword.nsColor.withAlphaComponent(0.32)
+        view.textColor = theme.tokenColors.keyword.nsColor.withAlphaComponent(0.55)
         view.isHidden = false
         updateInlineSuggestionText()
         updateInlineSuggestionPosition()
@@ -2144,7 +2144,7 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
             return view
         }
         let view = InlineSuggestionLabel()
-        view.alphaValue = 0.35
+        view.alphaValue = 1.0
         addSubview(view)
         inlineSuggestionView = view
         return view
@@ -2154,7 +2154,8 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
         guard let view = inlineSuggestionView,
               !inlineKeywordSuggestions.isEmpty else { return }
         let index = min(max(inlineSuggestionNextIndex, 0), inlineKeywordSuggestions.count - 1)
-        view.stringValue = inlineKeywordSuggestions[index].insertText
+        let displayText = inlineKeywordSuggestions[index].insertText.trimmingCharacters(in: .whitespacesAndNewlines)
+        view.stringValue = displayText
         view.invalidateIntrinsicContentSize()
     }
 
@@ -2178,6 +2179,9 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
     private func handleInlineSelectionChange() {
         if let range = inlineInsertedRange {
             let selection = selectedRange()
+            if selection.length == 0, selection.location == NSMaxRange(range) {
+                return
+            }
             if selection.location != range.location || selection.length != range.length {
                 hideInlineKeywordSuggestion()
             }
@@ -2229,7 +2233,11 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
             inlineInsertedRange = insertionResult.appliedRange
             inlineInsertedIndex = index
             inlineSuggestionNextIndex = normalizedInlineIndex(index + 1)
-            setSelectedRange(insertionResult.appliedRange)
+            let caretLocation = NSMaxRange(insertionResult.appliedRange)
+            setSelectedRange(NSRange(location: caretLocation, length: 0))
+            if let recordQuery = inlineSuggestionQuery ?? makeCompletionQuery() {
+                completionEngine.recordSelection(suggestion, query: recordQuery)
+            }
             hideInlineKeywordSuggestion(preserveState: true)
             return true
         } else {
@@ -2239,7 +2247,11 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
 
     private func cycleInlineSuggestion(backwards: Bool) -> Bool {
         guard let range = inlineInsertedRange else { return false }
-        let selection = selectedRange()
+        var selection = selectedRange()
+        if selection.length == 0 && selection.location == NSMaxRange(range) {
+            selection = range
+            setSelectedRange(range)
+        }
         if selection.location != range.location || selection.length != range.length {
             hideInlineKeywordSuggestion()
             return false

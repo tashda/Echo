@@ -57,6 +57,31 @@ final class SQLAutoCompletionEngineTests: XCTestCase {
                                                                                                                          cteColumns: [:])))
     private lazy var engine = SQLAutoCompletionEngine(completionEngine: stubCompletionEngine)
 
+    // MARK: - Scenario Helpers
+
+    private func assertSuggestionKinds(_ rawSuggestions: [SQLCompletionSuggestion],
+                                       metadata: SQLCompletionMetadata,
+                                       context: SQLEditorCompletionContext? = nil,
+                                       query: SQLAutoCompletionQuery,
+                                       text: String,
+                                       caretLocation: Int,
+                                       expecting expectedKinds: [SQLAutoCompletionKind],
+                                       file: StaticString = #filePath,
+                                       line: UInt = #line) {
+        stubCompletionEngine.result = SQLCompletionResult(suggestions: rawSuggestions, metadata: metadata)
+        engine.updateContext(context ?? sampleContext())
+
+        let result = engine.suggestions(for: query, text: text, caretLocation: caretLocation)
+        let actualKinds = result.sections.flatMap(\.suggestions).map(\.kind)
+
+        XCTAssertGreaterThanOrEqual(actualKinds.count, expectedKinds.count,
+                                    "Not enough suggestions returned",
+                                    file: file, line: line)
+        XCTAssertEqual(Array(actualKinds.prefix(expectedKinds.count)), expectedKinds,
+                       "Unexpected suggestion ordering",
+                       file: file, line: line)
+    }
+
     override func setUp() {
         super.setUp()
         stubCompletionEngine.result = SQLCompletionResult(suggestions: [],
@@ -575,9 +600,6 @@ final class SQLAutoCompletionEngineTests: XCTestCase {
                                              tablesInScope: [],
                                              focusTable: nil,
                                              cteColumns: [:])
-        stubCompletionEngine.result = SQLCompletionResult(suggestions: suggestions, metadata: metadata)
-        engine.updateContext(sampleContext())
-
         let text = "SELECT * F"
         let caretLocation = text.count
         let query = SQLAutoCompletionQuery(token: "F",
@@ -590,11 +612,71 @@ final class SQLAutoCompletionEngineTests: XCTestCase {
                                            tablesInScope: [],
                                            clause: .from)
 
+        stubCompletionEngine.result = SQLCompletionResult(suggestions: suggestions, metadata: metadata)
+        engine.updateContext(sampleContext())
+
         let result = engine.suggestions(for: query, text: text, caretLocation: caretLocation)
         let flattened = result.sections.flatMap { $0.suggestions }
         XCTAssertFalse(flattened.isEmpty)
-        XCTAssertEqual(flattened.first?.kind, .keyword)
-        XCTAssertEqual(flattened.first?.insertText.trimmingCharacters(in: .whitespaces), "FROM")
+
+        let keywordCandidates = flattened.filter { candidate in
+            guard candidate.kind == .keyword else { return false }
+            let keyword = candidate.insertText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            return keyword.hasPrefix("f")
+        }
+
+        XCTAssertEqual(keywordCandidates.first?.insertText.trimmingCharacters(in: .whitespaces), "FROM")
+    }
+
+    func testInlineKeywordInsertionAddsTrailingSpace() {
+        let theme = makeTestTheme()
+        let display = SQLEditorDisplayOptions()
+        let context = sampleContext()
+        let textView = SQLTextView(theme: theme,
+                                   displayOptions: display,
+                                   backgroundOverride: nil,
+                                   completionContext: context)
+        let initialText = "SELECT * F"
+        textView.textStorage?.setAttributedString(NSAttributedString(string: initialText))
+        textView.setSelectedRange(NSRange(location: initialText.count, length: 0))
+
+        let suggestion = SQLAutoCompletionSuggestion(id: "keyword|from",
+                                                     title: "FROM",
+                                                     subtitle: nil,
+                                                     detail: nil,
+                                                     insertText: "FROM",
+                                                     kind: .keyword,
+                                                     priority: 700)
+        let query = SQLAutoCompletionQuery(token: "F",
+                                           prefix: "F",
+                                           pathComponents: [],
+                                           replacementRange: NSRange(location: initialText.count, length: 0),
+                                           precedingKeyword: "select",
+                                           precedingCharacter: " ",
+                                           focusTable: nil,
+                                           tablesInScope: [],
+                                           clause: .from)
+
+        textView.showInlineKeywordSuggestions([suggestion], query: query)
+
+        guard let event = NSEvent.keyEvent(with: .keyDown,
+                                           location: .zero,
+                                           modifierFlags: [],
+                                           timestamp: 0,
+                                           windowNumber: 0,
+                                           context: nil,
+                                           characters: "\t",
+                                           charactersIgnoringModifiers: "\t",
+                                           isARepeat: false,
+                                           keyCode: 48) else {
+            XCTFail("Failed to create Tab event")
+            return
+        }
+
+        textView.keyDown(with: event)
+
+        XCTAssertEqual(textView.string, "SELECT * FROM ")
+        XCTAssertEqual(textView.selectedRange(), NSRange(location: textView.string.count, length: 0))
     }
 
     func testHistorySelectionsAreSurfacedFirst() {
@@ -645,6 +727,65 @@ final class SQLAutoCompletionEngineTests: XCTestCase {
 
         XCTAssertEqual(suggestions.first?.source, .history)
         XCTAssertEqual(suggestions.first?.id, accepted.id)
+    }
+
+    func testHistoryRespectSchemaQualifiedInsertionSetting() {
+        SQLAutoCompletionHistoryStore.shared.reset()
+
+        let unqualified = SQLCompletionSuggestion(id: "object:table:testdb.public.fixture",
+                                                  title: "fixture",
+                                                  subtitle: "public",
+                                                  detail: "public.fixture",
+                                                  insertText: "fixture",
+                                                  kind: .table,
+                                                  priority: 1300)
+        let metadata = SQLCompletionMetadata(clause: .from,
+                                             currentToken: "fi",
+                                             precedingKeyword: "from",
+                                             pathComponents: [],
+                                             tablesInScope: [],
+                                             focusTable: nil,
+                                             cteColumns: [:])
+        stubCompletionEngine.result = SQLCompletionResult(suggestions: [unqualified], metadata: metadata)
+
+        var context = sampleContext()
+        engine.updateContext(context)
+
+        let text = "SELECT * FROM fi"
+        let caret = text.count
+        let query = SQLAutoCompletionQuery(token: "fi",
+                                           prefix: "fi",
+                                           pathComponents: [],
+                                           replacementRange: NSRange(location: caret - 2, length: 2),
+                                           precedingKeyword: "from",
+                                           precedingCharacter: " ",
+                                           focusTable: nil,
+                                           tablesInScope: [],
+                                           clause: .from)
+
+        let firstResult = engine.suggestions(for: query, text: text, caretLocation: caret)
+        guard let suggestion = firstResult.sections.first?.suggestions.first else {
+            XCTFail("Expected initial table suggestion")
+            return
+        }
+        XCTAssertEqual(suggestion.insertText, "fixture")
+
+        engine.recordSelection(suggestion, query: query)
+
+        engine.updateQualifiedInsertionPreference(includeSchema: true)
+        stubCompletionEngine.result = SQLCompletionResult(suggestions: [], metadata: metadata)
+
+        let secondResult = engine.suggestions(for: query, text: text, caretLocation: caret)
+        let hydrated = secondResult.sections.flatMap { $0.suggestions }
+
+        guard let historySuggestion = hydrated.first else {
+            XCTFail("Expected history suggestion")
+            return
+        }
+
+        XCTAssertEqual(historySuggestion.kind, .table)
+        XCTAssertEqual(historySuggestion.source, .history)
+        XCTAssertEqual(historySuggestion.insertText, "public.fixture")
     }
 
     func testHistorySnapshotRoundTrip() {

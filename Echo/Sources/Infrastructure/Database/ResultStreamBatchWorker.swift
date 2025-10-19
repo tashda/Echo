@@ -42,7 +42,7 @@ final class ResultStreamBatchWorker: @unchecked Sendable {
         let fallbackBatch: Int
     }
 
-    nonisolated(unsafe) init(
+    nonisolated init(
         label: String,
         columns: [ColumnInfo],
         streamingPreviewLimit: Int,

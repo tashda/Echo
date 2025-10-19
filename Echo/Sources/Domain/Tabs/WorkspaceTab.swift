@@ -313,6 +313,7 @@ final class QueryResultsGridState {
     private let gridViewportBackfillRows: Int
     private var lastVisibleDisplayRange: Range<Int> = 0..<0
     private var lastPrefetchedSourceRange: Range<Int> = 0..<0
+    private var pendingVisibleRowReloadIndexes: IndexSet?
 
     private var lastSpoolStatsRowCount: Int = 0
     private var hasAppliedFinalSpoolStats: Bool = false
@@ -1116,9 +1117,40 @@ final class QueryResultsGridState {
     private func ensureRowsMaterialized(range: Range<Int>) {
         guard !range.isEmpty else { return }
         guard let handle = spoolHandle else { return }
-        rowCache.prefetch(range: range, using: handle) { [weak self] in
-            self?.markResultDataChanged()
+        rowCache.prefetch(range: range, using: handle) { [weak self] fetchedRange in
+            self?.handleMaterializedRange(fetchedRange)
         }
+    }
+
+    private func handleMaterializedRange(_ fetchedRange: Range<Int>) {
+        guard !fetchedRange.isEmpty else { return }
+
+        let visibleRange = lastVisibleDisplayRange
+        if visibleRange.isEmpty {
+            enqueueVisibleRowReload(for: fetchedRange)
+            return
+        }
+
+        let lower = max(fetchedRange.lowerBound, visibleRange.lowerBound)
+        let upper = min(fetchedRange.upperBound, visibleRange.upperBound)
+        guard lower < upper else { return }
+
+        enqueueVisibleRowReload(for: lower..<upper)
+    }
+
+    private func enqueueVisibleRowReload(for range: Range<Int>) {
+        guard !range.isEmpty else { return }
+        if pendingVisibleRowReloadIndexes == nil {
+            pendingVisibleRowReloadIndexes = IndexSet()
+        }
+        pendingVisibleRowReloadIndexes?.insert(integersIn: range)
+        markResultDataChanged()
+    }
+
+    func consumePendingVisibleRowReloadIndexes() -> IndexSet? {
+        let pending = pendingVisibleRowReloadIndexes
+        pendingVisibleRowReloadIndexes = nil
+        return pending
     }
 
     func updateClipboardContext(serverName: String?, databaseName: String?, connectionColorHex: String?) {

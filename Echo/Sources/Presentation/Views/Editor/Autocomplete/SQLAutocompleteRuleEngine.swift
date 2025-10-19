@@ -420,39 +420,6 @@ extension DatabaseType {
     }
 }
 
-extension EchoSenseDatabaseStructure {
-    init(_ structure: DatabaseStructure) {
-        self.init(serverVersion: structure.serverVersion,
-                  databases: structure.databases.map(EchoSenseDatabaseInfo.init))
-    }
-}
-
-extension EchoSenseDatabaseInfo {
-    init(_ info: DatabaseInfo) {
-        self.init(id: UUID(),
-                  name: info.name,
-                  schemas: info.schemas.map(EchoSenseSchemaInfo.init))
-    }
-}
-
-extension EchoSenseSchemaInfo {
-    init(_ info: SchemaInfo) {
-        self.init(id: UUID(),
-                  name: info.name,
-                  objects: info.objects.map(EchoSenseSchemaObjectInfo.init))
-    }
-}
-
-extension EchoSenseSchemaObjectInfo {
-    init(_ object: SchemaObjectInfo) {
-        self.init(id: UUID(),
-                  name: object.name,
-                  schema: object.schema,
-                  type: EchoSenseSchemaObjectInfo.ObjectType(object.type),
-                  columns: object.columns.map(EchoSenseColumnInfo.init))
-    }
-}
-
 extension EchoSenseSchemaObjectInfo.ObjectType {
     init(_ type: SchemaObjectInfo.ObjectType) {
         switch type {
@@ -467,33 +434,6 @@ extension EchoSenseSchemaObjectInfo.ObjectType {
         case .trigger:
             self = .trigger
         }
-    }
-}
-
-extension EchoSenseColumnInfo {
-    init(_ column: ColumnInfo) {
-        self.init(id: UUID(),
-                  name: column.name,
-                  dataType: column.dataType,
-                  isPrimaryKey: column.isPrimaryKey,
-                  isNullable: column.isNullable,
-                  maxLength: column.maxLength,
-                  foreignKey: column.foreignKey.map(EchoSenseForeignKeyReference.init))
-    }
-}
-
-extension EchoSenseForeignKeyReference {
-    init(_ reference: ColumnInfo.ForeignKeyReference) {
-        self.init(constraintName: reference.constraintName,
-                  referencedSchema: reference.referencedSchema,
-                  referencedTable: reference.referencedTable,
-                  referencedColumn: reference.referencedColumn)
-    }
-}
-
-extension DatabaseStructure {
-    func toEchoSense() -> EchoSenseDatabaseStructure {
-        EchoSenseDatabaseStructure(self)
     }
 }
 
