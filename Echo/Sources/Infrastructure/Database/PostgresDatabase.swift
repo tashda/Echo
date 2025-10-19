@@ -558,10 +558,11 @@ final class PostgresSession: DatabaseSession {
         """
 
         let indexResult = try await performQuery(indexSQL, binds: [PostgresData(string: schema), PostgresData(string: table)])
-        for try await (indexName, isUnique, position, column, isDescending, predicate) in indexResult.decode((String, Bool, Int, String?, Bool, String?).self) {
+        for try await (indexName, isUnique, position, column, isDescendingRaw, predicate) in indexResult.decode((String, Bool, Int, String?, Bool?, String?).self) {
             var entry = indexes[indexName] ?? IndexAccumulator(isUnique: isUnique, columns: [], filterCondition: predicate)
             entry.filterCondition = predicate
             if let column {
+                let isDescending = isDescendingRaw ?? false
                 let sortOrder: TableStructureDetails.Index.Column.SortOrder = isDescending ? .descending : .ascending
                 entry.columns.append(
                     TableStructureDetails.Index.Column(

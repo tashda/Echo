@@ -998,6 +998,7 @@ private struct QueryEditorContainer: View {
 
     private let minRatio: CGFloat = 0.25
     private let maxRatio: CGFloat = 0.8
+    @State private var liveSplitRatioOverride: CGFloat?
 #if os(macOS)
     @State private var latestForeignKeySelection: QueryResultsTableView.ForeignKeySelection?
     @State private var latestJsonSelection: QueryResultsTableView.JsonSelection?
@@ -1016,6 +1017,8 @@ private struct QueryEditorContainer: View {
                     query.splitRatio = min(max(newValue, minRatio), maxRatio)
                 }
             )
+            let baseRatio = ratioBinding.wrappedValue
+            let effectiveRatio = min(max(liveSplitRatioOverride ?? baseRatio, minRatio), maxRatio)
 
             VStack(spacing: 0) {
                 if shouldShowResultsOnly {
@@ -1052,15 +1055,25 @@ private struct QueryEditorContainer: View {
                         onAddBookmark: handleBookmarkRequest,
                         completionContext: editorCompletionContext
                     )
-                    .frame(height: query.hasExecutedAtLeastOnce ? totalHeight * ratioBinding.wrappedValue : totalHeight)
+                    .frame(height: query.hasExecutedAtLeastOnce ? totalHeight * effectiveRatio : totalHeight)
                     .background(backgroundColor)
 
                     if query.hasExecutedAtLeastOnce {
                         ResizeHandle(
-                            ratio: ratioBinding,
+                            ratio: effectiveRatio,
                             minRatio: minRatio,
                             maxRatio: maxRatio,
-                            availableHeight: totalHeight
+                            availableHeight: totalHeight,
+                            onLiveUpdate: { proposed in
+                                liveSplitRatioOverride = proposed
+                            },
+                            onCommit: { proposed in
+                                let clamped = min(max(proposed, minRatio), maxRatio)
+                                liveSplitRatioOverride = nil
+                                if abs(ratioBinding.wrappedValue - clamped) > 0.0001 {
+                                    ratioBinding.wrappedValue = clamped
+                                }
+                            }
                         )
 
                     #if os(macOS)
@@ -1074,7 +1087,7 @@ private struct QueryEditorContainer: View {
                             onForeignKeyEvent: handleForeignKeyEvent,
                             onJsonEvent: handleJsonEvent
                         )
-                            .frame(height: totalHeight * (1 - ratioBinding.wrappedValue))
+                            .frame(height: totalHeight * (1 - effectiveRatio))
                             .background(backgroundColor)
                             .transition(.opacity)
                     #else
@@ -1084,7 +1097,7 @@ private struct QueryEditorContainer: View {
                             activeDatabaseName: connectionDatabaseName,
                             gridState: gridStateProvider()
                         )
-                            .frame(height: totalHeight * (1 - ratioBinding.wrappedValue))
+                            .frame(height: totalHeight * (1 - effectiveRatio))
                             .background(backgroundColor)
                             .transition(.opacity)
                     #endif
@@ -1101,6 +1114,14 @@ private struct QueryEditorContainer: View {
         }
         .onChange(of: tab.connection.database) { _, _ in
             updateClipboardContext()
+        }
+        .onChange(of: query.isResultsOnly) { _, _ in
+            liveSplitRatioOverride = nil
+        }
+        .onChange(of: query.hasExecutedAtLeastOnce) { _, executed in
+            if !executed {
+                liveSplitRatioOverride = nil
+            }
         }
         .task {
             await triggerAutoExecutionIfNeeded()
@@ -1150,9 +1171,8 @@ private struct QueryEditorContainer: View {
 
     @MainActor
     private func triggerAutoExecutionIfNeeded() async {
-        guard query.isResultsOnly else { return }
-        guard !query.hasExecutedAtLeastOnce, !query.isExecuting else { return }
         guard query.shouldAutoExecuteOnAppear else { return }
+        guard !query.isExecuting else { return }
         query.shouldAutoExecuteOnAppear = false
         await runQuery(query.sql)
     }
@@ -1360,9 +1380,10 @@ private struct QueryEditorContainer: View {
     }
 
     private func fetchForeignKeyInspectorContent(for selection: QueryResultsTableView.ForeignKeySelection, includeRelated: Bool, depth: Int) async -> ForeignKeyInspectorContent? {
-        guard let query = makeForeignKeyLookupQuery(for: selection) else { return nil }
+        guard let lookupQuery = makeForeignKeyLookupQuery(for: selection, includeLimit: true) else { return nil }
+        let detailQuery = makeForeignKeyLookupQuery(for: selection, includeLimit: false)
         do {
-            let result = try await tab.session.simpleQuery(query)
+            let result = try await tab.session.simpleQuery(lookupQuery)
             guard let row = result.rows.first else { return nil }
 
             var fields: [ForeignKeyInspectorContent.Field] = []
@@ -1386,7 +1407,8 @@ private struct QueryEditorContainer: View {
                 title: title,
                 subtitle: subtitle.isEmpty ? nil : subtitle,
                 fields: fields,
-                related: related
+                related: related,
+                lookupQuerySQL: detailQuery ?? lookupQuery
             )
         } catch {
             return nil
@@ -1427,7 +1449,7 @@ private struct QueryEditorContainer: View {
         }
     }
 
-    private func makeForeignKeyLookupQuery(for selection: QueryResultsTableView.ForeignKeySelection) -> String? {
+    private func makeForeignKeyLookupQuery(for selection: QueryResultsTableView.ForeignKeySelection, includeLimit: Bool) -> String? {
         let databaseType = tab.connection.databaseType
         guard let literal = makeForeignKeyLiteral(for: selection, databaseType: databaseType) else { return nil }
         let reference = selection.reference
@@ -1436,9 +1458,17 @@ private struct QueryEditorContainer: View {
 
         switch databaseType {
         case .microsoftSQL:
-            return "SELECT TOP 1 * FROM \(tableIdentifier) WHERE \(columnIdentifier) = \(literal);"
+            if includeLimit {
+                return "SELECT TOP 1 * FROM \(tableIdentifier) WHERE \(columnIdentifier) = \(literal);"
+            } else {
+                return "SELECT * FROM \(tableIdentifier) WHERE \(columnIdentifier) = \(literal);"
+            }
         default:
-            return "SELECT * FROM \(tableIdentifier) WHERE \(columnIdentifier) = \(literal) LIMIT 1;"
+            if includeLimit {
+                return "SELECT * FROM \(tableIdentifier) WHERE \(columnIdentifier) = \(literal) LIMIT 1;"
+            } else {
+                return "SELECT * FROM \(tableIdentifier) WHERE \(columnIdentifier) = \(literal);"
+            }
         }
     }
 
@@ -1968,10 +1998,12 @@ private struct QueryTabButton: View {
 }
 
 private struct ResizeHandle: View {
-    @Binding var ratio: CGFloat
+    let ratio: CGFloat
     let minRatio: CGFloat
     let maxRatio: CGFloat
     let availableHeight: CGFloat
+    let onLiveUpdate: (CGFloat) -> Void
+    let onCommit: (CGFloat) -> Void
 
     @State private var dragStartRatio: CGFloat = 0
     @State private var isDragging = false
@@ -1996,11 +2028,14 @@ private struct ResizeHandle: View {
                     }
 
                     let delta = value.translation.height / max(availableHeight, 1)
-                    let proposed = dragStartRatio + delta
-                    self.ratio = min(max(proposed, minRatio), maxRatio)
+                    let proposed = min(max(dragStartRatio + delta, minRatio), maxRatio)
+                    onLiveUpdate(proposed)
                 }
-                .onEnded { _ in
+                .onEnded { value in
+                    let delta = value.translation.height / max(availableHeight, 1)
+                    let proposed = min(max(dragStartRatio + delta, minRatio), maxRatio)
                     isDragging = false
+                    onCommit(proposed)
                 }
         )
 #if os(macOS)

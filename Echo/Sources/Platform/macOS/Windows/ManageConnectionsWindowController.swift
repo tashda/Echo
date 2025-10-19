@@ -4,8 +4,9 @@ import SwiftUI
 import Combine
 
 @MainActor
-final class ManageConnectionsWindowController: NSWindowController, NSWindowDelegate {
+final class ManageConnectionsWindowController: NSWindowController, NSWindowDelegate, NSToolbarDelegate {
     static let shared = ManageConnectionsWindowController()
+    private static let toolbarIdentifier = NSToolbar.Identifier("ManageConnectionsToolbar")
 
     private var hostingController: NSHostingController<ManageConnectionsWindowRootView>?
     private var isWindowLoadedOnce = false
@@ -66,6 +67,13 @@ final class ManageConnectionsWindowController: NSWindowController, NSWindowDeleg
         window.titlebarAppearsTransparent = true
         window.titleVisibility = .hidden
         window.toolbarStyle = .unified
+        let toolbar = NSToolbar(identifier: Self.toolbarIdentifier)
+        toolbar.delegate = self
+        toolbar.allowsUserCustomization = false
+        toolbar.autosavesConfiguration = false
+        toolbar.displayMode = .iconOnly
+        toolbar.showsBaselineSeparator = false
+        window.toolbar = toolbar
         window.contentViewController = hosting
         window.delegate = self
         applyTheme(to: window)
@@ -114,6 +122,20 @@ final class ManageConnectionsWindowController: NSWindowController, NSWindowDeleg
         if #unavailable(macOS 15) {
             window.toolbar?.showsBaselineSeparator = false
         }
+    }
+
+    // MARK: - NSToolbarDelegate
+
+    func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
+        []
+    }
+
+    func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
+        []
+    }
+
+    func toolbarSelectableItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
+        []
     }
 }
 

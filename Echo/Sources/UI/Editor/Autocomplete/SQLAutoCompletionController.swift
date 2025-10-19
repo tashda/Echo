@@ -46,14 +46,14 @@ final class SQLAutoCompletionController {
             return
         }
 
-        if shouldPresentInlineKeywords(suggestions) {
+        if let keywordSuggestions = inlineKeywordCandidates(from: suggestions, query: query) {
             if popover.isShown {
                 popover.performClose(nil)
             }
             flatSuggestions.removeAll(keepingCapacity: false)
             selectedIndex = 0
             lastQuery = query
-            textView.showInlineKeywordSuggestions(suggestions, query: query)
+            textView.showInlineKeywordSuggestions(keywordSuggestions, query: query)
             return
         } else {
             textView.hideInlineKeywordSuggestion()
@@ -203,9 +203,32 @@ final class SQLAutoCompletionController {
         popover.contentSize = NSSize(width: width, height: height)
     }
 
-    private func shouldPresentInlineKeywords(_ suggestions: [SQLAutoCompletionSuggestion]) -> Bool {
-        guard !suggestions.isEmpty else { return false }
-        return suggestions.allSatisfy { $0.kind == .keyword }
+    private func inlineKeywordCandidates(from suggestions: [SQLAutoCompletionSuggestion],
+                                         query: SQLAutoCompletionQuery) -> [SQLAutoCompletionSuggestion]? {
+        guard !suggestions.isEmpty else { return nil }
+        guard query.pathComponents.isEmpty else { return nil }
+
+        var loweredPrefix = query.prefix.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        if loweredPrefix.isEmpty {
+            loweredPrefix = query.token.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        }
+
+        let keywordSuggestions = suggestions.filter { suggestion in
+            guard suggestion.kind == .keyword else { return false }
+            let keyword = suggestion.insertText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+
+            if !loweredPrefix.isEmpty {
+                return keyword.hasPrefix(loweredPrefix)
+            }
+
+            if let preceding = query.precedingCharacter {
+                return preceding.isWhitespace
+            }
+
+            return true
+        }
+
+        return keywordSuggestions.isEmpty ? nil : keywordSuggestions
     }
 
     static func statusMessage(isMetadataLimited: Bool) -> String? {

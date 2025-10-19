@@ -1451,6 +1451,23 @@ private struct IdentityIconCell: View {
     }
 }
 
+private struct LeadingTableCell<Content: View>: View {
+    private let content: () -> Content
+
+    init(@ViewBuilder content: @escaping () -> Content) {
+        self.content = content
+    }
+
+    var body: some View {
+        HStack(spacing: 6) {
+            content()
+            Spacer(minLength: 0)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .contentShape(Rectangle())
+    }
+}
+
 private struct IdentitiesTableView: View {
     let identities: [SavedIdentity]
     @Binding var selection: Set<SavedIdentity.ID>
@@ -1471,55 +1488,35 @@ private struct IdentitiesTableView: View {
                 .width(28)
 
                 TableColumn("Name", value: \.name) { identity in
-                    HStack(spacing: 6) {
+                    LeadingTableCell {
                         Text(identity.name)
-                        Spacer(minLength: 0)
+                            .multilineTextAlignment(.leading)
                     }
                 }
 
                 TableColumn("Username", value: \.username) { identity in
-                    let username = identity.username.trimmingCharacters(in: .whitespacesAndNewlines)
-                    if !username.isEmpty {
-                        HStack(spacing: 6) {
-                            Text(username)
-                            Spacer(minLength: 0)
-                        }
-                    } else {
-                        HStack(spacing: 6) {
-                            Text("—")
-                                .foregroundStyle(.secondary)
-                            Spacer(minLength: 0)
-                        }
+                    let trimmed = identity.username.trimmingCharacters(in: .whitespacesAndNewlines)
+                    LeadingTableCell {
+                        Text(trimmed.isEmpty ? "—" : trimmed)
+                            .foregroundStyle(trimmed.isEmpty ? .secondary : .primary)
+                            .multilineTextAlignment(.leading)
                     }
                 }
 
                 TableColumn("Folder") { identity in
-                    if let folderID = identity.folderID,
-                       let folder = folderLookup[folderID] {
-                        HStack(spacing: 6) {
-                            Text(folder.displayName)
-                            Spacer(minLength: 0)
-                        }
-                    } else {
-                        HStack(spacing: 6) {
-                            Text("—")
-                                .foregroundStyle(.secondary)
-                            Spacer(minLength: 0)
-                        }
+                    let folderName = identity.folderID.flatMap { folderLookup[$0]?.displayName } ?? "—"
+                    LeadingTableCell {
+                        Text(folderName)
+                            .foregroundStyle(folderName == "—" ? .secondary : .primary)
+                            .multilineTextAlignment(.leading)
                     }
                 }
 
                 TableColumn("Updated") { identity in
-                    if let updatedAt = identity.updatedAt {
-                        HStack(spacing: 6) {
-                            Text(updatedAt, style: .date)
-                            Spacer(minLength: 0)
-                        }
-                    } else {
-                        HStack(spacing: 6) {
-                            Text(identity.createdAt, style: .date)
-                            Spacer(minLength: 0)
-                        }
+                    let referenceDate = identity.updatedAt ?? identity.createdAt
+                    LeadingTableCell {
+                        Text(referenceDate, style: .date)
+                            .multilineTextAlignment(.leading)
                     }
                 }
 
@@ -1690,41 +1687,55 @@ private struct RoundAddButtonLabel: View {
 
     var body: some View {
         let isDark = themeManager.effectiveColorScheme == .dark
-        let baseFillTop = isDark ? Color.white.opacity(0.26) : Color.white
-        let baseFillBottom = isDark ? Color.white.opacity(0.18) : Color.white.opacity(0.88)
-        let hoverFillTop = isDark ? Color.white.opacity(0.32) : Color.white
-        let hoverFillBottom = isDark ? Color.white.opacity(0.24) : Color.white.opacity(0.95)
+        let baseFillTop = isDark ? Color.white.opacity(0.22) : Color.white
+        let baseFillBottom = isDark ? Color.white.opacity(0.16) : Color.white.opacity(0.86)
+        let hoverFillTop = isDark ? Color.white.opacity(0.28) : Color.white
+        let hoverFillBottom = isDark ? Color.white.opacity(0.22) : Color.white.opacity(0.94)
         let fillGradient = LinearGradient(
             colors: isHovered ? [hoverFillTop, hoverFillBottom] : [baseFillTop, baseFillBottom],
             startPoint: .top,
             endPoint: .bottom
         )
-        let baseStroke = isDark ? Color.white.opacity(0.35) : Color.black.opacity(0.12)
-        let hoverStroke = isDark ? Color.white.opacity(0.45) : Color.black.opacity(0.18)
+        let baseStroke = isDark ? Color.white.opacity(0.3) : Color.black.opacity(0.14)
+        let hoverStroke = isDark ? Color.white.opacity(0.42) : Color.black.opacity(0.22)
         let stroke = isHovered ? hoverStroke : baseStroke
-        let highlight = isDark ? Color.white.opacity(0.22) : Color.white.opacity(0.75)
-        let iconColor = Color(nsColor: isDark ? .secondaryLabelColor : .tertiaryLabelColor)
+        let highlight = isDark ? Color.white.opacity(0.18) : Color.white.opacity(0.7)
+        let iconColor = Color(nsColor: isDark ? .secondaryLabelColor : .secondaryLabelColor)
+        let innerFill = isDark ? Color.white.opacity(0.16) : Color.white.opacity(0.96)
+        let innerStroke = isDark ? Color.white.opacity(0.26) : Color.black.opacity(0.08)
+        let innerShadow = Color.black.opacity(isDark ? 0.45 : 0.18)
 
-        return Circle()
+        return Capsule(style: .continuous)
             .fill(fillGradient)
             .overlay(
-                Circle()
+                Capsule(style: .continuous)
                     .strokeBorder(stroke, lineWidth: 1)
                     .overlay(
-                        Circle()
+                        Capsule(style: .continuous)
                             .strokeBorder(highlight, lineWidth: 0.5)
                             .blendMode(.plusLighter)
                     )
             )
             .overlay(
+                Circle()
+                    .fill(innerFill)
+                    .overlay(
+                        Circle()
+                            .strokeBorder(innerStroke, lineWidth: 0.5)
+                            .blendMode(.overlay)
+                    )
+                    .shadow(color: innerShadow, radius: isHovered ? 1.5 : 1, y: isDark ? 0.8 : 0.4)
+                    .frame(width: 22, height: 22)
+            )
+            .overlay(
                 Image(systemName: "plus")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(iconColor)
             )
-            .frame(width: 30, height: 30)
-            .contentShape(Circle())
+            .frame(width: 40, height: 28)
+            .contentShape(Capsule(style: .continuous))
             .onHover { isHovered = $0 }
-            .shadow(color: Color.black.opacity(isDark ? 0.25 : 0.08), radius: isHovered ? 1.5 : 1, y: 0.5)
+            .shadow(color: Color.black.opacity(isDark ? 0.28 : 0.1), radius: isHovered ? 1.5 : 1, y: 0.6)
     }
 }
 #endif

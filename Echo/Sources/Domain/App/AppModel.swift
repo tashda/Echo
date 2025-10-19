@@ -191,7 +191,7 @@ final class AppModel: ObservableObject {
             edges: edges,
             baseNodeID: baseKey.identifier,
             title: title,
-            layoutIdentifier: layoutSnapshot?.layoutID ?? DiagramLayoutSnapshot.defaultLayoutIdentifier,
+            layoutIdentifier: layoutSnapshot?.layoutID ?? "primary",
             cachedStructure: structureSnapshot,
             cachedChecksum: checksum,
             loadSource: loadSource
@@ -1263,7 +1263,8 @@ final class AppModel: ObservableObject {
 
     func openQueryTab(for session: ConnectionSession? = nil,
                       presetQuery: String = "",
-                      bookmarkContext: WorkspaceTab.BookmarkTabContext? = nil) {
+                      bookmarkContext: WorkspaceTab.BookmarkTabContext? = nil,
+                      autoExecute: Bool = false) {
         guard let targetSession = session
                 ?? sessionManager.activeSession
                 ?? sessionManager.activeSessions.first else { return }
@@ -1309,6 +1310,7 @@ final class AppModel: ObservableObject {
             spoolManager: resultSpoolManager,
             backgroundFetchSize: globalSettings.resultsStreamingFetchSize
         )
+        queryState.shouldAutoExecuteOnAppear = autoExecute
 
         func normalized(_ value: String) -> String? {
             let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -1440,6 +1442,21 @@ final class AppModel: ObservableObject {
                 )
                 tabManager.addTab(newTab)
                 tabManager.activeTabId = newTab.id
+
+                let placeholderColumn = SchemaDiagramColumn(
+                    name: "Loading…",
+                    dataType: "",
+                    isPrimaryKey: false,
+                    isForeignKey: false
+                )
+                let placeholderNode = SchemaDiagramNodeModel(
+                    schema: object.schema,
+                    name: object.name,
+                    columns: [placeholderColumn],
+                    position: .zero
+                )
+                viewModel.nodes = [placeholderNode]
+
                 return viewModel
             }
 
