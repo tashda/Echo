@@ -224,9 +224,10 @@ struct TableStructureEditorView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("\(viewModel.schemaName).\(viewModel.tableName)")
                         .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(headerPrimaryColor)
                     Label(tab.connection.connectionName, systemImage: "externaldrive.connected.to.line.below")
                         .font(.system(size: 12, weight: .medium))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(headerSecondaryColor)
                         .labelStyle(.titleAndIcon)
                 }
 
@@ -247,6 +248,14 @@ struct TableStructureEditorView: View {
         .padding(.horizontal, 24)
         .padding(.top, 24)
         .padding(.bottom, 12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(headerBackgroundColor)
+        .overlay(
+            Rectangle()
+                .fill(headerBorderColor)
+                .frame(height: 1),
+            alignment: .bottom
+        )
     }
 
     private var content: some View {
@@ -476,6 +485,26 @@ struct TableStructureEditorView: View {
 #endif
     }
 
+    private var headerBackgroundColor: Color {
+#if os(macOS)
+        Color(nsColor: themeManager.surfaceBackgroundNSColor)
+#else
+        themeManager.surfaceBackgroundColor
+#endif
+    }
+
+    private var headerBorderColor: Color {
+        themeManager.surfaceForegroundColor.opacity(themeManager.effectiveColorScheme == .dark ? 0.35 : 0.12)
+    }
+
+    private var headerPrimaryColor: Color {
+        themeManager.surfaceForegroundColor
+    }
+
+    private var headerSecondaryColor: Color {
+        themeManager.surfaceForegroundColor.opacity(themeManager.effectiveColorScheme == .dark ? 0.7 : 0.55)
+    }
+
     private var columnsSection: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 8) {
@@ -584,7 +613,6 @@ struct TableStructureEditorView: View {
             }
         }
 #endif
-    }
 
 #if os(macOS)
     @ViewBuilder
@@ -780,22 +808,202 @@ struct TableStructureEditorView: View {
         placeholder: String,
         alignment: TextAlignment
     ) -> some View {
-        let resolvedAlignment: Alignment = alignment == .trailing ? .trailing : (alignment == .center ? .center : .leading)
-
-        return ZStack(alignment: resolvedAlignment) {
-            if text.wrappedValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                Text(placeholder)
-                    .foregroundStyle(Color.secondary.opacity(0.5))
-            }
-
-            TextField("", text: text)
-                .textFieldStyle(.plain)
-                .font(.system(size: 12))
-                .multilineTextAlignment(alignment)
-        }
-        .frame(maxWidth: .infinity, alignment: resolvedAlignment)
+        InlineEditableCell(
+            value: text,
+            placeholder: placeholder,
+            alignment: alignment,
+            themeManager: themeManager
+        )
     }
 
+#if os(macOS)
+    private struct InlineEditableCell: View {
+        @Binding var value: String
+        let placeholder: String
+        let alignment: TextAlignment
+        let themeManager: ThemeManager
+
+        @State private var isEditing = false
+        @State private var workingValue: String = ""
+        @State private var focusSession: Int = 0
+
+        private var swiftAlignment: Alignment {
+            switch alignment {
+            case .trailing: return .trailing
+            case .center: return .center
+            default: return .leading
+            }
+        }
+
+        private var textAlignment: NSTextAlignment {
+            switch alignment {
+            case .trailing: return .right
+            case .center: return .center
+            default: return .left
+            }
+        }
+
+        private var textColor: Color {
+            Color(nsColor: themeManager.surfaceForegroundNSColor)
+        }
+
+        private var placeholderColor: Color {
+            let nsColor = themeManager.surfaceForegroundNSColor.withAlphaComponent(themeManager.effectiveColorScheme == .dark ? 0.4 : 0.45)
+            return Color(nsColor: nsColor)
+        }
+
+        private var displayValue: String {
+            value
+        }
+
+        private var isValueEmpty: Bool {
+            displayValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        }
+
+        var body: some View {
+            ZStack(alignment: swiftAlignment) {
+                if isEditing {
+                    InlineEditableTextField(
+                        text: $workingValue,
+                        alignment: textAlignment,
+                        themeManager: themeManager,
+                        focusSession: focusSession,
+                        onCommit: commit,
+                        onCancel: cancel
+                    )
+                    .frame(maxWidth: .infinity, alignment: swiftAlignment)
+                } else {
+                    if isValueEmpty {
+                        Text(placeholder)
+                            .foregroundStyle(placeholderColor)
+                            .frame(maxWidth: .infinity, alignment: swiftAlignment)
+                    } else {
+                        Text(displayValue)
+                            .foregroundStyle(textColor)
+                            .frame(maxWidth: .infinity, alignment: swiftAlignment)
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: swiftAlignment)
+            .contentShape(Rectangle())
+            .onTapGesture {
+                beginEditing()
+            }
+        }
+
+        private func beginEditing() {
+            workingValue = value
+            focusSession &+= 1
+            isEditing = true
+        }
+
+        private func commit(_ newValue: String) {
+            value = newValue
+            workingValue = newValue
+            isEditing = false
+        }
+
+        private func cancel() {
+            workingValue = value
+            isEditing = false
+        }
+    }
+
+    private struct InlineEditableTextField: NSViewRepresentable {
+        @Binding var text: String
+        let alignment: NSTextAlignment
+        let themeManager: ThemeManager
+        let focusSession: Int
+        let onCommit: (String) -> Void
+        let onCancel: () -> Void
+
+        func makeCoordinator() -> Coordinator {
+            Coordinator(parent: self)
+        }
+
+        func makeNSView(context: Context) -> NSTextField {
+            let field = NSTextField()
+            field.isBordered = false
+            field.drawsBackground = false
+            field.font = NSFont.systemFont(ofSize: 12)
+            field.alignment = alignment
+            field.delegate = context.coordinator
+            field.focusRingType = .none
+            field.lineBreakMode = .byTruncatingTail
+            field.translatesAutoresizingMaskIntoConstraints = false
+            return field
+        }
+
+        func updateNSView(_ nsView: NSTextField, context: Context) {
+            context.coordinator.parent = self
+
+            if nsView.stringValue != text {
+                nsView.stringValue = text
+            }
+
+            nsView.alignment = alignment
+            nsView.font = NSFont.systemFont(ofSize: 12)
+            nsView.textColor = themeManager.surfaceForegroundNSColor
+
+            if context.coordinator.lastFocusSession != focusSession {
+                context.coordinator.lastFocusSession = focusSession
+                DispatchQueue.main.async {
+                    nsView.window?.makeFirstResponder(nsView)
+                    if let editor = nsView.currentEditor() {
+                        editor.selectedRange = NSRange(location: 0, length: (nsView.stringValue as NSString).length)
+                    }
+                }
+            }
+        }
+
+        final class Coordinator: NSObject, NSTextFieldDelegate {
+            var parent: InlineEditableTextField
+            var lastFocusSession: Int = -1
+            private var didHandleCommand = false
+
+            init(parent: InlineEditableTextField) {
+                self.parent = parent
+            }
+
+            func control(_ control: NSControl, textView: NSTextView, doCommandBy commandSelector: Selector) -> Bool {
+                switch commandSelector {
+                case #selector(NSResponder.cancelOperation(_:)):
+                    didHandleCommand = true
+                    parent.onCancel()
+                    return true
+                case #selector(NSResponder.insertNewline(_:)):
+                    didHandleCommand = true
+                    parent.onCommit(control.stringValue)
+                    return true
+                default:
+                    return false
+                }
+            }
+
+            func controlTextDidEndEditing(_ notification: Notification) {
+                guard let field = notification.object as? NSTextField else { return }
+                if didHandleCommand {
+                    didHandleCommand = false
+                    return
+                }
+                parent.onCommit(field.stringValue)
+            }
+        }
+    }
+#else
+    private struct InlineEditableCell: View {
+        @Binding var value: String
+        let placeholder: String
+        let alignment: TextAlignment
+        let themeManager: ThemeManager
+
+        var body: some View {
+            TextField(placeholder, text: $value)
+                .multilineTextAlignment(alignment)
+                .textFieldStyle(.plain)
+        }
+    }
+#endif
     private func columnStatusMetadata(for column: TableStructureEditorViewModel.ColumnModel) -> (title: String, systemImage: String, tint: Color) {
         if column.isNew {
             return ("New", "sparkles", Color.accentColor)

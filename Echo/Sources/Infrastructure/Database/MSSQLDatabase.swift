@@ -187,13 +187,18 @@ final class MSSQLSession: DatabaseSession {
             guard !resolvedColumns.isEmpty else { return }
 
             if worker == nil, let handler = progressHandler, !resolvedColumns.isEmpty {
+                let bridgedHandler: QueryProgressHandler = { update in
+                    Task { @MainActor in
+                        handler(update)
+                    }
+                }
                 worker = ResultStreamBatchWorker(
                     label: "dk.tippr.echo.mssql.streamWorker",
                     columns: resolvedColumns,
                     streamingPreviewLimit: streamingPreviewLimit,
                     maxFlushLatency: maxFlushLatency,
                     operationStart: operationStart,
-                    progressHandler: handler
+                    progressHandler: bridgedHandler
                 )
             }
 

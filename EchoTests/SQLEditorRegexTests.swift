@@ -543,6 +543,60 @@ final class SQLAutoCompletionEngineTests: XCTestCase {
         XCTAssertLessThan(keywordIndex, tableIndex)
     }
 
+    func testInlineFromKeywordPreferredOverObjects() {
+        let suggestions = [
+            SQLCompletionSuggestion(id: "object:table:testdb.public.fixture",
+                                    title: "fixture",
+                                    subtitle: "public",
+                                    detail: "public.fixture",
+                                    insertText: "public.fixture",
+                                    kind: .table,
+                                    priority: 1300),
+            SQLCompletionSuggestion(id: "keyword|from",
+                                    title: "FROM",
+                                    subtitle: nil,
+                                    detail: nil,
+                                    insertText: "FROM ",
+                                    kind: .keyword,
+                                    priority: 700),
+            SQLCompletionSuggestion(id: "function|foo",
+                                    title: "foo",
+                                    subtitle: nil,
+                                    detail: nil,
+                                    insertText: "foo()",
+                                    kind: .function,
+                                    priority: 1250)
+        ]
+
+        let metadata = SQLCompletionMetadata(clause: .from,
+                                             currentToken: "F",
+                                             precedingKeyword: "select",
+                                             pathComponents: [],
+                                             tablesInScope: [],
+                                             focusTable: nil,
+                                             cteColumns: [:])
+        stubCompletionEngine.result = SQLCompletionResult(suggestions: suggestions, metadata: metadata)
+        engine.updateContext(sampleContext())
+
+        let text = "SELECT * F"
+        let caretLocation = text.count
+        let query = SQLAutoCompletionQuery(token: "F",
+                                           prefix: "F",
+                                           pathComponents: [],
+                                           replacementRange: NSRange(location: caretLocation, length: 0),
+                                           precedingKeyword: "select",
+                                           precedingCharacter: " ",
+                                           focusTable: nil,
+                                           tablesInScope: [],
+                                           clause: .from)
+
+        let result = engine.suggestions(for: query, text: text, caretLocation: caretLocation)
+        let flattened = result.sections.flatMap { $0.suggestions }
+        XCTAssertFalse(flattened.isEmpty)
+        XCTAssertEqual(flattened.first?.kind, .keyword)
+        XCTAssertEqual(flattened.first?.insertText.trimmingCharacters(in: .whitespaces), "FROM")
+    }
+
     func testHistorySelectionsAreSurfacedFirst() {
         SQLAutoCompletionHistoryStore.shared.reset()
 

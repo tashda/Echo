@@ -42,7 +42,7 @@ final class ResultStreamBatchWorker: @unchecked Sendable {
         let fallbackBatch: Int
     }
 
-    init(
+    nonisolated(unsafe) init(
         label: String,
         columns: [ColumnInfo],
         streamingPreviewLimit: Int,
@@ -142,7 +142,6 @@ final class ResultStreamBatchWorker: @unchecked Sendable {
 
             var buffer = Array<ResultBinaryRow?>(repeating: nil, count: batchCount)
             let concurrency = ProcessInfo.processInfo.processorCount
-            var initializedCount = 0
             buffer.withUnsafeMutableBufferPointer { pointer in
                 DispatchQueue.concurrentPerform(iterations: concurrency) { workerIndex in
                     var index = workerIndex
@@ -163,7 +162,6 @@ final class ResultStreamBatchWorker: @unchecked Sendable {
                         index &+= concurrency
                     }
                 }
-                initializedCount = batchCount
             }
             return buffer.compactMap { $0 }
         }()
@@ -257,13 +255,13 @@ final class ResultStreamBatchWorker: @unchecked Sendable {
                 offset &+= 1
 
                 var littleEndianLength = UInt32(length).littleEndian
-                withUnsafeBytes(of: &littleEndianLength) { pointer in
+                _ = withUnsafeBytes(of: &littleEndianLength) { pointer in
                     memcpy(baseAddress.advanced(by: offset), pointer.baseAddress!, 4)
                 }
                 offset &+= 4
 
                 if length > 0, let buffer = buffers[index] {
-                    buffer.withUnsafeReadableBytes { rawBuffer in
+                    _ = buffer.withUnsafeReadableBytes { rawBuffer in
                         memcpy(baseAddress.advanced(by: offset), rawBuffer.baseAddress!, length)
                     }
                 }

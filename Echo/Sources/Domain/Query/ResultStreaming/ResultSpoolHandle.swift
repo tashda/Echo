@@ -27,8 +27,18 @@ actor ResultSpoolHandle {
     private func debugLog(_ message: @autoclosure () -> String) {
         print("[ResultSpoolHandle][\(debugID)][spool=\(id.uuidString.prefix(8))] \(message())")
     }
+
+    private func logStatsSubscribed(_ identifier: UUID) {
+        debugLog("statsStream subscribed id=\(identifier.uuidString.prefix(8)) continuations=\(statContinuations.count)")
+    }
+
+    private func logStatsTerminated(_ identifier: UUID) {
+        debugLog("statsStream terminated id=\(identifier.uuidString.prefix(8))")
+    }
 #else
     private func debugLog(_ message: @autoclosure () -> String) {}
+    private func logStatsSubscribed(_ identifier: UUID) {}
+    private func logStatsTerminated(_ identifier: UUID) {}
 #endif
 
     private struct ChunkRecord: Sendable {
@@ -104,7 +114,7 @@ actor ResultSpoolHandle {
                     await self?.removeContinuation(identifier)
 #if DEBUG
                     if let self {
-                        await self.debugLog("statsStream terminated id=\(identifier.uuidString.prefix(8))")
+                        self.logStatsTerminated(identifier)
                     }
 #endif
                 }
@@ -112,7 +122,7 @@ actor ResultSpoolHandle {
             Task {
                 await self.addContinuation(identifier, continuation)
 #if DEBUG
-                await self.debugLog("statsStream subscribed id=\(identifier.uuidString.prefix(8)) continuations=\(self.statContinuations.count)")
+                self.logStatsSubscribed(identifier)
 #endif
             }
         }
@@ -480,12 +490,16 @@ actor ResultSpoolHandle {
     private func persistMetadata() {
         let snapshot = metadata
         let metaURL = directory.appendingPathComponent("meta.json")
+        let encoder = makeJSONEncoder()
+        let data: Data
+        do {
+            data = try encoder.encode(snapshot)
+        } catch {
+            print("ResultSpoolHandle: Failed to encode metadata \(error)")
+            return
+        }
         Task.detached(priority: .utility) {
-            let encoder = JSONEncoder()
-            encoder.outputFormatting = []
-            encoder.dateEncodingStrategy = .iso8601
             do {
-                let data = try encoder.encode(snapshot)
                 try data.write(to: metaURL, options: .atomic)
             } catch {
                 print("ResultSpoolHandle: Failed to persist metadata \(error)")
@@ -496,12 +510,16 @@ actor ResultSpoolHandle {
     private func persistStats(lastBatch: Int, metrics: QueryStreamMetrics?, isFinished: Bool) {
         let stats = currentStats(lastBatch: lastBatch, metrics: metrics, isFinished: isFinished)
         let statsURL = directory.appendingPathComponent("stats.json")
+        let encoder = makeJSONEncoder()
+        let data: Data
+        do {
+            data = try encoder.encode(stats)
+        } catch {
+            print("ResultSpoolHandle: Failed to encode stats \(error)")
+            return
+        }
         Task.detached(priority: .utility) {
-            let encoder = JSONEncoder()
-            encoder.outputFormatting = []
-            encoder.dateEncodingStrategy = .iso8601
             do {
-                let data = try encoder.encode(stats)
                 try data.write(to: statsURL, options: .atomic)
             } catch {
                 print("ResultSpoolHandle: Failed to persist stats \(error)")

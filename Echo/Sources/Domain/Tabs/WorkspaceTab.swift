@@ -209,7 +209,7 @@ final class SchemaDiagramViewModel: ObservableObject {
         isLoading: Bool = false,
         statusMessage: String? = nil,
         errorMessage: String? = nil,
-        layoutIdentifier: String = DiagramLayoutSnapshot.defaultLayoutIdentifier,
+        layoutIdentifier: String? = nil,
         context: SchemaDiagramContext? = nil,
         cachedStructure: DiagramStructureSnapshot? = nil,
         cachedChecksum: String? = nil,
@@ -222,7 +222,7 @@ final class SchemaDiagramViewModel: ObservableObject {
         self.isLoading = isLoading
         self.statusMessage = statusMessage
         self.errorMessage = errorMessage
-        self.layoutIdentifier = layoutIdentifier
+        self.layoutIdentifier = layoutIdentifier ?? "primary"
         self.context = context
         self.cachedStructure = cachedStructure
         self.cachedChecksum = cachedChecksum
@@ -314,6 +314,19 @@ final class QueryResultsGridState {
     private var lastVisibleDisplayRange: Range<Int> = 0..<0
     private var lastPrefetchedSourceRange: Range<Int> = 0..<0
 
+    private var lastSpoolStatsRowCount: Int = 0
+    private var hasAppliedFinalSpoolStats: Bool = false
+
+    private struct BroadcastSnapshot: Equatable {
+        var rowCount: Int
+        var streamingRowsCount: Int
+        var visibleLimit: Int?
+        var streamingMode: StreamingMode
+        var columnCount: Int
+    }
+
+    private var lastBroadcastSnapshot: BroadcastSnapshot?
+
     var gridViewportPadding: Int {
         gridViewportForwardPrefetchRows + gridViewportBackfillRows
     }
@@ -326,7 +339,7 @@ final class QueryResultsGridState {
 
     private struct BufferedSpoolUpdate {
         let update: QueryStreamUpdate
-        let mode: StreamingMode
+        let treatAsPreview: Bool
     }
 
     private var streamedRowCount: Int = 0
@@ -377,7 +390,7 @@ final class QueryResultsGridState {
         let activationCap = max(normalizedPreview, 8_192)
         let resolvedActivation = min(max(normalizedPreview, spoolThresholdCandidate), activationCap)
         self.spoolActivationThreshold = resolvedActivation
-        self.frontBufferLimit = max(self.initialVisibleRowBatch, self.spoolActivationThreshold)
+        self.frontBufferLimit = self.initialVisibleRowBatch
         self.gridViewportForwardPrefetchRows = max(normalizedFetchSize * 2, self.previewRowLimit)
         self.gridViewportBackfillRows = max(self.initialVisibleRowBatch / 2, 128)
     }
@@ -416,6 +429,9 @@ final class QueryResultsGridState {
         executionStartTime = Date()
         currentExecutionTime = 0
         currentRowCount = 0
+        lastSpoolStatsRowCount = 0
+        hasAppliedFinalSpoolStats = false
+        lastBroadcastSnapshot = nil
         isExecuting = true
         wasCancelled = false
         visibleRowLimit = initialVisibleRowBatch
@@ -887,13 +903,13 @@ final class QueryResultsGridState {
 
     @MainActor
     private func submitToSpool(update: QueryStreamUpdate, mode: StreamingMode) {
+        let treatAsPreview = (mode == .preview || mode == .idle)
         if shouldDeferSpool(for: mode) {
-            deferredSpoolUpdates.append(.init(update: update, mode: mode))
+            deferredSpoolUpdates.append(.init(update: update, treatAsPreview: treatAsPreview))
             return
         }
 
         let service = ensureIngestionService()
-        let treatAsPreview = (mode == .preview || mode == .idle)
         Task.detached(priority: .utility) {
             await service.enqueue(update: update, isPreview: treatAsPreview)
         }
@@ -939,11 +955,13 @@ final class QueryResultsGridState {
         let buffered = deferredSpoolUpdates
         deferredSpoolUpdates.removeAll(keepingCapacity: false)
         let service = ensureIngestionService()
+        let pendingUpdates: [(QueryStreamUpdate, Bool)] = buffered.map { update in
+            (update.update, update.treatAsPreview)
+        }
 
         Task.detached(priority: .utility) {
-            for entry in buffered {
-                let treatAsPreview = (entry.mode == .preview || entry.mode == .idle)
-                await service.enqueue(update: entry.update, isPreview: treatAsPreview)
+            for (update, treatAsPreview) in pendingUpdates {
+                await service.enqueue(update: update, isPreview: treatAsPreview)
             }
         }
     }
@@ -1043,8 +1061,9 @@ final class QueryResultsGridState {
             shouldRefreshReport = true
         }
 
-        let previousCount = currentRowCount ?? 0
+        let previousCount = lastSpoolStatsRowCount
         if stats.rowCount > previousCount {
+            lastSpoolStatsRowCount = stats.rowCount
             updateRowCount(stats.rowCount)
             if streamingMode == .background {
                 if !isResultsOnly, visibleRowLimit != nil {
@@ -1060,8 +1079,11 @@ final class QueryResultsGridState {
             }
         }
 
-        if stats.isFinished {
-            markResultDataChanged()
+        if stats.isFinished && !hasAppliedFinalSpoolStats {
+            hasAppliedFinalSpoolStats = true
+            if !isExecuting {
+                markResultDataChanged()
+            }
             shouldRefreshReport = true
         }
 
@@ -1095,8 +1117,7 @@ final class QueryResultsGridState {
         guard !range.isEmpty else { return }
         guard let handle = spoolHandle else { return }
         rowCache.prefetch(range: range, using: handle) { [weak self] in
-            guard let self else { return }
-            self.markResultDataChanged()
+            self?.markResultDataChanged()
         }
     }
 
@@ -1119,6 +1140,18 @@ final class QueryResultsGridState {
     }
 
     private func markResultDataChanged() {
+        let snapshot = BroadcastSnapshot(
+            rowCount: currentRowCount ?? 0,
+            streamingRowsCount: streamingRows.count,
+            visibleLimit: visibleRowLimit,
+            streamingMode: streamingMode,
+            columnCount: streamingColumns.count
+        )
+        if lastBroadcastSnapshot == snapshot {
+            return
+        }
+        lastBroadcastSnapshot = snapshot
+
         if isResultChangeCoalesced { return }
         isResultChangeCoalesced = true
         DispatchQueue.main.async { [weak self] in

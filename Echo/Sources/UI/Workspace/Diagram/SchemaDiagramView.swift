@@ -301,57 +301,105 @@ struct SchemaDiagramView: View {
 
     @ViewBuilder
     private var statusOverlay: some View {
-        if viewModel.isLoading || viewModel.errorMessage != nil || viewModel.statusMessage != nil {
-            ZStack {
-                Color.black.opacity(0.28)
-                    .ignoresSafeArea()
-                    .allowsHitTesting(true)
-                VStack(spacing: 16) {
-                    if viewModel.isLoading {
-                        ProgressView()
-                            .progressViewStyle(.linear)
-                            .frame(width: 240)
-                            .tint(palette.accent)
-                    } else if viewModel.errorMessage != nil {
-                        Image(systemName: "exclamationmark.triangle.fill")
-                            .font(.system(size: 40, weight: .bold))
-                            .foregroundStyle(palette.accent)
-                    }
-                    VStack(spacing: 6) {
-                        if viewModel.isLoading {
-                            Text("Loading Diagram…")
-                                .font(.headline)
-                                .foregroundStyle(palette.headerTitle)
-                        } else if viewModel.errorMessage != nil {
-                            Text("Unable to Load Diagram")
-                                .font(.headline)
-                                .foregroundStyle(palette.headerTitle)
-                        }
-                        if let message = viewModel.statusMessage, !message.isEmpty {
-                            Text(message)
-                                .font(.subheadline)
-                                .foregroundStyle(palette.headerSubtitle)
-                        } else if let error = viewModel.errorMessage {
-                            Text(error)
-                                .font(.subheadline)
-                                .foregroundStyle(palette.headerSubtitle)
-                        }
-                    }
-                    .multilineTextAlignment(.center)
-                }
-                .padding(24)
-                .background(
-                    RoundedRectangle(cornerRadius: 20, style: .continuous)
-                        .fill(palette.overlayBackground)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                                .stroke(palette.overlayBorder, lineWidth: 1)
-                        )
-                )
-                .shadow(color: palette.nodeShadow.opacity(0.8), radius: 18, x: 0, y: 12)
-            }
-            .allowsHitTesting(true)
+        if let error = viewModel.errorMessage {
+            blockingStatusCard(
+                icon: "exclamationmark.triangle.fill",
+                tint: palette.accent,
+                title: "Unable to Load Diagram",
+                message: error
+            )
+        } else if viewModel.isLoading && viewModel.nodes.isEmpty {
+            blockingStatusCard(
+                icon: nil,
+                tint: palette.accent,
+                title: "Loading Diagram…",
+                message: viewModel.statusMessage ?? "Fetching structure and relationships"
+            )
+        } else if let message = viewModel.statusMessage, !message.isEmpty {
+            bannerStatus(message: message, showsProgress: viewModel.isLoading)
         }
+    }
+
+    private func blockingStatusCard(
+        icon: String?,
+        tint: Color,
+        title: String,
+        message: String
+    ) -> some View {
+        ZStack {
+            Color.black.opacity(0.18)
+                .ignoresSafeArea()
+                .allowsHitTesting(false)
+            VStack(spacing: 16) {
+                if let icon {
+                    Image(systemName: icon)
+                        .font(.system(size: 40, weight: .bold))
+                        .foregroundStyle(tint)
+                } else {
+                    ProgressView()
+                        .progressViewStyle(.linear)
+                        .frame(width: 240)
+                        .tint(tint)
+                }
+                VStack(spacing: 6) {
+                    Text(title)
+                        .font(.headline)
+                        .foregroundStyle(palette.headerTitle)
+                    Text(message)
+                        .font(.subheadline)
+                        .foregroundStyle(palette.headerSubtitle)
+                        .multilineTextAlignment(.center)
+                }
+            }
+            .padding(24)
+            .background(
+                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    .fill(palette.overlayBackground)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 20, style: .continuous)
+                            .stroke(palette.overlayBorder, lineWidth: 1)
+                    )
+            )
+            .shadow(color: palette.nodeShadow.opacity(0.7), radius: 18, x: 0, y: 12)
+        }
+    }
+
+    private func bannerStatus(message: String, showsProgress: Bool) -> some View {
+        VStack {
+            HStack {
+                if showsProgress {
+                    ProgressView()
+                        .controlSize(.small)
+                        .tint(palette.accent)
+                } else {
+                    Image(systemName: "info.circle.fill")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(palette.accent)
+                }
+                Text(message)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(palette.headerTitle)
+                Spacer()
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .background(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(palette.overlayBackground)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .stroke(palette.overlayBorder, lineWidth: 1)
+                    )
+            )
+            .shadow(color: palette.nodeShadow.opacity(0.4), radius: 12, x: 0, y: 6)
+            .padding(.top, 16)
+            .padding(.horizontal, 24)
+
+            Spacer()
+        }
+        .allowsHitTesting(false)
+        .transition(.move(edge: .top).combined(with: .opacity))
+        .animation(.easeInOut(duration: 0.2), value: showsProgress)
     }
 }
 
@@ -480,7 +528,6 @@ private struct SchemaDiagramNodeView: View {
     @Binding var isDraggingNode: Bool
     let onPositionCommitted: () -> Void
 
-    @GestureState private var dragTranslation: CGSize = .zero
     @State private var dragStartPosition: CGPoint?
 
     var body: some View {
@@ -500,10 +547,6 @@ private struct SchemaDiagramNodeView: View {
                 .stroke(palette.nodeBorder, lineWidth: 1)
         )
         .shadow(color: palette.nodeShadow, radius: 16, x: 0, y: 6)
-        .offset(
-            x: dragTranslation.width,
-            y: dragTranslation.height
-        )
         .highPriorityGesture(dragGesture)
     }
 
@@ -542,12 +585,6 @@ private struct SchemaDiagramNodeView: View {
 
     private var dragGesture: some Gesture {
         DragGesture()
-            .updating($dragTranslation) { value, state, _ in
-                state = CGSize(
-                    width: value.translation.width / zoom,
-                    height: value.translation.height / zoom
-                )
-            }
             .onChanged { value in
                 if dragStartPosition == nil {
                     dragStartPosition = node.position
@@ -555,8 +592,6 @@ private struct SchemaDiagramNodeView: View {
                 if !isDraggingNode {
                     isDraggingNode = true
                 }
-            }
-            .onEnded { value in
                 let origin = dragStartPosition ?? node.position
                 let delta = CGSize(
                     width: value.translation.width / zoom,
@@ -571,6 +606,8 @@ private struct SchemaDiagramNodeView: View {
                 withTransaction(transaction) {
                     node.position = newPosition
                 }
+            }
+            .onEnded { _ in
                 dragStartPosition = nil
                 isDraggingNode = false
                 onPositionCommitted()

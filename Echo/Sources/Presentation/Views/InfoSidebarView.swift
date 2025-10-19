@@ -1,4 +1,9 @@
 import SwiftUI
+#if os(macOS)
+import AppKit
+#else
+import UIKit
+#endif
 
 private enum InspectorTab: CaseIterable {
     case dataInspector
@@ -216,16 +221,36 @@ private struct InspectorTabSelector: View {
 private struct InspectorPanelView: View {
     let content: ForeignKeyInspectorContent
     let depth: Int
+    @EnvironmentObject private var appModel: AppModel
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(content.title)
-                    .font(.system(.title3, design: .default).weight(.semibold))
-                if let subtitle = content.subtitle, !subtitle.isEmpty {
-                    Text(subtitle)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
+            HStack(alignment: .top, spacing: 12) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(content.title)
+                        .font(.system(.title3, design: .default).weight(.semibold))
+                    if let subtitle = content.subtitle, !subtitle.isEmpty {
+                        Text(subtitle)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                Spacer(minLength: 8)
+                if let query = resolvedLookupQuery {
+                    Button {
+                        openForeignRecord(with: query)
+                    } label: {
+                        Image(systemName: "arrow.up.right.square")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(Color.accentColor)
+                            .frame(width: 28, height: 28)
+                            .background(
+                                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                    .fill(Color.accentColor.opacity(0.12))
+                            )
+                    }
+                    .buttonStyle(.plain)
+                    .help("Open \(content.title.isEmpty ? "record" : content.title) in a new query tab")
                 }
             }
 
@@ -248,6 +273,16 @@ private struct InspectorPanelView: View {
         }
         .padding(.top, depth == 0 ? 4 : 0)
         .padding(.bottom, 4)
+    }
+
+    private var resolvedLookupQuery: String? {
+        guard let raw = content.lookupQuerySQL?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !raw.isEmpty else { return nil }
+        return raw
+    }
+
+    private func openForeignRecord(with sql: String) {
+        appModel.openQueryTab(presetQuery: sql, autoExecute: true)
     }
 }
 
@@ -276,6 +311,14 @@ private struct InspectorFieldRow: View {
                                 .stroke(Color.white.opacity(themeManager.activePaletteTone == .dark ? 0.08 : 0.18), lineWidth: 0.6)
                         )
                 )
+                .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .contextMenu {
+                    Button {
+                        copyToGeneralPasteboard(field.value)
+                    } label: {
+                        Label("Copy", systemImage: "doc.on.doc")
+                    }
+                }
         }
     }
 }
@@ -381,6 +424,14 @@ private struct JsonInspectorLeafRow: View {
                                 .stroke(Color.white.opacity(themeManager.activePaletteTone == .dark ? 0.08 : 0.18), lineWidth: 0.6)
                         )
                 )
+                .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .contextMenu {
+                    Button {
+                        copyToGeneralPasteboard(node.subtitle)
+                    } label: {
+                        Label("Copy", systemImage: "doc.on.doc")
+                    }
+                }
         }
         .padding(.leading, CGFloat(depth) * 6)
     }
@@ -428,4 +479,14 @@ private struct InspectorEmptyState: View {
                 .fill(.ultraThinMaterial)
         )
     }
+}
+
+private func copyToGeneralPasteboard(_ value: String) {
+#if os(macOS)
+    let pasteboard = NSPasteboard.general
+    pasteboard.clearContents()
+    pasteboard.setString(value, forType: .string)
+#else
+    UIPasteboard.general.string = value
+#endif
 }

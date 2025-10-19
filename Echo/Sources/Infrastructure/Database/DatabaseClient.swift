@@ -495,8 +495,7 @@ public struct ResultBinaryRow: Sendable {
                     result.append(pointer.bindMemory(to: UInt8.self))
                 }
                 if length > 0, let buffer = raw.buffers[index] {
-                    var copy = buffer
-                    result.append(contentsOf: copy.readableBytesView)
+                    result.append(contentsOf: buffer.readableBytesView)
                 }
             }
             return result

@@ -164,13 +164,18 @@ final class MySQLSession: DatabaseSession {
             }
 
             if worker == nil, let handler = progressHandler, !columnInfo.isEmpty {
+                let bridgedHandler: QueryProgressHandler = { update in
+                    Task { @MainActor in
+                        handler(update)
+                    }
+                }
                 worker = ResultStreamBatchWorker(
                     label: "dk.tippr.echo.mysql.streamWorker",
                     columns: columnInfo,
                     streamingPreviewLimit: streamingPreviewLimit,
                     maxFlushLatency: maxFlushLatency,
                     operationStart: operationStart,
-                    progressHandler: handler
+                    progressHandler: bridgedHandler
                 )
             }
 
@@ -376,8 +381,7 @@ final class MySQLSession: DatabaseSession {
 
         let combined = row.values.compactMap { buffer -> String? in
             guard let buffer else { return nil }
-            var copy = buffer
-            return copy.readString(length: copy.readableBytes)
+            return buffer.getString(at: buffer.readerIndex, length: buffer.readableBytes)
         }
         if let definition = combined.last {
             return definition
@@ -1035,8 +1039,7 @@ private struct MySQLCellFormatter {
     }
 
     private func hexString(from buffer: ByteBuffer) -> String {
-        var copy = buffer
-        guard let bytes = copy.readBytes(length: copy.readableBytes) else { return "0x" }
+        guard let bytes = buffer.getBytes(at: buffer.readerIndex, length: buffer.readableBytes) else { return "0x" }
         return bytes.reduce(into: "0x") { partial, byte in
             partial.append(String(format: "%02X", byte))
         }

@@ -76,6 +76,7 @@ struct QueryResultsTableView: NSViewRepresentable {
         if #available(macOS 13.0, *) {
             scrollView.automaticallyAdjustsContentInsets = false
         }
+        scrollView.contentView.copiesOnScroll = false
 
         let tableView = ResultTableView()
         tableView.usesAlternatingRowBackgroundColors = ThemeManager.shared.showAlternateRowShading
@@ -86,7 +87,7 @@ struct QueryResultsTableView: NSViewRepresentable {
         tableView.allowsColumnReordering = false
         tableView.allowsMultipleSelection = true
         tableView.allowsColumnSelection = false
-        tableView.autoresizingMask = [.width, .height]
+        tableView.autoresizingMask = [.width]
         tableView.backgroundColor = backgroundColor
 #if DEBUG
         tableView.layer?.backgroundColor = backgroundColor.cgColor
@@ -144,6 +145,9 @@ struct QueryResultsTableView: NSViewRepresentable {
         private var lastForeignKeyDisplayMode: ForeignKeyDisplayMode?
         private var lastForeignKeyInspectorBehavior: ForeignKeyInspectorBehavior?
         private var lastJsonSelection: QueryResultsTableView.JsonSelection?
+        private var cachedViewportSize: CGSize = .zero
+        private var pendingPaginationEvaluation = false
+        private var pendingTableSizeAdjustment = false
         private static let isGridDiagnosticsEnabled: Bool = {
             ProcessInfo.processInfo.environment["ECHO_GRID_DEBUG"] == "1"
         }()
@@ -290,6 +294,12 @@ struct QueryResultsTableView: NSViewRepresentable {
             let tokenChanged = dirtyToken != lastResultTokenSnapshot
             let rowCountDecreased = currentRowCount < lastRowCount
             let rowCountIncreased = currentRowCount > lastRowCount
+            let currentViewportSize = scrollView?.contentView.bounds.size ?? .zero
+            let viewportChanged = abs(currentViewportSize.width - cachedViewportSize.width) > 0.5
+                || abs(currentViewportSize.height - cachedViewportSize.height) > 0.5
+            if viewportChanged {
+                cachedViewportSize = currentViewportSize
+            }
 
 #if DEBUG
             print("[QueryResultsTableView] update rowCount=\(currentRowCount) displayed=\(parent.query.displayedRowCount) tokenChanged=\(tokenChanged) columnsChanged=\(columnsChanged) mode=\(parent.query.streamingMode)")
@@ -325,15 +335,33 @@ struct QueryResultsTableView: NSViewRepresentable {
                     } else {
                         rowCountUpdateWorkItem = DispatchWorkItem { [weak tableView] in
                             guard let tableView else { return }
-                            tableView.noteNumberOfRowsChanged()
+                            let indexes = IndexSet(integersIn: range)
+                            CATransaction.begin()
+                            CATransaction.setDisableActions(true)
+                            tableView.beginUpdates()
+                            tableView.insertRows(at: indexes, withAnimation: [])
+                            tableView.endUpdates()
+                            CATransaction.commit()
 #if DEBUG
-                            print("[QueryResultsTableView] noteNumberOfRowsChanged range=\(range)")
+                            print("[QueryResultsTableView] insertRows range=\(range)")
 #endif
                         }
                     }
                 }
             } else if tokenChanged {
-                // token changed but no structural difference; just update caches below
+                let visibleRows = tableView.rows(in: tableView.visibleRect)
+                if reloadWorkItem == nil, visibleRows.length > 0 {
+                    let lower = max(visibleRows.location, 0)
+                    let upper = min(tableView.numberOfRows, lower + visibleRows.length)
+                    if upper > lower, !tableView.tableColumns.isEmpty {
+                        let rowIndexes = IndexSet(integersIn: lower..<upper)
+                        let columnIndexes = IndexSet(0..<tableView.tableColumns.count)
+                        reloadWorkItem = DispatchWorkItem { [weak tableView] in
+                            guard let tableView else { return }
+                            tableView.reloadData(forRowIndexes: rowIndexes, columnIndexes: columnIndexes)
+                        }
+                    }
+                }
             }
 
             if columnsChanged {
@@ -364,8 +392,15 @@ struct QueryResultsTableView: NSViewRepresentable {
             }
 
             updateHeaderIndicators()
-            adjustTableSize(rowCount: currentRowCount)
-            evaluatePaginationForVisibleRows()
+            let needsSizeAdjustment = viewportChanged
+                || columnsChanged
+                || sortChanged
+                || rowOrderChanged
+                || rowCountIncreased
+                || rowCountDecreased
+            if needsSizeAdjustment {
+                requestTableSizeAdjustment(rowCount: currentRowCount)
+            }
 
             if lastForeignKeyDisplayMode != parent.foreignKeyDisplayMode || lastForeignKeyInspectorBehavior != parent.foreignKeyInspectorBehavior {
                 lastForeignKeyDisplayMode = parent.foreignKeyDisplayMode
@@ -427,7 +462,9 @@ struct QueryResultsTableView: NSViewRepresentable {
                 DispatchQueue.main.async(execute: rowCountUpdateWorkItem)
             }
 
-            evaluatePaginationForVisibleRows()
+            if performedFullReload || rowCountIncreased || rowCountDecreased || viewportChanged {
+                requestPaginationEvaluation()
+            }
         }
 
         private func registerScrollObservation(for scrollView: NSScrollView) {
@@ -448,11 +485,32 @@ struct QueryResultsTableView: NSViewRepresentable {
                 object: contentView
             )
             observedContentView = contentView
-            evaluatePaginationForVisibleRows()
+            requestPaginationEvaluation()
         }
 
         @objc private func handleContentViewBoundsChange(_ notification: Notification) {
-            evaluatePaginationForVisibleRows()
+            requestPaginationEvaluation()
+        }
+
+        private func requestPaginationEvaluation() {
+            guard !pendingPaginationEvaluation else { return }
+            pendingPaginationEvaluation = true
+            DispatchQueue.main.async { [weak self] in
+                guard let self else { return }
+                self.pendingPaginationEvaluation = false
+                self.evaluatePaginationForVisibleRows()
+            }
+        }
+
+        private func requestTableSizeAdjustment(rowCount: Int? = nil) {
+            guard !pendingTableSizeAdjustment else { return }
+            pendingTableSizeAdjustment = true
+            let capturedRowCount = rowCount
+            DispatchQueue.main.async { [weak self] in
+                guard let self else { return }
+                self.pendingTableSizeAdjustment = false
+                self.adjustTableSize(rowCount: capturedRowCount)
+            }
         }
 
         private func evaluatePaginationForVisibleRows() {
@@ -750,17 +808,18 @@ struct QueryResultsTableView: NSViewRepresentable {
             let targetWidth = max(contentWidth, scrollView.contentSize.width)
             let totalRows = rowCount ?? (parent.rowOrder.isEmpty ? parent.query.displayedRowCount : parent.rowOrder.count)
             let headerHeight = tableView.headerView?.frame.height ?? 0
-            let visibleEstimate = max(1, Int(scrollView.contentView.bounds.height / tableView.rowHeight) + 12)
-            let paddingRows = max(parent.query.gridViewportLayoutPadding, visibleEstimate / 2)
-            let effectiveRows = max(
-                visibleEstimate,
-                min(totalRows, visibleEstimate + paddingRows)
-            )
             let viewportHeight = scrollView.contentView.bounds.height
-            let contentHeight = max(CGFloat(effectiveRows) * tableView.rowHeight + headerHeight, viewportHeight)
+            cachedViewportSize = scrollView.contentView.bounds.size
+            let resolvedRows = max(totalRows, 0)
+            let contentHeight = max(CGFloat(resolvedRows) * tableView.rowHeight + headerHeight, viewportHeight)
             let newSize = NSSize(width: targetWidth, height: contentHeight)
-            if tableView.frame.size != newSize {
+            let widthDelta = abs(tableView.frame.size.width - newSize.width)
+            let heightDelta = abs(tableView.frame.size.height - newSize.height)
+            if widthDelta > 0.5 || heightDelta > 0.5 {
+                CATransaction.begin()
+                CATransaction.setDisableActions(true)
                 tableView.setFrameSize(newSize)
+                CATransaction.commit()
             }
 #if DEBUG
             let scrollBounds = scrollView.bounds
@@ -1780,7 +1839,7 @@ struct QueryResultsTableView: NSViewRepresentable {
     }
 }
 
-final class ResultTableContainerView: NSVisualEffectView {
+final class ResultTableContainerView: NSView {
     let scrollView: NSScrollView
     private let leadingView: ResultTableLeadingBackgroundView
     private var leadingWidth: CGFloat
@@ -1791,10 +1850,6 @@ final class ResultTableContainerView: NSVisualEffectView {
         self.leadingView = ResultTableLeadingBackgroundView(width: self.leadingWidth)
         super.init(frame: .zero)
 
-        material = .contentBackground
-        blendingMode = .withinWindow
-        state = .followsWindowActiveState
-        isEmphasized = false
         wantsLayer = true
         layer?.masksToBounds = false
         scrollView.autoresizingMask = [.width, .height]
@@ -1862,17 +1917,13 @@ final class ResultTableContainerView: NSVisualEffectView {
     }
 }
 
-private final class ResultTableLeadingBackgroundView: NSVisualEffectView {
+private final class ResultTableLeadingBackgroundView: NSView {
     private var configuredWidth: CGFloat
     private let separatorLayer = CALayer()
 
     init(width: CGFloat) {
         self.configuredWidth = width
         super.init(frame: .zero)
-        material = .sidebar
-        blendingMode = .withinWindow
-        state = .followsWindowActiveState
-        isEmphasized = false
         wantsLayer = true
         layer?.masksToBounds = false
         layer?.addSublayer(separatorLayer)
@@ -1886,9 +1937,6 @@ private final class ResultTableLeadingBackgroundView: NSVisualEffectView {
 
     func updateBackgroundColor(_ color: NSColor) {
         wantsLayer = true
-        material = .sidebar
-        blendingMode = .withinWindow
-        state = .followsWindowActiveState
         layer?.backgroundColor = color.cgColor
         separatorLayer.backgroundColor = ThemeManager.shared.resultsGridHeaderSeparatorNSColor.cgColor
         separatorLayer.isHidden = configuredWidth <= 0

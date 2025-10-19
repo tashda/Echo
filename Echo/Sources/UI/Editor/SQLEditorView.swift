@@ -413,6 +413,18 @@ func sqlRangeIsValid(_ range: NSRange, upperBound: Int) -> Bool {
 }
 
 final class SQLTextView: NSTextView, NSTextViewDelegate {
+    private final class FallbackResponder: NSResponder {
+        private let manager = UndoManager()
+
+        override var undoManager: UndoManager? {
+            manager
+        }
+
+        var undoManagerInstance: UndoManager {
+            manager
+        }
+    }
+
     weak var sqlDelegate: SQLTextViewDelegate?
     weak var clipboardHistory: ClipboardHistoryStore?
     var clipboardMetadata: ClipboardHistoryStore.Entry.Metadata = .empty
@@ -450,13 +462,7 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
     private var isAdjustingSnippetSelection = false
     var isRuleTracingEnabled: Bool = false
     var onRuleTrace: ((SQLAutocompleteTrace) -> Void)?
-    private lazy var localUndoManager = UndoManager()
-
-    override var undoManager: UndoManager? {
-        let manager = super.undoManager ?? localUndoManager
-        NSLog("[SQLTextView] undoManager property -> %@", manager)
-        return manager
-    }
+    private let fallbackResponder = FallbackResponder()
 
     struct SuppressedCompletion: Equatable {
         var tokenRange: NSRange
@@ -615,6 +621,7 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
 
         completionEngine.updateContext(completionContext)
         completionController = SQLAutoCompletionController(textView: self)
+        self.nextResponder = fallbackResponder
 
         isEditable = true
         isSelectable = true
@@ -634,6 +641,10 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
         autoresizingMask = [.width]
         wantsLayer = true
         layer?.isOpaque = true
+
+        if super.undoManager == nil {
+            self.setValue(fallbackResponder.undoManagerInstance, forKey: "undoManager")
+        }
 
         textContainer.widthTracksTextView = false
         textContainer.lineFragmentPadding = 14
@@ -1832,12 +1843,11 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
                 let formatted = await self.prepareStarExpansionInsertion(for: suggestion,
                                                                          context: context)
                 await MainActor.run {
-                    if let result = self.performCompletionInsertion(suggestion: suggestion,
-                                                                    query: query,
-                                                                    insertion: formatted) {
-                        self.registerStarExpansionUndo(originalText: result.originalText,
-                                                       expandedText: formatted,
-                                                       appliedRange: result.appliedRange)
+                    if self.performCompletionInsertion(suggestion: suggestion,
+                                                       query: query,
+                                                       insertion: formatted) != nil {
+                        self.undoManager?.setActionName("Expand Columns")
+                        self.completionEngine.clearPostCommitSuppression()
                     }
                 }
             }
@@ -2099,77 +2109,6 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
         }
 
         return rawColumns
-    }
-
-    private struct StarExpansionSnapshot {
-        let location: Int
-        let originalText: String
-        let expandedText: String
-
-        var expandedRange: NSRange {
-            NSRange(location: location, length: (expandedText as NSString).length)
-        }
-
-        var originalRange: NSRange {
-            NSRange(location: location, length: (originalText as NSString).length)
-        }
-    }
-
-    @MainActor
-    private func registerStarExpansionUndo(originalText: String,
-                                           expandedText: String,
-                                           appliedRange: NSRange) {
-        guard let undoManager = undoManager else {
-            preconditionFailure("SQLTextView undoManager is nil during star expansion registration")
-        }
-        NSLog("[StarExpansion] Undo manager: %@", undoManager)
-        let snapshot = StarExpansionSnapshot(location: appliedRange.location,
-                                             originalText: originalText,
-                                             expandedText: expandedText)
-        undoManager.registerUndo(withTarget: self) { textView in
-            textView.restoreStarExpansion(snapshot: snapshot)
-        }
-        undoManager.setActionName("Expand Columns")
-    }
-
-    @MainActor
-    private func restoreStarExpansion(snapshot: StarExpansionSnapshot) {
-        guard let undoManager = undoManager else { return }
-        undoManager.registerUndo(withTarget: self) { textView in
-            textView.reapplyStarExpansion(snapshot: snapshot)
-        }
-        undoManager.setActionName("Expand Columns")
-        replaceStarExpansion(range: snapshot.expandedRange, with: snapshot.originalText)
-        completionEngine.clearPostCommitSuppression()
-    }
-
-    @MainActor
-    private func reapplyStarExpansion(snapshot: StarExpansionSnapshot) {
-        guard let undoManager = undoManager else { return }
-        undoManager.registerUndo(withTarget: self) { textView in
-            textView.restoreStarExpansion(snapshot: snapshot)
-        }
-        undoManager.setActionName("Expand Columns")
-        replaceStarExpansion(range: snapshot.originalRange, with: snapshot.expandedText)
-        completionEngine.clearPostCommitSuppression()
-    }
-
-    @MainActor
-    private func replaceStarExpansion(range: NSRange, with text: String) {
-        guard let textStorage else { return }
-        guard sqlRangeIsValid(range, upperBound: textStorage.length) else { return }
-        guard shouldChangeText(in: range, replacementString: text) else { return }
-
-        undoManager?.disableUndoRegistration()
-        textStorage.replaceCharacters(in: range, with: text)
-        undoManager?.enableUndoRegistration()
-
-        clearSnippetPlaceholders()
-        suppressNextCompletionRefresh = true
-        let newLocation = range.location + (text as NSString).length
-        setSelectedRange(NSRange(location: newLocation, length: 0))
-        hideCompletions()
-        didChangeText()
     }
 
     // MARK: - Inline keyword suggestions
