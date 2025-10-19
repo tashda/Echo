@@ -278,7 +278,11 @@ final class QueryResultsGridState {
     @Published var isExecuting: Bool = false
     @Published var lastExecutionTime: TimeInterval?
     @Published var currentExecutionTime: TimeInterval = 0
-    @Published var currentRowCount: Int?
+    struct RowProgress: Equatable {
+        var materialized: Int = 0
+        var reported: Int = 0
+    }
+    @Published private(set) var rowProgress: RowProgress = RowProgress()
     @Published var messages: [QueryExecutionMessage] = []
     @Published var hasExecutedAtLeastOnce: Bool = false
     @Published var splitRatio: CGFloat = 0.5
@@ -345,7 +349,6 @@ final class QueryResultsGridState {
 
     private var streamedRowCount: Int = 0
     private let frontBufferLimit: Int
-    private var isRowCountSpoolDriven: Bool = false
     private var deferredSpoolUpdates: [BufferedSpoolUpdate] = []
     private var isSpoolActivationDeferred: Bool = true
     private var isResultChangeCoalesced: Bool = false
@@ -357,6 +360,8 @@ final class QueryResultsGridState {
     @Published private(set) var streamingColumns: [ColumnInfo] = []
     @Published private(set) var streamingRows: [[String?]] = []
     @Published private(set) var resultChangeToken: UInt64 = 0
+    @Published private(set) var resultsFormattingMode: ResultsFormattingMode = .immediate
+    @Published private(set) var resultsTypeFormattingEnabled: Bool = true
 
     typealias DataPreviewFetcher = @Sendable (_ offset: Int, _ limit: Int) async throws -> QueryResultSet
 
@@ -420,16 +425,19 @@ final class QueryResultsGridState {
         )
     }
 
+    func updateResultsFormattingSettings(enabled: Bool, mode: ResultsFormattingMode) {
+        resultsTypeFormattingEnabled = enabled
+        resultsFormattingMode = mode
+    }
+
     func startExecution() {
         performanceTracker = QueryPerformanceTracker(initialBatchTarget: initialVisibleRowBatch)
         lastPerformanceReport = nil
         livePerformanceReport = nil
         prepareSpoolForNewExecution()
         didReceiveStreamingUpdate = false
-        isRowCountSpoolDriven = false
         executionStartTime = Date()
         currentExecutionTime = 0
-        currentRowCount = 0
         lastSpoolStatsRowCount = 0
         hasAppliedFinalSpoolStats = false
         lastBroadcastSnapshot = nil
@@ -459,6 +467,7 @@ final class QueryResultsGridState {
         messages.removeAll()
         streamingColumns.removeAll(keepingCapacity: false)
         streamingRows.removeAll(keepingCapacity: false)
+        rowProgress = RowProgress()
         streamingMode = .preview
         results = nil
         markResultDataChanged()
@@ -485,17 +494,6 @@ final class QueryResultsGridState {
 
     func recordQueryDispatched() {
         performanceTracker.markQueryDispatched()
-    }
-
-    func updateRowCount(_ count: Int) {
-        if currentRowCount == count {
-            return
-        }
-        currentRowCount = count
-        if var existing = results, existing.totalRowCount != count {
-            existing.totalRowCount = count
-            results = existing
-        }
     }
 
     func finishExecution() {
@@ -532,6 +530,9 @@ final class QueryResultsGridState {
             preview.isFetching = false
             dataPreviewState = preview
         }
+        let finalMaterialized = max(rowProgress.materialized, totalAvailableRowCount)
+        let finalReported = max(rowProgress.reported, finalMaterialized)
+        rowProgress = RowProgress(materialized: finalMaterialized, reported: finalReported)
 
         finalizeSpoolOnCompletion(cancelled: false)
         finalizePerformanceMetrics(cancelled: false)
@@ -570,6 +571,7 @@ final class QueryResultsGridState {
         }
         dataPreviewFetchTask?.cancel()
         dataPreviewFetchTask = nil
+        rowProgress = RowProgress()
         markResultDataChanged()
 
         finalizePerformanceMetrics(cancelled: true)
@@ -637,8 +639,12 @@ final class QueryResultsGridState {
         if !streamingRows.isEmpty {
             let snapshot = QueryResultSet(columns: streamingColumns, rows: streamingRows)
             results = snapshot
-            currentRowCount = streamingRows.count
-            visibleRowLimit = streamingRows.count
+            let retainedCount = streamingRows.count
+            rowProgress = RowProgress(
+                materialized: retainedCount,
+                reported: max(rowProgress.reported, retainedCount)
+            )
+            visibleRowLimit = retainedCount
         }
         appendMessage(
             message: "Query execution canceled",
@@ -681,18 +687,27 @@ final class QueryResultsGridState {
         }
 
         let appendedRowCount: Int
+        let appendedRange: Range<Int>?
         if let range = update.rowRange {
             appendedRowCount = range.count
+            appendedRange = range
         } else if !update.appendedRows.isEmpty {
             appendedRowCount = update.appendedRows.count
+            appendedRange = nil
         } else if !update.encodedRows.isEmpty {
             appendedRowCount = update.encodedRows.count
+            appendedRange = nil
         } else {
             appendedRowCount = 0
+            appendedRange = nil
         }
 
         if appendedRowCount > 0 {
             streamedRowCount &+= appendedRowCount
+        }
+
+        if let range = appendedRange, !update.appendedRows.isEmpty {
+            rowCache.ingest(rows: update.appendedRows, startingAt: range.lowerBound)
         }
 
         if streamingMode == .preview,
@@ -721,20 +736,26 @@ final class QueryResultsGridState {
             performanceTracker.recordBackendMetrics(metrics)
         }
 
+        let previousMaterialized = rowProgress.materialized
+        let newMaterialized: Int
+        if let range = appendedRange, !update.appendedRows.isEmpty {
+            newMaterialized = max(rowProgress.materialized, range.upperBound)
+        } else {
+            newMaterialized = max(rowProgress.materialized, streamingRows.count)
+        }
+        let newReported = max(rowProgress.reported, estimatedTotal)
+        if rowProgress.materialized != newMaterialized || rowProgress.reported != newReported {
+            rowProgress = RowProgress(materialized: newMaterialized, reported: newReported)
+        }
+        let rowCountChanged = rowProgress.materialized != previousMaterialized
+
         if isExecuting && streamingMode == .preview {
             let baselineLimit = max(visibleRowLimit ?? 0, initialVisibleRowBatch)
-            let cappedLimit = min(estimatedTotal, baselineLimit)
+            let availableRows = rowProgress.materialized
+            let cappedLimit = min(estimatedTotal, baselineLimit, availableRows)
             if visibleRowLimit != cappedLimit {
                 visibleRowLimit = cappedLimit
             }
-        }
-
-        let previousRowCount = currentRowCount ?? 0
-        var rowCountChanged = false
-        if !isRowCountSpoolDriven {
-            let runningCount = max(estimatedTotal, previousRowCount)
-            updateRowCount(runningCount)
-            rowCountChanged = (currentRowCount ?? 0) != previousRowCount
         }
 
         if streamingMode == .preview,
@@ -775,7 +796,9 @@ final class QueryResultsGridState {
         )
         results = condensedResult
 
-        updateRowCount(totalRowCount)
+        let updatedMaterialized = max(rowProgress.materialized, truncatedRows.count)
+        let updatedReported = max(rowProgress.reported, totalRowCount)
+        rowProgress = RowProgress(materialized: updatedMaterialized, reported: updatedReported)
 
         if isResultsOnly {
             visibleRowLimit = min(initialVisibleRowBatch, totalRowCount)
@@ -802,9 +825,7 @@ final class QueryResultsGridState {
     }
 
     var totalAvailableRowCount: Int {
-        let current = currentRowCount ?? 0
-        let reported = results?.totalRowCount ?? 0
-        return max(current, reported, streamedRowCount, streamingRows.count)
+        rowProgress.materialized
     }
 
     func displayedRow(at index: Int) -> [String?]? {
@@ -877,7 +898,6 @@ final class QueryResultsGridState {
         spoolStatsTask?.cancel()
         spoolStatsTask = nil
         streamingMode = .idle
-        isRowCountSpoolDriven = false
 
         if let existingService = ingestionService {
             Task.detached(priority: .utility) {
@@ -890,6 +910,7 @@ final class QueryResultsGridState {
 
         rowCache.reset()
         streamedRowCount = 0
+        rowProgress = RowProgress()
         lastVisibleDisplayRange = 0..<0
         lastPrefetchedSourceRange = 0..<0
         if let previousID = resultSpoolID {
@@ -1065,14 +1086,17 @@ final class QueryResultsGridState {
         let previousCount = lastSpoolStatsRowCount
         if stats.rowCount > previousCount {
             lastSpoolStatsRowCount = stats.rowCount
-            updateRowCount(stats.rowCount)
-            if streamingMode == .background {
-                if !isResultsOnly, visibleRowLimit != nil {
-                    visibleRowLimit = nil
+            let newReported = max(rowProgress.reported, stats.rowCount)
+            if rowProgress.reported != newReported {
+                rowProgress = RowProgress(materialized: rowProgress.materialized, reported: newReported)
+                markResultDataChanged()
+                if var existing = results, existing.totalRowCount != newReported {
+                    existing.totalRowCount = newReported
+                    results = existing
                 }
-                markResultDataChanged()
-            } else if streamingMode == .preview {
-                markResultDataChanged()
+            }
+            if streamingMode == .background, !isResultsOnly, visibleRowLimit != nil {
+                visibleRowLimit = nil
             }
             shouldRefreshReport = true
             if !lastPrefetchedSourceRange.isEmpty {
@@ -1125,6 +1149,13 @@ final class QueryResultsGridState {
     private func handleMaterializedRange(_ fetchedRange: Range<Int>) {
         guard !fetchedRange.isEmpty else { return }
 
+        let newMaterialized = max(rowProgress.materialized, fetchedRange.upperBound)
+        if newMaterialized != rowProgress.materialized {
+            let newReported = max(rowProgress.reported, newMaterialized)
+            rowProgress = RowProgress(materialized: newMaterialized, reported: newReported)
+            markResultDataChanged()
+        }
+
         let visibleRange = lastVisibleDisplayRange
         if visibleRange.isEmpty {
             enqueueVisibleRowReload(for: fetchedRange)
@@ -1173,7 +1204,7 @@ final class QueryResultsGridState {
 
     private func markResultDataChanged() {
         let snapshot = BroadcastSnapshot(
-            rowCount: currentRowCount ?? 0,
+            rowCount: rowProgress.materialized,
             streamingRowsCount: streamingRows.count,
             visibleLimit: visibleRowLimit,
             streamingMode: streamingMode,
@@ -1245,7 +1276,11 @@ final class QueryResultsGridState {
             }
 
             let newTotal = streamedRowCount
-            updateRowCount(newTotal)
+            let newMaterialized = max(rowProgress.materialized, streamingRows.count)
+            let newReported = max(rowProgress.reported, newTotal)
+            if rowProgress.materialized != newMaterialized || rowProgress.reported != newReported {
+                rowProgress = RowProgress(materialized: newMaterialized, reported: newReported)
+            }
             let currentLimit = visibleRowLimit ?? initialVisibleRowBatch
             let expandedLimit = min(newTotal, currentLimit + newRows.count)
             visibleRowLimit = expandedLimit
@@ -1253,13 +1288,13 @@ final class QueryResultsGridState {
             if var existingResult = results {
                 existingResult.columns = streamingColumns
                 existingResult.rows = streamingRows
-                existingResult.totalRowCount = newTotal
+                existingResult.totalRowCount = newReported
                 results = existingResult
             } else {
                 results = QueryResultSet(
                     columns: streamingColumns,
                     rows: streamingRows,
-                    totalRowCount: newTotal
+                    totalRowCount: newReported
                 )
             }
 
@@ -1272,7 +1307,10 @@ final class QueryResultsGridState {
         dataPreviewState = preview
 
         if newRows.isEmpty {
-            updateRowCount(streamedRowCount)
+            let newReported = max(rowProgress.reported, streamedRowCount)
+            if rowProgress.reported != newReported {
+                rowProgress = RowProgress(materialized: rowProgress.materialized, reported: newReported)
+            }
         }
 
         if newRows.isEmpty {
@@ -1311,7 +1349,7 @@ final class QueryResultsGridState {
         let alreadyReported = lastPerformanceReport != nil
         let report = performanceTracker.finalize(
             cancelled: cancelled,
-            finalRowCount: totalAvailableRowCount,
+            finalRowCount: rowProgress.reported,
             estimatedMemoryBytes: estimatedMemoryUsageBytes()
         )
         lastPerformanceReport = report
@@ -1323,7 +1361,7 @@ final class QueryResultsGridState {
 
     private func refreshLivePerformanceReport() {
         livePerformanceReport = performanceTracker.snapshot(
-            currentRowCount: totalAvailableRowCount,
+            currentRowCount: rowProgress.materialized,
             estimatedMemoryBytes: estimatedMemoryUsageBytes()
         )
     }

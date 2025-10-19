@@ -455,7 +455,7 @@ struct QueryResultsSection: View {
     private var statusBar: some View {
         Group {
             if shouldShowStatusBar {
-                MacQueryResultsStatusBar(
+                QueryResultsStatusBarContainer(
                     height: statusBarHeight,
                     verticalPadding: statusBarVerticalPadding,
                     background: themeManager.windowBackground,
@@ -472,6 +472,7 @@ struct QueryResultsSection: View {
                     }
                     .padding(.horizontal, statusBarHorizontalPadding)
                 }
+                .frame(maxWidth: .infinity, alignment: .center)
             }
         }
         .transaction { transaction in
@@ -480,7 +481,7 @@ struct QueryResultsSection: View {
     }
 
     private var connectionStatusChip: some View {
-        macStatusChipButton {
+        statusBarChipButton {
             showConnectionInfoPopover.toggle()
         } label: {
             Image(systemName: "server.rack")
@@ -509,12 +510,13 @@ struct QueryResultsSection: View {
     }
 
     private var rowCountStatusChip: some View {
-        let total = query.totalAvailableRowCount
-        let current = query.currentRowCount ?? rowCount
+        let progress = query.rowProgress
+        let total = max(progress.reported, progress.materialized)
+        let current = progress.materialized
         let displayText = formattedRowCountShort(current, totalCount: total, executing: query.isExecuting)
         let isEnabled = !query.isExecuting && total > 0
 
-        return macStatusChipButton(width: rowCountChipWidth) {
+        return statusBarChipButton(width: rowCountChipWidth) {
             guard isEnabled else { return }
             showRowInfoPopover.toggle()
         } label: {
@@ -541,7 +543,7 @@ struct QueryResultsSection: View {
         let textColor: Color = query.isExecuting ? .orange : (hasDuration ? .primary : .secondary)
         let isEnabled = hasDuration && !query.isExecuting
 
-        return macStatusChipButton(width: timeChipWidth) {
+        return statusBarChipButton(width: timeChipWidth) {
             guard isEnabled else { return }
             showTimeInfoPopover.toggle()
         } label: {
@@ -563,7 +565,7 @@ struct QueryResultsSection: View {
 
     private var statusSummaryChip: some View {
         let config = statusBubbleConfiguration()
-        return macStatusChipLabel(width: statusChipWidth) {
+        return statusBarChip(width: statusChipWidth) {
             Image(systemName: config.icon)
                 .font(.system(size: 11))
                 .foregroundStyle(config.tint)
@@ -586,31 +588,31 @@ struct QueryResultsSection: View {
             .foregroundStyle(Color.primary)
     }
 
-    private func macStatusChipButton<Label: View>(
+    private func statusBarChipButton<Label: View>(
         width: CGFloat? = nil,
         action: @escaping () -> Void,
         @ViewBuilder label: @escaping () -> Label
     ) -> some View {
         Button(action: action) {
-            macStatusChipLabel(width: width, content: label)
+            statusBarChip(width: width, content: label)
         }
         .buttonStyle(.plain)
         .frame(height: statusChipHeight, alignment: .center)
     }
 
     @ViewBuilder
-    private func macStatusChipLabel<Content: View>(
+    private func statusBarChip<Content: View>(
         width: CGFloat? = nil,
         @ViewBuilder content: @escaping () -> Content
     ) -> some View {
-        MacStatusChipLabel(
+        StatusBarChipContainer(
             width: width,
             height: statusChipHeight,
             content: content
         )
     }
 
-    private struct MacStatusChipLabel<Content: View>: View {
+    private struct StatusBarChipContainer<Content: View>: View {
         let width: CGFloat?
         let height: CGFloat
         private let contentBuilder: () -> Content
@@ -626,11 +628,22 @@ struct QueryResultsSection: View {
         }
 
         var body: some View {
-            HStack(spacing: 6) {
-                contentBuilder()
+            GeometryReader { geometry in
+                let availableHeight = geometry.size.height
+                let clampedHeight = max(0, min(height, availableHeight))
+                let inset = max(0, (availableHeight - clampedHeight) / 2)
+
+                VStack(spacing: 0) {
+                    Spacer(minLength: inset)
+                    HStack(spacing: 6) {
+                        contentBuilder()
+                    }
+                    .padding(.horizontal, 10)
+                    .frame(height: clampedHeight, alignment: .center)
+                    Spacer(minLength: inset)
+                }
             }
-            .padding(.horizontal, 10)
-            .frame(height: height, alignment: .center) // Keep fixed height so baseline stays centered in the status bar
+            .frame(height: height, alignment: .center)
             .frame(width: width, alignment: .center)
             .background(
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
@@ -640,7 +653,7 @@ struct QueryResultsSection: View {
         }
     }
 
-    private struct MacQueryResultsStatusBar<Content: View>: View {
+    private struct QueryResultsStatusBarContainer<Content: View>: View {
         let height: CGFloat
         let verticalPadding: CGFloat
         let background: Color
@@ -650,14 +663,12 @@ struct QueryResultsSection: View {
         var body: some View {
             ZStack(alignment: .center) {
                 background
-                VStack(spacing: 0) {
-                    Spacer(minLength: verticalPadding)
-                    content()
-                        .frame(maxWidth: .infinity, alignment: .center)
-                        .frame(height: height - (verticalPadding * 2), alignment: .center)
-                    Spacer(minLength: verticalPadding)
-                }
+                content()
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .frame(height: height - (verticalPadding * 2), alignment: .center)
+                    .padding(.vertical, verticalPadding)
             }
+            .frame(maxWidth: .infinity)
             .frame(height: height)
             .overlay(alignment: .top) {
                 Divider().opacity(dividerOpacity)
@@ -712,8 +723,9 @@ struct QueryResultsSection: View {
     }
 
     private var rowCountControl: some View {
-        let total = query.totalAvailableRowCount
-        let current = query.currentRowCount ?? rowCount
+        let progress = query.rowProgress
+        let total = max(progress.reported, progress.materialized)
+        let current = progress.materialized
         let displayText = formattedRowCountShort(current, totalCount: total, executing: query.isExecuting)
         let textColor: Color = query.isExecuting ? .secondary : .primary
         let chip = metricChip(
@@ -979,8 +991,8 @@ struct QueryResultsSection: View {
     }
 
     private var rowInfoPopover: some View {
-        let total = query.totalAvailableRowCount
-        let fetched = query.currentRowCount ?? total
+        let total = max(query.rowProgress.reported, query.rowProgress.materialized)
+        let fetched = query.rowProgress.materialized
         let displayValue: String
         if query.isExecuting {
             displayValue = "\(formattedRowDetail(fetched)) rows fetched so far"
@@ -999,7 +1011,7 @@ struct QueryResultsSection: View {
         let elapsed = query.lastExecutionTime ?? query.currentExecutionTime
         let precise = formattedExactDuration(elapsed)
         let summary = formattedDuration(Int(elapsed.rounded()))
-        let totalRows = query.totalAvailableRowCount
+        let totalRows = max(query.rowProgress.reported, query.rowProgress.materialized)
         let rateString: String?
         if elapsed > 0 && totalRows > 0 && !query.isExecuting {
             let rate = Double(totalRows) / elapsed

@@ -142,6 +142,9 @@ final class PostgresSession: DatabaseSession {
         var columns: [ColumnInfo] = []
         let streamingPreviewLimit = 512
         let formatterContext = CellFormatterContext()
+        let formattingEnabled = (UserDefaults.standard.object(forKey: ResultFormattingEnabledDefaultsKey) as? Bool) ?? true
+        let formattingModeRaw = UserDefaults.standard.string(forKey: ResultFormattingModeDefaultsKey)
+        let formattingMode = ResultsFormattingMode(rawValue: formattingModeRaw ?? "") ?? .immediate
         var previewRows: [[String?]] = []
         previewRows.reserveCapacity(streamingPreviewLimit)
         var totalRowCount = 0
@@ -244,9 +247,35 @@ final class PostgresSession: DatabaseSession {
 
                 var batchRows: [[String?]] = []
                 batchRows.reserveCapacity(fetchSize)
+                var encodedRows: [ResultBinaryRow] = []
+                encodedRows.reserveCapacity(fetchSize)
                 var batchCount = 0
                 var fetchDecodeDuration: TimeInterval = 0
                 var nextFetchSize = fetchSize
+
+                func cheapStringValue(for cell: PostgresCell) -> String? {
+                    if cell.format == .text, var buffer = cell.bytes {
+                        let readable = buffer.readableBytes
+                        guard readable > 0 else { return "" }
+                        return buffer.getString(at: buffer.readerIndex, length: readable)
+                    }
+                    if let decoded = try? cell.decode(String.self, context: .default) {
+                        return decoded
+                    }
+                    if var buffer = cell.bytes {
+                        let readable = buffer.readableBytes
+                        guard readable > 0 else { return "" }
+                        if let string = buffer.getString(at: buffer.readerIndex, length: readable) {
+                            return string
+                        }
+                        if let bytes = buffer.readBytes(length: readable) {
+                            return bytes.reduce(into: "0x") { result, byte in
+                                result.append(String(format: "%02X", byte))
+                            }
+                        }
+                    }
+                    return nil
+                }
 
                 for try await row in batchSequence {
                     try Task.checkCancellation()
@@ -268,7 +297,18 @@ final class PostgresSession: DatabaseSession {
                     var rowValues: [String?] = []
                     rowValues.reserveCapacity(row.count)
                     for cell in row {
-                        rowValues.append(formatterContext.stringValue(for: cell))
+                        let displayValue: String?
+                        if formattingEnabled {
+                            switch formattingMode {
+                            case .immediate:
+                                displayValue = formatterContext.stringValue(for: cell)
+                            case .deferred:
+                                displayValue = cheapStringValue(for: cell) ?? formatterContext.stringValue(for: cell)
+                            }
+                        } else {
+                            displayValue = cheapStringValue(for: cell) ?? formatterContext.stringValue(for: cell)
+                        }
+                        rowValues.append(displayValue)
                     }
                     let decodeDuration = CFAbsoluteTimeGetCurrent() - conversionStart
                     fetchDecodeDuration += decodeDuration
@@ -276,6 +316,9 @@ final class PostgresSession: DatabaseSession {
                     totalRowCount += 1
                     batchCount += 1
                     batchRows.append(rowValues)
+
+                    let encodedRow = ResultBinaryRowCodec.encode(row: rowValues)
+                    encodedRows.append(encodedRow)
 
                     if previewRows.count < streamingPreviewLimit {
                         previewRows.append(rowValues)
@@ -332,7 +375,7 @@ final class PostgresSession: DatabaseSession {
                 let update = QueryStreamUpdate(
                     columns: columns,
                     appendedRows: batchRows,
-                    encodedRows: [],
+                    encodedRows: encodedRows,
                     totalRowCount: totalRowCount,
                     metrics: metrics,
                     rowRange: rowRange

@@ -65,9 +65,6 @@ struct TableStructureEditorView: View {
     @State private var selectedColumnIDs: Set<TableStructureEditorViewModel.ColumnModel.ID> = []
     @State private var columnIndexLookup: [UUID: Int] = [:]
     @State private var selectionAnchor: TableStructureEditorViewModel.ColumnModel.ID?
-#if os(macOS)
-    @State private var hoveredColumnID: TableStructureEditorViewModel.ColumnModel.ID?
-#endif
     @FocusState private var focusedCustomColumnID: TableStructureEditorViewModel.ColumnModel.ID?
     @State private var bulkColumnEditor: BulkColumnEditorPresentation?
     @EnvironmentObject private var themeManager: ThemeManager
@@ -604,6 +601,8 @@ struct TableStructureEditorView: View {
 
     private func columnRow(for column: TableStructureEditorViewModel.ColumnModel, index: Int) -> some View {
         let binding = columnBinding(for: column.id)
+        let isSelected = selectedColumnIDs.contains(column.id)
+        let shouldShowMenu = isSelected || selectionAnchor == column.id || focusedCustomColumnID == column.id
 
         return HStack(spacing: 0) {
             Text(column.name)
@@ -612,7 +611,7 @@ struct TableStructureEditorView: View {
                 .padding(.vertical, 1)
                 .padding(.leading, 4)
 
-            dataTypeCell(for: column, binding: binding)
+            dataTypeCell(for: column, binding: binding, isMenuVisible: shouldShowMenu)
                 .frame(width: ColumnLayout.dataType, alignment: .leading)
                 .padding(.horizontal, 8)
 
@@ -652,13 +651,7 @@ struct TableStructureEditorView: View {
         .contextMenu {
             columnContextMenu(for: column)
         }
-        .onHover { isHovering in
-            if isHovering {
-                hoveredColumnID = column.id
-            } else if hoveredColumnID == column.id {
-                hoveredColumnID = nil
-            }
-        }
+        .background(rowBackgroundColor(for: index, isSelected: isSelected))
     }
 
     private func updateSelection(with columnID: UUID) {
@@ -770,10 +763,10 @@ struct TableStructureEditorView: View {
     @ViewBuilder
     private func dataTypeCell(
         for column: TableStructureEditorViewModel.ColumnModel,
-        binding: Binding<TableStructureEditorViewModel.ColumnModel>?
+        binding: Binding<TableStructureEditorViewModel.ColumnModel>?,
+        isMenuVisible: Bool
     ) -> some View {
         if let binding {
-            let showMenu = hoveredColumnID == column.id || selectionAnchor == column.id || focusedCustomColumnID == column.id
             HStack(spacing: 4) {
                 inlineEditableField(
                     text: Binding(
@@ -785,7 +778,7 @@ struct TableStructureEditorView: View {
                 )
                 .focused($focusedCustomColumnID, equals: column.id)
 
-                if showMenu {
+                if isMenuVisible {
                     dataTypeMenuButton(for: column, binding: binding)
                 }
             }
@@ -1239,11 +1232,6 @@ struct TableStructureEditorView: View {
         if let anchor = selectionAnchor, !valid.contains(anchor) {
             selectionAnchor = selectedColumnIDs.first
         }
-#if os(macOS)
-        if let hovered = hoveredColumnID, !valid.contains(hovered) {
-            hoveredColumnID = nil
-        }
-#endif
     }
 
     private func rebuildColumnIndexLookup() {

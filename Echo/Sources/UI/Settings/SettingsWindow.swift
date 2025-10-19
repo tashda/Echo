@@ -1081,6 +1081,17 @@ struct AppearanceSettingsView: View {
             Toggle("Show alternate row shading", isOn: alternateRowShadingBinding)
                 .toggleStyle(.switch)
 
+            Toggle("Format values based on data type", isOn: resultsTypeFormattingBinding)
+                .toggleStyle(.switch)
+
+            Picker("Formatting behaviour", selection: resultsFormattingModeBinding) {
+                ForEach(ResultsFormattingMode.allCases) { mode in
+                    Text(mode.displayName).tag(mode)
+                }
+            }
+            .pickerStyle(.segmented)
+            .disabled(!resultsTypeFormattingBinding.wrappedValue)
+
             Text("Preview updates as you toggle the options above.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
@@ -1571,6 +1582,26 @@ struct AppearanceSettingsView: View {
             set: { newValue in
                 guard appModel.globalSettings.resultsAlternateRowShading != newValue else { return }
                 Task { await appModel.updateGlobalEditorDisplay { $0.resultsAlternateRowShading = newValue } }
+            }
+        )
+    }
+
+    private var resultsTypeFormattingBinding: Binding<Bool> {
+        Binding(
+            get: { appModel.globalSettings.resultsEnableTypeFormatting },
+            set: { newValue in
+                guard appModel.globalSettings.resultsEnableTypeFormatting != newValue else { return }
+                Task { await appModel.updateGlobalEditorDisplay { $0.resultsEnableTypeFormatting = newValue } }
+            }
+        )
+    }
+
+    private var resultsFormattingModeBinding: Binding<ResultsFormattingMode> {
+        Binding(
+            get: { appModel.globalSettings.resultsFormattingMode },
+            set: { newValue in
+                guard appModel.globalSettings.resultsFormattingMode != newValue else { return }
+                Task { await appModel.updateGlobalEditorDisplay { $0.resultsFormattingMode = newValue } }
             }
         )
     }
@@ -5048,7 +5079,7 @@ private func tabMemoryContextLabel(for tab: WorkspaceTab) -> String {
                 if query.isExecuting {
                     return "Query (executing)"
                 }
-                let rowCount = query.totalAvailableRowCount
+                let rowCount = max(query.rowProgress.reported, query.rowProgress.materialized)
                 if rowCount > 0 {
                     return "Query results • \(rowCount) row\(rowCount == 1 ? "" : "s")"
                 }

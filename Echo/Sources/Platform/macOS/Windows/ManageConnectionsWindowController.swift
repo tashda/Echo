@@ -7,6 +7,10 @@ import Combine
 final class ManageConnectionsWindowController: NSWindowController, NSWindowDelegate, NSToolbarDelegate {
     static let shared = ManageConnectionsWindowController()
     private static let toolbarIdentifier = NSToolbar.Identifier("ManageConnectionsToolbar")
+    private static let disallowedToolbarItemIdentifiers: Set<NSToolbarItem.Identifier> = [
+        NSToolbarItem.Identifier("com.apple.SwiftUI.sidebarToggle"),
+        NSToolbarItem.Identifier("com.apple.sidebarTrackingSeparator")
+    ]
 
     private var hostingController: NSHostingController<ManageConnectionsWindowRootView>?
     private var isWindowLoadedOnce = false
@@ -78,6 +82,7 @@ final class ManageConnectionsWindowController: NSWindowController, NSWindowDeleg
             toolbar.showsBaselineSeparator = false
         }
         window.toolbar = toolbar
+        purgeDisallowedToolbarItems(toolbar)
         window.contentViewController = hosting
         window.delegate = self
         applyTheme(to: window)
@@ -126,6 +131,9 @@ final class ManageConnectionsWindowController: NSWindowController, NSWindowDeleg
         if #unavailable(macOS 15) {
             window.toolbar?.showsBaselineSeparator = false
         }
+        if let toolbar = window.toolbar {
+            purgeDisallowedToolbarItems(toolbar)
+        }
     }
 
     // MARK: - NSToolbarDelegate
@@ -140,6 +148,29 @@ final class ManageConnectionsWindowController: NSWindowController, NSWindowDeleg
 
     func toolbarSelectableItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
         []
+    }
+    
+    func toolbarWillAddItem(_ notification: Notification) {
+        guard
+            let toolbar = notification.object as? NSToolbar,
+            let item = notification.userInfo?["item"] as? NSToolbarItem,
+            Self.disallowedToolbarItemIdentifiers.contains(item.itemIdentifier)
+        else { return }
+
+        DispatchQueue.main.async {
+            if let index = toolbar.items.firstIndex(where: { $0 === item }) {
+                toolbar.removeItem(at: index)
+            }
+        }
+    }
+
+    private func purgeDisallowedToolbarItems(_ toolbar: NSToolbar) {
+        let indices = toolbar.items.enumerated()
+            .filter { Self.disallowedToolbarItemIdentifiers.contains($0.element.itemIdentifier) }
+            .map(\.offset)
+        indices.sorted(by: >).forEach { index in
+            toolbar.removeItem(at: index)
+        }
     }
 }
 
