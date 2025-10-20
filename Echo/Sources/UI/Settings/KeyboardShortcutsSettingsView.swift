@@ -19,8 +19,8 @@ struct KeyboardShortcutsSettingsView: View {
             items: [
                 .init(title: "Run Selected Query", context: "Execute the highlighted SQL in the query editor.", keys: ["⌘", "Return"]),
                 .init(title: "Format Query", context: "Format the current SQL using the configured style.", keys: ["⌘", "⇧", "F"]),
-                .init(title: "Show Autocomplete Suggestions", context: "Reopen the autocomplete popover after dismissal.", keys: ["⌘", "."]),
-                .init(title: "Manual Autocomplete Trigger", context: "Force suggestions even when auto-popup is suppressed.", keys: ["Ctrl", "Space"])
+                .init(title: "Show EchoSense Suggestions", context: "Reopen the EchoSense popover after dismissal.", keys: ["⌘", "."]),
+                .init(title: "Manual EchoSense Trigger", context: "Force suggestions even when auto-popup is suppressed.", keys: ["Ctrl", "Space"])
             ]
         ),
         .init(

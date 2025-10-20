@@ -21,6 +21,7 @@ struct SettingsWindow: Scene {
         }
         .defaultSize(width: 720, height: 520)
     }
+
 }
 
 /// Hosts the sidebar/detail split view and renders each settings section.
@@ -51,15 +52,24 @@ struct SettingsView: View {
         }
         }
 
-        var systemImage: String {
+        var systemImage: String? {
             switch self {
             case .appearance: return "paintbrush"
             case .queryResults: return "tablecells"
-            case .echoSense: return "bulb.bolt"
             case .diagrams: return "rectangle.connected.to.line.below"
             case .applicationCache: return "internaldrive"
             case .keyboardShortcuts: return "command"
+            case .echoSense: return nil
         }
+        }
+
+        var assetImageName: String? {
+            switch self {
+            case .echoSense:
+                return "bulb.bolt"
+            default:
+                return nil
+            }
         }
     }
 
@@ -73,6 +83,9 @@ struct SettingsView: View {
     @State private var isUpdatingFromHistory = false
 
     private let fixedSidebarWidth: CGFloat = 280
+#if os(macOS)
+    private let headerHeight: CGFloat = 60
+#endif
 
     var body: some View {
         settingsSplitView
@@ -122,15 +135,7 @@ struct SettingsView: View {
             detailContent
         }
         .toolbar(removing: .sidebarToggle)
-        .background(
-            TitlebarAccessoryBridge(
-                title: selection?.title ?? "Settings",
-                canNavigateBack: canNavigateBack,
-                canNavigateForward: canNavigateForward,
-                onNavigateBack: navigateBack,
-                onNavigateForward: navigateForward
-            )
-        )
+        .toolbarBackground(.hidden, for: .windowToolbar)
 #else
         NavigationSplitView(preferredCompactColumn: $preferredColumn) {
             sidebar
@@ -143,8 +148,12 @@ struct SettingsView: View {
     private var sidebar: some View {
         List(selection: $selection) {
             ForEach(SettingsSection.allCases) { section in
-                Label(section.title, systemImage: section.systemImage)
-                    .tag(section)
+                Label {
+                    Text(section.title)
+                } icon: {
+                    iconView(for: section)
+                }
+                .tag(section)
             }
         }
         .navigationTitle("Settings")
@@ -159,43 +168,61 @@ struct SettingsView: View {
     }
 
     private var detailContent: some View {
-        NavigationStack {
-            Group {
-                if let selection {
-                    sectionView(for: selection)
-                        .id(selection)
-                } else {
-                    ContentUnavailableView {
-                        Label("Select a Section", systemImage: "slider.horizontal.3")
-                    } description: {
-                        Text("Choose a settings category to view its options.")
-                    }
-                }
-            }
+#if os(macOS)
+        ZStack(alignment: .topLeading) {
+            detailBaseContent
+                .padding(.top, headerHeight)
+
+            DetailHeader(
+                title: selection?.title ?? "Settings",
+                canNavigateBack: canNavigateBack,
+                canNavigateForward: canNavigateForward,
+                onNavigateBack: navigateBack,
+                onNavigateForward: navigateForward
+            )
+            .frame(height: headerHeight)
         }
-#if !os(macOS)
-        .navigationTitle(selection?.title ?? "Settings")
-#endif
         .frame(minWidth: 560, minHeight: 420)
         .background(themeManager.surfaceBackgroundColor)
-        .toolbar {
-#if os(macOS)
-            ToolbarItemGroup(placement: .navigation) {
-                Button(action: navigateBack, label: {
-                    Image(systemName: "chevron.left")
-                })
-                .disabled(!canNavigateBack)
+#else
+        detailBaseContent
+            .frame(minWidth: 560, minHeight: 420)
+            .background(themeManager.surfaceBackgroundColor)
+            .navigationTitle(selection?.title ?? "Settings")
+            .toolbar {
+                ToolbarItemGroup(placement: .navigation) {
+                    Button(action: navigateBack, label: {
+                        Image(systemName: "chevron.left")
+                    })
+                    .disabled(!canNavigateBack)
 
-                Button(action: navigateForward, label: {
-                    Image(systemName: "chevron.right")
-                })
-                .disabled(!canNavigateForward)
+                    Button(action: navigateForward, label: {
+                        Image(systemName: "chevron.right")
+                    })
+                    .disabled(!canNavigateForward)
+                }
+                ToolbarItem(placement: .principal) {
+                    Text(selection?.title ?? "Settings")
+                        .font(.system(size: 28, weight: .bold))
+                }
             }
-            ToolbarItem(placement: .principal) {
-                Text(selection?.title ?? "Settings")
-                    .font(.system(size: 28, weight: .bold))
-            }
+            .toolbarBackground(.visible, for: .navigationBar)
+            .toolbarBackground(.ultraThinMaterial, for: .navigationBar)
 #endif
+    }
+
+    private var detailBaseContent: some View {
+        Group {
+            if let selection {
+                sectionView(for: selection)
+                    .id(selection)
+            } else {
+                ContentUnavailableView {
+                    Label("Select a Section", systemImage: "slider.horizontal.3")
+                } description: {
+                    Text("Choose a settings category to view its options.")
+                }
+            }
         }
     }
 
@@ -215,7 +242,7 @@ struct SettingsView: View {
                 .environmentObject(themeManager)
 
         case .echoSense:
-            AutocompleteSettingsView()
+            EchoSenseSettingsView()
                 .environmentObject(appModel)
                 .environmentObject(appState)
                 .environmentObject(themeManager)
@@ -233,6 +260,32 @@ struct SettingsView: View {
             KeyboardShortcutsSettingsView()
         }
     }
+
+#if os(macOS)
+    @ViewBuilder
+    private func iconView(for section: SettingsSection) -> some View {
+        if let systemName = section.systemImage {
+            Image(systemName: systemName)
+        } else if let assetName = section.assetImageName {
+            Image(assetName)
+                .renderingMode(.template)
+        } else {
+            Image(systemName: "square")
+        }
+    }
+#else
+    @ViewBuilder
+    private func iconView(for section: SettingsSection) -> some View {
+        if let systemName = section.systemImage {
+            Image(systemName: systemName)
+        } else if let assetName = section.assetImageName {
+            Image(assetName)
+                .renderingMode(.template)
+        } else {
+            Image(systemName: "square")
+        }
+    }
+#endif
 
 
 #if os(macOS)
@@ -275,145 +328,78 @@ extension Notification.Name {
 }
 
 #if os(macOS)
-private struct TitlebarAccessoryBridge: NSViewRepresentable {
+private struct DetailHeader: View {
     let title: String
     let canNavigateBack: Bool
     let canNavigateForward: Bool
     let onNavigateBack: () -> Void
     let onNavigateForward: () -> Void
 
-    func makeCoordinator() -> Coordinator { Coordinator() }
-
-    func makeNSView(context: Context) -> NSView {
-        let view = AttachmentView()
-        view.onWindowChange = { window in
-            context.coordinator.update(window: window, state: currentState)
-        }
-        return view
-    }
-
-    func updateNSView(_ nsView: NSView, context: Context) {
-        if let attachment = nsView as? AttachmentView {
-            attachment.onWindowChange = { window in
-                context.coordinator.update(window: window, state: currentState)
-            }
-        }
-        context.coordinator.update(window: nsView.window, state: currentState)
-    }
-
-    private var currentState: TitlebarState {
-        TitlebarState(
-            title: title,
-            canNavigateBack: canNavigateBack,
-            canNavigateForward: canNavigateForward,
-            onNavigateBack: onNavigateBack,
-            onNavigateForward: onNavigateForward
-        )
-    }
-
-    final class Coordinator {
-        private var accessoryController: NSTitlebarAccessoryViewController?
-
-        func update(window: NSWindow?, state: TitlebarState) {
-            guard let window else { return }
-
-            if window.toolbar == nil {
-                let toolbar = NSToolbar(identifier: "SettingsToolbar")
-                toolbar.allowsUserCustomization = false
-                toolbar.showsBaselineSeparator = false
-                toolbar.displayMode = .iconOnly
-                toolbar.sizeMode = .regular
-                window.toolbar = toolbar
-            }
-
-            window.titleVisibility = .hidden
-            window.titlebarAppearsTransparent = true
-            window.toolbarStyle = .unified
-            window.isMovableByWindowBackground = true
-
-            if let toolbar = window.toolbar {
-                toolbar.showsBaselineSeparator = false
-                toolbar.allowsExtensionItems = false
-                toolbar.displayMode = .iconOnly
-                toolbar.sizeMode = .regular
-            }
-
-            let content = TitlebarAccessoryView(state: state)
-
-            if let hosting = accessoryController?.view as? NSHostingView<TitlebarAccessoryView> {
-                hosting.rootView = content
-                hosting.layoutSubtreeIfNeeded()
-                return
-            }
-
-            let hosting = NSHostingView(rootView: content)
-            hosting.translatesAutoresizingMaskIntoConstraints = false
-            hosting.setContentHuggingPriority(.required, for: .horizontal)
-            hosting.setContentHuggingPriority(.required, for: .vertical)
-
-            let controller = NSTitlebarAccessoryViewController()
-            controller.layoutAttribute = .left
-            controller.view = hosting
-            controller.fullScreenMinHeight = 44
-
-            accessoryController = controller
-            window.addTitlebarAccessoryViewController(controller)
-        }
-    }
-
-    private final class AttachmentView: NSView {
-        var onWindowChange: ((NSWindow?) -> Void)?
-
-        override func viewDidMoveToWindow() {
-            super.viewDidMoveToWindow()
-            onWindowChange?(window)
-        }
-    }
-}
-
-private struct TitlebarState {
-    var title: String
-    var canNavigateBack: Bool
-    var canNavigateForward: Bool
-    var onNavigateBack: () -> Void
-    var onNavigateForward: () -> Void
-}
-
-private struct TitlebarAccessoryView: View {
-    let state: TitlebarState
-
     var body: some View {
-        HStack(spacing: 10) {
-            titlebarButton(systemName: "chevron.left", isEnabled: state.canNavigateBack, action: state.onNavigateBack)
-            titlebarButton(systemName: "chevron.right", isEnabled: state.canNavigateForward, action: state.onNavigateForward)
-            Text(state.title)
-                .font(.system(size: 22, weight: .semibold))
-                .padding(.leading, 3)
-            Spacer()
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 6)
-        .frame(minWidth: 320, alignment: .leading)
+        VisualEffectBlur(material: .underWindowBackground, blendingMode: .withinWindow)
+            .overlay(
+                HStack(spacing: 10) {
+                    headerButton(systemName: "chevron.left", isEnabled: canNavigateBack, action: onNavigateBack)
+                    headerButton(systemName: "chevron.right", isEnabled: canNavigateForward, action: onNavigateForward)
+                    Text(title)
+                        .font(.system(size: 22, weight: .semibold))
+                        .padding(.leading, 4)
+                    Spacer()
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .padding(.horizontal, 8)
+            .padding(.top, 6)
     }
 
-    @ViewBuilder
-    private func titlebarButton(systemName: String, isEnabled: Bool, action: @escaping () -> Void) -> some View {
+    private func headerButton(systemName: String, isEnabled: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: systemName)
                 .font(.system(size: 12, weight: .semibold))
-                .frame(width: 24, height: 22)
+                .frame(width: 26, height: 24)
         }
-        .buttonStyle(.borderless)
+        .buttonStyle(.plain)
         .disabled(!isEnabled)
-        .foregroundStyle(isEnabled ? Color.primary : Color.primary.opacity(0.4))
+        .foregroundStyle(isEnabled ? Color.primary : Color.primary.opacity(0.35))
         .background(
-            RoundedRectangle(cornerRadius: 6, style: .continuous)
-                .fill(Color.primary.opacity(isEnabled ? 0.12 : 0.05))
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(Color.primary.opacity(isEnabled ? 0.12 : 0.06))
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 6, style: .continuous)
-                .stroke(Color.primary.opacity(isEnabled ? 0.2 : 0.08), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .stroke(Color.primary.opacity(isEnabled ? 0.18 : 0.08), lineWidth: 1)
         )
     }
+}
+
+private struct VisualEffectBlur: NSViewRepresentable {
+    var material: NSVisualEffectView.Material
+    var blendingMode: NSVisualEffectView.BlendingMode
+
+    func makeNSView(context: Context) -> NSVisualEffectView {
+        let view = NSVisualEffectView()
+        view.material = material
+        view.blendingMode = blendingMode
+        view.state = .active
+        return view
+    }
+
+    func updateNSView(_ nsView: NSVisualEffectView, context: Context) {
+        nsView.material = material
+        nsView.blendingMode = blendingMode
+        nsView.state = .active
+    }
+}
+#else
+private struct DetailHeader: View {
+    let title: String
+    let canNavigateBack: Bool
+    let canNavigateForward: Bool
+    let onNavigateBack: () -> Void
+    let onNavigateForward: () -> Void
+
+    var body: some View { EmptyView() }
 }
 #endif
