@@ -16,6 +16,16 @@ struct AutocompleteSettingsView: View {
         )
     }
 
+    private var inlineKeywordPreviewBinding: Binding<Bool> {
+        Binding(
+            get: { appModel.globalSettings.editorEnableInlineSuggestions },
+            set: { newValue in
+                guard appModel.globalSettings.editorEnableInlineSuggestions != newValue else { return }
+                Task { await appModel.updateGlobalEditorDisplay { $0.editorEnableInlineSuggestions = newValue } }
+            }
+        )
+    }
+
     private var suggestFunctionsBinding: Binding<Bool> {
         Binding(
             get: { appModel.globalSettings.editorSuggestFunctions },
@@ -137,6 +147,13 @@ struct AutocompleteSettingsView: View {
                     infoAction: { showInfo(.keywords) }
                 )
                 ToggleRow(
+                    title: "Inline keyword preview",
+                    subtitle: "Show a dimmed keyword directly in the editor when a matching clause is expected.",
+                    isOn: inlineKeywordPreviewBinding,
+                    infoAction: { showInfo(.inlineKeywords) }
+                )
+                .disabled(!appState.sqlEditorDisplay.autoCompletionEnabled)
+                ToggleRow(
                     title: "Functions",
                     subtitle: "Include built-in and database-specific functions in suggestions.",
                     isOn: suggestFunctionsBinding,
@@ -222,6 +239,7 @@ struct AutocompleteSettingsView: View {
 
 private enum InfoTopic: String, Identifiable, CaseIterable {
     case keywords
+    case inlineKeywords
     case functions
     case snippets
     case joins
@@ -237,6 +255,7 @@ private enum InfoTopic: String, Identifiable, CaseIterable {
     var title: String {
         switch self {
         case .keywords: return "Keyword Suggestions"
+        case .inlineKeywords: return "Inline Keyword Preview"
         case .functions: return "Function Suggestions"
         case .snippets: return "Snippet Templates"
         case .joins: return "Join Helpers"
@@ -253,6 +272,8 @@ private enum InfoTopic: String, Identifiable, CaseIterable {
         switch self {
         case .keywords:
             return "When enabled, the autocomplete popover lists SQL keywords that match the current clause. Turning this off hides keyword entries, but it will not remove snippets or objects that explicitly match what you type."
+        case .inlineKeywords:
+            return "Shows the remainder of the next SQL keyword as faint inline text (for example FROM after SELECT *). Disabling this keeps keyword rows in the popover intact but removes the ghosted preview inside the editor."
         case .functions:
             return "Shows built-in and database-specific functions ranked by context. Disabling this leaves typed function names untouched and does not affect user-defined functions you type manually."
         case .snippets:

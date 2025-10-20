@@ -80,10 +80,6 @@ struct AppearanceSettingsView: View {
         .formStyle(.grouped)
         .scrollContentBackground(.hidden)
         .background(themeManager.surfaceBackgroundColor)
-        .background(
-            SettingsWindowConfigurator(themeManager: themeManager)
-                .frame(width: 0, height: 0)
-        )
         .alert(
             "Delete Theme?",
             isPresented: Binding(
@@ -807,7 +803,14 @@ struct AppearanceSettingsView: View {
         Binding(
             get: { appModel.globalSettings.editorEnableAutocomplete },
             set: { newValue in
-                Task { await appModel.updateGlobalEditorDisplay { $0.editorEnableAutocomplete = newValue } }
+                Task {
+                    await appModel.updateGlobalEditorDisplay { settings in
+                        settings.editorEnableAutocomplete = newValue
+                        if !newValue {
+                            settings.editorEnableInlineSuggestions = false
+                        }
+                    }
+                }
             }
         )
     }
@@ -2490,40 +2493,6 @@ private extension View {
         modifier(OptionalContextMenu(isEnabled: isEnabled, menu: content))
     }
 }
-
-#if os(macOS)
-private struct SettingsWindowConfigurator: NSViewRepresentable {
-    let themeManager: ThemeManager
-
-    func makeNSView(context: Context) -> NSView {
-        let view = NSView()
-        DispatchQueue.main.async {
-            guard let window = view.window else { return }
-            configure(window: window)
-        }
-        return view
-    }
-
-    func updateNSView(_ nsView: NSView, context: Context) {
-        DispatchQueue.main.async {
-            guard let window = nsView.window else { return }
-            configure(window: window)
-        }
-    }
-
-    private func configure(window: NSWindow) {
-        if window.identifier != AppWindowIdentifier.settings {
-            window.identifier = AppWindowIdentifier.settings
-        }
-        if window.titleVisibility != .hidden {
-            window.titleVisibility = .hidden
-        }
-        if window.titlebarAppearsTransparent == false {
-            window.titlebarAppearsTransparent = true
-        }
-    }
-}
-#endif
 
 #if os(macOS)
 final class SystemFontPickerCoordinator: NSObject, ObservableObject {

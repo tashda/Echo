@@ -684,6 +684,8 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
         if displayOptions.highlightSelectedSymbol {
             scheduleSymbolHighlights(for: currentSelectionDescriptor(), immediate: true)
         }
+        applyInlineSuggestionAppearance()
+        updateInlineSuggestionPosition()
     }
 
     override func viewDidMoveToWindow() {
@@ -693,7 +695,9 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
             ruler.sqlTextView = self
         }
         DispatchQueue.main.async { [weak self] in
-            self?.window?.makeFirstResponder(self)
+            guard let self else { return }
+            self.window?.makeFirstResponder(self)
+            self.primeInlineSuggestionsIfNeeded()
         }
     }
 
@@ -738,6 +742,14 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
         notifySelectionPreview()
     }
 
+    override func becomeFirstResponder() -> Bool {
+        let became = super.becomeFirstResponder()
+        if became {
+            primeInlineSuggestionsIfNeeded()
+        }
+        return became
+    }
+
     private func determineCompletionTrigger(for string: Any) -> CompletionTriggerKind {
         guard let inserted = (string as? String) ?? (string as? NSAttributedString)?.string, inserted.count == 1 else {
             return .none
@@ -774,6 +786,19 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
         guard !manualCompletionSuppression else { return }
         suppressNextCompletionRefresh = true
         refreshCompletions(immediate: immediate)
+    }
+
+    private func primeInlineSuggestionsIfNeeded() {
+        guard window != nil else { return }
+        guard displayOptions.autoCompletionEnabled else { return }
+        guard displayOptions.inlineKeywordSuggestionsEnabled else { return }
+        guard completionContext != nil else { return }
+        guard !manualCompletionSuppression else { return }
+        guard inlineInsertedRange == nil else { return }
+        guard inlineSuggestionView == nil else { return }
+        let trimmed = string.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.isEmpty else { return }
+        refreshCompletions(immediate: true)
     }
 
     private func shouldTriggerAfterKeywordSpace() -> Bool {
@@ -2114,6 +2139,11 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
     // MARK: - Inline keyword suggestions
 
     func showInlineKeywordSuggestions(_ suggestions: [SQLAutoCompletionSuggestion], query: SQLAutoCompletionQuery) {
+        guard displayOptions.autoCompletionEnabled,
+              displayOptions.inlineKeywordSuggestionsEnabled else {
+            hideInlineKeywordSuggestion()
+            return
+        }
         guard !suggestions.isEmpty else {
             hideInlineKeywordSuggestion()
             return
@@ -2124,13 +2154,7 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
         inlineInsertedRange = nil
         inlineInsertedIndex = nil
         let view = ensureInlineSuggestionView()
-        view.font = theme.nsFont
-
-        let keywordColor = theme.tokenColors.keyword.nsColor
-        let surfaceColor = (backgroundOverride ?? theme.surfaces.background.nsColor)
-        let blendFraction: CGFloat = theme.tone == .dark ? 0.15 : 0.4
-        let blended = keywordColor.blended(withFraction: blendFraction, of: surfaceColor) ?? keywordColor
-        view.textColor = blended.withAlphaComponent(theme.tone == .dark ? 0.65 : 0.55)
+        applyInlineSuggestionAppearance(to: view)
         view.isHidden = false
         updateInlineSuggestionText()
         updateInlineSuggestionPosition()
@@ -2155,12 +2179,38 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
         return view
     }
 
+    private func applyInlineSuggestionAppearance(to view: InlineSuggestionLabel? = nil) {
+        guard let target = view ?? inlineSuggestionView else { return }
+        target.font = theme.nsFont
+        let keywordColor = theme.tokenColors.keyword.nsColor
+        let surfaceColor = (backgroundOverride ?? theme.surfaces.background.nsColor)
+        let blendFraction: CGFloat = theme.tone == .dark ? 0.2 : 0.35
+        let blended = keywordColor.blended(withFraction: blendFraction, of: surfaceColor) ?? keywordColor
+        let alpha: CGFloat = theme.tone == .dark ? 0.75 : 0.65
+        target.textColor = blended.withAlphaComponent(alpha)
+    }
+
     private func updateInlineSuggestionText() {
         guard let view = inlineSuggestionView,
               !inlineKeywordSuggestions.isEmpty else { return }
         let index = min(max(inlineSuggestionNextIndex, 0), inlineKeywordSuggestions.count - 1)
-        let displayText = inlineKeywordSuggestions[index].insertText.trimmingCharacters(in: .whitespacesAndNewlines)
-        view.stringValue = displayText
+        let suggestion = inlineKeywordSuggestions[index]
+        let suggestionText = suggestion.insertText.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let query = inlineSuggestionQuery {
+            let typedToken = query.token.trimmingCharacters(in: .whitespacesAndNewlines)
+            let typedLower = typedToken.lowercased()
+            let suggestionLower = suggestionText.lowercased()
+            if !typedLower.isEmpty, suggestionLower.hasPrefix(typedLower) {
+                let dropIndex = suggestionText.index(suggestionText.startIndex,
+                                                     offsetBy: typedToken.count)
+                let remainder = suggestionText[dropIndex...]
+                view.stringValue = String(remainder)
+            } else {
+                view.stringValue = suggestionText
+            }
+        } else {
+            view.stringValue = suggestionText
+        }
         view.invalidateIntrinsicContentSize()
     }
 
@@ -2171,13 +2221,19 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
         let caretLocation = selectedRange().location
         guard caretLocation != NSNotFound else { return }
         let caretRectOnScreen = firstRect(forCharacterRange: NSRange(location: caretLocation, length: 0), actualRange: nil)
-        let caretRect = convert(caretRectOnScreen, from: nil)
-        let baseline = caretRect.origin.y - theme.nsFont.descender
-        let lineHeight = theme.nsFont.ascender - theme.nsFont.descender + theme.nsFont.leading
-        let width = max(view.intrinsicContentSize.width, 24)
-        view.frame = NSRect(x: caretRect.origin.x,
-                            y: baseline - lineHeight,
-                            width: width,
+        var caretRect = convert(caretRectOnScreen, from: nil)
+        if caretRect.isNull || caretRect.isEmpty {
+            caretRect = NSRect(origin: CGPoint(x: textContainerInset.width,
+                                               y: bounds.height - textContainerInset.height - theme.nsFont.pointSize),
+                               size: CGSize(width: 1, height: theme.nsFont.ascender - theme.nsFont.descender))
+        }
+        let intrinsicWidth = max(view.intrinsicContentSize.width, 24)
+        let lineHeight = max(caretRect.height, theme.nsFont.ascender - theme.nsFont.descender + theme.nsFont.leading)
+        let xPosition = caretRect.origin.x + caretRect.width
+        let yPosition = caretRect.maxY - lineHeight
+        view.frame = NSRect(x: xPosition,
+                            y: yPosition,
+                            width: intrinsicWidth,
                             height: lineHeight)
     }
 
@@ -2315,6 +2371,13 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
         inlineInsertedRange = nil
         inlineInsertedIndex = nil
     }
+
+#if DEBUG
+    func debugInlineSuggestionSnapshot() -> (text: String, frame: NSRect, isHidden: Bool)? {
+        guard let view = inlineSuggestionView else { return nil }
+        return (view.stringValue, view.frame, view.isHidden)
+    }
+#endif
 
 private func makeSnippetInsertion(from snippet: String) -> (String, [NSRange]) {
         var output = ""
@@ -2661,6 +2724,12 @@ private func makeSnippetInsertion(from snippet: String) -> (String, [NSRange]) {
         } else {
             hideCompletions()
         }
+        if displayOptions.autoCompletionEnabled && displayOptions.inlineKeywordSuggestionsEnabled {
+            applyInlineSuggestionAppearance()
+            updateInlineSuggestionPosition()
+        } else {
+            hideInlineKeywordSuggestion()
+        }
     }
 
     private func updateParagraphStyle() {
@@ -2766,6 +2835,7 @@ private final class InlineSuggestionLabel: NSTextField {
         lineBreakMode = .byClipping
         alignment = .left
         stringValue = ""
+        usesSingleLineMode = true
     }
 
     required init?(coder: NSCoder) {

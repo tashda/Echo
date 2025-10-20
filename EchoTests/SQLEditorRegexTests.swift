@@ -659,6 +659,17 @@ final class SQLAutoCompletionEngineTests: XCTestCase {
 
         textView.showInlineKeywordSuggestions([suggestion], query: query)
 
+#if DEBUG
+        if let snapshot = textView.debugInlineSuggestionSnapshot() {
+            XCTAssertEqual(snapshot.text.trimmingCharacters(in: .whitespacesAndNewlines), "ROM")
+            XCTAssertGreaterThan(snapshot.frame.width, 0)
+            XCTAssertGreaterThan(snapshot.frame.height, 0)
+            XCTAssertFalse(snapshot.isHidden)
+        } else {
+            XCTFail("Expected inline suggestion view to be present")
+        }
+#endif
+
         guard let event = NSEvent.keyEvent(with: .keyDown,
                                            location: .zero,
                                            modifierFlags: [],
@@ -677,6 +688,74 @@ final class SQLAutoCompletionEngineTests: XCTestCase {
 
         XCTAssertEqual(textView.string, "SELECT * FROM ")
         XCTAssertEqual(textView.selectedRange(), NSRange(location: textView.string.count, length: 0))
+    }
+
+    func testInlineKeywordPreviewHonorsDisplayToggle() {
+        let theme = makeTestTheme()
+        var display = SQLEditorDisplayOptions()
+        display.inlineKeywordSuggestionsEnabled = false
+        let context = sampleContext()
+        let textView = SQLTextView(theme: theme,
+                                   displayOptions: display,
+                                   backgroundOverride: nil,
+                                   completionContext: context)
+        let suggestion = SQLAutoCompletionSuggestion(id: "keyword|from",
+                                                     title: "FROM",
+                                                     subtitle: nil,
+                                                     detail: nil,
+                                                     insertText: "FROM",
+                                                     kind: .keyword,
+                                                     priority: 700)
+        let query = SQLAutoCompletionQuery(token: "F",
+                                           prefix: "F",
+                                           pathComponents: [],
+                                           replacementRange: NSRange(location: 0, length: 0),
+                                           precedingKeyword: "select",
+                                           precedingCharacter: " ",
+                                           focusTable: nil,
+                                           tablesInScope: [],
+                                           clause: .from)
+
+        textView.showInlineKeywordSuggestions([suggestion], query: query)
+
+#if DEBUG
+        XCTAssertNil(textView.debugInlineSuggestionSnapshot())
+#endif
+    }
+
+    func testInlineKeywordPreviewRequiresAutocomplete() {
+        let theme = makeTestTheme()
+        var display = SQLEditorDisplayOptions()
+        display.inlineKeywordSuggestionsEnabled = true
+        display.autoCompletionEnabled = false
+        let context = sampleContext()
+        let textView = SQLTextView(theme: theme,
+                                   displayOptions: display,
+                                   backgroundOverride: nil,
+                                   completionContext: context)
+
+        let suggestion = SQLAutoCompletionSuggestion(id: "keyword|from",
+                                                     title: "FROM",
+                                                     subtitle: nil,
+                                                     detail: nil,
+                                                     insertText: "FROM",
+                                                     kind: .keyword,
+                                                     priority: 700)
+        let query = SQLAutoCompletionQuery(token: "",
+                                           prefix: "",
+                                           pathComponents: [],
+                                           replacementRange: NSRange(location: 0, length: 0),
+                                           precedingKeyword: "select",
+                                           precedingCharacter: " ",
+                                           focusTable: nil,
+                                           tablesInScope: [],
+                                           clause: .from)
+
+        textView.showInlineKeywordSuggestions([suggestion], query: query)
+
+#if DEBUG
+        XCTAssertNil(textView.debugInlineSuggestionSnapshot())
+#endif
     }
 
     func testJoinKeywordSuggestionIncludesJoinSuffix() {

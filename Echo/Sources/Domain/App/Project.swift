@@ -1052,6 +1052,7 @@ struct GlobalSettings: Codable, Hashable {
     var editorEnableAutocomplete: Bool = true
     var editorQualifyTableCompletions: Bool = false
     var editorSuggestKeywords: Bool = true
+    var editorEnableInlineSuggestions: Bool = true
     var editorSuggestFunctions: Bool = true
     var editorSuggestSnippets: Bool = true
     var editorSuggestHistory: Bool = true
@@ -1115,6 +1116,7 @@ struct GlobalSettings: Codable, Hashable {
         editorEnableAutocomplete: Bool = true,
         editorQualifyTableCompletions: Bool = false,
         editorSuggestKeywords: Bool = true,
+        editorEnableInlineSuggestions: Bool = true,
         editorSuggestFunctions: Bool = true,
         editorSuggestSnippets: Bool = true,
         editorSuggestHistory: Bool = true,
@@ -1175,6 +1177,7 @@ struct GlobalSettings: Codable, Hashable {
         self.editorEnableAutocomplete = editorEnableAutocomplete
         self.editorQualifyTableCompletions = editorQualifyTableCompletions
         self.editorSuggestKeywords = editorSuggestKeywords
+        self.editorEnableInlineSuggestions = editorEnableInlineSuggestions
         self.editorSuggestFunctions = editorSuggestFunctions
         self.editorSuggestSnippets = editorSuggestSnippets
         self.editorSuggestHistory = editorSuggestHistory
@@ -1238,6 +1241,7 @@ struct GlobalSettings: Codable, Hashable {
         case editorEnableAutocomplete
         case editorQualifyTableCompletions
         case editorSuggestKeywords
+        case editorEnableInlineSuggestions
         case editorSuggestFunctions
         case editorSuggestSnippets
         case editorSuggestHistory
@@ -1327,6 +1331,7 @@ struct GlobalSettings: Codable, Hashable {
         editorEnableAutocomplete = try container.decodeIfPresent(Bool.self, forKey: .editorEnableAutocomplete) ?? true
         editorQualifyTableCompletions = try container.decodeIfPresent(Bool.self, forKey: .editorQualifyTableCompletions) ?? false
         editorSuggestKeywords = try container.decodeIfPresent(Bool.self, forKey: .editorSuggestKeywords) ?? true
+        editorEnableInlineSuggestions = try container.decodeIfPresent(Bool.self, forKey: .editorEnableInlineSuggestions) ?? true
         editorSuggestFunctions = try container.decodeIfPresent(Bool.self, forKey: .editorSuggestFunctions) ?? true
         editorSuggestSnippets = try container.decodeIfPresent(Bool.self, forKey: .editorSuggestSnippets) ?? true
         editorSuggestHistory = try container.decodeIfPresent(Bool.self, forKey: .editorSuggestHistory) ?? true
@@ -1394,6 +1399,7 @@ struct GlobalSettings: Codable, Hashable {
         try container.encode(editorEnableAutocomplete, forKey: .editorEnableAutocomplete)
         try container.encode(editorQualifyTableCompletions, forKey: .editorQualifyTableCompletions)
         try container.encode(editorSuggestKeywords, forKey: .editorSuggestKeywords)
+        try container.encode(editorEnableInlineSuggestions, forKey: .editorEnableInlineSuggestions)
         try container.encode(editorSuggestFunctions, forKey: .editorSuggestFunctions)
         try container.encode(editorSuggestSnippets, forKey: .editorSuggestSnippets)
         try container.encode(editorSuggestHistory, forKey: .editorSuggestHistory)

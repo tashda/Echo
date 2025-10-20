@@ -46,7 +46,8 @@ final class SQLAutoCompletionController {
             return
         }
 
-        if let keywordSuggestions = inlineKeywordCandidates(from: suggestions, query: query) {
+        if textView.displayOptions.inlineKeywordSuggestionsEnabled,
+           let keywordSuggestions = inlineKeywordCandidates(from: suggestions, query: query) {
             if popover.isShown {
                 popover.performClose(nil)
             }

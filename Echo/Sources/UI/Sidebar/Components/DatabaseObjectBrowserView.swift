@@ -293,10 +293,12 @@ struct DatabaseObjectBrowserView: View {
         let onTogglePin: () -> Void
         let onTriggerTableTap: ((String) -> Void)?
         
-        @EnvironmentObject private var appModel: AppModel
-        @State private var isHovered = false
-        @State private var hoveredColumnID: String?
-        @StateObject private var menuHandler = MenuActionHandler()
+    @EnvironmentObject private var appModel: AppModel
+    @State private var isHovered = false
+    @State private var hoveredColumnID: String?
+#if os(macOS)
+    @StateObject private var menuHandler = MenuActionHandler()
+#endif
         
         private var canExpand: Bool {
             showColumns && !object.columns.isEmpty
@@ -384,7 +386,11 @@ struct DatabaseObjectBrowserView: View {
                     isHovered = hovering
                 }
             }
-            .appKitContextMenu { buildContextMenu() }
+#if os(macOS)
+        .appKitContextMenu { buildContextMenu() }
+#else
+        .contextMenu { contextMenuContent }
+#endif
         }
         
         @ViewBuilder
@@ -542,80 +548,118 @@ struct DatabaseObjectBrowserView: View {
             }
         }
         
-        private func buildContextMenu() -> NSMenu? {
-            let menu = NSMenu()
-            menu.autoenablesItems = false
-            menuHandler.clear()
-            
-            for item in generalMenuItems {
+#if os(macOS)
+    private func buildContextMenu() -> NSMenu? {
+        let menu = NSMenu()
+        menu.autoenablesItems = false
+        menuHandler.clear()
+
+        for item in generalMenuItems {
+            menu.addItem(makeMenuItem(from: item))
+        }
+
+        let scriptActions = scriptActionsForCurrentContext()
+        if !scriptActions.isEmpty {
+            menu.addItem(.separator())
+            let scriptMenuItem = NSMenuItem(title: "Script as", action: nil, keyEquivalent: "")
+            scriptMenuItem.image = menuHandler.symbolImage(named: "scroll")
+            let scriptMenu = NSMenu(title: "Script as")
+            scriptMenu.autoenablesItems = false
+
+            for action in scriptActions {
+                let submenuItem = NSMenuItem(
+                    title: scriptTitle(for: action),
+                    action: #selector(MenuActionHandler.performAction(_:)),
+                    keyEquivalent: ""
+                )
+                submenuItem.image = menuHandler.symbolImage(named: scriptSystemImage(for: action))
+                menuHandler.register(submenuItem) { performScriptAction(action) }
+                scriptMenu.addItem(submenuItem)
+            }
+
+            scriptMenuItem.submenu = scriptMenu
+            menu.addItem(scriptMenuItem)
+        }
+
+        if !administrativeMenuItems.isEmpty {
+            menu.addItem(.separator())
+            for item in administrativeMenuItems {
                 menu.addItem(makeMenuItem(from: item))
             }
-            
-            let scriptActions = scriptActionsForCurrentContext()
-            if !scriptActions.isEmpty {
-                menu.addItem(.separator())
-                let scriptMenuItem = NSMenuItem(title: "Script as", action: nil, keyEquivalent: "")
-                scriptMenuItem.image = menuHandler.symbolImage(named: "scroll")
-                let scriptMenu = NSMenu(title: "Script as")
-                scriptMenu.autoenablesItems = false
-                
-                for action in scriptActions {
-                    let submenuItem = NSMenuItem(
-                        title: scriptTitle(for: action),
-                        action: #selector(MenuActionHandler.performAction(_:)),
-                        keyEquivalent: ""
-                    )
-                    submenuItem.image = menuHandler.symbolImage(named: scriptSystemImage(for: action))
-                    menuHandler.register(submenuItem) { performScriptAction(action) }
-                    scriptMenu.addItem(submenuItem)
+        }
+
+        return menu
+    }
+
+    private func makeMenuItem(from item: ContextMenuActionItem) -> NSMenuItem {
+        let menuItem = NSMenuItem(
+            title: item.title,
+            action: #selector(MenuActionHandler.performAction(_:)),
+            keyEquivalent: ""
+        )
+        menuItem.image = menuHandler.symbolImage(named: item.systemImage)
+        menuHandler.register(menuItem, role: item.role, action: item.action)
+        return menuItem
+    }
+#else
+    @ViewBuilder
+    private var contextMenuContent: some View {
+        ForEach(generalMenuItems) { item in
+            Button(role: item.role) {
+                item.action()
+            } label: {
+                Label(item.title, systemImage: item.systemImage)
+            }
+        }
+
+        let scriptActions = scriptActionsForCurrentContext()
+        if !scriptActions.isEmpty {
+            Divider()
+            Menu("Script as", systemImage: "scroll") {
+                ForEach(scriptActions, id: \.identifier) { action in
+                    Button {
+                        performScriptAction(action)
+                    } label: {
+                        Label(scriptTitle(for: action), systemImage: scriptSystemImage(for: action))
+                    }
                 }
-                
-                scriptMenuItem.submenu = scriptMenu
-                menu.addItem(scriptMenuItem)
             }
-            
-            if !administrativeMenuItems.isEmpty {
-                menu.addItem(.separator())
-                for item in administrativeMenuItems {
-                    menu.addItem(makeMenuItem(from: item))
+        }
+
+        if !administrativeMenuItems.isEmpty {
+            Divider()
+            ForEach(administrativeMenuItems) { item in
+                Button(role: item.role) {
+                    item.action()
+                } label: {
+                    Label(item.title, systemImage: item.systemImage)
                 }
             }
-            
-            return menu
         }
-        
-        private func makeMenuItem(from item: ContextMenuActionItem) -> NSMenuItem {
-            let menuItem = NSMenuItem(
-                title: item.title,
-                action: #selector(MenuActionHandler.performAction(_:)),
-                keyEquivalent: ""
-            )
-            menuItem.image = menuHandler.symbolImage(named: item.systemImage)
-            menuHandler.register(menuItem, role: item.role, action: item.action)
-            return menuItem
+    }
+#endif
+
+    private struct ContextMenuActionItem: Identifiable {
+        let id: String
+        let title: String
+        let systemImage: String
+        let role: ButtonRole?
+        let action: () -> Void
+
+        init(
+            id: String? = nil,
+            title: String,
+            systemImage: String,
+            role: ButtonRole?,
+            action: @escaping () -> Void
+        ) {
+            self.id = id ?? title
+            self.title = title
+            self.systemImage = systemImage
+            self.role = role
+            self.action = action
         }
-        
-        private struct ContextMenuActionItem: Identifiable {
-            let id: String
-            let title: String
-            let systemImage: String
-            let role: ButtonRole?
-            let action: () -> Void
-            
-            init(
-                id: String? = nil,
-                title: String,
-                systemImage: String,
-                role: ButtonRole?,
-                action: @escaping () -> Void
-            ) {
-                self.id = id ?? title
-                self.title = title
-                self.systemImage = systemImage
-                self.role = role
-                self.action = action
-            }
-        }
+    }
         
         private enum ScriptAction {
             case create

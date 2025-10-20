@@ -10,6 +10,7 @@ struct TabOverviewView: View {
 
     @EnvironmentObject private var themeManager: ThemeManager
     @EnvironmentObject private var appModel: AppModel
+    @Environment(\.colorScheme) private var colorScheme
 
     @State private var animateIn = false
     @State private var collapsedServers: Set<UUID> = []
@@ -48,23 +49,23 @@ struct TabOverviewView: View {
     private var animation: Animation { .spring(response: 0.45, dampingFraction: 0.82, blendDuration: 0.2) }
 
     var body: some View {
-        VStack(spacing: 16) {
-            header
+        VStack(spacing: 28) {
+            overviewHero
 
             ScrollView {
                 if groupedTabs.isEmpty {
                     emptyState
-                        .padding(.top, 80)
-                        .padding(.horizontal, 24)
+                        .padding(.top, 120)
+                        .padding(.horizontal, 32)
                 } else {
-                    LazyVStack(alignment: .leading, spacing: 24) {
+                    LazyVStack(alignment: .leading, spacing: 28) {
                         ForEach(groupedTabs) { serverGroup in
                             serverGroupView(serverGroup)
                                 .transition(.move(edge: .top).combined(with: .opacity))
                         }
                     }
-                    .padding(.horizontal, 24)
-                    .padding(.bottom, 32)
+                    .padding(.horizontal, 32)
+                    .padding(.bottom, 48)
 #if os(macOS)
                     Color.clear
                         .frame(height: 1)
@@ -80,7 +81,8 @@ struct TabOverviewView: View {
                 }
             }
         }
-        .background(themeManager.windowBackground)
+        .padding(.bottom, 32)
+        .background(overviewBackground)
         .onAppear {
             triggerAnimation()
             initializeFocus()
@@ -111,29 +113,171 @@ struct TabOverviewView: View {
         .animation(animation, value: animateIn)
     }
 
-    private var header: some View {
-        HStack(spacing: 12) {
-            Text("Tab Overview")
-                .font(.title3.weight(.semibold))
+    private var overviewHero: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            HStack(alignment: .top, spacing: 16) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Tab Overview")
+                        .font(.system(size: 32, weight: .bold, design: .rounded))
+                    Text(heroSubtitle)
+                        .font(.system(size: 14, weight: .regular))
+                        .foregroundStyle(.secondary)
+                }
 
-            Spacer()
+                Spacer(minLength: 0)
 
-            Button("Collapse All") {
-                withAnimation(.easeInOut(duration: 0.22)) {
-                    collapseAll()
+                HStack(spacing: 10) {
+                    Button("Collapse All") {
+                        withAnimation(.easeInOut(duration: 0.22)) {
+                            collapseAll()
+                        }
+                    }
+                    .buttonStyle(.borderless)
+
+                    Button("Expand All") {
+                        withAnimation(.easeInOut(duration: 0.22)) {
+                            expandAll()
+                        }
+                    }
+                    .buttonStyle(.borderless)
                 }
             }
-            .buttonStyle(.borderless)
 
-            Button("Expand All") {
-                withAnimation(.easeInOut(duration: 0.22)) {
-                    expandAll()
+            HStack(alignment: .center, spacing: 16) {
+                heroStat(icon: "rectangle.grid.2x2.fill", title: formattedCount(totalTabs), subtitle: "Open Tabs")
+                heroStat(icon: "bolt.fill", title: formattedCount(runningQueriesCount), subtitle: "Running")
+                heroStat(icon: "tablecells", title: formattedCount(totalRowCount), subtitle: "Rows Fetched")
+
+                Spacer(minLength: 0)
+
+                if let last = latestActivityDate {
+                    Label("Updated " + relativeDateString(from: last), systemImage: "clock.arrow.circlepath")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(.secondary)
+                } else {
+                    Label("No activity yet", systemImage: "clock.arrow.circlepath")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(.tertiary)
                 }
             }
-            .buttonStyle(.borderless)
         }
+        .padding(.vertical, 28)
+        .padding(.horizontal, 32)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(heroBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 34, style: .continuous))
+        .shadow(color: heroShadowColor, radius: 18, y: 10)
         .padding(.horizontal, 24)
-        .padding(.top, 20)
+        .padding(.top, 24)
+    }
+
+    private func heroStat(icon: String, title: String, subtitle: String) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Image(systemName: icon)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(heroAccentColor)
+            Text(title)
+                .font(.system(size: 20, weight: .semibold))
+            Text(subtitle)
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(.secondary)
+        }
+        .padding(.vertical, 16)
+        .padding(.horizontal, 18)
+        .frame(minWidth: 120, alignment: .leading)
+        .background(statBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+    }
+
+    private var overviewBackground: some View {
+        LinearGradient(
+            colors: [
+                Color(nsColor: .windowBackgroundColor),
+                Color(nsColor: .windowBackgroundColor).opacity(0.97)
+            ],
+            startPoint: .top,
+            endPoint: .bottom
+        )
+        .ignoresSafeArea()
+    }
+
+    private var heroBackground: LinearGradient {
+        LinearGradient(
+            colors: [
+                heroAccentColor.opacity(colorScheme == .dark ? 0.22 : 0.16),
+                heroAccentColor.opacity(colorScheme == .dark ? 0.08 : 0.05)
+            ],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+    }
+
+    private var statBackground: some View {
+        let base = colorScheme == .dark ? Color.white.opacity(0.08) : Color.white
+        return base
+    }
+
+    private var heroAccentColor: Color {
+#if os(macOS)
+        Color(nsColor: NSColor.controlAccentColor)
+#else
+        Color.accentColor
+#endif
+    }
+
+    private var heroShadowColor: Color {
+        Color.black.opacity(colorScheme == .dark ? 0.35 : 0.12)
+    }
+
+    private var heroSubtitle: String {
+        "".appending(formattedCount(totalTabs)).appending(" open tabs across ").appending(formattedCount(activeConnectionCount)).appending(" connection").appending(activeConnectionCount == 1 ? "" : "s")
+    }
+
+    private var totalTabs: Int { tabs.count }
+
+    private var activeConnectionCount: Int {
+        Set(tabs.map { $0.connection.id }).count
+    }
+
+    private var runningQueriesCount: Int {
+        tabs.filter { $0.query?.isExecuting == true }.count
+    }
+
+    private var totalRowCount: Int {
+        tabs.reduce(0) { $0 + ($1.query?.rowProgress.displayCount ?? 0) }
+    }
+
+    private var latestActivityDate: Date? {
+        tabs.compactMap { latestExecutionDate(for: $0) }.max()
+    }
+
+    private func latestExecutionDate(for tab: WorkspaceTab) -> Date? {
+        if let query = tab.query {
+            if let message = query.messages.last(where: { $0.severity != .debug }) {
+                return message.timestamp
+            }
+        }
+        if let editor = tab.structureEditor {
+            if let ts = editor.lastSuccessMessageTimestamp ?? editor.lastErrorTimestamp {
+                return ts
+            }
+        }
+        if let diagram = tab.diagram {
+            return diagram.lastUpdatedAt
+        }
+        return nil
+    }
+
+    private func relativeDateString(from date: Date) -> String {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .short
+        return formatter.localizedString(for: date, relativeTo: Date())
+    }
+
+    private func formattedCount(_ value: Int) -> String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        return formatter.string(from: NSNumber(value: value)) ?? "\(value)"
     }
 
     private func triggerAnimation() {

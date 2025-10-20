@@ -1215,13 +1215,13 @@ struct WorkspaceToolbarTabBar: View {
                         .id(tab.id)
                     }
                 }
-                .padding(.vertical, 3)
-                .padding(.horizontal, 3)
+                .padding(.vertical, 2)
+                .padding(.horizontal, 2)
             }
 #if os(macOS)
             .modifier(ToolbarTabBarScrollStyle())
 #endif
-            .frame(height: chipHeight + 6)
+            .frame(height: chipHeight + 2)
             .contentShape(Rectangle())
             .onChange(of: appModel.tabManager.activeTabId) { _, newValue in
                 guard let target = newValue else { return }
@@ -1231,7 +1231,7 @@ struct WorkspaceToolbarTabBar: View {
             }
         }
         .animation(.easeInOut(duration: 0.18), value: tabs.map(\.id))
-        .frame(height: chipHeight + 10)
+        .frame(height: chipHeight + 4)
 
         return AnyView(scroller)
     }
