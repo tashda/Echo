@@ -2125,7 +2125,12 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
         inlineInsertedIndex = nil
         let view = ensureInlineSuggestionView()
         view.font = theme.nsFont
-        view.textColor = theme.tokenColors.keyword.nsColor.withAlphaComponent(0.55)
+
+        let keywordColor = theme.tokenColors.keyword.nsColor
+        let surfaceColor = (backgroundOverride ?? theme.surfaces.background.nsColor)
+        let blendFraction: CGFloat = theme.tone == .dark ? 0.15 : 0.4
+        let blended = keywordColor.blended(withFraction: blendFraction, of: surfaceColor) ?? keywordColor
+        view.textColor = blended.withAlphaComponent(theme.tone == .dark ? 0.65 : 0.55)
         view.isHidden = false
         updateInlineSuggestionText()
         updateInlineSuggestionPosition()

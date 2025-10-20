@@ -79,29 +79,31 @@ struct SettingsView: View {
         }
     }
 
+#if os(macOS)
+    @State private var columnVisibility: NavigationSplitViewVisibility = .all
+#endif
     @State private var preferredColumn: NavigationSplitViewColumn = .sidebar
     @State private var selection: SettingsSection? = .appearance
 
     var body: some View {
-        NavigationSplitView(preferredCompactColumn: $preferredColumn) {
-            sidebar
-        } detail: {
-            detailContent
-        }
-#if os(macOS)
-        .toolbar(removing: .sidebarToggle)
-#endif
+        settingsSplitView
         .frame(minWidth: 720, minHeight: 520)
         .onAppear {
             if selection == nil {
                 selection = .appearance
             }
+#if os(macOS)
+            columnVisibility = .all
+#endif
         }
         .onReceive(NotificationCenter.default.publisher(for: .openSettingsSection)) { notification in
             guard let raw = notification.object as? String,
                   let section = SettingsSection(rawValue: raw) else { return }
             selection = section
             preferredColumn = .sidebar
+#if os(macOS)
+            columnVisibility = .all
+#endif
         }
         .accentColor(themeManager.accentColor)
         .preferredColorScheme(themeManager.effectiveColorScheme)
@@ -113,13 +115,31 @@ struct SettingsView: View {
 #endif
     }
 
+    @ViewBuilder
+    private var settingsSplitView: some View {
+#if os(macOS)
+        NavigationSplitView(columnVisibility: $columnVisibility, preferredCompactColumn: $preferredColumn) {
+            sidebar
+        } detail: {
+            detailContent
+        }
+        .toolbar(removing: .sidebarToggle)
+        .toolbar(.hidden, for: .windowToolbar)
+#else
+        NavigationSplitView(preferredCompactColumn: $preferredColumn) {
+            sidebar
+        } detail: {
+            detailContent
+        }
+#endif
+    }
+
     private var sidebar: some View {
         List(selection: $selection) {
             Section {
                 ForEach(SettingsSection.allCases) { section in
-                    NavigationLink(value: section) {
-                        Label(section.title, systemImage: section.systemImage)
-                    }
+                    Label(section.title, systemImage: section.systemImage)
+                        .tag(section)
                 }
             }
         }
@@ -128,27 +148,44 @@ struct SettingsView: View {
         .scrollContentBackground(.hidden)
         .background(themeManager.surfaceBackgroundColor)
         .navigationSplitViewColumnWidth(min: 260, ideal: 300, max: 360)
-        .navigationDestination(for: SettingsSection.self) { section in
-            sectionView(for: section)
-                .navigationTitle(section.title)
-        }
     }
 
     private var detailContent: some View {
         NavigationStack {
-            if let selection {
-                sectionView(for: selection)
-                    .navigationTitle(selection.title)
-            } else {
-                ContentUnavailableView {
-                    Label("Select a Section", systemImage: "slider.horizontal.3")
-                } description: {
-                    Text("Choose a settings category to view its options.")
+            Group {
+                if let selection {
+                    sectionView(for: selection)
+                        .navigationTitle(selection.title)
+                } else {
+                    ContentUnavailableView {
+                        Label("Select a Section", systemImage: "slider.horizontal.3")
+                    } description: {
+                        Text("Choose a settings category to view its options.")
+                    }
+                    .navigationTitle("Settings")
                 }
             }
         }
-        .background(themeManager.surfaceBackgroundColor)
         .frame(minWidth: 560, minHeight: 420)
+        .background(themeManager.surfaceBackgroundColor)
+        .toolbar {
+#if os(macOS)
+            ToolbarItemGroup(placement: .navigation) {
+                Button(action: {}, label: {
+                    Image(systemName: "chevron.left")
+                })
+                .disabled(true)
+
+                Button(action: {}, label: {
+                    Image(systemName: "chevron.right")
+                })
+                .disabled(true)
+            }
+#endif
+        }
+#if os(macOS)
+        .toolbar(removing: .sidebarToggle)
+#endif
     }
 
     @ViewBuilder
@@ -3350,9 +3387,6 @@ private struct SettingsWindowConfigurator: NSViewRepresentable {
         }
         if window.titlebarAppearsTransparent == false {
             window.titlebarAppearsTransparent = true
-        }
-        if window.toolbar != nil {
-            window.toolbar = nil
         }
     }
 }

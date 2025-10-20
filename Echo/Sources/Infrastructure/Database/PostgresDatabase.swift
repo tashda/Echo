@@ -6,6 +6,33 @@ import Logging
 
 typealias PostgresQueryResult = PostgresRowSequence
 
+private extension ResultCellPayload {
+    init(cell: PostgresCell) {
+        let formatRaw = UInt8(clamping: cell.format.rawValue)
+        let format = ResultCellPayload.Format(rawValue: formatRaw) ?? .text
+
+        let data: Data?
+        if var buffer = cell.bytes {
+            let readable = buffer.readableBytes
+            if readable > 0 {
+                if let extracted = buffer.readData(length: readable) {
+                    data = extracted
+                } else if let bytes = buffer.readBytes(length: readable) {
+                    data = Data(bytes)
+                } else {
+                    data = Data()
+                }
+            } else {
+                data = Data()
+            }
+        } else {
+            data = nil
+        }
+
+        self.init(dataTypeOID: cell.dataType.rawValue, format: format, bytes: data)
+    }
+}
+
 struct PostgresNIOFactory: DatabaseFactory {
     private let logger = Logger(label: "dk.tippr.echo.postgres")
 
@@ -249,6 +276,8 @@ final class PostgresSession: DatabaseSession {
                 batchRows.reserveCapacity(fetchSize)
                 var encodedRows: [ResultBinaryRow] = []
                 encodedRows.reserveCapacity(fetchSize)
+                var rawPayloadRows: [ResultRowPayload] = []
+                rawPayloadRows.reserveCapacity(fetchSize)
                 var batchCount = 0
                 var fetchDecodeDuration: TimeInterval = 0
                 var nextFetchSize = fetchSize
@@ -294,34 +323,58 @@ final class PostgresSession: DatabaseSession {
                     }
 
                     let conversionStart = CFAbsoluteTimeGetCurrent()
-                    var rowValues: [String?] = []
-                    rowValues.reserveCapacity(row.count)
+                    var payloadCells: [ResultCellPayload] = []
+                    payloadCells.reserveCapacity(row.count)
+
+                    let shouldFormatRow: Bool = {
+                        if !formattingEnabled { return true }
+                        switch formattingMode {
+                        case .immediate:
+                            return true
+                        case .deferred:
+                            return previewRows.count < streamingPreviewLimit
+                        }
+                    }()
+
+                    var formattedRow: [String?] = []
+                    if shouldFormatRow {
+                        formattedRow.reserveCapacity(row.count)
+                    }
+
                     for cell in row {
+                        payloadCells.append(ResultCellPayload(cell: cell))
+                        guard shouldFormatRow else { continue }
+
                         let displayValue: String?
                         if formattingEnabled {
                             switch formattingMode {
                             case .immediate:
                                 displayValue = formatterContext.stringValue(for: cell)
                             case .deferred:
-                                displayValue = cheapStringValue(for: cell) ?? formatterContext.stringValue(for: cell)
+                                displayValue = formatterContext.stringValue(for: cell)
                             }
                         } else {
                             displayValue = cheapStringValue(for: cell) ?? formatterContext.stringValue(for: cell)
                         }
-                        rowValues.append(displayValue)
+                        formattedRow.append(displayValue)
                     }
-                    let decodeDuration = CFAbsoluteTimeGetCurrent() - conversionStart
-                    fetchDecodeDuration += decodeDuration
+
+                    if shouldFormatRow {
+                        let decodeDuration = CFAbsoluteTimeGetCurrent() - conversionStart
+                        fetchDecodeDuration += decodeDuration
+                    }
 
                     totalRowCount += 1
                     batchCount += 1
-                    batchRows.append(rowValues)
+                    rawPayloadRows.append(ResultRowPayload(cells: payloadCells))
 
-                    let encodedRow = ResultBinaryRowCodec.encode(row: rowValues)
-                    encodedRows.append(encodedRow)
-
-                    if previewRows.count < streamingPreviewLimit {
-                        previewRows.append(rowValues)
+                    if shouldFormatRow {
+                        batchRows.append(formattedRow)
+                        let encodedRow = ResultBinaryRowCodec.encode(row: formattedRow)
+                        encodedRows.append(encodedRow)
+                        if previewRows.count < streamingPreviewLimit {
+                            previewRows.append(formattedRow)
+                        }
                     }
 
                     if !firstRowLogged {
@@ -376,6 +429,7 @@ final class PostgresSession: DatabaseSession {
                     columns: columns,
                     appendedRows: batchRows,
                     encodedRows: encodedRows,
+                    rawRows: rawPayloadRows,
                     totalRowCount: totalRowCount,
                     metrics: metrics,
                     rowRange: rowRange
@@ -1121,7 +1175,7 @@ final class PostgresSession: DatabaseSession {
     }
 }
 
-private struct CellFormatterContext {
+struct CellFormatterContext {
     private static let postgresEpoch: Date = {
         var components = DateComponents()
         components.calendar = Calendar(identifier: .gregorian)

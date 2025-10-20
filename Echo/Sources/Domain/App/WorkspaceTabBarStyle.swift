@@ -27,7 +27,7 @@ enum WorkspaceTabBarStyle: String, Codable, CaseIterable, Hashable {
         case .floating:
             return Int.max
         case .toolbarCompact:
-            return 8
+            return Int.max
         }
     }
 }

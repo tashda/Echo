@@ -685,34 +685,6 @@ struct TableStructureEditorView: View {
         selectionAnchor = columnID
     }
 
-    @ViewBuilder
-    private func columnContextMenu(for column: TableStructureEditorViewModel.ColumnModel) -> some View {
-        let targets = contextMenuTargets(for: column)
-        if let first = targets.first, targets.count == 1 {
-            Button("Edit Column") { presentColumnEditor(for: first) }
-        }
-        if targets.count > 1 {
-            Menu("Edit Columns") {
-                Button("Edit Data Type") { presentBulkEditor(mode: .dataType, columns: targets) }
-                Button("Edit Default Value") { presentBulkEditor(mode: .defaultValue, columns: targets) }
-                Button("Edit Generated Expression") { presentBulkEditor(mode: .generatedExpression, columns: targets) }
-            }
-        }
-        if !targets.isEmpty {
-            let title = targets.count == 1 ? "Remove Column" : "Remove Columns"
-            Button(title, role: .destructive) { removeColumns(targets) }
-        }
-    }
-
-    private func contextMenuTargets(for column: TableStructureEditorViewModel.ColumnModel) -> [TableStructureEditorViewModel.ColumnModel] {
-        if selectedColumnIDs.contains(column.id) {
-            let selected = selectedColumnIDs
-            return visibleColumns.filter { selected.contains($0.id) }
-        } else {
-            return [column]
-        }
-    }
-
     private func indexOfVisibleColumn(_ id: UUID) -> Int? {
         visibleColumns.firstIndex { $0.id == id }
     }

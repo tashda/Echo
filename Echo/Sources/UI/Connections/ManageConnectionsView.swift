@@ -105,19 +105,14 @@ struct ManageConnectionsView: View {
         NavigationSplitView {
             sidebar
                 .frame(minWidth: 220, idealWidth: 260, maxWidth: 300)
+#if os(macOS)
+                .toolbar(removing: .sidebarToggle)
+#endif
         } detail: {
             detailContent
         }
 #if os(macOS)
-        .toolbar(.hidden, for: .windowToolbar)
-        .toolbar(removing: .sidebarToggle)
-        .toolbarRole(.editor)
-        .toolbar {
-            ToolbarItem(placement: .navigation) {
-                EmptyView()
-            }
-        }
-        .ignoresSafeArea(edges: .top)
+        .navigationSplitViewStyle(.balanced)
 #endif
     }
 }
@@ -127,25 +122,23 @@ struct ManageConnectionsView: View {
 private extension ManageConnectionsView {
     var detailContent: some View {
         detailBody
-            .padding(.top, headerOverlayHeight)
             .background(themeManager.surfaceBackgroundColor)
             .accentColor(themeManager.accentColor)
-            .ignoresSafeArea(edges: .top)
-#if os(macOS)
-            .toolbar(removing: .sidebarToggle)
+            .searchable(
+                text: $searchText,
+                placement: .toolbar,
+                prompt: Text(activeSection.searchPlaceholder)
+            )
             .toolbar {
-                ToolbarItem(placement: .navigation) {
-                    EmptyView()
+                ToolbarItem(placement: .principal) {
+                    ManageConnectionsToolbarTitle(
+                        title: navigationTitleText,
+                        subtitle: navigationSubtitleText
+                    )
                 }
-            }
-#endif
-            .overlay(alignment: .top) {
-                VStack(spacing: 0) {
-                    detailHeader
-                    Divider()
+                ToolbarItem(placement: .primaryAction) {
+                    addToolbarMenu
                 }
-                .background(themeManager.surfaceBackgroundColor)
-                .ignoresSafeArea(edges: .top)
             }
     }
 
@@ -164,67 +157,8 @@ private extension ManageConnectionsView {
         return ""
     }
 
-    private var detailHeader: some View {
-        HStack(alignment: .bottom, spacing: 16) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(navigationTitleText)
-                    .font(.system(size: titleFontSize, weight: .semibold))
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-                if navigationSubtitleText.isEmpty {
-                    Text("placeholder")
-                        .font(.system(size: 12))
-                        .foregroundStyle(.clear)
-                        .accessibilityHidden(true)
-                        .lineLimit(1)
-                } else {
-                    Text(navigationSubtitleText)
-                        .font(.system(size: 12))
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                        .truncationMode(.tail)
-                }
-            }
-            .frame(maxHeight: .infinity, alignment: .bottom)
-
-            Spacer(minLength: 12)
-
-            HStack(spacing: 10) {
-                addMenuToolbarItem
-                detailSearchField
-            }
-            .frame(height: controlAreaHeight, alignment: .bottom)
-        }
-        .frame(height: headerCoreHeight, alignment: .bottom)
-        .padding(.horizontal, headerHorizontalPadding)
-        .padding(.top, headerTopPadding)
-        .padding(.bottom, headerBottomPadding)
-    }
-
     @ViewBuilder
-    private var detailSearchField: some View {
-#if os(macOS)
-        ManageConnectionsSearchField(text: $searchText, placeholder: activeSection.searchPlaceholder)
-            .frame(width: searchFieldWidth, height: searchFieldHeight)
-#else
-        TextField(activeSection.searchPlaceholder, text: $searchText, prompt: Text(activeSection.searchPlaceholder))
-            .textFieldStyle(.roundedBorder)
-            .frame(maxWidth: 280)
-#endif
-    }
-
-    private var headerCoreHeight: CGFloat { 44 }
-    private var headerTopPadding: CGFloat { 16 }
-    private var headerBottomPadding: CGFloat { 14 }
-    private var headerHorizontalPadding: CGFloat { 24 }
-    private var controlAreaHeight: CGFloat { 32 }
-    private var searchFieldWidth: CGFloat { 260 }
-    private var searchFieldHeight: CGFloat { 30 }
-    private var titleFontSize: CGFloat { 24 }
-    private var headerOverlayHeight: CGFloat { headerTopPadding + headerCoreHeight + headerBottomPadding + 1 }
-
-    @ViewBuilder
-    private var addMenuToolbarItem: some View {
+    private var addToolbarMenu: some View {
         Menu {
             switch activeSection {
             case .connections:
@@ -251,15 +185,12 @@ private extension ManageConnectionsView {
                 }
             }
         } label: {
-            addButtonLabel
+            ToolbarAddButton(themeManager: themeManager)
         }
         .menuIndicator(.hidden)
         .menuStyle(.borderlessButton)
+        .controlSize(.large)
         .help(activeSection == .connections ? "Add connection or folder" : "Add identity or folder")
-    }
-
-    private var addButtonLabel: some View {
-        RoundAddButtonLabel(themeManager: themeManager)
     }
 
     @ViewBuilder
@@ -1619,126 +1550,74 @@ private struct ChangeHandlers: ViewModifier {
     }
 }
 
-#if os(macOS)
-private struct ManageConnectionsSearchField: NSViewRepresentable {
-    @Binding var text: String
-    let placeholder: String
+private struct ManageConnectionsToolbarTitle: View {
+    let title: String
+    let subtitle: String
 
-    func makeCoordinator() -> Coordinator {
-        Coordinator(text: $text)
-    }
-
-    func makeNSView(context: Context) -> NSSearchField {
-        let searchField = NSSearchField()
-        searchField.placeholderString = placeholder
-        searchField.stringValue = text
-        searchField.delegate = context.coordinator
-        searchField.sendsSearchStringImmediately = true
-        searchField.sendsWholeSearchString = true
-        searchField.controlSize = .large
-        searchField.font = NSFont.systemFont(ofSize: 14)
-        searchField.focusRingType = .none
-        searchField.isBordered = true
-        searchField.isBezeled = true
-        searchField.drawsBackground = true
-        searchField.bezelStyle = .roundedBezel
-        if let cell = searchField.cell as? NSSearchFieldCell {
-            cell.controlSize = .large
-            cell.placeholderAttributedString = NSAttributedString(
-                string: placeholder,
-                attributes: [
-                    .foregroundColor: NSColor.placeholderTextColor.withAlphaComponent(0.9),
-                    .font: NSFont.systemFont(ofSize: 13)
-                ]
-            )
-        }
-        searchField.translatesAutoresizingMaskIntoConstraints = false
-        return searchField
-    }
-
-    func updateNSView(_ nsView: NSSearchField, context: Context) {
-        if nsView.placeholderString != placeholder {
-            nsView.placeholderString = placeholder
-        }
-        if nsView.stringValue != text {
-            nsView.stringValue = text
-        }
-    }
-
-    final class Coordinator: NSObject, NSSearchFieldDelegate {
-        @Binding var text: String
-
-        init(text: Binding<String>) {
-            _text = text
-        }
-
-        func controlTextDidChange(_ obj: Notification) {
-            guard let searchField = obj.object as? NSSearchField else { return }
-            if text != searchField.stringValue {
-                text = searchField.stringValue
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(title)
+                .font(.system(size: 20, weight: .semibold))
+            if subtitle.isEmpty {
+                Text(" ")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.clear)
+                    .accessibilityHidden(true)
+            } else {
+                Text(subtitle)
+                    .font(.system(size: 12))
+                    .italic()
+                    .foregroundStyle(.secondary)
             }
         }
     }
 }
 
-private struct RoundAddButtonLabel: View {
+private struct ToolbarAddButton: View {
     @ObservedObject var themeManager: ThemeManager
     @State private var isHovered = false
 
     var body: some View {
         let isDark = themeManager.effectiveColorScheme == .dark
-        let baseFillTop = isDark ? Color.white.opacity(0.22) : Color.white
-        let baseFillBottom = isDark ? Color.white.opacity(0.16) : Color.white.opacity(0.86)
-        let hoverFillTop = isDark ? Color.white.opacity(0.28) : Color.white
-        let hoverFillBottom = isDark ? Color.white.opacity(0.22) : Color.white.opacity(0.94)
-        let fillGradient = LinearGradient(
-            colors: isHovered ? [hoverFillTop, hoverFillBottom] : [baseFillTop, baseFillBottom],
+
+        let baseTop = isDark ? Color.white.opacity(0.22) : Color.white
+        let baseBottom = isDark ? Color.white.opacity(0.16) : Color.white.opacity(0.88)
+        let hoverTop = isDark ? Color.white.opacity(0.28) : Color.white
+        let hoverBottom = isDark ? Color.white.opacity(0.22) : Color.white.opacity(0.96)
+        let gradient = LinearGradient(
+            colors: isHovered ? [hoverTop, hoverBottom] : [baseTop, baseBottom],
             startPoint: .top,
             endPoint: .bottom
         )
-        let baseStroke = isDark ? Color.white.opacity(0.3) : Color.black.opacity(0.14)
-        let hoverStroke = isDark ? Color.white.opacity(0.42) : Color.black.opacity(0.22)
-        let stroke = isHovered ? hoverStroke : baseStroke
-        let highlight = isDark ? Color.white.opacity(0.18) : Color.white.opacity(0.7)
-        let iconColor = Color(nsColor: isDark ? .secondaryLabelColor : .secondaryLabelColor)
-        let innerFill = isDark ? Color.white.opacity(0.16) : Color.white.opacity(0.96)
-        let innerStroke = isDark ? Color.white.opacity(0.26) : Color.black.opacity(0.08)
-        let innerShadow = Color.black.opacity(isDark ? 0.45 : 0.18)
 
-        return Capsule(style: .continuous)
-            .fill(fillGradient)
+        let border = isDark ? Color.white.opacity(0.35) : Color.black.opacity(0.12)
+        let hoverBorder = isDark ? Color.white.opacity(0.48) : Color.black.opacity(0.18)
+        let highlight = isDark ? Color.white.opacity(0.24) : Color.white.opacity(0.7)
+        let iconColor = Color(nsColor: isDark ? .secondaryLabelColor : .secondaryLabelColor)
+
+        return Circle()
+            .fill(gradient)
             .overlay(
-                Capsule(style: .continuous)
-                    .strokeBorder(stroke, lineWidth: 1)
+                Circle()
+                    .strokeBorder(isHovered ? hoverBorder : border, lineWidth: 1)
                     .overlay(
-                        Capsule(style: .continuous)
+                        Circle()
                             .strokeBorder(highlight, lineWidth: 0.5)
                             .blendMode(.plusLighter)
                     )
             )
             .overlay(
-                Circle()
-                    .fill(innerFill)
-                    .overlay(
-                        Circle()
-                            .strokeBorder(innerStroke, lineWidth: 0.5)
-                            .blendMode(.overlay)
-                    )
-                    .shadow(color: innerShadow, radius: isHovered ? 1.5 : 1, y: isDark ? 0.8 : 0.4)
-                    .frame(width: 22, height: 22)
-            )
-            .overlay(
                 Image(systemName: "plus")
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(iconColor)
             )
-            .frame(width: 40, height: 28)
-            .contentShape(Capsule(style: .continuous))
+            .frame(width: 30, height: 30)
+            .contentShape(Circle())
             .onHover { isHovered = $0 }
-            .shadow(color: Color.black.opacity(isDark ? 0.28 : 0.1), radius: isHovered ? 1.5 : 1, y: 0.6)
+            .shadow(color: Color.black.opacity(isDark ? 0.32 : 0.12), radius: isHovered ? 1.6 : 1, y: 0.6)
     }
 }
-#endif
+
 // MARK: - Double-Click Support
 
 #if os(macOS)
