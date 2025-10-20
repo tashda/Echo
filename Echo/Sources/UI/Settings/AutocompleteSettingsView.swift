@@ -1,6 +1,6 @@
 import SwiftUI
 
-struct AutocompleteSettingsView: View {
+struct EchoSenseSettingsView: View {
     @EnvironmentObject private var appModel: AppModel
     @EnvironmentObject private var appState: AppState
     @EnvironmentObject private var themeManager: ThemeManager
@@ -133,7 +133,7 @@ struct AutocompleteSettingsView: View {
             triggerText = head + " or " + triggers.last!
         }
 
-        let suffix = appState.sqlEditorDisplay.autoCompletionEnabled ? "" : " Autocomplete stays off until you manually request it."
+        let suffix = appState.sqlEditorDisplay.autoCompletionEnabled ? "" : " EchoSense stays off until you manually request it."
         return "Dismiss the popover to suspend automatic suggestions temporarily. Use \(triggerText) to bring them back instantly.\(suffix)"
     }
 
@@ -205,7 +205,7 @@ struct AutocompleteSettingsView: View {
 
                 ToggleRow(
                     title: "Enable Command + Period",
-                    subtitle: "Keep ⌘ + . available after dismissing the autocomplete popover.",
+                    subtitle: "Keep ⌘ + . available after dismissing the EchoSense popover.",
                     isOn: commandTriggerBinding,
                     infoAction: { showInfo(.commandTrigger) }
                 )
@@ -271,7 +271,7 @@ private enum InfoTopic: String, Identifiable, CaseIterable {
     var message: String {
         switch self {
         case .keywords:
-            return "When enabled, the autocomplete popover lists SQL keywords that match the current clause. Turning this off hides keyword entries, but it will not remove snippets or objects that explicitly match what you type."
+            return "When enabled, the EchoSense popover lists SQL keywords that match the current clause. Turning this off hides keyword entries, but it will not remove snippets or objects that explicitly match what you type."
         case .inlineKeywords:
             return "Shows the remainder of the next SQL keyword as faint inline text (for example FROM after SELECT *). Disabling this keeps keyword rows in the popover intact but removes the ghosted preview inside the editor."
         case .functions:
@@ -287,11 +287,11 @@ private enum InfoTopic: String, Identifiable, CaseIterable {
         case .aggressiveness:
             return "Focused shows only clause-relevant entries, Balanced keeps a mix with light fallbacks, and Eager keeps the full list. Switch modes depending on whether you prefer concise or generous suggestions."
         case .systemSchemas:
-            return "System schemas such as pg_catalog or information_schema contain internal objects. Enable this when you want to browse them in autocomplete; otherwise they stay hidden to reduce noise."
+            return "System schemas such as pg_catalog or information_schema contain internal objects. Enable this when you want to browse them in EchoSense; otherwise they stay hidden to reduce noise."
         case .commandTrigger:
-            return "Keeps the ⌘ + . shortcut available as a manual autocomplete trigger even after you dismiss the popover. Turn it off if you rely on ⌘ + . for another workflow."
+            return "Keeps the ⌘ + . shortcut available as a manual EchoSense trigger even after you dismiss the popover. Turn it off if you rely on ⌘ + . for another workflow."
         case .controlTrigger:
-            return "Keeps Ctrl + Space available as an alternative manual trigger for autocomplete, mirroring common editor behaviour. Disable it if Ctrl + Space is bound to another action on your system."
+            return "Keeps Ctrl + Space available as an alternative manual trigger for EchoSense, mirroring common editor behaviour. Disable it if Ctrl + Space is bound to another action on your system."
         }
     }
 }

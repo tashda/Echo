@@ -66,11 +66,9 @@ final class ManageConnectionsWindowController: NSWindowController, NSWindowDeleg
         window.isReleasedWhenClosed = false
         window.titlebarAppearsTransparent = true
         window.titleVisibility = .hidden
-        window.toolbarStyle = .unified
         let toolbar = NSToolbar(identifier: Self.toolbarIdentifier)
         toolbar.allowsUserCustomization = false
         toolbar.autosavesConfiguration = false
-        toolbar.displayMode = .iconOnly
         if #available(macOS 15, *) {
             // showsBaselineSeparator removed on macOS 15
         } else {
@@ -122,9 +120,6 @@ final class ManageConnectionsWindowController: NSWindowController, NSWindowDeleg
         let tone = manager.activePaletteTone
         window.appearance = NSAppearance(named: tone == .dark ? .darkAqua : .aqua)
         window.backgroundColor = manager.windowBackgroundNSColor
-        if #unavailable(macOS 15) {
-            window.toolbar?.showsBaselineSeparator = false
-        }
     }
 }
 

@@ -530,7 +530,9 @@ private struct StreamingPresetPickerControl: View {
 
                 TextField("Value", text: $text)
                     .textFieldStyle(.roundedBorder)
+#if os(iOS)
                     .keyboardType(.numberPad)
+#endif
                     .focused($fieldFocused)
 
                 Text("Allowed range: \(rangeDescription)")

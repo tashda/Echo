@@ -171,7 +171,7 @@ struct ApplicationCacheSettingsView: View {
     }
 
     private var autocompleteHistorySection: some View {
-        Section("Autocomplete History") {
+        Section("EchoSense History") {
             HStack {
                 Text("Stored suggestions")
                 Spacer()
@@ -188,12 +188,12 @@ struct ApplicationCacheSettingsView: View {
                 }
             }
 
-            Text("Echo remembers the autocomplete suggestions you accept so the most relevant tables, columns, joins, and snippets appear first. History is stored locally on this Mac.")
+            Text("Echo remembers the EchoSense suggestions you accept so the most relevant tables, columns, joins, and snippets appear first. History is stored locally on this Mac.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
 
             HStack(spacing: 12) {
-                Button("Clear Autocomplete History", role: .destructive) {
+                Button("Clear EchoSense History", role: .destructive) {
                     clearAutocompleteHistory()
                 }
                 .buttonStyle(.bordered)
