@@ -195,6 +195,44 @@ final class ResultSpoolRowCache: @unchecked Sendable {
         lock.unlock()
     }
 
+    func contiguousMaterializedCount() -> Int {
+        lock.lock()
+        defer { lock.unlock() }
+
+        guard !pages.isEmpty else { return 0 }
+
+        let sortedPageIndices = pages.keys.sorted()
+        var expected = 0
+
+        for pageIndex in sortedPageIndices {
+            guard let page = pages[pageIndex] else { continue }
+
+            let pageStart = pageIndex * pageSize
+            if pageStart > expected {
+                break
+            }
+
+            let limit = page.terminalCount ?? page.rows.count
+            guard limit > 0 else { continue }
+
+            var local = max(expected - pageStart, 0)
+            if local >= limit {
+                continue
+            }
+
+            while local < limit {
+                if page.rows[local] == nil {
+                    return pageStart + local
+                }
+                local += 1
+            }
+
+            expected = max(expected, pageStart + limit)
+        }
+
+        return expected
+    }
+
     private func touchPageLocked(_ index: Int) {
         if let existing = lru.firstIndex(of: index) {
             lru.remove(at: existing)

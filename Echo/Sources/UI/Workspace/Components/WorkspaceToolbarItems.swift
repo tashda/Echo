@@ -41,10 +41,6 @@ struct WorkspaceToolbarItems: ToolbarContent {
             projectMenu
         }
 
-        ToolbarItem(placement: .principal) {
-            ToolbarPrincipalSpacer()
-        }
-
         ToolbarItem(id: "workspace.primary.refresh", placement: .primaryAction) {
             refreshButton
         }
@@ -1137,7 +1133,11 @@ struct WorkspaceToolbarTabBar: View {
 
     @EnvironmentObject private var appModel: AppModel
     @EnvironmentObject private var themeManager: ThemeManager
+    @EnvironmentObject private var appState: AppState
     @Environment(\.colorScheme) private var colorScheme
+    @State private var dragState = ToolbarTabDragState()
+
+    private let tabReorderAnimation = Animation.interactiveSpring(response: 0.72, dampingFraction: 0.86, blendDuration: 0.30)
 
     private let tabSpacing: CGFloat = 6
     private let chipHeight: CGFloat = WorkspaceChromeMetrics.toolbarTabBarHeight
@@ -1147,86 +1147,93 @@ struct WorkspaceToolbarTabBar: View {
     private let pinnedComfortableMinWidth: CGFloat = 56
     private let pinnedAbsoluteMinWidth: CGFloat = 44
     private let pinnedMaxWidth: CGFloat = 96
-    private let overflowThreshold: Int = 10
     private let overflowButtonWidth: CGFloat = 28
     private let overflowSpacing: CGFloat = 8
 
     var body: some View {
         GeometryReader { proxy in
-            let fullWidth = max(proxy.size.width, 1)
-            let reserved = shouldShowOverflow ? (overflowButtonWidth + overflowSpacing) : 0
-            let rawScrollerWidth = max(fullWidth - reserved, 0)
-            let scrollerWidth = max(rawScrollerWidth, min(fullWidth, comfortableMinTabWidth))
+            let layout = toolbarLayout(for: max(proxy.size.width, 1))
 
             HStack(spacing: overflowSpacing) {
-                tabScroller(availableWidth: scrollerWidth)
-                    .frame(width: scrollerWidth, height: chipHeight, alignment: .leading)
+                tabScroller(availableWidth: layout.scrollerWidth, tabs: layout.visibleTabs)
+                    .frame(width: layout.scrollerWidth, height: chipHeight, alignment: .leading)
 
-                if shouldShowOverflow {
-                    overflowMenu
+                if layout.shouldShowOverflow {
+                    overflowControl
                         .frame(width: overflowButtonWidth, height: chipHeight)
                 }
             }
-            .frame(width: fullWidth, height: chipHeight, alignment: .leading)
+            .frame(width: layout.fullWidth, height: chipHeight, alignment: .leading)
         }
         .frame(height: chipHeight)
     }
 
-    private func tabScroller(availableWidth: CGFloat) -> some View {
-        let tabs = visibleTabs
+    private func tabScroller(availableWidth: CGFloat, tabs: [WorkspaceTab]) -> some View {
         guard !tabs.isEmpty else { return AnyView(EmptyView()) }
 
-        let baseWidth = computedTabWidth(
-            availableWidth: availableWidth,
-            visibleCount: tabs.count
-        )
+        let visibleRange = visibleIndexRange(for: tabs)
+        let tabWidths = resolvedTabWidths(for: tabs, availableWidth: availableWidth)
 
         return AnyView(
             ScrollViewReader { proxy in
                 ScrollView(.horizontal, showsIndicators: false) {
                     LazyHStack(spacing: tabSpacing) {
                         ForEach(Array(tabs.enumerated()), id: \.element.id) { index, tab in
-                        let totalCount = appModel.tabManager.tabs.count
-                        let tabIndex = appModel.tabManager.index(of: tab.id) ?? index
-                        let hasLeft = tabIndex > 0
-                        let hasRight = tabIndex < totalCount - 1
-                        ToolbarWorkspaceTabChip(
-                            tab: tab,
-                            isActive: appModel.tabManager.activeTabId == tab.id,
-                            accent: themeManager.accentColor,
-                            height: chipHeight,
-                            onSelect: { appModel.tabManager.activeTabId = tab.id },
-                            onClose: { appModel.tabManager.closeTab(id: tab.id) },
-                            onAddBookmark: tab.query == nil ? nil : { bookmark(tab: tab) },
-                            onPinToggle: { appModel.tabManager.togglePin(for: tab.id) },
-                            onDuplicate: { appModel.duplicateTab(tab) },
-                            onCloseOthers: { appModel.tabManager.closeOtherTabs(keeping: tab.id) },
-                            onCloseLeft: { appModel.tabManager.closeTabsLeft(of: tab.id) },
-                            onCloseRight: { appModel.tabManager.closeTabsRight(of: tab.id) },
-                            canDuplicate: tab.kind == .query,
-                            closeOthersDisabled: totalCount <= 1,
-                            closeTabsLeftDisabled: !hasLeft,
-                            closeTabsRightDisabled: !hasRight
-                        )
-                        .frame(
-                            width: chipWidth(for: tab, baseWidth: baseWidth),
-                            height: chipHeight
-                        )
-                        .id(tab.id)
+                            let totalCount = appModel.tabManager.tabs.count
+                            let actualIndex = appModel.tabManager.index(of: tab.id) ?? index
+                            let hasLeft = actualIndex > 0
+                            let hasRight = actualIndex < totalCount - 1
+                            let width = tabWidths[tab.id] ?? comfortableMinTabWidth
+
+                            ToolbarWorkspaceTabChip(
+                                tab: tab,
+                                isActive: appModel.tabManager.activeTabId == tab.id,
+                                accent: themeManager.accentColor,
+                                height: chipHeight,
+                                onSelect: { appModel.tabManager.activeTabId = tab.id },
+                                onClose: { appModel.tabManager.closeTab(id: tab.id) },
+                                onAddBookmark: tab.query == nil ? nil : { bookmark(tab: tab) },
+                                onPinToggle: { appModel.tabManager.togglePin(for: tab.id) },
+                                onDuplicate: { appModel.duplicateTab(tab) },
+                                onCloseOthers: { appModel.tabManager.closeOtherTabs(keeping: tab.id) },
+                                onCloseLeft: { appModel.tabManager.closeTabsLeft(of: tab.id) },
+                                onCloseRight: { appModel.tabManager.closeTabsRight(of: tab.id) },
+                                canDuplicate: tab.kind == .query,
+                                closeOthersDisabled: totalCount <= 1,
+                                closeTabsLeftDisabled: !hasLeft,
+                                closeTabsRightDisabled: !hasRight
+                            )
+                            .frame(width: width, height: chipHeight)
+                            .offset(x: tabOffset(for: tab))
+                            .zIndex(dragZIndex(for: tab))
+                            .opacity(dragState.id == tab.id ? 0.96 : 1)
+                            .highPriorityGesture(
+                                dragGesture(
+                                    for: tab,
+                                    width: width,
+                                    actualIndex: actualIndex,
+                                    totalCount: totalCount,
+                                    visibleRange: visibleRange
+                                )
+                            )
+                            .id(tab.id)
+                        }
+                    }
+                    .padding(.vertical, 0)
+                }
+#if os(macOS)
+                .modifier(ToolbarTabBarScrollStyle())
+#endif
+                .frame(height: chipHeight)
+                .contentShape(Rectangle())
+                .onChange(of: appModel.tabManager.activeTabId) { _, newValue in
+                    guard let target = newValue else { return }
+                    withAnimation(.easeInOut(duration: 0.22)) {
+                        proxy.scrollTo(target, anchor: .center)
                     }
                 }
-                .padding(.vertical, 0)
             }
-            .frame(height: chipHeight)
-            .contentShape(Rectangle())
-            .onChange(of: appModel.tabManager.activeTabId) { _, newValue in
-                guard let target = newValue else { return }
-                withAnimation(.easeInOut(duration: 0.22)) {
-                    proxy.scrollTo(target, anchor: .center)
-                }
-            }
-        }
-        .animation(.easeInOut(duration: 0.18), value: tabs.map(\.id))
+            .animation(.easeInOut(duration: 0.18), value: tabs.map(\.id))
         )
     }
 
@@ -1237,16 +1244,60 @@ struct WorkspaceToolbarTabBar: View {
         return pinned + regular
     }
 
-    private var visibleTabs: [WorkspaceTab] {
-        let tabs = orderedTabs
-        guard !tabs.isEmpty else { return [] }
+    private struct ToolbarLayout {
+        let fullWidth: CGFloat
+        let scrollerWidth: CGFloat
+        let visibleTabs: [WorkspaceTab]
+        let shouldShowOverflow: Bool
+    }
 
-        if tabs.count < overflowThreshold {
-            return tabs
+    private func toolbarLayout(for fullWidth: CGFloat) -> ToolbarLayout {
+        let tabs = orderedTabs
+        guard !tabs.isEmpty else {
+            return ToolbarLayout(
+                fullWidth: fullWidth,
+                scrollerWidth: max(fullWidth, comfortableMinTabWidth),
+                visibleTabs: [],
+                shouldShowOverflow: false
+            )
         }
 
-        let limit = min(maxVisibleTabs, tabs.count)
-        var selection = Array(tabs.prefix(limit))
+        let totalCount = tabs.count
+
+        func capacity(for width: CGFloat) -> Int {
+            guard width > 0 else { return 1 }
+            let spacing = tabSpacing
+            let comfortableSlots = Int(floor((width + spacing) / (comfortableMinTabWidth + spacing)))
+            let absoluteSlots = Int(floor((width + spacing) / (absoluteMinTabWidth + spacing)))
+            let candidate = max(comfortableSlots, min(absoluteSlots, maxVisibleTabs))
+            return max(1, min(maxVisibleTabs, candidate))
+        }
+
+        var reserved: CGFloat = 0
+        var scrollerWidth = max(fullWidth - reserved, comfortableMinTabWidth)
+        var slotLimit = capacity(for: scrollerWidth)
+        var showOverflow = totalCount > slotLimit
+
+        if showOverflow {
+            reserved = overflowButtonWidth + overflowSpacing
+            scrollerWidth = max(fullWidth - reserved, comfortableMinTabWidth)
+            slotLimit = capacity(for: scrollerWidth)
+            showOverflow = totalCount > slotLimit
+        }
+
+        let visible = selectVisibleTabs(from: tabs, capacity: slotLimit)
+
+        return ToolbarLayout(
+            fullWidth: fullWidth,
+            scrollerWidth: max(scrollerWidth, comfortableMinTabWidth),
+            visibleTabs: visible,
+            shouldShowOverflow: showOverflow
+        )
+    }
+
+    private func selectVisibleTabs(from tabs: [WorkspaceTab], capacity: Int) -> [WorkspaceTab] {
+        guard capacity < tabs.count else { return tabs }
+        var selection = Array(tabs.prefix(capacity))
         if let activeID = appModel.tabManager.activeTabId,
            let activeIndex = tabs.firstIndex(where: { $0.id == activeID }),
            !selection.contains(where: { $0.id == activeID }) {
@@ -1254,10 +1305,6 @@ struct WorkspaceToolbarTabBar: View {
             selection.append(tabs[activeIndex])
         }
         return selection
-    }
-
-    private var shouldShowOverflow: Bool {
-        orderedTabs.count >= overflowThreshold
     }
 
     private func computedTabWidth(availableWidth: CGFloat, visibleCount: Int) -> CGFloat {
@@ -1293,20 +1340,202 @@ struct WorkspaceToolbarTabBar: View {
         return max(pinnedLowerBound, capped)
     }
 
-    private var overflowMenu: some View {
-        Menu {
-            ForEach(orderedTabs) { tab in
-                Button {
-                    appModel.tabManager.activeTabId = tab.id
-                } label: {
-                    HStack {
-                        Text(displayTitle(for: tab))
-                        if appModel.tabManager.activeTabId == tab.id {
-                            Spacer()
-                            Image(systemName: "checkmark")
-                        }
+    private func tabOffset(for tab: WorkspaceTab) -> CGFloat {
+        guard dragState.isActive, let draggingId = dragState.id else { return 0 }
+        if draggingId == tab.id {
+            return dragState.translation
+        }
+        guard dragState.draggingWidth > 0,
+              let tabIndex = appModel.tabManager.index(of: tab.id) else { return 0 }
+
+        if dragState.currentIndex > dragState.originalIndex {
+            if tabIndex > dragState.originalIndex && tabIndex <= dragState.currentIndex {
+                return -dragState.draggingWidth
+            }
+        } else if dragState.currentIndex < dragState.originalIndex {
+            if tabIndex >= dragState.currentIndex && tabIndex < dragState.originalIndex {
+                return dragState.draggingWidth
+            }
+        }
+
+        return 0
+    }
+
+    private func dragZIndex(for tab: WorkspaceTab) -> Double {
+        dragState.id == tab.id ? 1 : 0
+    }
+
+    private func dragGesture(
+        for tab: WorkspaceTab,
+        width: CGFloat,
+        actualIndex: Int,
+        totalCount: Int,
+        visibleRange: ClosedRange<Int>
+    ) -> some Gesture {
+        DragGesture(minimumDistance: 4, coordinateSpace: .local)
+            .onChanged { value in
+                guard width > 0 else { return }
+
+                if !dragState.isActive {
+                    let bounds = tabBounds(for: tab, totalCount: totalCount)
+                    let limitedMin = min(max(bounds.min, visibleRange.lowerBound), visibleRange.upperBound)
+                    let limitedMax = max(min(bounds.max, visibleRange.upperBound), visibleRange.lowerBound)
+                    dragState.begin(
+                        id: tab.id,
+                        originalIndex: actualIndex,
+                        minIndex: limitedMin,
+                        maxIndex: limitedMax,
+                        width: width
+                    )
+                }
+
+                guard dragState.id == tab.id else { return }
+
+                let rawTranslation = value.translation.width
+                let clampedTranslation = clampTranslation(
+                    rawTranslation,
+                    state: dragState,
+                    tabWidth: width
+                )
+
+                let moveThreshold = width * 0.5
+                var proposedIndex = dragState.originalIndex
+                var remainder = clampedTranslation
+
+                while remainder > moveThreshold && proposedIndex < dragState.maxIndex {
+                    remainder -= width
+                    proposedIndex += 1
+                }
+
+                while remainder < -moveThreshold && proposedIndex > dragState.minIndex {
+                    remainder += width
+                    proposedIndex -= 1
+                }
+
+                if proposedIndex != dragState.currentIndex {
+                    withAnimation(tabReorderAnimation) {
+                        dragState.currentIndex = proposedIndex
                     }
                 }
+
+                dragState.translation = clampedTranslation
+            }
+            .onEnded { _ in
+                guard dragState.isActive, dragState.id == tab.id else { return }
+                let finalIndex = dragState.currentIndex
+                let shouldMove = finalIndex != dragState.originalIndex
+
+                if shouldMove {
+                    withAnimation(tabReorderAnimation) {
+                        appModel.tabManager.moveTab(id: tab.id, to: finalIndex)
+                    }
+                }
+
+                withAnimation(tabReorderAnimation) {
+                    dragState.reset()
+                }
+            }
+    }
+
+    private func clampTranslation(
+        _ translation: CGFloat,
+        state: ToolbarTabDragState,
+        tabWidth: CGFloat
+    ) -> CGFloat {
+        let maxRight = CGFloat(state.maxIndex - state.originalIndex) * tabWidth
+        let maxLeft = CGFloat(state.originalIndex - state.minIndex) * tabWidth
+        return min(max(translation, -maxLeft), maxRight)
+    }
+
+    private func tabBounds(for tab: WorkspaceTab, totalCount: Int) -> (min: Int, max: Int) {
+        let pinnedCount = appModel.tabManager.tabs.filter { $0.isPinned }.count
+        if tab.isPinned {
+            return (0, max(pinnedCount - 1, 0))
+        } else {
+            return (pinnedCount, max(totalCount - 1, pinnedCount))
+        }
+    }
+
+    private func visibleIndexRange(for tabs: [WorkspaceTab]) -> ClosedRange<Int> {
+        let indices = tabs.compactMap { appModel.tabManager.index(of: $0.id) }
+        guard let minIndex = indices.min(), let maxIndex = indices.max() else { return 0...0 }
+        return minIndex...maxIndex
+    }
+
+#if os(macOS)
+    private struct ToolbarTabBarScrollStyle: ViewModifier {
+        func body(content: Content) -> some View {
+            if #available(macOS 13.0, *) {
+                content
+                    .scrollContentBackground(.hidden)
+                    .background(ToolbarScrollViewBackgroundClearer())
+            } else {
+                content
+                    .background(ToolbarScrollViewBackgroundClearer())
+            }
+        }
+    }
+
+    private struct ToolbarScrollViewBackgroundClearer: NSViewRepresentable {
+        func makeNSView(context: Context) -> NSView {
+            let view = NSView()
+            view.translatesAutoresizingMaskIntoConstraints = false
+            view.wantsLayer = false
+            return view
+        }
+
+        func updateNSView(_ nsView: NSView, context: Context) {
+            DispatchQueue.main.async {
+                guard let scrollView = nsView.enclosingScrollView else { return }
+                scrollView.drawsBackground = false
+                scrollView.backgroundColor = .clear
+                scrollView.hasVerticalScroller = false
+                scrollView.scrollerStyle = .overlay
+                scrollView.contentInsets = NSEdgeInsets(top: 0, left: 0, bottom: 0, right: 0)
+            }
+        }
+    }
+#endif
+
+
+    private struct ToolbarTabDragState {
+        var id: UUID?
+        var originalIndex: Int = 0
+        var currentIndex: Int = 0
+        var translation: CGFloat = 0
+        var minIndex: Int = 0
+        var maxIndex: Int = 0
+        var draggingWidth: CGFloat = 0
+
+        var isActive: Bool { id != nil }
+
+        mutating func begin(
+            id: UUID,
+            originalIndex: Int,
+            minIndex: Int,
+            maxIndex: Int,
+            width: CGFloat
+        ) {
+            self.id = id
+            self.originalIndex = originalIndex
+            self.currentIndex = originalIndex
+            self.translation = 0
+            let lower = Swift.min(minIndex, maxIndex)
+            let upper = Swift.max(minIndex, maxIndex)
+            self.minIndex = Swift.min(lower, originalIndex)
+            self.maxIndex = Swift.max(upper, originalIndex)
+            self.draggingWidth = max(width, 1)
+        }
+
+        mutating func reset() {
+            self = ToolbarTabDragState()
+        }
+    }
+
+    private var overflowControl: some View {
+        Button {
+            withAnimation(.spring(response: 0.28, dampingFraction: 0.82)) {
+                appState.showTabOverview = true
             }
         } label: {
             ZStack {
@@ -1319,7 +1548,8 @@ struct WorkspaceToolbarTabBar: View {
                     .foregroundStyle(overflowForeground)
             }
         }
-        .menuStyle(.borderlessButton)
+        .buttonStyle(.plain)
+        .contentShape(Capsule(style: .continuous))
         .accessibilityLabel("All Tabs")
         .help("Show all open tabs")
     }
@@ -1340,17 +1570,6 @@ struct WorkspaceToolbarTabBar: View {
 
     private var overflowForeground: Color {
         colorScheme == .dark ? Color.white.opacity(0.9) : Color.black.opacity(0.7)
-    }
-
-    private func displayTitle(for tab: WorkspaceTab) -> String {
-        let trimmed = tab.title.trimmingCharacters(in: .whitespacesAndNewlines)
-        if tab.isPinned {
-            if let first = trimmed.first {
-                return String(first).uppercased()
-            }
-            return "•"
-        }
-        return trimmed.isEmpty ? "Untitled" : trimmed
     }
 
     private func bookmark(tab: WorkspaceTab) {
@@ -1548,16 +1767,6 @@ struct ToolbarWorkspaceTabChip: View {
     private var glassShadowYOffset: CGFloat { isActive ? 3 : 1.5 }
 }
 #endif
-
-private struct ToolbarPrincipalSpacer: View {
-    var body: some View {
-        HStack { Spacer(minLength: 0) }
-            .frame(maxWidth: .infinity)
-            .contentShape(Rectangle())
-            .allowsHitTesting(false)
-            .accessibilityHidden(true)
-    }
-}
 
 private extension StructureLoadingState {
     var isLoading: Bool {

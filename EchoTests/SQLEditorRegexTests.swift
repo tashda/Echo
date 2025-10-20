@@ -679,6 +679,63 @@ final class SQLAutoCompletionEngineTests: XCTestCase {
         XCTAssertEqual(textView.selectedRange(), NSRange(location: textView.string.count, length: 0))
     }
 
+    func testJoinKeywordSuggestionIncludesJoinSuffix() {
+        let tableReference = SQLCompletionMetadata.TableReference(schema: "public",
+                                                                  name: "fixture",
+                                                                  alias: "f")
+        let metadata = SQLCompletionMetadata(clause: .from,
+                                             currentToken: "I",
+                                             precedingKeyword: nil,
+                                             pathComponents: [],
+                                             tablesInScope: [tableReference],
+                                             focusTable: tableReference,
+                                             cteColumns: [:])
+        let text = "SELECT * FROM public.fixture f I"
+        let caretLocation = text.count
+        let focus = SQLAutoCompletionTableFocus(schema: "public", name: "fixture", alias: "f")
+        let query = SQLAutoCompletionQuery(token: "I",
+                                           prefix: "I",
+                                           pathComponents: [],
+                                           replacementRange: NSRange(location: caretLocation, length: 0),
+                                           precedingKeyword: nil,
+                                           precedingCharacter: " ",
+                                           focusTable: focus,
+                                           tablesInScope: [focus],
+                                           clause: .from)
+
+        let joinKeyword = SQLCompletionSuggestion(id: "keyword|inner join",
+                                                  title: "INNER JOIN",
+                                                  subtitle: nil,
+                                                  detail: nil,
+                                                  insertText: "INNER JOIN",
+                                                  kind: .keyword,
+                                                  priority: 900)
+        let tableSuggestion = SQLCompletionSuggestion(id: "object:table:testdb.public.customers",
+                                                      title: "customers",
+                                                      subtitle: "public",
+                                                      detail: "public.customers",
+                                                      insertText: "public.customers",
+                                                      kind: .table,
+                                                      priority: 1300)
+        stubCompletionEngine.result = SQLCompletionResult(suggestions: [joinKeyword, tableSuggestion], metadata: metadata)
+        engine.updateContext(sampleContext())
+
+        let result = engine.suggestions(for: query, text: text, caretLocation: caretLocation)
+        let keywordSuggestions = result.sections.flatMap { $0.suggestions }.filter { $0.kind == .keyword }
+        XCTAssertFalse(keywordSuggestions.isEmpty, "Expected keyword suggestions to be available")
+
+        XCTAssertTrue(keywordSuggestions.contains { suggestion in
+            suggestion.insertText.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
+                .caseInsensitiveCompare("INNER JOIN") == .orderedSame
+        },
+                      "Expected INNER JOIN keyword suggestion to be present")
+
+        if let first = keywordSuggestions.first {
+            XCTAssertEqual(first.insertText.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines), "INNER JOIN",
+                           "Expected INNER JOIN to be the leading keyword suggestion")
+        }
+    }
+
     func testHistorySelectionsAreSurfacedFirst() {
         SQLAutoCompletionHistoryStore.shared.reset()
 

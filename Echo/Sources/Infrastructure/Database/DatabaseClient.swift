@@ -521,10 +521,36 @@ public struct ResultBinaryRow: Sendable {
     }
 }
 
+public struct ResultCellPayload: Sendable {
+    public enum Format: UInt8, Sendable {
+        case text = 0
+        case binary = 1
+    }
+
+    public let dataTypeOID: UInt32
+    public let format: Format
+    public let bytes: Data?
+
+    public nonisolated init(dataTypeOID: UInt32, format: Format, bytes: Data?) {
+        self.dataTypeOID = dataTypeOID
+        self.format = format
+        self.bytes = bytes
+    }
+}
+
+public struct ResultRowPayload: Sendable {
+    public let cells: [ResultCellPayload]
+
+    public nonisolated init(cells: [ResultCellPayload]) {
+        self.cells = cells
+    }
+}
+
 public struct QueryStreamUpdate: Sendable {
     public let columns: [ColumnInfo]
     public let appendedRows: [[String?]]
     public let encodedRows: [ResultBinaryRow]
+    public let rawRows: [ResultRowPayload]
     public let totalRowCount: Int
     public let metrics: QueryStreamMetrics?
     public let rowRange: Range<Int>?
@@ -533,6 +559,7 @@ public struct QueryStreamUpdate: Sendable {
         columns: [ColumnInfo],
         appendedRows: [[String?]],
         encodedRows: [ResultBinaryRow] = [],
+        rawRows: [ResultRowPayload] = [],
         totalRowCount: Int,
         metrics: QueryStreamMetrics? = nil,
         rowRange: Range<Int>? = nil
@@ -540,6 +567,7 @@ public struct QueryStreamUpdate: Sendable {
         self.columns = columns
         self.appendedRows = appendedRows
         self.encodedRows = encodedRows
+        self.rawRows = rawRows
         self.totalRowCount = totalRowCount
         self.metrics = metrics
         self.rowRange = rowRange

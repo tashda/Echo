@@ -15,7 +15,7 @@ extension WorkspaceTabBarStyle {
         case .floating:
             return 0
         case .toolbarCompact:
-            return -WorkspaceChromeMetrics.toolbarTabBarHeight
+            return 0
         }
     }
 }

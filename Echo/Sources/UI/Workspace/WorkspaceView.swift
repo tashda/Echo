@@ -11,6 +11,8 @@ struct WorkspaceView: View {
     @EnvironmentObject private var clipboardHistory: ClipboardHistoryStore
 
     var body: some View {
+        let tabBarStyle = appState.workspaceTabBarStyle
+
         NavigationSplitView {
             SidebarColumn()
                 .navigationSplitViewColumnWidth(
@@ -54,7 +56,7 @@ struct WorkspaceView: View {
                 }
         }
         .navigationSplitViewStyle(.balanced)
-        .background(WorkspaceWindowConfigurator())
+        .background(WorkspaceWindowConfigurator(tabBarStyle: tabBarStyle))
         .sheet(
             isPresented: Binding(
                 get: { appState.activeSheet == .connectionEditor },
@@ -315,13 +317,27 @@ private extension NSSplitView {
 
 #if os(macOS)
 private struct WorkspaceWindowConfigurator: NSViewRepresentable {
+    @EnvironmentObject private var appModel: AppModel
+    @EnvironmentObject private var appState: AppState
+    @EnvironmentObject private var themeManager: ThemeManager
+
     var tabBarStyle: WorkspaceTabBarStyle
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator()
+    }
 
     func makeNSView(context: Context) -> NSView {
         let view = NSView()
         DispatchQueue.main.async {
             guard let window = view.window else { return }
-            configure(window: window)
+            context.coordinator.configure(
+                window: window,
+                tabBarStyle: tabBarStyle,
+                appModel: appModel,
+                appState: appState,
+                themeManager: themeManager
+            )
         }
         return view
     }
@@ -329,113 +345,68 @@ private struct WorkspaceWindowConfigurator: NSViewRepresentable {
     func updateNSView(_ nsView: NSView, context: Context) {
         DispatchQueue.main.async {
             guard let window = nsView.window else { return }
-            configure(window: window)
+            context.coordinator.configure(
+                window: window,
+                tabBarStyle: tabBarStyle,
+                appModel: appModel,
+                appState: appState,
+                themeManager: themeManager
+            )
         }
     }
 
-    private func configure(window: NSWindow) {
-        if window.identifier != AppWindowIdentifier.workspace {
-            window.identifier = AppWindowIdentifier.workspace
+    final class Coordinator {
+        private let overlay = WorkspaceToolbarTabBarOverlay()
+
+        func configure(
+            window: NSWindow,
+            tabBarStyle: WorkspaceTabBarStyle,
+            appModel: AppModel,
+            appState: AppState,
+            themeManager: ThemeManager
+        ) {
+            applyWindowStyling(window)
+            overlay.apply(
+                style: tabBarStyle,
+                window: window,
+                appModel: appModel,
+                appState: appState,
+                themeManager: themeManager
+            )
+
+            AppCoordinator.shared.appModel.isWorkspaceWindowKey =
+                window.identifier == AppWindowIdentifier.workspace && window.isKeyWindow
         }
 
-        if window.titleVisibility != .visible {
-            window.titleVisibility = .visible
-        }
-        if window.titlebarAppearsTransparent == false {
-            window.titlebarAppearsTransparent = true
-        }
-        if window.title != " " {
-            window.title = " "
-        }
-        window.toolbarStyle = .unified
-        if #unavailable(macOS 15) {
-            window.toolbar?.showsBaselineSeparator = false
-        }
-
-        AppCoordinator.shared.appModel.isWorkspaceWindowKey =
-            window.identifier == AppWindowIdentifier.workspace && window.isKeyWindow
-
-        updateAccessory(for: window)
-    }
-
-    private func updateAccessory(for window: NSWindow) {
-        switch tabBarStyle {
-        case .toolbarCompact:
-            DispatchQueue.main.async {
-                let insets = self.toolbarInsets(for: window)
-                if let accessory = window.workspaceTabAccessory {
-                    accessory.update(style: self.tabBarStyle, insets: insets, window: window)
-                } else {
-                    let accessory = WorkspaceToolbarAccessoryController(style: self.tabBarStyle, insets: insets, window: window)
-                    window.addTitlebarAccessoryViewController(accessory)
-                    window.workspaceTabAccessory = accessory
-                }
+        private func applyWindowStyling(_ window: NSWindow) {
+            if window.identifier != AppWindowIdentifier.workspace {
+                window.identifier = AppWindowIdentifier.workspace
             }
-        case .floating:
-            if let accessory = window.workspaceTabAccessory,
-               let index = window.titlebarAccessoryViewControllers.firstIndex(of: accessory) {
-                window.removeTitlebarAccessoryViewController(at: index)
-                window.workspaceTabAccessory = nil
+
+            if window.titleVisibility != .visible {
+                window.titleVisibility = .visible
+            }
+            if window.titlebarAppearsTransparent == false {
+                window.titlebarAppearsTransparent = true
+            }
+            if window.title != " " {
+                window.title = " "
+            }
+            window.toolbarStyle = .unified
+            if #unavailable(macOS 15) {
+                window.toolbar?.showsBaselineSeparator = false
+            }
+            if window.toolbar?.allowsUserCustomization != false {
+                window.toolbar?.allowsUserCustomization = false
             }
         }
-    }
-
-    private func toolbarInsets(for window: NSWindow) -> WorkspaceToolbarEdgeInsets {
-        guard
-            let toolbar = window.toolbar,
-            let root = topmostToolbarContainer(from: toolbar)
-        else {
-            return WorkspaceToolbarEdgeInsets(leading: 72, trailing: 72)
-        }
-
-        let navigationPrefix = "workspace.navigation"
-        let primaryPrefix = "workspace.primary"
-
-        let navigationItems = toolbar.items.filter { $0.itemIdentifier.rawValue.hasPrefix(navigationPrefix) }
-        let primaryItems = toolbar.items.filter { $0.itemIdentifier.rawValue.hasPrefix(primaryPrefix) }
-
-        let leadingMax = navigationItems.compactMap { item -> CGFloat? in
-            guard let frame = frame(of: item.view, in: root) else { return nil }
-            return frame.maxX
-        }.max() ?? 0
-
-        let containerWidth = root.bounds.width
-
-        let trailingMin = primaryItems.compactMap { item -> CGFloat? in
-            guard let frame = frame(of: item.view, in: root) else { return nil }
-            return frame.minX
-        }.min() ?? containerWidth
-
-        let inspectorWidth = AppCoordinator.shared.appState.showInfoSidebar ? AppCoordinator.shared.appModel.inspectorWidth : 0
-        let inspectorBoundary = max(containerWidth - inspectorWidth - 16, 120)
-        let trailingLimit = min(trailingMin, inspectorBoundary)
-
-        let leadingInset = max(leadingMax + 12, 12)
-        let trailingInset = max(containerWidth - trailingLimit + 12, 12)
-
-        return WorkspaceToolbarEdgeInsets(leading: leadingInset, trailing: trailingInset)
-    }
-
-    private func topmostToolbarContainer(from toolbar: NSToolbar) -> NSView? {
-        guard let firstView = toolbar.items.compactMap({ $0.view?.superview }).first else { return nil }
-        var current: NSView = firstView
-        while let superview = current.superview { current = superview }
-        return current
-    }
-
-    private func frame(of view: NSView?, in root: NSView) -> CGRect? {
-        guard let view else { return nil }
-        return root.convert(view.bounds, from: view)
     }
 }
-
 #else
 private struct WorkspaceWindowConfigurator: UIViewRepresentable {
     var tabBarStyle: WorkspaceTabBarStyle
-    func makeUIView(context: Context) -> UIView {
-        _ = tabBarStyle
-        return UIView()
-    }
+
+    func makeUIView(context: Context) -> UIView { UIView() }
     func updateUIView(_ uiView: UIView, context: Context) {}
 }
 #endif
