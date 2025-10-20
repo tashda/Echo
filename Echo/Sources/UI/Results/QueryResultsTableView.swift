@@ -300,6 +300,33 @@ struct QueryResultsTableView: NSViewRepresentable {
             if viewportChanged {
                 cachedViewportSize = currentViewportSize
             }
+            let hasPendingRowReloads = pendingRowReloadIndexes?.isEmpty == false
+            let foreignKeyModeChanged = lastForeignKeyDisplayMode != parent.foreignKeyDisplayMode
+                || lastForeignKeyInspectorBehavior != parent.foreignKeyInspectorBehavior
+            let requiresUpdate = columnsChanged
+                || sortChanged
+                || rowOrderChanged
+                || rowCountIncreased
+                || rowCountDecreased
+                || tokenChanged
+                || hasPendingRowReloads
+                || paletteChanged
+                || viewportChanged
+                || foreignKeyModeChanged
+            if !requiresUpdate {
+                cachedSort = parent.activeSort
+                cachedRowOrder = currentRowOrder
+                lastRowCount = currentRowCount
+                lastResultTokenSnapshot = dirtyToken
+                if let state = persistedState {
+                    state.cachedColumnIDs = cachedColumnIDs
+                    state.cachedRowOrder = cachedRowOrder
+                    state.cachedSort = cachedSort
+                    state.lastRowCount = lastRowCount
+                    state.lastResultToken = dirtyToken
+                }
+                return
+            }
 
 #if DEBUG
             print("[QueryResultsTableView] update rowCount=\(currentRowCount) displayed=\(parent.query.displayedRowCount) tokenChanged=\(tokenChanged) columnsChanged=\(columnsChanged) mode=\(parent.query.streamingMode)")

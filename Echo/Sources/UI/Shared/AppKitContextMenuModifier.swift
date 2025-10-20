@@ -6,30 +6,29 @@ struct AppKitContextMenuModifier: ViewModifier {
     let menuProvider: () -> NSMenu?
 
     func body(content: Content) -> some View {
-        content.background(MenuAttacher(menuProvider: menuProvider))
+        AppKitContextMenuHost(content: content, menuProvider: menuProvider)
+    }
+}
+
+private struct AppKitContextMenuHost<Content: View>: NSViewRepresentable {
+    var content: Content
+    let menuProvider: () -> NSMenu?
+
+    func makeNSView(context: Context) -> HostingView {
+        HostingView(rootView: content, menuProvider: menuProvider)
     }
 
-    private struct MenuAttacher: NSViewRepresentable {
-        let menuProvider: () -> NSMenu?
-
-        func makeNSView(context: Context) -> MenuAttachingView {
-            MenuAttachingView(menuProvider: menuProvider)
-        }
-
-        func updateNSView(_ nsView: MenuAttachingView, context: Context) {
-            nsView.menuProvider = menuProvider
-            nsView.updateMenuIfPossible()
-        }
+    func updateNSView(_ nsView: HostingView, context: Context) {
+        nsView.rootView = content
+        nsView.menuProvider = menuProvider
     }
 
-    private final class MenuAttachingView: NSView {
-        var menuProvider: () -> NSMenu?
+    final class HostingView: NSHostingView<Content> {
+        var menuProvider: (() -> NSMenu?)?
 
-        init(menuProvider: @escaping () -> NSMenu?) {
+        init(rootView: Content, menuProvider: (() -> NSMenu?)?) {
             self.menuProvider = menuProvider
-            super.init(frame: .zero)
-            translatesAutoresizingMaskIntoConstraints = false
-            isHidden = true
+            super.init(rootView: rootView)
         }
 
         @available(*, unavailable)
@@ -37,26 +36,22 @@ struct AppKitContextMenuModifier: ViewModifier {
             fatalError("init(coder:) has not been implemented")
         }
 
-        override func viewDidMoveToSuperview() {
-            super.viewDidMoveToSuperview()
-            updateMenuIfPossible()
+        @available(*, unavailable)
+        required init(rootView: Content) {
+            fatalError("init(rootView:) has not been implemented")
         }
 
-        func updateMenuIfPossible() {
-            guard let hostView = superview else { return }
-            hostView.menu = menuProvider()
+        override func menu(for event: NSEvent) -> NSMenu? {
+            menuProvider?()
         }
     }
 }
 
 extension View {
     func appKitContextMenu(_ menuProvider: @escaping () -> NSMenu?) -> some View {
-#if os(macOS)
         modifier(AppKitContextMenuModifier(menuProvider: menuProvider))
-#else
-        self
-#endif
     }
 }
 
+#else
 #endif

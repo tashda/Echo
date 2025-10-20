@@ -100,10 +100,10 @@ final class WorkspaceToolbarTabBarOverlay {
 
         hostingView.translatesAutoresizingMaskIntoConstraints = false
 
-        let leading = hostingView.leadingAnchor.constraint(equalTo: toolbarView.leadingAnchor, constant: leadingPadding)
-        let trailing = hostingView.trailingAnchor.constraint(lessThanOrEqualTo: toolbarView.trailingAnchor, constant: -trailingPadding)
+        let leading = hostingView.leadingAnchor.constraint(equalTo: toolbarView.leadingAnchor)
+        let trailing = hostingView.trailingAnchor.constraint(equalTo: toolbarView.trailingAnchor)
         let centerY = hostingView.centerYAnchor.constraint(equalTo: toolbarView.centerYAnchor)
-        let height = hostingView.heightAnchor.constraint(equalToConstant: WorkspaceChromeMetrics.toolbarTabBarHeight + 10)
+        let height = hostingView.heightAnchor.constraint(equalToConstant: WorkspaceChromeMetrics.toolbarTabBarHeight + 4)
 
         NSLayoutConstraint.activate([leading, trailing, centerY, height])
 
@@ -213,16 +213,16 @@ final class WorkspaceToolbarTabBarOverlay {
         trailingConstraint?.constant = -trailingInset
 
         if let referenceHeight = referenceHeight(in: toolbarView, toolbar: toolbar) {
-            let desiredHeight = max(referenceHeight, WorkspaceChromeMetrics.toolbarTabBarHeight + 10)
+            let desiredHeight = max(referenceHeight, WorkspaceChromeMetrics.toolbarTabBarHeight)
             heightConstraint?.constant = desiredHeight
             let offset = (referenceMidY(in: toolbarView, toolbar: toolbar) ?? bounds.midY) - bounds.midY + verticalInset
             centerYConstraint?.constant = offset
         } else {
-            heightConstraint?.constant = WorkspaceChromeMetrics.toolbarTabBarHeight + 10
+            heightConstraint?.constant = WorkspaceChromeMetrics.toolbarTabBarHeight
             centerYConstraint?.constant = verticalInset
         }
 
-        hostingView.isHidden = availableWidth < 64
+        hostingView.isHidden = availableWidth < 120
     }
 
     private func referenceHeight(in toolbarView: NSView, toolbar: NSToolbar) -> CGFloat? {

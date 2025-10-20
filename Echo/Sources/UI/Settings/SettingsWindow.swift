@@ -68,6 +68,9 @@ struct SettingsView: View {
 #endif
     @State private var preferredColumn: NavigationSplitViewColumn = .sidebar
     @State private var selection: SettingsSection? = .appearance
+    @State private var navigationHistory: [SettingsSection] = [.appearance]
+    @State private var historyIndex: Int = 0
+    @State private var isUpdatingFromHistory = false
 
     var body: some View {
         settingsSplitView
@@ -79,6 +82,8 @@ struct SettingsView: View {
 #if os(macOS)
             columnVisibility = .all
 #endif
+            navigationHistory = [.appearance]
+            historyIndex = 0
         }
         .onReceive(NotificationCenter.default.publisher(for: .openSettingsSection)) { notification in
             guard let raw = notification.object as? String,
@@ -89,14 +94,21 @@ struct SettingsView: View {
             columnVisibility = .all
 #endif
         }
+        .onChange(of: selection) { _, newValue in
+            guard !isUpdatingFromHistory else {
+                isUpdatingFromHistory = false
+                return
+            }
+            guard let newValue else { return }
+            if historyIndex < navigationHistory.count - 1 {
+                navigationHistory = Array(navigationHistory.prefix(historyIndex + 1))
+            }
+            navigationHistory.append(newValue)
+            historyIndex = navigationHistory.count - 1
+        }
         .accentColor(themeManager.accentColor)
         .preferredColorScheme(themeManager.effectiveColorScheme)
         .background(themeManager.windowBackground)
-#if os(macOS)
-        .background(
-            WindowAppearanceConfigurator(windowBackground: themeManager.windowBackground)
-        )
-#endif
     }
 
     @ViewBuilder
@@ -108,6 +120,16 @@ struct SettingsView: View {
             detailContent
         }
         .toolbar(removing: .sidebarToggle)
+        .toolbarBackground(.hidden, for: .windowToolbar)
+        .background(
+            TitlebarAccessoryBridge(
+                title: selection?.title ?? "Settings",
+                canNavigateBack: canNavigateBack,
+                canNavigateForward: canNavigateForward,
+                onNavigateBack: navigateBack,
+                onNavigateForward: navigateForward
+            )
+        )
 #else
         NavigationSplitView(preferredCompactColumn: $preferredColumn) {
             sidebar
@@ -126,11 +148,12 @@ struct SettingsView: View {
         }
         .navigationTitle("Settings")
         .listStyle(.sidebar)
+        .navigationSplitViewColumnWidth(min: fixedSidebarWidth, ideal: fixedSidebarWidth, max: fixedSidebarWidth)
+#if os(macOS)
+        .background(Color.clear)
+#else
         .scrollContentBackground(.hidden)
         .background(themeManager.surfaceBackgroundColor)
-        .navigationSplitViewColumnWidth(min: 260, ideal: 300, max: 360)
-#if os(macOS)
-        .padding(.top, -8)
 #endif
     }
 
@@ -139,14 +162,13 @@ struct SettingsView: View {
             Group {
                 if let selection {
                     sectionView(for: selection)
-                        .navigationTitle(selection.title)
+                        .id(selection)
                 } else {
                     ContentUnavailableView {
                         Label("Select a Section", systemImage: "slider.horizontal.3")
                     } description: {
                         Text("Choose a settings category to view its options.")
                     }
-                    .navigationTitle("Settings")
                 }
             }
         }
@@ -155,20 +177,26 @@ struct SettingsView: View {
         .toolbar {
 #if os(macOS)
             ToolbarItemGroup(placement: .navigation) {
-                Button(action: {}, label: {
+                Button(action: navigateBack, label: {
                     Image(systemName: "chevron.left")
                 })
-                .disabled(true)
+                .disabled(!canNavigateBack)
 
-                Button(action: {}, label: {
+                Button(action: navigateForward, label: {
                     Image(systemName: "chevron.right")
                 })
-                .disabled(true)
+                .disabled(!canNavigateForward)
+            }
+            ToolbarItem(placement: .principal) {
+                Text(selection?.title ?? "Settings")
+                    .font(.system(size: 28, weight: .bold))
             }
 #endif
         }
 #if os(macOS)
         .toolbar(removing: .sidebarToggle)
+        .toolbarBackground(.visible, for: .windowToolbar)
+        .toolbarBackground(.ultraThinMaterial, for: .windowToolbar)
 #endif
     }
 
@@ -206,6 +234,39 @@ struct SettingsView: View {
             KeyboardShortcutsSettingsView()
         }
     }
+
+
+#if os(macOS)
+    private var canNavigateBack: Bool {
+        historyIndex > 0
+    }
+
+    private var canNavigateForward: Bool {
+        historyIndex + 1 < navigationHistory.count
+    }
+
+    private func navigateBack() {
+        guard canNavigateBack else { return }
+        historyIndex -= 1
+        isUpdatingFromHistory = true
+        selection = navigationHistory[historyIndex]
+    }
+
+    private func navigateForward() {
+        guard canNavigateForward else { return }
+        historyIndex += 1
+        isUpdatingFromHistory = true
+        selection = navigationHistory[historyIndex]
+    }
+
+    private var fixedSidebarWidth: CGFloat { 280 }
+#else
+    private var canNavigateBack: Bool { historyIndex > 0 }
+    private var canNavigateForward: Bool { historyIndex + 1 < navigationHistory.count }
+    private func navigateBack() { if canNavigateBack { historyIndex -= 1; isUpdatingFromHistory = true; selection = navigationHistory[historyIndex] } }
+    private func navigateForward() { if canNavigateForward { historyIndex += 1; isUpdatingFromHistory = true; selection = navigationHistory[historyIndex] } }
+    private var fixedSidebarWidth: CGFloat { 280 }
+#endif
 }
 
 #Preview("Settings Window") {
@@ -215,3 +276,120 @@ struct SettingsView: View {
 extension Notification.Name {
     static let openSettingsSection = Notification.Name("com.fuzee.settings.openSection")
 }
+
+#if os(macOS)
+private struct TitlebarAccessoryBridge: NSViewRepresentable {
+    let title: String
+    let canNavigateBack: Bool
+    let canNavigateForward: Bool
+    let onNavigateBack: () -> Void
+    let onNavigateForward: () -> Void
+
+    func makeCoordinator() -> Coordinator { Coordinator() }
+
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView()
+        DispatchQueue.main.async {
+            context.coordinator.update(window: view.window, state: currentState)
+        }
+        return view
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {
+        DispatchQueue.main.async {
+            context.coordinator.update(window: nsView.window, state: currentState)
+        }
+    }
+
+    private var currentState: TitlebarState {
+        TitlebarState(
+            title: title,
+            canNavigateBack: canNavigateBack,
+            canNavigateForward: canNavigateForward,
+            onNavigateBack: onNavigateBack,
+            onNavigateForward: onNavigateForward
+        )
+    }
+
+    final class Coordinator {
+        private var accessoryController: NSTitlebarAccessoryViewController?
+
+        func update(window: NSWindow?, state: TitlebarState) {
+            guard let window else { return }
+
+            window.titleVisibility = .hidden
+            window.titlebarAppearsTransparent = true
+            window.toolbarStyle = .unified
+            window.toolbar?.showsBaselineSeparator = false
+            window.toolbar?.allowsExtensionItems = false
+            window.toolbar?.displayMode = .iconOnly
+            window.toolbar?.sizeMode = .regular
+
+            let content = TitlebarAccessoryView(state: state)
+
+            if let hosting = accessoryController?.view as? NSHostingView<TitlebarAccessoryView> {
+                hosting.rootView = content
+                hosting.layoutSubtreeIfNeeded()
+                return
+            }
+
+            let hosting = NSHostingView(rootView: content)
+            hosting.translatesAutoresizingMaskIntoConstraints = false
+
+            let controller = NSTitlebarAccessoryViewController()
+            controller.layoutAttribute = .left
+            controller.view = hosting
+            controller.fullScreenMinHeight = 44
+
+            accessoryController = controller
+            window.addTitlebarAccessoryViewController(controller)
+        }
+    }
+}
+
+private struct TitlebarState: Equatable {
+    var title: String
+    var canNavigateBack: Bool
+    var canNavigateForward: Bool
+    var onNavigateBack: () -> Void
+    var onNavigateForward: () -> Void
+}
+
+private struct TitlebarAccessoryView: View {
+    let state: TitlebarState
+
+    var body: some View {
+        HStack(spacing: 10) {
+            titlebarButton(systemName: "chevron.left", isEnabled: state.canNavigateBack, action: state.onNavigateBack)
+            titlebarButton(systemName: "chevron.right", isEnabled: state.canNavigateForward, action: state.onNavigateForward)
+            Text(state.title)
+                .font(.system(size: 22, weight: .semibold))
+                .padding(.leading, 3)
+            Spacer()
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
+        .frame(minWidth: 320, alignment: .leading)
+    }
+
+    @ViewBuilder
+    private func titlebarButton(systemName: String, isEnabled: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: systemName)
+                .font(.system(size: 12, weight: .semibold))
+                .frame(width: 24, height: 22)
+        }
+        .buttonStyle(.borderless)
+        .disabled(!isEnabled)
+        .foregroundStyle(isEnabled ? Color.primary : Color.primary.opacity(0.4))
+        .background(
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .fill(Color.primary.opacity(isEnabled ? 0.12 : 0.05))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .stroke(Color.primary.opacity(isEnabled ? 0.2 : 0.08), lineWidth: 1)
+        )
+    }
+}
+#endif

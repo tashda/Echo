@@ -157,6 +157,7 @@ struct SQLEditorDisplayOptions: Codable, Equatable {
     var suggestTableAliasesInCompletion: Bool
     var qualifyTableCompletions: Bool
     var suggestKeywordsInCompletion: Bool
+    var inlineKeywordSuggestionsEnabled: Bool
     var suggestFunctionsInCompletion: Bool
     var suggestSnippetsInCompletion: Bool
     var suggestHistoryInCompletion: Bool
@@ -176,6 +177,7 @@ struct SQLEditorDisplayOptions: Codable, Equatable {
         suggestTableAliasesInCompletion: Bool = false,
         qualifyTableCompletions: Bool = false,
         suggestKeywordsInCompletion: Bool = true,
+        inlineKeywordSuggestionsEnabled: Bool = true,
         suggestFunctionsInCompletion: Bool = true,
         suggestSnippetsInCompletion: Bool = true,
         suggestHistoryInCompletion: Bool = true,
@@ -194,6 +196,7 @@ struct SQLEditorDisplayOptions: Codable, Equatable {
         self.suggestTableAliasesInCompletion = suggestTableAliasesInCompletion
         self.qualifyTableCompletions = qualifyTableCompletions
         self.suggestKeywordsInCompletion = suggestKeywordsInCompletion
+        self.inlineKeywordSuggestionsEnabled = inlineKeywordSuggestionsEnabled
         self.suggestFunctionsInCompletion = suggestFunctionsInCompletion
         self.suggestSnippetsInCompletion = suggestSnippetsInCompletion
         self.suggestHistoryInCompletion = suggestHistoryInCompletion
@@ -214,6 +217,7 @@ struct SQLEditorDisplayOptions: Codable, Equatable {
         case suggestTableAliasesInCompletion
         case qualifyTableCompletions
         case suggestKeywordsInCompletion
+        case inlineKeywordSuggestionsEnabled
         case suggestFunctionsInCompletion
         case suggestSnippetsInCompletion
         case suggestHistoryInCompletion
@@ -235,6 +239,7 @@ struct SQLEditorDisplayOptions: Codable, Equatable {
         suggestTableAliasesInCompletion = try container.decodeIfPresent(Bool.self, forKey: .suggestTableAliasesInCompletion) ?? false
         qualifyTableCompletions = try container.decodeIfPresent(Bool.self, forKey: .qualifyTableCompletions) ?? false
         suggestKeywordsInCompletion = try container.decodeIfPresent(Bool.self, forKey: .suggestKeywordsInCompletion) ?? true
+        inlineKeywordSuggestionsEnabled = try container.decodeIfPresent(Bool.self, forKey: .inlineKeywordSuggestionsEnabled) ?? true
         suggestFunctionsInCompletion = try container.decodeIfPresent(Bool.self, forKey: .suggestFunctionsInCompletion) ?? true
         suggestSnippetsInCompletion = try container.decodeIfPresent(Bool.self, forKey: .suggestSnippetsInCompletion) ?? true
         suggestHistoryInCompletion = try container.decodeIfPresent(Bool.self, forKey: .suggestHistoryInCompletion) ?? true
@@ -256,6 +261,7 @@ struct SQLEditorDisplayOptions: Codable, Equatable {
         try container.encode(suggestTableAliasesInCompletion, forKey: .suggestTableAliasesInCompletion)
         try container.encode(qualifyTableCompletions, forKey: .qualifyTableCompletions)
         try container.encode(suggestKeywordsInCompletion, forKey: .suggestKeywordsInCompletion)
+        try container.encode(inlineKeywordSuggestionsEnabled, forKey: .inlineKeywordSuggestionsEnabled)
         try container.encode(suggestFunctionsInCompletion, forKey: .suggestFunctionsInCompletion)
         try container.encode(suggestSnippetsInCompletion, forKey: .suggestSnippetsInCompletion)
         try container.encode(suggestHistoryInCompletion, forKey: .suggestHistoryInCompletion)
@@ -1433,6 +1439,7 @@ enum SQLEditorThemeResolver {
             autoCompletionEnabled: globalSettings.editorEnableAutocomplete,
             qualifyTableCompletions: globalSettings.editorQualifyTableCompletions,
             suggestKeywordsInCompletion: globalSettings.editorSuggestKeywords,
+            inlineKeywordSuggestionsEnabled: globalSettings.editorEnableInlineSuggestions,
             suggestFunctionsInCompletion: globalSettings.editorSuggestFunctions,
             suggestSnippetsInCompletion: globalSettings.editorSuggestSnippets,
             suggestHistoryInCompletion: globalSettings.editorSuggestHistory,
