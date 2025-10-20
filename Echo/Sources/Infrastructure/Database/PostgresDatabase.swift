@@ -630,7 +630,8 @@ final class PostgresSession: DatabaseSession {
             return min(max(backgroundFetchBaseline, scaled), rampCeiling)
         }
 
-        let previewFlushChunk = min(max(previewFetchSize / 4, 64), previewFetchSize)
+        let previewFlushChunk = min(max(previewFetchSize / 16, 8), 64)
+        let backgroundFlushSoftCap = 256
 
         let client = self.client
         let query = PostgresQuery(unsafeSQL: sanitizedSQL)
@@ -760,8 +761,6 @@ final class PostgresSession: DatabaseSession {
                         dynamicBackgroundFlushSize = increased
                     }
                 }
-            } else {
-                flushRequestRowCount = previewFetchSize
             }
 
             await Task.yield()
@@ -858,13 +857,23 @@ final class PostgresSession: DatabaseSession {
                     await Task.yield()
                 }
 
-                let shouldFlushPreview = totalRowCount <= streamingPreviewLimit && batchCount >= previewFlushChunk
-                let shouldFlushBackground = totalRowCount > streamingPreviewLimit && batchCount >= flushRequestRowCount
-
-                if shouldFlushPreview {
-                    await flushBatch(expectedRequestSize: max(previewFlushChunk, batchCount), rampEligible: false)
-                } else if shouldFlushBackground {
-                    await flushBatch(expectedRequestSize: flushRequestRowCount, rampEligible: true)
+                let inPreviewWindow = totalRowCount <= streamingPreviewLimit
+                let elapsedSinceBatchStart = CFAbsoluteTimeGetCurrent() - batchStartTime
+                if inPreviewWindow {
+                    let shouldFlushPreview = batchCount == 1
+                        || batchCount >= previewFlushChunk
+                        || elapsedSinceBatchStart >= 0.05
+                    if shouldFlushPreview {
+                        await flushBatch(expectedRequestSize: batchCount, rampEligible: false)
+                    }
+                } else {
+                    let dispatchThreshold = min(flushRequestRowCount, backgroundFlushSoftCap)
+                    let shouldFlushBackground = batchCount >= dispatchThreshold || elapsedSinceBatchStart >= 0.1
+                    if shouldFlushBackground {
+                        let rampEligible = batchCount >= flushRequestRowCount
+                        let expectedSize = rampEligible ? flushRequestRowCount : batchCount
+                        await flushBatch(expectedRequestSize: expectedSize, rampEligible: rampEligible)
+                    }
                 }
             }
         } catch {
@@ -873,7 +882,7 @@ final class PostgresSession: DatabaseSession {
 
         if batchCount > 0 {
             let rampEligible = totalRowCount > streamingPreviewLimit
-            let expectedSize = rampEligible ? flushRequestRowCount : previewFetchSize
+            let expectedSize = rampEligible ? flushRequestRowCount : batchCount
             await flushBatch(expectedRequestSize: expectedSize, rampEligible: rampEligible)
         }
 
