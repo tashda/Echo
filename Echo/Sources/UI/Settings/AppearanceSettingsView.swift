@@ -1929,33 +1929,6 @@ private struct AdaptivePreviewGrid<Hero: View, Secondary: View>: View {
         .frame(height: minimumHeight)
     }
 }
-#if os(macOS)
-struct WindowAppearanceConfigurator: NSViewRepresentable {
-    let windowBackground: Color
-
-    func makeNSView(context: Context) -> NSView {
-        let nsView = NSView(frame: .zero)
-        DispatchQueue.main.async {
-            configure(for: nsView)
-        }
-        return nsView
-    }
-
-    func updateNSView(_ nsView: NSView, context: Context) {
-        DispatchQueue.main.async {
-            configure(for: nsView)
-        }
-    }
-
-    private func configure(for nsView: NSView) {
-        guard let window = nsView.window else { return }
-        window.titlebarAppearsTransparent = true
-        window.toolbarStyle = .unified
-        window.isMovableByWindowBackground = true
-    }
-}
-#endif
-
 private struct PreviewTile<Content: View>: View {
     let title: String
     let subtitle: String?

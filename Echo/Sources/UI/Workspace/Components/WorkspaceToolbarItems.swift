@@ -1583,24 +1583,20 @@ struct WorkspaceToolbarTabBar: View {
                 appState.showTabOverview.toggle()
             }
         } label: {
-            Button(
-                action: {},
-                label: { EmptyView() }
-            )
-            .buttonStyle(.borderless)
-            .controlSize(.small)
-            .labelStyle(.iconOnly)
-            .contentShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .fill(overflowBackground)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                        .stroke(overflowBorder, lineWidth: 0.75)
+                )
+                .overlay(
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(overflowForeground)
+                )
         }
-        .buttonStyle(.borderless)
-        .controlSize(.small)
-        .labelStyle(.iconOnly)
-        .overlay(
-            Image(systemName: "chevron.down")
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(overflowForeground)
-        )
-        .frame(width: 24, height: 24)
+        .buttonStyle(.plain)
+        .frame(width: 26, height: 26)
         .accessibilityLabel("Open Tab Overview")
         .help("Open Tab Overview")
     }

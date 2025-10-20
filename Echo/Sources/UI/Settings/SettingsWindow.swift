@@ -33,7 +33,7 @@ struct SettingsView: View {
     enum SettingsSection: String, CaseIterable, Identifiable {
         case appearance
         case queryResults
-        case autocomplete
+        case echoSense
         case diagrams
         case applicationCache
         case keyboardShortcuts
@@ -44,7 +44,7 @@ struct SettingsView: View {
             switch self {
             case .appearance: return "Appearance"
             case .queryResults: return "Query Results"
-            case .autocomplete: return "Autocomplete"
+            case .echoSense: return "EchoSense"
             case .diagrams: return "Diagrams"
             case .applicationCache: return "Application Cache"
             case .keyboardShortcuts: return "Keyboard Shortcuts"
@@ -55,7 +55,7 @@ struct SettingsView: View {
             switch self {
             case .appearance: return "paintbrush"
             case .queryResults: return "tablecells"
-            case .autocomplete: return "text.insert"
+            case .echoSense: return "bulb.bolt"
             case .diagrams: return "rectangle.connected.to.line.below"
             case .applicationCache: return "internaldrive"
             case .keyboardShortcuts: return "command"
@@ -71,6 +71,8 @@ struct SettingsView: View {
     @State private var navigationHistory: [SettingsSection] = [.appearance]
     @State private var historyIndex: Int = 0
     @State private var isUpdatingFromHistory = false
+
+    private let fixedSidebarWidth: CGFloat = 280
 
     var body: some View {
         settingsSplitView
@@ -120,7 +122,6 @@ struct SettingsView: View {
             detailContent
         }
         .toolbar(removing: .sidebarToggle)
-        .toolbarBackground(.hidden, for: .windowToolbar)
         .background(
             TitlebarAccessoryBridge(
                 title: selection?.title ?? "Settings",
@@ -172,6 +173,9 @@ struct SettingsView: View {
                 }
             }
         }
+#if !os(macOS)
+        .navigationTitle(selection?.title ?? "Settings")
+#endif
         .frame(minWidth: 560, minHeight: 420)
         .background(themeManager.surfaceBackgroundColor)
         .toolbar {
@@ -193,11 +197,6 @@ struct SettingsView: View {
             }
 #endif
         }
-#if os(macOS)
-        .toolbar(removing: .sidebarToggle)
-        .toolbarBackground(.visible, for: .windowToolbar)
-        .toolbarBackground(.ultraThinMaterial, for: .windowToolbar)
-#endif
     }
 
     @ViewBuilder
@@ -215,7 +214,7 @@ struct SettingsView: View {
                 .environmentObject(appState)
                 .environmentObject(themeManager)
 
-        case .autocomplete:
+        case .echoSense:
             AutocompleteSettingsView()
                 .environmentObject(appModel)
                 .environmentObject(appState)
@@ -259,13 +258,11 @@ struct SettingsView: View {
         selection = navigationHistory[historyIndex]
     }
 
-    private var fixedSidebarWidth: CGFloat { 280 }
 #else
     private var canNavigateBack: Bool { historyIndex > 0 }
     private var canNavigateForward: Bool { historyIndex + 1 < navigationHistory.count }
     private func navigateBack() { if canNavigateBack { historyIndex -= 1; isUpdatingFromHistory = true; selection = navigationHistory[historyIndex] } }
     private func navigateForward() { if canNavigateForward { historyIndex += 1; isUpdatingFromHistory = true; selection = navigationHistory[historyIndex] } }
-    private var fixedSidebarWidth: CGFloat { 280 }
 #endif
 }
 
@@ -288,17 +285,20 @@ private struct TitlebarAccessoryBridge: NSViewRepresentable {
     func makeCoordinator() -> Coordinator { Coordinator() }
 
     func makeNSView(context: Context) -> NSView {
-        let view = NSView()
-        DispatchQueue.main.async {
-            context.coordinator.update(window: view.window, state: currentState)
+        let view = AttachmentView()
+        view.onWindowChange = { window in
+            context.coordinator.update(window: window, state: currentState)
         }
         return view
     }
 
     func updateNSView(_ nsView: NSView, context: Context) {
-        DispatchQueue.main.async {
-            context.coordinator.update(window: nsView.window, state: currentState)
+        if let attachment = nsView as? AttachmentView {
+            attachment.onWindowChange = { window in
+                context.coordinator.update(window: window, state: currentState)
+            }
         }
+        context.coordinator.update(window: nsView.window, state: currentState)
     }
 
     private var currentState: TitlebarState {
@@ -317,13 +317,26 @@ private struct TitlebarAccessoryBridge: NSViewRepresentable {
         func update(window: NSWindow?, state: TitlebarState) {
             guard let window else { return }
 
+            if window.toolbar == nil {
+                let toolbar = NSToolbar(identifier: "SettingsToolbar")
+                toolbar.allowsUserCustomization = false
+                toolbar.showsBaselineSeparator = false
+                toolbar.displayMode = .iconOnly
+                toolbar.sizeMode = .regular
+                window.toolbar = toolbar
+            }
+
             window.titleVisibility = .hidden
             window.titlebarAppearsTransparent = true
             window.toolbarStyle = .unified
-            window.toolbar?.showsBaselineSeparator = false
-            window.toolbar?.allowsExtensionItems = false
-            window.toolbar?.displayMode = .iconOnly
-            window.toolbar?.sizeMode = .regular
+            window.isMovableByWindowBackground = true
+
+            if let toolbar = window.toolbar {
+                toolbar.showsBaselineSeparator = false
+                toolbar.allowsExtensionItems = false
+                toolbar.displayMode = .iconOnly
+                toolbar.sizeMode = .regular
+            }
 
             let content = TitlebarAccessoryView(state: state)
 
@@ -335,6 +348,8 @@ private struct TitlebarAccessoryBridge: NSViewRepresentable {
 
             let hosting = NSHostingView(rootView: content)
             hosting.translatesAutoresizingMaskIntoConstraints = false
+            hosting.setContentHuggingPriority(.required, for: .horizontal)
+            hosting.setContentHuggingPriority(.required, for: .vertical)
 
             let controller = NSTitlebarAccessoryViewController()
             controller.layoutAttribute = .left
@@ -345,9 +360,18 @@ private struct TitlebarAccessoryBridge: NSViewRepresentable {
             window.addTitlebarAccessoryViewController(controller)
         }
     }
+
+    private final class AttachmentView: NSView {
+        var onWindowChange: ((NSWindow?) -> Void)?
+
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            onWindowChange?(window)
+        }
+    }
 }
 
-private struct TitlebarState: Equatable {
+private struct TitlebarState {
     var title: String
     var canNavigateBack: Bool
     var canNavigateForward: Bool
