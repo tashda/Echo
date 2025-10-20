@@ -1,4 +1,9 @@
 import SwiftUI
+#if os(macOS)
+import AppKit
+#elseif canImport(UIKit)
+import UIKit
+#endif
 
 private let streamingRowPresets: [Int] = [100, 250, 500, 750, 1_000, 2_000, 5_000, 10_000]
 private let streamingThresholdPresets: [Int] = [512, 1_000, 2_000, 5_000, 10_000, 20_000, 50_000, 100_000, 250_000, 500_000, 1_000_000]
@@ -330,7 +335,9 @@ private struct StreamingPresetPickerControl: View {
 
     @State private var selection: Selection
     @State private var customText: String
-    @FocusState private var customFieldFocused: Bool
+    @State private var showInfoPopover = false
+    @State private var showCustomPopover = false
+    @State private var pendingCustomPresentation = false
 
     init(title: String,
          value: Binding<Int>,
@@ -357,62 +364,74 @@ private struct StreamingPresetPickerControl: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack {
-                Text(title)
-                Spacer()
-                Text(formatter(value))
-                    .foregroundStyle(.secondary)
-            }
+        HStack(alignment: .center, spacing: 12) {
+            Text(title)
+                .font(.body)
+                .frame(maxWidth: .infinity, alignment: .leading)
 
-            VStack(alignment: .leading, spacing: 8) {
-                HStack(spacing: 12) {
-                    Picker(selection: $selection) {
-                        ForEach(presets, id: \.self) { preset in
-                            Text(label(for: preset)).tag(Selection.preset(preset))
+            Menu {
+                ForEach(presets, id: \.self) { preset in
+                    Button(action: { selection = .preset(preset) }) {
+                        if value == preset {
+                            Label(label(for: preset), systemImage: "checkmark")
+                        } else {
+                            Text(label(for: preset))
                         }
-                        Text("Custom…").tag(Selection.custom)
-                    } label: {
-                        Text(selectionButtonLabel)
-                    }
-                    .pickerStyle(.menu)
-                    .labelsHidden()
-
-                    if case .custom = selection {
-                        TextField("Custom value", text: $customText)
-                            .textFieldStyle(.roundedBorder)
-                            .frame(width: 120)
-                            .focused($customFieldFocused)
-                            .onSubmit(applyCustomValue)
-                            .onChange(of: customText, initial: false) { _, newValue in
-                                let filtered = newValue.filter { $0.isNumber }
-                                if filtered != newValue {
-                                    customText = filtered
-                                }
-                            }
                     }
                 }
-
-                if case .custom = selection {
-                    Text("Enter \(formatter(range.lowerBound)) – \(formatter(range.upperBound))")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
+                Divider()
+                Button("Custom…") {
+                    pendingCustomPresentation = true
+                    selection = .custom
                 }
+            } label: {
+                HStack(spacing: 6) {
+                    Text(displayValueLabel)
+                        .font(.system(size: 13, weight: .semibold))
+                    Image(systemName: "chevron.up.chevron.down")
+                        .font(.system(size: 11, weight: .semibold))
+                        .opacity(0.7)
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(valueButtonBackground)
+                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+            }
+            .menuStyle(.borderlessButton)
+            .fixedSize()
+            .popover(isPresented: $showCustomPopover, arrowEdge: .trailing) {
+                CustomValuePopover(
+                    title: title,
+                    text: $customText,
+                    rangeDescription: "\(formatter(range.lowerBound)) – \(formatter(range.upperBound))",
+                    onSubmit: applyCustomValue,
+                    onCancel: { showCustomPopover = false }
+                )
             }
 
-            Text(description)
-                .font(.footnote)
-                .foregroundStyle(.secondary)
+            Button(action: { showInfoPopover.toggle() }) {
+                Image(systemName: "info.circle")
+                    .font(.system(size: 13, weight: .semibold))
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(.secondary)
+            .popover(isPresented: $showInfoPopover, arrowEdge: .trailing) {
+                InfoPopover(description: description, defaultLabel: defaultLabel)
+            }
         }
+        .padding(.vertical, 8)
+        .padding(.horizontal, 12)
+        .background(rowBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         .onChange(of: selection, initial: false) { _, newSelection in
             handleSelectionChange(newSelection)
         }
         .onChange(of: value, initial: false) { _, newValue in
             syncSelection(with: newValue)
         }
-        .onChange(of: customFieldFocused, initial: false) { _, isFocused in
-            if !isFocused, case .custom = selection {
-                applyCustomValue()
+        .onChange(of: showCustomPopover) { _, isPresented in
+            if !isPresented {
+                pendingCustomPresentation = false
             }
         }
     }
@@ -421,14 +440,13 @@ private struct StreamingPresetPickerControl: View {
         switch newSelection {
         case .preset(let preset):
             setValue(preset)
-            if customFieldFocused {
-                customFieldFocused = false
-            }
+            showCustomPopover = false
         case .custom:
             customText = String(value)
-            DispatchQueue.main.async {
-                customFieldFocused = true
+            if pendingCustomPresentation {
+                showCustomPopover = true
             }
+            pendingCustomPresentation = false
         }
     }
 
@@ -445,6 +463,7 @@ private struct StreamingPresetPickerControl: View {
             selection = .custom
         }
         customText = String(newValue)
+        pendingCustomPresentation = false
     }
 
     private func applyCustomValue() {
@@ -453,6 +472,7 @@ private struct StreamingPresetPickerControl: View {
             return
         }
         setValue(raw)
+        showCustomPopover = false
     }
 
     private func setValue(_ newValue: Int) {
@@ -466,25 +486,135 @@ private struct StreamingPresetPickerControl: View {
     }
 
     private func label(for preset: Int) -> String {
-        if preset == defaultValue {
-            return "\(formatter(preset)) (Default)"
-        }
-        return formatter(preset)
+        let base = formatter(preset)
+        return preset == defaultValue ? "\(base) (Default)" : base
     }
 
-    private var selectionButtonLabel: String {
-        switch selection {
-        case .preset(let preset):
-            return label(for: preset)
-        case .custom:
-            if let parsed = Int(customText) {
-                let value = clamp(parsed)
-                if presets.contains(value) {
-                    return label(for: value)
+    private var displayValueLabel: String {
+        let base = formatter(value)
+        return value == defaultValue ? "\(base) (Default)" : base
+    }
+
+    private var defaultLabel: String {
+        formatter(defaultValue)
+    }
+
+    private var valueButtonBackground: some View {
+#if os(macOS)
+        Color(nsColor: .controlBackgroundColor).opacity(0.65)
+#else
+        Color(uiColor: .secondarySystemBackground)
+#endif
+    }
+
+    private var rowBackground: some View {
+#if os(macOS)
+        Color(nsColor: .controlBackgroundColor).opacity(0.35)
+#else
+        Color(uiColor: .systemBackground).opacity(0.8)
+#endif
+    }
+
+    private struct CustomValuePopover: View {
+        let title: String
+        @Binding var text: String
+        let rangeDescription: String
+        let onSubmit: () -> Void
+        let onCancel: () -> Void
+        @FocusState private var fieldFocused: Bool
+
+        var body: some View {
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Custom \(title)")
+                    .font(.headline)
+
+                TextField("Value", text: $text)
+                    .textFieldStyle(.roundedBorder)
+                    .keyboardType(.numberPad)
+                    .focused($fieldFocused)
+
+                Text("Allowed range: \(rangeDescription)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                HStack {
+                    Spacer()
+                    Button("Cancel", role: .cancel, action: onCancel)
+                    Button("Done", action: onSubmit)
+                        .keyboardShortcut(.defaultAction)
                 }
-                return formatter(value)
             }
-            return "Custom…"
+            .padding(16)
+            .frame(width: 260)
+            .background(VisualEffectBlur.swiftUI)
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .padding(4)
+            .onAppear {
+                DispatchQueue.main.async {
+                    fieldFocused = true
+                }
+            }
+        }
+    }
+
+    private struct InfoPopover: View {
+        let description: String
+        let defaultLabel: String
+
+        var body: some View {
+            VStack(alignment: .leading, spacing: 12) {
+                Text(description)
+                    .font(.body)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Divider()
+
+                Text("Default: \(defaultLabel)")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(16)
+            .frame(maxWidth: 320)
+            .background(VisualEffectBlur.swiftUI)
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .padding(4)
         }
     }
 }
+
+#if os(macOS)
+private struct VisualEffectBlur: NSViewRepresentable {
+    static var swiftUI: some View { VisualEffectBlur(material: .underWindowBackground, blendingMode: .withinWindow) }
+
+    var material: NSVisualEffectView.Material
+    var blendingMode: NSVisualEffectView.BlendingMode
+
+    func makeNSView(context: Context) -> NSVisualEffectView {
+        let view = NSVisualEffectView()
+        view.material = material
+        view.blendingMode = blendingMode
+        view.state = .active
+        return view
+    }
+
+    func updateNSView(_ nsView: NSVisualEffectView, context: Context) {
+        nsView.material = material
+        nsView.blendingMode = blendingMode
+        nsView.state = .active
+    }
+}
+#else
+private struct VisualEffectBlur: UIViewRepresentable {
+    static var swiftUI: some View { VisualEffectBlur(style: .systemMaterial) }
+
+    var style: UIBlurEffect.Style
+
+    func makeUIView(context: Context) -> UIVisualEffectView {
+        UIVisualEffectView(effect: UIBlurEffect(style: style))
+    }
+
+    func updateUIView(_ uiView: UIVisualEffectView, context: Context) {
+        uiView.effect = UIBlurEffect(style: style)
+    }
+}
+#endif

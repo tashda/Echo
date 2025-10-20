@@ -720,9 +720,24 @@ final class PostgresSession: DatabaseSession {
                 resetBatch()
 
                 if totalRowCount >= streamingPreviewLimit {
-                    let target = min(maxAutoFetchSize, max(16_384, backgroundFetchBaseline))
-                    dynamicBackgroundFlushSize = target
-                    flushRequestRowCount = target
+                    if dynamicBackgroundFlushSize < 16_384 {
+                        let elevated = min(maxAutoFetchSize, max(16_384, backgroundFetchBaseline))
+                        dynamicBackgroundFlushSize = elevated
+                    }
+
+                    if rampEligible,
+                       flushedCount >= flushRequestRowCount,
+                       dynamicBackgroundFlushSize < maxAutoFetchSize {
+                        let doubled = dynamicBackgroundFlushSize * 2
+                        let additive = dynamicBackgroundFlushSize + backgroundFetchBaseline
+                        let candidate = max(doubled, max(additive, dynamicBackgroundFlushSize + previewFetchSize))
+                        let nextSize = min(maxAutoFetchSize, candidate)
+                        if nextSize > dynamicBackgroundFlushSize {
+                            dynamicBackgroundFlushSize = nextSize
+                        }
+                    }
+
+                    flushRequestRowCount = dynamicBackgroundFlushSize
                 } else {
                     flushRequestRowCount = previewFetchSize
                 }
@@ -828,14 +843,58 @@ final class PostgresSession: DatabaseSession {
                         return
                     }
 
-                    let elapsedSinceBatchStart = CFAbsoluteTimeGetCurrent() - batchStartTime
-                    let timedThreshold = max(4_096, flushRequestRowCount / 2)
-                    let timedFlushEligible = batchCount >= min(timedThreshold, flushRequestRowCount)
-                        && elapsedSinceBatchStart >= 0.5
+                    let now = CFAbsoluteTimeGetCurrent()
+                    let elapsedSinceBatchStart = now - batchStartTime
                     let dispatchThresholdReached = batchCount >= flushRequestRowCount
-                    let rampEligible = batchCount >= flushRequestRowCount
+                    let rampEligible = dispatchThresholdReached
 
-                    if dispatchThresholdReached || timedFlushEligible {
+                    let timedFlushInterval: TimeInterval
+                    let slowFlushInterval: TimeInterval
+                    let timedThresholdRows: Int
+                    let slowRowsThreshold: Int
+
+                    if totalRowCount < streamingPreviewLimit {
+                        timedFlushInterval = 0.12
+                        slowFlushInterval = 0.35
+                        timedThresholdRows = min(flushRequestRowCount, 256)
+                        slowRowsThreshold = min(flushRequestRowCount, 64)
+                    } else {
+                        if flushRequestRowCount >= 131_072 {
+                            timedFlushInterval = 1.4
+                        } else if flushRequestRowCount >= 65_536 {
+                            timedFlushInterval = 1.1
+                        } else if flushRequestRowCount >= 16_384 {
+                            timedFlushInterval = 0.85
+                        } else {
+                            timedFlushInterval = 0.65
+                        }
+                        slowFlushInterval = max(timedFlushInterval * 2.2, 2.2)
+
+                        let thresholdA = max(
+                            flushRequestRowCount - max(flushRequestRowCount / 8, 2_048),
+                            0
+                        )
+                        let thresholdB = flushRequestRowCount * 3 / 4
+                        timedThresholdRows = min(
+                            flushRequestRowCount,
+                            max(8_192, max(thresholdA, thresholdB))
+                        )
+
+                        slowRowsThreshold = max(min(flushRequestRowCount / 4, 2_048), 256)
+                    }
+
+                    let timedFlushEligible = batchCount >= min(timedThresholdRows, flushRequestRowCount)
+                        && elapsedSinceBatchStart >= timedFlushInterval
+                    let slowFlushEligible = batchCount >= slowRowsThreshold
+                        && elapsedSinceBatchStart >= slowFlushInterval
+
+#if DEBUG
+                    if dispatchThresholdReached || timedFlushEligible || slowFlushEligible {
+                        debugLog("Flush trigger dispatch=\(dispatchThresholdReached) timed=\(timedFlushEligible) slow=\(slowFlushEligible) count=\(batchCount) target=\(flushRequestRowCount) elapsed=\(String(format: "%.3f", elapsedSinceBatchStart))")
+                    }
+#endif
+
+                    if dispatchThresholdReached || timedFlushEligible || slowFlushEligible {
                         let expectedSize = rampEligible ? flushRequestRowCount : batchCount
                         publishBatch(expectedRequestSize: expectedSize, rampEligible: rampEligible)
                     }
