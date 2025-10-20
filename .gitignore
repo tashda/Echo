@@ -5,3 +5,6 @@ postgres_benchmark.env
 Instruments
 Archive
 Docs
+
+# Profiling and trace exports
+tmp_trace_export
