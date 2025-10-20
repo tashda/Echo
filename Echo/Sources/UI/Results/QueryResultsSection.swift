@@ -1,9 +1,23 @@
 import SwiftUI
+import Combine
 #if os(macOS)
 import AppKit
 #else
 import UIKit
 #endif
+
+/// Smoothly animates a counter from one value to another using SwiftUI animation
+private struct AnimatedCounter: View {
+    let targetValue: Int
+    let isActive: Bool
+    let formatter: (Int) -> String
+
+    var body: some View {
+        Text(formatter(targetValue))
+            .font(.system(size: 11, weight: .medium, design: .monospaced))
+            .lineLimit(1)
+    }
+}
 
 struct QueryResultsSection: View {
     @ObservedObject var query: QueryEditorState
@@ -511,21 +525,42 @@ struct QueryResultsSection: View {
 
     private var rowCountStatusChip: some View {
         let progress = query.rowProgress
-        let total = max(progress.reported, progress.materialized)
-        let current = progress.materialized
-        let displayText = formattedRowCountShort(current, totalCount: total, executing: query.isExecuting)
-        let isEnabled = !query.isExecuting && total > 0
+        let isExecuting = query.isExecuting
+        let isEnabled = !isExecuting && progress.displayCount > 0
 
         return statusBarChipButton(width: rowCountChipWidth) {
             guard isEnabled else { return }
             showRowInfoPopover.toggle()
         } label: {
             HStack(spacing: 6) {
-                statusIcon(named: "table.rows")
-                Text(displayText)
-                    .font(.system(size: 11))
-                    .foregroundStyle(query.isExecuting ? Color.secondary : Color.primary)
-                    .lineLimit(1)
+                statusIcon(named: "tablecells")
+
+                // Animated counter that smoothly counts up
+                if isExecuting && progress.displayCount > 0 {
+                    HStack(spacing: 2) {
+                        AnimatedCounter(
+                            targetValue: progress.displayCount,
+                            isActive: isExecuting,
+                            formatter: { formatCompact($0) }
+                        )
+                        .foregroundStyle(.secondary)
+
+                        Text("+")
+                            .font(.system(size: 11, weight: .medium, design: .monospaced))
+                            .foregroundStyle(.secondary)
+                    }
+                } else if isExecuting {
+                    Text("…")
+                        .font(.system(size: 11))
+                        .fontDesign(.monospaced)
+                        .foregroundStyle(.secondary)
+                } else {
+                    Text(formatCompact(progress.displayCount))
+                        .font(.system(size: 11))
+                        .fontDesign(.monospaced)
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+                }
             }
         }
         .disabled(!isEnabled)
@@ -565,10 +600,24 @@ struct QueryResultsSection: View {
 
     private var statusSummaryChip: some View {
         let config = statusBubbleConfiguration()
+        let isExecuting = query.isExecuting
         return statusBarChip(width: statusChipWidth) {
-            Image(systemName: config.icon)
-                .font(.system(size: 11))
-                .foregroundStyle(config.tint)
+            if isExecuting {
+                if #available(macOS 14.0, iOS 17.0, *) {
+                    Image(systemName: "progress.indicator")
+                        .font(.system(size: 11))
+                        .symbolEffect(.rotate, isActive: isExecuting)
+                        .foregroundStyle(config.tint)
+                } else {
+                    Image(systemName: "progress.indicator")
+                        .font(.system(size: 11))
+                        .foregroundStyle(config.tint)
+                }
+            } else {
+                Image(systemName: config.icon)
+                    .font(.system(size: 11))
+                    .foregroundStyle(config.tint)
+            }
             Text(config.label)
                 .font(.system(size: 11))
                 .foregroundStyle(config.tint)
@@ -724,22 +773,70 @@ struct QueryResultsSection: View {
 
     private var rowCountControl: some View {
         let progress = query.rowProgress
-        let total = max(progress.reported, progress.materialized)
-        let current = progress.materialized
-        let displayText = formattedRowCountShort(current, totalCount: total, executing: query.isExecuting)
-        let textColor: Color = query.isExecuting ? .secondary : .primary
-        let chip = metricChip(
-            text: displayText,
-            icon: "tablecells",
-            tint: textColor,
-            minWidth: metricChipMinWidth
-        )
+        let isExecuting = query.isExecuting
+        let textColor: Color = isExecuting ? .secondary : .primary
+
+        // Use animated icon during execution
+        let iconName = isExecuting ? "progress.indicator" : "tablecells"
 
         return Button {
-            guard !query.isExecuting, total > 0 else { return }
+            guard !isExecuting, progress.displayCount > 0 else { return }
             showRowInfoPopover.toggle()
         } label: {
-            chip
+            HStack(spacing: 6) {
+                if isExecuting {
+                    if #available(macOS 14.0, iOS 17.0, *) {
+                        Image(systemName: "arrow.triangle.2.circlepath")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundStyle(textColor)
+                            .symbolEffect(.rotate, isActive: isExecuting)
+                    } else {
+                        Image(systemName: "arrow.triangle.2.circlepath")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundStyle(textColor)
+                    }
+                } else {
+                    Image(systemName: iconName)
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(textColor)
+                }
+
+                // Animated counter for smooth counting effect
+                if isExecuting && progress.displayCount > 0 {
+                    HStack(spacing: 2) {
+                        AnimatedCounter(
+                            targetValue: progress.displayCount,
+                            isActive: isExecuting,
+                            formatter: { formatCompact($0) }
+                        )
+                        .foregroundStyle(textColor)
+
+                        Text("+")
+                            .font(.system(size: 11, weight: .medium, design: .monospaced))
+                            .foregroundStyle(textColor)
+                    }
+                } else if isExecuting {
+                    Text("…")
+                        .font(.system(size: 11, weight: .medium, design: .monospaced))
+                        .foregroundStyle(textColor)
+                } else {
+                    Text(formatCompact(progress.displayCount))
+                        .font(.system(size: 11, weight: .medium, design: .monospaced))
+                        .foregroundStyle(textColor)
+                }
+            }
+            .frame(height: statusChipHeight, alignment: .center)
+            .padding(.horizontal, 9)
+            .frame(minWidth: metricChipMinWidth, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(Color.primary.opacity(0.03))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .stroke(Color.primary.opacity(0.05), lineWidth: 0.5)
+                    )
+            )
+            .frame(maxHeight: .infinity, alignment: .center)
         }
         .buttonStyle(.plain)
         .frame(height: statusChipHeight, alignment: .center)
@@ -887,11 +984,18 @@ struct QueryResultsSection: View {
     }
 
 #if !os(macOS)
-    private func metricChip(text: String, icon: String, tint: Color, minWidth: CGFloat) -> some View {
+    private func metricChip(text: String, icon: String, tint: Color, minWidth: CGFloat, animateIcon: Bool = false) -> some View {
         HStack(spacing: 6) {
-            Image(systemName: icon)
-                .font(.system(size: 11, weight: .medium))
-                .foregroundStyle(tint)
+            if animateIcon {
+                Image(systemName: icon)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(tint)
+                    .symbolEffect(.rotate.continuous, isActive: animateIcon)
+            } else {
+                Image(systemName: icon)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(tint)
+            }
             Text(text)
                 .font(.system(size: 11, weight: .medium, design: .monospaced))
                 .foregroundStyle(tint)
@@ -928,15 +1032,6 @@ struct QueryResultsSection: View {
         return ("Ready", "clock", .secondary)
     }
 
-    private func formattedRowCountShort(_ displayed: Int, totalCount: Int, executing: Bool) -> String {
-        if totalCount == 0 {
-            return executing ? "\(displayed)" : "0"
-        }
-        if executing && displayed < totalCount {
-            return "\(formatCompact(displayed))+"
-        }
-        return formatCompact(totalCount)
-    }
 
     private func formatCompact(_ value: Int) -> String {
         if value >= 1_000_000 {
@@ -991,7 +1086,7 @@ struct QueryResultsSection: View {
     }
 
     private var rowInfoPopover: some View {
-        let total = max(query.rowProgress.reported, query.rowProgress.materialized)
+        let total = max(query.rowProgress.totalReported, query.rowProgress.materialized)
         let fetched = query.rowProgress.materialized
         let displayValue: String
         if query.isExecuting {
@@ -1011,7 +1106,7 @@ struct QueryResultsSection: View {
         let elapsed = query.lastExecutionTime ?? query.currentExecutionTime
         let precise = formattedExactDuration(elapsed)
         let summary = formattedDuration(Int(elapsed.rounded()))
-        let totalRows = max(query.rowProgress.reported, query.rowProgress.materialized)
+        let totalRows = max(query.rowProgress.totalReported, query.rowProgress.materialized)
         let rateString: String?
         if elapsed > 0 && totalRows > 0 && !query.isExecuting {
             let rate = Double(totalRows) / elapsed

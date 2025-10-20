@@ -56,6 +56,7 @@ final class AppModel: ObservableObject {
             UserDefaults.standard.set(globalSettings.resultsStreamingFetchSize, forKey: ResultStreamingFetchSizeDefaultsKey)
             UserDefaults.standard.set(globalSettings.resultsStreamingFetchRampMultiplier, forKey: ResultStreamingFetchRampMultiplierDefaultsKey)
             UserDefaults.standard.set(globalSettings.resultsStreamingFetchRampMax, forKey: ResultStreamingFetchRampMaxDefaultsKey)
+            UserDefaults.standard.set(globalSettings.resultsUseCursorStreaming, forKey: ResultStreamingUseCursorDefaultsKey)
             UserDefaults.standard.set(globalSettings.resultsEnableTypeFormatting, forKey: ResultFormattingEnabledDefaultsKey)
             UserDefaults.standard.set(globalSettings.resultsFormattingMode.rawValue, forKey: ResultFormattingModeDefaultsKey)
         }
@@ -1243,7 +1244,8 @@ final class AppModel: ObservableObject {
         backgroundStreamingThreshold: Int? = nil,
         backgroundFetchSize: Int? = nil,
         backgroundFetchRampMultiplier: Int? = nil,
-        backgroundFetchRampMax: Int? = nil
+        backgroundFetchRampMax: Int? = nil,
+        useCursorStreaming: Bool? = nil
     ) async {
         let clampedInitial = initialRowLimit.map { max(100, $0) }
         let clampedPreview = previewBatchSize.map { max(100, $0) }
@@ -1251,7 +1253,8 @@ final class AppModel: ObservableObject {
         let clampedFetch = backgroundFetchSize.map { max(128, min($0, 16_384)) }
         let clampedRampMultiplier = backgroundFetchRampMultiplier.map { max(1, min($0, 64)) }
         let clampedRampMax = backgroundFetchRampMax.map { max(256, min($0, 1_048_576)) }
-        guard [clampedInitial, clampedPreview, clampedBackground, clampedFetch, clampedRampMultiplier, clampedRampMax].contains(where: { $0 != nil }) else { return }
+        let shouldUpdate = [clampedInitial, clampedPreview, clampedBackground, clampedFetch, clampedRampMultiplier, clampedRampMax].contains { $0 != nil } || useCursorStreaming != nil
+        guard shouldUpdate else { return }
 
         await updateGlobalEditorDisplay { settings in
             if let value = clampedInitial {
@@ -1271,6 +1274,9 @@ final class AppModel: ObservableObject {
             }
             if let value = clampedRampMax {
                 settings.resultsStreamingFetchRampMax = value
+            }
+            if let cursor = useCursorStreaming {
+                settings.resultsUseCursorStreaming = cursor
             }
         }
 
@@ -1295,6 +1301,9 @@ final class AppModel: ObservableObject {
         }
         if let value = clampedRampMax {
             UserDefaults.standard.set(value, forKey: ResultStreamingFetchRampMaxDefaultsKey)
+        }
+        if let cursor = useCursorStreaming {
+            UserDefaults.standard.set(cursor, forKey: ResultStreamingUseCursorDefaultsKey)
         }
     }
 

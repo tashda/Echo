@@ -4,6 +4,7 @@ import NIOCore
 let ResultStreamingFetchSizeDefaultsKey = "dk.tippr.echo.streaming.fetchSize"
 let ResultStreamingFetchRampMultiplierDefaultsKey = "dk.tippr.echo.streaming.fetchRampMultiplier"
 let ResultStreamingFetchRampMaxDefaultsKey = "dk.tippr.echo.streaming.fetchRampMax"
+let ResultStreamingUseCursorDefaultsKey = "dk.tippr.echo.streaming.useCursor"
 let ResultFormattingEnabledDefaultsKey = "dk.tippr.echo.results.formattingEnabled"
 let ResultFormattingModeDefaultsKey = "dk.tippr.echo.results.formattingMode"
 

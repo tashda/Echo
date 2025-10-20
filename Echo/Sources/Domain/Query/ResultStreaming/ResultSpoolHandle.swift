@@ -148,6 +148,9 @@ actor ResultSpoolHandle {
         if let range = rowRange {
             startRow = range.lowerBound
             if range.upperBound > metadata.totalRowCount {
+#if DEBUG
+                debugLog("append: updating totalRowCount from \(metadata.totalRowCount) to \(range.upperBound) (rowRange provided)")
+#endif
                 metadata.totalRowCount = range.upperBound
             }
         } else {

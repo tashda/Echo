@@ -1129,8 +1129,6 @@ private extension ToolbarIcon {
 
 #if os(macOS)
 struct WorkspaceToolbarTabBar: View {
-    let maxVisibleTabs: Int
-
     @EnvironmentObject private var appModel: AppModel
     @EnvironmentObject private var themeManager: ThemeManager
     @EnvironmentObject private var appState: AppState
@@ -1141,12 +1139,12 @@ struct WorkspaceToolbarTabBar: View {
 
     private let tabSpacing: CGFloat = 6
     private let chipHeight: CGFloat = WorkspaceChromeMetrics.toolbarTabBarHeight
-    private let comfortableMinTabWidth: CGFloat = 92
-    private let absoluteMinTabWidth: CGFloat = 56
-    private let maxTabWidth: CGFloat = 172
-    private let pinnedComfortableMinWidth: CGFloat = 56
-    private let pinnedAbsoluteMinWidth: CGFloat = 44
-    private let pinnedMaxWidth: CGFloat = 96
+    private let comfortableMinTabWidth: CGFloat = 112
+    private let absoluteMinTabWidth: CGFloat = 68
+    private let maxTabWidth: CGFloat = 320
+    private let pinnedComfortableMinWidth: CGFloat = 60
+    private let pinnedAbsoluteMinWidth: CGFloat = 48
+    private let pinnedMaxWidth: CGFloat = 120
     private let overflowButtonWidth: CGFloat = 28
     private let overflowSpacing: CGFloat = 8
 
@@ -1168,73 +1166,74 @@ struct WorkspaceToolbarTabBar: View {
         .frame(height: chipHeight)
     }
 
-    private func tabScroller(availableWidth: CGFloat, tabs: [WorkspaceTab]) -> some View {
+    private func tabScroller(availableWidth: CGFloat, tabs: [WorkspaceTab]) -> AnyView {
         guard !tabs.isEmpty else { return AnyView(EmptyView()) }
 
         let visibleRange = visibleIndexRange(for: tabs)
         let tabWidths = resolvedTabWidths(for: tabs, availableWidth: availableWidth)
 
-        return AnyView(
-            ScrollViewReader { proxy in
-                ScrollView(.horizontal, showsIndicators: false) {
-                    LazyHStack(spacing: tabSpacing) {
-                        ForEach(Array(tabs.enumerated()), id: \.element.id) { index, tab in
-                            let totalCount = appModel.tabManager.tabs.count
-                            let actualIndex = appModel.tabManager.index(of: tab.id) ?? index
-                            let hasLeft = actualIndex > 0
-                            let hasRight = actualIndex < totalCount - 1
-                            let width = tabWidths[tab.id] ?? comfortableMinTabWidth
+        let scroller = ScrollViewReader { proxy in
+            ScrollView(.horizontal, showsIndicators: false) {
+                LazyHStack(spacing: tabSpacing) {
+                    ForEach(Array(tabs.enumerated()), id: \.element.id) { index, tab in
+                        let totalCount = appModel.tabManager.tabs.count
+                        let actualIndex = appModel.tabManager.index(of: tab.id) ?? index
+                        let hasLeft = actualIndex > 0
+                        let hasRight = actualIndex < totalCount - 1
+                        let width = tabWidths[tab.id] ?? comfortableMinTabWidth
 
-                            ToolbarWorkspaceTabChip(
-                                tab: tab,
-                                isActive: appModel.tabManager.activeTabId == tab.id,
-                                accent: themeManager.accentColor,
-                                height: chipHeight,
-                                onSelect: { appModel.tabManager.activeTabId = tab.id },
-                                onClose: { appModel.tabManager.closeTab(id: tab.id) },
-                                onAddBookmark: tab.query == nil ? nil : { bookmark(tab: tab) },
-                                onPinToggle: { appModel.tabManager.togglePin(for: tab.id) },
-                                onDuplicate: { appModel.duplicateTab(tab) },
-                                onCloseOthers: { appModel.tabManager.closeOtherTabs(keeping: tab.id) },
-                                onCloseLeft: { appModel.tabManager.closeTabsLeft(of: tab.id) },
-                                onCloseRight: { appModel.tabManager.closeTabsRight(of: tab.id) },
-                                canDuplicate: tab.kind == .query,
-                                closeOthersDisabled: totalCount <= 1,
-                                closeTabsLeftDisabled: !hasLeft,
-                                closeTabsRightDisabled: !hasRight
+                        ToolbarWorkspaceTabChip(
+                            tab: tab,
+                            isActive: appModel.tabManager.activeTabId == tab.id,
+                            height: chipHeight,
+                            onSelect: { appModel.tabManager.activeTabId = tab.id },
+                            onClose: { appModel.tabManager.closeTab(id: tab.id) },
+                            onAddBookmark: tab.query == nil ? nil : { bookmark(tab: tab) },
+                            onPinToggle: { appModel.tabManager.togglePin(for: tab.id) },
+                            onDuplicate: { appModel.duplicateTab(tab) },
+                            onCloseOthers: { appModel.tabManager.closeOtherTabs(keeping: tab.id) },
+                            onCloseLeft: { appModel.tabManager.closeTabsLeft(of: tab.id) },
+                            onCloseRight: { appModel.tabManager.closeTabsRight(of: tab.id) },
+                            canDuplicate: tab.kind == .query,
+                            closeOthersDisabled: totalCount <= 1,
+                            closeTabsLeftDisabled: !hasLeft,
+                            closeTabsRightDisabled: !hasRight
+                        )
+                        .frame(width: width, height: chipHeight)
+                        .offset(x: tabOffset(for: tab))
+                        .zIndex(dragZIndex(for: tab))
+                        .opacity(dragState.id == tab.id ? 0.96 : 1)
+                        .highPriorityGesture(
+                            dragGesture(
+                                for: tab,
+                                width: width,
+                                actualIndex: actualIndex,
+                                totalCount: totalCount,
+                                visibleRange: visibleRange
                             )
-                            .frame(width: width, height: chipHeight)
-                            .offset(x: tabOffset(for: tab))
-                            .zIndex(dragZIndex(for: tab))
-                            .opacity(dragState.id == tab.id ? 0.96 : 1)
-                            .highPriorityGesture(
-                                dragGesture(
-                                    for: tab,
-                                    width: width,
-                                    actualIndex: actualIndex,
-                                    totalCount: totalCount,
-                                    visibleRange: visibleRange
-                                )
-                            )
-                            .id(tab.id)
-                        }
+                        )
+                        .id(tab.id)
                     }
-                    .padding(.vertical, 0)
                 }
+                .padding(.vertical, 3)
+                .padding(.horizontal, 3)
+            }
 #if os(macOS)
-                .modifier(ToolbarTabBarScrollStyle())
+            .modifier(ToolbarTabBarScrollStyle())
 #endif
-                .frame(height: chipHeight)
-                .contentShape(Rectangle())
-                .onChange(of: appModel.tabManager.activeTabId) { _, newValue in
-                    guard let target = newValue else { return }
-                    withAnimation(.easeInOut(duration: 0.22)) {
-                        proxy.scrollTo(target, anchor: .center)
-                    }
+            .frame(height: chipHeight + 6)
+            .contentShape(Rectangle())
+            .onChange(of: appModel.tabManager.activeTabId) { _, newValue in
+                guard let target = newValue else { return }
+                withAnimation(.easeInOut(duration: 0.22)) {
+                    proxy.scrollTo(target, anchor: .center)
                 }
             }
-            .animation(.easeInOut(duration: 0.18), value: tabs.map(\.id))
-        )
+        }
+        .animation(.easeInOut(duration: 0.18), value: tabs.map(\.id))
+        .frame(height: chipHeight + 10)
+
+        return AnyView(scroller)
     }
 
     private var orderedTabs: [WorkspaceTab] {
@@ -1269,23 +1268,36 @@ struct WorkspaceToolbarTabBar: View {
             let spacing = tabSpacing
             let comfortableSlots = Int(floor((width + spacing) / (comfortableMinTabWidth + spacing)))
             let absoluteSlots = Int(floor((width + spacing) / (absoluteMinTabWidth + spacing)))
-            let candidate = max(comfortableSlots, min(absoluteSlots, maxVisibleTabs))
-            return max(1, min(maxVisibleTabs, candidate))
+            let candidate = max(comfortableSlots, absoluteSlots)
+            return max(1, candidate)
         }
 
         var reserved: CGFloat = 0
         var scrollerWidth = max(fullWidth - reserved, comfortableMinTabWidth)
-        var slotLimit = capacity(for: scrollerWidth)
+
+        func adjustedCapacity(for width: CGFloat) -> Int {
+            let base = capacity(for: width)
+            guard totalCount > base - 1 else { return base }
+            return max(base - 1, 1)
+        }
+
+        var slotLimit = adjustedCapacity(for: scrollerWidth)
+        var visible = selectVisibleTabs(from: tabs, capacity: slotLimit)
         var showOverflow = totalCount > slotLimit
+        if !showOverflow, scrollerWidth < fullWidth - 40 {
+            showOverflow = totalCount >= slotLimit
+        }
 
         if showOverflow {
             reserved = overflowButtonWidth + overflowSpacing
             scrollerWidth = max(fullWidth - reserved, comfortableMinTabWidth)
-            slotLimit = capacity(for: scrollerWidth)
-            showOverflow = totalCount > slotLimit
+            slotLimit = adjustedCapacity(for: scrollerWidth)
+            if slotLimit >= totalCount {
+                slotLimit = max(totalCount - 1, 1)
+            }
+            visible = selectVisibleTabs(from: tabs, capacity: slotLimit)
+            showOverflow = visible.count < totalCount
         }
-
-        let visible = selectVisibleTabs(from: tabs, capacity: slotLimit)
 
         return ToolbarLayout(
             fullWidth: fullWidth,
@@ -1307,37 +1319,70 @@ struct WorkspaceToolbarTabBar: View {
         return selection
     }
 
-    private func computedTabWidth(availableWidth: CGFloat, visibleCount: Int) -> CGFloat {
-        guard visibleCount > 0 else { return maxTabWidth }
-        let spacingTotal = tabSpacing * CGFloat(max(visibleCount - 1, 0))
+    private func resolvedTabWidths(for tabs: [WorkspaceTab], availableWidth: CGFloat) -> [UUID: CGFloat] {
+        guard !tabs.isEmpty else { return [:] }
+
+        let spacingTotal = tabSpacing * CGFloat(max(tabs.count - 1, 0))
         let widthPool = max(availableWidth - spacingTotal, 0)
-        let widthPerTab = widthPool / CGFloat(max(visibleCount, 1))
+        let base = widthPool / CGFloat(max(tabs.count, 1))
 
-        let comfortableThreshold = CGFloat(visibleCount) * comfortableMinTabWidth
-        let absoluteThreshold = CGFloat(visibleCount) * absoluteMinTabWidth
+        var widths: [UUID: CGFloat] = [:]
+        let pinnedTabs = tabs.filter { $0.isPinned }
+        let regularTabs = tabs.filter { !$0.isPinned }
 
-        let resolvedWidth: CGFloat
-        if widthPool >= comfortableThreshold {
-            resolvedWidth = max(comfortableMinTabWidth, widthPerTab)
-        } else if widthPool >= absoluteThreshold {
-            resolvedWidth = max(absoluteMinTabWidth, widthPerTab)
-        } else {
-            resolvedWidth = max(1, widthPerTab)
+        var pinnedSum: CGFloat = 0
+        for tab in pinnedTabs {
+            var width = base
+            if base >= pinnedComfortableMinWidth {
+                width = max(pinnedComfortableMinWidth, width)
+            } else {
+                width = max(pinnedAbsoluteMinWidth, width)
+            }
+            width = min(pinnedMaxWidth, width)
+            widths[tab.id] = width
+            pinnedSum += width
         }
 
-        return min(maxTabWidth, resolvedWidth)
-    }
-
-    private func chipWidth(for tab: WorkspaceTab, baseWidth: CGFloat) -> CGFloat {
-        guard tab.isPinned else { return baseWidth }
-        let pinnedLowerBound: CGFloat
-        if baseWidth >= pinnedComfortableMinWidth {
-            pinnedLowerBound = pinnedComfortableMinWidth
-        } else {
-            pinnedLowerBound = min(baseWidth, pinnedAbsoluteMinWidth)
+        let pinnedCount = CGFloat(pinnedTabs.count)
+        let regularCount = CGFloat(regularTabs.count)
+        var regularWidth = base
+        if regularCount > 0 {
+            let adjustment = (base * pinnedCount - pinnedSum) / regularCount
+            regularWidth = base + adjustment
         }
-        let capped = min(baseWidth, pinnedMaxWidth)
-        return max(pinnedLowerBound, capped)
+
+        regularWidth = max(absoluteMinTabWidth, regularWidth)
+
+        var consumedAdjustment: CGFloat = 0
+        for tab in regularTabs {
+            var width = regularWidth
+            width = min(maxTabWidth, max(absoluteMinTabWidth, width))
+            widths[tab.id] = width
+            consumedAdjustment += width
+        }
+
+        let currentSum = pinnedSum + consumedAdjustment
+        let diff = widthPool - currentSum
+
+        if abs(diff) > 0.5 {
+            if regularCount > 0 {
+                let deltaPerTab = diff / regularCount
+                for tab in regularTabs {
+                    guard var width = widths[tab.id] else { continue }
+                    width = min(maxTabWidth, max(absoluteMinTabWidth, width + deltaPerTab))
+                    widths[tab.id] = width
+                }
+            } else if pinnedCount > 0 {
+                let deltaPerTab = diff / pinnedCount
+                for tab in pinnedTabs {
+                    guard var width = widths[tab.id] else { continue }
+                    width = min(pinnedMaxWidth, max(pinnedAbsoluteMinWidth, width + deltaPerTab))
+                    widths[tab.id] = width
+                }
+            }
+        }
+
+        return widths
     }
 
     private func tabOffset(for tab: WorkspaceTab) -> CGFloat {
@@ -1535,41 +1580,62 @@ struct WorkspaceToolbarTabBar: View {
     private var overflowControl: some View {
         Button {
             withAnimation(.spring(response: 0.28, dampingFraction: 0.82)) {
-                appState.showTabOverview = true
+                appState.showTabOverview.toggle()
             }
         } label: {
-            ZStack {
-                Capsule(style: .continuous)
-                    .fill(overflowFill)
-                Capsule(style: .continuous)
-                    .stroke(overflowStroke, lineWidth: 1)
-                Image(systemName: "chevron.down")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(overflowForeground)
-            }
+            Button(
+                action: {},
+                label: { EmptyView() }
+            )
+            .buttonStyle(.borderless)
+            .controlSize(.small)
+            .labelStyle(.iconOnly)
+            .contentShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
         }
-        .buttonStyle(.plain)
-        .contentShape(Capsule(style: .continuous))
-        .accessibilityLabel("All Tabs")
-        .help("Show all open tabs")
+        .buttonStyle(.borderless)
+        .controlSize(.small)
+        .labelStyle(.iconOnly)
+        .overlay(
+            Image(systemName: "chevron.down")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(overflowForeground)
+        )
+        .frame(width: 24, height: 24)
+        .accessibilityLabel("Open Tab Overview")
+        .help("Open Tab Overview")
     }
 
-    private var overflowFill: Color {
+    private var overflowBackground: Color {
+#if os(macOS)
+        let base = NSColor.controlBackgroundColor
         if colorScheme == .dark {
-            return Color.white.opacity(0.10)
+            return Color(nsColor: base.blended(withFraction: 0.35, of: NSColor.windowBackgroundColor) ?? base)
         }
-        return Color.white.opacity(0.65)
+        return Color(nsColor: base)
+#else
+        return Color(.systemGray5)
+#endif
     }
 
-    private var overflowStroke: Color {
-        if colorScheme == .dark {
-            return Color.white.opacity(0.25)
-        }
-        return Color.black.opacity(0.12)
+    private var overflowBorder: Color {
+#if os(macOS)
+        let color = NSColor.separatorColor.withAlphaComponent(colorScheme == .dark ? 0.45 : 0.28)
+        return Color(nsColor: color)
+#else
+        return Color(.separator)
+#endif
     }
 
     private var overflowForeground: Color {
-        colorScheme == .dark ? Color.white.opacity(0.9) : Color.black.opacity(0.7)
+#if os(macOS)
+        return colorScheme == .dark ? Color(nsColor: .labelColor) : Color(nsColor: .secondaryLabelColor)
+#else
+        return Color(.label)
+#endif
+    }
+
+    private var overflowShadow: Color {
+        Color.black.opacity(colorScheme == .dark ? 0.45 : 0.08)
     }
 
     private func bookmark(tab: WorkspaceTab) {
@@ -1592,7 +1658,6 @@ struct WorkspaceToolbarTabBar: View {
 struct ToolbarWorkspaceTabChip: View {
     @ObservedObject var tab: WorkspaceTab
     let isActive: Bool
-    let accent: Color
     let height: CGFloat
     let onSelect: () -> Void
     let onClose: () -> Void
@@ -1701,47 +1766,86 @@ struct ToolbarWorkspaceTabChip: View {
 
     private var glassHighlight: some View {
         capsule
-            .stroke(Color.white.opacity(isActive ? 0.65 : 0.35), lineWidth: 0.7)
+            .stroke(
+                Color.white.opacity(
+                    colorScheme == .dark
+                    ? (isActive ? 0.40 : 0.22)
+                    : (isActive ? 0.55 : 0.28)
+                ),
+                lineWidth: 0.7
+            )
             .blendMode(.screen)
-            .opacity(0.9)
-            .offset(y: -0.6)
+            .opacity(0.85)
+            .offset(y: -0.5)
     }
 
     private var glassGradient: LinearGradient {
         if isActive {
-            let top = accent.opacity(colorScheme == .dark ? 0.40 : 0.30)
-            let mid = accent.opacity(colorScheme == .dark ? 0.24 : 0.16)
-            let bottom = Color.white.opacity(colorScheme == .dark ? 0.12 : 0.20)
-            return LinearGradient(colors: [top, mid, bottom], startPoint: .topLeading, endPoint: .bottomTrailing)
+            if colorScheme == .dark {
+                return LinearGradient(
+                    colors: [
+                        Color.white.opacity(0.36),
+                        Color.white.opacity(0.24),
+                        Color.white.opacity(0.16)
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            } else {
+                return LinearGradient(
+                    colors: [
+                        Color.white.opacity(0.97),
+                        Color.white.opacity(0.90),
+                        Color.white.opacity(0.82)
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            }
         }
 
-        let top = Color.white.opacity(colorScheme == .dark ? 0.22 : 0.65)
-        let bottom = Color.white.opacity(colorScheme == .dark ? 0.12 : 0.35)
-        return LinearGradient(colors: [top, bottom], startPoint: .top, endPoint: .bottom)
+        if colorScheme == .dark {
+            return LinearGradient(
+                colors: [
+                    Color.white.opacity(0.18),
+                    Color.white.opacity(0.08)
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+        }
+        return LinearGradient(
+            colors: [
+                Color.white.opacity(0.72),
+                Color.white.opacity(0.56)
+            ],
+            startPoint: .top,
+            endPoint: .bottom
+        )
     }
 
     private var glassBorderColor: Color {
-        if isActive {
-            return accent.opacity(colorScheme == .dark ? 0.55 : 0.42)
+        if colorScheme == .dark {
+            return isActive ? Color.white.opacity(0.45) : Color.white.opacity(0.26)
         }
-        return colorScheme == .dark ? Color.white.opacity(0.28) : Color.black.opacity(0.12)
+        return isActive ? Color.black.opacity(0.12) : Color.black.opacity(0.08)
     }
 
     private var titleColor: Color {
         if isActive {
-            return colorScheme == .dark ? Color.white.opacity(0.95) : Color.white
+            return colorScheme == .dark ? Color.white.opacity(0.95) : Color.black.opacity(0.85)
         }
         if tab.isPinned {
-            return colorScheme == .dark ? Color.white.opacity(0.8) : Color.primary.opacity(0.72)
+            return colorScheme == .dark ? Color.white.opacity(0.82) : Color.black.opacity(0.65)
         }
-        return colorScheme == .dark ? Color.white.opacity(0.78) : Color.primary.opacity(0.68)
+        return colorScheme == .dark ? Color.white.opacity(0.78) : Color.black.opacity(0.55)
     }
 
     private var closeIconColor: Color {
         if isActive {
-            return Color.white.opacity(0.92)
+            return colorScheme == .dark ? Color.white.opacity(0.92) : Color.black.opacity(0.6)
         }
-        return colorScheme == .dark ? Color.white.opacity(0.75) : Color.black.opacity(0.5)
+        return colorScheme == .dark ? Color.white.opacity(0.72) : Color.black.opacity(0.45)
     }
 
     private var closeButtonOpacity: Double {
@@ -1758,13 +1862,13 @@ struct ToolbarWorkspaceTabChip: View {
 
     private var tabShadowColor: Color {
         if isActive {
-            return accent.opacity(colorScheme == .dark ? 0.55 : 0.28)
+            return Color.black.opacity(colorScheme == .dark ? 0.55 : 0.15)
         }
-        return Color.black.opacity(colorScheme == .dark ? 0.35 : 0.08)
+        return Color.black.opacity(colorScheme == .dark ? 0.45 : 0.06)
     }
 
-    private var glassShadowRadius: CGFloat { isActive ? 6 : 3 }
-    private var glassShadowYOffset: CGFloat { isActive ? 3 : 1.5 }
+    private var glassShadowRadius: CGFloat { isActive ? 5 : 2 }
+    private var glassShadowYOffset: CGFloat { isActive ? 2.5 : 1 }
 }
 #endif
 
