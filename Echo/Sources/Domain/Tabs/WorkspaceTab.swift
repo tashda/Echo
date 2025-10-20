@@ -1,6 +1,10 @@
 import Foundation
 import SwiftUI
 import Combine
+import os.signpost
+import os.log
+
+private let gridPipelineLog = OSLog(subsystem: "dk.tippr.echo", category: .pointsOfInterest)
 
 final class WorkspaceTab: ObservableObject, Identifiable {
     struct BookmarkTabContext: Equatable {
@@ -279,8 +283,50 @@ final class QueryResultsGridState {
     @Published var lastExecutionTime: TimeInterval?
     @Published var currentExecutionTime: TimeInterval = 0
     struct RowProgress: Equatable {
+        /// Rows that have been received from the stream (cumulative)
+        var totalReceived: Int = 0
+
+        /// Total row count reported by the database/stream
+        var totalReported: Int = 0
+
+        /// Rows that are fully materialized and ready to display
         var materialized: Int = 0
-        var reported: Int = 0
+
+        /// Backwards-compatible alias for `totalReported`
+        var reported: Int {
+            get { totalReported }
+            set { totalReported = newValue }
+        }
+
+        /// Backwards-compatible alias for `totalReceived`
+        var received: Int {
+            get { totalReceived }
+            set { totalReceived = newValue }
+        }
+
+        init(totalReceived: Int = 0, totalReported: Int = 0, materialized: Int = 0) {
+            self.totalReceived = totalReceived
+            self.totalReported = totalReported
+            self.materialized = materialized
+        }
+
+        init(materialized: Int, reported: Int, received: Int? = nil) {
+            self.init(
+                totalReceived: received ?? max(materialized, reported),
+                totalReported: reported,
+                materialized: materialized
+            )
+        }
+
+        /// Primary count to display in UI (auto-selects best available count)
+        var displayCount: Int {
+            totalReported > 0 ? totalReported : totalReceived
+        }
+
+        /// Whether the query has completed loading all rows
+        var isComplete: Bool {
+            totalReported > 0 && materialized >= totalReported
+        }
     }
     @Published private(set) var rowProgress: RowProgress = RowProgress()
     @Published var messages: [QueryExecutionMessage] = []
@@ -554,7 +600,11 @@ final class QueryResultsGridState {
         }
         let finalMaterialized = max(rowProgress.materialized, totalAvailableRowCount)
         let finalReported = max(rowProgress.reported, finalMaterialized)
-        rowProgress = RowProgress(materialized: finalMaterialized, reported: finalReported)
+        rowProgress = RowProgress(
+            materialized: finalMaterialized,
+            reported: finalReported,
+            received: max(streamedRowCount, finalMaterialized)
+        )
         materializedHighWaterMark = max(materializedHighWaterMark, finalMaterialized)
 
         finalizeSpoolOnCompletion(cancelled: false)
@@ -664,9 +714,11 @@ final class QueryResultsGridState {
             let snapshot = QueryResultSet(columns: streamingColumns, rows: streamingRows)
             results = snapshot
             let retainedCount = streamingRows.count
+            let updatedReported = max(rowProgress.reported, retainedCount)
             rowProgress = RowProgress(
                 materialized: retainedCount,
-                reported: max(rowProgress.reported, retainedCount)
+                reported: updatedReported,
+                received: max(streamedRowCount, retainedCount)
             )
             visibleRowLimit = retainedCount
             materializedHighWaterMark = retainedCount
@@ -731,9 +783,35 @@ final class QueryResultsGridState {
             return 0
         }()
 
+#if DEBUG
+        print("[WorkspaceTab] applyStreamUpdate appendedRowCount=\(appendedRowCount) appendedRows=\(update.appendedRows.count) rawRows=\(rawRows.count) encodedRows=\(update.encodedRows.count) totalRowCount=\(update.totalRowCount ?? -1)")
+#endif
+
+        os_log("ApplyStreamUpdate begin rows=%{public}d", log: gridPipelineLog, type: .info, appendedRowCount)
+        print("[Signpost] ApplyStreamUpdate begin rows=\(appendedRowCount)")
+        if #available(macOS 10.14, *) {
+            os_signpost(.begin, log: gridPipelineLog, name: "ApplyStreamUpdate", "%{public}d rows", appendedRowCount)
+        }
+        defer {
+            os_log("ApplyStreamUpdate end", log: gridPipelineLog, type: .info)
+            print("[Signpost] ApplyStreamUpdate end")
+            if #available(macOS 10.14, *) {
+                os_signpost(.end, log: gridPipelineLog, name: "ApplyStreamUpdate")
+            }
+        }
+
         if appendedRowCount > 0 {
             streamedRowCount &+= appendedRowCount
             didReceiveStreamingUpdate = true
+
+            let updatedProgress = RowProgress(
+                totalReceived: max(streamedRowCount, rowProgress.totalReceived),
+                totalReported: rowProgress.totalReported,
+                materialized: rowProgress.materialized
+            )
+            if updatedProgress != rowProgress {
+                rowProgress = updatedProgress
+            }
         }
 
         let estimatedTotal = max(update.totalRowCount, streamedRowCount)
@@ -823,11 +901,6 @@ final class QueryResultsGridState {
             }
         }
 
-        let updatedReported = max(rowProgress.reported, estimatedTotal)
-        if rowProgress.reported != updatedReported {
-            rowProgress = RowProgress(materialized: rowProgress.materialized, reported: updatedReported)
-        }
-
         if streamingMode == .preview,
            streamedRowCount >= spoolActivationThreshold {
             streamingMode = .background
@@ -868,7 +941,11 @@ final class QueryResultsGridState {
 
         let updatedMaterialized = max(rowProgress.materialized, truncatedRows.count)
         let updatedReported = max(rowProgress.reported, totalRowCount)
-        rowProgress = RowProgress(materialized: updatedMaterialized, reported: updatedReported)
+        rowProgress = RowProgress(
+            materialized: updatedMaterialized,
+            reported: updatedReported,
+            received: streamedRowCount
+        )
         materializedHighWaterMark = max(materializedHighWaterMark, updatedMaterialized)
 
         if isResultsOnly {
@@ -1159,9 +1236,14 @@ final class QueryResultsGridState {
         let previousCount = lastSpoolStatsRowCount
         if stats.rowCount > previousCount {
             lastSpoolStatsRowCount = stats.rowCount
-            let newReported = max(rowProgress.reported, stats.rowCount)
-            if rowProgress.reported != newReported {
-                rowProgress = RowProgress(materialized: rowProgress.materialized, reported: newReported)
+            let newReported = max(rowProgress.totalReported, stats.rowCount)
+            let newReceived = max(max(streamedRowCount, stats.rowCount), rowProgress.totalReceived)
+            if rowProgress.totalReported != newReported || rowProgress.totalReceived != newReceived {
+                rowProgress = RowProgress(
+                    totalReceived: newReceived,
+                    totalReported: newReported,
+                    materialized: rowProgress.materialized
+                )
                 markResultDataChanged()
                 if var existing = results, existing.totalRowCount != newReported {
                     existing.totalRowCount = newReported
@@ -1260,6 +1342,9 @@ final class QueryResultsGridState {
         columns: [ColumnInfo]
     ) {
         guard !rows.isEmpty else { return }
+        #if DEBUG
+        print("[WorkspaceTab] integrateFormattedRows rows=\(rows.count) range=\(range) totalRowCount=\(totalRowCount ?? -1)")
+        #endif
         let token = formattingGeneration
         let resetTask = formattingResetTask
         Task.detached(priority: .utility) { [weak self] in
@@ -1301,6 +1386,18 @@ final class QueryResultsGridState {
         columns: [ColumnInfo]
     ) {
         guard !rows.isEmpty else { return }
+        os_log("IntegrateFormattedRows begin rows=%{public}d", log: gridPipelineLog, type: .info, rows.count)
+        print("[Signpost] IntegrateFormattedRows begin rows=\(rows.count)")
+        if #available(macOS 10.14, *) {
+            os_signpost(.begin, log: gridPipelineLog, name: "IntegrateFormattedRows", "%{public}d rows", rows.count)
+        }
+        defer {
+            os_log("IntegrateFormattedRows end", log: gridPipelineLog, type: .info)
+            print("[Signpost] IntegrateFormattedRows end")
+            if #available(macOS 10.14, *) {
+                os_signpost(.end, log: gridPipelineLog, name: "IntegrateFormattedRows")
+            }
+        }
         rowCache.ingest(rows: rows, startingAt: range.lowerBound)
 
         if range.lowerBound < streamingRows.count {
@@ -1327,8 +1424,12 @@ final class QueryResultsGridState {
 
         refreshMaterializedProgress()
         let newReported = max(rowProgress.reported, totalRowCount)
-        if rowProgress.reported != newReported {
-            rowProgress = RowProgress(materialized: rowProgress.materialized, reported: newReported)
+        if rowProgress.reported != newReported || rowProgress.totalReceived != streamedRowCount {
+            rowProgress = RowProgress(
+                totalReceived: streamedRowCount,
+                totalReported: newReported,
+                materialized: rowProgress.materialized
+            )
         }
 
         let spoolMode: StreamingMode = treatAsPreview ? .preview : .background
@@ -1383,8 +1484,13 @@ final class QueryResultsGridState {
         let contiguous = computeContiguousMaterializedCount()
         if contiguous > materializedHighWaterMark {
             materializedHighWaterMark = contiguous
-            let reported = max(rowProgress.reported, materializedHighWaterMark)
-            rowProgress = RowProgress(materialized: materializedHighWaterMark, reported: reported)
+            let reported = max(rowProgress.totalReported, materializedHighWaterMark)
+            let received = max(streamedRowCount, rowProgress.totalReceived)
+            rowProgress = RowProgress(
+                totalReceived: received,
+                totalReported: reported,
+                materialized: materializedHighWaterMark
+            )
             markResultDataChanged()
         }
     }
@@ -1426,7 +1532,9 @@ final class QueryResultsGridState {
         }
         lastBroadcastSnapshot = snapshot
 
-        if isResultChangeCoalesced { return }
+        if !force && isResultChangeCoalesced {
+            return
+        }
         isResultChangeCoalesced = true
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
@@ -1491,8 +1599,14 @@ final class QueryResultsGridState {
             let newTotal = streamedRowCount
             let newMaterialized = max(rowProgress.materialized, streamingRows.count)
             let newReported = max(rowProgress.reported, newTotal)
-            if rowProgress.materialized != newMaterialized || rowProgress.reported != newReported {
-                rowProgress = RowProgress(materialized: newMaterialized, reported: newReported)
+            if rowProgress.materialized != newMaterialized
+                || rowProgress.totalReported != newReported
+                || rowProgress.totalReceived != streamedRowCount {
+                rowProgress = RowProgress(
+                    totalReceived: streamedRowCount,
+                    totalReported: newReported,
+                    materialized: newMaterialized
+                )
             }
             let currentLimit = visibleRowLimit ?? initialVisibleRowBatch
             let expandedLimit = min(newTotal, currentLimit + newRows.count)
@@ -1520,9 +1634,13 @@ final class QueryResultsGridState {
         dataPreviewState = preview
 
         if newRows.isEmpty {
-            let newReported = max(rowProgress.reported, streamedRowCount)
-            if rowProgress.reported != newReported {
-                rowProgress = RowProgress(materialized: rowProgress.materialized, reported: newReported)
+            let newReported = max(rowProgress.totalReported, streamedRowCount)
+            if rowProgress.totalReported != newReported || rowProgress.totalReceived != streamedRowCount {
+                rowProgress = RowProgress(
+                    totalReceived: streamedRowCount,
+                    totalReported: newReported,
+                    materialized: rowProgress.materialized
+                )
             }
         }
 

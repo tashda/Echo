@@ -18,8 +18,9 @@ final class WorkspaceToolbarTabBarOverlay {
 
     private let navigationPrefix = "workspace.navigation"
     private let primaryPrefix = "workspace.primary"
-    private let leadingPadding: CGFloat = 14
+    private let leadingPadding: CGFloat = 18
     private let trailingPadding: CGFloat = 12
+    private let verticalInset: CGFloat = 3.5
 
     func apply(
         style: WorkspaceTabBarStyle,
@@ -97,12 +98,12 @@ final class WorkspaceToolbarTabBarOverlay {
 
         toolbarView.addSubview(hostingView)
 
-        let leading = hostingView.leadingAnchor.constraint(equalTo: toolbarView.leadingAnchor)
-        let trailing = hostingView.trailingAnchor.constraint(equalTo: toolbarView.trailingAnchor)
+        hostingView.translatesAutoresizingMaskIntoConstraints = false
+
+        let leading = hostingView.leadingAnchor.constraint(equalTo: toolbarView.leadingAnchor, constant: leadingPadding)
+        let trailing = hostingView.trailingAnchor.constraint(lessThanOrEqualTo: toolbarView.trailingAnchor, constant: -trailingPadding)
         let centerY = hostingView.centerYAnchor.constraint(equalTo: toolbarView.centerYAnchor)
-        let height = hostingView.heightAnchor.constraint(
-            equalToConstant: WorkspaceChromeMetrics.toolbarTabBarHeight
-        )
+        let height = hostingView.heightAnchor.constraint(equalToConstant: WorkspaceChromeMetrics.toolbarTabBarHeight + 10)
 
         NSLayoutConstraint.activate([leading, trailing, centerY, height])
 
@@ -125,7 +126,7 @@ final class WorkspaceToolbarTabBarOverlay {
         themeManager: ThemeManager
     ) -> AnyView {
         AnyView(
-            WorkspaceToolbarTabBar(maxVisibleTabs: style.maxVisibleToolbarTabs)
+            WorkspaceToolbarTabBar()
                 .environmentObject(appModel)
                 .environmentObject(appState)
                 .environmentObject(themeManager)
@@ -212,12 +213,13 @@ final class WorkspaceToolbarTabBarOverlay {
         trailingConstraint?.constant = -trailingInset
 
         if let referenceHeight = referenceHeight(in: toolbarView, toolbar: toolbar) {
-            heightConstraint?.constant = referenceHeight
-            let offset = (referenceMidY(in: toolbarView, toolbar: toolbar) ?? (bounds.midY)) - bounds.midY
+            let desiredHeight = max(referenceHeight, WorkspaceChromeMetrics.toolbarTabBarHeight + 10)
+            heightConstraint?.constant = desiredHeight
+            let offset = (referenceMidY(in: toolbarView, toolbar: toolbar) ?? bounds.midY) - bounds.midY + verticalInset
             centerYConstraint?.constant = offset
         } else {
-            heightConstraint?.constant = WorkspaceChromeMetrics.toolbarTabBarHeight
-            centerYConstraint?.constant = 0
+            heightConstraint?.constant = WorkspaceChromeMetrics.toolbarTabBarHeight + 10
+            centerYConstraint?.constant = verticalInset
         }
 
         hostingView.isHidden = availableWidth < 64
@@ -246,7 +248,12 @@ final class WorkspaceToolbarTabBarOverlay {
         var views: [NSView] = [titlebarContainer]
 
         while let view = views.popLast() {
-            if String(describing: type(of: view)).contains("NSToolbarView") {
+            let className = String(describing: type(of: view))
+            if className.contains("NSTitlebarContainerView") {
+                views.append(contentsOf: view.subviews)
+                continue
+            }
+            if className.contains("NSToolbarView") {
                 return view
             }
             views.append(contentsOf: view.subviews)
