@@ -1,28 +1,297 @@
 import SwiftUI
-import Foundation
 import Combine
 #if os(macOS)
 import AppKit
-#elseif canImport(UIKit)
-import UIKit
 #endif
 
-/// Primary settings scene built with a native `NavigationSplitView`.
-struct SettingsWindow: Scene {
-    static let sceneID = "settings"
+final class SettingsNavigationBridge: ObservableObject {
+    @Published var title: String
+    @Published var canNavigateBack: Bool
+    @Published var canNavigateForward: Bool
 
-    var body: some Scene {
-        Window("Settings", id: Self.sceneID) {
-            SettingsView()
-                .environmentObject(AppCoordinator.shared.appModel)
-                .environmentObject(AppCoordinator.shared.appState)
-                .environmentObject(AppCoordinator.shared.clipboardHistory)
-                .environmentObject(ThemeManager.shared)
+    var performBack: (() -> Void)?
+    var performForward: (() -> Void)?
+
+    init(initialTitle: String = SettingsView.SettingsSection.appearance.title) {
+        self.title = initialTitle
+        self.canNavigateBack = false
+        self.canNavigateForward = false
+    }
+
+    func triggerBack() {
+        performBack?()
+    }
+
+    func triggerForward() {
+        performForward?()
+    }
+}
+
+#if os(macOS)
+final class SettingsWindowController: NSWindowController, NSWindowDelegate {
+    static let shared = SettingsWindowController()
+
+    private let navigationBridge = SettingsNavigationBridge()
+    private lazy var toolbarController = SettingsToolbarController(bridge: navigationBridge)
+
+    private override init(window: NSWindow?) {
+        super.init(window: window)
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    func present(section: SettingsView.SettingsSection? = nil) {
+        if window == nil {
+            let hostingController = SettingsHostingController(bridge: navigationBridge)
+            let window = NSWindow(contentViewController: hostingController)
+            window.styleMask = [.titled, .closable, .miniaturizable, .fullSizeContentView]
+            window.titleVisibility = .hidden
+            window.titlebarAppearsTransparent = true
+            window.toolbarStyle = .unified
+            window.isReleasedWhenClosed = false
+            window.setContentSize(NSSize(width: 720, height: 520))
+            window.delegate = self
+            toolbarController.install(on: window)
+            self.window = window
         }
-        .defaultSize(width: 720, height: 520)
+
+        if let section {
+            NotificationCenter.default.post(name: .openSettingsSection, object: section.rawValue)
+        }
+
+        window?.center()
+        window?.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
     }
 
 }
+
+private final class SettingsHostingController: NSHostingController<SettingsView> {
+    init(bridge: SettingsNavigationBridge) {
+        let root = SettingsView(toolbarBridge: bridge)
+            .environmentObject(AppCoordinator.shared.appModel)
+            .environmentObject(AppCoordinator.shared.appState)
+            .environmentObject(AppCoordinator.shared.clipboardHistory)
+            .environmentObject(ThemeManager.shared)
+        super.init(rootView: root)
+    }
+
+    @MainActor required dynamic init?(coder aDecoder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+}
+
+private final class SettingsToolbarController: NSObject, NSToolbarDelegate {
+    private weak var window: NSWindow?
+    private let bridge: SettingsNavigationBridge
+    private var cancellables: Set<AnyCancellable> = []
+
+    private var navControl: NSSegmentedControl?
+    private var capsuleView: CapsuleTitleView?
+
+    private let toolbarIdentifier = NSToolbar.Identifier("com.fuzee.settings.toolbar")
+    private let navItemIdentifier = NSToolbarItem.Identifier("com.fuzee.settings.toolbar.nav")
+    private let labelItemIdentifier = NSToolbarItem.Identifier("com.fuzee.settings.toolbar.label")
+    private let capsuleItemIdentifier = NSToolbarItem.Identifier("com.fuzee.settings.toolbar.capsule")
+
+    init(bridge: SettingsNavigationBridge) {
+        self.bridge = bridge
+    }
+
+    func install(on window: NSWindow) {
+        self.window = window
+
+        let toolbar = NSToolbar(identifier: toolbarIdentifier)
+        toolbar.delegate = self
+        toolbar.allowsUserCustomization = false
+        toolbar.allowsExtensionItems = false
+        toolbar.displayMode = .iconOnly
+        window.toolbar = toolbar
+
+        observeBridge()
+    }
+
+    private func observeBridge() {
+        cancellables.removeAll()
+
+        bridge.$title
+            .receive(on: RunLoop.main)
+            .sink { [weak self] title in
+                self?.capsuleView?.update(title: title)
+            }
+            .store(in: &cancellables)
+
+        bridge.$canNavigateBack
+            .receive(on: RunLoop.main)
+            .sink { [weak self] enabled in
+                self?.navControl?.setEnabled(enabled, forSegment: 0)
+            }
+            .store(in: &cancellables)
+
+        bridge.$canNavigateForward
+            .receive(on: RunLoop.main)
+            .sink { [weak self] enabled in
+                self?.navControl?.setEnabled(enabled, forSegment: 1)
+            }
+            .store(in: &cancellables)
+    }
+
+    func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
+        [navItemIdentifier, labelItemIdentifier, .flexibleSpace, capsuleItemIdentifier]
+    }
+
+    func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
+        [navItemIdentifier, labelItemIdentifier, .flexibleSpace, capsuleItemIdentifier]
+    }
+
+    func toolbar(
+        _ toolbar: NSToolbar,
+        itemForItemIdentifier itemIdentifier: NSToolbarItem.Identifier,
+        willBeInsertedIntoToolbar flag: Bool
+    ) -> NSToolbarItem? {
+        switch itemIdentifier {
+        case navItemIdentifier:
+            let item = NSToolbarItem(itemIdentifier: itemIdentifier)
+            let control = NSSegmentedControl(images: [
+                NSImage(systemSymbolName: "chevron.left", accessibilityDescription: nil) ?? NSImage(),
+                NSImage(systemSymbolName: "chevron.right", accessibilityDescription: nil) ?? NSImage()
+            ], trackingMode: .momentary, target: self, action: #selector(handleNavigation(_:)))
+            control.segmentStyle = .separated
+            control.controlSize = .small
+            control.setWidth(30, forSegment: 0)
+            control.setWidth(30, forSegment: 1)
+            control.translatesAutoresizingMaskIntoConstraints = false
+
+            let container = NSView()
+            container.translatesAutoresizingMaskIntoConstraints = false
+            container.addSubview(control)
+
+            NSLayoutConstraint.activate([
+                control.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+                control.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+                control.topAnchor.constraint(equalTo: container.topAnchor),
+                control.bottomAnchor.constraint(equalTo: container.bottomAnchor),
+                control.heightAnchor.constraint(equalToConstant: 26)
+            ])
+
+            item.view = container
+            navControl = control
+            control.setEnabled(bridge.canNavigateBack, forSegment: 0)
+            control.setEnabled(bridge.canNavigateForward, forSegment: 1)
+            return item
+
+        case labelItemIdentifier:
+            let item = NSToolbarItem(itemIdentifier: itemIdentifier)
+            let label = NSTextField(labelWithString: "Settings")
+            label.font = .systemFont(ofSize: 13, weight: .semibold)
+            label.textColor = .secondaryLabelColor
+            label.alignment = .left
+            label.translatesAutoresizingMaskIntoConstraints = false
+
+            let container = NSView()
+            container.translatesAutoresizingMaskIntoConstraints = false
+            container.addSubview(label)
+
+            NSLayoutConstraint.activate([
+                label.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+                label.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+                label.centerYAnchor.constraint(equalTo: container.centerYAnchor)
+            ])
+
+            item.view = container
+            return item
+
+        case capsuleItemIdentifier:
+            let item = NSToolbarItem(itemIdentifier: itemIdentifier)
+            let capsule = CapsuleTitleView()
+            capsule.update(title: bridge.title)
+            item.view = capsule
+            capsuleView = capsule
+            return item
+
+        default:
+            return NSToolbarItem(itemIdentifier: itemIdentifier)
+        }
+    }
+
+    @objc private func handleNavigation(_ sender: NSSegmentedControl) {
+        switch sender.selectedSegment {
+        case 0:
+            bridge.triggerBack()
+        case 1:
+            bridge.triggerForward()
+        default:
+            break
+        }
+        sender.selectedSegment = -1
+    }
+}
+
+private final class CapsuleTitleView: NSView {
+    private let blurView = NSVisualEffectView()
+    private let titleField = NSTextField(labelWithString: "")
+
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        translatesAutoresizingMaskIntoConstraints = false
+        wantsLayer = true
+
+        blurView.translatesAutoresizingMaskIntoConstraints = false
+        blurView.material = .underWindowBackground
+        blurView.blendingMode = .withinWindow
+        blurView.state = .active
+        blurView.wantsLayer = true
+        blurView.layer?.cornerRadius = 18
+        blurView.layer?.masksToBounds = true
+
+        titleField.translatesAutoresizingMaskIntoConstraints = false
+        titleField.font = .systemFont(ofSize: 16, weight: .semibold)
+        titleField.textColor = .labelColor
+        titleField.alignment = .center
+        titleField.backgroundColor = .clear
+        titleField.isBordered = false
+        titleField.isEditable = false
+
+        addSubview(blurView)
+        blurView.addSubview(titleField)
+
+        NSLayoutConstraint.activate([
+            blurView.leadingAnchor.constraint(equalTo: leadingAnchor),
+            blurView.trailingAnchor.constraint(equalTo: trailingAnchor),
+            blurView.topAnchor.constraint(equalTo: topAnchor),
+            blurView.bottomAnchor.constraint(equalTo: bottomAnchor),
+            blurView.heightAnchor.constraint(equalToConstant: 34),
+
+            titleField.leadingAnchor.constraint(equalTo: blurView.leadingAnchor, constant: 24),
+            titleField.trailingAnchor.constraint(equalTo: blurView.trailingAnchor, constant: -24),
+            titleField.centerYAnchor.constraint(equalTo: blurView.centerYAnchor)
+        ])
+
+        layer?.shadowColor = NSColor.black.withAlphaComponent(0.18).cgColor
+        layer?.shadowOpacity = 1
+        layer?.shadowRadius = 12
+        layer?.shadowOffset = NSSize(width: 0, height: -4)
+        setContentHuggingPriority(.required, for: .horizontal)
+        setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    override var intrinsicContentSize: NSSize {
+        let labelSize = titleField.intrinsicContentSize
+        return NSSize(width: max(160, labelSize.width + 48), height: 34)
+    }
+
+    func update(title: String) {
+        titleField.stringValue = title
+        invalidateIntrinsicContentSize()
+    }
+}
+#endif
 
 /// Hosts the sidebar/detail split view and renders each settings section.
 struct SettingsView: View {
@@ -30,6 +299,12 @@ struct SettingsView: View {
     @EnvironmentObject private var appState: AppState
     @EnvironmentObject private var clipboardHistory: ClipboardHistoryStore
     @EnvironmentObject private var themeManager: ThemeManager
+
+    @ObservedObject private var toolbarBridge: SettingsNavigationBridge
+
+    init(toolbarBridge: SettingsNavigationBridge = SettingsNavigationBridge()) {
+        self._toolbarBridge = ObservedObject(initialValue: toolbarBridge)
+    }
 
     enum SettingsSection: String, CaseIterable, Identifiable {
         case appearance
@@ -49,7 +324,7 @@ struct SettingsView: View {
             case .diagrams: return "Diagrams"
             case .applicationCache: return "Application Cache"
             case .keyboardShortcuts: return "Keyboard Shortcuts"
-        }
+            }
         }
 
         var systemImage: String? {
@@ -60,7 +335,7 @@ struct SettingsView: View {
             case .applicationCache: return "internaldrive"
             case .keyboardShortcuts: return "command"
             case .echoSense: return nil
-        }
+            }
         }
 
         var assetImageName: String? {
@@ -86,45 +361,60 @@ struct SettingsView: View {
 
     var body: some View {
         settingsSplitView
-        .frame(minWidth: 720, minHeight: 520)
-        .onAppear {
-            if selection == nil {
-                selection = .appearance
-            }
+            .frame(minWidth: 720, minHeight: 520)
+            .onAppear {
+                if selection == nil {
+                    selection = .appearance
+                }
 #if os(macOS)
-            columnVisibility = .all
+                columnVisibility = .all
 #endif
-            navigationHistory = [.appearance]
-            historyIndex = 0
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .openSettingsSection)) { notification in
-            guard let raw = notification.object as? String,
-                  let section = SettingsSection(rawValue: raw) else { return }
-            selection = section
-            preferredColumn = .sidebar
+                navigationHistory = [.appearance]
+                historyIndex = 0
+                toolbarBridge.performBack = { navigateBack() }
+                toolbarBridge.performForward = { navigateForward() }
+                syncToolbarState()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .openSettingsSection)) { notification in
+                guard let raw = notification.object as? String,
+                      let section = SettingsSection(rawValue: raw) else { return }
+                selection = section
+                preferredColumn = .sidebar
 #if os(macOS)
-            columnVisibility = .all
+                columnVisibility = .all
 #endif
-        }
-        .onChange(of: selection) { _, newValue in
-            guard !isUpdatingFromHistory else {
-                isUpdatingFromHistory = false
-                return
             }
-            guard let newValue else { return }
-            if historyIndex < navigationHistory.count - 1 {
-                navigationHistory = Array(navigationHistory.prefix(historyIndex + 1))
-            }
-            guard navigationHistory.last != newValue else {
+            .onChange(of: selection) { _, newValue in
+                guard !isUpdatingFromHistory else {
+                    isUpdatingFromHistory = false
+                    syncToolbarState()
+                    return
+                }
+                guard let newValue else { return }
+                if historyIndex < navigationHistory.count - 1 {
+                    navigationHistory = Array(navigationHistory.prefix(historyIndex + 1))
+                }
+                guard navigationHistory.last != newValue else {
+                    historyIndex = navigationHistory.count - 1
+                    syncToolbarState()
+                    return
+                }
+                navigationHistory.append(newValue)
                 historyIndex = navigationHistory.count - 1
-                return
+                syncToolbarState()
             }
-            navigationHistory.append(newValue)
-            historyIndex = navigationHistory.count - 1
-        }
-        .accentColor(themeManager.accentColor)
-        .preferredColorScheme(themeManager.effectiveColorScheme)
-        .background(themeManager.windowBackground)
+            .onChange(of: historyIndex) { _, _ in
+                syncToolbarState()
+            }
+            .accentColor(themeManager.accentColor)
+            .preferredColorScheme(themeManager.effectiveColorScheme)
+            .background(themeManager.windowBackground)
+    }
+
+    private func syncToolbarState() {
+        toolbarBridge.title = selection?.title ?? "Settings"
+        toolbarBridge.canNavigateBack = canNavigateBack
+        toolbarBridge.canNavigateForward = canNavigateForward
     }
 
     @ViewBuilder
@@ -135,16 +425,6 @@ struct SettingsView: View {
         } detail: {
             detailContent
         }
-        .toolbar(.hidden, for: .windowToolbar)
-        .background(
-            TitlebarAccessoryBridge(
-                title: selection?.title ?? "Settings",
-                canNavigateBack: canNavigateBack,
-                canNavigateForward: canNavigateForward,
-                onNavigateBack: navigateBack,
-                onNavigateForward: navigateForward
-            )
-        )
 #else
         NavigationSplitView(preferredCompactColumn: $preferredColumn) {
             sidebar
@@ -284,7 +564,6 @@ struct SettingsView: View {
     }
 #endif
 
-
 #if os(macOS)
     private var canNavigateBack: Bool {
         historyIndex > 0
@@ -307,7 +586,6 @@ struct SettingsView: View {
         isUpdatingFromHistory = true
         selection = navigationHistory[historyIndex]
     }
-
 #else
     private var canNavigateBack: Bool { historyIndex > 0 }
     private var canNavigateForward: Bool { historyIndex + 1 < navigationHistory.count }
@@ -318,305 +596,12 @@ struct SettingsView: View {
 
 #Preview("Settings Window") {
     SettingsView()
+        .environmentObject(AppCoordinator.shared.appModel)
+        .environmentObject(AppCoordinator.shared.appState)
+        .environmentObject(AppCoordinator.shared.clipboardHistory)
+        .environmentObject(ThemeManager.shared)
 }
 
 extension Notification.Name {
     static let openSettingsSection = Notification.Name("com.fuzee.settings.openSection")
 }
-
-#if os(macOS)
-private struct TitlebarAccessoryBridge: NSViewRepresentable {
-    let title: String
-    let canNavigateBack: Bool
-    let canNavigateForward: Bool
-    let onNavigateBack: () -> Void
-    let onNavigateForward: () -> Void
-
-    func makeCoordinator() -> Coordinator { Coordinator() }
-
-    func makeNSView(context: Context) -> NSView {
-        let view = AttachmentView()
-        view.onWindowChange = { window in
-            context.coordinator.update(window: window,
-                                       title: title,
-                                       canNavigateBack: canNavigateBack,
-                                       canNavigateForward: canNavigateForward,
-                                       onNavigateBack: onNavigateBack,
-                                       onNavigateForward: onNavigateForward)
-        }
-        return view
-    }
-
-    func updateNSView(_ nsView: NSView, context: Context) {
-        context.coordinator.update(window: nsView.window,
-                                   title: title,
-                                   canNavigateBack: canNavigateBack,
-                                   canNavigateForward: canNavigateForward,
-                                   onNavigateBack: onNavigateBack,
-                                   onNavigateForward: onNavigateForward)
-        if let attachment = nsView as? AttachmentView {
-            attachment.onWindowChange = { window in
-                context.coordinator.update(window: window,
-                                           title: title,
-                                           canNavigateBack: canNavigateBack,
-                                           canNavigateForward: canNavigateForward,
-                                           onNavigateBack: onNavigateBack,
-                                           onNavigateForward: onNavigateForward)
-            }
-        }
-    }
-
-    final class Coordinator {
-        final class Configuration: ObservableObject {
-            @Published private(set) var title: String
-            @Published private(set) var canNavigateBack: Bool
-            @Published private(set) var canNavigateForward: Bool
-            var onBack: () -> Void
-            var onForward: () -> Void
-
-            init(title: String,
-                 canNavigateBack: Bool,
-                 canNavigateForward: Bool,
-                 onNavigateBack: @escaping () -> Void,
-                 onNavigateForward: @escaping () -> Void) {
-                self.title = title
-                self.canNavigateBack = canNavigateBack
-                self.canNavigateForward = canNavigateForward
-                self.onBack = onNavigateBack
-                self.onForward = onNavigateForward
-            }
-
-            func update(title: String,
-                        canNavigateBack: Bool,
-                        canNavigateForward: Bool,
-                        onNavigateBack: @escaping () -> Void,
-                        onNavigateForward: @escaping () -> Void) {
-                if self.title != title {
-                    self.title = title
-                }
-                if self.canNavigateBack != canNavigateBack {
-                    self.canNavigateBack = canNavigateBack
-                }
-                if self.canNavigateForward != canNavigateForward {
-                    self.canNavigateForward = canNavigateForward
-                }
-                onBack = onNavigateBack
-                onForward = onNavigateForward
-            }
-        }
-
-        private weak var currentWindow: NSWindow?
-        private var configuration: Configuration?
-        private var accessory: NSTitlebarAccessoryViewController?
-        private var hostingView: NSHostingView<TitlebarAccessoryView>?
-        private var containerView: NSView?
-
-        func update(window: NSWindow?,
-                    title: String,
-                    canNavigateBack: Bool,
-                    canNavigateForward: Bool,
-                    onNavigateBack: @escaping () -> Void,
-                    onNavigateForward: @escaping () -> Void) {
-            guard let window else { return }
-
-            if currentWindow !== window {
-                configureWindow(window)
-                currentWindow = window
-            }
-
-            ensureConfiguration(
-                title: title,
-                canNavigateBack: canNavigateBack,
-                canNavigateForward: canNavigateForward,
-                onNavigateBack: onNavigateBack,
-                onNavigateForward: onNavigateForward
-            )
-
-            ensureAccessory(on: window)
-
-            configuration?.update(
-                title: title,
-                canNavigateBack: canNavigateBack,
-                canNavigateForward: canNavigateForward,
-                onNavigateBack: onNavigateBack,
-                onNavigateForward: onNavigateForward
-            )
-        }
-
-        private func configureWindow(_ window: NSWindow) {
-            window.titleVisibility = .hidden
-            window.titlebarAppearsTransparent = true
-            window.toolbarStyle = .unified
-            window.standardWindowButton(.closeButton)?.isHidden = false
-            window.standardWindowButton(.miniaturizeButton)?.isHidden = false
-            window.standardWindowButton(.zoomButton)?.isHidden = false
-        }
-
-        private func ensureConfiguration(title: String,
-                                         canNavigateBack: Bool,
-                                         canNavigateForward: Bool,
-                                         onNavigateBack: @escaping () -> Void,
-                                         onNavigateForward: @escaping () -> Void) {
-            guard configuration == nil else { return }
-            let config = Configuration(
-                title: title,
-                canNavigateBack: canNavigateBack,
-                canNavigateForward: canNavigateForward,
-                onNavigateBack: onNavigateBack,
-                onNavigateForward: onNavigateForward
-            )
-            configuration = config
-            hostingView = NSHostingView(rootView: TitlebarAccessoryView(configuration: config))
-            hostingView?.translatesAutoresizingMaskIntoConstraints = false
-            hostingView?.setContentHuggingPriority(.defaultLow, for: .horizontal)
-            hostingView?.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
-        }
-
-        private func ensureAccessory(on window: NSWindow) {
-            guard let hostingView else { return }
-            let controller: NSTitlebarAccessoryViewController
-            if let existing = accessory {
-                controller = existing
-            } else {
-                controller = NSTitlebarAccessoryViewController()
-                controller.layoutAttribute = .left
-                controller.fullScreenMinHeight = 56
-                accessory = controller
-            }
-
-            let container: NSView
-            if let existingContainer = containerView {
-                container = existingContainer
-            } else {
-                container = NSView()
-                container.translatesAutoresizingMaskIntoConstraints = false
-                container.setContentHuggingPriority(.required, for: .horizontal)
-                container.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
-
-                hostingView.translatesAutoresizingMaskIntoConstraints = false
-                container.addSubview(hostingView)
-
-                NSLayoutConstraint.activate([
-                    hostingView.leadingAnchor.constraint(equalTo: container.leadingAnchor),
-                    hostingView.trailingAnchor.constraint(equalTo: container.trailingAnchor),
-                    hostingView.topAnchor.constraint(equalTo: container.topAnchor),
-                    hostingView.bottomAnchor.constraint(equalTo: container.bottomAnchor)
-                ])
-
-                containerView = container
-            }
-
-            if controller.view !== container {
-                controller.view = container
-            }
-
-            if window.titlebarAccessoryViewControllers.contains(controller) == false {
-                window.addTitlebarAccessoryViewController(controller)
-            }
-        }
-    }
-
-    private final class AttachmentView: NSView {
-        var onWindowChange: ((NSWindow?) -> Void)?
-
-        override func viewDidMoveToWindow() {
-            super.viewDidMoveToWindow()
-            onWindowChange?(window)
-        }
-    }
-}
-
-private struct TitlebarAccessoryView: View {
-    @ObservedObject var configuration: TitlebarAccessoryBridge.Coordinator.Configuration
-
-    var body: some View {
-        HStack(spacing: 14) {
-            NavigationSegmentControl(
-                canNavigateBack: configuration.canNavigateBack,
-                canNavigateForward: configuration.canNavigateForward,
-                onBack: configuration.onBack,
-                onForward: configuration.onForward
-            )
-            .frame(width: 66)
-
-            Text("Settings")
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(.secondary)
-
-            Spacer(minLength: 36)
-
-            Text(configuration.title)
-                .font(.system(size: 16, weight: .semibold))
-                .padding(.horizontal, 26)
-                .padding(.vertical, 7)
-                .background(
-                    Capsule(style: .continuous)
-                        .fill(Material.ultraThin)
-                        .shadow(color: Color.black.opacity(0.14), radius: 12, y: 8)
-                )
-        }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 8)
-    }
-}
-
-private struct NavigationSegmentControl: NSViewRepresentable {
-    let canNavigateBack: Bool
-    let canNavigateForward: Bool
-    let onBack: () -> Void
-    let onForward: () -> Void
-
-    func makeCoordinator() -> Coordinator { Coordinator(parent: self) }
-
-    func makeNSView(context: Context) -> NSSegmentedControl {
-        let control = NSSegmentedControl(
-            images: [symbol(named: "chevron.left"), symbol(named: "chevron.right")],
-            trackingMode: .momentary,
-            target: context.coordinator,
-            action: #selector(Coordinator.handle(_:))
-        )
-        control.segmentStyle = .separated
-        control.controlSize = .small
-        control.setWidth(30, forSegment: 0)
-        control.setWidth(30, forSegment: 1)
-        update(control)
-        return control
-    }
-
-    func updateNSView(_ nsView: NSSegmentedControl, context: Context) {
-        context.coordinator.parent = self
-        update(nsView)
-    }
-
-    private func update(_ control: NSSegmentedControl) {
-        control.setEnabled(canNavigateBack, forSegment: 0)
-        control.setEnabled(canNavigateForward, forSegment: 1)
-    }
-
-    private func symbol(named name: String) -> NSImage {
-        let configuration = NSImage.SymbolConfiguration(pointSize: 12, weight: .semibold)
-        return NSImage(systemSymbolName: name, accessibilityDescription: nil)?
-            .withSymbolConfiguration(configuration) ?? NSImage()
-    }
-
-    final class Coordinator: NSObject {
-        var parent: NavigationSegmentControl
-
-        init(parent: NavigationSegmentControl) {
-            self.parent = parent
-        }
-
-        @objc func handle(_ sender: NSSegmentedControl) {
-            defer { sender.selectedSegment = -1 }
-            switch sender.selectedSegment {
-            case 0 where parent.canNavigateBack:
-                parent.onBack()
-            case 1 where parent.canNavigateForward:
-                parent.onForward()
-            default:
-                break
-            }
-        }
-    }
-}
-#endif

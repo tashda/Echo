@@ -236,7 +236,7 @@ struct SearchSidebarView: View {
         switch payload {
         case .schemaObject(let schema, let name, let type):
             switch type {
-            case .view, .materializedView, .function, .trigger:
+            case .view, .materializedView, .function, .procedure, .trigger:
                 return {
                     try await session.session.getObjectDefinition(
                         objectName: name,
@@ -337,7 +337,7 @@ struct SearchSidebarView: View {
                 } else {
                     focusExplorer(on: session, database: databaseName, schema: schema, objectName: name, columnName: nil, objectType: .table)
                 }
-            case .view, .materializedView, .function, .trigger:
+            case .view, .materializedView, .function, .procedure, .trigger:
                 if openInNewTab {
                     openDefinition(for: name, schema: schema, type: type, in: session)
                 } else {
@@ -368,6 +368,8 @@ struct SearchSidebarView: View {
 
         case .function(let schema, let name):
             openDefinition(for: name, schema: schema, type: .function, in: session)
+        case .procedure(let schema, let name):
+            openDefinition(for: name, schema: schema, type: .procedure, in: session)
 
         case .trigger(let schema, _, let name):
             openDefinition(for: name, schema: schema, type: .trigger, in: session)
