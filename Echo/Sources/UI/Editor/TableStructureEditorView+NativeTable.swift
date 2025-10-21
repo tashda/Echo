@@ -14,7 +14,18 @@ extension TableStructureEditorView {
         let columnsToShow = cachedVisibleColumns.isEmpty ? viewModel.columns.filter { !$0.isDeleted } : cachedVisibleColumns
         
         if columnsToShow.isEmpty {
-            fastEmptyState
+            VStack(spacing: 8) {
+                fastEmptyState
+                Text("DEBUG: cachedVisibleColumns.count = \(cachedVisibleColumns.count)")
+                    .font(.caption)
+                    .foregroundStyle(.red)
+                Text("DEBUG: viewModel.columns.count = \(viewModel.columns.count)")
+                    .font(.caption)
+                    .foregroundStyle(.red)
+                Text("DEBUG: columnsToShow.count = \(columnsToShow.count)")
+                    .font(.caption)
+                    .foregroundStyle(.red)
+            }
         } else {
             // Ultra-fast native table with minimal overhead
             Table(columnsToShow, selection: $selectedColumnIDs) {

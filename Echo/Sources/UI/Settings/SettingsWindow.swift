@@ -12,7 +12,7 @@ final class SettingsNavigationBridge: ObservableObject {
     var performBack: (() -> Void)?
     var performForward: (() -> Void)?
 
-    init(initialTitle: String = SettingsView.SettingsSection.appearance.title) {
+    init(initialTitle: String = "Appearance") {
         self.title = initialTitle
         self.canNavigateBack = false
         self.canNavigateForward = false
@@ -46,12 +46,14 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
         if window == nil {
             let hostingController = SettingsHostingController(bridge: navigationBridge)
             let window = NSWindow(contentViewController: hostingController)
-            window.styleMask = [.titled, .closable, .miniaturizable, .fullSizeContentView]
+            window.styleMask = [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView]
             window.titleVisibility = .hidden
             window.titlebarAppearsTransparent = true
             window.toolbarStyle = .unified
             window.isReleasedWhenClosed = false
-            window.setContentSize(NSSize(width: 720, height: 520))
+            window.title = "Settings"
+            window.setContentSize(NSSize(width: 960, height: 660))
+            window.contentMinSize = NSSize(width: 820, height: 580)
             window.delegate = self
             toolbarController.install(on: window)
             self.window = window
@@ -68,14 +70,21 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
 
 }
 
-private final class SettingsHostingController: NSHostingController<SettingsView> {
-    init(bridge: SettingsNavigationBridge) {
-        let root = SettingsView(toolbarBridge: bridge)
+private struct SettingsRootView: View {
+    let bridge: SettingsNavigationBridge
+
+    var body: some View {
+        SettingsView(toolbarBridge: bridge)
             .environmentObject(AppCoordinator.shared.appModel)
             .environmentObject(AppCoordinator.shared.appState)
             .environmentObject(AppCoordinator.shared.clipboardHistory)
             .environmentObject(ThemeManager.shared)
-        super.init(rootView: root)
+    }
+}
+
+private final class SettingsHostingController: NSHostingController<SettingsRootView> {
+    init(bridge: SettingsNavigationBridge) {
+        super.init(rootView: SettingsRootView(bridge: bridge))
     }
 
     @MainActor required dynamic init?(coder aDecoder: NSCoder) {
@@ -425,6 +434,8 @@ struct SettingsView: View {
         } detail: {
             detailContent
         }
+        .toolbar(.hidden, for: .windowToolbar)
+        .ignoresSafeArea(.container, edges: .top)
 #else
         NavigationSplitView(preferredCompactColumn: $preferredColumn) {
             sidebar

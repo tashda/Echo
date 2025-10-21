@@ -1549,7 +1549,8 @@ final class PostgresSession: DatabaseSession {
             if let definition = try await firstString(sql, binds: [PostgresData(string: schemaName), PostgresData(string: objectName)]) {
                 return definition
             }
-            return "-- Function definition unavailable"
+            let descriptor = objectType == .function ? "Function" : "Procedure"
+            return "-- \(descriptor) definition unavailable"
 
         case .trigger:
             let sql = """

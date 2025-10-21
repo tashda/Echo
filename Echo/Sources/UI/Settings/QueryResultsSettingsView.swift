@@ -23,6 +23,21 @@ private enum ResultStreamingDefaults {
     static let useCursor = false
 }
 
+private extension View {
+    @ViewBuilder
+    func hideMenuIndicatorIfPossible() -> some View {
+#if os(macOS)
+        if #available(macOS 13.0, *) {
+            self.menuIndicator(.hidden)
+        } else {
+            self
+        }
+#else
+        self
+#endif
+    }
+}
+
 struct QueryResultsSettingsView: View {
     @EnvironmentObject private var appModel: AppModel
     @EnvironmentObject private var themeManager: ThemeManager
@@ -387,14 +402,28 @@ private struct StreamingPresetPickerControl: View {
                     selection = .custom
                 }
             } label: {
-                Text(displayValueLabel)
-                    .font(.system(size: 13))
-                    .padding(.horizontal, 9)
-                    .padding(.vertical, 5)
-                    .background(valueButtonBackground)
-                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                HStack(spacing: 6) {
+                    Text(displayValueLabel)
+                        .font(.system(size: 13))
+#if os(macOS)
+                    if #available(macOS 13.0, *) {
+                        Image(systemName: "chevron.down")
+                            .font(.system(size: 11, weight: .semibold))
+                            .opacity(0.7)
+                    }
+#else
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 11, weight: .semibold))
+                        .opacity(0.7)
+#endif
+                }
+                .padding(.horizontal, 9)
+                .padding(.vertical, 4)
+                .background(valueButtonBackground)
+                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
             }
             .menuStyle(.borderlessButton)
+            .hideMenuIndicatorIfPossible()
             .fixedSize()
             .popover(isPresented: $showCustomPopover, attachmentAnchor: .rect(.bounds), arrowEdge: .trailing) {
                 CustomValuePopover(

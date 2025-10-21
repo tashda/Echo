@@ -1086,11 +1086,7 @@ private struct NativeSearchField: NSViewRepresentable {
 
         guard let cell = nsView.cell as? NSSearchFieldCell else { return }
 
-        if isFocused {
-            if cell.placeholderAttributedString != nil {
-                cell.placeholderAttributedString = nil
-            }
-        } else if cell.placeholderAttributedString?.string != placeholder {
+        if !isFocused, cell.placeholderAttributedString?.string != placeholder {
             cell.placeholderAttributedString = NSAttributedString(
                 string: placeholder,
                 attributes: [

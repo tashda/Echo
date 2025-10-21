@@ -52,6 +52,13 @@ struct DatabaseSearchService {
             }
         }
 
+        if categories.contains(.procedures) {
+            try Task.checkCancellation()
+            await appendResults(into: &aggregated, didSucceed: &didSucceed, firstError: &firstError) {
+                try await strategy.searchProcedures(query: query)
+            }
+        }
+
         if categories.contains(.triggers) {
             try Task.checkCancellation()
             await appendResults(into: &aggregated, didSucceed: &didSucceed, firstError: &firstError) {
@@ -164,6 +171,7 @@ private protocol DatabaseSearchStrategy {
     func searchViews(query: String) async throws -> [SearchSidebarResult]
     func searchMaterializedViews(query: String) async throws -> [SearchSidebarResult]
     func searchFunctions(query: String) async throws -> [SearchSidebarResult]
+    func searchProcedures(query: String) async throws -> [SearchSidebarResult]
     func searchTriggers(query: String) async throws -> [SearchSidebarResult]
     func searchColumns(query: String) async throws -> [SearchSidebarResult]
     func searchIndexes(query: String) async throws -> [SearchSidebarResult]
@@ -175,6 +183,7 @@ private struct UnsupportedDatabaseSearchStrategy: DatabaseSearchStrategy {
     func searchViews(query: String) async throws -> [SearchSidebarResult] { [] }
     func searchMaterializedViews(query: String) async throws -> [SearchSidebarResult] { [] }
     func searchFunctions(query: String) async throws -> [SearchSidebarResult] { [] }
+    func searchProcedures(query: String) async throws -> [SearchSidebarResult] { [] }
     func searchTriggers(query: String) async throws -> [SearchSidebarResult] { [] }
     func searchColumns(query: String) async throws -> [SearchSidebarResult] { [] }
     func searchIndexes(query: String) async throws -> [SearchSidebarResult] { [] }
@@ -195,6 +204,8 @@ private struct SQLiteDatabaseSearchStrategy: DatabaseSearchStrategy {
     func searchMaterializedViews(query: String) async throws -> [SearchSidebarResult] { [] }
 
     func searchFunctions(query: String) async throws -> [SearchSidebarResult] { [] }
+
+    func searchProcedures(query: String) async throws -> [SearchSidebarResult] { [] }
 
     func searchTriggers(query: String) async throws -> [SearchSidebarResult] {
         let pattern = DatabaseSearchService.makeLikePattern(query)
@@ -413,6 +424,40 @@ private struct MSSQLDatabaseSearchStrategy: DatabaseSearchStrategy {
             let payload = SearchSidebarResult.Payload.function(schema: schema, name: name)
             return SearchSidebarResult(
                 category: .functions,
+                title: name,
+                subtitle: schema,
+                metadata: schema,
+                snippet: snippet,
+                payload: payload
+            )
+        }
+    }
+
+    func searchProcedures(query: String) async throws -> [SearchSidebarResult] {
+        let pattern = DatabaseSearchService.makeLikePattern(query)
+        let sql = """
+        SELECT TOP \(DatabaseSearchService.QueryConstants.maxNameResults)
+            s.name AS schema_name,
+            p.name AS procedure_name,
+            COALESCE(sm.definition, '') AS definition
+        FROM sys.procedures AS p
+        JOIN sys.schemas AS s ON p.schema_id = s.schema_id
+        LEFT JOIN sys.sql_modules AS sm ON p.object_id = sm.object_id
+        WHERE p.is_ms_shipped = 0
+          AND (
+            LOWER(p.name) LIKE LOWER('%\(pattern)%') ESCAPE '\\'
+            OR LOWER(COALESCE(sm.definition, '')) LIKE LOWER('%\(pattern)%') ESCAPE '\\'
+          )
+        ORDER BY s.name, p.name;
+        """
+        let result = try await session.simpleQuery(sql)
+        return result.rows.compactMap { row in
+            guard row.count >= 3, let schema = row[0], let name = row[1] else { return nil }
+            let definition = row[2] ?? ""
+            let snippet = DatabaseSearchService.makeSnippet(from: definition, matching: query)
+            let payload = SearchSidebarResult.Payload.procedure(schema: schema, name: name)
+            return SearchSidebarResult(
+                category: .procedures,
                 title: name,
                 subtitle: schema,
                 metadata: schema,
@@ -677,6 +722,37 @@ private struct PostgresDatabaseSearchStrategy: DatabaseSearchStrategy {
             let payload = SearchSidebarResult.Payload.function(schema: schema, name: name)
             return SearchSidebarResult(
                 category: .functions,
+                title: name,
+                subtitle: schema,
+                metadata: schema,
+                snippet: snippet,
+                payload: payload
+            )
+        }
+    }
+
+    func searchProcedures(query: String) async throws -> [SearchSidebarResult] {
+        let pattern = DatabaseSearchService.makeLikePattern(query)
+        let sql = """
+        SELECT routine_schema, routine_name, routine_definition
+        FROM information_schema.routines
+        WHERE routine_type = 'PROCEDURE'
+          AND routine_schema NOT IN ('pg_catalog', 'information_schema')
+          AND (
+            routine_name ILIKE '%\(pattern)%' ESCAPE '\\'
+            OR COALESCE(routine_definition, '') ILIKE '%\(pattern)%' ESCAPE '\\'
+          )
+        ORDER BY routine_schema, routine_name
+        LIMIT \(DatabaseSearchService.QueryConstants.maxNameResults);
+        """
+        let result = try await session.simpleQuery(sql)
+        return result.rows.compactMap { row in
+            guard row.count >= 3, let schema = row[0], let name = row[1] else { return nil }
+            let definition = row[2] ?? ""
+            let snippet = DatabaseSearchService.makeSnippet(from: definition, matching: query)
+            let payload = SearchSidebarResult.Payload.procedure(schema: schema, name: name)
+            return SearchSidebarResult(
+                category: .procedures,
                 title: name,
                 subtitle: schema,
                 metadata: schema,
@@ -959,6 +1035,39 @@ private struct MySQLDatabaseSearchStrategy: DatabaseSearchStrategy {
             let payload = SearchSidebarResult.Payload.function(schema: schema, name: name)
             return SearchSidebarResult(
                 category: .functions,
+                title: name,
+                subtitle: schema,
+                metadata: schema,
+                snippet: snippet,
+                payload: payload
+            )
+        }
+    }
+
+    func searchProcedures(query: String) async throws -> [SearchSidebarResult] {
+        let clause = containsClause([
+            "routine_name",
+            "routine_definition"
+        ], query: query)
+        let sql = """
+        SELECT routine_schema, routine_name, routine_definition
+        FROM information_schema.routines
+        WHERE routine_type = 'PROCEDURE'
+          AND routine_schema NOT IN (\(excludedSchemasList))\(schemaFilter("routine_schema"))
+          AND (
+            \(clause)
+          )
+        ORDER BY routine_schema, routine_name
+        LIMIT \(DatabaseSearchService.QueryConstants.maxNameResults);
+        """
+        let result = try await session.simpleQuery(sql)
+        return result.rows.compactMap { row in
+            guard row.count >= 3, let schema = row[0], let name = row[1] else { return nil }
+            let definition = row[2] ?? ""
+            let snippet = DatabaseSearchService.makeSnippet(from: definition, matching: query)
+            let payload = SearchSidebarResult.Payload.procedure(schema: schema, name: name)
+            return SearchSidebarResult(
+                category: .procedures,
                 title: name,
                 subtitle: schema,
                 metadata: schema,

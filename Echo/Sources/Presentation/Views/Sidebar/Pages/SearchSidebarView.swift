@@ -255,6 +255,14 @@ struct SearchSidebarView: View {
                     objectType: .function
                 )
             }
+        case .procedure(let schema, let name):
+            return {
+                try await session.session.getObjectDefinition(
+                    objectName: name,
+                    schemaName: schema,
+                    objectType: .procedure
+                )
+            }
         case .trigger(let schema, _, let name):
             return {
                 try await session.session.getObjectDefinition(
@@ -711,7 +719,7 @@ private struct SearchResultRow: View {
 
     private var shouldHighlightSnippet: Bool {
         switch result.category {
-        case .views, .materializedViews, .functions, .triggers, .queryTabs:
+        case .views, .materializedViews, .functions, .procedures, .triggers, .queryTabs:
             return true
         default:
             return false
