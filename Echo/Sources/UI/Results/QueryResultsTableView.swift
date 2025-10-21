@@ -152,6 +152,8 @@ struct QueryResultsTableView: NSViewRepresentable {
         private var pendingTableSizeAdjustment = false
         private var lastParentIsResizing = false
         private var requestedForeignKeyColumns: Set<Int> = []
+        private var lastSelectionHighlightStyle: NSTableView.SelectionHighlightStyle?
+        private var pendingRowCountCorrection = false
         private static let isGridDiagnosticsEnabled: Bool = {
             ProcessInfo.processInfo.environment["ECHO_GRID_DEBUG"] == "1"
         }()
@@ -774,6 +776,12 @@ struct QueryResultsTableView: NSViewRepresentable {
 
             for row in sampledRows {
                 let sourceRow = resolvedRowIndex(for: row)
+                guard sourceRow >= 0 else {
+                    if Self.isRowDiagnosticsEnabled {
+                        print("[RowDiagnostics][tableView] skipping width sample for out-of-range row=\(row)")
+                    }
+                    continue
+                }
                 let value = parent.query.valueForDisplay(row: sourceRow, column: column)
                 let kind = ResultGridValueClassifier.kind(for: columnInfo, value: value)
                 let style = theme.resultGridStyle(for: kind)
@@ -1044,6 +1052,19 @@ struct QueryResultsTableView: NSViewRepresentable {
 
         private func configureCellView(_ cellView: ResultTableDataCellView, dataIndex: Int, tableView: NSTableView, row: Int) {
             let sourceIndex = resolvedRowIndex(for: row)
+            guard sourceIndex >= 0 else {
+                if Self.isRowDiagnosticsEnabled {
+                    print("[RowDiagnostics][tableView] skipping configureCellView for out-of-range row=\(row)")
+                }
+                let theme = ThemeManager.shared
+                let fallbackStyle = theme.resultGridStyle(for: .text)
+                cellView.apply(text: "", font: resolvedFont(for: fallbackStyle), textColor: fallbackStyle.nsColor)
+                cellView.configureIcon(nil)
+                return
+            }
+            if Self.isRowDiagnosticsEnabled, sourceIndex >= parent.query.totalAvailableRowCount {
+                print("[RowDiagnostics][tableView] configureCellView row=\(row) sourceIndex=\(sourceIndex) totalAvailable=\(parent.query.totalAvailableRowCount)")
+            }
             let rawValue = parent.query.valueForDisplay(row: sourceIndex, column: dataIndex)
             let columnInfo = dataIndex < parent.query.displayedColumns.count ? parent.query.displayedColumns[dataIndex] : nil
 
@@ -1771,12 +1792,43 @@ struct QueryResultsTableView: NSViewRepresentable {
             activeSelectableField = nil
         }
 
+        private static let isRowDiagnosticsEnabled = ProcessInfo.processInfo.environment["ECHO_ROW_DEBUG"] == "1"
+
         private func resolvedRowIndex(for visibleRow: Int) -> Int {
-            guard !parent.rowOrder.isEmpty else { return visibleRow }
-            if visibleRow < parent.rowOrder.count {
-                return parent.rowOrder[visibleRow]
+            let availableCount = parent.rowOrder.isEmpty
+                ? parent.query.displayedRowCount
+                : parent.rowOrder.count
+            guard visibleRow >= 0 else {
+                if Self.isRowDiagnosticsEnabled {
+                    print("[RowDiagnostics][tableView] visibleRow \(visibleRow) is negative")
+                }
+                return -1
             }
-            return visibleRow
+            guard visibleRow < availableCount else {
+                if Self.isRowDiagnosticsEnabled {
+                    print("[RowDiagnostics][tableView] visibleRow \(visibleRow) exceeds availableCount \(availableCount)")
+                }
+                scheduleRowCountCorrection()
+                return -1
+            }
+            if parent.rowOrder.isEmpty {
+                return visibleRow
+            }
+            let source = parent.rowOrder[visibleRow]
+            if Self.isRowDiagnosticsEnabled, source >= parent.query.totalAvailableRowCount {
+                print("[RowDiagnostics][tableView] rowOrder[\(visibleRow)]=\(source) exceeds totalAvailable \(parent.query.totalAvailableRowCount)")
+            }
+            return source
+        }
+
+        private func scheduleRowCountCorrection() {
+            guard !pendingRowCountCorrection else { return }
+            pendingRowCountCorrection = true
+            DispatchQueue.main.async { [weak self] in
+                guard let self else { return }
+                self.pendingRowCountCorrection = false
+                self.tableView?.noteNumberOfRowsChanged()
+            }
         }
 
         private func notifyJsonSelection(_ region: SelectedRegion?) {
@@ -1878,11 +1930,15 @@ struct QueryResultsTableView: NSViewRepresentable {
 
             guard let tableView else { return }
 
+            let desiredStyle: NSTableView.SelectionHighlightStyle = region != nil ? .none : .regular
+            if tableView.selectionHighlightStyle != desiredStyle {
+                tableView.selectionHighlightStyle = desiredStyle
+                lastSelectionHighlightStyle = desiredStyle
+            }
+
             if region != nil {
-                tableView.selectionHighlightStyle = .none
                 tableView.deselectAll(nil)
             } else {
-                tableView.selectionHighlightStyle = .regular
                 isDraggingCellSelection = false
                 deactivateActiveSelectableField(in: tableView)
             }

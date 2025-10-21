@@ -862,6 +862,38 @@ final class SQLAutoCompletionEngineTests: XCTestCase {
         XCTAssertTrue(suggestions.contains(where: { $0.id == tableSuggestion.id }))
     }
 
+    func testSelectStarShorthandExpandsOnTab() {
+        let theme = makeTestTheme()
+        let display = SQLEditorDisplayOptions()
+        let context = sampleContext()
+        let textView = SQLTextView(theme: theme,
+                                   displayOptions: display,
+                                   backgroundOverride: nil,
+                                   completionContext: context)
+
+        textView.textStorage?.setAttributedString(NSAttributedString(string: "s*"))
+        textView.setSelectedRange(NSRange(location: 2, length: 0))
+
+        guard let event = NSEvent.keyEvent(with: .keyDown,
+                                           location: .zero,
+                                           modifierFlags: [],
+                                           timestamp: 0,
+                                           windowNumber: 0,
+                                           context: nil,
+                                           characters: "\t",
+                                           charactersIgnoringModifiers: "\t",
+                                           isARepeat: false,
+                                           keyCode: 48) else {
+            XCTFail("Failed to create Tab event")
+            return
+        }
+
+        textView.keyDown(with: event)
+
+        XCTAssertEqual(textView.string, "SELECT *\nFROM ")
+        XCTAssertEqual(textView.selectedRange(), NSRange(location: textView.string.count, length: 0))
+    }
+
     func testJoinKeywordSuggestionIncludesJoinSuffix() {
         let tableReference = SQLCompletionMetadata.TableReference(schema: "public",
                                                                   name: "fixture",

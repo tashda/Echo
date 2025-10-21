@@ -74,12 +74,10 @@ struct TableStructureEditorView: View {
         _viewModel = ObservedObject(initialValue: viewModel)
         _selectedSection = State(initialValue: viewModel.requestedSection ?? .columns)
         
-        // Pre-compute cached values for fast rendering
-        let visibleCols = viewModel.columns.filter { !$0.isDeleted }
-        _cachedVisibleColumns = State(initialValue: visibleCols)
+        // Initialize column index lookup
         _columnIndexLookup = State(
             initialValue: Dictionary(
-                uniqueKeysWithValues: visibleCols.enumerated().map { pair in
+                uniqueKeysWithValues: viewModel.columns.enumerated().map { pair in
                     let (index, column) = pair
                     return (column.id, index)
                 }
@@ -87,11 +85,13 @@ struct TableStructureEditorView: View {
         )
     }
 
-    // Cached visible columns to avoid repeated filtering
-    @State internal var cachedVisibleColumns: [TableStructureEditorViewModel.ColumnModel] = []
-    
+    // Direct access to visible columns - no caching
     internal var visibleColumns: [TableStructureEditorViewModel.ColumnModel] {
-        cachedVisibleColumns
+        viewModel.columns.filter { !$0.isDeleted }
+    }
+    
+    internal var cachedVisibleColumns: [TableStructureEditorViewModel.ColumnModel] {
+        viewModel.columns.filter { !$0.isDeleted }
     }
 
     var body: some View {
@@ -100,16 +100,6 @@ struct TableStructureEditorView: View {
             content
         }
         .background(Color(nsColor: themeManager.windowBackgroundNSColor))
-        .onAppear {
-            // Ensure cached columns are updated when view appears (only if empty)
-            print("DEBUG: onAppear - viewModel.columns.count = \(viewModel.columns.count)")
-            print("DEBUG: onAppear - cachedVisibleColumns.count = \(cachedVisibleColumns.count)")
-            if cachedVisibleColumns.isEmpty {
-                cachedVisibleColumns = viewModel.columns.filter { !$0.isDeleted }
-                rebuildColumnIndexLookup()
-                print("DEBUG: onAppear - updated cachedVisibleColumns.count = \(cachedVisibleColumns.count)")
-            }
-        }
         .task {
             // Lightweight initialization
             if let requested = viewModel.requestedSection {
@@ -118,27 +108,41 @@ struct TableStructureEditorView: View {
             }
         }
         .onChange(of: viewModel.columns) { _ in
-            // Update cached columns and rebuild lookup when any column changes
-            print("DEBUG: onChange - viewModel.columns.count = \(viewModel.columns.count)")
-            cachedVisibleColumns = viewModel.columns.filter { !$0.isDeleted }
+            // Rebuild lookup when columns change
             rebuildColumnIndexLookup()
             pruneSelectedColumns()
-            print("DEBUG: onChange - updated cachedVisibleColumns.count = \(cachedVisibleColumns.count)")
         }
         .sheet(item: $activeIndexEditor) { presentation in
-            LazyIndexEditorSheet(
-                presentation: presentation,
-                viewModel: viewModel,
-                onDismiss: { self.activeIndexEditor = nil }
-            )
+            if let binding = indexBinding(for: presentation.indexID) {
+                IndexEditorSheet(
+                    index: binding,
+                    availableColumns: viewModel.columns.filter { !$0.isDeleted }.map { $0.name },
+                    databaseType: tab.connection.databaseType,
+                    onDelete: {
+                        viewModel.removeIndex(binding.wrappedValue)
+                        activeIndexEditor = nil
+                    },
+                    onDismiss: { activeIndexEditor = nil }
+                )
+            }
         }
         .sheet(item: $activeColumnEditor) { presentation in
-            LazyColumnEditorSheet(
-                presentation: presentation,
-                viewModel: viewModel,
-                databaseType: tab.connection.databaseType,
-                onDismiss: { self.activeColumnEditor = nil }
-            )
+            if let binding = columnBinding(for: presentation.columnID) {
+                ColumnEditorSheet(
+                    column: binding,
+                    databaseType: tab.connection.databaseType,
+                    onDelete: {
+                        viewModel.removeColumn(binding.wrappedValue)
+                        activeColumnEditor = nil
+                    },
+                    onCancelNew: {
+                        if presentation.isNew {
+                            viewModel.removeColumn(binding.wrappedValue)
+                        }
+                        activeColumnEditor = nil
+                    }
+                )
+            }
         }
     }
 
@@ -1903,28 +1907,4 @@ struct TableStructureEditorView: View {
         }
     }
     
-    // MARK: - Lazy Sheet Components for Performance
-    
-    struct LazyIndexEditorSheet: View {
-        let presentation: IndexEditorPresentation
-        let viewModel: TableStructureEditorViewModel
-        let onDismiss: () -> Void
-        
-        var body: some View {
-            Text("Index Editor")
-                .onAppear { onDismiss() }
-        }
-    }
-
-    struct LazyColumnEditorSheet: View {
-        let presentation: ColumnEditorPresentation
-        let viewModel: TableStructureEditorViewModel
-        let databaseType: DatabaseType
-        let onDismiss: () -> Void
-        
-        var body: some View {
-            Text("Column Editor")
-                .onAppear { onDismiss() }
-        }
-    }
 }

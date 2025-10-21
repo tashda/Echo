@@ -102,6 +102,7 @@ final class MSSQLSession: DatabaseSession {
         self.eventLoopGroup = eventLoopGroup
         self.logger = logger
         self.defaultDatabase = defaultDatabase
+
     }
 
     deinit {
@@ -294,6 +295,9 @@ final class MSSQLSession: DatabaseSession {
         logger.debug("Listing MSSQL databases: starting enumeration")
 
         let currentName = await resolvedCurrentDatabase()
+        let originalContext = currentName ?? defaultDatabase
+
+        try await ensureDatabaseContext("master")
 
         func cleaned(_ names: [String], includeSystem: Bool = false) -> Set<String> {
             var result = Set<String>()
@@ -332,21 +336,34 @@ final class MSSQLSession: DatabaseSession {
             discovered.formUnion(names)
         }
 
-        let catalogSQL = """
+        let dbGateSQL = """
         SELECT name
-        FROM sys.databases
+        FROM master.sys.databases
+        WHERE state_desc = 'ONLINE'
+        ORDER BY name;
+        """
+        if let rows = try? await fetchRows(dbGateSQL) {
+            let names = cleaned(rows.compactMap { $0.string("name") })
+            let sortedNames = names.sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+            logger.info("MSSQL listDatabases sys.databases (dbgate style) yielded \(sortedNames)")
+            discovered.formUnion(names)
+        }
+
+        let accessibleSQL = """
+        SELECT name
+        FROM master.sys.databases
         WHERE state_desc = 'ONLINE'
           AND (HAS_DBACCESS(name) = 1 OR name = DB_NAME())
         ORDER BY name;
         """
-        if let rows = try? await fetchRows(catalogSQL) {
+        if let rows = try? await fetchRows(accessibleSQL) {
             let names = cleaned(rows.compactMap { $0.string("name") })
             let sortedNames = names.sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
-            logger.info("MSSQL listDatabases sys.databases yielded \(sortedNames)")
+            logger.info("MSSQL listDatabases sys.databases filtered yielded \(sortedNames)")
             discovered.formUnion(names)
         }
 
-        if let procedureRows = try? await fetchRows("EXEC sp_databases;"),
+        if let procedureRows = try? await fetchRows("EXEC master.dbo.sp_databases;"),
            !procedureRows.isEmpty {
             let names = cleaned(procedureRows.compactMap { $0.string("DATABASE_NAME") })
             let sortedNames = names.sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
@@ -358,11 +375,13 @@ final class MSSQLSession: DatabaseSession {
             let systemFallback = cleaned([], includeSystem: true)
             let sortedFallback = systemFallback.sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
             logger.info("MSSQL listDatabases fallback to system set \(sortedFallback)")
+            try await ensureDatabaseContext(originalContext)
             return systemFallback.sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
         }
 
         let sorted = discovered.sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
         logger.info("MSSQL listDatabases final set \(sorted)")
+        try await ensureDatabaseContext(originalContext)
         return sorted
     }
 
@@ -496,12 +515,41 @@ final class MSSQLSession: DatabaseSession {
     // MARK: - Metadata Helpers
 
     private func fetchRows(_ sql: String) async throws -> [MSSQLRow] {
-        let future = connection.rawSql(sql)
+        let batch = "SET FMTONLY OFF;\n\n\(sql)"
+        let future = connection.rawSql(batch)
         let rows = try await future.get()
         return rows.map { MSSQLRow(row: $0, formatter: formatter) }
     }
 
+    private func ensureDefaultDatabaseContext() async throws {
+        try await ensureDatabaseContext(defaultDatabase)
+    }
+
+    private func ensureDatabaseContext(_ database: String?) async throws {
+        guard let trimmed = database?.trimmingCharacters(in: .whitespacesAndNewlines), !trimmed.isEmpty else {
+            if database == nil {
+                await databaseContext.reset()
+            }
+            return
+        }
+
+        if await databaseContext.needsSwitch(to: trimmed) {
+            let escaped = MSSQLSession.escapeIdentifier(trimmed)
+            let sql = "USE \(escaped);"
+            do {
+                _ = try await connection.rawSql(sql).get()
+                await databaseContext.setActive(trimmed)
+                logger.debug("MSSQL session switched to database context: \(trimmed)")
+            } catch {
+                await databaseContext.reset()
+                logger.warning("Failed to switch MSSQL session to database \(trimmed): \(error.localizedDescription)")
+                throw error
+            }
+        }
+    }
+
     private func describeColumns(for sql: String) async throws -> [ColumnInfo] {
+        try await ensureDefaultDatabaseContext()
         let escaped = MSSQLSession.escapeForNVarchar(sql)
         let describeSQL = """
         EXEC sp_describe_first_result_set @tsql = N'\(escaped)';
@@ -549,12 +597,14 @@ final class MSSQLSession: DatabaseSession {
     }
 
     private func firstString(_ sql: String) async throws -> String? {
+        try await ensureDefaultDatabaseContext()
         let rows = try await fetchRows(sql)
         guard let firstRow = rows.first, let firstColumn = firstRow.metadata.first else { return nil }
         return firstRow.string(firstColumn.colName)
     }
 
     private func currentDatabaseName() async throws -> String? {
+        try await ensureDefaultDatabaseContext()
         let rows = try await fetchRows("SELECT DB_NAME() AS name;")
         return rows.first?.string("name")
     }
@@ -645,6 +695,7 @@ final class MSSQLSession: DatabaseSession {
             p.has_default_value
         FROM sys.parameters AS p
         WHERE OBJECT_SCHEMA_NAME(p.object_id) = N'\(MSSQLSession.escapeLiteral(schemaName))'
+          AND p.parameter_id > 0
         ORDER BY OBJECT_NAME(p.object_id), p.parameter_id;
         """
 
@@ -1376,5 +1427,22 @@ private struct MSSQLCellFormatter {
         }
         let characters = bytes.compactMap { UnicodeScalar($0) }.map { Character($0) }
         return String(characters)
+    }
+}
+
+private actor MSSQLDatabaseContext {
+    private var active: String?
+
+    func needsSwitch(to target: String) -> Bool {
+        let normalized = target.lowercased()
+        return active?.lowercased() != normalized
+    }
+
+    func setActive(_ target: String) {
+        active = target
+    }
+
+    func reset() {
+        active = nil
     }
 }

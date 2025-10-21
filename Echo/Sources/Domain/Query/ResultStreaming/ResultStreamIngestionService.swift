@@ -63,6 +63,16 @@ actor ResultStreamIngestionService {
 
             let handle = try await ensureHandle()
 
+#if DEBUG
+            let rowDiagnosticsEnabled = ProcessInfo.processInfo.environment["ECHO_ROW_DEBUG"] == "1"
+            if rowDiagnosticsEnabled, let range = update.rowRange, range.count != appendCountEstimate {
+                print("[RowDiagnostics][ingestion] rowRange count \(range.count) != appendCountEstimate \(appendCountEstimate)")
+            }
+            if rowDiagnosticsEnabled, let range = resolvedRange, range.upperBound > update.totalRowCount {
+                print("[RowDiagnostics][ingestion] resolvedRange upperBound \(range.upperBound) exceeds total \(update.totalRowCount)")
+            }
+#endif
+
             if isPreview, !update.appendedRows.isEmpty {
                 let startIndex = resolvedRange?.lowerBound ?? totalRowCount
                 let rowsForCache = update.appendedRows
@@ -102,6 +112,11 @@ actor ResultStreamIngestionService {
                 rangeForAppend = start..<end
                 totalRowCount = end
             }
+#if DEBUG
+            if ProcessInfo.processInfo.environment["ECHO_ROW_DEBUG"] == "1", rangeForAppend.upperBound > update.totalRowCount {
+                print("[RowDiagnostics][ingestion] rangeForAppend \(rangeForAppend) exceeds update total \(update.totalRowCount)")
+            }
+#endif
 
             let previousTask = appendTask
             let columns = update.columns

@@ -784,8 +784,8 @@
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/tashda/postgres-nio-copyout.git";
 			requirement = {
-				branch = main;
-				kind = branch;
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.0.0;
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */

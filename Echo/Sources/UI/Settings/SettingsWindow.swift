@@ -32,7 +32,7 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
     static let shared = SettingsWindowController()
 
     private let navigationBridge = SettingsNavigationBridge()
-    private lazy var toolbarController = SettingsToolbarController(bridge: navigationBridge)
+private lazy var titlebarAccessoryManager = SettingsTitlebarAccessoryManager(bridge: navigationBridge)
 
     private override init(window: NSWindow?) {
         super.init(window: window)
@@ -54,8 +54,9 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
             window.title = "Settings"
             window.setContentSize(NSSize(width: 960, height: 660))
             window.contentMinSize = NSSize(width: 820, height: 580)
+            window.toolbar = nil
             window.delegate = self
-            toolbarController.install(on: window)
+            titlebarAccessoryManager.install(on: window)
             self.window = window
         }
 
@@ -92,34 +93,32 @@ private final class SettingsHostingController: NSHostingController<SettingsRootV
     }
 }
 
-private final class SettingsToolbarController: NSObject, NSToolbarDelegate {
-    private weak var window: NSWindow?
+private final class SettingsTitlebarAccessoryManager {
     private let bridge: SettingsNavigationBridge
+    private let accessoryController: NSTitlebarAccessoryViewController
+    private let titlebarView: SettingsTitlebarView
     private var cancellables: Set<AnyCancellable> = []
-
-    private var navControl: NSSegmentedControl?
-    private var capsuleView: CapsuleTitleView?
-
-    private let toolbarIdentifier = NSToolbar.Identifier("com.fuzee.settings.toolbar")
-    private let navItemIdentifier = NSToolbarItem.Identifier("com.fuzee.settings.toolbar.nav")
-    private let labelItemIdentifier = NSToolbarItem.Identifier("com.fuzee.settings.toolbar.label")
-    private let capsuleItemIdentifier = NSToolbarItem.Identifier("com.fuzee.settings.toolbar.capsule")
 
     init(bridge: SettingsNavigationBridge) {
         self.bridge = bridge
+        self.accessoryController = NSTitlebarAccessoryViewController()
+        self.titlebarView = SettingsTitlebarView()
+        accessoryController.layoutAttribute = .left
+        accessoryController.view = titlebarView
+        titlebarView.setFrameSize(titlebarView.intrinsicContentSize)
+
+        titlebarView.onNavigateBack = { [weak bridge] in bridge?.triggerBack() }
+        titlebarView.onNavigateForward = { [weak bridge] in bridge?.triggerForward() }
     }
 
     func install(on window: NSWindow) {
-        self.window = window
-
-        let toolbar = NSToolbar(identifier: toolbarIdentifier)
-        toolbar.delegate = self
-        toolbar.allowsUserCustomization = false
-        toolbar.allowsExtensionItems = false
-        toolbar.displayMode = .iconOnly
-        window.toolbar = toolbar
-
+        if window.titlebarAccessoryViewControllers.contains(accessoryController) == false {
+            window.addTitlebarAccessoryViewController(accessoryController)
+        }
         observeBridge()
+        titlebarView.updateTitle(bridge.title)
+        titlebarView.updateNavigation(canGoBack: bridge.canNavigateBack, canGoForward: bridge.canNavigateForward)
+        titlebarView.layoutSubtreeIfNeeded()
     }
 
     private func observeBridge() {
@@ -128,131 +127,132 @@ private final class SettingsToolbarController: NSObject, NSToolbarDelegate {
         bridge.$title
             .receive(on: RunLoop.main)
             .sink { [weak self] title in
-                self?.capsuleView?.update(title: title)
+                self?.titlebarView.updateTitle(title)
             }
             .store(in: &cancellables)
 
         bridge.$canNavigateBack
             .receive(on: RunLoop.main)
             .sink { [weak self] enabled in
-                self?.navControl?.setEnabled(enabled, forSegment: 0)
+                self?.titlebarView.updateNavigation(canGoBack: enabled, canGoForward: self?.bridge.canNavigateForward ?? false)
             }
             .store(in: &cancellables)
 
         bridge.$canNavigateForward
             .receive(on: RunLoop.main)
             .sink { [weak self] enabled in
-                self?.navControl?.setEnabled(enabled, forSegment: 1)
+                self?.titlebarView.updateNavigation(canGoBack: self?.bridge.canNavigateBack ?? false, canGoForward: enabled)
             }
             .store(in: &cancellables)
     }
+}
 
-    func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        [navItemIdentifier, labelItemIdentifier, .flexibleSpace, capsuleItemIdentifier]
+private final class SettingsTitlebarView: NSView {
+    var onNavigateBack: (() -> Void)?
+    var onNavigateForward: (() -> Void)?
+
+    private let navControl: NSSegmentedControl
+    private let settingsLabel: NSTextField
+    private let capsuleView = CapsuleTitleContainer()
+
+    override init(frame frameRect: NSRect) {
+        navControl = NSSegmentedControl(images: [
+            NSImage(systemSymbolName: "chevron.left", accessibilityDescription: nil) ?? NSImage(),
+            NSImage(systemSymbolName: "chevron.right", accessibilityDescription: nil) ?? NSImage()
+        ], trackingMode: .momentary, target: nil, action: nil)
+        navControl.segmentStyle = .separated
+        navControl.controlSize = .small
+        navControl.translatesAutoresizingMaskIntoConstraints = false
+        navControl.setContentHuggingPriority(.required, for: .horizontal)
+        navControl.setContentCompressionResistancePriority(.required, for: .horizontal)
+
+        settingsLabel = NSTextField(labelWithString: "Settings")
+        settingsLabel.font = .systemFont(ofSize: 13, weight: .semibold)
+        settingsLabel.textColor = .secondaryLabelColor
+        settingsLabel.translatesAutoresizingMaskIntoConstraints = false
+        settingsLabel.setContentHuggingPriority(.defaultHigh, for: .horizontal)
+        settingsLabel.setContentCompressionResistancePriority(.defaultHigh, for: .horizontal)
+
+        super.init(frame: frameRect)
+
+        translatesAutoresizingMaskIntoConstraints = false
+        wantsLayer = true
+        setContentHuggingPriority(.defaultLow, for: .horizontal)
+        setContentCompressionResistancePriority(.defaultHigh, for: .horizontal)
+
+        addSubview(navControl)
+        addSubview(settingsLabel)
+        addSubview(capsuleView)
+
+        capsuleView.setContentHuggingPriority(.defaultHigh, for: .horizontal)
+        capsuleView.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+
+        let constraints = [
+            navControl.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 16),
+            navControl.centerYAnchor.constraint(equalTo: centerYAnchor),
+
+            settingsLabel.leadingAnchor.constraint(equalTo: navControl.trailingAnchor, constant: 12),
+            settingsLabel.centerYAnchor.constraint(equalTo: centerYAnchor),
+
+            capsuleView.leadingAnchor.constraint(equalTo: settingsLabel.trailingAnchor, constant: 16),
+            capsuleView.trailingAnchor.constraint(lessThanOrEqualTo: trailingAnchor, constant: -16),
+            capsuleView.centerYAnchor.constraint(equalTo: centerYAnchor)
+        ]
+        NSLayoutConstraint.activate(constraints)
+
+        navControl.target = self
+        navControl.action = #selector(handleNavigation(_:))
     }
 
-    func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        [navItemIdentifier, labelItemIdentifier, .flexibleSpace, capsuleItemIdentifier]
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
     }
 
-    func toolbar(
-        _ toolbar: NSToolbar,
-        itemForItemIdentifier itemIdentifier: NSToolbarItem.Identifier,
-        willBeInsertedIntoToolbar flag: Bool
-    ) -> NSToolbarItem? {
-        switch itemIdentifier {
-        case navItemIdentifier:
-            let item = NSToolbarItem(itemIdentifier: itemIdentifier)
-            let control = NSSegmentedControl(images: [
-                NSImage(systemSymbolName: "chevron.left", accessibilityDescription: nil) ?? NSImage(),
-                NSImage(systemSymbolName: "chevron.right", accessibilityDescription: nil) ?? NSImage()
-            ], trackingMode: .momentary, target: self, action: #selector(handleNavigation(_:)))
-            control.segmentStyle = .separated
-            control.controlSize = .small
-            control.setWidth(30, forSegment: 0)
-            control.setWidth(30, forSegment: 1)
-            control.translatesAutoresizingMaskIntoConstraints = false
+    override var intrinsicContentSize: NSSize {
+        let navSize = navControl.intrinsicContentSize
+        let labelSize = settingsLabel.intrinsicContentSize
+        let capsuleSize = capsuleView.intrinsicContentSize
 
-            let container = NSView()
-            container.translatesAutoresizingMaskIntoConstraints = false
-            container.addSubview(control)
+        let width = 16 + navSize.width + 12 + labelSize.width + 16 + capsuleSize.width + 16
+        let height = max(32, navSize.height + 4, capsuleSize.height + 8)
+        return NSSize(width: width, height: height)
+    }
 
-            NSLayoutConstraint.activate([
-                control.leadingAnchor.constraint(equalTo: container.leadingAnchor),
-                control.trailingAnchor.constraint(equalTo: container.trailingAnchor),
-                control.topAnchor.constraint(equalTo: container.topAnchor),
-                control.bottomAnchor.constraint(equalTo: container.bottomAnchor),
-                control.heightAnchor.constraint(equalToConstant: 26)
-            ])
+    func updateTitle(_ title: String) {
+        capsuleView.update(title: title)
+        invalidateIntrinsicContentSize()
+    }
 
-            item.view = container
-            navControl = control
-            control.setEnabled(bridge.canNavigateBack, forSegment: 0)
-            control.setEnabled(bridge.canNavigateForward, forSegment: 1)
-            return item
-
-        case labelItemIdentifier:
-            let item = NSToolbarItem(itemIdentifier: itemIdentifier)
-            let label = NSTextField(labelWithString: "Settings")
-            label.font = .systemFont(ofSize: 13, weight: .semibold)
-            label.textColor = .secondaryLabelColor
-            label.alignment = .left
-            label.translatesAutoresizingMaskIntoConstraints = false
-
-            let container = NSView()
-            container.translatesAutoresizingMaskIntoConstraints = false
-            container.addSubview(label)
-
-            NSLayoutConstraint.activate([
-                label.leadingAnchor.constraint(equalTo: container.leadingAnchor),
-                label.trailingAnchor.constraint(equalTo: container.trailingAnchor),
-                label.centerYAnchor.constraint(equalTo: container.centerYAnchor)
-            ])
-
-            item.view = container
-            return item
-
-        case capsuleItemIdentifier:
-            let item = NSToolbarItem(itemIdentifier: itemIdentifier)
-            let capsule = CapsuleTitleView()
-            capsule.update(title: bridge.title)
-            item.view = capsule
-            capsuleView = capsule
-            return item
-
-        default:
-            return NSToolbarItem(itemIdentifier: itemIdentifier)
-        }
+    func updateNavigation(canGoBack: Bool, canGoForward: Bool) {
+        navControl.setEnabled(canGoBack, forSegment: 0)
+        navControl.setEnabled(canGoForward, forSegment: 1)
     }
 
     @objc private func handleNavigation(_ sender: NSSegmentedControl) {
+        defer { sender.selectedSegment = -1 }
         switch sender.selectedSegment {
-        case 0:
-            bridge.triggerBack()
-        case 1:
-            bridge.triggerForward()
-        default:
-            break
+        case 0: onNavigateBack?()
+        case 1: onNavigateForward?()
+        default: break
         }
-        sender.selectedSegment = -1
     }
 }
 
-private final class CapsuleTitleView: NSView {
+private final class CapsuleTitleContainer: NSView {
     private let blurView = NSVisualEffectView()
     private let titleField = NSTextField(labelWithString: "")
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
         translatesAutoresizingMaskIntoConstraints = false
-        wantsLayer = true
+        wantsLayer = false
 
         blurView.translatesAutoresizingMaskIntoConstraints = false
         blurView.material = .underWindowBackground
-        blurView.blendingMode = .withinWindow
         blurView.state = .active
+        blurView.blendingMode = .withinWindow
         blurView.wantsLayer = true
-        blurView.layer?.cornerRadius = 18
+        blurView.layer?.cornerRadius = 16
         blurView.layer?.masksToBounds = true
 
         titleField.translatesAutoresizingMaskIntoConstraints = false
@@ -262,28 +262,26 @@ private final class CapsuleTitleView: NSView {
         titleField.backgroundColor = .clear
         titleField.isBordered = false
         titleField.isEditable = false
+        titleField.setContentHuggingPriority(.defaultHigh, for: .horizontal)
+        titleField.setContentCompressionResistancePriority(.required, for: .horizontal)
 
         addSubview(blurView)
         blurView.addSubview(titleField)
+
+        setContentHuggingPriority(.defaultHigh, for: .horizontal)
+        setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
 
         NSLayoutConstraint.activate([
             blurView.leadingAnchor.constraint(equalTo: leadingAnchor),
             blurView.trailingAnchor.constraint(equalTo: trailingAnchor),
             blurView.topAnchor.constraint(equalTo: topAnchor),
             blurView.bottomAnchor.constraint(equalTo: bottomAnchor),
-            blurView.heightAnchor.constraint(equalToConstant: 34),
+            blurView.heightAnchor.constraint(equalToConstant: 28),
 
-            titleField.leadingAnchor.constraint(equalTo: blurView.leadingAnchor, constant: 24),
-            titleField.trailingAnchor.constraint(equalTo: blurView.trailingAnchor, constant: -24),
+            titleField.leadingAnchor.constraint(equalTo: blurView.leadingAnchor, constant: 18),
+            titleField.trailingAnchor.constraint(equalTo: blurView.trailingAnchor, constant: -18),
             titleField.centerYAnchor.constraint(equalTo: blurView.centerYAnchor)
         ])
-
-        layer?.shadowColor = NSColor.black.withAlphaComponent(0.18).cgColor
-        layer?.shadowOpacity = 1
-        layer?.shadowRadius = 12
-        layer?.shadowOffset = NSSize(width: 0, height: -4)
-        setContentHuggingPriority(.required, for: .horizontal)
-        setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
     }
 
     required init?(coder: NSCoder) {
@@ -292,7 +290,8 @@ private final class CapsuleTitleView: NSView {
 
     override var intrinsicContentSize: NSSize {
         let labelSize = titleField.intrinsicContentSize
-        return NSSize(width: max(160, labelSize.width + 48), height: 34)
+        let width = max(180, labelSize.width + 40)
+        return NSSize(width: width, height: 28)
     }
 
     func update(title: String) {
@@ -421,9 +420,16 @@ struct SettingsView: View {
     }
 
     private func syncToolbarState() {
-        toolbarBridge.title = selection?.title ?? "Settings"
-        toolbarBridge.canNavigateBack = canNavigateBack
-        toolbarBridge.canNavigateForward = canNavigateForward
+        let currentTitle = selection?.title ?? "Settings"
+        let back = canNavigateBack
+        let forward = canNavigateForward
+
+        let bridge = toolbarBridge
+        DispatchQueue.main.async {
+            bridge.title = currentTitle
+            bridge.canNavigateBack = back
+            bridge.canNavigateForward = forward
+        }
     }
 
     @ViewBuilder

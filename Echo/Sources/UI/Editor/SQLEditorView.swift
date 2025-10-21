@@ -715,6 +715,11 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
     }
 
     override func keyDown(with event: NSEvent) {
+        if event.keyCode == 48, !event.modifierFlags.contains(.shift) {
+            if expandSelectStarShorthandIfNeeded() {
+                return
+            }
+        }
         if handleInlineSuggestionKey(event) {
             return
         }
@@ -1500,6 +1505,7 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
     private func sanitizeSuggestions(_ suggestions: [SQLAutoCompletionSuggestion], for query: SQLAutoCompletionQuery) -> [SQLAutoCompletionSuggestion] {
         let trimmedToken = query.token.trimmingCharacters(in: .whitespacesAndNewlines)
         let tokenLower = trimmedToken.lowercased()
+        let normalizedToken = normalizeIdentifier(trimmedToken).lowercased()
         let pathLower = query.pathComponents.map { $0.lowercased() }
         let caretLocation = selectedRange().location
         let usedColumnContext = buildUsedColumnContext(before: caretLocation, query: query)
@@ -1527,12 +1533,18 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
             if suggestion.kind == .column,
                let context = usedColumnContext,
                let columnName = normalizedColumnName(for: suggestion) {
+                if context.unqualified.contains(columnName) {
+                    continue
+                }
                 let candidateKeys = candidateColumnKeys(for: suggestion, query: query)
                 let isAlreadySelected = candidateKeys.contains { key in
                     guard let used = context.byKey[key] else { return false }
                     return used.contains(columnName)
                 }
                 if isAlreadySelected {
+                    continue
+                }
+                if !normalizedToken.isEmpty && columnName == normalizedToken {
                     continue
                 }
             }
@@ -1553,21 +1565,19 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
         guard caretLocation != NSNotFound else { return nil }
         let nsString = string as NSString
         let clampedLocation = min(max(caretLocation, 0), nsString.length)
-        guard clampedLocation > 0 else { return nil }
 
-        let prefixRange = NSRange(location: 0, length: clampedLocation)
-        let prefixText = nsString.substring(with: prefixRange)
-        guard let selectRange = prefixText.range(of: "select", options: [.caseInsensitive, .backwards]) else {
-            return nil
-        }
+        let searchSelectRange = NSRange(location: 0, length: clampedLocation)
+        let selectRange = nsString.range(of: "select", options: [.caseInsensitive, .backwards], range: searchSelectRange)
+        guard selectRange.location != NSNotFound else { return nil }
 
-        let segmentStart = selectRange.upperBound
-        let segment = prefixText[segmentStart...]
+        let fromSearchRange = NSRange(location: selectRange.upperBound, length: nsString.length - selectRange.upperBound)
+        let fromRange = nsString.range(of: "from", options: [.caseInsensitive], range: fromSearchRange)
 
-        if segment.range(of: "from", options: [.caseInsensitive]) != nil {
-            return nil
-        }
+        let segmentEnd = fromRange.location != NSNotFound ? fromRange.location : nsString.length
+        guard segmentEnd > selectRange.upperBound else { return nil }
 
+        let segmentRange = NSRange(location: selectRange.upperBound, length: segmentEnd - selectRange.upperBound)
+        let segment = nsString.substring(with: segmentRange)
         var context = UsedColumnContext(byKey: [:], unqualified: [])
         let scopeTables = query.tablesInScope
 
@@ -2068,6 +2078,34 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
         suggestion.kind == .snippet && suggestion.id.hasPrefix("star|")
     }
 
+    private func expandSelectStarShorthandIfNeeded() -> Bool {
+        guard displayOptions.autoCompletionEnabled else { return false }
+        guard inlineInsertedRange == nil else { return false }
+        guard let textStorage else { return false }
+        let selection = selectedRange()
+        guard selection.length == 0 else { return false }
+        let nsString = string as NSString
+        let tokenRange = tokenRange(at: selection.location, in: nsString)
+        guard tokenRange.length > 0 else { return false }
+        let token = nsString.substring(with: tokenRange)
+        let trimmedToken = token.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmedToken.caseInsensitiveCompare("s*") == .orderedSame else { return false }
+        let replacement = "SELECT *\nFROM "
+        guard shouldChangeText(in: tokenRange, replacementString: replacement) else { return false }
+
+        isApplyingCompletion = true
+        textStorage.replaceCharacters(in: tokenRange, with: replacement)
+        isApplyingCompletion = false
+
+        let replacementLength = (replacement as NSString).length
+        let caretLocation = tokenRange.location + replacementLength
+        setSelectedRange(NSRange(location: caretLocation, length: 0))
+        hideCompletions()
+        hideInlineKeywordSuggestion()
+        didChangeText()
+        return true
+    }
+
     private func formatterDialect(for databaseType: EchoSenseDatabaseType) -> SQLFormatterService.Dialect? {
         switch databaseType {
         case .postgresql:
@@ -2241,17 +2279,52 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
               !inlineKeywordSuggestions.isEmpty else { return }
         let caretLocation = selectedRange().location
         guard caretLocation != NSNotFound else { return }
-        let caretRectOnScreen = firstRect(forCharacterRange: NSRange(location: caretLocation, length: 0), actualRange: nil)
-        var caretRect = convert(caretRectOnScreen, from: nil)
-        if caretRect.isNull || caretRect.isEmpty {
-            caretRect = NSRect(origin: CGPoint(x: textContainerInset.width,
-                                               y: bounds.height - textContainerInset.height - theme.nsFont.pointSize),
-                               size: CGSize(width: 1, height: theme.nsFont.ascender - theme.nsFont.descender))
+        guard let layoutManager = layoutManager,
+              let textContainer = textContainer else { return }
+
+        layoutManager.ensureLayout(for: textContainer)
+
+        let characterCount = (string as NSString).length
+        let clampedCaret = min(max(caretLocation, 0), characterCount)
+        let glyphCount = layoutManager.numberOfGlyphs
+
+        if glyphCount == 0 {
+            let origin = textContainerOrigin
+            let lineHeight = theme.nsFont.ascender - theme.nsFont.descender + theme.nsFont.leading
+            let xPosition = origin.x + textContainer.lineFragmentPadding
+            let yPosition = origin.y + lineHeight - theme.nsFont.ascender
+            let intrinsicWidth = max(view.intrinsicContentSize.width, 24)
+            view.frame = NSRect(x: xPosition,
+                                y: yPosition,
+                                width: intrinsicWidth,
+                                height: lineHeight)
+            return
         }
+
+        let referenceCharIndex = max(min(clampedCaret - 1, characterCount - 1), 0)
+        let referenceGlyphIndex = layoutManager.glyphIndexForCharacter(at: referenceCharIndex)
+
+        var lineGlyphRange = NSRange(location: 0, length: 0)
+        let lineRect = layoutManager.lineFragmentUsedRect(forGlyphAt: referenceGlyphIndex,
+                                                          effectiveRange: &lineGlyphRange,
+                                                          withoutAdditionalLayout: true)
+
+        let lineCharRange = layoutManager.characterRange(forGlyphRange: lineGlyphRange, actualGlyphRange: nil)
+        let caretRelativeCharLength = max(0, clampedCaret - lineCharRange.location)
+        let caretCharRange = NSRange(location: lineCharRange.location, length: caretRelativeCharLength)
+        let caretGlyphRange = layoutManager.glyphRange(forCharacterRange: caretCharRange, actualCharacterRange: nil)
+
+        let precedingRect = caretGlyphRange.length > 0
+            ? layoutManager.boundingRect(forGlyphRange: caretGlyphRange, in: textContainer)
+            : CGRect(origin: lineRect.origin, size: .zero)
+
+        let origin = textContainerOrigin
+        let xPosition = origin.x + (caretGlyphRange.length > 0 ? precedingRect.maxX : lineRect.minX)
+        let lineHeight = max(lineRect.height, theme.nsFont.ascender - theme.nsFont.descender + theme.nsFont.leading)
+        let baseline = origin.y + lineRect.minY + theme.nsFont.ascender
+        let yPosition = baseline - theme.nsFont.ascender
         let intrinsicWidth = max(view.intrinsicContentSize.width, 24)
-        let lineHeight = max(caretRect.height, theme.nsFont.ascender - theme.nsFont.descender + theme.nsFont.leading)
-        let xPosition = caretRect.origin.x + caretRect.width
-        let yPosition = caretRect.maxY - lineHeight
+
         view.frame = NSRect(x: xPosition,
                             y: yPosition,
                             width: intrinsicWidth,

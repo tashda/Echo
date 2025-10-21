@@ -172,26 +172,31 @@ struct ConnectMenuCommands: Commands {
     var body: some Commands {
         CommandMenu("Connect") {
             let projectID = appModel.selectedProject?.id
-            let activeSession = prioritizedSession(for: projectID)
+            let activeSessions = prioritizedSessions(for: projectID)
+            let hasActiveSessions = !activeSessions.isEmpty
             let hasConnections = projectID.flatMap { id in
                 appModel.connections.contains(where: { $0.projectID == id })
             } ?? false
 
-            if let activeSession {
-                activeSessionMenu(for: activeSession)
-                if hasConnections {
-                    Divider()
+            if hasActiveSessions {
+                ForEach(activeSessions, id: \.id) { session in
+                    let isPrimary = session.id == appModel.sessionManager.activeSessionID
+                    activeSessionMenu(for: session, isPrimary: isPrimary)
                 }
+            }
+
+            if hasActiveSessions && hasConnections {
+                Divider()
             }
 
             if hasConnections {
                 connectionMenuItems(parentID: nil, projectID: projectID)
-            } else if activeSession == nil {
+            } else if !hasActiveSessions {
                 Text("No Connections Available")
                     .foregroundStyle(.secondary)
             }
 
-            if activeSession != nil || hasConnections {
+            if hasActiveSessions || hasConnections {
                 Divider()
             }
 
@@ -206,25 +211,37 @@ struct ConnectMenuCommands: Commands {
         }
     }
 
-    private func prioritizedSession(for projectID: UUID?) -> ConnectionSession? {
-        if let projectID,
-           let active = appModel.sessionManager.activeSession,
-           active.connection.projectID == projectID {
-            return active
-        } else if projectID == nil,
-                  let active = appModel.sessionManager.activeSession {
-            return active
+    private func prioritizedSessions(for projectID: UUID?) -> [ConnectionSession] {
+        var sessions = appModel.sessionManager.sortedSessions
+        guard !sessions.isEmpty else { return [] }
+
+        if let activeID = appModel.sessionManager.activeSessionID,
+           let index = sessions.firstIndex(where: { $0.id == activeID }) {
+            let active = sessions.remove(at: index)
+            sessions.insert(active, at: 0)
         }
 
-        let sessions = appModel.sessionManager.sortedSessions
-        if let projectID {
-            return sessions.first { $0.connection.projectID == projectID }
+        guard let projectID else { return sessions }
+
+        var matching: [ConnectionSession] = []
+        var others: [ConnectionSession] = []
+
+        for session in sessions {
+            if session.connection.projectID == projectID {
+                matching.append(session)
+            } else {
+                others.append(session)
+            }
         }
-        return sessions.first
+
+        if matching.isEmpty {
+            return sessions
+        }
+        return matching + others
     }
 
     @ViewBuilder
-    private func activeSessionMenu(for session: ConnectionSession) -> some View {
+    private func activeSessionMenu(for session: ConnectionSession, isPrimary: Bool) -> some View {
         Menu {
             let databases = availableDatabases(for: session)
             if databases.isEmpty {
@@ -236,32 +253,48 @@ struct ConnectMenuCommands: Commands {
                     Button {
                         selectDatabase(database.name, in: session)
                     } label: {
-                        Label {
-                            Text(database.name)
-                        } icon: {
-                            Image(systemName: "checkmark")
-                                .opacity(isSelected ? 1 : 0)
-                        }
+                        databaseMenuLabel(name: database.name, isSelected: isSelected)
                     }
                 }
             }
         } label: {
             Label {
-                Text(activeSessionLabel(for: session))
+                Text(activeSessionLabel(for: session, isPrimary: isPrimary))
             } icon: {
                 connectionIcon(for: session.connection)
             }
         }
     }
 
-    private func activeSessionLabel(for session: ConnectionSession) -> String {
+    private func activeSessionLabel(for session: ConnectionSession, isPrimary: Bool) -> String {
         let connectionName = displayName(for: session.connection)
         let selected = trimmedDatabaseName(session.selectedDatabaseName)
         let fallbackDatabase: String? = session.connection.database.isEmpty ? nil : session.connection.database
         if let database = selected ?? trimmedDatabaseName(fallbackDatabase) {
-            return "\(connectionName) • \(database)"
+            let base = "\(connectionName) • \(database)"
+            return isPrimary ? "\(base) (Active)" : base
         }
-        return connectionName
+        return isPrimary ? "\(connectionName) (Active)" : connectionName
+    }
+
+    @ViewBuilder
+    private func databaseMenuLabel(name: String, isSelected: Bool) -> some View {
+        let contentWidth: CGFloat = 260
+        HStack(spacing: 8) {
+            if isSelected {
+                Image(systemName: "checkmark")
+                    .frame(width: 12)
+            } else {
+                Color.clear
+                    .frame(width: 12, height: 12)
+            }
+            Text(name)
+                .lineLimit(1)
+                .truncationMode(.middle)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .frame(minWidth: contentWidth, alignment: .leading)
+        .help(name)
     }
 
     private func availableDatabases(for session: ConnectionSession) -> [DatabaseInfo] {
@@ -284,9 +317,16 @@ struct ConnectMenuCommands: Commands {
     private func selectDatabase(_ databaseName: String, in session: ConnectionSession) {
         guard !databaseNamesEqual(databaseName, session.selectedDatabaseName) else { return }
         Task {
+            await MainActor.run {
+                appModel.sessionManager.setActiveSession(session.id)
+                appModel.selectedConnectionID = session.connection.id
+                appModel.navigationState.selectConnection(session.connection)
+                appModel.navigationState.selectDatabase(databaseName)
+            }
             await appModel.loadSchemaForDatabase(databaseName, connectionSession: session)
             await MainActor.run {
                 appModel.selectedConnectionID = session.connection.id
+                appModel.navigationState.selectConnection(session.connection)
                 appModel.navigationState.selectDatabase(databaseName)
             }
         }

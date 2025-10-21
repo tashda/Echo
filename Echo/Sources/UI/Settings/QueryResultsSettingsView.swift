@@ -23,21 +23,6 @@ private enum ResultStreamingDefaults {
     static let useCursor = false
 }
 
-private extension View {
-    @ViewBuilder
-    func hideMenuIndicatorIfPossible() -> some View {
-#if os(macOS)
-        if #available(macOS 13.0, *) {
-            self.menuIndicator(.hidden)
-        } else {
-            self
-        }
-#else
-        self
-#endif
-    }
-}
-
 struct QueryResultsSettingsView: View {
     @EnvironmentObject private var appModel: AppModel
     @EnvironmentObject private var themeManager: ThemeManager
@@ -337,7 +322,7 @@ struct QueryResultsSettingsView: View {
 }
 
 private struct StreamingPresetPickerControl: View {
-    private enum Selection: Hashable {
+enum Selection: Hashable {
         case preset(Int)
         case custom
     }
@@ -354,7 +339,7 @@ private struct StreamingPresetPickerControl: View {
     @State private var customText: String
     @State private var showInfoPopover = false
     @State private var showCustomPopover = false
-    @State private var pendingCustomPresentation = false
+    @State private var isSynchronizingSelection = false
 
     init(title: String,
          value: Binding<Int>,
@@ -381,63 +366,30 @@ private struct StreamingPresetPickerControl: View {
     }
 
     var body: some View {
-        HStack(alignment: .center, spacing: 12) {
+        HStack(alignment: .center, spacing: 8) {
             Text(title)
                 .font(.system(size: 13))
                 .frame(maxWidth: .infinity, alignment: .leading)
 
-            Menu {
-                ForEach(presets, id: \.self) { preset in
-                    Button(action: { selection = .preset(preset) }) {
-                        if value == preset {
-                            Label(label(for: preset), systemImage: "checkmark")
-                        } else {
-                            Text(label(for: preset))
-                        }
-                    }
-                }
-                Divider()
-                Button("Custom…") {
-                    pendingCustomPresentation = true
-                    selection = .custom
-                }
-            } label: {
-                HStack(spacing: 6) {
-                    Text(displayValueLabel)
-                        .font(.system(size: 13))
 #if os(macOS)
-                    if #available(macOS 13.0, *) {
-                        Image(systemName: "chevron.down")
-                            .font(.system(size: 11, weight: .semibold))
-                            .opacity(0.7)
-                    }
-#else
-                    Image(systemName: "chevron.down")
-                        .font(.system(size: 11, weight: .semibold))
-                        .opacity(0.7)
-#endif
+            InspectorPopupButton(options: popupOptions, displayTitle: displayValueLabel, selection: $selection, showCustomPopover: $showCustomPopover, resetCustomDraft: resetCustomDraft)
+                .popover(isPresented: $showCustomPopover, attachmentAnchor: .rect(.bounds), arrowEdge: .trailing) {
+                    CustomValuePopover(
+                        title: title,
+                        text: $customText,
+                        rangeDescription: "\(formatter(range.lowerBound)) – \(formatter(range.upperBound))",
+                        onSubmit: applyCustomValue,
+                        onCancel: { showCustomPopover = false }
+                    )
                 }
-                .padding(.horizontal, 9)
-                .padding(.vertical, 4)
-                .background(valueButtonBackground)
-                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-            }
-            .menuStyle(.borderlessButton)
-            .hideMenuIndicatorIfPossible()
-            .fixedSize()
-            .popover(isPresented: $showCustomPopover, attachmentAnchor: .rect(.bounds), arrowEdge: .trailing) {
-                CustomValuePopover(
-                    title: title,
-                    text: $customText,
-                    rangeDescription: "\(formatter(range.lowerBound)) – \(formatter(range.upperBound))",
-                    onSubmit: applyCustomValue,
-                    onCancel: { showCustomPopover = false }
-                )
-            }
+#else
+            iOSPicker
+#endif
 
             Button(action: { showInfoPopover.toggle() }) {
                 Image(systemName: "info.circle")
-                    .font(.system(size: 13, weight: .semibold))
+                    .imageScale(.medium)
+                    .font(.system(size: 13, weight: .regular))
             }
             .buttonStyle(.plain)
             .foregroundStyle(.secondary)
@@ -447,10 +399,20 @@ private struct StreamingPresetPickerControl: View {
                 InfoPopover(description: description, defaultLabel: defaultLabel)
             }
         }
-        .padding(.vertical, 3)
+        .frame(height: 44)
+        .padding(.vertical, 1.5)
         .padding(.horizontal, 10)
         .background(rowBackground)
         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+
+#if os(macOS)
+        .overlay(alignment: .top) {
+            Divider().opacity(0.06)
+        }
+        .overlay(alignment: .bottom) {
+            Divider().opacity(0.06)
+        }
+#endif
         .onChange(of: selection, initial: false) { _, newSelection in
             handleSelectionChange(newSelection)
         }
@@ -459,7 +421,7 @@ private struct StreamingPresetPickerControl: View {
         }
         .onChange(of: showCustomPopover) { _, isPresented in
             if !isPresented {
-                pendingCustomPresentation = false
+                resetCustomDraft()
             }
         }
     }
@@ -471,27 +433,29 @@ private struct StreamingPresetPickerControl: View {
             showCustomPopover = false
         case .custom:
             customText = String(value)
-            if pendingCustomPresentation {
+            if !isSynchronizingSelection {
                 showCustomPopover = true
             }
-            pendingCustomPresentation = false
         }
+        isSynchronizingSelection = false
     }
 
     private func syncSelection(with newValue: Int) {
         if presets.contains(newValue) {
             let target = Selection.preset(newValue)
             if selection != target {
+                isSynchronizingSelection = true
                 selection = target
             }
             customText = String(newValue)
             return
         }
+
         if selection != .custom {
+            isSynchronizingSelection = true
             selection = .custom
         }
         customText = String(newValue)
-        pendingCustomPresentation = false
     }
 
     private func applyCustomValue() {
@@ -501,6 +465,10 @@ private struct StreamingPresetPickerControl: View {
         }
         setValue(raw)
         showCustomPopover = false
+    }
+
+    private func resetCustomDraft() {
+        customText = String(value)
     }
 
     private func setValue(_ newValue: Int) {
@@ -525,21 +493,56 @@ private struct StreamingPresetPickerControl: View {
         formatter(defaultValue)
     }
 
-    private var valueButtonBackground: some View {
 #if os(macOS)
-        Color(nsColor: .underPageBackgroundColor)
-#else
-        Color(uiColor: .secondarySystemBackground)
-#endif
+    private var popupOptions: [InspectorPopupButton.Option] {
+        var options: [InspectorPopupButton.Option] = presets.map { preset in
+            InspectorPopupButton.Option(
+                value: StreamingPresetPickerControl.Selection.preset(preset),
+                title: label(for: preset)
+            )
+        }
+        options.append(
+            InspectorPopupButton.Option(
+                value: StreamingPresetPickerControl.Selection.custom,
+                title: "Custom…"
+            )
+        )
+        return options
     }
+#endif
 
     private var rowBackground: some View {
 #if os(macOS)
-        Color(nsColor: .controlBackgroundColor).opacity(0.28)
+        Color.clear
 #else
         Color(uiColor: .systemBackground).opacity(0.8)
 #endif
     }
+
+#if !os(macOS)
+    private var iOSPicker: some View {
+        Picker(selection: $selection) {
+            ForEach(presets, id: \.self) { preset in
+                Text(label(for: preset)).tag(Selection.preset(preset))
+            }
+            Text("Custom…").tag(Selection.custom)
+        } label: {
+            EmptyView()
+        }
+        .pickerStyle(.menu)
+        .labelsHidden()
+        .fixedSize()
+        .popover(isPresented: $showCustomPopover, attachmentAnchor: .rect(.bounds), arrowEdge: .trailing) {
+            CustomValuePopover(
+                title: title,
+                text: $customText,
+                rangeDescription: "\(formatter(range.lowerBound)) – \(formatter(range.upperBound))",
+                onSubmit: applyCustomValue,
+                onCancel: { showCustomPopover = false }
+            )
+        }
+    }
+#endif
 
     private struct CustomValuePopover: View {
         let title: String
@@ -636,3 +639,121 @@ private struct StreamingPresetPickerControl: View {
         }
     }
 }
+
+#if os(macOS)
+    private struct InspectorPopupButton: NSViewRepresentable {
+        struct Option {
+            let value: StreamingPresetPickerControl.Selection
+            let title: String
+        }
+
+        var options: [Option]
+        var displayTitle: String
+        @Binding var selection: StreamingPresetPickerControl.Selection
+        @Binding var showCustomPopover: Bool
+        var resetCustomDraft: () -> Void
+
+        func makeCoordinator() -> Coordinator { Coordinator(parent: self) }
+
+        func makeNSView(context: Context) -> PopupContainer {
+            let container = PopupContainer()
+            container.button.target = context.coordinator
+            container.button.action = #selector(Coordinator.handleSelection(_:))
+            return container
+        }
+
+        func updateNSView(_ nsView: PopupContainer, context: Context) {
+            context.coordinator.parent = self
+            nsView.apply(options: options, selection: selection, displayTitle: displayTitle)
+            nsView.button.target = context.coordinator
+            nsView.button.action = #selector(Coordinator.handleSelection(_:))
+        }
+
+        final class Coordinator: NSObject {
+            var parent: InspectorPopupButton
+
+            init(parent: InspectorPopupButton) {
+                self.parent = parent
+            }
+
+            @objc func handleSelection(_ sender: NSPopUpButton) {
+                guard let value = sender.selectedItem?.representedObject as? StreamingPresetPickerControl.Selection else { return }
+                parent.selection = value
+                switch value {
+                case .preset:
+                    parent.showCustomPopover = false
+                    parent.resetCustomDraft()
+                case .custom:
+                    parent.showCustomPopover = true
+                }
+            }
+        }
+
+        final class PopupContainer: NSView {
+            let button = NSPopUpButton(frame: .zero, pullsDown: false)
+            private var currentOptionTitles: [String] = []
+
+            override init(frame frameRect: NSRect = .zero) {
+                super.init(frame: frameRect)
+                translatesAutoresizingMaskIntoConstraints = false
+
+                button.translatesAutoresizingMaskIntoConstraints = false
+                button.font = .systemFont(ofSize: 13)
+                button.controlSize = .regular
+                button.alignment = .right
+                if let cell = button.cell as? NSPopUpButtonCell {
+                    cell.alignment = .right
+                }
+                button.autoenablesItems = false
+                button.focusRingType = .none
+                button.bezelStyle = .rounded
+                button.isBordered = true
+                button.setContentHuggingPriority(.defaultHigh, for: .horizontal)
+                button.setContentCompressionResistancePriority(.required, for: .horizontal)
+
+                addSubview(button)
+
+                NSLayoutConstraint.activate([
+                    button.leadingAnchor.constraint(equalTo: leadingAnchor),
+                    button.trailingAnchor.constraint(equalTo: trailingAnchor),
+                    button.centerYAnchor.constraint(equalTo: centerYAnchor),
+                    button.heightAnchor.constraint(equalToConstant: 24)
+                ])
+
+                setContentHuggingPriority(.defaultHigh, for: .horizontal)
+                setContentCompressionResistancePriority(.defaultHigh, for: .horizontal)
+            }
+
+            required init?(coder: NSCoder) {
+                fatalError("init(coder:) has not been implemented")
+            }
+
+            func apply(options: [Option], selection: StreamingPresetPickerControl.Selection, displayTitle: String) {
+                let titles = options.map { $0.title }
+                if titles != currentOptionTitles {
+                    let menu = NSMenu()
+                    for option in options {
+                        let item = NSMenuItem(title: option.title, action: nil, keyEquivalent: "")
+                        item.representedObject = option.value
+                        menu.addItem(item)
+                    }
+                    button.menu = menu
+                    currentOptionTitles = titles
+                }
+
+                if let index = options.firstIndex(where: { $0.value == selection }) {
+                    if button.indexOfSelectedItem != index {
+                        button.selectItem(at: index)
+                    }
+                    if case .custom = selection {
+                        button.selectedItem?.title = displayTitle
+                    } else {
+                        button.selectedItem?.title = options[index].title
+                    }
+                }
+
+                button.sizeToFit()
+            }
+        }
+    }
+#endif
