@@ -170,7 +170,7 @@ struct ClipboardHistoryView: View {
 
     private func openClipboardSettings() {
 #if os(macOS)
-        SettingsWindowController.shared.present(section: .applicationCache)
+        SettingsWindowPresenter.present(section: .applicationCache)
 #endif
     }
 

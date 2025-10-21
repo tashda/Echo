@@ -42,3 +42,18 @@ public struct SchemaInfo: Identifiable, Codable, Hashable {
     public var triggers: [SchemaObjectInfo] { objects.filter { $0.type == .trigger } }
     public var procedures: [SchemaObjectInfo] { objects.filter { $0.type == .procedure } }
 }
+
+extension SchemaObjectInfo.ObjectType {
+    static func supported(for databaseType: DatabaseType) -> [SchemaObjectInfo.ObjectType] {
+        switch databaseType {
+        case .postgresql:
+            return [.table, .view, .materializedView, .function, .trigger]
+        case .mysql:
+            return [.table, .view, .function, .procedure, .trigger]
+        case .microsoftSQL:
+            return [.table, .view, .function, .procedure, .trigger]
+        case .sqlite:
+            return [.table, .view]
+        }
+    }
+}

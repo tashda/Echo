@@ -88,7 +88,7 @@ struct ExplorerSidebarView: View {
                               let session = appModel.sessionManager.sessionForConnection(id) else { return }
                         appModel.sessionManager.setActiveSession(session.id)
                         ensureServerExpanded(for: id)
-                        resetFilters()
+                        resetFilters(for: session)
                         if !isHoveringConnectedServers {
                             withAnimation(.easeInOut(duration: 0.35)) {
                                 proxy.scrollTo(ExplorerSidebarConstants.objectsTopAnchor, anchor: .top)
@@ -421,21 +421,13 @@ struct ExplorerSidebarView: View {
         let shouldShowSchemaPicker = database.schemas.count > 1 && !isSearchFieldFocused
 
         return HStack(spacing: 6) {
-            NativeSearchField(
+            ExplorerFooterSearchField(
                 text: $searchText,
+                isFocused: $isSearchFieldFocused,
                 placeholder: "Search",
-                isFocused: $isSearchFieldFocused
-            )
-            .frame(height: ExplorerSidebarConstants.bottomControlHeight)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 3)
-            .background(
-                RoundedRectangle(cornerRadius: 9, style: .continuous)
-                    .fill(controlBackground)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 9, style: .continuous)
-                    .stroke(borderColor, lineWidth: 0.5)
+                controlBackground: controlBackground,
+                borderColor: borderColor,
+                height: ExplorerSidebarConstants.bottomControlHeight
             )
             .frame(maxWidth: .infinity)
 
@@ -528,7 +520,7 @@ struct ExplorerSidebarView: View {
             await appModel.loadSchemaForDatabase(databaseName, connectionSession: session)
             selectedConnectionID = session.connection.id
             ensureServerExpanded(for: session.connection.id)
-            resetFilters()
+            resetFilters(for: session)
             withAnimation(.easeInOut(duration: 0.3)) {
                 isHoveringConnectedServers = false
                 expandedConnectedServerIDs.removeAll()
@@ -543,15 +535,26 @@ struct ExplorerSidebarView: View {
         expandedServerIDs.insert(connectionID)
     }
 
-    private func resetFilters() {
+    private func resetFilters(for session: ConnectionSession? = nil) {
         searchText = ""
         selectedSchemaName = nil
-        expandedObjectGroups = Set(SchemaObjectInfo.ObjectType.allCases)
         expandedObjectIDs.removeAll()
+        let targetSession = session ?? selectedSession
+        let supported = Set(supportedObjectTypes(for: targetSession))
+        if supported.isEmpty {
+            expandedObjectGroups.removeAll()
+        } else {
+            expandedObjectGroups = supported
+        }
     }
 
     private func pinnedStorageKey(connectionID: UUID, databaseName: String) -> String {
         "\(connectionID.uuidString)#\(databaseName)"
+    }
+
+    private func supportedObjectTypes(for session: ConnectionSession?) -> [SchemaObjectInfo.ObjectType] {
+        guard let session else { return SchemaObjectInfo.ObjectType.allCases }
+        return SchemaObjectInfo.ObjectType.supported(for: session.connection.databaseType)
     }
 
     private func pinnedObjectsBinding(for database: DatabaseInfo, connectionID: UUID) -> Binding<Set<String>> {
@@ -1046,123 +1049,54 @@ extension ExplorerSidebarView {
 
 // MARK: - Auxiliary Controls
 
-private struct NativeSearchField: NSViewRepresentable {
+private struct ExplorerFooterSearchField: View {
     @Binding var text: String
-    let placeholder: String
     @Binding var isFocused: Bool
+    let placeholder: String
+    let controlBackground: Color
+    let borderColor: Color
+    let height: CGFloat
 
-    func makeCoordinator() -> Coordinator {
-        Coordinator(parent: self)
-    }
+    @FocusState private var internalFocus: Bool
 
-    func makeNSView(context: Context) -> NSSearchField {
-        let searchField = NSSearchField()
-        searchField.translatesAutoresizingMaskIntoConstraints = false
-        searchField.placeholderString = placeholder
-        searchField.delegate = context.coordinator
-        searchField.isBordered = false
-        searchField.sendsSearchStringImmediately = true
-        searchField.sendsWholeSearchString = true
-        searchField.focusRingType = .none
-        searchField.controlSize = .small
-        searchField.font = NSFont.systemFont(ofSize: 12, weight: .regular)
-        if let cell = searchField.cell as? NSSearchFieldCell {
-            cell.cancelButtonCell = nil
-            cell.placeholderAttributedString = NSAttributedString(
-                string: placeholder,
-                attributes: [
-                    .foregroundColor: NSColor.placeholderTextColor,
-                    .font: NSFont.systemFont(ofSize: 12)
-                ]
-            )
-            cell.controlSize = .small
-        }
-        return searchField
-    }
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "magnifyingglass")
+                .foregroundStyle(.secondary)
 
-    func updateNSView(_ nsView: NSSearchField, context: Context) {
-        if nsView.stringValue != text {
-            nsView.stringValue = text
-        }
-
-        guard let cell = nsView.cell as? NSSearchFieldCell else { return }
-
-        let hasFocus = nsView.window?.firstResponder == nsView.currentEditor()
-        if hasFocus != isFocused {
-            DispatchQueue.main.async {
-                self.isFocused = hasFocus
-            }
-        }
-
-        if hasFocus {
-            cell.placeholderAttributedString = nil
-            nsView.placeholderString = ""
-        } else if text.isEmpty {
-            cell.placeholderAttributedString = NSAttributedString(
-                string: placeholder,
-                attributes: [
-                    .foregroundColor: NSColor.placeholderTextColor,
-                    .font: NSFont.systemFont(ofSize: 12)
-                ]
-            )
-            nsView.placeholderString = placeholder
-        }
-
-        if let searchButtonCell = cell.searchButtonCell {
-            searchButtonCell.image = NSImage(systemSymbolName: "magnifyingglass", accessibilityDescription: nil)
-            searchButtonCell.imageScaling = .scaleProportionallyDown
-            searchButtonCell.alignment = .center
-        }
-
-        if isFocused, nsView.window?.firstResponder != nsView.currentEditor() {
-            nsView.window?.makeFirstResponder(nsView)
-        }
-    }
-
-    final class Coordinator: NSObject, NSSearchFieldDelegate {
-        private var parent: NativeSearchField
-
-        init(parent: NativeSearchField) {
-            self.parent = parent
-        }
-
-        func controlTextDidBeginEditing(_ notification: Notification) {
-            if let field = notification.object as? NSSearchField,
-               let cell = field.cell as? NSSearchFieldCell {
-                cell.placeholderAttributedString = nil
-                field.placeholderString = ""
-            }
-            updateFocusState(true)
-        }
-
-        func controlTextDidEndEditing(_ notification: Notification) {
-            if let field = notification.object as? NSSearchField,
-               let cell = field.cell as? NSSearchFieldCell,
-               field.stringValue.isEmpty {
-                cell.placeholderAttributedString = NSAttributedString(
-                    string: parent.placeholder,
-                    attributes: [
-                        .foregroundColor: NSColor.placeholderTextColor,
-                        .font: NSFont.systemFont(ofSize: 12)
-                    ]
-                )
-                field.placeholderString = parent.placeholder
-            }
-            updateFocusState(false)
-        }
-
-        func controlTextDidChange(_ notification: Notification) {
-            guard let field = notification.object as? NSSearchField else { return }
-            parent.text = field.stringValue
-        }
-
-        private func updateFocusState(_ focused: Bool) {
-            if parent.isFocused != focused {
-                DispatchQueue.main.async {
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        self.parent.isFocused = focused
-                    }
+            ZStack(alignment: .leading) {
+                if text.isEmpty {
+                    Text(placeholder)
+                        .foregroundStyle(.secondary)
+                        .padding(.vertical, 1)
                 }
+
+                TextField("", text: $text)
+                    .textFieldStyle(.plain)
+                    .focused($internalFocus)
+            }
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 3)
+        .frame(height: height)
+        .background(
+            RoundedRectangle(cornerRadius: 9, style: .continuous)
+                .fill(controlBackground)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 9, style: .continuous)
+                .stroke(borderColor, lineWidth: 0.5)
+        )
+        .onChange(of: internalFocus) { newValue in
+            if newValue != isFocused {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    isFocused = newValue
+                }
+            }
+        }
+        .onChange(of: isFocused) { newValue in
+            if newValue != internalFocus {
+                internalFocus = newValue
             }
         }
     }
