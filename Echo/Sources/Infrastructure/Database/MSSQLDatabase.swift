@@ -433,7 +433,7 @@ final class MSSQLSession: DatabaseSession {
                 return definition
             }
             return "-- View definition unavailable"
-        case .function:
+        case .function, .procedure:
             let sql = "SELECT OBJECT_DEFINITION(OBJECT_ID(N'\(qualifiedName)'));"
             if let definition = try await firstString(sql) {
                 return definition
@@ -529,9 +529,7 @@ final class MSSQLSession: DatabaseSession {
 
     private func formatRow(_ row: MSSQLRow, columns: [ColumnInfo]) -> [String?] {
         columns.map { column in
-            guard let data = row.row.column(column.name) else { return nil }
-            if data.value == nil { return nil }
-            return formatter.stringValue(for: data)
+            row.string(column.name)
         }
     }
 
@@ -1079,16 +1077,35 @@ private struct MSSQLRow {
     let row: TDSRow
     let formatter: MSSQLCellFormatter
     let metadata: [TDSTokens.ColMetadataToken.ColumnData]
+    private let columnNameLookup: [String: String]
 
     init(row: TDSRow, formatter: MSSQLCellFormatter) {
         self.row = row
         self.formatter = formatter
         self.metadata = MSSQLSession.metadataColumns(from: row.columnMetadata)
+        var lookup: [String: String] = [:]
+        lookup.reserveCapacity(metadata.count)
+        for column in metadata {
+            let lowercased = column.colName.lowercased()
+            if lookup[lowercased] == nil {
+                lookup[lowercased] = column.colName
+            }
+        }
+        self.columnNameLookup = lookup
     }
 
     func string(_ column: String) -> String? {
-        guard let data = row.column(column), data.value != nil else { return nil }
+        guard let data = data(for: column), data.value != nil else { return nil }
         return formatter.stringValue(for: data)
+    }
+
+    func data(for column: String) -> TDSData? {
+        guard let resolved = resolveColumnName(column) else { return nil }
+        return row.column(resolved)
+    }
+
+    private func resolveColumnName(_ name: String) -> String? {
+        columnNameLookup[name.lowercased()]
     }
 }
 

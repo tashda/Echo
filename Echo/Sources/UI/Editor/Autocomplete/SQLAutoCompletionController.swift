@@ -46,15 +46,16 @@ final class SQLAutoCompletionController {
             return
         }
 
+        let keywordSuggestions = inlineKeywordCandidates(from: suggestions, query: query)
         if textView.displayOptions.inlineKeywordSuggestionsEnabled,
-           let keywordSuggestions = inlineKeywordCandidates(from: suggestions, query: query) {
+           let inlineSuggestions = keywordSuggestions {
             if popover.isShown {
                 popover.performClose(nil)
             }
             flatSuggestions.removeAll(keepingCapacity: false)
             selectedIndex = 0
             lastQuery = query
-            textView.showInlineKeywordSuggestions(keywordSuggestions, query: query)
+            textView.showInlineKeywordSuggestions(inlineSuggestions, query: query)
             return
         } else {
             textView.hideInlineKeywordSuggestion()
@@ -65,7 +66,11 @@ final class SQLAutoCompletionController {
         hostingController?.view.appearance = appearance
 
         let previousID = selectedSuggestion?.id
-        flatSuggestions = suggestions
+        var filtered = suggestions
+        if !textView.displayOptions.suggestKeywordsInCompletion {
+            filtered.removeAll { $0.kind == .keyword }
+        }
+        flatSuggestions = filtered
         guard !flatSuggestions.isEmpty else {
             hide()
             return

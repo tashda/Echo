@@ -15,13 +15,6 @@ final class MenuActionHandler: NSObject, ObservableObject {
         handlers[menuItem] = action
         menuItem.target = self
         menuItem.action = #selector(performAction(_:))
-
-        if role == .destructive {
-            menuItem.attributedTitle = NSAttributedString(
-                string: menuItem.title,
-                attributes: [.foregroundColor: NSColor.systemRed]
-            )
-        }
     }
 
     func symbolImage(named systemName: String) -> NSImage? {

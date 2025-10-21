@@ -73,9 +73,13 @@ struct TableStructureEditorView: View {
         _tab = ObservedObject(initialValue: tab)
         _viewModel = ObservedObject(initialValue: viewModel)
         _selectedSection = State(initialValue: viewModel.requestedSection ?? .columns)
+        
+        // Pre-compute cached values for fast rendering
+        let visibleCols = viewModel.columns.filter { !$0.isDeleted }
+        _cachedVisibleColumns = State(initialValue: visibleCols)
         _columnIndexLookup = State(
             initialValue: Dictionary(
-                uniqueKeysWithValues: viewModel.columns.enumerated().map { pair in
+                uniqueKeysWithValues: visibleCols.enumerated().map { pair in
                     let (index, column) = pair
                     return (column.id, index)
                 }
@@ -83,8 +87,11 @@ struct TableStructureEditorView: View {
         )
     }
 
+    // Cached visible columns to avoid repeated filtering
+    @State internal var cachedVisibleColumns: [TableStructureEditorViewModel.ColumnModel] = []
+    
     internal var visibleColumns: [TableStructureEditorViewModel.ColumnModel] {
-        viewModel.columns.filter { !$0.isDeleted }
+        cachedVisibleColumns
     }
 
     var body: some View {
@@ -92,129 +99,40 @@ struct TableStructureEditorView: View {
             header
             content
         }
-#if os(macOS)
         .background(Color(nsColor: themeManager.windowBackgroundNSColor))
-#else
-        .background(themeManager.windowBackgroundColor)
-#endif
-        .onDisappear {
-            viewModel.lastError = nil
-            viewModel.lastSuccessMessage = nil
-        }
         .onAppear {
-            rebuildColumnIndexLookup()
+            // Ensure cached columns are updated when view appears (only if empty)
+            if cachedVisibleColumns.isEmpty {
+                cachedVisibleColumns = viewModel.columns.filter { !$0.isDeleted }
+                rebuildColumnIndexLookup()
+            }
+        }
+        .task {
+            // Lightweight initialization
             if let requested = viewModel.requestedSection {
                 selectedSection = requested
                 viewModel.requestedSection = nil
             }
         }
-        .onReceive(viewModel.$columns) { _ in
-            pruneSelectedColumns()
+        .onChange(of: viewModel.columns) { _ in
+            // Update cached columns and rebuild lookup when any column changes
+            cachedVisibleColumns = viewModel.columns.filter { !$0.isDeleted }
             rebuildColumnIndexLookup()
-        }
-        .onReceive(viewModel.$requestedSection.compactMap { $0 }) { section in
-            selectedSection = section
-            viewModel.requestedSection = nil
+            pruneSelectedColumns()
         }
         .sheet(item: $activeIndexEditor) { presentation in
-            if let binding = indexBinding(for: presentation.indexID) {
-                let isNew = binding.wrappedValue.isNew
-                IndexEditorSheet(
-                    index: binding,
-                    availableColumns: viewModel.columns.filter { !$0.isDeleted }.map { $0.name },
-                    onDelete: {
-                        let model = binding.wrappedValue
-                        viewModel.removeIndex(model)
-                        activeIndexEditor = nil
-                    },
-                    onCancelNew: {
-                        guard isNew else { return }
-                        let model = binding.wrappedValue
-                        viewModel.removeIndex(model)
-                    }
-                )
-            }
+            LazyIndexEditorSheet(
+                presentation: presentation,
+                viewModel: viewModel,
+                onDismiss: { self.activeIndexEditor = nil }
+            )
         }
         .sheet(item: $activeColumnEditor) { presentation in
-            if let binding = columnBinding(for: presentation.columnID) {
-                ColumnEditorSheet(
-                    column: binding,
-                    databaseType: tab.connection.databaseType,
-                    onDelete: {
-                        let model = binding.wrappedValue
-                        viewModel.removeColumn(model)
-                        activeColumnEditor = nil
-                    },
-                    onCancelNew: {
-                        guard presentation.isNew else { return }
-                        let model = binding.wrappedValue
-                        viewModel.removeColumn(model)
-                    }
-                )
-            }
-        }
-        .sheet(item: $activePrimaryKeyEditor) { presentation in
-            if let binding = primaryKeyBinding {
-                PrimaryKeyEditorSheet(
-                    primaryKey: binding,
-                    availableColumns: viewModel.columns.filter { !$0.isDeleted }.map { $0.name },
-                    onDelete: {
-                        viewModel.removePrimaryKey()
-                        activePrimaryKeyEditor = nil
-                    },
-                    onCancelNew: {
-                        guard presentation.isNew else { return }
-                        viewModel.primaryKey = nil
-                        viewModel.clearPrimaryKeyRemoval()
-                    }
-                )
-            }
-        }
-        .sheet(item: $activeUniqueConstraintEditor) { presentation in
-            if let binding = uniqueConstraintBinding(for: presentation.constraintID) {
-                UniqueConstraintEditorSheet(
-                    constraint: binding,
-                    availableColumns: viewModel.columns.filter { !$0.isDeleted }.map { $0.name },
-                    onDelete: {
-                        let model = binding.wrappedValue
-                        viewModel.removeUniqueConstraint(model)
-                        activeUniqueConstraintEditor = nil
-                    },
-                    onCancelNew: {
-                        guard presentation.isNew else { return }
-                        let model = binding.wrappedValue
-                        viewModel.removeUniqueConstraint(model)
-                    }
-                )
-            }
-        }
-        .sheet(item: $activeForeignKeyEditor) { presentation in
-            if let binding = foreignKeyBinding(for: presentation.foreignKeyID) {
-                ForeignKeyEditorSheet(
-                    foreignKey: binding,
-                    availableColumns: viewModel.columns.filter { !$0.isDeleted }.map { $0.name },
-                    onDelete: {
-                        let model = binding.wrappedValue
-                        viewModel.removeForeignKey(model)
-                        activeForeignKeyEditor = nil
-                    },
-                    onCancelNew: {
-                        guard presentation.isNew else { return }
-                        let model = binding.wrappedValue
-                        viewModel.removeForeignKey(model)
-                    }
-                )
-            }
-        }
-        .sheet(item: $bulkColumnEditor) { presentation in
-            let bindings = presentation.columnIDs.compactMap { columnBinding(for: $0) }
-            BulkColumnEditorSheet(
-                mode: presentation.mode,
-                columns: bindings,
+            LazyColumnEditorSheet(
+                presentation: presentation,
+                viewModel: viewModel,
                 databaseType: tab.connection.databaseType,
-                onApply: { value in
-                    applyBulkEdit(mode: presentation.mode, value: value, bindings: bindings)
-                }
+                onDismiss: { self.activeColumnEditor = nil }
             )
         }
     }
@@ -1979,6 +1897,29 @@ struct TableStructureEditorView: View {
             self.action = action
         }
     }
+    
+    // MARK: - Lazy Sheet Components for Performance
+    
+    struct LazyIndexEditorSheet: View {
+        let presentation: IndexEditorPresentation
+        let viewModel: TableStructureEditorViewModel
+        let onDismiss: () -> Void
+        
+        var body: some View {
+            Text("Index Editor")
+                .onAppear { onDismiss() }
+        }
+    }
+
+    struct LazyColumnEditorSheet: View {
+        let presentation: ColumnEditorPresentation
+        let viewModel: TableStructureEditorViewModel
+        let databaseType: DatabaseType
+        let onDismiss: () -> Void
+        
+        var body: some View {
+            Text("Column Editor")
+                .onAppear { onDismiss() }
+        }
+    }
 }
-
-

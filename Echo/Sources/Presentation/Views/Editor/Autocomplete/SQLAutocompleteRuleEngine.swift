@@ -429,10 +429,12 @@ extension EchoSenseSchemaObjectInfo.ObjectType {
             self = .view
         case .materializedView:
             self = .materializedView
-        case .function:
+        case .function, .procedure:
             self = .function
         case .trigger:
             self = .trigger
+        case .procedure:
+            self = .procedure
         }
     }
 }
@@ -646,7 +648,7 @@ private extension SQLAutocompleteRuleEngine {
         case .table: return .table
         case .view: return .view
         case .materializedView: return .materializedView
-        case .function, .trigger:
+        case .function, .trigger, .procedure:
             return nil
         }
     }

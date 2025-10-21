@@ -95,20 +95,22 @@ struct QueryEditorContainer: View {
             )
             let baseRatio = ratioBinding.wrappedValue
             let effectiveRatio = min(max(liveSplitRatioOverride ?? baseRatio, minRatio), maxRatio)
+            let isResizingResults = liveSplitRatioOverride != nil
 
             VStack(spacing: 0) {
                 if shouldShowResultsOnly {
-                #if os(macOS)
-                    QueryResultsSection(
-                        query: query,
-                        connection: connectionForDisplay,
-                        activeDatabaseName: connectionDatabaseName,
-                        gridState: gridStateProvider(),
-                        foreignKeyDisplayMode: foreignKeyDisplayMode,
-                        foreignKeyInspectorBehavior: foreignKeyInspectorBehavior,
-                        onForeignKeyEvent: handleForeignKeyEvent,
-                        onJsonEvent: handleJsonEvent
-                    )
+#if os(macOS)
+                QueryResultsSection(
+                    query: query,
+                    connection: connectionForDisplay,
+                    activeDatabaseName: connectionDatabaseName,
+                    gridState: gridStateProvider(),
+                    isResizingResults: isResizingResults,
+                    foreignKeyDisplayMode: foreignKeyDisplayMode,
+                    foreignKeyInspectorBehavior: foreignKeyInspectorBehavior,
+                    onForeignKeyEvent: handleForeignKeyEvent,
+                    onJsonEvent: handleJsonEvent
+                )
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .background(backgroundColor)
                         .transition(.opacity)
@@ -117,7 +119,8 @@ struct QueryEditorContainer: View {
                         query: query,
                         connection: connectionForDisplay,
                         activeDatabaseName: connectionDatabaseName,
-                        gridState: gridStateProvider()
+                        gridState: gridStateProvider(),
+                        isResizingResults: isResizingResults
                     )
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .background(backgroundColor)
@@ -158,6 +161,7 @@ struct QueryEditorContainer: View {
                             connection: connectionForDisplay,
                             activeDatabaseName: connectionDatabaseName,
                             gridState: gridStateProvider(),
+                            isResizingResults: isResizingResults,
                             foreignKeyDisplayMode: foreignKeyDisplayMode,
                             foreignKeyInspectorBehavior: foreignKeyInspectorBehavior,
                             onForeignKeyEvent: handleForeignKeyEvent,
@@ -171,7 +175,8 @@ struct QueryEditorContainer: View {
                             query: query,
                             connection: connectionForDisplay,
                             activeDatabaseName: connectionDatabaseName,
-                            gridState: gridStateProvider()
+                            gridState: gridStateProvider(),
+                            isResizingResults: isResizingResults
                         )
                             .frame(height: totalHeight * (1 - effectiveRatio))
                             .background(backgroundColor)
@@ -180,8 +185,6 @@ struct QueryEditorContainer: View {
                     }
                 }
             }
-            .animation(.easeInOut(duration: 0.22), value: shouldShowResultsOnly)
-            .animation(.easeInOut(duration: 0.22), value: query.hasExecutedAtLeastOnce)
         }
         .background(themeManager.windowBackground)
         .onAppear {
@@ -656,13 +659,21 @@ struct ResizeHandle: View {
 
                     let delta = value.translation.height / max(availableHeight, 1)
                     let proposed = min(max(dragStartRatio + delta, minRatio), maxRatio)
-                    onLiveUpdate(proposed)
+                    var transaction = Transaction()
+                    transaction.disablesAnimations = true
+                    withTransaction(transaction) {
+                        onLiveUpdate(proposed)
+                    }
                 }
                 .onEnded { value in
                     let delta = value.translation.height / max(availableHeight, 1)
                     let proposed = min(max(dragStartRatio + delta, minRatio), maxRatio)
                     isDragging = false
-                    onCommit(proposed)
+                    var transaction = Transaction()
+                    transaction.disablesAnimations = true
+                    withTransaction(transaction) {
+                        onCommit(proposed)
+                    }
                 }
         )
 #if os(macOS)

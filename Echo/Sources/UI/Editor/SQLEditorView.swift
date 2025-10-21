@@ -594,9 +594,22 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
         return set
     }()
 
+    private static let identifierDelimiterCharacterSet: CharacterSet = {
+        var set = CharacterSet()
+        set.insert(charactersIn: "\"")
+        set.insert(charactersIn: "`")
+        set.insert(charactersIn: "[")
+        set.insert(charactersIn: "]")
+        return set
+    }()
+
     private static let completionTokenCharacterSet: CharacterSet = {
         var set = wordCharacterSet
         set.insert(charactersIn: ".")
+        set.insert(charactersIn: "\"")
+        set.insert(charactersIn: "`")
+        set.insert(charactersIn: "[")
+        set.insert(charactersIn: "]")
         return set
     }()
 
@@ -1280,8 +1293,11 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
         }
 
         let rawComponents = token.split(separator: ".", omittingEmptySubsequences: false).map { String($0) }
-        let prefix = rawComponents.last ?? ""
-        let pathComponents = rawComponents.dropLast().filter { !$0.isEmpty }
+        let normalizedComponents = rawComponents.map { component -> String in
+            component.trimmingCharacters(in: SQLTextView.identifierDelimiterCharacterSet)
+        }
+        let prefix = normalizedComponents.last ?? ""
+        let pathComponents = normalizedComponents.dropLast().filter { !$0.isEmpty }
 
         let replacementRange = replacementRange(for: prefix, tokenRange: tokenRange, caretLocation: selection.location)
         let precedingKeyword = previousKeyword(before: tokenRange.location, in: nsString)
@@ -1466,8 +1482,11 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
     private func isSuggestionKindEnabled(_ kind: SQLAutoCompletionKind) -> Bool {
         switch kind {
         case .keyword:
-            return displayOptions.suggestKeywordsInCompletion
-        case .function:
+            if displayOptions.suggestKeywordsInCompletion {
+                return true
+            }
+            return displayOptions.inlineKeywordSuggestionsEnabled
+        case .function, .procedure:
             return displayOptions.suggestFunctionsInCompletion
         case .snippet:
             return displayOptions.suggestSnippetsInCompletion

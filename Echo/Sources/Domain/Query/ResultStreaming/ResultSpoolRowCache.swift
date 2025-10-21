@@ -233,6 +233,46 @@ final class ResultSpoolRowCache: @unchecked Sendable {
         return expected
     }
 
+    func clamp(to totalCount: Int) {
+        lock.lock()
+        defer { lock.unlock() }
+
+        if totalCount <= 0 {
+            pages.removeAll(keepingCapacity: false)
+            lru.removeAll(keepingCapacity: false)
+            pending.removeAll(keepingCapacity: false)
+            return
+        }
+
+        let lastPageIndex = (totalCount - 1) / pageSize
+        let lastPageLimit = totalCount - lastPageIndex * pageSize
+
+        if !pages.isEmpty {
+            let keysToRemove = pages.keys.filter { $0 > lastPageIndex }
+            for key in keysToRemove {
+                pages.removeValue(forKey: key)
+            }
+
+            if var lastPage = pages[lastPageIndex] {
+                if lastPageLimit < lastPage.rows.count {
+                    for index in lastPageLimit..<lastPage.rows.count {
+                        lastPage.rows[index] = nil
+                    }
+                }
+                lastPage.terminalCount = lastPageLimit
+                pages[lastPageIndex] = lastPage
+            }
+        }
+
+        if !lru.isEmpty {
+            lru.removeAll { $0 > lastPageIndex }
+        }
+
+        if !pending.isEmpty {
+            pending = pending.filter { $0 <= lastPageIndex }
+        }
+    }
+
     private func touchPageLocked(_ index: Int) {
         if let existing = lru.firstIndex(of: index) {
             lru.remove(at: existing)

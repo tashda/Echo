@@ -1,8 +1,10 @@
 import SwiftUI
 #if os(macOS)
 import AppKit
+private typealias StreamingPopoverFont = NSFont
 #elseif canImport(UIKit)
 import UIKit
+private typealias StreamingPopoverFont = UIFont
 #endif
 
 private let streamingRowPresets: [Int] = [100, 250, 500, 750, 1_000, 2_000, 5_000, 10_000]
@@ -385,17 +387,12 @@ private struct StreamingPresetPickerControl: View {
                     selection = .custom
                 }
             } label: {
-                HStack(spacing: 5) {
-                    Text(displayValueLabel)
-                        .font(.system(size: 13))
-                    Image(systemName: "chevron.up.chevron.down")
-                        .font(.system(size: 11, weight: .semibold))
-                        .opacity(0.65)
-                }
-                .padding(.horizontal, 10)
-                .padding(.vertical, 5)
-                .background(valueButtonBackground)
-                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                Text(displayValueLabel)
+                    .font(.system(size: 13))
+                    .padding(.horizontal, 9)
+                    .padding(.vertical, 5)
+                    .background(valueButtonBackground)
+                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
             }
             .menuStyle(.borderlessButton)
             .fixedSize()
@@ -421,7 +418,7 @@ private struct StreamingPresetPickerControl: View {
                 InfoPopover(description: description, defaultLabel: defaultLabel)
             }
         }
-        .padding(.vertical, 6)
+        .padding(.vertical, 3)
         .padding(.horizontal, 10)
         .background(rowBackground)
         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
@@ -571,9 +568,42 @@ private struct StreamingPresetPickerControl: View {
                 Text("Default: \(defaultLabel)")
                     .font(.system(size: 12))
                     .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
             .padding(16)
-            .frame(maxWidth: 320)
+            .frame(width: preferredWidth)
+        }
+
+        private var preferredWidth: CGFloat {
+            let padding: CGFloat = 32
+            let minWidth: CGFloat = 220
+            let maxWidth: CGFloat = 320
+            let contentLimit = maxWidth - padding
+
+            let descriptionWidth = measuredWidth(for: description, font: platformFont(size: 13), limit: contentLimit)
+            let defaultWidth = measuredWidth(for: "Default: \(defaultLabel)", font: platformFont(size: 12), limit: contentLimit)
+            let contentWidth = max(descriptionWidth, defaultWidth)
+            return min(maxWidth, max(minWidth, contentWidth + padding))
+        }
+
+        private func platformFont(size: CGFloat, weight: StreamingPopoverFont.Weight = .regular) -> StreamingPopoverFont {
+#if os(macOS)
+            NSFont.systemFont(ofSize: size, weight: weight)
+#else
+            UIFont.systemFont(ofSize: size, weight: weight)
+#endif
+        }
+
+        private func measuredWidth(for text: String, font: StreamingPopoverFont, limit: CGFloat) -> CGFloat {
+            guard !text.isEmpty else { return 0 }
+            let constraint = CGSize(width: limit, height: .greatestFiniteMagnitude)
+#if os(macOS)
+            let rect = NSAttributedString(string: text, attributes: [.font: font])
+                .boundingRect(with: constraint, options: [.usesLineFragmentOrigin, .usesFontLeading])
+#else
+            let rect = (text as NSString).boundingRect(with: constraint, options: [.usesLineFragmentOrigin, .usesFontLeading], attributes: [.font: font], context: nil)
+#endif
+            return ceil(rect.width)
         }
     }
 }

@@ -440,6 +440,9 @@ final class QueryResultsGridState {
     private var formattingGeneration: Int = 0
     private var formattingResetTask: Task<Void, Never>?
     private var materializedHighWaterMark: Int = 0
+#if DEBUG
+    private let rowDiagnosticsEnabled = ProcessInfo.processInfo.environment["ECHO_ROW_DEBUG"] == "1"
+#endif
     struct ForeignKeyResolutionContext {
         let schema: String
         let table: String
@@ -449,6 +452,7 @@ final class QueryResultsGridState {
     private var cachedForeignKeyMapping: ForeignKeyMapping = [:]
     private var hasLoadedForeignKeyMapping = false
     private var isLoadingForeignKeyMapping = false
+    private var shouldPersistResults = false
 
     init(
         sql: String = "SELECT current_timestamp;",
@@ -701,6 +705,7 @@ final class QueryResultsGridState {
             metadata: ["error": error]
         )
         executionStartTime = nil
+        shouldPersistResults = false
         finalizeSpoolOnCompletion(cancelled: false)
         streamingColumns.removeAll(keepingCapacity: false)
         streamingRows.removeAll(keepingCapacity: false)
@@ -818,6 +823,7 @@ final class QueryResultsGridState {
         dataPreviewFetchTask = nil
         markResultDataChanged()
 
+        shouldPersistResults = false
         finalizeSpoolOnCompletion(cancelled: true)
         finalizePerformanceMetrics(cancelled: false)
     }
@@ -856,7 +862,15 @@ final class QueryResultsGridState {
         }()
 
 #if DEBUG
-        print("[WorkspaceTab] applyStreamUpdate appendedRowCount=\(appendedRowCount) appendedRows=\(update.appendedRows.count) rawRows=\(rawRows.count) encodedRows=\(update.encodedRows.count) totalRowCount=\(update.totalRowCount ?? -1)")
+        print("[WorkspaceTab] applyStreamUpdate appendedRowCount=\(appendedRowCount) appendedRows=\(update.appendedRows.count) rawRows=\(rawRows.count) encodedRows=\(update.encodedRows.count) totalRowCount=\(update.totalRowCount)")
+        if rowDiagnosticsEnabled {
+            if let range = appendedRange, range.upperBound > update.totalRowCount {
+                debugReportRowAnomaly(stage: "applyStreamUpdate", message: "rowRange upperBound \(range.upperBound) exceeds reported total \(update.totalRowCount)")
+            }
+            if appendedRowCount > 0, streamingRows.count + appendedRowCount > update.totalRowCount {
+                debugReportRowAnomaly(stage: "applyStreamUpdate", message: "incoming batch would exceed total (\(streamingRows.count + appendedRowCount) > \(update.totalRowCount))")
+            }
+        }
 #endif
 
         os_log("ApplyStreamUpdate begin rows=%{public}d", log: gridPipelineLog, type: .info, appendedRowCount)
@@ -979,6 +993,7 @@ final class QueryResultsGridState {
             if !isResultsOnly, visibleRowLimit != nil {
                 visibleRowLimit = nil
             }
+            shouldPersistResults = true
         }
 
         if columnsWereEmpty {
@@ -997,11 +1012,20 @@ final class QueryResultsGridState {
         performanceTracker.markResultSetReceived(totalRowCount: totalRowCount)
         streamingMode = .completed
         streamingColumns = result.columns
+        shouldPersistResults = shouldPersistResults || totalRowCount >= spoolActivationThreshold
 
-        let truncatedRows = Array(result.rows.prefix(frontBufferLimit))
+        let bufferLimit = shouldPersistResults ? frontBufferLimit : max(frontBufferLimit, totalRowCount)
+        let truncatedRows = Array(result.rows.prefix(bufferLimit))
         rowCache.ingest(rows: truncatedRows, startingAt: 0)
         streamedRowCount = max(streamedRowCount, totalRowCount)
-        streamingRows = truncatedRows
+
+        if streamingRows.isEmpty || streamingRows.count < truncatedRows.count {
+            streamingRows = truncatedRows
+        } else {
+            for index in 0..<truncatedRows.count {
+                streamingRows[index] = truncatedRows[index]
+            }
+        }
 
         let condensedResult = QueryResultSet(
             columns: result.columns,
@@ -1028,8 +1052,18 @@ final class QueryResultsGridState {
         refreshMaterializedProgress()
         markResultDataChanged()
         refreshLivePerformanceReport()
-        activateSpoolIfNeeded()
-        finalizeSpool(with: result)
+        if shouldPersistResults {
+            activateSpoolIfNeeded()
+            finalizeSpool(with: result)
+        } else {
+            shouldPersistResults = false
+            deferredSpoolUpdates.removeAll(keepingCapacity: false)
+            ingestionService = nil
+            spoolHandle = nil
+            resultSpoolID = nil
+            spoolStatsTask?.cancel()
+            spoolStatsTask = nil
+        }
     }
 
     var displayedColumns: [ColumnInfo] {
@@ -1119,6 +1153,7 @@ final class QueryResultsGridState {
         spoolStatsTask?.cancel()
         spoolStatsTask = nil
         streamingMode = .idle
+        shouldPersistResults = false
 
         if let existingService = ingestionService {
             Task.detached(priority: .utility) {
@@ -1148,6 +1183,10 @@ final class QueryResultsGridState {
     @MainActor
     private func submitToSpool(update: QueryStreamUpdate, mode: StreamingMode) {
         let treatAsPreview = (mode == .preview || mode == .idle)
+        if !shouldPersistResults {
+            deferredSpoolUpdates.append(.init(update: update, treatAsPreview: treatAsPreview))
+            return
+        }
         if shouldDeferSpool(for: mode) {
             deferredSpoolUpdates.append(.init(update: update, treatAsPreview: treatAsPreview))
             return
@@ -1188,6 +1227,7 @@ final class QueryResultsGridState {
 
     @MainActor
     private func activateSpoolIfNeeded(force: Bool = false) {
+        guard shouldPersistResults else { return }
         guard isSpoolActivationDeferred else { return }
         if !force {
             guard streamingMode == .background || streamingMode == .completed else { return }
@@ -1212,6 +1252,7 @@ final class QueryResultsGridState {
 
     @MainActor
     private func finalizeSpool(with result: QueryResultSet) {
+        guard shouldPersistResults else { return }
         let service = ingestionService
         Task.detached(priority: .utility) { [weak self] in
             guard let self else { return }
@@ -1249,13 +1290,30 @@ final class QueryResultsGridState {
 
     @MainActor
     private func finalizeSpoolOnCompletion(cancelled _: Bool) {
+        let currentService = ingestionService
+
+        guard shouldPersistResults else {
+            Task.detached(priority: .utility) { [weak self] in
+                guard let self else { return }
+                if let service = currentService {
+                    await service.cancel()
+                }
+                await MainActor.run {
+                    self.ingestionService = nil
+                    self.spoolHandle = nil
+                    self.resultSpoolID = nil
+                    self.deferredSpoolUpdates.removeAll(keepingCapacity: false)
+                    self.shouldPersistResults = false
+                }
+            }
+            return
+        }
         if isSpoolActivationDeferred {
             deferredSpoolUpdates.removeAll(keepingCapacity: false)
         }
-        let service = ingestionService
         Task.detached(priority: .utility) { [weak self] in
             guard let self else { return }
-            if let service {
+            if let service = currentService {
                 await service.finalize(commandTag: nil, metrics: nil)
             } else {
                 let handle = await MainActor.run { self.spoolHandle }
@@ -1470,6 +1528,16 @@ final class QueryResultsGridState {
                 os_signpost(.end, log: gridPipelineLog, name: "IntegrateFormattedRows")
             }
         }
+#if DEBUG
+        if rowDiagnosticsEnabled {
+            if totalRowCount >= 0 && range.upperBound > totalRowCount {
+                debugReportRowAnomaly(stage: "integrateFormattedRows", message: "range \(range) overshoots total \(totalRowCount) rows=\(rows.count)")
+            }
+            if totalRowCount >= 0 && streamingRows.count > totalRowCount {
+                debugReportRowAnomaly(stage: "integrateFormattedRows", message: "pre-merge streamingRows \(streamingRows.count) already exceeds total \(totalRowCount)")
+            }
+        }
+#endif
         rowCache.ingest(rows: rows, startingAt: range.lowerBound)
 
         if range.lowerBound < streamingRows.count {
@@ -1482,25 +1550,49 @@ final class QueryResultsGridState {
             }
         }
 
-        if streamingRows.count < frontBufferLimit && range.upperBound > streamingRows.count {
+        let bufferLimit = shouldPersistResults ? frontBufferLimit : max(frontBufferLimit, totalRowCount)
+        if streamingRows.count < bufferLimit && range.upperBound > streamingRows.count {
             let insertionLower = max(streamingRows.count, range.lowerBound)
             let offset = insertionLower - range.lowerBound
             if offset < rows.count {
                 let slice = rows[offset...]
-                let remainingCapacity = frontBufferLimit - streamingRows.count
+                let remainingCapacity = bufferLimit - streamingRows.count
                 if remainingCapacity > 0 {
                     streamingRows.append(contentsOf: slice.prefix(remainingCapacity))
                 }
             }
         }
 
-        refreshMaterializedProgress()
-        let newReported = max(rowProgress.reported, totalRowCount)
-        if rowProgress.reported != newReported || rowProgress.totalReceived != streamedRowCount {
+        if totalRowCount >= 0 {
+            let cappedTotal = totalRowCount
+            if streamingRows.count > cappedTotal {
+                streamingRows.removeSubrange(cappedTotal..<streamingRows.count)
+            }
+            rowCache.clamp(to: cappedTotal)
+            if streamedRowCount > cappedTotal {
+                streamedRowCount = cappedTotal
+            }
+            if materializedHighWaterMark > cappedTotal {
+                materializedHighWaterMark = cappedTotal
+            }
+#if DEBUG
+            if rowDiagnosticsEnabled && streamingRows.count > cappedTotal {
+                debugReportRowAnomaly(stage: "integrateFormattedRows", message: "post-trim streamingRows \(streamingRows.count) still exceeds capped total \(cappedTotal)")
+            }
+#endif
+        }
+
+        let contiguous = computeContiguousMaterializedCount()
+        materializedHighWaterMark = contiguous
+        let newReported = max(totalRowCount, contiguous)
+        let newReceived = max(streamedRowCount, contiguous)
+        if rowProgress.totalReported != newReported
+            || rowProgress.totalReceived != newReceived
+            || rowProgress.materialized != contiguous {
             rowProgress = RowProgress(
-                totalReceived: streamedRowCount,
+                totalReceived: newReceived,
                 totalReported: newReported,
-                materialized: rowProgress.materialized
+                materialized: contiguous
             )
         }
 
@@ -1547,6 +1639,13 @@ final class QueryResultsGridState {
             }
         }
     }
+
+#if DEBUG
+    private func debugReportRowAnomaly(stage: String, message: @autoclosure () -> String) {
+        guard rowDiagnosticsEnabled else { return }
+        print("[RowDiagnostics][\(stage)] \(message()) streamingRows=\(streamingRows.count) materialized=\(materializedHighWaterMark) reported=\(rowProgress.totalReported) received=\(rowProgress.totalReceived) streamedCount=\(streamedRowCount)")
+    }
+#endif
 
     private func computeContiguousMaterializedCount() -> Int {
         max(streamingRows.count, rowCache.contiguousMaterializedCount())
@@ -1659,8 +1758,9 @@ final class QueryResultsGridState {
             rowCache.ingest(rows: newRows, startingAt: startIndex)
             streamedRowCount += newRows.count
 
-            if streamingRows.count < frontBufferLimit {
-                let remainingCapacity = frontBufferLimit - streamingRows.count
+            let bufferLimit = shouldPersistResults ? frontBufferLimit : max(frontBufferLimit, streamedRowCount)
+            if streamingRows.count < bufferLimit {
+                let remainingCapacity = bufferLimit - streamingRows.count
                 if remainingCapacity > 0 {
                     streamingRows.append(contentsOf: newRows.prefix(remainingCapacity))
                 }

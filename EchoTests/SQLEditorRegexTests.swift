@@ -758,6 +758,110 @@ final class SQLAutoCompletionEngineTests: XCTestCase {
 #endif
     }
 
+    func testInlinePreviewIgnoresKeywordToggle() {
+        let theme = makeTestTheme()
+        var display = SQLEditorDisplayOptions()
+        display.suggestKeywordsInCompletion = false
+        display.inlineKeywordSuggestionsEnabled = true
+        let context = sampleContext()
+        let textView = SQLTextView(theme: theme,
+                                   displayOptions: display,
+                                   backgroundOverride: nil,
+                                   completionContext: context)
+
+        let suggestion = SQLAutoCompletionSuggestion(id: "keyword|from",
+                                                     title: "FROM",
+                                                     subtitle: nil,
+                                                     detail: nil,
+                                                     insertText: "FROM ",
+                                                     kind: .keyword,
+                                                     priority: 700)
+        let query = SQLAutoCompletionQuery(token: "F",
+                                           prefix: "F",
+                                           pathComponents: [],
+                                           replacementRange: NSRange(location: 0, length: 0),
+                                           precedingKeyword: "select",
+                                           precedingCharacter: " ",
+                                           focusTable: nil,
+                                           tablesInScope: [],
+                                           clause: .from)
+
+        textView.showInlineKeywordSuggestions([suggestion], query: query)
+
+#if DEBUG
+        let snapshot = textView.debugInlineSuggestionSnapshot()
+        XCTAssertNotNil(snapshot)
+        XCTAssertEqual(snapshot?.text.trimmingCharacters(in: .whitespacesAndNewlines), "ROM")
+#endif
+    }
+
+    func testMakeCompletionQueryHandlesQuotedIdentifiers() {
+        let theme = makeTestTheme()
+        let display = SQLEditorDisplayOptions()
+        let context = sampleContext()
+        let textView = SQLTextView(theme: theme,
+                                   displayOptions: display,
+                                   backgroundOverride: nil,
+                                   completionContext: context)
+
+        let text = "SELECT * FROM \"public\".\"fi"
+        textView.textStorage?.setAttributedString(NSAttributedString(string: text))
+        textView.setSelectedRange(NSRange(location: text.count, length: 0))
+
+        guard let query = textView.makeCompletionQuery() else {
+            XCTFail("Expected completion query")
+            return
+        }
+
+        XCTAssertEqual(query.pathComponents, ["public"])
+        XCTAssertEqual(query.prefix, "fi")
+        XCTAssertTrue(query.token.hasPrefix("\"public\""))
+    }
+
+    func testSuggestionsSupportQuotedIdentifiers() {
+        let theme = makeTestTheme()
+        let display = SQLEditorDisplayOptions()
+        let context = sampleContext()
+        let textView = SQLTextView(theme: theme,
+                                   displayOptions: display,
+                                   backgroundOverride: nil,
+                                   completionContext: context)
+
+        let tableSuggestion = SQLCompletionSuggestion(
+            id: "object:table:testdb.public.fixture",
+            title: "fixture",
+            subtitle: "public",
+            detail: "public.fixture",
+            insertText: "public.fixture",
+            kind: .table,
+            priority: 1300
+        )
+
+        let metadata = SQLCompletionMetadata(clause: .from,
+                                             currentToken: "fi",
+                                             precedingKeyword: "from",
+                                             pathComponents: ["public"],
+                                             tablesInScope: [],
+                                             focusTable: nil,
+                                             cteColumns: [:])
+        stubCompletionEngine.result = SQLCompletionResult(suggestions: [tableSuggestion], metadata: metadata)
+        engine.updateContext(sampleContext())
+
+        let text = "SELECT * FROM \"public\".\"fi"
+        textView.textStorage?.setAttributedString(NSAttributedString(string: text))
+        textView.setSelectedRange(NSRange(location: text.count, length: 0))
+
+        guard let query = textView.makeCompletionQuery() else {
+            XCTFail("Expected completion query")
+            return
+        }
+
+        let result = engine.suggestions(for: query, text: text, caretLocation: text.count)
+        let suggestions = result.sections.flatMap { $0.suggestions }
+
+        XCTAssertTrue(suggestions.contains(where: { $0.id == tableSuggestion.id }))
+    }
+
     func testJoinKeywordSuggestionIncludesJoinSuffix() {
         let tableReference = SQLCompletionMetadata.TableReference(schema: "public",
                                                                   name: "fixture",
