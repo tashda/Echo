@@ -40,31 +40,6 @@ private func buildForeignKeyMapping(from details: TableStructureDetails) -> Fore
 }
 #endif
 
-@MainActor
-fileprivate func applyForeignKeyMapping(to update: QueryStreamUpdate, mapping: ForeignKeyMapping) -> QueryStreamUpdate {
-    guard !mapping.isEmpty else { return update }
-    let columns = applyForeignKeyMapping(to: update.columns, mapping: mapping)
-    return QueryStreamUpdate(
-        columns: columns,
-        appendedRows: update.appendedRows,
-        encodedRows: update.encodedRows,
-        totalRowCount: update.totalRowCount,
-        metrics: update.metrics
-    )
-}
-
-@MainActor
-fileprivate func applyForeignKeyMapping(to columns: [ColumnInfo], mapping: ForeignKeyMapping) -> [ColumnInfo] {
-    guard !mapping.isEmpty else { return columns }
-    return columns.map { column in
-        var updated = column
-        if updated.foreignKey == nil, let reference = mapping[column.name.lowercased()] {
-            updated.foreignKey = reference
-        }
-        return updated
-    }
-}
-
 struct QueryTabsView: View {
     @EnvironmentObject private var appModel: AppModel
     @EnvironmentObject private var appState: AppState
@@ -178,6 +153,7 @@ struct QueryTabsView: View {
         }
         let foreignKeyMode = await MainActor.run { appModel.globalSettings.foreignKeyDisplayMode }
         let shouldResolveForeignKeys = foreignKeyMode != .disabled
+        let foreignKeySource = shouldResolveForeignKeys ? resolveSchemaAndTable(for: inferredObject, connection: tab.connection) : nil
 
         let task = Task { [weak queryState] in
             guard let state = await MainActor.run(body: { queryState }) else { return }
@@ -185,6 +161,11 @@ struct QueryTabsView: View {
             do {
                 await MainActor.run {
                     state.recordQueryDispatched()
+                    if let source = foreignKeySource {
+                        state.updateForeignKeyResolutionContext(schema: source.schema, table: source.table)
+                    } else {
+                        state.updateForeignKeyResolutionContext(schema: nil, table: nil)
+                    }
                 }
                 let result = try await tab.session.simpleQuery(effectiveSQL) { [weak state] update in
                     guard let state else { return }
@@ -198,40 +179,27 @@ struct QueryTabsView: View {
                     }
                 }
                 try Task.checkCancellation()
-                let mapping: ForeignKeyMapping
-                if shouldResolveForeignKeys {
-                    mapping = await loadForeignKeyMapping(for: tab, inferredObject: inferredObject)
-                } else {
-                    mapping = [:]
-                }
-                try Task.checkCancellation()
-                var enrichedResult = result
-                if !mapping.isEmpty {
-                    enrichedResult.columns = await MainActor.run {
-                        applyForeignKeyMapping(to: result.columns, mapping: mapping)
-                    }
-                }
                 await MainActor.run {
-                    state.consumeFinalResult(enrichedResult)
+                    state.consumeFinalResult(result)
                     state.finishExecution()
 
                     var metadata: [String: String] = [
-                        "rows": "\(enrichedResult.rows.count)"
+                        "rows": "\(result.rows.count)"
                     ]
-                    let columnNames = enrichedResult.columns.map(\.name).joined(separator: ", ")
+                    let columnNames = result.columns.map(\.name).joined(separator: ", ")
                     if !columnNames.isEmpty {
                         metadata["columns"] = columnNames
                     }
-                    if let commandTag = enrichedResult.commandTag, !commandTag.isEmpty {
+                    if let commandTag = result.commandTag, !commandTag.isEmpty {
                         metadata["commandTag"] = commandTag
                     }
 
                     state.appendMessage(
-                        message: "Returned \(enrichedResult.rows.count) row\(enrichedResult.rows.count == 1 ? "" : "s")",
+                        message: "Returned \(result.rows.count) row\(result.rows.count == 1 ? "" : "s")",
                         severity: .info,
                         metadata: metadata
                     )
-                    appState.addToQueryHistory(effectiveSQL, resultCount: enrichedResult.rows.count, duration: state.lastExecutionTime ?? 0)
+                    appState.addToQueryHistory(effectiveSQL, resultCount: result.rows.count, duration: state.lastExecutionTime ?? 0)
                 }
             } catch is CancellationError {
                 await MainActor.run {
@@ -300,16 +268,6 @@ struct QueryTabsView: View {
             .replacingOccurrences(of: "\"", with: "")
             .replacingOccurrences(of: "].[", with: ".")
     }
-    private func loadForeignKeyMapping(for tab: WorkspaceTab, inferredObject: String?) async -> ForeignKeyMapping {
-        guard let components = resolveSchemaAndTable(for: inferredObject, connection: tab.connection) else { return [:] }
-        do {
-            let details = try await tab.session.getTableStructureDetails(schema: components.schema, table: components.table)
-            return buildForeignKeyMapping(from: details)
-        } catch {
-            return [:]
-        }
-    }
-
     private func resolveSchemaAndTable(for identifier: String?, connection: SavedConnection) -> (schema: String, table: String)? {
         guard let identifier, !identifier.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
         let components = parseQualifiedIdentifier(identifier)

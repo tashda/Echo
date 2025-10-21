@@ -763,10 +763,11 @@ private struct DiagramPalette {
 }
 
 private struct DiagramColumnAnchor: Identifiable {
-    let id = UUID()
     let nodeID: String
     let columnName: String
     let bounds: Anchor<CGRect>
+
+    var id: String { Self.key(nodeID: nodeID, columnName: columnName) }
 
     static func key(nodeID: String, columnName: String) -> String {
         "\(nodeID.diagramAnchorComponent)#\(columnName.diagramAnchorComponent)"

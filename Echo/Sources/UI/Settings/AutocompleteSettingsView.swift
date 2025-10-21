@@ -4,8 +4,6 @@ struct EchoSenseSettingsView: View {
     @EnvironmentObject private var appModel: AppModel
     @EnvironmentObject private var appState: AppState
     @EnvironmentObject private var themeManager: ThemeManager
-    @State private var activeInfoTopic: InfoTopic?
-
     private var suggestKeywordsBinding: Binding<Bool> {
         Binding(
             get: { appModel.globalSettings.editorSuggestKeywords },
@@ -144,38 +142,38 @@ struct EchoSenseSettingsView: View {
                     title: "Keywords",
                     subtitle: "Add SQL keywords (SELECT, WHERE) in the suggestion list.",
                     isOn: suggestKeywordsBinding,
-                    infoAction: { showInfo(.keywords) }
+                    topic: .keywords
                 )
                 ToggleRow(
                     title: "Inline keyword preview",
                     subtitle: "Show a dimmed keyword directly in the editor when a matching clause is expected.",
                     isOn: inlineKeywordPreviewBinding,
-                    infoAction: { showInfo(.inlineKeywords) }
+                    topic: .inlineKeywords
                 )
                 .disabled(!appState.sqlEditorDisplay.autoCompletionEnabled)
                 ToggleRow(
                     title: "Functions",
                     subtitle: "Include built-in and database-specific functions in suggestions.",
                     isOn: suggestFunctionsBinding,
-                    infoAction: { showInfo(.functions) }
+                    topic: .functions
                 )
                 ToggleRow(
                     title: "Snippets",
                     subtitle: "Offer templated snippets with tab stops for common patterns.",
                     isOn: suggestSnippetsBinding,
-                    infoAction: { showInfo(.snippets) }
+                    topic: .snippets
                 )
                 ToggleRow(
                     title: "Join Helpers",
                     subtitle: "Suggest ON clauses derived from foreign keys or accepted joins.",
                     isOn: suggestJoinsBinding,
-                    infoAction: { showInfo(.joins) }
+                    topic: .joins
                 )
                 ToggleRow(
                     title: "History Boosting",
                     subtitle: "Favor tables, columns, and joins you accepted recently.",
                     isOn: suggestHistoryBinding,
-                    infoAction: { showInfo(.history) }
+                    topic: .history
                 )
             }
 
@@ -184,13 +182,13 @@ struct EchoSenseSettingsView: View {
                     title: "Qualify table completions",
                     subtitle: "Insert schema-qualified names when the engine knows the schema.",
                     isOn: qualifyTablesBinding,
-                    infoAction: { showInfo(.qualifiedTables) }
+                    topic: .qualifiedTables
                 )
                 ToggleRow(
                     title: "Show system schemas",
                     subtitle: "Reveal pg_catalog, information_schema, and other system objects.",
                     isOn: showSystemSchemasBinding,
-                    infoAction: { showInfo(.systemSchemas) }
+                    topic: .systemSchemas
                 )
             }
 
@@ -207,13 +205,13 @@ struct EchoSenseSettingsView: View {
                     title: "Enable Command + Period",
                     subtitle: "Keep ⌘ + . available after dismissing the EchoSense popover.",
                     isOn: commandTriggerBinding,
-                    infoAction: { showInfo(.commandTrigger) }
+                    topic: .commandTrigger
                 )
                 ToggleRow(
                     title: "Enable Control + Space",
                     subtitle: "Keep Ctrl + Space available as an alternative manual trigger.",
                     isOn: controlTriggerBinding,
-                    infoAction: { showInfo(.controlTrigger) }
+                    topic: .controlTrigger
                 )
             }
 
@@ -227,13 +225,7 @@ struct EchoSenseSettingsView: View {
         .scrollContentBackground(.hidden)
         .background(themeManager.surfaceBackgroundColor)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .popover(item: $activeInfoTopic, arrowEdge: .top) { topic in
-            InfoPopover(topic: topic)
-        }
-    }
-
-    private func showInfo(_ topic: InfoTopic) {
-        activeInfoTopic = topic
+        .padding(.top, 12)
     }
 }
 
@@ -300,32 +292,48 @@ private struct ToggleRow: View {
     let title: String
     let subtitle: String?
     @Binding var isOn: Bool
-    let infoAction: () -> Void
+    let topic: InfoTopic
+    @State private var isPopoverPresented = false
 
     var body: some View {
         HStack(alignment: subtitle == nil ? .center : .top, spacing: 12) {
             VStack(alignment: .leading, spacing: subtitle == nil ? 0 : 4) {
                 Text(title)
-                    .font(.body.weight(.semibold))
+                    .font(.system(size: 13))
+                    .foregroundStyle(.primary)
                 if let subtitle {
                     Text(subtitle)
-                        .font(.footnote)
+                        .font(.system(size: 12))
                         .foregroundStyle(.secondary)
                 }
             }
             Spacer(minLength: 12)
-            Button(action: infoAction) {
+            Button(action: { isPopoverPresented.toggle() }) {
                 Image(systemName: "info.circle")
-                    .font(.system(size: 15, weight: .medium))
+                    .font(.system(size: 13, weight: .semibold))
             }
             .buttonStyle(.plain)
-            .accessibilityLabel("More information about \(title)")
+            .foregroundStyle(.secondary)
+            .popover(isPresented: $isPopoverPresented, attachmentAnchor: .rect(.bounds), arrowEdge: .trailing) {
+                InfoPopover(topic: topic)
+            }
             Toggle("", isOn: $isOn)
                 .labelsHidden()
                 .toggleStyle(.switch)
                 .accessibilityLabel(Text(title))
         }
-        .padding(.vertical, subtitle == nil ? 4 : 6)
+        .padding(.vertical, subtitle == nil ? 6 : 8)
+        .padding(.horizontal, 10)
+        .background(toggleRowBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+    }
+
+    private var toggleRowBackground: some View {
+#if os(macOS)
+        Color(nsColor: .controlBackgroundColor).opacity(0.28)
+#else
+        Color(uiColor: .secondarySystemBackground)
+#endif
     }
 }
 

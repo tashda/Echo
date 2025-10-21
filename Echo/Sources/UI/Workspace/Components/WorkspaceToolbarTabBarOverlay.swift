@@ -44,11 +44,6 @@ final class WorkspaceToolbarTabBarOverlay {
         }
     }
 
-    func ensureLayout(for window: NSWindow) {
-        guard self.window === window else { return }
-        scheduleLayoutUpdate()
-    }
-
     func detach() {
         removeObservers()
         pendingLayoutUpdate = false

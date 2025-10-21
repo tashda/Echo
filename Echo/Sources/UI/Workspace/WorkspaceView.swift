@@ -357,9 +357,6 @@ private struct WorkspaceWindowConfigurator: NSViewRepresentable {
 
     final class Coordinator {
         private let overlay = WorkspaceToolbarTabBarOverlay()
-        private weak var styledWindow: NSWindow?
-        private weak var lastWindow: NSWindow?
-        private var lastAppliedStyle: WorkspaceTabBarStyle?
 
         func configure(
             window: NSWindow,
@@ -368,29 +365,15 @@ private struct WorkspaceWindowConfigurator: NSViewRepresentable {
             appState: AppState,
             themeManager: ThemeManager
         ) {
-            if styledWindow !== window {
-                applyWindowStyling(window)
-                styledWindow = window
-            }
+            applyWindowStyling(window)
 
-            if lastWindow !== window {
-                overlay.detach()
-                lastAppliedStyle = nil
-                lastWindow = window
-            }
-
-            if lastAppliedStyle != tabBarStyle {
-                overlay.apply(
-                    style: tabBarStyle,
-                    window: window,
-                    appModel: appModel,
-                    appState: appState,
-                    themeManager: themeManager
-                )
-                lastAppliedStyle = tabBarStyle
-            } else {
-                overlay.ensureLayout(for: window)
-            }
+            overlay.apply(
+                style: tabBarStyle,
+                window: window,
+                appModel: appModel,
+                appState: appState,
+                themeManager: themeManager
+            )
 
             AppCoordinator.shared.appModel.isWorkspaceWindowKey =
                 window.identifier == AppWindowIdentifier.workspace && window.isKeyWindow
@@ -409,6 +392,15 @@ private struct WorkspaceWindowConfigurator: NSViewRepresentable {
             }
             if window.title != " " {
                 window.title = " "
+            }
+            if window.toolbarStyle != .unified {
+                window.toolbarStyle = .unified
+            }
+            if #unavailable(macOS 15) {
+                window.toolbar?.showsBaselineSeparator = false
+            }
+            if window.toolbar?.allowsUserCustomization != false {
+                window.toolbar?.allowsUserCustomization = false
             }
         }
     }

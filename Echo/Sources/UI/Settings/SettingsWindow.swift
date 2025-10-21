@@ -83,9 +83,6 @@ struct SettingsView: View {
     @State private var isUpdatingFromHistory = false
 
     private let fixedSidebarWidth: CGFloat = 280
-#if os(macOS)
-    private let headerHeight: CGFloat = 60
-#endif
 
     var body: some View {
         settingsSplitView
@@ -135,7 +132,17 @@ struct SettingsView: View {
             detailContent
         }
         .toolbar(removing: .sidebarToggle)
-        .toolbarBackground(.hidden, for: .windowToolbar)
+        .toolbarBackground(.visible, for: .windowToolbar)
+        .toolbarBackground(.ultraThinMaterial, for: .windowToolbar)
+        .background(
+            TitlebarAccessoryBridge(
+                title: selection?.title ?? "Settings",
+                canNavigateBack: canNavigateBack,
+                canNavigateForward: canNavigateForward,
+                onNavigateBack: navigateBack,
+                onNavigateForward: navigateForward
+            )
+        )
 #else
         NavigationSplitView(preferredCompactColumn: $preferredColumn) {
             sidebar
@@ -169,21 +176,9 @@ struct SettingsView: View {
 
     private var detailContent: some View {
 #if os(macOS)
-        ZStack(alignment: .topLeading) {
-            detailBaseContent
-                .padding(.top, headerHeight)
-
-            DetailHeader(
-                title: selection?.title ?? "Settings",
-                canNavigateBack: canNavigateBack,
-                canNavigateForward: canNavigateForward,
-                onNavigateBack: navigateBack,
-                onNavigateForward: navigateForward
-            )
-            .frame(height: headerHeight)
-        }
-        .frame(minWidth: 560, minHeight: 420)
-        .background(themeManager.surfaceBackgroundColor)
+        detailBaseContent
+            .frame(minWidth: 560, minHeight: 420)
+            .background(themeManager.surfaceBackgroundColor)
 #else
         detailBaseContent
             .frame(minWidth: 560, minHeight: 420)
@@ -328,7 +323,140 @@ extension Notification.Name {
 }
 
 #if os(macOS)
-private struct DetailHeader: View {
+private struct TitlebarAccessoryBridge: NSViewRepresentable {
+    let title: String
+    let canNavigateBack: Bool
+    let canNavigateForward: Bool
+    let onNavigateBack: () -> Void
+    let onNavigateForward: () -> Void
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(title: title,
+                    canNavigateBack: canNavigateBack,
+                    canNavigateForward: canNavigateForward,
+                    onNavigateBack: onNavigateBack,
+                    onNavigateForward: onNavigateForward)
+    }
+
+    func makeNSView(context: Context) -> NSView {
+        let view = AttachmentView()
+        view.onWindowChange = { window in
+            context.coordinator.update(window: window,
+                                       title: title,
+                                       canNavigateBack: canNavigateBack,
+                                       canNavigateForward: canNavigateForward,
+                                       onNavigateBack: onNavigateBack,
+                                       onNavigateForward: onNavigateForward)
+        }
+        return view
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {
+        context.coordinator.update(window: nsView.window,
+                                   title: title,
+                                   canNavigateBack: canNavigateBack,
+                                   canNavigateForward: canNavigateForward,
+                                   onNavigateBack: onNavigateBack,
+                                   onNavigateForward: onNavigateForward)
+        if let attachment = nsView as? AttachmentView {
+            attachment.onWindowChange = { window in
+                context.coordinator.update(window: window,
+                                           title: title,
+                                           canNavigateBack: canNavigateBack,
+                                           canNavigateForward: canNavigateForward,
+                                           onNavigateBack: onNavigateBack,
+                                           onNavigateForward: onNavigateForward)
+            }
+        }
+    }
+
+    final class Coordinator {
+        private var accessory: NSTitlebarAccessoryViewController?
+        private var hostingView: NSHostingView<TitlebarAccessoryView>?
+        private var currentWindow: NSWindow?
+
+        init(title: String,
+             canNavigateBack: Bool,
+             canNavigateForward: Bool,
+             onNavigateBack: @escaping () -> Void,
+             onNavigateForward: @escaping () -> Void) {
+            hostingView = NSHostingView(rootView: TitlebarAccessoryView(
+                title: title,
+                canNavigateBack: canNavigateBack,
+                canNavigateForward: canNavigateForward,
+                onNavigateBack: onNavigateBack,
+                onNavigateForward: onNavigateForward
+            ))
+        }
+
+        func update(window: NSWindow?,
+                    title: String,
+                    canNavigateBack: Bool,
+                    canNavigateForward: Bool,
+                    onNavigateBack: @escaping () -> Void,
+                    onNavigateForward: @escaping () -> Void) {
+            guard let window else { return }
+
+            configureWindow(window)
+
+            let accessory = accessory ?? makeAccessory(for: window)
+            accessory.view = hostingView ?? NSHostingView(rootView: TitlebarAccessoryView(
+                title: title,
+                canNavigateBack: canNavigateBack,
+                canNavigateForward: canNavigateForward,
+                onNavigateBack: onNavigateBack,
+                onNavigateForward: onNavigateForward
+            ))
+
+            if hostingView == nil {
+                hostingView = accessory.view as? NSHostingView<TitlebarAccessoryView>
+            }
+
+            hostingView?.rootView = TitlebarAccessoryView(
+                title: title,
+                canNavigateBack: canNavigateBack,
+                canNavigateForward: canNavigateForward,
+                onNavigateBack: onNavigateBack,
+                onNavigateForward: onNavigateForward
+            )
+
+            currentWindow = window
+
+            if window.titlebarAccessoryViewControllers.contains(accessory) == false {
+                window.addTitlebarAccessoryViewController(accessory)
+            }
+        }
+
+        private func configureWindow(_ window: NSWindow) {
+            window.titleVisibility = .hidden
+            window.titlebarAppearsTransparent = true
+            window.toolbarStyle = .unified
+            window.toolbar?.showsBaselineSeparator = false
+            window.toolbar?.allowsExtensionItems = false
+        }
+
+        @discardableResult
+        private func makeAccessory(for window: NSWindow) -> NSTitlebarAccessoryViewController {
+            if let accessory { return accessory }
+            let controller = NSTitlebarAccessoryViewController()
+            controller.layoutAttribute = .left
+            controller.fullScreenMinHeight = 56
+            accessory = controller
+            return controller
+        }
+    }
+
+    private final class AttachmentView: NSView {
+        var onWindowChange: ((NSWindow?) -> Void)?
+
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            onWindowChange?(window)
+        }
+    }
+}
+
+private struct TitlebarAccessoryView: View {
     let title: String
     let canNavigateBack: Bool
     let canNavigateForward: Bool
@@ -336,70 +464,83 @@ private struct DetailHeader: View {
     let onNavigateForward: () -> Void
 
     var body: some View {
-        VisualEffectBlur(material: .underWindowBackground, blendingMode: .withinWindow)
-            .overlay(
-                HStack(spacing: 10) {
-                    headerButton(systemName: "chevron.left", isEnabled: canNavigateBack, action: onNavigateBack)
-                    headerButton(systemName: "chevron.right", isEnabled: canNavigateForward, action: onNavigateForward)
-                    Text(title)
-                        .font(.system(size: 22, weight: .semibold))
-                        .padding(.leading, 4)
-                    Spacer()
-                }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 10)
+        HStack(spacing: 10) {
+            NavigationSegmentControl(
+                canNavigateBack: canNavigateBack,
+                canNavigateForward: canNavigateForward,
+                onBack: onNavigateBack,
+                onForward: onNavigateForward
             )
-            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-            .padding(.horizontal, 8)
-            .padding(.top, 6)
-    }
+            .frame(width: 66)
 
-    private func headerButton(systemName: String, isEnabled: Bool, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Image(systemName: systemName)
-                .font(.system(size: 12, weight: .semibold))
-                .frame(width: 26, height: 24)
+            Text("Settings")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(.secondary)
+
+            Spacer(minLength: 40)
+
+            Text(title)
+                .font(.system(size: 16, weight: .semibold))
+                .padding(.horizontal, 22)
+                .padding(.vertical, 6)
+                .background(
+                    Capsule(style: .continuous)
+                        .fill(Material.ultraThin)
+                        .shadow(color: Color.black.opacity(0.12), radius: 12, y: 8)
+                )
         }
-        .buttonStyle(.plain)
-        .disabled(!isEnabled)
-        .foregroundStyle(isEnabled ? Color.primary : Color.primary.opacity(0.35))
-        .background(
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .fill(Color.primary.opacity(isEnabled ? 0.12 : 0.06))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .stroke(Color.primary.opacity(isEnabled ? 0.18 : 0.08), lineWidth: 1)
-        )
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
     }
 }
 
-private struct VisualEffectBlur: NSViewRepresentable {
-    var material: NSVisualEffectView.Material
-    var blendingMode: NSVisualEffectView.BlendingMode
-
-    func makeNSView(context: Context) -> NSVisualEffectView {
-        let view = NSVisualEffectView()
-        view.material = material
-        view.blendingMode = blendingMode
-        view.state = .active
-        return view
-    }
-
-    func updateNSView(_ nsView: NSVisualEffectView, context: Context) {
-        nsView.material = material
-        nsView.blendingMode = blendingMode
-        nsView.state = .active
-    }
-}
-#else
-private struct DetailHeader: View {
-    let title: String
+private struct NavigationSegmentControl: NSViewRepresentable {
     let canNavigateBack: Bool
     let canNavigateForward: Bool
-    let onNavigateBack: () -> Void
-    let onNavigateForward: () -> Void
+    let onBack: () -> Void
+    let onForward: () -> Void
 
-    var body: some View { EmptyView() }
+    func makeCoordinator() -> Coordinator { Coordinator(parent: self) }
+
+    func makeNSView(context: Context) -> NSSegmentedControl {
+        let control = NSSegmentedControl(images: [chevron("chevron.left"), chevron("chevron.right")], trackingMode: .momentary, target: context.coordinator, action: #selector(Coordinator.handle(_:)))
+        control.segmentStyle = .separated
+        control.controlSize = .small
+        control.setWidth(30, forSegment: 0)
+        control.setWidth(30, forSegment: 1)
+        update(control)
+        return control
+    }
+
+    func updateNSView(_ nsView: NSSegmentedControl, context: Context) {
+        context.coordinator.parent = self
+        update(nsView)
+    }
+
+    private func update(_ control: NSSegmentedControl) {
+        control.setEnabled(canNavigateBack, forSegment: 0)
+        control.setEnabled(canNavigateForward, forSegment: 1)
+    }
+
+    private func chevron(_ name: String) -> NSImage {
+        NSImage(systemSymbolName: name, accessibilityDescription: nil) ?? NSImage()
+    }
+
+    final class Coordinator: NSObject {
+        var parent: NavigationSegmentControl
+
+        init(parent: NavigationSegmentControl) {
+            self.parent = parent
+        }
+
+        @objc func handle(_ sender: NSSegmentedControl) {
+            switch sender.selectedSegment {
+            case 0: parent.onBack()
+            case 1: parent.onForward()
+            default: break
+            }
+            sender.selectedSegment = -1
+        }
+    }
 }
 #endif
