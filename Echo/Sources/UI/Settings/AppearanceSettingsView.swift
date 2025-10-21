@@ -1879,9 +1879,10 @@ private struct ResultsGridPreview: View {
     }
 
     private struct PreviewColumn: Identifiable {
-        let id = UUID()
         let index: Int
         let title: String
+
+        var id: Int { index }
 
         static let sampleColumns: [PreviewColumn] = [
             PreviewColumn(index: 0, title: "ID"),

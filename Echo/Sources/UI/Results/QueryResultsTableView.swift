@@ -41,6 +41,7 @@ struct QueryResultsTableView: NSViewRepresentable {
     enum ForeignKeyEvent {
         case selectionChanged(ForeignKeySelection?)
         case activate(ForeignKeySelection)
+        case requestMetadata(columnIndex: Int, columnName: String)
     }
 
     struct JsonSelection: Equatable {
@@ -147,6 +148,7 @@ struct QueryResultsTableView: NSViewRepresentable {
         private var cachedViewportSize: CGSize = .zero
         private var pendingPaginationEvaluation = false
         private var pendingTableSizeAdjustment = false
+        private var requestedForeignKeyColumns: Set<Int> = []
         private static let isGridDiagnosticsEnabled: Bool = {
             ProcessInfo.processInfo.environment["ECHO_GRID_DEBUG"] == "1"
         }()
@@ -313,6 +315,9 @@ struct QueryResultsTableView: NSViewRepresentable {
                 || paletteChanged
                 || viewportChanged
                 || foreignKeyModeChanged
+            if columnsChanged || tokenChanged || rowCountDecreased {
+                requestedForeignKeyColumns.removeAll()
+            }
             if !requiresUpdate {
                 cachedSort = parent.activeSort
                 cachedRowOrder = currentRowOrder
@@ -1808,6 +1813,13 @@ struct QueryResultsTableView: NSViewRepresentable {
             guard cell.column >= 0,
                   cell.column < parent.query.displayedColumns.count else { return nil }
             let columnInfo = parent.query.displayedColumns[cell.column]
+            if columnInfo.foreignKey == nil {
+                if !requestedForeignKeyColumns.contains(cell.column) {
+                    requestedForeignKeyColumns.insert(cell.column)
+                    parent.onForeignKeyEvent(.requestMetadata(columnIndex: cell.column, columnName: columnInfo.name))
+                }
+                return nil
+            }
             guard let reference = columnInfo.foreignKey else { return nil }
             let rowIndex = resolvedRowIndex(for: cell.row)
             guard let rawValue = parent.query.valueForDisplay(row: rowIndex, column: cell.column) else { return nil }

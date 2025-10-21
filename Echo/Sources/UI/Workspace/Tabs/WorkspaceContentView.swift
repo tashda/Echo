@@ -359,6 +359,19 @@ struct QueryEditorContainer: View {
                     }
                 }
             }
+        case .requestMetadata:
+            guard foreignKeyDisplayMode != .disabled else { return }
+            guard let context = query.beginForeignKeyMappingFetch() else { return }
+            Task(priority: .utility) {
+                let mapping = await loadForeignKeyMapping(schema: context.schema, table: context.table)
+                await MainActor.run {
+                    if Task.isCancelled {
+                        query.failForeignKeyMappingFetch()
+                    } else {
+                        query.completeForeignKeyMappingFetch(with: mapping)
+                    }
+                }
+            }
 
         case .activate(let selection):
             performForeignKeyActivation(for: selection)

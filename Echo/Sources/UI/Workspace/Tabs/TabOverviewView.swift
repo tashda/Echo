@@ -19,7 +19,6 @@ struct TabOverviewView: View {
     @State private var collapsedServers: Set<UUID> = []
     @State private var collapsedDatabases: Set<String> = []
     @State private var focusedTabId: UUID?
-    @State private var columnCount: Int = 1
     @State private var lastVisibleTabIDs: [UUID] = []
     @State private var draggingTabId: UUID?
     @State private var dropTargetTabId: UUID?
@@ -27,13 +26,6 @@ struct TabOverviewView: View {
     private let minCardWidth: CGFloat = 260
     private let maxCardWidth: CGFloat = 360
     private let gridSpacing: CGFloat = 18
-
-    private var gridColumns: [GridItem] {
-        Array(
-            repeating: GridItem(.flexible(minimum: minCardWidth, maximum: maxCardWidth), spacing: gridSpacing),
-            count: max(columnCount, 1)
-        )
-    }
 
     private var orderedTabIDs: [UUID] { tabs.map(\.id) }
     private var visibleTabIDs: [UUID] {
@@ -88,8 +80,10 @@ struct TabOverviewView: View {
         .padding(.bottom, 40)
         .background(overviewBackground)
         .onAppear {
-            triggerAnimation()
-            initializeFocus()
+            DispatchQueue.main.async {
+                triggerAnimation()
+                initializeFocus()
+            }
         }
         .onDisappear {
             draggingTabId = nil
@@ -109,10 +103,14 @@ struct TabOverviewView: View {
         ))
 #endif
         .onChange(of: tabs.map(\.id)) { _, ids in
-            updateFocusForTabChanges(ids: ids)
+            DispatchQueue.main.async {
+                updateFocusForTabChanges(ids: ids)
+            }
         }
         .onChange(of: focusedTabId) { _, _ in
-            ensureFocusedTabVisible()
+            DispatchQueue.main.async {
+                ensureFocusedTabVisible()
+            }
         }
         .animation(animation, value: animateIn)
     }
@@ -476,7 +474,7 @@ struct TabOverviewView: View {
                                 .foregroundStyle(.secondary)
                         }
 
-                        LazyVGrid(columns: gridColumns, spacing: gridSpacing) {
+                        LazyVGrid(columns: gridColumns(for: section.tabs.count), spacing: gridSpacing) {
                             ForEach(section.tabs) { tab in
                                 TabPreviewCard(
                                     tab: tab,
@@ -503,17 +501,10 @@ struct TabOverviewView: View {
 #endif
                             }
                         }
-                        .onAppear {
-                            updateColumnCount(for: section.tabs.count)
-                        }
                     }
                 }
             }
         }
-    }
-
-    private func updateColumnCount(for tabCount: Int) {
-        columnCount = max(1, min(4, tabCount))
     }
 
     private func collapseAll() {
@@ -589,6 +580,14 @@ struct TabOverviewView: View {
             sections.append(TabSection(id: "structures", title: "Structure", tabs: structures))
         }
         return sections
+    }
+
+    private func gridColumns(for tabCount: Int) -> [GridItem] {
+        let columnCount = max(1, min(4, tabCount))
+        return Array(
+            repeating: GridItem(.flexible(minimum: minCardWidth, maximum: maxCardWidth), spacing: gridSpacing),
+            count: columnCount
+        )
     }
 
     private enum DatabaseKey: Hashable {

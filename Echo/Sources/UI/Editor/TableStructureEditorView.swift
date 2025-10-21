@@ -56,18 +56,18 @@ struct TableStructureEditorView: View {
     @ObservedObject var viewModel: TableStructureEditorViewModel
     @EnvironmentObject private var appModel: AppModel
     
-    @State private var activeIndexEditor: IndexEditorPresentation?
-    @State private var activeColumnEditor: ColumnEditorPresentation?
-    @State private var activePrimaryKeyEditor: PrimaryKeyEditorPresentation?
-    @State private var activeUniqueConstraintEditor: UniqueConstraintEditorPresentation?
-    @State private var activeForeignKeyEditor: ForeignKeyEditorPresentation?
-    @State private var selectedSection: TableStructureSection
-    @State private var selectedColumnIDs: Set<TableStructureEditorViewModel.ColumnModel.ID> = []
-    @State private var columnIndexLookup: [UUID: Int] = [:]
-    @State private var selectionAnchor: TableStructureEditorViewModel.ColumnModel.ID?
-    @FocusState private var focusedCustomColumnID: TableStructureEditorViewModel.ColumnModel.ID?
-    @State private var bulkColumnEditor: BulkColumnEditorPresentation?
-    @EnvironmentObject private var themeManager: ThemeManager
+    @State internal var activeIndexEditor: IndexEditorPresentation?
+    @State internal var activeColumnEditor: ColumnEditorPresentation?
+    @State internal var activePrimaryKeyEditor: PrimaryKeyEditorPresentation?
+    @State internal var activeUniqueConstraintEditor: UniqueConstraintEditorPresentation?
+    @State internal var activeForeignKeyEditor: ForeignKeyEditorPresentation?
+    @State internal var selectedSection: TableStructureSection
+    @State internal var selectedColumnIDs: Set<TableStructureEditorViewModel.ColumnModel.ID> = []
+    @State internal var columnIndexLookup: [UUID: Int] = [:]
+    @State internal var selectionAnchor: TableStructureEditorViewModel.ColumnModel.ID?
+    @FocusState internal var focusedCustomColumnID: TableStructureEditorViewModel.ColumnModel.ID?
+    @State internal var bulkColumnEditor: BulkColumnEditorPresentation?
+    @EnvironmentObject internal var themeManager: ThemeManager
 
     init(tab: WorkspaceTab, viewModel: TableStructureEditorViewModel) {
         _tab = ObservedObject(initialValue: tab)
@@ -83,7 +83,7 @@ struct TableStructureEditorView: View {
         )
     }
 
-    private var visibleColumns: [TableStructureEditorViewModel.ColumnModel] {
+    internal var visibleColumns: [TableStructureEditorViewModel.ColumnModel] {
         viewModel.columns.filter { !$0.isDeleted }
     }
 
@@ -507,32 +507,68 @@ struct TableStructureEditorView: View {
     }
 
     private var columnsSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 12) {
+            modernColumnsHeader
+            adaptiveColumnsTable
+        }
+        .padding(.vertical, 6)
+    }
+    
+    private var modernColumnsHeader: some View {
+        HStack(spacing: 12) {
+            Label("Columns", systemImage: "tablecells")
+                .labelStyle(.titleAndIcon)
+                .font(.system(size: 15, weight: .semibold))
+            
+            if !selectedColumnIDs.isEmpty {
+                Text("(\(selectedColumnIDs.count) selected)")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+            }
+            
+            Spacer()
+            
             HStack(spacing: 8) {
-                Label("Columns", systemImage: "tablecells")
-                    .labelStyle(.titleAndIcon)
-                Spacer()
+                if !selectedColumnIDs.isEmpty {
+                    Menu {
+                        let targets = selectedColumnIDs.compactMap { id in
+                            visibleColumns.first(where: { $0.id == id })
+                        }
+                        
+                        if targets.count > 1 {
+                            Button("Edit Data Type") { 
+                                presentBulkEditor(mode: .dataType, columns: targets) 
+                            }
+                            Button("Edit Default Value") { 
+                                presentBulkEditor(mode: .defaultValue, columns: targets) 
+                            }
+                            Button("Edit Generated Expression") { 
+                                presentBulkEditor(mode: .generatedExpression, columns: targets) 
+                            }
+                            Divider()
+                        }
+                        
+                        Button("Remove Selected", role: .destructive) {
+                            removeColumns(targets)
+                        }
+                    } label: {
+                        Label("Actions", systemImage: "ellipsis.circle")
+                    }
+                    .controlSize(.small)
+                    .buttonStyle(.bordered)
+                }
+                
                 Button(action: presentNewColumn) {
                     Label("Add Column", systemImage: "plus")
                 }
                 .controlSize(.small)
-            }
-
-            Divider()
-
-            if visibleColumns.isEmpty {
-                placeholderText("No columns yet")
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.vertical, 18)
-            } else {
-                columnsTable
+                .buttonStyle(.borderedProminent)
             }
         }
-        .padding(.vertical, 6)
     }
 
     @ViewBuilder
-    private var columnsTable: some View {
+    internal var columnsTable: some View {
 #if os(macOS)
         VStack(spacing: 0) {
             columnsHeader
@@ -699,7 +735,7 @@ struct TableStructureEditorView: View {
         selectionAnchor = columnID
     }
 
-    private func contextMenuTargets(for column: TableStructureEditorViewModel.ColumnModel) -> [TableStructureEditorViewModel.ColumnModel] {
+    internal func contextMenuTargets(for column: TableStructureEditorViewModel.ColumnModel) -> [TableStructureEditorViewModel.ColumnModel] {
         if selectedColumnIDs.contains(column.id) {
             let selected = selectedColumnIDs
             return visibleColumns.filter { selected.contains($0.id) }
@@ -1149,7 +1185,7 @@ struct TableStructureEditorView: View {
         }
     }
 #endif
-    private func columnStatusMetadata(for column: TableStructureEditorViewModel.ColumnModel) -> (title: String, systemImage: String, tint: Color) {
+    internal func columnStatusMetadata(for column: TableStructureEditorViewModel.ColumnModel) -> (title: String, systemImage: String, tint: Color) {
         if column.isNew {
             return ("New", "sparkles", Color.accentColor)
         }
@@ -1159,7 +1195,7 @@ struct TableStructureEditorView: View {
         return ("Synced", "checkmark.circle", Color.secondary)
     }
 
-    private func columnChangeDescription(for column: TableStructureEditorViewModel.ColumnModel) -> String? {
+    internal func columnChangeDescription(for column: TableStructureEditorViewModel.ColumnModel) -> String? {
         var parts: [String] = []
 
         if column.hasRename, let previous = column.original?.name {
@@ -1183,7 +1219,7 @@ struct TableStructureEditorView: View {
         return parts.isEmpty ? nil : parts.joined(separator: " • ")
     }
 
-    private func removeColumns(_ columns: [TableStructureEditorViewModel.ColumnModel]) {
+    internal func removeColumns(_ columns: [TableStructureEditorViewModel.ColumnModel]) {
         guard !columns.isEmpty else { return }
         columns.forEach { column in
             viewModel.removeColumn(column)
@@ -1191,7 +1227,7 @@ struct TableStructureEditorView: View {
         pruneSelectedColumns()
     }
 
-    private func presentBulkEditor(mode: BulkColumnEditorPresentation.Mode, columns: [TableStructureEditorViewModel.ColumnModel]) {
+    internal func presentBulkEditor(mode: BulkColumnEditorPresentation.Mode, columns: [TableStructureEditorViewModel.ColumnModel]) {
         guard !columns.isEmpty else { return }
         bulkColumnEditor = BulkColumnEditorPresentation(columnIDs: columns.map(\.id), mode: mode)
     }
@@ -1243,7 +1279,7 @@ struct TableStructureEditorView: View {
         activeColumnEditor = ColumnEditorPresentation(columnID: model.id, isNew: true)
     }
 
-    private func presentColumnEditor(for column: TableStructureEditorViewModel.ColumnModel) {
+    internal func presentColumnEditor(for column: TableStructureEditorViewModel.ColumnModel) {
         activeColumnEditor = ColumnEditorPresentation(columnID: column.id, isNew: column.isNew)
     }
 
@@ -1680,7 +1716,7 @@ struct TableStructureEditorView: View {
         }
     }
 
-    private func columnBinding(for columnID: UUID) -> Binding<TableStructureEditorViewModel.ColumnModel>? {
+    internal func columnBinding(for columnID: UUID) -> Binding<TableStructureEditorViewModel.ColumnModel>? {
         guard let index = columnIndexLookup[columnID], index < viewModel.columns.count else { return nil }
         return $viewModel.columns[index]
     }
@@ -1883,30 +1919,30 @@ struct TableStructureEditorView: View {
         }
     }
 
-    private struct ColumnEditorPresentation: Identifiable {
+    internal struct ColumnEditorPresentation: Identifiable {
         let columnID: UUID
         let isNew: Bool
         var id: UUID { columnID }
     }
 
-    private struct PrimaryKeyEditorPresentation: Identifiable {
+    internal struct PrimaryKeyEditorPresentation: Identifiable {
         let id = UUID()
         let isNew: Bool
     }
 
-    private struct UniqueConstraintEditorPresentation: Identifiable {
+    internal struct UniqueConstraintEditorPresentation: Identifiable {
         let constraintID: UUID
         let isNew: Bool
         var id: UUID { constraintID }
     }
 
-    private struct ForeignKeyEditorPresentation: Identifiable {
+    internal struct ForeignKeyEditorPresentation: Identifiable {
         let foreignKeyID: UUID
         let isNew: Bool
         var id: UUID { foreignKeyID }
     }
 
-    private struct IndexEditorPresentation: Identifiable {
+    internal struct IndexEditorPresentation: Identifiable {
         let indexID: UUID
         var id: UUID { indexID }
     }

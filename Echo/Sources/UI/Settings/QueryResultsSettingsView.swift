@@ -366,7 +366,7 @@ private struct StreamingPresetPickerControl: View {
     var body: some View {
         HStack(alignment: .center, spacing: 12) {
             Text(title)
-                .font(.body)
+                .font(.system(size: 13))
                 .frame(maxWidth: .infinity, alignment: .leading)
 
             Menu {
@@ -385,21 +385,21 @@ private struct StreamingPresetPickerControl: View {
                     selection = .custom
                 }
             } label: {
-                HStack(spacing: 6) {
+                HStack(spacing: 5) {
                     Text(displayValueLabel)
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(.system(size: 13))
                     Image(systemName: "chevron.up.chevron.down")
                         .font(.system(size: 11, weight: .semibold))
-                        .opacity(0.7)
+                        .opacity(0.65)
                 }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 6)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 5)
                 .background(valueButtonBackground)
-                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
             }
             .menuStyle(.borderlessButton)
             .fixedSize()
-            .popover(isPresented: $showCustomPopover, arrowEdge: .trailing) {
+            .popover(isPresented: $showCustomPopover, attachmentAnchor: .rect(.bounds), arrowEdge: .trailing) {
                 CustomValuePopover(
                     title: title,
                     text: $customText,
@@ -415,12 +415,14 @@ private struct StreamingPresetPickerControl: View {
             }
             .buttonStyle(.plain)
             .foregroundStyle(.secondary)
-            .popover(isPresented: $showInfoPopover, arrowEdge: .trailing) {
+            .popover(isPresented: $showInfoPopover,
+                     attachmentAnchor: .rect(.bounds),
+                     arrowEdge: .trailing) {
                 InfoPopover(description: description, defaultLabel: defaultLabel)
             }
         }
-        .padding(.vertical, 8)
-        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
+        .padding(.horizontal, 10)
         .background(rowBackground)
         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         .onChange(of: selection, initial: false) { _, newSelection in
@@ -486,13 +488,11 @@ private struct StreamingPresetPickerControl: View {
     }
 
     private func label(for preset: Int) -> String {
-        let base = formatter(preset)
-        return preset == defaultValue ? "\(base) (Default)" : base
+        formatter(preset)
     }
 
     private var displayValueLabel: String {
-        let base = formatter(value)
-        return value == defaultValue ? "\(base) (Default)" : base
+        formatter(value)
     }
 
     private var defaultLabel: String {
@@ -501,7 +501,7 @@ private struct StreamingPresetPickerControl: View {
 
     private var valueButtonBackground: some View {
 #if os(macOS)
-        Color(nsColor: .controlBackgroundColor).opacity(0.65)
+        Color(nsColor: .underPageBackgroundColor)
 #else
         Color(uiColor: .secondarySystemBackground)
 #endif
@@ -509,7 +509,7 @@ private struct StreamingPresetPickerControl: View {
 
     private var rowBackground: some View {
 #if os(macOS)
-        Color(nsColor: .controlBackgroundColor).opacity(0.35)
+        Color(nsColor: .controlBackgroundColor).opacity(0.28)
 #else
         Color(uiColor: .systemBackground).opacity(0.8)
 #endif
@@ -547,10 +547,7 @@ private struct StreamingPresetPickerControl: View {
                 }
             }
             .padding(16)
-            .frame(width: 260)
-            .background(VisualEffectBlur.swiftUI)
-            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-            .padding(4)
+            .frame(width: 240)
             .onAppear {
                 DispatchQueue.main.async {
                     fieldFocused = true
@@ -566,57 +563,17 @@ private struct StreamingPresetPickerControl: View {
         var body: some View {
             VStack(alignment: .leading, spacing: 12) {
                 Text(description)
-                    .font(.body)
+                    .font(.system(size: 13))
                     .fixedSize(horizontal: false, vertical: true)
 
                 Divider()
 
                 Text("Default: \(defaultLabel)")
-                    .font(.subheadline)
+                    .font(.system(size: 12))
                     .foregroundStyle(.secondary)
             }
             .padding(16)
             .frame(maxWidth: 320)
-            .background(VisualEffectBlur.swiftUI)
-            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-            .padding(4)
         }
     }
 }
-
-#if os(macOS)
-private struct VisualEffectBlur: NSViewRepresentable {
-    static var swiftUI: some View { VisualEffectBlur(material: .underWindowBackground, blendingMode: .withinWindow) }
-
-    var material: NSVisualEffectView.Material
-    var blendingMode: NSVisualEffectView.BlendingMode
-
-    func makeNSView(context: Context) -> NSVisualEffectView {
-        let view = NSVisualEffectView()
-        view.material = material
-        view.blendingMode = blendingMode
-        view.state = .active
-        return view
-    }
-
-    func updateNSView(_ nsView: NSVisualEffectView, context: Context) {
-        nsView.material = material
-        nsView.blendingMode = blendingMode
-        nsView.state = .active
-    }
-}
-#else
-private struct VisualEffectBlur: UIViewRepresentable {
-    static var swiftUI: some View { VisualEffectBlur(style: .systemMaterial) }
-
-    var style: UIBlurEffect.Style
-
-    func makeUIView(context: Context) -> UIVisualEffectView {
-        UIVisualEffectView(effect: UIBlurEffect(style: style))
-    }
-
-    func updateUIView(_ uiView: UIVisualEffectView, context: Context) {
-        uiView.effect = UIBlurEffect(style: style)
-    }
-}
-#endif

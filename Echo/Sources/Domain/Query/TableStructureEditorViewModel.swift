@@ -219,13 +219,14 @@ final class TableStructureEditorViewModel: ObservableObject {
     }
 
     struct DependencyModel: Identifiable, Hashable {
-        let id = UUID()
         let name: String
         let baseColumns: [String]
         let referencedTable: String
         let referencedColumns: [String]
         let onUpdate: String?
         let onDelete: String?
+
+        var id: String { name }
     }
 
     struct PrimaryKeyModel: Identifiable, Hashable {

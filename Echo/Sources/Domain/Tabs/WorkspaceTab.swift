@@ -130,12 +130,21 @@ final class WorkspaceTab: ObservableObject, Identifiable {
 }
 
 struct SchemaDiagramEdge: Identifiable, Hashable {
-    let id = UUID()
     let fromNodeID: String
     let fromColumn: String
     let toNodeID: String
     let toColumn: String
     let relationshipName: String?
+
+    var id: String {
+        [
+            fromNodeID,
+            fromColumn,
+            toNodeID,
+            toColumn,
+            relationshipName ?? ""
+        ].joined(separator: "|")
+    }
 }
 
 struct SchemaDiagramColumn: Identifiable, Hashable {
@@ -431,6 +440,15 @@ final class QueryResultsGridState {
     private var formattingGeneration: Int = 0
     private var formattingResetTask: Task<Void, Never>?
     private var materializedHighWaterMark: Int = 0
+    struct ForeignKeyResolutionContext {
+        let schema: String
+        let table: String
+    }
+    typealias ForeignKeyMapping = [String: ColumnInfo.ForeignKeyReference]
+    private var foreignKeyContext: ForeignKeyResolutionContext?
+    private var cachedForeignKeyMapping: ForeignKeyMapping = [:]
+    private var hasLoadedForeignKeyMapping = false
+    private var isLoadingForeignKeyMapping = false
 
     init(
         sql: String = "SELECT current_timestamp;",
@@ -485,11 +503,65 @@ final class QueryResultsGridState {
         resultsFormattingMode = mode
     }
 
+    func updateForeignKeyResolutionContext(schema: String?, table: String?) {
+        if let schema, let table {
+            foreignKeyContext = ForeignKeyResolutionContext(schema: schema, table: table)
+        } else {
+            foreignKeyContext = nil
+        }
+        cachedForeignKeyMapping = [:]
+        hasLoadedForeignKeyMapping = false
+        isLoadingForeignKeyMapping = false
+    }
+
+    func foreignKeyReference(for columnName: String) -> ColumnInfo.ForeignKeyReference? {
+        cachedForeignKeyMapping[columnName.lowercased()]
+    }
+
+    func beginForeignKeyMappingFetch() -> (schema: String, table: String)? {
+        guard let context = foreignKeyContext else { return nil }
+        guard !hasLoadedForeignKeyMapping else { return nil }
+        if isLoadingForeignKeyMapping {
+            return nil
+        }
+        isLoadingForeignKeyMapping = true
+        return (context.schema, context.table)
+    }
+
+    func completeForeignKeyMappingFetch(with mapping: ForeignKeyMapping) {
+        cachedForeignKeyMapping = mapping
+        hasLoadedForeignKeyMapping = true
+        isLoadingForeignKeyMapping = false
+        guard !mapping.isEmpty else { return }
+        streamingColumns = applyForeignKeyMapping(to: streamingColumns, mapping: mapping)
+        if var currentResults = results {
+            currentResults.columns = applyForeignKeyMapping(to: currentResults.columns, mapping: mapping)
+            results = currentResults
+        }
+        markResultDataChanged(force: true)
+    }
+
+    func failForeignKeyMappingFetch() {
+        isLoadingForeignKeyMapping = false
+    }
+
+    private func applyForeignKeyMapping(to columns: [ColumnInfo], mapping: ForeignKeyMapping) -> [ColumnInfo] {
+        guard !mapping.isEmpty else { return columns }
+        return columns.map { column in
+            var updated = column
+            if updated.foreignKey == nil, let reference = mapping[column.name.lowercased()] {
+                updated.foreignKey = reference
+            }
+            return updated
+        }
+    }
+
     func startExecution() {
         performanceTracker = QueryPerformanceTracker(initialBatchTarget: initialVisibleRowBatch)
         lastPerformanceReport = nil
         livePerformanceReport = nil
         materializedHighWaterMark = 0
+        updateForeignKeyResolutionContext(schema: nil, table: nil)
         formattingGeneration &+= 1
         let currentToken = formattingGeneration
         formattingResetTask?.cancel()
