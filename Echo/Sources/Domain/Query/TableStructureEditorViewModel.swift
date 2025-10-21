@@ -450,10 +450,6 @@ final class TableStructureEditorViewModel: ObservableObject {
     }
 
     private func apply(details: TableStructureDetails) {
-        print("DEBUG: TableStructureEditorViewModel.apply called with \(details.columns.count) columns")
-        for column in details.columns {
-            print("DEBUG: Column: \(column.name) - \(column.dataType)")
-        }
         columns = details.columns.map { column in
             ColumnModel(
                 original: ColumnModel.Snapshot(
