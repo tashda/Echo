@@ -46,14 +46,14 @@ actor ResultStreamIngestionService {
 
     func enqueue(update: QueryStreamUpdate, isPreview: Bool) async {
         guard !isFinished, !isCancelled else { return }
-        guard !update.appendedRows.isEmpty || !update.encodedRows.isEmpty else { return }
+        guard !update.appendedRows.isEmpty || !update.encodedRows.isEmpty || !update.rawRows.isEmpty else { return }
 
         do {
 #if DEBUG
             let enqueueStart = CFAbsoluteTimeGetCurrent()
             debugLog("enqueue start preview=\(isPreview) appended=\(update.appendedRows.count) encoded=\(update.encodedRows.count) total=\(update.totalRowCount)")
 #endif
-            let appendCountEstimate = max(update.appendedRows.count, update.encodedRows.count)
+            let appendCountEstimate = max(update.appendedRows.count, max(update.encodedRows.count, update.rawRows.count))
             let resolvedRange: Range<Int>? = {
                 if let range = update.rowRange, range.count == appendCountEstimate {
                     return range
@@ -84,9 +84,11 @@ actor ResultStreamIngestionService {
             let encodedRows: [ResultBinaryRow]
             if !update.encodedRows.isEmpty {
                 encodedRows = update.encodedRows
-            } else if isPreview {
-                encodedRows = []
-            } else if !update.appendedRows.isEmpty {
+            } else if !update.rawRows.isEmpty {
+                encodedRows = update.rawRows.map { payload in
+                    ResultBinaryRowCodec.encodeRaw(cells: payload.cells.map(\.bytes))
+                }
+            } else if !update.appendedRows.isEmpty && !isPreview {
 #if DEBUG
                 if !didWarnAboutEncodingFallback {
                     didWarnAboutEncodingFallback = true

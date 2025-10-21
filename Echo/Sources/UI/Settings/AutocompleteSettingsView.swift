@@ -331,10 +331,11 @@ private struct InfoPopover: View {
         VStack(alignment: .leading, spacing: 10) {
             Text(topic.title)
                 .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(.primary)
                 .fixedSize(horizontal: false, vertical: true)
             Text(topic.message)
                 .font(.system(size: 13))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.primary)
                 .fixedSize(horizontal: false, vertical: true)
         }
         .padding(16)

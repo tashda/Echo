@@ -496,6 +496,7 @@ struct ExplorerSidebarView: View {
                 .transition(.opacity)
             }
         }
+        .animation(.easeInOut(duration: 0.18), value: isSearchFieldFocused)
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
         .animation(.easeInOut(duration: 0.2), value: shouldShowSchemaPicker)
@@ -1086,14 +1087,17 @@ private struct NativeSearchField: NSViewRepresentable {
 
         guard let cell = nsView.cell as? NSSearchFieldCell else { return }
 
-        if isFocused {
-            if cell.placeholderAttributedString != nil {
-                cell.placeholderAttributedString = nil
+        let hasFocus = nsView.window?.firstResponder == nsView.currentEditor()
+        if hasFocus != isFocused {
+            DispatchQueue.main.async {
+                self.isFocused = hasFocus
             }
-            if nsView.placeholderString != "" {
-                nsView.placeholderString = ""
-            }
-        } else if cell.placeholderAttributedString?.string != placeholder {
+        }
+
+        if hasFocus {
+            cell.placeholderAttributedString = nil
+            nsView.placeholderString = ""
+        } else if text.isEmpty {
             cell.placeholderAttributedString = NSAttributedString(
                 string: placeholder,
                 attributes: [
@@ -1101,9 +1105,7 @@ private struct NativeSearchField: NSViewRepresentable {
                     .font: NSFont.systemFont(ofSize: 12)
                 ]
             )
-            if nsView.placeholderString != placeholder {
-                nsView.placeholderString = placeholder
-            }
+            nsView.placeholderString = placeholder
         }
 
         if let searchButtonCell = cell.searchButtonCell {
@@ -1125,10 +1127,27 @@ private struct NativeSearchField: NSViewRepresentable {
         }
 
         func controlTextDidBeginEditing(_ notification: Notification) {
+            if let field = notification.object as? NSSearchField,
+               let cell = field.cell as? NSSearchFieldCell {
+                cell.placeholderAttributedString = nil
+                field.placeholderString = ""
+            }
             updateFocusState(true)
         }
 
         func controlTextDidEndEditing(_ notification: Notification) {
+            if let field = notification.object as? NSSearchField,
+               let cell = field.cell as? NSSearchFieldCell,
+               field.stringValue.isEmpty {
+                cell.placeholderAttributedString = NSAttributedString(
+                    string: parent.placeholder,
+                    attributes: [
+                        .foregroundColor: NSColor.placeholderTextColor,
+                        .font: NSFont.systemFont(ofSize: 12)
+                    ]
+                )
+                field.placeholderString = parent.placeholder
+            }
             updateFocusState(false)
         }
 

@@ -46,6 +46,7 @@ final class SQLAutoCompletionController {
             return
         }
 
+        let suppressPopover = textView.consumePopoverSuppressionFlag()
         let keywordSuggestions = inlineKeywordCandidates(from: suggestions, query: query)
         if textView.displayOptions.inlineKeywordSuggestionsEnabled,
            let inlineSuggestions = keywordSuggestions {
@@ -59,6 +60,11 @@ final class SQLAutoCompletionController {
             return
         } else {
             textView.hideInlineKeywordSuggestion()
+        }
+
+        if suppressPopover {
+            hide()
+            return
         }
 
         let appearance = textView.window?.effectiveAppearance ?? textView.effectiveAppearance

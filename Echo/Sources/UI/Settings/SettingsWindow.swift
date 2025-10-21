@@ -147,58 +147,70 @@ private final class SettingsTitlebarAccessoryManager {
     }
 }
 
-private final class SettingsTitlebarView: NSView {
+private final class SettingsTitlebarView: NSVisualEffectView {
     var onNavigateBack: (() -> Void)?
     var onNavigateForward: (() -> Void)?
 
     private let navControl: NSSegmentedControl
-    private let settingsLabel: NSTextField
     private let capsuleView = CapsuleTitleContainer()
+    private let stackView: NSStackView
+    private let navWidthConstraint: NSLayoutConstraint
 
     override init(frame frameRect: NSRect) {
         navControl = NSSegmentedControl(images: [
             NSImage(systemSymbolName: "chevron.left", accessibilityDescription: nil) ?? NSImage(),
             NSImage(systemSymbolName: "chevron.right", accessibilityDescription: nil) ?? NSImage()
         ], trackingMode: .momentary, target: nil, action: nil)
-        navControl.segmentStyle = .separated
+        stackView = NSStackView()
+        navWidthConstraint = navControl.widthAnchor.constraint(equalToConstant: 56)
+        super.init(frame: frameRect)
+
+        material = .titlebar
+        blendingMode = .withinWindow
+        state = .active
+        isEmphasized = false
+
+        translatesAutoresizingMaskIntoConstraints = false
+        wantsLayer = false
+        setContentHuggingPriority(.defaultLow, for: .horizontal)
+        setContentCompressionResistancePriority(.defaultHigh, for: .horizontal)
+
+        navControl.segmentStyle = .automatic
         navControl.controlSize = .small
         navControl.translatesAutoresizingMaskIntoConstraints = false
         navControl.setContentHuggingPriority(.required, for: .horizontal)
         navControl.setContentCompressionResistancePriority(.required, for: .horizontal)
+        navControl.setImageScaling(.scaleProportionallyDown, forSegment: 0)
+        navControl.setImageScaling(.scaleProportionallyDown, forSegment: 1)
+        navControl.selectedSegment = -1
+        navControl.setWidth(28, forSegment: 0)
+        navControl.setWidth(28, forSegment: 1)
+        navControl.sizeToFit()
+        navWidthConstraint.constant = max(navControl.fittingSize.width, 56)
+        navWidthConstraint.isActive = true
 
-        settingsLabel = NSTextField(labelWithString: "Settings")
-        settingsLabel.font = .systemFont(ofSize: 13, weight: .semibold)
-        settingsLabel.textColor = .secondaryLabelColor
-        settingsLabel.translatesAutoresizingMaskIntoConstraints = false
-        settingsLabel.setContentHuggingPriority(.defaultHigh, for: .horizontal)
-        settingsLabel.setContentCompressionResistancePriority(.defaultHigh, for: .horizontal)
+        capsuleView.translatesAutoresizingMaskIntoConstraints = false
+        capsuleView.setContentHuggingPriority(.required, for: .horizontal)
+        capsuleView.setContentCompressionResistancePriority(.defaultHigh, for: .horizontal)
 
-        super.init(frame: frameRect)
+        stackView.orientation = .horizontal
+        stackView.alignment = .centerY
+        stackView.spacing = 12
+        stackView.translatesAutoresizingMaskIntoConstraints = false
+        stackView.setContentHuggingPriority(.required, for: .horizontal)
+        stackView.setContentCompressionResistancePriority(.defaultHigh, for: .horizontal)
+        stackView.addArrangedSubview(navControl)
+        stackView.addArrangedSubview(capsuleView)
 
-        translatesAutoresizingMaskIntoConstraints = false
-        wantsLayer = true
-        setContentHuggingPriority(.defaultLow, for: .horizontal)
-        setContentCompressionResistancePriority(.defaultHigh, for: .horizontal)
+        addSubview(stackView)
 
-        addSubview(navControl)
-        addSubview(settingsLabel)
-        addSubview(capsuleView)
-
-        capsuleView.setContentHuggingPriority(.defaultHigh, for: .horizontal)
-        capsuleView.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
-
-        let constraints = [
-            navControl.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 16),
-            navControl.centerYAnchor.constraint(equalTo: centerYAnchor),
-
-            settingsLabel.leadingAnchor.constraint(equalTo: navControl.trailingAnchor, constant: 12),
-            settingsLabel.centerYAnchor.constraint(equalTo: centerYAnchor),
-
-            capsuleView.leadingAnchor.constraint(equalTo: settingsLabel.trailingAnchor, constant: 16),
-            capsuleView.trailingAnchor.constraint(lessThanOrEqualTo: trailingAnchor, constant: -16),
-            capsuleView.centerYAnchor.constraint(equalTo: centerYAnchor)
-        ]
-        NSLayoutConstraint.activate(constraints)
+        NSLayoutConstraint.activate([
+            stackView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 12),
+            stackView.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -14),
+            stackView.centerYAnchor.constraint(equalTo: centerYAnchor),
+            stackView.topAnchor.constraint(greaterThanOrEqualTo: topAnchor, constant: 4),
+            stackView.bottomAnchor.constraint(lessThanOrEqualTo: bottomAnchor, constant: -4)
+        ])
 
         navControl.target = self
         navControl.action = #selector(handleNavigation(_:))
@@ -210,17 +222,14 @@ private final class SettingsTitlebarView: NSView {
 
     override var intrinsicContentSize: NSSize {
         let navSize = navControl.intrinsicContentSize
-        let labelSize = settingsLabel.intrinsicContentSize
         let capsuleSize = capsuleView.intrinsicContentSize
-
-        let width = 16 + navSize.width + 12 + labelSize.width + 16 + capsuleSize.width + 16
-        let height = max(32, navSize.height + 4, capsuleSize.height + 8)
+        let width = 12 + navSize.width + 12 + capsuleSize.width + 14
+        let height = max(32, navSize.height + 8, capsuleSize.height + 8)
         return NSSize(width: width, height: height)
     }
 
     func updateTitle(_ title: String) {
         capsuleView.update(title: title)
-        invalidateIntrinsicContentSize()
     }
 
     func updateNavigation(canGoBack: Bool, canGoForward: Bool) {
@@ -248,7 +257,7 @@ private final class CapsuleTitleContainer: NSView {
         wantsLayer = false
 
         blurView.translatesAutoresizingMaskIntoConstraints = false
-        blurView.material = .underWindowBackground
+        blurView.material = .hudWindow
         blurView.state = .active
         blurView.blendingMode = .withinWindow
         blurView.wantsLayer = true
@@ -269,7 +278,7 @@ private final class CapsuleTitleContainer: NSView {
         blurView.addSubview(titleField)
 
         setContentHuggingPriority(.defaultHigh, for: .horizontal)
-        setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        setContentCompressionResistancePriority(.defaultHigh, for: .horizontal)
 
         NSLayoutConstraint.activate([
             blurView.leadingAnchor.constraint(equalTo: leadingAnchor),
@@ -462,7 +471,6 @@ struct SettingsView: View {
                 .tag(section)
             }
         }
-        .navigationTitle("Settings")
         .listStyle(.sidebar)
         .navigationSplitViewColumnWidth(min: fixedSidebarWidth, ideal: fixedSidebarWidth, max: fixedSidebarWidth)
 #if os(macOS)

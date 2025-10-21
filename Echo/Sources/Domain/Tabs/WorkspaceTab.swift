@@ -936,16 +936,69 @@ final class QueryResultsGridState {
             performanceTracker.recordBackendMetrics(metrics)
         }
 
+        let bufferLimit = shouldPersistResults ? frontBufferLimit : max(frontBufferLimit, estimatedTotal)
+        let remainingBufferCapacity = max(bufferLimit - streamingRows.count, 0)
+        let hasBinaryPayload = !update.rawRows.isEmpty || !update.encodedRows.isEmpty
+        if shouldPersistResults,
+           remainingBufferCapacity == 0,
+           appendedRowCount > 0,
+           hasBinaryPayload {
+            let spoolEncodedRows = update.encodedRows
+            let spoolRawRows = spoolEncodedRows.isEmpty ? update.rawRows : []
+            let spoolPayload = QueryStreamUpdate(
+                columns: update.columns,
+                appendedRows: [],
+                encodedRows: spoolEncodedRows,
+                rawRows: spoolRawRows,
+                totalRowCount: update.totalRowCount,
+                metrics: update.metrics,
+                rowRange: update.rowRange
+            )
+            submitToSpool(update: spoolPayload, mode: modeForSpool)
+            let newReported = max(rowProgress.totalReported, estimatedTotal)
+            let newReceived = max(streamedRowCount, rowProgress.totalReceived)
+            if rowProgress.totalReported != newReported || rowProgress.totalReceived != newReceived {
+                rowProgress = RowProgress(
+                    totalReceived: newReceived,
+                    totalReported: newReported,
+                    materialized: rowProgress.materialized
+                )
+            }
+            markResultDataChanged()
+            if streamingMode == .preview || isExecuting {
+                refreshLivePerformanceReport()
+            }
+            activateSpoolIfNeeded()
+            return
+        }
+
         let columnsForBatch = streamingColumns.isEmpty ? update.columns : streamingColumns
         let treatAsPreview = modeForSpool == .preview || modeForSpool == .idle
         let shouldDefer = resultsTypeFormattingEnabled && resultsFormattingMode == .deferred && !rawRows.isEmpty
+        var spoolPreviewRows: [[String?]] = []
 
         if !shouldDefer {
+            let rangeLower = appendedRange?.lowerBound ?? max(streamingRows.count, rowProgress.materialized)
+            let previewCap = max(frontBufferLimit, previewRowLimit)
+            let displayCap = shouldPersistResults ? bufferLimit : previewCap
+            let maxDisplayIndex = min(rangeLower + appendedRowCount, displayCap)
+            let displayCount = max(0, min(appendedRowCount, maxDisplayIndex - rangeLower))
             let formattedRows: [[String?]]
             if !update.appendedRows.isEmpty {
-                formattedRows = update.appendedRows
+                if shouldPersistResults && displayCount == 0 {
+                    formattedRows = []
+                } else if !shouldPersistResults || displayCount >= update.appendedRows.count {
+                    formattedRows = update.appendedRows
+                } else {
+                    formattedRows = Array(update.appendedRows.prefix(displayCount))
+                }
             } else if !rawRows.isEmpty {
-                formattedRows = formatRowsSynchronously(rawRows)
+                if shouldPersistResults {
+                    let payloadsToFormat = Array(rawRows.prefix(displayCount))
+                    formattedRows = formatRowsSynchronously(payloadsToFormat)
+                } else {
+                    formattedRows = formatRowsSynchronously(rawRows)
+                }
             } else {
                 formattedRows = []
             }
@@ -960,7 +1013,7 @@ final class QueryResultsGridState {
                     }
                 }
 #endif
-                let startIndex = appendedRange?.lowerBound ?? max(streamingRows.count, rowProgress.materialized)
+                let startIndex = rangeLower
                 let resolvedRange = startIndex..<(startIndex + formattedRows.count)
                 integrateFormattedRows(
                     rows: formattedRows,
@@ -970,30 +1023,47 @@ final class QueryResultsGridState {
                     treatAsPreview: treatAsPreview,
                     columns: columnsForBatch
                 )
-            } else if !update.encodedRows.isEmpty {
-                submitToSpool(update: update, mode: modeForSpool)
+                if treatAsPreview {
+                    spoolPreviewRows = formattedRows
+                }
+            } else if treatAsPreview {
+                spoolPreviewRows = Array(update.appendedRows.prefix(displayCount))
             }
         } else {
+            let rangeLower = appendedRange?.lowerBound ?? max(streamingRows.count, rowProgress.materialized)
+            let previewCap = max(frontBufferLimit, previewRowLimit)
+            let displayCap = shouldPersistResults ? bufferLimit : previewCap
+            let maxDisplayIndex = min(rangeLower + appendedRowCount, displayCap)
             var immediateCount = 0
+            var integratedRowsForSpool: [[String?]] = []
             if let range = appendedRange, !update.appendedRows.isEmpty {
-                immediateCount = update.appendedRows.count
-                let immediateRange = range.lowerBound..<(range.lowerBound + immediateCount)
-                integrateFormattedRows(
-                    rows: update.appendedRows,
-                    range: immediateRange,
-                    totalRowCount: estimatedTotal,
-                    metrics: update.metrics,
-                    treatAsPreview: treatAsPreview,
-                    columns: columnsForBatch
-                )
+                let displayCount = max(0, min(update.appendedRows.count, maxDisplayIndex - rangeLower))
+                immediateCount = displayCount
+                if displayCount > 0 {
+                    let rowsToIntegrate = displayCount < update.appendedRows.count
+                        ? Array(update.appendedRows.prefix(displayCount))
+                        : update.appendedRows
+                    integratedRowsForSpool = rowsToIntegrate
+                    let immediateRange = range.lowerBound..<(range.lowerBound + rowsToIntegrate.count)
+                    integrateFormattedRows(
+                        rows: rowsToIntegrate,
+                        range: immediateRange,
+                        totalRowCount: estimatedTotal,
+                        metrics: update.metrics,
+                        treatAsPreview: treatAsPreview,
+                        columns: columnsForBatch
+                    )
+                }
             } else if !rawRows.isEmpty {
                 let previewRemaining = max(previewRowLimit - rowProgress.materialized, 0)
-                immediateCount = min(previewRemaining, rawRows.count)
+                let displayBudget = max(0, maxDisplayIndex - rangeLower)
+                immediateCount = min(previewRemaining, min(rawRows.count, displayBudget))
                 if immediateCount > 0 {
                     let startIndex = appendedRange?.lowerBound ?? max(streamingRows.count, rowProgress.materialized)
                     let immediatePayloads = Array(rawRows.prefix(immediateCount))
                     let immediateRows = formatRowsSynchronously(immediatePayloads)
                     let immediateRange = startIndex..<(startIndex + immediateCount)
+                    integratedRowsForSpool = immediateRows
                     integrateFormattedRows(
                         rows: immediateRows,
                         range: immediateRange,
@@ -1019,6 +1089,46 @@ final class QueryResultsGridState {
                     columns: columnsForBatch
                 )
             }
+            if treatAsPreview {
+                spoolPreviewRows = integratedRowsForSpool
+            }
+        }
+
+        let spoolEncodedRows: [ResultBinaryRow]
+        let spoolRawRows: [ResultRowPayload]
+        if !update.encodedRows.isEmpty {
+            spoolEncodedRows = update.encodedRows
+            spoolRawRows = []
+        } else if !update.rawRows.isEmpty {
+            spoolEncodedRows = []
+            spoolRawRows = update.rawRows
+        } else {
+            spoolEncodedRows = []
+            spoolRawRows = []
+        }
+
+        let spoolPayload = QueryStreamUpdate(
+            columns: update.columns,
+            appendedRows: treatAsPreview ? spoolPreviewRows : [],
+            encodedRows: spoolEncodedRows,
+            rawRows: spoolRawRows,
+            totalRowCount: update.totalRowCount,
+            metrics: update.metrics,
+            rowRange: update.rowRange
+        )
+        submitToSpool(update: spoolPayload, mode: modeForSpool)
+
+        if appendedRowCount > 0 && spoolPreviewRows.isEmpty {
+            let newReported = max(rowProgress.totalReported, estimatedTotal)
+            let newReceived = max(streamedRowCount, rowProgress.totalReceived)
+            if rowProgress.totalReported != newReported || rowProgress.totalReceived != newReceived {
+                rowProgress = RowProgress(
+                    totalReceived: newReceived,
+                    totalReported: newReported,
+                    materialized: rowProgress.materialized
+                )
+            }
+            markResultDataChanged()
         }
 
         if streamingMode == .preview,
@@ -1122,7 +1232,7 @@ final class QueryResultsGridState {
     }
 
     var totalAvailableRowCount: Int {
-        max(materializedHighWaterMark, streamingRows.count)
+        max(materializedHighWaterMark, streamingRows.count, rowProgress.totalReported)
     }
 
     func displayedRow(at index: Int) -> [String?]? {
@@ -1669,18 +1779,6 @@ final class QueryResultsGridState {
                 materialized: contiguous
             )
         }
-
-        let spoolMode: StreamingMode = treatAsPreview ? .preview : .background
-        let update = QueryStreamUpdate(
-            columns: columns,
-            appendedRows: rows,
-            encodedRows: [],
-            rawRows: [],
-            totalRowCount: totalRowCount,
-            metrics: metrics,
-            rowRange: range
-        )
-        submitToSpool(update: update, mode: spoolMode)
 
         if isExecuting && streamingMode == .preview {
             let baselineLimit = max(visibleRowLimit ?? 0, initialVisibleRowBatch)
