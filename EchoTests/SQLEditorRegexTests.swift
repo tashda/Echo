@@ -795,6 +795,167 @@ final class SQLAutoCompletionEngineTests: XCTestCase {
 #endif
     }
 
+    func testColumnSuggestionsSkipCurrentToken() {
+        let theme = makeTestTheme()
+        let display = SQLEditorDisplayOptions()
+        let context = sampleContext()
+        let textView = SQLTextView(theme: theme,
+                                   displayOptions: display,
+                                   backgroundOverride: nil,
+                                   completionContext: context)
+
+        let text = "SELECT\n    \"fixture_id\"\nFROM public.fixture"
+        textView.textStorage?.setAttributedString(NSAttributedString(string: text))
+        let fixtureRange = (text as NSString).range(of: "fixture_id")
+        guard fixtureRange.location != NSNotFound else {
+            XCTFail("Failed to locate fixture column")
+            return
+        }
+        let caretLocation = fixtureRange.location + 3
+        textView.setSelectedRange(NSRange(location: caretLocation, length: 0))
+
+        guard let query = textView.makeCompletionQuery() else {
+            XCTFail("Expected completion query")
+            return
+        }
+
+        let columnSuggestion = SQLCompletionSuggestion(id: "column|fixture_id",
+                                                       title: "fixture_id",
+                                                       subtitle: "public.fixture",
+                                                       detail: nil,
+                                                       insertText: "fixture_id",
+                                                       kind: .column,
+                                                       origin: .init(database: nil, schema: "public", object: "fixture", column: "fixture_id"),
+                                                       priority: 1000)
+
+        let tableReference = SQLCompletionMetadata.TableReference(schema: "public", name: "fixture", alias: nil)
+        let metadata = SQLCompletionMetadata(clause: .selectList,
+                                             currentToken: "fixture_id",
+                                             precedingKeyword: "select",
+                                             pathComponents: [],
+                                             tablesInScope: [tableReference],
+                                             focusTable: tableReference,
+                                             cteColumns: [:])
+        stubCompletionEngine.result = SQLCompletionResult(suggestions: [columnSuggestion], metadata: metadata)
+        engine.updateContext(sampleContext())
+
+        let result = engine.suggestions(for: query, text: textView.string, caretLocation: caretLocation)
+        let suggestions = result.sections.flatMap { $0.suggestions }
+
+        XCTAssertTrue(suggestions.isEmpty)
+    }
+
+    func testColumnSuggestionsSkipAlreadySelectedColumnsWithQuotes() {
+        let theme = makeTestTheme()
+        let display = SQLEditorDisplayOptions()
+        let context = sampleContext()
+        let textView = SQLTextView(theme: theme,
+                                   displayOptions: display,
+                                   backgroundOverride: nil,
+                                   completionContext: context)
+
+        let text = """
+SELECT
+    \"fixture_id\",
+    \"league_id\",
+    \nFROM public.fixture
+"""
+        textView.textStorage?.setAttributedString(NSAttributedString(string: text))
+        let blankLineRange = (text as NSString).range(of: "\n    \n")
+        guard blankLineRange.location != NSNotFound else {
+            XCTFail("Failed to locate blank line")
+            return
+        }
+        let caretLocation = blankLineRange.location + 5
+        textView.setSelectedRange(NSRange(location: caretLocation, length: 0))
+
+        guard let query = textView.makeCompletionQuery() else {
+            XCTFail("Expected completion query")
+            return
+        }
+
+        let fixtureColumn = SQLCompletionSuggestion(id: "column|fixture_id",
+                                                    title: "fixture_id",
+                                                    subtitle: "public.fixture",
+                                                    detail: nil,
+                                                    insertText: "fixture_id",
+                                                    kind: .column,
+                                                    origin: .init(database: nil, schema: "public", object: "fixture", column: "fixture_id"),
+                                                    priority: 1200)
+        let leagueColumn = SQLCompletionSuggestion(id: "column|league_id",
+                                                   title: "league_id",
+                                                   subtitle: "public.fixture",
+                                                   detail: nil,
+                                                   insertText: "league_id",
+                                                   kind: .column,
+                                                   origin: .init(database: nil, schema: "public", object: "fixture", column: "league_id"),
+                                                   priority: 1180)
+        let startDateColumn = SQLCompletionSuggestion(id: "column|start_date",
+                                                     title: "start_date",
+                                                     subtitle: "public.fixture",
+                                                     detail: nil,
+                                                     insertText: "start_date",
+                                                     kind: .column,
+                                                     origin: .init(database: nil, schema: "public", object: "fixture", column: "start_date"),
+                                                     priority: 1170)
+
+        let tableReference = SQLCompletionMetadata.TableReference(schema: "public", name: "fixture", alias: nil)
+        let metadata = SQLCompletionMetadata(clause: .selectList,
+                                             currentToken: "",
+                                             precedingKeyword: "select",
+                                             pathComponents: [],
+                                             tablesInScope: [tableReference],
+                                             focusTable: tableReference,
+                                             cteColumns: [:])
+        stubCompletionEngine.result = SQLCompletionResult(suggestions: [fixtureColumn, leagueColumn, startDateColumn],
+                                                          metadata: metadata)
+        engine.updateContext(sampleContext())
+
+        let result = engine.suggestions(for: query, text: textView.string, caretLocation: caretLocation)
+        let suggestions = result.sections.flatMap { $0.suggestions }
+
+        XCTAssertEqual(suggestions.count, 1)
+        XCTAssertEqual(suggestions.first?.title, "start_date")
+    }
+
+    func testQuotedColumnInsertionPreservesDelimiters() {
+        let theme = makeTestTheme()
+        let display = SQLEditorDisplayOptions()
+        let context = sampleContext()
+        let textView = SQLTextView(theme: theme,
+                                   displayOptions: display,
+                                   backgroundOverride: nil,
+                                   completionContext: context)
+
+        var text = "SELECT\n    \"\"\nFROM public.fixture"
+        textView.textStorage?.setAttributedString(NSAttributedString(string: text))
+        let quoteRange = (text as NSString).range(of: "\"\"")
+        guard quoteRange.location != NSNotFound else {
+            XCTFail("Failed to locate placeholder quotes")
+            return
+        }
+        let caretLocation = quoteRange.location + 1
+        textView.setSelectedRange(NSRange(location: caretLocation, length: 0))
+
+        guard let query = textView.makeCompletionQuery() else {
+            XCTFail("Expected completion query")
+            return
+        }
+
+        let suggestion = SQLCompletionSuggestion(id: "column|start_date",
+                                                 title: "start_date",
+                                                 subtitle: "public.fixture",
+                                                 detail: nil,
+                                                 insertText: "start_date",
+                                                 kind: .column,
+                                                 origin: .init(database: nil, schema: "public", object: "fixture", column: "start_date"),
+                                                 priority: 1100)
+
+        textView.applyCompletion(suggestion, query: query)
+
+        XCTAssertEqual(textView.string, "SELECT\n    \"start_date\"\nFROM public.fixture")
+    }
+
     func testMakeCompletionQueryHandlesQuotedIdentifiers() {
         let theme = makeTestTheme()
         let display = SQLEditorDisplayOptions()

@@ -366,53 +366,7 @@ enum Selection: Hashable {
     }
 
     var body: some View {
-        HStack(alignment: .center, spacing: 8) {
-            Text(title)
-                .font(.system(size: 13))
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-#if os(macOS)
-            InspectorPopupButton(options: popupOptions, displayTitle: displayValueLabel, selection: $selection, showCustomPopover: $showCustomPopover, resetCustomDraft: resetCustomDraft)
-                .popover(isPresented: $showCustomPopover, attachmentAnchor: .rect(.bounds), arrowEdge: .trailing) {
-                    CustomValuePopover(
-                        title: title,
-                        text: $customText,
-                        rangeDescription: "\(formatter(range.lowerBound)) – \(formatter(range.upperBound))",
-                        onSubmit: applyCustomValue,
-                        onCancel: { showCustomPopover = false }
-                    )
-                }
-#else
-            iOSPicker
-#endif
-
-            Button(action: { showInfoPopover.toggle() }) {
-                Image(systemName: "info.circle")
-                    .imageScale(.medium)
-                    .font(.system(size: 13, weight: .regular))
-            }
-            .buttonStyle(.plain)
-            .foregroundStyle(.secondary)
-            .popover(isPresented: $showInfoPopover,
-                     attachmentAnchor: .rect(.bounds),
-                     arrowEdge: .trailing) {
-                InfoPopover(description: description, defaultLabel: defaultLabel)
-            }
-        }
-        .frame(height: 44)
-        .padding(.vertical, 1.5)
-        .padding(.horizontal, 10)
-        .background(rowBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-
-#if os(macOS)
-        .overlay(alignment: .top) {
-            Divider().opacity(0.06)
-        }
-        .overlay(alignment: .bottom) {
-            Divider().opacity(0.06)
-        }
-#endif
+        content
         .onChange(of: selection, initial: false) { _, newSelection in
             handleSelectionChange(newSelection)
         }
@@ -423,6 +377,89 @@ enum Selection: Hashable {
             if !isPresented {
                 resetCustomDraft()
             }
+        }
+    }
+
+    @ViewBuilder
+    private var content: some View {
+#if os(macOS)
+        macRow
+#else
+        iOSRow
+#endif
+    }
+
+#if os(macOS)
+    private var macRow: some View {
+        LabeledContent {
+            HStack(spacing: 6) {
+                macPicker
+                infoButton
+            }
+            .frame(maxWidth: .infinity, alignment: .trailing)
+        } label: {
+            Text(title)
+                .font(.system(size: 13))
+        }
+    }
+
+    private var macPicker: some View {
+        Picker("", selection: $selection) {
+            ForEach(presets, id: \.self) { preset in
+                Text(label(for: preset))
+                    .tag(Selection.preset(preset))
+            }
+            Text(selection == .custom ? displayValueLabel : "Custom…")
+                .tag(Selection.custom)
+        }
+        .labelsHidden()
+        .pickerStyle(.menu)
+        .controlSize(.regular)
+        .frame(minWidth: 120, idealWidth: 160, maxWidth: 200, alignment: .trailing)
+        .popover(isPresented: $showCustomPopover,
+                 attachmentAnchor: .rect(.bounds),
+                 arrowEdge: .trailing) {
+            CustomValuePopover(
+                title: title,
+                text: $customText,
+                rangeDescription: "\(formatter(range.lowerBound)) – \(formatter(range.upperBound))",
+                onSubmit: applyCustomValue,
+                onCancel: { showCustomPopover = false }
+            )
+            .frame(width: 240)
+        }
+    }
+#else
+    private var iOSRow: some View {
+        HStack(alignment: .center, spacing: 8) {
+            Text(title)
+                .font(.system(size: 13))
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            iOSPicker
+
+            infoButton
+        }
+        .frame(height: 44)
+        .padding(.vertical, 1.5)
+        .padding(.horizontal, 10)
+        .background(rowBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+    }
+#endif
+
+    private var infoButton: some View {
+        Button(action: { showInfoPopover.toggle() }) {
+            Image(systemName: "info.circle")
+                .imageScale(.medium)
+                .font(.system(size: 13, weight: .regular))
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(.secondary)
+        .popover(isPresented: $showInfoPopover,
+                 attachmentAnchor: .rect(.bounds),
+                 arrowEdge: .trailing) {
+            InfoPopover(description: description, defaultLabel: defaultLabel)
         }
     }
 
@@ -492,24 +529,6 @@ enum Selection: Hashable {
     private var defaultLabel: String {
         formatter(defaultValue)
     }
-
-#if os(macOS)
-    private var popupOptions: [InspectorPopupButton.Option] {
-        var options: [InspectorPopupButton.Option] = presets.map { preset in
-            InspectorPopupButton.Option(
-                value: StreamingPresetPickerControl.Selection.preset(preset),
-                title: label(for: preset)
-            )
-        }
-        options.append(
-            InspectorPopupButton.Option(
-                value: StreamingPresetPickerControl.Selection.custom,
-                title: "Custom…"
-            )
-        )
-        return options
-    }
-#endif
 
     private var rowBackground: some View {
 #if os(macOS)
@@ -593,6 +612,7 @@ enum Selection: Hashable {
             VStack(alignment: .leading, spacing: 12) {
                 Text(description)
                     .font(.system(size: 13))
+                    .foregroundStyle(Color.primary)
                     .fixedSize(horizontal: false, vertical: true)
 
                 Divider()
@@ -639,121 +659,3 @@ enum Selection: Hashable {
         }
     }
 }
-
-#if os(macOS)
-    private struct InspectorPopupButton: NSViewRepresentable {
-        struct Option {
-            let value: StreamingPresetPickerControl.Selection
-            let title: String
-        }
-
-        var options: [Option]
-        var displayTitle: String
-        @Binding var selection: StreamingPresetPickerControl.Selection
-        @Binding var showCustomPopover: Bool
-        var resetCustomDraft: () -> Void
-
-        func makeCoordinator() -> Coordinator { Coordinator(parent: self) }
-
-        func makeNSView(context: Context) -> PopupContainer {
-            let container = PopupContainer()
-            container.button.target = context.coordinator
-            container.button.action = #selector(Coordinator.handleSelection(_:))
-            return container
-        }
-
-        func updateNSView(_ nsView: PopupContainer, context: Context) {
-            context.coordinator.parent = self
-            nsView.apply(options: options, selection: selection, displayTitle: displayTitle)
-            nsView.button.target = context.coordinator
-            nsView.button.action = #selector(Coordinator.handleSelection(_:))
-        }
-
-        final class Coordinator: NSObject {
-            var parent: InspectorPopupButton
-
-            init(parent: InspectorPopupButton) {
-                self.parent = parent
-            }
-
-            @objc func handleSelection(_ sender: NSPopUpButton) {
-                guard let value = sender.selectedItem?.representedObject as? StreamingPresetPickerControl.Selection else { return }
-                parent.selection = value
-                switch value {
-                case .preset:
-                    parent.showCustomPopover = false
-                    parent.resetCustomDraft()
-                case .custom:
-                    parent.showCustomPopover = true
-                }
-            }
-        }
-
-        final class PopupContainer: NSView {
-            let button = NSPopUpButton(frame: .zero, pullsDown: false)
-            private var currentOptionTitles: [String] = []
-
-            override init(frame frameRect: NSRect = .zero) {
-                super.init(frame: frameRect)
-                translatesAutoresizingMaskIntoConstraints = false
-
-                button.translatesAutoresizingMaskIntoConstraints = false
-                button.font = .systemFont(ofSize: 13)
-                button.controlSize = .regular
-                button.alignment = .right
-                if let cell = button.cell as? NSPopUpButtonCell {
-                    cell.alignment = .right
-                }
-                button.autoenablesItems = false
-                button.focusRingType = .none
-                button.bezelStyle = .rounded
-                button.isBordered = true
-                button.setContentHuggingPriority(.defaultHigh, for: .horizontal)
-                button.setContentCompressionResistancePriority(.required, for: .horizontal)
-
-                addSubview(button)
-
-                NSLayoutConstraint.activate([
-                    button.leadingAnchor.constraint(equalTo: leadingAnchor),
-                    button.trailingAnchor.constraint(equalTo: trailingAnchor),
-                    button.centerYAnchor.constraint(equalTo: centerYAnchor),
-                    button.heightAnchor.constraint(equalToConstant: 24)
-                ])
-
-                setContentHuggingPriority(.defaultHigh, for: .horizontal)
-                setContentCompressionResistancePriority(.defaultHigh, for: .horizontal)
-            }
-
-            required init?(coder: NSCoder) {
-                fatalError("init(coder:) has not been implemented")
-            }
-
-            func apply(options: [Option], selection: StreamingPresetPickerControl.Selection, displayTitle: String) {
-                let titles = options.map { $0.title }
-                if titles != currentOptionTitles {
-                    let menu = NSMenu()
-                    for option in options {
-                        let item = NSMenuItem(title: option.title, action: nil, keyEquivalent: "")
-                        item.representedObject = option.value
-                        menu.addItem(item)
-                    }
-                    button.menu = menu
-                    currentOptionTitles = titles
-                }
-
-                if let index = options.firstIndex(where: { $0.value == selection }) {
-                    if button.indexOfSelectedItem != index {
-                        button.selectItem(at: index)
-                    }
-                    if case .custom = selection {
-                        button.selectedItem?.title = displayTitle
-                    } else {
-                        button.selectedItem?.title = options[index].title
-                    }
-                }
-
-                button.sizeToFit()
-            }
-        }
-    }
-#endif

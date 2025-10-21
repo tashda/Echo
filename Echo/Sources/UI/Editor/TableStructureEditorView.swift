@@ -117,12 +117,16 @@ struct TableStructureEditorView: View {
                 IndexEditorSheet(
                     index: binding,
                     availableColumns: viewModel.columns.filter { !$0.isDeleted }.map { $0.name },
-                    databaseType: tab.connection.databaseType,
                     onDelete: {
                         viewModel.removeIndex(binding.wrappedValue)
                         activeIndexEditor = nil
                     },
-                    onDismiss: { activeIndexEditor = nil }
+                    onCancelNew: {
+                        if binding.wrappedValue.isNew {
+                            viewModel.removeIndex(binding.wrappedValue)
+                        }
+                        activeIndexEditor = nil
+                    }
                 )
             }
         }
@@ -136,7 +140,7 @@ struct TableStructureEditorView: View {
                         activeColumnEditor = nil
                     },
                     onCancelNew: {
-                        if presentation.isNew {
+                        if binding.wrappedValue.isNew {
                             viewModel.removeColumn(binding.wrappedValue)
                         }
                         activeColumnEditor = nil

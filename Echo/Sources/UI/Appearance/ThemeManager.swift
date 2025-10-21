@@ -83,8 +83,10 @@ final class ThemeManager: ObservableObject {
         windowBackgroundColor = initialTheme.windowBackground.color
         surfaceBackgroundColor = initialTheme.surfaceBackground.color
         surfaceForegroundColor = initialTheme.surfaceForeground.color
-        useAppThemeForResultsGrid = true
-        resultsAlternateRowShading = false
+        let initialUseThemeForResultsGrid = true
+        let initialAlternateRowShading = false
+        useAppThemeForResultsGrid = initialUseThemeForResultsGrid
+        resultsAlternateRowShading = initialAlternateRowShading
         let initialTextStyle = SQLEditorTokenPalette.ResultGridStyle(
             color: initialTheme.surfaceForeground,
             isBold: false,
@@ -95,17 +97,22 @@ final class ThemeManager: ObservableObject {
         accentSubject = CurrentValueSubject<Color, Never>(initialAccentColor)
 
 #if os(macOS)
-        accentNSColor = accentRepresentable.nsColor
-        windowBackgroundNSColor = initialTheme.windowBackground.nsColor
+        let initialAccentNSColor = accentRepresentable.nsColor
+        let initialWindowBackgroundNSColor = initialTheme.windowBackground.nsColor
+        accentNSColor = initialAccentNSColor
+        windowBackgroundNSColor = initialWindowBackgroundNSColor
         surfaceBackgroundNSColor = initialTheme.surfaceBackground.nsColor
         surfaceForegroundNSColor = initialTheme.surfaceForeground.nsColor
-        let initialGridColors = resultGridColors(for: activeTone)
-        resultsGridCellBackgroundNSColor = initialTheme.windowBackground.nsColor
+        let initialBaseGrid = ThemeManager.baseGridBackgroundColor(
+            useTheme: initialUseThemeForResultsGrid,
+            windowColor: initialWindowBackgroundNSColor
+        )
+        resultsGridCellBackgroundNSColor = initialBaseGrid
         resultsGridAlternateRowNSColor = ThemeManager.computeAlternateRowColor(
-            base: resultsGridCellBackgroundNSColor,
-            accent: accentNSColor,
-            useTheme: useAppThemeForResultsGrid,
-            shadingEnabled: resultsAlternateRowShading
+            base: initialBaseGrid,
+            accent: initialAccentNSColor,
+            useTheme: initialUseThemeForResultsGrid,
+            shadingEnabled: initialAlternateRowShading
         )
         observeSystemAppearanceChanges()
 #endif
@@ -173,7 +180,7 @@ final class ThemeManager: ObservableObject {
         cacheResultGridTextStyle(for: tone, foreground: theme.surfaceForeground)
 #if os(macOS)
         if tone == activeTone {
-            updateCachedGridBackgroundColors(for: resolved.resultGrid)
+            updateCachedGridBackgroundColors()
         }
 #endif
     }
@@ -331,9 +338,15 @@ final class ThemeManager: ObservableObject {
     func applyResultsGridPreferences(themeResultsGrid: Bool, alternateRowShading: Bool) {
         if useAppThemeForResultsGrid != themeResultsGrid {
             useAppThemeForResultsGrid = themeResultsGrid
+#if os(macOS)
+            updateCachedGridBackgroundColors()
+#endif
         }
         if resultsAlternateRowShading != alternateRowShading {
             resultsAlternateRowShading = alternateRowShading
+#if os(macOS)
+            updateCachedGridBackgroundColors()
+#endif
         }
     }
 
@@ -360,7 +373,7 @@ final class ThemeManager: ObservableObject {
         surfaceBackgroundNSColor = theme.surfaceBackground.nsColor
         surfaceForegroundNSColor = theme.surfaceForeground.nsColor
         applyChromeToWindows(theme)
-        updateCachedGridBackgroundColors(for: resultGridColors)
+        updateCachedGridBackgroundColors()
 #endif
     }
 
@@ -414,9 +427,47 @@ final class ThemeManager: ObservableObject {
         )
     }
 #if os(macOS)
-    private func updateCachedGridBackgroundColors(for colors: SQLEditorTokenPalette.ResultGridColors) {
-        resultsGridCellBackgroundNSColor = colors.background.nsColor
-        resultsGridAlternateRowNSColor = colors.alternateBackground?.nsColor ?? colors.background.nsColor
+    private func updateCachedGridBackgroundColors() {
+        let base = ThemeManager.baseGridBackgroundColor(
+            useTheme: useAppThemeForResultsGrid,
+            windowColor: windowBackgroundNSColor
+        )
+        resultsGridCellBackgroundNSColor = base
+        resultsGridAlternateRowNSColor = ThemeManager.computeAlternateRowColor(
+            base: base,
+            accent: accentNSColor,
+            useTheme: useAppThemeForResultsGrid,
+            shadingEnabled: resultsAlternateRowShading
+        )
+    }
+
+    private static func baseGridBackgroundColor(useTheme: Bool, windowColor: NSColor) -> NSColor {
+        useTheme ? windowColor : NSColor.textBackgroundColor
+    }
+
+    private static func computeAlternateRowColor(
+        base: NSColor,
+        accent: NSColor,
+        useTheme: Bool,
+        shadingEnabled: Bool
+    ) -> NSColor {
+        guard shadingEnabled else { return base }
+        if useTheme {
+            let baseSRGB = base.usingColorSpace(.extendedSRGB) ?? base
+            let accentSRGB = accent.usingColorSpace(.extendedSRGB) ?? accent
+            return baseSRGB.blended(withFraction: 0.04, of: accentSRGB) ?? baseSRGB
+        }
+
+        let alternating: [NSColor]
+        if #available(macOS 11, *) {
+            alternating = NSColor.alternatingContentBackgroundColors
+        } else {
+            alternating = NSColor.controlAlternatingRowBackgroundColors
+        }
+        if alternating.count > 1 {
+            return alternating[1]
+        }
+        return alternating.first ?? base
     }
 #endif
 
@@ -462,9 +513,7 @@ extension ThemeManager {
     }
 
 #if os(macOS)
-    var resultsGridBackgroundNSColor: NSColor {
-        useAppThemeForResultsGrid ? windowBackgroundNSColor : NSColor.textBackgroundColor
-    }
+    var resultsGridBackgroundNSColor: NSColor { resultsGridCellBackgroundNSColor }
 #elseif canImport(UIKit)
     var resultsGridBackgroundUIColor: UIColor {
         if useAppThemeForResultsGrid {
@@ -484,30 +533,8 @@ extension ThemeManager {
     }
 
 #if os(macOS)
-    var resultsGridCellBackgroundNSColor: NSColor { resultsGridBackgroundNSColor }
-
     var resultsGridCellTextNSColor: NSColor {
         useAppThemeForResultsGrid ? surfaceForegroundNSColor : NSColor.labelColor
-    }
-
-    var resultsGridAlternateRowNSColor: NSColor {
-        guard resultsAlternateRowShading else { return resultsGridCellBackgroundNSColor }
-        if useAppThemeForResultsGrid {
-            let base = resultsGridCellBackgroundNSColor.usingColorSpace(.extendedSRGB) ?? resultsGridCellBackgroundNSColor
-            let accent = accentNSColor.usingColorSpace(.extendedSRGB) ?? accentNSColor
-            return base.blended(withFraction: 0.04, of: accent) ?? base
-        } else {
-            let alternating: [NSColor]
-            if #available(macOS 11, *) {
-                alternating = NSColor.alternatingContentBackgroundColors
-            } else {
-                alternating = NSColor.controlAlternatingRowBackgroundColors
-            }
-            if alternating.count > 1 {
-                return alternating[1]
-            }
-            return alternating.first ?? NSColor.textBackgroundColor
-        }
     }
 
     var resultsGridHeaderBackgroundNSColor: NSColor {

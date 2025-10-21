@@ -117,6 +117,7 @@ struct QueryResultsTableView: NSViewRepresentable {
         context.coordinator.update(parent: self, tableView: tableView)
     }
 
+    @MainActor
     final class Coordinator: NSObject, NSTableViewDelegate, NSTableViewDataSource, NSMenuDelegate {
         private var parent: QueryResultsTableView
         private let clipboardHistory: ClipboardHistoryStore
@@ -153,6 +154,15 @@ struct QueryResultsTableView: NSViewRepresentable {
         private var lastParentIsResizing = false
         private var requestedForeignKeyColumns: Set<Int> = []
         private var lastSelectionHighlightStyle: NSTableView.SelectionHighlightStyle?
+        private var cachedDisplayedRows: [Int: [String?]] = [:]
+        private var cachedTextColors: [ResultGridValueKind: NSColor] = [:]
+        private var autoscrollTimer: Timer?
+        private var autoscrollVelocity: CGPoint = .zero
+        private var lastDragLocationInWindow: NSPoint = .zero
+        private let autoscrollPadding: CGFloat = 24
+        private let autoscrollMaxSpeed: CGFloat = 480
+        private let autoscrollInterval: TimeInterval = 1.0 / 60.0
+        private var pendingReloadWorkItems: [DispatchWorkItem] = []
         private var pendingRowCountCorrection = false
         private static let isGridDiagnosticsEnabled: Bool = {
             ProcessInfo.processInfo.environment["ECHO_GRID_DEBUG"] == "1"
@@ -291,6 +301,7 @@ struct QueryResultsTableView: NSViewRepresentable {
             let currentRowOrder = parent.rowOrder
             let currentRowCount = currentRowOrder.isEmpty ? parent.query.displayedRowCount : currentRowOrder.count
             let wasResizing = lastParentIsResizing
+            cachedDisplayedRows.removeAll(keepingCapacity: true)
             defer {
                 let endedResize = wasResizing && !parent.isResizing
                 lastParentIsResizing = parent.isResizing
@@ -368,33 +379,17 @@ struct QueryResultsTableView: NSViewRepresentable {
                     tableView.layoutSubtreeIfNeeded()
                 }
             } else if rowCountIncreased {
-                let range = lastRowCount..<currentRowCount
-                if !range.isEmpty {
-                    if tableView.tableColumns.isEmpty {
-                        performedFullReload = true
-                        reloadWorkItem = DispatchWorkItem { [weak tableView] in
-                            guard let tableView else { return }
-                            tableView.reloadData()
+                if !pendingRowCountCorrection {
+                    pendingRowCountCorrection = true
+                }
+                rowCountUpdateWorkItem = DispatchWorkItem { [weak self, weak tableView] in
+                    guard let self, let tableView else { return }
+                    self.pendingRowCountCorrection = false
+                    tableView.noteNumberOfRowsChanged()
+                    tableView.layoutSubtreeIfNeeded()
 #if DEBUG
-                            print("[QueryResultsTableView] reloadData due to empty columns rowIncrease range=\(range)")
+                    print("[QueryResultsTableView] noteNumberOfRowsChanged (rowCountIncreased)")
 #endif
-                            tableView.layoutSubtreeIfNeeded()
-                        }
-                    } else {
-                        rowCountUpdateWorkItem = DispatchWorkItem { [weak tableView] in
-                            guard let tableView else { return }
-                            let indexes = IndexSet(integersIn: range)
-                            CATransaction.begin()
-                            CATransaction.setDisableActions(true)
-                            tableView.beginUpdates()
-                            tableView.insertRows(at: indexes, withAnimation: [])
-                            tableView.endUpdates()
-                            CATransaction.commit()
-#if DEBUG
-                            print("[QueryResultsTableView] insertRows range=\(range)")
-#endif
-                        }
-                    }
                 }
             } else if tokenChanged {
                 let visibleRows = tableView.rows(in: tableView.visibleRect)
@@ -486,6 +481,7 @@ struct QueryResultsTableView: NSViewRepresentable {
             if paletteChanged {
                 deactivateActiveSelectableField(in: tableView)
                 cachedFontStyles.removeAll(keepingCapacity: true)
+                cachedTextColors.removeAll(keepingCapacity: true)
                 applyHeaderStyle(to: tableView)
                 refreshVisibleRowBackgrounds(tableView)
                 refreshVisibleCellsAppearance(tableView)
@@ -507,9 +503,9 @@ struct QueryResultsTableView: NSViewRepresentable {
             }
 
             if let reloadWorkItem {
-                DispatchQueue.main.async(execute: reloadWorkItem)
+                enqueueReloadWorkItem(reloadWorkItem)
             } else if let rowCountUpdateWorkItem {
-                DispatchQueue.main.async(execute: rowCountUpdateWorkItem)
+                enqueueReloadWorkItem(rowCountUpdateWorkItem)
             }
 
             if !resizing && (performedFullReload || rowCountIncreased || rowCountDecreased || viewportChanged) {
@@ -1050,6 +1046,159 @@ struct QueryResultsTableView: NSViewRepresentable {
             return cellView
         }
 
+        private func displayedRowValues(for sourceIndex: Int) -> [String?]? {
+            if let cached = cachedDisplayedRows[sourceIndex] {
+                return cached
+            }
+            guard let rowValues = parent.query.displayedRow(at: sourceIndex) else {
+                return nil
+            }
+            cachedDisplayedRows[sourceIndex] = rowValues
+            if cachedDisplayedRows.count > 512 {
+                cachedDisplayedRows.removeAll(keepingCapacity: true)
+            }
+            return rowValues
+        }
+
+        private var isDeferringReloads: Bool {
+            isDraggingCellSelection
+        }
+
+        private func enqueueReloadWorkItem(_ item: DispatchWorkItem?) {
+            guard let item else { return }
+            if isDeferringReloads {
+                pendingReloadWorkItems.append(item)
+            } else {
+                DispatchQueue.main.async(execute: item)
+            }
+        }
+
+        private func flushDeferredReloads() {
+            guard !isDeferringReloads else { return }
+            let items = pendingReloadWorkItems
+            pendingReloadWorkItems.removeAll()
+            for item in items {
+                DispatchQueue.main.async(execute: item)
+            }
+        }
+
+        private func endSelectionDrag() {
+            let wasDragging = isDraggingCellSelection
+            isDraggingCellSelection = false
+            if wasDragging {
+                stopAutoscroll()
+                flushDeferredReloads()
+            }
+        }
+
+        private func updateAutoscroll(for event: NSEvent, tableView: NSTableView) {
+            lastDragLocationInWindow = event.locationInWindow
+            guard let scrollView = tableView.enclosingScrollView else {
+                stopAutoscroll()
+                return
+            }
+
+            let visibleRect = tableView.visibleRect
+            let location = tableView.convert(event.locationInWindow, from: nil)
+
+            var velocity = CGPoint.zero
+            let padding = autoscrollPadding
+
+            if location.y < visibleRect.minY + padding {
+                let distance = max((visibleRect.minY + padding) - location.y, 0)
+                velocity.y = -autoscrollSpeed(for: distance, padding: padding)
+            } else if location.y > visibleRect.maxY - padding {
+                let distance = max(location.y - (visibleRect.maxY - padding), 0)
+                velocity.y = autoscrollSpeed(for: distance, padding: padding)
+            }
+
+            if location.x < visibleRect.minX + padding {
+                let distance = max((visibleRect.minX + padding) - location.x, 0)
+                velocity.x = -autoscrollSpeed(for: distance, padding: padding)
+            } else if location.x > visibleRect.maxX - padding {
+                let distance = max(location.x - (visibleRect.maxX - padding), 0)
+                velocity.x = autoscrollSpeed(for: distance, padding: padding)
+            }
+
+            autoscrollVelocity = velocity
+
+            if velocity == .zero {
+                stopAutoscroll()
+            } else {
+                startAutoscroll(for: tableView, scrollView: scrollView)
+            }
+        }
+
+        private func autoscrollSpeed(for distance: CGFloat, padding: CGFloat) -> CGFloat {
+            guard padding > 0 else { return 0 }
+            let clamped = min(max(distance / padding, 0), 1)
+            return clamped * autoscrollMaxSpeed
+        }
+
+        private func startAutoscroll(for tableView: NSTableView, scrollView: NSScrollView) {
+            guard autoscrollTimer == nil else { return }
+            let timer = Timer(timeInterval: autoscrollInterval, repeats: true) { [weak self, weak tableView] _ in
+                guard let self, let tableView else {
+                    self?.stopAutoscroll()
+                    return
+                }
+                self.performAutoscrollStep(in: tableView)
+            }
+            autoscrollTimer = timer
+            RunLoop.main.add(timer, forMode: .common)
+        }
+
+        private func stopAutoscroll() {
+            autoscrollTimer?.invalidate()
+            autoscrollTimer = nil
+            autoscrollVelocity = .zero
+        }
+
+        private func performAutoscrollStep(in tableView: NSTableView) {
+            guard autoscrollVelocity != .zero, let scrollView = tableView.enclosingScrollView else {
+                stopAutoscroll()
+                return
+            }
+
+            var origin = scrollView.contentView.bounds.origin
+            let documentSize = tableView.bounds.size
+            let clipSize = scrollView.contentView.bounds.size
+
+            let maxOriginX = max(documentSize.width - clipSize.width, 0)
+            let maxOriginY = max(documentSize.height - clipSize.height, 0)
+
+            let dx = autoscrollVelocity.x * CGFloat(autoscrollInterval)
+            let dy = autoscrollVelocity.y * CGFloat(autoscrollInterval)
+
+            origin.x = min(max(origin.x + dx, 0), maxOriginX)
+            origin.y = min(max(origin.y + dy, 0), maxOriginY)
+
+            scrollView.contentView.scroll(to: origin)
+            scrollView.reflectScrolledClipView(scrollView.contentView)
+            processAutoscrollSelection(in: tableView)
+
+            if origin.x <= 0 || origin.x >= maxOriginX {
+                autoscrollVelocity.x = 0
+            }
+            if origin.y <= 0 || origin.y >= maxOriginY {
+                autoscrollVelocity.y = 0
+            }
+
+            if autoscrollVelocity == .zero {
+                stopAutoscroll()
+            }
+        }
+
+        private func processAutoscrollSelection(in tableView: NSTableView) {
+            guard isDraggingCellSelection, let anchor = selectionAnchor else { return }
+            let point = tableView.convert(lastDragLocationInWindow, from: nil)
+            guard let cell = resolvedCell(at: point, in: tableView, allowOutOfBounds: true) else { return }
+            let region = SelectedRegion(start: anchor, end: cell)
+            if selectionRegion != region {
+                setSelectionRegion(region, tableView: tableView)
+            }
+        }
+
         private func configureCellView(_ cellView: ResultTableDataCellView, dataIndex: Int, tableView: NSTableView, row: Int) {
             let sourceIndex = resolvedRowIndex(for: row)
             guard sourceIndex >= 0 else {
@@ -1065,7 +1214,13 @@ struct QueryResultsTableView: NSViewRepresentable {
             if Self.isRowDiagnosticsEnabled, sourceIndex >= parent.query.totalAvailableRowCount {
                 print("[RowDiagnostics][tableView] configureCellView row=\(row) sourceIndex=\(sourceIndex) totalAvailable=\(parent.query.totalAvailableRowCount)")
             }
-            let rawValue = parent.query.valueForDisplay(row: sourceIndex, column: dataIndex)
+            let rowValues = displayedRowValues(for: sourceIndex)
+            let rawValue: String?
+            if let rowValues, dataIndex >= 0, dataIndex < rowValues.count {
+                rawValue = rowValues[dataIndex]
+            } else {
+                rawValue = parent.query.valueForDisplay(row: sourceIndex, column: dataIndex)
+            }
             let columnInfo = dataIndex < parent.query.displayedColumns.count ? parent.query.displayedColumns[dataIndex] : nil
 
             let kind: ResultGridValueKind
@@ -1091,7 +1246,16 @@ struct QueryResultsTableView: NSViewRepresentable {
 
             let cellSelection = QueryResultsTableView.SelectedCell(row: row, column: dataIndex)
             let isSelectedCell = selectionRegion?.contains(cellSelection) ?? false
-            let textColor = isSelectedCell ? theme.resultsGridCellTextNSColor : style.nsColor
+            let textColor: NSColor
+            if isSelectedCell {
+                textColor = theme.resultsGridCellTextNSColor
+            } else if let cached = cachedTextColors[kind] {
+                textColor = cached
+            } else {
+                let color = style.nsColor
+                cachedTextColors[kind] = color
+                textColor = color
+            }
 
             cellView.apply(text: displayText, font: font, textColor: textColor)
 
@@ -1150,7 +1314,7 @@ struct QueryResultsTableView: NSViewRepresentable {
                 if column >= 0 {
                     let cell = QueryResultsTableView.SelectedCell(row: row, column: column)
                     setSelectionRegion(SelectedRegion(start: cell, end: cell), tableView: tableView)
-                    isDraggingCellSelection = false
+                    endSelectionDrag()
                     return false
                 }
             }
@@ -1168,7 +1332,7 @@ struct QueryResultsTableView: NSViewRepresentable {
             }
 
             if hasRowSelection {
-                isDraggingCellSelection = false
+                endSelectionDrag()
                 setSelectionRegion(nil, tableView: tableView)
             }
         }
@@ -1297,7 +1461,7 @@ struct QueryResultsTableView: NSViewRepresentable {
             setSelectionRegion(SelectedRegion(start: top, end: bottom), tableView: tableView)
             selectionAnchor = top
             selectionFocus = bottom
-            isDraggingCellSelection = false
+            endSelectionDrag()
             tableView.highlightedTableColumn = tableView.tableColumns[index]
         }
 
@@ -1414,10 +1578,12 @@ struct QueryResultsTableView: NSViewRepresentable {
             deactivateActiveSelectableField(in: tableView)
             contextMenuCell = nil
             tableView.window?.makeFirstResponder(tableView)
+            lastDragLocationInWindow = event.locationInWindow
+            stopAutoscroll()
             let point = tableView.convert(event.locationInWindow, from: nil)
             guard let cell = resolvedCell(at: point, in: tableView, allowOutOfBounds: false) else {
                 clearColumnSelection(in: tableView)
-                isDraggingCellSelection = false
+                endSelectionDrag()
                 tableView.deselectAll(nil)
                 selectionAnchor = nil
                 selectionFocus = nil
@@ -1445,11 +1611,11 @@ struct QueryResultsTableView: NSViewRepresentable {
             if clickCount >= 2 {
                 if let jsonSelection = makeJsonSelection(for: cell) {
                     parent.onJsonEvent(.activate(jsonSelection))
-                    isDraggingCellSelection = false
+                    endSelectionDrag()
                     return
                 } else {
                     focusCellEditor(at: cell, tableView: tableView)
-                    isDraggingCellSelection = false
+                    endSelectionDrag()
                     return
                 }
             }
@@ -1514,10 +1680,11 @@ struct QueryResultsTableView: NSViewRepresentable {
             if selectionRegion != region {
                 setSelectionRegion(region, tableView: tableView)
             }
+            updateAutoscroll(for: event, tableView: tableView)
         }
 
         func handleMouseUp(_ event: NSEvent, in tableView: NSTableView) {
-            isDraggingCellSelection = false
+            endSelectionDrag()
         }
 
         func handleKeyDown(_ event: NSEvent, in tableView: NSTableView) -> Bool {
@@ -1596,7 +1763,7 @@ struct QueryResultsTableView: NSViewRepresentable {
             setSelectionRegion(SelectedRegion(start: topLeft, end: bottomRight), tableView: tableView)
             selectionAnchor = topLeft
             selectionFocus = bottomRight
-            isDraggingCellSelection = false
+            endSelectionDrag()
             parent.onClearColumnHighlight()
         }
 
@@ -1939,12 +2106,12 @@ struct QueryResultsTableView: NSViewRepresentable {
             if region != nil {
                 tableView.deselectAll(nil)
             } else {
-                isDraggingCellSelection = false
+                endSelectionDrag()
                 deactivateActiveSelectableField(in: tableView)
             }
 
-            reload(region: previous, tableView: tableView)
-            reload(region: region, tableView: tableView)
+            refreshSelectionAppearance(for: previous, tableView: tableView)
+            refreshSelectionAppearance(for: region, tableView: tableView)
 
             tableView.highlightedTableColumn = nil
             if let region,
@@ -1961,24 +2128,40 @@ struct QueryResultsTableView: NSViewRepresentable {
             notifyForeignKeySelection(region)
         }
 
-        private func reload(region: SelectedRegion?, tableView: NSTableView) {
+        private func refreshSelectionAppearance(for region: SelectedRegion?, tableView: NSTableView) {
             guard let region else { return }
-
             let rowCount = tableView.numberOfRows
             guard rowCount > 0 else { return }
             let maxRowIndex = rowCount - 1
             let lowerRow = max(region.normalizedRowRange.lowerBound, 0)
             let upperRow = min(region.normalizedRowRange.upperBound, maxRowIndex)
             guard lowerRow <= upperRow else { return }
-            let rowIndexes = IndexSet(integersIn: lowerRow...upperRow)
 
-            let maxColumns = tableView.tableColumns.count
-            guard maxColumns > 0 else { return }
+            let visibleRows = tableView.rows(in: tableView.visibleRect)
+            guard visibleRows.length > 0 else { return }
+            let visibleLower = max(0, visibleRows.location)
+            let visibleUpper = min(maxRowIndex, visibleLower + max(visibleRows.length - 1, 0))
+            let effectiveLower = max(lowerRow, visibleLower)
+            let effectiveUpper = min(upperRow, visibleUpper)
+            guard effectiveLower <= effectiveUpper else { return }
 
-            let lower = max(0, min(region.normalizedColumnRange.lowerBound, maxColumns - 1))
-            let upper = max(0, min(region.normalizedColumnRange.upperBound, maxColumns - 1))
-            let columnIndexes = IndexSet(integersIn: lower...upper)
-            tableView.reloadData(forRowIndexes: rowIndexes, columnIndexes: columnIndexes)
+            let columnCount = tableView.tableColumns.count
+            guard columnCount > 0 else { return }
+            let lowerColumn = max(0, min(region.normalizedColumnRange.lowerBound, columnCount - 1))
+            let upperColumn = max(0, min(region.normalizedColumnRange.upperBound, columnCount - 1))
+
+            for row in effectiveLower...effectiveUpper {
+                if let rowView = tableView.rowView(atRow: row, makeIfNecessary: false) as? ResultTableRowView {
+                    rowView.needsDisplay = true
+                    rowView.displayIfNeeded()
+                }
+                guard lowerColumn <= upperColumn,
+                      let rowView = tableView.rowView(atRow: row, makeIfNecessary: false) else { continue }
+                for column in lowerColumn...upperColumn {
+                    guard let cellView = rowView.view(atColumn: column) as? ResultTableDataCellView else { continue }
+                    configureCellView(cellView, dataIndex: column, tableView: tableView, row: row)
+                }
+            }
         }
 
     }

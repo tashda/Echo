@@ -52,6 +52,13 @@ struct MSSQLNIOFactory: DatabaseFactory {
                 )
             }
 
+            do {
+                _ = try await connection.rawSql("SET FMTONLY OFF;").get()
+                logger.info("MSSQL session defaults applied (SET FMTONLY OFF)")
+            } catch {
+                logger.warning("Failed to apply MSSQL session defaults: \(error.localizedDescription)")
+            }
+
             return MSSQLSession(
                 connection: connection,
                 eventLoopGroup: eventLoopGroup,
@@ -518,6 +525,7 @@ final class MSSQLSession: DatabaseSession {
         let batch = "SET FMTONLY OFF;\n\n\(sql)"
         let future = connection.rawSql(batch)
         let rows = try await future.get()
+        logger.debug("MSSQL fetchRows executed batch for context (first 64 chars): \(batch.prefix(64)) … -> \(rows.count) rows, login defaults applied")
         return rows.map { MSSQLRow(row: $0, formatter: formatter) }
     }
 

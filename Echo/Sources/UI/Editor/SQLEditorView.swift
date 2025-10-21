@@ -509,6 +509,7 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
         !inlineKeywordSuggestions.isEmpty || inlineInsertedRange != nil
     }
     private var inlineAcceptanceInProgress = false
+    var suppressNextCompletionPopover = false
 
     var ruleEnvironment: SQLAutocompleteRuleEngine.Environment {
         SQLAutocompleteRuleEngine.Environment(completionContext: completionContext)
@@ -743,6 +744,7 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
     }
 
     override func insertText(_ string: Any, replacementRange: NSRange) {
+        suppressNextCompletionPopover = false
         let trigger = determineCompletionTrigger(for: string)
         super.insertText(string, replacementRange: replacementRange)
         let inserted = (string as? String) ?? (string as? NSAttributedString)?.string ?? ""
@@ -755,12 +757,14 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
     }
 
     override func mouseDown(with event: NSEvent) {
+        suppressNextCompletionPopover = true
         window?.makeFirstResponder(self)
         super.mouseDown(with: event)
         notifySelectionPreview()
     }
 
     override func becomeFirstResponder() -> Bool {
+        suppressNextCompletionPopover = true
         let became = super.becomeFirstResponder()
         if became {
             primeInlineSuggestionsIfNeeded()
@@ -816,6 +820,7 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
         guard inlineSuggestionView == nil else { return }
         let trimmed = string.trimmingCharacters(in: .whitespacesAndNewlines)
         guard trimmed.isEmpty else { return }
+        suppressNextCompletionPopover = true
         refreshCompletions(immediate: true)
     }
 
@@ -1497,6 +1502,8 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
             return displayOptions.suggestSnippetsInCompletion
         case .join:
             return displayOptions.suggestJoinsInCompletion
+        case .parameter:
+            return false
         default:
             return true
         }
@@ -1513,8 +1520,13 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
         var result: [SQLAutoCompletionSuggestion] = []
         result.reserveCapacity(suggestions.count)
 
+        let suppressNonColumnInSelectList = query.clause == .selectList && trimmedToken.isEmpty && query.pathComponents.isEmpty && !completionEngine.isManualTriggerActive
+
         for suggestion in suggestions {
             guard isSuggestionKindEnabled(suggestion.kind) else { continue }
+            if suppressNonColumnInSelectList && suggestion.kind != .column {
+                continue
+            }
             let key = suggestion.insertText.lowercased()
             if !tokenLower.isEmpty {
                 let isExactInsertMatch = key == tokenLower
@@ -1700,6 +1712,70 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
         }
 
         return Array(keys)
+    }
+
+    private func adjustedInsertion(for suggestion: SQLAutoCompletionSuggestion,
+                                   originalText: String,
+                                   proposedInsertion: String) -> String {
+        switch suggestion.kind {
+        case .column, .table, .view, .materializedView:
+            break
+        default:
+            return proposedInsertion
+        }
+
+        let prefixCount = proposedInsertion.prefix { $0.isWhitespace }.count
+        let suffixCount = proposedInsertion.reversed().prefix { $0.isWhitespace }.count
+        let prefixString = String(proposedInsertion.prefix(prefixCount))
+        let suffixString = String(proposedInsertion.suffix(suffixCount))
+
+        let coreStartIndex = proposedInsertion.index(proposedInsertion.startIndex, offsetBy: prefixCount)
+        let coreEndIndex = proposedInsertion.index(proposedInsertion.endIndex, offsetBy: -suffixCount)
+        guard coreStartIndex <= coreEndIndex else { return proposedInsertion }
+        let core = String(proposedInsertion[coreStartIndex..<coreEndIndex])
+        guard !core.isEmpty else { return proposedInsertion }
+
+        let trimmedOriginal = originalText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedOriginal.isEmpty else { return proposedInsertion }
+
+        let originalComponents = trimmedOriginal.split(separator: ".", omittingEmptySubsequences: false).map(String.init)
+        let proposedComponents = core.split(separator: ".", omittingEmptySubsequences: false).map(String.init)
+        guard !originalComponents.isEmpty else { return proposedInsertion }
+
+        let wrappedComponents: [String]
+        if originalComponents.count == proposedComponents.count {
+            wrappedComponents = zip(originalComponents, proposedComponents).map { wrapComponent($1, using: $0) }
+        } else if originalComponents.count == 1 {
+            if proposedComponents.count > 1 {
+                let lastComponent = String(proposedComponents.last!)
+                wrappedComponents = [wrapComponent(lastComponent, using: originalComponents[0])]
+            } else {
+                wrappedComponents = [wrapComponent(core, using: originalComponents[0])]
+            }
+        } else {
+            return proposedInsertion
+        }
+
+        let wrappedCore = wrappedComponents.joined(separator: ".")
+        return prefixString + wrappedCore + suffixString
+    }
+
+    private func wrapComponent(_ component: String, using originalComponent: String) -> String {
+        let trimmedOriginal = originalComponent.trimmingCharacters(in: .whitespaces)
+        guard let first = trimmedOriginal.first else { return component }
+
+        let delimiterPairs: [Character: Character] = ["\"": "\"", "`": "`", "[": "]"]
+        guard let closing = delimiterPairs[first], trimmedOriginal.last == closing else {
+            return component
+        }
+
+        let trimmedComponent = component.trimmingCharacters(in: .whitespaces)
+        if trimmedComponent.first == first && trimmedComponent.last == closing {
+            return component
+        }
+
+        let inner = trimmedComponent.trimmingCharacters(in: CharacterSet(charactersIn: "\"`[]"))
+        return "\(first)\(inner)\(closing)"
     }
 
     private func normalizedColumnName(for suggestion: SQLAutoCompletionSuggestion) -> String? {
@@ -1927,6 +2003,12 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
                                        insertion: insertionText)
     }
 
+    func consumePopoverSuppressionFlag() -> Bool {
+        let value = suppressNextCompletionPopover
+        suppressNextCompletionPopover = false
+        return value
+    }
+
     private enum SymbolHighlightStrength {
         case bright
         case strong
@@ -1970,7 +2052,17 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
         }
         range.length = upperBound - range.location
 
-        guard shouldChangeText(in: range, replacementString: insertion) else { return nil }
+        let originalText = nsString.substring(with: range)
+        let finalInsertion: String
+        if snippetPlaceholders.isEmpty {
+            finalInsertion = adjustedInsertion(for: suggestion,
+                                               originalText: originalText,
+                                               proposedInsertion: insertion)
+        } else {
+            finalInsertion = insertion
+        }
+
+        guard shouldChangeText(in: range, replacementString: finalInsertion) else { return nil }
 
         isApplyingCompletion = true
         defer {
@@ -1978,9 +2070,8 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
             suppressNextCompletionRefresh = false
         }
 
-        let originalText = nsString.substring(with: range)
-        textStorage.replaceCharacters(in: range, with: insertion)
-        let insertionNSString = insertion as NSString
+        textStorage.replaceCharacters(in: range, with: finalInsertion)
+        let insertionNSString = finalInsertion as NSString
         let insertionLength = insertionNSString.length
         let appliedRange = NSRange(location: range.location, length: insertionLength)
         finalizeAppliedCompletion(for: suggestion, appliedRange: appliedRange, insertion: insertionNSString)

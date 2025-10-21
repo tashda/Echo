@@ -321,6 +321,7 @@ extension SQLTextView {
         deactivateManualCompletionSuppression()
         clearSnippetPlaceholders()
         completionEngine.clearPostCommitSuppression()
+        suppressNextCompletionPopover = false
 
         if let query = makeCompletionQuery() {
             let caretLocation = query.replacementRange.location
