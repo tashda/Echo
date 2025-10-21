@@ -51,6 +51,7 @@ struct SearchSidebarResult: Identifiable, Hashable {
         case index(schema: String, table: String, name: String)
         case foreignKey(schema: String, table: String, name: String)
         case function(schema: String, name: String)
+        case procedure(schema: String, name: String)
         case trigger(schema: String, table: String, name: String)
         case queryTab(tabID: UUID, connectionSessionID: UUID)
     }

@@ -1486,7 +1486,7 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
                 return true
             }
             return displayOptions.inlineKeywordSuggestionsEnabled
-        case .function, .procedure:
+        case .function:
             return displayOptions.suggestFunctionsInCompletion
         case .snippet:
             return displayOptions.suggestSnippetsInCompletion
@@ -2068,7 +2068,7 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
         suggestion.kind == .snippet && suggestion.id.hasPrefix("star|")
     }
 
-    private func formatterDialect(for databaseType: EchoSenseDatabaseType) -> SQLFormatterService.Dialect {
+    private func formatterDialect(for databaseType: EchoSenseDatabaseType) -> SQLFormatterService.Dialect? {
         switch databaseType {
         case .postgresql:
             return .postgres
@@ -2077,7 +2077,7 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
         case .sqlite:
             return .sqlite
         case .microsoftSQL:
-            return .duckdb
+            return nil
         }
     }
 
@@ -2140,7 +2140,9 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
         let rawColumns = suggestion.insertText
         guard let context else { return rawColumns }
 
-        let dialect = formatterDialect(for: context.databaseType)
+        guard let dialect = formatterDialect(for: context.databaseType) else {
+            return rawColumns
+        }
         let stub = "SELECT \(rawColumns)\nFROM sqruff_placeholder;"
 
         do {

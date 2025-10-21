@@ -433,12 +433,18 @@ final class MSSQLSession: DatabaseSession {
                 return definition
             }
             return "-- View definition unavailable"
-        case .function, .procedure:
+        case .function:
             let sql = "SELECT OBJECT_DEFINITION(OBJECT_ID(N'\(qualifiedName)'));"
             if let definition = try await firstString(sql) {
                 return definition
             }
             return "-- Function definition unavailable"
+        case .procedure:
+            let sql = "SELECT OBJECT_DEFINITION(OBJECT_ID(N'\(qualifiedName)'));"
+            if let definition = try await firstString(sql) {
+                return definition
+            }
+            return "-- Procedure definition unavailable"
         case .trigger:
             let sql = "SELECT OBJECT_DEFINITION(OBJECT_ID(N'\(qualifiedName)'));"
             if let definition = try await firstString(sql) {
@@ -990,6 +996,16 @@ extension MSSQLSession: DatabaseMetadataSession {
         let functionRows = try await fetchRows(functionSQL)
         logger.info("MSSQL loadSchemaInfo schema \(schemaName) discovered \(functionRows.count) functions")
 
+        let procedureSQL = """
+        SELECT name
+        FROM sys.procedures
+        WHERE schema_id = SCHEMA_ID(N'\(MSSQLSession.escapeLiteral(schemaName))')
+          AND is_ms_shipped = 0
+        ORDER BY name;
+        """
+        let procedureRows = try await fetchRows(procedureSQL)
+        logger.info("MSSQL loadSchemaInfo schema \(schemaName) discovered \(procedureRows.count) procedures")
+
         let triggerSQL = """
         SELECT
             tr.name AS trigger_name,
@@ -1010,7 +1026,7 @@ extension MSSQLSession: DatabaseMetadataSession {
         let triggerRows = try await fetchRows(triggerSQL)
         logger.info("MSSQL loadSchemaInfo schema \(schemaName) discovered \(triggerRows.count) triggers")
 
-        let totalObjects = max(tableRows.count + functionRows.count + triggerRows.count, 1)
+        let totalObjects = max(tableRows.count + functionRows.count + procedureRows.count + triggerRows.count, 1)
         var processed = 0
         var objects: [SchemaObjectInfo] = []
 
@@ -1035,6 +1051,18 @@ extension MSSQLSession: DatabaseMetadataSession {
                 await progress(.function, processed, totalObjects)
             }
             objects.append(SchemaObjectInfo(name: name, schema: schemaName, type: .function))
+        }
+
+        if let progress {
+            await progress(.procedure, processed, totalObjects)
+        }
+        for row in procedureRows {
+            guard let name = row.string("name") else { continue }
+            processed += 1
+            if let progress {
+                await progress(.procedure, processed, totalObjects)
+            }
+            objects.append(SchemaObjectInfo(name: name, schema: schemaName, type: .procedure))
         }
 
         if let progress {

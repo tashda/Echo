@@ -170,8 +170,7 @@ struct ClipboardHistoryView: View {
 
     private func openClipboardSettings() {
 #if os(macOS)
-        NSApp.sendAction(Selector(("showPreferencesWindow:")), to: nil, from: nil)
-        NotificationCenter.default.post(name: .openSettingsSection, object: SettingsView.SettingsSection.applicationCache.rawValue)
+        SettingsWindowController.shared.present(section: .applicationCache)
 #endif
     }
 

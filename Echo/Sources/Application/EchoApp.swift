@@ -41,7 +41,6 @@ struct EchoApp: App {
 #endif
         }
 
-        SettingsWindow()
         AutocompleteManagementWindow()
         PerformanceMonitorWindow()
         StreamingTestHarnessWindow()
@@ -116,12 +115,12 @@ struct QueryCommands: Commands {
 }
 
 struct AppSettingsCommands: Commands {
-    @Environment(\.openWindow) private var openWindow
-
     var body: some Commands {
         CommandGroup(replacing: .appSettings) {
             Button("Settings…") {
-                openWindow(id: SettingsWindow.sceneID)
+                #if os(macOS)
+                SettingsWindowController.shared.present()
+                #endif
             }
             .keyboardShortcut(",", modifiers: [.command])
         }
