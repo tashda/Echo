@@ -159,11 +159,14 @@ struct QueryResultsTableView: NSViewRepresentable {
         private var autoscrollTimer: Timer?
         private var autoscrollVelocity: CGPoint = .zero
         private var lastDragLocationInWindow: NSPoint = .zero
-        private let autoscrollPadding: CGFloat = 24
-        private let autoscrollMaxSpeed: CGFloat = 480
+        private let autoscrollPadding: CGFloat = 28
+        private let autoscrollMaxSpeed: CGFloat = 900
         private let autoscrollInterval: TimeInterval = 1.0 / 60.0
         private var pendingReloadWorkItems: [DispatchWorkItem] = []
         private var pendingRowCountCorrection = false
+        private var rowCountObserver: NSObjectProtocol?
+        private var isPerformingUpdatePass = false
+        private var needsDeferredRowCountRefresh = false
         private static let isGridDiagnosticsEnabled: Bool = {
             ProcessInfo.processInfo.environment["ECHO_GRID_DEBUG"] == "1"
         }()
@@ -245,6 +248,9 @@ struct QueryResultsTableView: NSViewRepresentable {
         }
 
         deinit {
+            if let observer = rowCountObserver {
+                NotificationCenter.default.removeObserver(observer)
+            }
             NotificationCenter.default.removeObserver(self)
         }
 
@@ -274,12 +280,28 @@ struct QueryResultsTableView: NSViewRepresentable {
         func updatePersistedState(_ state: QueryResultsGridState?) {
             guard persistedState !== state else { return }
             persistedState = state
+            installRowCountObserver(for: state)
             if let state {
                 cachedColumnIDs = state.cachedColumnIDs
                 cachedRowOrder = state.cachedRowOrder
                 cachedSort = state.cachedSort
                 lastRowCount = state.lastRowCount
                 lastResultTokenSnapshot = state.lastResultToken
+            }
+        }
+
+        private func installRowCountObserver(for state: QueryResultsGridState?) {
+            if let observer = rowCountObserver {
+                NotificationCenter.default.removeObserver(observer)
+                rowCountObserver = nil
+            }
+            guard let state else { return }
+            rowCountObserver = NotificationCenter.default.addObserver(
+                forName: .queryResultsRowCountDidChange,
+                object: state,
+                queue: .main
+            ) { [weak self] _ in
+                self?.performRowCountRefresh()
             }
         }
 
@@ -298,6 +320,17 @@ struct QueryResultsTableView: NSViewRepresentable {
             tableView.headerView?.menu = headerMenu
             tableView.headerView?.frame.size.height = max(tableView.headerView?.frame.size.height ?? 0, 28)
             tableView.headerView?.isHidden = false
+            isPerformingUpdatePass = true
+            defer {
+                isPerformingUpdatePass = false
+                if needsDeferredRowCountRefresh {
+                    needsDeferredRowCountRefresh = false
+                    DispatchQueue.main.async { [weak self] in
+                        self?.performRowCountRefresh()
+                    }
+                }
+            }
+
             let currentRowOrder = parent.rowOrder
             let currentRowCount = currentRowOrder.isEmpty ? parent.query.displayedRowCount : currentRowOrder.count
             let wasResizing = lastParentIsResizing
@@ -366,7 +399,6 @@ struct QueryResultsTableView: NSViewRepresentable {
 
             var performedFullReload = false
             var reloadWorkItem: DispatchWorkItem?
-            var rowCountUpdateWorkItem: DispatchWorkItem?
 
             if columnsChanged || sortChanged || rowOrderChanged || rowCountDecreased {
                 performedFullReload = true
@@ -379,18 +411,7 @@ struct QueryResultsTableView: NSViewRepresentable {
                     tableView.layoutSubtreeIfNeeded()
                 }
             } else if rowCountIncreased {
-                if !pendingRowCountCorrection {
-                    pendingRowCountCorrection = true
-                }
-                rowCountUpdateWorkItem = DispatchWorkItem { [weak self, weak tableView] in
-                    guard let self, let tableView else { return }
-                    self.pendingRowCountCorrection = false
-                    tableView.noteNumberOfRowsChanged()
-                    tableView.layoutSubtreeIfNeeded()
-#if DEBUG
-                    print("[QueryResultsTableView] noteNumberOfRowsChanged (rowCountIncreased)")
-#endif
-                }
+                persistedState?.scheduleRowCountRefresh()
             } else if tokenChanged {
                 let visibleRows = tableView.rows(in: tableView.visibleRect)
                 if reloadWorkItem == nil, !tableView.tableColumns.isEmpty {
@@ -504,8 +525,6 @@ struct QueryResultsTableView: NSViewRepresentable {
 
             if let reloadWorkItem {
                 enqueueReloadWorkItem(reloadWorkItem)
-            } else if let rowCountUpdateWorkItem {
-                enqueueReloadWorkItem(rowCountUpdateWorkItem)
             }
 
             if !resizing && (performedFullReload || rowCountIncreased || rowCountDecreased || viewportChanged) {
@@ -1085,13 +1104,17 @@ struct QueryResultsTableView: NSViewRepresentable {
         private func endSelectionDrag() {
             let wasDragging = isDraggingCellSelection
             isDraggingCellSelection = false
+            stopAutoscroll()
             if wasDragging {
-                stopAutoscroll()
                 flushDeferredReloads()
             }
         }
 
         private func updateAutoscroll(for event: NSEvent, tableView: NSTableView) {
+            guard event.type == .leftMouseDragged, NSEvent.pressedMouseButtons != 0 else {
+                stopAutoscroll()
+                return
+            }
             lastDragLocationInWindow = event.locationInWindow
             guard let scrollView = tableView.enclosingScrollView else {
                 stopAutoscroll()
@@ -1129,11 +1152,13 @@ struct QueryResultsTableView: NSViewRepresentable {
             }
         }
 
-        private func autoscrollSpeed(for distance: CGFloat, padding: CGFloat) -> CGFloat {
-            guard padding > 0 else { return 0 }
-            let clamped = min(max(distance / padding, 0), 1)
-            return clamped * autoscrollMaxSpeed
-        }
+    private func autoscrollSpeed(for distance: CGFloat, padding: CGFloat) -> CGFloat {
+        guard padding > 0 else { return 0 }
+        let ratio = min(max(distance / padding, 0), 1)
+        // Accelerate as the pointer moves further out, keeping near-edge movement gentle.
+        let adjusted = pow(ratio, 1.2)
+        return adjusted * autoscrollMaxSpeed
+    }
 
         private func startAutoscroll(for tableView: NSTableView, scrollView: NSScrollView) {
             guard autoscrollTimer == nil else { return }
@@ -1155,7 +1180,11 @@ struct QueryResultsTableView: NSViewRepresentable {
         }
 
         private func performAutoscrollStep(in tableView: NSTableView) {
-            guard autoscrollVelocity != .zero, let scrollView = tableView.enclosingScrollView else {
+            guard autoscrollVelocity != .zero,
+                  isDraggingCellSelection,
+                  NSEvent.pressedMouseButtons != 0,
+                  tableView.window?.isKeyWindow ?? false,
+                  let scrollView = tableView.enclosingScrollView else {
                 stopAutoscroll()
                 return
             }
@@ -1991,11 +2020,31 @@ struct QueryResultsTableView: NSViewRepresentable {
         private func scheduleRowCountCorrection() {
             guard !pendingRowCountCorrection else { return }
             pendingRowCountCorrection = true
-            DispatchQueue.main.async { [weak self] in
-                guard let self else { return }
-                self.pendingRowCountCorrection = false
-                self.tableView?.noteNumberOfRowsChanged()
+            if let state = persistedState {
+                state.scheduleRowCountRefresh()
+                return
             }
+#if os(macOS)
+            let modes: [RunLoop.Mode] = [.default, .eventTracking]
+#else
+            let modes: [RunLoop.Mode] = [.default]
+#endif
+            RunLoop.main.perform(inModes: modes) { [weak self] in
+                self?.performRowCountRefresh()
+            }
+        }
+
+        private func performRowCountRefresh() {
+            if isPerformingUpdatePass {
+                needsDeferredRowCountRefresh = true
+                return
+            }
+            guard let tableView = tableView else { return }
+            pendingRowCountCorrection = false
+            tableView.noteNumberOfRowsChanged()
+#if DEBUG
+            print("[QueryResultsTableView] noteNumberOfRowsChanged (refresh)")
+#endif
         }
 
         private func notifyJsonSelection(_ region: SelectedRegion?) {
@@ -2171,6 +2220,8 @@ final class ResultTableContainerView: NSView {
     let scrollView: NSScrollView
     private let leadingView: ResultTableLeadingBackgroundView
     private var leadingWidth: CGFloat
+    private var cachedContainerColor: NSColor?
+    private var cachedHeaderColor: NSColor?
 
     init(scrollView: NSScrollView, leadingWidth: CGFloat) {
         self.scrollView = scrollView
@@ -2183,9 +2234,10 @@ final class ResultTableContainerView: NSView {
         scrollView.autoresizingMask = [.width, .height]
         leadingView.autoresizingMask = [.height]
         leadingView.isHidden = self.leadingWidth <= 0
+        configureScrollViewAppearance()
 
-        addSubview(leadingView)
         addSubview(scrollView)
+        addSubview(leadingView, positioned: .above, relativeTo: scrollView)
     }
 
     required init?(coder: NSCoder) {
@@ -2197,9 +2249,19 @@ final class ResultTableContainerView: NSView {
     }
 
     func updateBackgroundColor(_ color: NSColor) {
-        leadingView.updateBackgroundColor(ThemeManager.shared.resultsGridHeaderBackgroundNSColor)
+        let headerColor = ThemeManager.shared.resultsGridHeaderBackgroundNSColor
+        if cachedHeaderColor != headerColor {
+            cachedHeaderColor = headerColor
+            leadingView.updateBackgroundColor(headerColor)
+        }
+
+        guard cachedContainerColor != color else { return }
+        cachedContainerColor = color
         wantsLayer = true
         layer?.backgroundColor = color.cgColor
+    }
+
+    private func configureScrollViewAppearance() {
         scrollView.backgroundColor = .clear
         scrollView.drawsBackground = false
         scrollView.contentView.drawsBackground = false
@@ -2236,11 +2298,9 @@ final class ResultTableContainerView: NSView {
         let actualWidth = max(0, min(leadingWidth, bounds.width))
         leadingView.isHidden = actualWidth <= 0
         leadingView.frame = NSRect(x: 0, y: 0, width: actualWidth, height: bounds.height)
-        let scrollOriginX = actualWidth
-        let scrollWidth = max(bounds.width - scrollOriginX, 0)
-        scrollView.frame = NSRect(x: scrollOriginX, y: 0, width: scrollWidth, height: bounds.height)
-        if scrollView.responds(to: #selector(getter: NSScrollView.contentInsets)) {
-            scrollView.contentInsets = NSEdgeInsetsZero
+        scrollView.frame = bounds
+        if let clipView = scrollView.contentView as? NSClipView {
+            clipView.contentInsets = NSEdgeInsets(top: 0, left: actualWidth, bottom: 0, right: 0)
         }
     }
 }
@@ -2512,6 +2572,7 @@ private final class ResultTableDataCellView: NSTableCellView {
     let contentTextField: NSTextField
     private let actionButton: NSButton
     private var actionHandler: (() -> Void)?
+    private var isIconVisible = false
 
     override init(frame frameRect: NSRect) {
         contentTextField = NSTextField(frame: .zero)
@@ -2565,30 +2626,49 @@ private final class ResultTableDataCellView: NSTableCellView {
     }
 
     func apply(text: String, font: NSFont, textColor: NSColor) {
-        contentTextField.stringValue = text
-        contentTextField.font = font
-        contentTextField.textColor = textColor
+        if contentTextField.stringValue != text {
+            contentTextField.stringValue = text
+        }
+        if contentTextField.font !== font {
+            contentTextField.font = font
+        }
+        if contentTextField.textColor != textColor {
+            contentTextField.textColor = textColor
+        }
     }
 
     func configureIcon(_ handler: (() -> Void)?) {
         actionHandler = handler
         let shouldShow = handler != nil
-        actionButton.isHidden = !shouldShow
-        actionButton.isEnabled = shouldShow
-        needsLayout = true
+        if isIconVisible != shouldShow {
+            isIconVisible = shouldShow
+            actionButton.isHidden = !shouldShow
+            actionButton.isEnabled = shouldShow
+            needsLayout = true
+            needsDisplay = true
+        } else {
+            actionButton.isEnabled = shouldShow
+        }
     }
 
     override func layout() {
         super.layout()
         let padding = ResultsGridMetrics.horizontalPadding
-        let buttonWidth: CGFloat = actionButton.isHidden ? 0 : 18
-        let spacing: CGFloat = actionButton.isHidden ? 0 : 6
+        let buttonWidth: CGFloat = isIconVisible ? 18 : 0
+        let spacing: CGFloat = isIconVisible ? 6 : 0
         let availableWidth = max(bounds.width - padding * 2 - buttonWidth - spacing, 0)
-        contentTextField.frame = NSRect(x: padding, y: 0, width: availableWidth, height: bounds.height)
-        if !actionButton.isHidden {
+        let contentFrame = NSRect(x: padding, y: 0, width: availableWidth, height: bounds.height)
+        if contentTextField.frame != contentFrame {
+            contentTextField.frame = contentFrame
+        }
+
+        if isIconVisible {
             let buttonHeight: CGFloat = 16
             let originY = (bounds.height - buttonHeight) / 2
-            actionButton.frame = NSRect(x: bounds.width - padding - buttonWidth, y: originY, width: buttonWidth, height: buttonHeight)
+            let buttonFrame = NSRect(x: bounds.width - padding - buttonWidth, y: originY, width: buttonWidth, height: buttonHeight)
+            if actionButton.frame != buttonFrame {
+                actionButton.frame = buttonFrame
+            }
         }
     }
 

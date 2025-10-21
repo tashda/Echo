@@ -1,4 +1,7 @@
 import Foundation
+import os
+
+private let structureLogger = Logger(subsystem: "dk.tippr.echo.database-structure", category: "Explorer")
 
 struct DatabaseStructureFetcher {
     struct Credentials {
@@ -14,6 +17,10 @@ struct DatabaseStructureFetcher {
 
     let factory: DatabaseFactory
     let databaseType: DatabaseType
+
+    private var supportedObjectTypes: Set<SchemaObjectInfo.ObjectType> {
+        Set(SchemaObjectInfo.ObjectType.supported(for: databaseType))
+    }
 
     func fetchStructure(
         for connection: SavedConnection,
@@ -193,6 +200,18 @@ struct DatabaseStructureFetcher {
             return false
         }
 
+        func sanitizedSchemaInfo(_ schema: SchemaInfo) -> SchemaInfo {
+            guard !supportedObjectTypes.isEmpty else { return schema }
+            let filteredObjects = schema.objects.filter { supportedObjectTypes.contains($0.type) }
+            guard filteredObjects.count != schema.objects.count else { return schema }
+            let removedTypes = Set(schema.objects.map(\.type)).subtracting(supportedObjectTypes)
+            if !removedTypes.isEmpty {
+                let removedDescription = removedTypes.map(\.rawValue).joined(separator: ",")
+                structureLogger.notice("Filtered unsupported schema objects (\(removedDescription, privacy: .public)) for \(databaseType.displayName, privacy: .public) schema \(schema.name, privacy: .public)")
+            }
+            return SchemaInfo(name: schema.name, objects: filteredObjects)
+        }
+
         for (databaseIndex, databaseName) in databaseNames.enumerated() {
             try Task.checkCancellation()
             let loadMetadata = shouldLoadMetadata(for: databaseName)
@@ -295,10 +314,14 @@ struct DatabaseStructureFetcher {
                     }
                     await emitProgress(schemaBaseFraction, databaseName: databaseName, schemaName: schemaName, message: "Updating schema \(schemaName)…")
 
-                    let schemaInfo: SchemaInfo
+                    let rawSchemaInfo: SchemaInfo
                     if let metadataSession = activeSession as? DatabaseMetadataSession {
                         try Task.checkCancellation()
-                        schemaInfo = try await metadataSession.loadSchemaInfo(schemaName) { objectType, currentIndex, total in
+                        rawSchemaInfo = try await metadataSession.loadSchemaInfo(schemaName) { objectType, currentIndex, total in
+                            guard supportedObjectTypes.contains(objectType) else {
+                                structureLogger.warning("Received unsupported object type \(objectType.rawValue, privacy: .public) for \(databaseType.displayName, privacy: .public) (schema \(schemaName, privacy: .public))")
+                                return
+                            }
                             guard !Task.isCancelled else { return }
                             let normalizedTotal = max(total, 1)
                             let objectFraction = Double(currentIndex) / Double(normalizedTotal)
@@ -313,9 +336,10 @@ struct DatabaseStructureFetcher {
                     } else {
                         try Task.checkCancellation()
                         let objects = try await activeSession.listTablesAndViews(schema: schemaName)
-                        schemaInfo = SchemaInfo(name: schemaName, objects: objects)
+                        rawSchemaInfo = SchemaInfo(name: schemaName, objects: objects)
                     }
 
+                    let schemaInfo = sanitizedSchemaInfo(rawSchemaInfo)
                     schemas.append(schemaInfo)
 
                     let schemaCompletionFraction = (

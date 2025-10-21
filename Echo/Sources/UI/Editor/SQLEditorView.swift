@@ -1104,6 +1104,10 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
     // MARK: - Autocompletion
 
     private func refreshCompletions(immediate: Bool = false) {
+        if suppressNextCompletionPopover {
+            suppressNextCompletionPopover = false
+            return
+        }
         guard !isApplyingCompletion else { return }
         guard displayOptions.autoCompletionEnabled else {
             completionTask?.cancel()

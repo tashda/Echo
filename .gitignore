@@ -1,5 +1,6 @@
 # Local benchmark credentials (keep secrets out of VCS)
 postgres_benchmark.env
+mssql.env
 
 # Development and documentation directories
 Instruments

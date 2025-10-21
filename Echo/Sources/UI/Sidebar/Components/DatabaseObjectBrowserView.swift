@@ -18,6 +18,10 @@ struct DatabaseObjectBrowserView: View {
     let scrollTo: (String, UnitPoint) -> Void
     
     @EnvironmentObject private var appModel: AppModel
+
+    private var supportedObjectTypes: [SchemaObjectInfo.ObjectType] {
+        SchemaObjectInfo.ObjectType.supported(for: connection.databaseType)
+    }
     
     private var trimmedSearchText: String {
         searchText.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -26,9 +30,7 @@ struct DatabaseObjectBrowserView: View {
     private var isSearching: Bool { !trimmedSearchText.isEmpty }
     
     private var totalFilteredObjectCount: Int {
-        SchemaObjectInfo.ObjectType.allCases.reduce(into: 0) { result, type in
-            result += objects(for: type).count
-        }
+        groupedObjectsByType.values.reduce(0) { $0 + $1.count }
     }
     
     private var pinnedObjects: [SchemaObjectInfo] {
@@ -49,16 +51,22 @@ struct DatabaseObjectBrowserView: View {
         return database.schemas
     }
     
-    private func objects(for type: SchemaObjectInfo.ObjectType) -> [SchemaObjectInfo] {
-        filteredSchemas
-            .flatMap { schema in
-                schema.objects.filter { object in
-                    object.type == type && matchesSearch(object)
-                }
+    private var groupedObjectsByType: [SchemaObjectInfo.ObjectType: [SchemaObjectInfo]] {
+        guard !filteredSchemas.isEmpty else { return [:] }
+        var grouped: [SchemaObjectInfo.ObjectType: [SchemaObjectInfo]] = [:]
+        for schema in filteredSchemas {
+            for object in schema.objects {
+                let type = object.type
+                guard supportedObjectTypes.contains(type), matchesSearch(object) else { continue }
+                grouped[type, default: []].append(object)
             }
-            .sorted { lhs, rhs in
+        }
+        for type in grouped.keys {
+            grouped[type]?.sort { lhs, rhs in
                 lhs.fullName.localizedCaseInsensitiveCompare(rhs.fullName) == .orderedAscending
             }
+        }
+        return grouped
     }
     
     private func matchesSearch(_ object: SchemaObjectInfo) -> Bool {
@@ -130,6 +138,7 @@ struct DatabaseObjectBrowserView: View {
     }
     
     var body: some View {
+        let groupedObjects = groupedObjectsByType
         if isSearching && totalFilteredObjectCount == 0 {
             SearchEmptyStateView(query: searchText)
         } else {
@@ -188,8 +197,8 @@ struct DatabaseObjectBrowserView: View {
                     .id(headerID)
                 }
                 
-                ForEach(SchemaObjectInfo.ObjectType.allCases, id: \.self) { objectType in
-                    let objects = objects(for: objectType)
+                ForEach(supportedObjectTypes, id: \.self) { objectType in
+                    let objects = groupedObjects[objectType] ?? []
                     
                     let headerID = "header-\(objectType.rawValue)"
                     let isExpanded = expandedObjectGroups.contains(objectType)
@@ -248,6 +257,9 @@ struct DatabaseObjectBrowserView: View {
                     }
                     .id(headerID)
                 }
+            }
+            .transaction { transaction in
+                transaction.animation = nil
             }
         }
     }
@@ -375,7 +387,6 @@ struct DatabaseObjectBrowserView: View {
             .padding(.horizontal, 12)
             .padding(.vertical, 4)
             .background(highlightBackground)
-            .shadow(color: isHovered ? accentColor.opacity(0.15) : Color.clear, radius: 8, x: 0, y: 2)
             .contentShape(Rectangle())
             .onTapGesture {
                 guard canExpand else { return }
@@ -384,7 +395,10 @@ struct DatabaseObjectBrowserView: View {
                 }
             }
             .onHover { hovering in
-                withAnimation(.easeInOut(duration: 0.15)) {
+                guard isHovered != hovering else { return }
+                var transaction = Transaction()
+                transaction.animation = nil
+                withTransaction(transaction) {
                     isHovered = hovering
                 }
             }
@@ -426,13 +440,9 @@ struct DatabaseObjectBrowserView: View {
         
         @ViewBuilder
         private var highlightBackground: some View {
-            let base = RoundedRectangle(cornerRadius: 8, style: .continuous)
             if isHovered || isExpanded {
-                base
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
                     .fill(accentColor.opacity(0.12))
-                    .overlay(
-                        base.stroke(accentColor.opacity(0.35), lineWidth: 1)
-                    )
             } else {
                 Color.clear
             }
@@ -470,25 +480,33 @@ struct DatabaseObjectBrowserView: View {
                             .padding(.vertical, 2)
                             .background(
                                 RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                    .fill(.ultraThinMaterial)
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                            .stroke(Color.white.opacity(0.18), lineWidth: 0.6)
-                                    )
+                                    .fill(Color.primary.opacity(0.06))
                             )
                     }
                     .padding(.vertical, 2)
                     .padding(.trailing, 12)
                     .background(
-                        RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .fill(accentColor.opacity(hoveredColumnID == column.name ? 0.08 : 0))
+                        Group {
+                            if hoveredColumnID == column.name {
+                                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                    .fill(accentColor.opacity(0.08))
+                            } else {
+                                Color.clear
+                            }
+                        }
                     )
                     .padding(.leading, 36)
                     .contentShape(Rectangle())
 #if os(macOS)
                     .onHover { hovering in
-                        withAnimation(.easeInOut(duration: 0.15)) {
-                            hoveredColumnID = hovering ? column.name : (hoveredColumnID == column.name ? nil : hoveredColumnID)
+                        var transaction = Transaction()
+                        transaction.animation = nil
+                        withTransaction(transaction) {
+                            if hovering {
+                                hoveredColumnID = column.name
+                            } else if hoveredColumnID == column.name {
+                                hoveredColumnID = nil
+                            }
                         }
                     }
 #endif

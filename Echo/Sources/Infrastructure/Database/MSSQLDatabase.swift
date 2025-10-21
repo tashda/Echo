@@ -299,34 +299,12 @@ final class MSSQLSession: DatabaseSession {
     }
 
     func listDatabases() async throws -> [String] {
-        logger.debug("Listing MSSQL databases: starting enumeration")
+        logger.info("Listing MSSQL databases: starting enumeration")
 
         let currentName = await resolvedCurrentDatabase()
         let originalContext = currentName ?? defaultDatabase
 
         try await ensureDatabaseContext("master")
-
-        func cleaned(_ names: [String], includeSystem: Bool = false) -> Set<String> {
-            var result = Set<String>()
-            for name in names where !name.isEmpty {
-                let lower = name.lowercased()
-                let isSystem = ["master", "tempdb", "model", "msdb"].contains(lower)
-                if isSystem {
-                    if includeSystem {
-                        result.insert(name)
-                    }
-                    continue
-                }
-                result.insert(name)
-            }
-            if let current = currentName, !current.isEmpty {
-                result.insert(current)
-            }
-            if let defaultDb = defaultDatabase, !defaultDb.isEmpty {
-                result.insert(defaultDb)
-            }
-            return result
-        }
 
         var discovered = Set<String>()
 
@@ -337,57 +315,74 @@ final class MSSQLSession: DatabaseSession {
         ORDER BY database_name;
         """
         if let dmRows = try? await fetchRows(dmSQL) {
-            let names = cleaned(dmRows.compactMap { $0.string("database_name") })
+            let names = dmRows.compactMap { $0.string("database_name")?.trimmingCharacters(in: .whitespacesAndNewlines) }
+                .filter { !$0.isEmpty }
             let sortedNames = names.sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
             logger.info("MSSQL listDatabases dm_exec_sessions yielded \(sortedNames)")
-            discovered.formUnion(names)
+            discovered.formUnion(sortedNames)
         }
 
         let dbGateSQL = """
-        SELECT name
-        FROM master.sys.databases
-        WHERE state_desc = 'ONLINE'
+        SELECT name, state_desc
+        FROM sys.databases
         ORDER BY name;
         """
-        if let rows = try? await fetchRows(dbGateSQL) {
-            let names = cleaned(rows.compactMap { $0.string("name") })
+        do {
+            let rows = try await fetchRows(dbGateSQL)
+            let names = rows.compactMap { row -> String? in
+                guard let name = row.string("name")?.trimmingCharacters(in: .whitespacesAndNewlines),
+                      !name.isEmpty
+                else {
+                    return nil
+                }
+                if let state = row.string("state_desc"),
+                   state.uppercased() != "ONLINE" {
+                    logger.debug("Skipping database \(name) with state \(state)")
+                    return nil
+                }
+                return name
+            }
             let sortedNames = names.sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
             logger.info("MSSQL listDatabases sys.databases (dbgate style) yielded \(sortedNames)")
             discovered.formUnion(names)
+        } catch {
+            logger.info("MSSQL listDatabases sys.databases (dbgate style) returned no rows")
         }
 
-        let accessibleSQL = """
-        SELECT name
-        FROM master.sys.databases
-        WHERE state_desc = 'ONLINE'
-          AND (HAS_DBACCESS(name) = 1 OR name = DB_NAME())
-        ORDER BY name;
-        """
-        if let rows = try? await fetchRows(accessibleSQL) {
-            let names = cleaned(rows.compactMap { $0.string("name") })
-            let sortedNames = names.sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
-            logger.info("MSSQL listDatabases sys.databases filtered yielded \(sortedNames)")
-            discovered.formUnion(names)
-        }
-
-        if let procedureRows = try? await fetchRows("EXEC master.dbo.sp_databases;"),
-           !procedureRows.isEmpty {
-            let names = cleaned(procedureRows.compactMap { $0.string("DATABASE_NAME") })
+        do {
+            let rows = try await fetchRows("EXEC master.dbo.sp_databases;")
+            let names = rows.compactMap { row -> String? in
+                guard let name = row.string("DATABASE_NAME")?.trimmingCharacters(in: .whitespacesAndNewlines),
+                      !name.isEmpty
+                else {
+                    return nil
+                }
+                return name
+            }
             let sortedNames = names.sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
             logger.info("MSSQL listDatabases sp_databases yielded \(sortedNames)")
             discovered.formUnion(names)
+        } catch {
+            logger.info("MSSQL listDatabases sp_databases query failed: \(error.localizedDescription)")
         }
 
-        if discovered.isEmpty {
-            let systemFallback = cleaned([], includeSystem: true)
-            let sortedFallback = systemFallback.sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
-            logger.info("MSSQL listDatabases fallback to system set \(sortedFallback)")
-            try await ensureDatabaseContext(originalContext)
-            return systemFallback.sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+        if let current = currentName?.trimmingCharacters(in: .whitespacesAndNewlines), !current.isEmpty {
+            discovered.insert(current)
+        }
+        if let defaultDb = defaultDatabase?.trimmingCharacters(in: .whitespacesAndNewlines), !defaultDb.isEmpty {
+            discovered.insert(defaultDb)
         }
 
-        let sorted = discovered.sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
-        logger.info("MSSQL listDatabases final set \(sorted)")
+        let sorted = discovered
+            .map { $0 }
+            .sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+
+        if sorted.isEmpty {
+            logger.info("MSSQL listDatabases discovered no databases; returning []")
+        } else {
+            logger.info("MSSQL listDatabases final set \(sorted)")
+        }
+
         try await ensureDatabaseContext(originalContext)
         return sorted
     }
@@ -397,11 +392,21 @@ final class MSSQLSession: DatabaseSession {
         let sql = """
         SELECT name
         FROM sys.schemas
-        WHERE name NOT IN ('sys', 'INFORMATION_SCHEMA')
         ORDER BY name;
         """
         let rows = try await fetchRows(sql)
-        let names = rows.compactMap { $0.string("name") }
+        let names = rows.compactMap { row -> String? in
+            guard let name = row.string("name")?.trimmingCharacters(in: .whitespacesAndNewlines),
+                  !name.isEmpty
+            else {
+                return nil
+            }
+            let lowered = name.lowercased()
+            if lowered == "sys" || lowered == "information_schema" {
+                return nil
+            }
+            return name
+        }
         logger.info("MSSQL listSchemas fetched \(names.count) schemas")
         if !names.isEmpty {
             return names
@@ -522,10 +527,16 @@ final class MSSQLSession: DatabaseSession {
     // MARK: - Metadata Helpers
 
     private func fetchRows(_ sql: String) async throws -> [MSSQLRow] {
-        let batch = "SET FMTONLY OFF;\n\n\(sql)"
+        let batch = "SET FMTONLY OFF;\n\(sql)"
         let future = connection.rawSql(batch)
         let rows = try await future.get()
-        logger.debug("MSSQL fetchRows executed batch for context (first 64 chars): \(batch.prefix(64)) … -> \(rows.count) rows, login defaults applied")
+        logger.info("MSSQL fetchRows executed SQL (first 64 chars): \(sql.prefix(64)) … -> \(rows.count) rows")
+        if !rows.isEmpty {
+            let preview = rows.prefix(8)
+            for (index, row) in preview.enumerated() {
+                logger.info("MSSQL fetchRows raw row[\(index)] = \(row)")
+            }
+        }
         return rows.map { MSSQLRow(row: $0, formatter: formatter) }
     }
 
@@ -547,7 +558,7 @@ final class MSSQLSession: DatabaseSession {
             do {
                 _ = try await connection.rawSql(sql).get()
                 await databaseContext.setActive(trimmed)
-                logger.debug("MSSQL session switched to database context: \(trimmed)")
+                logger.info("MSSQL session switched to database context: \(trimmed)")
             } catch {
                 await databaseContext.reset()
                 logger.warning("Failed to switch MSSQL session to database \(trimmed): \(error.localizedDescription)")
@@ -621,11 +632,11 @@ final class MSSQLSession: DatabaseSession {
         do {
             let name = try await currentDatabaseName()
             if let name {
-                logger.debug("Resolved current database: \(name)")
+                logger.info("Resolved current database: \(name)")
             }
             return name
         } catch {
-            logger.debug("Unable to resolve current database name: \(error.localizedDescription)")
+            logger.info("Unable to resolve current database name: \(error.localizedDescription)")
             return nil
         }
     }
@@ -1115,7 +1126,7 @@ extension MSSQLSession: DatabaseMetadataSession {
         progress: (@Sendable (SchemaObjectInfo.ObjectType, Int, Int) async -> Void)?
     ) async throws -> SchemaInfo {
         try await ensureDefaultDatabaseContext()
-        logger.debug("MSSQL loadSchemaInfo starting for schema \(schemaName)")
+        logger.info("MSSQL loadSchemaInfo starting for schema \(schemaName)")
         let columnMap = try await fetchColumnsByObject(schemaName: schemaName)
         let parameterMap = try await fetchParametersByObject(schemaName: schemaName)
 
@@ -1255,7 +1266,7 @@ extension MSSQLSession: DatabaseMetadataSession {
             )
         }
 
-        logger.debug("MSSQL loadSchemaInfo completed for schema \(schemaName) with \(objects.count) objects")
+        logger.info("MSSQL loadSchemaInfo completed for schema \(schemaName) with \(objects.count) objects")
         return SchemaInfo(name: schemaName, objects: objects)
     }
 }

@@ -630,3 +630,49 @@ struct SettingsView: View {
 extension Notification.Name {
     static let openSettingsSection = Notification.Name("com.fuzee.settings.openSection")
 }
+
+#if os(macOS)
+enum SettingsWindowStyle: String, CaseIterable {
+    case swiftUI
+    case appKit
+
+    var displayName: String {
+        switch self {
+        case .swiftUI: return "SwiftUI Window"
+        case .appKit: return "AppKit Preview"
+        }
+    }
+}
+
+enum SettingsWindowPresenter {
+    private static let defaultsKey = "com.fuzee.settings.preferredWindowStyle"
+    private static var cachedStyle: SettingsWindowStyle?
+
+    static var preferredStyle: SettingsWindowStyle {
+        get {
+            if let cachedStyle { return cachedStyle }
+            if let raw = UserDefaults.standard.string(forKey: defaultsKey),
+               let style = SettingsWindowStyle(rawValue: raw) {
+                cachedStyle = style
+                return style
+            }
+            cachedStyle = .swiftUI
+            return .swiftUI
+        }
+        set {
+            cachedStyle = newValue
+            UserDefaults.standard.set(newValue.rawValue, forKey: defaultsKey)
+        }
+    }
+
+    static func present(section: SettingsView.SettingsSection? = nil, style: SettingsWindowStyle? = nil) {
+        let style = style ?? preferredStyle
+        switch style {
+        case .swiftUI:
+            SettingsWindowController.shared.present(section: section)
+        case .appKit:
+            AppKitSettingsWindowController.shared.present(section: section)
+        }
+    }
+}
+#endif
