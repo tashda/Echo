@@ -358,10 +358,12 @@ final class MySQLSession: DatabaseSession {
             sql = "SHOW CREATE VIEW \(qualifiedName)"
         case .materializedView:
             throw DatabaseError.queryError("MySQL does not support materialized views")
-        case .function:
+        case .function, .procedure:
             sql = "SHOW CREATE FUNCTION `\(objectName.replacingOccurrences(of: "`", with: "``"))`"
         case .trigger:
             sql = "SHOW CREATE TRIGGER `\(objectName.replacingOccurrences(of: "`", with: "``"))`"
+        case .procedure:
+            throw DatabaseError.queryError("MySQL does not support procedures")
         }
 
         let rows = try await connection.simpleQuery(sql).get()
@@ -911,6 +913,7 @@ private extension SchemaObjectInfo.ObjectType {
     init?(mysqlRoutineType: String) {
         switch mysqlRoutineType.uppercased() {
         case "FUNCTION": self = .function
+        case "PROCEDURE": self = .procedure
         default: return nil
         }
     }

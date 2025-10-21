@@ -316,10 +316,12 @@ struct DatabaseObjectBrowserView: View {
                 return "eye"
             case .materializedView:
                 return "eye.fill"
-            case .function:
+            case .function, .procedure:
                 return "function"
             case .trigger:
                 return "bolt"
+            case .procedure:
+                return "gearshape"
             }
         }
         
@@ -797,7 +799,7 @@ struct DatabaseObjectBrowserView: View {
             switch object.type {
             case .table, .view, .materializedView:
                 return true
-            case .function, .trigger:
+            case .function, .trigger, .procedure:
                 return false
             }
         }
@@ -824,11 +826,14 @@ struct DatabaseObjectBrowserView: View {
                     actions.append(.createOrReplace)
                 }
                 actions.append(.dropIfExists)
-                if shouldIncludeSelectScript || object.type == .function {
+                if shouldIncludeSelectScript || object.type == .function || object.type == .procedure {
                     actions.append(.select)
                     if shouldIncludeSelectScript {
                         actions.append(.selectLimited(1000))
                     }
+                }
+                if object.type == .function || object.type == .procedure {
+                    actions.append(.execute)
                 }
                 return actions
                 
@@ -847,7 +852,7 @@ struct DatabaseObjectBrowserView: View {
                     actions.append(.select)
                     actions.append(.selectLimited(1000))
                 }
-                if object.type == .function {
+                if object.type == .function || object.type == .procedure {
                     actions.append(.execute)
                 }
                 return actions
@@ -861,7 +866,7 @@ struct DatabaseObjectBrowserView: View {
                 
             case .microsoftSQL:
                 var actions: [ScriptAction] = [.create, .alter, .dropIfExists]
-                if object.type == .function {
+                if object.type == .function || object.type == .procedure {
                     actions.append(.execute)
                 } else if shouldIncludeSelectScript {
                     actions.append(contentsOf: [.select, .selectLimited(1000)])
@@ -887,7 +892,7 @@ struct DatabaseObjectBrowserView: View {
             switch object.type {
             case .table, .view, .materializedView:
                 return true
-            case .function, .trigger:
+            case .function, .trigger, .procedure:
                 return false
             }
         }
@@ -1056,7 +1061,7 @@ struct DatabaseObjectBrowserView: View {
             switch connection.databaseType {
             case .mysql:
                 switch object.type {
-                case .function:
+                case .function, .procedure:
                     statement = "ALTER FUNCTION \(qualified)\n    -- Update characteristics here;\n"
                 case .trigger:
                     statement = "ALTER TRIGGER \(qualified)\n    -- Update trigger definition here;\n"
@@ -1107,7 +1112,7 @@ struct DatabaseObjectBrowserView: View {
         
         private func openSelectScript(limit: Int? = nil) {
             let sql: String
-            if object.type == .function {
+            if object.type == .function || object.type == .procedure {
                 sql = executeStatement()
             } else {
                 sql = selectStatement(limit: limit)
@@ -1579,13 +1584,25 @@ struct DatabaseObjectBrowserView: View {
             let qualified = qualifiedName(schema: object.schema, name: object.name)
             switch connection.databaseType {
             case .postgresql:
-                return "SELECT * FROM \(qualified)(/* arguments */);"
+                if object.type == .procedure {
+                    return "CALL \(qualified)(/* arguments */);"
+                } else {
+                    return "SELECT * FROM \(qualified)(/* arguments */);"
+                }
             case .mysql:
-                return "CALL \(qualified)(/* arguments */);"
+                if object.type == .procedure {
+                    return "CALL \(qualified)(/* arguments */);"
+                } else {
+                    return "SELECT \(qualified)(/* arguments */);"
+                }
             case .microsoftSQL:
-                return "EXEC \(qualified) /* arguments */;"
+                if object.type == .function {
+                    return "SELECT * FROM \(qualified)(/* arguments */);"
+                } else {
+                    return "EXEC \(qualified) /* arguments */;"
+                }
             case .sqlite:
-                return "-- Function execution is not supported in SQLite."
+                return "-- Programmable object execution is not supported in SQLite."
             }
         }
         
@@ -1615,9 +1632,13 @@ struct DatabaseObjectBrowserView: View {
                     return "ALTER VIEW \(qualified) RENAME TO \(quotedNewName);"
                 case .materializedView:
                     return "ALTER MATERIALIZED VIEW \(qualified) RENAME TO \(quotedNewName);"
-                case .function:
+                case .function, .procedure:
                     return trimmedName == nil
                     ? "ALTER FUNCTION \(qualified)(/* arg_types */) RENAME TO \(quotedNewName);"
+                    : nil
+                case .procedure:
+                    return trimmedName == nil
+                    ? "ALTER PROCEDURE \(qualified)(/* arg_types */) RENAME TO \(quotedNewName);"
                     : nil
                 case .trigger:
                     return "ALTER TRIGGER \(quoteIdentifier(object.name)) ON \(triggerTargetName()) RENAME TO \(quotedNewName);"
@@ -1630,11 +1651,18 @@ struct DatabaseObjectBrowserView: View {
                     return "RENAME TABLE \(qualified) TO \(destination);"
                 case .trigger:
                     return "RENAME TRIGGER \(qualified) TO \(quotedNewName);"
-                case .function:
+                case .function, .procedure:
                     return trimmedName == nil
                     ? """
                 -- MySQL cannot rename functions directly.
                 -- Drop and recreate the function with the desired name.
+                """
+                    : nil
+                case .procedure:
+                    return trimmedName == nil
+                    ? """
+                -- MySQL cannot rename procedures directly.
+                -- Drop and recreate the procedure with the desired name.
                 """
                     : nil
                 case .materializedView:
@@ -1650,7 +1678,7 @@ struct DatabaseObjectBrowserView: View {
                 -- SQLite cannot rename views directly.
                 -- Drop and recreate the view with the desired name.
                 """
-                case .trigger, .function, .materializedView:
+                case .trigger, .function, .procedure, .materializedView:
                     return "-- Renaming is not supported for this object in SQLite."
                 }
                 
@@ -1670,7 +1698,7 @@ struct DatabaseObjectBrowserView: View {
                 switch object.type {
                 case .trigger:
                     return "DROP TRIGGER \(includeIfExists ? "IF EXISTS " : "")\(quoteIdentifier(object.name)) ON \(triggerTargetName());"
-                case .function:
+                case .function, .procedure:
                     return "DROP FUNCTION \(includeIfExists ? "IF EXISTS " : "")\(qualified)(/* arg_types */);"
                 default:
                     return "DROP \(keyword) \(ifExists)\(qualified);"
@@ -1720,11 +1748,13 @@ struct DatabaseObjectBrowserView: View {
                 return "MATERIALIZED VIEW"
             case .function:
                 return "FUNCTION"
+            case .procedure:
+                return "PROCEDURE"
             case .trigger:
                 return "TRIGGER"
             }
         }
-        
+
         private func objectTypeDisplayName() -> String {
             switch object.type {
             case .table:
@@ -1735,6 +1765,8 @@ struct DatabaseObjectBrowserView: View {
                 return "Materialized View"
             case .function:
                 return "Function"
+            case .procedure:
+                return "Procedure"
             case .trigger:
                 return "Trigger"
             }

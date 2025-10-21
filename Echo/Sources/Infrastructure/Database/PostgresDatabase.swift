@@ -1537,7 +1537,7 @@ final class PostgresSession: DatabaseSession {
             }
             return "-- View definition unavailable"
 
-        case .function:
+        case .function, .procedure:
             let sql = """
             SELECT pg_catalog.pg_get_functiondef(p.oid)
             FROM pg_proc p

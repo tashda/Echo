@@ -357,6 +357,9 @@ private struct WorkspaceWindowConfigurator: NSViewRepresentable {
 
     final class Coordinator {
         private let overlay = WorkspaceToolbarTabBarOverlay()
+        private var lastWindowID: ObjectIdentifier?
+        private var lastStyle: WorkspaceTabBarStyle?
+        private var lastKeyState: Bool?
 
         func configure(
             window: NSWindow,
@@ -365,18 +368,33 @@ private struct WorkspaceWindowConfigurator: NSViewRepresentable {
             appState: AppState,
             themeManager: ThemeManager
         ) {
+            let windowID = ObjectIdentifier(window)
+            let windowChanged = lastWindowID != windowID
+            let styleChanged = lastStyle != tabBarStyle
+
+            if windowChanged {
+                overlay.detach()
+                lastWindowID = windowID
+            }
+
             applyWindowStyling(window)
 
-            overlay.apply(
-                style: tabBarStyle,
-                window: window,
-                appModel: appModel,
-                appState: appState,
-                themeManager: themeManager
-            )
+            if windowChanged || styleChanged {
+                overlay.apply(
+                    style: tabBarStyle,
+                    window: window,
+                    appModel: appModel,
+                    appState: appState,
+                    themeManager: themeManager
+                )
+                lastStyle = tabBarStyle
+            }
 
-            AppCoordinator.shared.appModel.isWorkspaceWindowKey =
-                window.identifier == AppWindowIdentifier.workspace && window.isKeyWindow
+            let isKey = window.isKeyWindow && window.identifier == AppWindowIdentifier.workspace
+            if lastKeyState != isKey {
+                AppCoordinator.shared.appModel.isWorkspaceWindowKey = isKey
+                lastKeyState = isKey
+            }
         }
 
         private func applyWindowStyling(_ window: NSWindow) {

@@ -15,6 +15,7 @@ final class WorkspaceToolbarTabBarOverlay {
 
     private var observers: [NSObjectProtocol] = []
     private var pendingLayoutUpdate = false
+    private var lastLayoutState: LayoutState?
 
     private let navigationPrefix = "workspace.navigation"
     private let primaryPrefix = "workspace.primary"
@@ -60,6 +61,7 @@ final class WorkspaceToolbarTabBarOverlay {
         hostingView = nil
         toolbarView = nil
         window = nil
+        lastLayoutState = nil
     }
 
     private func installIfNeeded(
@@ -76,6 +78,7 @@ final class WorkspaceToolbarTabBarOverlay {
                 appState: appState,
                 themeManager: themeManager
             )
+            lastLayoutState = nil
             toolbarView?.layoutSubtreeIfNeeded()
             scheduleLayoutUpdate()
             return
@@ -192,8 +195,6 @@ final class WorkspaceToolbarTabBarOverlay {
             let toolbar = window.toolbar
         else { return }
 
-        toolbarView.layoutSubtreeIfNeeded()
-
         let bounds = toolbarView.bounds
         let navigationMaxX = toolbar.items
             .filter { $0.itemIdentifier.rawValue.hasPrefix(navigationPrefix) }
@@ -209,20 +210,38 @@ final class WorkspaceToolbarTabBarOverlay {
         let trailingInset = max(bounds.width - primaryMinX + trailingPadding, trailingPadding)
         let availableWidth = bounds.width - leadingInset - trailingInset
 
-        leadingConstraint?.constant = leadingInset
-        trailingConstraint?.constant = -trailingInset
-
+        let desiredHeight: CGFloat
+        let centerOffset: CGFloat
         if let referenceHeight = referenceHeight(in: toolbarView, toolbar: toolbar) {
-            let desiredHeight = max(referenceHeight, WorkspaceChromeMetrics.toolbarTabBarHeight)
-            heightConstraint?.constant = desiredHeight
-            let offset = (referenceMidY(in: toolbarView, toolbar: toolbar) ?? bounds.midY) - bounds.midY + verticalInset
-            centerYConstraint?.constant = offset
+            desiredHeight = max(referenceHeight, WorkspaceChromeMetrics.toolbarTabBarHeight)
+            centerOffset = (referenceMidY(in: toolbarView, toolbar: toolbar) ?? bounds.midY) - bounds.midY + verticalInset
         } else {
-            heightConstraint?.constant = WorkspaceChromeMetrics.toolbarTabBarHeight
-            centerYConstraint?.constant = verticalInset
+            desiredHeight = WorkspaceChromeMetrics.toolbarTabBarHeight
+            centerOffset = verticalInset
         }
 
-        hostingView.isHidden = availableWidth < 120
+        let layoutState = LayoutState(
+            leading: leadingInset,
+            trailing: -trailingInset,
+            height: desiredHeight,
+            centerOffset: centerOffset,
+            isHidden: availableWidth < 120
+        )
+
+        if let lastLayoutState, lastLayoutState.isApproximatelyEqual(to: layoutState) {
+            return
+        }
+
+        apply(constraint: leadingConstraint, constant: layoutState.leading)
+        apply(constraint: trailingConstraint, constant: layoutState.trailing)
+        apply(constraint: heightConstraint, constant: layoutState.height)
+        apply(constraint: centerYConstraint, constant: layoutState.centerOffset)
+
+        if hostingView.isHidden != layoutState.isHidden {
+            hostingView.isHidden = layoutState.isHidden
+        }
+
+        lastLayoutState = layoutState
     }
 
     private func referenceHeight(in toolbarView: NSView, toolbar: NSToolbar) -> CGFloat? {
@@ -243,6 +262,13 @@ final class WorkspaceToolbarTabBarOverlay {
         return container.convert(view.bounds, from: view)
     }
 
+    private func apply(constraint: NSLayoutConstraint?, constant: CGFloat) {
+        guard let constraint else { return }
+        if abs(constraint.constant - constant) > 0.25 {
+            constraint.constant = constant
+        }
+    }
+
     private static func findToolbarView(in window: NSWindow) -> NSView? {
         guard let titlebarContainer = window.contentView?.superview else { return nil }
         var views: [NSView] = [titlebarContainer]
@@ -260,6 +286,22 @@ final class WorkspaceToolbarTabBarOverlay {
         }
 
         return nil
+    }
+
+    private struct LayoutState: Equatable {
+        let leading: CGFloat
+        let trailing: CGFloat
+        let height: CGFloat
+        let centerOffset: CGFloat
+        let isHidden: Bool
+
+        func isApproximatelyEqual(to other: LayoutState, tolerance: CGFloat = 0.5) -> Bool {
+            guard isHidden == other.isHidden else { return false }
+            return abs(leading - other.leading) <= tolerance &&
+                abs(trailing - other.trailing) <= tolerance &&
+                abs(height - other.height) <= tolerance &&
+                abs(centerOffset - other.centerOffset) <= tolerance
+        }
     }
 }
 

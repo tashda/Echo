@@ -1462,7 +1462,7 @@ private struct LiquidGlassServerCard: View {
                     tables += 1
                 case .view, .materializedView:
                     views += 1
-                case .function:
+                case .function, .procedure:
                     functions += 1
                 case .trigger:
                     triggers += 1
@@ -1498,7 +1498,7 @@ private struct DatabaseBubble: View {
                     tables += 1
                 case .view, .materializedView:
                     views += 1
-                case .function:
+                case .function, .procedure:
                     functions += 1
                 case .trigger:
                     triggers += 1

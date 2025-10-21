@@ -188,6 +188,7 @@ public struct SchemaObjectInfo: Sendable, Identifiable, Codable, Hashable {
         case materializedView = "MATERIALIZED VIEW"
         case function = "FUNCTION"
         case trigger = "TRIGGER"
+        case procedure = "PROCEDURE"
 
         public var pluralDisplayName: String {
             switch self {
@@ -195,6 +196,7 @@ public struct SchemaObjectInfo: Sendable, Identifiable, Codable, Hashable {
             case .view: return "Views"
             case .materializedView: return "Materialized Views"
             case .function: return "Functions"
+            case .procedure: return "Procedures"
             case .trigger: return "Triggers"
             }
         }
@@ -205,6 +207,7 @@ public struct SchemaObjectInfo: Sendable, Identifiable, Codable, Hashable {
             case .view: return "eye"
             case .materializedView: return "eye.fill"
             case .function: return "function"
+            case .procedure: return "gearshape"
             case .trigger: return "bolt"
             }
         }

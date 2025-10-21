@@ -52,6 +52,8 @@ struct DatabaseStructureFetcher {
                 return "Updating functions…"
             case .trigger:
                 return "Updating triggers…"
+            case .procedure:
+                return "Updating procedures…"
             }
         }
 

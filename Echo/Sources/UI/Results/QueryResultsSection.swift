@@ -24,6 +24,7 @@ struct QueryResultsSection: View {
     let connection: SavedConnection
     let activeDatabaseName: String?
     let gridState: QueryResultsGridState
+    let isResizingResults: Bool
 #if os(macOS)
     let foreignKeyDisplayMode: ForeignKeyDisplayMode
     let foreignKeyInspectorBehavior: ForeignKeyInspectorBehavior
@@ -250,7 +251,8 @@ struct QueryResultsSection: View {
                 foreignKeyInspectorBehavior: foreignKeyInspectorBehavior,
                 onForeignKeyEvent: onForeignKeyEvent,
                 onJsonEvent: handleJsonCellEvent,
-                persistedState: gridState
+                persistedState: gridState,
+                isResizing: isResizingResults
             )
             .opacity(hasRows ? 1 : 0)
             .allowsHitTesting(hasRows)
@@ -405,64 +407,7 @@ struct QueryResultsSection: View {
     }
 
     private var messagesView: some View {
-        Group {
-            if query.messages.isEmpty {
-                VStack(spacing: 12) {
-                    Image(systemName: "message")
-                        .font(.system(size: 28))
-                        .foregroundStyle(.secondary)
-                    Text("No Messages Yet")
-                        .font(.headline)
-                    Text("Server messages will appear here after your query runs.")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else {
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 10) {
-                        ForEach(query.messages) { message in
-                            VStack(alignment: .leading, spacing: 6) {
-                                HStack {
-                                    Text("#\(message.index)")
-                                        .font(.system(size: 11, weight: .semibold))
-
-                                    Text(message.timestamp.formatted(date: .omitted, time: .standard))
-                                        .font(.system(size: 11))
-                                        .foregroundStyle(.secondary)
-
-                                    Spacer()
-
-                                    Text(message.severity.displayName)
-                                        .font(.system(size: 10, weight: .semibold))
-                                        .foregroundStyle(message.severity.tint)
-                                        .padding(.horizontal, 6)
-                                        .padding(.vertical, 3)
-                                        .background(message.severity.tint.opacity(0.1), in: Capsule())
-                                }
-
-                                Text(message.message)
-                                    .font(.system(size: 12))
-                                    .foregroundStyle(.primary)
-
-                                if !message.metadata.isEmpty {
-                                    VStack(alignment: .leading, spacing: 2) {
-                                        ForEach(message.metadata.sorted(by: { $0.key < $1.key }), id: \.key) { key, value in
-                                            Text("\(key): \(value)")
-                                                .font(.system(size: 10, design: .monospaced))
-                                                .foregroundStyle(.secondary)
-                                        }
-                                    }
-                                }
-                            }
-                            .padding(10)
-                            .background(Color.secondary.opacity(0.08), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-                        }
-                    }
-                    .padding(.vertical, 8)
-                }
-            }
-        }
+        ResultMessagesView(results: query.results ?? QueryResultSet(columns: [], rows: []))
     }
 
 #if os(macOS)

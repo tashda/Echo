@@ -40,4 +40,5 @@ public struct SchemaInfo: Identifiable, Codable, Hashable {
     public var materializedViews: [SchemaObjectInfo] { objects.filter { $0.type == .materializedView } }
     public var functions: [SchemaObjectInfo] { objects.filter { $0.type == .function } }
     public var triggers: [SchemaObjectInfo] { objects.filter { $0.type == .trigger } }
+    public var procedures: [SchemaObjectInfo] { objects.filter { $0.type == .procedure } }
 }

@@ -1,4 +1,9 @@
 import SwiftUI
+#if os(macOS)
+import AppKit
+#elseif canImport(UIKit)
+import UIKit
+#endif
 
 struct EchoSenseSettingsView: View {
     @EnvironmentObject private var appModel: AppModel
@@ -140,38 +145,32 @@ struct EchoSenseSettingsView: View {
             Section("Suggestions") {
                 ToggleRow(
                     title: "Keywords",
-                    subtitle: "Add SQL keywords (SELECT, WHERE) in the suggestion list.",
                     isOn: suggestKeywordsBinding,
                     topic: .keywords
                 )
                 ToggleRow(
                     title: "Inline keyword preview",
-                    subtitle: "Show a dimmed keyword directly in the editor when a matching clause is expected.",
                     isOn: inlineKeywordPreviewBinding,
                     topic: .inlineKeywords
                 )
                 .disabled(!appState.sqlEditorDisplay.autoCompletionEnabled)
                 ToggleRow(
                     title: "Functions",
-                    subtitle: "Include built-in and database-specific functions in suggestions.",
                     isOn: suggestFunctionsBinding,
                     topic: .functions
                 )
                 ToggleRow(
                     title: "Snippets",
-                    subtitle: "Offer templated snippets with tab stops for common patterns.",
                     isOn: suggestSnippetsBinding,
                     topic: .snippets
                 )
                 ToggleRow(
                     title: "Join Helpers",
-                    subtitle: "Suggest ON clauses derived from foreign keys or accepted joins.",
                     isOn: suggestJoinsBinding,
                     topic: .joins
                 )
                 ToggleRow(
                     title: "History Boosting",
-                    subtitle: "Favor tables, columns, and joins you accepted recently.",
                     isOn: suggestHistoryBinding,
                     topic: .history
                 )
@@ -180,13 +179,11 @@ struct EchoSenseSettingsView: View {
             Section("Insertion") {
                 ToggleRow(
                     title: "Qualify table completions",
-                    subtitle: "Insert schema-qualified names when the engine knows the schema.",
                     isOn: qualifyTablesBinding,
                     topic: .qualifiedTables
                 )
                 ToggleRow(
                     title: "Show system schemas",
-                    subtitle: "Reveal pg_catalog, information_schema, and other system objects.",
                     isOn: showSystemSchemasBinding,
                     topic: .systemSchemas
                 )
@@ -203,13 +200,11 @@ struct EchoSenseSettingsView: View {
 
                 ToggleRow(
                     title: "Enable Command + Period",
-                    subtitle: "Keep ⌘ + . available after dismissing the EchoSense popover.",
                     isOn: commandTriggerBinding,
                     topic: .commandTrigger
                 )
                 ToggleRow(
                     title: "Enable Control + Space",
-                    subtitle: "Keep Ctrl + Space available as an alternative manual trigger.",
                     isOn: controlTriggerBinding,
                     topic: .controlTrigger
                 )
@@ -290,24 +285,20 @@ private enum InfoTopic: String, Identifiable, CaseIterable {
 
 private struct ToggleRow: View {
     let title: String
-    let subtitle: String?
     @Binding var isOn: Bool
     let topic: InfoTopic
     @State private var isPopoverPresented = false
 
     var body: some View {
-        HStack(alignment: subtitle == nil ? .center : .top, spacing: 12) {
-            VStack(alignment: .leading, spacing: subtitle == nil ? 0 : 4) {
-                Text(title)
-                    .font(.system(size: 13))
-                    .foregroundStyle(.primary)
-                if let subtitle {
-                    Text(subtitle)
-                        .font(.system(size: 12))
-                        .foregroundStyle(.secondary)
-                }
-            }
+        HStack(alignment: .center, spacing: 12) {
+            Text(title)
+                .font(.system(size: 13))
+                .foregroundStyle(.primary)
             Spacer(minLength: 12)
+            Toggle("", isOn: $isOn)
+                .labelsHidden()
+                .toggleStyle(.switch)
+                .accessibilityLabel(Text(title))
             Button(action: { isPopoverPresented.toggle() }) {
                 Image(systemName: "info.circle")
                     .font(.system(size: 13, weight: .semibold))
@@ -317,12 +308,8 @@ private struct ToggleRow: View {
             .popover(isPresented: $isPopoverPresented, attachmentAnchor: .rect(.bounds), arrowEdge: .trailing) {
                 InfoPopover(topic: topic)
             }
-            Toggle("", isOn: $isOn)
-                .labelsHidden()
-                .toggleStyle(.switch)
-                .accessibilityLabel(Text(title))
         }
-        .padding(.vertical, subtitle == nil ? 6 : 8)
+        .padding(.vertical, 8)
         .padding(.horizontal, 10)
         .background(toggleRowBackground)
         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
@@ -343,12 +330,46 @@ private struct InfoPopover: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text(topic.title)
-                .font(.headline)
+                .font(.system(size: 15, weight: .semibold))
+                .fixedSize(horizontal: false, vertical: true)
             Text(topic.message)
-                .font(.subheadline)
+                .font(.system(size: 13))
                 .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
         }
         .padding(16)
-        .frame(maxWidth: 320)
+        .frame(width: preferredWidth)
+    }
+
+    private var preferredWidth: CGFloat {
+        let padding: CGFloat = 32
+        let minWidth: CGFloat = 320
+        let maxWidth: CGFloat = 440
+        let contentLimit = maxWidth - padding
+
+        let titleWidth = measuredWidth(for: topic.title, font: platformFont(size: 15, weight: PlatformFont.Weight.semibold), limit: contentLimit)
+        let messageWidth = measuredWidth(for: topic.message, font: platformFont(size: 13), limit: contentLimit)
+        let contentWidth = max(titleWidth, messageWidth)
+        return min(maxWidth, max(minWidth, contentWidth + padding))
+    }
+
+    private func platformFont(size: CGFloat, weight: PlatformFont.Weight = PlatformFont.Weight.regular) -> PlatformFont {
+#if os(macOS)
+        NSFont.systemFont(ofSize: size, weight: weight)
+#else
+        UIFont.systemFont(ofSize: size, weight: weight)
+#endif
+    }
+
+    private func measuredWidth(for text: String, font: PlatformFont, limit: CGFloat) -> CGFloat {
+        guard !text.isEmpty else { return 0 }
+        let constraint = CGSize(width: limit, height: .greatestFiniteMagnitude)
+#if os(macOS)
+        let rect = NSAttributedString(string: text, attributes: [.font: font])
+            .boundingRect(with: constraint, options: [.usesLineFragmentOrigin, .usesFontLeading])
+#else
+        let rect = (text as NSString).boundingRect(with: constraint, options: [.usesLineFragmentOrigin, .usesFontLeading], attributes: [.font: font], context: nil)
+#endif
+        return ceil(rect.width)
     }
 }

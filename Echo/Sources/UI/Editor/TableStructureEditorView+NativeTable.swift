@@ -10,144 +10,106 @@ extension TableStructureEditorView {
     
     @ViewBuilder
     var nativeColumnsTable: some View {
-        let columns = viewModel.columns.filter { !$0.isDeleted }
-        if columns.isEmpty {
-            modernEmptyState
+        // Always show the table, use viewModel.columns directly if cached is empty
+        let columnsToShow = cachedVisibleColumns.isEmpty ? viewModel.columns.filter { !$0.isDeleted } : cachedVisibleColumns
+        
+        if columnsToShow.isEmpty {
+            fastEmptyState
         } else {
-            Table(columns, selection: $selectedColumnIDs) {
-                // Name Column
+            // Ultra-fast native table with minimal overhead
+            Table(columnsToShow, selection: $selectedColumnIDs) {
                 TableColumn("Name") { column in
-                    HStack(spacing: 8) {
+                    HStack(spacing: 6) {
                         Text(column.name)
-                            .font(.system(size: 13))
-                            .foregroundStyle(.primary)
-                        
+                            .font(.system(size: 13, weight: .medium))
                         if column.isNew {
-                            Image(systemName: "sparkles")
-                                .font(.system(size: 10))
-                                .foregroundStyle(.blue)
-                        } else if column.isDirty {
-                            Image(systemName: "circle.fill")
-                                .font(.system(size: 6))
-                                .foregroundStyle(.blue)
+                            Circle()
+                                .fill(.blue)
+                                .frame(width: 6, height: 6)
                         }
                     }
                 }
-                .width(min: 180, ideal: 220, max: 300)
+                .width(min: 180, ideal: 220)
                 
-                // Data Type Column
                 TableColumn("Data Type") { column in
-                    if let binding = columnBinding(for: column.id) {
-                        HStack(spacing: 4) {
-                            TextField("Data Type", text: Binding(
-                                get: { binding.wrappedValue.dataType },
-                                set: { binding.wrappedValue.dataType = $0 }
-                            ))
-                            .textFieldStyle(.plain)
-                            .font(.system(size: 12))
-                            
-                            Menu {
-                                ForEach(postgresDataTypeOptions.prefix(10), id: \.self) { option in
-                                    Button(option) { 
-                                        binding.wrappedValue.dataType = option 
-                                    }
-                                }
-                            } label: {
-                                Image(systemName: "chevron.down")
-                                    .font(.system(size: 10))
-                                    .foregroundStyle(.secondary)
-                            }
-                            .menuStyle(.borderlessButton)
-                        }
-                    } else {
-                        Text(column.dataType)
-                            .font(.system(size: 12))
-                            .foregroundStyle(.secondary)
-                    }
+                    Text(column.dataType.uppercased())
+                        .font(.system(size: 12, weight: .regular))
+                        .foregroundStyle(.secondary)
                 }
-                .width(min: 120, ideal: 160, max: 200)
+                .width(min: 120, ideal: 160)
                 
-                // Allow Null Column
-                TableColumn("Allow Null") { column in
-                    if let binding = columnBinding(for: column.id) {
-                        Toggle("", isOn: binding.isNullable)
-                            .toggleStyle(.checkbox)
-                            .labelsHidden()
-                    } else {
-                        Image(systemName: column.isNullable ? "checkmark.circle.fill" : "xmark.circle.fill")
-                            .foregroundStyle(column.isNullable ? .green : .red)
-                    }
-                }
-                .width(min: 80, ideal: 90, max: 100)
-                
-                // Default Value Column
-                TableColumn("Default") { column in
-                    if let binding = columnBinding(for: column.id) {
-                        TextField("Default", text: Binding(
-                            get: { binding.wrappedValue.defaultValue ?? "" },
-                            set: { newValue in
-                                let trimmed = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
-                                binding.wrappedValue.defaultValue = trimmed.isEmpty ? nil : trimmed
-                            }
-                        ))
-                        .textFieldStyle(.plain)
+                TableColumn("Nullable") { column in
+                    Image(systemName: column.isNullable ? "checkmark.circle.fill" : "xmark.circle.fill")
+                        .foregroundStyle(column.isNullable ? .green : .red)
                         .font(.system(size: 12))
-                    } else {
-                        Text(column.defaultValue ?? "—")
-                            .font(.system(size: 12))
-                            .foregroundStyle(.secondary)
+                }
+                .width(min: 80, ideal: 90)
+                
+                TableColumn("Default") { column in
+                    Text(column.defaultValue?.isEmpty == false ? column.defaultValue! : "—")
+                        .font(.system(size: 12))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                }
+                .width(min: 120, ideal: 180)
+                
+                TableColumn("Generated") { column in
+                    Text(column.generatedExpression?.isEmpty == false ? column.generatedExpression! : "—")
+                        .font(.system(size: 12))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                }
+                .width(min: 120, ideal: 200)
+                
+                TableColumn("Status") { column in
+                    HStack(spacing: 4) {
+                        Circle()
+                            .fill(column.isNew ? .blue : column.isDirty ? .orange : .green)
+                            .frame(width: 6, height: 6)
+                        Text(column.isNew ? "New" : column.isDirty ? "Modified" : "Synced")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundStyle(column.isNew || column.isDirty ? .primary : .secondary)
                     }
                 }
-                .width(min: 120, ideal: 180, max: 250)
-                
-                // Status Column
-                TableColumn("Status") { column in
-                    let metadata = columnStatusMetadata(for: column)
-                    Label(metadata.title, systemImage: metadata.systemImage)
-                        .labelStyle(.titleAndIcon)
-                        .foregroundStyle(metadata.tint)
-                        .font(.system(size: 11))
-                }
-                .width(min: 80, ideal: 120, max: 150)
+                .width(min: 80, ideal: 120)
             }
             .tableStyle(.inset(alternatesRowBackgrounds: true))
-            .background(Color(nsColor: .controlBackgroundColor))
-            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .stroke(Color(nsColor: .separatorColor), lineWidth: 1)
-            )
-            .contextMenu(forSelectionType: TableStructureEditorViewModel.ColumnModel.ID.self) { selection in
-                if selection.isEmpty {
-                    Button("Add Column") {
-                        presentNewColumn()
-                    }
-                } else {
+            .contextMenu(forSelectionType: UUID.self) { selection in
+                if !selection.isEmpty {
                     let targets = selection.compactMap { id in
-                        columns.first(where: { $0.id == id })
+                        columnsToShow.first(where: { $0.id == id })
                     }
                     nativeContextMenu(for: targets)
                 }
             }
-            .onKeyPress(.return) {
+            .onTapGesture(count: 2) {
                 if let firstSelected = selectedColumnIDs.first,
-                   let column = columns.first(where: { $0.id == firstSelected }) {
+                   let column = columnsToShow.first(where: { $0.id == firstSelected }) {
                     presentColumnEditor(for: column)
-                    return .handled
                 }
-                return .ignored
-            }
-            .onKeyPress(.delete) {
-                let targets = selectedColumnIDs.compactMap { id in
-                    columns.first(where: { $0.id == id })
-                }
-                if !targets.isEmpty {
-                    removeColumns(targets)
-                    return .handled
-                }
-                return .ignored
             }
         }
+    }
+    
+    private var fastEmptyState: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "tablecells")
+                .font(.system(size: 24))
+                .foregroundStyle(.secondary)
+            
+            Text("No columns yet")
+                .font(.system(size: 14, weight: .medium))
+            
+            Button("Add Column") {
+                presentNewColumn()
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.small)
+        }
+        .frame(maxWidth: .infinity, minHeight: 120)
+        .background(Color(nsColor: .controlBackgroundColor))
     }
     
 
@@ -225,7 +187,7 @@ extension TableStructureEditorView {
     }
 }
 
-// MARK: - Fallback for older macOS versions
+// MARK: - Fast Fallback Table for older macOS versions
 
 extension TableStructureEditorView {
     @ViewBuilder
@@ -233,7 +195,101 @@ extension TableStructureEditorView {
         if #available(macOS 13.0, *) {
             nativeColumnsTable
         } else {
-            columnsTable
+            fastLegacyTable
+        }
+    }
+    
+    // Ultra-fast legacy table for macOS < 13.0
+    @ViewBuilder
+    private var fastLegacyTable: some View {
+        // Always show the table, use viewModel.columns directly if cached is empty
+        let columnsToShow = cachedVisibleColumns.isEmpty ? viewModel.columns.filter { !$0.isDeleted } : cachedVisibleColumns
+        
+        if columnsToShow.isEmpty {
+            fastEmptyState
+        } else {
+            VStack(spacing: 0) {
+                // Simple header
+                HStack(spacing: 0) {
+                    Text("Name").frame(width: 220, alignment: .leading)
+                    Text("Data Type").frame(width: 160, alignment: .leading)
+                    Text("Nullable").frame(width: 90, alignment: .center)
+                    Text("Default").frame(width: 180, alignment: .trailing)
+                    Text("Status").frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(Color(nsColor: .controlBackgroundColor))
+                
+                Divider()
+                
+                // Fast rows with minimal overhead
+                ScrollView {
+                    LazyVStack(spacing: 0) {
+                        ForEach(Array(columnsToShow.enumerated()), id: \.element.id) { index, column in
+                            fastColumnRow(column: column, index: index)
+                        }
+                    }
+                }
+            }
+            .background(Color(nsColor: .controlBackgroundColor))
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(Color(nsColor: .separatorColor), lineWidth: 1)
+            )
+        }
+    }
+    
+    private func fastColumnRow(column: TableStructureEditorViewModel.ColumnModel, index: Int) -> some View {
+        HStack(spacing: 0) {
+            HStack(spacing: 6) {
+                Text(column.name)
+                    .font(.system(size: 13, weight: .medium))
+                if column.isNew {
+                    Circle().fill(.blue).frame(width: 6, height: 6)
+                }
+            }
+            .frame(width: 220, alignment: .leading)
+            
+            Text(column.dataType.uppercased())
+                .font(.system(size: 12))
+                .foregroundStyle(.secondary)
+                .frame(width: 160, alignment: .leading)
+            
+            Image(systemName: column.isNullable ? "checkmark.circle.fill" : "xmark.circle.fill")
+                .foregroundStyle(column.isNullable ? .green : .red)
+                .font(.system(size: 12))
+                .frame(width: 90, alignment: .center)
+            
+            Text(column.defaultValue?.isEmpty == false ? column.defaultValue! : "—")
+                .font(.system(size: 12))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .frame(width: 180, alignment: .trailing)
+            
+            HStack(spacing: 4) {
+                Circle()
+                    .fill(column.isNew ? .blue : column.isDirty ? .orange : .green)
+                    .frame(width: 6, height: 6)
+                Text(column.isNew ? "New" : column.isDirty ? "Modified" : "Synced")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(column.isNew || column.isDirty ? .primary : .secondary)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
+        .background(index.isMultiple(of: 2) ? Color.clear : Color(nsColor: .controlAlternatingRowBackgroundColors[1]))
+        .contentShape(Rectangle())
+        .onTapGesture(count: 2) {
+            presentColumnEditor(for: column)
+        }
+        .contextMenu {
+            Button("Edit Column") { presentColumnEditor(for: column) }
+            Button("Remove Column", role: .destructive) { viewModel.removeColumn(column) }
         }
     }
 }

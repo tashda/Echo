@@ -6,6 +6,7 @@ import Foundation
 
 private enum ResultsGridMetrics {
     static let horizontalPadding: CGFloat = 12
+    static let maxAutoWidthSampleCount = 200
 }
 
 struct QueryResultsTableView: NSViewRepresentable {
@@ -22,6 +23,7 @@ struct QueryResultsTableView: NSViewRepresentable {
     var onForeignKeyEvent: (ForeignKeyEvent) -> Void
     var onJsonEvent: (JsonCellEvent) -> Void
     var persistedState: QueryResultsGridState?
+    var isResizing: Bool = false
 
     @EnvironmentObject private var clipboardHistory: ClipboardHistoryStore
     struct SelectedCell: Equatable {
@@ -148,6 +150,7 @@ struct QueryResultsTableView: NSViewRepresentable {
         private var cachedViewportSize: CGSize = .zero
         private var pendingPaginationEvaluation = false
         private var pendingTableSizeAdjustment = false
+        private var lastParentIsResizing = false
         private var requestedForeignKeyColumns: Set<Int> = []
         private static let isGridDiagnosticsEnabled: Bool = {
             ProcessInfo.processInfo.environment["ECHO_GRID_DEBUG"] == "1"
@@ -285,6 +288,15 @@ struct QueryResultsTableView: NSViewRepresentable {
             tableView.headerView?.isHidden = false
             let currentRowOrder = parent.rowOrder
             let currentRowCount = currentRowOrder.isEmpty ? parent.query.displayedRowCount : currentRowOrder.count
+            let wasResizing = lastParentIsResizing
+            defer {
+                let endedResize = wasResizing && !parent.isResizing
+                lastParentIsResizing = parent.isResizing
+                if endedResize {
+                    requestTableSizeAdjustment(rowCount: currentRowCount)
+                    requestPaginationEvaluation()
+                }
+            }
             let columnsChanged = reloadColumns()
             let sortChanged = parent.activeSort != cachedSort
             let rowOrderChanged = currentRowOrder != cachedRowOrder
@@ -305,6 +317,8 @@ struct QueryResultsTableView: NSViewRepresentable {
             let hasPendingRowReloads = pendingRowReloadIndexes?.isEmpty == false
             let foreignKeyModeChanged = lastForeignKeyDisplayMode != parent.foreignKeyDisplayMode
                 || lastForeignKeyInspectorBehavior != parent.foreignKeyInspectorBehavior
+            let resizing = parent.isResizing
+            let viewportContribution = !resizing && viewportChanged
             let requiresUpdate = columnsChanged
                 || sortChanged
                 || rowOrderChanged
@@ -313,7 +327,7 @@ struct QueryResultsTableView: NSViewRepresentable {
                 || tokenChanged
                 || hasPendingRowReloads
                 || paletteChanged
-                || viewportChanged
+                || viewportContribution
                 || foreignKeyModeChanged
             if columnsChanged || tokenChanged || rowCountDecreased {
                 requestedForeignKeyColumns.removeAll()
@@ -438,7 +452,7 @@ struct QueryResultsTableView: NSViewRepresentable {
             }
 
             updateHeaderIndicators()
-            let needsSizeAdjustment = viewportChanged
+            let needsSizeAdjustment = viewportContribution
                 || columnsChanged
                 || sortChanged
                 || rowOrderChanged
@@ -471,20 +485,8 @@ struct QueryResultsTableView: NSViewRepresentable {
                 deactivateActiveSelectableField(in: tableView)
                 cachedFontStyles.removeAll(keepingCapacity: true)
                 applyHeaderStyle(to: tableView)
-                if reloadWorkItem == nil {
-                    performedFullReload = true
-                    reloadWorkItem = DispatchWorkItem { [weak tableView] in
-                        guard let tableView else { return }
-                        tableView.reloadData()
-#if DEBUG
-                        print("[QueryResultsTableView] reloadData executed (palette change)")
-#endif
-                        tableView.layoutSubtreeIfNeeded()
-                    }
-                } else {
-                    performedFullReload = true
-                }
                 refreshVisibleRowBackgrounds(tableView)
+                refreshVisibleCellsAppearance(tableView)
             }
 
             if performedFullReload || rowCountIncreased {
@@ -508,7 +510,7 @@ struct QueryResultsTableView: NSViewRepresentable {
                 DispatchQueue.main.async(execute: rowCountUpdateWorkItem)
             }
 
-            if performedFullReload || rowCountIncreased || rowCountDecreased || viewportChanged {
+            if !resizing && (performedFullReload || rowCountIncreased || rowCountDecreased || viewportChanged) {
                 requestPaginationEvaluation()
             }
         }
@@ -539,6 +541,7 @@ struct QueryResultsTableView: NSViewRepresentable {
         }
 
         private func requestPaginationEvaluation() {
+            guard !parent.isResizing else { return }
             guard !pendingPaginationEvaluation else { return }
             pendingPaginationEvaluation = true
             DispatchQueue.main.async { [weak self] in
@@ -549,6 +552,7 @@ struct QueryResultsTableView: NSViewRepresentable {
         }
 
         private func requestTableSizeAdjustment(rowCount: Int? = nil) {
+            guard !parent.isResizing else { return }
             guard !pendingTableSizeAdjustment else { return }
             pendingTableSizeAdjustment = true
             let capturedRowCount = rowCount
@@ -617,6 +621,7 @@ struct QueryResultsTableView: NSViewRepresentable {
                             tableColumn.width = minWidth
                         }
                     }
+                    tableColumn.headerCell.alignment = .left
                 }
             }
 
@@ -744,7 +749,30 @@ struct QueryResultsTableView: NSViewRepresentable {
             let theme = ThemeManager.shared
 
             var maxWidth = CGFloat.zero
-            for row in 0..<rowCount {
+            let sampleCount = parent.isResizing ? min(rowCount, 32) : min(rowCount, ResultsGridMetrics.maxAutoWidthSampleCount)
+            if sampleCount == 0 {
+                return ceil(maxWidth) + padding + 6
+            }
+            var sampledRows: [Int] = []
+            sampledRows.reserveCapacity(sampleCount)
+            if sampleCount == rowCount {
+                sampledRows = Array(0..<rowCount)
+            } else {
+                let step = max(1, rowCount / sampleCount)
+                var index = 0
+                while index < rowCount && sampledRows.count < sampleCount {
+                    sampledRows.append(index)
+                    index += step
+                }
+                if sampledRows.count < sampleCount, let last = sampledRows.last {
+                    for tail in Swift.stride(from: rowCount - 1, through: last, by: -1) {
+                        sampledRows.append(tail)
+                        if sampledRows.count >= sampleCount { break }
+                    }
+                }
+            }
+
+            for row in sampledRows {
                 let sourceRow = resolvedRowIndex(for: row)
                 let value = parent.query.valueForDisplay(row: sourceRow, column: column)
                 let kind = ResultGridValueClassifier.kind(for: columnInfo, value: value)
@@ -776,13 +804,11 @@ struct QueryResultsTableView: NSViewRepresentable {
                 tableColumn.width = tableColumn.minWidth
                 tableColumn.isEditable = false
                 tableColumn.resizingMask = [.userResizingMask]
-                tableColumn.headerCell.alignment = .left
-                tableColumn.headerCell.controlSize = .regular
                 if !(tableColumn.headerCell is ResultTableHeaderCell) {
                     tableColumn.headerCell = ResultTableHeaderCell(textCell: column.name)
-                    tableColumn.headerCell.controlSize = .regular
-                    tableColumn.headerCell.alignment = .left
                 }
+                tableColumn.headerCell.controlSize = .regular
+                tableColumn.headerCell.alignment = .left
                 tableColumn.headerCell.font = NSFont.systemFont(ofSize: 12, weight: .semibold)
                 tableView.addTableColumn(tableColumn)
             }
@@ -926,6 +952,22 @@ struct QueryResultsTableView: NSViewRepresentable {
             }
         }
 
+        private func refreshVisibleCellsAppearance(_ tableView: NSTableView) {
+            let visibleRange = tableView.rows(in: tableView.visibleRect)
+            guard visibleRange.length > 0 else { return }
+            let lower = max(0, visibleRange.location)
+            let upper = min(tableView.numberOfRows, lower + visibleRange.length)
+            guard upper > lower else { return }
+
+            for row in lower..<upper {
+                guard let rowView = tableView.rowView(atRow: row, makeIfNecessary: false) else { continue }
+                for columnIndex in 0..<tableView.tableColumns.count {
+                    guard let cellView = rowView.view(atColumn: columnIndex) as? ResultTableDataCellView else { continue }
+                    configureCellView(cellView, dataIndex: columnIndex, tableView: tableView, row: row)
+                }
+            }
+        }
+
         private func selectionRenderInfo(forRow row: Int, rowView: NSTableRowView, tableView: NSTableView) -> ResultTableRowView.SelectionRenderInfo? {
             guard let region = selectionRegion, region.containsRow(row) else { return nil }
             let maxColumn = tableView.tableColumns.count - 1
@@ -978,55 +1020,7 @@ struct QueryResultsTableView: NSViewRepresentable {
             guard let dataIndex = dataColumnIndex(for: tableColumn) else { return nil }
             let identifier = NSUserInterfaceItemIdentifier("data-cell-\(dataIndex)")
             let cellView = tableView.makeView(withIdentifier: identifier, owner: self) as? ResultTableDataCellView ?? makeDataCellView(identifier: identifier)
-            let textField = cellView.contentTextField
-
-            let sourceIndex = resolvedRowIndex(for: row)
-            let rawValue = parent.query.valueForDisplay(row: sourceIndex, column: dataIndex)
-            let columnInfo = dataIndex < parent.query.displayedColumns.count ? parent.query.displayedColumns[dataIndex] : nil
-
-            let kind: ResultGridValueKind
-            if rawValue == nil {
-                kind = .null
-            } else if dataIndex < cachedColumnKinds.count {
-                kind = cachedColumnKinds[dataIndex]
-            } else {
-                kind = ResultGridValueClassifier.kind(for: columnInfo, value: rawValue)
-            }
-
-            let theme = ThemeManager.shared
-            let style = theme.resultGridStyle(for: kind)
-            let resolvedValue = rawValue ?? ""
-
-            switch kind {
-            case .null:
-                textField.stringValue = "NULL"
-            default:
-                textField.stringValue = resolvedValue
-            }
-
-            textField.textColor = style.nsColor
-            textField.font = resolvedFont(for: style)
-            textField.drawsBackground = false
-            textField.backgroundColor = .clear
-            textField.layer?.backgroundColor = NSColor.clear.cgColor
-            textField.layer?.borderWidth = 0
-            textField.layer?.borderColor = nil
-
-            let cellSelection = QueryResultsTableView.SelectedCell(row: row, column: dataIndex)
-            let isSelectedCell = selectionRegion?.contains(cellSelection) ?? false
-            if isSelectedCell {
-                textField.textColor = theme.resultsGridCellTextNSColor
-            }
-
-            let showsIcon = shouldShowForeignKeyIcon(forColumnInfo: columnInfo, value: rawValue)
-            if showsIcon {
-                cellView.configureIcon { [weak self] in
-                    self?.activateForeignKey(at: cellSelection)
-                }
-            } else {
-                cellView.configureIcon(nil)
-            }
-
+            configureCellView(cellView, dataIndex: dataIndex, tableView: tableView, row: row)
             cellView.frame = NSRect(x: 0, y: 0, width: tableColumn.width, height: tableView.rowHeight)
             return cellView
         }
@@ -1043,8 +1037,50 @@ struct QueryResultsTableView: NSViewRepresentable {
                 cell.backgroundColor = .clear
                 cell.usesSingleLineMode = true
                 cell.truncatesLastVisibleLine = true
+                cell.alignment = .left
             }
             return cellView
+        }
+
+        private func configureCellView(_ cellView: ResultTableDataCellView, dataIndex: Int, tableView: NSTableView, row: Int) {
+            let sourceIndex = resolvedRowIndex(for: row)
+            let rawValue = parent.query.valueForDisplay(row: sourceIndex, column: dataIndex)
+            let columnInfo = dataIndex < parent.query.displayedColumns.count ? parent.query.displayedColumns[dataIndex] : nil
+
+            let kind: ResultGridValueKind
+            if rawValue == nil {
+                kind = .null
+            } else if dataIndex < cachedColumnKinds.count {
+                kind = cachedColumnKinds[dataIndex]
+            } else {
+                kind = ResultGridValueClassifier.kind(for: columnInfo, value: rawValue)
+            }
+
+            let theme = ThemeManager.shared
+            let style = theme.resultGridStyle(for: kind)
+            let font = resolvedFont(for: style)
+            let displayText: String
+            if let rawValue {
+                displayText = rawValue
+            } else if kind == .null {
+                displayText = "NULL"
+            } else {
+                displayText = ""
+            }
+
+            let cellSelection = QueryResultsTableView.SelectedCell(row: row, column: dataIndex)
+            let isSelectedCell = selectionRegion?.contains(cellSelection) ?? false
+            let textColor = isSelectedCell ? theme.resultsGridCellTextNSColor : style.nsColor
+
+            cellView.apply(text: displayText, font: font, textColor: textColor)
+
+            if shouldShowForeignKeyIcon(forColumnInfo: columnInfo, value: rawValue) {
+                cellView.configureIcon { [weak self] in
+                    self?.activateForeignKey(at: cellSelection)
+                }
+            } else {
+                cellView.configureIcon(nil)
+            }
         }
 
         private func shouldShowForeignKeyIcon(forColumnInfo column: ColumnInfo?, value: String?) -> Bool {
@@ -2287,6 +2323,12 @@ private final class ResultTableDataCellView: NSTableCellView {
         actionButton.translatesAutoresizingMaskIntoConstraints = true
         actionButton.autoresizingMask = []
         addSubview(actionButton)
+    }
+
+    func apply(text: String, font: NSFont, textColor: NSColor) {
+        contentTextField.stringValue = text
+        contentTextField.font = font
+        contentTextField.textColor = textColor
     }
 
     func configureIcon(_ handler: (() -> Void)?) {
