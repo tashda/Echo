@@ -332,7 +332,7 @@ actor SQLiteSession: DatabaseSession {
         case .table: typeString = "table"
         case .view: typeString = "view"
         case .trigger: typeString = "trigger"
-        case .materializedView, .function:
+        case .materializedView, .function, .procedure:
             throw DatabaseError.queryError("SQLite does not support definitions for \(objectType.rawValue)")
         }
         let sql = """

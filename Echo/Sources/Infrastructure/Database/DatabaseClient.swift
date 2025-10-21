@@ -223,20 +223,91 @@ public struct SchemaObjectInfo: Sendable, Identifiable, Codable, Hashable {
     public let schema: String
     public let type: ObjectType
     public var columns: [ColumnInfo]
+    public var parameters: [ProcedureParameterInfo]
     public let triggerAction: String?
     public let triggerTable: String?
 
-    public init(name: String, schema: String, type: ObjectType, columns: [ColumnInfo] = [], triggerAction: String? = nil, triggerTable: String? = nil) {
+    public init(
+        name: String,
+        schema: String,
+        type: ObjectType,
+        columns: [ColumnInfo] = [],
+        parameters: [ProcedureParameterInfo] = [],
+        triggerAction: String? = nil,
+        triggerTable: String? = nil
+    ) {
         self.name = name
         self.schema = schema
         self.type = type
         self.columns = columns
+        self.parameters = parameters
         self.triggerAction = triggerAction
         self.triggerTable = triggerTable
     }
 
     public var fullName: String {
         "\(schema).\(name)"
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case name
+        case schema
+        case type
+        case columns
+        case parameters
+        case triggerAction
+        case triggerTable
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.name = try container.decode(String.self, forKey: .name)
+        self.schema = try container.decode(String.self, forKey: .schema)
+        self.type = try container.decode(ObjectType.self, forKey: .type)
+        self.columns = try container.decodeIfPresent([ColumnInfo].self, forKey: .columns) ?? []
+        self.parameters = try container.decodeIfPresent([ProcedureParameterInfo].self, forKey: .parameters) ?? []
+        self.triggerAction = try container.decodeIfPresent(String.self, forKey: .triggerAction)
+        self.triggerTable = try container.decodeIfPresent(String.self, forKey: .triggerTable)
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(name, forKey: .name)
+        try container.encode(schema, forKey: .schema)
+        try container.encode(type, forKey: .type)
+        if !columns.isEmpty {
+            try container.encode(columns, forKey: .columns)
+        }
+        if !parameters.isEmpty {
+            try container.encode(parameters, forKey: .parameters)
+        }
+        try container.encodeIfPresent(triggerAction, forKey: .triggerAction)
+        try container.encodeIfPresent(triggerTable, forKey: .triggerTable)
+    }
+}
+
+public struct ProcedureParameterInfo: Sendable, Codable, Hashable {
+    public var name: String
+    public var dataType: String
+    public var isOutput: Bool
+    public var hasDefaultValue: Bool
+    public var maxLength: Int?
+    public var ordinalPosition: Int
+
+    public init(
+        name: String,
+        dataType: String,
+        isOutput: Bool,
+        hasDefaultValue: Bool,
+        maxLength: Int?,
+        ordinalPosition: Int
+    ) {
+        self.name = name
+        self.dataType = dataType
+        self.isOutput = isOutput
+        self.hasDefaultValue = hasDefaultValue
+        self.maxLength = maxLength
+        self.ordinalPosition = ordinalPosition
     }
 }
 

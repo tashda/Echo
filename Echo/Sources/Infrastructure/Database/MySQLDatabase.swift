@@ -358,12 +358,12 @@ final class MySQLSession: DatabaseSession {
             sql = "SHOW CREATE VIEW \(qualifiedName)"
         case .materializedView:
             throw DatabaseError.queryError("MySQL does not support materialized views")
-        case .function, .procedure:
+        case .function:
             sql = "SHOW CREATE FUNCTION `\(objectName.replacingOccurrences(of: "`", with: "``"))`"
+        case .procedure:
+            sql = "SHOW CREATE PROCEDURE `\(objectName.replacingOccurrences(of: "`", with: "``"))`"
         case .trigger:
             sql = "SHOW CREATE TRIGGER `\(objectName.replacingOccurrences(of: "`", with: "``"))`"
-        case .procedure:
-            throw DatabaseError.queryError("MySQL does not support procedures")
         }
 
         let rows = try await connection.simpleQuery(sql).get()

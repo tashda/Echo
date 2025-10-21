@@ -87,6 +87,7 @@ final class MSSQLSession: DatabaseSession {
     private let logger: Logger
     private let defaultDatabase: String?
     private let formatter = MSSQLCellFormatter()
+    private let databaseContext = MSSQLDatabaseContext()
 
     private let shutdownQueue = DispatchQueue(label: "dk.tippr.echo.mssql.shutdown")
     private var isClosed = false
@@ -147,6 +148,7 @@ final class MSSQLSession: DatabaseSession {
     }
 
     func simpleQuery(_ sql: String, progressHandler: QueryProgressHandler?) async throws -> QueryResultSet {
+        try await ensureDefaultDatabaseContext()
         var resolvedColumns = (try? await describeColumns(for: sql)) ?? []
         var shouldDropRowNumberColumn = false
 
@@ -260,6 +262,7 @@ final class MSSQLSession: DatabaseSession {
     }
 
     func listTablesAndViews(schema: String?) async throws -> [SchemaObjectInfo] {
+        try await ensureDefaultDatabaseContext()
         let schemaName = schema?.isEmpty == false ? schema! : "dbo"
         let escapedSchema = MSSQLSession.escapeLiteral(schemaName)
         let sql = """
@@ -364,6 +367,7 @@ final class MSSQLSession: DatabaseSession {
     }
 
     func listSchemas() async throws -> [String] {
+        try await ensureDefaultDatabaseContext()
         let sql = """
         SELECT name
         FROM sys.schemas
@@ -391,17 +395,20 @@ final class MSSQLSession: DatabaseSession {
     }
 
     func queryWithPaging(_ sql: String, limit: Int, offset: Int) async throws -> QueryResultSet {
+        try await ensureDefaultDatabaseContext()
         let pagedSQL = MSSQLSession.wrapForPaging(sql: sql, limit: limit, offset: offset)
         return try await simpleQuery(pagedSQL)
     }
 
     func getTableSchema(_ tableName: String, schemaName: String?) async throws -> [ColumnInfo] {
+        try await ensureDefaultDatabaseContext()
         let schema = schemaName?.isEmpty == false ? schemaName! : "dbo"
         let columnMap = try await fetchColumnsByObject(schemaName: schema)
         return columnMap[tableName] ?? []
     }
 
     func getObjectDefinition(objectName: String, schemaName: String, objectType: SchemaObjectInfo.ObjectType) async throws -> String {
+        try await ensureDefaultDatabaseContext()
         let qualifiedName = "\(MSSQLSession.escapeIdentifier(schemaName)).\(MSSQLSession.escapeIdentifier(objectName))"
         switch objectType {
         case .table:
@@ -455,6 +462,7 @@ final class MSSQLSession: DatabaseSession {
     }
 
     func executeUpdate(_ sql: String) async throws -> Int {
+        try await ensureDefaultDatabaseContext()
         let wrappedSQL = """
         SET NOCOUNT ON;
         \(sql);
@@ -468,6 +476,7 @@ final class MSSQLSession: DatabaseSession {
     }
 
     func getTableStructureDetails(schema: String, table: String) async throws -> TableStructureDetails {
+        try await ensureDefaultDatabaseContext()
         let columns = try await loadTableColumns(schema: schema, table: table)
         let primaryKey = try await loadPrimaryKey(schema: schema, table: table)
         let indexes = try await loadIndexes(schema: schema, table: table)
@@ -564,6 +573,7 @@ final class MSSQLSession: DatabaseSession {
     }
 
     private func fetchColumnsByObject(schemaName: String) async throws -> [String: [ColumnInfo]] {
+        try await ensureDefaultDatabaseContext()
         logger.info("MSSQL fetchColumnsByObject for schema \(schemaName) started")
         let sql = """
         SELECT
@@ -619,6 +629,71 @@ final class MSSQLSession: DatabaseSession {
         return columnsByTable
     }
 
+    private func fetchParametersByObject(schemaName: String) async throws -> [String: [ProcedureParameterInfo]] {
+        try await ensureDefaultDatabaseContext()
+        logger.info("MSSQL fetchParametersByObject for schema \(schemaName) started")
+        let sql = """
+        SELECT
+            OBJECT_NAME(p.object_id) AS object_name,
+            p.parameter_id,
+            p.name AS parameter_name,
+            TYPE_NAME(p.user_type_id) AS type_name,
+            p.max_length,
+            p.precision,
+            p.scale,
+            p.is_output,
+            p.has_default_value
+        FROM sys.parameters AS p
+        WHERE OBJECT_SCHEMA_NAME(p.object_id) = N'\(MSSQLSession.escapeLiteral(schemaName))'
+        ORDER BY OBJECT_NAME(p.object_id), p.parameter_id;
+        """
+
+        let rows: [MSSQLRow]
+        do {
+            rows = try await fetchRows(sql)
+        } catch {
+            logger.warning("MSSQL fetchParametersByObject for schema \(schemaName) failed: \(error.localizedDescription)")
+            return [:]
+        }
+        logger.info("MSSQL fetchParametersByObject for schema \(schemaName) received \(rows.count) rows")
+
+        var parameters: [String: [ProcedureParameterInfo]] = [:]
+        for row in rows {
+            guard
+                let objectName = row.string("object_name"),
+                let rawName = row.string("parameter_name"),
+                let baseType = row.string("type_name")
+            else { continue }
+
+            let maxLength = row.string("max_length").flatMap { Int($0) }
+            let precision = row.string("precision")
+            let scale = row.string("scale")
+            let formattedType = MSSQLSession.formatTypeName(
+                base: baseType,
+                maxLength: maxLength,
+                precision: precision,
+                scale: scale
+            )
+
+            let ordinal = row.string("parameter_id").flatMap { Int($0) } ?? parameters[objectName, default: []].count + 1
+            let parameter = ProcedureParameterInfo(
+                name: rawName,
+                dataType: formattedType,
+                isOutput: MSSQLSession.boolValue(from: row.string("is_output")),
+                hasDefaultValue: MSSQLSession.boolValue(from: row.string("has_default_value")),
+                maxLength: maxLength,
+                ordinalPosition: ordinal
+            )
+
+            parameters[objectName, default: []].append(parameter)
+        }
+
+        for key in parameters.keys {
+            parameters[key]?.sort { $0.ordinalPosition < $1.ordinalPosition }
+        }
+        return parameters
+    }
+
     private func loadPrimaryKeyColumns(schema: String) async throws -> [String: Set<String>] {
         let sql = """
         SELECT
@@ -643,6 +718,7 @@ final class MSSQLSession: DatabaseSession {
     }
 
     private func loadTableColumns(schema: String, table: String) async throws -> [TableStructureDetails.Column] {
+        try await ensureDefaultDatabaseContext()
         let sql = """
         SELECT
             c.name AS column_name,
@@ -674,6 +750,7 @@ final class MSSQLSession: DatabaseSession {
     }
 
     private func loadPrimaryKey(schema: String, table: String) async throws -> TableStructureDetails.PrimaryKey? {
+        try await ensureDefaultDatabaseContext()
         let sql = """
         SELECT
             kc.name AS constraint_name,
@@ -694,6 +771,7 @@ final class MSSQLSession: DatabaseSession {
     }
 
     private func loadIndexes(schema: String, table: String) async throws -> [TableStructureDetails.Index] {
+        try await ensureDefaultDatabaseContext()
         let sql = """
         SELECT
             i.name AS index_name,
@@ -741,6 +819,7 @@ final class MSSQLSession: DatabaseSession {
     }
 
     private func loadUniqueConstraints(schema: String, table: String) async throws -> [TableStructureDetails.UniqueConstraint] {
+        try await ensureDefaultDatabaseContext()
         let sql = """
         SELECT
             kc.name AS constraint_name,
@@ -767,6 +846,7 @@ final class MSSQLSession: DatabaseSession {
     }
 
     private func loadForeignKeys(schema: String, table: String) async throws -> [TableStructureDetails.ForeignKey] {
+        try await ensureDefaultDatabaseContext()
         let sql = """
         SELECT
             fk.name AS constraint_name,
@@ -816,6 +896,7 @@ final class MSSQLSession: DatabaseSession {
     }
 
     private func loadDependencies(schema: String, table: String) async throws -> [TableStructureDetails.Dependency] {
+        try await ensureDefaultDatabaseContext()
         let sql = """
         SELECT
             fk.name AS constraint_name,
@@ -974,8 +1055,10 @@ extension MSSQLSession: DatabaseMetadataSession {
         _ schemaName: String,
         progress: (@Sendable (SchemaObjectInfo.ObjectType, Int, Int) async -> Void)?
     ) async throws -> SchemaInfo {
+        try await ensureDefaultDatabaseContext()
         logger.debug("MSSQL loadSchemaInfo starting for schema \(schemaName)")
         let columnMap = try await fetchColumnsByObject(schemaName: schemaName)
+        let parameterMap = try await fetchParametersByObject(schemaName: schemaName)
 
         let tablesSQL = """
         SELECT table_name, table_type
@@ -1038,7 +1121,15 @@ extension MSSQLSession: DatabaseMetadataSession {
             }
             processed += 1
             let columns = columnMap[name] ?? []
-            objects.append(SchemaObjectInfo(name: name, schema: schemaName, type: type, columns: columns))
+            objects.append(
+                SchemaObjectInfo(
+                    name: name,
+                    schema: schemaName,
+                    type: type,
+                    columns: columns,
+                    parameters: parameterMap[name] ?? []
+                )
+            )
         }
 
         if let progress {
@@ -1050,7 +1141,14 @@ extension MSSQLSession: DatabaseMetadataSession {
             if let progress {
                 await progress(.function, processed, totalObjects)
             }
-            objects.append(SchemaObjectInfo(name: name, schema: schemaName, type: .function))
+            objects.append(
+                SchemaObjectInfo(
+                    name: name,
+                    schema: schemaName,
+                    type: .function,
+                    parameters: parameterMap[name] ?? []
+                )
+            )
         }
 
         if let progress {
@@ -1062,7 +1160,14 @@ extension MSSQLSession: DatabaseMetadataSession {
             if let progress {
                 await progress(.procedure, processed, totalObjects)
             }
-            objects.append(SchemaObjectInfo(name: name, schema: schemaName, type: .procedure))
+            objects.append(
+                SchemaObjectInfo(
+                    name: name,
+                    schema: schemaName,
+                    type: .procedure,
+                    parameters: parameterMap[name] ?? []
+                )
+            )
         }
 
         if let progress {
@@ -1084,6 +1189,7 @@ extension MSSQLSession: DatabaseMetadataSession {
                     schema: schemaName,
                     type: .trigger,
                     columns: [],
+                    parameters: [],
                     triggerAction: action.isEmpty ? nil : action,
                     triggerTable: tableFull
                 )

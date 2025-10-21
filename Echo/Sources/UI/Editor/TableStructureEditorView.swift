@@ -102,9 +102,12 @@ struct TableStructureEditorView: View {
         .background(Color(nsColor: themeManager.windowBackgroundNSColor))
         .onAppear {
             // Ensure cached columns are updated when view appears (only if empty)
+            print("DEBUG: onAppear - viewModel.columns.count = \(viewModel.columns.count)")
+            print("DEBUG: onAppear - cachedVisibleColumns.count = \(cachedVisibleColumns.count)")
             if cachedVisibleColumns.isEmpty {
                 cachedVisibleColumns = viewModel.columns.filter { !$0.isDeleted }
                 rebuildColumnIndexLookup()
+                print("DEBUG: onAppear - updated cachedVisibleColumns.count = \(cachedVisibleColumns.count)")
             }
         }
         .task {
@@ -116,9 +119,11 @@ struct TableStructureEditorView: View {
         }
         .onChange(of: viewModel.columns) { _ in
             // Update cached columns and rebuild lookup when any column changes
+            print("DEBUG: onChange - viewModel.columns.count = \(viewModel.columns.count)")
             cachedVisibleColumns = viewModel.columns.filter { !$0.isDeleted }
             rebuildColumnIndexLookup()
             pruneSelectedColumns()
+            print("DEBUG: onChange - updated cachedVisibleColumns.count = \(cachedVisibleColumns.count)")
         }
         .sheet(item: $activeIndexEditor) { presentation in
             LazyIndexEditorSheet(

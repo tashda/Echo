@@ -5,6 +5,7 @@ enum SearchSidebarCategory: String, CaseIterable, Identifiable, Hashable {
     case views
     case materializedViews
     case functions
+    case procedures
     case triggers
     case columns
     case indexes
@@ -19,6 +20,7 @@ enum SearchSidebarCategory: String, CaseIterable, Identifiable, Hashable {
         case .views: return "Views"
         case .materializedViews: return "Materialized Views"
         case .functions: return "Functions"
+        case .procedures: return "Procedures"
         case .triggers: return "Triggers"
         case .columns: return "Columns"
         case .indexes: return "Indexes"
@@ -33,6 +35,7 @@ enum SearchSidebarCategory: String, CaseIterable, Identifiable, Hashable {
         case .views: return "eye"
         case .materializedViews: return "eye.fill"
         case .functions: return "function"
+        case .procedures: return "gearshape"
         case .triggers: return "bolt"
         case .columns: return "square.grid.2x2"
         case .indexes: return "list.bullet.rectangle"

@@ -440,9 +440,7 @@ final class QueryResultsGridState {
     private var formattingGeneration: Int = 0
     private var formattingResetTask: Task<Void, Never>?
     private var materializedHighWaterMark: Int = 0
-#if DEBUG
     private let rowDiagnosticsEnabled = ProcessInfo.processInfo.environment["ECHO_ROW_DEBUG"] == "1"
-#endif
     struct ForeignKeyResolutionContext {
         let schema: String
         let table: String
@@ -863,6 +861,7 @@ final class QueryResultsGridState {
 
 #if DEBUG
         print("[WorkspaceTab] applyStreamUpdate appendedRowCount=\(appendedRowCount) appendedRows=\(update.appendedRows.count) rawRows=\(rawRows.count) encodedRows=\(update.encodedRows.count) totalRowCount=\(update.totalRowCount)")
+#endif
         if rowDiagnosticsEnabled {
             if let range = appendedRange, range.upperBound > update.totalRowCount {
                 debugReportRowAnomaly(stage: "applyStreamUpdate", message: "rowRange upperBound \(range.upperBound) exceeds reported total \(update.totalRowCount)")
@@ -871,7 +870,6 @@ final class QueryResultsGridState {
                 debugReportRowAnomaly(stage: "applyStreamUpdate", message: "incoming batch would exceed total (\(streamingRows.count + appendedRowCount) > \(update.totalRowCount))")
             }
         }
-#endif
 
         os_log("ApplyStreamUpdate begin rows=%{public}d", log: gridPipelineLog, type: .info, appendedRowCount)
         print("[Signpost] ApplyStreamUpdate begin rows=\(appendedRowCount)")
@@ -1528,7 +1526,6 @@ final class QueryResultsGridState {
                 os_signpost(.end, log: gridPipelineLog, name: "IntegrateFormattedRows")
             }
         }
-#if DEBUG
         if rowDiagnosticsEnabled {
             if totalRowCount >= 0 && range.upperBound > totalRowCount {
                 debugReportRowAnomaly(stage: "integrateFormattedRows", message: "range \(range) overshoots total \(totalRowCount) rows=\(rows.count)")
@@ -1537,7 +1534,6 @@ final class QueryResultsGridState {
                 debugReportRowAnomaly(stage: "integrateFormattedRows", message: "pre-merge streamingRows \(streamingRows.count) already exceeds total \(totalRowCount)")
             }
         }
-#endif
         rowCache.ingest(rows: rows, startingAt: range.lowerBound)
 
         if range.lowerBound < streamingRows.count {
@@ -1575,11 +1571,9 @@ final class QueryResultsGridState {
             if materializedHighWaterMark > cappedTotal {
                 materializedHighWaterMark = cappedTotal
             }
-#if DEBUG
             if rowDiagnosticsEnabled && streamingRows.count > cappedTotal {
                 debugReportRowAnomaly(stage: "integrateFormattedRows", message: "post-trim streamingRows \(streamingRows.count) still exceeds capped total \(cappedTotal)")
             }
-#endif
         }
 
         let contiguous = computeContiguousMaterializedCount()
@@ -1640,12 +1634,10 @@ final class QueryResultsGridState {
         }
     }
 
-#if DEBUG
     private func debugReportRowAnomaly(stage: String, message: @autoclosure () -> String) {
         guard rowDiagnosticsEnabled else { return }
         print("[RowDiagnostics][\(stage)] \(message()) streamingRows=\(streamingRows.count) materialized=\(materializedHighWaterMark) reported=\(rowProgress.totalReported) received=\(rowProgress.totalReceived) streamedCount=\(streamedRowCount)")
     }
-#endif
 
     private func computeContiguousMaterializedCount() -> Int {
         max(streamingRows.count, rowCache.contiguousMaterializedCount())
