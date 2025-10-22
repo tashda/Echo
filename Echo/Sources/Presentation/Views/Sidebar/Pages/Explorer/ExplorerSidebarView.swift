@@ -8,6 +8,7 @@ struct ExplorerSidebarView: View {
     @EnvironmentObject private var appState: AppState
 
     @State private var searchText = ""
+    @State private var debouncedSearchText = ""
     @State private var selectedSchemaName: String?
     @State private var isSearchFieldFocused = false
     @State private var expandedObjectGroups: Set<SchemaObjectInfo.ObjectType> = Set(SchemaObjectInfo.ObjectType.allCases)
@@ -19,6 +20,7 @@ struct ExplorerSidebarView: View {
     @State private var knownSessionIDs: Set<UUID> = []
     @State private var pinnedObjectIDsByDatabase: [String: Set<String>] = [:]
     @State private var pinnedSectionExpandedByDatabase: [String: Bool] = [:]
+    @State private var searchDebounceTask: Task<Void, Never>?
     // Control visibility of Connected Servers section
     // Set to false to hide the section (future: make this user-configurable)
     private let showConnectedServersSection = false
@@ -115,15 +117,43 @@ struct ExplorerSidebarView: View {
                             }
                         }
                     }
-                    .onChange(of: selectedSchemaName) { _, _ in
-                        expandedObjectIDs.removeAll()
-                        withAnimation(.easeInOut(duration: 0.35)) {
-                            proxy.scrollTo(ExplorerSidebarConstants.objectsTopAnchor, anchor: .top)
+                    .onChange(of: selectedSchemaName) { oldValue, newValue in
+                        let hasMeaningfulChange: Bool
+                        switch (oldValue, newValue) {
+                        case (.none, .none):
+                            hasMeaningfulChange = false
+                        case let (.some(lhs), .some(rhs)):
+                            hasMeaningfulChange = lhs.caseInsensitiveCompare(rhs) != .orderedSame
+                        default:
+                            hasMeaningfulChange = true
                         }
+                        guard hasMeaningfulChange else { return }
+                        if !expandedObjectIDs.isEmpty {
+                            expandedObjectIDs.removeAll()
+                        }
+                        proxy.scrollTo(ExplorerSidebarConstants.objectsTopAnchor, anchor: .top)
                     }
-                    .onChange(of: searchText) { _, _ in
-                        withAnimation(.easeInOut(duration: 0.25)) {
-                            proxy.scrollTo(ExplorerSidebarConstants.objectsTopAnchor, anchor: .top)
+                    .onChange(of: searchText) { oldValue, newValue in
+                        let trimmedOld = oldValue.trimmingCharacters(in: .whitespacesAndNewlines)
+                        let trimmedNew = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
+                        guard trimmedOld != trimmedNew else { return }
+
+                        searchDebounceTask?.cancel()
+                        if trimmedNew.isEmpty {
+                            debouncedSearchText = ""
+                            DispatchQueue.main.async {
+                                proxy.scrollTo(ExplorerSidebarConstants.objectsTopAnchor, anchor: .top)
+                            }
+                        } else {
+                            let pendingText = newValue
+                            searchDebounceTask = Task { @MainActor in
+                                try? await Task.sleep(nanoseconds: 200_000_000)
+                                guard !Task.isCancelled else { return }
+                                debouncedSearchText = pendingText
+                                DispatchQueue.main.async {
+                                    proxy.scrollTo(ExplorerSidebarConstants.objectsTopAnchor, anchor: .top)
+                                }
+                            }
                         }
                     }
 
@@ -131,6 +161,7 @@ struct ExplorerSidebarView: View {
                 }
             }
             .onAppear {
+                debouncedSearchText = searchText
                 if let focus = appModel.pendingExplorerFocus {
                     handleExplorerFocus(focus, proxy: proxy)
                 }
@@ -138,6 +169,10 @@ struct ExplorerSidebarView: View {
             .onChange(of: appModel.pendingExplorerFocus) { _, focus in
                 guard let focus else { return }
                 handleExplorerFocus(focus, proxy: proxy)
+            }
+            .onDisappear {
+                searchDebounceTask?.cancel()
+                searchDebounceTask = nil
             }
         }
     }
@@ -325,7 +360,7 @@ struct ExplorerSidebarView: View {
                             DatabaseObjectBrowserView(
                                 database: database,
                                 connection: session.connection,
-                                searchText: $searchText,
+                                searchText: $debouncedSearchText,
                                 selectedSchemaName: $selectedSchemaName,
                                 expandedObjectGroups: $expandedObjectGroups,
                                 expandedObjectIDs: $expandedObjectIDs,
@@ -519,14 +554,24 @@ struct ExplorerSidebarView: View {
     private func selectedDatabase(in structure: DatabaseStructure, for session: ConnectionSession) -> DatabaseInfo? {
         if let selectedName = session.selectedDatabaseName,
            let match = structure.databases.first(where: { $0.name == selectedName }) {
+            if ConnectionDebug.isEnabled {
+                ConnectionDebug.log("[ExplorerSidebar] Matched selected database=\(selectedName) for session=\(session.connection.connectionName)")
+            }
             return match
         }
 
         if !session.connection.database.isEmpty,
            let match = structure.databases.first(where: { $0.name == session.connection.database }) {
+            if ConnectionDebug.isEnabled {
+                ConnectionDebug.log("[ExplorerSidebar] Falling back to connection database=\(session.connection.database) for session=\(session.connection.connectionName)")
+            }
             return match
         }
 
+        if ConnectionDebug.isEnabled {
+            let available = structure.databases.map(\.name)
+            ConnectionDebug.log("[ExplorerSidebar] No database match for session=\(session.connection.connectionName). selected=\(session.selectedDatabaseName ?? "<nil>") connectionDefault=\(session.connection.database) available=\(available)")
+        }
         return nil
     }
 
@@ -557,15 +602,25 @@ struct ExplorerSidebarView: View {
     }
 
     private func resetFilters(for session: ConnectionSession? = nil) {
-        searchText = ""
-        selectedSchemaName = nil
-        expandedObjectIDs.removeAll()
+        if !searchText.isEmpty {
+            searchText = ""
+            debouncedSearchText = ""
+            searchDebounceTask?.cancel()
+        }
+        if selectedSchemaName != nil {
+            selectedSchemaName = nil
+        }
+        if !expandedObjectIDs.isEmpty {
+            expandedObjectIDs.removeAll()
+        }
         let targetSession = session ?? selectedSession
-        let supported = Set(supportedObjectTypes(for: targetSession))
-        if supported.isEmpty {
-            expandedObjectGroups.removeAll()
-        } else {
-            expandedObjectGroups = supported
+        let supportedSet = Set(supportedObjectTypes(for: targetSession))
+        if supportedSet.isEmpty {
+            if !expandedObjectGroups.isEmpty {
+                expandedObjectGroups.removeAll()
+            }
+        } else if expandedObjectGroups != supportedSet {
+            expandedObjectGroups = supportedSet
         }
     }
 

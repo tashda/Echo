@@ -31,6 +31,7 @@ struct DatabaseStructureFetcher {
         progressHandler: (@Sendable (Progress) async -> Void)? = nil,
         databaseHandler: (@Sendable (DatabaseInfo, Int, Int) async -> Void)? = nil
     ) async throws -> DatabaseStructure {
+        ConnectionDebug.log("Starting structure fetch for connection=\(connection.connectionName) type=\(connection.databaseType.displayName) selectedDatabase=\(selectedDatabase ?? "<nil>") filter=\(databaseFilter ?? [])")
         try Task.checkCancellation()
 
         let progressCallback = progressHandler
@@ -173,6 +174,7 @@ struct DatabaseStructureFetcher {
             }
         }
 
+        ConnectionDebug.log("Fetched database names for \(connection.connectionName): \(databaseNames)")
         let normalizedFilter = databaseFilter?
             .compactMap { $0.isEmpty ? nil : $0.lowercased() }
         let totalDatabases = max(databaseNames.count, 1)
@@ -248,6 +250,7 @@ struct DatabaseStructureFetcher {
                 }
             }
 
+            ConnectionDebug.log("Preparing database=\(databaseName) (index=\(databaseIndex + 1)/\(totalDatabases)) loadMetadata=\(loadMetadata)")
             guard loadMetadata, let activeSession = sessionForDatabase else {
                 if Task.isCancelled {
                     throw CancellationError()
@@ -258,6 +261,7 @@ struct DatabaseStructureFetcher {
 
                 let placeholder = DatabaseInfo(name: databaseName, schemas: [], schemaCount: 0)
                 databaseInfos.append(placeholder)
+                ConnectionDebug.log("Database=\(databaseName) skipped metadata. error=\(connectionError?.localizedDescription ?? "none")")
                 if let databaseHandler {
                     if Task.isCancelled {
                         throw CancellationError()
@@ -289,6 +293,7 @@ struct DatabaseStructureFetcher {
                 var schemas: [SchemaInfo] = []
                 let totalSchemas = max(schemaNames.count, 1)
 
+                ConnectionDebug.log("Database=\(databaseName) schema count=\(schemaNames.count)")
                 if schemaNames.isEmpty {
                     let completionFraction = Double(databaseIndex + 1) / Double(totalDatabases)
                     if Task.isCancelled {
@@ -346,6 +351,8 @@ struct DatabaseStructureFetcher {
                     await emitProgress(schemaCompletionFraction, databaseName: databaseName, schemaName: schemaName, message: "Schema \(schemaName) updated")
                 }
 
+                let totalObjects = schemas.reduce(0) { $0 + $1.objects.count }
+                ConnectionDebug.log("Database=\(databaseName) loaded schemas=\(schemas.count) totalObjects=\(totalObjects)")
                 let info = DatabaseInfo(name: databaseName, schemas: schemas, schemaCount: schemas.count)
                 databaseInfos.append(info)
                 if let databaseHandler {
@@ -356,6 +363,7 @@ struct DatabaseStructureFetcher {
                 }
             } catch {
                 print("Failed to load metadata for database \(databaseName) on connection \(connection.connectionName): \(error.localizedDescription)")
+                ConnectionDebug.log("Database=\(databaseName) metadata error=\(error.localizedDescription)")
                 let info = DatabaseInfo(name: databaseName, schemas: [], schemaCount: 0)
                 databaseInfos.append(info)
                 if let databaseHandler {
@@ -383,6 +391,7 @@ struct DatabaseStructureFetcher {
         }
         await emitProgress(1.0, databaseName: "", schemaName: nil, message: "Metadata cached")
 
+        ConnectionDebug.log("Completed structure fetch for connection=\(connection.connectionName) databases=\(structure.databases.count) totalSchemas=\(structure.databases.reduce(0) { $0 + $1.schemas.count })")
         return structure
     }
 }

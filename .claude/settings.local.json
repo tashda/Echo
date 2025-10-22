@@ -32,7 +32,10 @@
       "WebSearch",
       "WebFetch(domain:stackoverflow.com)",
       "WebFetch(domain:www.createwithswift.com)",
-      "Bash(xargs open:*)"
+      "Bash(xargs open:*)",
+      "Bash(osascript -e 'tell application \"\"\"\"System Events\"\"\"\" to tell process \"\"\"\"Echo\"\"\"\" to keystroke \"\"\"\",\"\"\"\" using command down')",
+      "Bash(log show:*)",
+      "Bash(osascript:*)"
     ],
     "deny": [],
     "ask": []
