@@ -403,6 +403,8 @@ final class MSSQLSession: DatabaseSession {
         let sql = """
         SELECT name
         FROM sys.schemas
+        WHERE name NOT IN ('sys', 'INFORMATION_SCHEMA', 'guest')
+          AND name NOT LIKE 'db\\_%' ESCAPE '\\'
         ORDER BY name;
         """
         let rows = try await fetchRows(sql, resetSession: true)
@@ -412,10 +414,6 @@ final class MSSQLSession: DatabaseSession {
             else {
                 return nil
             }
-            let lowered = name.lowercased()
-            if lowered == "sys" || lowered == "information_schema" {
-                return nil
-            }
             return name
         }
         logger.info("MSSQL listSchemas fetched \(names.count) schemas")
@@ -423,7 +421,14 @@ final class MSSQLSession: DatabaseSession {
             return names
         }
 
-        if let fallbackRows = try? await fetchRows("SELECT schema_name AS name FROM INFORMATION_SCHEMA.SCHEMATA ORDER BY schema_name", resetSession: true),
+        let fallbackSQL = """
+        SELECT schema_name AS name
+        FROM INFORMATION_SCHEMA.SCHEMATA
+        WHERE schema_name NOT IN ('sys', 'INFORMATION_SCHEMA', 'guest')
+          AND schema_name NOT LIKE 'db\\_%' ESCAPE '\\'
+        ORDER BY schema_name;
+        """
+        if let fallbackRows = try? await fetchRows(fallbackSQL, resetSession: true),
            !fallbackRows.isEmpty {
             let fallbackNames = fallbackRows.compactMap { $0.string("name") }
             logger.info("MSSQL listSchemas fallback via INFORMATION_SCHEMA returned \(fallbackNames.count) schemas")

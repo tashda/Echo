@@ -210,6 +210,7 @@ struct DatabaseObjectBrowserView: View {
                                         onTogglePin: { togglePin(for: object) },
                                         onTriggerTableTap: object.type == .trigger ? { tableName in revealTable(fullName: tableName) } : nil
                                     )
+                                    .equatable()
                                     .environmentObject(appModel)
                                     .id(object.id)
                                 }
@@ -225,9 +226,19 @@ struct DatabaseObjectBrowserView: View {
         }
         .onAppear {
             snapshotCache.update(with: input)
+            if ConnectionDebug.isEnabled {
+                let groupedTotals = snapshotCache.data.grouped.mapValues { $0.count }
+                let totalObjects = snapshotCache.data.grouped.values.reduce(0) { $0 + $1.count }
+                ConnectionDebug.log("[ExplorerSidebar] Snapshot initialised for database=\(database.name) search='\(searchText)' schema=\(selectedSchemaName ?? "<all>") objectTotals=\(groupedTotals) pinnedCount=\(snapshotCache.data.pinned.count) totalObjects=\(totalObjects)")
+            }
         }
         .onChange(of: input) { _, newValue in
             snapshotCache.update(with: newValue)
+            if ConnectionDebug.isEnabled {
+                let groupedTotals = snapshotCache.data.grouped.mapValues { $0.count }
+                let totalObjects = snapshotCache.data.grouped.values.reduce(0) { $0 + $1.count }
+                ConnectionDebug.log("[ExplorerSidebar] Snapshot updated for database=\(database.name) search='\(searchText)' schema=\(selectedSchemaName ?? "<all>") objectTotals=\(groupedTotals) pinnedCount=\(snapshotCache.data.pinned.count) totalObjects=\(totalObjects)")
+            }
         }
     }
 
@@ -262,7 +273,7 @@ private struct SearchEmptyStateView: View {
     
     // MARK: - Database Object Row
     
-    private struct DatabaseObjectRow: View {
+    private struct DatabaseObjectRow: View, Equatable {
         let object: SchemaObjectInfo
         let displayName: String
         let connection: SavedConnection
@@ -275,13 +286,6 @@ private struct SearchEmptyStateView: View {
     @EnvironmentObject private var appModel: AppModel
     @State private var isHovered = false
     @State private var hoveredColumnID: String?
-#if os(macOS)
-    @StateObject private var menuHandler = MenuActionHandler()
-#endif
-    @State private var menuCacheKey: MenuCacheKey?
-    @State private var cachedGeneralMenuItems: [ContextMenuActionItem] = []
-    @State private var cachedAdministrativeMenuItems: [ContextMenuActionItem] = []
-    @State private var cachedScriptActions: [ScriptAction] = []
         
         private var canExpand: Bool {
             showColumns && !object.columns.isEmpty
@@ -311,11 +315,19 @@ private struct SearchEmptyStateView: View {
         var body: some View {
             VStack(alignment: .leading, spacing: 0) {
                 rowContent
-                
+
                 if isExpanded && canExpand {
                     columnsList
                 }
             }
+        }
+
+        static func == (lhs: DatabaseObjectRow, rhs: DatabaseObjectRow) -> Bool {
+            lhs.object.id == rhs.object.id
+                && lhs.displayName == rhs.displayName
+                && lhs.showColumns == rhs.showColumns
+                && lhs.isExpanded == rhs.isExpanded
+                && lhs.isPinned == rhs.isPinned
         }
         
         private var rowContent: some View {
@@ -338,9 +350,10 @@ private struct SearchEmptyStateView: View {
                         .font(.system(size: 13))
                         .foregroundStyle(.primary)
                         .lineLimit(1)
-                    
+                        .contentShape(Rectangle())
+
                     Spacer()
-                    
+
                     if showColumns && !object.columns.isEmpty {
                         Text("\(object.columns.count)")
                             .font(.system(size: 11, weight: .medium))
@@ -373,11 +386,7 @@ private struct SearchEmptyStateView: View {
                     isHovered = hovering
                 }
             }
-#if os(macOS)
-        .appKitContextMenu { buildContextMenu() }
-#else
         .contextMenu { contextMenuContent }
-#endif
         }
         
         @ViewBuilder
@@ -529,33 +538,6 @@ private struct SearchEmptyStateView: View {
 #endif
         }
         
-        private func prepareMenuCacheIfNeeded() {
-            let key = MenuCacheKey(
-                isPinned: isPinned,
-                databaseType: connection.databaseType,
-                objectType: object.type,
-                columnCount: object.columns.count,
-                supportsDataPreview: supportsDataPreview,
-                supportsDiagram: supportsDiagram,
-                supportsTruncate: supportsTruncateTable
-            )
-            if menuCacheKey == key { return }
-            menuCacheKey = key
-            cachedGeneralMenuItems = computeGeneralMenuItems()
-            cachedAdministrativeMenuItems = computeAdministrativeMenuItems()
-            cachedScriptActions = scriptActionsForCurrentContext()
-        }
-        
-        private struct MenuCacheKey: Equatable {
-            let isPinned: Bool
-            let databaseType: DatabaseType
-            let objectType: SchemaObjectInfo.ObjectType
-            let columnCount: Int
-            let supportsDataPreview: Bool
-            let supportsDiagram: Bool
-            let supportsTruncate: Bool
-        }
-        
         private func openStructureEditor(for column: ColumnInfo, preferDrop: Bool = false) {
             Task { @MainActor in
                 guard let session = appModel.sessionManager.sessionForConnection(connection.id) else { return }
@@ -566,65 +548,24 @@ private struct SearchEmptyStateView: View {
             }
         }
         
-#if os(macOS)
-    private func buildContextMenu() -> NSMenu? {
-        prepareMenuCacheIfNeeded()
-        let menu = NSMenu()
-        menu.autoenablesItems = false
-        menuHandler.clear()
-
-        for item in cachedGeneralMenuItems {
-            menu.addItem(makeMenuItem(from: item))
-        }
-
-        let scriptActions = cachedScriptActions
-        if !scriptActions.isEmpty {
-            menu.addItem(.separator())
-            let scriptMenuItem = NSMenuItem(title: "Script as", action: nil, keyEquivalent: "")
-            scriptMenuItem.image = menuHandler.symbolImage(named: "scroll")
-            let scriptMenu = NSMenu(title: "Script as")
-            scriptMenu.autoenablesItems = false
-
-            for action in scriptActions {
-                let submenuItem = NSMenuItem(
-                    title: scriptTitle(for: action),
-                    action: #selector(MenuActionHandler.performAction(_:)),
-                    keyEquivalent: ""
-                )
-                submenuItem.image = menuHandler.symbolImage(named: scriptSystemImage(for: action))
-                menuHandler.register(submenuItem) { performScriptAction(action) }
-                scriptMenu.addItem(submenuItem)
-            }
-
-            scriptMenuItem.submenu = scriptMenu
-            menu.addItem(scriptMenuItem)
-        }
-
-        if !cachedAdministrativeMenuItems.isEmpty {
-            menu.addItem(.separator())
-            for item in cachedAdministrativeMenuItems {
-                menu.addItem(makeMenuItem(from: item))
-            }
-        }
-
-        return menu
-    }
-
-    private func makeMenuItem(from item: ContextMenuActionItem) -> NSMenuItem {
-        let menuItem = NSMenuItem(
-            title: item.title,
-            action: #selector(MenuActionHandler.performAction(_:)),
-            keyEquivalent: ""
-        )
-        menuItem.image = menuHandler.symbolImage(named: item.systemImage)
-        menuHandler.register(menuItem, role: item.role, action: item.action)
-        return menuItem
-    }
-#else
-    @ViewBuilder
     private var contextMenuContent: some View {
-        prepareMenuCacheIfNeeded()
-        ForEach(cachedGeneralMenuItems) { item in
+        let generalItems = computeGeneralMenuItems()
+        let scriptActions = scriptActionsForCurrentContext()
+        let administrativeItems = computeAdministrativeMenuItems()
+        return buildContextMenu(
+            generalItems: generalItems,
+            scriptActions: scriptActions,
+            administrativeItems: administrativeItems
+        )
+    }
+
+    @ViewBuilder
+    private func buildContextMenu(
+        generalItems: [ContextMenuActionItem],
+        scriptActions: [ScriptAction],
+        administrativeItems: [ContextMenuActionItem]
+    ) -> some View {
+        ForEach(generalItems) { item in
             Button(role: item.role) {
                 item.action()
             } label: {
@@ -632,7 +573,6 @@ private struct SearchEmptyStateView: View {
             }
         }
 
-        let scriptActions = cachedScriptActions
         if !scriptActions.isEmpty {
             Divider()
             Menu("Script as", systemImage: "scroll") {
@@ -646,9 +586,9 @@ private struct SearchEmptyStateView: View {
             }
         }
 
-        if !cachedAdministrativeMenuItems.isEmpty {
+        if !administrativeItems.isEmpty {
             Divider()
-            ForEach(cachedAdministrativeMenuItems) { item in
+            ForEach(administrativeItems) { item in
                 Button(role: item.role) {
                     item.action()
                 } label: {
@@ -657,7 +597,6 @@ private struct SearchEmptyStateView: View {
             }
         }
     }
-#endif
 
     private struct ContextMenuActionItem: Identifiable {
         let id: String

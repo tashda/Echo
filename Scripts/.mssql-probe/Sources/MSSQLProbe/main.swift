@@ -117,11 +117,19 @@ struct Main {
 
         try sessionReset(label: "Initial reset", on: connection)
 
+        let loginDatabase = targetDatabase.isEmpty ? "master" : targetDatabase
+        var expectedDatabases: [String] = ["AdventureWorks2022", "master"]
+        if !expectedDatabases.contains(where: { $0.caseInsensitiveCompare(loginDatabase) == .orderedSame }) {
+            expectedDatabases.append(loginDatabase)
+        }
+
         let tests: [Probe] = [
             Probe(
                 label: "Current database",
                 sql: "SET FMTONLY OFF; SELECT DB_NAME() AS name;",
-                minimumExpectedRows: 1
+                minimumExpectedRows: 1,
+                expectedContains: [loginDatabase],
+                expectedColumn: "name"
             ),
             Probe(
                 label: "Accessible databases",
@@ -130,7 +138,9 @@ struct Main {
                 FROM sys.databases
                 ORDER BY name;
                 """,
-                minimumExpectedRows: 1
+                minimumExpectedRows: 2,
+                expectedContains: expectedDatabases,
+                expectedColumn: "name"
             ),
             Probe(
                 label: "sys.databases (no HAS_DBACCESS)",
@@ -139,14 +149,18 @@ struct Main {
                 FROM sys.databases
                 ORDER BY name;
                 """,
-                minimumExpectedRows: 1
+                minimumExpectedRows: 2,
+                expectedContains: expectedDatabases,
+                expectedColumn: "name"
             ),
             Probe(
                 label: "sp_databases",
                 sql: """
                 EXEC master.dbo.sp_databases;
                 """,
-                minimumExpectedRows: 1
+                minimumExpectedRows: 2,
+                expectedContains: expectedDatabases,
+                expectedColumn: "DATABASE_NAME"
             ),
             Probe(
                 label: "Schemas in current database",
@@ -155,7 +169,9 @@ struct Main {
                 FROM sys.schemas
                 ORDER BY name;
                 """,
-                minimumExpectedRows: 1
+                minimumExpectedRows: 1,
+                expectedContains: ["dbo"],
+                expectedColumn: "name"
             ),
             Probe(
                 label: "INFORMATION_SCHEMA schemas",
@@ -164,7 +180,9 @@ struct Main {
                 FROM INFORMATION_SCHEMA.SCHEMATA
                 ORDER BY name;
                 """,
-                minimumExpectedRows: 1
+                minimumExpectedRows: 1,
+                expectedContains: ["INFORMATION_SCHEMA"],
+                expectedColumn: "name"
             ),
             Probe(
                 label: "Sys tables sample",
@@ -183,7 +201,9 @@ struct Main {
             Probe(
                 label: "Post-describe reset check",
                 sql: "SELECT name FROM sys.databases ORDER BY name;",
-                minimumExpectedRows: 1
+                minimumExpectedRows: 2,
+                expectedContains: expectedDatabases,
+                expectedColumn: "name"
             )
         ]
 
@@ -194,12 +214,28 @@ struct Main {
         let label: String
         let sql: String
         let minimumExpectedRows: Int?
+        let expectedContains: [String]
+        let expectedColumn: String?
 
-        init(label: String, sql: String, minimumExpectedRows: Int? = nil) {
+        init(
+            label: String,
+            sql: String,
+            minimumExpectedRows: Int? = nil,
+            expectedContains: [String] = [],
+            expectedColumn: String? = nil
+        ) {
             self.label = label
             self.sql = sql
             self.minimumExpectedRows = minimumExpectedRows
+            self.expectedContains = expectedContains
+            self.expectedColumn = expectedColumn
         }
+    }
+
+    private struct ProbeExpectationError: Error, CustomStringConvertible {
+        let message: String
+
+        var description: String { message }
     }
 
     private static func runSeries(_ probes: [Probe], using connection: TDSConnection) throws {
@@ -218,6 +254,7 @@ struct Main {
                     effectiveSQL = "SET FMTONLY OFF;\n\(probe.sql)"
                 }
                 let rows = try connection.rawSql(effectiveSQL).wait()
+                try validate(probe: probe, rows: rows)
                 let elapsed = Double(DispatchTime.now().uptimeNanoseconds - start.uptimeNanoseconds) / 1_000_000.0
                 report(probe: probe, rows: rows, elapsed: elapsed, logger: logger)
             } catch {
@@ -228,6 +265,41 @@ struct Main {
         }
     }
 
+    private static func validate(probe: Probe, rows: [TDSRow]) throws {
+        if let minimum = probe.minimumExpectedRows, rows.count < minimum {
+            throw ProbeExpectationError(message: "\(probe.label) expected at least \(minimum) row(s) but received \(rows.count)")
+        }
+
+        guard !probe.expectedContains.isEmpty else { return }
+
+        let header = rows.first?.columnMetadata.colData.map { $0.colName } ?? []
+        let columnName: String
+        if let explicit = probe.expectedColumn, !explicit.isEmpty {
+            columnName = explicit
+        } else if let inferred = header.first, !inferred.isEmpty {
+            columnName = inferred
+        } else {
+            throw ProbeExpectationError(message: "\(probe.label) could not determine a column for expectation checks")
+        }
+
+        let normalizedValues = Set(
+            rows.compactMap { row -> String? in
+                guard let data = row.column(columnName) else { return nil }
+                if let stringValue = data.string {
+                    return stringValue.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+                }
+                return data.description.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            }
+        )
+
+        for expected in probe.expectedContains {
+            let normalizedExpected = expected.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            if !normalizedValues.contains(normalizedExpected) {
+                throw ProbeExpectationError(message: "\(probe.label) missing expected value '\(expected)' in column \(columnName)")
+            }
+        }
+    }
+
     private static func report(
         probe: Probe,
         rows: [TDSRow],
@@ -235,12 +307,7 @@ struct Main {
         logger: Logger
     ) {
         let header = rows.first?.columnMetadata.colData.map { $0.colName } ?? []
-        let status: String
-        if let minimum = probe.minimumExpectedRows, rows.count < minimum {
-            status = "FAIL expected ≥\(minimum)"
-        } else {
-            status = "rows=\(rows.count)"
-        }
+        let status = "rows=\(rows.count)"
         print("=== \(probe.label) [\(status), \(String(format: "%.2f ms", elapsed))] ===")
         if header.isEmpty {
             print("(no columns)")

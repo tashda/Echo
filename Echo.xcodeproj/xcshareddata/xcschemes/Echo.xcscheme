@@ -61,6 +61,11 @@
             value = "0"
             isEnabled = "YES">
          </EnvironmentVariable>
+         <EnvironmentVariable
+            key = "ECHO_CONNECTION_DEBUG"
+            value = "0"
+            isEnabled = "YES">
+         </EnvironmentVariable>
       </EnvironmentVariables>
    </LaunchAction>
    <ProfileAction

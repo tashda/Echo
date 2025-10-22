@@ -4,74 +4,50 @@ import Combine
 import AppKit
 import QuartzCore
 
-/// AppKit-based settings window that mirrors Xcode Settings appearance exactly.
+/// AppKit-based settings window that mirrors Xcode Settings appearance.
 final class AppKitSettingsWindowController: NSWindowController {
     static let shared = AppKitSettingsWindowController()
 
     private let navigationBridge = SettingsNavigationBridge()
     private let hostingController: SettingsHostingViewController
-
-    private let navControl: NSSegmentedControl
-    private let capsuleView: CapsuleTitleAccessoryView
+    private let toolbarAccessoryView: SettingsToolbarAccessoryView
     private let titlebarAccessory: NSTitlebarAccessoryViewController
-    private let titlebarContainer: TitlebarContainerView
 
     private var cancellables: Set<AnyCancellable> = []
 
     private override init(window: NSWindow?) {
-        // Create nav control with separated buttons
-        navControl = NSSegmentedControl(images: [
-            NSImage(systemSymbolName: "chevron.left", accessibilityDescription: nil) ?? NSImage(),
-            NSImage(systemSymbolName: "chevron.right", accessibilityDescription: nil) ?? NSImage()
-        ], trackingMode: .momentary, target: nil, action: nil)
-
-        navControl.segmentStyle = .separated
-        navControl.controlSize = .small
-        navControl.setWidth(28, forSegment: 0)
-        navControl.setWidth(28, forSegment: 1)
-        navControl.translatesAutoresizingMaskIntoConstraints = false
-
-        // Create capsule view
-        capsuleView = CapsuleTitleAccessoryView()
-        capsuleView.translatesAutoresizingMaskIntoConstraints = false
-
-        // Create container view for both nav control and capsule
-        titlebarContainer = TitlebarContainerView()
-        titlebarContainer.navControl = navControl
-        titlebarContainer.capsuleView = capsuleView
-
-        // Create titlebar accessory on left
+        toolbarAccessoryView = SettingsToolbarAccessoryView(sidebarWidth: 280)
         titlebarAccessory = NSTitlebarAccessoryViewController()
-        titlebarAccessory.view = titlebarContainer
-        titlebarAccessory.layoutAttribute = .left
-
-        // Create hosting controller
         hostingController = SettingsHostingViewController(bridge: navigationBridge)
 
-        // Create window
         let window = NSWindow(contentViewController: hostingController)
         window.styleMask = [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView]
         window.titleVisibility = .hidden
         window.titlebarAppearsTransparent = true
-        window.toolbarStyle = .unified
+        window.titlebarSeparatorStyle = .none
+        window.isOpaque = false
+        window.backgroundColor = .clear
         window.isReleasedWhenClosed = false
-        window.title = "Settings"
+        window.title = ""
         window.setContentSize(NSSize(width: 960, height: 660))
         window.contentMinSize = NSSize(width: 820, height: 580)
 
+        let toolbar = NSToolbar(identifier: NSToolbar.Identifier("SettingsToolbar"))
+        toolbar.showsBaselineSeparator = false
+        window.toolbar = toolbar
+        window.toolbarStyle = .unified
+
         super.init(window: window)
 
-        // Configure nav control
-        navControl.target = self
-        navControl.action = #selector(handleNavigation(_:))
-        navControl.setEnabled(false, forSegment: 0)
-        navControl.setEnabled(false, forSegment: 1)
-
-        // Add titlebar accessory
+        titlebarAccessory.view = toolbarAccessoryView
+        titlebarAccessory.layoutAttribute = .leading
         window.addTitlebarAccessoryViewController(titlebarAccessory)
 
-        // Connect bridge
+        toolbarAccessoryView.onNavigateBack = { [weak self] in self?.handleBack() }
+        toolbarAccessoryView.onNavigateForward = { [weak self] in self?.handleForward() }
+
         connectBridge()
+        observeWindowActivation()
     }
 
     required init?(coder: NSCoder) {
@@ -79,6 +55,9 @@ final class AppKitSettingsWindowController: NSWindowController {
     }
 
     func present(section: SettingsView.SettingsSection? = nil) {
+        print("🔷 AppKitSettingsWindowController.present() called")
+        print("🔷 Window: \(String(describing: window))")
+
         if let section {
             NotificationCenter.default.post(name: .openSettingsSection, object: section.rawValue)
         }
@@ -86,6 +65,8 @@ final class AppKitSettingsWindowController: NSWindowController {
         window?.center()
         window?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+
+        print("🔷 Window should now be visible")
     }
 
     // MARK: - Bridge wiring
@@ -94,83 +75,60 @@ final class AppKitSettingsWindowController: NSWindowController {
         navigationBridge.$title
             .receive(on: RunLoop.main)
             .sink { [weak self] title in
-                self?.capsuleView.title = title
+                self?.toolbarAccessoryView.updateTitle(title)
             }
             .store(in: &cancellables)
 
         navigationBridge.$canNavigateBack
             .receive(on: RunLoop.main)
             .sink { [weak self] enabled in
-                self?.navControl.setEnabled(enabled, forSegment: 0)
+                self?.toolbarAccessoryView.updateBackEnabled(enabled)
             }
             .store(in: &cancellables)
 
         navigationBridge.$canNavigateForward
             .receive(on: RunLoop.main)
             .sink { [weak self] enabled in
-                self?.navControl.setEnabled(enabled, forSegment: 1)
+                self?.toolbarAccessoryView.updateForwardEnabled(enabled)
             }
             .store(in: &cancellables)
     }
 
-    @objc private func handleNavigation(_ sender: NSSegmentedControl) {
-        defer { sender.selectedSegment = -1 }
-        switch sender.selectedSegment {
-        case 0:
-            navigationBridge.triggerBack()
-        case 1:
-            navigationBridge.triggerForward()
-        default:
-            break
-        }
-    }
-}
-
-// MARK: - Titlebar Container with intrinsic size
-
-private final class TitlebarContainerView: NSView {
-    var navControl: NSSegmentedControl!
-    var capsuleView: CapsuleTitleAccessoryView!
-    private var stackView: NSStackView!
-
-    override init(frame frameRect: NSRect) {
-        super.init(frame: frameRect)
-        translatesAutoresizingMaskIntoConstraints = false
+    @objc private func handleBack() {
+        navigationBridge.triggerBack()
     }
 
-    required init?(coder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
+    @objc private func handleForward() {
+        navigationBridge.triggerForward()
     }
 
-    override func viewDidMoveToSuperview() {
-        super.viewDidMoveToSuperview()
-
-        guard superview != nil, stackView == nil else { return }
-
-        // Create stack view to hold nav control and capsule
-        stackView = NSStackView()
-        stackView.orientation = .horizontal
-        stackView.alignment = .centerY
-        stackView.spacing = 12
-        stackView.translatesAutoresizingMaskIntoConstraints = false
-        stackView.addArrangedSubview(navControl)
-        stackView.addArrangedSubview(capsuleView)
-
-        addSubview(stackView)
-
-        NSLayoutConstraint.activate([
-            stackView.leadingAnchor.constraint(equalTo: leadingAnchor),
-            stackView.trailingAnchor.constraint(equalTo: trailingAnchor),
-            stackView.topAnchor.constraint(equalTo: topAnchor),
-            stackView.bottomAnchor.constraint(equalTo: bottomAnchor)
-        ])
+    override func windowDidLoad() {
+        super.windowDidLoad()
+        updateWindowActivationAppearance()
     }
 
-    override var intrinsicContentSize: NSSize {
-        guard let stackView = stackView else {
-            return NSSize(width: 300, height: 32)
-        }
-        return stackView.fittingSize
+    private func observeWindowActivation() {
+        NotificationCenter.default.addObserver(self,
+                                               selector: #selector(handleWindowActivationChange),
+                                               name: NSWindow.didBecomeKeyNotification,
+                                               object: window)
+        NotificationCenter.default.addObserver(self,
+                                               selector: #selector(handleWindowActivationChange),
+                                               name: NSWindow.didResignKeyNotification,
+                                               object: window)
+    }
+
+    @objc private func handleWindowActivationChange(_ notification: Notification) {
+        updateWindowActivationAppearance()
+    }
+
+    private func updateWindowActivationAppearance() {
+        let isKey = window?.isKeyWindow ?? false
+        toolbarAccessoryView.updateWindowIsKey(isKey)
+    }
+
+    deinit {
+        NotificationCenter.default.removeObserver(self)
     }
 }
 
@@ -198,47 +156,27 @@ private struct SettingsRootSwiftUIView: View {
     }
 }
 
-// MARK: - Capsule title view
+// MARK: - Accessory view
 
-private final class CapsuleTitleAccessoryView: NSVisualEffectView {
-    private let titleField: NSTextField
+private final class SettingsToolbarAccessoryView: NSVisualEffectView {
+    var onNavigateBack: (() -> Void)?
+    var onNavigateForward: (() -> Void)?
 
-    var title: String = "Appearance" {
-        didSet {
-            titleField.stringValue = title
-            invalidateIntrinsicContentSize()
-        }
-    }
+    private let backButton: ToolbarNavigationButton
+    private let forwardButton: ToolbarNavigationButton
+    private let titleLabel: NSTextField
+    private let sidebarWidth: CGFloat
 
-    override init(frame frameRect: NSRect) {
-        titleField = NSTextField(labelWithString: "Appearance")
-        super.init(frame: frameRect)
-
-        translatesAutoresizingMaskIntoConstraints = false
-        material = .hudWindow
-        state = .active
-        blendingMode = .withinWindow
-        isEmphasized = false
-        wantsLayer = true
-        layer?.cornerRadius = 14
-        layer?.masksToBounds = true
-
-        titleField.font = .systemFont(ofSize: 13, weight: .semibold)
-        titleField.textColor = .labelColor
-        titleField.alignment = .center
-        titleField.isBordered = false
-        titleField.isEditable = false
-        titleField.backgroundColor = .clear
-        titleField.translatesAutoresizingMaskIntoConstraints = false
-
-        addSubview(titleField)
-
-        NSLayoutConstraint.activate([
-            titleField.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 16),
-            titleField.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -16),
-            titleField.centerYAnchor.constraint(equalTo: centerYAnchor),
-            heightAnchor.constraint(equalToConstant: 28)
-        ])
+    init(sidebarWidth: CGFloat) {
+        self.sidebarWidth = sidebarWidth
+        self.backButton = ToolbarNavigationButton(systemName: "chevron.left", accessibilityDescription: "Back")
+        self.forwardButton = ToolbarNavigationButton(systemName: "chevron.right", accessibilityDescription: "Forward")
+        self.titleLabel = NSTextField(labelWithString: "Appearance")
+        super.init(frame: NSRect(x: 0, y: 0, width: sidebarWidth + 360, height: 44))
+        configureViewHierarchy()
+        configureActions()
+        updateBackEnabled(false)
+        updateForwardEnabled(false)
     }
 
     required init?(coder: NSCoder) {
@@ -246,9 +184,148 @@ private final class CapsuleTitleAccessoryView: NSVisualEffectView {
     }
 
     override var intrinsicContentSize: NSSize {
-        let labelSize = titleField.intrinsicContentSize
-        let width = max(160, labelSize.width + 32)
-        return NSSize(width: width, height: 28)
+        NSSize(width: NSView.noIntrinsicMetric, height: 44)
+    }
+
+    func updateTitle(_ title: String) {
+        titleLabel.stringValue = title
+        titleLabel.invalidateIntrinsicContentSize()
+    }
+
+    func updateBackEnabled(_ isEnabled: Bool) {
+        backButton.isEnabled = isEnabled
+    }
+
+    func updateForwardEnabled(_ isEnabled: Bool) {
+        forwardButton.isEnabled = isEnabled
+    }
+
+    private func configureViewHierarchy() {
+        material = .titlebar
+        state = .active
+        blendingMode = .withinWindow
+        isEmphasized = true
+        translatesAutoresizingMaskIntoConstraints = false
+
+        let buttonPill = NSVisualEffectView()
+        buttonPill.material = .hudWindow
+        buttonPill.state = .active
+        buttonPill.blendingMode = .withinWindow
+        buttonPill.wantsLayer = true
+        buttonPill.layer?.cornerRadius = 16
+        if #available(macOS 13.0, *) {
+            buttonPill.layer?.cornerCurve = .continuous
+        }
+        buttonPill.layer?.masksToBounds = true
+        buttonPill.translatesAutoresizingMaskIntoConstraints = false
+        buttonPill.setContentHuggingPriority(.required, for: .horizontal)
+        buttonPill.setContentCompressionResistancePriority(.required, for: .horizontal)
+
+        let buttonStack = NSStackView(views: [backButton, forwardButton])
+        buttonStack.orientation = .horizontal
+        buttonStack.alignment = .centerY
+        buttonStack.spacing = 6
+        buttonStack.edgeInsets = NSEdgeInsets(top: 6, left: 6, bottom: 6, right: 6)
+        buttonStack.translatesAutoresizingMaskIntoConstraints = false
+
+        buttonPill.addSubview(buttonStack)
+        NSLayoutConstraint.activate([
+            buttonStack.leadingAnchor.constraint(equalTo: buttonPill.leadingAnchor),
+            buttonStack.trailingAnchor.constraint(equalTo: buttonPill.trailingAnchor),
+            buttonStack.topAnchor.constraint(equalTo: buttonPill.topAnchor),
+            buttonStack.bottomAnchor.constraint(equalTo: buttonPill.bottomAnchor)
+        ])
+
+        titleLabel.font = .systemFont(ofSize: 15, weight: .semibold)
+        titleLabel.textColor = .labelColor
+        titleLabel.alignment = .left
+        titleLabel.backgroundColor = .clear
+        titleLabel.isBordered = false
+        titleLabel.drawsBackground = false
+        titleLabel.setContentHuggingPriority(.required, for: .horizontal)
+        titleLabel.setContentCompressionResistancePriority(.required, for: .horizontal)
+
+        let mainStack = NSStackView(views: [buttonPill, titleLabel])
+        mainStack.orientation = .horizontal
+        mainStack.alignment = .centerY
+        mainStack.spacing = 12
+        mainStack.translatesAutoresizingMaskIntoConstraints = false
+        mainStack.setContentHuggingPriority(.required, for: .horizontal)
+        mainStack.setContentCompressionResistancePriority(.defaultHigh, for: .horizontal)
+
+        addSubview(mainStack)
+
+        NSLayoutConstraint.activate([
+            mainStack.leadingAnchor.constraint(equalTo: leadingAnchor, constant: sidebarWidth + 8),
+            mainStack.trailingAnchor.constraint(lessThanOrEqualTo: trailingAnchor, constant: -20),
+            mainStack.centerYAnchor.constraint(equalTo: centerYAnchor),
+            mainStack.topAnchor.constraint(greaterThanOrEqualTo: topAnchor, constant: 4),
+            mainStack.bottomAnchor.constraint(lessThanOrEqualTo: bottomAnchor, constant: -4)
+        ])
+    }
+
+    private func configureActions() {
+        backButton.target = self
+        backButton.action = #selector(handleBackTapped)
+        forwardButton.target = self
+        forwardButton.action = #selector(handleForwardTapped)
+    }
+
+    @objc private func handleBackTapped() {
+        onNavigateBack?()
+    }
+
+    @objc private func handleForwardTapped() {
+        onNavigateForward?()
+    }
+
+    func updateWindowIsKey(_ isKey: Bool) {
+        titleLabel.textColor = isKey ? .labelColor : .tertiaryLabelColor
+        state = isKey ? .active : .inactive
+    }
+}
+
+private final class ToolbarNavigationButton: NSButton {
+    convenience init(systemName: String, accessibilityDescription: String) {
+        let image = NSImage(systemSymbolName: systemName, accessibilityDescription: accessibilityDescription) ?? NSImage()
+        self.init(image: image)
+        self.image?.isTemplate = true
+    }
+
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        configure()
+    }
+
+    private init(image: NSImage) {
+        super.init(frame: .zero)
+        configure()
+        self.image = image
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    private func configure() {
+        bezelStyle = .texturedRounded
+        isBordered = true
+        setButtonType(.momentaryPushIn)
+        translatesAutoresizingMaskIntoConstraints = false
+        focusRingType = .default
+        imageScaling = .scaleProportionallyDown
+        contentTintColor = .labelColor
+        controlSize = .small
+        NSLayoutConstraint.activate([
+            widthAnchor.constraint(equalToConstant: 28),
+            heightAnchor.constraint(equalToConstant: 28)
+        ])
+    }
+
+    override var isEnabled: Bool {
+        didSet {
+            contentTintColor = isEnabled ? .labelColor : .tertiaryLabelColor
+        }
     }
 }
 

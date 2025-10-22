@@ -2594,6 +2594,11 @@ final class AppModel: ObservableObject {
             connectionSession.selectedDatabaseName = connectionSession.connection.database
         }
 
+        if ConnectionDebug.isEnabled {
+            let existingDatabases = connectionSession.databaseStructure?.databases.count ?? 0
+            ConnectionDebug.log("[AppModel] Beginning structure load for session=\(connectionSession.connection.connectionName) selected=\(connectionSession.selectedDatabaseName ?? "<nil>") existingDatabases=\(existingDatabases)")
+        }
+
         guard let credentials = resolvedCredentials(for: connectionSession.connection) else {
             connectionSession.structureLoadingState = .failed(message: "Missing credentials")
             throw DatabaseError.connectionFailed("Missing credentials")
@@ -2642,6 +2647,9 @@ final class AppModel: ObservableObject {
                             databases.append(database)
                             databases.sort { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
                         }
+                        if ConnectionDebug.isEnabled {
+                            ConnectionDebug.log("[AppModel] Incremental update for session=\(connectionSession.connection.connectionName) database=\(database.name) schemas=\(database.schemas.count) totalDatabases=\(databases.count)")
+                        }
                         connectionSession.databaseStructure = DatabaseStructure(
                             serverVersion: interimServerVersion,
                             databases: databases
@@ -2658,6 +2666,13 @@ final class AppModel: ObservableObject {
                 serverVersion: interimServerVersion,
                 databases: structure.databases
             )
+            if ConnectionDebug.isEnabled {
+                let totalSchemas = structure.databases.reduce(0) { $0 + $1.schemas.count }
+                let totalObjects = structure.databases.reduce(0) { result, database in
+                    result + database.schemas.reduce(0) { $0 + $1.objects.count }
+                }
+                ConnectionDebug.log("[AppModel] Completed structure load for session=\(connectionSession.connection.connectionName) databases=\(structure.databases.count) schemas=\(totalSchemas) objects=\(totalObjects)")
+            }
             connectionSession.structureLoadingState = .ready
             connectionSession.structureLoadingMessage = nil
 
