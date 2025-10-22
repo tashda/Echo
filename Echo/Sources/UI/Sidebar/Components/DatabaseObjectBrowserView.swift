@@ -5,6 +5,26 @@ import AppKit
 import UIKit
 #endif
 
+private struct HoveredExplorerRowIDKey: EnvironmentKey {
+    static let defaultValue: String? = nil
+}
+
+private struct SetHoveredExplorerRowIDKey: EnvironmentKey {
+    static let defaultValue: (String?) -> Void = { _ in }
+}
+
+private extension EnvironmentValues {
+    var hoveredExplorerRowID: String? {
+        get { self[HoveredExplorerRowIDKey.self] }
+        set { self[HoveredExplorerRowIDKey.self] = newValue }
+    }
+
+    var setHoveredExplorerRowID: (String?) -> Void {
+        get { self[SetHoveredExplorerRowIDKey.self] }
+        set { self[SetHoveredExplorerRowIDKey.self] = newValue }
+    }
+}
+
 /// Database Explorer – hierarchical object list rendered in the explorer sidebar.
 struct DatabaseObjectBrowserView: View {
     let database: DatabaseInfo
@@ -19,6 +39,7 @@ struct DatabaseObjectBrowserView: View {
     
     @EnvironmentObject private var appModel: AppModel
     @State private var snapshotCache = ExplorerSnapshotCache()
+    @State private var hoveredRowID: String?
 
     private var supportedObjectTypes: [SchemaObjectInfo.ObjectType] {
         SchemaObjectInfo.ObjectType.supported(for: connection.databaseType)
@@ -219,6 +240,17 @@ struct DatabaseObjectBrowserView: View {
                         .id(headerID)
                     }
                 }
+                .environment(\.hoveredExplorerRowID, hoveredRowID)
+                .environment(\.setHoveredExplorerRowID, { value in
+                    if hoveredRowID != value {
+                        hoveredRowID = value
+                    }
+                })
+                .onHover { hovering in
+                    if !hovering {
+                        hoveredRowID = nil
+                    }
+                }
                 .transaction { transaction in
                     transaction.animation = nil
                 }
@@ -272,7 +304,7 @@ private struct SearchEmptyStateView: View {
     }
     
     // MARK: - Database Object Row
-    
+
     private struct DatabaseObjectRow: View, Equatable {
         let object: SchemaObjectInfo
         let displayName: String
@@ -283,10 +315,15 @@ private struct SearchEmptyStateView: View {
         let onTogglePin: () -> Void
         let onTriggerTableTap: ((String) -> Void)?
         
-    @EnvironmentObject private var appModel: AppModel
-    @State private var isHovered = false
-    @State private var hoveredColumnID: String?
-        
+        @EnvironmentObject private var appModel: AppModel
+        @Environment(\.hoveredExplorerRowID) private var hoveredExplorerRowID
+        @Environment(\.setHoveredExplorerRowID) private var setHoveredExplorerRowID
+        @State private var hoveredColumnID: String?
+
+        private var isHovered: Bool {
+            hoveredExplorerRowID == object.id
+        }
+
         private var canExpand: Bool {
             showColumns && !object.columns.isEmpty
         }
@@ -379,14 +416,20 @@ private struct SearchEmptyStateView: View {
                 }
             }
             .onHover { hovering in
-                guard isHovered != hovering else { return }
-                var transaction = Transaction()
-                transaction.animation = nil
-                withTransaction(transaction) {
-                    isHovered = hovering
+                if hovering {
+                    if hoveredExplorerRowID != object.id {
+                        setHoveredExplorerRowID(object.id)
+                    }
+                } else if isHovered {
+                    setHoveredExplorerRowID(nil)
                 }
             }
-        .contextMenu { contextMenuContent }
+            .contextMenu { contextMenuContent }
+            .onDisappear {
+                if isHovered {
+                    setHoveredExplorerRowID(nil)
+                }
+            }
         }
         
         @ViewBuilder
@@ -418,14 +461,13 @@ private struct SearchEmptyStateView: View {
             .padding(.leading, 24)
         }
         
-        @ViewBuilder
         private var highlightBackground: some View {
-            if isHovered || isExpanded {
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(accentColor.opacity(0.12))
-            } else {
-                Color.clear
-            }
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(accentColor.opacity(0.12))
+                .opacity(isHovered || isExpanded ? 1 : 0)
+                .allowsHitTesting(false)
+                .animation(.easeOut(duration: 0.08), value: isHovered)
+                .animation(.easeOut(duration: 0.18), value: isExpanded)
         }
         
         private var columnsList: some View {
