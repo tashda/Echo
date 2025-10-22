@@ -166,7 +166,7 @@ struct QueryResultsTableView: NSViewRepresentable {
         private var pendingRowCountCorrection = false
         private var rowCountObserver: NSObjectProtocol?
         private var isPerformingUpdatePass = false
-        private var needsDeferredRowCountRefresh = false
+        private var rowCountUpdateWorkItem: DispatchWorkItem?
         private static let isGridDiagnosticsEnabled: Bool = {
             ProcessInfo.processInfo.environment["ECHO_GRID_DEBUG"] == "1"
         }()
@@ -222,6 +222,14 @@ struct QueryResultsTableView: NSViewRepresentable {
             cellMenu.delegate = self
         }
 
+        deinit {
+            if let observer = rowCountObserver {
+                NotificationCenter.default.removeObserver(observer)
+            }
+            NotificationCenter.default.removeObserver(self)
+            rowCountUpdateWorkItem?.cancel()
+        }
+
         private struct SelectedRegion: Equatable {
             var start: QueryResultsTableView.SelectedCell
             var end: QueryResultsTableView.SelectedCell
@@ -245,13 +253,6 @@ struct QueryResultsTableView: NSViewRepresentable {
             func containsRow(_ row: Int) -> Bool {
                 normalizedRowRange.contains(row)
             }
-        }
-
-        deinit {
-            if let observer = rowCountObserver {
-                NotificationCenter.default.removeObserver(observer)
-            }
-            NotificationCenter.default.removeObserver(self)
         }
 
         func configure(tableView: NSTableView, scrollView: NSScrollView) {
@@ -301,7 +302,12 @@ struct QueryResultsTableView: NSViewRepresentable {
                 object: state,
                 queue: .main
             ) { [weak self] _ in
-                self?.performRowCountRefresh()
+                guard let self else { return }
+                if let tableView = self.tableView {
+                    self.scheduleRowCountUpdate(for: tableView)
+                } else {
+                    self.pendingRowCountCorrection = true
+                }
             }
         }
 
@@ -316,6 +322,9 @@ struct QueryResultsTableView: NSViewRepresentable {
             if let scrollView {
                 registerScrollObservation(for: scrollView)
             }
+            if pendingRowCountCorrection, rowCountUpdateWorkItem == nil {
+                scheduleRowCountUpdate(for: tableView)
+            }
             // Configure standard header view
             tableView.headerView?.menu = headerMenu
             tableView.headerView?.frame.size.height = max(tableView.headerView?.frame.size.height ?? 0, 28)
@@ -323,12 +332,6 @@ struct QueryResultsTableView: NSViewRepresentable {
             isPerformingUpdatePass = true
             defer {
                 isPerformingUpdatePass = false
-                if needsDeferredRowCountRefresh {
-                    needsDeferredRowCountRefresh = false
-                    DispatchQueue.main.async { [weak self] in
-                        self?.performRowCountRefresh()
-                    }
-                }
             }
 
             let currentRowOrder = parent.rowOrder
@@ -408,10 +411,9 @@ struct QueryResultsTableView: NSViewRepresentable {
 #if DEBUG
                     print("[QueryResultsTableView] reloadData executed (columnsChanged=\(columnsChanged) sortChanged=\(sortChanged) rowOrderChanged=\(rowOrderChanged) rowCountDecreased=\(rowCountDecreased) tokenChanged=\(tokenChanged))")
 #endif
-                    tableView.layoutSubtreeIfNeeded()
                 }
             } else if rowCountIncreased {
-                persistedState?.scheduleRowCountRefresh()
+                scheduleRowCountUpdate(for: tableView)
             } else if tokenChanged {
                 let visibleRows = tableView.rows(in: tableView.visibleRect)
                 if reloadWorkItem == nil, !tableView.tableColumns.isEmpty {
@@ -491,7 +493,6 @@ struct QueryResultsTableView: NSViewRepresentable {
 #if DEBUG
                         print("[QueryResultsTableView] reloadData executed (foreign key display mode change)")
 #endif
-                        tableView.layoutSubtreeIfNeeded()
                     }
                 } else {
                     performedFullReload = true
@@ -1112,12 +1113,16 @@ struct QueryResultsTableView: NSViewRepresentable {
 
         private func updateAutoscroll(for event: NSEvent, tableView: NSTableView) {
             guard event.type == .leftMouseDragged, NSEvent.pressedMouseButtons != 0 else {
-                stopAutoscroll()
+                Task { @MainActor [weak self] in
+                    self?.stopAutoscroll()
+                }
                 return
             }
             lastDragLocationInWindow = event.locationInWindow
             guard let scrollView = tableView.enclosingScrollView else {
-                stopAutoscroll()
+                Task { @MainActor [weak self] in
+                    self?.stopAutoscroll()
+                }
                 return
             }
 
@@ -1146,7 +1151,9 @@ struct QueryResultsTableView: NSViewRepresentable {
             autoscrollVelocity = velocity
 
             if velocity == .zero {
-                stopAutoscroll()
+                Task { @MainActor [weak self] in
+                    self?.stopAutoscroll()
+                }
             } else {
                 startAutoscroll(for: tableView, scrollView: scrollView)
             }
@@ -1163,11 +1170,13 @@ struct QueryResultsTableView: NSViewRepresentable {
         private func startAutoscroll(for tableView: NSTableView, scrollView: NSScrollView) {
             guard autoscrollTimer == nil else { return }
             let timer = Timer(timeInterval: autoscrollInterval, repeats: true) { [weak self, weak tableView] _ in
-                guard let self, let tableView else {
-                    self?.stopAutoscroll()
-                    return
+                Task { @MainActor [weak self, weak tableView] in
+                    guard let self, let tableView else {
+                        self?.stopAutoscroll()
+                        return
+                    }
+                    self.performAutoscrollStep(in: tableView)
                 }
-                self.performAutoscrollStep(in: tableView)
             }
             autoscrollTimer = timer
             RunLoop.main.add(timer, forMode: .common)
@@ -2024,27 +2033,29 @@ struct QueryResultsTableView: NSViewRepresentable {
                 state.scheduleRowCountRefresh()
                 return
             }
-#if os(macOS)
-            let modes: [RunLoop.Mode] = [.default, .eventTracking]
-#else
-            let modes: [RunLoop.Mode] = [.default]
-#endif
-            RunLoop.main.perform(inModes: modes) { [weak self] in
-                self?.performRowCountRefresh()
+            if let tableView = tableView {
+                scheduleRowCountUpdate(for: tableView)
             }
         }
 
-        private func performRowCountRefresh() {
-            if isPerformingUpdatePass {
-                needsDeferredRowCountRefresh = true
-                return
+        private func scheduleRowCountUpdate(for tableView: NSTableView) {
+            pendingRowCountCorrection = true
+            if let existing = rowCountUpdateWorkItem {
+                if !existing.isCancelled { return }
+                rowCountUpdateWorkItem = nil
             }
-            guard let tableView = tableView else { return }
-            pendingRowCountCorrection = false
-            tableView.noteNumberOfRowsChanged()
+            let workItem = DispatchWorkItem { [weak self, weak tableView] in
+                guard let self else { return }
+                self.rowCountUpdateWorkItem = nil
+                self.pendingRowCountCorrection = false
+                guard let tableView else { return }
+                tableView.noteNumberOfRowsChanged()
 #if DEBUG
-            print("[QueryResultsTableView] noteNumberOfRowsChanged (refresh)")
+                print("[QueryResultsTableView] noteNumberOfRowsChanged (scheduled)")
 #endif
+            }
+            rowCountUpdateWorkItem = workItem
+            DispatchQueue.main.async(execute: workItem)
         }
 
         private func notifyJsonSelection(_ region: SelectedRegion?) {
@@ -2222,6 +2233,7 @@ final class ResultTableContainerView: NSView {
     private var leadingWidth: CGFloat
     private var cachedContainerColor: NSColor?
     private var cachedHeaderColor: NSColor?
+    private var cachedContentInsets = NSEdgeInsets(top: -1, left: -1, bottom: -1, right: -1)
 
     init(scrollView: NSScrollView, leadingWidth: CGFloat) {
         self.scrollView = scrollView
@@ -2275,7 +2287,6 @@ final class ResultTableContainerView: NSView {
         leadingView.updateConfiguredWidth(normalized)
         leadingView.isHidden = normalized <= 0
         needsLayout = true
-        layoutSubtreeIfNeeded()
     }
 
     override func layout() {
@@ -2300,7 +2311,14 @@ final class ResultTableContainerView: NSView {
         leadingView.frame = NSRect(x: 0, y: 0, width: actualWidth, height: bounds.height)
         scrollView.frame = bounds
         if let clipView = scrollView.contentView as? NSClipView {
-            clipView.contentInsets = NSEdgeInsets(top: 0, left: actualWidth, bottom: 0, right: 0)
+            let newInsets = NSEdgeInsets(top: 0, left: 0, bottom: 0, right: 0)
+            if cachedContentInsets.top != newInsets.top
+                || cachedContentInsets.left != newInsets.left
+                || cachedContentInsets.bottom != newInsets.bottom
+                || cachedContentInsets.right != newInsets.right {
+                cachedContentInsets = newInsets
+                clipView.contentInsets = newInsets
+            }
         }
     }
 }
@@ -2308,12 +2326,18 @@ final class ResultTableContainerView: NSView {
 private final class ResultTableLeadingBackgroundView: NSView {
     private var configuredWidth: CGFloat
     private let separatorLayer = CALayer()
+    private let gradientLayer = CAGradientLayer()
 
     init(width: CGFloat) {
         self.configuredWidth = width
         super.init(frame: .zero)
         wantsLayer = true
         layer?.masksToBounds = false
+        gradientLayer.startPoint = CGPoint(x: 0, y: 0.5)
+        gradientLayer.endPoint = CGPoint(x: 1, y: 0.5)
+        gradientLayer.locations = [0, 0.55, 1]
+        gradientLayer.zPosition = -1
+        layer?.addSublayer(gradientLayer)
         layer?.addSublayer(separatorLayer)
         separatorLayer.contentsScale = NSScreen.main?.backingScaleFactor ?? 2
         separatorLayer.isHidden = width <= 0
@@ -2325,7 +2349,10 @@ private final class ResultTableLeadingBackgroundView: NSView {
 
     func updateBackgroundColor(_ color: NSColor) {
         wantsLayer = true
-        layer?.backgroundColor = color.cgColor
+        let resolved = color.usingColorSpace(.extendedSRGB) ?? color
+        let leadingColor = resolved.withAlphaComponent(0.92).cgColor
+        let trailingColor = resolved.withAlphaComponent(0.0).cgColor
+        gradientLayer.colors = [leadingColor, resolved.withAlphaComponent(0.6).cgColor, trailingColor]
         separatorLayer.backgroundColor = ThemeManager.shared.resultsGridHeaderSeparatorNSColor.cgColor
         separatorLayer.isHidden = configuredWidth <= 0
         needsLayout = true
@@ -2343,6 +2370,7 @@ private final class ResultTableLeadingBackgroundView: NSView {
 
     override func layout() {
         super.layout()
+        gradientLayer.frame = bounds
         separatorLayer.frame = CGRect(
             x: max(0, bounds.width - 1),
             y: 0,

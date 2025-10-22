@@ -26,7 +26,6 @@ final class ThemeManager: ObservableObject {
     @Published private(set) var surfaceForegroundColor: Color
     @Published private(set) var useAppThemeForResultsGrid: Bool
     @Published private(set) var resultsAlternateRowShading: Bool
-
 #if os(macOS)
     @Published private(set) var accentNSColor: NSColor
     @Published private(set) var windowBackgroundNSColor: NSColor
@@ -40,7 +39,6 @@ final class ThemeManager: ObservableObject {
     var accentPublisher: AnyPublisher<Color, Never> {
         accentSubject.eraseToAnyPublisher()
     }
-
     var activePaletteTone: SQLEditorPalette.Tone { activeTone }
     var windowBackground: Color { windowBackgroundColor }
     var surfaceBackground: Color { surfaceBackgroundColor }

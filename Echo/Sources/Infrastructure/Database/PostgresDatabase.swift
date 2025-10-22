@@ -322,7 +322,7 @@ final class PostgresSession: DatabaseSession {
                 var nextFetchSize = fetchSize
 
                 func cheapStringValue(for cell: PostgresCell) -> String? {
-                    if cell.format == .text, var buffer = cell.bytes {
+                    if cell.format == .text, let buffer = cell.bytes {
                         let readable = buffer.readableBytes
                         guard readable > 0 else { return "" }
                         return buffer.getString(at: buffer.readerIndex, length: readable)
@@ -631,7 +631,7 @@ final class PostgresSession: DatabaseSession {
             var dynamicBackgroundFlushSize = backgroundFetchBaseline
 
             func cheapStringValue(for cell: PostgresCell) -> String? {
-                if cell.format == .text, var buffer = cell.bytes {
+                if cell.format == .text, let buffer = cell.bytes {
                     let readable = buffer.readableBytes
                     guard readable > 0 else { return "" }
                     return buffer.getString(at: buffer.readerIndex, length: readable)
@@ -703,12 +703,16 @@ final class PostgresSession: DatabaseSession {
                     logger.debug(.init(stringLiteral: message))
                     print(message)
 #if DEBUG
-                    debugLog("First batch handler rows=\(flushedCount)")
+                    Task { @MainActor in
+                        debugLog("First batch handler rows=\(flushedCount)")
+                    }
 #endif
                 }
 
 #if DEBUG
-                debugLog("Flush completed rows=\(flushedCount) totalRowCount=\(totalRowCount) decode=\(String(format: "%.3f", batchDecodeDuration)) wait=\(String(format: "%.3f", networkWait)) rampEligible=\(rampEligible)")
+                Task { @MainActor in
+                    debugLog("Flush completed rows=\(flushedCount) totalRowCount=\(totalRowCount) decode=\(String(format: "%.3f", batchDecodeDuration)) wait=\(String(format: "%.3f", networkWait)) rampEligible=\(rampEligible)")
+                }
 #endif
 
                 Task {
@@ -1599,7 +1603,7 @@ final class PostgresSession: DatabaseSession {
     }
 }
 
-struct CellFormatterContext {
+struct CellFormatterContext: Sendable {
     private static let postgresEpoch: Date = {
         var components = DateComponents()
         components.calendar = Calendar(identifier: .gregorian)

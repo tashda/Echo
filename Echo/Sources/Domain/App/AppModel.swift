@@ -20,6 +20,13 @@ struct RecentConnectionRecord: Codable, Identifiable, Equatable {
     }
 }
 
+private struct DiagramTableKey: Hashable {
+    let schema: String
+    let name: String
+
+    var identifier: String { "\(schema).\(name)" }
+}
+
 @MainActor
 final class AppModel: ObservableObject {
 
@@ -93,13 +100,6 @@ final class AppModel: ObservableObject {
     private func makeStructureFetcher(for connection: SavedConnection) -> DatabaseStructureFetcher? {
         guard let factory = makeDatabaseFactory(for: connection.databaseType) else { return nil }
         return DatabaseStructureFetcher(factory: factory, databaseType: connection.databaseType)
-    }
-
-    private struct DiagramTableKey: Hashable {
-        let schema: String
-        let name: String
-
-        var identifier: String { "\(schema).\(name)" }
     }
 
     private func makeDiagramViewModel(

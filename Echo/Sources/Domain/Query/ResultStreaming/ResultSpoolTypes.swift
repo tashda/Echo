@@ -161,7 +161,7 @@ struct ResultBinaryRowCodec {
     }
 }
 
-struct PostgresPayloadFormatter {
+struct PostgresPayloadFormatter: Sendable {
     private let allocator = ByteBufferAllocator()
     private let formatter = CellFormatterContext()
 
@@ -218,7 +218,7 @@ actor ResultRowFormattingCoordinator {
     private var generation: Int = 0
     private var currentTask: Task<Void, Never>?
 
-    init(formatter: PostgresPayloadFormatter = PostgresPayloadFormatter(), deliver: @escaping Delivery) {
+    init(formatter: PostgresPayloadFormatter, deliver: @escaping Delivery) {
         self.formatter = formatter
         self.deliver = deliver
     }
