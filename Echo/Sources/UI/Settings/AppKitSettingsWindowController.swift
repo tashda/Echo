@@ -314,7 +314,7 @@ private final class ToolbarNavigationButton: NSButton {
         translatesAutoresizingMaskIntoConstraints = false
         focusRingType = .default
         imageScaling = .scaleProportionallyDown
-        contentTintColor = .labelColor
+        contentTintColor = .secondaryLabelColor
         controlSize = .small
         NSLayoutConstraint.activate([
             widthAnchor.constraint(equalToConstant: 28),
@@ -324,7 +324,7 @@ private final class ToolbarNavigationButton: NSButton {
 
     override var isEnabled: Bool {
         didSet {
-            contentTintColor = isEnabled ? .labelColor : .tertiaryLabelColor
+            contentTintColor = isEnabled ? .secondaryLabelColor : .quaternaryLabelColor
         }
     }
 }
