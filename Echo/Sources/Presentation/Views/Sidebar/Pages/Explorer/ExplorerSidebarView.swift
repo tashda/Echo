@@ -19,7 +19,6 @@ struct ExplorerSidebarView: View {
     @State private var knownSessionIDs: Set<UUID> = []
     @State private var pinnedObjectIDsByDatabase: [String: Set<String>] = [:]
     @State private var pinnedSectionExpandedByDatabase: [String: Bool] = [:]
-
     // Control visibility of Connected Servers section
     // Set to false to hide the section (future: make this user-configurable)
     private let showConnectedServersSection = false

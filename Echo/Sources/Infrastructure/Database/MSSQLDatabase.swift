@@ -53,8 +53,8 @@ struct MSSQLNIOFactory: DatabaseFactory {
             }
 
             do {
-                _ = try await connection.rawSql("SET FMTONLY OFF; SET NO_BROWSETABLE OFF;").get()
-                logger.info("MSSQL session defaults applied (SET FMTONLY OFF, SET NO_BROWSETABLE OFF)")
+                _ = try await connection.rawSql("SET FMTONLY OFF;").get()
+                logger.info("MSSQL session defaults applied (SET FMTONLY OFF)")
             } catch {
                 logger.warning("Failed to apply MSSQL session defaults: \(error.localizedDescription)")
             }
@@ -95,7 +95,7 @@ final class MSSQLSession: DatabaseSession {
     private let defaultDatabase: String?
     private let formatter = MSSQLCellFormatter()
     private let databaseContext = MSSQLDatabaseContext()
-    private let sessionDefaultsStatement = "SET FMTONLY OFF; SET NO_BROWSETABLE OFF;"
+    private let sessionDefaultsStatement = "SET FMTONLY OFF;"
 
     private let shutdownQueue = DispatchQueue(label: "dk.tippr.echo.mssql.shutdown")
     private var isClosed = false
@@ -537,23 +537,15 @@ final class MSSQLSession: DatabaseSession {
 
     // MARK: - Metadata Helpers
 
-    private func applySessionDefaults(reason: String? = nil) async {
-        do {
-            _ = try await connection.rawSql(sessionDefaultsStatement).get()
-            if let reason {
-                logger.debug("MSSQL session defaults enforced (\(reason))")
-            }
-        } catch {
-            logger.warning("Failed to enforce MSSQL session defaults\(reason.map { " (\($0))" } ?? ""): \(error.localizedDescription)")
-        }
-    }
+    private func applySessionDefaults(reason: String? = nil) async { }
 
     private func fetchRows(_ sql: String, resetSession: Bool = true) async throws -> [MSSQLRow] {
         let fullSQL: String
         if resetSession {
-            await applySessionDefaults()
+            fullSQL = "SET FMTONLY OFF;\n\(sql)"
+        } else {
+            fullSQL = sql
         }
-        fullSQL = sql
         var collected: [TDSRow] = []
         let future = connection.rawSql(fullSQL, onRow: { row in
             collected.append(row)

@@ -41,20 +41,8 @@ struct WorkspaceToolbarItems: ToolbarContent {
             projectMenu
         }
 
-        ToolbarItem(id: "workspace.primary.refresh", placement: .primaryAction) {
-            refreshButton
-        }
-
-        ToolbarItem(id: "workspace.primary.newtab", placement: .primaryAction) {
-            newTabButton
-        }
-
-        ToolbarItem(id: "workspace.primary.taboverview", placement: .primaryAction) {
-            tabOverviewButton
-        }
-
-        ToolbarItem(id: "workspace.primary.inspector", placement: .primaryAction) {
-            inspectorButton
+        ToolbarItem(id: "workspace.primary.actions", placement: .primaryAction) {
+            trailingActions
         }
     }
 #else
@@ -73,19 +61,7 @@ struct WorkspaceToolbarItems: ToolbarContent {
         }
 
         ToolbarItem(placement: .primaryAction) {
-            refreshButton
-        }
-
-        ToolbarItem(placement: .primaryAction) {
-            newTabButton
-        }
-
-        ToolbarItem(placement: .primaryAction) {
-            tabOverviewButton
-        }
-
-        ToolbarItem(placement: .primaryAction) {
-            inspectorButton
+            trailingActions
         }
     }
 #endif
@@ -126,54 +102,52 @@ struct WorkspaceToolbarItems: ToolbarContent {
 
     // MARK: - Toolbar Buttons
 
-    private var refreshButton: some View {
-        RefreshToolbarButton()
+    private var trailingActions: some View {
+        HStack(spacing: 12) {
+            RefreshToolbarButton()
+                .labelStyle(.iconOnly)
+
+            Button {
+                appModel.openQueryTab()
+            } label: {
+                Label("New Tab", systemImage: "plus")
+            }
+            .help("Open a new query tab")
+            .disabled(!canOpenNewTab)
             .labelStyle(.iconOnly)
-    }
+            .accessibilityLabel("New Tab")
 
-    private var newTabButton: some View {
-        Button {
-            appModel.openQueryTab()
-        } label: {
-            Label("New Tab", systemImage: "plus")
-        }
-        .help("Open a new query tab")
-        .disabled(!canOpenNewTab)
-        .labelStyle(.iconOnly)
-        .accessibilityLabel("New Tab")
-    }
-
-    private var tabOverviewButton: some View {
-        Button {
-            withAnimation(.easeInOut(duration: 0.2)) {
-                appState.showTabOverview.toggle()
+            Button {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    appState.showTabOverview.toggle()
+                }
+            } label: {
+                Label(
+                    appState.showTabOverview ? "Hide Tab Overview" : "Tab Overview",
+                    systemImage: appState.showTabOverview ? "rectangle.grid.2x2.fill" : "rectangle.grid.2x2"
+                )
             }
-        } label: {
-            Label(
-                appState.showTabOverview ? "Hide Tab Overview" : "Tab Overview",
-                systemImage: appState.showTabOverview ? "rectangle.grid.2x2.fill" : "rectangle.grid.2x2"
-            )
-        }
-        .help(appState.showTabOverview ? "Hide Tab Overview" : "Show all tabs")
-        .disabled(appModel.tabManager.tabs.isEmpty)
-        .labelStyle(.iconOnly)
-        .accessibilityLabel(appState.showTabOverview ? "Hide Tab Overview" : "Show Tab Overview")
-    }
+            .help(appState.showTabOverview ? "Hide Tab Overview" : "Show all tabs")
+            .disabled(appModel.tabManager.tabs.isEmpty)
+            .labelStyle(.iconOnly)
+            .accessibilityLabel(appState.showTabOverview ? "Hide Tab Overview" : "Show Tab Overview")
 
-    private var inspectorButton: some View {
-        Button {
-            withAnimation(.easeInOut(duration: 0.2)) {
-                appState.showInfoSidebar.toggle()
+            Button {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    appState.showInfoSidebar.toggle()
+                }
+            } label: {
+                Label(
+                    appState.showInfoSidebar ? "Hide Inspector" : "Show Inspector",
+                    systemImage: appState.showInfoSidebar ? "sidebar.trailing" : "sidebar.right"
+                )
             }
-        } label: {
-            Label(
-                appState.showInfoSidebar ? "Hide Inspector" : "Show Inspector",
-                systemImage: appState.showInfoSidebar ? "sidebar.trailing" : "sidebar.right"
-            )
+            .help(appState.showInfoSidebar ? "Hide Inspector" : "Show Inspector")
+            .labelStyle(.iconOnly)
+            .accessibilityLabel(appState.showInfoSidebar ? "Hide Inspector" : "Show Inspector")
         }
-        .help(appState.showInfoSidebar ? "Hide Inspector" : "Show Inspector")
-        .labelStyle(.iconOnly)
-        .accessibilityLabel(appState.showInfoSidebar ? "Hide Inspector" : "Show Inspector")
+        .padding(.horizontal, 2)
+        .fixedSize()
     }
 
     // MARK: - Connections Menu

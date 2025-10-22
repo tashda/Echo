@@ -27,7 +27,11 @@ final class SettingsNavigationBridge: ObservableObject {
     }
 }
 
-#if os(macOS)
+// MARK: - SwiftUI Settings Window (DISABLED - Using AppKit version instead)
+// This implementation has been disabled in favor of AppKitSettingsWindowController
+// which provides better control and matches Xcode Settings appearance exactly.
+
+#if os(macOS) && false
 final class SettingsWindowController: NSWindowController, NSWindowDelegate {
     static let shared = SettingsWindowController()
 
@@ -70,7 +74,10 @@ private lazy var titlebarAccessoryManager = SettingsTitlebarAccessoryManager(bri
     }
 
 }
+#endif
 
+// SwiftUI helpers (disabled)
+#if os(macOS) && false
 private struct SettingsRootView: View {
     let bridge: SettingsNavigationBridge
 
@@ -171,11 +178,11 @@ private final class SettingsTitlebarView: NSVisualEffectView {
         isEmphasized = false
 
         translatesAutoresizingMaskIntoConstraints = false
-        wantsLayer = false
+        wantsLayer = true
         setContentHuggingPriority(.defaultLow, for: .horizontal)
         setContentCompressionResistancePriority(.defaultHigh, for: .horizontal)
 
-        navControl.segmentStyle = .automatic
+        navControl.segmentStyle = .separated
         navControl.controlSize = .small
         navControl.translatesAutoresizingMaskIntoConstraints = false
         navControl.setContentHuggingPriority(.required, for: .horizontal)
@@ -254,7 +261,7 @@ private final class CapsuleTitleContainer: NSView {
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
         translatesAutoresizingMaskIntoConstraints = false
-        wantsLayer = false
+        wantsLayer = true
 
         blurView.translatesAutoresizingMaskIntoConstraints = false
         blurView.material = .hudWindow
@@ -265,7 +272,7 @@ private final class CapsuleTitleContainer: NSView {
         blurView.layer?.masksToBounds = true
 
         titleField.translatesAutoresizingMaskIntoConstraints = false
-        titleField.font = .systemFont(ofSize: 16, weight: .semibold)
+        titleField.font = .systemFont(ofSize: 13, weight: .semibold)
         titleField.textColor = .labelColor
         titleField.alignment = .center
         titleField.backgroundColor = .clear
@@ -666,13 +673,8 @@ enum SettingsWindowPresenter {
     }
 
     static func present(section: SettingsView.SettingsSection? = nil, style: SettingsWindowStyle? = nil) {
-        let style = style ?? preferredStyle
-        switch style {
-        case .swiftUI:
-            SettingsWindowController.shared.present(section: section)
-        case .appKit:
-            AppKitSettingsWindowController.shared.present(section: section)
-        }
+        // Always use AppKit implementation (matches Xcode Settings exactly)
+        AppKitSettingsWindowController.shared.present(section: section)
     }
 }
 #endif

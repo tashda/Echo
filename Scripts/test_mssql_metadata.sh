@@ -31,12 +31,10 @@ EOF
   exit 3
 fi
 
-WORK_DIR="$(mktemp -d "${TMPDIR:-/tmp}/mssql-probe.XXXXXX")"
-cleanup() {
-  rm -rf "${WORK_DIR}"
-}
-trap cleanup EXIT
+WORK_DIR="${ROOT_DIR}/Scripts/.mssql-probe"
+mkdir -p "${WORK_DIR}/Sources/MSSQLProbe"
 
+# Regenerate package manifest on each run so dependency path stays up to date.
 cat >"${WORK_DIR}/Package.swift" <<EOF
 // swift-tools-version: 5.9
 import PackageDescription
@@ -62,8 +60,6 @@ let package = Package(
     ]
 )
 EOF
-
-mkdir -p "${WORK_DIR}/Sources/MSSQLProbe"
 
 cat >"${WORK_DIR}/Sources/MSSQLProbe/main.swift" <<'EOF'
 import Foundation
@@ -188,55 +184,55 @@ struct Main {
         let tests: [Probe] = [
             Probe(
                 label: "Current database",
-                sql: "SET FMTONLY OFF; SELECT DB_NAME() AS name;"
+                sql: "SET FMTONLY OFF; SELECT DB_NAME() AS name;",
+                minimumExpectedRows: 1
             ),
             Probe(
                 label: "Accessible databases",
                 sql: """
-                SET FMTONLY OFF;
                 SELECT name, state_desc, HAS_DBACCESS(name) AS has_access
                 FROM sys.databases
                 ORDER BY name;
-                """
+                """,
+                minimumExpectedRows: 1
             ),
             Probe(
                 label: "sys.databases (no HAS_DBACCESS)",
                 sql: """
-                SET FMTONLY OFF;
                 SELECT name, state_desc
                 FROM sys.databases
                 ORDER BY name;
-                """
+                """,
+                minimumExpectedRows: 1
             ),
             Probe(
                 label: "sp_databases",
                 sql: """
-                SET FMTONLY OFF;
                 EXEC master.dbo.sp_databases;
-                """
+                """,
+                minimumExpectedRows: 1
             ),
             Probe(
                 label: "Schemas in current database",
                 sql: """
-                SET FMTONLY OFF;
                 SELECT name
                 FROM sys.schemas
                 ORDER BY name;
-                """
+                """,
+                minimumExpectedRows: 1
             ),
             Probe(
                 label: "INFORMATION_SCHEMA schemas",
                 sql: """
-                SET FMTONLY OFF;
                 SELECT schema_name AS name
                 FROM INFORMATION_SCHEMA.SCHEMATA
                 ORDER BY name;
-                """
+                """,
+                minimumExpectedRows: 1
             ),
             Probe(
                 label: "Sys tables sample",
                 sql: """
-                SET FMTONLY OFF;
                 SELECT TOP 5 name, object_id
                 FROM sys.tables
                 ORDER BY name;
@@ -250,7 +246,8 @@ struct Main {
             ),
             Probe(
                 label: "Post-describe reset check",
-                sql: "SET FMTONLY OFF; SELECT name FROM sys.databases ORDER BY name;"
+                sql: "SELECT name FROM sys.databases ORDER BY name;",
+                minimumExpectedRows: 1
             )
         ]
 
@@ -260,12 +257,12 @@ struct Main {
     private struct Probe {
         let label: String
         let sql: String
-        let expectRows: Bool?
+        let minimumExpectedRows: Int?
 
-        init(label: String, sql: String, expectRows: Bool? = nil) {
+        init(label: String, sql: String, minimumExpectedRows: Int? = nil) {
             self.label = label
             self.sql = sql
-            self.expectRows = expectRows
+            self.minimumExpectedRows = minimumExpectedRows
         }
     }
 
@@ -276,7 +273,15 @@ struct Main {
             logger.info("Running probe: \(probe.label)")
             let start = DispatchTime.now()
             do {
-                let rows = try connection.rawSql(probe.sql).wait()
+                let effectiveSQL: String
+                if probe.sql.trimmingCharacters(in: .whitespacesAndNewlines)
+                    .uppercased()
+                    .hasPrefix("SET FMTONLY OFF") {
+                    effectiveSQL = probe.sql
+                } else {
+                    effectiveSQL = "SET FMTONLY OFF;\n\(probe.sql)"
+                }
+                let rows = try connection.rawSql(effectiveSQL).wait()
                 let elapsed = Double(DispatchTime.now().uptimeNanoseconds - start.uptimeNanoseconds) / 1_000_000.0
                 report(probe: probe, rows: rows, elapsed: elapsed, logger: logger)
             } catch {
@@ -293,35 +298,44 @@ struct Main {
         elapsed: Double,
         logger: Logger
     ) {
-        if rows.isEmpty {
-            print("=== \(probe.label) [rows=0, \(String(format: "%.2f ms", elapsed))] ===")
-            print("(no rows)")
+        let header = rows.first?.columnMetadata.colData.map { $0.colName } ?? []
+        let status: String
+        if let minimum = probe.minimumExpectedRows, rows.count < minimum {
+            status = "FAIL expected ≥\(minimum)"
         } else {
-            let header = rows.first?.columnMetadata.colData.map { $0.colName } ?? []
-            print("=== \(probe.label) [rows=\(rows.count), \(String(format: "%.2f ms", elapsed))] ===")
+            status = "rows=\(rows.count)"
+        }
+        print("=== \(probe.label) [\(status), \(String(format: "%.2f ms", elapsed))] ===")
+        if header.isEmpty {
+            print("(no columns)")
+        } else {
             print(header.joined(separator: "\t"))
-            for row in rows.prefix(25) {
-                let values = header.map { columnName -> String in
-                    guard let data = row.column(columnName) else {
-                        return "NULL"
-                    }
-                    if let stringValue = data.string {
-                        return stringValue
-                    }
-                    return data.description
+        }
+        if rows.isEmpty {
+            print("(no rows)")
+            return
+        }
+        for row in rows.prefix(25) {
+            let values = header.map { columnName -> String in
+                guard let data = row.column(columnName) else {
+                    return "NULL"
                 }
-                print(values.joined(separator: "\t"))
+                if let stringValue = data.string {
+                    return stringValue
+                }
+                return data.description
             }
-            if rows.count > 25 {
-                print("… (\(rows.count - 25) more rows)")
-            }
+            print(values.joined(separator: "\t"))
+        }
+        if rows.count > 25 {
+            print("… (\(rows.count - 25) more rows)")
         }
     }
 
     private static func sessionReset(label: String, on connection: TDSConnection) throws {
         let logger = Logger(label: "MSSQLProbe")
         logger.debug("Applying session defaults (\(label))")
-        _ = try connection.rawSql("SET FMTONLY OFF; SET NO_BROWSETABLE OFF;").wait()
+        _ = try connection.rawSql("SET FMTONLY OFF;").wait()
 
         logger.debug("Probing @@OPTIONS after \(label)")
         if let rows = try? connection.rawSql("SELECT @@OPTIONS & 2 AS fmtOnlyFlag;").wait(),
@@ -332,7 +346,7 @@ struct Main {
 }
 EOF
 
-echo "[mssql-metadata] Building probe (this may take a moment)…" >&2
+echo "[mssql-metadata] Building probe (incremental) …" >&2
 
 env \
     MSSQL_HOST="${MSSQL_HOST}" \
@@ -341,4 +355,13 @@ env \
     MSSQL_PASSWORD="${MSSQL_PASSWORD}" \
     MSSQL_DATABASE="${MSSQL_DATABASE}" \
     MSSQL_ENABLE_TLS="${MSSQL_ENABLE_TLS}" \
-    swift run --package-path "${WORK_DIR}" --configuration release mssql-probe "$@"
+    swift build --package-path "${WORK_DIR}" --configuration release --product mssql-probe >/dev/null
+
+env \
+    MSSQL_HOST="${MSSQL_HOST}" \
+    MSSQL_PORT="${MSSQL_PORT}" \
+    MSSQL_USERNAME="${MSSQL_USERNAME}" \
+    MSSQL_PASSWORD="${MSSQL_PASSWORD}" \
+    MSSQL_DATABASE="${MSSQL_DATABASE}" \
+    MSSQL_ENABLE_TLS="${MSSQL_ENABLE_TLS}" \
+    "${WORK_DIR}/.build/release/mssql-probe" "$@"

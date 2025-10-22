@@ -4,8 +4,7 @@ import Combine
 import AppKit
 import QuartzCore
 
-/// AppKit-based settings window that mirrors the SwiftUI layout while giving us
-/// native control over the titlebar chrome (matching Xcode).
+/// AppKit-based settings window that mirrors Xcode Settings appearance exactly.
 final class AppKitSettingsWindowController: NSWindowController {
     static let shared = AppKitSettingsWindowController()
 
@@ -15,23 +14,43 @@ final class AppKitSettingsWindowController: NSWindowController {
     private let navControl: NSSegmentedControl
     private let capsuleView: CapsuleTitleAccessoryView
     private let titlebarAccessory: NSTitlebarAccessoryViewController
-    private let headerView: SettingsTitlebarHeaderView
+    private let titlebarContainer: TitlebarContainerView
+
     private var cancellables: Set<AnyCancellable> = []
 
     private override init(window: NSWindow?) {
+        // Create nav control with separated buttons
         navControl = NSSegmentedControl(images: [
             NSImage(systemSymbolName: "chevron.left", accessibilityDescription: nil) ?? NSImage(),
             NSImage(systemSymbolName: "chevron.right", accessibilityDescription: nil) ?? NSImage()
         ], trackingMode: .momentary, target: nil, action: nil)
 
-        capsuleView = CapsuleTitleAccessoryView()
-        hostingController = SettingsHostingViewController(bridge: navigationBridge)
-        headerView = SettingsTitlebarHeaderView(navControl: navControl, capsule: capsuleView)
-        titlebarAccessory = NSTitlebarAccessoryViewController()
+        navControl.segmentStyle = .separated
+        navControl.controlSize = .small
+        navControl.setWidth(28, forSegment: 0)
+        navControl.setWidth(28, forSegment: 1)
+        navControl.translatesAutoresizingMaskIntoConstraints = false
 
+        // Create capsule view
+        capsuleView = CapsuleTitleAccessoryView()
+        capsuleView.translatesAutoresizingMaskIntoConstraints = false
+
+        // Create container view for both nav control and capsule
+        titlebarContainer = TitlebarContainerView()
+        titlebarContainer.navControl = navControl
+        titlebarContainer.capsuleView = capsuleView
+
+        // Create titlebar accessory on left
+        titlebarAccessory = NSTitlebarAccessoryViewController()
+        titlebarAccessory.view = titlebarContainer
+        titlebarAccessory.layoutAttribute = .left
+
+        // Create hosting controller
+        hostingController = SettingsHostingViewController(bridge: navigationBridge)
+
+        // Create window
         let window = NSWindow(contentViewController: hostingController)
-        window.styleMask = [.titled, .closable, .miniaturizable, .resizable]
-        window.styleMask.insert(.fullSizeContentView)
+        window.styleMask = [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView]
         window.titleVisibility = .hidden
         window.titlebarAppearsTransparent = true
         window.toolbarStyle = .unified
@@ -42,7 +61,16 @@ final class AppKitSettingsWindowController: NSWindowController {
 
         super.init(window: window)
 
-        configureTitlebar(for: window)
+        // Configure nav control
+        navControl.target = self
+        navControl.action = #selector(handleNavigation(_:))
+        navControl.setEnabled(false, forSegment: 0)
+        navControl.setEnabled(false, forSegment: 1)
+
+        // Add titlebar accessory
+        window.addTitlebarAccessoryViewController(titlebarAccessory)
+
+        // Connect bridge
         connectBridge()
     }
 
@@ -58,35 +86,6 @@ final class AppKitSettingsWindowController: NSWindowController {
         window?.center()
         window?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
-    }
-
-    // MARK: - Titlebar configuration
-
-    private func configureTitlebar(for window: NSWindow) {
-        navControl.segmentStyle = .roundRect
-        navControl.controlSize = .regular
-        navControl.setWidth(30, forSegment: 0)
-        navControl.setWidth(30, forSegment: 1)
-        navControl.target = self
-        navControl.action = #selector(handleNavigation(_:))
-        navControl.setEnabled(false, forSegment: 0)
-        navControl.setEnabled(false, forSegment: 1)
-        navControl.translatesAutoresizingMaskIntoConstraints = false
-        navControl.setContentHuggingPriority(.required, for: .horizontal)
-        navControl.setContentCompressionResistancePriority(.required, for: .horizontal)
-        if let cell = navControl.cell as? NSSegmentedCell {
-            cell.trackingMode = .momentary
-            cell.controlSize = navControl.controlSize
-            cell.isBordered = true
-        }
-        capsuleView.translatesAutoresizingMaskIntoConstraints = false
-
-        titlebarAccessory.layoutAttribute = .top
-        titlebarAccessory.view = headerView
-        titlebarAccessory.fullScreenMinHeight = headerView.intrinsicContentSize.height
-        if !window.titlebarAccessoryViewControllers.contains(titlebarAccessory) {
-            window.addTitlebarAccessoryViewController(titlebarAccessory)
-        }
     }
 
     // MARK: - Bridge wiring
@@ -127,6 +126,54 @@ final class AppKitSettingsWindowController: NSWindowController {
     }
 }
 
+// MARK: - Titlebar Container with intrinsic size
+
+private final class TitlebarContainerView: NSView {
+    var navControl: NSSegmentedControl!
+    var capsuleView: CapsuleTitleAccessoryView!
+    private var stackView: NSStackView!
+
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        translatesAutoresizingMaskIntoConstraints = false
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    override func viewDidMoveToSuperview() {
+        super.viewDidMoveToSuperview()
+
+        guard superview != nil, stackView == nil else { return }
+
+        // Create stack view to hold nav control and capsule
+        stackView = NSStackView()
+        stackView.orientation = .horizontal
+        stackView.alignment = .centerY
+        stackView.spacing = 12
+        stackView.translatesAutoresizingMaskIntoConstraints = false
+        stackView.addArrangedSubview(navControl)
+        stackView.addArrangedSubview(capsuleView)
+
+        addSubview(stackView)
+
+        NSLayoutConstraint.activate([
+            stackView.leadingAnchor.constraint(equalTo: leadingAnchor),
+            stackView.trailingAnchor.constraint(equalTo: trailingAnchor),
+            stackView.topAnchor.constraint(equalTo: topAnchor),
+            stackView.bottomAnchor.constraint(equalTo: bottomAnchor)
+        ])
+    }
+
+    override var intrinsicContentSize: NSSize {
+        guard let stackView = stackView else {
+            return NSSize(width: 300, height: 32)
+        }
+        return stackView.fittingSize
+    }
+}
+
 // MARK: - Hosting controller wrapper
 
 private final class SettingsHostingViewController: NSHostingController<SettingsRootSwiftUIView> {
@@ -151,13 +198,16 @@ private struct SettingsRootSwiftUIView: View {
     }
 }
 
-// MARK: - Capsule accessory view
+// MARK: - Capsule title view
 
 private final class CapsuleTitleAccessoryView: NSVisualEffectView {
     private let titleField: NSTextField
 
     var title: String = "Appearance" {
-        didSet { titleField.stringValue = title }
+        didSet {
+            titleField.stringValue = title
+            invalidateIntrinsicContentSize()
+        }
     }
 
     override init(frame frameRect: NSRect) {
@@ -170,23 +220,24 @@ private final class CapsuleTitleAccessoryView: NSVisualEffectView {
         blendingMode = .withinWindow
         isEmphasized = false
         wantsLayer = true
-        layer?.cornerRadius = 16
+        layer?.cornerRadius = 14
         layer?.masksToBounds = true
-        layer?.borderWidth = 1
-        layer?.borderColor = NSColor.white.withAlphaComponent(0.25).cgColor
 
-        titleField.font = .systemFont(ofSize: 16, weight: .semibold)
+        titleField.font = .systemFont(ofSize: 13, weight: .semibold)
         titleField.textColor = .labelColor
         titleField.alignment = .center
+        titleField.isBordered = false
+        titleField.isEditable = false
+        titleField.backgroundColor = .clear
         titleField.translatesAutoresizingMaskIntoConstraints = false
 
         addSubview(titleField)
 
         NSLayoutConstraint.activate([
-            titleField.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 18),
-            titleField.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -18),
-            titleField.topAnchor.constraint(equalTo: topAnchor, constant: 6),
-            titleField.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -6)
+            titleField.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 16),
+            titleField.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -16),
+            titleField.centerYAnchor.constraint(equalTo: centerYAnchor),
+            heightAnchor.constraint(equalToConstant: 28)
         ])
     }
 
@@ -196,135 +247,8 @@ private final class CapsuleTitleAccessoryView: NSVisualEffectView {
 
     override var intrinsicContentSize: NSSize {
         let labelSize = titleField.intrinsicContentSize
-        let width = max(200, labelSize.width + 48)
-        return NSSize(width: width, height: labelSize.height + 12)
-    }
-}
-
-private final class SettingsTitlebarHeaderView: NSView {
-    private let backgroundView = NSVisualEffectView()
-    private let separator = NSView(frame: .zero)
-    private let stackView = NSStackView()
-    private let titleLabel = NSTextField(labelWithString: "Settings")
-    private let navControl: NSSegmentedControl
-    private let capsuleView: CapsuleTitleAccessoryView
-    private let highlightLayer = CAGradientLayer()
-
-    init(navControl: NSSegmentedControl, capsule: CapsuleTitleAccessoryView) {
-        self.navControl = navControl
-        self.capsuleView = capsule
-        super.init(frame: .zero)
-
-        translatesAutoresizingMaskIntoConstraints = false
-
-        backgroundView.translatesAutoresizingMaskIntoConstraints = false
-        backgroundView.material = .underWindowBackground
-        backgroundView.state = .active
-        backgroundView.blendingMode = .withinWindow
-        backgroundView.isEmphasized = false
-        backgroundView.wantsLayer = true
-
-        addSubview(backgroundView)
-
-        stackView.orientation = .horizontal
-        stackView.alignment = .centerY
-        stackView.spacing = 14
-        stackView.translatesAutoresizingMaskIntoConstraints = false
-        titleLabel.font = .systemFont(ofSize: 13, weight: .semibold)
-        titleLabel.textColor = .secondaryLabelColor
-        titleLabel.alignment = .natural
-        titleLabel.setContentHuggingPriority(.required, for: .horizontal)
-        titleLabel.setContentCompressionResistancePriority(.required, for: .horizontal)
-        capsuleView.setContentHuggingPriority(.required, for: .horizontal)
-        capsuleView.setContentCompressionResistancePriority(.required, for: .horizontal)
-        stackView.addArrangedSubview(titleLabel)
-        stackView.addArrangedSubview(navControl)
-        stackView.addArrangedSubview(capsuleView)
-        stackView.setCustomSpacing(20, after: navControl)
-        addSubview(stackView)
-
-        separator.translatesAutoresizingMaskIntoConstraints = false
-        separator.wantsLayer = true
-        separator.layer = CALayer()
-        separator.layer?.backgroundColor = NSColor.separatorColor.withAlphaComponent(0.35).cgColor
-        addSubview(separator)
-
-        highlightLayer.colors = [
-            NSColor.white.withAlphaComponent(0.24).cgColor,
-            NSColor.white.withAlphaComponent(0.08).cgColor,
-            NSColor.clear.cgColor
-        ]
-        highlightLayer.startPoint = CGPoint(x: 0.5, y: 1.0)
-        highlightLayer.endPoint = CGPoint(x: 0.5, y: 0.0)
-        highlightLayer.needsDisplayOnBoundsChange = true
-        backgroundView.layer?.addSublayer(highlightLayer)
-
-        NSLayoutConstraint.activate([
-            backgroundView.leadingAnchor.constraint(equalTo: leadingAnchor),
-            backgroundView.trailingAnchor.constraint(equalTo: trailingAnchor),
-            backgroundView.topAnchor.constraint(equalTo: topAnchor),
-            backgroundView.bottomAnchor.constraint(equalTo: bottomAnchor),
-
-            stackView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 16),
-            stackView.trailingAnchor.constraint(lessThanOrEqualTo: trailingAnchor, constant: -16),
-            stackView.centerYAnchor.constraint(equalTo: centerYAnchor),
-
-            separator.leadingAnchor.constraint(equalTo: leadingAnchor),
-            separator.trailingAnchor.constraint(equalTo: trailingAnchor),
-            separator.bottomAnchor.constraint(equalTo: bottomAnchor),
-            separator.heightAnchor.constraint(equalToConstant: 1)
-        ])
-
-        applyHighlightColors()
-    }
-
-    required init?(coder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
-    }
-
-    override var intrinsicContentSize: NSSize {
-        NSSize(width: NSView.noIntrinsicMetric, height: 32)
-    }
-
-    override func layout() {
-        super.layout()
-        highlightLayer.frame = CGRect(x: 0, y: bounds.height / 2, width: bounds.width, height: bounds.height / 2)
-        applyHighlightColors()
-    }
-
-    override var wantsUpdateLayer: Bool { true }
-
-    override func updateLayer() {
-        super.updateLayer()
-        applyHighlightColors()
-    }
-
-    override func viewDidMoveToWindow() {
-        super.viewDidMoveToWindow()
-        applyHighlightColors()
-    }
-
-    private func applyHighlightColors() {
-        let appearance = effectiveAppearance.bestMatch(from: [.darkAqua, .aqua])
-        if appearance == .darkAqua {
-            highlightLayer.colors = [
-                NSColor.white.withAlphaComponent(0.08).cgColor,
-                NSColor.white.withAlphaComponent(0.02).cgColor,
-                NSColor.clear.cgColor
-            ]
-            separator.layer?.backgroundColor = NSColor(calibratedWhite: 1.0, alpha: 0.18).cgColor
-            navControl.appearance = NSAppearance(named: .darkAqua)
-            capsuleView.layer?.borderColor = NSColor.white.withAlphaComponent(0.22).cgColor
-        } else {
-            highlightLayer.colors = [
-                NSColor.white.withAlphaComponent(0.24).cgColor,
-                NSColor.white.withAlphaComponent(0.08).cgColor,
-                NSColor.clear.cgColor
-            ]
-            separator.layer?.backgroundColor = NSColor.separatorColor.withAlphaComponent(0.35).cgColor
-            navControl.appearance = NSAppearance(named: .aqua)
-            capsuleView.layer?.borderColor = NSColor.white.withAlphaComponent(0.25).cgColor
-        }
+        let width = max(160, labelSize.width + 32)
+        return NSSize(width: width, height: 28)
     }
 }
 

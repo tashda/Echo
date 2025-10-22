@@ -12,6 +12,13 @@ enum FontRegistrar {
     private static var hasRegistered = false
     private static let lock = NSLock()
 
+#if DEBUG
+    private static func debugLog(_ message: @autoclosure () -> String) {
+        guard ProcessInfo.processInfo.environment["ECHO_FONT_DEBUG"] == "1" else { return }
+        print(message())
+    }
+#endif
+
     static func registerBundledFonts() {
         lock.lock()
         defer { lock.unlock() }
@@ -49,20 +56,20 @@ enum FontRegistrar {
                     let domain = nsError.domain
                     let code = nsError.code
                     if domain == kCTFontManagerErrorDomain as String && code == alreadyRegisteredCode {
-                        #if DEBUG
-                        print("[FontRegistrar] Font already registered: \(url.lastPathComponent)")
-                        #endif
+#if DEBUG
+                        debugLog("[FontRegistrar] Font already registered: \(url.lastPathComponent)")
+#endif
                     } else {
                         print("[FontRegistrar] Failed to register font at \(url.lastPathComponent): \(cfError)")
                     }
                 }
             } else {
-                #if DEBUG
+#if DEBUG
                 if let descriptors = CTFontManagerCreateFontDescriptorsFromURL(url as CFURL) as? [CTFontDescriptor] {
                     let names = descriptors.compactMap { CTFontDescriptorCopyAttribute($0, kCTFontNameAttribute) as? String }
-                    print("[FontRegistrar] Registered fonts: \(names)")
+                    debugLog("[FontRegistrar] Registered fonts: \(names)")
                 }
-                #endif
+#endif
             }
         }
 
