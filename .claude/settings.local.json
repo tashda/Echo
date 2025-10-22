@@ -31,7 +31,8 @@
       "Read(//private/var/folders/**)",
       "WebSearch",
       "WebFetch(domain:stackoverflow.com)",
-      "WebFetch(domain:www.createwithswift.com)"
+      "WebFetch(domain:www.createwithswift.com)",
+      "Bash(xargs open:*)"
     ],
     "deny": [],
     "ask": []

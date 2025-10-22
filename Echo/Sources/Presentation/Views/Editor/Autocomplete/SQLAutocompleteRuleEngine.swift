@@ -429,7 +429,7 @@ extension EchoSenseSchemaObjectInfo.ObjectType {
             self = .view
         case .materializedView:
             self = .materializedView
-        case .function, .procedure:
+        case .function:
             self = .function
         case .trigger:
             self = .trigger

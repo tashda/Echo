@@ -1198,7 +1198,8 @@ struct QueryResultsTableView: NSViewRepresentable {
                 return
             }
 
-            var origin = scrollView.contentView.bounds.origin
+            let currentOrigin = scrollView.contentView.bounds.origin
+            var origin = currentOrigin
             let documentSize = tableView.bounds.size
             let clipSize = scrollView.contentView.bounds.size
 
@@ -1211,9 +1212,9 @@ struct QueryResultsTableView: NSViewRepresentable {
             origin.x = min(max(origin.x + dx, 0), maxOriginX)
             origin.y = min(max(origin.y + dy, 0), maxOriginY)
 
-            scrollView.contentView.scroll(to: origin)
-            scrollView.reflectScrolledClipView(scrollView.contentView)
-            processAutoscrollSelection(in: tableView)
+            let movedX = abs(origin.x - currentOrigin.x)
+            let movedY = abs(origin.y - currentOrigin.y)
+            let didScroll = movedX > 0.1 || movedY > 0.1
 
             if origin.x <= 0 || origin.x >= maxOriginX {
                 autoscrollVelocity.x = 0
@@ -1221,6 +1222,17 @@ struct QueryResultsTableView: NSViewRepresentable {
             if origin.y <= 0 || origin.y >= maxOriginY {
                 autoscrollVelocity.y = 0
             }
+
+            guard didScroll else {
+                if autoscrollVelocity == .zero {
+                    stopAutoscroll()
+                }
+                return
+            }
+
+            scrollView.contentView.scroll(to: origin)
+            scrollView.reflectScrolledClipView(scrollView.contentView)
+            processAutoscrollSelection(in: tableView)
 
             if autoscrollVelocity == .zero {
                 stopAutoscroll()
@@ -1245,7 +1257,14 @@ struct QueryResultsTableView: NSViewRepresentable {
                 }
                 let theme = ThemeManager.shared
                 let fallbackStyle = theme.resultGridStyle(for: .text)
-                cellView.apply(text: "", font: resolvedFont(for: fallbackStyle), textColor: fallbackStyle.nsColor)
+                let baseColor = fallbackStyle.nsColor
+                cellView.apply(
+                    text: "",
+                    font: resolvedFont(for: fallbackStyle),
+                    baseTextColor: baseColor,
+                    selectionTextColor: theme.resultsGridCellTextNSColor,
+                    isSelected: false
+                )
                 cellView.configureIcon(nil)
                 return
             }
@@ -1284,18 +1303,23 @@ struct QueryResultsTableView: NSViewRepresentable {
 
             let cellSelection = QueryResultsTableView.SelectedCell(row: row, column: dataIndex)
             let isSelectedCell = selectionRegion?.contains(cellSelection) ?? false
-            let textColor: NSColor
-            if isSelectedCell {
-                textColor = theme.resultsGridCellTextNSColor
-            } else if let cached = cachedTextColors[kind] {
-                textColor = cached
+            let baseTextColor: NSColor
+            if let cached = cachedTextColors[kind] {
+                baseTextColor = cached
             } else {
                 let color = style.nsColor
                 cachedTextColors[kind] = color
-                textColor = color
+                baseTextColor = color
             }
+            let selectionTextColor = theme.resultsGridCellTextNSColor
 
-            cellView.apply(text: displayText, font: font, textColor: textColor)
+            cellView.apply(
+                text: displayText,
+                font: font,
+                baseTextColor: baseTextColor,
+                selectionTextColor: selectionTextColor,
+                isSelected: isSelectedCell
+            )
 
             if shouldShowForeignKeyIcon(forColumnInfo: columnInfo, value: rawValue) {
                 cellView.configureIcon { [weak self] in
@@ -2219,7 +2243,9 @@ struct QueryResultsTableView: NSViewRepresentable {
                       let rowView = tableView.rowView(atRow: row, makeIfNecessary: false) else { continue }
                 for column in lowerColumn...upperColumn {
                     guard let cellView = rowView.view(atColumn: column) as? ResultTableDataCellView else { continue }
-                    configureCellView(cellView, dataIndex: column, tableView: tableView, row: row)
+                    let cellSelection = QueryResultsTableView.SelectedCell(row: row, column: column)
+                    let isSelected = selectionRegion?.contains(cellSelection) ?? false
+                    cellView.updateSelectionState(isSelected: isSelected)
                 }
             }
         }
@@ -2571,10 +2597,25 @@ private final class ResultTableView: NSTableView {
 
 private final class VerticallyCenteredTextFieldCell: NSTextFieldCell {
     private let horizontalPadding: CGFloat = ResultsGridMetrics.horizontalPadding
+    private var cachedDrawingBounds: NSRect?
+    private var cachedDrawingRect: NSRect = .zero
+    private var cachedMeasuredBounds: NSRect?
+    private var cachedMeasuredSize: NSSize = .zero
 
     override func drawingRect(forBounds rect: NSRect) -> NSRect {
+        if let cachedBounds = cachedDrawingBounds, cachedBounds.equalTo(rect) {
+            return cachedDrawingRect
+        }
         var newRect = super.drawingRect(forBounds: rect)
-        let textSize = cellSize(forBounds: rect)
+        let textSize: NSSize
+        if let measuredBounds = cachedMeasuredBounds, measuredBounds.equalTo(rect) {
+            textSize = cachedMeasuredSize
+        } else {
+            let measured = cellSize(forBounds: rect)
+            cachedMeasuredBounds = rect
+            cachedMeasuredSize = measured
+            textSize = measured
+        }
         if newRect.height > textSize.height {
             let heightDelta = newRect.height - textSize.height
             newRect.origin.y += heightDelta / 2
@@ -2582,6 +2623,8 @@ private final class VerticallyCenteredTextFieldCell: NSTextFieldCell {
         }
         newRect.origin.x += horizontalPadding
         newRect.size.width = max(0, newRect.size.width - horizontalPadding * 2)
+        cachedDrawingBounds = rect
+        cachedDrawingRect = newRect
         return newRect
     }
 
@@ -2594,6 +2637,11 @@ private final class VerticallyCenteredTextFieldCell: NSTextFieldCell {
         let adjusted = drawingRect(forBounds: rect)
         super.select(withFrame: adjusted, in: controlView, editor: textObj, delegate: delegate, start: selStart, length: selLength)
     }
+
+    func invalidateCachedMetrics() {
+        cachedDrawingBounds = nil
+        cachedMeasuredBounds = nil
+    }
 }
 
 private final class ResultTableDataCellView: NSTableCellView {
@@ -2601,6 +2649,11 @@ private final class ResultTableDataCellView: NSTableCellView {
     private let actionButton: NSButton
     private var actionHandler: (() -> Void)?
     private var isIconVisible = false
+    private var baseTextColor: NSColor = .labelColor
+    private var selectionTextColor: NSColor = .labelColor
+    private var isSelectionActive = false
+    private var lastLayoutBounds: NSRect = .zero
+    private var lastLayoutIconVisibility = false
 
     override init(frame frameRect: NSRect) {
         contentTextField = NSTextField(frame: .zero)
@@ -2653,16 +2706,26 @@ private final class ResultTableDataCellView: NSTableCellView {
         addSubview(actionButton)
     }
 
-    func apply(text: String, font: NSFont, textColor: NSColor) {
+    func apply(text: String,
+               font: NSFont,
+               baseTextColor: NSColor,
+               selectionTextColor: NSColor,
+               isSelected: Bool) {
+        var shouldInvalidateMetrics = false
         if contentTextField.stringValue != text {
             contentTextField.stringValue = text
+            shouldInvalidateMetrics = true
         }
         if contentTextField.font !== font {
             contentTextField.font = font
+            shouldInvalidateMetrics = true
         }
-        if contentTextField.textColor != textColor {
-            contentTextField.textColor = textColor
+        if shouldInvalidateMetrics, let cell = contentTextField.cell as? VerticallyCenteredTextFieldCell {
+            cell.invalidateCachedMetrics()
         }
+        self.baseTextColor = baseTextColor
+        self.selectionTextColor = selectionTextColor
+        updateSelectionState(isSelected: isSelected, force: true)
     }
 
     func configureIcon(_ handler: (() -> Void)?) {
@@ -2681,6 +2744,11 @@ private final class ResultTableDataCellView: NSTableCellView {
 
     override func layout() {
         super.layout()
+        let didBoundsChange = !bounds.equalTo(lastLayoutBounds)
+        let didIconChange = lastLayoutIconVisibility != isIconVisible
+        guard didBoundsChange || didIconChange else { return }
+        lastLayoutBounds = bounds
+        lastLayoutIconVisibility = isIconVisible
         let padding = ResultsGridMetrics.horizontalPadding
         let buttonWidth: CGFloat = isIconVisible ? 18 : 0
         let spacing: CGFloat = isIconVisible ? 6 : 0
@@ -2704,10 +2772,29 @@ private final class ResultTableDataCellView: NSTableCellView {
         super.prepareForReuse()
         actionHandler = nil
         configureIcon(nil)
+        baseTextColor = .labelColor
+        selectionTextColor = .labelColor
+        isSelectionActive = false
+        contentTextField.textColor = baseTextColor
+        lastLayoutBounds = .zero
+        lastLayoutIconVisibility = false
     }
 
     @objc private func handleAction() {
         actionHandler?()
+    }
+
+    func updateSelectionState(isSelected: Bool) {
+        updateSelectionState(isSelected: isSelected, force: false)
+    }
+
+    private func updateSelectionState(isSelected: Bool, force: Bool) {
+        guard force || isSelectionActive != isSelected else { return }
+        isSelectionActive = isSelected
+        let targetColor = isSelected ? selectionTextColor : baseTextColor
+        if contentTextField.textColor != targetColor {
+            contentTextField.textColor = targetColor
+        }
     }
 }
 

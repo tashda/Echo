@@ -9,3 +9,6 @@ Docs
 
 # Profiling and trace exports
 tmp_trace_export
+
+# Swift package manager build artifacts
+Scripts/.mssql-probe/.build/
