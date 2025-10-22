@@ -155,13 +155,15 @@ struct QueryResultsTableView: NSViewRepresentable {
         private var requestedForeignKeyColumns: Set<Int> = []
         private var lastSelectionHighlightStyle: NSTableView.SelectionHighlightStyle?
         private var cachedDisplayedRows: [Int: [String?]] = [:]
+        private var cachedResultGridStyles: [ResultGridValueKind: SQLEditorTokenPalette.ResultGridStyle] = [:]
         private var cachedTextColors: [ResultGridValueKind: NSColor] = [:]
         private var autoscrollTimer: Timer?
         private var autoscrollVelocity: CGPoint = .zero
         private var lastDragLocationInWindow: NSPoint = .zero
         private let autoscrollPadding: CGFloat = 28
         private let autoscrollMaxSpeed: CGFloat = 900
-        private let autoscrollInterval: TimeInterval = 1.0 / 60.0
+        private let defaultAutoscrollInterval: TimeInterval = 1.0 / 60.0
+        private var autoscrollTimerInterval: TimeInterval = 1.0 / 60.0
         private var pendingReloadWorkItems: [DispatchWorkItem] = []
         private var pendingRowCountCorrection = false
         private var rowCountObserver: NSObjectProtocol?
@@ -503,6 +505,7 @@ struct QueryResultsTableView: NSViewRepresentable {
             if paletteChanged {
                 deactivateActiveSelectableField(in: tableView)
                 cachedFontStyles.removeAll(keepingCapacity: true)
+                cachedResultGridStyles.removeAll(keepingCapacity: true)
                 cachedTextColors.removeAll(keepingCapacity: true)
                 applyHeaderStyle(to: tableView)
                 refreshVisibleRowBackgrounds(tableView)
@@ -898,23 +901,17 @@ struct QueryResultsTableView: NSViewRepresentable {
             tableView.scrollColumnToVisible(upper)
         }
 
-        private func adjustTableSize(rowCount: Int? = nil) {
+        private func adjustTableSize(rowCount _: Int? = nil) {
             guard let tableView, let scrollView else { return }
+            cachedViewportSize = scrollView.contentView.bounds.size
+
             let contentWidth = tableView.tableColumns.reduce(CGFloat(0)) { $0 + $1.width }
             let targetWidth = max(contentWidth, scrollView.contentSize.width)
-            let totalRows = rowCount ?? (parent.rowOrder.isEmpty ? parent.query.displayedRowCount : parent.rowOrder.count)
-            let headerHeight = tableView.headerView?.frame.height ?? 0
-            let viewportHeight = scrollView.contentView.bounds.height
-            cachedViewportSize = scrollView.contentView.bounds.size
-            let resolvedRows = max(totalRows, 0)
-            let contentHeight = max(CGFloat(resolvedRows) * tableView.rowHeight + headerHeight, viewportHeight)
-            let newSize = NSSize(width: targetWidth, height: contentHeight)
-            let widthDelta = abs(tableView.frame.size.width - newSize.width)
-            let heightDelta = abs(tableView.frame.size.height - newSize.height)
-            if widthDelta > 0.5 || heightDelta > 0.5 {
+            let currentSize = tableView.frame.size
+            if abs(currentSize.width - targetWidth) > 0.5 {
                 CATransaction.begin()
                 CATransaction.setDisableActions(true)
-                tableView.setFrameSize(newSize)
+                tableView.setFrameSize(NSSize(width: targetWidth, height: currentSize.height))
                 CATransaction.commit()
             }
 #if DEBUG
@@ -1155,21 +1152,41 @@ struct QueryResultsTableView: NSViewRepresentable {
                     self?.stopAutoscroll()
                 }
             } else {
-                startAutoscroll(for: tableView, scrollView: scrollView)
+                let interval = preferredAutoscrollInterval(for: velocity)
+                startAutoscroll(for: tableView, scrollView: scrollView, interval: interval)
             }
         }
 
-    private func autoscrollSpeed(for distance: CGFloat, padding: CGFloat) -> CGFloat {
-        guard padding > 0 else { return 0 }
-        let ratio = min(max(distance / padding, 0), 1)
-        // Accelerate as the pointer moves further out, keeping near-edge movement gentle.
-        let adjusted = pow(ratio, 1.2)
-        return adjusted * autoscrollMaxSpeed
-    }
+        private func autoscrollSpeed(for distance: CGFloat, padding: CGFloat) -> CGFloat {
+            guard padding > 0 else { return 0 }
+            let ratio = min(max(distance / padding, 0), 1)
+            // Accelerate as the pointer moves further out, keeping near-edge movement gentle.
+            let adjusted = pow(ratio, 1.2)
+            return adjusted * autoscrollMaxSpeed
+        }
 
-        private func startAutoscroll(for tableView: NSTableView, scrollView: NSScrollView) {
-            guard autoscrollTimer == nil else { return }
-            let timer = Timer(timeInterval: autoscrollInterval, repeats: true) { [weak self, weak tableView] _ in
+        private func preferredAutoscrollInterval(for velocity: CGPoint) -> TimeInterval {
+            let speed = max(abs(velocity.x), abs(velocity.y))
+            if speed <= 0 {
+                return defaultAutoscrollInterval * 2.5
+            }
+            let clamped = min(max(speed / autoscrollMaxSpeed, 0), 1)
+            let scale = 1 + (1 - clamped) * 1.5
+            return defaultAutoscrollInterval * scale
+        }
+
+        private func startAutoscroll(for tableView: NSTableView, scrollView _: NSScrollView, interval: TimeInterval) {
+            if let timer = autoscrollTimer {
+                if abs(timer.timeInterval - interval) <= 0.0005 {
+                    return
+                }
+                timer.invalidate()
+                autoscrollTimer = nil
+            }
+
+            autoscrollTimerInterval = interval
+
+            let timer = Timer(timeInterval: interval, repeats: true) { [weak self, weak tableView] _ in
                 Task { @MainActor [weak self, weak tableView] in
                     guard let self, let tableView else {
                         self?.stopAutoscroll()
@@ -1186,6 +1203,7 @@ struct QueryResultsTableView: NSViewRepresentable {
             autoscrollTimer?.invalidate()
             autoscrollTimer = nil
             autoscrollVelocity = .zero
+            autoscrollTimerInterval = defaultAutoscrollInterval
         }
 
         private func performAutoscrollStep(in tableView: NSTableView) {
@@ -1206,8 +1224,8 @@ struct QueryResultsTableView: NSViewRepresentable {
             let maxOriginX = max(documentSize.width - clipSize.width, 0)
             let maxOriginY = max(documentSize.height - clipSize.height, 0)
 
-            let dx = autoscrollVelocity.x * CGFloat(autoscrollInterval)
-            let dy = autoscrollVelocity.y * CGFloat(autoscrollInterval)
+            let dx = autoscrollVelocity.x * CGFloat(autoscrollTimerInterval)
+            let dy = autoscrollVelocity.y * CGFloat(autoscrollTimerInterval)
 
             origin.x = min(max(origin.x + dx, 0), maxOriginX)
             origin.y = min(max(origin.y + dy, 0), maxOriginY)
@@ -1290,7 +1308,14 @@ struct QueryResultsTableView: NSViewRepresentable {
             }
 
             let theme = ThemeManager.shared
-            let style = theme.resultGridStyle(for: kind)
+            let style: SQLEditorTokenPalette.ResultGridStyle
+            if let cachedStyle = cachedResultGridStyles[kind] {
+                style = cachedStyle
+            } else {
+                let resolvedStyle = theme.resultGridStyle(for: kind)
+                cachedResultGridStyles[kind] = resolvedStyle
+                style = resolvedStyle
+            }
             let font = resolvedFont(for: style)
             let displayText: String
             if let rawValue {
@@ -2194,8 +2219,7 @@ struct QueryResultsTableView: NSViewRepresentable {
                 deactivateActiveSelectableField(in: tableView)
             }
 
-            refreshSelectionAppearance(for: previous, tableView: tableView)
-            refreshSelectionAppearance(for: region, tableView: tableView)
+            refreshSelectionTransition(from: previous, to: region, tableView: tableView)
 
             tableView.highlightedTableColumn = nil
             if let region,
@@ -2212,42 +2236,176 @@ struct QueryResultsTableView: NSViewRepresentable {
             notifyForeignKeySelection(region)
         }
 
-        private func refreshSelectionAppearance(for region: SelectedRegion?, tableView: NSTableView) {
-            guard let region else { return }
-            let rowCount = tableView.numberOfRows
-            guard rowCount > 0 else { return }
-            let maxRowIndex = rowCount - 1
-            let lowerRow = max(region.normalizedRowRange.lowerBound, 0)
-            let upperRow = min(region.normalizedRowRange.upperBound, maxRowIndex)
-            guard lowerRow <= upperRow else { return }
+        private func refreshSelectionTransition(from previous: SelectedRegion?, to current: SelectedRegion?, tableView: NSTableView) {
+            guard tableView.numberOfRows > 0,
+                  tableView.tableColumns.count > 0,
+                  previous != nil || current != nil else { return }
 
             let visibleRows = tableView.rows(in: tableView.visibleRect)
             guard visibleRows.length > 0 else { return }
+
+            let maxRowIndex = tableView.numberOfRows - 1
             let visibleLower = max(0, visibleRows.location)
             let visibleUpper = min(maxRowIndex, visibleLower + max(visibleRows.length - 1, 0))
-            let effectiveLower = max(lowerRow, visibleLower)
-            let effectiveUpper = min(upperRow, visibleUpper)
-            guard effectiveLower <= effectiveUpper else { return }
 
-            let columnCount = tableView.tableColumns.count
-            guard columnCount > 0 else { return }
-            let lowerColumn = max(0, min(region.normalizedColumnRange.lowerBound, columnCount - 1))
-            let upperColumn = max(0, min(region.normalizedColumnRange.upperBound, columnCount - 1))
+            let previousRows = rowBounds(for: previous, tableView: tableView)
+            let currentRows = rowBounds(for: current, tableView: tableView)
+            let rowsToAdd = rangeDifference(currentRows, subtracting: previousRows)
+            let rowsToRemove = rangeDifference(previousRows, subtracting: currentRows)
+            let overlappingRows = rangeIntersection(previousRows, currentRows)
 
-            for row in effectiveLower...effectiveUpper {
-                if let rowView = tableView.rowView(atRow: row, makeIfNecessary: false) as? ResultTableRowView {
-                    rowView.needsDisplay = true
-                    rowView.displayIfNeeded()
-                }
-                guard lowerColumn <= upperColumn,
-                      let rowView = tableView.rowView(atRow: row, makeIfNecessary: false) else { continue }
-                for column in lowerColumn...upperColumn {
-                    guard let cellView = rowView.view(atColumn: column) as? ResultTableDataCellView else { continue }
-                    let cellSelection = QueryResultsTableView.SelectedCell(row: row, column: column)
-                    let isSelected = selectionRegion?.contains(cellSelection) ?? false
-                    cellView.updateSelectionState(isSelected: isSelected)
+            let maxColumnIndex = tableView.tableColumns.count - 1
+            let previousColumns = columnBounds(for: previous, maxColumn: maxColumnIndex)
+            let currentColumns = columnBounds(for: current, maxColumn: maxColumnIndex)
+
+            let rowsRequiringRedraw = collectBoundaryRows(previous: previousRows, current: currentRows)
+
+            applySelectionChange(
+                rows: rowsToAdd,
+                visibleLower: visibleLower,
+                visibleUpper: visibleUpper,
+                columnsProvider: { _ in currentColumns },
+                isSelected: true,
+                tableView: tableView
+            )
+
+            applySelectionChange(
+                rows: rowsToRemove,
+                visibleLower: visibleLower,
+                visibleUpper: visibleUpper,
+                columnsProvider: { _ in previousColumns },
+                isSelected: false,
+                tableView: tableView
+            )
+
+            if let overlap = overlappingRows,
+               let clamped = clampRange(overlap, lower: visibleLower, upper: visibleUpper) {
+                let columnAdd = rangeDifference(currentColumns, subtracting: previousColumns)
+                let columnRemove = rangeDifference(previousColumns, subtracting: currentColumns)
+                if !columnAdd.isEmpty || !columnRemove.isEmpty {
+                    for row in clamped.lowerBound...clamped.upperBound {
+                        for addRange in columnAdd {
+                            applySelectionChange(
+                                rows: [row...row],
+                                visibleLower: visibleLower,
+                                visibleUpper: visibleUpper,
+                                columnsProvider: { _ in addRange },
+                                isSelected: true,
+                                tableView: tableView
+                            )
+                        }
+                        for removeRange in columnRemove {
+                            applySelectionChange(
+                                rows: [row...row],
+                                visibleLower: visibleLower,
+                                visibleUpper: visibleUpper,
+                                columnsProvider: { _ in removeRange },
+                                isSelected: false,
+                                tableView: tableView
+                            )
+                        }
+                    }
                 }
             }
+
+            for row in rowsRequiringRedraw {
+                guard row >= visibleLower, row <= visibleUpper,
+                      let rowView = tableView.rowView(atRow: row, makeIfNecessary: false) as? ResultTableRowView else { continue }
+                rowView.needsDisplay = true
+                rowView.displayIfNeeded()
+            }
+        }
+
+        private func applySelectionChange(rows: [ClosedRange<Int>],
+                                          visibleLower: Int,
+                                          visibleUpper: Int,
+                                          columnsProvider: (Int) -> ClosedRange<Int>?,
+                                          isSelected: Bool,
+                                          tableView: NSTableView) {
+            guard !rows.isEmpty else { return }
+            let maxColumnIndex = tableView.tableColumns.count - 1
+            for range in rows {
+                guard let clampedRows = clampRange(range, lower: visibleLower, upper: visibleUpper) else { continue }
+                for row in clampedRows.lowerBound...clampedRows.upperBound {
+                    guard let rowView = tableView.rowView(atRow: row, makeIfNecessary: false) else { continue }
+                    let resultRowView = rowView as? ResultTableRowView
+                    resultRowView?.needsDisplay = true
+                    guard let columnRange = columnsProvider(row),
+                          let clampedColumns = clampRange(columnRange, lower: 0, upper: maxColumnIndex) else {
+                        resultRowView?.displayIfNeeded()
+                        continue
+                    }
+                    for column in clampedColumns.lowerBound...clampedColumns.upperBound {
+                        guard let cellView = rowView.view(atColumn: column) as? ResultTableDataCellView else { continue }
+                        cellView.updateSelectionState(isSelected: isSelected)
+                    }
+                    resultRowView?.displayIfNeeded()
+                }
+            }
+        }
+
+        private func collectBoundaryRows(previous: ClosedRange<Int>?, current: ClosedRange<Int>?) -> Set<Int> {
+            var rows: Set<Int> = []
+            if let previous {
+                rows.insert(previous.lowerBound)
+                rows.insert(previous.upperBound)
+            }
+            if let current {
+                rows.insert(current.lowerBound)
+                rows.insert(current.upperBound)
+            }
+            return rows
+        }
+
+        private func rowBounds(for region: SelectedRegion?, tableView: NSTableView) -> ClosedRange<Int>? {
+            guard let region else { return nil }
+            let rowCount = tableView.numberOfRows
+            guard rowCount > 0 else { return nil }
+            let maxRowIndex = rowCount - 1
+            let lower = max(region.normalizedRowRange.lowerBound, 0)
+            let upper = min(region.normalizedRowRange.upperBound, maxRowIndex)
+            return lower <= upper ? lower...upper : nil
+        }
+
+        private func columnBounds(for region: SelectedRegion?, maxColumn: Int) -> ClosedRange<Int>? {
+            guard let region, maxColumn >= 0 else { return nil }
+            let lower = max(0, min(region.normalizedColumnRange.lowerBound, maxColumn))
+            let upper = max(0, min(region.normalizedColumnRange.upperBound, maxColumn))
+            return lower <= upper ? lower...upper : nil
+        }
+
+        private func clampRange(_ range: ClosedRange<Int>, lower: Int, upper: Int) -> ClosedRange<Int>? {
+            let clampedLower = max(range.lowerBound, lower)
+            let clampedUpper = min(range.upperBound, upper)
+            return clampedLower <= clampedUpper ? clampedLower...clampedUpper : nil
+        }
+
+        private func clampRange(_ range: ClosedRange<Int>?, lower: Int, upper: Int) -> ClosedRange<Int>? {
+            guard let range else { return nil }
+            return clampRange(range, lower: lower, upper: upper)
+        }
+
+        private func rangeDifference(_ source: ClosedRange<Int>?, subtracting other: ClosedRange<Int>?) -> [ClosedRange<Int>] {
+            guard let source else { return [] }
+            guard let other else { return [source] }
+            if source.upperBound < other.lowerBound || source.lowerBound > other.upperBound {
+                return [source]
+            }
+            var results: [ClosedRange<Int>] = []
+            if source.lowerBound < other.lowerBound {
+                results.append(source.lowerBound...min(other.lowerBound - 1, source.upperBound))
+            }
+            if source.upperBound > other.upperBound {
+                results.append(max(other.upperBound + 1, source.lowerBound)...source.upperBound)
+            }
+            return results
+        }
+
+        private func rangeIntersection(_ lhs: ClosedRange<Int>?, _ rhs: ClosedRange<Int>?) -> ClosedRange<Int>? {
+            guard let lhs, let rhs else { return nil }
+            let lower = max(lhs.lowerBound, rhs.lowerBound)
+            let upper = min(lhs.upperBound, rhs.upperBound)
+            return lower <= upper ? lower...upper : nil
         }
 
     }
