@@ -456,7 +456,7 @@ final class QueryResultsGridState {
     private var dataPreviewFetchTask: Task<Void, Never>?
     private var performanceTracker: QueryPerformanceTracker
     private lazy var formattingCoordinator: ResultRowFormattingCoordinator = {
-        ResultRowFormattingCoordinator { [weak self] batch in
+        ResultRowFormattingCoordinator(formatter: payloadFormatter) { [weak self] batch in
             self?.handleFormattedBatch(batch)
         }
     }()
@@ -1002,13 +1002,21 @@ final class QueryResultsGridState {
                 rowRange: update.rowRange
             )
             submitToSpool(update: spoolPayload, mode: modeForSpool)
-            let newReported = max(rowProgress.totalReported, estimatedTotal)
-            let newReceived = max(streamedRowCount, rowProgress.totalReceived)
-            if rowProgress.totalReported != newReported || rowProgress.totalReceived != newReceived {
+            let resolvedTotal = estimatedTotal > 0 ? estimatedTotal : rowProgress.totalReported
+            if resolvedTotal > 0, streamedRowCount > resolvedTotal {
+                streamedRowCount = resolvedTotal
+            }
+            let receivedSource = max(streamedRowCount, rowProgress.totalReceived)
+            let newReported = resolvedTotal
+            let newReceived = resolvedTotal > 0 ? min(receivedSource, resolvedTotal) : receivedSource
+            let newMaterialized = resolvedTotal > 0 ? min(rowProgress.materialized, resolvedTotal) : rowProgress.materialized
+            if rowProgress.totalReported != newReported
+                || rowProgress.totalReceived != newReceived
+                || rowProgress.materialized != newMaterialized {
                 rowProgress = RowProgress(
                     totalReceived: newReceived,
                     totalReported: newReported,
-                    materialized: rowProgress.materialized
+                    materialized: newMaterialized
                 )
             }
             markResultDataChanged()
@@ -1174,13 +1182,21 @@ final class QueryResultsGridState {
         submitToSpool(update: spoolPayload, mode: modeForSpool)
 
         if appendedRowCount > 0 && spoolPreviewRows.isEmpty {
-            let newReported = max(rowProgress.totalReported, estimatedTotal)
-            let newReceived = max(streamedRowCount, rowProgress.totalReceived)
-            if rowProgress.totalReported != newReported || rowProgress.totalReceived != newReceived {
+            let resolvedTotal = estimatedTotal > 0 ? estimatedTotal : rowProgress.totalReported
+            if resolvedTotal > 0, streamedRowCount > resolvedTotal {
+                streamedRowCount = resolvedTotal
+            }
+            let receivedSource = max(streamedRowCount, rowProgress.totalReceived)
+            let newReported = resolvedTotal
+            let newReceived = resolvedTotal > 0 ? min(receivedSource, resolvedTotal) : receivedSource
+            let newMaterialized = resolvedTotal > 0 ? min(rowProgress.materialized, resolvedTotal) : rowProgress.materialized
+            if rowProgress.totalReported != newReported
+                || rowProgress.totalReceived != newReceived
+                || rowProgress.materialized != newMaterialized {
                 rowProgress = RowProgress(
                     totalReceived: newReceived,
                     totalReported: newReported,
-                    materialized: rowProgress.materialized
+                    materialized: newMaterialized
                 )
             }
             markResultDataChanged()
@@ -1287,7 +1303,12 @@ final class QueryResultsGridState {
     }
 
     var totalAvailableRowCount: Int {
-        max(materializedHighWaterMark, streamingRows.count, rowProgress.totalReported)
+        let materialized = max(materializedHighWaterMark, streamingRows.count, rowProgress.materialized)
+        if rowProgress.totalReported > 0 {
+            return min(rowProgress.totalReported, materialized)
+        }
+        let received = max(streamedRowCount, rowProgress.totalReceived)
+        return max(materialized, received)
     }
 
     func displayedRow(at index: Int) -> [String?]? {

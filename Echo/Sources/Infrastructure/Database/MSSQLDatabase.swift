@@ -53,8 +53,8 @@ struct MSSQLNIOFactory: DatabaseFactory {
             }
 
             do {
-                _ = try await connection.rawSql("SET FMTONLY OFF;").get()
-                logger.info("MSSQL session defaults applied (SET FMTONLY OFF)")
+                _ = try await connection.rawSql("SET FMTONLY OFF; SET NO_BROWSETABLE OFF;").get()
+                logger.info("MSSQL session defaults applied (SET FMTONLY OFF, SET NO_BROWSETABLE OFF)")
             } catch {
                 logger.warning("Failed to apply MSSQL session defaults: \(error.localizedDescription)")
             }
@@ -95,6 +95,7 @@ final class MSSQLSession: DatabaseSession {
     private let defaultDatabase: String?
     private let formatter = MSSQLCellFormatter()
     private let databaseContext = MSSQLDatabaseContext()
+    private let sessionDefaultsStatement = "SET FMTONLY OFF; SET NO_BROWSETABLE OFF;"
 
     private let shutdownQueue = DispatchQueue(label: "dk.tippr.echo.mssql.shutdown")
     private var isClosed = false
@@ -305,6 +306,15 @@ final class MSSQLSession: DatabaseSession {
         let originalContext = currentName ?? defaultDatabase
 
         try await ensureDatabaseContext("master")
+        await applySessionDefaults(reason: "pre-database-enumeration")
+
+        if let optionRows = try? await fetchRows("SELECT @@OPTIONS & 2 AS fmtOnlyFlag;", resetSession: false),
+           let flag = optionRows.first?.string("fmtOnlyFlag") {
+            logger.info("MSSQL listDatabases session fmtOnlyFlag=\(flag)")
+        } else {
+            logger.info("MSSQL listDatabases unable to read fmtOnlyFlag (no rows)")
+        }
+        await applySessionDefaults(reason: "post-@@OPTIONS probe")
 
         var discovered = Set<String>()
 
@@ -314,7 +324,7 @@ final class MSSQLSession: DatabaseSession {
         WHERE is_user_process = 1
         ORDER BY database_name;
         """
-        if let dmRows = try? await fetchRows(dmSQL) {
+        if let dmRows = try? await fetchRows(dmSQL, resetSession: true) {
             let names = dmRows.compactMap { $0.string("database_name")?.trimmingCharacters(in: .whitespacesAndNewlines) }
                 .filter { !$0.isEmpty }
             let sortedNames = names.sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
@@ -328,7 +338,7 @@ final class MSSQLSession: DatabaseSession {
         ORDER BY name;
         """
         do {
-            let rows = try await fetchRows(dbGateSQL)
+            let rows = try await fetchRows(dbGateSQL, resetSession: true)
             let names = rows.compactMap { row -> String? in
                 guard let name = row.string("name")?.trimmingCharacters(in: .whitespacesAndNewlines),
                       !name.isEmpty
@@ -350,7 +360,7 @@ final class MSSQLSession: DatabaseSession {
         }
 
         do {
-            let rows = try await fetchRows("EXEC master.dbo.sp_databases;")
+            let rows = try await fetchRows("EXEC master.dbo.sp_databases;", resetSession: true)
             let names = rows.compactMap { row -> String? in
                 guard let name = row.string("DATABASE_NAME")?.trimmingCharacters(in: .whitespacesAndNewlines),
                       !name.isEmpty
@@ -389,12 +399,13 @@ final class MSSQLSession: DatabaseSession {
 
     func listSchemas() async throws -> [String] {
         try await ensureDefaultDatabaseContext()
+        await applySessionDefaults(reason: "pre-schema-enumeration")
         let sql = """
         SELECT name
         FROM sys.schemas
         ORDER BY name;
         """
-        let rows = try await fetchRows(sql)
+        let rows = try await fetchRows(sql, resetSession: true)
         let names = rows.compactMap { row -> String? in
             guard let name = row.string("name")?.trimmingCharacters(in: .whitespacesAndNewlines),
                   !name.isEmpty
@@ -412,7 +423,7 @@ final class MSSQLSession: DatabaseSession {
             return names
         }
 
-        if let fallbackRows = try? await fetchRows("SELECT schema_name AS name FROM INFORMATION_SCHEMA.SCHEMATA ORDER BY schema_name"),
+        if let fallbackRows = try? await fetchRows("SELECT schema_name AS name FROM INFORMATION_SCHEMA.SCHEMATA ORDER BY schema_name", resetSession: true),
            !fallbackRows.isEmpty {
             let fallbackNames = fallbackRows.compactMap { $0.string("name") }
             logger.info("MSSQL listSchemas fallback via INFORMATION_SCHEMA returned \(fallbackNames.count) schemas")
@@ -526,10 +537,29 @@ final class MSSQLSession: DatabaseSession {
 
     // MARK: - Metadata Helpers
 
-    private func fetchRows(_ sql: String) async throws -> [MSSQLRow] {
-        let batch = "SET FMTONLY OFF;\n\(sql)"
-        let future = connection.rawSql(batch)
-        let rows = try await future.get()
+    private func applySessionDefaults(reason: String? = nil) async {
+        do {
+            _ = try await connection.rawSql(sessionDefaultsStatement).get()
+            if let reason {
+                logger.debug("MSSQL session defaults enforced (\(reason))")
+            }
+        } catch {
+            logger.warning("Failed to enforce MSSQL session defaults\(reason.map { " (\($0))" } ?? ""): \(error.localizedDescription)")
+        }
+    }
+
+    private func fetchRows(_ sql: String, resetSession: Bool = true) async throws -> [MSSQLRow] {
+        let fullSQL: String
+        if resetSession {
+            await applySessionDefaults()
+        }
+        fullSQL = sql
+        var collected: [TDSRow] = []
+        let future = connection.rawSql(fullSQL, onRow: { row in
+            collected.append(row)
+        })
+        try await future.get()
+        let rows = collected
         logger.info("MSSQL fetchRows executed SQL (first 64 chars): \(sql.prefix(64)) … -> \(rows.count) rows")
         if !rows.isEmpty {
             let preview = rows.prefix(8)
@@ -574,6 +604,7 @@ final class MSSQLSession: DatabaseSession {
         EXEC sp_describe_first_result_set @tsql = N'\(escaped)';
         """
         let rows = try await fetchRows(describeSQL)
+        await applySessionDefaults(reason: "post-describe_first_result_set")
         var columns: [ColumnInfo] = []
         for row in rows {
             if MSSQLSession.boolValue(from: row.string("is_hidden")) {

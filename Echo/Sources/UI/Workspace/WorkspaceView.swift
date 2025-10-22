@@ -360,7 +360,6 @@ private struct WorkspaceWindowConfigurator: NSViewRepresentable {
         private var lastWindowID: ObjectIdentifier?
         private var lastStyle: WorkspaceTabBarStyle?
         private var lastKeyState: Bool?
-
         func configure(
             window: NSWindow,
             tabBarStyle: WorkspaceTabBarStyle,
@@ -421,6 +420,7 @@ private struct WorkspaceWindowConfigurator: NSViewRepresentable {
                 window.toolbar?.allowsUserCustomization = false
             }
         }
+
     }
 }
 #else

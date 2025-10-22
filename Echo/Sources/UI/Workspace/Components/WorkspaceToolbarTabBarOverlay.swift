@@ -105,6 +105,8 @@ final class WorkspaceToolbarTabBarOverlay {
 
         let leading = hostingView.leadingAnchor.constraint(equalTo: toolbarView.leadingAnchor)
         let trailing = hostingView.trailingAnchor.constraint(equalTo: toolbarView.trailingAnchor)
+        leading.priority = .defaultHigh
+        trailing.priority = .defaultHigh
         let centerY = hostingView.centerYAnchor.constraint(equalTo: toolbarView.centerYAnchor)
         let height = hostingView.heightAnchor.constraint(equalToConstant: WorkspaceChromeMetrics.toolbarTabBarHeight + 4)
 

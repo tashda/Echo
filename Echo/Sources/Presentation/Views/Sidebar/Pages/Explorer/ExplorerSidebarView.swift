@@ -73,6 +73,15 @@ struct ExplorerSidebarView: View {
                         .padding(.top, 12)
                         .padding(.bottom, ExplorerSidebarConstants.scrollBottomPadding)
                     }
+                    .simultaneousGesture(
+                        TapGesture().onEnded { _ in
+                            if isSearchFieldFocused {
+                                withAnimation(.easeInOut(duration: 0.2)) {
+                                    isSearchFieldFocused = false
+                                }
+                            }
+                        }
+                    )
                     .scrollIndicators(.hidden)
                     .contentShape(Rectangle())
                     .coordinateSpace(name: ExplorerSidebarConstants.scrollCoordinateSpace)
@@ -418,7 +427,15 @@ struct ExplorerSidebarView: View {
         let controlBackground = Color.primary.opacity(0.04)
         let borderColor = Color.primary.opacity(0.08)
         let schemaDisplayName = selectedSchemaName ?? "All Schemas"
-        let shouldShowSchemaPicker = database.schemas.count > 1 && !isSearchFieldFocused
+        let availableSchemas = database.schemas.filter { !$0.objects.isEmpty }
+        if let selected = selectedSchemaName,
+           !availableSchemas.contains(where: { $0.name == selected }) {
+            DispatchQueue.main.async {
+                self.selectedSchemaName = nil
+            }
+        }
+
+        let shouldShowSchemaPicker = availableSchemas.count > 1 && !isSearchFieldFocused
 
         return HStack(spacing: 6) {
             ExplorerFooterSearchField(
@@ -445,16 +462,21 @@ struct ExplorerSidebarView: View {
                         }
                     }
 
-                    ForEach(database.schemas, id: \.name) { schema in
+                    ForEach(availableSchemas, id: \.name) { schema in
+                        let objectCount = schema.objects.count
                         Button {
                             withAnimation(.easeInOut(duration: 0.2)) {
                                 selectedSchemaName = schema.name
                             }
                         } label: {
                             if selectedSchemaName == schema.name {
-                                Label(schema.name, systemImage: "checkmark")
+                                Label {
+                                    Text("\(schema.name) (\(objectCount))")
+                                } icon: {
+                                    Image(systemName: "checkmark")
+                                }
                             } else {
-                                Text(schema.name)
+                                Text("\(schema.name) (\(objectCount))")
                             }
                         }
                     }
@@ -1087,17 +1109,15 @@ private struct ExplorerFooterSearchField: View {
             RoundedRectangle(cornerRadius: 9, style: .continuous)
                 .stroke(borderColor, lineWidth: 0.5)
         )
-        .onChange(of: internalFocus) { newValue in
-            if newValue != isFocused {
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    isFocused = newValue
-                }
+        .onChange(of: internalFocus) { _, newValue in
+            guard newValue != isFocused else { return }
+            withAnimation(.easeInOut(duration: 0.2)) {
+                isFocused = newValue
             }
         }
-        .onChange(of: isFocused) { newValue in
-            if newValue != internalFocus {
-                internalFocus = newValue
-            }
+        .onChange(of: isFocused) { _, newValue in
+            guard newValue != internalFocus else { return }
+            internalFocus = newValue
         }
     }
 }

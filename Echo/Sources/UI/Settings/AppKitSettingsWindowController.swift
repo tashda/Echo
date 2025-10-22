@@ -84,7 +84,6 @@ final class AppKitSettingsWindowController: NSWindowController {
         titlebarAccessory.layoutAttribute = .top
         titlebarAccessory.view = headerView
         titlebarAccessory.fullScreenMinHeight = headerView.intrinsicContentSize.height
-        headerView.heightAnchor.constraint(equalToConstant: headerView.intrinsicContentSize.height).isActive = true
         if !window.titlebarAccessoryViewControllers.contains(titlebarAccessory) {
             window.addTitlebarAccessoryViewController(titlebarAccessory)
         }
@@ -186,8 +185,8 @@ private final class CapsuleTitleAccessoryView: NSVisualEffectView {
         NSLayoutConstraint.activate([
             titleField.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 18),
             titleField.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -18),
-            titleField.centerYAnchor.constraint(equalTo: centerYAnchor),
-            heightAnchor.constraint(equalToConstant: 32)
+            titleField.topAnchor.constraint(equalTo: topAnchor, constant: 6),
+            titleField.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -6)
         ])
     }
 
@@ -198,7 +197,7 @@ private final class CapsuleTitleAccessoryView: NSVisualEffectView {
     override var intrinsicContentSize: NSSize {
         let labelSize = titleField.intrinsicContentSize
         let width = max(200, labelSize.width + 48)
-        return NSSize(width: width, height: 32)
+        return NSSize(width: width, height: labelSize.height + 12)
     }
 }
 
@@ -224,10 +223,6 @@ private final class SettingsTitlebarHeaderView: NSView {
         backgroundView.blendingMode = .withinWindow
         backgroundView.isEmphasized = false
         backgroundView.wantsLayer = true
-        backgroundView.layer?.shadowColor = NSColor.black.withAlphaComponent(0.2).cgColor
-        backgroundView.layer?.shadowOpacity = 0.15
-        backgroundView.layer?.shadowRadius = 18
-        backgroundView.layer?.shadowOffset = CGSize(width: 0, height: -6)
 
         addSubview(backgroundView)
 
@@ -272,8 +267,7 @@ private final class SettingsTitlebarHeaderView: NSView {
 
             stackView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 16),
             stackView.trailingAnchor.constraint(lessThanOrEqualTo: trailingAnchor, constant: -16),
-            stackView.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -14),
-            stackView.topAnchor.constraint(greaterThanOrEqualTo: topAnchor, constant: 12),
+            stackView.centerYAnchor.constraint(equalTo: centerYAnchor),
 
             separator.leadingAnchor.constraint(equalTo: leadingAnchor),
             separator.trailingAnchor.constraint(equalTo: trailingAnchor),
@@ -289,17 +283,13 @@ private final class SettingsTitlebarHeaderView: NSView {
     }
 
     override var intrinsicContentSize: NSSize {
-        NSSize(width: NSView.noIntrinsicMetric, height: 72)
+        NSSize(width: NSView.noIntrinsicMetric, height: 32)
     }
 
     override func layout() {
         super.layout()
         highlightLayer.frame = CGRect(x: 0, y: bounds.height / 2, width: bounds.width, height: bounds.height / 2)
         applyHighlightColors()
-        if let layer = backgroundView.layer {
-            let shadowRect = CGRect(x: -40, y: -40, width: bounds.width + 80, height: bounds.height + 80)
-            layer.shadowPath = CGPath(roundedRect: shadowRect, cornerWidth: 40, cornerHeight: 40, transform: nil)
-        }
     }
 
     override var wantsUpdateLayer: Bool { true }

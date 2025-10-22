@@ -183,59 +183,150 @@ struct Main {
 
         logger.info("Login succeeded (database: \(targetDatabase.isEmpty ? "<default>" : targetDatabase))")
 
-        try runQuery(
-            label: "Current database",
-            sql: "SET FMTONLY OFF; SELECT DB_NAME() AS name;",
-            using: connection
-        )
+        try sessionReset(label: "Initial reset", on: connection)
 
-        try runQuery(
-            label: "Accessible databases",
-            sql: """
-            SET FMTONLY OFF;
-            SELECT name, state_desc, HAS_DBACCESS(name) AS has_access
-            FROM sys.databases
-            ORDER BY name;
-            """,
-            using: connection
-        )
+        let tests: [Probe] = [
+            Probe(
+                label: "Current database",
+                sql: "SET FMTONLY OFF; SELECT DB_NAME() AS name;"
+            ),
+            Probe(
+                label: "Accessible databases",
+                sql: """
+                SET FMTONLY OFF;
+                SELECT name, state_desc, HAS_DBACCESS(name) AS has_access
+                FROM sys.databases
+                ORDER BY name;
+                """
+            ),
+            Probe(
+                label: "sys.databases (no HAS_DBACCESS)",
+                sql: """
+                SET FMTONLY OFF;
+                SELECT name, state_desc
+                FROM sys.databases
+                ORDER BY name;
+                """
+            ),
+            Probe(
+                label: "sp_databases",
+                sql: """
+                SET FMTONLY OFF;
+                EXEC master.dbo.sp_databases;
+                """
+            ),
+            Probe(
+                label: "Schemas in current database",
+                sql: """
+                SET FMTONLY OFF;
+                SELECT name
+                FROM sys.schemas
+                ORDER BY name;
+                """
+            ),
+            Probe(
+                label: "INFORMATION_SCHEMA schemas",
+                sql: """
+                SET FMTONLY OFF;
+                SELECT schema_name AS name
+                FROM INFORMATION_SCHEMA.SCHEMATA
+                ORDER BY name;
+                """
+            ),
+            Probe(
+                label: "Sys tables sample",
+                sql: """
+                SET FMTONLY OFF;
+                SELECT TOP 5 name, object_id
+                FROM sys.tables
+                ORDER BY name;
+                """
+            ),
+            Probe(
+                label: "sp_describe_first_result_set (sys.databases)",
+                sql: """
+                EXEC sp_describe_first_result_set N'SELECT name FROM sys.databases';
+                """
+            ),
+            Probe(
+                label: "Post-describe reset check",
+                sql: "SET FMTONLY OFF; SELECT name FROM sys.databases ORDER BY name;"
+            )
+        ]
 
-        try runQuery(
-            label: "Schemas in current database",
-            sql: """
-            SET FMTONLY OFF;
-            SELECT name
-            FROM sys.schemas
-            ORDER BY name;
-            """,
-            using: connection
-        )
+        try runSeries(tests, using: connection)
     }
 
-    private static func runQuery(label: String, sql: String, using connection: TDSConnection) throws {
-        let logger = Logger(label: "MSSQLProbe")
-        logger.info("Running probe: \(label)")
-        let rows = try connection.rawSql(sql).wait()
-        if rows.isEmpty {
-            print("=== \(label) ===")
-            print("(no rows)")
-            return
-        }
+    private struct Probe {
+        let label: String
+        let sql: String
+        let expectRows: Bool?
 
-        let header = rows.first?.columnMetadata.colData.map { $0.colName } ?? []
-        print("=== \(label) ===")
-        print(header.joined(separator: "\t"))
-        for row in rows {
-            let values = header.map { columnName -> String in
-                guard let data = row.column(columnName) else {
-                    return "NULL"
-                }
-                if let stringValue = data.string {
-                    return stringValue
-                }
-                return data.description
+        init(label: String, sql: String, expectRows: Bool? = nil) {
+            self.label = label
+            self.sql = sql
+            self.expectRows = expectRows
+        }
+    }
+
+    private static func runSeries(_ probes: [Probe], using connection: TDSConnection) throws {
+        let logger = Logger(label: "MSSQLProbe")
+
+        for probe in probes {
+            logger.info("Running probe: \(probe.label)")
+            let start = DispatchTime.now()
+            do {
+                let rows = try connection.rawSql(probe.sql).wait()
+                let elapsed = Double(DispatchTime.now().uptimeNanoseconds - start.uptimeNanoseconds) / 1_000_000.0
+                report(probe: probe, rows: rows, elapsed: elapsed, logger: logger)
+            } catch {
+                logger.error("Probe '\(probe.label)' failed: \(error)")
+                throw error
             }
-            print(values.joined(separator: "\t"))
+            try sessionReset(label: "Post \(probe.label)", on: connection)
+        }
+    }
+
+    private static func report(
+        probe: Probe,
+        rows: [TDSRow],
+        elapsed: Double,
+        logger: Logger
+    ) {
+        if rows.isEmpty {
+            print("=== \(probe.label) [rows=0, \(String(format: "%.2f ms", elapsed))] ===")
+            print("(no rows)")
+        } else {
+            let header = rows.first?.columnMetadata.colData.map { $0.colName } ?? []
+            print("=== \(probe.label) [rows=\(rows.count), \(String(format: "%.2f ms", elapsed))] ===")
+            print(header.joined(separator: "\t"))
+            for row in rows.prefix(25) {
+                let values = header.map { columnName -> String in
+                    guard let data = row.column(columnName) else {
+                        return "NULL"
+                    }
+                    if let stringValue = data.string {
+                        return stringValue
+                    }
+                    return data.description
+                }
+                print(values.joined(separator: "\t"))
+            }
+            if rows.count > 25 {
+                print("… (\(rows.count - 25) more rows)")
+            }
+        }
+    }
+
+    private static func sessionReset(label: String, on connection: TDSConnection) throws {
+        let logger = Logger(label: "MSSQLProbe")
+        logger.debug("Applying session defaults (\(label))")
+        _ = try connection.rawSql("SET FMTONLY OFF; SET NO_BROWSETABLE OFF;").wait()
+
+        logger.debug("Probing @@OPTIONS after \(label)")
+        if let rows = try? connection.rawSql("SELECT @@OPTIONS & 2 AS fmtOnlyFlag;").wait(),
+           let value = rows.first?.column("fmtOnlyFlag")?.int32 {
+            logger.info("@@OPTIONS FMTONLY flag = \(value)")
         }
     }
 }

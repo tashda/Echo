@@ -18,6 +18,7 @@ struct DatabaseObjectBrowserView: View {
     let scrollTo: (String, UnitPoint) -> Void
     
     @EnvironmentObject private var appModel: AppModel
+    @State private var snapshotCache = ExplorerSnapshotCache()
 
     private var supportedObjectTypes: [SchemaObjectInfo.ObjectType] {
         SchemaObjectInfo.ObjectType.supported(for: connection.databaseType)
@@ -27,55 +28,12 @@ struct DatabaseObjectBrowserView: View {
         searchText.trimmingCharacters(in: .whitespacesAndNewlines)
     }
     
-    private var isSearching: Bool { !trimmedSearchText.isEmpty }
-    
-    private var totalFilteredObjectCount: Int {
-        groupedObjectsByType.values.reduce(0) { $0 + $1.count }
+    private var normalizedSearchQuery: String? {
+        let trimmed = trimmedSearchText
+        return trimmed.isEmpty ? nil : trimmed.lowercased()
     }
     
-    private var pinnedObjects: [SchemaObjectInfo] {
-        filteredSchemas
-            .flatMap { $0.objects }
-            .filter { object in
-                pinnedObjectIDs.contains(object.id) && matchesSearch(object)
-            }
-            .sorted { lhs, rhs in
-                lhs.fullName.localizedCaseInsensitiveCompare(rhs.fullName) == .orderedAscending
-            }
-    }
-    
-    private var filteredSchemas: [SchemaInfo] {
-        if let selectedSchemaName {
-            return database.schemas.filter { $0.name == selectedSchemaName }
-        }
-        return database.schemas
-    }
-    
-    private var groupedObjectsByType: [SchemaObjectInfo.ObjectType: [SchemaObjectInfo]] {
-        guard !filteredSchemas.isEmpty else { return [:] }
-        var grouped: [SchemaObjectInfo.ObjectType: [SchemaObjectInfo]] = [:]
-        for schema in filteredSchemas {
-            for object in schema.objects {
-                let type = object.type
-                guard supportedObjectTypes.contains(type), matchesSearch(object) else { continue }
-                grouped[type, default: []].append(object)
-            }
-        }
-        for type in grouped.keys {
-            grouped[type]?.sort { lhs, rhs in
-                lhs.fullName.localizedCaseInsensitiveCompare(rhs.fullName) == .orderedAscending
-            }
-        }
-        return grouped
-    }
-    
-    private func matchesSearch(_ object: SchemaObjectInfo) -> Bool {
-        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !query.isEmpty else { return true }
-        return object.name.localizedCaseInsensitiveContains(query) ||
-        object.schema.localizedCaseInsensitiveContains(query) ||
-        object.fullName.localizedCaseInsensitiveContains(query)
-    }
+    private var isSearching: Bool { normalizedSearchQuery != nil }
     
     private func displayName(for object: SchemaObjectInfo) -> String {
         if selectedSchemaName == nil {
@@ -138,135 +96,144 @@ struct DatabaseObjectBrowserView: View {
     }
     
     var body: some View {
-        let groupedObjects = groupedObjectsByType
-        if isSearching && totalFilteredObjectCount == 0 {
-            SearchEmptyStateView(query: searchText)
-        } else {
-            LazyVStack(alignment: .leading, spacing: 4) {
-                if !pinnedObjects.isEmpty {
-                    let headerID = "header-pinned"
-                    let pinnedList = pinnedObjects
-                    VStack(alignment: .leading, spacing: 4) {
-                        Button {
-                            let wasExpanded = isPinnedSectionExpanded
-                            withAnimation(.easeInOut(duration: 0.25)) {
-                                isPinnedSectionExpanded.toggle()
+        let input = SnapshotInput(
+            database: database,
+            normalizedQuery: normalizedSearchQuery,
+            selectedSchemaName: selectedSchemaName,
+            pinnedIDs: pinnedObjectIDs,
+            supportedTypes: supportedObjectTypes
+        )
+        let snapshot = snapshotCache.data
+        let groupedObjects = snapshot.grouped
+        let pinnedList = snapshot.pinned
+        let pinnedIDSet = pinnedObjectIDs
+        
+        return Group {
+            if isSearching && snapshot.filteredCount == 0 {
+                SearchEmptyStateView(query: searchText)
+            } else {
+                LazyVStack(alignment: .leading, spacing: 4) {
+                    if !pinnedList.isEmpty {
+                        VStack(alignment: .leading, spacing: 4) {
+                                Button {
+                                    withAnimation(.easeInOut(duration: 0.25)) {
+                                        isPinnedSectionExpanded.toggle()
+                                    }
+                                } label: {
+                                    HStack(spacing: 6) {
+                                        Image(systemName: isPinnedSectionExpanded ? "chevron.down" : "chevron.right")
+                                            .font(.system(size: 10, weight: .semibold))
+                                            .foregroundStyle(.secondary)
+                                    Text("PINNED")
+                                        .font(.system(size: 11, weight: .semibold))
+                                        .foregroundStyle(.secondary)
+                                    Text("\(pinnedList.count)")
+                                        .font(.system(size: 10, weight: .semibold))
+                                        .foregroundStyle(.secondary.opacity(0.8))
+                                        .padding(.horizontal, 6)
+                                        .padding(.vertical, 2)
+                                        .background(Color.primary.opacity(0.06), in: Capsule())
+                                    Spacer()
+                                }
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 4)
+                                .contentShape(Rectangle())
                             }
-                            if wasExpanded {
-                                scrollTo(headerID, .top)
-                            }
-                        } label: {
-                            HStack(spacing: 6) {
-                                Image(systemName: isPinnedSectionExpanded ? "chevron.down" : "chevron.right")
-                                    .font(.system(size: 10, weight: .semibold))
-                                    .foregroundStyle(.secondary)
-                                Text("PINNED")
-                                    .font(.system(size: 11, weight: .semibold))
-                                    .foregroundStyle(.secondary)
-                                Text("\(pinnedList.count)")
-                                    .font(.system(size: 10, weight: .semibold))
-                                    .foregroundStyle(.secondary.opacity(0.8))
-                                    .padding(.horizontal, 6)
-                                    .padding(.vertical, 2)
-                                    .background(Color.primary.opacity(0.06), in: Capsule())
-                                Spacer()
-                            }
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 4)
-                            .contentShape(Rectangle())
-                        }
-                        .buttonStyle(.plain)
-                        
-                        if isPinnedSectionExpanded {
-                            ForEach(pinnedList, id: \.id) { object in
-                                DatabaseObjectRow(
-                                    object: object,
-                                    displayName: displayName(for: object),
-                                    connection: connection,
-                                    showColumns: shouldShowColumns(for: object),
-                                    isExpanded: expansionBinding(for: object.id),
-                                    isPinned: true,
-                                    onTogglePin: { togglePin(for: object) },
-                                    onTriggerTableTap: object.type == .trigger ? { tableName in revealTable(fullName: tableName) } : nil
-                                )
-                                .environmentObject(appModel)
-                                .id("pinned-\(object.id)")
-                            }
-                        }
-                    }
-                    .id(headerID)
-                }
-                
-                ForEach(supportedObjectTypes, id: \.self) { objectType in
-                    let objects = groupedObjects[objectType] ?? []
-                    
-                    let headerID = "header-\(objectType.rawValue)"
-                    let isExpanded = expandedObjectGroups.contains(objectType)
-                    
-                    VStack(alignment: .leading, spacing: 4) {
-                        Button {
-                            let wasExpanded = isExpanded
-                            withAnimation(.easeInOut(duration: 0.25)) {
-                                if wasExpanded {
-                                    expandedObjectGroups.remove(objectType)
-                                } else {
-                                    expandedObjectGroups.insert(objectType)
+                            .buttonStyle(.plain)
+                            
+                            if isPinnedSectionExpanded {
+                                ForEach(pinnedList, id: \.id) { object in
+                                    DatabaseObjectRow(
+                                        object: object,
+                                        displayName: displayName(for: object),
+                                        connection: connection,
+                                        showColumns: shouldShowColumns(for: object),
+                                        isExpanded: expansionBinding(for: object.id),
+                                        isPinned: true,
+                                        onTogglePin: { togglePin(for: object) },
+                                        onTriggerTableTap: object.type == .trigger ? { tableName in revealTable(fullName: tableName) } : nil
+                                    )
+                                    .environmentObject(appModel)
+                                    .id("pinned-\(object.id)")
                                 }
                             }
-                            if wasExpanded {
-                                scrollTo(headerID, .top)
-                            }
-                        } label: {
-                            HStack(spacing: 6) {
-                                Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
-                                    .font(.system(size: 10, weight: .semibold))
-                                    .foregroundStyle(.secondary)
-                                Text(objectType.pluralDisplayName.uppercased())
-                                    .font(.system(size: 11, weight: .semibold))
-                                    .foregroundStyle(.secondary)
-                                Text("\(objects.count)")
-                                    .font(.system(size: 10, weight: .semibold))
-                                    .foregroundStyle(.secondary.opacity(0.8))
-                                    .padding(.horizontal, 6)
-                                    .padding(.vertical, 2)
-                                    .background(Color.primary.opacity(0.06), in: Capsule())
-                                Spacer()
-                            }
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 4)
-                            .contentShape(Rectangle())
                         }
-                        .buttonStyle(.plain)
-                        
-                        if isExpanded {
-                            ForEach(objects, id: \.id) { object in
-                                DatabaseObjectRow(
-                                    object: object,
-                                    displayName: displayName(for: object),
-                                    connection: connection,
-                                    showColumns: shouldShowColumns(for: object),
-                                    isExpanded: expansionBinding(for: object.id),
-                                    isPinned: isPinned(object),
-                                    onTogglePin: { togglePin(for: object) },
-                                    onTriggerTableTap: object.type == .trigger ? { tableName in revealTable(fullName: tableName) } : nil
-                                )
-                                .environmentObject(appModel)
-                                .id(object.id)
-                            }
-                        }
+                        .id("header-pinned")
                     }
-                    .id(headerID)
+                    
+                    ForEach(supportedObjectTypes, id: \.self) { objectType in
+                        let objects = groupedObjects[objectType] ?? []
+                        
+                        let headerID = "header-\(objectType.rawValue)"
+                        let isExpanded = expandedObjectGroups.contains(objectType)
+                        
+                        VStack(alignment: .leading, spacing: 4) {
+                            Button {
+                                withAnimation(.easeInOut(duration: 0.25)) {
+                                    if expandedObjectGroups.contains(objectType) {
+                                        expandedObjectGroups.remove(objectType)
+                                    } else {
+                                        expandedObjectGroups.insert(objectType)
+                                    }
+                                }
+                            } label: {
+                                HStack(spacing: 6) {
+                                    Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
+                                        .font(.system(size: 10, weight: .semibold))
+                                        .foregroundStyle(.secondary)
+                                    Text(objectType.pluralDisplayName.uppercased())
+                                        .font(.system(size: 11, weight: .semibold))
+                                        .foregroundStyle(.secondary)
+                                    Text("\(objects.count)")
+                                        .font(.system(size: 10, weight: .semibold))
+                                        .foregroundStyle(.secondary.opacity(0.8))
+                                        .padding(.horizontal, 6)
+                                        .padding(.vertical, 2)
+                                        .background(Color.primary.opacity(0.06), in: Capsule())
+                                    Spacer()
+                                }
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 4)
+                                .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                            
+                            if isExpanded {
+                                ForEach(objects, id: \.id) { object in
+                                    DatabaseObjectRow(
+                                        object: object,
+                                        displayName: displayName(for: object),
+                                        connection: connection,
+                                        showColumns: shouldShowColumns(for: object),
+                                        isExpanded: expansionBinding(for: object.id),
+                                        isPinned: pinnedIDSet.contains(object.id),
+                                        onTogglePin: { togglePin(for: object) },
+                                        onTriggerTableTap: object.type == .trigger ? { tableName in revealTable(fullName: tableName) } : nil
+                                    )
+                                    .environmentObject(appModel)
+                                    .id(object.id)
+                                }
+                            }
+                        }
+                        .id(headerID)
+                    }
+                }
+                .transaction { transaction in
+                    transaction.animation = nil
                 }
             }
-            .transaction { transaction in
-                transaction.animation = nil
-            }
+        }
+        .onAppear {
+            snapshotCache.update(with: input)
+        }
+        .onChange(of: input) { _, newValue in
+            snapshotCache.update(with: newValue)
         }
     }
-    
+
     // MARK: - Search Empty State
     
-    private struct SearchEmptyStateView: View {
+private struct SearchEmptyStateView: View {
         let query: String
         
         private var formattedQuery: String {
@@ -311,6 +278,10 @@ struct DatabaseObjectBrowserView: View {
 #if os(macOS)
     @StateObject private var menuHandler = MenuActionHandler()
 #endif
+    @State private var menuCacheKey: MenuCacheKey?
+    @State private var cachedGeneralMenuItems: [ContextMenuActionItem] = []
+    @State private var cachedAdministrativeMenuItems: [ContextMenuActionItem] = []
+    @State private var cachedScriptActions: [ScriptAction] = []
         
         private var canExpand: Bool {
             showColumns && !object.columns.isEmpty
@@ -328,7 +299,7 @@ struct DatabaseObjectBrowserView: View {
                 return "eye"
             case .materializedView:
                 return "eye.fill"
-            case .function, .procedure:
+            case .function:
                 return "function"
             case .trigger:
                 return "bolt"
@@ -558,6 +529,33 @@ struct DatabaseObjectBrowserView: View {
 #endif
         }
         
+        private func prepareMenuCacheIfNeeded() {
+            let key = MenuCacheKey(
+                isPinned: isPinned,
+                databaseType: connection.databaseType,
+                objectType: object.type,
+                columnCount: object.columns.count,
+                supportsDataPreview: supportsDataPreview,
+                supportsDiagram: supportsDiagram,
+                supportsTruncate: supportsTruncateTable
+            )
+            if menuCacheKey == key { return }
+            menuCacheKey = key
+            cachedGeneralMenuItems = computeGeneralMenuItems()
+            cachedAdministrativeMenuItems = computeAdministrativeMenuItems()
+            cachedScriptActions = scriptActionsForCurrentContext()
+        }
+        
+        private struct MenuCacheKey: Equatable {
+            let isPinned: Bool
+            let databaseType: DatabaseType
+            let objectType: SchemaObjectInfo.ObjectType
+            let columnCount: Int
+            let supportsDataPreview: Bool
+            let supportsDiagram: Bool
+            let supportsTruncate: Bool
+        }
+        
         private func openStructureEditor(for column: ColumnInfo, preferDrop: Bool = false) {
             Task { @MainActor in
                 guard let session = appModel.sessionManager.sessionForConnection(connection.id) else { return }
@@ -570,15 +568,16 @@ struct DatabaseObjectBrowserView: View {
         
 #if os(macOS)
     private func buildContextMenu() -> NSMenu? {
+        prepareMenuCacheIfNeeded()
         let menu = NSMenu()
         menu.autoenablesItems = false
         menuHandler.clear()
 
-        for item in generalMenuItems {
+        for item in cachedGeneralMenuItems {
             menu.addItem(makeMenuItem(from: item))
         }
 
-        let scriptActions = scriptActionsForCurrentContext()
+        let scriptActions = cachedScriptActions
         if !scriptActions.isEmpty {
             menu.addItem(.separator())
             let scriptMenuItem = NSMenuItem(title: "Script as", action: nil, keyEquivalent: "")
@@ -601,9 +600,9 @@ struct DatabaseObjectBrowserView: View {
             menu.addItem(scriptMenuItem)
         }
 
-        if !administrativeMenuItems.isEmpty {
+        if !cachedAdministrativeMenuItems.isEmpty {
             menu.addItem(.separator())
-            for item in administrativeMenuItems {
+            for item in cachedAdministrativeMenuItems {
                 menu.addItem(makeMenuItem(from: item))
             }
         }
@@ -624,7 +623,8 @@ struct DatabaseObjectBrowserView: View {
 #else
     @ViewBuilder
     private var contextMenuContent: some View {
-        ForEach(generalMenuItems) { item in
+        prepareMenuCacheIfNeeded()
+        ForEach(cachedGeneralMenuItems) { item in
             Button(role: item.role) {
                 item.action()
             } label: {
@@ -632,7 +632,7 @@ struct DatabaseObjectBrowserView: View {
             }
         }
 
-        let scriptActions = scriptActionsForCurrentContext()
+        let scriptActions = cachedScriptActions
         if !scriptActions.isEmpty {
             Divider()
             Menu("Script as", systemImage: "scroll") {
@@ -646,9 +646,9 @@ struct DatabaseObjectBrowserView: View {
             }
         }
 
-        if !administrativeMenuItems.isEmpty {
+        if !cachedAdministrativeMenuItems.isEmpty {
             Divider()
-            ForEach(administrativeMenuItems) { item in
+            ForEach(cachedAdministrativeMenuItems) { item in
                 Button(role: item.role) {
                     item.action()
                 } label: {
@@ -707,7 +707,7 @@ struct DatabaseObjectBrowserView: View {
             }
         }
         
-        private var generalMenuItems: [ContextMenuActionItem] {
+        private func computeGeneralMenuItems() -> [ContextMenuActionItem] {
             var items: [ContextMenuActionItem] = []
             
             items.append(
@@ -766,7 +766,7 @@ struct DatabaseObjectBrowserView: View {
             
             return items
         }
-        private var administrativeMenuItems: [ContextMenuActionItem] {
+        private func computeAdministrativeMenuItems() -> [ContextMenuActionItem] {
             var items: [ContextMenuActionItem] = []
             
             switch connection.databaseType {
@@ -1650,7 +1650,7 @@ struct DatabaseObjectBrowserView: View {
                     return "ALTER VIEW \(qualified) RENAME TO \(quotedNewName);"
                 case .materializedView:
                     return "ALTER MATERIALIZED VIEW \(qualified) RENAME TO \(quotedNewName);"
-                case .function, .procedure:
+                case .function:
                     return trimmedName == nil
                     ? "ALTER FUNCTION \(qualified)(/* arg_types */) RENAME TO \(quotedNewName);"
                     : nil
@@ -1669,7 +1669,7 @@ struct DatabaseObjectBrowserView: View {
                     return "RENAME TABLE \(qualified) TO \(destination);"
                 case .trigger:
                     return "RENAME TRIGGER \(qualified) TO \(quotedNewName);"
-                case .function, .procedure:
+                case .function:
                     return trimmedName == nil
                     ? """
                 -- MySQL cannot rename functions directly.
@@ -1843,5 +1843,86 @@ struct DatabaseObjectBrowserView: View {
             }
             return qualifiedName(schema: object.schema, name: triggerTable)
         }
+    }
+}
+
+private struct SnapshotInput: Equatable {
+    let database: DatabaseInfo
+    let normalizedQuery: String?
+    let selectedSchemaName: String?
+    let pinnedIDs: Set<String>
+    let supportedTypes: [SchemaObjectInfo.ObjectType]
+}
+
+private struct SnapshotData: Equatable {
+    static let empty = SnapshotData(grouped: [:], pinned: [], filteredCount: 0)
+    let grouped: [SchemaObjectInfo.ObjectType: [SchemaObjectInfo]]
+    let pinned: [SchemaObjectInfo]
+    let filteredCount: Int
+}
+
+private struct ExplorerSnapshotCache {
+    private(set) var data: SnapshotData = .empty
+    private var lastInput: SnapshotInput?
+    
+    mutating func update(with input: SnapshotInput) {
+        if let last = lastInput, last == input {
+            return
+        }
+        lastInput = input
+        let newData = ExplorerSnapshotCache.buildData(from: input)
+        if newData != data {
+            data = newData
+        }
+    }
+    
+    private static func buildData(from input: SnapshotInput) -> SnapshotData {
+        let supportedSet = Set(input.supportedTypes)
+        let pinnedIDs = input.pinnedIDs
+        let normalizedQuery = input.normalizedQuery
+        
+        let schemas: [SchemaInfo]
+        if let selected = input.selectedSchemaName, !selected.isEmpty {
+            schemas = input.database.schemas.filter { $0.name == selected }
+        } else {
+            schemas = input.database.schemas
+        }
+        
+        var grouped: [SchemaObjectInfo.ObjectType: [SchemaObjectInfo]] = [:]
+        var pinnedList: [SchemaObjectInfo] = []
+        var filteredCount = 0
+        
+        for schema in schemas {
+            for object in schema.objects {
+                guard supportedSet.contains(object.type) else { continue }
+                if let query = normalizedQuery, !query.isEmpty, !objectMatchesQuery(object, normalizedQuery: query) {
+                    continue
+                }
+                grouped[object.type, default: []].append(object)
+                filteredCount += 1
+                if pinnedIDs.contains(object.id) {
+                    pinnedList.append(object)
+                }
+            }
+        }
+        
+        for type in grouped.keys {
+            grouped[type]?.sort { lhs, rhs in
+                lhs.fullName.localizedCaseInsensitiveCompare(rhs.fullName) == .orderedAscending
+            }
+        }
+        
+        pinnedList.sort { lhs, rhs in
+            lhs.fullName.localizedCaseInsensitiveCompare(rhs.fullName) == .orderedAscending
+        }
+        
+        return SnapshotData(grouped: grouped, pinned: pinnedList, filteredCount: filteredCount)
+    }
+    
+    private static func objectMatchesQuery(_ object: SchemaObjectInfo, normalizedQuery: String) -> Bool {
+        let query = normalizedQuery
+        if object.name.lowercased().contains(query) { return true }
+        if object.schema.lowercased().contains(query) { return true }
+        return object.fullName.lowercased().contains(query)
     }
 }

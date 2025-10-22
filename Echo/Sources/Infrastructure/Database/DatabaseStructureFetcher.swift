@@ -145,13 +145,7 @@ struct DatabaseStructureFetcher {
         case .sqlite:
             baseSessionDatabaseName = "main"
         case .microsoftSQL:
-            try Task.checkCancellation()
-            if let currentDatabase = try? await baseSession.simpleQuery("SELECT DB_NAME()"),
-               let rawValue = currentDatabase.rows.first?.first,
-               let databaseName = rawValue,
-               !databaseName.isEmpty {
-                baseSessionDatabaseName = databaseName
-            } else if !connection.database.isEmpty {
+            if !connection.database.isEmpty {
                 baseSessionDatabaseName = connection.database
             }
         }
