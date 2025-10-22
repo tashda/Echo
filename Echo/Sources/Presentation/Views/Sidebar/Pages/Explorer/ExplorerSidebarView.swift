@@ -140,8 +140,10 @@ struct ExplorerSidebarView: View {
 
                         searchDebounceTask?.cancel()
                         if trimmedNew.isEmpty {
-                            debouncedSearchText = ""
-                            DispatchQueue.main.async {
+                            searchDebounceTask = Task { @MainActor in
+                                debouncedSearchText = ""
+                                await Task.yield()
+                                guard !Task.isCancelled else { return }
                                 proxy.scrollTo(ExplorerSidebarConstants.objectsTopAnchor, anchor: .top)
                             }
                         } else {
@@ -150,9 +152,9 @@ struct ExplorerSidebarView: View {
                                 try? await Task.sleep(nanoseconds: 200_000_000)
                                 guard !Task.isCancelled else { return }
                                 debouncedSearchText = pendingText
-                                DispatchQueue.main.async {
-                                    proxy.scrollTo(ExplorerSidebarConstants.objectsTopAnchor, anchor: .top)
-                                }
+                                await Task.yield()
+                                guard !Task.isCancelled else { return }
+                                proxy.scrollTo(ExplorerSidebarConstants.objectsTopAnchor, anchor: .top)
                             }
                         }
                     }

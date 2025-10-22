@@ -10,7 +10,7 @@ let package = Package(
         .executable(name: "mssql-probe", targets: ["MSSQLProbe"])
     ],
     dependencies: [
-        .package(path: "/Users/k/Development/fuzee/../tds-nio")
+        .package(path: "/Users/k/Development/tds-nio")
     ],
     targets: [
         .executableTarget(

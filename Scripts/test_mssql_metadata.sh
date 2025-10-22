@@ -3,7 +3,7 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ENV_FILE="${ROOT_DIR}/mssql.env"
-TDS_PATH="${ROOT_DIR}/../tds-nio"
+TDS_PATH="/Users/k/Development/tds-nio"
 
 if [[ ! -f "${ENV_FILE}" ]]; then
   cat <<EOF >&2
@@ -13,8 +13,10 @@ EOF
   exit 2
 fi
 
+set -a
 # shellcheck disable=SC1090
 source "${ENV_FILE}"
+set +a
 
 : "${MSSQL_HOST:?Set MSSQL_HOST in ${ENV_FILE}}"
 : "${MSSQL_PORT:=1433}"
@@ -33,6 +35,16 @@ fi
 
 WORK_DIR="${ROOT_DIR}/Scripts/.mssql-probe"
 mkdir -p "${WORK_DIR}/Sources/MSSQLProbe"
+MODULE_CACHE="${WORK_DIR}/.module-cache"
+SWIFT_CACHE="${WORK_DIR}/.build-cache"
+mkdir -p "${MODULE_CACHE}"
+mkdir -p "${SWIFT_CACHE}"
+
+# Clear previous probe directory to avoid stale Package.swift manifests or build artifacts
+rm -rf "${WORK_DIR}"
+mkdir -p "${WORK_DIR}/Sources/MSSQLProbe"
+MODULE_CACHE="${WORK_DIR}/.module-cache"
+mkdir -p "${MODULE_CACHE}"
 
 # Regenerate package manifest on each run so dependency path stays up to date.
 cat >"${WORK_DIR}/Package.swift" <<EOF
@@ -268,6 +280,28 @@ struct Main {
                 minimumExpectedRows: 2,
                 expectedContains: expectedDatabases,
                 expectedColumn: "name"
+            ),
+            Probe(
+                label: "dbo column metadata",
+                sql: """
+                SELECT
+                    c.TABLE_NAME,
+                    c.COLUMN_NAME,
+                    c.DATA_TYPE,
+                    c.IS_NULLABLE,
+                    c.CHARACTER_MAXIMUM_LENGTH,
+                    c.NUMERIC_PRECISION,
+                    c.NUMERIC_SCALE,
+                    COLUMNPROPERTY(object_id(c.TABLE_SCHEMA + '.' + c.TABLE_NAME), c.COLUMN_NAME, 'IsIdentity') AS is_identity,
+                    COLUMNPROPERTY(object_id(c.TABLE_SCHEMA + '.' + c.TABLE_NAME), c.COLUMN_NAME, 'IsComputed') AS is_computed,
+                    c.ORDINAL_POSITION
+                FROM INFORMATION_SCHEMA.COLUMNS AS c
+                WHERE c.TABLE_SCHEMA = 'dbo'
+                ORDER BY c.TABLE_NAME, c.ORDINAL_POSITION;
+                """,
+                minimumExpectedRows: 1,
+                expectedContains: ["AWBuildVersion"],
+                expectedColumn: "TABLE_NAME"
             )
         ]
 
@@ -418,19 +452,51 @@ echo "[mssql-metadata] Using TDS package at ${TDS_PATH}" >&2
 ls -lh "${TDS_PATH}/.build/debug" 2>/dev/null >&2
 
 env \
+    HOME="${WORK_DIR}" \
     MSSQL_HOST="${MSSQL_HOST}" \
     MSSQL_PORT="${MSSQL_PORT}" \
     MSSQL_USERNAME="${MSSQL_USERNAME}" \
     MSSQL_PASSWORD="${MSSQL_PASSWORD}" \
     MSSQL_DATABASE="${MSSQL_DATABASE}" \
     MSSQL_ENABLE_TLS="${MSSQL_ENABLE_TLS}" \
-    swift build --package-path "${WORK_DIR}" --configuration debug --product mssql-probe >/dev/null
+    LOG_LEVEL="${LOG_LEVEL:-info}" \
+    CLANG_MODULE_CACHE_PATH="${MODULE_CACHE}" \
+    SWIFT_MODULE_DIRECTORY="${MODULE_CACHE}" \
+    swift build \
+        --package-path "${WORK_DIR}" \
+        --configuration debug \
+        --product mssql-probe \
+        --cache-path "${SWIFT_CACHE}" \
+        --disable-sandbox \
+        >/tmp/mssql-probe-build.log 2>&1 || {
+        status=$?
+        echo "[mssql-metadata] swift build failed (exit ${status}). Build log:" >&2
+        cat /tmp/mssql-probe-build.log >&2
+        exit "${status}"
+    }
 
-env \
+set +e
+output="$(env \
+    HOME="${WORK_DIR}" \
     MSSQL_HOST="${MSSQL_HOST}" \
     MSSQL_PORT="${MSSQL_PORT}" \
     MSSQL_USERNAME="${MSSQL_USERNAME}" \
     MSSQL_PASSWORD="${MSSQL_PASSWORD}" \
     MSSQL_DATABASE="${MSSQL_DATABASE}" \
     MSSQL_ENABLE_TLS="${MSSQL_ENABLE_TLS}" \
-    "${WORK_DIR}/.build/debug/mssql-probe" "$@"
+    LOG_LEVEL="${LOG_LEVEL:-info}" \
+    CLANG_MODULE_CACHE_PATH="${MODULE_CACHE}" \
+    SWIFT_MODULE_DIRECTORY="${MODULE_CACHE}" \
+    "${WORK_DIR}/.build/debug/mssql-probe" "$@" 2>&1)"
+status=$?
+set -e
+
+printf '%s\n' "${output}"
+
+if [[ ${status} -ne 0 ]]; then
+  echo "[mssql-metadata] Probe failed with exit code ${status}" >&2
+else
+  echo "[mssql-metadata] Probe completed successfully."
+fi
+
+exit "${status}"

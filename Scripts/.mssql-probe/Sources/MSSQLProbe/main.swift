@@ -204,6 +204,28 @@ struct Main {
                 minimumExpectedRows: 2,
                 expectedContains: expectedDatabases,
                 expectedColumn: "name"
+            ),
+            Probe(
+                label: "dbo column metadata",
+                sql: """
+                SELECT
+                    c.TABLE_NAME,
+                    c.COLUMN_NAME,
+                    c.DATA_TYPE,
+                    c.IS_NULLABLE,
+                    c.CHARACTER_MAXIMUM_LENGTH,
+                    c.NUMERIC_PRECISION,
+                    c.NUMERIC_SCALE,
+                    COLUMNPROPERTY(object_id(c.TABLE_SCHEMA + '.' + c.TABLE_NAME), c.COLUMN_NAME, 'IsIdentity') AS is_identity,
+                    COLUMNPROPERTY(object_id(c.TABLE_SCHEMA + '.' + c.TABLE_NAME), c.COLUMN_NAME, 'IsComputed') AS is_computed,
+                    c.ORDINAL_POSITION
+                FROM INFORMATION_SCHEMA.COLUMNS AS c
+                WHERE c.TABLE_SCHEMA = 'dbo'
+                ORDER BY c.TABLE_NAME, c.ORDINAL_POSITION;
+                """,
+                minimumExpectedRows: 1,
+                expectedContains: ["AWBuildVersion"],
+                expectedColumn: "TABLE_NAME"
             )
         ]
 

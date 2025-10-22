@@ -280,80 +280,122 @@ struct DatabaseStructureFetcher {
                 continue
             }
 
-            let sessionToClose: DatabaseSession? = shouldCloseSession ? activeSession : nil
-            defer {
-                if let sessionToClose {
-                    Task { await sessionToClose.close() }
+            var sessionForAttempt = activeSession
+            var closeSessionWhenDone = shouldCloseSession
+            var attempt = 0
+            let maxAttempts = 2
+            var metadataLoaded = false
+            var lastFailure: Error?
+            var loadedSchemas: [SchemaInfo] = []
+
+            while attempt < maxAttempts && !metadataLoaded {
+                attempt += 1
+                do {
+                    try Task.checkCancellation()
+                    let schemaNames = try await sessionForAttempt.listSchemas()
+                    let totalSchemas = max(schemaNames.count, 1)
+                    ConnectionDebug.log("Database=\(databaseName) schema count=\(schemaNames.count) attempt=\(attempt)")
+
+                    if schemaNames.isEmpty {
+                        let completionFraction = Double(databaseIndex + 1) / Double(totalDatabases)
+                        if Task.isCancelled {
+                            throw CancellationError()
+                        }
+                        await emitProgress(completionFraction, databaseName: databaseName, schemaName: nil, message: "No schemas found")
+                    }
+
+                    var schemas: [SchemaInfo] = []
+                    for (schemaIndex, schemaName) in schemaNames.enumerated() {
+                        try Task.checkCancellation()
+                        let schemaBaseFraction = (
+                            Double(databaseIndex)
+                            + Double(schemaIndex) / Double(totalSchemas)
+                        ) / Double(totalDatabases)
+                        if Task.isCancelled {
+                            throw CancellationError()
+                        }
+                        await emitProgress(schemaBaseFraction, databaseName: databaseName, schemaName: schemaName, message: "Updating schema \(schemaName)…")
+
+                        let rawSchemaInfo: SchemaInfo
+                        if let metadataSession = sessionForAttempt as? DatabaseMetadataSession {
+                            try Task.checkCancellation()
+                            rawSchemaInfo = try await metadataSession.loadSchemaInfo(schemaName) { objectType, currentIndex, total in
+                                guard supportedObjectTypes.contains(objectType) else {
+                                    structureLogger.warning("Received unsupported object type \(objectType.rawValue, privacy: .public) for \(databaseType.displayName, privacy: .public) (schema \(schemaName, privacy: .public))")
+                                    return
+                                }
+                                guard !Task.isCancelled else { return }
+                                let normalizedTotal = max(total, 1)
+                                let objectFraction = Double(currentIndex) / Double(normalizedTotal)
+                                let schemaFraction = (
+                                    Double(schemaIndex) + objectFraction
+                                ) / Double(totalSchemas)
+                                let overallFraction = (
+                                    Double(databaseIndex) + schemaFraction
+                                ) / Double(totalDatabases)
+                                await emitProgress(overallFraction, databaseName: databaseName, schemaName: schemaName, message: message(for: objectType))
+                            }
+                        } else {
+                            try Task.checkCancellation()
+                            let objects = try await sessionForAttempt.listTablesAndViews(schema: schemaName)
+                            rawSchemaInfo = SchemaInfo(name: schemaName, objects: objects)
+                        }
+
+                        let schemaInfo = sanitizedSchemaInfo(rawSchemaInfo)
+                        schemas.append(schemaInfo)
+
+                        let schemaCompletionFraction = (
+                            Double(databaseIndex)
+                            + Double(schemaIndex + 1) / Double(totalSchemas)
+                        ) / Double(totalDatabases)
+                        if Task.isCancelled {
+                            throw CancellationError()
+                        }
+                        await emitProgress(schemaCompletionFraction, databaseName: databaseName, schemaName: schemaName, message: "Schema \(schemaName) updated")
+                    }
+
+                    loadedSchemas = schemas
+                    metadataLoaded = true
+
+                    if closeSessionWhenDone {
+                        await sessionForAttempt.close()
+                    }
+                } catch let sessionError as MSSQLSessionError {
+                    lastFailure = sessionError
+                    structureLogger.error("SQL Server closed the connection while loading metadata for \(databaseName, privacy: .public) (attempt \(attempt)/\(maxAttempts)): \(sessionError.localizedDescription, privacy: .public)")
+                    ConnectionDebug.log("Database=\(databaseName) metadata attempt=\(attempt) connectionClosed")
+
+                    if closeSessionWhenDone {
+                        await sessionForAttempt.close()
+                    }
+
+                    if attempt >= maxAttempts {
+                        break
+                    } else {
+                        try Task.checkCancellation()
+                        sessionForAttempt = try await factory.connect(
+                            host: connection.host,
+                            port: connection.port,
+                            database: databaseName.isEmpty ? nil : databaseName,
+                            tls: connection.useTLS,
+                            authentication: credentials.authentication
+                        )
+                        closeSessionWhenDone = true
+                        continue
+                    }
+                } catch {
+                    lastFailure = error
+                    if closeSessionWhenDone {
+                        await sessionForAttempt.close()
+                    }
+                    throw error
                 }
             }
 
-            do {
-                try Task.checkCancellation()
-                let schemaNames = try await activeSession.listSchemas()
-                var schemas: [SchemaInfo] = []
-                let totalSchemas = max(schemaNames.count, 1)
-
-                ConnectionDebug.log("Database=\(databaseName) schema count=\(schemaNames.count)")
-                if schemaNames.isEmpty {
-                    let completionFraction = Double(databaseIndex + 1) / Double(totalDatabases)
-                    if Task.isCancelled {
-                        throw CancellationError()
-                    }
-                    await emitProgress(completionFraction, databaseName: databaseName, schemaName: nil, message: "No schemas found")
-                }
-
-                for (schemaIndex, schemaName) in schemaNames.enumerated() {
-                    try Task.checkCancellation()
-                    let schemaBaseFraction = (
-                        Double(databaseIndex)
-                        + Double(schemaIndex) / Double(totalSchemas)
-                    ) / Double(totalDatabases)
-                    if Task.isCancelled {
-                        throw CancellationError()
-                    }
-                    await emitProgress(schemaBaseFraction, databaseName: databaseName, schemaName: schemaName, message: "Updating schema \(schemaName)…")
-
-                    let rawSchemaInfo: SchemaInfo
-                    if let metadataSession = activeSession as? DatabaseMetadataSession {
-                        try Task.checkCancellation()
-                        rawSchemaInfo = try await metadataSession.loadSchemaInfo(schemaName) { objectType, currentIndex, total in
-                            guard supportedObjectTypes.contains(objectType) else {
-                                structureLogger.warning("Received unsupported object type \(objectType.rawValue, privacy: .public) for \(databaseType.displayName, privacy: .public) (schema \(schemaName, privacy: .public))")
-                                return
-                            }
-                            guard !Task.isCancelled else { return }
-                            let normalizedTotal = max(total, 1)
-                            let objectFraction = Double(currentIndex) / Double(normalizedTotal)
-                            let schemaFraction = (
-                                Double(schemaIndex) + objectFraction
-                            ) / Double(totalSchemas)
-                            let overallFraction = (
-                                Double(databaseIndex) + schemaFraction
-                            ) / Double(totalDatabases)
-                            await emitProgress(overallFraction, databaseName: databaseName, schemaName: schemaName, message: message(for: objectType))
-                        }
-                    } else {
-                        try Task.checkCancellation()
-                        let objects = try await activeSession.listTablesAndViews(schema: schemaName)
-                        rawSchemaInfo = SchemaInfo(name: schemaName, objects: objects)
-                    }
-
-                    let schemaInfo = sanitizedSchemaInfo(rawSchemaInfo)
-                    schemas.append(schemaInfo)
-
-                    let schemaCompletionFraction = (
-                        Double(databaseIndex)
-                        + Double(schemaIndex + 1) / Double(totalSchemas)
-                    ) / Double(totalDatabases)
-                    if Task.isCancelled {
-                        throw CancellationError()
-                    }
-                    await emitProgress(schemaCompletionFraction, databaseName: databaseName, schemaName: schemaName, message: "Schema \(schemaName) updated")
-                }
-
-                let totalObjects = schemas.reduce(0) { $0 + $1.objects.count }
-                ConnectionDebug.log("Database=\(databaseName) loaded schemas=\(schemas.count) totalObjects=\(totalObjects)")
-                let info = DatabaseInfo(name: databaseName, schemas: schemas, schemaCount: schemas.count)
+            if metadataLoaded {
+                let totalObjects = loadedSchemas.reduce(0) { $0 + $1.objects.count }
+                ConnectionDebug.log("Database=\(databaseName) loaded schemas=\(loadedSchemas.count) totalObjects=\(totalObjects)")
+                let info = DatabaseInfo(name: databaseName, schemas: loadedSchemas, schemaCount: loadedSchemas.count)
                 databaseInfos.append(info)
                 if let databaseHandler {
                     if Task.isCancelled {
@@ -361,17 +403,21 @@ struct DatabaseStructureFetcher {
                     }
                     await databaseHandler(info, databaseIndex, totalDatabases)
                 }
-            } catch {
-                print("Failed to load metadata for database \(databaseName) on connection \(connection.connectionName): \(error.localizedDescription)")
-                ConnectionDebug.log("Database=\(databaseName) metadata error=\(error.localizedDescription)")
-                let info = DatabaseInfo(name: databaseName, schemas: [], schemaCount: 0)
-                databaseInfos.append(info)
+            } else {
+                let failure = lastFailure ?? DatabaseError.queryError("Failed to load metadata for database \(databaseName)")
+                structureLogger.error("Giving up on metadata for \(databaseName, privacy: .public) after \(attempt) attempt(s): \(failure.localizedDescription, privacy: .public)")
+                ConnectionDebug.log("Database=\(databaseName) metadata final failure: \(failure.localizedDescription)")
+                let placeholder = DatabaseInfo(name: databaseName, schemas: [], schemaCount: 0)
+                databaseInfos.append(placeholder)
                 if let databaseHandler {
                     if Task.isCancelled {
                         throw CancellationError()
                     }
-                    await databaseHandler(info, databaseIndex, totalDatabases)
+                    await databaseHandler(placeholder, databaseIndex, totalDatabases)
                 }
+                let completionFraction = Double(databaseIndex + 1) / Double(totalDatabases)
+                await emitProgress(completionFraction, databaseName: databaseName, schemaName: nil, message: "Metadata unavailable (connection closed)")
+                continue
             }
 
             let databaseCompletionFraction = Double(databaseIndex + 1) / Double(totalDatabases)

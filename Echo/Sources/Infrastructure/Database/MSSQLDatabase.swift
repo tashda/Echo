@@ -6,6 +6,17 @@ import NIOSSL
 import Network
 @preconcurrency import TDS
 
+enum MSSQLSessionError: Error, LocalizedError {
+    case connectionClosed(underlying: Error)
+
+    var errorDescription: String? {
+        switch self {
+        case .connectionClosed(let underlying):
+            return "SQL Server connection closed: \(underlying.localizedDescription)"
+        }
+    }
+}
+
 struct MSSQLNIOFactory: DatabaseFactory {
     private let logger = Logger(label: "dk.tippr.echo.mssql")
 
@@ -98,6 +109,8 @@ final class MSSQLSession: DatabaseSession {
     private let sessionDefaultsStatement = "SET FMTONLY OFF;"
 
     private let shutdownQueue = DispatchQueue(label: "dk.tippr.echo.mssql.shutdown")
+    private let stateLock = NSLock()
+    private var connectionFailure: Error?
     private var isClosed = false
 
     init(
@@ -113,6 +126,33 @@ final class MSSQLSession: DatabaseSession {
 
     }
 
+    private func currentConnectionFailure() -> Error? {
+        stateLock.lock()
+        defer { stateLock.unlock() }
+        return connectionFailure
+    }
+
+    private func markConnectionFailure(_ error: Error) {
+        stateLock.lock()
+        if connectionFailure == nil {
+            connectionFailure = error
+        }
+        stateLock.unlock()
+    }
+
+    private static func isConnectionClosureError(_ error: Error) -> Bool {
+        if let sessionError = error as? MSSQLSessionError {
+            if case .connectionClosed = sessionError { return true }
+        }
+        if let tdsError = error as? TDSError {
+            if case .connectionClosed = tdsError { return true }
+        }
+        if error is ChannelError {
+            return true
+        }
+        return false
+    }
+
     deinit {
         guard !isClosed else { return }
         isClosed = true
@@ -122,11 +162,19 @@ final class MSSQLSession: DatabaseSession {
         let shutdownQueue = self.shutdownQueue
         let logger = self.logger
 
-        connection.close().whenComplete { result in
-            if case .failure(let error) = result {
-                logger.warning("Failed to close MSSQL connection during deinit: \(error.localizedDescription)")
-            }
+        if currentConnectionFailure() == nil {
+            connection.close().whenComplete { result in
+                if case .failure(let error) = result {
+                    logger.warning("Failed to close MSSQL connection during deinit: \(error.localizedDescription)")
+                }
 
+                eventLoopGroup.shutdownGracefully(queue: shutdownQueue) { shutdownError in
+                    if let shutdownError {
+                        logger.warning("Failed to shut down MSSQL event loop group during deinit: \(shutdownError.localizedDescription)")
+                    }
+                }
+            }
+        } else {
             eventLoopGroup.shutdownGracefully(queue: shutdownQueue) { shutdownError in
                 if let shutdownError {
                     logger.warning("Failed to shut down MSSQL event loop group during deinit: \(shutdownError.localizedDescription)")
@@ -139,10 +187,12 @@ final class MSSQLSession: DatabaseSession {
         guard !isClosed else { return }
         isClosed = true
 
-        do {
-            try await connection.close().get()
-        } catch {
-            logger.warning("Failed to close MSSQL connection gracefully: \(error.localizedDescription)")
+        if currentConnectionFailure() == nil {
+            do {
+                try await connection.close().get()
+            } catch {
+                logger.warning("Failed to close MSSQL connection gracefully: \(error.localizedDescription)")
+            }
         }
 
         await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
@@ -158,7 +208,14 @@ final class MSSQLSession: DatabaseSession {
 
     func simpleQuery(_ sql: String, progressHandler: QueryProgressHandler?) async throws -> QueryResultSet {
         try await ensureDefaultDatabaseContext()
-        var resolvedColumns = (try? await describeColumns(for: sql)) ?? []
+        var resolvedColumns: [ColumnInfo]
+        do {
+            resolvedColumns = try await describeColumns(for: sql)
+        } catch let sessionError as MSSQLSessionError {
+            throw sessionError
+        } catch {
+            resolvedColumns = []
+        }
         var shouldDropRowNumberColumn = false
 
         if let first = resolvedColumns.first, first.name == "__rownum" {
@@ -308,11 +365,17 @@ final class MSSQLSession: DatabaseSession {
         try await ensureDatabaseContext("master")
         await applySessionDefaults(reason: "pre-database-enumeration")
 
-        if let optionRows = try? await fetchRows("SELECT @@OPTIONS & 2 AS fmtOnlyFlag;", resetSession: false),
-           let flag = optionRows.first?.string("fmtOnlyFlag") {
-            logger.info("MSSQL listDatabases session fmtOnlyFlag=\(flag)")
-        } else {
-            logger.info("MSSQL listDatabases unable to read fmtOnlyFlag (no rows)")
+        do {
+            let optionRows = try await fetchRows("SELECT @@OPTIONS & 2 AS fmtOnlyFlag;", resetSession: false)
+            if let flag = optionRows.first?.string("fmtOnlyFlag") {
+                logger.info("MSSQL listDatabases session fmtOnlyFlag=\(flag)")
+            } else {
+                logger.info("MSSQL listDatabases unable to read fmtOnlyFlag (no rows)")
+            }
+        } catch let sessionError as MSSQLSessionError {
+            throw sessionError
+        } catch {
+            logger.info("MSSQL listDatabases unable to read fmtOnlyFlag: \(error.localizedDescription)")
         }
         await applySessionDefaults(reason: "post-@@OPTIONS probe")
 
@@ -324,12 +387,17 @@ final class MSSQLSession: DatabaseSession {
         WHERE is_user_process = 1
         ORDER BY database_name;
         """
-        if let dmRows = try? await fetchRows(dmSQL, resetSession: true) {
+        do {
+            let dmRows = try await fetchRows(dmSQL, resetSession: true)
             let names = dmRows.compactMap { $0.string("database_name")?.trimmingCharacters(in: .whitespacesAndNewlines) }
                 .filter { !$0.isEmpty }
             let sortedNames = names.sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
             logger.info("MSSQL listDatabases dm_exec_sessions yielded \(sortedNames)")
             discovered.formUnion(sortedNames)
+        } catch let sessionError as MSSQLSessionError {
+            throw sessionError
+        } catch {
+            logger.info("MSSQL listDatabases dm_exec_sessions query failed: \(error.localizedDescription)")
         }
 
         let dbGateSQL = """
@@ -355,6 +423,8 @@ final class MSSQLSession: DatabaseSession {
             let sortedNames = names.sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
             logger.info("MSSQL listDatabases sys.databases (dbgate style) yielded \(sortedNames)")
             discovered.formUnion(names)
+        } catch let sessionError as MSSQLSessionError {
+            throw sessionError
         } catch {
             logger.info("MSSQL listDatabases sys.databases (dbgate style) returned no rows")
         }
@@ -372,6 +442,8 @@ final class MSSQLSession: DatabaseSession {
             let sortedNames = names.sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
             logger.info("MSSQL listDatabases sp_databases yielded \(sortedNames)")
             discovered.formUnion(names)
+        } catch let sessionError as MSSQLSessionError {
+            throw sessionError
         } catch {
             logger.info("MSSQL listDatabases sp_databases query failed: \(error.localizedDescription)")
         }
@@ -404,7 +476,7 @@ final class MSSQLSession: DatabaseSession {
         SELECT name
         FROM sys.schemas
         WHERE name NOT IN ('sys', 'INFORMATION_SCHEMA', 'guest')
-          AND name NOT LIKE 'db\\_%' ESCAPE '\\'
+          AND name NOT LIKE 'db[_]%'
         ORDER BY name;
         """
         let rows = try await fetchRows(sql, resetSession: true)
@@ -414,10 +486,18 @@ final class MSSQLSession: DatabaseSession {
             else {
                 return nil
             }
+            let lowered = name.lowercased()
+            if lowered == "sys" || lowered == "information_schema" || lowered == "guest" {
+                return nil
+            }
+            if lowered.hasPrefix("db_") {
+                return nil
+            }
             return name
         }
         logger.info("MSSQL listSchemas fetched \(names.count) schemas")
         if !names.isEmpty {
+            logger.debug("MSSQL listSchemas filtered names: \(names)")
             return names
         }
 
@@ -425,16 +505,37 @@ final class MSSQLSession: DatabaseSession {
         SELECT schema_name AS name
         FROM INFORMATION_SCHEMA.SCHEMATA
         WHERE schema_name NOT IN ('sys', 'INFORMATION_SCHEMA', 'guest')
-          AND schema_name NOT LIKE 'db\\_%' ESCAPE '\\'
+          AND schema_name NOT LIKE 'db[_]%'
         ORDER BY schema_name;
         """
-        if let fallbackRows = try? await fetchRows(fallbackSQL, resetSession: true),
-           !fallbackRows.isEmpty {
-            let fallbackNames = fallbackRows.compactMap { $0.string("name") }
-            logger.info("MSSQL listSchemas fallback via INFORMATION_SCHEMA returned \(fallbackNames.count) schemas")
-            if !fallbackNames.isEmpty {
-                return fallbackNames
+        do {
+            let fallbackRows = try await fetchRows(fallbackSQL, resetSession: true)
+            if !fallbackRows.isEmpty {
+                let fallbackNames = fallbackRows.compactMap { row -> String? in
+                    guard let name = row.string("name")?.trimmingCharacters(in: .whitespacesAndNewlines),
+                          !name.isEmpty
+                    else {
+                        return nil
+                    }
+                    let lowered = name.lowercased()
+                    if lowered == "sys" || lowered == "information_schema" || lowered == "guest" {
+                        return nil
+                    }
+                    if lowered.hasPrefix("db_") {
+                        return nil
+                    }
+                    return name
+                }
+                logger.info("MSSQL listSchemas fallback via INFORMATION_SCHEMA returned \(fallbackNames.count) schemas")
+                if !fallbackNames.isEmpty {
+                    logger.debug("MSSQL listSchemas fallback filtered names: \(fallbackNames)")
+                    return fallbackNames
+                }
             }
+        } catch let sessionError as MSSQLSessionError {
+            throw sessionError
+        } catch {
+            logger.info("MSSQL listSchemas fallback query failed: \(error.localizedDescription)")
         }
 
         logger.info("MSSQL listSchemas returning no schemas")
@@ -545,6 +646,9 @@ final class MSSQLSession: DatabaseSession {
     private func applySessionDefaults(reason: String? = nil) async { }
 
     private func fetchRows(_ sql: String, resetSession: Bool = true) async throws -> [MSSQLRow] {
+        if let failure = currentConnectionFailure() {
+            throw MSSQLSessionError.connectionClosed(underlying: failure)
+        }
         let fullSQL: String
         if resetSession {
             fullSQL = "SET FMTONLY OFF;\n\(sql)"
@@ -555,7 +659,17 @@ final class MSSQLSession: DatabaseSession {
         let future = connection.rawSql(fullSQL, onRow: { row in
             collected.append(row)
         })
-        try await future.get()
+        do {
+            try await future.get()
+        } catch {
+            if MSSQLSession.isConnectionClosureError(error) {
+                markConnectionFailure(error)
+                await databaseContext.reset()
+                logger.warning("MSSQL fetchRows detected connection closure while executing query (first 64 chars): \(sql.prefix(64)) …")
+                throw MSSQLSessionError.connectionClosed(underlying: error)
+            }
+            throw error
+        }
         let rows = collected
         logger.info("MSSQL fetchRows executed SQL (first 64 chars): \(sql.prefix(64)) … -> \(rows.count) rows")
         if !rows.isEmpty {
@@ -572,6 +686,9 @@ final class MSSQLSession: DatabaseSession {
     }
 
     private func ensureDatabaseContext(_ database: String?) async throws {
+        if let failure = currentConnectionFailure() {
+            throw MSSQLSessionError.connectionClosed(underlying: failure)
+        }
         guard let trimmed = database?.trimmingCharacters(in: .whitespacesAndNewlines), !trimmed.isEmpty else {
             if database == nil {
                 await databaseContext.reset()
@@ -583,6 +700,9 @@ final class MSSQLSession: DatabaseSession {
             let escaped = MSSQLSession.escapeIdentifier(trimmed)
             let sql = "USE \(escaped);"
             do {
+                if let failure = currentConnectionFailure() {
+                    throw MSSQLSessionError.connectionClosed(underlying: failure)
+                }
                 _ = try await connection.rawSql(sql).get()
                 await databaseContext.setActive(trimmed)
                 logger.info("MSSQL session switched to database context: \(trimmed)")
@@ -692,6 +812,8 @@ final class MSSQLSession: DatabaseSession {
         let rows: [MSSQLRow]
         do {
             rows = try await fetchRows(sql)
+        } catch let sessionError as MSSQLSessionError {
+            throw sessionError
         } catch {
             logger.warning("MSSQL fetchColumnsByObject for schema \(schemaName) failed: \(error.localizedDescription)")
             return [:]
@@ -749,6 +871,8 @@ final class MSSQLSession: DatabaseSession {
         let rows: [MSSQLRow]
         do {
             rows = try await fetchRows(sql)
+        } catch let sessionError as MSSQLSessionError {
+            throw sessionError
         } catch {
             logger.warning("MSSQL fetchParametersByObject for schema \(schemaName) failed: \(error.localizedDescription)")
             return [:]

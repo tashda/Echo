@@ -467,29 +467,6 @@ struct SettingsView: View {
     }
 
     private var sidebar: some View {
-#if os(macOS)
-        SidebarMaterialContainer {
-            ScrollView(.vertical, showsIndicators: false) {
-                VStack(alignment: .leading, spacing: 6) {
-                    ForEach(SettingsSection.allCases) { section in
-                        SidebarItemRow(
-                            title: section.title,
-                            icon: { iconView(for: section) },
-                            isSelected: selection == section
-                        ) {
-                            selection = section
-                        }
-                    }
-                    Spacer(minLength: 12)
-                }
-                .padding(.vertical, 12)
-                .padding(.horizontal, 12)
-            }
-        }
-        .frame(width: fixedSidebarWidth)
-        .frame(maxHeight: .infinity)
-        .navigationSplitViewColumnWidth(min: fixedSidebarWidth, ideal: fixedSidebarWidth, max: fixedSidebarWidth)
-#else
         List(selection: $selection) {
             ForEach(SettingsSection.allCases) { section in
                 Label {
@@ -502,6 +479,9 @@ struct SettingsView: View {
         }
         .listStyle(.sidebar)
         .navigationSplitViewColumnWidth(min: fixedSidebarWidth, ideal: fixedSidebarWidth, max: fixedSidebarWidth)
+#if os(macOS)
+        .background(Color.clear)
+#else
         .scrollContentBackground(.hidden)
         .background(themeManager.surfaceBackgroundColor)
 #endif
@@ -613,75 +593,6 @@ struct SettingsView: View {
             Image(systemName: "square")
         }
     }
-#endif
-
-#if os(macOS)
-private struct SidebarMaterialContainer<Content: View>: View {
-    @ViewBuilder var content: Content
-
-    var body: some View {
-        ZStack(alignment: .topLeading) {
-            SidebarBlurView()
-                .ignoresSafeArea()
-            content
-        }
-    }
-}
-
-private struct SidebarBlurView: NSViewRepresentable {
-    func makeNSView(context: Context) -> NSVisualEffectView {
-        let view = NSVisualEffectView()
-        view.material = .sidebar
-        view.state = NSApp?.isActive == true ? .active : .inactive
-        view.blendingMode = .withinWindow
-        view.isEmphasized = true
-        return view
-    }
-
-    func updateNSView(_ nsView: NSVisualEffectView, context: Context) {
-        nsView.state = NSApp?.isActive == true ? .active : .inactive
-    }
-}
-
-private struct SidebarItemRow<Icon: View>: View {
-    let title: String
-    let icon: () -> Icon
-    let isSelected: Bool
-    let action: () -> Void
-
-    init(title: String, icon: @escaping () -> Icon, isSelected: Bool, action: @escaping () -> Void) {
-        self.title = title
-        self.icon = icon
-        self.isSelected = isSelected
-        self.action = action
-    }
-
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 10) {
-                icon()
-                    .frame(width: 18, alignment: .leading)
-                Text(title)
-                    .font(.system(size: 13, weight: .semibold))
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            .foregroundStyle(isSelected ? Color.white : Color.primary.opacity(0.85))
-            .padding(.vertical, 6)
-            .padding(.horizontal, 10)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(isSelected ? Color.accentColor : Color.clear)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .stroke(Color(nsColor: .separatorColor).opacity(isSelected ? 0 : 1), lineWidth: isSelected ? 0 : 1)
-                    )
-            )
-        }
-        .buttonStyle(.plain)
-        .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-    }
-}
 #endif
 
 #if os(macOS)
