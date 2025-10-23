@@ -12,3 +12,7 @@ tmp_trace_export
 
 # Swift package manager build artifacts
 Scripts/.mssql-probe/.build/
+
+# Xcode user-specific data
+Echo.xcodeproj/xcuserdata/
+*.xcuserstate
