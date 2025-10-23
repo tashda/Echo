@@ -456,11 +456,12 @@ final class QueryResultsGridState {
     private var dataPreviewFetchTask: Task<Void, Never>?
     private var performanceTracker: QueryPerformanceTracker
     private lazy var formattingCoordinator: ResultRowFormattingCoordinator = {
-        ResultRowFormattingCoordinator(formatter: payloadFormatter) { [weak self] batch in
+        ResultRowFormattingCoordinator(
+            formatCell: PostgresPayloadFormatter.stringValue(for:columnIndex:localTimeZone:)
+        ) { [weak self] batch in
             self?.handleFormattedBatch(batch)
         }
     }()
-    private let payloadFormatter = PostgresPayloadFormatter()
     private var formattingGeneration: Int = 0
     private var formattingResetTask: Task<Void, Never>?
     private var materializedHighWaterMark: Int = 0
@@ -1879,11 +1880,12 @@ final class QueryResultsGridState {
         markResultDataChanged()
     }
 
+    @MainActor
     private func formatRowsSynchronously(_ payloads: [ResultRowPayload]) -> [[String?]] {
         guard !payloads.isEmpty else { return [] }
         return payloads.map { row in
             row.cells.enumerated().map { index, cell in
-                payloadFormatter.stringValue(for: cell, columnIndex: index)
+                PostgresPayloadFormatter.stringValue(for: cell, columnIndex: index)
             }
         }
     }
