@@ -1,8 +1,11 @@
 import Foundation
-import SQLite
-import SQLite3
+import Logging
+import SQLiteNIO
+import NIOCore
 
 struct SQLiteFactory: DatabaseFactory {
+    private let logger = Logger(label: "dk.tippr.echo.sqlite")
+
     func connect(
         host: String,
         port: Int,
@@ -13,8 +16,11 @@ struct SQLiteFactory: DatabaseFactory {
         _ = authentication
         let resolvedPath = try resolveDatabasePath(host: host, database: database)
         do {
-            let connection = try Connection(resolvedPath)
-            let session = SQLiteSession()
+            let storage: SQLiteConnection.Storage = resolvedPath == ":memory:"
+                ? .memory
+                : .file(path: resolvedPath)
+            let connection = try await SQLiteConnection.open(storage: storage, logger: logger)
+            let session = SQLiteSession(logger: logger)
             await session.bootstrap(with: connection)
             return session
         } catch {
@@ -67,11 +73,6 @@ private struct SQLiteRawColumn: Sendable {
     let maxLength: Int?
 }
 
-private struct SQLiteSchemaObjectRecord: Sendable {
-    let name: String
-    let type: String
-}
-
 private struct SQLiteRawIndexColumn: Sendable {
     let name: String
     let position: Int
@@ -95,22 +96,26 @@ private struct SQLiteRawForeignKey: Sendable {
 }
 
 actor SQLiteSession: DatabaseSession {
-    private var connectionRef: Unmanaged<Connection>?
+    private var connection: SQLiteConnection?
+    private let logger: Logger
 
-    init() {}
+    init(logger: Logger) {
+        self.logger = logger
+    }
 
-    func bootstrap(with connection: Connection) {
-        connectionRef?.release()
-        connectionRef = Unmanaged.passRetained(connection)
+    func bootstrap(with connection: SQLiteConnection) {
+        self.connection = connection
     }
 
     func close() async {
-        connectionRef?.release()
-        connectionRef = nil
-    }
-
-    deinit {
-        connectionRef?.release()
+        if let connection {
+            do {
+                try await connection.close()
+            } catch {
+                logger.warning("Failed to close SQLite connection: \(String(describing: error))")
+            }
+        }
+        connection = nil
     }
 
     func simpleQuery(_ sql: String) async throws -> QueryResultSet {
@@ -118,9 +123,9 @@ actor SQLiteSession: DatabaseSession {
     }
 
     func simpleQuery(_ sql: String, progressHandler: QueryProgressHandler?) async throws -> QueryResultSet {
-        let conn = try requireConnection()
+        let connection = try requireConnection()
 
-        var rawColumns: [SQLiteRawColumn] = []
+        let rows = try await connection.query(sql)
         var resolvedColumns: [ColumnInfo] = []
         var previewRows: [[String?]] = []
         previewRows.reserveCapacity(512)
@@ -130,105 +135,77 @@ actor SQLiteSession: DatabaseSession {
         let streamingPreviewLimit = 512
         let maxFlushLatency: TimeInterval = 0.015
 
+        if let firstRow = rows.first {
+            resolvedColumns = makeColumnInfo(from: firstRow)
+        }
+
         var worker: ResultStreamBatchWorker?
 
-        try withSQLiteStatement(connection: conn, sql: sql) { statement in
-            let columnCount = Int(sqlite3_column_count(statement))
-            if rawColumns.isEmpty {
-                rawColumns.reserveCapacity(columnCount)
-                for index in 0..<columnCount {
-                    let name = sqlite3_column_name(statement, Int32(index)).flatMap { String(cString: $0) } ?? "column\(index + 1)"
-                    let declaredType = sqlite3_column_decltype(statement, Int32(index)).flatMap { String(cString: $0) }
-                    rawColumns.append(
-                        SQLiteRawColumn(
-                            name: name,
-                            dataType: declaredType?.uppercased() ?? "TEXT",
-                            isPrimaryKey: false,
-                            isNullable: true,
-                            maxLength: nil
-                        )
-                    )
+        for row in rows {
+            if worker == nil, let handler = progressHandler, !resolvedColumns.isEmpty {
+                let bridgedHandler: QueryProgressHandler = { update in
+                    Task { @MainActor in handler(update) }
                 }
-                resolvedColumns = rawColumns.map { column in
-                    ColumnInfo(
-                        name: column.name,
-                        dataType: column.dataType,
-                        isPrimaryKey: column.isPrimaryKey,
-                        isNullable: column.isNullable,
-                        maxLength: column.maxLength
-                    )
-                }
+                worker = ResultStreamBatchWorker(
+                    label: "dk.tippr.echo.sqlite.streamWorker",
+                    columns: resolvedColumns,
+                    streamingPreviewLimit: streamingPreviewLimit,
+                    maxFlushLatency: maxFlushLatency,
+                    operationStart: operationStart,
+                    progressHandler: bridgedHandler
+                )
             }
 
-            while true {
-                let stepResult = sqlite3_step(statement)
-                switch stepResult {
-                case SQLITE_ROW:
-                    if worker == nil, let handler = progressHandler, !resolvedColumns.isEmpty {
-                        let bridgedHandler: QueryProgressHandler = { update in
-                            Task { @MainActor in
-                                handler(update)
-                            }
-                        }
-                        worker = ResultStreamBatchWorker(
-                            label: "dk.tippr.echo.sqlite.streamWorker",
-                            columns: resolvedColumns,
-                            streamingPreviewLimit: streamingPreviewLimit,
-                            maxFlushLatency: maxFlushLatency,
-                            operationStart: operationStart,
-                            progressHandler: bridgedHandler
-                        )
-                    }
-
-                    let decodeStart = CFAbsoluteTimeGetCurrent()
-                    let rowValues = try makeRow(statement: statement, columnCount: columnCount)
-                    let decodeDuration = CFAbsoluteTimeGetCurrent() - decodeStart
-                    totalRowCount += 1
-                    if previewRows.count < streamingPreviewLimit {
-                        previewRows.append(rowValues)
-                    }
-                    let previewForWorker: [String?]? = totalRowCount <= streamingPreviewLimit ? rowValues : nil
-                    let encodedRow = ResultBinaryRowCodec.encode(row: rowValues)
-                    if let worker {
-                        let payload = ResultStreamBatchWorker.Payload(
-                            previewValues: previewForWorker,
-                            storage: .encoded(encodedRow),
-                            totalRowCount: totalRowCount,
-                            decodeDuration: decodeDuration
-                        )
-                        worker.enqueue(payload)
-                    }
-                case SQLITE_DONE:
-                    return
-                default:
-                    throw DatabaseError.queryError(String(cString: sqlite3_errmsg(conn.handle)))
-                }
+            let decodeStart = CFAbsoluteTimeGetCurrent()
+            let rowValues = makeRow(from: row)
+            let decodeDuration = CFAbsoluteTimeGetCurrent() - decodeStart
+            totalRowCount += 1
+            if previewRows.count < streamingPreviewLimit {
+                previewRows.append(rowValues)
+            }
+            let previewForWorker: [String?]? = totalRowCount <= streamingPreviewLimit ? rowValues : nil
+            let encodedRow = ResultBinaryRowCodec.encode(row: rowValues)
+            if let worker {
+                worker.enqueue(
+                    .init(
+                        previewValues: previewForWorker,
+                        storage: .encoded(encodedRow),
+                        totalRowCount: totalRowCount,
+                        decodeDuration: decodeDuration
+                    )
+                )
             }
         }
 
-        worker?.finish(totalRowCount: totalRowCount)
-
         if resolvedColumns.isEmpty {
-            resolvedColumns = rawColumns.map { column in
-                ColumnInfo(
-                    name: column.name,
-                    dataType: column.dataType,
-                    isPrimaryKey: column.isPrimaryKey,
-                    isNullable: column.isNullable,
-                    maxLength: column.maxLength
-                )
-            }
+            resolvedColumns = resolveColumnsForEmptyResult()
         }
 
         if resolvedColumns.isEmpty {
             resolvedColumns = [ColumnInfo(name: "result", dataType: "TEXT")]
         }
 
+        if worker == nil, let handler = progressHandler, !resolvedColumns.isEmpty {
+            let bridgedHandler: QueryProgressHandler = { update in
+                Task { @MainActor in handler(update) }
+            }
+            worker = ResultStreamBatchWorker(
+                label: "dk.tippr.echo.sqlite.streamWorker",
+                columns: resolvedColumns,
+                streamingPreviewLimit: streamingPreviewLimit,
+                maxFlushLatency: maxFlushLatency,
+                operationStart: operationStart,
+                progressHandler: bridgedHandler
+            )
+        }
+
+        worker?.finish(totalRowCount: totalRowCount)
+
         return QueryResultSet(columns: resolvedColumns, rows: previewRows, totalRowCount: totalRowCount)
     }
 
     func listTablesAndViews(schema: String?) async throws -> [SchemaObjectInfo] {
-        let conn = try requireConnection()
+        let connection = try requireConnection()
         let databaseName = normalizedDatabaseName(schema)
         let sql = """
         SELECT name, type
@@ -237,41 +214,24 @@ actor SQLiteSession: DatabaseSession {
           AND name NOT LIKE 'sqlite_%'
         ORDER BY name;
         """
-
-        let records = try withSQLiteStatement(connection: conn, sql: sql) { statement in
-            var objects: [SQLiteSchemaObjectRecord] = []
-            while sqlite3_step(statement) == SQLITE_ROW {
+        let rows = try await connection.query(sql)
+        return try await MainActor.run {
+            rows.compactMap { row -> SchemaObjectInfo? in
                 guard
-                    let namePtr = sqlite3_column_text(statement, 0),
-                    let typePtr = sqlite3_column_text(statement, 1)
-                else { continue }
-                let name = String(cString: namePtr)
-                let typeString = String(cString: typePtr)
-                objects.append(SQLiteSchemaObjectRecord(name: name, type: typeString))
-            }
-            return objects
-        }
-
-        return await MainActor.run {
-            records.compactMap { record in
-                guard let objectType = SchemaObjectInfo.ObjectType(sqliteType: record.type) else { return nil }
-                return SchemaObjectInfo(name: record.name, schema: databaseName, type: objectType)
+                    let name = row.column("name")?.string,
+                    let type = row.column("type")?.string,
+                    let objectType = SchemaObjectInfo.ObjectType(sqliteType: type)
+                else { return nil }
+                return SchemaObjectInfo(name: name, schema: databaseName, type: objectType)
             }
         }
     }
 
     func listDatabases() async throws -> [String] {
-        let conn = try requireConnection()
-        let sql = "PRAGMA database_list;"
-        return try withSQLiteStatement(connection: conn, sql: sql) { statement in
-            var names: [String] = []
-            while sqlite3_step(statement) == SQLITE_ROW {
-                guard let namePtr = sqlite3_column_text(statement, 1) else { continue }
-                let name = String(cString: namePtr)
-                names.append(name)
-            }
-            return names.isEmpty ? [normalizedDatabaseName(nil)] : names
-        }
+        let connection = try requireConnection()
+        let rows = try await connection.query("PRAGMA database_list;")
+        let names = rows.compactMap { $0.column("name")?.string }
+        return names.isEmpty ? [normalizedDatabaseName(nil)] : names
     }
 
     func listSchemas() async throws -> [String] {
@@ -286,32 +246,26 @@ actor SQLiteSession: DatabaseSession {
     }
 
     func getTableSchema(_ tableName: String, schemaName: String?) async throws -> [ColumnInfo] {
-        let conn = try requireConnection()
+        let connection = try requireConnection()
         let databaseName = normalizedDatabaseName(schemaName)
         let pragma = "PRAGMA \(databaseName).table_info('\(escapeSingleQuotes(tableName))');"
-        let rawColumns = try withSQLiteStatement(connection: conn, sql: pragma) { statement in
-            var columns: [SQLiteRawColumn] = []
-            while sqlite3_step(statement) == SQLITE_ROW {
-                guard let namePtr = sqlite3_column_text(statement, 1) else { continue }
-                let name = String(cString: namePtr)
-                let typePtr = sqlite3_column_text(statement, 2)
-                let type = typePtr.map { String(cString: $0) } ?? ""
-                let notNull = sqlite3_column_int(statement, 3) != 0
-                let pk = sqlite3_column_int(statement, 5) != 0
-                columns.append(
-                    SQLiteRawColumn(
-                        name: name,
-                        dataType: type.isEmpty ? "TEXT" : type,
-                        isPrimaryKey: pk,
-                        isNullable: !notNull,
-                        maxLength: nil
-                    )
-                )
-            }
-            return columns
+        let rows = try await connection.query(pragma)
+
+        let rawColumns = rows.compactMap { row -> SQLiteRawColumn? in
+            guard let name = row.column("name")?.string else { return nil }
+            let type = row.column("type")?.string ?? ""
+            let notNull = (row.column("notnull")?.integer ?? 0) != 0
+            let pk = (row.column("pk")?.integer ?? 0) != 0
+            return SQLiteRawColumn(
+                name: name,
+                dataType: type.isEmpty ? "TEXT" : type,
+                isPrimaryKey: pk,
+                isNullable: !notNull,
+                maxLength: nil
+            )
         }
 
-        return await MainActor.run {
+        return try await MainActor.run {
             rawColumns.map { column in
                 ColumnInfo(
                     name: column.name,
@@ -324,8 +278,12 @@ actor SQLiteSession: DatabaseSession {
         }
     }
 
-    func getObjectDefinition(objectName: String, schemaName: String, objectType: SchemaObjectInfo.ObjectType) async throws -> String {
-        let conn = try requireConnection()
+    func getObjectDefinition(
+        objectName: String,
+        schemaName: String,
+        objectType: SchemaObjectInfo.ObjectType
+    ) async throws -> String {
+        let connection = try requireConnection()
         let databaseName = normalizedDatabaseName(schemaName)
         let typeString: String
         switch objectType {
@@ -335,6 +293,7 @@ actor SQLiteSession: DatabaseSession {
         case .materializedView, .function, .procedure:
             throw DatabaseError.queryError("SQLite does not support definitions for \(objectType.rawValue)")
         }
+
         let sql = """
         SELECT sql
         FROM \(quoteIdentifier(databaseName)).sqlite_master
@@ -343,29 +302,19 @@ actor SQLiteSession: DatabaseSession {
         LIMIT 1;
         """
 
-        return try withSQLiteStatement(connection: conn, sql: sql) { statement in
-            try bindText(statement, index: 1, value: objectName, connection: conn)
-            while true {
-                let step = sqlite3_step(statement)
-                if step == SQLITE_ROW {
-                    if let sqlPtr = sqlite3_column_text(statement, 0) {
-                        return String(cString: sqlPtr)
-                    }
-                    return ""
-                } else if step == SQLITE_DONE {
-                    throw DatabaseError.queryError("Definition for \(objectName) was not found")
-                } else {
-                    throw DatabaseError.queryError(String(cString: sqlite3_errmsg(conn.handle)))
-                }
-            }
+        let rows = try await connection.query(sql, [SQLiteData.text(objectName)])
+        guard let definition = rows.first?.column("sql")?.string else {
+            throw DatabaseError.queryError("Definition for \(objectName) was not found")
         }
+        return definition
     }
 
     func executeUpdate(_ sql: String) async throws -> Int {
-        let conn = try requireConnection()
+        let connection = try requireConnection()
         do {
-            try conn.execute(sql)
-            return conn.changes
+            _ = try await connection.query(sql)
+            let changeRows = try await connection.query("SELECT changes() AS changes;")
+            return changeRows.first?.column("changes")?.integer ?? 0
         } catch {
             throw DatabaseError.queryError(error.localizedDescription)
         }
@@ -373,11 +322,11 @@ actor SQLiteSession: DatabaseSession {
 
     func getTableStructureDetails(schema: String, table: String) async throws -> TableStructureDetails {
         let columnsInfo = try await getTableSchema(table, schemaName: schema)
-        let rawIndexes = try fetchIndexes(schema: schema, table: table)
-        let rawForeignKeys = try fetchForeignKeys(schema: schema, table: table)
+        let rawIndexes = try await fetchIndexes(schema: schema, table: table)
+        let rawForeignKeys = try await fetchForeignKeys(schema: schema, table: table)
         let normalizedSchemaName = normalizedDatabaseName(schema)
 
-        return await MainActor.run {
+        return try await MainActor.run {
             let columns = columnsInfo.map { column in
                 TableStructureDetails.Column(
                     name: column.name,
@@ -389,7 +338,9 @@ actor SQLiteSession: DatabaseSession {
             }
 
             let primaryKeyColumns = columnsInfo.filter(\.isPrimaryKey).map(\.name)
-            let primaryKey = primaryKeyColumns.isEmpty ? nil : TableStructureDetails.PrimaryKey(name: "primary_key", columns: primaryKeyColumns)
+            let primaryKey = primaryKeyColumns.isEmpty
+                ? nil
+                : TableStructureDetails.PrimaryKey(name: "primary_key", columns: primaryKeyColumns)
 
             let indexes = rawIndexes.map { index in
                 let indexColumns = index.columns.map { column -> TableStructureDetails.Index.Column in
@@ -434,146 +385,148 @@ actor SQLiteSession: DatabaseSession {
         }
     }
 
-    private func fetchIndexes(schema: String, table: String) throws -> [SQLiteRawIndex] {
-        let conn = try requireConnection()
+    private func fetchIndexes(schema: String, table: String) async throws -> [SQLiteRawIndex] {
+        let connection = try requireConnection()
         let databaseName = normalizedDatabaseName(schema)
         let pragma = "PRAGMA \(databaseName).index_list('\(escapeSingleQuotes(table))');"
-        return try withSQLiteStatement(connection: conn, sql: pragma) { statement in
-            var collected: [SQLiteRawIndex] = []
-            while sqlite3_step(statement) == SQLITE_ROW {
-                guard
-                    let namePtr = sqlite3_column_text(statement, 1)
-                else { continue }
-                let indexName = String(cString: namePtr)
-                let isUnique = sqlite3_column_int(statement, 2) != 0
-                let columns = try fetchIndexColumns(databaseName: databaseName, indexName: indexName)
-                let filterCondition = sqlite3_column_int(statement, 4) != 0 ? fetchIndexWhereClause(databaseName: databaseName, indexName: indexName) : nil
-                collected.append(
-                    SQLiteRawIndex(
-                        name: indexName,
-                        isUnique: isUnique,
-                        columns: columns,
-                        filterCondition: filterCondition
-                    )
+        let rows = try await connection.query(pragma)
+
+        var collected: [SQLiteRawIndex] = []
+        for row in rows {
+            guard let indexName = row.column("name")?.string else { continue }
+            let isUnique = (row.column("unique")?.integer ?? 0) != 0
+            let columns = try await fetchIndexColumns(databaseName: databaseName, indexName: indexName)
+            let hasWhereClause = (row.column("partial")?.integer ?? 0) != 0
+            let filterCondition = hasWhereClause ? try await fetchIndexWhereClause(databaseName: databaseName, indexName: indexName) : nil
+            collected.append(
+                SQLiteRawIndex(
+                    name: indexName,
+                    isUnique: isUnique,
+                    columns: columns,
+                    filterCondition: filterCondition
                 )
-            }
-            return collected
+            )
         }
+        return collected
     }
 
-    private func fetchIndexColumns(databaseName: String, indexName: String) throws -> [SQLiteRawIndexColumn] {
-        let conn = try requireConnection()
+    private func fetchIndexColumns(databaseName: String, indexName: String) async throws -> [SQLiteRawIndexColumn] {
+        let connection = try requireConnection()
         let pragma = "PRAGMA \(databaseName).index_xinfo('\(escapeSingleQuotes(indexName))');"
-        return try withSQLiteStatement(connection: conn, sql: pragma) { statement in
-            var columns: [SQLiteRawIndexColumn] = []
-            while sqlite3_step(statement) == SQLITE_ROW {
-                let isKey = sqlite3_column_int(statement, 5) != 0
-                guard isKey else { continue }
-                let position = Int(sqlite3_column_int(statement, 0))
-                guard let namePtr = sqlite3_column_text(statement, 2) else { continue }
-                let name = String(cString: namePtr)
-                let isAscending = sqlite3_column_int(statement, 3) == 0
-                columns.append(SQLiteRawIndexColumn(name: name, position: position, isAscending: isAscending))
-            }
-            return columns.sorted { $0.position < $1.position }
+        let rows = try await connection.query(pragma)
+
+        var columns: [SQLiteRawIndexColumn] = []
+        for row in rows {
+            let isKey = (row.column("key")?.integer ?? 0) != 0
+            guard isKey else { continue }
+            let position = row.column("seqno")?.integer ?? 0
+            guard let name = row.column("name")?.string else { continue }
+            let isAscending = (row.column("desc")?.integer ?? 0) == 0
+            columns.append(SQLiteRawIndexColumn(name: name, position: position, isAscending: isAscending))
         }
+        return columns.sorted { $0.position < $1.position }
     }
 
-    private func fetchIndexWhereClause(databaseName: String, indexName: String) -> String? {
-        guard let connectionRef else { return nil }
-        let conn = connectionRef.takeUnretainedValue()
+    private func fetchIndexWhereClause(databaseName: String, indexName: String) async throws -> String? {
+        let connection = try requireConnection()
         let sql = """
         SELECT sql
         FROM \(quoteIdentifier(databaseName)).sqlite_master
         WHERE type = 'index' AND name = ?
         LIMIT 1;
         """
-
-        return try? withSQLiteStatement(connection: conn, sql: sql) { statement in
-            try bindText(statement, index: 1, value: indexName, connection: conn)
-            if sqlite3_step(statement) == SQLITE_ROW, let ptr = sqlite3_column_text(statement, 0) {
-                let definition = String(cString: ptr)
-                if let range = definition.range(of: "WHERE", options: .caseInsensitive) {
-                    let whereClause = definition[range.upperBound...].trimmingCharacters(in: .whitespacesAndNewlines)
-                    return whereClause.isEmpty ? nil : whereClause
-                }
-            }
-            return nil
+        let rows = try await connection.query(sql, [SQLiteData.text(indexName)])
+        guard let definition = rows.first?.column("sql")?.string else { return nil }
+        if let range = definition.range(of: "WHERE", options: .caseInsensitive) {
+            let whereClause = definition[range.upperBound...].trimmingCharacters(in: .whitespacesAndNewlines)
+            return whereClause.isEmpty ? nil : whereClause
         }
+        return nil
     }
 
-    private func fetchForeignKeys(schema: String, table: String) throws -> [SQLiteRawForeignKey] {
-        let conn = try requireConnection()
+    private func fetchForeignKeys(schema: String, table: String) async throws -> [SQLiteRawForeignKey] {
+        let connection = try requireConnection()
         let databaseName = normalizedDatabaseName(schema)
         let pragma = "PRAGMA \(databaseName).foreign_key_list('\(escapeSingleQuotes(table))');"
-        return try withSQLiteStatement(connection: conn, sql: pragma) { statement in
-            var grouped: [Int: (table: String, columns: [String], references: [String], onUpdate: String?, onDelete: String?)] = [:]
-            while sqlite3_step(statement) == SQLITE_ROW {
-                let id = Int(sqlite3_column_int(statement, 0))
-                guard let foreignTablePtr = sqlite3_column_text(statement, 2) else { continue }
-                let foreignTable = String(cString: foreignTablePtr)
-                let fromColumn = sqlite3_column_text(statement, 3).map { String(cString: $0) } ?? ""
-                let toColumn = sqlite3_column_text(statement, 4).map { String(cString: $0) } ?? ""
-                let onUpdate = sqlite3_column_text(statement, 5).map { String(cString: $0) }
-                let onDelete = sqlite3_column_text(statement, 6).map { String(cString: $0) }
+        let rows = try await connection.query(pragma)
 
-                if grouped[id] == nil {
-                    grouped[id] = (table: foreignTable, columns: [], references: [], onUpdate: onUpdate, onDelete: onDelete)
-                }
-                grouped[id]?.columns.append(fromColumn)
-                grouped[id]?.references.append(toColumn)
+        struct GroupedEntry {
+            var table: String
+            var columns: [String]
+            var references: [String]
+            var onUpdate: String?
+            var onDelete: String?
+        }
+
+        var grouped: [Int: GroupedEntry] = [:]
+
+        for row in rows {
+            guard
+                let id = row.column("id")?.integer,
+                let referencedTable = row.column("table")?.string,
+                let fromColumn = row.column("from")?.string,
+                let toColumn = row.column("to")?.string
+            else { continue }
+
+            let sequence = row.column("seq")?.integer ?? 0
+            let onUpdate = row.column("on_update")?.string
+            let onDelete = row.column("on_delete")?.string
+
+            var entry = grouped[id] ?? GroupedEntry(table: referencedTable, columns: [], references: [], onUpdate: onUpdate, onDelete: onDelete)
+
+            if entry.columns.count <= sequence {
+                entry.columns.append(fromColumn)
+            } else {
+                entry.columns.insert(fromColumn, at: sequence)
             }
 
-            return grouped.keys.sorted().compactMap { key in
-                guard let entry = grouped[key] else { return nil }
-                return SQLiteRawForeignKey(
-                    id: key,
-                    referencedTable: entry.table,
-                    columns: entry.columns,
-                    referencedColumns: entry.references,
-                    onUpdate: entry.onUpdate,
-                    onDelete: entry.onDelete
-                )
+            if entry.references.count <= sequence {
+                entry.references.append(toColumn)
+            } else {
+                entry.references.insert(toColumn, at: sequence)
+            }
+
+            if entry.onUpdate == nil {
+                entry.onUpdate = onUpdate
+            }
+            if entry.onDelete == nil {
+                entry.onDelete = onDelete
+            }
+
+            grouped[id] = entry
+        }
+
+        return grouped.keys.sorted().compactMap { key in
+            guard let entry = grouped[key] else { return nil }
+            return SQLiteRawForeignKey(
+                id: key,
+                referencedTable: entry.table,
+                columns: entry.columns,
+                referencedColumns: entry.references,
+                onUpdate: entry.onUpdate,
+                onDelete: entry.onDelete
+            )
+        }
+    }
+
+    private nonisolated func makeRow(from row: SQLiteRow) -> [String?] {
+        row.columns.map { column in
+            switch column.data {
+            case .integer(let value):
+                return String(value)
+            case .float(let value):
+                return formatDouble(value)
+            case .text(let value):
+                return value
+            case .blob(let buffer):
+                return Data(buffer.readableBytesView).base64EncodedString()
+            case .null:
+                return nil
             }
         }
     }
 
-    private func makeRow(statement: OpaquePointer?, columnCount: Int) throws -> [String?] {
-        var row: [String?] = []
-        row.reserveCapacity(columnCount)
-        for index in 0..<columnCount {
-            let type = sqlite3_column_type(statement, Int32(index))
-            switch type {
-            case SQLITE_INTEGER:
-                let value = sqlite3_column_int64(statement, Int32(index))
-                row.append(String(value))
-            case SQLITE_FLOAT:
-                let value = sqlite3_column_double(statement, Int32(index))
-                row.append(formatDouble(value))
-            case SQLITE_TEXT:
-                if let textPtr = sqlite3_column_text(statement, Int32(index)) {
-                    row.append(String(cString: textPtr))
-                } else {
-                    row.append(nil)
-                }
-            case SQLITE_BLOB:
-                if let bytes = sqlite3_column_blob(statement, Int32(index)) {
-                    let length = Int(sqlite3_column_bytes(statement, Int32(index)))
-                    let data = Data(bytes: bytes, count: length)
-                    row.append(data.base64EncodedString())
-                } else {
-                    row.append("")
-                }
-            case SQLITE_NULL:
-                row.append(nil)
-            default:
-                row.append(nil)
-            }
-        }
-        return row
-    }
-
-    private func formatDouble(_ value: Double) -> String {
+    private nonisolated func formatDouble(_ value: Double) -> String {
         if value.rounded(.towardZero) == value {
             return String(format: "%.0f", value)
         } else {
@@ -581,11 +534,39 @@ actor SQLiteSession: DatabaseSession {
         }
     }
 
-    private func requireConnection() throws -> Connection {
-        guard let connectionRef else {
+    private nonisolated func makeColumnInfo(from row: SQLiteRow) -> [ColumnInfo] {
+        let columns = row.columns
+        guard !columns.isEmpty else { return [] }
+        return columns.map { column in
+            ColumnInfo(
+                name: column.name,
+                dataType: inferDataType(from: column.data),
+                isPrimaryKey: false,
+                isNullable: true,
+                maxLength: nil
+            )
+        }
+    }
+
+    private nonisolated func inferDataType(from data: SQLiteData) -> String {
+        switch data {
+        case .integer: return "INTEGER"
+        case .float: return "REAL"
+        case .text: return "TEXT"
+        case .blob: return "BLOB"
+        case .null: return "TEXT"
+        }
+    }
+
+    private nonisolated func resolveColumnsForEmptyResult() -> [ColumnInfo] {
+        []
+    }
+
+    private func requireConnection() throws -> SQLiteConnection {
+        guard let connection else {
             throw DatabaseError.connectionFailed("SQLite connection has been closed")
         }
-        return connectionRef.takeUnretainedValue()
+        return connection
     }
 
     private func normalizedDatabaseName(_ name: String?) -> String {
@@ -600,28 +581,6 @@ actor SQLiteSession: DatabaseSession {
     private func escapeSingleQuotes(_ value: String) -> String {
         value.replacingOccurrences(of: "'", with: "''")
     }
-
-    private func withSQLiteStatement<T>(connection: Connection, sql: String, _ body: (OpaquePointer?) throws -> T) throws -> T {
-        var statement: OpaquePointer?
-        let prepareResult = sqlite3_prepare_v2(connection.handle, sql, -1, &statement, nil)
-        guard prepareResult == SQLITE_OK else {
-            let message = String(cString: sqlite3_errmsg(connection.handle))
-            sqlite3_finalize(statement)
-            throw DatabaseError.queryError(message)
-        }
-        defer { sqlite3_finalize(statement) }
-        return try body(statement)
-    }
-
-    private func bindText(_ statement: OpaquePointer?, index: Int32, value: String, connection: Connection) throws {
-        let destructor = unsafeBitCast(-1, to: sqlite3_destructor_type.self)
-        let result = value.withCString { cString in
-            sqlite3_bind_text(statement, index, cString, -1, destructor)
-        }
-        guard result == SQLITE_OK else {
-            throw DatabaseError.queryError(String(cString: sqlite3_errmsg(connection.handle)))
-        }
-    }
 }
 
 private extension SchemaObjectInfo.ObjectType {
@@ -633,5 +592,4 @@ private extension SchemaObjectInfo.ObjectType {
         default: return nil
         }
     }
-
 }
