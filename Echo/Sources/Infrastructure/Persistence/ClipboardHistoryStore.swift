@@ -226,7 +226,9 @@ final class ClipboardHistoryStore: ObservableObject {
     }
 
     deinit {
-        pendingSaveWorkItem?.cancel()
+        MainActor.assumeIsolated {
+            pendingSaveWorkItem?.cancel()
+        }
     }
 
     func setEnabled(_ enabled: Bool) {
