@@ -188,12 +188,10 @@ private final class SettingsToolbarAccessoryView: NSView {
     var onNavigateBack: (() -> Void)?
     var onNavigateForward: (() -> Void)?
 
-    private let backButton: ToolbarNavigationButton
-    private let forwardButton: ToolbarNavigationButton
+    private let navigationControl: NavigationSegmentedControl
     private let titleLabel: NSTextField
     init() {
-        self.backButton = ToolbarNavigationButton(systemName: "chevron.left", accessibilityDescription: "Back")
-        self.forwardButton = ToolbarNavigationButton(systemName: "chevron.right", accessibilityDescription: "Forward")
+        self.navigationControl = NavigationSegmentedControl()
         self.titleLabel = NSTextField(labelWithString: "Appearance")
         super.init(frame: NSRect(x: 0, y: 0, width: 360, height: 44))
         configureViewHierarchy()
@@ -216,11 +214,13 @@ private final class SettingsToolbarAccessoryView: NSView {
     }
 
     func updateBackEnabled(_ isEnabled: Bool) {
-        backButton.isEnabled = isEnabled
+        navigationControl.setEnabled(isEnabled, forSegment: 0)
+        navigationControl.refreshTint()
     }
 
     func updateForwardEnabled(_ isEnabled: Bool) {
-        forwardButton.isEnabled = isEnabled
+        navigationControl.setEnabled(isEnabled, forSegment: 1)
+        navigationControl.refreshTint()
     }
 
     private func configureViewHierarchy() {
@@ -232,7 +232,7 @@ private final class SettingsToolbarAccessoryView: NSView {
         buttonPill.state = .active
         buttonPill.blendingMode = .withinWindow
         buttonPill.wantsLayer = true
-        buttonPill.layer?.cornerRadius = 16
+        buttonPill.layer?.cornerRadius = 19
         if #available(macOS 13.0, *) {
             buttonPill.layer?.cornerCurve = .continuous
         }
@@ -241,19 +241,15 @@ private final class SettingsToolbarAccessoryView: NSView {
         buttonPill.setContentHuggingPriority(.required, for: .horizontal)
         buttonPill.setContentCompressionResistancePriority(.required, for: .horizontal)
 
-        let buttonStack = NSStackView(views: [backButton, forwardButton])
-        buttonStack.orientation = .horizontal
-        buttonStack.alignment = .centerY
-        buttonStack.spacing = 6
-        buttonStack.edgeInsets = NSEdgeInsets(top: 6, left: 6, bottom: 6, right: 6)
-        buttonStack.translatesAutoresizingMaskIntoConstraints = false
-
-        buttonPill.addSubview(buttonStack)
+        navigationControl.translatesAutoresizingMaskIntoConstraints = false
+        buttonPill.addSubview(navigationControl)
         NSLayoutConstraint.activate([
-            buttonStack.leadingAnchor.constraint(equalTo: buttonPill.leadingAnchor),
-            buttonStack.trailingAnchor.constraint(equalTo: buttonPill.trailingAnchor),
-            buttonStack.topAnchor.constraint(equalTo: buttonPill.topAnchor),
-            buttonStack.bottomAnchor.constraint(equalTo: buttonPill.bottomAnchor)
+            navigationControl.leadingAnchor.constraint(equalTo: buttonPill.leadingAnchor, constant: 1),
+            navigationControl.trailingAnchor.constraint(equalTo: buttonPill.trailingAnchor, constant: -1),
+            navigationControl.topAnchor.constraint(equalTo: buttonPill.topAnchor, constant: 1),
+            navigationControl.bottomAnchor.constraint(equalTo: buttonPill.bottomAnchor, constant: -1),
+            navigationControl.heightAnchor.constraint(equalToConstant: 36),
+            buttonPill.heightAnchor.constraint(equalToConstant: 38)
         ])
 
         titleLabel.font = .systemFont(ofSize: 15, weight: .semibold)
@@ -285,22 +281,18 @@ private final class SettingsToolbarAccessoryView: NSView {
     }
 
     private func configureActions() {
-        backButton.target = self
-        backButton.action = #selector(handleBackTapped)
-        forwardButton.target = self
-        forwardButton.action = #selector(handleForwardTapped)
-    }
-
-    @objc private func handleBackTapped() {
-        onNavigateBack?()
-    }
-
-    @objc private func handleForwardTapped() {
-        onNavigateForward?()
+        navigationControl.onSegmentTriggered = { [weak self] segment in
+            switch segment {
+            case 0: self?.onNavigateBack?()
+            case 1: self?.onNavigateForward?()
+            default: break
+            }
+        }
     }
 
     func updateWindowIsKey(_ isKey: Bool) {
         titleLabel.textColor = isKey ? .labelColor : .tertiaryLabelColor
+        navigationControl.isWindowKey = isKey
     }
 }
 
@@ -362,6 +354,61 @@ private final class SettingsNavigationToolbarItem: NSToolbarItem {
     }
 }
 
+private final class NavigationSegmentedControl: NSSegmentedControl {
+    var onSegmentTriggered: ((Int) -> Void)?
+    var isWindowKey: Bool = true {
+        didSet { refreshTint() }
+    }
+
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        configure()
+    }
+
+    required init?(coder: NSCoder) {
+        super.init(coder: coder)
+        configure()
+    }
+
+    private func configure() {
+        segmentCount = 2
+        trackingMode = .momentary
+        segmentStyle = .capsule
+        target = self
+        action = #selector(handleSegment(_:))
+        setImage(NavigationSegmentedControl.image(systemName: "chevron.left"), forSegment: 0)
+        setImage(NavigationSegmentedControl.image(systemName: "chevron.right"), forSegment: 1)
+        setLabel("Back", forSegment: 0)
+        setLabel("Forward", forSegment: 1)
+        setToolTip("Back", forSegment: 0)
+        setToolTip("Forward", forSegment: 1)
+        setWidth(36, forSegment: 0)
+        setWidth(36, forSegment: 1)
+        wantsLayer = false
+        isBordered = true
+        setContentHuggingPriority(.required, for: .horizontal)
+        setContentCompressionResistancePriority(.required, for: .horizontal)
+        refreshTint()
+    }
+
+    @objc private func handleSegment(_ sender: NSSegmentedControl) {
+        let segment = sender.selectedSegment
+        sender.selectedSegment = -1
+        guard segment != -1 else { return }
+        onSegmentTriggered?(segment)
+    }
+
+    func refreshTint() {
+        contentTintColor = isWindowKey ? .secondaryLabelColor : .tertiaryLabelColor
+    }
+
+    private static func image(systemName: String) -> NSImage? {
+        let image = NSImage(systemSymbolName: systemName, accessibilityDescription: nil)
+        image?.isTemplate = true
+        return image
+    }
+}
+
 private final class FixedSidebarSplitViewDelegate: NSObject, NSSplitViewDelegate {
     private let sidebarWidth: CGFloat
 
@@ -384,52 +431,6 @@ private final class FixedSidebarSplitViewDelegate: NSObject, NSSplitViewDelegate
 
 private extension NSToolbarItem.Identifier {
     static let settingsNavigation = NSToolbarItem.Identifier("SettingsNavigationItem")
-}
-
-private final class ToolbarNavigationButton: NSButton {
-    convenience init(systemName: String, accessibilityDescription: String) {
-        let image = NSImage(systemSymbolName: systemName, accessibilityDescription: accessibilityDescription) ?? NSImage()
-        self.init(image: image)
-        self.image?.isTemplate = true
-    }
-
-    override init(frame frameRect: NSRect) {
-        super.init(frame: frameRect)
-        configure()
-    }
-
-    private init(image: NSImage) {
-        super.init(frame: .zero)
-        configure()
-        self.image = image
-    }
-
-    required init?(coder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
-    }
-
-    private func configure() {
-        bezelStyle = .texturedRounded
-        isBordered = true
-        setButtonType(.momentaryPushIn)
-        translatesAutoresizingMaskIntoConstraints = false
-        focusRingType = .default
-        imageScaling = .scaleProportionallyDown
-        contentTintColor = .secondaryLabelColor
-        controlSize = .small
-        NSLayoutConstraint.activate([
-            widthAnchor.constraint(equalToConstant: 28),
-            heightAnchor.constraint(equalToConstant: 28)
-        ])
-    }
-
-    override var isEnabled: Bool {
-        didSet {
-            contentTintColor = isEnabled
-                ? .secondaryLabelColor
-                : NSColor.secondaryLabelColor.withAlphaComponent(0.35)
-        }
-    }
 }
 
 #endif
