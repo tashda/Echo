@@ -9,7 +9,7 @@
 /* Begin PBXBuildFile section */
 		0A79557E2E8F10A9002279AE /* MySQLNIO in Frameworks */ = {isa = PBXBuildFile; productRef = 0A79557D2E8F10A9002279AE /* MySQLNIO */; };
 		0A795AF12E8F30D9002279AF /* SQLite in Frameworks */ = {isa = PBXBuildFile; productRef = 0A795AF02E8F30D9002279AF /* SQLite */; };
-		0A7967732E8FC887002279AE /* TDS in Frameworks */ = {isa = PBXBuildFile; productRef = 0A7967722E8FC887002279AE /* TDS */; };
+		0A7967732E8FC887002279AE /* SQLServerNIO in Frameworks */ = {isa = PBXBuildFile; productRef = 0A7967722E8FC887002279AE /* SQLServerNIO */; };
 		0AD4AA2B2E8D55E100F42692 /* build_sqruff.sh in Resources */ = {isa = PBXBuildFile; fileRef = 0AD4AA292E8D55E100F42692 /* build_sqruff.sh */; };
 		0ADF94B92E78BAA400E993F8 /* PostgresNIO in Frameworks */ = {isa = PBXBuildFile; productRef = 0ADF94B82E78BAA400E993F8 /* PostgresNIO */; };
 		0ADF94BB2E78BAA400E993F8 /* _ConnectionPoolModule in Frameworks */ = {isa = PBXBuildFile; productRef = 0ADF94BA2E78BAA400E993F8 /* _ConnectionPoolModule */; };
@@ -112,7 +112,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				0A7967732E8FC887002279AE /* TDS in Frameworks */,
+				0A7967732E8FC887002279AE /* SQLServerNIO in Frameworks */,
 				0A795AF12E8F30D9002279AF /* SQLite in Frameworks */,
 				0ADF94BD2E78BAA400E993F8 /* _ConnectionPoolTestUtils in Frameworks */,
 				0ADF94BB2E78BAA400E993F8 /* _ConnectionPoolModule in Frameworks */,
@@ -243,7 +243,7 @@
 				0ADF94BC2E78BAA400E993F8 /* _ConnectionPoolTestUtils */,
 				0A79557D2E8F10A9002279AE /* MySQLNIO */,
 				0A795AF02E8F30D9002279AF /* SQLite */,
-				0A7967722E8FC887002279AE /* TDS */,
+				0A7967722E8FC887002279AE /* SQLServerNIO */,
 				0C1234512F9ABC0100ABCDE /* EchoSense */,
 			);
 			productName = Echo;
@@ -320,7 +320,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				0ADF94B72E78BAA400E993F8 /* XCRemoteSwiftPackageReference "postgres-nio" */,
-				0B8F0C4A2F9BF6E900123457 /* XCLocalSwiftPackageReference "../tds-nio" */,
+				0B8F0C4A2F9BF6E900123457 /* XCLocalSwiftPackageReference "../sqlserver-nio" */,
 				0A79557C2E8F10A9002279AE /* XCRemoteSwiftPackageReference "mysql-nio" */,
 				0A795AEF2E8F30D9002279AE /* XCRemoteSwiftPackageReference "SQLite.swift" */,
 				0C1234502F9ABC0100ABCDE /* XCLocalSwiftPackageReference "../EchoSense" */,
@@ -753,9 +753,9 @@
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
-		0B8F0C4A2F9BF6E900123457 /* XCLocalSwiftPackageReference "../tds-nio" */ = {
+		0B8F0C4A2F9BF6E900123457 /* XCLocalSwiftPackageReference "../sqlserver-nio" */ = {
 			isa = XCLocalSwiftPackageReference;
-			relativePath = "../tds-nio";
+			relativePath = "../sqlserver-nio";
 		};
 		0C1234502F9ABC0100ABCDE /* XCLocalSwiftPackageReference "../EchoSense" */ = {
 			isa = XCLocalSwiftPackageReference;
@@ -801,10 +801,10 @@
 			package = 0A795AEF2E8F30D9002279AE /* XCRemoteSwiftPackageReference "SQLite.swift" */;
 			productName = SQLite;
 		};
-		0A7967722E8FC887002279AE /* TDS */ = {
+		0A7967722E8FC887002279AE /* SQLServerNIO */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 0B8F0C4A2F9BF6E900123457 /* XCLocalSwiftPackageReference "../tds-nio" */;
-			productName = TDS;
+			package = 0B8F0C4A2F9BF6E900123457 /* XCLocalSwiftPackageReference "../sqlserver-nio" */;
+			productName = SQLServerNIO;
 		};
 		0ADF94B82E78BAA400E993F8 /* PostgresNIO */ = {
 			isa = XCSwiftPackageProductDependency;

@@ -2,7 +2,7 @@ import Foundation
 import Logging
 import NIOCore
 import NIOSSL
-@preconcurrency import TDS
+@preconcurrency import SQLServerNIO
 
 struct MSSQLNIOFactory: DatabaseFactory {
     private let logger = Logger(label: "dk.tippr.echo.mssql")
@@ -45,11 +45,13 @@ struct MSSQLNIOFactory: DatabaseFactory {
             logger: logger
         ).get()
 
-        return MSSQLSession(
+        let session = MSSQLSession(
             connection: connection,
             logger: logger,
             defaultDatabase: database
         )
+        try await session.bootstrap()
+        return session
     }
 }
 
@@ -65,6 +67,11 @@ final class MSSQLSession: DatabaseSession {
         self.connection = connection
         self.logger = logger
         self.defaultDatabase = defaultDatabase
+    }
+
+    func bootstrap() async throws {
+        try await applySessionDefaults()
+        try await ensureDefaultDatabaseContext()
     }
 
     deinit {
@@ -83,24 +90,37 @@ final class MSSQLSession: DatabaseSession {
         }
     }
 
+    private func applySessionDefaults() async throws {
+        let defaultsSQL = """
+        SET ANSI_NULLS ON;
+        SET ANSI_WARNINGS ON;
+        SET ARITHABORT ON;
+        SET QUOTED_IDENTIFIER ON;
+        SET NOCOUNT OFF;
+        SET FMTONLY OFF;
+        """
+        do {
+            _ = try await connection.query(defaultsSQL)
+            logger.info("MSSQL session defaults applied (SET FMTONLY OFF)")
+            await databaseContext.reset()
+        } catch let sqlError as SQLServerError {
+            if case .connectionClosed = sqlError {
+                throw MSSQLSessionError.connectionClosed
+            }
+            throw DatabaseError.queryError(sqlError.description)
+        } catch {
+            throw DatabaseError.queryError(error.localizedDescription)
+        }
+    }
+
     func simpleQuery(_ sql: String) async throws -> QueryResultSet {
         try await simpleQuery(sql, progressHandler: nil)
     }
 
     func simpleQuery(_ sql: String, progressHandler: QueryProgressHandler?) async throws -> QueryResultSet {
         try await ensureDefaultDatabaseContext()
-        var resolvedColumns: [ColumnInfo]
-        do {
-            resolvedColumns = try await describeColumns(for: sql)
-        } catch {
-            resolvedColumns = []
-        }
+        var resolvedColumns: [ColumnInfo] = []
         var shouldDropRowNumberColumn = false
-
-        if let first = resolvedColumns.first, first.name == "__rownum" {
-            resolvedColumns.removeFirst()
-            shouldDropRowNumberColumn = true
-        }
 
         var previewRows: [[String?]] = []
         previewRows.reserveCapacity(512)
@@ -110,87 +130,106 @@ final class MSSQLSession: DatabaseSession {
         let streamingPreviewLimit = 512
         let maxFlushLatency: TimeInterval = 0.015
 
-        var encounteredError: Error?
-        var wasCancelled = false
+        let bridgedHandler: QueryProgressHandler? = progressHandler.map { handler in
+            { update in
+                Task { @MainActor in
+                    handler(update)
+                }
+            }
+        }
 
         var worker: ResultStreamBatchWorker?
 
-        let future = connection.rawSql(sql, onRow: { rawRow in
-            if Task.isCancelled {
-                wasCancelled = true
-                throw CancellationError()
-            }
-
-            let wrappedRow = MSSQLRow(row: rawRow, formatter: self.formatter)
-
-            if resolvedColumns.isEmpty {
-                resolvedColumns = self.makeColumnInfo(from: wrappedRow)
-                if let first = resolvedColumns.first, first.name == "__rownum" {
-                    resolvedColumns.removeFirst()
-                    shouldDropRowNumberColumn = true
-                }
-            }
-
-            guard !resolvedColumns.isEmpty else { return }
-
-            if worker == nil, let handler = progressHandler, !resolvedColumns.isEmpty {
-                let bridgedHandler: QueryProgressHandler = { update in
-                    Task { @MainActor in
-                        handler(update)
-                    }
-                }
-                worker = ResultStreamBatchWorker(
-                    label: "dk.tippr.echo.mssql.streamWorker",
-                    columns: resolvedColumns,
-                    streamingPreviewLimit: streamingPreviewLimit,
-                    maxFlushLatency: maxFlushLatency,
-                    operationStart: operationStart,
-                    progressHandler: bridgedHandler
-                )
-            }
-
-            let decodeStart = CFAbsoluteTimeGetCurrent()
-            var formatted = self.formatRow(wrappedRow, columns: resolvedColumns)
-            if shouldDropRowNumberColumn, formatted.count > resolvedColumns.count {
-                formatted.removeFirst()
-            }
-            let decodeDuration = CFAbsoluteTimeGetCurrent() - decodeStart
-            let finalRow = formatted
-            totalRowCount += 1
-            if previewRows.count < streamingPreviewLimit {
-                previewRows.append(finalRow)
-            }
-
-            let previewForWorker: [String?]? = totalRowCount <= streamingPreviewLimit ? finalRow : nil
-            let encodedRow = ResultBinaryRowCodec.encode(row: finalRow)
-
-            if let worker {
-                let payload = ResultStreamBatchWorker.Payload(
-                    previewValues: previewForWorker,
-                    storage: .encoded(encodedRow),
-                    totalRowCount: totalRowCount,
-                    decodeDuration: decodeDuration
-                )
-                worker.enqueue(payload)
-            }
-        })
+        func ensureWorker(with columns: [ColumnInfo]) {
+            guard worker == nil, let handler = bridgedHandler, !columns.isEmpty else { return }
+            worker = ResultStreamBatchWorker(
+                label: "dk.tippr.echo.mssql.streamWorker",
+                columns: columns,
+                streamingPreviewLimit: streamingPreviewLimit,
+                maxFlushLatency: maxFlushLatency,
+                operationStart: operationStart,
+                progressHandler: handler
+            )
+        }
 
         do {
-            try await future.get()
+            for try await event in connection.streamQuery(sql) {
+                switch event {
+                case .metadata(let metadata):
+                    logger.info("MSSQL streamQuery metadata for SQL (first 64 chars): \(sql.prefix(64)) … -> \(metadata.count) columns")
+                    if resolvedColumns.isEmpty {
+                        resolvedColumns = makeColumnInfo(from: metadata)
+                        if let first = resolvedColumns.first, first.name == "__rownum" {
+                            resolvedColumns.removeFirst()
+                            shouldDropRowNumberColumn = true
+                        }
+                        ensureWorker(with: resolvedColumns)
+                    }
+                case .row(let rawRow):
+                    if Task.isCancelled {
+                        throw CancellationError()
+                    }
+
+                    let wrappedRow = MSSQLRow(row: rawRow, formatter: formatter)
+
+                    if resolvedColumns.isEmpty {
+                        resolvedColumns = makeColumnInfo(from: wrappedRow)
+                        if let first = resolvedColumns.first, first.name == "__rownum" {
+                            resolvedColumns.removeFirst()
+                            shouldDropRowNumberColumn = true
+                        }
+                        ensureWorker(with: resolvedColumns)
+                    }
+
+                    guard !resolvedColumns.isEmpty else { continue }
+
+                    let decodeStart = CFAbsoluteTimeGetCurrent()
+                    var formatted = formatRow(wrappedRow, columns: resolvedColumns)
+                    if shouldDropRowNumberColumn, formatted.count > resolvedColumns.count {
+                        formatted.removeFirst()
+                    }
+                    let decodeDuration = CFAbsoluteTimeGetCurrent() - decodeStart
+
+                    totalRowCount += 1
+                    if previewRows.count < streamingPreviewLimit {
+                        previewRows.append(formatted)
+                    }
+
+                    if let worker {
+                        let payload = ResultStreamBatchWorker.Payload(
+                            previewValues: totalRowCount <= streamingPreviewLimit ? formatted : nil,
+                            storage: .encoded(ResultBinaryRowCodec.encode(row: formatted)),
+                            totalRowCount: totalRowCount,
+                            decodeDuration: decodeDuration
+                        )
+                        worker.enqueue(payload)
+                    }
+                case .done(let done):
+                    logger.info("MSSQL streamQuery DONE status=\(done.status) rowCount=\(done.rowCount)")
+                case .message(let message):
+                    switch message.kind {
+                    case .info:
+                        logger.info("MSSQL streamQuery info message \(message.number): \(message.message)")
+                    case .error:
+                        logger.error("MSSQL streamQuery error \(message.number): \(message.message)")
+                    }
+                }
+            }
         } catch is CancellationError {
-            encounteredError = CancellationError()
+            throw CancellationError()
+        } catch let sqlError as SQLServerError {
+            if case .connectionClosed = sqlError {
+                throw MSSQLSessionError.connectionClosed
+            }
+            throw DatabaseError.queryError(sqlError.description)
         } catch {
-            encounteredError = error
+            throw DatabaseError.queryError(error.localizedDescription)
         }
 
         worker?.finish(totalRowCount: totalRowCount)
 
-        if wasCancelled || encounteredError is CancellationError {
+        if Task.isCancelled {
             throw CancellationError()
-        }
-
-        if let error = encounteredError {
-            throw DatabaseError.queryError(error.localizedDescription)
         }
 
         if resolvedColumns.isEmpty {
@@ -210,12 +249,33 @@ final class MSSQLSession: DatabaseSession {
         try await ensureDefaultDatabaseContext()
         let schemaName = schema?.isEmpty == false ? schema! : "dbo"
         let currentDatabase = await resolvedCurrentDatabase()
-        let tableMetadata = try await connection.listTables(database: currentDatabase, schema: schemaName).get()
+        let tableMetadata: [TableMetadata]
+        do {
+            let rawTables = try await connection.listTables(database: currentDatabase, schema: schemaName)
+            tableMetadata = rawTables.filter { !$0.isSystemObject && !$0.name.hasPrefix("meta_client_") && !$0.name.hasPrefix("#") }
+        } catch let sqlError as SQLServerError {
+            if case .connectionClosed = sqlError {
+                throw MSSQLSessionError.connectionClosed
+            }
+            throw DatabaseError.queryError(sqlError.description)
+        } catch {
+            throw DatabaseError.queryError(error.localizedDescription)
+        }
         let primaryKeyMap = try await loadPrimaryKeyColumns(schema: schemaName)
         var objects: [SchemaObjectInfo] = []
         for table in tableMetadata {
-            let baseColumns = try await connection.listColumns(database: currentDatabase, schema: table.schema, table: table.name).get()
-            var columnInfos: [ColumnInfo] = baseColumns.map { metadata in
+            let baseColumns: [ColumnMetadata]
+            do {
+                baseColumns = try await connection.listColumns(database: currentDatabase, schema: table.schema, table: table.name)
+            } catch let sqlError as SQLServerError {
+                if case .connectionClosed = sqlError {
+                    throw MSSQLSessionError.connectionClosed
+                }
+                throw DatabaseError.queryError(sqlError.description)
+            } catch {
+                throw DatabaseError.queryError(error.localizedDescription)
+            }
+            let columnInfos: [ColumnInfo] = baseColumns.sorted { $0.ordinalPosition < $1.ordinalPosition }.map { metadata in
                 ColumnInfo(
                     name: metadata.name,
                     dataType: MSSQLSession.formatTypeName(
@@ -228,41 +288,6 @@ final class MSSQLSession: DatabaseSession {
                     isNullable: metadata.isNullable,
                     maxLength: metadata.maxLength
                 )
-            }
-            if columnInfos.isEmpty && table.type.lowercased().contains("view") {
-                let viewSql = """
-        SELECT
-            c.COLUMN_NAME,
-            c.DATA_TYPE,
-            c.IS_NULLABLE,
-            c.CHARACTER_MAXIMUM_LENGTH,
-            c.NUMERIC_PRECISION,
-            c.NUMERIC_SCALE
-        FROM INFORMATION_SCHEMA.COLUMNS AS c
-        WHERE c.TABLE_SCHEMA = "\(MSSQLSession.escapeLiteral(table.schema))"
-          AND c.TABLE_NAME = "\(MSSQLSession.escapeLiteral(table.name))"
-        ORDER BY c.ORDINAL_POSITION;
-        """
-                let rows = try await fetchRows(viewSql)
-                columnInfos = rows.compactMap { row in
-                    guard let name = row.string("COLUMN_NAME"),
-                          let dataType = row.string("DATA_TYPE") else { return nil }
-                    let maxLength = row.string("CHARACTER_MAXIMUM_LENGTH").flatMap { Int($0) }
-                    let formattedType = MSSQLSession.formatTypeName(
-                        base: dataType,
-                        maxLength: maxLength,
-                        precision: row.string("NUMERIC_PRECISION"),
-                        scale: row.string("NUMERIC_SCALE")
-                    )
-                    let isNullable = (row.string("IS_NULLABLE") ?? "YES").uppercased() == "YES"
-                    return ColumnInfo(
-                        name: name,
-                        dataType: formattedType,
-                        isPrimaryKey: primaryKeyMap[table.name]?.contains(name) ?? false,
-                        isNullable: isNullable,
-                        maxLength: maxLength
-                    )
-                }
             }
             let objectType: SchemaObjectInfo.ObjectType = table.type.lowercased().contains("view") ? .view : .table
             objects.append(SchemaObjectInfo(name: table.name, schema: table.schema, type: objectType, columns: columnInfos))
@@ -279,7 +304,7 @@ final class MSSQLSession: DatabaseSession {
         try await ensureDatabaseContext("master")
 
         do {
-            let optionRows = try await fetchRows("SELECT @@OPTIONS & 2 AS fmtOnlyFlag;")
+            let optionRows = try await collectRows("SELECT @@OPTIONS & 2 AS fmtOnlyFlag;")
             if let flag = optionRows.first?.string("fmtOnlyFlag") {
                 logger.info("MSSQL listDatabases session fmtOnlyFlag=\(flag)")
             } else {
@@ -298,7 +323,7 @@ final class MSSQLSession: DatabaseSession {
         ORDER BY database_name;
         """
         do {
-            let dmRows = try await fetchRows(dmSQL)
+            let dmRows = try await collectRows(dmSQL)
             let names = dmRows.compactMap { $0.string("database_name")?.trimmingCharacters(in: .whitespacesAndNewlines) }
                 .filter { !$0.isEmpty }
             let sortedNames = names.sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
@@ -314,7 +339,7 @@ final class MSSQLSession: DatabaseSession {
         ORDER BY name;
         """
         do {
-            let rows = try await fetchRows(dbGateSQL)
+            let rows = try await collectRows(dbGateSQL)
             let names = rows.compactMap { row -> String? in
                 guard let name = row.string("name")?.trimmingCharacters(in: .whitespacesAndNewlines),
                       !name.isEmpty
@@ -336,7 +361,7 @@ final class MSSQLSession: DatabaseSession {
         }
 
         do {
-            let rows = try await fetchRows("EXEC master.dbo.sp_databases;")
+            let rows = try await collectRows("EXEC master.dbo.sp_databases;")
             let names = rows.compactMap { row -> String? in
                 guard let name = row.string("DATABASE_NAME")?.trimmingCharacters(in: .whitespacesAndNewlines),
                       !name.isEmpty
@@ -376,7 +401,17 @@ final class MSSQLSession: DatabaseSession {
     func listSchemas() async throws -> [String] {
         try await ensureDefaultDatabaseContext()
         let currentDatabase = await resolvedCurrentDatabase()
-        let schemas = try await connection.listSchemas(in: currentDatabase).get()
+        let schemas: [SchemaMetadata]
+        do {
+            schemas = try await connection.listSchemas(in: currentDatabase)
+        } catch let sqlError as SQLServerError {
+            if case .connectionClosed = sqlError {
+                throw MSSQLSessionError.connectionClosed
+            }
+            throw DatabaseError.queryError(sqlError.description)
+        } catch {
+            throw DatabaseError.queryError(error.localizedDescription)
+        }
         let filtered = schemas
             .map { $0.name.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
@@ -407,44 +442,19 @@ final class MSSQLSession: DatabaseSession {
         try await ensureDefaultDatabaseContext()
         let schema = schemaName?.isEmpty == false ? schemaName! : "dbo"
         let currentDatabase = await resolvedCurrentDatabase()
-        var metadata = try await connection.listColumns(database: currentDatabase, schema: schema, table: tableName).get()
-        if metadata.isEmpty {
-            let viewSql = """
-        SELECT
-            c.COLUMN_NAME,
-            c.DATA_TYPE,
-            c.IS_NULLABLE,
-            c.CHARACTER_MAXIMUM_LENGTH,
-            c.NUMERIC_PRECISION,
-            c.NUMERIC_SCALE
-        FROM INFORMATION_SCHEMA.COLUMNS AS c
-        WHERE c.TABLE_SCHEMA = "\(MSSQLSession.escapeLiteral(schema))"
-          AND c.TABLE_NAME = "\(MSSQLSession.escapeLiteral(tableName))"
-        ORDER BY c.ORDINAL_POSITION;
-        """
-            let rows = try await fetchRows(viewSql)
-            metadata = rows.compactMap { row in
-                guard let name = row.string("COLUMN_NAME"),
-                      let dataType = row.string("DATA_TYPE") else { return nil }
-                let maxLength = row.string("CHARACTER_MAXIMUM_LENGTH").flatMap { Int($0) }
-                let precision = row.string("NUMERIC_PRECISION").flatMap { Int($0) }
-                let scale = row.string("NUMERIC_SCALE").flatMap { Int($0) }
-                return ColumnMetadata(
-                    schema: schema,
-                    table: tableName,
-                    name: name,
-                    typeName: dataType,
-                    maxLength: maxLength,
-                    precision: precision,
-                    scale: scale,
-                    isNullable: (row.string("IS_NULLABLE") ?? "YES").uppercased() == "YES",
-                    isIdentity: false,
-                    isComputed: false
-                )
+        let metadata: [ColumnMetadata]
+        do {
+            metadata = try await connection.listColumns(database: currentDatabase, schema: schema, table: tableName)
+        } catch let sqlError as SQLServerError {
+            if case .connectionClosed = sqlError {
+                throw MSSQLSessionError.connectionClosed
             }
+            throw DatabaseError.queryError(sqlError.description)
+        } catch {
+            throw DatabaseError.queryError(error.localizedDescription)
         }
-        let primaryKeyMap = try await loadPrimaryKeyColumns(schema: schema)
-        return metadata.map { column in
+
+        let columnInfos = metadata.sorted { $0.ordinalPosition < $1.ordinalPosition }.map { column in
             ColumnInfo(
                 name: column.name,
                 dataType: MSSQLSession.formatTypeName(
@@ -453,6 +463,16 @@ final class MSSQLSession: DatabaseSession {
                     precision: column.precision.map { String($0) },
                     scale: column.scale.map { String($0) }
                 ),
+                isPrimaryKey: false,
+                isNullable: column.isNullable,
+                maxLength: column.maxLength
+            )
+        }
+        let primaryKeyMap = try await loadPrimaryKeyColumns(schema: schema)
+        return columnInfos.map { column in
+            ColumnInfo(
+                name: column.name,
+                dataType: column.dataType,
                 isPrimaryKey: primaryKeyMap[tableName]?.contains(column.name) ?? false,
                 isNullable: column.isNullable,
                 maxLength: column.maxLength
@@ -521,7 +541,7 @@ final class MSSQLSession: DatabaseSession {
         \(sql);
         SELECT @@ROWCOUNT AS affected_rows;
         """
-        let rows = try await fetchRows(wrappedSQL)
+        let rows = try await collectRows(wrappedSQL)
         guard let last = rows.last, let value = last.string("affected_rows"), let count = Int(value) else {
             return 0
         }
@@ -548,16 +568,120 @@ final class MSSQLSession: DatabaseSession {
 
     // MARK: - Metadata Helpers
 
-    private func fetchRows(_ sql: String) async throws -> [MSSQLRow] {
-        let rows = try await connection.query(sql).get()
-        logger.info("MSSQL fetchRows executed SQL (first 64 chars): \(sql.prefix(64)) … -> \(rows.count) rows")
-        if !rows.isEmpty {
-            let preview = rows.prefix(8)
+    private func buildColumnMapUsingMetadataClient(schemaName: String) async throws -> [String: [ColumnInfo]] {
+        var columnMap: [String: [ColumnInfo]] = [:]
+        let currentDatabase = await resolvedCurrentDatabase()
+        let tables: [TableMetadata]
+        do {
+            tables = try await connection.listTables(database: currentDatabase, schema: schemaName)
+        } catch let sqlError as SQLServerError {
+            if case .connectionClosed = sqlError {
+                throw MSSQLSessionError.connectionClosed
+            }
+            throw DatabaseError.queryError(sqlError.description)
+        } catch {
+            throw DatabaseError.queryError(error.localizedDescription)
+        }
+
+        guard !tables.isEmpty else {
+            return [:]
+        }
+
+        let primaryKeyMap = try await loadPrimaryKeyColumns(schema: schemaName)
+
+        for table in tables {
+            if table.isSystemObject || table.name.hasPrefix("meta_client_") || table.name.hasPrefix("#") {
+                continue
+            }
+            let metadata: [ColumnMetadata]
+            do {
+                metadata = try await connection.listColumns(database: currentDatabase, schema: table.schema, table: table.name)
+            } catch let sqlError as SQLServerError {
+                if case .connectionClosed = sqlError {
+                    throw MSSQLSessionError.connectionClosed
+                }
+                throw DatabaseError.queryError(sqlError.description)
+            } catch {
+                throw DatabaseError.queryError(error.localizedDescription)
+            }
+
+            guard !metadata.isEmpty else {
+                continue
+            }
+
+            var columns: [ColumnInfo] = []
+            columns.reserveCapacity(metadata.count)
+            for column in metadata {
+                let formattedType = MSSQLSession.formatTypeName(
+                    base: column.typeName,
+                    maxLength: column.maxLength,
+                    precision: column.precision.map { String($0) },
+                    scale: column.scale.map { String($0) }
+                )
+                let isPrimary = primaryKeyMap[table.name]?.contains(column.name) ?? false
+                columns.append(
+                    ColumnInfo(
+                        name: column.name,
+                        dataType: formattedType,
+                        isPrimaryKey: isPrimary,
+                        isNullable: column.isNullable,
+                        maxLength: column.maxLength
+                    )
+                )
+            }
+
+            columnMap[table.name] = columns
+        }
+
+        logger.info("MSSQL metadata client produced column map with \(columnMap.count) tables for schema \(schemaName)")
+        return columnMap
+    }
+
+    private func collectRows(_ sql: String) async throws -> [MSSQLRow] {
+        var metadataLogged = false
+        var rawRows: [TDSRow] = []
+
+        do {
+            for try await event in connection.streamQuery(sql) {
+                switch event {
+                case .metadata(let metadata):
+                    if !metadataLogged {
+                        logger.info("MSSQL collectRows metadata for SQL (first 64 chars): \(sql.prefix(64)) … -> \(metadata.count) columns")
+                        metadataLogged = true
+                    }
+                case .row(let row):
+                    rawRows.append(row)
+                case .done(let done):
+                    logger.info("MSSQL collectRows DONE status=\(done.status) rowCount=\(done.rowCount)")
+                case .message(let message):
+                    switch message.kind {
+                    case .info:
+                        logger.info("MSSQL collectRows info message \(message.number): \(message.message)")
+                    case .error:
+                        logger.error("MSSQL collectRows error \(message.number): \(message.message)")
+                    }
+                }
+            }
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch let sqlError as SQLServerError {
+            if case .connectionClosed = sqlError {
+                throw MSSQLSessionError.connectionClosed
+            }
+            throw DatabaseError.queryError(sqlError.description)
+        } catch {
+            throw DatabaseError.queryError(error.localizedDescription)
+        }
+
+        logger.info("MSSQL collectRows executed SQL (first 64 chars): \(sql.prefix(64)) … -> \(rawRows.count) rows")
+        if !rawRows.isEmpty {
+            let preview = rawRows.prefix(8)
             for (index, row) in preview.enumerated() {
-                logger.info("MSSQL fetchRows raw row[\(index)] = \(row)")
+                logger.info("MSSQL collectRows raw row[\(index)] = \(row)")
             }
         }
-        return rows.map { MSSQLRow(row: $0, formatter: formatter) }
+
+        return rawRows.map { MSSQLRow(row: $0, formatter: formatter) }
     }
 
     private func ensureDefaultDatabaseContext() async throws {
@@ -576,45 +700,41 @@ final class MSSQLSession: DatabaseSession {
             let escaped = MSSQLSession.escapeIdentifier(trimmed)
             let sql = "USE \(escaped);"
             do {
-                _ = try await connection.query(sql).get()
+                do {
+                    _ = try await connection.query(sql)
+                } catch let sqlError as SQLServerError {
+                    if case .connectionClosed = sqlError {
+                        await databaseContext.reset()
+                        throw MSSQLSessionError.connectionClosed
+                    }
+                    await databaseContext.reset()
+                    throw DatabaseError.queryError(sqlError.description)
+                } catch {
+                    await databaseContext.reset()
+                    throw DatabaseError.queryError(error.localizedDescription)
+                }
                 await databaseContext.setActive(trimmed)
                 logger.info("MSSQL session switched to database context: \(trimmed)")
+            } catch let databaseError as DatabaseError {
+                logger.warning("Failed to switch MSSQL session to database \(trimmed): \(databaseError.localizedDescription)")
+                throw databaseError
             } catch {
-                await databaseContext.reset()
                 logger.warning("Failed to switch MSSQL session to database \(trimmed): \(error.localizedDescription)")
-                throw error
+                throw DatabaseError.queryError(error.localizedDescription)
             }
         }
     }
 
-    private func describeColumns(for sql: String) async throws -> [ColumnInfo] {
-        try await ensureDefaultDatabaseContext()
-        let escaped = MSSQLSession.escapeForNVarchar(sql)
-        let describeSQL = """
-        EXEC sp_describe_first_result_set @tsql = N'\(escaped)';
-        """
-        let rows = try await fetchRows(describeSQL)
-        var columns: [ColumnInfo] = []
-        for row in rows {
-            if MSSQLSession.boolValue(from: row.string("is_hidden")) {
-                continue
-            }
-            guard let name = row.string("name"), !name.isEmpty else { continue }
-            let typeName = row.string("system_type_name") ?? ""
-            let isNullable = MSSQLSession.boolValue(from: row.string("is_nullable"), default: true)
-            let rawLength = row.string("max_length").flatMap { Int($0) }
-            let maxLength = rawLength.flatMap { $0 >= 0 ? $0 : nil }
-            columns.append(
-                ColumnInfo(
-                    name: name,
-                    dataType: typeName,
-                    isPrimaryKey: false,
-                    isNullable: isNullable,
-                    maxLength: maxLength
-                )
+    private func makeColumnInfo(from metadata: [SQLServerColumnDescription]) -> [ColumnInfo] {
+        metadata.map { column in
+            ColumnInfo(
+                name: column.name,
+                dataType: MSSQLSession.displayType(for: column),
+                isPrimaryKey: false,
+                isNullable: (column.flags & 0x01) != 0,
+                maxLength: MSSQLSession.normalizedLength(for: column)
             )
         }
-        return columns
     }
 
     private func makeColumnInfo(from row: MSSQLRow) -> [ColumnInfo] {
@@ -637,14 +757,14 @@ final class MSSQLSession: DatabaseSession {
 
     private func firstString(_ sql: String) async throws -> String? {
         try await ensureDefaultDatabaseContext()
-        let rows = try await fetchRows(sql)
+        let rows = try await collectRows(sql)
         guard let firstRow = rows.first, let firstColumn = firstRow.metadata.first else { return nil }
         return firstRow.string(firstColumn.colName)
     }
 
     private func currentDatabaseName() async throws -> String? {
         try await ensureDefaultDatabaseContext()
-        let rows = try await fetchRows("SELECT DB_NAME() AS name;")
+        let rows = try await collectRows("SELECT DB_NAME() AS name;")
         return rows.first?.string("name")
     }
 
@@ -661,383 +781,217 @@ final class MSSQLSession: DatabaseSession {
         }
     }
 
-    private func fetchColumnsByObject(schemaName: String) async throws -> [String: [ColumnInfo]] {
-        try await ensureDefaultDatabaseContext()
-        logger.info("MSSQL fetchColumnsByObject for schema \(schemaName) started")
-        let sql = """
-        SELECT
-            c.TABLE_NAME,
-            c.COLUMN_NAME,
-            c.DATA_TYPE,
-            c.IS_NULLABLE,
-            c.CHARACTER_MAXIMUM_LENGTH,
-            c.NUMERIC_PRECISION,
-            c.NUMERIC_SCALE,
-            COLUMNPROPERTY(object_id(c.TABLE_SCHEMA + '.' + c.TABLE_NAME), c.COLUMN_NAME, 'IsIdentity') AS is_identity,
-            COLUMNPROPERTY(object_id(c.TABLE_SCHEMA + '.' + c.TABLE_NAME), c.COLUMN_NAME, 'IsComputed') AS is_computed,
-            c.ORDINAL_POSITION
-        FROM INFORMATION_SCHEMA.COLUMNS AS c
-        WHERE c.TABLE_SCHEMA = '\(MSSQLSession.escapeLiteral(schemaName))'
-        ORDER BY c.TABLE_NAME, c.ORDINAL_POSITION;
-        """
-
-        let rows: [MSSQLRow]
-        do {
-            rows = try await fetchRows(sql)
-        } catch {
-            logger.warning("MSSQL fetchColumnsByObject for schema \(schemaName) failed: \(error.localizedDescription)")
+    private func loadParameters(schemaName: String, objectNames: [String], database: String?) async throws -> [String: [ProcedureParameterInfo]] {
+        guard !objectNames.isEmpty else {
             return [:]
         }
-        logger.info("MSSQL fetchColumnsByObject for schema \(schemaName) received \(rows.count) column rows")
-        let primaryKeyMap = try await loadPrimaryKeyColumns(schema: schemaName)
-
-        var columnsByTable: [String: [ColumnInfo]] = [:]
-        for row in rows {
-            guard
-                let tableName = row.string("TABLE_NAME"),
-                let columnName = row.string("COLUMN_NAME"),
-                let dataType = row.string("DATA_TYPE")
-            else { continue }
-
-            let maxLength = row.string("CHARACTER_MAXIMUM_LENGTH").flatMap { Int($0) }
-            let isNullable = (row.string("IS_NULLABLE") ?? "YES").uppercased() == "YES"
-            let isPrimary = primaryKeyMap[tableName]?.contains(columnName) ?? false
-
-            let columnInfo = ColumnInfo(
-                name: columnName,
-                dataType: MSSQLSession.formatTypeName(base: dataType, maxLength: maxLength, precision: row.string("NUMERIC_PRECISION"), scale: row.string("NUMERIC_SCALE")),
-                isPrimaryKey: isPrimary,
-                isNullable: isNullable,
-                maxLength: maxLength
-            )
-
-            columnsByTable[tableName, default: []].append(columnInfo)
-        }
-
-        logger.info("MSSQL fetchColumnsByObject for schema \(schemaName) produced \(columnsByTable.count) tables")
-        return columnsByTable
-    }
-
-    private func fetchParametersByObject(schemaName: String) async throws -> [String: [ProcedureParameterInfo]] {
         try await ensureDefaultDatabaseContext()
-        logger.info("MSSQL fetchParametersByObject for schema \(schemaName) started")
-        let sql = """
-        SELECT
-            OBJECT_NAME(p.object_id) AS object_name,
-            p.parameter_id,
-            p.name AS parameter_name,
-            TYPE_NAME(p.user_type_id) AS type_name,
-            p.max_length,
-            p.precision,
-            p.scale,
-            p.is_output,
-            p.has_default_value
-        FROM sys.parameters AS p
-        WHERE OBJECT_SCHEMA_NAME(p.object_id) = N'\(MSSQLSession.escapeLiteral(schemaName))'
-          AND p.parameter_id > 0
-        ORDER BY OBJECT_NAME(p.object_id), p.parameter_id;
-        """
-
-        let rows: [MSSQLRow]
-        do {
-            rows = try await fetchRows(sql)
-        } catch {
-            logger.warning("MSSQL fetchParametersByObject for schema \(schemaName) failed: \(error.localizedDescription)")
-            return [:]
+        logger.info("MSSQL loadParameters for schema \(schemaName) started for \(objectNames.count) objects")
+        var parametersByObject: [String: [ProcedureParameterInfo]] = [:]
+        for objectName in objectNames.sorted(by: { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }) {
+            do {
+                let metadata = try await connection.listParameters(database: database, schema: schemaName, object: objectName)
+                let filtered = metadata.filter { !$0.isReturnValue }
+                guard !filtered.isEmpty else { continue }
+                let parameters = filtered
+                    .sorted { $0.ordinal < $1.ordinal }
+                    .map { parameter in
+                        let formattedType = MSSQLSession.formatTypeName(
+                            base: parameter.typeName,
+                            maxLength: parameter.maxLength,
+                            precision: parameter.precision.map { String($0) },
+                            scale: parameter.scale.map { String($0) }
+                        )
+                        return ProcedureParameterInfo(
+                            name: parameter.name,
+                            dataType: formattedType,
+                            isOutput: parameter.isOutput,
+                            hasDefaultValue: parameter.hasDefaultValue || parameter.defaultValue != nil,
+                            maxLength: parameter.maxLength,
+                            ordinalPosition: parameter.ordinal
+                        )
+                    }
+                if !parameters.isEmpty {
+                    parametersByObject[objectName] = parameters
+                }
+            } catch let sqlError as SQLServerError {
+                if case .connectionClosed = sqlError {
+                    throw MSSQLSessionError.connectionClosed
+                }
+                logger.warning("MSSQL loadParameters failed for \(schemaName).\(objectName): \(sqlError.description)")
+            } catch {
+                logger.warning("MSSQL loadParameters failed for \(schemaName).\(objectName): \(error.localizedDescription)")
+            }
         }
-        logger.info("MSSQL fetchParametersByObject for schema \(schemaName) received \(rows.count) rows")
-
-        var parameters: [String: [ProcedureParameterInfo]] = [:]
-        for row in rows {
-            guard
-                let objectName = row.string("object_name"),
-                let rawName = row.string("parameter_name"),
-                let baseType = row.string("type_name")
-            else { continue }
-
-            let maxLength = row.string("max_length").flatMap { Int($0) }
-            let precision = row.string("precision")
-            let scale = row.string("scale")
-            let formattedType = MSSQLSession.formatTypeName(
-                base: baseType,
-                maxLength: maxLength,
-                precision: precision,
-                scale: scale
-            )
-
-            let ordinal = row.string("parameter_id").flatMap { Int($0) } ?? parameters[objectName, default: []].count + 1
-            let parameter = ProcedureParameterInfo(
-                name: rawName,
-                dataType: formattedType,
-                isOutput: MSSQLSession.boolValue(from: row.string("is_output")),
-                hasDefaultValue: MSSQLSession.boolValue(from: row.string("has_default_value")),
-                maxLength: maxLength,
-                ordinalPosition: ordinal
-            )
-
-            parameters[objectName, default: []].append(parameter)
-        }
-
-        for key in parameters.keys {
-            parameters[key]?.sort { $0.ordinalPosition < $1.ordinalPosition }
-        }
-        return parameters
+        logger.info("MSSQL loadParameters for schema \(schemaName) finished with \(parametersByObject.count) populated objects")
+        return parametersByObject
     }
 
     private func loadPrimaryKeyColumns(schema: String) async throws -> [String: Set<String>] {
-        let sql = """
-        SELECT
-            tc.TABLE_NAME,
-            kcu.COLUMN_NAME
-        FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS AS tc
-        JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE AS kcu
-            ON tc.CONSTRAINT_NAME = kcu.CONSTRAINT_NAME
-            AND tc.TABLE_SCHEMA = kcu.TABLE_SCHEMA
-        WHERE tc.CONSTRAINT_TYPE = 'PRIMARY KEY'
-          AND tc.TABLE_SCHEMA = '\(MSSQLSession.escapeLiteral(schema))';
-        """
-        let rows = try await fetchRows(sql)
+        try await ensureDefaultDatabaseContext()
+        let currentDatabase = await resolvedCurrentDatabase()
+        let constraints: [KeyConstraintMetadata]
+        do {
+            constraints = try await connection.listPrimaryKeys(database: currentDatabase, schema: schema, table: nil)
+        } catch let sqlError as SQLServerError {
+            if case .connectionClosed = sqlError {
+                throw MSSQLSessionError.connectionClosed
+            }
+            throw DatabaseError.queryError(sqlError.description)
+        } catch {
+            throw DatabaseError.queryError(error.localizedDescription)
+        }
+
         var map: [String: Set<String>] = [:]
-        for row in rows {
-            guard let table = row.string("TABLE_NAME"), let column = row.string("COLUMN_NAME") else { continue }
-            var set = map[table] ?? []
-            set.insert(column)
-            map[table] = set
+        for constraint in constraints {
+            if constraint.table.hasPrefix("meta_client_") { continue }
+            var set = map[constraint.table] ?? []
+            for column in constraint.columns {
+                set.insert(column.column)
+            }
+            map[constraint.table] = set
         }
         return map
     }
 
     private func loadTableColumns(schema: String, table: String) async throws -> [TableStructureDetails.Column] {
         try await ensureDefaultDatabaseContext()
-        let sql = """
-        SELECT
-            c.name AS column_name,
-            TYPE_NAME(c.user_type_id) AS data_type,
-            c.is_nullable,
-            OBJECT_DEFINITION(c.default_object_id) AS column_default,
-            cc.definition AS generated_expression,
-            c.column_id
-        FROM sys.columns AS c
-        LEFT JOIN sys.computed_columns AS cc
-            ON c.object_id = cc.object_id AND c.column_id = cc.column_id
-        WHERE c.object_id = OBJECT_ID(N'\(MSSQLSession.escapeIdentifier(schema)).\(MSSQLSession.escapeIdentifier(table))')
-        ORDER BY c.column_id;
-        """
-        let rows = try await fetchRows(sql)
-        return rows.compactMap { row in
-            guard let name = row.string("column_name"), let dataType = row.string("data_type") else { return nil }
-            let isNullable = MSSQLSession.boolValue(from: row.string("is_nullable"), default: true)
-            let defaultValue = row.string("column_default")?.trimmingCharacters(in: .whitespacesAndNewlines)
-            let generated = row.string("generated_expression")?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let currentDatabase = await resolvedCurrentDatabase()
+        let metadata: [ColumnMetadata]
+        do {
+            metadata = try await connection.listColumns(database: currentDatabase, schema: schema, table: table)
+        } catch let sqlError as SQLServerError {
+            if case .connectionClosed = sqlError {
+                throw MSSQLSessionError.connectionClosed
+            }
+            throw DatabaseError.queryError(sqlError.description)
+        } catch {
+            throw DatabaseError.queryError(error.localizedDescription)
+        }
+
+        return metadata.sorted { $0.ordinalPosition < $1.ordinalPosition }.map { column in
+            let formattedType = MSSQLSession.formatTypeName(
+                base: column.typeName,
+                maxLength: column.maxLength,
+                precision: column.precision.map { String($0) },
+                scale: column.scale.map { String($0) }
+            )
             return TableStructureDetails.Column(
-                name: name,
-                dataType: dataType,
-                isNullable: isNullable,
-                defaultValue: defaultValue,
-                generatedExpression: generated
+                name: column.name,
+                dataType: formattedType,
+                isNullable: column.isNullable,
+                defaultValue: column.defaultDefinition?.trimmingCharacters(in: .whitespacesAndNewlines),
+                generatedExpression: column.computedDefinition?.trimmingCharacters(in: .whitespacesAndNewlines)
             )
         }
     }
 
     private func loadPrimaryKey(schema: String, table: String) async throws -> TableStructureDetails.PrimaryKey? {
         try await ensureDefaultDatabaseContext()
-        let sql = """
-        SELECT
-            kc.name AS constraint_name,
-            c.name AS column_name
-        FROM sys.key_constraints AS kc
-        JOIN sys.index_columns AS ic
-            ON kc.parent_object_id = ic.object_id AND kc.unique_index_id = ic.index_id
-        JOIN sys.columns AS c
-            ON ic.object_id = c.object_id AND ic.column_id = c.column_id
-        WHERE kc.parent_object_id = OBJECT_ID(N'\(MSSQLSession.escapeIdentifier(schema)).\(MSSQLSession.escapeIdentifier(table))')
-          AND kc.type = 'PK'
-        ORDER BY ic.key_ordinal;
-        """
-        let rows = try await fetchRows(sql)
-        guard let name = rows.first?.string("constraint_name") else { return nil }
-        let columns = rows.compactMap { $0.string("column_name") }
-        return TableStructureDetails.PrimaryKey(name: name, columns: columns)
+        let currentDatabase = await resolvedCurrentDatabase()
+        let constraints = try await connection.listPrimaryKeys(database: currentDatabase, schema: schema, table: table)
+        guard let primary = constraints.first else { return nil }
+        let columns = primary.columns.sorted { $0.ordinal < $1.ordinal }.map { $0.column }
+        return TableStructureDetails.PrimaryKey(name: primary.name, columns: columns)
     }
 
     private func loadIndexes(schema: String, table: String) async throws -> [TableStructureDetails.Index] {
         try await ensureDefaultDatabaseContext()
-        let sql = """
-        SELECT
-            i.name AS index_name,
-            i.is_unique,
-            ic.key_ordinal,
-            c.name AS column_name,
-            ic.is_descending_key,
-            i.has_filter,
-            i.filter_definition
-        FROM sys.indexes AS i
-        JOIN sys.index_columns AS ic
-            ON i.object_id = ic.object_id AND i.index_id = ic.index_id
-        JOIN sys.columns AS c
-            ON ic.object_id = c.object_id AND ic.column_id = c.column_id
-        WHERE i.object_id = OBJECT_ID(N'\(MSSQLSession.escapeIdentifier(schema)).\(MSSQLSession.escapeIdentifier(table))')
-          AND i.is_primary_key = 0
-          AND i.[type] <> 0
-        ORDER BY i.name, ic.key_ordinal;
-        """
-        let rows = try await fetchRows(sql)
-        var indexes: [String: MSSQLIndexAccumulator] = [:]
-        for row in rows {
-            guard let indexName = row.string("index_name") else { continue }
-            var accumulator = indexes[indexName] ?? MSSQLIndexAccumulator(isUnique: MSSQLSession.boolValue(from: row.string("is_unique")), filterDefinition: row.string("filter_definition"))
-            if let columnName = row.string("column_name"), let ordinalString = row.string("key_ordinal"), let ordinal = Int(ordinalString) {
-                let descending = MSSQLSession.boolValue(from: row.string("is_descending_key"))
-                accumulator.columns.append(
+        let currentDatabase = await resolvedCurrentDatabase()
+        let metadata = try await connection.listIndexes(database: currentDatabase, schema: schema, table: table)
+        let filtered = metadata.filter { !$0.isPrimaryKey && !$0.isUniqueConstraint }
+        return filtered.map { index in
+            let columns = index.columns
+                .filter { !$0.isIncluded }
+                .sorted { $0.ordinal < $1.ordinal }
+                .enumerated()
+                .map { position, column in
                     TableStructureDetails.Index.Column(
-                        name: columnName,
-                        position: ordinal,
-                        sortOrder: descending ? .descending : .ascending
+                        name: column.column,
+                        position: position + 1,
+                        sortOrder: column.isDescending ? .descending : .ascending
                     )
-                )
-            }
-            indexes[indexName] = accumulator
-        }
-        return indexes.map { name, value in
-            TableStructureDetails.Index(
-                name: name,
-                columns: value.columns.sorted { $0.position < $1.position },
-                isUnique: value.isUnique,
-                filterCondition: value.filterDefinition?.trimmingCharacters(in: .whitespacesAndNewlines)
+                }
+            return TableStructureDetails.Index(
+                name: index.name,
+                columns: columns,
+                isUnique: index.isUnique,
+                filterCondition: index.filterDefinition?.trimmingCharacters(in: .whitespacesAndNewlines)
             )
         }.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
     }
 
     private func loadUniqueConstraints(schema: String, table: String) async throws -> [TableStructureDetails.UniqueConstraint] {
         try await ensureDefaultDatabaseContext()
-        let sql = """
-        SELECT
-            kc.name AS constraint_name,
-            c.name AS column_name,
-            ic.key_ordinal
-        FROM sys.key_constraints AS kc
-        JOIN sys.index_columns AS ic
-            ON kc.parent_object_id = ic.object_id AND kc.unique_index_id = ic.index_id
-        JOIN sys.columns AS c
-            ON ic.object_id = c.object_id AND ic.column_id = c.column_id
-        WHERE kc.parent_object_id = OBJECT_ID(N'\(MSSQLSession.escapeIdentifier(schema)).\(MSSQLSession.escapeIdentifier(table))')
-          AND kc.type = 'UQ'
-        ORDER BY kc.name, ic.key_ordinal;
-        """
-        let rows = try await fetchRows(sql)
-        var constraints: [String: [String]] = [:]
-        for row in rows {
-            guard let name = row.string("constraint_name"), let column = row.string("column_name") else { continue }
-            constraints[name, default: []].append(column)
-        }
-        return constraints.map { name, columns in
-            TableStructureDetails.UniqueConstraint(name: name, columns: columns)
+        let currentDatabase = await resolvedCurrentDatabase()
+        let constraints = try await connection.listUniqueConstraints(database: currentDatabase, schema: schema, table: table)
+        return constraints.map { constraint in
+            let columns = constraint.columns.sorted { $0.ordinal < $1.ordinal }.map { $0.column }
+            return TableStructureDetails.UniqueConstraint(name: constraint.name, columns: columns)
         }.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
     }
 
     private func loadForeignKeys(schema: String, table: String) async throws -> [TableStructureDetails.ForeignKey] {
         try await ensureDefaultDatabaseContext()
-        let sql = """
-        SELECT
-            fk.name AS constraint_name,
-            parent_c.name AS column_name,
-            OBJECT_SCHEMA_NAME(fk.referenced_object_id) AS referenced_schema,
-            OBJECT_NAME(fk.referenced_object_id) AS referenced_table,
-            referenced_c.name AS referenced_column,
-            fk.update_referential_action_desc,
-            fk.delete_referential_action_desc,
-            fkc.constraint_column_id
-        FROM sys.foreign_keys AS fk
-        JOIN sys.foreign_key_columns AS fkc
-            ON fk.object_id = fkc.constraint_object_id
-        JOIN sys.columns AS parent_c
-            ON fkc.parent_object_id = parent_c.object_id AND fkc.parent_column_id = parent_c.column_id
-        JOIN sys.columns AS referenced_c
-            ON fkc.referenced_object_id = referenced_c.object_id AND fkc.referenced_column_id = referenced_c.column_id
-        WHERE fk.parent_object_id = OBJECT_ID(N'\(MSSQLSession.escapeIdentifier(schema)).\(MSSQLSession.escapeIdentifier(table))')
-        ORDER BY fk.name, fkc.constraint_column_id;
-        """
-        let rows = try await fetchRows(sql)
-        let grouped = Dictionary(grouping: rows, by: { $0.string("constraint_name") ?? "" })
-        return grouped.compactMap { (name, entries) -> TableStructureDetails.ForeignKey? in
-            guard !name.isEmpty else { return nil }
-            let sorted = entries.sorted { (lhs, rhs) -> Bool in
-                let l = Int(lhs.string("constraint_column_id") ?? "0") ?? 0
-                let r = Int(rhs.string("constraint_column_id") ?? "0") ?? 0
-                return l < r
-            }
-            guard let first = sorted.first else { return nil }
-            let columns = sorted.compactMap { $0.string("column_name") }
-            let referencedColumns = sorted.compactMap { $0.string("referenced_column") }
-            let referencedSchema = first.string("referenced_schema") ?? schema
-            let referencedTable = first.string("referenced_table") ?? ""
-            let onUpdate = first.string("update_referential_action_desc")
-            let onDelete = first.string("delete_referential_action_desc")
+        let currentDatabase = await resolvedCurrentDatabase()
+        let metadata = try await connection.listForeignKeys(database: currentDatabase, schema: schema, table: table)
+        return metadata.map { foreignKey in
+            let sortedColumns = foreignKey.columns.sorted { $0.ordinal < $1.ordinal }
+            let columns = sortedColumns.map { $0.parentColumn }
+            let referencedColumns = sortedColumns.map { $0.referencedColumn }
             return TableStructureDetails.ForeignKey(
-                name: name,
+                name: foreignKey.name,
                 columns: columns,
-                referencedSchema: referencedSchema,
-                referencedTable: referencedTable,
+                referencedSchema: foreignKey.referencedSchema,
+                referencedTable: foreignKey.referencedTable,
                 referencedColumns: referencedColumns,
-                onUpdate: onUpdate,
-                onDelete: onDelete
+                onUpdate: foreignKey.updateAction,
+                onDelete: foreignKey.deleteAction
             )
         }.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
     }
 
     private func loadDependencies(schema: String, table: String) async throws -> [TableStructureDetails.Dependency] {
         try await ensureDefaultDatabaseContext()
-        let sql = """
-        SELECT
-            fk.name AS constraint_name,
-            OBJECT_SCHEMA_NAME(fk.parent_object_id) AS referencing_schema,
-            OBJECT_NAME(fk.parent_object_id) AS referencing_table,
-            parent_c.name AS referencing_column,
-            referenced_c.name AS referenced_column,
-            fk.update_referential_action_desc,
-            fk.delete_referential_action_desc,
-            fkc.constraint_column_id
-        FROM sys.foreign_keys AS fk
-        JOIN sys.foreign_key_columns AS fkc
-            ON fk.object_id = fkc.constraint_object_id
-        JOIN sys.columns AS parent_c
-            ON fkc.parent_object_id = parent_c.object_id AND fkc.parent_column_id = parent_c.column_id
-        JOIN sys.columns AS referenced_c
-            ON fkc.referenced_object_id = referenced_c.object_id AND fkc.referenced_column_id = referenced_c.column_id
-        WHERE fk.referenced_object_id = OBJECT_ID(N'\(MSSQLSession.escapeIdentifier(schema)).\(MSSQLSession.escapeIdentifier(table))')
-        ORDER BY fk.name, fkc.constraint_column_id;
-        """
-        let rows = try await fetchRows(sql)
-        let grouped = Dictionary(grouping: rows, by: { $0.string("constraint_name") ?? "" })
-        return grouped.compactMap { (name, entries) -> TableStructureDetails.Dependency? in
-            guard !name.isEmpty else { return nil }
-            let sorted = entries.sorted { (lhs, rhs) -> Bool in
-                let l = Int(lhs.string("constraint_column_id") ?? "0") ?? 0
-                let r = Int(rhs.string("constraint_column_id") ?? "0") ?? 0
-                return l < r
+        let currentDatabase = await resolvedCurrentDatabase()
+        let dependencies = try await connection.listDependencies(database: currentDatabase, schema: schema, object: table)
+        var results: [TableStructureDetails.Dependency] = []
+
+        for dependency in dependencies {
+            let referencingSchema = dependency.referencingSchema
+            let referencingObject = dependency.referencingObject
+            guard dependency.referencingType.uppercased().contains("TABLE") else { continue }
+            do {
+                let foreignKeys = try await connection.listForeignKeys(database: currentDatabase, schema: referencingSchema, table: referencingObject)
+                for foreignKey in foreignKeys {
+                    guard foreignKey.referencedSchema.caseInsensitiveCompare(schema) == .orderedSame,
+                          foreignKey.referencedTable.caseInsensitiveCompare(table) == .orderedSame else { continue }
+                    let sortedColumns = foreignKey.columns.sorted { $0.ordinal < $1.ordinal }
+                    let baseColumns = sortedColumns.map { $0.parentColumn }
+                    let referencedColumns = sortedColumns.map { $0.referencedColumn }
+                    let qualifiedTable = referencingSchema.caseInsensitiveCompare(schema) == .orderedSame ? referencingObject : "\(referencingSchema).\(referencingObject)"
+                    results.append(
+                        TableStructureDetails.Dependency(
+                            name: foreignKey.name,
+                            baseColumns: baseColumns,
+                            referencedTable: qualifiedTable,
+                            referencedColumns: referencedColumns,
+                            onUpdate: foreignKey.updateAction,
+                            onDelete: foreignKey.deleteAction
+                        )
+                    )
+                }
+            } catch let sqlError as SQLServerError {
+                if case .connectionClosed = sqlError {
+                    throw MSSQLSessionError.connectionClosed
+                }
+                logger.warning("MSSQL loadDependencies failed for referencing object \(referencingSchema).\(referencingObject): \(sqlError.description)")
+            } catch {
+                logger.warning("MSSQL loadDependencies failed for referencing object \(referencingSchema).\(referencingObject): \(error.localizedDescription)")
             }
-            guard let first = sorted.first else { return nil }
-            let baseColumns = sorted.compactMap { $0.string("referencing_column") }
-            let referencedColumns = sorted.compactMap { $0.string("referenced_column") }
-            let referencingSchema = first.string("referencing_schema") ?? schema
-            let referencingTableName = first.string("referencing_table") ?? ""
-            let tableName: String
-            if referencingSchema == schema {
-                tableName = referencingTableName
-            } else {
-                tableName = "\(referencingSchema).\(referencingTableName)"
-            }
-            let onUpdate = first.string("update_referential_action_desc")
-            let onDelete = first.string("delete_referential_action_desc")
-            return TableStructureDetails.Dependency(
-                name: name,
-                baseColumns: baseColumns,
-                referencedTable: tableName,
-                referencedColumns: referencedColumns,
-                onUpdate: onUpdate,
-                onDelete: onDelete
-            )
-        }.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+        }
+
+        return results.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
     }
 
     private static func wrapForPaging(sql: String, limit: Int, offset: Int) -> String {
@@ -1083,6 +1037,33 @@ final class MSSQLSession: DatabaseSession {
         }
     }
 
+    private static func displayType(for column: SQLServerColumnDescription) -> String {
+        switch column.type {
+        case .nvarchar, .nchar, .varchar, .char:
+            if column.length == -1 {
+                return "\(column.type)(MAX)"
+            }
+            let length = normalizedLength(for: column) ?? column.length
+            return "\(column.type)(\(length))"
+        case .decimal, .numeric:
+            let precision = column.precision ?? 0
+            let scale = column.scale ?? 0
+            return "\(column.type)(\(precision), \(scale))"
+        default:
+            return String(describing: column.type)
+        }
+    }
+
+    private static func normalizedLength(for column: SQLServerColumnDescription) -> Int? {
+        guard column.length > 0 else { return nil }
+        switch column.type {
+        case .nvarchar, .nchar, .nText:
+            return column.length / 2
+        default:
+            return column.length
+        }
+    }
+
     private static func formatTypeName(base: String, maxLength: Int?, precision: String?, scale: String?) -> String {
         switch base.lowercased() {
         case "nvarchar", "nchar", "varchar", 
@@ -1110,10 +1091,6 @@ final class MSSQLSession: DatabaseSession {
     }
 
     private static func escapeLiteral(_ value: String) -> String {
-        value.replacingOccurrences(of: "'", with: "''")
-    }
-
-    private static func escapeForNVarchar(_ value: String) -> String {
         value.replacingOccurrences(of: "'", with: "''")
     }
 
@@ -1147,77 +1124,46 @@ extension MSSQLSession: DatabaseMetadataSession {
     ) async throws -> SchemaInfo {
         try await ensureDefaultDatabaseContext()
         logger.info("MSSQL loadSchemaInfo starting for schema \(schemaName)")
-        let columnMap = try await fetchColumnsByObject(schemaName: schemaName)
-        let parameterMap = try await fetchParametersByObject(schemaName: schemaName)
+        let columnMap = try await buildColumnMapUsingMetadataClient(schemaName: schemaName)
 
-        let tablesSQL = """
-        SELECT table_name, table_type
-        FROM information_schema.tables
-        WHERE table_schema = '\(MSSQLSession.escapeLiteral(schemaName))'
-        ORDER BY table_name;
-        """
-        let tableRows = try await fetchRows(tablesSQL)
-        logger.info("MSSQL loadSchemaInfo schema \(schemaName) discovered \(tableRows.count) tables/views")
+        let currentDatabase = await resolvedCurrentDatabase()
+        let tableMetadata = try await connection.listTables(database: currentDatabase, schema: schemaName)
+            .filter { !$0.isSystemObject && !$0.name.hasPrefix("meta_client_") }
+        logger.info("MSSQL loadSchemaInfo schema \(schemaName) discovered \(tableMetadata.count) tables/views")
 
-        let functionSQL = """
-        SELECT routine_name
-        FROM information_schema.routines
-        WHERE routine_schema = '\(MSSQLSession.escapeLiteral(schemaName))'
-          AND routine_type = 'FUNCTION'
-        ORDER BY routine_name;
-        """
-        let functionRows = try await fetchRows(functionSQL)
-        logger.info("MSSQL loadSchemaInfo schema \(schemaName) discovered \(functionRows.count) functions")
+        let functionMetadata = try await connection.listFunctions(database: currentDatabase, schema: schemaName)
+            .filter { !$0.isSystemObject && !$0.name.hasPrefix("meta_client_") }
+        logger.info("MSSQL loadSchemaInfo schema \(schemaName) discovered \(functionMetadata.count) functions")
 
-        let procedureSQL = """
-        SELECT name
-        FROM sys.procedures
-        WHERE schema_id = SCHEMA_ID(N'\(MSSQLSession.escapeLiteral(schemaName))')
-          AND is_ms_shipped = 0
-        ORDER BY name;
-        """
-        let procedureRows = try await fetchRows(procedureSQL)
-        logger.info("MSSQL loadSchemaInfo schema \(schemaName) discovered \(procedureRows.count) procedures")
+        let procedureMetadata = try await connection.listProcedures(database: currentDatabase, schema: schemaName)
+            .filter { !$0.isSystemObject && !$0.name.hasPrefix("meta_client_") }
+        logger.info("MSSQL loadSchemaInfo schema \(schemaName) discovered \(procedureMetadata.count) procedures")
 
-        let triggerSQL = """
-        SELECT
-            tr.name AS trigger_name,
-            obj.name AS parent_name,
-            CASE WHEN tr.is_instead_of_trigger = 1 THEN 'INSTEAD OF' ELSE 'AFTER' END AS timing,
-            STUFF((
-                SELECT ', ' + ev.type_desc
-                FROM sys.trigger_events AS ev
-                WHERE ev.object_id = tr.object_id
-                FOR XML PATH(''), TYPE
-            ).value('.', 'nvarchar(max)'), 1, 2, '') AS event_list
-        FROM sys.triggers AS tr
-        JOIN sys.objects AS obj ON tr.parent_id = obj.object_id
-        JOIN sys.schemas AS s ON obj.schema_id = s.schema_id
-        WHERE s.name = '\(MSSQLSession.escapeLiteral(schemaName))'
-        ORDER BY tr.name;
-        """
-        let triggerRows = try await fetchRows(triggerSQL)
-        logger.info("MSSQL loadSchemaInfo schema \(schemaName) discovered \(triggerRows.count) triggers")
+        let triggerMetadata = try await connection.listTriggers(database: currentDatabase, schema: schemaName)
+            .filter { !$0.name.hasPrefix("meta_client_") && !$0.table.hasPrefix("meta_client_") }
+        logger.info("MSSQL loadSchemaInfo schema \(schemaName) discovered \(triggerMetadata.count) triggers")
 
-        let totalObjects = max(tableRows.count + functionRows.count + procedureRows.count + triggerRows.count, 1)
+        let routineNames = Set(functionMetadata.map(\.name) + procedureMetadata.map(\.name))
+        let parameterMap = try await loadParameters(schemaName: schemaName, objectNames: Array(routineNames), database: currentDatabase)
+
+        let totalObjects = max(tableMetadata.count + functionMetadata.count + procedureMetadata.count + triggerMetadata.count, 1)
         var processed = 0
         var objects: [SchemaObjectInfo] = []
 
-        for row in tableRows {
-            guard let name = row.string("table_name"), let typeString = row.string("table_type") else { continue }
-            let type: SchemaObjectInfo.ObjectType = typeString.uppercased() == "VIEW" ? .view : .table
+        for table in tableMetadata {
+            let type: SchemaObjectInfo.ObjectType = table.type.uppercased().contains("VIEW") ? .view : .table
             if let progress {
                 await progress(type, processed, totalObjects)
             }
             processed += 1
-            let columns = columnMap[name] ?? []
+            let columns = columnMap[table.name] ?? []
             objects.append(
                 SchemaObjectInfo(
-                    name: name,
+                    name: table.name,
                     schema: schemaName,
                     type: type,
                     columns: columns,
-                    parameters: parameterMap[name] ?? []
+                    parameters: []
                 )
             )
         }
@@ -1225,8 +1171,8 @@ extension MSSQLSession: DatabaseMetadataSession {
         if let progress {
             await progress(.function, processed, totalObjects)
         }
-        for row in functionRows {
-            guard let name = row.string("routine_name") else { continue }
+        for function in functionMetadata {
+            let name = function.name
             processed += 1
             if let progress {
                 await progress(.function, processed, totalObjects)
@@ -1244,8 +1190,8 @@ extension MSSQLSession: DatabaseMetadataSession {
         if let progress {
             await progress(.procedure, processed, totalObjects)
         }
-        for row in procedureRows {
-            guard let name = row.string("name") else { continue }
+        for procedure in procedureMetadata {
+            let name = procedure.name
             processed += 1
             if let progress {
                 await progress(.procedure, processed, totalObjects)
@@ -1263,15 +1209,19 @@ extension MSSQLSession: DatabaseMetadataSession {
         if let progress {
             await progress(.trigger, processed, totalObjects)
         }
-        for row in triggerRows {
-            guard let name = row.string("trigger_name"), let parentName = row.string("parent_name") else { continue }
+        for trigger in triggerMetadata {
+            let name = trigger.name
+            let parentName = trigger.table
             processed += 1
             if let progress {
                 await progress(.trigger, processed, totalObjects)
             }
-            let timing = row.string("timing") ?? ""
-            let events = row.string("event_list") ?? ""
-            let action = [timing, events].filter { !$0.isEmpty }.joined(separator: " ")
+            var actionParts: [String] = []
+            actionParts.append(trigger.isInsteadOf ? "INSTEAD OF" : "AFTER")
+            if trigger.isDisabled {
+                actionParts.append("DISABLED")
+            }
+            let action = actionParts.joined(separator: " ")
             let tableFull = "\(schemaName).\(parentName)"
             objects.append(
                 SchemaObjectInfo(
@@ -1291,10 +1241,17 @@ extension MSSQLSession: DatabaseMetadataSession {
     }
 }
 
-private struct MSSQLIndexAccumulator {
-    var isUnique: Bool
-    var filterDefinition: String?
-    var columns: [TableStructureDetails.Index.Column] = []
+enum MSSQLSessionError: Error {
+    case connectionClosed
+}
+
+extension MSSQLSessionError: LocalizedError {
+    var errorDescription: String? {
+        switch self {
+        case .connectionClosed:
+            return "SQL Server connection closed"
+        }
+    }
 }
 
 private struct MSSQLRow {

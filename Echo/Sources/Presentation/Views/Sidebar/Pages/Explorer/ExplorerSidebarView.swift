@@ -500,6 +500,29 @@ struct ExplorerSidebarView: View {
             )
             .frame(maxWidth: .infinity)
 
+            if shouldShowAddButton {
+                Menu {
+                    ForEach(creationOptions, id: \.title) { item in
+                        Button(action: {}) {
+                            Label {
+                                Text(item.title)
+                            } icon: {
+                                item.iconView(accentColor: accentColor)
+                            }
+                        }
+                    }
+                } label: {
+                    ExplorerFooterActionButton(accentColor: accentColor)
+                }
+                .menuStyle(.borderlessButton)
+                .fixedSize()
+                .menuIndicator(.hidden)
+                .transition(
+                    .scale(scale: 0.95, anchor: .trailing)
+                        .combined(with: .opacity)
+                )
+            }
+
             if shouldShowSchemaPicker {
                 Menu {
                     Button {
@@ -561,25 +584,6 @@ struct ExplorerSidebarView: View {
                 .fixedSize()
                 .transition(.opacity)
             }
-
-            if shouldShowAddButton {
-                Menu {
-                    ForEach(creationOptions, id: \.self) { title in
-                        Button(action: {}) {
-                            Text(title)
-                        }
-                    }
-                } label: {
-                    ExplorerFooterActionButton(accentColor: accentColor)
-                }
-                .menuStyle(.borderlessButton)
-                .fixedSize()
-                .menuIndicator(.hidden)
-                .transition(
-                    .scale(scale: 0.95, anchor: .trailing)
-                        .combined(with: .opacity)
-                )
-            }
         }
         .animation(.easeInOut(duration: 0.18), value: isSearchFieldFocused)
         .padding(.horizontal, 12)
@@ -588,36 +592,36 @@ struct ExplorerSidebarView: View {
         .animation(.easeInOut(duration: 0.2), value: isSearchFieldFocused)
     }
 
-    private func creationOptions(for databaseType: DatabaseType) -> [String] {
+    private func creationOptions(for databaseType: DatabaseType) -> [ExplorerCreationMenuItem] {
         switch databaseType {
         case .postgresql:
             return [
-                "New Table",
-                "New View",
-                "New Materialized View",
-                "New Function",
-                "New Trigger",
-                "New Schema"
+                .init(title: "New Table", icon: .system("tablecells")),
+                .init(title: "New View", icon: .system("eye")),
+                .init(title: "New Materialized View", icon: .system("eye.fill")),
+                .init(title: "New Function", icon: .system("function")),
+                .init(title: "New Trigger", icon: .system("bolt")),
+                .init(title: "New Schema", icon: .asset("schema"))
             ]
         case .mysql:
             return [
-                "New Table",
-                "New View",
-                "New Function",
-                "New Trigger"
+                .init(title: "New Table", icon: .system("tablecells")),
+                .init(title: "New View", icon: .system("eye")),
+                .init(title: "New Function", icon: .system("function")),
+                .init(title: "New Trigger", icon: .system("bolt"))
             ]
         case .microsoftSQL:
             return [
-                "New Table",
-                "New View",
-                "New Procedure",
-                "New Function",
-                "New Trigger"
+                .init(title: "New Table", icon: .system("tablecells")),
+                .init(title: "New View", icon: .system("eye")),
+                .init(title: "New Procedure", icon: .system("gearshape")),
+                .init(title: "New Function", icon: .system("function")),
+                .init(title: "New Trigger", icon: .system("bolt"))
             ]
         case .sqlite:
             return [
-                "New Table",
-                "New View"
+                .init(title: "New Table", icon: .system("tablecells")),
+                .init(title: "New View", icon: .system("eye"))
             ]
         }
     }
@@ -1247,41 +1251,67 @@ private struct ExplorerFooterSearchField: View {
     }
 }
 
+private struct ExplorerCreationMenuItem: Hashable {
+    enum Icon: Hashable {
+        case system(String)
+        case asset(String)
+    }
+
+    let title: String
+    let icon: Icon
+
+    @ViewBuilder
+    func iconView(accentColor: Color) -> some View {
+        switch icon {
+        case .system(let name):
+            Image(systemName: name)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(accentColor)
+        case .asset(let name):
+            Image(name)
+                .renderingMode(.template)
+                .resizable()
+                .frame(width: 12, height: 12)
+                .foregroundStyle(accentColor)
+        }
+    }
+}
+
 private struct ExplorerFooterActionButton: View {
     let accentColor: Color
 
     var body: some View {
         ZStack {
-            RoundedRectangle(cornerRadius: 9, style: .continuous)
+            Circle()
                 .fill(
                     LinearGradient(
                         colors: [
-                            Color.white.opacity(0.45),
-                            accentColor.opacity(0.25)
+                            Color.white.opacity(0.55),
+                            accentColor.opacity(0.3)
                         ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
+                        startPoint: .top,
+                        endPoint: .bottom
                     )
                 )
                 .background(
-                    RoundedRectangle(cornerRadius: 9, style: .continuous)
+                    Circle()
                         .fill(.ultraThinMaterial)
                 )
                 .overlay(
-                    RoundedRectangle(cornerRadius: 9, style: .continuous)
-                        .stroke(Color.white.opacity(0.35), lineWidth: 0.6)
+                    Circle()
+                        .stroke(Color.white.opacity(0.45), lineWidth: 0.6)
                 )
                 .overlay(
-                    RoundedRectangle(cornerRadius: 9, style: .continuous)
+                    Circle()
                         .stroke(Color.primary.opacity(0.1), lineWidth: 0.5)
                 )
 
             Image(systemName: "plus")
-                .font(.system(size: 12, weight: .semibold))
+                .font(.system(size: 12, weight: .bold))
                 .foregroundStyle(accentColor)
         }
-        .frame(width: 28, height: ExplorerSidebarConstants.bottomControlHeight + 2)
-        .shadow(color: accentColor.opacity(0.16), radius: 8, x: 0, y: 4)
+        .frame(width: 26, height: 26)
+        .shadow(color: accentColor.opacity(0.18), radius: 8, x: 0, y: 4)
     }
 }
 
