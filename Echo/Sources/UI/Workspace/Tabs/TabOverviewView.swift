@@ -520,10 +520,6 @@ struct TabOverviewView: View {
         }
         .padding(24)
         .background(
-            .ultraThinMaterial,
-            in: RoundedRectangle(cornerRadius: 28, style: .continuous)
-        )
-        .background(
             RoundedRectangle(cornerRadius: 28, style: .continuous)
                 .fill(serverHighlight(for: group.connection))
         )
@@ -915,10 +911,6 @@ private struct TabPreviewCard: View {
             .padding(20)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            .ultraThinMaterial,
-            in: container
-        )
         .background(cardBackground)
         .overlay(cardBorder)
         .overlay(focusRing)
@@ -1283,12 +1275,8 @@ private struct CompactTabPreviewCard: View {
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
-            .ultraThinMaterial,
-            in: container
-        )
-        .background(
             container
-                .fill(Color.white.opacity(colorScheme == .dark ? 0.08 : 0.55))
+                .fill(Color.white.opacity(colorScheme == .dark ? 0.1 : 0.6))
         )
         .overlay(
             container.stroke(compactBorderColor, lineWidth: isDropTarget ? 2.2 : (isActive ? 1.2 : 0.7))
