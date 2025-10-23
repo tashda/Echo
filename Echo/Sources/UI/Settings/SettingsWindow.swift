@@ -456,7 +456,6 @@ struct SettingsView: View {
         } detail: {
             detailContent
         }
-        .ignoresSafeArea(.container, edges: .top)
 #else
         NavigationSplitView(preferredCompactColumn: $preferredColumn) {
             sidebar

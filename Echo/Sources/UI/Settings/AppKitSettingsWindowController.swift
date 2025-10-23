@@ -11,13 +11,14 @@ final class AppKitSettingsWindowController: NSWindowController {
     private let navigationBridge = SettingsNavigationBridge()
     private let hostingController: SettingsHostingViewController
     private let toolbarAccessoryView: SettingsToolbarAccessoryView
-    private let titlebarAccessory: NSTitlebarAccessoryViewController
+    private let sidebarWidth: CGFloat = 280
+    private var navigationToolbarItem: SettingsNavigationToolbarItem?
+    private var splitViewDelegate: FixedSidebarSplitViewDelegate?
 
     private var cancellables: Set<AnyCancellable> = []
 
     private override init(window: NSWindow?) {
-        toolbarAccessoryView = SettingsToolbarAccessoryView(sidebarWidth: 280)
-        titlebarAccessory = NSTitlebarAccessoryViewController()
+        toolbarAccessoryView = SettingsToolbarAccessoryView()
         hostingController = SettingsHostingViewController(bridge: navigationBridge)
 
         let window = NSWindow(contentViewController: hostingController)
@@ -34,14 +35,15 @@ final class AppKitSettingsWindowController: NSWindowController {
 
         let toolbar = NSToolbar(identifier: NSToolbar.Identifier("SettingsToolbar"))
         toolbar.showsBaselineSeparator = false
+        toolbar.allowsExtensionItems = false
+        toolbar.allowsUserCustomization = false
+        toolbar.centeredItemIdentifier = nil
         window.toolbar = toolbar
         window.toolbarStyle = .unified
 
         super.init(window: window)
 
-        titlebarAccessory.view = toolbarAccessoryView
-        titlebarAccessory.layoutAttribute = .leading
-        window.addTitlebarAccessoryViewController(titlebarAccessory)
+        toolbar.delegate = self
 
         toolbarAccessoryView.onNavigateBack = { [weak self] in self?.handleBack() }
         toolbarAccessoryView.onNavigateForward = { [weak self] in self?.handleForward() }
@@ -105,6 +107,7 @@ final class AppKitSettingsWindowController: NSWindowController {
     override func windowDidLoad() {
         super.windowDidLoad()
         updateWindowActivationAppearance()
+        configureSplitViewForFixedSidebar()
     }
 
     private func observeWindowActivation() {
@@ -125,6 +128,29 @@ final class AppKitSettingsWindowController: NSWindowController {
     private func updateWindowActivationAppearance() {
         let isKey = window?.isKeyWindow ?? false
         toolbarAccessoryView.updateWindowIsKey(isKey)
+    }
+
+    private func configureSplitViewForFixedSidebar() {
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            guard let splitView = self.findSplitView(in: self.hostingController.view) else { return }
+            let delegate = FixedSidebarSplitViewDelegate(sidebarWidth: self.sidebarWidth)
+            self.splitViewDelegate = delegate
+            splitView.delegate = delegate
+            splitView.setPosition(self.sidebarWidth, ofDividerAt: 0)
+        }
+    }
+
+    private func findSplitView(in view: NSView) -> NSSplitView? {
+        if let splitView = view as? NSSplitView {
+            return splitView
+        }
+        for subview in view.subviews {
+            if let result = findSplitView(in: subview) {
+                return result
+            }
+        }
+        return nil
     }
 
     deinit {
@@ -165,14 +191,11 @@ private final class SettingsToolbarAccessoryView: NSView {
     private let backButton: ToolbarNavigationButton
     private let forwardButton: ToolbarNavigationButton
     private let titleLabel: NSTextField
-    private let sidebarWidth: CGFloat
-
-    init(sidebarWidth: CGFloat) {
-        self.sidebarWidth = sidebarWidth
+    init() {
         self.backButton = ToolbarNavigationButton(systemName: "chevron.left", accessibilityDescription: "Back")
         self.forwardButton = ToolbarNavigationButton(systemName: "chevron.right", accessibilityDescription: "Forward")
         self.titleLabel = NSTextField(labelWithString: "Appearance")
-        super.init(frame: NSRect(x: 0, y: 0, width: sidebarWidth + 360, height: 44))
+        super.init(frame: NSRect(x: 0, y: 0, width: 360, height: 44))
         configureViewHierarchy()
         configureActions()
         updateBackEnabled(false)
@@ -245,7 +268,7 @@ private final class SettingsToolbarAccessoryView: NSView {
         let mainStack = NSStackView(views: [buttonPill, titleLabel])
         mainStack.orientation = .horizontal
         mainStack.alignment = .centerY
-        mainStack.spacing = 12
+        mainStack.spacing = 10
         mainStack.translatesAutoresizingMaskIntoConstraints = false
         mainStack.setContentHuggingPriority(.required, for: .horizontal)
         mainStack.setContentCompressionResistancePriority(.defaultHigh, for: .horizontal)
@@ -253,7 +276,7 @@ private final class SettingsToolbarAccessoryView: NSView {
         addSubview(mainStack)
 
         NSLayoutConstraint.activate([
-            mainStack.leadingAnchor.constraint(equalTo: leadingAnchor, constant: sidebarWidth + 8),
+            mainStack.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 8),
             mainStack.trailingAnchor.constraint(lessThanOrEqualTo: trailingAnchor, constant: -20),
             mainStack.centerYAnchor.constraint(equalTo: centerYAnchor),
             mainStack.topAnchor.constraint(greaterThanOrEqualTo: topAnchor, constant: 4),
@@ -279,6 +302,88 @@ private final class SettingsToolbarAccessoryView: NSView {
     func updateWindowIsKey(_ isKey: Bool) {
         titleLabel.textColor = isKey ? .labelColor : .tertiaryLabelColor
     }
+}
+
+// MARK: - Toolbar delegate
+
+extension AppKitSettingsWindowController: NSToolbarDelegate {
+    func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
+        [.settingsNavigation, .flexibleSpace]
+    }
+
+    func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
+        [.settingsNavigation, .flexibleSpace]
+    }
+
+    func toolbar(_ toolbar: NSToolbar,
+                 itemForItemIdentifier itemIdentifier: NSToolbarItem.Identifier,
+                 willBeInsertedIntoToolbar flag: Bool) -> NSToolbarItem? {
+        switch itemIdentifier {
+        case .settingsNavigation:
+            let item = SettingsNavigationToolbarItem(identifier: itemIdentifier,
+                                                     accessoryView: toolbarAccessoryView,
+                                                     spacerWidth: sidebarWidth)
+            navigationToolbarItem = item
+            return item
+        case .flexibleSpace:
+            return NSToolbarItem(itemIdentifier: .flexibleSpace)
+        default:
+            return nil
+        }
+    }
+}
+
+private final class SettingsNavigationToolbarItem: NSToolbarItem {
+    init(identifier: NSToolbarItem.Identifier,
+         accessoryView: SettingsToolbarAccessoryView,
+         spacerWidth: CGFloat) {
+        accessoryView.translatesAutoresizingMaskIntoConstraints = false
+
+        let spacerView = NSView()
+        spacerView.translatesAutoresizingMaskIntoConstraints = false
+
+        let container = NSStackView(views: [spacerView, accessoryView])
+        container.orientation = .horizontal
+        container.alignment = .centerY
+        container.spacing = 0
+        container.edgeInsets = NSEdgeInsets(top: 0, left: 0, bottom: 0, right: 0)
+        container.translatesAutoresizingMaskIntoConstraints = false
+        container.setContentHuggingPriority(.required, for: .horizontal)
+        container.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+
+        super.init(itemIdentifier: identifier)
+
+        view = container
+
+        NSLayoutConstraint.activate([
+            spacerView.widthAnchor.constraint(equalToConstant: spacerWidth),
+            container.heightAnchor.constraint(equalToConstant: 44)
+        ])
+    }
+}
+
+private final class FixedSidebarSplitViewDelegate: NSObject, NSSplitViewDelegate {
+    private let sidebarWidth: CGFloat
+
+    init(sidebarWidth: CGFloat) {
+        self.sidebarWidth = sidebarWidth
+    }
+
+    func splitView(_ splitView: NSSplitView,
+                   constrainSplitPosition proposedPosition: CGFloat,
+                   ofSubviewAt dividerIndex: Int) -> CGFloat {
+        guard dividerIndex == 0 else { return proposedPosition }
+        return sidebarWidth
+    }
+
+    func splitView(_ splitView: NSSplitView, shouldAdjustSizeOfSubview view: NSView) -> Bool {
+        guard let index = splitView.subviews.firstIndex(of: view) else { return true }
+        return index != 0
+    }
+}
+
+private extension NSToolbarItem.Identifier {
+    static let settingsNavigation = NSToolbarItem.Identifier("SettingsNavigationItem")
 }
 
 private final class ToolbarNavigationButton: NSButton {

@@ -1,7 +1,8 @@
 import Foundation
 import os
+import SQLServerNIO
 
-private let structureLogger = Logger(subsystem: "dk.tippr.echo.database-structure", category: "Explorer")
+private let structureLogger = os.Logger(subsystem: "dk.tippr.echo.database-structure", category: "Explorer")
 
 struct DatabaseStructureFetcher {
     struct Credentials {
@@ -362,7 +363,7 @@ struct DatabaseStructureFetcher {
                     }
                 } catch let sessionError as MSSQLSessionError {
                     lastFailure = sessionError
-                    structureLogger.error("SQL Server closed the connection while loading metadata for \(databaseName, privacy: .public) (attempt \(attempt)/\(maxAttempts)): \(sessionError.localizedDescription, privacy: .public)")
+                    structureLogger.error("SQL Server closed the connection while loading metadata for \(databaseName, privacy: .public) (attempt \(attempt)/\(maxAttempts)): connection closed")
                     ConnectionDebug.log("Database=\(databaseName) metadata attempt=\(attempt) connectionClosed")
 
                     if closeSessionWhenDone {
@@ -382,6 +383,37 @@ struct DatabaseStructureFetcher {
                         )
                         closeSessionWhenDone = true
                         continue
+                    }
+                } catch let sqlError as SQLServerError {
+                    if case .connectionClosed = sqlError {
+                        lastFailure = MSSQLSessionError.connectionClosed
+                        structureLogger.error("SQL Server closed the connection while loading metadata for \(databaseName, privacy: .public) (attempt \(attempt)/\(maxAttempts)): connection closed")
+                        ConnectionDebug.log("Database=\(databaseName) metadata attempt=\(attempt) connectionClosed")
+
+                        if closeSessionWhenDone {
+                            await sessionForAttempt.close()
+                        }
+
+                        if attempt >= maxAttempts {
+                            break
+                        } else {
+                            try Task.checkCancellation()
+                            sessionForAttempt = try await factory.connect(
+                                host: connection.host,
+                                port: connection.port,
+                                database: databaseName.isEmpty ? nil : databaseName,
+                                tls: connection.useTLS,
+                                authentication: credentials.authentication
+                            )
+                            closeSessionWhenDone = true
+                            continue
+                        }
+                    } else {
+                        lastFailure = sqlError
+                        if closeSessionWhenDone {
+                            await sessionForAttempt.close()
+                        }
+                        throw DatabaseError.queryError(sqlError.description)
                     }
                 } catch {
                     lastFailure = error
@@ -416,7 +448,7 @@ struct DatabaseStructureFetcher {
                     await databaseHandler(placeholder, databaseIndex, totalDatabases)
                 }
                 let completionFraction = Double(databaseIndex + 1) / Double(totalDatabases)
-                await emitProgress(completionFraction, databaseName: databaseName, schemaName: nil, message: "Metadata unavailable (connection closed)")
+                await emitProgress(completionFraction, databaseName: databaseName, schemaName: nil, message: failure.localizedDescription)
                 continue
             }
 
