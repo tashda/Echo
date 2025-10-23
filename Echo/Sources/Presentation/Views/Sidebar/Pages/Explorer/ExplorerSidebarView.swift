@@ -177,6 +177,10 @@ struct ExplorerSidebarView: View {
                 searchDebounceTask = nil
             }
         }
+        .background(
+            ExplorerSidebarFocusResetter(isSearchFieldFocused: $isSearchFieldFocused)
+                .allowsHitTesting(false)
+        )
     }
 
     // MARK: - Connection Management
@@ -462,8 +466,18 @@ struct ExplorerSidebarView: View {
         let accentColor = appModel.useServerColorAsAccent ? session.connection.color : Color.accentColor
         let controlBackground = Color.primary.opacity(0.04)
         let borderColor = Color.primary.opacity(0.08)
-        let schemaDisplayName = selectedSchemaName ?? "All Schemas"
         let availableSchemas = database.schemas.filter { !$0.objects.isEmpty }
+        let schemaPresentation: (displayName: String, selectedName: String?) = {
+            if let selectedSchemaName {
+                return (selectedSchemaName, selectedSchemaName)
+            }
+            if availableSchemas.count == 1, let onlySchema = availableSchemas.first?.name {
+                return (onlySchema, onlySchema)
+            }
+            return ("All Schemas", nil)
+        }()
+        let schemaDisplayName = schemaPresentation.displayName
+        let currentSchemaSelection = schemaPresentation.selectedName
         if let selected = selectedSchemaName,
            !availableSchemas.contains(where: { $0.name == selected }) {
             DispatchQueue.main.async {
@@ -471,7 +485,9 @@ struct ExplorerSidebarView: View {
             }
         }
 
-        let shouldShowSchemaPicker = availableSchemas.count > 1 && !isSearchFieldFocused
+        let shouldShowSchemaPicker = !availableSchemas.isEmpty && !isSearchFieldFocused
+        let creationOptions = creationOptions(for: session.connection.databaseType)
+        let shouldShowAddButton = !isSearchFieldFocused && !creationOptions.isEmpty
 
         return HStack(spacing: 6) {
             ExplorerFooterSearchField(
@@ -491,7 +507,7 @@ struct ExplorerSidebarView: View {
                             selectedSchemaName = nil
                         }
                     } label: {
-                        if selectedSchemaName == nil {
+                        if currentSchemaSelection == nil {
                             Label("All Schemas", systemImage: "checkmark")
                         } else {
                             Text("All Schemas")
@@ -505,7 +521,7 @@ struct ExplorerSidebarView: View {
                                 selectedSchemaName = schema.name
                             }
                         } label: {
-                            if selectedSchemaName == schema.name {
+                            if currentSchemaSelection == schema.name {
                                 Label {
                                     Text("\(schema.name) (\(objectCount))")
                                 } icon: {
@@ -545,12 +561,65 @@ struct ExplorerSidebarView: View {
                 .fixedSize()
                 .transition(.opacity)
             }
+
+            if shouldShowAddButton {
+                Menu {
+                    ForEach(creationOptions, id: \.self) { title in
+                        Button(action: {}) {
+                            Text(title)
+                        }
+                    }
+                } label: {
+                    ExplorerFooterActionButton(accentColor: accentColor)
+                }
+                .menuStyle(.borderlessButton)
+                .fixedSize()
+                .menuIndicator(.hidden)
+                .transition(
+                    .scale(scale: 0.95, anchor: .trailing)
+                        .combined(with: .opacity)
+                )
+            }
         }
         .animation(.easeInOut(duration: 0.18), value: isSearchFieldFocused)
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
         .animation(.easeInOut(duration: 0.2), value: shouldShowSchemaPicker)
         .animation(.easeInOut(duration: 0.2), value: isSearchFieldFocused)
+    }
+
+    private func creationOptions(for databaseType: DatabaseType) -> [String] {
+        switch databaseType {
+        case .postgresql:
+            return [
+                "New Table",
+                "New View",
+                "New Materialized View",
+                "New Function",
+                "New Trigger",
+                "New Schema"
+            ]
+        case .mysql:
+            return [
+                "New Table",
+                "New View",
+                "New Function",
+                "New Trigger"
+            ]
+        case .microsoftSQL:
+            return [
+                "New Table",
+                "New View",
+                "New Procedure",
+                "New Function",
+                "New Trigger"
+            ]
+        case .sqlite:
+            return [
+                "New Table",
+                "New View"
+            ]
+        }
     }
 
     private func selectedDatabase(in structure: DatabaseStructure, for session: ConnectionSession) -> DatabaseInfo? {
@@ -1177,6 +1246,152 @@ private struct ExplorerFooterSearchField: View {
         }
     }
 }
+
+private struct ExplorerFooterActionButton: View {
+    let accentColor: Color
+
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 9, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            Color.white.opacity(0.45),
+                            accentColor.opacity(0.25)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .background(
+                    RoundedRectangle(cornerRadius: 9, style: .continuous)
+                        .fill(.ultraThinMaterial)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 9, style: .continuous)
+                        .stroke(Color.white.opacity(0.35), lineWidth: 0.6)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 9, style: .continuous)
+                        .stroke(Color.primary.opacity(0.1), lineWidth: 0.5)
+                )
+
+            Image(systemName: "plus")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(accentColor)
+        }
+        .frame(width: 28, height: ExplorerSidebarConstants.bottomControlHeight + 2)
+        .shadow(color: accentColor.opacity(0.16), radius: 8, x: 0, y: 4)
+    }
+}
+
+#if os(macOS)
+private struct ExplorerSidebarFocusResetter: NSViewRepresentable {
+    @Binding var isSearchFieldFocused: Bool
+
+    func makeNSView(context: Context) -> FocusResetView {
+        FocusResetView()
+    }
+
+    func updateNSView(_ nsView: FocusResetView, context: Context) {
+        nsView.onDismiss = { [binding = $isSearchFieldFocused] in
+            DispatchQueue.main.async {
+                guard binding.wrappedValue else { return }
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    binding.wrappedValue = false
+                }
+            }
+        }
+        nsView.isSearchFieldFocused = isSearchFieldFocused
+    }
+
+    final class FocusResetView: NSView {
+        var onDismiss: (() -> Void)?
+        var isSearchFieldFocused: Bool = false {
+            didSet { updateMonitor() }
+        }
+
+        private var monitor: Any?
+
+        override init(frame frameRect: NSRect) {
+            super.init(frame: frameRect)
+            translatesAutoresizingMaskIntoConstraints = false
+            wantsLayer = false
+        }
+
+        required init?(coder: NSCoder) {
+            super.init(coder: coder)
+        }
+
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            updateMonitor()
+        }
+
+        override func viewWillMove(toWindow newWindow: NSWindow?) {
+            if newWindow == nil {
+                removeMonitor()
+            }
+            super.viewWillMove(toWindow: newWindow)
+        }
+
+        deinit {
+            removeMonitor()
+        }
+
+        private func updateMonitor() {
+            guard window != nil else {
+                removeMonitor()
+                return
+            }
+
+            if isSearchFieldFocused {
+                installMonitorIfNeeded()
+            } else {
+                removeMonitor()
+            }
+        }
+
+        private func installMonitorIfNeeded() {
+            guard monitor == nil else { return }
+            monitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown, .otherMouseDown]) { [weak self] event in
+                guard let self else { return event }
+                guard let window = self.window else {
+                    self.onDismiss?()
+                    return event
+                }
+
+                if event.window !== window {
+                    self.onDismiss?()
+                    return event
+                }
+
+                let locationInWindow = event.locationInWindow
+                let locationInView = self.convert(locationInWindow, from: nil)
+                if !self.bounds.contains(locationInView) {
+                    self.onDismiss?()
+                }
+
+                return event
+            }
+        }
+
+        private func removeMonitor() {
+            if let monitor {
+                NSEvent.removeMonitor(monitor)
+                self.monitor = nil
+            }
+        }
+    }
+}
+#else
+private struct ExplorerSidebarFocusResetter: View {
+    @Binding var isSearchFieldFocused: Bool
+    var body: some View {
+        EmptyView()
+    }
+}
+#endif
 
 // MARK: - Liquid Glass Server Card
 

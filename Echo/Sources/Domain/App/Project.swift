@@ -1066,6 +1066,7 @@ struct GlobalSettings: Codable, Hashable {
     var activeThemeIDDark: AppColorTheme.ID?
     var themeTabs: Bool = false
     var workspaceTabBarStyle: WorkspaceTabBarStyle = .floating
+    var tabOverviewStyle: TabOverviewStyle = .comfortable
     var themeResultsGrid: Bool = true
     var resultsAlternateRowShading: Bool = false
     var resultsEnableTypeFormatting: Bool = true
@@ -1128,6 +1129,7 @@ struct GlobalSettings: Codable, Hashable {
         useServerColorAsAccent: Bool = true,
         themeTabs: Bool = false,
         workspaceTabBarStyle: WorkspaceTabBarStyle = .floating,
+        tabOverviewStyle: TabOverviewStyle = .comfortable,
         themeResultsGrid: Bool = true,
         resultsAlternateRowShading: Bool = false,
         resultsEnableTypeFormatting: Bool = true,
@@ -1189,6 +1191,7 @@ struct GlobalSettings: Codable, Hashable {
         self.useServerColorAsAccent = useServerColorAsAccent
         self.themeTabs = themeTabs
         self.workspaceTabBarStyle = workspaceTabBarStyle
+        self.tabOverviewStyle = tabOverviewStyle
         self.themeResultsGrid = themeResultsGrid
         self.resultsAlternateRowShading = resultsAlternateRowShading
         self.resultsEnableTypeFormatting = resultsEnableTypeFormatting

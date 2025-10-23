@@ -77,23 +77,22 @@ struct Main {
 
         let logger = Logger(label: "MSSQLProbe")
 
-        let address = try SocketAddress.makeAddressResolvingHost(config.host, port: config.port)
+        let loginDatabase = config.database ?? ""
+        let tlsConfiguration = config.enableTLS ? TLSConfiguration.makeClientConfiguration() : nil
+        let connectionConfiguration = SQLServerConnection.Configuration(
+            hostname: config.host,
+            port: config.port,
+            login: .init(
+                database: loginDatabase,
+                authentication: .sqlPassword(username: config.username, password: config.password)
+            ),
+            tlsConfiguration: tlsConfiguration
+        )
 
-        let tlsConfiguration: TLSConfiguration?
-        let serverHostname: String?
-        if config.enableTLS {
-            tlsConfiguration = TLSConfiguration.makeClientConfiguration()
-            serverHostname = config.host
-        } else {
-            tlsConfiguration = nil
-            serverHostname = nil
-        }
-
-        let connection = try TDSConnection.connect(
-            to: address,
-            tlsConfiguration: tlsConfiguration,
-            serverHostname: serverHostname,
-            on: group.any()
+        let connection = try SQLServerConnection.connect(
+            configuration: connectionConfiguration,
+            on: group.any(),
+            logger: logger
         ).wait()
         defer {
             do {
@@ -103,32 +102,22 @@ struct Main {
             }
         }
 
-        logger.info("Connected to \(config.host):\(config.port)")
-
-        let targetDatabase = config.database ?? ""
-        try connection.login(
-            username: config.username,
-            password: config.password,
-            server: config.host,
-            database: targetDatabase
-        ).wait()
-
-        logger.info("Login succeeded (database: \(targetDatabase.isEmpty ? "<default>" : targetDatabase))")
+        logger.info("Connected and logged in to \(config.host):\(config.port) (login database: \(loginDatabase.isEmpty ? "<default>" : loginDatabase))")
 
         try sessionReset(label: "Initial reset", on: connection)
 
-        let loginDatabase = targetDatabase.isEmpty ? "master" : targetDatabase
+        let resolvedDatabase = try resolveCurrentDatabase(using: connection, fallback: loginDatabase)
         var expectedDatabases: [String] = ["AdventureWorks2022", "master"]
-        if !expectedDatabases.contains(where: { $0.caseInsensitiveCompare(loginDatabase) == .orderedSame }) {
-            expectedDatabases.append(loginDatabase)
+        if !expectedDatabases.contains(where: { $0.caseInsensitiveCompare(resolvedDatabase) == .orderedSame }) {
+            expectedDatabases.append(resolvedDatabase)
         }
 
-        let tests: [Probe] = [
+        let probes: [Probe] = [
             Probe(
                 label: "Current database",
-                sql: "SET FMTONLY OFF; SELECT DB_NAME() AS name;",
+                sql: "SELECT DB_NAME() AS name;",
                 minimumExpectedRows: 1,
-                expectedContains: [loginDatabase],
+                expectedContains: [resolvedDatabase],
                 expectedColumn: "name"
             ),
             Probe(
@@ -209,27 +198,31 @@ struct Main {
                 label: "dbo column metadata",
                 sql: """
                 SELECT
-                    c.TABLE_NAME,
-                    c.COLUMN_NAME,
-                    c.DATA_TYPE,
-                    c.IS_NULLABLE,
-                    c.CHARACTER_MAXIMUM_LENGTH,
-                    c.NUMERIC_PRECISION,
-                    c.NUMERIC_SCALE,
-                    COLUMNPROPERTY(object_id(c.TABLE_SCHEMA + '.' + c.TABLE_NAME), c.COLUMN_NAME, 'IsIdentity') AS is_identity,
-                    COLUMNPROPERTY(object_id(c.TABLE_SCHEMA + '.' + c.TABLE_NAME), c.COLUMN_NAME, 'IsComputed') AS is_computed,
-                    c.ORDINAL_POSITION
-                FROM INFORMATION_SCHEMA.COLUMNS AS c
-                WHERE c.TABLE_SCHEMA = 'dbo'
-                ORDER BY c.TABLE_NAME, c.ORDINAL_POSITION;
+                    t.name AS table_name,
+                    c.name AS column_name,
+                    ty.name AS data_type,
+                    c.is_nullable,
+                    c.max_length AS character_maximum_length,
+                    c.precision AS numeric_precision,
+                    c.scale AS numeric_scale,
+                    c.is_identity,
+                    c.is_computed,
+                    c.column_id AS ordinal_position
+                FROM sys.columns AS c
+                JOIN sys.tables AS t ON c.object_id = t.object_id
+                JOIN sys.schemas AS s ON t.schema_id = s.schema_id
+                JOIN sys.types AS ty ON c.user_type_id = ty.user_type_id
+                WHERE s.name = N'dbo'
+                ORDER BY t.name, c.column_id;
                 """,
                 minimumExpectedRows: 1,
                 expectedContains: ["AWBuildVersion"],
-                expectedColumn: "TABLE_NAME"
+                expectedColumn: "table_name"
             )
         ]
 
-        try runSeries(tests, using: connection)
+        try runSeries(probes, using: connection)
+        try metadataSmokeTest(using: connection)
     }
 
     private struct Probe {
@@ -260,22 +253,14 @@ struct Main {
         var description: String { message }
     }
 
-    private static func runSeries(_ probes: [Probe], using connection: TDSConnection) throws {
+    private static func runSeries(_ probes: [Probe], using connection: SQLServerConnection) throws {
         let logger = Logger(label: "MSSQLProbe")
 
         for probe in probes {
             logger.info("Running probe: \(probe.label)")
             let start = DispatchTime.now()
             do {
-                let effectiveSQL: String
-                if probe.sql.trimmingCharacters(in: .whitespacesAndNewlines)
-                    .uppercased()
-                    .hasPrefix("SET FMTONLY OFF") {
-                    effectiveSQL = probe.sql
-                } else {
-                    effectiveSQL = "SET FMTONLY OFF;\n\(probe.sql)"
-                }
-                let rows = try connection.rawSql(effectiveSQL).wait()
+                let rows = try connection.query(probe.sql).wait()
                 try validate(probe: probe, rows: rows)
                 let elapsed = Double(DispatchTime.now().uptimeNanoseconds - start.uptimeNanoseconds) / 1_000_000.0
                 report(probe: probe, rows: rows, elapsed: elapsed, logger: logger)
@@ -334,7 +319,7 @@ struct Main {
         if header.isEmpty {
             print("(no columns)")
         } else {
-            print(header.joined(separator: "\t"))
+            print(header.joined(separator: "	"))
         }
         if rows.isEmpty {
             print("(no rows)")
@@ -350,22 +335,41 @@ struct Main {
                 }
                 return data.description
             }
-            print(values.joined(separator: "\t"))
+            print(values.joined(separator: "	"))
         }
         if rows.count > 25 {
             print("… (\(rows.count - 25) more rows)")
         }
     }
 
-    private static func sessionReset(label: String, on connection: TDSConnection) throws {
+    private static func sessionReset(label: String, on connection: SQLServerConnection) throws {
         let logger = Logger(label: "MSSQLProbe")
         logger.debug("Applying session defaults (\(label))")
-        _ = try connection.rawSql("SET FMTONLY OFF;").wait()
+        _ = try connection.query("SET FMTONLY OFF;").wait()
 
         logger.debug("Probing @@OPTIONS after \(label)")
-        if let rows = try? connection.rawSql("SELECT @@OPTIONS & 2 AS fmtOnlyFlag;").wait(),
+        if let rows = try? connection.query("SELECT @@OPTIONS & 2 AS fmtOnlyFlag;").wait(),
            let value = rows.first?.column("fmtOnlyFlag")?.int32 {
             logger.info("@@OPTIONS FMTONLY flag = \(value)")
         }
+    }
+
+    private static func resolveCurrentDatabase(using connection: SQLServerConnection, fallback: String) throws -> String {
+        if let row = try connection.query("SELECT DB_NAME() AS name;").wait().first,
+           let name = row.column("name")?.string,
+           !name.isEmpty {
+            return name
+        }
+        return fallback.isEmpty ? "master" : fallback
+    }
+
+    private static func metadataSmokeTest(using connection: SQLServerConnection) throws {
+        let logger = Logger(label: "MSSQLProbe")
+        logger.info("Running metadata smoke test via SQLServerConnection.listColumns(dbo.AWBuildVersion)")
+        let columns = try connection.listColumns(schema: "dbo", table: "AWBuildVersion").wait()
+        guard !columns.isEmpty else {
+            throw ProbeExpectationError(message: "listColumns returned 0 columns for dbo.AWBuildVersion")
+        }
+        logger.info("Metadata smoke test returned \(columns.count) columns for dbo.AWBuildVersion")
     }
 }

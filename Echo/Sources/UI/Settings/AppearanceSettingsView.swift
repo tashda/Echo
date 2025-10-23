@@ -73,6 +73,7 @@ struct AppearanceSettingsView: View {
             }
 
             themeCustomizationSection
+            tabOverviewSection
             resultsGridSection
             editorDisplaySection
             informationSection
@@ -232,6 +233,21 @@ struct AppearanceSettingsView: View {
                 .toggleStyle(.switch)
 
             Text("Choose where tabs live, sync them with the active theme, and apply connection colors beyond the editor.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private var tabOverviewSection: some View {
+        Section("Tab Overview") {
+            Picker("Layout", selection: tabOverviewStyleBinding) {
+                ForEach(TabOverviewStyle.allCases, id: \.self) { style in
+                    Text(style.displayName).tag(style)
+                }
+            }
+            .pickerStyle(.segmented)
+
+            Text(tabOverviewStyleBinding.wrappedValue.detail)
                 .font(.footnote)
                 .foregroundStyle(.secondary)
         }
@@ -718,6 +734,16 @@ struct AppearanceSettingsView: View {
             set: { newValue in
                 guard appModel.globalSettings.workspaceTabBarStyle != newValue else { return }
                 Task { await appModel.updateGlobalEditorDisplay { $0.workspaceTabBarStyle = newValue } }
+            }
+        )
+    }
+
+    private var tabOverviewStyleBinding: Binding<TabOverviewStyle> {
+        Binding(
+            get: { appModel.globalSettings.tabOverviewStyle },
+            set: { newValue in
+                guard appModel.globalSettings.tabOverviewStyle != newValue else { return }
+                Task { await appModel.updateGlobalEditorDisplay { $0.tabOverviewStyle = newValue } }
             }
         )
     }

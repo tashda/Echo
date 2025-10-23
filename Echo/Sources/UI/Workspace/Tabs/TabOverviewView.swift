@@ -23,9 +23,12 @@ struct TabOverviewView: View {
     @State private var draggingTabId: UUID?
     @State private var dropTargetTabId: UUID?
 
-    private let minCardWidth: CGFloat = 260
-    private let maxCardWidth: CGFloat = 360
-    private let gridSpacing: CGFloat = 18
+    private let comfortableMinCardWidth: CGFloat = 260
+    private let comfortableMaxCardWidth: CGFloat = 360
+    private let comfortableGridSpacing: CGFloat = 18
+    private let compactMinCardWidth: CGFloat = 170
+    private let compactMaxCardWidth: CGFloat = 240
+    private let compactGridSpacing: CGFloat = 12
 
     private var orderedTabIDs: [UUID] { tabs.map(\.id) }
     private var visibleTabIDs: [UUID] {
@@ -42,11 +45,91 @@ struct TabOverviewView: View {
         }
     }
 
+    private func databaseBackground(isActive: Bool) -> LinearGradient {
+        let base = Color.white.opacity(colorScheme == .dark ? 0.04 : 0.7)
+        let accent = heroAccentColor.opacity(isActive ? (colorScheme == .dark ? 0.28 : 0.14) : (colorScheme == .dark ? 0.16 : 0.08))
+        return LinearGradient(
+            colors: [
+                base,
+                accent
+            ],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+    }
+
+    @ViewBuilder
+    private func tabCard(for tab: WorkspaceTab, serverID: UUID, databaseIdentifier: String) -> some View {
+        Group {
+            switch overviewStyle {
+            case .comfortable:
+                TabPreviewCard(
+                    tab: tab,
+                    isActive: tab.id == activeTabId,
+                    isFocused: tab.id == focusedTabId,
+                    isDropTarget: tab.id == dropTargetTabId,
+                    onSelect: { onSelectTab(tab.id) },
+                    onClose: { onCloseTab(tab.id) }
+                )
+            case .compact:
+                CompactTabPreviewCard(
+                    tab: tab,
+                    isActive: tab.id == activeTabId,
+                    isDropTarget: tab.id == dropTargetTabId,
+                    onSelect: { onSelectTab(tab.id) },
+                    onClose: { onCloseTab(tab.id) }
+                )
+            }
+        }
+        .onTapGesture { focusedTabId = tab.id }
+        .focusEffectDisabled(true)
+        .contextMenu {
+            tabContextMenu(for: tab, serverID: serverID, databaseIdentifier: databaseIdentifier)
+        }
+        .onDrag {
+            draggingTabId = tab.id
+            return NSItemProvider(object: tab.id.uuidString as NSString)
+        } preview: { EmptyView() }
+#if os(macOS)
+        .onDrop(of: [UTType.plainText], delegate: TabOverviewDropDelegate(
+            targetTabID: tab.id,
+            isTrailingPlaceholder: false,
+            appModel: appModel,
+            draggingTabId: $draggingTabId,
+            dropTargetTabId: $dropTargetTabId
+        ))
+#endif
+    }
+
     private var animation: Animation { .spring(response: 0.45, dampingFraction: 0.82, blendDuration: 0.2) }
 
+    private var overviewStyle: TabOverviewStyle {
+        appModel.globalSettings.tabOverviewStyle
+    }
+
+    private var gridConfiguration: (columns: [GridItem], spacing: CGFloat) {
+        switch overviewStyle {
+        case .comfortable:
+            return (
+                [GridItem(.adaptive(minimum: comfortableMinCardWidth, maximum: comfortableMaxCardWidth), spacing: comfortableGridSpacing, alignment: .top)],
+                comfortableGridSpacing
+            )
+        case .compact:
+            return (
+                [GridItem(.adaptive(minimum: compactMinCardWidth, maximum: compactMaxCardWidth), spacing: compactGridSpacing, alignment: .top)],
+                compactGridSpacing
+            )
+        }
+    }
+
     var body: some View {
-        VStack(spacing: 28) {
+        VStack(spacing: 24) {
             overviewHero
+
+            if !groupedTabs.isEmpty {
+                overviewControls
+                    .transition(.opacity)
+            }
 
             ScrollView {
                 if groupedTabs.isEmpty {
@@ -54,7 +137,7 @@ struct TabOverviewView: View {
                         .padding(.top, 120)
                         .padding(.horizontal, 32)
                 } else {
-                    LazyVStack(alignment: .leading, spacing: 28) {
+                    LazyVStack(alignment: .leading, spacing: 24) {
                         ForEach(groupedTabs) { serverGroup in
                             serverGroupView(serverGroup)
                                 .transition(.move(edge: .top).combined(with: .opacity))
@@ -116,8 +199,8 @@ struct TabOverviewView: View {
     }
 
     private var overviewHero: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            HStack(alignment: .top, spacing: 16) {
+        ZStack(alignment: .bottomTrailing) {
+            VStack(alignment: .leading, spacing: 24) {
                 VStack(alignment: .leading, spacing: 6) {
                     Text("Tab Overview")
                         .font(.system(size: 32, weight: .bold, design: .rounded))
@@ -126,45 +209,20 @@ struct TabOverviewView: View {
                         .foregroundStyle(.secondary)
                 }
 
-                Spacer(minLength: 0)
-
-                HStack(spacing: 10) {
-                    Button("Collapse All") {
-                        withAnimation(.easeInOut(duration: 0.22)) {
-                            collapseAll()
-                        }
-                    }
-                    .buttonStyle(.borderless)
-
-                    Button("Expand All") {
-                        withAnimation(.easeInOut(duration: 0.22)) {
-                            expandAll()
-                        }
-                    }
-                    .buttonStyle(.borderless)
+                HStack(alignment: .center, spacing: 16) {
+                    heroStat(icon: "rectangle.grid.2x2.fill", title: formattedCount(totalTabs), subtitle: "Open Tabs")
+                    heroStat(icon: "bolt.fill", title: formattedCount(runningQueriesCount), subtitle: "Running")
+                    heroStat(icon: "tablecells", title: formattedCount(totalRowCount), subtitle: "Rows Fetched")
+                    Spacer(minLength: 0)
                 }
             }
+            .padding(.vertical, 30)
+            .padding(.horizontal, 32)
 
-            HStack(alignment: .center, spacing: 16) {
-                heroStat(icon: "rectangle.grid.2x2.fill", title: formattedCount(totalTabs), subtitle: "Open Tabs")
-                heroStat(icon: "bolt.fill", title: formattedCount(runningQueriesCount), subtitle: "Running")
-                heroStat(icon: "tablecells", title: formattedCount(totalRowCount), subtitle: "Rows Fetched")
-
-                Spacer(minLength: 0)
-
-                if let last = latestActivityDate {
-                    Label("Updated " + relativeDateString(from: last), systemImage: "clock.arrow.circlepath")
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundStyle(.secondary)
-                } else {
-                    Label("No activity yet", systemImage: "clock.arrow.circlepath")
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundStyle(Color.secondary.opacity(0.45))
-                }
-            }
+            heroUpdateChip
+                .padding(.trailing, 32)
+                .padding(.bottom, 24)
         }
-        .padding(.vertical, 28)
-        .padding(.horizontal, 32)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(heroBackground)
         .clipShape(RoundedRectangle(cornerRadius: 34, style: .continuous))
@@ -195,6 +253,32 @@ struct TabOverviewView: View {
             RoundedRectangle(cornerRadius: 18, style: .continuous)
                 .stroke(Color.primary.opacity(colorScheme == .dark ? 0.15 : 0.06), lineWidth: 0.6)
         )
+    }
+
+    @ViewBuilder
+    private var heroUpdateChip: some View {
+        if let last = latestActivityDate {
+            heroChip(text: "Updated " + relativeDateString(from: last), icon: "clock.arrow.circlepath", tint: .secondary)
+        } else {
+            heroChip(text: "No activity yet", icon: "clock.arrow.circlepath", tint: Color.secondary.opacity(0.6))
+        }
+    }
+
+    private func heroChip(text: String, icon: String, tint: Color) -> some View {
+        Label {
+            Text(text)
+                .font(.system(size: 12, weight: .semibold))
+        } icon: {
+            Image(systemName: icon)
+                .font(.system(size: 12, weight: .semibold))
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 8)
+        .background(
+            Capsule(style: .continuous)
+                .fill(Color.primary.opacity(colorScheme == .dark ? 0.18 : 0.08))
+        )
+        .foregroundStyle(tint)
     }
 
     private var overviewBackground: some View {
@@ -277,6 +361,53 @@ struct TabOverviewView: View {
         let formatter = NumberFormatter()
         formatter.numberStyle = .decimal
         return formatter.string(from: NSNumber(value: value)) ?? "\(value)"
+    }
+
+    private var overviewControls: some View {
+        HStack(spacing: 12) {
+            Button {
+                withAnimation(.easeInOut(duration: 0.22)) {
+                    collapseAll()
+                }
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "square.stack.3d.down.right.fill")
+                    Text("Collapse All")
+                }
+                .font(.system(size: 13, weight: .medium))
+            }
+            .buttonStyle(.plain)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(
+                Capsule(style: .continuous)
+                    .fill(Color.primary.opacity(colorScheme == .dark ? 0.16 : 0.08))
+            )
+
+            Button {
+                withAnimation(.easeInOut(duration: 0.22)) {
+                    expandAll()
+                }
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "square.stack.3d.up.fill")
+                    Text("Expand All")
+                }
+                .font(.system(size: 13, weight: .medium))
+            }
+            .buttonStyle(.plain)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(
+                Capsule(style: .continuous)
+                    .fill(Color.primary.opacity(colorScheme == .dark ? 0.16 : 0.08))
+            )
+
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 40)
+        .padding(.bottom, 4)
+        .frame(maxWidth: .infinity)
     }
 
     private func triggerAnimation() {
@@ -373,10 +504,6 @@ struct TabOverviewView: View {
                     serverHeader(for: group.connection)
 
                     Spacer(minLength: 0)
-
-                    Text("\(group.totalTabCount) tab\(group.totalTabCount == 1 ? "" : "s")")
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundStyle(.secondary)
                 }
                 .contentShape(Rectangle())
             }
@@ -393,17 +520,21 @@ struct TabOverviewView: View {
         }
         .padding(24)
         .background(
-            RoundedRectangle(cornerRadius: 26, style: .continuous)
-                .fill(colorScheme == .dark ? Color.white.opacity(0.05) : Color.white)
+            .ultraThinMaterial,
+            in: RoundedRectangle(cornerRadius: 28, style: .continuous)
+        )
+        .background(
+            RoundedRectangle(cornerRadius: 28, style: .continuous)
+                .fill(serverHighlight(for: group.connection))
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 26, style: .continuous)
+            RoundedRectangle(cornerRadius: 28, style: .continuous)
                 .stroke(
-                    isActiveServer ? heroAccentColor.opacity(0.35) : Color.primary.opacity(colorScheme == .dark ? 0.14 : 0.06),
-                    lineWidth: isActiveServer ? 1.6 : 1
+                    serverBorderColor(isActive: isActiveServer),
+                    lineWidth: isActiveServer ? 1.4 : 0.9
                 )
         )
-        .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.35 : 0.08), radius: 18, y: 10)
+        .shadow(color: serverShadowColor(isActive: isActiveServer), radius: isActiveServer ? 24 : 18, y: 14)
     }
 
     private func serverHeader(for connection: SavedConnection) -> some View {
@@ -435,6 +566,31 @@ struct TabOverviewView: View {
         }
     }
 
+    private func serverHighlight(for connection: SavedConnection) -> LinearGradient {
+        let accent = connection.color
+        let base = Color.white.opacity(colorScheme == .dark ? 0.05 : 0.35)
+        return LinearGradient(
+            colors: [
+                base,
+                accent.opacity(colorScheme == .dark ? 0.22 : 0.16),
+                accent.opacity(0.04)
+            ],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+    }
+
+    private func serverBorderColor(isActive: Bool) -> Color {
+        if isActive {
+            return heroAccentColor.opacity(colorScheme == .dark ? 0.55 : 0.35)
+        }
+        return Color.primary.opacity(colorScheme == .dark ? 0.2 : 0.08)
+    }
+
+    private func serverShadowColor(isActive: Bool) -> Color {
+        Color.black.opacity(colorScheme == .dark ? (isActive ? 0.5 : 0.38) : (isActive ? 0.16 : 0.08))
+    }
+
     private func databaseSectionView(_ databaseGroup: DatabaseGroup, serverID: UUID) -> some View {
         let identifier = databaseIdentifier(for: databaseGroup.key, serverID: serverID)
         let isExpanded = !collapsedDatabases.contains(identifier)
@@ -459,51 +615,124 @@ struct TabOverviewView: View {
 
                     Text("\(databaseGroup.totalTabCount) tab\(databaseGroup.totalTabCount == 1 ? "" : "s")")
                         .font(.system(size: 10, weight: .medium))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(isActiveDatabase ? heroAccentColor : .secondary)
                 }
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
 
             if isExpanded {
-                ForEach(databaseGroup.sections) { section in
-                    VStack(alignment: .leading, spacing: 12) {
-                        if let title = section.title {
-                            Text(title)
-                                .font(.system(size: 12, weight: .semibold))
-                                .foregroundStyle(.secondary)
-                        }
+                VStack(alignment: .leading, spacing: 18) {
+                    ForEach(databaseGroup.sections) { section in
+                        VStack(alignment: .leading, spacing: 12) {
+                            if let title = section.title {
+                                Text(title)
+                                    .font(.system(size: 12, weight: .semibold))
+                                    .foregroundStyle(.secondary)
+                            }
 
-                        LazyVGrid(columns: gridColumns(for: section.tabs.count), spacing: gridSpacing) {
-                            ForEach(section.tabs) { tab in
-                                TabPreviewCard(
-                                    tab: tab,
-                                    isActive: tab.id == activeTabId,
-                                    isFocused: tab.id == focusedTabId,
-                                    isDropTarget: tab.id == dropTargetTabId,
-                                    onSelect: { onSelectTab(tab.id) },
-                                    onClose: { onCloseTab(tab.id) }
-                                )
-                                .onTapGesture { focusedTabId = tab.id }
-                                .focusEffectDisabled(true)
-                                .onDrag {
-                                    draggingTabId = tab.id
-                                    return NSItemProvider(object: tab.id.uuidString as NSString)
-                                } preview: { EmptyView() }
-#if os(macOS)
-                                .onDrop(of: [UTType.plainText], delegate: TabOverviewDropDelegate(
-                                    targetTabID: tab.id,
-                                    isTrailingPlaceholder: false,
-                                    appModel: appModel,
-                                    draggingTabId: $draggingTabId,
-                                    dropTargetTabId: $dropTargetTabId
-                                ))
-#endif
+                            let configuration = gridConfiguration
+                            LazyVGrid(columns: configuration.columns, alignment: .leading, spacing: configuration.spacing) {
+                                ForEach(section.tabs) { tab in
+                                    tabCard(for: tab, serverID: serverID, databaseIdentifier: identifier)
+                                }
                             }
                         }
                     }
                 }
+                .padding(18)
+                .background(
+                    RoundedRectangle(cornerRadius: 22, style: .continuous)
+                        .fill(databaseBackground(isActive: isActiveDatabase))
+                )
             }
+        }
+    }
+
+    @ViewBuilder
+    private func tabContextMenu(for tab: WorkspaceTab, serverID: UUID, databaseIdentifier: String) -> some View {
+        Button(tab.isPinned ? "Unpin Tab" : "Pin Tab") {
+            appModel.tabManager.togglePin(for: tab.id)
+        }
+
+        Button("Duplicate Tab") {
+            appModel.duplicateTab(tab)
+        }
+        .disabled(tab.kind != .query)
+
+        Divider()
+
+        Button("Close Tab") {
+            onCloseTab(tab.id)
+        }
+
+        let siblingTabs = tabsInDatabase(serverID: serverID, identifier: databaseIdentifier, excluding: tab.id)
+        Button("Close other tabs in this database") {
+            closeTabs(siblingTabs)
+        }
+        .disabled(siblingTabs.isEmpty)
+
+        let otherDatabaseTabs = tabsOnServer(serverID: serverID, excludingDatabase: databaseIdentifier, excludingTab: tab.id)
+        Button("Close tabs in other databases on this server") {
+            closeTabs(otherDatabaseTabs)
+        }
+        .disabled(otherDatabaseTabs.isEmpty)
+
+        let otherServerTabs = tabsOutside(serverID: serverID, excludingTab: tab.id)
+        if !otherServerTabs.isEmpty {
+            Divider()
+            Button("Close tabs on other servers") {
+                closeTabs(otherServerTabs)
+            }
+        }
+
+        if let query = tab.query {
+            Divider()
+            Button("Add to Bookmarks") {
+                bookmark(tab: tab, query: query)
+            }
+        }
+    }
+
+    private func tabsInDatabase(serverID: UUID, identifier: String, excluding tabID: UUID) -> [WorkspaceTab] {
+        tabs.filter {
+            $0.id != tabID &&
+            $0.connection.id == serverID &&
+            databaseIdentifier(for: databaseKey(for: $0), serverID: serverID) == identifier
+        }
+    }
+
+    private func tabsOnServer(serverID: UUID, excludingDatabase identifier: String, excludingTab tabID: UUID) -> [WorkspaceTab] {
+        tabs.filter {
+            $0.id != tabID &&
+            $0.connection.id == serverID &&
+            databaseIdentifier(for: databaseKey(for: $0), serverID: serverID) != identifier
+        }
+    }
+
+    private func tabsOutside(serverID: UUID, excludingTab tabID: UUID) -> [WorkspaceTab] {
+        tabs.filter { $0.id != tabID && $0.connection.id != serverID }
+    }
+
+    private func closeTabs(_ targets: [WorkspaceTab]) {
+        guard !targets.isEmpty else { return }
+        for tab in targets {
+            appModel.tabManager.closeTab(id: tab.id)
+        }
+    }
+
+    private func bookmark(tab: WorkspaceTab, query: QueryEditorState) {
+        let trimmed = query.sql.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        let database = query.clipboardMetadata.databaseName ?? tab.connection.database
+        Task {
+            await appModel.addBookmark(
+                for: tab.connection,
+                databaseName: database,
+                title: tab.title,
+                query: trimmed,
+                source: .tab
+            )
         }
     }
 
@@ -580,14 +809,6 @@ struct TabOverviewView: View {
             sections.append(TabSection(id: "structures", title: "Structure", tabs: structures))
         }
         return sections
-    }
-
-    private func gridColumns(for tabCount: Int) -> [GridItem] {
-        let columnCount = max(1, min(4, tabCount))
-        return Array(
-            repeating: GridItem(.flexible(minimum: minCardWidth, maximum: maxCardWidth), spacing: gridSpacing),
-            count: columnCount
-        )
     }
 
     private enum DatabaseKey: Hashable {
@@ -672,6 +893,7 @@ private struct TabPreviewCard: View {
     let onClose: () -> Void
 
     @State private var isHovering = false
+    @State private var isHoveringClose = false
     @EnvironmentObject private var themeManager: ThemeManager
     @Environment(\.colorScheme) private var colorScheme
 
@@ -686,62 +908,147 @@ private struct TabPreviewCard: View {
         VStack(spacing: 0) {
             previewSection
 
-            VStack(alignment: .leading, spacing: 14) {
+            VStack(alignment: .leading, spacing: 16) {
                 headerSection
-                Divider()
                 footerMetrics
             }
             .padding(20)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            .ultraThinMaterial,
+            in: container
+        )
         .background(cardBackground)
         .overlay(cardBorder)
         .overlay(focusRing)
         .clipShape(container)
-        .shadow(color: cardShadow, radius: isFocused ? 16 : 9, y: isFocused ? 10 : 6)
-        .onHover { isHovering = $0 }
+        .shadow(color: cardShadow, radius: isFocused ? 18 : 10, y: isFocused ? 12 : 8)
+        .overlay(closeButton.padding(10), alignment: .topTrailing)
+        .onHover { hovering in
+            isHovering = hovering
+#if os(macOS)
+            if !hovering { isHoveringClose = false }
+#endif
+        }
         .onTapGesture(perform: onSelect)
+    }
+
+    @ViewBuilder
+    private var closeButton: some View {
+#if os(macOS)
+        if isHovering, !tab.isPinned {
+            Button(action: onClose) {
+                Image(systemName: isHoveringClose ? "xmark.circle.fill" : "xmark")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(isHoveringClose ? Color.secondary : Color.secondary.opacity(0.8))
+                    .padding(6)
+                    .background(
+                        Circle()
+                            .fill(Color.primary.opacity(isHoveringClose ? (colorScheme == .dark ? 0.25 : 0.12) : 0))
+                    )
+            }
+            .buttonStyle(.plain)
+            .onHover { hovering in
+                isHoveringClose = hovering
+            }
+        }
+#else
+        if !tab.isPinned {
+            Button(action: onClose) {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(Color.secondary)
+                    .padding(6)
+            }
+            .buttonStyle(.plain)
+        }
+#endif
     }
 
     private var previewSection: some View {
         previewContent
             .frame(maxWidth: .infinity, alignment: .topLeading)
-            .padding(20)
-            .frame(height: 156)
-            .background(previewBackground.clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous)))
+            .padding(18)
+            .frame(height: 132)
+            .background(
+                RoundedRectangle(cornerRadius: 24, style: .continuous)
+                    .fill(previewBackground)
+            )
     }
 
     private var headerSection: some View {
-        HStack(alignment: .center, spacing: 14) {
-            statusIndicator
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .center, spacing: 12) {
+                statusIndicator
 
-            VStack(alignment: .leading, spacing: 4) {
                 Text(tabTitle)
                     .font(.system(size: 16, weight: .semibold))
-                Text(tabSubtitle)
+                    .lineLimit(1)
+
+                Spacer(minLength: 0)
+
+                if isActive {
+                    activeBadge
+                }
+            }
+
+            if let subtitle = tabSubtitle {
+                Text(subtitle)
                     .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
             }
 
-            Spacer(minLength: 0)
-
-            Button(action: onClose) {
-                Image(systemName: "xmark.circle.fill")
-                    .font(.system(size: 16, weight: .semibold))
-                    .symbolRenderingMode(.hierarchical)
-                    .foregroundStyle(.secondary)
-            }
-            .buttonStyle(.plain)
+            statusBadge
         }
     }
 
+    private var activeBadge: some View {
+        let accent = themeManager.accentColor
+        return Text("Active")
+            .font(.system(size: 11, weight: .semibold))
+            .padding(.horizontal, 10)
+            .padding(.vertical, 4)
+            .background(
+                Capsule(style: .continuous)
+                    .fill(accent.opacity(colorScheme == .dark ? 0.4 : 0.18))
+            )
+            .foregroundStyle(accent)
+    }
+
+    private var statusBadge: some View {
+        let status = tabStatus
+        return Label {
+            Text(status.text)
+        } icon: {
+            Image(systemName: status.icon)
+        }
+        .font(.system(size: 11, weight: .semibold))
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(
+            Capsule(style: .continuous)
+                .fill(status.color.opacity(colorScheme == .dark ? 0.24 : 0.1))
+        )
+        .foregroundStyle(status.color)
+    }
+
     private var footerMetrics: some View {
-        HStack(alignment: .center, spacing: 14) {
+        HStack(alignment: .center, spacing: 10) {
             ForEach(Array(metrics.enumerated()), id: \.offset) { _, metric in
-                Label(metric.text, systemImage: metric.icon)
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(metric.color)
+                HStack(spacing: 6) {
+                    Image(systemName: metric.icon)
+                    Text(metric.text)
+                }
+                .font(.system(size: 11, weight: .medium))
+                .padding(.horizontal, 10)
+                .padding(.vertical, 5)
+                .background(
+                    Capsule(style: .continuous)
+                        .fill(metric.color.opacity(colorScheme == .dark ? 0.22 : 0.12))
+                )
+                .foregroundStyle(metric.color)
             }
             Spacer(minLength: 0)
         }
@@ -771,14 +1078,11 @@ private struct TabPreviewCard: View {
             items.append(Metric(icon: "tablecells", text: "\(formattedNumber(rows)) rows", color: Color.secondary))
         }
 
-        let status = tabStatus
-        items.append(Metric(icon: status.icon, text: status.text, color: status.color))
-
         return items
     }
 
     private var diagramMetrics: [Metric] {
-        guard let diagram = tab.diagram else { return [Metric(icon: tabStatus.icon, text: tabStatus.text, color: tabStatus.color)] }
+        guard let diagram = tab.diagram else { return [] }
         var items: [Metric] = []
         items.append(Metric(icon: "square.grid.2x2.fill", text: "\(diagram.nodes.count) node\(diagram.nodes.count == 1 ? "" : "s")", color: Color.secondary))
         switch diagram.loadSource {
@@ -787,15 +1091,14 @@ private struct TabPreviewCard: View {
         case .cache(let date):
             items.append(Metric(icon: "archivebox.fill", text: "Cached \(relativeDescription(for: date))", color: Color.secondary))
         }
-        items.append(Metric(icon: tabStatus.icon, text: tabStatus.text, color: tabStatus.color))
         return items
     }
 
     private var structureMetrics: [Metric] {
-        guard let editor = tab.structureEditor else { return [Metric(icon: tabStatus.icon, text: tabStatus.text, color: tabStatus.color)] }
+        guard let editor = tab.structureEditor else { return [] }
         return [
             Metric(icon: "tablecells", text: "\(editor.columns.count) column\(editor.columns.count == 1 ? "" : "s")", color: Color.secondary),
-            Metric(icon: tabStatus.icon, text: tabStatus.text, color: tabStatus.color)
+            Metric(icon: "wrench.and.screwdriver.fill", text: editor.isApplying ? "Pending changes" : "Editable", color: Color.secondary)
         ]
     }
 
@@ -806,53 +1109,13 @@ private struct TabPreviewCard: View {
 
     private var statusIndicator: some View {
         Circle()
-            .fill(tabStatus.color.opacity(isHovering ? 0.9 : 0.75))
+            .fill(tabStatus.color.opacity(0.9))
             .frame(width: 10, height: 10)
+            .shadow(color: tabStatus.color.opacity(0.35), radius: 4, y: 1)
     }
 
     private var tabStatus: (icon: String, text: String, color: Color) {
-        switch tab.kind {
-        case .query:
-            guard let query = tab.query else { return ("clock", "Not executed yet", Color.secondary) }
-            if query.isExecuting {
-                return ("bolt.fill", "Running", themeManager.accentColor)
-            }
-            if let message = query.errorMessage, !message.isEmpty {
-                return ("exclamationmark.triangle.fill", "Last run failed", .orange)
-            }
-            if query.hasExecutedAtLeastOnce {
-                return ("checkmark.circle.fill", "Last run succeeded", .green)
-            }
-            return ("clock", "Not executed yet", Color.secondary)
-        case .diagram:
-            if let diagram = tab.diagram {
-                if diagram.isLoading {
-                    return ("hourglass", "Loading diagram", themeManager.accentColor)
-                }
-                if let error = diagram.errorMessage, !error.isEmpty {
-                    return ("exclamationmark.triangle.fill", "Diagram error", .orange)
-                }
-                return ("chart.xyaxis.line", "Diagram ready", Color.secondary)
-            }
-            return ("circle", "No diagram data", Color.secondary.opacity(0.45))
-        case .structure:
-            if let editor = tab.structureEditor {
-                if editor.isApplying {
-                    return ("hammer.fill", "Applying changes…", themeManager.accentColor)
-                }
-                if editor.isLoading {
-                    return ("arrow.triangle.2.circlepath", "Refreshing", themeManager.accentColor)
-                }
-                if let error = editor.lastError, !error.isEmpty {
-                    return ("exclamationmark.triangle.fill", "Last update failed", .orange)
-                }
-                if let success = editor.lastSuccessMessage, !success.isEmpty {
-                    return ("checkmark.circle.fill", success, .green)
-                }
-                return ("tablecells", "Structure ready", Color.secondary)
-            }
-            return ("circle", "No structure data", Color.secondary.opacity(0.45))
-        }
+        tabOverviewStatus(for: tab, themeManager: themeManager)
     }
 
     private var tabTitle: String {
@@ -860,13 +1123,10 @@ private struct TabPreviewCard: View {
         return title.isEmpty ? "Untitled" : title
     }
 
-    private var tabSubtitle: String {
+    private var tabSubtitle: String? {
         switch tab.kind {
         case .query:
-            let connection = tab.connection
-            let display = connection.connectionName.trimmingCharacters(in: .whitespacesAndNewlines)
-            let host = connection.host
-            return display.isEmpty ? host : display
+            return nil
         case .diagram:
             return "Diagram"
         case .structure:
@@ -911,15 +1171,31 @@ private struct TabPreviewCard: View {
 
     private var cardBackground: some View {
         RoundedRectangle(cornerRadius: 24, style: .continuous)
-            .fill(colorScheme == .dark ? Color.white.opacity(isFocused ? 0.18 : 0.12) : Color.white)
+            .fill(
+                LinearGradient(
+                    colors: [
+                        Color.white.opacity(colorScheme == .dark ? 0.12 : 0.65),
+                        Color.white.opacity(colorScheme == .dark ? 0.05 : 0.45)
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            )
     }
 
     private var cardBorder: some View {
         RoundedRectangle(cornerRadius: 24, style: .continuous)
-            .stroke(
-                isDropTarget ? themeManager.accentColor : Color.primary.opacity(isFocused ? 0.18 : 0.06),
-                lineWidth: isDropTarget ? 2.6 : (isFocused ? 1.4 : 1)
-            )
+            .stroke(borderColor, lineWidth: isDropTarget ? 2.8 : (isFocused ? 1.4 : 0.9))
+    }
+
+    private var borderColor: Color {
+        if isDropTarget {
+            return themeManager.accentColor
+        }
+        if isFocused {
+            return themeManager.accentColor.opacity(colorScheme == .dark ? 0.55 : 0.4)
+        }
+        return Color.primary.opacity(colorScheme == .dark ? 0.16 : 0.08)
     }
 
     private var focusRing: some View {
@@ -928,7 +1204,7 @@ private struct TabPreviewCard: View {
     }
 
     private var cardShadow: Color {
-        Color.black.opacity(colorScheme == .dark ? (isFocused ? 0.55 : 0.45) : (isFocused ? 0.2 : 0.1))
+        Color.black.opacity(colorScheme == .dark ? (isFocused ? 0.42 : 0.32) : (isFocused ? 0.16 : 0.08))
     }
 
     private func formattedNumber(_ value: Int) -> String {
@@ -941,6 +1217,263 @@ private struct TabPreviewCard: View {
         let icon: String
         let text: String
         let color: Color
+    }
+}
+
+private struct CompactTabPreviewCard: View {
+    @ObservedObject var tab: WorkspaceTab
+    let isActive: Bool
+    let isDropTarget: Bool
+    let onSelect: () -> Void
+    let onClose: () -> Void
+
+    @State private var isHovering = false
+    @State private var isHoveringClose = false
+    @EnvironmentObject private var themeManager: ThemeManager
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        let container = RoundedRectangle(cornerRadius: 18, style: .continuous)
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .top, spacing: 8) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(tabTitle)
+                        .font(.system(size: 13, weight: .semibold))
+                        .lineLimit(1)
+                    if let subtitle = tabSubtitle {
+                        Text(subtitle)
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                }
+
+                Spacer(minLength: 0)
+            }
+
+            if let snippet = snippet {
+                Text(snippet)
+                    .font(.system(size: 10, design: .monospaced))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(3)
+            }
+
+            statusBadge
+
+            if !metrics.isEmpty {
+                HStack(alignment: .center, spacing: 8) {
+                    ForEach(Array(metrics.enumerated()), id: \.offset) { _, metric in
+                        HStack(spacing: 4) {
+                            Image(systemName: metric.icon)
+                            Text(metric.text)
+                        }
+                        .font(.system(size: 9, weight: .medium))
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(
+                            Capsule(style: .continuous)
+                                .fill(metric.color.opacity(colorScheme == .dark ? 0.25 : 0.12))
+                        )
+                        .foregroundStyle(metric.color)
+                    }
+                    Spacer(minLength: 0)
+                }
+            }
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            .ultraThinMaterial,
+            in: container
+        )
+        .background(
+            container
+                .fill(Color.white.opacity(colorScheme == .dark ? 0.08 : 0.55))
+        )
+        .overlay(
+            container.stroke(compactBorderColor, lineWidth: isDropTarget ? 2.2 : (isActive ? 1.2 : 0.7))
+        )
+        .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.35 : 0.08), radius: isActive ? 12 : 6, y: isActive ? 10 : 5)
+        .overlay(closeButton.padding(6), alignment: .topTrailing)
+        .onHover { hovering in
+            isHovering = hovering
+#if os(macOS)
+            if !hovering { isHoveringClose = false }
+#endif
+        }
+        .onTapGesture(perform: onSelect)
+    }
+
+    private var compactBorderColor: Color {
+        if isDropTarget {
+            return themeManager.accentColor
+        }
+        if isActive {
+            return themeManager.accentColor.opacity(colorScheme == .dark ? 0.5 : 0.35)
+        }
+        return Color.primary.opacity(colorScheme == .dark ? 0.18 : 0.08)
+    }
+
+    private var tabTitle: String {
+        let title = tab.title.trimmingCharacters(in: .whitespacesAndNewlines)
+        return title.isEmpty ? "Untitled" : title
+    }
+
+    private var tabSubtitle: String? {
+        switch tab.kind {
+        case .query:
+            return nil
+        case .diagram:
+            return "Diagram"
+        case .structure:
+            return "Structure"
+        }
+    }
+
+    private var snippet: String? {
+        switch tab.kind {
+        case .query:
+            guard let query = tab.query else { return nil }
+            let trimmed = query.sql.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty else { return nil }
+            return String(trimmed.prefix(120))
+        case .diagram:
+            return tab.diagram?.title
+        case .structure:
+            if let editor = tab.structureEditor {
+                return "\(editor.schemaName).\(editor.tableName)"
+            }
+            return nil
+        }
+    }
+
+    private var status: (icon: String, text: String, color: Color) {
+        tabOverviewStatus(for: tab, themeManager: themeManager)
+    }
+
+    private var statusBadge: some View {
+        HStack(spacing: 6) {
+            Image(systemName: status.icon)
+            Text(status.text)
+        }
+        .font(.system(size: 10, weight: .semibold))
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(
+            Capsule(style: .continuous)
+                .fill(status.color.opacity(colorScheme == .dark ? 0.25 : 0.12))
+        )
+        .foregroundStyle(status.color)
+    }
+
+    private var metrics: [(icon: String, text: String, color: Color)] {
+        switch tab.kind {
+        case .query:
+            guard let query = tab.query else { return [] }
+            var items: [(String, String, Color)] = []
+            let rows = query.rowProgress.displayCount
+            if rows > 0 {
+                items.append(("tablecells", "\(formattedNumber(rows))", Color.secondary))
+            }
+            if let event = query.messages.last(where: { $0.severity != .debug }) {
+                items.append(("clock.arrow.circlepath", relativeDescription(for: event.timestamp), Color.secondary))
+            }
+            return items
+        case .diagram:
+            guard let diagram = tab.diagram else { return [] }
+            return [("square.grid.2x2", "\(diagram.nodes.count)", Color.secondary)]
+        case .structure:
+            guard let editor = tab.structureEditor else { return [] }
+            return [("tablecells", "\(editor.columns.count)", Color.secondary)]
+        }
+    }
+
+    @ViewBuilder
+    private var closeButton: some View {
+#if os(macOS)
+        if isHovering, !tab.isPinned {
+            Button(action: onClose) {
+                Image(systemName: isHoveringClose ? "xmark.circle.fill" : "xmark")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(isHoveringClose ? Color.secondary : Color.secondary.opacity(0.8))
+                    .padding(4)
+            }
+            .buttonStyle(.plain)
+            .onHover { hovering in
+                isHoveringClose = hovering
+            }
+        }
+#else
+        if !tab.isPinned {
+            Button(action: onClose) {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(Color.secondary)
+                    .padding(4)
+            }
+            .buttonStyle(.plain)
+        }
+#endif
+    }
+
+    private func formattedNumber(_ value: Int) -> String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        return formatter.string(from: NSNumber(value: value)) ?? "\(value)"
+    }
+
+    private func relativeDescription(for date: Date) -> String {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .short
+        return formatter.localizedString(for: date, relativeTo: Date()).capitalized
+    }
+}
+
+private func tabOverviewStatus(for tab: WorkspaceTab, themeManager: ThemeManager) -> (icon: String, text: String, color: Color) {
+    switch tab.kind {
+    case .query:
+        guard let query = tab.query else { return ("clock", "Not run", Color.secondary) }
+        if query.isExecuting {
+            return ("progress.indicator", "Executing", .orange)
+        }
+        if query.wasCancelled {
+            return ("stop.fill", "Cancelled", .yellow)
+        }
+        if let message = query.errorMessage, !message.isEmpty {
+            return ("exclamationmark.triangle.fill", "Error", .red)
+        }
+        if query.hasExecutedAtLeastOnce {
+            return ("checkmark.circle.fill", "Completed", .green)
+        }
+        return ("clock", "Not run", Color.secondary)
+    case .diagram:
+        if let diagram = tab.diagram {
+            if diagram.isLoading {
+                return ("progress.indicator", "Loading", .orange)
+            }
+            if let error = diagram.errorMessage, !error.isEmpty {
+                return ("exclamationmark.triangle.fill", "Diagram error", .orange)
+            }
+            return ("chart.xyaxis.line", "Ready", Color.secondary)
+        }
+        return ("circle", "Unavailable", Color.secondary.opacity(0.4))
+    case .structure:
+        if let editor = tab.structureEditor {
+            if editor.isApplying {
+                return ("hammer.fill", "Applying…", themeManager.accentColor)
+            }
+            if editor.isLoading {
+                return ("arrow.triangle.2.circlepath", "Refreshing", themeManager.accentColor)
+            }
+            if let error = editor.lastError, !error.isEmpty {
+                return ("exclamationmark.triangle.fill", "Error", .orange)
+            }
+            if let success = editor.lastSuccessMessage, !success.isEmpty {
+                return ("checkmark.circle.fill", success, .green)
+            }
+            return ("tablecells", "Ready", Color.secondary)
+        }
+        return ("circle", "Unavailable", Color.secondary.opacity(0.4))
     }
 }
 
@@ -964,29 +1497,6 @@ private struct QueryTabPreview: View {
         return trimmed.isEmpty ? "" : trimmed
     }
 
-    private var status: (icon: String, text: String, color: Color) {
-        if query.isExecuting {
-            return ("bolt.fill", "Running", Color.accentColor)
-        }
-
-        if let error = query.errorMessage, !error.isEmpty {
-            return ("exclamationmark.triangle.fill", "Last run failed", .orange)
-        }
-
-        if query.hasExecutedAtLeastOnce {
-            return ("checkmark.circle.fill", "\(formattedRowCount) rows", .green)
-        }
-
-        return ("clock", "Not executed yet", .secondary)
-    }
-
-    private var formattedRowCount: String {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .decimal
-        let value = query.rowProgress.displayCount
-        return formatter.string(from: NSNumber(value: value)) ?? "\(value)"
-    }
-
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             if trimmedSQL.isEmpty {
@@ -1001,10 +1511,6 @@ private struct QueryTabPreview: View {
                     .lineLimit(6)
                     .multilineTextAlignment(.leading)
             }
-
-            Label(status.text, systemImage: status.icon)
-                .font(.system(size: 11, weight: .medium))
-                .foregroundStyle(status.color)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .padding(12)

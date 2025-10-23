@@ -158,7 +158,7 @@ private struct SettingsRootSwiftUIView: View {
 
 // MARK: - Accessory view
 
-private final class SettingsToolbarAccessoryView: NSVisualEffectView {
+private final class SettingsToolbarAccessoryView: NSView {
     var onNavigateBack: (() -> Void)?
     var onNavigateForward: (() -> Void)?
 
@@ -201,11 +201,8 @@ private final class SettingsToolbarAccessoryView: NSVisualEffectView {
     }
 
     private func configureViewHierarchy() {
-        material = .titlebar
-        state = .active
-        blendingMode = .withinWindow
-        isEmphasized = true
         translatesAutoresizingMaskIntoConstraints = false
+        wantsLayer = false
 
         let buttonPill = NSVisualEffectView()
         buttonPill.material = .hudWindow
@@ -281,7 +278,6 @@ private final class SettingsToolbarAccessoryView: NSVisualEffectView {
 
     func updateWindowIsKey(_ isKey: Bool) {
         titleLabel.textColor = isKey ? .labelColor : .tertiaryLabelColor
-        state = isKey ? .active : .inactive
     }
 }
 
@@ -324,7 +320,9 @@ private final class ToolbarNavigationButton: NSButton {
 
     override var isEnabled: Bool {
         didSet {
-            contentTintColor = isEnabled ? .secondaryLabelColor : .quaternaryLabelColor
+            contentTintColor = isEnabled
+                ? .secondaryLabelColor
+                : NSColor.secondaryLabelColor.withAlphaComponent(0.35)
         }
     }
 }
