@@ -165,7 +165,7 @@ struct PostgresPayloadFormatter: Sendable {
     private let allocator = ByteBufferAllocator()
     private let formatter = CellFormatterContext()
 
-    func stringValue(for payload: ResultCellPayload, columnIndex: Int) -> String? {
+    nonisolated func stringValue(for payload: ResultCellPayload, columnIndex: Int) -> String? {
         let dataType = PostgresDataType(rawValue: payload.dataTypeOID) ?? .text
         let postgresFormat = PostgresFormat(rawValue: Int16(payload.format.rawValue)) ?? .text
 

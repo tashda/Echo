@@ -49,6 +49,7 @@ final class WorkspaceTab: ObservableObject, Identifiable {
 
     private var contentCancellable: AnyCancellable?
     let resultsGridState = QueryResultsGridState()
+    private let payloadFormatter = PostgresPayloadFormatter()
 
     init(
         connection: SavedConnection,
@@ -283,6 +284,7 @@ extension Notification.Name {
     static let queryResultsRowCountDidChange = Notification.Name("dk.tippr.echo.queryResultsRowCountDidChange")
 }
 
+@MainActor
 final class QueryResultsGridState {
     var cachedColumnIDs: [String] = []
     var cachedRowOrder: [Int] = []
@@ -457,7 +459,7 @@ final class QueryResultsGridState {
     private var performanceTracker: QueryPerformanceTracker
     private lazy var formattingCoordinator: ResultRowFormattingCoordinator = {
         ResultRowFormattingCoordinator(
-            formatCell: PostgresPayloadFormatter.stringValue(for:columnIndex:localTimeZone:)
+            formatter: PostgresPayloadFormatter()
         ) { [weak self] batch in
             self?.handleFormattedBatch(batch)
         }
@@ -1729,7 +1731,7 @@ final class QueryResultsGridState {
     ) {
         guard !rows.isEmpty else { return }
         #if DEBUG
-        print("[WorkspaceTab] integrateFormattedRows rows=\(rows.count) range=\(range) totalRowCount=\(totalRowCount ?? -1)")
+        print("[WorkspaceTab] integrateFormattedRows rows=\(rows.count) range=\(range) totalRowCount=\(totalRowCount)")
         #endif
         let token = formattingGeneration
         let resetTask = formattingResetTask
@@ -1885,7 +1887,7 @@ final class QueryResultsGridState {
         guard !payloads.isEmpty else { return [] }
         return payloads.map { row in
             row.cells.enumerated().map { index, cell in
-                PostgresPayloadFormatter.stringValue(for: cell, columnIndex: index)
+                payloadFormatter.stringValue(for: cell, columnIndex: index)
             }
         }
     }

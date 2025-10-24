@@ -2,14 +2,14 @@ import Foundation
 import os
 import SQLServerNIO
 
-private let structureLogger = os.Logger(subsystem: "dk.tippr.echo.database-structure", category: "Explorer")
+nonisolated private let structureLogger = os.Logger(subsystem: "dk.tippr.echo.database-structure", category: "Explorer")
 
-struct DatabaseStructureFetcher {
-    struct Credentials {
+nonisolated struct DatabaseStructureFetcher: Sendable {
+    struct Credentials: Sendable {
         let authentication: DatabaseAuthenticationConfiguration
     }
 
-    struct Progress {
+    struct Progress: Sendable {
         let fraction: Double
         let databaseName: String
         let schemaName: String?
@@ -19,8 +19,22 @@ struct DatabaseStructureFetcher {
     let factory: DatabaseFactory
     let databaseType: DatabaseType
 
-    private var supportedObjectTypes: Set<SchemaObjectInfo.ObjectType> {
-        Set(SchemaObjectInfo.ObjectType.supported(for: databaseType))
+    @Sendable
+    private static func message(for type: SchemaObjectInfo.ObjectType) -> String {
+        switch type {
+        case .table:
+            return "Updating tables…"
+        case .view:
+            return "Updating views…"
+        case .materializedView:
+            return "Updating materialized views…"
+        case .function:
+            return "Updating functions…"
+        case .trigger:
+            return "Updating triggers…"
+        case .procedure:
+            return "Updating procedures…"
+        }
     }
 
     func fetchStructure(
@@ -36,7 +50,9 @@ struct DatabaseStructureFetcher {
         try Task.checkCancellation()
 
         let progressCallback = progressHandler
+        let supportedObjectTypes = Set(SchemaObjectInfo.ObjectType.supported(for: databaseType))
 
+        @Sendable
         func emitProgress(
             _ fraction: Double,
             databaseName: String,
@@ -47,23 +63,6 @@ struct DatabaseStructureFetcher {
             guard !Task.isCancelled else { return }
             let clamped = min(max(fraction, 0), 1)
             await progressCallback(Progress(fraction: clamped, databaseName: databaseName, schemaName: schemaName, message: message))
-        }
-
-        func message(for type: SchemaObjectInfo.ObjectType) -> String {
-            switch type {
-            case .table:
-                return "Updating tables…"
-            case .view:
-                return "Updating views…"
-            case .materializedView:
-                return "Updating materialized views…"
-            case .function:
-                return "Updating functions…"
-            case .trigger:
-                return "Updating triggers…"
-            case .procedure:
-                return "Updating procedures…"
-            }
         }
 
         let baseSession: DatabaseSession
@@ -334,7 +333,7 @@ struct DatabaseStructureFetcher {
                                 let overallFraction = (
                                     Double(databaseIndex) + schemaFraction
                                 ) / Double(totalDatabases)
-                                await emitProgress(overallFraction, databaseName: databaseName, schemaName: schemaName, message: message(for: objectType))
+                                await emitProgress(overallFraction, databaseName: databaseName, schemaName: schemaName, message: Self.message(for: objectType))
                             }
                         } else {
                             try Task.checkCancellation()
