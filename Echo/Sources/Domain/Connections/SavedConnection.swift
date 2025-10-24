@@ -1,13 +1,13 @@
 import Foundation
 import SwiftUI
 
-enum DatabaseType: String, Codable, CaseIterable {
+enum DatabaseType: String, Sendable, Codable, CaseIterable {
     case postgresql = "postgresql"
     case mysql = "mysql"
     case microsoftSQL = "mssql"
     case sqlite = "sqlite"
 
-    var displayName: String {
+    nonisolated var displayName: String {
         switch self {
         case .postgresql: return "PostgreSQL"
         case .mysql: return "MySQL"
@@ -16,7 +16,7 @@ enum DatabaseType: String, Codable, CaseIterable {
         }
     }
 
-    var iconName: String {
+    nonisolated var iconName: String {
         switch self {
         case .postgresql: return "postgresql"
         case .mysql: return "mysql"
@@ -25,7 +25,7 @@ enum DatabaseType: String, Codable, CaseIterable {
         }
     }
 
-    var defaultPort: Int {
+    nonisolated var defaultPort: Int {
         switch self {
         case .postgresql: return 5432
         case .mysql: return 3306
@@ -34,7 +34,7 @@ enum DatabaseType: String, Codable, CaseIterable {
         }
     }
 
-    var supportedAuthenticationMethods: [DatabaseAuthenticationMethod] {
+    nonisolated var supportedAuthenticationMethods: [DatabaseAuthenticationMethod] {
         switch self {
         case .microsoftSQL:
             return [.sqlPassword, .windowsIntegrated]
@@ -43,7 +43,7 @@ enum DatabaseType: String, Codable, CaseIterable {
         }
     }
 
-    var defaultAuthenticationMethod: DatabaseAuthenticationMethod {
+    nonisolated var defaultAuthenticationMethod: DatabaseAuthenticationMethod {
         supportedAuthenticationMethods.first ?? .sqlPassword
     }
 }
@@ -77,7 +77,7 @@ enum CredentialSource: String, Codable, CaseIterable {
     }
 }
 
-struct SavedConnection: Identifiable, Codable, Hashable {
+struct SavedConnection: Identifiable, Codable, Hashable, Sendable {
     var id: UUID
     var projectID: UUID?
     var connectionName: String

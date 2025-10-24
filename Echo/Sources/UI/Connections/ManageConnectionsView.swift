@@ -1,6 +1,7 @@
 import SwiftUI
 import AppKit
 
+@MainActor
 struct ManageConnectionsView: View {
     @EnvironmentObject private var appModel: AppModel
     @EnvironmentObject private var appState: AppState

@@ -130,12 +130,13 @@ final class MSSQLSession: DatabaseSession {
         let streamingPreviewLimit = 512
         let maxFlushLatency: TimeInterval = 0.015
 
-        let bridgedHandler: QueryProgressHandler? = progressHandler.map { handler in
-            { update in
+        let bridgedHandler: QueryProgressHandler? = progressHandler.map { handler -> QueryProgressHandler in
+            let sendableHandler: QueryProgressHandler = { update in
                 Task { @MainActor in
                     handler(update)
                 }
             }
+            return sendableHandler
         }
 
         var worker: ResultStreamBatchWorker?

@@ -1,20 +1,20 @@
 import Foundation
 import NIOCore
 
-let ResultStreamingFetchSizeDefaultsKey = "dk.tippr.echo.streaming.fetchSize"
-let ResultStreamingFetchRampMultiplierDefaultsKey = "dk.tippr.echo.streaming.fetchRampMultiplier"
-let ResultStreamingFetchRampMaxDefaultsKey = "dk.tippr.echo.streaming.fetchRampMax"
-let ResultStreamingUseCursorDefaultsKey = "dk.tippr.echo.streaming.useCursor"
-let ResultFormattingEnabledDefaultsKey = "dk.tippr.echo.results.formattingEnabled"
-let ResultFormattingModeDefaultsKey = "dk.tippr.echo.results.formattingMode"
+@preconcurrency let ResultStreamingFetchSizeDefaultsKey = "dk.tippr.echo.streaming.fetchSize"
+@preconcurrency let ResultStreamingFetchRampMultiplierDefaultsKey = "dk.tippr.echo.streaming.fetchRampMultiplier"
+@preconcurrency let ResultStreamingFetchRampMaxDefaultsKey = "dk.tippr.echo.streaming.fetchRampMax"
+@preconcurrency let ResultStreamingUseCursorDefaultsKey = "dk.tippr.echo.streaming.useCursor"
+@preconcurrency let ResultFormattingEnabledDefaultsKey = "dk.tippr.echo.results.formattingEnabled"
+@preconcurrency let ResultFormattingModeDefaultsKey = "dk.tippr.echo.results.formattingMode"
 
 public enum ResultsFormattingMode: String, Sendable, Codable, CaseIterable, Identifiable {
     case immediate
     case deferred
 
-    public var id: String { rawValue }
+    public nonisolated var id: String { rawValue }
 
-    public var displayName: String {
+    public nonisolated var displayName: String {
         switch self {
         case .immediate:
             return "Wait for formatting"
@@ -38,7 +38,7 @@ public struct QueryResultSet: Sendable {
     }
 
     // Legacy initializer for compatibility
-    public init(columns: [String], rows: [[String?]]) {
+    public nonisolated init(columns: [String], rows: [[String?]]) {
         self.columns = columns.map {
             ColumnInfo(name: $0, dataType: "text")
         }
@@ -49,7 +49,7 @@ public struct QueryResultSet: Sendable {
 }
 
 public struct ColumnInfo: Sendable, Identifiable, Codable, Hashable {
-    public var id: String { name }
+    public nonisolated var id: String { name }
     public let name: String
     public let dataType: String
     public let isPrimaryKey: Bool
@@ -72,7 +72,7 @@ public struct ColumnInfo: Sendable, Identifiable, Codable, Hashable {
         public let referencedTable: String
         public let referencedColumn: String
 
-        public init(constraintName: String, referencedSchema: String, referencedTable: String, referencedColumn: String) {
+        public nonisolated init(constraintName: String, referencedSchema: String, referencedTable: String, referencedColumn: String) {
             self.constraintName = constraintName
             self.referencedSchema = referencedSchema
             self.referencedTable = referencedTable
@@ -190,7 +190,7 @@ public struct SchemaObjectInfo: Sendable, Identifiable, Codable, Hashable {
         case trigger = "TRIGGER"
         case procedure = "PROCEDURE"
 
-        public var pluralDisplayName: String {
+        public nonisolated var pluralDisplayName: String {
             switch self {
             case .table: return "Tables"
             case .view: return "Views"
@@ -201,7 +201,7 @@ public struct SchemaObjectInfo: Sendable, Identifiable, Codable, Hashable {
             }
         }
 
-        public var systemImage: String {
+        public nonisolated var systemImage: String {
             switch self {
             case .table: return "table"
             case .view: return "eye"
@@ -213,7 +213,7 @@ public struct SchemaObjectInfo: Sendable, Identifiable, Codable, Hashable {
         }
     }
 
-    public var id: String {
+    public nonisolated var id: String {
         if type == .trigger {
             return "\(schema).\(name).\(triggerTable ?? "").\(triggerAction ?? "")"
         }
@@ -227,7 +227,7 @@ public struct SchemaObjectInfo: Sendable, Identifiable, Codable, Hashable {
     public let triggerAction: String?
     public let triggerTable: String?
 
-    public init(
+    public nonisolated init(
         name: String,
         schema: String,
         type: ObjectType,
@@ -245,7 +245,7 @@ public struct SchemaObjectInfo: Sendable, Identifiable, Codable, Hashable {
         self.triggerTable = triggerTable
     }
 
-    public var fullName: String {
+    public nonisolated var fullName: String {
         "\(schema).\(name)"
     }
 
@@ -259,7 +259,7 @@ public struct SchemaObjectInfo: Sendable, Identifiable, Codable, Hashable {
         case triggerTable
     }
 
-    public init(from decoder: Decoder) throws {
+    public nonisolated init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.name = try container.decode(String.self, forKey: .name)
         self.schema = try container.decode(String.self, forKey: .schema)
@@ -270,7 +270,7 @@ public struct SchemaObjectInfo: Sendable, Identifiable, Codable, Hashable {
         self.triggerTable = try container.decodeIfPresent(String.self, forKey: .triggerTable)
     }
 
-    public func encode(to encoder: Encoder) throws {
+    public nonisolated func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(name, forKey: .name)
         try container.encode(schema, forKey: .schema)
@@ -294,7 +294,7 @@ public struct ProcedureParameterInfo: Sendable, Codable, Hashable {
     public var maxLength: Int?
     public var ordinalPosition: Int
 
-    public init(
+    public nonisolated init(
         name: String,
         dataType: String,
         isOutput: Bool,
@@ -667,7 +667,7 @@ public protocol DatabaseSession: Sendable {
     func getTableStructureDetails(schema: String, table: String) async throws -> TableStructureDetails
 }
 
-public protocol DatabaseFactory {
+public protocol DatabaseFactory: Sendable {
     func connect(
         host: String,
         port: Int,

@@ -37,6 +37,179 @@ private extension ResultCellPayload {
     }
 }
 
+actor QueryStreamState {
+    var columns: [ColumnInfo] = []
+    var previewRows: [[String?]] = []
+    var totalRowCount = 0
+    var batchDecodeDuration: TimeInterval = 0
+    var batchCount = 0
+    var rawPayloadRows: [ResultRowPayload] = []
+    var batchRows: [[String?]] = []
+    var encodedRows: [ResultBinaryRow] = []
+    var firstRowLogged = false
+    var flushRequestRowCount: Int
+    var batchStartTime: CFAbsoluteTime
+    var dynamicBackgroundFlushSize: Int
+    var firstBatchDelivered = false
+    var commandTag: String?
+
+    let streamingPreviewLimit: Int
+    let formatterContext: CellFormatterContext
+    let formattingEnabled: Bool
+    let formattingMode: ResultsFormattingMode
+    let logger: Logger
+    let operationStart: CFAbsoluteTime
+    let streamDebugID: String?
+
+    init(streamingPreviewLimit: Int, formatterContext: CellFormatterContext, formattingEnabled: Bool, formattingMode: ResultsFormattingMode, logger: Logger, operationStart: CFAbsoluteTime, streamDebugID: String?, previewFetchSize: Int, backgroundFetchBaseline: Int) {
+        self.streamingPreviewLimit = streamingPreviewLimit
+        self.formatterContext = formatterContext
+        self.formattingEnabled = formattingEnabled
+        self.formattingMode = formattingMode
+        self.logger = logger
+        self.operationStart = operationStart
+        self.streamDebugID = streamDebugID
+        self.flushRequestRowCount = previewFetchSize
+        self.batchStartTime = operationStart
+        self.dynamicBackgroundFlushSize = backgroundFetchBaseline
+    }
+
+    func appendColumn(_ column: ColumnInfo) {
+        columns.append(column)
+    }
+
+    func appendRawPayloadRow(_ rowPayload: ResultRowPayload) {
+        rawPayloadRows.append(rowPayload)
+    }
+
+    func appendFormattedRow(_ formattedRow: [String?]) {
+        batchRows.append(formattedRow)
+    }
+
+    func appendEncodedRow(_ encodedRow: ResultBinaryRow) {
+        encodedRows.append(encodedRow)
+    }
+
+    func appendPreviewRow(_ formattedRow: [String?]) {
+        if previewRows.count < streamingPreviewLimit {
+            previewRows.append(formattedRow)
+        }
+    }
+
+    func incrementCounts(decodeDuration: TimeInterval) {
+        totalRowCount += 1
+        batchCount += 1
+        batchDecodeDuration += decodeDuration
+    }
+
+    func setFirstRowLogged() {
+        firstRowLogged = true
+    }
+
+    func resetBatch() {
+        batchRows.removeAll(keepingCapacity: true)
+        encodedRows.removeAll(keepingCapacity: true)
+        rawPayloadRows.removeAll(keepingCapacity: true)
+        batchCount = 0
+        batchDecodeDuration = 0
+        batchStartTime = CFAbsoluteTimeGetCurrent()
+    }
+
+    func updateFlushRequestRowCount(maxAutoFetchSize: Int, backgroundFetchBaseline: Int, previewFetchSize: Int, rampEligible: Bool) {
+        if totalRowCount >= streamingPreviewLimit {
+            if dynamicBackgroundFlushSize < 16_384 {
+                let elevated = min(maxAutoFetchSize, max(16_384, backgroundFetchBaseline))
+                dynamicBackgroundFlushSize = elevated
+            }
+
+            if rampEligible,
+               batchCount >= flushRequestRowCount,
+               dynamicBackgroundFlushSize < maxAutoFetchSize {
+                let doubled = dynamicBackgroundFlushSize * 2
+                let additive = dynamicBackgroundFlushSize + backgroundFetchBaseline
+                let candidate = max(doubled, max(additive, dynamicBackgroundFlushSize + previewFetchSize))
+                let nextSize = min(maxAutoFetchSize, candidate)
+                if nextSize > dynamicBackgroundFlushSize {
+                    dynamicBackgroundFlushSize = nextSize
+                }
+            }
+
+            flushRequestRowCount = dynamicBackgroundFlushSize
+        } else {
+            flushRequestRowCount = previewFetchSize
+        }
+    }
+
+    func setFirstBatchDelivered() {
+        firstBatchDelivered = true
+    }
+
+    func setCommandTag(_ tag: String?) {
+        commandTag = tag
+    }
+
+    func debugLog(_ message: @autoclosure () -> String) {
+        guard let streamDebugID else { return }
+        let elapsed = CFAbsoluteTimeGetCurrent() - operationStart
+        print("[PostgresStream][\(streamDebugID)] t=\(String(format: "%.3f", elapsed)) \(message())")
+    }
+
+    func publishBatch(expectedRequestSize: Int, rampEligible: Bool, progressHandler: @escaping QueryProgressHandler) async {
+        guard batchCount > 0 else { return }
+        let flushedCount = batchCount
+        let flushDuration = CFAbsoluteTimeGetCurrent() - batchStartTime
+        let networkWait = max(flushDuration - batchDecodeDuration, 0)
+        let rowRange = (totalRowCount - flushedCount)..<totalRowCount
+
+        let metrics = QueryStreamMetrics(
+            batchRowCount: flushedCount,
+            loopElapsed: flushDuration,
+            decodeDuration: batchDecodeDuration,
+            totalElapsed: CFAbsoluteTimeGetCurrent() - operationStart,
+            cumulativeRowCount: totalRowCount,
+            fetchRequestRowCount: expectedRequestSize,
+            fetchRowCount: flushedCount,
+            fetchDuration: flushDuration,
+            fetchWait: networkWait
+        )
+
+        let update = QueryStreamUpdate(
+            columns: columns,
+            appendedRows: batchRows,
+            encodedRows: encodedRows,
+            rawRows: rawPayloadRows,
+            totalRowCount: totalRowCount,
+            metrics: metrics,
+            rowRange: rowRange
+        )
+
+        if !firstBatchDelivered {
+            firstBatchDelivered = true
+            let now = CFAbsoluteTimeGetCurrent()
+            let message = String(
+                format: "[PostgresStream] first-batch rows=%d latency=%.3fs",
+                flushedCount,
+                now - operationStart
+            )
+            logger.debug(.init(stringLiteral: message))
+            print(message)
+#if DEBUG
+            debugLog("First batch handler rows=\(flushedCount)")
+#endif
+        }
+
+#if DEBUG
+        debugLog("Flush completed rows=\(flushedCount) totalRowCount=\(totalRowCount) decode=\(String(format: "%.3f", batchDecodeDuration)) wait=\(String(format: "%.3f", networkWait)) rampEligible=\(rampEligible)")
+#endif
+
+        await MainActor.run {
+            progressHandler(update)
+        }
+
+        resetBatch()
+    }
+}
+
 struct PostgresNIOFactory: DatabaseFactory {
     private let logger = Logger(label: "dk.tippr.echo.postgres")
 
@@ -610,141 +783,20 @@ final class PostgresSession: DatabaseSession {
         let maxAutoFetchSize = min(rampCeiling, 262_144)
 
         return try await self.client.withConnection { connection in
-            var columns: [ColumnInfo] = []
-            var previewRows: [[String?]] = []
-            previewRows.reserveCapacity(streamingPreviewLimit)
-            var totalRowCount = 0
-            var firstBatchDelivered = false
-            var firstRowLogged = false
-            var commandTag: String?
-
-            var batchRows: [[String?]] = []
-            batchRows.reserveCapacity(previewFetchSize)
-            var encodedRows: [ResultBinaryRow] = []
-            encodedRows.reserveCapacity(previewFetchSize)
-            var rawPayloadRows: [ResultRowPayload] = []
-            rawPayloadRows.reserveCapacity(previewFetchSize)
-            var batchCount = 0
-            var batchDecodeDuration: TimeInterval = 0
-            var flushRequestRowCount = previewFetchSize
-            var batchStartTime = CFAbsoluteTimeGetCurrent()
-            var dynamicBackgroundFlushSize = backgroundFetchBaseline
-
-            func cheapStringValue(for cell: PostgresCell) -> String? {
-                if cell.format == .text, let buffer = cell.bytes {
-                    let readable = buffer.readableBytes
-                    guard readable > 0 else { return "" }
-                    return buffer.getString(at: buffer.readerIndex, length: readable)
-                }
-                if let decoded = try? cell.decode(String.self, context: .default) {
-                    return decoded
-                }
-                if var buffer = cell.bytes {
-                    let readable = buffer.readableBytes
-                    guard readable > 0 else { return "" }
-                    if let string = buffer.getString(at: buffer.readerIndex, length: readable) {
-                        return string
-                    }
-                    if let bytes = buffer.readBytes(length: readable) {
-                        return bytes.reduce(into: "0x") { result, byte in
-                            result.append(String(format: "%02X", byte))
-                        }
-                    }
-                }
-                return nil
-            }
+            let streamState = QueryStreamState(
+                streamingPreviewLimit: streamingPreviewLimit,
+                formatterContext: formatterContext,
+                formattingEnabled: formattingEnabled,
+                formattingMode: formattingMode,
+                logger: logger,
+                operationStart: operationStart,
+                streamDebugID: streamDebugID,
+                previewFetchSize: previewFetchSize,
+                backgroundFetchBaseline: backgroundFetchBaseline
+            )
 
             func resetBatch() {
-                batchRows.removeAll(keepingCapacity: true)
-                encodedRows.removeAll(keepingCapacity: true)
-                rawPayloadRows.removeAll(keepingCapacity: true)
-                batchCount = 0
-                batchDecodeDuration = 0
-                batchStartTime = CFAbsoluteTimeGetCurrent()
-            }
-
-            func publishBatch(expectedRequestSize: Int, rampEligible: Bool) {
-                guard batchCount > 0 else { return }
-                let flushedCount = batchCount
-                let flushDuration = CFAbsoluteTimeGetCurrent() - batchStartTime
-                let networkWait = max(flushDuration - batchDecodeDuration, 0)
-                let rowRange = (totalRowCount - flushedCount)..<totalRowCount
-
-                let metrics = QueryStreamMetrics(
-                    batchRowCount: flushedCount,
-                    loopElapsed: flushDuration,
-                    decodeDuration: batchDecodeDuration,
-                    totalElapsed: CFAbsoluteTimeGetCurrent() - operationStart,
-                    cumulativeRowCount: totalRowCount,
-                    fetchRequestRowCount: expectedRequestSize,
-                    fetchRowCount: flushedCount,
-                    fetchDuration: flushDuration,
-                    fetchWait: networkWait
-                )
-
-                let update = QueryStreamUpdate(
-                    columns: columns,
-                    appendedRows: batchRows,
-                    encodedRows: encodedRows,
-                    rawRows: rawPayloadRows,
-                    totalRowCount: totalRowCount,
-                    metrics: metrics,
-                    rowRange: rowRange
-                )
-
-                if !firstBatchDelivered {
-                    firstBatchDelivered = true
-                    let now = CFAbsoluteTimeGetCurrent()
-                    let message = String(
-                        format: "[PostgresStream] first-batch rows=%d latency=%.3fs",
-                        flushedCount,
-                        now - operationStart
-                    )
-                    logger.debug(.init(stringLiteral: message))
-                    print(message)
-#if DEBUG
-                    Task { @MainActor in
-                        debugLog("First batch handler rows=\(flushedCount)")
-                    }
-#endif
-                }
-
-#if DEBUG
-                Task { @MainActor in
-                    debugLog("Flush completed rows=\(flushedCount) totalRowCount=\(totalRowCount) decode=\(String(format: "%.3f", batchDecodeDuration)) wait=\(String(format: "%.3f", networkWait)) rampEligible=\(rampEligible)")
-                }
-#endif
-
-                Task {
-                    await MainActor.run {
-                        progressHandler(update)
-                    }
-                }
-
-                resetBatch()
-
-                if totalRowCount >= streamingPreviewLimit {
-                    if dynamicBackgroundFlushSize < 16_384 {
-                        let elevated = min(maxAutoFetchSize, max(16_384, backgroundFetchBaseline))
-                        dynamicBackgroundFlushSize = elevated
-                    }
-
-                    if rampEligible,
-                       flushedCount >= flushRequestRowCount,
-                       dynamicBackgroundFlushSize < maxAutoFetchSize {
-                        let doubled = dynamicBackgroundFlushSize * 2
-                        let additive = dynamicBackgroundFlushSize + backgroundFetchBaseline
-                        let candidate = max(doubled, max(additive, dynamicBackgroundFlushSize + previewFetchSize))
-                        let nextSize = min(maxAutoFetchSize, candidate)
-                        if nextSize > dynamicBackgroundFlushSize {
-                            dynamicBackgroundFlushSize = nextSize
-                        }
-                    }
-
-                    flushRequestRowCount = dynamicBackgroundFlushSize
-                } else {
-                    flushRequestRowCount = previewFetchSize
-                }
+                Task { await streamState.resetBatch() }
             }
 
             let query = PostgresQuery(unsafeSQL: sanitizedSQL)
@@ -755,10 +807,11 @@ final class PostgresSession: DatabaseSession {
                         throw CancellationError()
                     }
 
-                    if columns.isEmpty {
-                        columns.reserveCapacity(row.count)
+                    if await streamState.columns.isEmpty {
+                        var newColumns: [ColumnInfo] = []
+                        newColumns.reserveCapacity(row.count)
                         for cell in row {
-                            columns.append(ColumnInfo(
+                            newColumns.append(ColumnInfo(
                                 name: cell.columnName,
                                 dataType: "\(cell.dataType)",
                                 isPrimaryKey: false,
@@ -766,6 +819,7 @@ final class PostgresSession: DatabaseSession {
                                 maxLength: nil
                             ))
                         }
+                        await streamState.columns = newColumns
                     }
 
                     let conversionStart = CFAbsoluteTimeGetCurrent()
@@ -778,7 +832,7 @@ final class PostgresSession: DatabaseSession {
                         case .immediate:
                             return true
                         case .deferred:
-                            return previewRows.count < streamingPreviewLimit
+                            return await streamState.previewRows.count < streamingPreviewLimit
                         }
                     }()
 
@@ -800,35 +854,29 @@ final class PostgresSession: DatabaseSession {
                                 displayValue = formatterContext.stringValue(for: cell)
                             }
                         } else {
-                            displayValue = cheapStringValue(for: cell) ?? formatterContext.stringValue(for: cell)
+                            displayValue = Self.cheapStringValue(for: cell) ?? formatterContext.stringValue(for: cell)
                         }
                         formattedRow.append(displayValue)
                     }
 
                     if shouldFormatRow {
                         let decodeDuration = CFAbsoluteTimeGetCurrent() - conversionStart
-                        batchDecodeDuration += decodeDuration
+                        await streamState.incrementCounts(decodeDuration: decodeDuration)
                     }
 
-                    totalRowCount += 1
-                    batchCount += 1
-
-                    let rowPayload = ResultRowPayload(cells: payloadCells)
-                    rawPayloadRows.append(rowPayload)
+                    await streamState.appendRawPayloadRow(ResultRowPayload(cells: payloadCells))
 
                     if shouldFormatRow {
-                        batchRows.append(formattedRow)
-                        encodedRows.append(ResultBinaryRowCodec.encode(row: formattedRow))
-                        if previewRows.count < streamingPreviewLimit {
-                            previewRows.append(formattedRow)
-                        }
+                        await streamState.appendFormattedRow(formattedRow)
+                        await streamState.appendEncodedRow(ResultBinaryRowCodec.encode(row: formattedRow))
+                        await streamState.appendPreviewRow(formattedRow)
                     } else {
                         let rawCells = payloadCells.map { $0.bytes }
-                        encodedRows.append(ResultBinaryRowCodec.encodeRaw(cells: rawCells))
+                        await streamState.appendEncodedRow(ResultBinaryRowCodec.encodeRaw(cells: rawCells))
                     }
 
-                    if !firstRowLogged {
-                        firstRowLogged = true
+                    if await !streamState.firstRowLogged {
+                        await streamState.setFirstRowLogged()
                         let firstRowLatency = CFAbsoluteTimeGetCurrent() - operationStart
                         let message = String(
                             format: "[PostgresStream] first-row latency=%.3fs",
@@ -838,18 +886,18 @@ final class PostgresSession: DatabaseSession {
                         print(message)
                     }
 
-                    if totalRowCount < streamingPreviewLimit {
+                    if await streamState.totalRowCount < streamingPreviewLimit {
                         return
                     }
 
-                    if totalRowCount == streamingPreviewLimit {
-                        publishBatch(expectedRequestSize: batchCount, rampEligible: false)
+                    if await streamState.totalRowCount == streamingPreviewLimit {
+                        await streamState.publishBatch(expectedRequestSize: await streamState.batchCount, rampEligible: false, progressHandler: progressHandler)
                         return
                     }
 
                     let now = CFAbsoluteTimeGetCurrent()
-                    let elapsedSinceBatchStart = now - batchStartTime
-                    let dispatchThresholdReached = batchCount >= flushRequestRowCount
+                    let elapsedSinceBatchStart = now - await streamState.batchStartTime
+                    let dispatchThresholdReached = await streamState.batchCount >= await streamState.flushRequestRowCount
                     let rampEligible = dispatchThresholdReached
 
                     let timedFlushInterval: TimeInterval
@@ -857,17 +905,17 @@ final class PostgresSession: DatabaseSession {
                     let timedThresholdRows: Int
                     let slowRowsThreshold: Int
 
-                    if totalRowCount < streamingPreviewLimit {
+                    if await streamState.totalRowCount < streamingPreviewLimit {
                         timedFlushInterval = 0.12
                         slowFlushInterval = 0.35
-                        timedThresholdRows = min(flushRequestRowCount, 256)
-                        slowRowsThreshold = min(flushRequestRowCount, 64)
+                        timedThresholdRows = min(await streamState.flushRequestRowCount, 256)
+                        slowRowsThreshold = min(await streamState.flushRequestRowCount, 64)
                     } else {
-                        if flushRequestRowCount >= 131_072 {
+                        if await streamState.flushRequestRowCount >= 131_072 {
                             timedFlushInterval = 1.4
-                        } else if flushRequestRowCount >= 65_536 {
+                        } else if await streamState.flushRequestRowCount >= 65_536 {
                             timedFlushInterval = 1.1
-                        } else if flushRequestRowCount >= 16_384 {
+                        } else if await streamState.flushRequestRowCount >= 16_384 {
                             timedFlushInterval = 0.85
                         } else {
                             timedFlushInterval = 0.65
@@ -875,68 +923,93 @@ final class PostgresSession: DatabaseSession {
                         slowFlushInterval = max(timedFlushInterval * 2.2, 2.2)
 
                         let thresholdA = max(
-                            flushRequestRowCount - max(flushRequestRowCount / 8, 2_048),
+                            await streamState.flushRequestRowCount - max(await streamState.flushRequestRowCount / 8, 2_048),
                             0
                         )
-                        let thresholdB = flushRequestRowCount * 3 / 4
+                        let thresholdB = await streamState.flushRequestRowCount * 3 / 4
                         timedThresholdRows = min(
-                            flushRequestRowCount,
+                            await streamState.flushRequestRowCount,
                             max(8_192, max(thresholdA, thresholdB))
                         )
 
-                        slowRowsThreshold = max(min(flushRequestRowCount / 4, 2_048), 256)
+                        slowRowsThreshold = max(min(await streamState.flushRequestRowCount / 4, 2_048), 256)
                     }
 
-                    let timedFlushEligible = batchCount >= min(timedThresholdRows, flushRequestRowCount)
+                    let timedFlushEligible = await streamState.batchCount >= min(timedThresholdRows, await streamState.flushRequestRowCount)
                         && elapsedSinceBatchStart >= timedFlushInterval
-                    let slowFlushEligible = batchCount >= slowRowsThreshold
+                    let slowFlushEligible = await streamState.batchCount >= slowRowsThreshold
                         && elapsedSinceBatchStart >= slowFlushInterval
 
 #if DEBUG
                     if dispatchThresholdReached || timedFlushEligible || slowFlushEligible {
-                        debugLog("Flush trigger dispatch=\(dispatchThresholdReached) timed=\(timedFlushEligible) slow=\(slowFlushEligible) count=\(batchCount) target=\(flushRequestRowCount) elapsed=\(String(format: "%.3f", elapsedSinceBatchStart))")
+                        await streamState.debugLog("Flush trigger dispatch=\(dispatchThresholdReached) timed=\(timedFlushEligible) slow=\(slowFlushEligible) count=\(await streamState.batchCount) target=\(await streamState.flushRequestRowCount) elapsed=\(String(format: "%.3f", elapsedSinceBatchStart))")
                     }
 #endif
 
                     if dispatchThresholdReached || timedFlushEligible || slowFlushEligible {
-                        let expectedSize = rampEligible ? flushRequestRowCount : batchCount
-                        publishBatch(expectedRequestSize: expectedSize, rampEligible: rampEligible)
+                        let expectedSize = rampEligible ? await streamState.flushRequestRowCount : await streamState.batchCount
+                        await streamState.publishBatch(expectedRequestSize: expectedSize, rampEligible: rampEligible, progressHandler: progressHandler)
                     }
                 }.get()
-                commandTag = metadata.command
+                await streamState.setCommandTag(metadata.command)
             } catch {
                 throw normalizeError(error, contextSQL: sanitizedSQL)
             }
 
-            if batchCount > 0 {
-                let rampEligible = totalRowCount > streamingPreviewLimit
-                let expectedSize = rampEligible ? flushRequestRowCount : batchCount
-                publishBatch(expectedRequestSize: expectedSize, rampEligible: rampEligible)
+            if await streamState.batchCount > 0 {
+                let rampEligible = await streamState.totalRowCount > streamingPreviewLimit
+                let expectedSize = rampEligible ? await streamState.flushRequestRowCount : await streamState.batchCount
+                await streamState.publishBatch(expectedRequestSize: expectedSize, rampEligible: rampEligible, progressHandler: progressHandler)
             }
 
             let totalElapsed = CFAbsoluteTimeGetCurrent() - operationStart
             let completionMessage = String(
                 format: "[PostgresStream] completed rows=%d elapsed=%.3fs",
-                totalRowCount,
+                await streamState.totalRowCount,
                 totalElapsed
             )
             logger.debug(.init(stringLiteral: completionMessage))
             print(completionMessage)
 #if DEBUG
-            debugLog("Streaming complete totalRows=\(totalRowCount)")
+            await streamState.debugLog("Streaming complete totalRows=\(await streamState.totalRowCount)")
 #endif
 
-            let resolvedColumns = columns.isEmpty
+            let resolvedColumns = await streamState.columns.isEmpty
                 ? [ColumnInfo(name: "result", dataType: "text")]
-                : columns
+                : await streamState.columns
 
             return QueryResultSet(
                 columns: resolvedColumns,
-                rows: previewRows,
-                totalRowCount: totalRowCount,
-                commandTag: commandTag
+                rows: await streamState.previewRows,
+                totalRowCount: await streamState.totalRowCount,
+                commandTag: await streamState.commandTag
             )
         }
+    }
+
+    @Sendable
+    private static func cheapStringValue(for cell: PostgresCell) -> String? {
+        if cell.format == .text, let buffer = cell.bytes {
+            let readable = buffer.readableBytes
+            guard readable > 0 else { return "" }
+            return buffer.getString(at: buffer.readerIndex, length: readable)
+        }
+        if let decoded = try? cell.decode(String.self, context: .default) {
+            return decoded
+        }
+        if var buffer = cell.bytes {
+            let readable = buffer.readableBytes
+            guard readable > 0 else { return "" }
+            if let string = buffer.getString(at: buffer.readerIndex, length: readable) {
+                return string
+            }
+            if let bytes = buffer.readBytes(length: readable) {
+                return bytes.reduce(into: "0x") { result, byte in
+                    result.append(String(format: "%02X", byte))
+                }
+            }
+        }
+        return nil
     }
 
     private func simpleQueryFastPathLimit(for sql: String) -> Int? {
@@ -1626,7 +1699,7 @@ struct CellFormatterContext: Sendable {
         return calendar
     }
 
-    func stringValue(for cell: PostgresCell) -> String? {
+    nonisolated func stringValue(for cell: PostgresCell) -> String? {
         guard let buffer = cell.bytes else { return nil }
 
         if cell.format == .text {
@@ -1709,18 +1782,18 @@ struct CellFormatterContext: Sendable {
         return nil
     }
 
-    private func integerString<Integer>(from cell: PostgresCell, as type: Integer.Type) -> String?
+    private nonisolated func integerString<Integer>(from cell: PostgresCell, as type: Integer.Type) -> String?
     where Integer: FixedWidthInteger & PostgresDecodable {
         guard let value = try? cell.decode(type, context: .default) else { return nil }
         return String(value)
     }
 
-    private func hexString(from buffer: inout ByteBuffer) -> String {
+    private nonisolated func hexString(from buffer: inout ByteBuffer) -> String {
         let bytes = buffer.readBytes(length: buffer.readableBytes) ?? []
         return bytes.map { String(format: "%02x", $0) }.joined()
     }
 
-    private func formatTimestamp(microseconds: Int64) -> String {
+    private nonisolated func formatTimestamp(microseconds: Int64) -> String {
         let (seconds, microsRemainder) = Self.splitMicroseconds(microseconds)
         let date = Date(timeInterval: TimeInterval(seconds), since: Self.postgresEpoch)
         let calendar = Self.utcCalendar
@@ -1739,7 +1812,7 @@ struct CellFormatterContext: Sendable {
         return String(format: "%04d-%02d-%02d %02d:%02d:%02d%@", year, month, day, hour, minute, second, fractional)
     }
 
-    private func formatTimestampWithTimeZone(microseconds: Int64) -> String {
+    private nonisolated func formatTimestampWithTimeZone(microseconds: Int64) -> String {
         let (seconds, microsRemainder) = Self.splitMicroseconds(microseconds)
         let date = Date(timeInterval: TimeInterval(seconds), since: Self.postgresEpoch)
         let calendar = Self.localCalendar
@@ -1776,7 +1849,7 @@ struct CellFormatterContext: Sendable {
         )
     }
 
-    private func formatDate(days: Int) -> String {
+    private nonisolated func formatDate(days: Int) -> String {
         if let date = Self.utcCalendar.date(byAdding: .day, value: days, to: Self.postgresEpoch) {
             let components = Self.utcCalendar.dateComponents([.year, .month, .day], from: date)
             if let year = components.year, let month = components.month, let day = components.day {
@@ -1786,7 +1859,7 @@ struct CellFormatterContext: Sendable {
         return ""
     }
 
-    private func formatTime(microseconds: Int64) -> String {
+    private nonisolated func formatTime(microseconds: Int64) -> String {
         let (seconds, microsRemainder) = Self.splitMicroseconds(microseconds)
         let normalizedSeconds = ((seconds % 86_400) + 86_400) % 86_400
         let hour = normalizedSeconds / 3_600
@@ -1796,7 +1869,7 @@ struct CellFormatterContext: Sendable {
         return String(format: "%02d:%02d:%02d%@", hour, minute, second, fractional)
     }
 
-    private func formatTimeWithTimeZone(microseconds: Int64, offsetMinutesWest: Int) -> String {
+    private nonisolated func formatTimeWithTimeZone(microseconds: Int64, offsetMinutesWest: Int) -> String {
         let timeString = formatTime(microseconds: microseconds)
         let minutesEast = -offsetMinutesWest
         let sign = minutesEast >= 0 ? "+" : "-"
@@ -1816,7 +1889,7 @@ struct CellFormatterContext: Sendable {
         return (seconds, remainder)
     }
 
-    private func formatFractionalMicroseconds(_ value: Int64) -> String {
+    private nonisolated func formatFractionalMicroseconds(_ value: Int64) -> String {
         guard value != 0 else { return "" }
         var fractional = String(format: "%06lld", value)
         while fractional.last == "0" {
