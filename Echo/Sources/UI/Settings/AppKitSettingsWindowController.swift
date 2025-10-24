@@ -385,7 +385,6 @@ private final class NavigationSegmentedControl: NSSegmentedControl {
         setWidth(36, forSegment: 0)
         setWidth(36, forSegment: 1)
         wantsLayer = false
-        isBordered = true
         setContentHuggingPriority(.required, for: .horizontal)
         setContentCompressionResistancePriority(.required, for: .horizontal)
         refreshTint()
@@ -399,7 +398,12 @@ private final class NavigationSegmentedControl: NSSegmentedControl {
     }
 
     func refreshTint() {
-        contentTintColor = isWindowKey ? .secondaryLabelColor : .tertiaryLabelColor
+        if #available(macOS 11.0, *) {
+            // contentTintColor is used here. This should compile fine as long as your
+            // deployment target is macOS 11.0 or higher, or with this #available check
+            // if it is lower.
+            contentTintColor = isWindowKey ? .secondaryLabelColor : .tertiaryLabelColor
+        }
     }
 
     private static func image(systemName: String) -> NSImage? {
