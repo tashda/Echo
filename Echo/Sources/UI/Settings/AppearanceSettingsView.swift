@@ -2495,6 +2495,7 @@ private extension View {
 }
 
 #if os(macOS)
+@MainActor
 final class SystemFontPickerCoordinator: NSObject, ObservableObject {
     private var completion: ((String) -> Void)?
 

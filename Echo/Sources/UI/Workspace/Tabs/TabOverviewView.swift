@@ -1417,6 +1417,7 @@ private struct CompactTabPreviewCard: View {
     }
 }
 
+@MainActor
 private func tabOverviewStatus(for tab: WorkspaceTab, themeManager: ThemeManager) -> (icon: String, text: String, color: Color) {
     switch tab.kind {
     case .query:

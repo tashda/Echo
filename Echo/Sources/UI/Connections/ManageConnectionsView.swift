@@ -1,4 +1,4 @@
-import SwiftUI
+@preconcurrency import SwiftUI
 import AppKit
 
 @MainActor
@@ -21,12 +21,8 @@ struct ManageConnectionsView: View {
     @State private var pendingIdentityMove: SavedIdentity?
     @State private var connectionSelection = Set<SavedConnection.ID>()
     @State private var identitySelection = Set<SavedIdentity.ID>()
-    @State private var connectionSortOrder: [KeyPathComparator<SavedConnection>] = [
-        .init(\.connectionName, order: .forward)
-    ]
-    @State private var identitySortOrder: [KeyPathComparator<SavedIdentity>] = [
-        .init(\.name, order: .forward)
-    ]
+    @State private var connectionSortOrder: [KeyPathComparator<SavedConnection>] = []
+    @State private var identitySortOrder: [KeyPathComparator<SavedIdentity>] = []
 
     @State private var expandedSections: Set<ManageSection> = [.connections, .identities]
 
@@ -39,6 +35,17 @@ struct ManageConnectionsView: View {
     var body: some View {
         contentView
             .onAppear(perform: ensureSectionSelection)
+            .onAppear {
+                // Initialize sort orders if empty
+                if connectionSortOrder.isEmpty {
+                    // Swift 6 Note: WritableKeyPath is not Sendable, but this is safe as we're
+                    // initializing @State on the main actor. This warning can be suppressed.
+                    connectionSortOrder = [KeyPathComparator(\SavedConnection.connectionName, order: .forward)]
+                }
+                if identitySortOrder.isEmpty {
+                    identitySortOrder = [KeyPathComparator(\SavedIdentity.name, order: .forward)]
+                }
+            }
     }
 
     private var contentView: some View {
@@ -1764,6 +1771,7 @@ private struct DoubleClickableTable<Content: View>: NSViewRepresentable {
     }
 }
 
+@MainActor
 private func applyTableTheme(_ tableView: NSTableView, themeManager: ThemeManager) {
     let tone = themeManager.activePaletteTone
     tableView.appearance = NSAppearance(named: tone == .dark ? .darkAqua : .aqua)

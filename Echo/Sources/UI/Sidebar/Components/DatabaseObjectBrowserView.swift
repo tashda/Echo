@@ -10,7 +10,7 @@ private struct HoveredExplorerRowIDKey: EnvironmentKey {
 }
 
 private struct SetHoveredExplorerRowIDKey: EnvironmentKey {
-    static let defaultValue: (String?) -> Void = { _ in }
+    nonisolated(unsafe) static let defaultValue: @Sendable (String?) -> Void = { _ in }
 }
 
 private extension EnvironmentValues {
@@ -19,7 +19,7 @@ private extension EnvironmentValues {
         set { self[HoveredExplorerRowIDKey.self] = newValue }
     }
 
-    var setHoveredExplorerRowID: (String?) -> Void {
+    var setHoveredExplorerRowID: @Sendable (String?) -> Void {
         get { self[SetHoveredExplorerRowIDKey.self] }
         set { self[SetHoveredExplorerRowIDKey.self] = newValue }
     }

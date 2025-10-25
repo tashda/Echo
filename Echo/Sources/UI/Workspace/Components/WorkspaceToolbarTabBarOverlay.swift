@@ -3,6 +3,7 @@ import SwiftUI
 #if os(macOS)
 import AppKit
 
+@MainActor
 final class WorkspaceToolbarTabBarOverlay {
     private weak var hostingView: ToolbarTabBarHostingView?
     private weak var toolbarView: NSView?

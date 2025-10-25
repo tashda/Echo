@@ -276,6 +276,7 @@ final class ConnectionSessionManager: ObservableObject {
 
 // MARK: - Server Switcher Data
 
+@MainActor
 struct ServerSwitcherItem: Identifiable {
     let id: UUID
     let session: ConnectionSession

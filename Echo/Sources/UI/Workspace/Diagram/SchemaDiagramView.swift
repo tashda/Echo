@@ -775,7 +775,7 @@ private struct DiagramColumnAnchor: Identifiable {
 }
 
 private struct DiagramColumnAnchorPreferenceKey: PreferenceKey {
-    static var defaultValue: [DiagramColumnAnchor] = []
+    nonisolated(unsafe) static var defaultValue: [DiagramColumnAnchor] = []
 
     static func reduce(value: inout [DiagramColumnAnchor], nextValue: () -> [DiagramColumnAnchor]) {
         value.append(contentsOf: nextValue())

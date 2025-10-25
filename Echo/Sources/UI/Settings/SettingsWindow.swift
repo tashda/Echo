@@ -651,7 +651,7 @@ enum SettingsWindowStyle: String, CaseIterable {
 
 enum SettingsWindowPresenter {
     private static let defaultsKey = "com.fuzee.settings.preferredWindowStyle"
-    private static var cachedStyle: SettingsWindowStyle?
+    private nonisolated(unsafe) static var cachedStyle: SettingsWindowStyle?
 
     static var preferredStyle: SettingsWindowStyle {
         get {

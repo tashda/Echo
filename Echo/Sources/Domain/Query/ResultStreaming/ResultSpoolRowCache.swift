@@ -117,7 +117,7 @@ final class ResultSpoolRowCache: @unchecked Sendable {
         return page.row(at: offset)
     }
 
-    func prefetch(range: Range<Int>, using handle: ResultSpoolHandle, onPageLoaded: @escaping (Range<Int>) -> Void) {
+    func prefetch(range: Range<Int>, using handle: ResultSpoolHandle, onPageLoaded: @escaping @Sendable (Range<Int>) -> Void) {
         guard !range.isEmpty else { return }
         let clampedLower = max(range.lowerBound, 0)
         let clampedUpper = max(range.upperBound, clampedLower + 1)

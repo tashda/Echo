@@ -26,7 +26,7 @@ The `build_sqruff.sh` script handles the `sqruff` binary, either by downloading 
 
 ## Development Conventions:
 *   **SwiftUI:** The UI is built using SwiftUI.
-*   **Swift Concurrency:** Uses `async/await` for asynchronous operations.
+*   **Swift Concurrency:** Uses `async/await` for asynchronous operations. All code must adhere to Swift 6 data-race safety checks and concurrency rules.
 *   **Combine:** Utilizes the Combine framework for reactive programming.
 *   **SQL Formatting:** Adheres to `sqruff` formatting rules for SQL code.
 *   **Database Interaction:** Uses NIO-based libraries for database connectivity.

@@ -9,7 +9,7 @@ import UIKit
 /// Registers bundled custom fonts so they are available throughout the app
 enum FontRegistrar {
     private static let fontSubdirectory = "Fonts"
-    private static var hasRegistered = false
+    private nonisolated(unsafe) static var hasRegistered = false
     private static let lock = NSLock()
 
 #if DEBUG
