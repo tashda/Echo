@@ -740,8 +740,8 @@ struct Project: Identifiable, Codable, Hashable {
 }
 
 extension Project {
-    var color: Color {
-        Color(hex: colorHex) ?? .accentColor
+    nonisolated var color: Color {
+        Color(hex: colorHex) ?? .blue
     }
 
     mutating func updateColor(_ color: Color) {
@@ -1468,7 +1468,7 @@ enum AppearanceMode: String, Codable, CaseIterable {
 
 // MARK: - Project Export/Import Models
 
-struct ProjectExportData: Codable {
+struct ProjectExportData: Codable, Sendable {
     let project: Project
     let connections: [SavedConnection]
     let identities: [SavedIdentity]

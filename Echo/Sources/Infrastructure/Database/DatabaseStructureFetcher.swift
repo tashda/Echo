@@ -1,6 +1,6 @@
 import Foundation
 import os
-import SQLServerNIO
+import SQLServerKit
 
 nonisolated private let structureLogger = os.Logger(subsystem: "dk.tippr.echo.database-structure", category: "Explorer")
 

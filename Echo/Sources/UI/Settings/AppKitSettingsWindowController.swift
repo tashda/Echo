@@ -12,7 +12,6 @@ final class AppKitSettingsWindowController: NSWindowController {
     private let hostingController: SettingsHostingViewController
     private let toolbarAccessoryView: SettingsToolbarAccessoryView
     private let sidebarWidth: CGFloat = 280
-    private var navigationToolbarItem: SettingsNavigationToolbarItem?
     private var splitViewDelegate: FixedSidebarSplitViewDelegate?
 
     private var cancellables: Set<AnyCancellable> = []
@@ -33,17 +32,19 @@ final class AppKitSettingsWindowController: NSWindowController {
         window.setContentSize(NSSize(width: 960, height: 660))
         window.contentMinSize = NSSize(width: 820, height: 580)
 
+        super.init(window: window)
+        
+        // Use empty toolbar for the unified style but no items
         let toolbar = NSToolbar(identifier: NSToolbar.Identifier("SettingsToolbar"))
         toolbar.showsBaselineSeparator = false
-        toolbar.allowsExtensionItems = false
-        toolbar.allowsUserCustomization = false
-        toolbar.centeredItemIdentifier = nil
         window.toolbar = toolbar
         window.toolbarStyle = .unified
-
-        super.init(window: window)
-
-        toolbar.delegate = self
+        
+        // Use titlebar accessory instead of toolbar items for proper positioning
+        let accessoryController = NSTitlebarAccessoryViewController()
+        accessoryController.view = toolbarAccessoryView
+        accessoryController.layoutAttribute = .leading
+        window.addTitlebarAccessoryViewController(accessoryController)
 
         toolbarAccessoryView.onNavigateBack = { [weak self] in self?.handleBack() }
         toolbarAccessoryView.onNavigateForward = { [weak self] in self?.handleForward() }
@@ -188,16 +189,18 @@ private final class SettingsToolbarAccessoryView: NSView {
     var onNavigateBack: (() -> Void)?
     var onNavigateForward: (() -> Void)?
 
-    private let navigationControl: NavigationSegmentedControl
+    private let backButton: NSButton
+    private let forwardButton: NSButton
     private let titleLabel: NSTextField
+    private let sidebarWidth: CGFloat = 280
+    
     init() {
-        self.navigationControl = NavigationSegmentedControl()
-        self.titleLabel = NSTextField(labelWithString: "Appearance")
-        super.init(frame: NSRect(x: 0, y: 0, width: 360, height: 44))
+        self.backButton = NSButton()
+        self.forwardButton = NSButton()
+        self.titleLabel = NSTextField(labelWithString: "")
+        super.init(frame: NSRect(x: 0, y: 0, width: 600, height: 40))
         configureViewHierarchy()
         configureActions()
-        updateBackEnabled(false)
-        updateForwardEnabled(false)
     }
 
     required init?(coder: NSCoder) {
@@ -205,213 +208,113 @@ private final class SettingsToolbarAccessoryView: NSView {
     }
 
     override var intrinsicContentSize: NSSize {
-        NSSize(width: NSView.noIntrinsicMetric, height: 44)
+        NSSize(width: 600, height: 40)
     }
 
     func updateTitle(_ title: String) {
         titleLabel.stringValue = title
-        titleLabel.invalidateIntrinsicContentSize()
+        needsLayout = true
     }
 
     func updateBackEnabled(_ isEnabled: Bool) {
-        navigationControl.setEnabled(isEnabled, forSegment: 0)
-        navigationControl.refreshTint()
+        backButton.isEnabled = isEnabled
     }
 
     func updateForwardEnabled(_ isEnabled: Bool) {
-        navigationControl.setEnabled(isEnabled, forSegment: 1)
-        navigationControl.refreshTint()
+        forwardButton.isEnabled = isEnabled
     }
 
     private func configureViewHierarchy() {
-        translatesAutoresizingMaskIntoConstraints = false
-        wantsLayer = false
+        // Use manual layout - no auto layout constraints
+        autoresizesSubviews = false
+        
+        // Create container for both buttons with Xcode's pill background
+        let buttonContainer = NSView()
+        buttonContainer.wantsLayer = true
+        buttonContainer.layer?.backgroundColor = NSColor.separatorColor.withAlphaComponent(0.3).cgColor
+        buttonContainer.layer?.cornerRadius = 12
+        
+        // Configure back button - match Xcode exactly
+        backButton.isBordered = false
+        backButton.bezelStyle = .shadowlessSquare
+        backButton.image = NSImage(systemSymbolName: "chevron.left", accessibilityDescription: "Back")
+        backButton.imagePosition = .imageOnly
+        backButton.imageScaling = .scaleProportionallyDown
+        backButton.toolTip = "Back"
+        
+        // Configure forward button - match Xcode exactly  
+        forwardButton.isBordered = false
+        forwardButton.bezelStyle = .shadowlessSquare
+        forwardButton.image = NSImage(systemSymbolName: "chevron.right", accessibilityDescription: "Forward")
+        forwardButton.imagePosition = .imageOnly
+        forwardButton.imageScaling = .scaleProportionallyDown
+        forwardButton.toolTip = "Forward"
 
-        let buttonPill = NSVisualEffectView()
-        buttonPill.material = .hudWindow
-        buttonPill.state = .active
-        buttonPill.blendingMode = .withinWindow
-        buttonPill.wantsLayer = true
-        buttonPill.layer?.cornerRadius = 19
-        if #available(macOS 13.0, *) {
-            buttonPill.layer?.cornerCurve = .continuous
-        }
-        buttonPill.layer?.masksToBounds = true
-        buttonPill.translatesAutoresizingMaskIntoConstraints = false
-        buttonPill.setContentHuggingPriority(.required, for: .horizontal)
-        buttonPill.setContentCompressionResistancePriority(.required, for: .horizontal)
-
-        navigationControl.translatesAutoresizingMaskIntoConstraints = false
-        buttonPill.addSubview(navigationControl)
-        NSLayoutConstraint.activate([
-            navigationControl.leadingAnchor.constraint(equalTo: buttonPill.leadingAnchor, constant: 1),
-            navigationControl.trailingAnchor.constraint(equalTo: buttonPill.trailingAnchor, constant: -1),
-            navigationControl.topAnchor.constraint(equalTo: buttonPill.topAnchor, constant: 1),
-            navigationControl.bottomAnchor.constraint(equalTo: buttonPill.bottomAnchor, constant: -1),
-            navigationControl.heightAnchor.constraint(equalToConstant: 36),
-            buttonPill.heightAnchor.constraint(equalToConstant: 38)
-        ])
-
-        titleLabel.font = .systemFont(ofSize: 15, weight: .semibold)
+        // Configure title label
+        titleLabel.font = .systemFont(ofSize: 15, weight: .regular)
         titleLabel.textColor = .labelColor
         titleLabel.alignment = .left
         titleLabel.backgroundColor = .clear
         titleLabel.isBordered = false
+        titleLabel.isEditable = false
+        titleLabel.isSelectable = false
         titleLabel.drawsBackground = false
-        titleLabel.setContentHuggingPriority(.required, for: .horizontal)
-        titleLabel.setContentCompressionResistancePriority(.required, for: .horizontal)
+        titleLabel.lineBreakMode = .byTruncatingTail
 
-        let mainStack = NSStackView(views: [buttonPill, titleLabel])
-        mainStack.orientation = .horizontal
-        mainStack.alignment = .centerY
-        mainStack.spacing = 10
-        mainStack.translatesAutoresizingMaskIntoConstraints = false
-        mainStack.setContentHuggingPriority(.required, for: .horizontal)
-        mainStack.setContentCompressionResistancePriority(.defaultHigh, for: .horizontal)
-
-        addSubview(mainStack)
-
-        NSLayoutConstraint.activate([
-            mainStack.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 8),
-            mainStack.trailingAnchor.constraint(lessThanOrEqualTo: trailingAnchor, constant: -20),
-            mainStack.centerYAnchor.constraint(equalTo: centerYAnchor),
-            mainStack.topAnchor.constraint(greaterThanOrEqualTo: topAnchor, constant: 4),
-            mainStack.bottomAnchor.constraint(lessThanOrEqualTo: bottomAnchor, constant: -4)
-        ])
+        addSubview(buttonContainer)
+        buttonContainer.addSubview(backButton)
+        buttonContainer.addSubview(forwardButton)
+        addSubview(titleLabel)
+    }
+    
+    override func layout() {
+        super.layout()
+        
+        // Match Xcode's exact positioning
+        let startX = sidebarWidth + 8  // Sidebar + small margin
+        let containerWidth: CGFloat = 54  // Width for both buttons (26+2+26)
+        let containerHeight: CGFloat = 24
+        let containerY = (bounds.height - containerHeight) / 2
+        
+        // Position button container with pill background
+        if let buttonContainer = subviews.first(where: { $0 !== titleLabel && $0 !== backButton && $0 !== forwardButton }) {
+            buttonContainer.frame = NSRect(x: startX, y: containerY, width: containerWidth, height: containerHeight)
+            
+            // Position buttons within container
+            backButton.frame = NSRect(x: 1, y: 0, width: 26, height: 24)
+            forwardButton.frame = NSRect(x: 27, y: 0, width: 26, height: 24)
+        }
+        
+        // Position title label
+        let titleX = startX + containerWidth + 8
+        let titleY = (bounds.height - 20) / 2
+        let titleWidth = max(100, bounds.width - titleX - 20)
+        titleLabel.frame = NSRect(x: titleX, y: titleY, width: titleWidth, height: 20)
     }
 
     private func configureActions() {
-        navigationControl.onSegmentTriggered = { [weak self] segment in
-            switch segment {
-            case 0: self?.onNavigateBack?()
-            case 1: self?.onNavigateForward?()
-            default: break
-            }
-        }
+        backButton.target = self
+        backButton.action = #selector(handleBack)
+        forwardButton.target = self
+        forwardButton.action = #selector(handleForward)
+    }
+    
+    @objc private func handleBack() {
+        onNavigateBack?()
+    }
+    
+    @objc private func handleForward() {
+        onNavigateForward?()
     }
 
     func updateWindowIsKey(_ isKey: Bool) {
-        titleLabel.textColor = isKey ? .labelColor : .tertiaryLabelColor
-        navigationControl.isWindowKey = isKey
+        titleLabel.textColor = isKey ? .labelColor : .secondaryLabelColor
     }
 }
 
-// MARK: - Toolbar delegate
 
-extension AppKitSettingsWindowController: NSToolbarDelegate {
-    func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        [.settingsNavigation, .flexibleSpace]
-    }
 
-    func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        [.settingsNavigation, .flexibleSpace]
-    }
 
-    func toolbar(_ toolbar: NSToolbar,
-                 itemForItemIdentifier itemIdentifier: NSToolbarItem.Identifier,
-                 willBeInsertedIntoToolbar flag: Bool) -> NSToolbarItem? {
-        switch itemIdentifier {
-        case .settingsNavigation:
-            let item = SettingsNavigationToolbarItem(identifier: itemIdentifier,
-                                                     accessoryView: toolbarAccessoryView,
-                                                     spacerWidth: sidebarWidth)
-            navigationToolbarItem = item
-            return item
-        case .flexibleSpace:
-            return NSToolbarItem(itemIdentifier: .flexibleSpace)
-        default:
-            return nil
-        }
-    }
-}
-
-private final class SettingsNavigationToolbarItem: NSToolbarItem {
-    init(identifier: NSToolbarItem.Identifier,
-         accessoryView: SettingsToolbarAccessoryView,
-         spacerWidth: CGFloat) {
-        accessoryView.translatesAutoresizingMaskIntoConstraints = false
-
-        let spacerView = NSView()
-        spacerView.translatesAutoresizingMaskIntoConstraints = false
-
-        let container = NSStackView(views: [spacerView, accessoryView])
-        container.orientation = .horizontal
-        container.alignment = .centerY
-        container.spacing = 0
-        container.edgeInsets = NSEdgeInsets(top: 0, left: 0, bottom: 0, right: 0)
-        container.translatesAutoresizingMaskIntoConstraints = false
-        container.setContentHuggingPriority(.required, for: .horizontal)
-        container.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
-
-        super.init(itemIdentifier: identifier)
-
-        view = container
-
-        NSLayoutConstraint.activate([
-            spacerView.widthAnchor.constraint(equalToConstant: spacerWidth),
-            container.heightAnchor.constraint(equalToConstant: 44)
-        ])
-    }
-}
-
-private final class NavigationSegmentedControl: NSSegmentedControl {
-    var onSegmentTriggered: ((Int) -> Void)?
-    var isWindowKey: Bool = true {
-        didSet { refreshTint() }
-    }
-
-    override init(frame frameRect: NSRect) {
-        super.init(frame: frameRect)
-        configure()
-    }
-
-    required init?(coder: NSCoder) {
-        super.init(coder: coder)
-        configure()
-    }
-
-    private func configure() {
-        segmentCount = 2
-        trackingMode = .momentary
-        segmentStyle = .capsule
-        target = self
-        action = #selector(handleSegment(_:))
-        setImage(NavigationSegmentedControl.image(systemName: "chevron.left"), forSegment: 0)
-        setImage(NavigationSegmentedControl.image(systemName: "chevron.right"), forSegment: 1)
-        setLabel("Back", forSegment: 0)
-        setLabel("Forward", forSegment: 1)
-        setToolTip("Back", forSegment: 0)
-        setToolTip("Forward", forSegment: 1)
-        setWidth(36, forSegment: 0)
-        setWidth(36, forSegment: 1)
-        wantsLayer = false
-        setContentHuggingPriority(.required, for: .horizontal)
-        setContentCompressionResistancePriority(.required, for: .horizontal)
-        refreshTint()
-    }
-
-    @objc private func handleSegment(_ sender: NSSegmentedControl) {
-        let segment = sender.selectedSegment
-        sender.selectedSegment = -1
-        guard segment != -1 else { return }
-        onSegmentTriggered?(segment)
-    }
-
-    func refreshTint() {
-        if #available(macOS 11.0, *) {
-            // contentTintColor is used here. This should compile fine as long as your
-            // deployment target is macOS 11.0 or higher, or with this #available check
-            // if it is lower.
-            contentTintColor = isWindowKey ? .secondaryLabelColor : .tertiaryLabelColor
-        }
-    }
-
-    private static func image(systemName: String) -> NSImage? {
-        let image = NSImage(systemSymbolName: systemName, accessibilityDescription: nil)
-        image?.isTemplate = true
-        return image
-    }
-}
 
 private final class FixedSidebarSplitViewDelegate: NSObject, NSSplitViewDelegate {
     private let sidebarWidth: CGFloat

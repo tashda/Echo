@@ -842,6 +842,7 @@ private struct FilterPopoverView: View {
     }
 }
 
+@MainActor
 private func queryTabSnapshots(from appModel: AppModel?) -> [SearchSidebarQueryTabSnapshot] {
     guard let appModel else { return [] }
     let sessionsByID = Dictionary(uniqueKeysWithValues: appModel.sessionManager.sessions.map { ($0.id, $0) })

@@ -176,6 +176,7 @@ private struct InspectorSplitViewConfigurator: NSViewRepresentable {
         context.coordinator.register(observedView: nsView)
     }
 
+    @MainActor
     final class Coordinator {
         var width: Binding<CGFloat>
         var minWidth: CGFloat
@@ -200,7 +201,7 @@ private struct InspectorSplitViewConfigurator: NSViewRepresentable {
         private func scheduleUpdate() {
             guard !pendingUpdate else { return }
             pendingUpdate = true
-            DispatchQueue.main.async { [weak self] in
+            Task { @MainActor [weak self] in
                 guard let self, let view = self.observedView else {
                     self?.pendingUpdate = false
                     return
@@ -355,6 +356,7 @@ private struct WorkspaceWindowConfigurator: NSViewRepresentable {
         }
     }
 
+    @MainActor
     final class Coordinator {
         private let overlay = WorkspaceToolbarTabBarOverlay()
         private var lastWindowID: ObjectIdentifier?

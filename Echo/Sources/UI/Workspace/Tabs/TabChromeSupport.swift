@@ -254,10 +254,11 @@ private struct MiddleClickCapture: NSViewRepresentable {
         }
     }
 
-    final class Coordinator: NSObject {
+    @MainActor
+    final class Coordinator {
         var onMiddleClick: () -> Void
         private weak var attachedView: NSView?
-        private var monitor: Any?
+        private nonisolated(unsafe) var monitor: Any?
 
         init(onMiddleClick: @escaping () -> Void) {
             self.onMiddleClick = onMiddleClick
@@ -293,7 +294,9 @@ private struct MiddleClickCapture: NSViewRepresentable {
         }
 
         deinit {
-            detach()
+            if let monitor {
+                NSEvent.removeMonitor(monitor)
+            }
         }
     }
 }

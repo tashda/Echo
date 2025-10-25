@@ -66,10 +66,10 @@ final class MySQLSession: DatabaseSession {
     private let eventLoopGroup: MultiThreadedEventLoopGroup
     private let logger: Logger
     private let defaultDatabase: String?
-    private let formatter = MySQLCellFormatter()
+    private nonisolated(unsafe) let formatter = MySQLCellFormatter()
 
     private let shutdownQueue = DispatchQueue(label: "dk.tippr.echo.mysql.shutdown")
-    private var isClosed = false
+    private nonisolated(unsafe) var isClosed = false
 
     init(
         connection: MySQLConnection,

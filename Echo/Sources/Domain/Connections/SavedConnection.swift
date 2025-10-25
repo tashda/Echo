@@ -243,9 +243,9 @@ struct SavedConnection: Identifiable, Codable, Hashable, Sendable {
 extension SavedConnection {
     var color: Color {
         if colorHex.isEmpty || colorHex == "default" {
-            return Color.accentColor
+            return .blue
         }
-        return Color(hex: colorHex) ?? Color.accentColor
+        return Color(hex: colorHex) ?? .blue
     }
 
     mutating func updateColor(_ color: Color) {

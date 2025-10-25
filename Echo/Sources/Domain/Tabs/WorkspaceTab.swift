@@ -6,6 +6,7 @@ import os.log
 
 private let gridPipelineLog = OSLog(subsystem: "dk.tippr.echo", category: .pointsOfInterest)
 
+@MainActor
 final class WorkspaceTab: ObservableObject, Identifiable {
     struct BookmarkTabContext: Equatable {
         let bookmarkID: UUID
@@ -49,7 +50,6 @@ final class WorkspaceTab: ObservableObject, Identifiable {
 
     private var contentCancellable: AnyCancellable?
     let resultsGridState = QueryResultsGridState()
-    private let payloadFormatter = PostgresPayloadFormatter()
 
     init(
         connection: SavedConnection,
@@ -412,6 +412,7 @@ final class QueryResultsGridState {
     }
 
     private var lastBroadcastSnapshot: BroadcastSnapshot?
+    private let payloadFormatter = PostgresPayloadFormatter()
 
     var gridViewportPadding: Int {
         gridViewportForwardPrefetchRows + gridViewportBackfillRows
@@ -1690,7 +1691,9 @@ final class QueryResultsGridState {
         }
         guard let handle = spoolHandle else { return }
         rowCache.prefetch(range: range, using: handle) { [weak self] fetchedRange in
-            self?.handleMaterializedRange(fetchedRange)
+            Task { @MainActor in
+                self?.handleMaterializedRange(fetchedRange)
+            }
         }
     }
 

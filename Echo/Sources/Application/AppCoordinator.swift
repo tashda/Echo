@@ -29,7 +29,7 @@ final class AppCoordinator: ObservableObject {
     let diagramKeyStore: DiagramEncryptionKeyStore
     private var cancellables = Set<AnyCancellable>()
 #if os(macOS)
-    private var windowFocusObservers: [NSObjectProtocol] = []
+    private nonisolated(unsafe) var windowFocusObservers: [NSObjectProtocol] = []
 #endif
 
     // MARK: - Initialization State

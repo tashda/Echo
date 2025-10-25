@@ -2,7 +2,7 @@ import Foundation
 import Logging
 import NIOCore
 import NIOSSL
-@preconcurrency import SQLServerNIO
+import SQLServerKit
 
 struct MSSQLNIOFactory: DatabaseFactory {
     private let logger = Logger(label: "dk.tippr.echo.mssql")
@@ -28,8 +28,10 @@ struct MSSQLNIOFactory: DatabaseFactory {
             )
         }
 
+        // Configure metadata client to include all user databases
         var metadataConfiguration = SQLServerMetadataClient.Configuration()
         metadataConfiguration.includeSystemSchemas = false
+//        metadataConfiguration.includeSystemObjects = false
 
         let configuration = SQLServerConnection.Configuration(
             hostname: host,
@@ -59,9 +61,9 @@ final class MSSQLSession: DatabaseSession {
     private let connection: SQLServerConnection
     private let logger: Logger
     private let defaultDatabase: String?
-    private let formatter = MSSQLCellFormatter()
+    private nonisolated(unsafe) let formatter = MSSQLCellFormatter()
     private let databaseContext = MSSQLDatabaseContext()
-    private var isClosed = false
+    private nonisolated(unsafe) var isClosed = false
 
     init(connection: SQLServerConnection, logger: Logger, defaultDatabase: String?) {
         self.connection = connection
@@ -297,106 +299,30 @@ final class MSSQLSession: DatabaseSession {
     }
 
     func listDatabases() async throws -> [String] {
-        logger.info("Listing MSSQL databases: starting enumeration")
-
-        let currentName = await resolvedCurrentDatabase()
-        let originalContext = currentName ?? defaultDatabase
-
-        try await ensureDatabaseContext("master")
+        logger.info("Listing MSSQL databases using SQLServerKit API")
 
         do {
-            let optionRows = try await collectRows("SELECT @@OPTIONS & 2 AS fmtOnlyFlag;")
-            if let flag = optionRows.first?.string("fmtOnlyFlag") {
-                logger.info("MSSQL listDatabases session fmtOnlyFlag=\(flag)")
-            } else {
-                logger.info("MSSQL listDatabases unable to read fmtOnlyFlag (no rows)")
+            // Use the SQLServerKit metadata client to list databases
+            let databases = try await connection.listDatabases()
+            
+            // Filter to only include online, accessible databases
+            let names = databases
+//                .filter { !$0.isSystemDatabase }
+                .map { $0.name }
+                .sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+            
+            logger.info("MSSQL listDatabases found \(names.count) user databases: \(names)")
+            return names
+        } catch let sqlError as SQLServerError {
+            if case .connectionClosed = sqlError {
+                throw MSSQLSessionError.connectionClosed
             }
+            logger.error("MSSQL listDatabases failed: \(sqlError.description)")
+            throw DatabaseError.queryError(sqlError.description)
         } catch {
-            logger.info("MSSQL listDatabases unable to read fmtOnlyFlag: \(error.localizedDescription)")
+            logger.error("MSSQL listDatabases failed: \(error.localizedDescription)")
+            throw DatabaseError.queryError(error.localizedDescription)
         }
-
-        var discovered = Set<String>()
-
-        let dmSQL = """
-        SELECT DISTINCT DB_NAME(database_id) AS database_name
-        FROM sys.dm_exec_sessions
-        WHERE is_user_process = 1
-        ORDER BY database_name;
-        """
-        do {
-            let dmRows = try await collectRows(dmSQL)
-            let names = dmRows.compactMap { $0.string("database_name")?.trimmingCharacters(in: .whitespacesAndNewlines) }
-                .filter { !$0.isEmpty }
-            let sortedNames = names.sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
-            logger.info("MSSQL listDatabases dm_exec_sessions yielded \(sortedNames)")
-            discovered.formUnion(sortedNames)
-        } catch {
-            logger.info("MSSQL listDatabases dm_exec_sessions query failed: \(error.localizedDescription)")
-        }
-
-        let dbGateSQL = """
-        SELECT name, state_desc
-        FROM sys.databases
-        ORDER BY name;
-        """
-        do {
-            let rows = try await collectRows(dbGateSQL)
-            let names = rows.compactMap { row -> String? in
-                guard let name = row.string("name")?.trimmingCharacters(in: .whitespacesAndNewlines),
-                      !name.isEmpty
-                else {
-                    return nil
-                }
-                if let state = row.string("state_desc"),
-                   state.uppercased() != "ONLINE" {
-                    logger.debug("Skipping database \(name) with state \(state)")
-                    return nil
-                }
-                return name
-            }
-            let sortedNames = names.sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
-            logger.info("MSSQL listDatabases sys.databases (dbgate style) yielded \(sortedNames)")
-            discovered.formUnion(names)
-        } catch {
-            logger.info("MSSQL listDatabases sys.databases (dbgate style) returned no rows")
-        }
-
-        do {
-            let rows = try await collectRows("EXEC master.dbo.sp_databases;")
-            let names = rows.compactMap { row -> String? in
-                guard let name = row.string("DATABASE_NAME")?.trimmingCharacters(in: .whitespacesAndNewlines),
-                      !name.isEmpty
-                else {
-                    return nil
-                }
-                return name
-            }
-            let sortedNames = names.sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
-            logger.info("MSSQL listDatabases sp_databases yielded \(sortedNames)")
-            discovered.formUnion(names)
-        } catch {
-            logger.info("MSSQL listDatabases sp_databases query failed: \(error.localizedDescription)")
-        }
-
-        if let current = currentName?.trimmingCharacters(in: .whitespacesAndNewlines), !current.isEmpty {
-            discovered.insert(current)
-        }
-        if let defaultDb = defaultDatabase?.trimmingCharacters(in: .whitespacesAndNewlines), !defaultDb.isEmpty {
-            discovered.insert(defaultDb)
-        }
-
-        let sorted = discovered
-            .map { $0 }
-            .sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
-
-        if sorted.isEmpty {
-            logger.info("MSSQL listDatabases discovered no databases; returning []")
-        } else {
-            logger.info("MSSQL listDatabases final set \(sorted)")
-        }
-
-        try await ensureDatabaseContext(originalContext)
-        return sorted
     }
 
     func listSchemas() async throws -> [String] {

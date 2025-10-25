@@ -51,7 +51,7 @@ final class ThemeManager: ObservableObject {
     private var activeTone: SQLEditorPalette.Tone
     private let accentSubject: CurrentValueSubject<Color, Never>
 #if os(macOS)
-    private var appearanceObserver: NSObjectProtocol?
+    private nonisolated(unsafe) var appearanceObserver: NSObjectProtocol?
     private static let appearanceDidChangeNotification = Notification.Name("NSApplicationDidChangeEffectiveAppearanceNotification")
 #endif
 

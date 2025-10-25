@@ -16,3 +16,8 @@ Scripts/.mssql-probe/.build/
 # Xcode user-specific data
 Echo.xcodeproj/xcuserdata/
 *.xcuserstate
+
+# AI Agents
+GEMINI.md
+.claude
+.codex_cache

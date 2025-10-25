@@ -525,7 +525,7 @@ final class ClipboardHistoryStore: ObservableObject {
         }
     }
 
-    static func formatByteCount(_ bytes: Int) -> String {
+    nonisolated static func formatByteCount(_ bytes: Int) -> String {
         guard bytes > 0 else { return "0 KB" }
         let formatter = ByteCountFormatter()
         formatter.allowsNonnumericFormatting = false

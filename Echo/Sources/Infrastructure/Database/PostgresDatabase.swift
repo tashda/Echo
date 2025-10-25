@@ -96,6 +96,10 @@ actor QueryStreamState {
         }
     }
 
+    func setColumns(_ newColumns: [ColumnInfo]) {
+        columns = newColumns
+    }
+
     func incrementCounts(decodeDuration: TimeInterval) {
         totalRowCount += 1
         batchCount += 1
@@ -148,7 +152,7 @@ actor QueryStreamState {
         commandTag = tag
     }
 
-    func debugLog(_ message: @autoclosure () -> String) {
+    func debugLog(_ message: @autoclosure @Sendable () -> String) {
         guard let streamDebugID else { return }
         let elapsed = CFAbsoluteTimeGetCurrent() - operationStart
         print("[PostgresStream][\(streamDebugID)] t=\(String(format: "%.3f", elapsed)) \(message())")
@@ -199,7 +203,9 @@ actor QueryStreamState {
         }
 
 #if DEBUG
-        debugLog("Flush completed rows=\(flushedCount) totalRowCount=\(totalRowCount) decode=\(String(format: "%.3f", batchDecodeDuration)) wait=\(String(format: "%.3f", networkWait)) rampEligible=\(rampEligible)")
+        let debugTotalRowCount = totalRowCount
+        let debugBatchDecodeDuration = batchDecodeDuration
+        debugLog("Flush completed rows=\(flushedCount) totalRowCount=\(debugTotalRowCount) decode=\(String(format: "%.3f", debugBatchDecodeDuration)) wait=\(String(format: "%.3f", networkWait)) rampEligible=\(rampEligible)")
 #endif
 
         await MainActor.run {
@@ -795,7 +801,7 @@ final class PostgresSession: DatabaseSession {
                                 maxLength: nil
                             ))
                         }
-                        await streamState.columns = newColumns
+                        await streamState.setColumns(newColumns)
                     }
 
                     let conversionStart = CFAbsoluteTimeGetCurrent()
@@ -937,7 +943,7 @@ final class PostgresSession: DatabaseSession {
                     }
                 }
 
-                await streamState.setCommandTag(rowSequence.commandTag)
+                // await streamState.setCommandTag(rowSequence.commandTag)
             } catch {
                 throw normalizeError(error, contextSQL: sanitizedSQL)
             }
@@ -1147,11 +1153,11 @@ final class PostgresSession: DatabaseSession {
         """
 
             let columnResult = try await performQuery(columnsSQL, binds: [PostgresData(string: schema), PostgresData(string: table)])
-            for try await (name, dataType, nullable, defaultValue, generated, _) in columnResult.decode((String, String, String, String?, String?, Int).self) {
+            for try await (name, dataType, nullable, defaultValue, generated, _) in columnResult.decode((String, String, String?, String?, String?, Int).self) {
                 let column = TableStructureDetails.Column(
                     name: name,
                     dataType: dataType,
-                    isNullable: nullable.uppercased() == "YES",
+                    isNullable: nullable?.uppercased() == "YES",
                     defaultValue: defaultValue,
                     generatedExpression: generated
                 )
@@ -1890,158 +1896,158 @@ struct CellFormatterContext: Sendable {
         }
         return "." + fractional
     }
-    
-    extension PostgresSession: DatabaseMetadataSession {
-        func loadSchemaInfo(
-            _ schemaName: String,
-            progress: (@Sendable (SchemaObjectInfo.ObjectType, Int, Int) async -> Void)?
-        ) async throws -> SchemaInfo {
-            let columnsByObject = try await fetchColumnsByObject(schemaName: schemaName)
-            
-            var objects: [SchemaObjectInfo] = []
-            
-            let tableSQL = """
-        SELECT table_name, table_type
-        FROM information_schema.tables
-        WHERE table_schema = $1
-          AND table_type IN ('BASE TABLE', 'VIEW')
-        ORDER BY table_type, table_name;
-        """
-            let tableResult = try await performQuery(tableSQL, binds: [PostgresData(string: schemaName)])
-            var tableEntries: [(String, SchemaObjectInfo.ObjectType)] = []
-            for try await (name, rawType) in tableResult.decode((String, String).self) {
-                let type = SchemaObjectInfo.ObjectType(rawValue: rawType) ?? .table
-                tableEntries.append((name, type))
-            }
-            
-            let materializedViewSQL = """
-        SELECT matviewname
-        FROM pg_matviews
-        WHERE schemaname = $1
-        ORDER BY matviewname;
-        """
-            let matResult = try await performQuery(materializedViewSQL, binds: [PostgresData(string: schemaName)])
-            var materializedNames: [String] = []
-            for try await name in matResult.decode(String.self) {
-                materializedNames.append(name)
-            }
-            
-            let functionSQL = """
-        SELECT routine_name
-        FROM information_schema.routines
-        WHERE specific_schema = $1
-          AND routine_type = 'FUNCTION'
-        ORDER BY routine_name;
-        """
-            let functionResult = try await performQuery(functionSQL, binds: [PostgresData(string: schemaName)])
-            var functionNames: [String] = []
-            for try await name in functionResult.decode(String.self) {
-                functionNames.append(name)
-            }
-            
-            let triggerSQL = """
-        SELECT trigger_name, action_timing, event_manipulation, event_object_table
-        FROM information_schema.triggers
-        WHERE trigger_schema = $1
-        ORDER BY trigger_name;
-        """
-            let triggerResult = try await performQuery(triggerSQL, binds: [PostgresData(string: schemaName)])
-            var triggerRows: [(String, String, String, String)] = []
-            for try await tuple in triggerResult.decode((String, String, String, String).self) {
-                triggerRows.append(tuple)
-            }
-            
-            let totalObjectsCount = max(
-                tableEntries.count + materializedNames.count + functionNames.count + triggerRows.count,
-                1
-            )
-            var processedObjects = 0
-            
+}
+
+extension PostgresSession: DatabaseMetadataSession {
+    func loadSchemaInfo(
+        _ schemaName: String,
+        progress: (@Sendable (SchemaObjectInfo.ObjectType, Int, Int) async -> Void)?
+    ) async throws -> SchemaInfo {
+        let columnsByObject = try await fetchColumnsByObject(schemaName: schemaName)
+        
+        var objects: [SchemaObjectInfo] = []
+        
+        let tableSQL = """
+    SELECT table_name, table_type
+    FROM information_schema.tables
+    WHERE table_schema = $1
+      AND table_type IN ('BASE TABLE', 'VIEW')
+    ORDER BY table_type, table_name;
+    """
+        let tableResult = try await performQuery(tableSQL, binds: [PostgresData(string: schemaName)])
+        var tableEntries: [(String, SchemaObjectInfo.ObjectType)] = []
+        for try await (name, rawType) in tableResult.decode((String, String).self) {
+            let type = SchemaObjectInfo.ObjectType(rawValue: rawType) ?? .table
+            tableEntries.append((name, type))
+        }
+        
+        let materializedViewSQL = """
+    SELECT matviewname
+    FROM pg_matviews
+    WHERE schemaname = $1
+    ORDER BY matviewname;
+    """
+        let matResult = try await performQuery(materializedViewSQL, binds: [PostgresData(string: schemaName)])
+        var materializedNames: [String] = []
+        for try await name in matResult.decode(String.self) {
+            materializedNames.append(name)
+        }
+        
+        let functionSQL = """
+    SELECT routine_name
+    FROM information_schema.routines
+    WHERE specific_schema = $1
+      AND routine_type = 'FUNCTION'
+    ORDER BY routine_name;
+    """
+        let functionResult = try await performQuery(functionSQL, binds: [PostgresData(string: schemaName)])
+        var functionNames: [String] = []
+        for try await name in functionResult.decode(String.self) {
+            functionNames.append(name)
+        }
+        
+        let triggerSQL = """
+    SELECT trigger_name, action_timing, event_manipulation, event_object_table
+    FROM information_schema.triggers
+    WHERE trigger_schema = $1
+    ORDER BY trigger_name;
+    """
+        let triggerResult = try await performQuery(triggerSQL, binds: [PostgresData(string: schemaName)])
+        var triggerRows: [(String, String, String, String)] = []
+        for try await tuple in triggerResult.decode((String, String, String, String).self) {
+            triggerRows.append(tuple)
+        }
+        
+        let totalObjectsCount = max(
+            tableEntries.count + materializedNames.count + functionNames.count + triggerRows.count,
+            1
+        )
+        var processedObjects = 0
+        
+        if let progress {
+            await progress(.table, processedObjects, totalObjectsCount)
+        }
+        for (name, type) in tableEntries {
+            processedObjects += 1
             if let progress {
-                await progress(.table, processedObjects, totalObjectsCount)
+                await progress(type, processedObjects, totalObjectsCount)
             }
-            for (name, type) in tableEntries {
+            let columns = columnsByObject[name] ?? []
+            objects.append(
+                SchemaObjectInfo(
+                    name: name,
+                    schema: schemaName,
+                    type: type,
+                    columns: columns
+                )
+            )
+        }
+        
+        if !materializedNames.isEmpty {
+            if let progress {
+                await progress(.materializedView, processedObjects, totalObjectsCount)
+            }
+            for name in materializedNames {
                 processedObjects += 1
                 if let progress {
-                    await progress(type, processedObjects, totalObjectsCount)
+                    await progress(.materializedView, processedObjects, totalObjectsCount)
                 }
                 let columns = columnsByObject[name] ?? []
                 objects.append(
                     SchemaObjectInfo(
                         name: name,
                         schema: schemaName,
-                        type: type,
+                        type: .materializedView,
                         columns: columns
                     )
                 )
             }
-            
-            if !materializedNames.isEmpty {
-                if let progress {
-                    await progress(.materializedView, processedObjects, totalObjectsCount)
-                }
-                for name in materializedNames {
-                    processedObjects += 1
-                    if let progress {
-                        await progress(.materializedView, processedObjects, totalObjectsCount)
-                    }
-                    let columns = columnsByObject[name] ?? []
-                    objects.append(
-                        SchemaObjectInfo(
-                            name: name,
-                            schema: schemaName,
-                            type: .materializedView,
-                            columns: columns
-                        )
-                    )
-                }
+        }
+        
+        if !functionNames.isEmpty {
+            if let progress {
+                await progress(.function, processedObjects, totalObjectsCount)
             }
-            
-            if !functionNames.isEmpty {
+            for name in functionNames {
+                processedObjects += 1
                 if let progress {
                     await progress(.function, processedObjects, totalObjectsCount)
                 }
-                for name in functionNames {
-                    processedObjects += 1
-                    if let progress {
-                        await progress(.function, processedObjects, totalObjectsCount)
-                    }
-                    objects.append(
-                        SchemaObjectInfo(
-                            name: name,
-                            schema: schemaName,
-                            type: .function
-                        )
+                objects.append(
+                    SchemaObjectInfo(
+                        name: name,
+                        schema: schemaName,
+                        type: .function
                     )
-                }
+                )
             }
-            
-            if !triggerRows.isEmpty {
+        }
+        
+        if !triggerRows.isEmpty {
+            if let progress {
+                await progress(.trigger, processedObjects, totalObjectsCount)
+            }
+            for row in triggerRows {
+                let (name, timing, action, table) = row
+                let actionDisplay = "\(timing.uppercased()) \(action.uppercased())".trimmingCharacters(in: .whitespaces)
+                let tableName = "\(schemaName).\(table)"
+                processedObjects += 1
                 if let progress {
                     await progress(.trigger, processedObjects, totalObjectsCount)
                 }
-                for row in triggerRows {
-                    let (name, timing, action, table) = row
-                    let actionDisplay = "\(timing.uppercased()) \(action.uppercased())".trimmingCharacters(in: .whitespaces)
-                    let tableName = "\(schemaName).\(table)"
-                    processedObjects += 1
-                    if let progress {
-                        await progress(.trigger, processedObjects, totalObjectsCount)
-                    }
-                    objects.append(
-                        SchemaObjectInfo(
-                            name: name,
-                            schema: schemaName,
-                            type: .trigger,
-                            columns: [],
-                            triggerAction: actionDisplay,
-                            triggerTable: tableName
-                        )
+                objects.append(
+                    SchemaObjectInfo(
+                        name: name,
+                        schema: schemaName,
+                        type: .trigger,
+                        columns: [],
+                        triggerAction: actionDisplay,
+                        triggerTable: tableName
                     )
-                }
+                )
             }
-            
-            return SchemaInfo(name: schemaName, objects: objects)
         }
+        
+        return SchemaInfo(name: schemaName, objects: objects)
     }
 }

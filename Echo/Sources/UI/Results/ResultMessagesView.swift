@@ -50,7 +50,7 @@ struct ResultMessagesView: View {
                 }
             }
 
-            func tint(using theme: ThemeManager) -> Color {
+            @MainActor func tint(using theme: ThemeManager) -> Color {
                 switch self {
                 case .info:
                     return theme.accentColor

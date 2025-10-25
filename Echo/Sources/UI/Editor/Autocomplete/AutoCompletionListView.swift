@@ -8,7 +8,7 @@ import QuartzCore
 struct AutoCompletionListView: View {
     let suggestions: [SQLAutoCompletionSuggestion]
     let selectedID: String?
-    let onSelect: (SQLAutoCompletionSuggestion) -> Void
+    let onSelect: @Sendable (SQLAutoCompletionSuggestion) -> Void
     let detailResetID: UUID
     let statusMessage: String?
 
@@ -676,7 +676,7 @@ struct AutoCompletionDetailView: View {
     }
 
     private struct ColumnContentHeightKey: PreferenceKey {
-        static var defaultValue: CGFloat = 0
+        nonisolated(unsafe) static var defaultValue: CGFloat = 0
         static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
             value = max(value, nextValue())
         }

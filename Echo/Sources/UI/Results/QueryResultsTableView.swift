@@ -166,9 +166,9 @@ struct QueryResultsTableView: NSViewRepresentable {
         private var autoscrollTimerInterval: TimeInterval = 1.0 / 60.0
         private var pendingReloadWorkItems: [DispatchWorkItem] = []
         private var pendingRowCountCorrection = false
-        private var rowCountObserver: NSObjectProtocol?
+        private nonisolated(unsafe) var rowCountObserver: NSObjectProtocol?
         private var isPerformingUpdatePass = false
-        private var rowCountUpdateWorkItem: DispatchWorkItem?
+        private nonisolated(unsafe) var rowCountUpdateWorkItem: DispatchWorkItem?
         private static let isGridDiagnosticsEnabled: Bool = {
             ProcessInfo.processInfo.environment["ECHO_GRID_DEBUG"] == "1"
         }()
@@ -2965,7 +2965,7 @@ private struct ResultTableHeaderStyle {
     let borderColor: NSColor
     let separatorColor: CGColor
 
-    static func make(for theme: ThemeManager) -> ResultTableHeaderStyle {
+    @MainActor static func make(for theme: ThemeManager) -> ResultTableHeaderStyle {
         let baseColor = theme.resultsGridHeaderBackgroundNSColor.usingColorSpace(.extendedSRGB) ?? theme.resultsGridHeaderBackgroundNSColor
         let accentColor = theme.accentNSColor.usingColorSpace(.extendedSRGB) ?? theme.accentNSColor
         let isDarkMode = theme.activePaletteTone == .dark

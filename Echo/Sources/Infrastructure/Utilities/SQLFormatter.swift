@@ -162,7 +162,7 @@ private let mssqlKeywords: Set<String> = [
 
 // MARK: - SwiftUI Integration
 extension SQLFormatter {
-    static let shared = SQLFormatter()
+    @MainActor static let shared = SQLFormatter()
 }
 
 // MARK: - Settings Key

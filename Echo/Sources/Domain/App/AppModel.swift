@@ -1560,7 +1560,7 @@ final class AppModel: ObservableObject {
     func openDataPreviewTab(
         for session: ConnectionSession,
         object: SchemaObjectInfo,
-        sqlBuilder: @escaping (_ limit: Int, _ offset: Int) -> String,
+        sqlBuilder: @Sendable @escaping (_ limit: Int, _ offset: Int) -> String,
         initialBatchSize: Int? = nil
     ) {
         sessionManager.setActiveSession(session.id)

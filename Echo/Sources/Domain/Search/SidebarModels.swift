@@ -74,7 +74,7 @@ enum SidebarItem: Identifiable, Hashable, Codable {
     }
 }
 
-struct SavedFolder: Identifiable, Codable, Hashable {
+struct SavedFolder: Identifiable, Codable, Hashable, Sendable {
     static let defaultColorHex = "007AFF"
 
     var id: UUID = UUID()
@@ -142,9 +142,8 @@ struct SavedFolder: Identifiable, Codable, Hashable {
     }
 }
 
-@MainActor
 extension SavedFolder {
-    var color: Color {
+    nonisolated var color: Color {
         Color(hex: colorHex) ?? .blue
     }
 
