@@ -359,6 +359,7 @@ private struct WorkspaceWindowConfigurator: NSViewRepresentable {
     @MainActor
     final class Coordinator {
         private let overlay = WorkspaceToolbarTabBarOverlay()
+        private let topBarNavigatorOverlay = TopBarNavigatorOverlay()
         private var lastWindowID: ObjectIdentifier?
         private var lastStyle: WorkspaceTabBarStyle?
         private var lastKeyState: Bool?
@@ -375,6 +376,7 @@ private struct WorkspaceWindowConfigurator: NSViewRepresentable {
 
             if windowChanged {
                 overlay.detach()
+                topBarNavigatorOverlay.detach()
                 lastWindowID = windowID
             }
 
@@ -390,6 +392,17 @@ private struct WorkspaceWindowConfigurator: NSViewRepresentable {
                 )
                 lastStyle = tabBarStyle
             }
+
+            // Show the TopBarNavigator in the toolbar. Hide it when the toolbar tab bar is active
+            // to avoid visual overlap (the compact style uses the same toolbar region).
+            let showTopBarNavigator = (tabBarStyle != .toolbarCompact)
+            topBarNavigatorOverlay.apply(
+                window: window,
+                appModel: appModel,
+                appState: appState,
+                themeManager: themeManager,
+                isEnabled: showTopBarNavigator
+            )
 
             let isKey = window.isKeyWindow && window.identifier == AppWindowIdentifier.workspace
             if lastKeyState != isKey {
