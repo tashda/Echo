@@ -19,9 +19,9 @@ actor ResultSpoolManager {
     init(configuration: ResultSpoolConfiguration) {
         self.configuration = configuration
         Self.ensureDirectoryExists(configuration.rootDirectory)
-        self.maintenanceTask = Task.detached { [weak self] in
-            guard let self else { return }
-            await self.performMaintenance()
+        self.maintenanceTask = nil
+        Task { [weak self] in
+            await self?.scheduleMaintenance()
         }
     }
 

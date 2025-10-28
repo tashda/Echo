@@ -20,6 +20,13 @@ struct RecentConnectionRecord: Codable, Identifiable, Equatable {
     }
 }
 
+private struct DiagramTableKey: Hashable {
+    let schema: String
+    let name: String
+
+    var identifier: String { "\(schema).\(name)" }
+}
+
 @MainActor
 final class AppModel: ObservableObject {
 
@@ -51,7 +58,18 @@ final class AppModel: ObservableObject {
     // Project management
     @Published var projects: [Project] = []
     @Published var selectedProject: Project?
-    @Published var globalSettings: GlobalSettings = GlobalSettings()
+    @Published var globalSettings: GlobalSettings = GlobalSettings() {
+        didSet {
+            UserDefaults.standard.set(globalSettings.resultsStreamingFetchSize, forKey: ResultStreamingFetchSizeDefaultsKey)
+            UserDefaults.standard.set(globalSettings.resultsStreamingFetchRampMultiplier, forKey: ResultStreamingFetchRampMultiplierDefaultsKey)
+            UserDefaults.standard.set(globalSettings.resultsStreamingFetchRampMax, forKey: ResultStreamingFetchRampMaxDefaultsKey)
+            UserDefaults.standard.set(globalSettings.resultsUseCursorStreaming, forKey: ResultStreamingUseCursorDefaultsKey)
+            UserDefaults.standard.set(globalSettings.resultsCursorStreamingLimitThreshold, forKey: ResultStreamingCursorLimitThresholdDefaultsKey)
+            UserDefaults.standard.set(globalSettings.resultsStreamingMode.rawValue, forKey: ResultStreamingModeDefaultsKey)
+            UserDefaults.standard.set(globalSettings.resultsEnableTypeFormatting, forKey: ResultFormattingEnabledDefaultsKey)
+            UserDefaults.standard.set(globalSettings.resultsFormattingMode.rawValue, forKey: ResultFormattingModeDefaultsKey)
+        }
+    }
     @Published var navigationState = NavigationState()
     @Published var isWorkspaceWindowKey = false
     @Published var isManageConnectionsPresented = false
@@ -68,6 +86,10 @@ final class AppModel: ObservableObject {
     private let keychain = KeychainHelper()
     private let clipboardHistory: ClipboardHistoryStore
     let resultSpoolManager: ResultSpoolManager
+    let diagramCacheManager: DiagramCacheManager
+    let diagramKeyStore: DiagramEncryptionKeyStore
+    private let diagramPrefetchService = DiagramPrefetchService()
+    private var diagramRefreshTask: Task<Void, Never>?
     private var cancellables: Set<AnyCancellable> = []
     private var sessionDatabaseCancellables: [UUID: AnyCancellable] = [:]
     private let defaultInspectorWidth: CGFloat = 360
@@ -82,18 +104,329 @@ final class AppModel: ObservableObject {
         return DatabaseStructureFetcher(factory: factory, databaseType: connection.databaseType)
     }
 
-    private struct DiagramTableKey: Hashable {
-        let schema: String
-        let name: String
+    private func makeDiagramViewModel(
+        title: String,
+        baseKey: DiagramTableKey,
+        tableDetails: [DiagramTableKey: TableStructureDetails],
+        layoutSnapshot: DiagramLayoutSnapshot?,
+        structureSnapshot: DiagramStructureSnapshot? = nil,
+        checksum: String? = nil,
+        loadSource: DiagramLoadSource = .live(Date()),
+        inboundKeys: Set<DiagramTableKey> = [],
+        outboundKeys: Set<DiagramTableKey> = []
+    ) -> SchemaDiagramViewModel {
+        func buildColumns(for details: TableStructureDetails) -> [SchemaDiagramColumn] {
+            let primaryKeys = Set(details.primaryKey?.columns.map { $0.lowercased() } ?? [])
+            let foreignKeys = Set(details.foreignKeys.flatMap { $0.columns.map { $0.lowercased() } })
 
-        var identifier: String { "\(schema).\(name)" }
+            return details.columns.map { column in
+                SchemaDiagramColumn(
+                    name: column.name,
+                    dataType: column.dataType,
+                    isPrimaryKey: primaryKeys.contains(column.name.lowercased()),
+                    isForeignKey: foreignKeys.contains(column.name.lowercased())
+                )
+            }
+        }
+
+        var edges: [SchemaDiagramEdge] = []
+
+        func appendForeignKeyEdges(from tableKey: DiagramTableKey, details: TableStructureDetails) {
+            for fk in details.foreignKeys {
+                let targetSchema = fk.referencedSchema.isEmpty ? tableKey.schema : fk.referencedSchema
+                let targetKey = DiagramTableKey(schema: targetSchema, name: fk.referencedTable)
+
+                for pair in zip(fk.columns, fk.referencedColumns) {
+                    edges.append(
+                        SchemaDiagramEdge(
+                            fromNodeID: tableKey.identifier,
+                            fromColumn: pair.0,
+                            toNodeID: targetKey.identifier,
+                            toColumn: pair.1,
+                            relationshipName: fk.name
+                        )
+                    )
+                }
+            }
+        }
+
+        let spacingX: CGFloat = 420
+        let spacingY: CGFloat = 320
+        let baseIdentifier = baseKey.identifier
+
+        let inboundIdentifiers = Set(inboundKeys.map(\.identifier))
+        let outboundIdentifiers = Set(outboundKeys.map(\.identifier))
+        let overlapIdentifiers = inboundIdentifiers.intersection(outboundIdentifiers)
+        let inboundOnlyIdentifiers = inboundIdentifiers.subtracting(overlapIdentifiers)
+        let outboundOnlyIdentifiers = outboundIdentifiers.subtracting(overlapIdentifiers)
+
+        var storedPositions: [String: CGPoint] = layoutSnapshot?
+            .nodePositions
+            .reduce(into: [:]) { partial, entry in
+                partial[entry.nodeID] = CGPoint(x: entry.x, y: entry.y)
+            } ?? [:]
+
+        let snapshotHasMeaningfulLayout: Bool = {
+            guard let snapshot = layoutSnapshot, !snapshot.nodePositions.isEmpty else { return false }
+            let uniqueKeys = Set(snapshot.nodePositions.map { node -> String in
+                let xKey = Int((node.x * 1000).rounded(.toNearestOrEven))
+                let yKey = Int((node.y * 1000).rounded(.toNearestOrEven))
+                return "\(xKey)-\(yKey)"
+            })
+            return uniqueKeys.count > 1
+        }()
+
+        if !snapshotHasMeaningfulLayout {
+            storedPositions.removeAll()
+        }
+
+        func rowsRequired(for count: Int, columns: Int) -> Int {
+            guard count > 0 else { return 0 }
+            return Int(ceil(Double(count) / Double(columns)))
+        }
+
+        func makeLeftPosition(index: inout Int, total: Int) -> CGPoint {
+            guard total > 0 else { return .zero }
+            let columns = max(1, min(3, total))
+            let column = index % columns
+            let row = index / columns
+            index += 1
+            let x = -CGFloat(column + 1) * spacingX
+            let y = CGFloat(row) * spacingY
+            return CGPoint(x: x, y: y)
+        }
+
+        func makeRightPosition(index: inout Int, total: Int) -> CGPoint {
+            guard total > 0 else { return .zero }
+            let columns = max(1, min(3, total))
+            let column = index % columns
+            let row = index / columns
+            index += 1
+            let x = CGFloat(column + 1) * spacingX
+            let y = CGFloat(row) * spacingY
+            return CGPoint(x: x, y: y)
+        }
+
+        func makeTopPosition(index: inout Int, total: Int) -> CGPoint {
+            guard total > 0 else { return .zero }
+            let columns = max(1, min(4, total))
+            let column = index % columns
+            let row = index / columns
+            index += 1
+            let centeredColumn = CGFloat(column) - CGFloat(columns - 1) / 2
+            let x = centeredColumn * spacingX * 0.9
+            let y = -CGFloat(row + 1) * spacingY
+            return CGPoint(x: x, y: y)
+        }
+
+        func makeBottomPosition(index: inout Int, total: Int, verticalOffset: Int) -> CGPoint {
+            guard total > 0 else { return .zero }
+            let columns = max(2, min(4, total))
+            let column = index % columns
+            let row = index / columns
+            index += 1
+            let centeredColumn = CGFloat(column) - CGFloat(columns - 1) / 2
+            let x = centeredColumn * spacingX * 0.9
+            let y = CGFloat(verticalOffset + row + 1) * spacingY
+            return CGPoint(x: x, y: y)
+        }
+
+        let sortedKeys = tableDetails.keys.sorted { lhs, rhs in
+            if lhs.schema.caseInsensitiveCompare(rhs.schema) == .orderedSame {
+                return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
+            }
+            return lhs.schema.localizedCaseInsensitiveCompare(rhs.schema) == .orderedAscending
+        }
+
+        let overlapKeys = sortedKeys.filter { overlapIdentifiers.contains($0.identifier) }
+        let inboundKeysOrdered = sortedKeys.filter { inboundOnlyIdentifiers.contains($0.identifier) }
+        let outboundKeysOrdered = sortedKeys.filter { outboundOnlyIdentifiers.contains($0.identifier) }
+        let neutralKeys = sortedKeys.filter {
+            $0 != baseKey
+                && !inboundIdentifiers.contains($0.identifier)
+                && !outboundIdentifiers.contains($0.identifier)
+        }
+
+        let inboundRows = rowsRequired(for: inboundKeysOrdered.count, columns: max(1, min(3, inboundKeysOrdered.count)))
+        let outboundRows = rowsRequired(for: outboundKeysOrdered.count, columns: max(1, min(3, outboundKeysOrdered.count)))
+        let verticalOffsetForBottom = max(inboundRows, outboundRows)
+
+        var leftIndex = 0
+        var rightIndex = 0
+        var topIndex = 0
+        var bottomIndex = 0
+
+        if storedPositions[baseIdentifier] == nil {
+            storedPositions[baseIdentifier] = .zero
+        }
+
+        if overlapKeys.contains(baseKey) {
+            storedPositions[baseIdentifier] = .zero
+        }
+
+        for key in overlapKeys where key != baseKey && storedPositions[key.identifier] == nil {
+            storedPositions[key.identifier] = makeTopPosition(index: &topIndex, total: overlapKeys.count)
+        }
+
+        for key in inboundKeysOrdered where storedPositions[key.identifier] == nil {
+            storedPositions[key.identifier] = makeLeftPosition(index: &leftIndex, total: inboundKeysOrdered.count)
+        }
+
+        for key in outboundKeysOrdered where storedPositions[key.identifier] == nil {
+            storedPositions[key.identifier] = makeRightPosition(index: &rightIndex, total: outboundKeysOrdered.count)
+        }
+
+        for key in neutralKeys where storedPositions[key.identifier] == nil {
+            storedPositions[key.identifier] = makeBottomPosition(
+                index: &bottomIndex,
+                total: neutralKeys.count,
+                verticalOffset: max(1, verticalOffsetForBottom)
+            )
+        }
+
+        var nodeModels: [SchemaDiagramNodeModel] = []
+
+        if let baseDetails = tableDetails[baseKey] {
+            let baseNode = SchemaDiagramNodeModel(
+                schema: baseKey.schema,
+                name: baseKey.name,
+                columns: buildColumns(for: baseDetails),
+                position: storedPositions[baseKey.identifier] ?? .zero
+            )
+            nodeModels.append(baseNode)
+        }
+
+        let remainingKeys = sortedKeys.filter { $0 != baseKey }
+        for key in remainingKeys {
+            guard let details = tableDetails[key] else { continue }
+            let position = storedPositions[key.identifier] ?? .zero
+            let node = SchemaDiagramNodeModel(
+                schema: key.schema,
+                name: key.name,
+                columns: buildColumns(for: details),
+                position: position
+            )
+            nodeModels.append(node)
+        }
+
+        if !snapshotHasMeaningfulLayout {
+            // Lightweight pass to nudge overlapping nodes apart.
+            let minimumSeparation: CGFloat = 320
+            let iterations = 12
+            for _ in 0..<iterations {
+                var didAdjust = false
+                for i in nodeModels.indices {
+                    for j in nodeModels.indices where j > i {
+                        let lhs = nodeModels[i]
+                        let rhs = nodeModels[j]
+                        if lhs.id == rhs.id { continue }
+                        let vector = CGPoint(x: rhs.position.x - lhs.position.x, y: rhs.position.y - lhs.position.y)
+                        let distance = max(0.001, hypot(vector.x, vector.y))
+                        if distance < minimumSeparation {
+                            let overlap = (minimumSeparation - distance) / 2
+                            let angle = distance < 0.01 ? (Double(i + j).truncatingRemainder(dividingBy: 8) / 8.0) * 2 * .pi : atan2(vector.y, vector.x)
+                            let adjustX = CGFloat(cos(angle)) * overlap
+                            let adjustY = CGFloat(sin(angle)) * overlap
+
+                            if lhs.id == baseIdentifier {
+                                nodeModels[j].position = CGPoint(
+                                    x: nodeModels[j].position.x + adjustX * 2,
+                                    y: nodeModels[j].position.y + adjustY * 2
+                                )
+                            } else if rhs.id == baseIdentifier {
+                                nodeModels[i].position = CGPoint(
+                                    x: nodeModels[i].position.x - adjustX * 2,
+                                    y: nodeModels[i].position.y - adjustY * 2
+                                )
+                            } else {
+                                nodeModels[i].position = CGPoint(
+                                    x: nodeModels[i].position.x - adjustX,
+                                    y: nodeModels[i].position.y - adjustY
+                                )
+                                nodeModels[j].position = CGPoint(
+                                    x: nodeModels[j].position.x + adjustX,
+                                    y: nodeModels[j].position.y + adjustY
+                                )
+                            }
+                            didAdjust = true
+                        }
+                    }
+                }
+                if !didAdjust { break }
+            }
+        }
+
+        for (key, details) in tableDetails {
+            appendForeignKeyEdges(from: key, details: details)
+        }
+
+        let viewModel = SchemaDiagramViewModel(
+            nodes: nodeModels,
+            edges: edges,
+            baseNodeID: baseKey.identifier,
+            title: title,
+            layoutIdentifier: layoutSnapshot?.layoutID ?? "primary",
+            cachedStructure: structureSnapshot,
+            cachedChecksum: checksum,
+            loadSource: loadSource
+        )
+        return viewModel
+    }
+
+    private func hydrateCachedDiagram(from payload: DiagramCachePayload) -> SchemaDiagramViewModel {
+        let baseKey = DiagramTableKey(schema: payload.key.schema, name: payload.key.table)
+        var tableDetails: [DiagramTableKey: TableStructureDetails] = [:]
+        tableDetails[baseKey] = payload.structure.baseTable.details
+        for entry in payload.structure.relatedTables {
+            let key = DiagramTableKey(schema: entry.schema, name: entry.name)
+            tableDetails[key] = entry.details
+        }
+
+        var outboundKeys: Set<DiagramTableKey> = []
+        var inboundKeys: Set<DiagramTableKey> = []
+
+        if let baseDetails = tableDetails[baseKey] {
+            for fk in baseDetails.foreignKeys {
+                let schema = fk.referencedSchema.isEmpty ? baseKey.schema : fk.referencedSchema
+                outboundKeys.insert(DiagramTableKey(schema: schema, name: fk.referencedTable))
+            }
+        }
+
+        for entry in payload.structure.relatedTables {
+            let key = DiagramTableKey(schema: entry.schema, name: entry.name)
+            let referencesBase = entry.details.foreignKeys.contains { fk in
+                let referencedSchema = fk.referencedSchema.isEmpty ? entry.schema : fk.referencedSchema
+                return referencedSchema.caseInsensitiveCompare(baseKey.schema) == .orderedSame
+                    && fk.referencedTable.caseInsensitiveCompare(baseKey.name) == .orderedSame
+            }
+            if referencesBase {
+                inboundKeys.insert(key)
+            }
+        }
+
+        let title = "\(payload.key.schema).\(payload.key.table)"
+        return makeDiagramViewModel(
+            title: title,
+            baseKey: baseKey,
+            tableDetails: tableDetails,
+            layoutSnapshot: payload.layout,
+            structureSnapshot: payload.structure,
+            checksum: payload.checksum,
+            loadSource: .cache(payload.generatedAt),
+            inboundKeys: inboundKeys,
+            outboundKeys: outboundKeys
+        )
     }
 
     private func buildSchemaDiagram(
         for session: ConnectionSession,
-        object: SchemaObjectInfo
+        object: SchemaObjectInfo,
+        cacheKey: DiagramCacheKey?,
+        progress: (@Sendable (String) -> Void)? = nil,
+        isPrefetch: Bool = false
     ) async throws -> SchemaDiagramViewModel {
         let baseKey = DiagramTableKey(schema: object.schema, name: object.name)
+        progress?("Loading \(baseKey.schema).\(baseKey.name)…")
         let baseDetails = try await session.session.getTableStructureDetails(
             schema: object.schema,
             table: object.name
@@ -101,6 +434,35 @@ final class AppModel: ObservableObject {
 
         var tableDetails: [DiagramTableKey: TableStructureDetails] = [baseKey: baseDetails]
         var relatedKeys = Set<DiagramTableKey>()
+        var inboundRelationshipKeys = Set<DiagramTableKey>()
+        var outboundRelationshipKeys = Set<DiagramTableKey>()
+
+        struct PlaceholderAccumulator {
+            var columns: [String] = []
+            var columnSet: Set<String> = []
+            var foreignKeys: [TableStructureDetails.ForeignKey] = []
+
+            mutating func addColumn(_ name: String) {
+                guard !name.isEmpty else { return }
+                let key = name.lowercased()
+                if columnSet.insert(key).inserted {
+                    columns.append(name)
+                }
+            }
+
+            mutating func addColumns(_ names: [String]) {
+                for name in names {
+                    addColumn(name)
+                }
+            }
+
+            mutating func addForeignKey(_ foreignKey: TableStructureDetails.ForeignKey) {
+                foreignKeys.append(foreignKey)
+            }
+        }
+
+        var dependencyPlaceholders: [DiagramTableKey: PlaceholderAccumulator] = [:]
+        var referencedColumnPlaceholders: [DiagramTableKey: PlaceholderAccumulator] = [:]
 
         func normalize(_ identifier: String, fallbackSchema: String) -> DiagramTableKey {
             func clean(_ raw: String) -> String {
@@ -208,18 +570,43 @@ final class AppModel: ObservableObject {
             let referencedSchema = fk.referencedSchema.isEmpty ? baseKey.schema : fk.referencedSchema
             let key = DiagramTableKey(schema: referencedSchema, name: fk.referencedTable)
             relatedKeys.insert(key)
+            outboundRelationshipKeys.insert(key)
+
+            var accumulator = referencedColumnPlaceholders[key] ?? PlaceholderAccumulator()
+            accumulator.addColumns(fk.referencedColumns)
+            referencedColumnPlaceholders[key] = accumulator
         }
 
         for dependency in baseDetails.dependencies {
             let key = normalize(dependency.referencedTable, fallbackSchema: object.schema)
             relatedKeys.insert(key)
+            inboundRelationshipKeys.insert(key)
+
+            guard key != baseKey else { continue }
+
+            var accumulator = dependencyPlaceholders[key] ?? PlaceholderAccumulator()
+            accumulator.addColumns(dependency.baseColumns)
+
+            let foreignKey = TableStructureDetails.ForeignKey(
+                name: dependency.name,
+                columns: dependency.baseColumns,
+                referencedSchema: baseKey.schema,
+                referencedTable: baseKey.name,
+                referencedColumns: dependency.referencedColumns,
+                onUpdate: dependency.onUpdate,
+                onDelete: dependency.onDelete
+            )
+            accumulator.addForeignKey(foreignKey)
+            dependencyPlaceholders[key] = accumulator
         }
 
         relatedKeys.remove(baseKey)
 
         if !relatedKeys.isEmpty {
+            progress?("Loading related tables…")
             for key in relatedKeys where tableDetails[key] == nil {
                 do {
+                    progress?("Fetching \(key.schema).\(key.name)…")
                     let details = try await session.session.getTableStructureDetails(
                         schema: key.schema,
                         table: key.name
@@ -231,88 +618,103 @@ final class AppModel: ObservableObject {
                     #endif
                 }
             }
-        }
 
-        func buildColumns(for details: TableStructureDetails) -> [SchemaDiagramColumn] {
-            let primaryKeys = Set(details.primaryKey?.columns.map { $0.lowercased() } ?? [])
-            let foreignKeys = Set(details.foreignKeys.flatMap { $0.columns.map { $0.lowercased() } })
-
-            return details.columns.map { column in
-                SchemaDiagramColumn(
-                    name: column.name,
-                    dataType: column.dataType,
-                    isPrimaryKey: primaryKeys.contains(column.name.lowercased()),
-                    isForeignKey: foreignKeys.contains(column.name.lowercased())
-                )
-            }
-        }
-
-        var edges: [SchemaDiagramEdge] = []
-
-        func appendForeignKeyEdges(from tableKey: DiagramTableKey, details: TableStructureDetails) {
-            for fk in details.foreignKeys {
-                let targetSchema = fk.referencedSchema.isEmpty ? tableKey.schema : fk.referencedSchema
-                let targetKey = DiagramTableKey(schema: targetSchema, name: fk.referencedTable)
-                guard tableDetails[targetKey] != nil else { continue }
-
-                for pair in zip(fk.columns, fk.referencedColumns) {
-                    edges.append(
-                        SchemaDiagramEdge(
-                            fromNodeID: tableKey.identifier,
-                            fromColumn: pair.0,
-                            toNodeID: targetKey.identifier,
-                            toColumn: pair.1,
-                            relationshipName: fk.name
+            for key in relatedKeys where tableDetails[key] == nil {
+                if var accumulator = dependencyPlaceholders[key] {
+                    if let referenced = referencedColumnPlaceholders[key] {
+                        accumulator.addColumns(referenced.columns)
+                    }
+                    let columns = accumulator.columns.map {
+                        TableStructureDetails.Column(
+                            name: $0,
+                            dataType: "unknown",
+                            isNullable: true,
+                            defaultValue: nil,
+                            generatedExpression: nil
                         )
+                    }
+                    let details = TableStructureDetails(
+                        columns: columns,
+                        primaryKey: nil,
+                        indexes: [],
+                        uniqueConstraints: [],
+                        foreignKeys: accumulator.foreignKeys,
+                        dependencies: []
                     )
+                    tableDetails[key] = details
+                } else if let referenced = referencedColumnPlaceholders[key] {
+                    let columns = referenced.columns.map {
+                        TableStructureDetails.Column(
+                            name: $0,
+                            dataType: "unknown",
+                            isNullable: true,
+                            defaultValue: nil,
+                            generatedExpression: nil
+                        )
+                    }
+                    let details = TableStructureDetails(
+                        columns: columns,
+                        primaryKey: nil,
+                        indexes: [],
+                        uniqueConstraints: [],
+                        foreignKeys: [],
+                        dependencies: []
+                    )
+                    tableDetails[key] = details
                 }
             }
         }
 
-        var nodeModels: [SchemaDiagramNodeModel] = []
-
-        if let baseColumns = tableDetails[baseKey].map(buildColumns) {
-            let baseNode = SchemaDiagramNodeModel(
-                schema: baseKey.schema,
-                name: baseKey.name,
-                columns: baseColumns,
-                position: CGPoint(x: 0, y: 0)
+        progress?("Finalizing diagram…")
+        let title = "\(object.schema).\(object.name)"
+        let baseStructure = tableDetails[baseKey]
+        let relatedEntries = tableDetails
+            .filter { $0.key != baseKey }
+            .map { DiagramStructureSnapshot.TableEntry(schema: $0.key.schema, name: $0.key.name, details: $0.value) }
+        let structureSnapshot: DiagramStructureSnapshot? = baseStructure.map { details in
+            DiagramStructureSnapshot(
+                baseTable: .init(schema: baseKey.schema, name: baseKey.name, details: details),
+                relatedTables: relatedEntries
             )
-            nodeModels.append(baseNode)
         }
+        let checksum = baseStructure.map { DiagramChecksum.makeChecksum(base: $0, related: relatedEntries) }
 
-        let otherKeys = tableDetails.keys.filter { $0 != baseKey }
-        if !otherKeys.isEmpty {
-            let radius: CGFloat = 520
-            for (index, key) in otherKeys.enumerated() {
-                guard let details = tableDetails[key] else { continue }
-                let columns = buildColumns(for: details)
-                let angle = CGFloat(index) / CGFloat(otherKeys.count) * 2 * .pi
-                let position = CGPoint(
-                    x: cos(angle) * radius,
-                    y: sin(angle) * radius
-                )
-                let node = SchemaDiagramNodeModel(
-                    schema: key.schema,
-                    name: key.name,
-                    columns: columns,
-                    position: position
-                )
-                nodeModels.append(node)
+        let viewModel = makeDiagramViewModel(
+            title: title,
+            baseKey: baseKey,
+            tableDetails: tableDetails,
+            layoutSnapshot: nil,
+            structureSnapshot: structureSnapshot,
+            checksum: checksum,
+            loadSource: .live(Date()),
+            inboundKeys: inboundRelationshipKeys,
+            outboundKeys: outboundRelationshipKeys
+        )
+
+        if let cacheKey,
+           let structureSnapshot,
+           let checksum {
+            let payload = DiagramCachePayload(
+                key: cacheKey,
+                checksum: checksum,
+                structure: structureSnapshot,
+                layout: viewModel.layoutSnapshot(),
+                loadingSummary: nil
+            )
+            Task {
+                try? await diagramCacheManager.stashPayload(payload)
             }
         }
 
-        for (key, details) in tableDetails {
-            appendForeignKeyEdges(from: key, details: details)
+        if !isPrefetch {
+            await scheduleRelatedPrefetch(
+                for: session,
+                baseKey: baseKey,
+                relatedKeys: Array(relatedKeys)
+            )
         }
 
-        let title = "\(object.schema).\(object.name)"
-        return SchemaDiagramViewModel(
-            nodes: nodeModels,
-            edges: edges,
-            baseNodeID: baseKey.identifier,
-            title: title
-        )
+        return viewModel
     }
 
     private func loadExpandedConnectionFolders(for projectID: UUID?) {
@@ -356,6 +758,176 @@ final class AppModel: ObservableObject {
         await resultSpoolManager.update(configuration: config)
     }
 
+    private func applyDiagramCacheConfiguration(for settings: GlobalSettings) async {
+        let rootDirectory = DiagramCacheManager.defaultRootDirectory()
+        let normalizedLimit = max(settings.diagramCacheMaxBytes, 64 * 1_024 * 1_024)
+        let configuration = DiagramCacheManager.Configuration(
+            rootDirectory: rootDirectory,
+            maximumBytes: UInt64(normalizedLimit)
+        )
+        await diagramCacheManager.updateConfiguration(configuration)
+    }
+    
+    private func restartDiagramRefreshTask() {
+        diagramRefreshTask?.cancel()
+        diagramRefreshTask = nil
+        guard globalSettings.diagramPrefetchMode == .full else { return }
+        let cadence = globalSettings.diagramRefreshCadence
+        guard cadence != .never else { return }
+        let intervalSeconds: TimeInterval
+        switch cadence {
+        case .never:
+            return
+        case .daily:
+            intervalSeconds = 24 * 60 * 60
+        case .weekly:
+            intervalSeconds = 7 * 24 * 60 * 60
+        }
+        let intervalNanoseconds = UInt64(intervalSeconds) * 1_000_000_000
+        diagramRefreshTask = Task.detached(priority: .utility) { [weak self] in
+            await self?.runDiagramRefreshLoop(intervalNanoseconds: intervalNanoseconds)
+        }
+    }
+
+    @MainActor
+    private func runDiagramRefreshSweep() async {
+        guard globalSettings.diagramPrefetchMode == .full else { return }
+        await enqueueFullPrefetchSweep(isBackground: true)
+    }
+
+    @MainActor
+    private func runDiagramRefreshLoop(intervalNanoseconds: UInt64) async {
+        while !Task.isCancelled {
+            do {
+                try await Task.sleep(nanoseconds: intervalNanoseconds)
+            } catch {
+                break
+            }
+            if Task.isCancelled { break }
+            await runDiagramRefreshSweep()
+        }
+    }
+
+    @MainActor
+    private func handleDiagramSettingsChange(_ settings: GlobalSettings) async {
+        await diagramPrefetchService.cancelAll()
+        restartDiagramRefreshTask()
+        if settings.diagramPrefetchMode == .full {
+            await enqueueFullPrefetchSweep(isBackground: false)
+        }
+    }
+
+    @MainActor
+    private func handlePrefetchRequest(_ request: DiagramPrefetchService.Request) async -> Bool {
+        guard globalSettings.diagramPrefetchMode != .off else { return false }
+        if let _ = try? await diagramCacheManager.payload(for: request.cacheKey) {
+            return true
+        }
+        guard let session = sessionManager.activeSessions.first(where: { $0.id == request.connectionSessionID }) else {
+            return false
+        }
+        do {
+            _ = try await buildSchemaDiagram(
+                for: session,
+                object: request.object,
+                cacheKey: request.cacheKey,
+                progress: nil,
+                isPrefetch: true
+            )
+            return true
+        } catch {
+            #if DEBUG
+            print("Diagram prefetch failed for \(request.cacheKey.schema).\(request.cacheKey.table): \(error)")
+            #endif
+            return false
+        }
+    }
+
+    @MainActor
+    private func scheduleRelatedPrefetch(
+        for session: ConnectionSession,
+        baseKey: DiagramTableKey,
+        relatedKeys: [DiagramTableKey]
+    ) async {
+        guard globalSettings.diagramPrefetchMode != .off else { return }
+        guard let projectID = session.connection.projectID ?? selectedProject?.id else { return }
+        let filteredKeys = relatedKeys.filter { $0 != baseKey }
+        guard !filteredKeys.isEmpty else { return }
+        let sortedKeys = filteredKeys.sorted {
+            if $0.schema.caseInsensitiveCompare($1.schema) == .orderedSame {
+                return $0.name.lowercased() < $1.name.lowercased()
+            }
+            return $0.schema.lowercased() < $1.schema.lowercased()
+        }
+        let keysToQueue: [DiagramTableKey]
+        switch globalSettings.diagramPrefetchMode {
+        case .off:
+            return
+        case .recentlyOpened:
+            keysToQueue = Array(sortedKeys.prefix(8))
+        case .full:
+            keysToQueue = sortedKeys
+        }
+        guard !keysToQueue.isEmpty else { return }
+        for key in keysToQueue {
+            let cacheKey = DiagramCacheKey(
+                projectID: projectID,
+                connectionID: session.connection.id,
+                schema: key.schema,
+                table: key.name
+            )
+            let object = SchemaObjectInfo(name: key.name, schema: key.schema, type: .table)
+            let request = DiagramPrefetchService.Request(
+                cacheKey: cacheKey,
+                connectionSessionID: session.id,
+                object: object,
+                isBackgroundSweep: false
+            )
+            await diagramPrefetchService.enqueue(request, prioritize: true)
+        }
+    }
+
+    @MainActor
+    private func enqueueFullPrefetchSweep(isBackground: Bool) async {
+        guard globalSettings.diagramPrefetchMode == .full else { return }
+        for session in sessionManager.activeSessions {
+            await enqueueFullPrefetch(for: session, isBackground: isBackground)
+        }
+    }
+
+    @MainActor
+    private func enqueueFullPrefetch(for session: ConnectionSession, isBackground: Bool) async {
+        guard globalSettings.diagramPrefetchMode == .full else { return }
+        guard let projectID = session.connection.projectID ?? selectedProject?.id else { return }
+        guard let structure = session.databaseStructure else { return }
+        let targetDatabase = session.selectedDatabaseName ?? session.connection.database
+        for database in structure.databases where database.name.caseInsensitiveCompare(targetDatabase) == .orderedSame {
+            for schema in database.schemas {
+                for object in schema.tables {
+                    let cacheKey = DiagramCacheKey(
+                        projectID: projectID,
+                        connectionID: session.connection.id,
+                        schema: object.schema,
+                        table: object.name
+                    )
+                    let request = DiagramPrefetchService.Request(
+                        cacheKey: cacheKey,
+                        connectionSessionID: session.id,
+                        object: object,
+                        isBackgroundSweep: isBackground
+                    )
+                    await diagramPrefetchService.enqueue(request, prioritize: !isBackground)
+                }
+            }
+        }
+    }
+
+    @MainActor
+    private func enqueuePrefetchForSessionIfNeeded(_ session: ConnectionSession) async {
+        guard globalSettings.diagramPrefetchMode == .full else { return }
+        await enqueueFullPrefetch(for: session, isBackground: false)
+    }
+
     // MARK: - Computed helpers
     var selectedConnection: SavedConnection? {
         guard let id = selectedConnectionID else { return nil }
@@ -363,9 +935,16 @@ final class AppModel: ObservableObject {
     }
 
     // MARK: - Initialization
-    init(clipboardHistory: ClipboardHistoryStore, resultSpoolManager: ResultSpoolManager) {
+    init(
+        clipboardHistory: ClipboardHistoryStore,
+        resultSpoolManager: ResultSpoolManager,
+        diagramCacheManager: DiagramCacheManager,
+        diagramKeyStore: DiagramEncryptionKeyStore
+    ) {
         self.clipboardHistory = clipboardHistory
         self.resultSpoolManager = resultSpoolManager
+        self.diagramCacheManager = diagramCacheManager
+        self.diagramKeyStore = diagramKeyStore
         sessionManager.$activeSessionID
             .sink { [weak self] id in
                 guard let self else { return }
@@ -387,6 +966,7 @@ final class AppModel: ObservableObject {
 
                 for session in sessions where self.sessionDatabaseCancellables[session.id] == nil {
                     self.observeSession(session)
+                    Task { await self.enqueuePrefetchForSessionIfNeeded(session) }
                 }
 
                 if let activeID = self.sessionManager.activeSessionID,
@@ -432,9 +1012,34 @@ final class AppModel: ObservableObject {
             .removeDuplicates()
             .sink { [weak self] settings in
                 guard let self else { return }
-                Task { await self.applyResultSpoolConfiguration(for: settings) }
+                Task {
+                    await self.applyResultSpoolConfiguration(for: settings)
+                    await self.applyDiagramCacheConfiguration(for: settings)
+                    await self.handleDiagramSettingsChange(settings)
+                }
             }
             .store(in: &cancellables)
+
+        Task {
+            await applyResultSpoolConfiguration(for: globalSettings)
+            await applyDiagramCacheConfiguration(for: globalSettings)
+        }
+
+        Task {
+            await diagramCacheManager.updateKeyProvider { projectID in
+                try await MainActor.run {
+                    try diagramKeyStore.symmetricKey(forProjectID: projectID)
+                }
+            }
+        }
+        Task { [weak self] in
+            guard let self else { return }
+            await self.diagramPrefetchService.setHandler { [weak self] request in
+                guard let self else { return false }
+                return await self.handlePrefetchRequest(request)
+            }
+            await self.handleDiagramSettingsChange(self.globalSettings)
+        }
     }
 
     // MARK: - Persistence
@@ -627,18 +1232,34 @@ final class AppModel: ObservableObject {
 
     func updateGlobalEditorDisplay(_ update: (inout GlobalSettings) -> Void) async {
         update(&globalSettings)
+        let formattingEnabled = globalSettings.resultsEnableTypeFormatting
+        let formattingMode = globalSettings.resultsFormattingMode
+        for tab in tabManager.tabs {
+            tab.query?.updateResultsFormattingSettings(enabled: formattingEnabled, mode: formattingMode)
+        }
         await persistGlobalSettings()
     }
 
     func updateResultsStreaming(
         initialRowLimit: Int? = nil,
         previewBatchSize: Int? = nil,
-        backgroundStreamingThreshold: Int? = nil
+        backgroundStreamingThreshold: Int? = nil,
+        backgroundFetchSize: Int? = nil,
+        backgroundFetchRampMultiplier: Int? = nil,
+        backgroundFetchRampMax: Int? = nil,
+        useCursorStreaming: Bool? = nil,
+        cursorLimitThreshold: Int? = nil,
+        streamingMode: ResultStreamingExecutionMode? = nil
     ) async {
         let clampedInitial = initialRowLimit.map { max(100, $0) }
         let clampedPreview = previewBatchSize.map { max(100, $0) }
         let clampedBackground = backgroundStreamingThreshold.map { max(100, $0) }
-        guard [clampedInitial, clampedPreview, clampedBackground].contains(where: { $0 != nil }) else { return }
+        let clampedFetch = backgroundFetchSize.map { max(128, min($0, 16_384)) }
+        let clampedRampMultiplier = backgroundFetchRampMultiplier.map { max(1, min($0, 64)) }
+        let clampedRampMax = backgroundFetchRampMax.map { max(256, min($0, 1_048_576)) }
+        let clampedCursorThreshold = cursorLimitThreshold.map { max(0, min($0, 1_000_000)) }
+        let shouldUpdate = [clampedInitial, clampedPreview, clampedBackground, clampedFetch, clampedRampMultiplier, clampedRampMax, clampedCursorThreshold].contains { $0 != nil } || useCursorStreaming != nil || streamingMode != nil
+        guard shouldUpdate else { return }
 
         await updateGlobalEditorDisplay { settings in
             if let value = clampedInitial {
@@ -649,6 +1270,24 @@ final class AppModel: ObservableObject {
             }
             if let value = clampedBackground {
                 settings.resultsBackgroundStreamingThreshold = value
+            }
+            if let value = clampedFetch {
+                settings.resultsStreamingFetchSize = value
+            }
+            if let value = clampedRampMultiplier {
+                settings.resultsStreamingFetchRampMultiplier = value
+            }
+            if let value = clampedRampMax {
+                settings.resultsStreamingFetchRampMax = value
+            }
+            if let cursor = useCursorStreaming {
+                settings.resultsUseCursorStreaming = cursor
+            }
+            if let value = clampedCursorThreshold {
+                settings.resultsCursorStreamingLimitThreshold = value
+            }
+            if let mode = streamingMode {
+                settings.resultsStreamingMode = mode
             }
         }
 
@@ -661,6 +1300,27 @@ final class AppModel: ObservableObject {
             for session in sessionManager.activeSessions {
                 session.updateDefaultBackgroundStreamingThreshold(value)
             }
+        }
+        if let value = clampedFetch {
+            UserDefaults.standard.set(value, forKey: ResultStreamingFetchSizeDefaultsKey)
+            for session in sessionManager.activeSessions {
+                session.updateDefaultBackgroundFetchSize(value)
+            }
+        }
+        if let value = clampedRampMultiplier {
+            UserDefaults.standard.set(value, forKey: ResultStreamingFetchRampMultiplierDefaultsKey)
+        }
+        if let value = clampedRampMax {
+            UserDefaults.standard.set(value, forKey: ResultStreamingFetchRampMaxDefaultsKey)
+        }
+        if let cursor = useCursorStreaming {
+            UserDefaults.standard.set(cursor, forKey: ResultStreamingUseCursorDefaultsKey)
+        }
+        if let value = clampedCursorThreshold {
+            UserDefaults.standard.set(value, forKey: ResultStreamingCursorLimitThresholdDefaultsKey)
+        }
+        if let mode = streamingMode {
+            UserDefaults.standard.set(mode.rawValue, forKey: ResultStreamingModeDefaultsKey)
         }
     }
 
@@ -835,7 +1495,8 @@ final class AppModel: ObservableObject {
 
     func openQueryTab(for session: ConnectionSession? = nil,
                       presetQuery: String = "",
-                      bookmarkContext: WorkspaceTab.BookmarkTabContext? = nil) {
+                      bookmarkContext: WorkspaceTab.BookmarkTabContext? = nil,
+                      autoExecute: Bool = false) {
         guard let targetSession = session
                 ?? sessionManager.activeSession
                 ?? sessionManager.activeSessions.first else { return }
@@ -878,8 +1539,14 @@ final class AppModel: ObservableObject {
             sql: presetQuery.isEmpty ? "SELECT current_timestamp;" : presetQuery,
             initialVisibleRowBatch: initialBatch,
             previewRowLimit: previewLimit,
-            spoolManager: resultSpoolManager
+            spoolManager: resultSpoolManager,
+            backgroundFetchSize: globalSettings.resultsStreamingFetchSize
         )
+        queryState.updateResultsFormattingSettings(
+            enabled: globalSettings.resultsEnableTypeFormatting,
+            mode: globalSettings.resultsFormattingMode
+        )
+        queryState.shouldAutoExecuteOnAppear = autoExecute
 
         func normalized(_ value: String) -> String? {
             let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -910,7 +1577,7 @@ final class AppModel: ObservableObject {
     func openDataPreviewTab(
         for session: ConnectionSession,
         object: SchemaObjectInfo,
-        sqlBuilder: @escaping (_ limit: Int, _ offset: Int) -> String,
+        sqlBuilder: @Sendable @escaping (_ limit: Int, _ offset: Int) -> String,
         initialBatchSize: Int? = nil
     ) {
         sessionManager.setActiveSession(session.id)
@@ -929,7 +1596,12 @@ final class AppModel: ObservableObject {
             sql: initialSQL,
             initialVisibleRowBatch: configuredBatchSize,
             previewRowLimit: previewLimit,
-            spoolManager: resultSpoolManager
+            spoolManager: resultSpoolManager,
+            backgroundFetchSize: globalSettings.resultsStreamingFetchSize
+        )
+        queryState.updateResultsFormattingSettings(
+            enabled: globalSettings.resultsEnableTypeFormatting,
+            mode: globalSettings.resultsFormattingMode
         )
         queryState.isResultsOnly = true
         queryState.shouldAutoExecuteOnAppear = true
@@ -971,32 +1643,213 @@ final class AppModel: ObservableObject {
         sessionManager.setActiveSession(session.id)
         selectedConnectionID = session.connection.id
 
+        let baseIdentifier = "\(object.schema).\(object.name)"
+        let projectID = session.connection.projectID ?? selectedProject?.id
+        let cacheKey = projectID.map {
+            DiagramCacheKey(
+                projectID: $0,
+                connectionID: session.connection.id,
+                schema: object.schema,
+                table: object.name
+            )
+        }
+
         Task {
-            do {
-                let diagramModel = try await buildSchemaDiagram(for: session, object: object)
-                await MainActor.run {
-                    let title = "\(object.name) Diagram"
-                    let newTab = WorkspaceTab(
-                        connection: session.connection,
-                        session: session.session,
+            let placeholderViewModel = await MainActor.run { () -> SchemaDiagramViewModel in
+                let viewModel = SchemaDiagramViewModel(
+                    nodes: [],
+                    edges: [],
+                    baseNodeID: baseIdentifier,
+                    title: "\(object.schema).\(object.name)",
+                    isLoading: true,
+                    statusMessage: "Loading \(baseIdentifier)…",
+                    errorMessage: nil,
+                    context: SchemaDiagramContext(
+                        projectID: projectID,
+                        connectionID: session.connection.id,
                         connectionSessionID: session.id,
-                        title: title,
-                        content: .diagram(diagramModel)
+                        object: object,
+                        cacheKey: cacheKey
                     )
-                    tabManager.addTab(newTab)
-                    tabManager.activeTabId = newTab.id
+                )
+
+                let newTab = WorkspaceTab(
+                    connection: session.connection,
+                    session: session.session,
+                    connectionSessionID: session.id,
+                    title: "\(object.name) Diagram",
+                    content: .diagram(viewModel)
+                )
+                tabManager.addTab(newTab)
+                tabManager.activeTabId = newTab.id
+
+                let placeholderColumn = SchemaDiagramColumn(
+                    name: "Loading…",
+                    dataType: "",
+                    isPrimaryKey: false,
+                    isForeignKey: false
+                )
+                let placeholderNode = SchemaDiagramNodeModel(
+                    schema: object.schema,
+                    name: object.name,
+                    columns: [placeholderColumn],
+                    position: .zero
+                )
+                viewModel.nodes = [placeholderNode]
+
+                return viewModel
+            }
+
+            if let cacheKey,
+               let cachedPayload = try? await diagramCacheManager.payload(for: cacheKey) {
+                let cachedModel = hydrateCachedDiagram(from: cachedPayload)
+                await MainActor.run {
+                    placeholderViewModel.nodes = cachedModel.nodes
+                    placeholderViewModel.edges = cachedModel.edges
+                    placeholderViewModel.layoutIdentifier = cachedModel.layoutIdentifier
+                    placeholderViewModel.cachedStructure = cachedModel.cachedStructure
+                    placeholderViewModel.cachedChecksum = cachedModel.cachedChecksum
+                    placeholderViewModel.loadSource = cachedModel.loadSource
+                    placeholderViewModel.isLoading = false
+                    placeholderViewModel.statusMessage = nil
+                    placeholderViewModel.errorMessage = nil
+                }
+
+                if !globalSettings.diagramVerifyBeforeRefresh {
+                    return
+                }
+            }
+
+            do {
+                let diagramModel = try await buildSchemaDiagram(
+                    for: session,
+                    object: object,
+                    cacheKey: cacheKey,
+                    progress: { status in
+                        Task { @MainActor in
+                            placeholderViewModel.statusMessage = cacheKey == nil ? status : nil
+                        }
+                    }
+                )
+                await MainActor.run {
+                    placeholderViewModel.nodes = diagramModel.nodes
+                    placeholderViewModel.edges = diagramModel.edges
+                    placeholderViewModel.isLoading = false
+                    placeholderViewModel.statusMessage = nil
+                    placeholderViewModel.errorMessage = nil
+                    placeholderViewModel.layoutIdentifier = diagramModel.layoutIdentifier
+                    placeholderViewModel.cachedStructure = diagramModel.cachedStructure
+                    placeholderViewModel.cachedChecksum = diagramModel.cachedChecksum
+                    placeholderViewModel.loadSource = diagramModel.loadSource
                 }
             } catch {
+                let databaseError = DatabaseError.from(error)
                 await MainActor.run {
-                    self.lastError = DatabaseError.from(error)
+                    placeholderViewModel.isLoading = false
+                    placeholderViewModel.statusMessage = nil
+                    placeholderViewModel.errorMessage = databaseError.localizedDescription
+                    self.lastError = databaseError
                 }
             }
         }
     }
 
+    // MARK: - Job Management Tab
+
+    @MainActor
+    func openJobManagementTab(for session: ConnectionSession? = nil, selectJobID: String? = nil) {
+        guard let targetSession = session ?? sessionManager.activeSession ?? sessionManager.activeSessions.first else { return }
+        sessionManager.setActiveSession(targetSession.id)
+        selectedConnectionID = targetSession.connection.id
+
+        let titleBase = "Jobs"
+        let existingCount = tabManager.tabs.filter { $0.connection.id == targetSession.connection.id && $0.kind == .jobManagement }.count
+        let title = existingCount == 0 ? titleBase : "\(titleBase) #\(existingCount + 1)"
+
+        let viewModel = JobManagementViewModel(session: targetSession.session, connection: targetSession.connection, initialSelectedJobID: selectJobID)
+        let newTab = WorkspaceTab(
+            connection: targetSession.connection,
+            session: targetSession.session,
+            connectionSessionID: targetSession.id,
+            title: title,
+            content: .jobManagement(viewModel)
+        )
+        tabManager.addTab(newTab)
+        tabManager.activeTabId = newTab.id
+    }
+
     func closeActiveQueryTab() {
         guard let activeTab = tabManager.activeTab else { return }
         tabManager.closeTab(id: activeTab.id)
+    }
+
+    func refreshDiagram(_ viewModel: SchemaDiagramViewModel) async {
+        guard let context = viewModel.context else { return }
+        guard let session = sessionManager.activeSessions.first(where: { $0.id == context.connectionSessionID }) else { return }
+        let projectID = session.connection.projectID ?? selectedProject?.id
+        let cacheKey = context.cacheKey ?? projectID.map {
+            DiagramCacheKey(
+                projectID: $0,
+                connectionID: session.connection.id,
+                schema: context.object.schema,
+                table: context.object.name
+            )
+        }
+
+        await MainActor.run {
+            viewModel.isLoading = true
+            viewModel.statusMessage = "Refreshing diagram…"
+            viewModel.errorMessage = nil
+        }
+
+        do {
+            let diagramModel = try await buildSchemaDiagram(
+                for: session,
+                object: context.object,
+                cacheKey: cacheKey,
+                progress: { status in
+                    Task { @MainActor in
+                        viewModel.statusMessage = status
+                    }
+                }
+            )
+            await MainActor.run {
+                viewModel.nodes = diagramModel.nodes
+                viewModel.edges = diagramModel.edges
+                viewModel.layoutIdentifier = diagramModel.layoutIdentifier
+                viewModel.cachedStructure = diagramModel.cachedStructure
+                viewModel.cachedChecksum = diagramModel.cachedChecksum
+                viewModel.loadSource = diagramModel.loadSource
+                viewModel.isLoading = false
+                viewModel.statusMessage = nil
+                viewModel.errorMessage = nil
+            }
+        } catch {
+            let databaseError = DatabaseError.from(error)
+            await MainActor.run {
+                viewModel.isLoading = false
+                viewModel.statusMessage = nil
+                viewModel.errorMessage = databaseError.localizedDescription
+                self.lastError = databaseError
+            }
+        }
+    }
+
+    @MainActor
+    func persistDiagramLayout(_ viewModel: SchemaDiagramViewModel) async {
+        guard let context = viewModel.context,
+              let cacheKey = context.cacheKey else { return }
+        guard let structure = viewModel.cachedStructure,
+              let checksum = viewModel.cachedChecksum else { return }
+        let payload = DiagramCachePayload(
+            key: cacheKey,
+            checksum: checksum,
+            structure: structure,
+            layout: viewModel.layoutSnapshot(),
+            loadingSummary: nil
+        )
+        try? await diagramCacheManager.stashPayload(payload)
+        viewModel.loadSource = .cache(Date())
     }
 
     func duplicateTab(_ tab: WorkspaceTab) {
@@ -1011,7 +1864,12 @@ final class AppModel: ObservableObject {
             sql: queryState.sql,
             initialVisibleRowBatch: initialBatch,
             previewRowLimit: previewLimit,
-            spoolManager: resultSpoolManager
+            spoolManager: resultSpoolManager,
+            backgroundFetchSize: globalSettings.resultsStreamingFetchSize
+        )
+        duplicateState.updateResultsFormattingSettings(
+            enabled: globalSettings.resultsEnableTypeFormatting,
+            mode: globalSettings.resultsFormattingMode
         )
         duplicateState.splitRatio = queryState.splitRatio
         duplicateState.updateClipboardContext(
@@ -1083,6 +1941,7 @@ final class AppModel: ObservableObject {
         connectionStates.removeValue(forKey: connection.id)
 
         if let session = sessionManager.sessionForConnection(connection.id) {
+            await session.cancelStructureLoadTask()
             await session.session.close()
             sessionManager.removeSession(withID: session.id)
         }
@@ -1605,6 +2464,7 @@ final class AppModel: ObservableObject {
         if let existing = sessionManager.sessionForConnection(connection.id) {
             if forceReconnect {
                 priorSession = existing
+                await existing.cancelStructureLoadTask()
                 await existing.session.close()
                 sessionManager.removeSession(withID: existing.id)
             } else {
@@ -1642,6 +2502,7 @@ final class AppModel: ObservableObject {
                 session: databaseSession,
                 defaultInitialBatchSize: globalSettings.resultsInitialRowLimit,
                 defaultBackgroundStreamingThreshold: globalSettings.resultsBackgroundStreamingThreshold,
+                defaultBackgroundFetchSize: globalSettings.resultsStreamingFetchSize,
                 spoolManager: resultSpoolManager
             )
 
@@ -1671,21 +2532,7 @@ final class AppModel: ObservableObject {
             let targetDatabase = session.selectedDatabaseName ?? (resolvedConnection.database.isEmpty ? nil : resolvedConnection.database)
             recordRecentConnection(for: resolvedConnection, databaseName: targetDatabase)
 
-            Task {
-                do {
-                    let structure = try await loadDatabaseStructureForSession(session)
-                    await MainActor.run {
-                        session.databaseStructure = structure
-                        session.structureLoadingState = .ready
-                        cacheStructure(structure, for: session.connection.id)
-                    }
-                } catch {
-                    await MainActor.run {
-                        session.structureLoadingState = .failed(message: error.localizedDescription)
-                    }
-                    print("Failed to load database structure: \(error)")
-                }
-            }
+            startStructureLoadTask(for: session)
         } catch {
             let dbError = DatabaseError.from(error)
             connectionStates[connection.id] = .error(dbError)
@@ -1710,6 +2557,7 @@ final class AppModel: ObservableObject {
 
     func disconnect() async {
         for session in sessionManager.activeSessions {
+            await session.cancelStructureLoadTask()
             await session.session.close()
             connectionStates[session.connection.id] = .disconnected
         }
@@ -1721,6 +2569,7 @@ final class AppModel: ObservableObject {
 
     func disconnectSession(withID sessionID: UUID) async {
         guard let session = sessionManager.activeSessions.first(where: { $0.id == sessionID }) else { return }
+        await session.cancelStructureLoadTask()
         await session.session.close()
         sessionManager.removeSession(withID: sessionID)
         connectionStates[session.connection.id] = .disconnected
@@ -1761,6 +2610,35 @@ final class AppModel: ObservableObject {
     }
 
     // MARK: - Database Metadata
+    @MainActor
+    private func startStructureLoadTask(for session: ConnectionSession) {
+        session.structureLoadTask?.cancel()
+        session.structureLoadTask = Task { @MainActor [weak self, weak session] in
+            guard let self, let session else { return }
+            defer { session.structureLoadTask = nil }
+            ConnectionDebug.log("[AppModel] Starting structure load task for session=\(session.connection.connectionName) selected=\(session.selectedDatabaseName ?? "<nil>")")
+            do {
+                let structure = try await self.loadDatabaseStructureForSession(session)
+                session.databaseStructure = structure
+                session.structureLoadingState = .ready
+                session.structureLoadingMessage = nil
+                self.cacheStructure(structure, for: session.connection.id)
+                ConnectionDebug.log("[AppModel] Structure load completed for session=\(session.connection.connectionName) databases=\(structure.databases.count)")
+            } catch is CancellationError {
+                session.structureLoadingMessage = nil
+                session.structureLoadingState = .idle
+                ConnectionDebug.log("[AppModel] Structure load cancelled for session=\(session.connection.connectionName)")
+            } catch {
+                session.structureLoadingMessage = error.localizedDescription
+                session.structureLoadingState = .failed(message: error.localizedDescription)
+                // Log both user-friendly and debug representations for opaque errors (e.g. PostgresDecodingError)
+                print("Failed to load database structure: \(error)")
+                print("Failed to load database structure (debug): \(String(reflecting: error))")
+                ConnectionDebug.log("[AppModel] Structure load failed for session=\(session.connection.connectionName) error=\(error.localizedDescription)")
+            }
+        }
+    }
+
     func loadDatabaseStructureForSession(_ connectionSession: ConnectionSession) async throws -> DatabaseStructure {
         try Task.checkCancellation()
 
@@ -1774,6 +2652,11 @@ final class AppModel: ObservableObject {
         if connectionSession.selectedDatabaseName == nil,
            !connectionSession.connection.database.isEmpty {
             connectionSession.selectedDatabaseName = connectionSession.connection.database
+        }
+
+        if ConnectionDebug.isEnabled {
+            let existingDatabases = connectionSession.databaseStructure?.databases.count ?? 0
+            ConnectionDebug.log("[AppModel] Beginning structure load for session=\(connectionSession.connection.connectionName) selected=\(connectionSession.selectedDatabaseName ?? "<nil>") existingDatabases=\(existingDatabases)")
         }
 
         guard let credentials = resolvedCredentials(for: connectionSession.connection) else {
@@ -1807,6 +2690,8 @@ final class AppModel: ObservableObject {
                 credentials: .init(authentication: credentials),
                 selectedDatabase: selectedDatabase,
                 reuseSession: connectionSession.session,
+                databaseFilter: nil,
+                cachedStructure: connectionSession.connection.cachedStructure,
                 progressHandler: { progress in
                     await MainActor.run {
                         connectionSession.structureLoadingState = .loading(progress: progress.fraction)
@@ -1817,17 +2702,29 @@ final class AppModel: ObservableObject {
                 },
                 databaseHandler: { database, _, _ in
                     await MainActor.run {
-                        var databases = connectionSession.databaseStructure?.databases ?? []
+                        var databases = connectionSession.databaseStructure?.databases
+                            ?? connectionSession.connection.cachedStructure?.databases
+                            ?? []
                         if let index = databases.firstIndex(where: { $0.name == database.name }) {
                             databases[index] = database
                         } else {
                             databases.append(database)
                             databases.sort { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
                         }
-                        connectionSession.databaseStructure = DatabaseStructure(
-                            serverVersion: interimServerVersion,
+                        if ConnectionDebug.isEnabled {
+                            ConnectionDebug.log("[AppModel] Incremental update for session=\(connectionSession.connection.connectionName) database=\(database.name) schemas=\(database.schemas.count) totalDatabases=\(databases.count)")
+                        }
+                        let resolvedServerVersion = interimServerVersion
+                            ?? connectionSession.databaseStructure?.serverVersion
+                            ?? connectionSession.connection.cachedStructure?.serverVersion
+                            ?? connectionSession.connection.serverVersion
+                        let updatedStructure = DatabaseStructure(
+                            serverVersion: resolvedServerVersion,
                             databases: databases
                         )
+                        connectionSession.databaseStructure = updatedStructure
+                        self.ensureSelectedDatabaseIfNeeded(for: connectionSession, availableDatabases: databases)
+                        self.cacheStructure(updatedStructure, for: connectionSession.connection.id)
                     }
                 }
             )
@@ -1836,18 +2733,23 @@ final class AppModel: ObservableObject {
                 interimServerVersion = serverVersion
             }
 
-            connectionSession.databaseStructure = DatabaseStructure(
+            let finalStructure = DatabaseStructure(
                 serverVersion: interimServerVersion,
                 databases: structure.databases
             )
+            connectionSession.databaseStructure = finalStructure
+            if ConnectionDebug.isEnabled {
+                let totalSchemas = structure.databases.reduce(0) { $0 + $1.schemas.count }
+                let totalObjects = structure.databases.reduce(0) { result, database in
+                    result + database.schemas.reduce(0) { $0 + $1.objects.count }
+                }
+                ConnectionDebug.log("[AppModel] Completed structure load for session=\(connectionSession.connection.connectionName) databases=\(structure.databases.count) schemas=\(totalSchemas) objects=\(totalObjects)")
+            }
             connectionSession.structureLoadingState = .ready
             connectionSession.structureLoadingMessage = nil
 
-            if connectionSession.selectedDatabaseName == nil,
-               !connectionSession.connection.database.isEmpty,
-               let firstDatabase = structure.databases.first?.name {
-                connectionSession.selectedDatabaseName = firstDatabase
-            }
+            ensureSelectedDatabaseIfNeeded(for: connectionSession, availableDatabases: structure.databases)
+            cacheStructure(finalStructure, for: connectionSession.connection.id)
 
             return structure
         } catch {
@@ -1988,6 +2890,7 @@ final class AppModel: ObservableObject {
                     selectedDatabase: targetDatabase,
                     reuseSession: session.session,
                     databaseFilter: [targetDatabase],
+                    cachedStructure: session.connection.cachedStructure,
                     progressHandler: { progress in
                         await MainActor.run {
                             session.structureLoadingState = .loading(progress: progress.fraction)
@@ -2035,6 +2938,32 @@ final class AppModel: ObservableObject {
     }
 
     // MARK: - Pin helpers
+    private func ensureSelectedDatabaseIfNeeded(for session: ConnectionSession, availableDatabases: [DatabaseInfo]) {
+        let currentSelection = session.selectedDatabaseName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        guard currentSelection.isEmpty else { return }
+
+        if let configured = nonEmptyString(session.connection.database),
+           availableDatabases.contains(where: { $0.name.caseInsensitiveCompare(configured) == .orderedSame }) {
+            session.selectedDatabaseName = configured
+            return
+        }
+
+        if let populated = availableDatabases.first(where: { !$0.schemas.isEmpty }) {
+            session.selectedDatabaseName = populated.name
+            return
+        }
+
+        if let fallback = availableDatabases.first {
+            session.selectedDatabaseName = fallback.name
+        }
+    }
+
+    private func nonEmptyString(_ value: String?) -> String? {
+        guard let value = value else { return nil }
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
+    }
+
     func pinObject(withID id: String) {
         guard !pinnedObjectIDs.contains(id) else { return }
         pinnedObjectIDs.append(id)
@@ -2076,8 +3005,13 @@ final class AppModel: ObservableObject {
         let structure = try await fetcher.fetchStructure(
             for: connection,
             credentials: .init(authentication: credentials),
-                selectedDatabase: connection.database.isEmpty ? nil : connection.database
-            )
+            selectedDatabase: connection.database.isEmpty ? nil : connection.database,
+            reuseSession: nil,
+            databaseFilter: nil,
+            cachedStructure: connection.cachedStructure,
+            progressHandler: nil,
+            databaseHandler: nil
+        )
             cacheStructure(structure, for: connection.id)
         } catch {
             print("Failed to preload structure for connection \(connection.connectionName): \(error)")
@@ -2179,12 +3113,15 @@ final class AppModel: ObservableObject {
         _ project: Project,
         includeGlobalSettings: Bool,
         includeClipboardHistory: Bool,
+        includeAutocompleteHistory: Bool,
         password: String
     ) async throws -> Data {
         let projectConnections = connections.filter { $0.projectID == project.id }
         let projectIdentities = identities.filter { $0.projectID == project.id }
         let projectFolders = folders.filter { $0.projectID == project.id }
+        _ = includeAutocompleteHistory
         let clipboardEntries = includeClipboardHistory ? clipboardHistory.entries : nil
+        let diagramCaches = await diagramCacheManager.listPayloads(for: project.id)
 
         return try await projectStore.exportProject(
             project,
@@ -2193,6 +3130,8 @@ final class AppModel: ObservableObject {
             folders: projectFolders,
             globalSettings: includeGlobalSettings ? globalSettings : nil,
             clipboardHistory: clipboardEntries,
+            autocompleteHistory: nil,
+            diagramCaches: diagramCaches,
             password: password
         )
     }
@@ -2227,6 +3166,28 @@ final class AppModel: ObservableObject {
         for i in importedFolders.indices {
             importedFolders[i].id = UUID()
             importedFolders[i].projectID = importedProject.id
+        }
+
+        if let diagramCaches = exportData.diagramCaches {
+            for payload in diagramCaches {
+                guard let newConnectionID = connectionIDMap[payload.key.connectionID] else { continue }
+                let newKey = DiagramCacheKey(
+                    projectID: importedProject.id,
+                    connectionID: newConnectionID,
+                    schema: payload.key.schema,
+                    table: payload.key.table,
+                    layoutID: payload.key.layoutID
+                )
+                let updatedPayload = DiagramCachePayload(
+                    key: newKey,
+                    checksum: payload.checksum,
+                    generatedAt: payload.generatedAt,
+                    structure: payload.structure,
+                    layout: payload.layout,
+                    loadingSummary: payload.loadingSummary
+                )
+                try? await diagramCacheManager.stashPayload(updatedPayload)
+            }
         }
 
         let sourceBookmarks = exportData.bookmarks.isEmpty ? exportData.project.bookmarks : exportData.bookmarks
@@ -2632,4 +3593,5 @@ private extension AppModel {
             sessionDatabaseCancellables.removeValue(forKey: id)
         }
     }
+
 }

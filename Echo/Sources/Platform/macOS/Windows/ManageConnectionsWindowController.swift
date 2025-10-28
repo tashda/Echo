@@ -6,6 +6,7 @@ import Combine
 @MainActor
 final class ManageConnectionsWindowController: NSWindowController, NSWindowDelegate {
     static let shared = ManageConnectionsWindowController()
+    private static let toolbarIdentifier = NSToolbar.Identifier("ManageConnectionsToolbar")
 
     private var hostingController: NSHostingController<ManageConnectionsWindowRootView>?
     private var isWindowLoadedOnce = false
@@ -66,6 +67,17 @@ final class ManageConnectionsWindowController: NSWindowController, NSWindowDeleg
         window.titlebarAppearsTransparent = true
         window.titleVisibility = .hidden
         window.toolbarStyle = .unified
+        let toolbar = NSToolbar(identifier: Self.toolbarIdentifier)
+        toolbar.allowsUserCustomization = false
+        toolbar.autosavesConfiguration = false
+        toolbar.sizeMode = .regular
+        toolbar.displayMode = .iconOnly
+        if #available(macOS 15, *) {
+            // showsBaselineSeparator removed on macOS 15
+        } else {
+            toolbar.showsBaselineSeparator = false
+        }
+        window.toolbar = toolbar
         window.contentViewController = hosting
         window.delegate = self
         applyTheme(to: window)

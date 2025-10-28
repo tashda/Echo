@@ -11,6 +11,8 @@ struct WorkspaceView: View {
     @EnvironmentObject private var clipboardHistory: ClipboardHistoryStore
 
     var body: some View {
+        let tabBarStyle = appState.workspaceTabBarStyle
+
         NavigationSplitView {
             SidebarColumn()
                 .navigationSplitViewColumnWidth(
@@ -39,7 +41,7 @@ struct WorkspaceView: View {
                     InfoSidebarView()
                         .environmentObject(appModel)
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                        .padding(.top, WorkspaceChromeMetrics.chromeTopInset)
+                        .padding(.top, appState.workspaceTabBarStyle.chromeTopPadding)
                         .padding(.bottom, 12)
                         .padding(.horizontal, 18)
 #if os(macOS)
@@ -54,7 +56,7 @@ struct WorkspaceView: View {
                 }
         }
         .navigationSplitViewStyle(.balanced)
-        .background(WorkspaceWindowConfigurator())
+        .background(WorkspaceWindowConfigurator(tabBarStyle: tabBarStyle))
         .sheet(
             isPresented: Binding(
                 get: { appState.activeSheet == .connectionEditor },
@@ -128,14 +130,16 @@ private struct WorkspaceMainContent: View {
     @EnvironmentObject private var themeManager: ThemeManager
 
     var body: some View {
+        let tabBarStyle = appState.workspaceTabBarStyle
         QueryTabsView(
-            showsTabStrip: true,
+            showsTabStrip: tabBarStyle.showsFloatingStrip,
             tabBarLeadingPadding: 8,
             tabBarTrailingPadding: 8
         )
         .environment(\.useNativeTabBar, false)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(themeManager.windowBackgroundColor)
+        .offset(y: tabBarStyle.contentVerticalOffset)
     }
 }
 
@@ -172,6 +176,7 @@ private struct InspectorSplitViewConfigurator: NSViewRepresentable {
         context.coordinator.register(observedView: nsView)
     }
 
+    @MainActor
     final class Coordinator {
         var width: Binding<CGFloat>
         var minWidth: CGFloat
@@ -196,7 +201,7 @@ private struct InspectorSplitViewConfigurator: NSViewRepresentable {
         private func scheduleUpdate() {
             guard !pendingUpdate else { return }
             pendingUpdate = true
-            DispatchQueue.main.async { [weak self] in
+            Task { @MainActor [weak self] in
                 guard let self, let view = self.observedView else {
                     self?.pendingUpdate = false
                     return
@@ -313,11 +318,27 @@ private extension NSSplitView {
 
 #if os(macOS)
 private struct WorkspaceWindowConfigurator: NSViewRepresentable {
+    @EnvironmentObject private var appModel: AppModel
+    @EnvironmentObject private var appState: AppState
+    @EnvironmentObject private var themeManager: ThemeManager
+
+    var tabBarStyle: WorkspaceTabBarStyle
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator()
+    }
+
     func makeNSView(context: Context) -> NSView {
         let view = NSView()
         DispatchQueue.main.async {
             guard let window = view.window else { return }
-            configure(window: window)
+            context.coordinator.configure(
+                window: window,
+                tabBarStyle: tabBarStyle,
+                appModel: appModel,
+                appState: appState,
+                themeManager: themeManager
+            )
         }
         return view
     }
@@ -325,36 +346,102 @@ private struct WorkspaceWindowConfigurator: NSViewRepresentable {
     func updateNSView(_ nsView: NSView, context: Context) {
         DispatchQueue.main.async {
             guard let window = nsView.window else { return }
-            configure(window: window)
+            context.coordinator.configure(
+                window: window,
+                tabBarStyle: tabBarStyle,
+                appModel: appModel,
+                appState: appState,
+                themeManager: themeManager
+            )
         }
     }
 
-    private func configure(window: NSWindow) {
-        if window.identifier != AppWindowIdentifier.workspace {
-            window.identifier = AppWindowIdentifier.workspace
+    @MainActor
+    final class Coordinator {
+        private let overlay = WorkspaceToolbarTabBarOverlay()
+        private let topBarNavigatorOverlay = TopBarNavigatorOverlay()
+        private var lastWindowID: ObjectIdentifier?
+        private var lastStyle: WorkspaceTabBarStyle?
+        private var lastKeyState: Bool?
+        func configure(
+            window: NSWindow,
+            tabBarStyle: WorkspaceTabBarStyle,
+            appModel: AppModel,
+            appState: AppState,
+            themeManager: ThemeManager
+        ) {
+            let windowID = ObjectIdentifier(window)
+            let windowChanged = lastWindowID != windowID
+            let styleChanged = lastStyle != tabBarStyle
+
+            if windowChanged {
+                overlay.detach()
+                topBarNavigatorOverlay.detach()
+                lastWindowID = windowID
+            }
+
+            applyWindowStyling(window)
+
+            if windowChanged || styleChanged {
+                overlay.apply(
+                    style: tabBarStyle,
+                    window: window,
+                    appModel: appModel,
+                    appState: appState,
+                    themeManager: themeManager
+                )
+                lastStyle = tabBarStyle
+            }
+
+            // Show the TopBarNavigator in the toolbar. Hide it when the toolbar tab bar is active
+            // to avoid visual overlap (the compact style uses the same toolbar region).
+            let showTopBarNavigator = (tabBarStyle != .toolbarCompact)
+            topBarNavigatorOverlay.apply(
+                window: window,
+                appModel: appModel,
+                appState: appState,
+                themeManager: themeManager,
+                isEnabled: showTopBarNavigator
+            )
+
+            let isKey = window.isKeyWindow && window.identifier == AppWindowIdentifier.workspace
+            if lastKeyState != isKey {
+                AppCoordinator.shared.appModel.isWorkspaceWindowKey = isKey
+                lastKeyState = isKey
+            }
         }
 
-        if window.titleVisibility != .visible {
-            window.titleVisibility = .visible
-        }
-        if window.titlebarAppearsTransparent == false {
-            window.titlebarAppearsTransparent = true
-        }
-        if window.title != " " {
-            window.title = " "
-        }
-        window.toolbarStyle = .unified
-        if #unavailable(macOS 15) {
-            window.toolbar?.showsBaselineSeparator = false
+        private func applyWindowStyling(_ window: NSWindow) {
+            if window.identifier != AppWindowIdentifier.workspace {
+                window.identifier = AppWindowIdentifier.workspace
+            }
+
+            if window.titleVisibility != .visible {
+                window.titleVisibility = .visible
+            }
+            if window.titlebarAppearsTransparent == false {
+                window.titlebarAppearsTransparent = true
+            }
+            if window.title != " " {
+                window.title = " "
+            }
+            if window.toolbarStyle != .unified {
+                window.toolbarStyle = .unified
+            }
+            if #unavailable(macOS 15) {
+                window.toolbar?.showsBaselineSeparator = false
+            }
+            if window.toolbar?.allowsUserCustomization != false {
+                window.toolbar?.allowsUserCustomization = false
+            }
         }
 
-        AppCoordinator.shared.appModel.isWorkspaceWindowKey =
-            window.identifier == AppWindowIdentifier.workspace && window.isKeyWindow
     }
 }
-
 #else
 private struct WorkspaceWindowConfigurator: UIViewRepresentable {
+    var tabBarStyle: WorkspaceTabBarStyle
+
     func makeUIView(context: Context) -> UIView { UIView() }
     func updateUIView(_ uiView: UIView, context: Context) {}
 }

@@ -1,5 +1,6 @@
 import Foundation
 import CryptoKit
+import EchoSense
 
 actor ProjectStore {
     private let fileURL: URL
@@ -68,6 +69,8 @@ actor ProjectStore {
         folders: [SavedFolder],
         globalSettings: GlobalSettings?,
         clipboardHistory: [ClipboardHistoryStore.Entry]?,
+        autocompleteHistory: SQLAutoCompletionHistoryStore.Snapshot?,
+        diagramCaches: [DiagramCachePayload]?,
         password: String
     ) async throws -> Data {
         let jsonData = try await MainActor.run { () -> Data in
@@ -78,6 +81,8 @@ actor ProjectStore {
                 folders: folders,
                 globalSettings: globalSettings,
                 clipboardHistory: clipboardHistory,
+                autocompleteHistory: autocompleteHistory,
+                diagramCaches: diagramCaches,
                 bookmarks: project.bookmarks
             )
 

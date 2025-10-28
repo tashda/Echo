@@ -1,5 +1,6 @@
 import Foundation
 import OSLog
+import EchoSense
 
 actor SqruffCompletionProvider {
     static let shared = SqruffCompletionProvider()
@@ -11,9 +12,8 @@ actor SqruffCompletionProvider {
         case invalidResponse
     }
 
-    private struct PendingRequest {
-        let id: Int
-        let continuation: CheckedContinuation<Any, Error>
+    private struct SendableJSON: @unchecked Sendable {
+        let value: Any
     }
 
     private let logger = Logger(subsystem: "co.fuze.echo", category: "Sqruff")
@@ -24,7 +24,7 @@ actor SqruffCompletionProvider {
     private var stderrHandle: FileHandle?
 
     private var readBuffer = Data()
-    private var pending: [Int: CheckedContinuation<Any, Error>] = [:]
+    private var pending: [Int: CheckedContinuation<SendableJSON, Error>] = [:]
     private var nextRequestID: Int = 1
 
     private var initialized = false
@@ -230,7 +230,7 @@ actor SqruffCompletionProvider {
         let requestID = nextRequestID
         nextRequestID += 1
 
-        return try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Any, Error>) in
+        let wrapped: SendableJSON = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<SendableJSON, Error>) in
             pending[requestID] = continuation
             let message: [String: Any] = [
                 "jsonrpc": "2.0",
@@ -246,6 +246,7 @@ actor SqruffCompletionProvider {
                 }
             }
         }
+        return wrapped.value
     }
 
     private func sendMessage(_ json: [String: Any]) throws {
@@ -331,7 +332,7 @@ actor SqruffCompletionProvider {
             let message = error["message"] as? String ?? "Unknown error"
             continuation.resume(throwing: ProviderError.serverError(message))
         } else if let result = message["result"] {
-            continuation.resume(returning: result)
+            continuation.resume(returning: SendableJSON(value: result))
         } else {
             continuation.resume(throwing: ProviderError.invalidResponse)
         }

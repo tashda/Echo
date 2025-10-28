@@ -1,5 +1,6 @@
 import SwiftUI
 import Foundation
+import EchoSense
 #if os(macOS)
 import AppKit
 #else
@@ -152,6 +153,11 @@ struct QueryInputSection: View {
         .opacity(!query.isExecuting && isRunDisabled ? 0.55 : 1)
     }
 
+    private var isFormatterAvailable: Bool {
+        guard let databaseType = completionContext?.databaseType else { return true }
+        return databaseType != .microsoftSQL
+    }
+
     private var formatButton: some View {
         Button(action: formatQuery) {
             Group {
@@ -168,8 +174,8 @@ struct QueryInputSection: View {
         }
         .keyboardShortcut("f", modifiers: [.command, .shift])
         .buttonStyle(.plain)
-        .disabled(isFormatting || query.sql.isEmpty)
-        .help("Format SQL (⇧⌘F)")
+        .disabled(isFormatting || query.sql.isEmpty || !isFormatterAvailable)
+        .help(isFormatterAvailable ? "Format SQL (⇧⌘F)" : "Formatting unavailable for Microsoft SQL Server")
         .shadow(color: Color.black.opacity(0.08), radius: 6, y: 3)
     }
 
@@ -207,10 +213,11 @@ struct QueryInputSection: View {
     }
 
     private func handleSelectionChange(_ selection: SQLEditorSelection) {
-        currentSelection = selection
         let trimmed = selection.selectedText.trimmingCharacters(in: .whitespacesAndNewlines)
         let hasSelection = !trimmed.isEmpty
-        if hasSelection != isSelectionActive {
+        DispatchQueue.main.async {
+            currentSelection = selection
+            guard hasSelection != isSelectionActive else { return }
             withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
                 isSelectionActive = hasSelection
             }
@@ -232,7 +239,7 @@ struct QueryInputSection: View {
     }
 
     private func formatQuery() {
-        guard !query.sql.isEmpty, !isFormatting else { return }
+        guard isFormatterAvailable, !query.sql.isEmpty, !isFormatting else { return }
         isFormatting = true
         let currentSQL = query.sql
         Task {

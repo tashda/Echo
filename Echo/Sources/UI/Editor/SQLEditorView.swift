@@ -1,6 +1,7 @@
 import SwiftUI
 import Combine
 import Foundation
+import EchoSense
 #if os(macOS)
 import AppKit
 #else
@@ -191,6 +192,7 @@ private struct MacSQLEditorRepresentable: NSViewRepresentable {
         }
     }
 
+    @MainActor
     final class Coordinator: NSObject, SQLTextViewDelegate {
         var parent: MacSQLEditorRepresentable
         weak var textView: SQLTextView?
@@ -234,6 +236,7 @@ extension SQLTextViewDelegate {
     func sqlTextView(_ view: SQLTextView, didRequestBookmarkWithContent content: String) {}
 }
 
+@MainActor
 private final class SQLScrollView: NSScrollView {
     let sqlTextView: SQLTextView
     private var theme: SQLEditorTheme
@@ -309,7 +312,9 @@ private final class SQLScrollView: NSScrollView {
     }
 
     deinit {
-        sqlTextView.cancelPendingCompletions()
+        Task { @MainActor [weak sqlTextView] in
+            sqlTextView?.cancelPendingCompletions()
+        }
     }
 
     func updateTheme(_ theme: SQLEditorTheme) {
@@ -411,7 +416,20 @@ func sqlRangeIsValid(_ range: NSRange, upperBound: Int) -> Bool {
     return NSMaxRange(range) <= upperBound
 }
 
+@MainActor
 final class SQLTextView: NSTextView, NSTextViewDelegate {
+    private final class FallbackResponder: NSResponder {
+        private let manager = UndoManager()
+
+        override var undoManager: UndoManager? {
+            manager
+        }
+
+        var undoManagerInstance: UndoManager {
+            manager
+        }
+    }
+
     weak var sqlDelegate: SQLTextViewDelegate?
     weak var clipboardHistory: ClipboardHistoryStore?
     var clipboardMetadata: ClipboardHistoryStore.Entry.Metadata = .empty
@@ -449,11 +467,23 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
     private var isAdjustingSnippetSelection = false
     var isRuleTracingEnabled: Bool = false
     var onRuleTrace: ((SQLAutocompleteTrace) -> Void)?
+    private let fallbackResponder = FallbackResponder()
 
     struct SuppressedCompletion: Equatable {
         var tokenRange: NSRange
         let canonicalText: String
         let hasFollowUps: Bool
+        var allowTrailingWhitespace: Bool
+
+        init(tokenRange: NSRange,
+             canonicalText: String,
+             hasFollowUps: Bool,
+             allowTrailingWhitespace: Bool) {
+            self.tokenRange = tokenRange
+            self.canonicalText = canonicalText
+            self.hasFollowUps = hasFollowUps
+            self.allowTrailingWhitespace = allowTrailingWhitespace
+        }
 
         var isValid: Bool {
             tokenRange.location != NSNotFound && tokenRange.length > 0
@@ -474,6 +504,17 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
 
     var suppressedCompletions: [SuppressedCompletion] = []
     var completionIndicatorView: CompletionAccessoryView?
+    private var inlineSuggestionView: InlineSuggestionLabel?
+    private var inlineKeywordSuggestions: [SQLAutoCompletionSuggestion] = []
+    private var inlineSuggestionQuery: SQLAutoCompletionQuery?
+    private var inlineSuggestionNextIndex: Int = 0
+    private var inlineInsertedRange: NSRange?
+    private var inlineInsertedIndex: Int?
+    private var isInlineSuggestionActive: Bool {
+        !inlineKeywordSuggestions.isEmpty || inlineInsertedRange != nil
+    }
+    private var inlineAcceptanceInProgress = false
+    var suppressNextCompletionPopover = false
 
     var ruleEnvironment: SQLAutocompleteRuleEngine.Environment {
         SQLAutocompleteRuleEngine.Environment(completionContext: completionContext)
@@ -559,9 +600,22 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
         return set
     }()
 
+    private static let identifierDelimiterCharacterSet: CharacterSet = {
+        var set = CharacterSet()
+        set.insert(charactersIn: "\"")
+        set.insert(charactersIn: "`")
+        set.insert(charactersIn: "[")
+        set.insert(charactersIn: "]")
+        return set
+    }()
+
     private static let completionTokenCharacterSet: CharacterSet = {
         var set = wordCharacterSet
         set.insert(charactersIn: ".")
+        set.insert(charactersIn: "\"")
+        set.insert(charactersIn: "`")
+        set.insert(charactersIn: "[")
+        set.insert(charactersIn: "]")
         return set
     }()
 
@@ -586,6 +640,7 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
 
         completionEngine.updateContext(completionContext)
         completionController = SQLAutoCompletionController(textView: self)
+        self.nextResponder = fallbackResponder
 
         isEditable = true
         isSelectable = true
@@ -605,6 +660,10 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
         autoresizingMask = [.width]
         wantsLayer = true
         layer?.isOpaque = true
+
+        if super.undoManager == nil {
+            self.setValue(fallbackResponder.undoManagerInstance, forKey: "undoManager")
+        }
 
         textContainer.widthTracksTextView = false
         textContainer.lineFragmentPadding = 14
@@ -644,6 +703,8 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
         if displayOptions.highlightSelectedSymbol {
             scheduleSymbolHighlights(for: currentSelectionDescriptor(), immediate: true)
         }
+        applyInlineSuggestionAppearance()
+        updateInlineSuggestionPosition()
     }
 
     override func viewDidMoveToWindow() {
@@ -653,11 +714,21 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
             ruler.sqlTextView = self
         }
         DispatchQueue.main.async { [weak self] in
-            self?.window?.makeFirstResponder(self)
+            guard let self else { return }
+            self.window?.makeFirstResponder(self)
+            self.primeInlineSuggestionsIfNeeded()
         }
     }
 
     override func keyDown(with event: NSEvent) {
+        if event.keyCode == 48, !event.modifierFlags.contains(.shift) {
+            if expandSelectStarShorthandIfNeeded() {
+                return
+            }
+        }
+        if handleInlineSuggestionKey(event) {
+            return
+        }
         if handleSnippetNavigation(event) {
             return
         }
@@ -678,6 +749,7 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
     }
 
     override func insertText(_ string: Any, replacementRange: NSRange) {
+        suppressNextCompletionPopover = false
         let trigger = determineCompletionTrigger(for: string)
         super.insertText(string, replacementRange: replacementRange)
         let inserted = (string as? String) ?? (string as? NSAttributedString)?.string ?? ""
@@ -690,9 +762,19 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
     }
 
     override func mouseDown(with event: NSEvent) {
+        suppressNextCompletionPopover = true
         window?.makeFirstResponder(self)
         super.mouseDown(with: event)
         notifySelectionPreview()
+    }
+
+    override func becomeFirstResponder() -> Bool {
+        suppressNextCompletionPopover = true
+        let became = super.becomeFirstResponder()
+        if became {
+            primeInlineSuggestionsIfNeeded()
+        }
+        return became
     }
 
     private func determineCompletionTrigger(for string: Any) -> CompletionTriggerKind {
@@ -731,6 +813,20 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
         guard !manualCompletionSuppression else { return }
         suppressNextCompletionRefresh = true
         refreshCompletions(immediate: immediate)
+    }
+
+    private func primeInlineSuggestionsIfNeeded() {
+        guard window != nil else { return }
+        guard displayOptions.autoCompletionEnabled else { return }
+        guard displayOptions.inlineKeywordSuggestionsEnabled else { return }
+        guard completionContext != nil else { return }
+        guard !manualCompletionSuppression else { return }
+        guard inlineInsertedRange == nil else { return }
+        guard inlineSuggestionView == nil else { return }
+        let trimmed = string.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.isEmpty else { return }
+        suppressNextCompletionPopover = true
+        refreshCompletions(immediate: true)
     }
 
     private func shouldTriggerAfterKeywordSpace() -> Bool {
@@ -851,6 +947,7 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
         lineNumberRuler?.highlightedLines = selectedLineRange()
         lineNumberRuler?.setNeedsDisplay(lineNumberRuler?.bounds ?? .zero)
         sqlDelegate?.sqlTextView(self, didChangeSelection: selection)
+        handleInlineSelectionChange()
         if !isApplyingCompletion && !suppressNextCompletionRefresh {
             refreshCompletions(immediate: true)
         }
@@ -1012,6 +1109,10 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
     // MARK: - Autocompletion
 
     private func refreshCompletions(immediate: Bool = false) {
+        if suppressNextCompletionPopover {
+            suppressNextCompletionPopover = false
+            return
+        }
         guard !isApplyingCompletion else { return }
         guard displayOptions.autoCompletionEnabled else {
             completionTask?.cancel()
@@ -1146,6 +1247,7 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
         DispatchQueue.main.asyncAfter(deadline: deadline, execute: workItem)
     }
 
+    @MainActor
     private func hideCompletions() {
         completionGeneration += 1
         completionWorkItem?.cancel()
@@ -1175,6 +1277,7 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
     }
 
     @discardableResult
+    @MainActor
     func ensureCompletionController() -> SQLAutoCompletionController? {
         if completionController == nil {
             completionController = SQLAutoCompletionController(textView: self)
@@ -1211,8 +1314,11 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
         }
 
         let rawComponents = token.split(separator: ".", omittingEmptySubsequences: false).map { String($0) }
-        let prefix = rawComponents.last ?? ""
-        let pathComponents = rawComponents.dropLast().filter { !$0.isEmpty }
+        let normalizedComponents = rawComponents.map { component -> String in
+            component.trimmingCharacters(in: SQLTextView.identifierDelimiterCharacterSet)
+        }
+        let prefix = normalizedComponents.last ?? ""
+        let pathComponents = normalizedComponents.dropLast().filter { !$0.isEmpty }
 
         let replacementRange = replacementRange(for: prefix, tokenRange: tokenRange, caretLocation: selection.location)
         let precedingKeyword = previousKeyword(before: tokenRange.location, in: nsString)
@@ -1397,13 +1503,18 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
     private func isSuggestionKindEnabled(_ kind: SQLAutoCompletionKind) -> Bool {
         switch kind {
         case .keyword:
-            return displayOptions.suggestKeywordsInCompletion
+            if displayOptions.suggestKeywordsInCompletion {
+                return true
+            }
+            return displayOptions.inlineKeywordSuggestionsEnabled
         case .function:
             return displayOptions.suggestFunctionsInCompletion
         case .snippet:
             return displayOptions.suggestSnippetsInCompletion
         case .join:
             return displayOptions.suggestJoinsInCompletion
+        case .parameter:
+            return false
         default:
             return true
         }
@@ -1412,6 +1523,7 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
     private func sanitizeSuggestions(_ suggestions: [SQLAutoCompletionSuggestion], for query: SQLAutoCompletionQuery) -> [SQLAutoCompletionSuggestion] {
         let trimmedToken = query.token.trimmingCharacters(in: .whitespacesAndNewlines)
         let tokenLower = trimmedToken.lowercased()
+        let normalizedToken = normalizeIdentifier(trimmedToken).lowercased()
         let pathLower = query.pathComponents.map { $0.lowercased() }
         let caretLocation = selectedRange().location
         let usedColumnContext = buildUsedColumnContext(before: caretLocation, query: query)
@@ -1419,8 +1531,13 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
         var result: [SQLAutoCompletionSuggestion] = []
         result.reserveCapacity(suggestions.count)
 
+        let suppressNonColumnInSelectList = query.clause == .selectList && trimmedToken.isEmpty && query.pathComponents.isEmpty && !completionEngine.isManualTriggerActive
+
         for suggestion in suggestions {
             guard isSuggestionKindEnabled(suggestion.kind) else { continue }
+            if suppressNonColumnInSelectList && suggestion.kind != .column {
+                continue
+            }
             let key = suggestion.insertText.lowercased()
             if !tokenLower.isEmpty {
                 let isExactInsertMatch = key == tokenLower
@@ -1439,12 +1556,18 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
             if suggestion.kind == .column,
                let context = usedColumnContext,
                let columnName = normalizedColumnName(for: suggestion) {
+                if context.unqualified.contains(columnName) {
+                    continue
+                }
                 let candidateKeys = candidateColumnKeys(for: suggestion, query: query)
                 let isAlreadySelected = candidateKeys.contains { key in
                     guard let used = context.byKey[key] else { return false }
                     return used.contains(columnName)
                 }
                 if isAlreadySelected {
+                    continue
+                }
+                if !normalizedToken.isEmpty && columnName == normalizedToken {
                     continue
                 }
             }
@@ -1465,21 +1588,19 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
         guard caretLocation != NSNotFound else { return nil }
         let nsString = string as NSString
         let clampedLocation = min(max(caretLocation, 0), nsString.length)
-        guard clampedLocation > 0 else { return nil }
 
-        let prefixRange = NSRange(location: 0, length: clampedLocation)
-        let prefixText = nsString.substring(with: prefixRange)
-        guard let selectRange = prefixText.range(of: "select", options: [.caseInsensitive, .backwards]) else {
-            return nil
-        }
+        let searchSelectRange = NSRange(location: 0, length: clampedLocation)
+        let selectRange = nsString.range(of: "select", options: [.caseInsensitive, .backwards], range: searchSelectRange)
+        guard selectRange.location != NSNotFound else { return nil }
 
-        let segmentStart = selectRange.upperBound
-        let segment = prefixText[segmentStart...]
+        let fromSearchRange = NSRange(location: selectRange.upperBound, length: nsString.length - selectRange.upperBound)
+        let fromRange = nsString.range(of: "from", options: [.caseInsensitive], range: fromSearchRange)
 
-        if segment.range(of: "from", options: [.caseInsensitive]) != nil {
-            return nil
-        }
+        let segmentEnd = fromRange.location != NSNotFound ? fromRange.location : nsString.length
+        guard segmentEnd > selectRange.upperBound else { return nil }
 
+        let segmentRange = NSRange(location: selectRange.upperBound, length: segmentEnd - selectRange.upperBound)
+        let segment = nsString.substring(with: segmentRange)
         var context = UsedColumnContext(byKey: [:], unqualified: [])
         let scopeTables = query.tablesInScope
 
@@ -1604,6 +1725,70 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
         return Array(keys)
     }
 
+    private func adjustedInsertion(for suggestion: SQLAutoCompletionSuggestion,
+                                   originalText: String,
+                                   proposedInsertion: String) -> String {
+        switch suggestion.kind {
+        case .column, .table, .view, .materializedView:
+            break
+        default:
+            return proposedInsertion
+        }
+
+        let prefixCount = proposedInsertion.prefix { $0.isWhitespace }.count
+        let suffixCount = proposedInsertion.reversed().prefix { $0.isWhitespace }.count
+        let prefixString = String(proposedInsertion.prefix(prefixCount))
+        let suffixString = String(proposedInsertion.suffix(suffixCount))
+
+        let coreStartIndex = proposedInsertion.index(proposedInsertion.startIndex, offsetBy: prefixCount)
+        let coreEndIndex = proposedInsertion.index(proposedInsertion.endIndex, offsetBy: -suffixCount)
+        guard coreStartIndex <= coreEndIndex else { return proposedInsertion }
+        let core = String(proposedInsertion[coreStartIndex..<coreEndIndex])
+        guard !core.isEmpty else { return proposedInsertion }
+
+        let trimmedOriginal = originalText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedOriginal.isEmpty else { return proposedInsertion }
+
+        let originalComponents = trimmedOriginal.split(separator: ".", omittingEmptySubsequences: false).map(String.init)
+        let proposedComponents = core.split(separator: ".", omittingEmptySubsequences: false).map(String.init)
+        guard !originalComponents.isEmpty else { return proposedInsertion }
+
+        let wrappedComponents: [String]
+        if originalComponents.count == proposedComponents.count {
+            wrappedComponents = zip(originalComponents, proposedComponents).map { wrapComponent($1, using: $0) }
+        } else if originalComponents.count == 1 {
+            if proposedComponents.count > 1 {
+                let lastComponent = String(proposedComponents.last!)
+                wrappedComponents = [wrapComponent(lastComponent, using: originalComponents[0])]
+            } else {
+                wrappedComponents = [wrapComponent(core, using: originalComponents[0])]
+            }
+        } else {
+            return proposedInsertion
+        }
+
+        let wrappedCore = wrappedComponents.joined(separator: ".")
+        return prefixString + wrappedCore + suffixString
+    }
+
+    private func wrapComponent(_ component: String, using originalComponent: String) -> String {
+        let trimmedOriginal = originalComponent.trimmingCharacters(in: .whitespaces)
+        guard let first = trimmedOriginal.first else { return component }
+
+        let delimiterPairs: [Character: Character] = ["\"": "\"", "`": "`", "[": "]"]
+        guard let closing = delimiterPairs[first], trimmedOriginal.last == closing else {
+            return component
+        }
+
+        let trimmedComponent = component.trimmingCharacters(in: .whitespaces)
+        if trimmedComponent.first == first && trimmedComponent.last == closing {
+            return component
+        }
+
+        let inner = trimmedComponent.trimmingCharacters(in: CharacterSet(charactersIn: "\"`[]"))
+        return "\(first)\(inner)\(closing)"
+    }
+
     private func normalizedColumnName(for suggestion: SQLAutoCompletionSuggestion) -> String? {
         if let column = suggestion.origin?.column, !column.isEmpty {
             return normalizeIdentifier(column).lowercased()
@@ -1656,7 +1841,7 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
                 forText: text,
                 line: position.line,
                 character: position.character,
-                dialect: context.databaseType
+                dialect: DatabaseType(context.databaseType)
             )
             suggestions = sanitizeSuggestions(suggestions, for: query)
             return suggestions
@@ -1799,9 +1984,12 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
                 let formatted = await self.prepareStarExpansionInsertion(for: suggestion,
                                                                          context: context)
                 await MainActor.run {
-                    self.performCompletionInsertion(suggestion: suggestion,
-                                                    query: query,
-                                                    insertion: formatted)
+                    if self.performCompletionInsertion(suggestion: suggestion,
+                                                       query: query,
+                                                       insertion: formatted) != nil {
+                        self.undoManager?.setActionName("Expand Columns")
+                        self.completionEngine.clearPostCommitSuppression()
+                    }
                 }
             }
             return
@@ -1809,17 +1997,27 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
 
         if let snippetSource = suggestion.snippetText {
             let (insertion, placeholders) = makeSnippetInsertion(from: snippetSource)
-            performCompletionInsertion(suggestion: suggestion,
-                                       query: query,
-                                       insertion: insertion,
-                                       snippetPlaceholders: placeholders)
+            _ = performCompletionInsertion(suggestion: suggestion,
+                                           query: query,
+                                           insertion: insertion,
+                                           snippetPlaceholders: placeholders)
             return
         }
 
         clearSnippetPlaceholders()
-        performCompletionInsertion(suggestion: suggestion,
-                                   query: query,
-                                   insertion: suggestion.insertText)
+        var insertionText = suggestion.insertText
+        if suggestion.kind == .keyword && !insertionText.hasSuffix(" ") {
+            insertionText += " "
+        }
+        _ = performCompletionInsertion(suggestion: suggestion,
+                                       query: query,
+                                       insertion: insertionText)
+    }
+
+    func consumePopoverSuppressionFlag() -> Bool {
+        let value = suppressNextCompletionPopover
+        suppressNextCompletionPopover = false
+        return value
     }
 
     private enum SymbolHighlightStrength {
@@ -1827,13 +2025,19 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
         case strong
     }
 
+    private struct CompletionInsertionResult {
+        let appliedRange: NSRange
+        let originalText: String
+    }
+
     @MainActor
+    @discardableResult
     private func performCompletionInsertion(suggestion: SQLAutoCompletionSuggestion,
                                             query: SQLAutoCompletionQuery,
                                             insertion: String,
-                                            snippetPlaceholders: [NSRange] = []) {
+                                            snippetPlaceholders: [NSRange] = []) -> CompletionInsertionResult? {
         var range = query.replacementRange
-        guard let textStorage else { return }
+        guard let textStorage else { return nil }
         let nsString = string as NSString
 
         if suggestion.kind != .column {
@@ -1859,7 +2063,17 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
         }
         range.length = upperBound - range.location
 
-        guard shouldChangeText(in: range, replacementString: insertion) else { return }
+        let originalText = nsString.substring(with: range)
+        let finalInsertion: String
+        if snippetPlaceholders.isEmpty {
+            finalInsertion = adjustedInsertion(for: suggestion,
+                                               originalText: originalText,
+                                               proposedInsertion: insertion)
+        } else {
+            finalInsertion = insertion
+        }
+
+        guard shouldChangeText(in: range, replacementString: finalInsertion) else { return nil }
 
         isApplyingCompletion = true
         defer {
@@ -1867,8 +2081,8 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
             suppressNextCompletionRefresh = false
         }
 
-        textStorage.replaceCharacters(in: range, with: insertion)
-        let insertionNSString = insertion as NSString
+        textStorage.replaceCharacters(in: range, with: finalInsertion)
+        let insertionNSString = finalInsertion as NSString
         let insertionLength = insertionNSString.length
         let appliedRange = NSRange(location: range.location, length: insertionLength)
         finalizeAppliedCompletion(for: suggestion, appliedRange: appliedRange, insertion: insertionNSString)
@@ -1889,6 +2103,7 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
         hideCompletions()
         didChangeText()
         completionEngine.recordSelection(suggestion, query: query)
+        return CompletionInsertionResult(appliedRange: appliedRange, originalText: originalText)
     }
 
     private func symbolHighlightColor(_ strength: SymbolHighlightStrength) -> NSColor {
@@ -1965,7 +2180,35 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
         suggestion.kind == .snippet && suggestion.id.hasPrefix("star|")
     }
 
-    private func formatterDialect(for databaseType: DatabaseType) -> SQLFormatterService.Dialect {
+    private func expandSelectStarShorthandIfNeeded() -> Bool {
+        guard displayOptions.autoCompletionEnabled else { return false }
+        guard inlineInsertedRange == nil else { return false }
+        guard let textStorage else { return false }
+        let selection = selectedRange()
+        guard selection.length == 0 else { return false }
+        let nsString = string as NSString
+        let tokenRange = tokenRange(at: selection.location, in: nsString)
+        guard tokenRange.length > 0 else { return false }
+        let token = nsString.substring(with: tokenRange)
+        let trimmedToken = token.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmedToken.caseInsensitiveCompare("s*") == .orderedSame else { return false }
+        let replacement = "SELECT *\nFROM "
+        guard shouldChangeText(in: tokenRange, replacementString: replacement) else { return false }
+
+        isApplyingCompletion = true
+        textStorage.replaceCharacters(in: tokenRange, with: replacement)
+        isApplyingCompletion = false
+
+        let replacementLength = (replacement as NSString).length
+        let caretLocation = tokenRange.location + replacementLength
+        setSelectedRange(NSRange(location: caretLocation, length: 0))
+        hideCompletions()
+        hideInlineKeywordSuggestion()
+        didChangeText()
+        return true
+    }
+
+    private func formatterDialect(for databaseType: EchoSenseDatabaseType) -> SQLFormatterService.Dialect? {
         switch databaseType {
         case .postgresql:
             return .postgres
@@ -1974,7 +2217,7 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
         case .sqlite:
             return .sqlite
         case .microsoftSQL:
-            return .duckdb
+            return nil
         }
     }
 
@@ -2037,7 +2280,9 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
         let rawColumns = suggestion.insertText
         guard let context else { return rawColumns }
 
-        let dialect = formatterDialect(for: context.databaseType)
+        guard let dialect = formatterDialect(for: context.databaseType) else {
+            return rawColumns
+        }
         let stub = "SELECT \(rawColumns)\nFROM sqruff_placeholder;"
 
         do {
@@ -2052,7 +2297,290 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
         return rawColumns
     }
 
-    private func makeSnippetInsertion(from snippet: String) -> (String, [NSRange]) {
+    // MARK: - Inline keyword suggestions
+
+    @MainActor
+    func showInlineKeywordSuggestions(_ suggestions: [SQLAutoCompletionSuggestion], query: SQLAutoCompletionQuery) {
+        guard displayOptions.autoCompletionEnabled,
+              displayOptions.inlineKeywordSuggestionsEnabled else {
+            hideInlineKeywordSuggestion()
+            return
+        }
+        guard !suggestions.isEmpty else {
+            hideInlineKeywordSuggestion()
+            return
+        }
+        inlineKeywordSuggestions = suggestions
+        inlineSuggestionQuery = query
+        inlineSuggestionNextIndex = 0
+        inlineInsertedRange = nil
+        inlineInsertedIndex = nil
+        let view = ensureInlineSuggestionView()
+        applyInlineSuggestionAppearance(to: view)
+        view.isHidden = false
+        updateInlineSuggestionText()
+        updateInlineSuggestionPosition()
+    }
+
+    @MainActor
+    func hideInlineKeywordSuggestion(preserveState: Bool = false) {
+        inlineSuggestionView?.removeFromSuperview()
+        inlineSuggestionView = nil
+        if !preserveState && !inlineAcceptanceInProgress {
+            clearInlineSuggestionState()
+        }
+    }
+
+    @MainActor
+    private func ensureInlineSuggestionView() -> InlineSuggestionLabel {
+        if let view = inlineSuggestionView {
+            return view
+        }
+        let view = InlineSuggestionLabel()
+        view.alphaValue = 1.0
+        addSubview(view)
+        inlineSuggestionView = view
+        return view
+    }
+
+    @MainActor
+    private func applyInlineSuggestionAppearance(to view: InlineSuggestionLabel? = nil) {
+        guard let target = view ?? inlineSuggestionView else { return }
+        target.font = theme.nsFont
+        let keywordColor = theme.tokenColors.keyword.nsColor
+        let surfaceColor = (backgroundOverride ?? theme.surfaces.background.nsColor)
+        let blendFraction: CGFloat = theme.tone == .dark ? 0.2 : 0.35
+        let blended = keywordColor.blended(withFraction: blendFraction, of: surfaceColor) ?? keywordColor
+        let alpha: CGFloat = theme.tone == .dark ? 0.75 : 0.65
+        target.textColor = blended.withAlphaComponent(alpha)
+    }
+
+    private func updateInlineSuggestionText() {
+        guard let view = inlineSuggestionView,
+              !inlineKeywordSuggestions.isEmpty else { return }
+        let index = min(max(inlineSuggestionNextIndex, 0), inlineKeywordSuggestions.count - 1)
+        let suggestion = inlineKeywordSuggestions[index]
+        let suggestionText = suggestion.insertText.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let query = inlineSuggestionQuery {
+            let typedToken = query.token.trimmingCharacters(in: .whitespacesAndNewlines)
+            let typedLower = typedToken.lowercased()
+            let suggestionLower = suggestionText.lowercased()
+            if !typedLower.isEmpty, suggestionLower.hasPrefix(typedLower) {
+                let dropIndex = suggestionText.index(suggestionText.startIndex,
+                                                     offsetBy: typedToken.count)
+                let remainder = suggestionText[dropIndex...]
+                view.stringValue = String(remainder)
+            } else {
+                view.stringValue = suggestionText
+            }
+        } else {
+            view.stringValue = suggestionText
+        }
+        view.invalidateIntrinsicContentSize()
+    }
+
+    @MainActor
+    private func updateInlineSuggestionPosition() {
+        guard let view = inlineSuggestionView,
+              inlineInsertedRange == nil,
+              !inlineKeywordSuggestions.isEmpty else { return }
+        let caretLocation = selectedRange().location
+        guard caretLocation != NSNotFound else { return }
+        guard let layoutManager = layoutManager,
+              let textContainer = textContainer else { return }
+
+        layoutManager.ensureLayout(for: textContainer)
+
+        let characterCount = (string as NSString).length
+        let clampedCaret = min(max(caretLocation, 0), characterCount)
+        let glyphCount = layoutManager.numberOfGlyphs
+
+        if glyphCount == 0 {
+            let origin = textContainerOrigin
+            let lineHeight = theme.nsFont.ascender - theme.nsFont.descender + theme.nsFont.leading
+            let xPosition = origin.x + textContainer.lineFragmentPadding
+            let yPosition = origin.y + lineHeight - theme.nsFont.ascender
+            let intrinsicWidth = max(view.intrinsicContentSize.width, 24)
+            view.frame = NSRect(x: xPosition,
+                                y: yPosition,
+                                width: intrinsicWidth,
+                                height: lineHeight)
+            return
+        }
+
+        let referenceCharIndex = max(min(clampedCaret - 1, characterCount - 1), 0)
+        let referenceGlyphIndex = layoutManager.glyphIndexForCharacter(at: referenceCharIndex)
+
+        var lineGlyphRange = NSRange(location: 0, length: 0)
+        let lineRect = layoutManager.lineFragmentUsedRect(forGlyphAt: referenceGlyphIndex,
+                                                          effectiveRange: &lineGlyphRange,
+                                                          withoutAdditionalLayout: true)
+
+        let lineCharRange = layoutManager.characterRange(forGlyphRange: lineGlyphRange, actualGlyphRange: nil)
+        let caretRelativeCharLength = max(0, clampedCaret - lineCharRange.location)
+        let caretCharRange = NSRange(location: lineCharRange.location, length: caretRelativeCharLength)
+        let caretGlyphRange = layoutManager.glyphRange(forCharacterRange: caretCharRange, actualCharacterRange: nil)
+
+        let precedingRect = caretGlyphRange.length > 0
+            ? layoutManager.boundingRect(forGlyphRange: caretGlyphRange, in: textContainer)
+            : CGRect(origin: lineRect.origin, size: .zero)
+
+        let origin = textContainerOrigin
+        let xPosition = origin.x + (caretGlyphRange.length > 0 ? precedingRect.maxX : lineRect.minX)
+        let lineHeight = max(lineRect.height, theme.nsFont.ascender - theme.nsFont.descender + theme.nsFont.leading)
+        let baseline = origin.y + lineRect.minY + theme.nsFont.ascender
+        let yPosition = baseline - theme.nsFont.ascender
+        let intrinsicWidth = max(view.intrinsicContentSize.width, 24)
+
+        view.frame = NSRect(x: xPosition,
+                            y: yPosition,
+                            width: intrinsicWidth,
+                            height: lineHeight)
+    }
+
+    private func handleInlineSelectionChange() {
+        if let range = inlineInsertedRange {
+            let selection = selectedRange()
+            if selection.length == 0, selection.location == NSMaxRange(range) {
+                return
+            }
+            if selection.location != range.location || selection.length != range.length {
+                hideInlineKeywordSuggestion()
+            }
+        } else if inlineSuggestionView != nil {
+            updateInlineSuggestionPosition()
+        }
+    }
+
+    private func handleInlineSuggestionKey(_ event: NSEvent) -> Bool {
+        guard isInlineSuggestionActive else { return false }
+
+        switch event.keyCode {
+        case 48: // Tab
+            let backwards = event.modifierFlags.contains(.shift)
+            return acceptInlineSuggestion(backwards: backwards)
+        case 53: // Escape
+            hideInlineKeywordSuggestion()
+            return true
+        default:
+            if event.modifierFlags.contains(.command) {
+                return false
+            }
+            if let chars = event.charactersIgnoringModifiers,
+               !chars.isEmpty,
+               chars != "\t" {
+                hideInlineKeywordSuggestion()
+            }
+            return false
+        }
+    }
+
+    private func acceptInlineSuggestion(backwards: Bool) -> Bool {
+        guard !inlineKeywordSuggestions.isEmpty else { return false }
+
+        if inlineInsertedRange == nil {
+            var index = inlineSuggestionNextIndex
+            if backwards {
+                index = normalizedInlineIndex(index - 1)
+            }
+            let suggestion = inlineKeywordSuggestions[index]
+            let insertion = appendedKeywordText(for: suggestion)
+            let query = inlineSuggestionQuery ?? makeCompletionQuery()
+            guard let resolvedQuery = query else { return false }
+            inlineAcceptanceInProgress = true
+            defer { inlineAcceptanceInProgress = false }
+            guard let insertionResult = performCompletionInsertion(suggestion: suggestion,
+                                                                    query: resolvedQuery,
+                                                                    insertion: insertion) else { return false }
+            inlineInsertedRange = insertionResult.appliedRange
+            inlineInsertedIndex = index
+            inlineSuggestionNextIndex = normalizedInlineIndex(index + 1)
+            let caretLocation = NSMaxRange(insertionResult.appliedRange)
+            setSelectedRange(NSRange(location: caretLocation, length: 0))
+            if let recordQuery = inlineSuggestionQuery ?? makeCompletionQuery() {
+                completionEngine.recordSelection(suggestion, query: recordQuery)
+            }
+            hideInlineKeywordSuggestion(preserveState: true)
+            return true
+        } else {
+            return cycleInlineSuggestion(backwards: backwards)
+        }
+    }
+
+    private func cycleInlineSuggestion(backwards: Bool) -> Bool {
+        guard let range = inlineInsertedRange else { return false }
+        var selection = selectedRange()
+        if selection.length == 0 && selection.location == NSMaxRange(range) {
+            selection = range
+            setSelectedRange(range)
+        }
+        if selection.location != range.location || selection.length != range.length {
+            hideInlineKeywordSuggestion()
+            return false
+        }
+        guard inlineKeywordSuggestions.count > 1 else {
+            hideInlineKeywordSuggestion()
+            return true
+        }
+
+        let targetIndex: Int
+        if backwards {
+            let current = inlineInsertedIndex ?? 0
+            targetIndex = normalizedInlineIndex(current - 1)
+        } else {
+            targetIndex = inlineSuggestionNextIndex
+        }
+
+        let suggestion = inlineKeywordSuggestions[targetIndex]
+        let replacement = appendedKeywordText(for: suggestion)
+        guard shouldChangeText(in: range, replacementString: replacement) else { return false }
+        textStorage?.replaceCharacters(in: range, with: replacement)
+        let newRange = NSRange(location: range.location, length: (replacement as NSString).length)
+        inlineInsertedRange = newRange
+        inlineInsertedIndex = targetIndex
+        inlineSuggestionNextIndex = normalizedInlineIndex(targetIndex + 1)
+        setSelectedRange(newRange)
+        if let query = makeCompletionQuery() {
+            completionEngine.recordSelection(suggestion, query: query)
+        }
+        suppressNextCompletionRefresh = true
+        didChangeText()
+        return true
+    }
+
+    private func normalizedInlineIndex(_ index: Int) -> Int {
+        guard !inlineKeywordSuggestions.isEmpty else { return 0 }
+        var value = index % inlineKeywordSuggestions.count
+        if value < 0 {
+            value += inlineKeywordSuggestions.count
+        }
+        return value
+    }
+
+    private func appendedKeywordText(for suggestion: SQLAutoCompletionSuggestion) -> String {
+        var text = suggestion.insertText
+        if !text.hasSuffix(" ") {
+            text += " "
+        }
+        return text
+    }
+
+    private func clearInlineSuggestionState() {
+        inlineKeywordSuggestions.removeAll()
+        inlineSuggestionQuery = nil
+        inlineSuggestionNextIndex = 0
+        inlineInsertedRange = nil
+        inlineInsertedIndex = nil
+    }
+
+#if DEBUG
+    func debugInlineSuggestionSnapshot() -> (text: String, frame: NSRect, isHidden: Bool)? {
+        guard let view = inlineSuggestionView else { return nil }
+        return (view.stringValue, view.frame, view.isHidden)
+    }
+#endif
+
+private func makeSnippetInsertion(from snippet: String) -> (String, [NSRange]) {
         var output = ""
         var placeholders: [NSRange] = []
 
@@ -2397,6 +2925,12 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
         } else {
             hideCompletions()
         }
+        if displayOptions.autoCompletionEnabled && displayOptions.inlineKeywordSuggestionsEnabled {
+            applyInlineSuggestionAppearance()
+            updateInlineSuggestionPosition()
+        } else {
+            hideInlineKeywordSuggestion()
+        }
     }
 
     private func updateParagraphStyle() {
@@ -2489,6 +3023,24 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
         let length = (string as NSString).length
         if length == 0 { return NSRange(location: 0, length: 0) }
         return makeSafeRange(range, documentLength: length)
+    }
+}
+
+private final class InlineSuggestionLabel: NSTextField {
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        isBordered = false
+        isEditable = false
+        isSelectable = false
+        drawsBackground = false
+        lineBreakMode = .byClipping
+        alignment = .left
+        stringValue = ""
+        usesSingleLineMode = true
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
     }
 }
 

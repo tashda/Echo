@@ -55,7 +55,7 @@ struct SidebarMenu: View {
             contentView
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .padding(.top, WorkspaceChromeMetrics.chromeTopInset)
+        .padding(.top, appState.workspaceTabBarStyle.chromeTopPadding)
         .confirmationDialog(
             "Duplicate Connection",
             isPresented: Binding(
@@ -197,6 +197,7 @@ struct SidebarMenu: View {
             )
         case .database:
             DatabaseSidebarView(
+                selectedConnectionID: $selectedConnectionID,
                 icon: "cylinder.split.1x2.fill",
                 title: "Database",
                 description: "Database administration and management tools"

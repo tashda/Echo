@@ -2,6 +2,12 @@ import SwiftUI
 import Combine
 import CryptoKit
 
+// Archive container defined at top-level to avoid inheriting any global-actor isolation.
+private struct ClipboardHistoryArchive: Codable {
+    let version: Int
+    var entries: [ClipboardHistoryEntry]
+}
+
 struct ClipboardHistoryUsageBreakdown: Equatable {
     var queryBytes: Int
     var gridBytes: Int
@@ -182,10 +188,7 @@ final class ClipboardHistoryStore: ObservableObject {
     typealias UsageBreakdown = ClipboardHistoryUsageBreakdown
     typealias Entry = ClipboardHistoryEntry
 
-    private struct EntryArchive: Codable {
-        let version: Int
-        var entries: [Entry]
-    }
+    // Removed nested EntryArchive to avoid accidental MainActor capture into background work.
 
     private static let archiveVersion = 1
     private static let storageLimitDefaultsKey = "clipboardHistoryStorageLimit"
@@ -226,7 +229,9 @@ final class ClipboardHistoryStore: ObservableObject {
     }
 
     deinit {
-        pendingSaveWorkItem?.cancel()
+        MainActor.assumeIsolated {
+            pendingSaveWorkItem?.cancel()
+        }
     }
 
     func setEnabled(_ enabled: Bool) {
@@ -376,23 +381,21 @@ final class ClipboardHistoryStore: ObservableObject {
     private func scheduleSave(needsImmediate: Bool = false) {
         guard isEnabled else { return }
         let snapshot = entries
-        let archive = EntryArchive(version: ClipboardHistoryStore.archiveVersion, entries: snapshot)
+        let archive = ClipboardHistoryArchive(version: ClipboardHistoryStore.archiveVersion, entries: snapshot)
         let key = encryptionKey
         let historyURL = self.historyURL
         let crypto = self.crypto
         pendingSaveWorkItem?.cancel()
 
-        let workItem = DispatchWorkItem {
-            do {
-                let encoder = JSONEncoder()
-                encoder.outputFormatting = [.prettyPrinted]
-                let plain = try encoder.encode(archive)
-                let encrypted = try crypto.encrypt(plain, using: key)
-                try encrypted.write(to: historyURL, options: .atomic)
-            } catch {
-                print("Failed to persist clipboard history: \(error)")
-            }
-        }
+        // Important: Create a non-MainActor work item to avoid queue assertions
+        // when executing on the background saveQueue. Creating the block inside
+        // a nonisolated context ensures the closure itself is not main-actor isolated.
+        let workItem = ClipboardHistoryPersistor.makeSaveWorkItem(
+            archive: archive,
+            key: key,
+            historyURL: historyURL,
+            crypto: crypto
+        )
 
         pendingSaveWorkItem = workItem
         if needsImmediate {
@@ -472,26 +475,26 @@ final class ClipboardHistoryStore: ObservableObject {
         return min(max(value, minimumStorageLimit), maximumStorageLimit)
     }
 
-    private func decodeArchive(fromEncryptedData data: Data) throws -> EntryArchive? {
+    private func decodeArchive(fromEncryptedData data: Data) throws -> ClipboardHistoryArchive? {
         do {
             let decrypted = try crypto.decrypt(data, using: encryptionKey)
             let decoder = JSONDecoder()
-            return try decoder.decode(EntryArchive.self, from: decrypted)
+            return try decoder.decode(ClipboardHistoryArchive.self, from: decrypted)
         } catch ClipboardHistoryCrypto.Error.invalidEnvelope {
             return nil
         }
     }
 
-    private func decodeArchive(fromPlainData data: Data) throws -> EntryArchive? {
+    private func decodeArchive(fromPlainData data: Data) throws -> ClipboardHistoryArchive? {
         do {
             let decoder = JSONDecoder()
-            return try decoder.decode(EntryArchive.self, from: data)
+            return try decoder.decode(ClipboardHistoryArchive.self, from: data)
         } catch {
             return nil
         }
     }
 
-    private static func makeHistoryURLs() -> (encrypted: URL, legacy: URL) {
+private static func makeHistoryURLs() -> (encrypted: URL, legacy: URL) {
         let fm = FileManager.default
         do {
             let support = try fm.url(
@@ -523,7 +526,7 @@ final class ClipboardHistoryStore: ObservableObject {
         }
     }
 
-    static func formatByteCount(_ bytes: Int) -> String {
+    nonisolated static func formatByteCount(_ bytes: Int) -> String {
         guard bytes > 0 else { return "0 KB" }
         let formatter = ByteCountFormatter()
         formatter.allowsNonnumericFormatting = false
@@ -531,6 +534,29 @@ final class ClipboardHistoryStore: ObservableObject {
         formatter.isAdaptive = true
         formatter.includesUnit = true
         return formatter.string(fromByteCount: Int64(bytes))
+    }
+}
+
+// MARK: - Nonisolated persistence helper
+
+private enum ClipboardHistoryPersistor {
+    static func makeSaveWorkItem(
+        archive: ClipboardHistoryArchive,
+        key: SymmetricKey,
+        historyURL: URL,
+        crypto: ClipboardHistoryCrypto
+    ) -> DispatchWorkItem {
+        DispatchWorkItem {
+            do {
+                let encoder = JSONEncoder()
+                encoder.outputFormatting = [.prettyPrinted]
+                let plain = try encoder.encode(archive)
+                let encrypted = try crypto.encrypt(plain, using: key)
+                try encrypted.write(to: historyURL, options: .atomic)
+            } catch {
+                print("Failed to persist clipboard history: \(error)")
+            }
+        }
     }
 }
 

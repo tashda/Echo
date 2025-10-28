@@ -1,6 +1,7 @@
 import Foundation
 import SwiftUI
 import Combine
+import EchoSense
 #if canImport(AppKit)
 import AppKit
 #endif
@@ -739,8 +740,8 @@ struct Project: Identifiable, Codable, Hashable {
 }
 
 extension Project {
-    var color: Color {
-        Color(hex: colorHex) ?? .accentColor
+    nonisolated var color: Color {
+        Color(hex: colorHex) ?? .blue
     }
 
     mutating func updateColor(_ color: Color) {
@@ -1051,27 +1052,52 @@ struct GlobalSettings: Codable, Hashable {
     var editorEnableAutocomplete: Bool = true
     var editorQualifyTableCompletions: Bool = false
     var editorSuggestKeywords: Bool = true
+    var editorEnableInlineSuggestions: Bool = true
     var editorSuggestFunctions: Bool = true
     var editorSuggestSnippets: Bool = true
     var editorSuggestHistory: Bool = true
     var editorSuggestJoins: Bool = true
+    var editorCompletionAggressiveness: SQLCompletionAggressiveness = .balanced
+    var editorShowSystemSchemas: Bool = false
+    var editorAllowCommandPeriodTrigger: Bool = true
+    var editorAllowControlSpaceTrigger: Bool = true
     var useServerColorAsAccent: Bool
     var activeThemeIDLight: AppColorTheme.ID?
     var activeThemeIDDark: AppColorTheme.ID?
     var themeTabs: Bool = false
+    var workspaceTabBarStyle: WorkspaceTabBarStyle = .floating
+    var tabOverviewStyle: TabOverviewStyle = .comfortable
     var themeResultsGrid: Bool = true
     var resultsAlternateRowShading: Bool = false
+    var resultsEnableTypeFormatting: Bool = true
+    var resultsFormattingMode: ResultsFormattingMode = .immediate
     var foreignKeyDisplayMode: ForeignKeyDisplayMode = .showInspector
     var foreignKeyInspectorBehavior: ForeignKeyInspectorBehavior = .respectInspectorVisibility
     var foreignKeyIncludeRelated: Bool = false
     var resultsInitialRowLimit: Int = 500
     var resultsPreviewBatchSize: Int = 500
     var resultsBackgroundStreamingThreshold: Int = 512
+    var resultsStreamingFetchSize: Int = 4_096
+    var resultsStreamingMode: ResultStreamingExecutionMode = .auto
+    var resultsStreamingFetchRampMultiplier: Int = 24
+    var resultsStreamingFetchRampMax: Int = 524_288
+    var resultsUseCursorStreaming: Bool = true
+    var resultsCursorStreamingLimitThreshold: Int = 25_000
+    // Engine-specific UI preferences (used by settings; runtime may map per engine)
+    var mssqlStreamingMode: ResultStreamingExecutionMode = .auto
+    var mysqlStreamingMode: ResultStreamingExecutionMode = .auto
+    var sqliteStreamingMode: ResultStreamingExecutionMode = .auto
     var resultSpoolMaxBytes: Int = 5 * 1_024 * 1_024 * 1_024
     var resultSpoolRetentionHours: Int = 72
     var resultSpoolCustomLocation: String?
     var inspectorWidth: Double?
     var keepTabsInMemory: Bool = false
+    var diagramPrefetchMode: DiagramPrefetchMode = .off
+    var diagramRefreshCadence: DiagramRefreshCadence = .never
+    var diagramCacheMaxBytes: Int = 512 * 1_024 * 1_024
+    var diagramVerifyBeforeRefresh: Bool = true
+    var diagramRenderRelationshipsForLargeDiagrams: Bool = true
+    var diagramUseThemedAppearance: Bool = true
 
     // Window preferences
     var defaultWindowWidth: Double?
@@ -1097,20 +1123,38 @@ struct GlobalSettings: Codable, Hashable {
         editorEnableAutocomplete: Bool = true,
         editorQualifyTableCompletions: Bool = false,
         editorSuggestKeywords: Bool = true,
+        editorEnableInlineSuggestions: Bool = true,
         editorSuggestFunctions: Bool = true,
         editorSuggestSnippets: Bool = true,
         editorSuggestHistory: Bool = true,
         editorSuggestJoins: Bool = true,
+        editorCompletionAggressiveness: SQLCompletionAggressiveness = .balanced,
+        editorShowSystemSchemas: Bool = false,
+        editorAllowCommandPeriodTrigger: Bool = true,
+        editorAllowControlSpaceTrigger: Bool = true,
         useServerColorAsAccent: Bool = true,
         themeTabs: Bool = false,
+        workspaceTabBarStyle: WorkspaceTabBarStyle = .floating,
+        tabOverviewStyle: TabOverviewStyle = .comfortable,
         themeResultsGrid: Bool = true,
         resultsAlternateRowShading: Bool = false,
+        resultsEnableTypeFormatting: Bool = true,
+        resultsFormattingMode: ResultsFormattingMode = .immediate,
         foreignKeyDisplayMode: ForeignKeyDisplayMode = .showInspector,
         foreignKeyInspectorBehavior: ForeignKeyInspectorBehavior = .respectInspectorVisibility,
         foreignKeyIncludeRelated: Bool = false,
         resultsInitialRowLimit: Int = 500,
         resultsPreviewBatchSize: Int = 500,
         resultsBackgroundStreamingThreshold: Int = 512,
+        resultsStreamingFetchSize: Int = 4_096,
+        resultsStreamingMode: ResultStreamingExecutionMode = .auto,
+        resultsStreamingFetchRampMultiplier: Int = 24,
+        resultsStreamingFetchRampMax: Int = 524_288,
+        resultsUseCursorStreaming: Bool = true,
+        resultsCursorStreamingLimitThreshold: Int = 25_000,
+        mssqlStreamingMode: ResultStreamingExecutionMode = .auto,
+        mysqlStreamingMode: ResultStreamingExecutionMode = .auto,
+        sqliteStreamingMode: ResultStreamingExecutionMode = .auto,
         resultSpoolMaxBytes: Int = 5 * 1_024 * 1_024 * 1_024,
         resultSpoolRetentionHours: Int = 72,
         resultSpoolCustomLocation: String? = nil,
@@ -1119,7 +1163,13 @@ struct GlobalSettings: Codable, Hashable {
         defaultWindowHeight: Double? = nil,
         activeThemeIDLight: AppColorTheme.ID? = nil,
         activeThemeIDDark: AppColorTheme.ID? = nil,
-        keepTabsInMemory: Bool = false
+        keepTabsInMemory: Bool = false,
+        diagramPrefetchMode: DiagramPrefetchMode = .off,
+        diagramRefreshCadence: DiagramRefreshCadence = .never,
+        diagramCacheMaxBytes: Int = 512 * 1_024 * 1_024,
+        diagramVerifyBeforeRefresh: Bool = true,
+        diagramRenderRelationshipsForLargeDiagrams: Bool = true,
+        diagramUseThemedAppearance: Bool = true
     ) {
         self.appearanceMode = appearanceMode
         self.defaultEditorFontSize = defaultEditorFontSize
@@ -1140,20 +1190,38 @@ struct GlobalSettings: Codable, Hashable {
         self.editorEnableAutocomplete = editorEnableAutocomplete
         self.editorQualifyTableCompletions = editorQualifyTableCompletions
         self.editorSuggestKeywords = editorSuggestKeywords
+        self.editorEnableInlineSuggestions = editorEnableInlineSuggestions
         self.editorSuggestFunctions = editorSuggestFunctions
         self.editorSuggestSnippets = editorSuggestSnippets
         self.editorSuggestHistory = editorSuggestHistory
         self.editorSuggestJoins = editorSuggestJoins
+        self.editorCompletionAggressiveness = editorCompletionAggressiveness
+        self.editorShowSystemSchemas = editorShowSystemSchemas
+        self.editorAllowCommandPeriodTrigger = editorAllowCommandPeriodTrigger
+        self.editorAllowControlSpaceTrigger = editorAllowControlSpaceTrigger
         self.useServerColorAsAccent = useServerColorAsAccent
         self.themeTabs = themeTabs
+        self.workspaceTabBarStyle = workspaceTabBarStyle
+        self.tabOverviewStyle = tabOverviewStyle
         self.themeResultsGrid = themeResultsGrid
         self.resultsAlternateRowShading = resultsAlternateRowShading
+        self.resultsEnableTypeFormatting = resultsEnableTypeFormatting
+        self.resultsFormattingMode = resultsFormattingMode
         self.foreignKeyDisplayMode = foreignKeyDisplayMode
         self.foreignKeyInspectorBehavior = foreignKeyInspectorBehavior
         self.foreignKeyIncludeRelated = foreignKeyIncludeRelated
         self.resultsInitialRowLimit = max(100, resultsInitialRowLimit)
         self.resultsPreviewBatchSize = max(100, resultsPreviewBatchSize)
         self.resultsBackgroundStreamingThreshold = max(100, resultsBackgroundStreamingThreshold)
+        self.resultsStreamingFetchSize = max(128, resultsStreamingFetchSize)
+        self.resultsStreamingMode = resultsStreamingMode
+        self.resultsStreamingFetchRampMultiplier = max(1, min(resultsStreamingFetchRampMultiplier, 64))
+        self.resultsStreamingFetchRampMax = max(256, min(resultsStreamingFetchRampMax, 1_048_576))
+        self.resultsUseCursorStreaming = resultsUseCursorStreaming
+        self.resultsCursorStreamingLimitThreshold = max(0, resultsCursorStreamingLimitThreshold)
+        self.mssqlStreamingMode = mssqlStreamingMode
+        self.mysqlStreamingMode = mysqlStreamingMode
+        self.sqliteStreamingMode = sqliteStreamingMode
         self.resultSpoolMaxBytes = resultSpoolMaxBytes
         self.resultSpoolRetentionHours = resultSpoolRetentionHours
         self.resultSpoolCustomLocation = resultSpoolCustomLocation
@@ -1163,6 +1231,12 @@ struct GlobalSettings: Codable, Hashable {
         self.activeThemeIDLight = activeThemeIDLight
         self.activeThemeIDDark = activeThemeIDDark
         self.keepTabsInMemory = keepTabsInMemory
+        self.diagramPrefetchMode = diagramPrefetchMode
+        self.diagramRefreshCadence = diagramRefreshCadence
+        self.diagramCacheMaxBytes = max(64 * 1_024 * 1_024, diagramCacheMaxBytes)
+        self.diagramVerifyBeforeRefresh = diagramVerifyBeforeRefresh
+        self.diagramRenderRelationshipsForLargeDiagrams = diagramRenderRelationshipsForLargeDiagrams
+        self.diagramUseThemedAppearance = diagramUseThemedAppearance
     }
 
     enum CodingKeys: String, CodingKey {
@@ -1186,29 +1260,52 @@ struct GlobalSettings: Codable, Hashable {
         case editorEnableAutocomplete
         case editorQualifyTableCompletions
         case editorSuggestKeywords
+        case editorEnableInlineSuggestions
         case editorSuggestFunctions
         case editorSuggestSnippets
         case editorSuggestHistory
         case editorSuggestJoins
+        case editorCompletionAggressiveness
+        case editorShowSystemSchemas
+        case editorAllowCommandPeriodTrigger
+        case editorAllowControlSpaceTrigger
         case useServerColorAsAccent
         case defaultWindowWidth
         case defaultWindowHeight
         case activeThemeIDLight
         case activeThemeIDDark
         case themeTabs
+        case workspaceTabBarStyle
         case themeResultsGrid
         case resultsAlternateRowShading
+        case resultsEnableTypeFormatting
+        case resultsFormattingMode
         case foreignKeyDisplayMode
         case foreignKeyInspectorBehavior
         case foreignKeyIncludeRelated
         case resultsInitialRowLimit
         case resultsPreviewBatchSize
         case resultsBackgroundStreamingThreshold
+        case resultsStreamingFetchSize
+        case resultsStreamingMode
+        case resultsStreamingFetchRampMultiplier
+        case resultsStreamingFetchRampMax
+        case resultsUseCursorStreaming
+        case resultsCursorStreamingLimitThreshold
+        case mssqlStreamingMode
+        case mysqlStreamingMode
+        case sqliteStreamingMode
         case resultSpoolMaxBytes
         case resultSpoolRetentionHours
         case resultSpoolCustomLocation
         case inspectorWidth
         case keepTabsInMemory
+        case diagramPrefetchMode
+        case diagramRefreshCadence
+        case diagramCacheMaxBytes
+        case diagramVerifyBeforeRefresh
+        case diagramRenderRelationshipsForLargeDiagrams
+        case diagramUseThemedAppearance
     }
 
     init(from decoder: Decoder) throws {
@@ -1258,26 +1355,58 @@ struct GlobalSettings: Codable, Hashable {
         editorEnableAutocomplete = try container.decodeIfPresent(Bool.self, forKey: .editorEnableAutocomplete) ?? true
         editorQualifyTableCompletions = try container.decodeIfPresent(Bool.self, forKey: .editorQualifyTableCompletions) ?? false
         editorSuggestKeywords = try container.decodeIfPresent(Bool.self, forKey: .editorSuggestKeywords) ?? true
+        editorEnableInlineSuggestions = try container.decodeIfPresent(Bool.self, forKey: .editorEnableInlineSuggestions) ?? true
         editorSuggestFunctions = try container.decodeIfPresent(Bool.self, forKey: .editorSuggestFunctions) ?? true
         editorSuggestSnippets = try container.decodeIfPresent(Bool.self, forKey: .editorSuggestSnippets) ?? true
         editorSuggestHistory = try container.decodeIfPresent(Bool.self, forKey: .editorSuggestHistory) ?? true
         editorSuggestJoins = try container.decodeIfPresent(Bool.self, forKey: .editorSuggestJoins) ?? true
+        editorCompletionAggressiveness = try container.decodeIfPresent(SQLCompletionAggressiveness.self, forKey: .editorCompletionAggressiveness) ?? .balanced
+        editorShowSystemSchemas = try container.decodeIfPresent(Bool.self, forKey: .editorShowSystemSchemas) ?? false
+        editorAllowCommandPeriodTrigger = try container.decodeIfPresent(Bool.self, forKey: .editorAllowCommandPeriodTrigger) ?? true
+        editorAllowControlSpaceTrigger = try container.decodeIfPresent(Bool.self, forKey: .editorAllowControlSpaceTrigger) ?? true
         useServerColorAsAccent = try container.decodeIfPresent(Bool.self, forKey: .useServerColorAsAccent) ?? true
         defaultWindowWidth = try container.decodeIfPresent(Double.self, forKey: .defaultWindowWidth)
         defaultWindowHeight = try container.decodeIfPresent(Double.self, forKey: .defaultWindowHeight)
         activeThemeIDLight = try container.decodeIfPresent(AppColorTheme.ID.self, forKey: .activeThemeIDLight)
         activeThemeIDDark = try container.decodeIfPresent(AppColorTheme.ID.self, forKey: .activeThemeIDDark)
         themeTabs = try container.decodeIfPresent(Bool.self, forKey: .themeTabs) ?? false
+        workspaceTabBarStyle = try container.decodeIfPresent(WorkspaceTabBarStyle.self, forKey: .workspaceTabBarStyle) ?? .floating
         themeResultsGrid = try container.decodeIfPresent(Bool.self, forKey: .themeResultsGrid) ?? true
         resultsAlternateRowShading = try container.decodeIfPresent(Bool.self, forKey: .resultsAlternateRowShading) ?? false
+        resultsEnableTypeFormatting = try container.decodeIfPresent(Bool.self, forKey: .resultsEnableTypeFormatting) ?? true
+        resultsFormattingMode = (try? container.decodeIfPresent(ResultsFormattingMode.self, forKey: .resultsFormattingMode)) ?? .immediate
         foreignKeyDisplayMode = try container.decodeIfPresent(ForeignKeyDisplayMode.self, forKey: .foreignKeyDisplayMode) ?? .showInspector
         foreignKeyInspectorBehavior = try container.decodeIfPresent(ForeignKeyInspectorBehavior.self, forKey: .foreignKeyInspectorBehavior) ?? .respectInspectorVisibility
         foreignKeyIncludeRelated = try container.decodeIfPresent(Bool.self, forKey: .foreignKeyIncludeRelated) ?? false
         resultsInitialRowLimit = max(100, try container.decodeIfPresent(Int.self, forKey: .resultsInitialRowLimit) ?? 500)
         resultsPreviewBatchSize = max(100, try container.decodeIfPresent(Int.self, forKey: .resultsPreviewBatchSize) ?? 500)
         resultsBackgroundStreamingThreshold = max(100, try container.decodeIfPresent(Int.self, forKey: .resultsBackgroundStreamingThreshold) ?? 512)
+        resultsStreamingFetchSize = max(128, try container.decodeIfPresent(Int.self, forKey: .resultsStreamingFetchSize) ?? 4_096)
+        resultsStreamingMode = (try? container.decodeIfPresent(ResultStreamingExecutionMode.self, forKey: .resultsStreamingMode)) ?? .auto
+        resultsStreamingFetchRampMultiplier = {
+            let raw = (try? container.decodeIfPresent(Int.self, forKey: .resultsStreamingFetchRampMultiplier)) ?? 24
+            return max(1, min(raw, 64))
+        }()
+        resultsStreamingFetchRampMax = {
+            let raw = (try? container.decodeIfPresent(Int.self, forKey: .resultsStreamingFetchRampMax)) ?? 524_288
+            return max(256, min(raw, 1_048_576))
+        }()
+        resultsUseCursorStreaming = try container.decodeIfPresent(Bool.self, forKey: .resultsUseCursorStreaming) ?? true
+        resultsCursorStreamingLimitThreshold = max(0, try container.decodeIfPresent(Int.self, forKey: .resultsCursorStreamingLimitThreshold) ?? 1000)
+        resultSpoolMaxBytes = try container.decodeIfPresent(Int.self, forKey: .resultSpoolMaxBytes) ?? 5 * 1_024 * 1_024 * 1_024
+        resultSpoolRetentionHours = try container.decodeIfPresent(Int.self, forKey: .resultSpoolRetentionHours) ?? 72
+        resultSpoolCustomLocation = try container.decodeIfPresent(String.self, forKey: .resultSpoolCustomLocation)
         inspectorWidth = try container.decodeIfPresent(Double.self, forKey: .inspectorWidth)
         keepTabsInMemory = try container.decodeIfPresent(Bool.self, forKey: .keepTabsInMemory) ?? false
+        diagramPrefetchMode = try container.decodeIfPresent(DiagramPrefetchMode.self, forKey: .diagramPrefetchMode) ?? .off
+        diagramRefreshCadence = try container.decodeIfPresent(DiagramRefreshCadence.self, forKey: .diagramRefreshCadence) ?? .never
+        diagramCacheMaxBytes = max(64 * 1_024 * 1_024, try container.decodeIfPresent(Int.self, forKey: .diagramCacheMaxBytes) ?? 512 * 1_024 * 1_024)
+        diagramVerifyBeforeRefresh = try container.decodeIfPresent(Bool.self, forKey: .diagramVerifyBeforeRefresh) ?? true
+        diagramRenderRelationshipsForLargeDiagrams = try container.decodeIfPresent(Bool.self, forKey: .diagramRenderRelationshipsForLargeDiagrams) ?? true
+        diagramUseThemedAppearance = try container.decodeIfPresent(Bool.self, forKey: .diagramUseThemedAppearance) ?? true
+        mssqlStreamingMode = (try? container.decodeIfPresent(ResultStreamingExecutionMode.self, forKey: .mssqlStreamingMode)) ?? .auto
+        mysqlStreamingMode = (try? container.decodeIfPresent(ResultStreamingExecutionMode.self, forKey: .mysqlStreamingMode)) ?? .auto
+        sqliteStreamingMode = (try? container.decodeIfPresent(ResultStreamingExecutionMode.self, forKey: .sqliteStreamingMode)) ?? .auto
     }
 
     func encode(to encoder: Encoder) throws {
@@ -1299,29 +1428,51 @@ struct GlobalSettings: Codable, Hashable {
         try container.encode(editorEnableAutocomplete, forKey: .editorEnableAutocomplete)
         try container.encode(editorQualifyTableCompletions, forKey: .editorQualifyTableCompletions)
         try container.encode(editorSuggestKeywords, forKey: .editorSuggestKeywords)
+        try container.encode(editorEnableInlineSuggestions, forKey: .editorEnableInlineSuggestions)
         try container.encode(editorSuggestFunctions, forKey: .editorSuggestFunctions)
         try container.encode(editorSuggestSnippets, forKey: .editorSuggestSnippets)
         try container.encode(editorSuggestHistory, forKey: .editorSuggestHistory)
         try container.encode(editorSuggestJoins, forKey: .editorSuggestJoins)
+        try container.encode(editorCompletionAggressiveness, forKey: .editorCompletionAggressiveness)
+        try container.encode(editorShowSystemSchemas, forKey: .editorShowSystemSchemas)
+        try container.encode(editorAllowCommandPeriodTrigger, forKey: .editorAllowCommandPeriodTrigger)
+        try container.encode(editorAllowControlSpaceTrigger, forKey: .editorAllowControlSpaceTrigger)
         try container.encode(useServerColorAsAccent, forKey: .useServerColorAsAccent)
         try container.encode(defaultWindowWidth, forKey: .defaultWindowWidth)
         try container.encode(defaultWindowHeight, forKey: .defaultWindowHeight)
         try container.encodeIfPresent(activeThemeIDLight, forKey: .activeThemeIDLight)
         try container.encodeIfPresent(activeThemeIDDark, forKey: .activeThemeIDDark)
         try container.encode(themeTabs, forKey: .themeTabs)
+        try container.encode(workspaceTabBarStyle, forKey: .workspaceTabBarStyle)
         try container.encode(themeResultsGrid, forKey: .themeResultsGrid)
         try container.encode(resultsAlternateRowShading, forKey: .resultsAlternateRowShading)
+        try container.encode(resultsEnableTypeFormatting, forKey: .resultsEnableTypeFormatting)
+        try container.encode(resultsFormattingMode, forKey: .resultsFormattingMode)
         try container.encode(foreignKeyDisplayMode, forKey: .foreignKeyDisplayMode)
         try container.encode(foreignKeyInspectorBehavior, forKey: .foreignKeyInspectorBehavior)
         try container.encode(foreignKeyIncludeRelated, forKey: .foreignKeyIncludeRelated)
         try container.encode(resultsInitialRowLimit, forKey: .resultsInitialRowLimit)
         try container.encode(resultsPreviewBatchSize, forKey: .resultsPreviewBatchSize)
         try container.encode(resultsBackgroundStreamingThreshold, forKey: .resultsBackgroundStreamingThreshold)
+        try container.encode(resultsStreamingFetchSize, forKey: .resultsStreamingFetchSize)
+        try container.encode(resultsStreamingMode, forKey: .resultsStreamingMode)
+        try container.encode(resultsStreamingFetchRampMultiplier, forKey: .resultsStreamingFetchRampMultiplier)
+        try container.encode(resultsStreamingFetchRampMax, forKey: .resultsStreamingFetchRampMax)
+        try container.encode(resultsUseCursorStreaming, forKey: .resultsUseCursorStreaming)
         try container.encode(resultSpoolMaxBytes, forKey: .resultSpoolMaxBytes)
         try container.encode(resultSpoolRetentionHours, forKey: .resultSpoolRetentionHours)
         try container.encodeIfPresent(resultSpoolCustomLocation, forKey: .resultSpoolCustomLocation)
         try container.encodeIfPresent(inspectorWidth, forKey: .inspectorWidth)
         try container.encode(keepTabsInMemory, forKey: .keepTabsInMemory)
+        try container.encode(diagramPrefetchMode, forKey: .diagramPrefetchMode)
+        try container.encode(diagramRefreshCadence, forKey: .diagramRefreshCadence)
+        try container.encode(diagramCacheMaxBytes, forKey: .diagramCacheMaxBytes)
+        try container.encode(diagramVerifyBeforeRefresh, forKey: .diagramVerifyBeforeRefresh)
+        try container.encode(diagramRenderRelationshipsForLargeDiagrams, forKey: .diagramRenderRelationshipsForLargeDiagrams)
+        try container.encode(diagramUseThemedAppearance, forKey: .diagramUseThemedAppearance)
+        try container.encode(mssqlStreamingMode, forKey: .mssqlStreamingMode)
+        try container.encode(mysqlStreamingMode, forKey: .mysqlStreamingMode)
+        try container.encode(sqliteStreamingMode, forKey: .sqliteStreamingMode)
 
         try container.encode(defaultEditorPaletteIDLight, forKey: .defaultEditorPaletteIDLight)
         try container.encode(defaultEditorPaletteIDDark, forKey: .defaultEditorPaletteIDDark)
@@ -1347,13 +1498,15 @@ enum AppearanceMode: String, Codable, CaseIterable {
 
 // MARK: - Project Export/Import Models
 
-struct ProjectExportData: Codable {
+struct ProjectExportData: Codable, Sendable {
     let project: Project
     let connections: [SavedConnection]
     let identities: [SavedIdentity]
     let folders: [SavedFolder]
     let globalSettings: GlobalSettings?
     let clipboardHistory: [ClipboardHistoryStore.Entry]?
+    let autocompleteHistory: SQLAutoCompletionHistoryStore.Snapshot?
+    let diagramCaches: [DiagramCachePayload]?
     let bookmarks: [Bookmark]
     let exportedAt: Date
     let version: String
@@ -1365,6 +1518,8 @@ struct ProjectExportData: Codable {
         folders: [SavedFolder],
         globalSettings: GlobalSettings?,
         clipboardHistory: [ClipboardHistoryStore.Entry]? = nil,
+        autocompleteHistory: SQLAutoCompletionHistoryStore.Snapshot? = nil,
+        diagramCaches: [DiagramCachePayload]? = nil,
         bookmarks: [Bookmark] = [],
         exportedAt: Date = Date(),
         version: String = "1.0"
@@ -1375,6 +1530,8 @@ struct ProjectExportData: Codable {
         self.folders = folders
         self.globalSettings = globalSettings
         self.clipboardHistory = clipboardHistory
+        self.autocompleteHistory = autocompleteHistory
+        self.diagramCaches = diagramCaches
         self.bookmarks = bookmarks
         self.exportedAt = exportedAt
         self.version = version

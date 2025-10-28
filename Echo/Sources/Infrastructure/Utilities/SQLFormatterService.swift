@@ -14,7 +14,7 @@ enum SQLFormatterError: LocalizedError {
     }
 }
 
-final class SQLFormatterService {
+final class SQLFormatterService: Sendable {
     static let shared = SQLFormatterService()
 
     enum Dialect: String {

@@ -1,4 +1,46 @@
 import Foundation
+import NIOCore
+
+@preconcurrency let ResultStreamingFetchSizeDefaultsKey = "dk.tippr.echo.streaming.fetchSize"
+@preconcurrency let ResultStreamingFetchRampMultiplierDefaultsKey = "dk.tippr.echo.streaming.fetchRampMultiplier"
+@preconcurrency let ResultStreamingFetchRampMaxDefaultsKey = "dk.tippr.echo.streaming.fetchRampMax"
+@preconcurrency let ResultStreamingUseCursorDefaultsKey = "dk.tippr.echo.streaming.useCursor"
+@preconcurrency let ResultStreamingCursorLimitThresholdDefaultsKey = "dk.tippr.echo.streaming.cursorThreshold"
+@preconcurrency let ResultStreamingModeDefaultsKey = "dk.tippr.echo.streaming.mode"
+@preconcurrency let ResultFormattingEnabledDefaultsKey = "dk.tippr.echo.results.formattingEnabled"
+@preconcurrency let ResultFormattingModeDefaultsKey = "dk.tippr.echo.results.formattingMode"
+
+public enum ResultsFormattingMode: String, Sendable, Codable, CaseIterable, Identifiable {
+    case immediate
+    case deferred
+
+    public nonisolated var id: String { rawValue }
+
+    public nonisolated var displayName: String {
+        switch self {
+        case .immediate:
+            return "Wait for formatting"
+        case .deferred:
+            return "Show immediately, format later"
+        }
+    }
+}
+
+public enum ResultStreamingExecutionMode: String, Sendable, Codable, CaseIterable, Identifiable {
+    case auto
+    case simple
+    case cursor
+
+    public nonisolated var id: String { rawValue }
+
+    public nonisolated var displayName: String {
+        switch self {
+        case .auto: return "Auto"
+        case .simple: return "Simple"
+        case .cursor: return "Cursor"
+        }
+    }
+}
 
 public struct QueryResultSet: Sendable {
     public var columns: [ColumnInfo]
@@ -14,7 +56,7 @@ public struct QueryResultSet: Sendable {
     }
 
     // Legacy initializer for compatibility
-    public init(columns: [String], rows: [[String?]]) {
+    public nonisolated init(columns: [String], rows: [[String?]]) {
         self.columns = columns.map {
             ColumnInfo(name: $0, dataType: "text")
         }
@@ -25,21 +67,31 @@ public struct QueryResultSet: Sendable {
 }
 
 public struct ColumnInfo: Sendable, Identifiable, Codable, Hashable {
-    public var id: String { name }
+    public nonisolated var id: String { name }
     public let name: String
     public let dataType: String
     public let isPrimaryKey: Bool
     public let isNullable: Bool
     public let maxLength: Int?
     public var foreignKey: ForeignKeyReference?
+    public let comment: String?
 
-    public nonisolated init(name: String, dataType: String, isPrimaryKey: Bool = false, isNullable: Bool = true, maxLength: Int? = nil, foreignKey: ForeignKeyReference? = nil) {
+    public nonisolated init(
+        name: String,
+        dataType: String,
+        isPrimaryKey: Bool = false,
+        isNullable: Bool = true,
+        maxLength: Int? = nil,
+        foreignKey: ForeignKeyReference? = nil,
+        comment: String? = nil
+    ) {
         self.name = name
         self.dataType = dataType
         self.isPrimaryKey = isPrimaryKey
         self.isNullable = isNullable
         self.maxLength = maxLength
         self.foreignKey = foreignKey
+        self.comment = comment
     }
 
     public struct ForeignKeyReference: Sendable, Codable, Hashable {
@@ -48,7 +100,7 @@ public struct ColumnInfo: Sendable, Identifiable, Codable, Hashable {
         public let referencedTable: String
         public let referencedColumn: String
 
-        public init(constraintName: String, referencedSchema: String, referencedTable: String, referencedColumn: String) {
+        public nonisolated init(constraintName: String, referencedSchema: String, referencedTable: String, referencedColumn: String) {
             self.constraintName = constraintName
             self.referencedSchema = referencedSchema
             self.referencedTable = referencedTable
@@ -164,29 +216,32 @@ public struct SchemaObjectInfo: Sendable, Identifiable, Codable, Hashable {
         case materializedView = "MATERIALIZED VIEW"
         case function = "FUNCTION"
         case trigger = "TRIGGER"
+        case procedure = "PROCEDURE"
 
-        public var pluralDisplayName: String {
+        public nonisolated var pluralDisplayName: String {
             switch self {
             case .table: return "Tables"
             case .view: return "Views"
             case .materializedView: return "Materialized Views"
             case .function: return "Functions"
+            case .procedure: return "Procedures"
             case .trigger: return "Triggers"
             }
         }
 
-        public var systemImage: String {
+        public nonisolated var systemImage: String {
             switch self {
             case .table: return "table"
             case .view: return "eye"
             case .materializedView: return "eye.fill"
             case .function: return "function"
+            case .procedure: return "gearshape"
             case .trigger: return "bolt"
             }
         }
     }
 
-    public var id: String {
+    public nonisolated var id: String {
         if type == .trigger {
             return "\(schema).\(name).\(triggerTable ?? "").\(triggerAction ?? "")"
         }
@@ -196,20 +251,97 @@ public struct SchemaObjectInfo: Sendable, Identifiable, Codable, Hashable {
     public let schema: String
     public let type: ObjectType
     public var columns: [ColumnInfo]
+    public var parameters: [ProcedureParameterInfo]
     public let triggerAction: String?
     public let triggerTable: String?
+    public let comment: String?
 
-    public init(name: String, schema: String, type: ObjectType, columns: [ColumnInfo] = [], triggerAction: String? = nil, triggerTable: String? = nil) {
+    public nonisolated init(
+        name: String,
+        schema: String,
+        type: ObjectType,
+        columns: [ColumnInfo] = [],
+        parameters: [ProcedureParameterInfo] = [],
+        triggerAction: String? = nil,
+        triggerTable: String? = nil,
+        comment: String? = nil
+    ) {
         self.name = name
         self.schema = schema
         self.type = type
         self.columns = columns
+        self.parameters = parameters
         self.triggerAction = triggerAction
         self.triggerTable = triggerTable
+        self.comment = comment
     }
 
-    public var fullName: String {
+    public nonisolated var fullName: String {
         "\(schema).\(name)"
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case name
+        case schema
+        case type
+        case columns
+        case parameters
+        case triggerAction
+        case triggerTable
+        case comment
+    }
+
+    public nonisolated init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.name = try container.decode(String.self, forKey: .name)
+        self.schema = try container.decode(String.self, forKey: .schema)
+        self.type = try container.decode(ObjectType.self, forKey: .type)
+        self.columns = try container.decodeIfPresent([ColumnInfo].self, forKey: .columns) ?? []
+        self.parameters = try container.decodeIfPresent([ProcedureParameterInfo].self, forKey: .parameters) ?? []
+        self.triggerAction = try container.decodeIfPresent(String.self, forKey: .triggerAction)
+        self.triggerTable = try container.decodeIfPresent(String.self, forKey: .triggerTable)
+        self.comment = try container.decodeIfPresent(String.self, forKey: .comment)
+    }
+
+    public nonisolated func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(name, forKey: .name)
+        try container.encode(schema, forKey: .schema)
+        try container.encode(type, forKey: .type)
+        if !columns.isEmpty {
+            try container.encode(columns, forKey: .columns)
+        }
+        if !parameters.isEmpty {
+            try container.encode(parameters, forKey: .parameters)
+        }
+        try container.encodeIfPresent(triggerAction, forKey: .triggerAction)
+        try container.encodeIfPresent(triggerTable, forKey: .triggerTable)
+        try container.encodeIfPresent(comment, forKey: .comment)
+    }
+}
+
+public struct ProcedureParameterInfo: Sendable, Codable, Hashable {
+    public var name: String
+    public var dataType: String
+    public var isOutput: Bool
+    public var hasDefaultValue: Bool
+    public var maxLength: Int?
+    public var ordinalPosition: Int
+
+    public nonisolated init(
+        name: String,
+        dataType: String,
+        isOutput: Bool,
+        hasDefaultValue: Bool,
+        maxLength: Int?,
+        ordinalPosition: Int
+    ) {
+        self.name = name
+        self.dataType = dataType
+        self.isOutput = isOutput
+        self.hasDefaultValue = hasDefaultValue
+        self.maxLength = maxLength
+        self.ordinalPosition = ordinalPosition
     }
 }
 
@@ -404,31 +536,122 @@ public struct QueryStreamMetrics: Sendable, Codable {
     public let decodeDuration: TimeInterval
     public let totalElapsed: TimeInterval
     public let cumulativeRowCount: Int
+    public let fetchRequestRowCount: Int?
+    public let fetchRowCount: Int?
+    public let fetchDuration: TimeInterval?
+    public let fetchWait: TimeInterval?
 
     public nonisolated init(
         batchRowCount: Int,
         loopElapsed: TimeInterval,
         decodeDuration: TimeInterval,
         totalElapsed: TimeInterval,
-        cumulativeRowCount: Int
+        cumulativeRowCount: Int,
+        fetchRequestRowCount: Int? = nil,
+        fetchRowCount: Int? = nil,
+        fetchDuration: TimeInterval? = nil,
+        fetchWait: TimeInterval? = nil
     ) {
         self.batchRowCount = batchRowCount
         self.loopElapsed = loopElapsed
         self.decodeDuration = decodeDuration
         self.totalElapsed = totalElapsed
         self.cumulativeRowCount = cumulativeRowCount
+        self.fetchRequestRowCount = fetchRequestRowCount
+        self.fetchRowCount = fetchRowCount
+        self.fetchDuration = fetchDuration
+        self.fetchWait = fetchWait
     }
 
     public nonisolated var networkWaitEstimate: TimeInterval {
-        max(loopElapsed - decodeDuration, 0)
+        if let fetchWait {
+            return fetchWait
+        }
+        return max(loopElapsed - decodeDuration, 0)
     }
 }
 
 public struct ResultBinaryRow: Sendable {
-    public let data: Data
+    public enum Storage: Sendable {
+        case data(Data)
+        case raw(Raw)
+    }
+
+    public struct Raw: @unchecked Sendable {
+        public let buffers: [ByteBuffer?]
+        public let lengths: [Int]
+        public let totalLength: Int
+
+        public init(buffers: [ByteBuffer?], lengths: [Int], totalLength: Int) {
+            self.buffers = buffers
+            self.lengths = lengths
+            self.totalLength = totalLength
+        }
+    }
+
+    public let storage: Storage
 
     public nonisolated init(data: Data) {
-        self.data = data
+        self.storage = .data(data)
+    }
+
+    internal nonisolated init(raw: Raw) {
+        self.storage = .raw(raw)
+    }
+
+    public nonisolated var data: Data {
+        switch storage {
+        case .data(let data):
+            return data
+        case .raw(let raw):
+            var result = Data()
+            result.reserveCapacity(raw.totalLength)
+
+            var flagNull: UInt8 = 0x00
+            var flagValue: UInt8 = 0x01
+
+            for (index, length) in raw.lengths.enumerated() {
+                if length < 0 {
+                    result.append(&flagNull, count: 1)
+                    continue
+                }
+
+                result.append(&flagValue, count: 1)
+                var le = UInt32(length).littleEndian
+                withUnsafeBytes(of: &le) { pointer in
+                    result.append(pointer.bindMemory(to: UInt8.self))
+                }
+                if length > 0, let buffer = raw.buffers[index] {
+                    result.append(contentsOf: buffer.readableBytesView)
+                }
+            }
+            return result
+        }
+    }
+}
+
+public struct ResultCellPayload: Sendable {
+    public enum Format: UInt8, Sendable {
+        case text = 0
+        case binary = 1
+    }
+
+    public let dataTypeOID: UInt32
+    public let format: Format
+    public let bytes: Data?
+
+    public nonisolated init(dataTypeOID: UInt32, format: Format, bytes: Data?) {
+        self.dataTypeOID = dataTypeOID
+        self.format = format
+        self.bytes = bytes
+    }
+}
+
+public struct ResultRowPayload: Sendable {
+    public let cells: [ResultCellPayload]
+
+    public nonisolated init(cells: [ResultCellPayload]) {
+        self.cells = cells
     }
 }
 
@@ -436,21 +659,27 @@ public struct QueryStreamUpdate: Sendable {
     public let columns: [ColumnInfo]
     public let appendedRows: [[String?]]
     public let encodedRows: [ResultBinaryRow]
+    public let rawRows: [ResultRowPayload]
     public let totalRowCount: Int
     public let metrics: QueryStreamMetrics?
+    public let rowRange: Range<Int>?
 
     public nonisolated init(
         columns: [ColumnInfo],
         appendedRows: [[String?]],
         encodedRows: [ResultBinaryRow] = [],
+        rawRows: [ResultRowPayload] = [],
         totalRowCount: Int,
-        metrics: QueryStreamMetrics? = nil
+        metrics: QueryStreamMetrics? = nil,
+        rowRange: Range<Int>? = nil
     ) {
         self.columns = columns
         self.appendedRows = appendedRows
         self.encodedRows = encodedRows
+        self.rawRows = rawRows
         self.totalRowCount = totalRowCount
         self.metrics = metrics
+        self.rowRange = rowRange
     }
 }
 
@@ -462,6 +691,7 @@ public protocol DatabaseSession: Sendable {
     func close() async
     func simpleQuery(_ sql: String) async throws -> QueryResultSet
     func simpleQuery(_ sql: String, progressHandler: QueryProgressHandler?) async throws -> QueryResultSet
+    func simpleQuery(_ sql: String, executionMode: ResultStreamingExecutionMode?, progressHandler: QueryProgressHandler?) async throws -> QueryResultSet
     func listTablesAndViews(schema: String?) async throws -> [SchemaObjectInfo]
     func listDatabases() async throws -> [String]
     func listSchemas() async throws -> [String]
@@ -472,7 +702,7 @@ public protocol DatabaseSession: Sendable {
     func getTableStructureDetails(schema: String, table: String) async throws -> TableStructureDetails
 }
 
-public protocol DatabaseFactory {
+public protocol DatabaseFactory: Sendable {
     func connect(
         host: String,
         port: Int,
@@ -489,8 +719,17 @@ public protocol DatabaseMetadataSession: DatabaseSession {
     ) async throws -> SchemaInfo
 }
 
+public protocol DatabaseSchemaSummaryProviding: AnyObject {
+    func loadSchemaSummary(_ schemaName: String) async throws -> SchemaInfo
+}
+
 public extension DatabaseSession {
     func simpleQuery(_ sql: String, progressHandler: QueryProgressHandler?) async throws -> QueryResultSet {
         try await simpleQuery(sql)
+    }
+
+    func simpleQuery(_ sql: String, executionMode: ResultStreamingExecutionMode?, progressHandler: QueryProgressHandler?) async throws -> QueryResultSet {
+        // Default implementation ignores executionMode and defers to existing API.
+        try await simpleQuery(sql, progressHandler: progressHandler)
     }
 }

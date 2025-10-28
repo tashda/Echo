@@ -1,4 +1,6 @@
 import Foundation
+import NIOCore
+import PostgresKit
 
 struct ResultSpoolConfiguration: Equatable, Sendable {
     var rootDirectory: URL
@@ -13,6 +15,13 @@ struct ResultSpoolConfiguration: Equatable, Sendable {
             retentionInterval: 72 * 60 * 60,          // 72 hours
             inMemoryRowLimit: 500
         )
+    }
+
+    nonisolated static func == (lhs: ResultSpoolConfiguration, rhs: ResultSpoolConfiguration) -> Bool {
+        lhs.rootDirectory.path == rhs.rootDirectory.path
+            && lhs.maximumBytes == rhs.maximumBytes
+            && lhs.retentionInterval == rhs.retentionInterval
+            && lhs.inMemoryRowLimit == rhs.inMemoryRowLimit
     }
 }
 
@@ -68,19 +77,38 @@ struct ResultBinaryRowCodec {
     }
 
     nonisolated static func encodeRaw(cells: [Data?]) -> ResultBinaryRow {
-        var data = Data()
-        data.reserveCapacity(cells.count * 16)
+        var totalLength = cells.count // flag byte per column
         for cell in cells {
-            switch cell {
-            case .some(let raw):
-                data.append(0x01)
-                var length = UInt32(raw.count).littleEndian
-                withUnsafeBytes(of: &length) { pointer in
-                    data.append(contentsOf: pointer)
+            if let raw = cell {
+                totalLength &+= 4
+                totalLength &+= raw.count
+            }
+        }
+
+        var data = Data(count: totalLength)
+        data.withUnsafeMutableBytes { mutableBytes in
+            guard let baseAddress = mutableBytes.baseAddress else { return }
+            var offset = 0
+
+            for cell in cells {
+                if let raw = cell {
+                    baseAddress.storeBytes(of: UInt8(0x01), toByteOffset: offset, as: UInt8.self)
+                    offset &+= 1
+
+                    var length = UInt32(raw.count).littleEndian
+                _ = withUnsafeBytes(of: &length) { pointer in
+                    memcpy(baseAddress.advanced(by: offset), pointer.baseAddress!, 4)
                 }
-                data.append(raw)
-            case .none:
-                data.append(0x00)
+                    offset &+= 4
+
+                    _ = raw.withUnsafeBytes { rawPointer in
+                        memcpy(baseAddress.advanced(by: offset), rawPointer.baseAddress!, raw.count)
+                    }
+                    offset &+= raw.count
+                } else {
+                    baseAddress.storeBytes(of: UInt8(0x00), toByteOffset: offset, as: UInt8.self)
+                    offset &+= 1
+                }
             }
         }
         return ResultBinaryRow(data: data)
@@ -130,5 +158,195 @@ struct ResultBinaryRowCodec {
         }
 
         return result
+    }
+}
+
+struct PostgresPayloadFormatter: Sendable {
+    private let allocator = ByteBufferAllocator()
+    private let formatter = CellFormatterContext()
+
+    nonisolated func stringValue(for payload: ResultCellPayload, columnIndex: Int) -> String? {
+        let dataType = PostgresDataType(rawValue: payload.dataTypeOID) ?? .text
+        let postgresFormat = PostgresFormat(rawValue: Int16(payload.format.rawValue)) ?? .text
+
+        var buffer: ByteBuffer?
+        if let data = payload.bytes {
+            var byteBuffer = allocator.buffer(capacity: data.count)
+            byteBuffer.writeBytes(data)
+            buffer = byteBuffer
+        }
+
+        let cell = PostgresCell(
+            bytes: buffer,
+            dataType: dataType,
+            format: postgresFormat,
+            columnName: "",
+            columnIndex: columnIndex
+        )
+        return formatter.stringValue(for: cell)
+    }
+}
+
+actor ResultRowFormattingCoordinator {
+    struct DeferredBatch: Sendable {
+        let generation: Int
+        let range: Range<Int>
+        let rows: [ResultRowPayload]
+        let totalRowCount: Int
+        let metrics: QueryStreamMetrics?
+        let treatAsPreview: Bool
+        let columns: [ColumnInfo]
+        let token: Int
+    }
+
+    struct FormattedBatch: Sendable {
+        let range: Range<Int>
+        let rows: [[String?]]
+        let totalRowCount: Int
+        let metrics: QueryStreamMetrics?
+        let treatAsPreview: Bool
+        let columns: [ColumnInfo]
+        let token: Int
+    }
+
+    typealias Delivery = @MainActor @Sendable (FormattedBatch) -> Void
+
+    private let formatter: PostgresPayloadFormatter
+    private let deliver: Delivery
+    private var queue: [DeferredBatch] = []
+    private var isProcessing = false
+    private var generation: Int = 0
+    private var currentTask: Task<Void, Never>?
+
+    init(formatter: PostgresPayloadFormatter, deliver: @escaping Delivery) {
+        self.formatter = formatter
+        self.deliver = deliver
+    }
+
+    func reset() {
+        generation &+= 1
+        queue.removeAll(keepingCapacity: false)
+        isProcessing = false
+        currentTask?.cancel()
+        currentTask = nil
+    }
+
+    func enqueue(
+        range: Range<Int>,
+        rows: [ResultRowPayload],
+        totalRowCount: Int,
+        metrics: QueryStreamMetrics?,
+        treatAsPreview: Bool,
+        columns: [ColumnInfo],
+        token: Int
+    ) {
+        guard !rows.isEmpty else { return }
+        let batch = DeferredBatch(
+            generation: generation,
+            range: range,
+            rows: rows,
+            totalRowCount: totalRowCount,
+            metrics: metrics,
+            treatAsPreview: treatAsPreview,
+            columns: columns,
+            token: token
+        )
+        queue.append(batch)
+        processNextIfNeeded()
+    }
+
+    func prioritize(range target: Range<Int>, token: Int) {
+        guard queue.count > 1 else { return }
+        queue.sort { lhs, rhs in
+            let leftDistance = lhs.token == token ? distance(lhs.range, to: target) : Int.max
+            let rightDistance = rhs.token == token ? distance(rhs.range, to: target) : Int.max
+            if leftDistance == rightDistance {
+                return lhs.range.lowerBound < rhs.range.lowerBound
+            }
+            return leftDistance < rightDistance
+        }
+        processNextIfNeeded()
+    }
+
+    private func processNextIfNeeded() {
+        guard !isProcessing else { return }
+        guard let batch = queue.first else { return }
+        queue.removeFirst()
+        isProcessing = true
+        let formatter = self.formatter
+        currentTask = Task.detached(priority: .utility) { [weak self] in
+            guard let self else { return }
+
+            var formattedRows: [[String?]] = []
+            formattedRows.reserveCapacity(batch.rows.count)
+
+            for row in batch.rows {
+                if Task.isCancelled {
+                    await self.handleCancellation(for: batch)
+                    return
+                }
+
+                var formattedRow: [String?] = []
+                formattedRow.reserveCapacity(row.cells.count)
+
+                for (columnIndex, cell) in row.cells.enumerated() {
+                    if Task.isCancelled {
+                        await self.handleCancellation(for: batch)
+                        return
+                    }
+                    formattedRow.append(formatter.stringValue(for: cell, columnIndex: columnIndex))
+                }
+
+                formattedRows.append(formattedRow)
+            }
+
+            if Task.isCancelled {
+                await self.handleCancellation(for: batch)
+                return
+            }
+
+            await self.finish(batch: batch, formattedRows: formattedRows)
+        }
+    }
+
+    private func finish(batch: DeferredBatch, formattedRows: [[String?]]) async {
+        currentTask = nil
+        defer {
+            isProcessing = false
+            processNextIfNeeded()
+        }
+
+        guard batch.generation == generation else { return }
+
+        let formattedBatch = FormattedBatch(
+            range: batch.range,
+            rows: formattedRows,
+            totalRowCount: batch.totalRowCount,
+            metrics: batch.metrics,
+            treatAsPreview: batch.treatAsPreview,
+            columns: batch.columns,
+            token: batch.token
+        )
+        await deliver(formattedBatch)
+    }
+
+    private func handleCancellation(for batch: DeferredBatch) async {
+        currentTask = nil
+        isProcessing = false
+        if batch.generation == generation && !queue.contains(where: { $0.range == batch.range }) {
+            queue.insert(batch, at: 0)
+        }
+        processNextIfNeeded()
+    }
+
+    private func distance(_ candidate: Range<Int>, to target: Range<Int>) -> Int {
+        if candidate.overlaps(target) { return 0 }
+        if candidate.upperBound <= target.lowerBound {
+            return target.lowerBound - candidate.upperBound
+        }
+        if candidate.lowerBound >= target.upperBound {
+            return candidate.lowerBound - target.upperBound
+        }
+        return 0
     }
 }

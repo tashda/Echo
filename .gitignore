@@ -1,0 +1,23 @@
+# Local benchmark credentials (keep secrets out of VCS)
+postgres_benchmark.env
+mssql.env
+
+# Development and documentation directories
+Instruments
+Archive
+Docs
+
+# Profiling and trace exports
+tmp_trace_export
+
+# Swift package manager build artifacts
+Scripts/.mssql-probe/.build/
+
+# Xcode user-specific data
+Echo.xcodeproj/xcuserdata/
+*.xcuserstate
+
+# AI Agents
+GEMINI.md
+.claude
+.codex_cache

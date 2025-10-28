@@ -1,6 +1,6 @@
 import Foundation
 
-struct SavedIdentity: Identifiable, Codable, Hashable {
+struct SavedIdentity: Identifiable, Codable, Hashable, Sendable {
     var id: UUID = UUID()
     var projectID: UUID?
     var name: String

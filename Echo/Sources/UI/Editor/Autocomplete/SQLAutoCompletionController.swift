@@ -1,10 +1,12 @@
 import SwiftUI
+import EchoSense
 #if os(macOS)
 import AppKit
 #else
 import UIKit
 #endif
 
+@MainActor
 final class SQLAutoCompletionController {
     weak var textView: SQLTextView?
 
@@ -32,7 +34,9 @@ final class SQLAutoCompletionController {
     }
 
     deinit {
-        popover.performClose(nil)
+        // Avoid calling main-actor isolated AppKit APIs from deinit,
+        // which runs in a nonisolated context under Swift Concurrency.
+        // Popover will be torn down automatically when deallocated.
     }
 
     private var isVisible: Bool { popover.isShown && !flatSuggestions.isEmpty }
@@ -45,12 +49,37 @@ final class SQLAutoCompletionController {
             return
         }
 
+        let suppressPopover = textView.consumePopoverSuppressionFlag()
+        let keywordSuggestions = inlineKeywordCandidates(from: suggestions, query: query)
+        if textView.displayOptions.inlineKeywordSuggestionsEnabled,
+           let inlineSuggestions = keywordSuggestions {
+            if popover.isShown {
+                popover.performClose(nil)
+            }
+            flatSuggestions.removeAll(keepingCapacity: false)
+            selectedIndex = 0
+            lastQuery = query
+            textView.showInlineKeywordSuggestions(inlineSuggestions, query: query)
+            return
+        } else {
+            textView.hideInlineKeywordSuggestion()
+        }
+
+        if suppressPopover {
+            hide()
+            return
+        }
+
         let appearance = textView.window?.effectiveAppearance ?? textView.effectiveAppearance
         popover.appearance = appearance
         hostingController?.view.appearance = appearance
 
         let previousID = selectedSuggestion?.id
-        flatSuggestions = suggestions
+        var filtered = suggestions
+        if !textView.displayOptions.suggestKeywordsInCompletion {
+            filtered.removeAll { $0.kind == .keyword }
+        }
+        flatSuggestions = filtered
         guard !flatSuggestions.isEmpty else {
             hide()
             return
@@ -81,6 +110,7 @@ final class SQLAutoCompletionController {
     }
 
     func hide() {
+        textView?.hideInlineKeywordSuggestion()
         flatSuggestions.removeAll(keepingCapacity: false)
         lastQuery = nil
         selectedIndex = 0
@@ -167,17 +197,16 @@ final class SQLAutoCompletionController {
 
     private func updateContent() {
         let controller = ensureHostingController()
-        let statusMessage: String?
-        if textView?.completionEngine.isMetadataLimited == true {
-            statusMessage = "Limited metadata — showing keywords and history"
-        } else {
-            statusMessage = nil
-        }
+        let statusMessage = SQLAutoCompletionController.statusMessage(isMetadataLimited: textView?.completionEngine.isMetadataLimited == true)
         let updatedView = AutoCompletionListView(
             suggestions: flatSuggestions,
             selectedID: selectedSuggestion?.id,
             onSelect: { [weak self] suggestion in
-                self?.accept(suggestion)
+                // Ensure the accept action runs on the main actor even if the
+                // callback is invoked from a nonisolated context.
+                Task { @MainActor in
+                    self?.accept(suggestion)
+                }
             },
             detailResetID: detailResetToken,
             statusMessage: statusMessage
@@ -191,6 +220,38 @@ final class SQLAutoCompletionController {
         let width = min(maxWidth, max(minWidth, fittingSize.width))
         let height = min(maxHeight, max(72, fittingSize.height))
         popover.contentSize = NSSize(width: width, height: height)
+    }
+
+    private func inlineKeywordCandidates(from suggestions: [SQLAutoCompletionSuggestion],
+                                         query: SQLAutoCompletionQuery) -> [SQLAutoCompletionSuggestion]? {
+        guard !suggestions.isEmpty else { return nil }
+        guard query.pathComponents.isEmpty else { return nil }
+
+        var loweredPrefix = query.prefix.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        if loweredPrefix.isEmpty {
+            loweredPrefix = query.token.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        }
+
+        let keywordSuggestions = suggestions.filter { suggestion in
+            guard suggestion.kind == .keyword else { return false }
+            let keyword = suggestion.insertText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+
+            if !loweredPrefix.isEmpty {
+                return keyword.hasPrefix(loweredPrefix)
+            }
+
+            if let preceding = query.precedingCharacter {
+                return preceding.isWhitespace
+            }
+
+            return true
+        }
+
+        return keywordSuggestions.isEmpty ? nil : keywordSuggestions
+    }
+
+    static func statusMessage(isMetadataLimited: Bool) -> String? {
+        isMetadataLimited ? "Limited metadata — showing keywords and history" : nil
     }
 
     private func moveSelection(_ delta: Int) {

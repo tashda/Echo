@@ -1,4 +1,5 @@
 import Foundation
+import PostgresKit
 
 struct DatabaseSearchService {
     fileprivate struct QueryConstants {
@@ -49,6 +50,13 @@ struct DatabaseSearchService {
             try Task.checkCancellation()
             await appendResults(into: &aggregated, didSucceed: &didSucceed, firstError: &firstError) {
                 try await strategy.searchFunctions(query: query)
+            }
+        }
+
+        if categories.contains(.procedures) {
+            try Task.checkCancellation()
+            await appendResults(into: &aggregated, didSucceed: &didSucceed, firstError: &firstError) {
+                try await strategy.searchProcedures(query: query)
             }
         }
 
@@ -164,6 +172,7 @@ private protocol DatabaseSearchStrategy {
     func searchViews(query: String) async throws -> [SearchSidebarResult]
     func searchMaterializedViews(query: String) async throws -> [SearchSidebarResult]
     func searchFunctions(query: String) async throws -> [SearchSidebarResult]
+    func searchProcedures(query: String) async throws -> [SearchSidebarResult]
     func searchTriggers(query: String) async throws -> [SearchSidebarResult]
     func searchColumns(query: String) async throws -> [SearchSidebarResult]
     func searchIndexes(query: String) async throws -> [SearchSidebarResult]
@@ -175,6 +184,7 @@ private struct UnsupportedDatabaseSearchStrategy: DatabaseSearchStrategy {
     func searchViews(query: String) async throws -> [SearchSidebarResult] { [] }
     func searchMaterializedViews(query: String) async throws -> [SearchSidebarResult] { [] }
     func searchFunctions(query: String) async throws -> [SearchSidebarResult] { [] }
+    func searchProcedures(query: String) async throws -> [SearchSidebarResult] { [] }
     func searchTriggers(query: String) async throws -> [SearchSidebarResult] { [] }
     func searchColumns(query: String) async throws -> [SearchSidebarResult] { [] }
     func searchIndexes(query: String) async throws -> [SearchSidebarResult] { [] }
@@ -195,6 +205,8 @@ private struct SQLiteDatabaseSearchStrategy: DatabaseSearchStrategy {
     func searchMaterializedViews(query: String) async throws -> [SearchSidebarResult] { [] }
 
     func searchFunctions(query: String) async throws -> [SearchSidebarResult] { [] }
+
+    func searchProcedures(query: String) async throws -> [SearchSidebarResult] { [] }
 
     func searchTriggers(query: String) async throws -> [SearchSidebarResult] {
         let pattern = DatabaseSearchService.makeLikePattern(query)
@@ -422,6 +434,40 @@ private struct MSSQLDatabaseSearchStrategy: DatabaseSearchStrategy {
         }
     }
 
+    func searchProcedures(query: String) async throws -> [SearchSidebarResult] {
+        let pattern = DatabaseSearchService.makeLikePattern(query)
+        let sql = """
+        SELECT TOP \(DatabaseSearchService.QueryConstants.maxNameResults)
+            s.name AS schema_name,
+            p.name AS procedure_name,
+            COALESCE(sm.definition, '') AS definition
+        FROM sys.procedures AS p
+        JOIN sys.schemas AS s ON p.schema_id = s.schema_id
+        LEFT JOIN sys.sql_modules AS sm ON p.object_id = sm.object_id
+        WHERE p.is_ms_shipped = 0
+          AND (
+            LOWER(p.name) LIKE LOWER('%\(pattern)%') ESCAPE '\\'
+            OR LOWER(COALESCE(sm.definition, '')) LIKE LOWER('%\(pattern)%') ESCAPE '\\'
+          )
+        ORDER BY s.name, p.name;
+        """
+        let result = try await session.simpleQuery(sql)
+        return result.rows.compactMap { row in
+            guard row.count >= 3, let schema = row[0], let name = row[1] else { return nil }
+            let definition = row[2] ?? ""
+            let snippet = DatabaseSearchService.makeSnippet(from: definition, matching: query)
+            let payload = SearchSidebarResult.Payload.procedure(schema: schema, name: name)
+            return SearchSidebarResult(
+                category: .procedures,
+                title: name,
+                subtitle: schema,
+                metadata: schema,
+                snippet: snippet,
+                payload: payload
+            )
+        }
+    }
+
     func searchTriggers(query: String) async throws -> [SearchSidebarResult] {
         let pattern = DatabaseSearchService.makeLikePattern(query)
         let sql = """
@@ -565,16 +611,8 @@ private struct PostgresDatabaseSearchStrategy: DatabaseSearchStrategy {
     let session: DatabaseSession
 
     func searchTables(query: String) async throws -> [SearchSidebarResult] {
-        let pattern = DatabaseSearchService.makeLikePattern(query)
-        let sql = """
-        SELECT table_schema, table_name
-        FROM information_schema.tables
-        WHERE table_type = 'BASE TABLE'
-          AND table_schema NOT IN ('pg_catalog', 'information_schema')
-          AND table_name ILIKE '%\(pattern)%' ESCAPE '\\'
-        ORDER BY table_schema, table_name
-        LIMIT \(DatabaseSearchService.QueryConstants.maxNameResults);
-        """
+        let pattern = PostgresSearchSQL.makeLikePattern(query)
+        let sql = PostgresSearchSQL.tables(pattern: pattern, limit: DatabaseSearchService.QueryConstants.maxNameResults)
         let result = try await session.simpleQuery(sql)
         return result.rows.compactMap { row in
             guard
@@ -596,17 +634,8 @@ private struct PostgresDatabaseSearchStrategy: DatabaseSearchStrategy {
     }
 
     func searchViews(query: String) async throws -> [SearchSidebarResult] {
-        let pattern = DatabaseSearchService.makeLikePattern(query)
-        let sql = """
-        SELECT table_schema, table_name, view_definition
-        FROM information_schema.views
-        WHERE (
-            table_name ILIKE '%\(pattern)%' ESCAPE '\\'
-            OR COALESCE(view_definition, '') ILIKE '%\(pattern)%' ESCAPE '\\'
-        )
-        ORDER BY table_schema, table_name
-        LIMIT \(DatabaseSearchService.QueryConstants.maxNameResults);
-        """
+        let pattern = PostgresSearchSQL.makeLikePattern(query)
+        let sql = PostgresSearchSQL.views(pattern: pattern, limit: DatabaseSearchService.QueryConstants.maxNameResults)
         let result = try await session.simpleQuery(sql)
         return result.rows.compactMap { row in
             guard row.count >= 3, let schema = row[0], let name = row[1] else { return nil }
@@ -626,17 +655,8 @@ private struct PostgresDatabaseSearchStrategy: DatabaseSearchStrategy {
     }
 
     func searchMaterializedViews(query: String) async throws -> [SearchSidebarResult] {
-        let pattern = DatabaseSearchService.makeLikePattern(query)
-        let sql = """
-        SELECT schemaname, matviewname, definition
-        FROM pg_matviews
-        WHERE (
-            matviewname ILIKE '%\(pattern)%' ESCAPE '\\'
-            OR COALESCE(definition, '') ILIKE '%\(pattern)%' ESCAPE '\\'
-        )
-        ORDER BY schemaname, matviewname
-        LIMIT \(DatabaseSearchService.QueryConstants.maxNameResults);
-        """
+        let pattern = PostgresSearchSQL.makeLikePattern(query)
+        let sql = PostgresSearchSQL.materializedViews(pattern: pattern, limit: DatabaseSearchService.QueryConstants.maxNameResults)
         let result = try await session.simpleQuery(sql)
         return result.rows.compactMap { row in
             guard row.count >= 3, let schema = row[0], let name = row[1] else { return nil }
@@ -656,19 +676,8 @@ private struct PostgresDatabaseSearchStrategy: DatabaseSearchStrategy {
     }
 
     func searchFunctions(query: String) async throws -> [SearchSidebarResult] {
-        let pattern = DatabaseSearchService.makeLikePattern(query)
-        let sql = """
-        SELECT routine_schema, routine_name, routine_definition
-        FROM information_schema.routines
-        WHERE routine_type = 'FUNCTION'
-          AND routine_schema NOT IN ('pg_catalog', 'information_schema')
-          AND (
-            routine_name ILIKE '%\(pattern)%' ESCAPE '\\'
-            OR COALESCE(routine_definition, '') ILIKE '%\(pattern)%' ESCAPE '\\'
-          )
-        ORDER BY routine_schema, routine_name
-        LIMIT \(DatabaseSearchService.QueryConstants.maxNameResults);
-        """
+        let pattern = PostgresSearchSQL.makeLikePattern(query)
+        let sql = PostgresSearchSQL.functions(pattern: pattern, limit: DatabaseSearchService.QueryConstants.maxNameResults)
         let result = try await session.simpleQuery(sql)
         return result.rows.compactMap { row in
             guard row.count >= 3, let schema = row[0], let name = row[1] else { return nil }
@@ -686,20 +695,29 @@ private struct PostgresDatabaseSearchStrategy: DatabaseSearchStrategy {
         }
     }
 
+    func searchProcedures(query: String) async throws -> [SearchSidebarResult] {
+        let pattern = PostgresSearchSQL.makeLikePattern(query)
+        let sql = PostgresSearchSQL.procedures(pattern: pattern, limit: DatabaseSearchService.QueryConstants.maxNameResults)
+        let result = try await session.simpleQuery(sql)
+        return result.rows.compactMap { row in
+            guard row.count >= 3, let schema = row[0], let name = row[1] else { return nil }
+            let definition = row[2] ?? ""
+            let snippet = DatabaseSearchService.makeSnippet(from: definition, matching: query)
+            let payload = SearchSidebarResult.Payload.procedure(schema: schema, name: name)
+            return SearchSidebarResult(
+                category: .procedures,
+                title: name,
+                subtitle: schema,
+                metadata: schema,
+                snippet: snippet,
+                payload: payload
+            )
+        }
+    }
+
     func searchTriggers(query: String) async throws -> [SearchSidebarResult] {
-        let pattern = DatabaseSearchService.makeLikePattern(query)
-        let sql = """
-        SELECT trigger_schema, event_object_table, trigger_name, action_statement
-        FROM information_schema.triggers
-        WHERE trigger_schema NOT IN ('pg_catalog', 'information_schema')
-          AND (
-            trigger_name ILIKE '%\(pattern)%' ESCAPE '\\'
-            OR event_object_table ILIKE '%\(pattern)%' ESCAPE '\\'
-            OR COALESCE(action_statement, '') ILIKE '%\(pattern)%' ESCAPE '\\'
-          )
-        ORDER BY trigger_schema, trigger_name
-        LIMIT \(DatabaseSearchService.QueryConstants.maxNameResults);
-        """
+        let pattern = PostgresSearchSQL.makeLikePattern(query)
+        let sql = PostgresSearchSQL.triggers(pattern: pattern, limit: DatabaseSearchService.QueryConstants.maxNameResults)
         let result = try await session.simpleQuery(sql)
         return result.rows.compactMap { row in
             guard row.count >= 4, let schema = row[0], let table = row[1], let name = row[2] else { return nil }
@@ -718,15 +736,8 @@ private struct PostgresDatabaseSearchStrategy: DatabaseSearchStrategy {
     }
 
     func searchColumns(query: String) async throws -> [SearchSidebarResult] {
-        let pattern = DatabaseSearchService.makeLikePattern(query)
-        let sql = """
-        SELECT table_schema, table_name, column_name, data_type
-        FROM information_schema.columns
-        WHERE table_schema NOT IN ('pg_catalog', 'information_schema')
-          AND column_name ILIKE '%\(pattern)%' ESCAPE '\\'
-        ORDER BY table_schema, table_name, ordinal_position
-        LIMIT \(DatabaseSearchService.QueryConstants.maxColumnResults);
-        """
+        let pattern = PostgresSearchSQL.makeLikePattern(query)
+        let sql = PostgresSearchSQL.columns(pattern: pattern, limit: DatabaseSearchService.QueryConstants.maxColumnResults)
         let result = try await session.simpleQuery(sql)
         return result.rows.compactMap { row in
             guard row.count >= 4, let schema = row[0], let table = row[1], let column = row[2] else { return nil }
@@ -746,19 +757,8 @@ private struct PostgresDatabaseSearchStrategy: DatabaseSearchStrategy {
     }
 
     func searchIndexes(query: String) async throws -> [SearchSidebarResult] {
-        let pattern = DatabaseSearchService.makeLikePattern(query)
-        let sql = """
-        SELECT schemaname, tablename, indexname, indexdef
-        FROM pg_indexes
-        WHERE schemaname NOT IN ('pg_catalog', 'information_schema')
-          AND (
-            indexname ILIKE '%\(pattern)%' ESCAPE '\\'
-            OR tablename ILIKE '%\(pattern)%' ESCAPE '\\'
-            OR COALESCE(indexdef, '') ILIKE '%\(pattern)%' ESCAPE '\\'
-          )
-        ORDER BY schemaname, indexname
-        LIMIT \(DatabaseSearchService.QueryConstants.maxNameResults);
-        """
+        let pattern = PostgresSearchSQL.makeLikePattern(query)
+        let sql = PostgresSearchSQL.indexes(pattern: pattern, limit: DatabaseSearchService.QueryConstants.maxNameResults)
         let result = try await session.simpleQuery(sql)
         return result.rows.compactMap { row in
             guard row.count >= 4, let schema = row[0], let table = row[1], let name = row[2] else { return nil }
@@ -778,50 +778,8 @@ private struct PostgresDatabaseSearchStrategy: DatabaseSearchStrategy {
     }
 
     func searchForeignKeys(query: String) async throws -> [SearchSidebarResult] {
-        let pattern = DatabaseSearchService.makeLikePattern(query)
-        let sql = """
-        WITH fk_data AS (
-            SELECT
-                tc.constraint_name,
-                tc.table_schema,
-                tc.table_name,
-                ccu.table_schema AS referenced_schema,
-                ccu.table_name AS referenced_table,
-                string_agg(kcu.column_name ORDER BY kcu.ordinal_position) AS column_list,
-                string_agg(ccu.column_name ORDER BY kcu.ordinal_position) AS referenced_column_list
-            FROM information_schema.table_constraints tc
-            JOIN information_schema.key_column_usage kcu
-              ON tc.constraint_name = kcu.constraint_name
-             AND tc.table_schema = kcu.table_schema
-            JOIN information_schema.constraint_column_usage ccu
-              ON ccu.constraint_name = tc.constraint_name
-             AND ccu.table_schema = tc.table_schema
-            WHERE tc.constraint_type = 'FOREIGN KEY'
-              AND tc.table_schema NOT IN ('pg_catalog', 'information_schema')
-            GROUP BY
-                tc.constraint_name,
-                tc.table_schema,
-                tc.table_name,
-                ccu.table_schema,
-                ccu.table_name
-        )
-        SELECT
-            constraint_name,
-            table_schema,
-            table_name,
-            referenced_schema,
-            referenced_table,
-            column_list,
-            referenced_column_list
-        FROM fk_data
-        WHERE (
-            constraint_name ILIKE '%\(pattern)%' ESCAPE '\\'
-            OR table_name ILIKE '%\(pattern)%' ESCAPE '\\'
-            OR referenced_table ILIKE '%\(pattern)%' ESCAPE '\\'
-        )
-        ORDER BY table_schema, table_name, constraint_name
-        LIMIT \(DatabaseSearchService.QueryConstants.maxNameResults);
-        """
+        let pattern = PostgresSearchSQL.makeLikePattern(query)
+        let sql = PostgresSearchSQL.foreignKeys(pattern: pattern, limit: DatabaseSearchService.QueryConstants.maxNameResults)
         let result = try await session.simpleQuery(sql)
         return result.rows.compactMap { row in
             guard row.count >= 7,
@@ -959,6 +917,39 @@ private struct MySQLDatabaseSearchStrategy: DatabaseSearchStrategy {
             let payload = SearchSidebarResult.Payload.function(schema: schema, name: name)
             return SearchSidebarResult(
                 category: .functions,
+                title: name,
+                subtitle: schema,
+                metadata: schema,
+                snippet: snippet,
+                payload: payload
+            )
+        }
+    }
+
+    func searchProcedures(query: String) async throws -> [SearchSidebarResult] {
+        let clause = containsClause([
+            "routine_name",
+            "routine_definition"
+        ], query: query)
+        let sql = """
+        SELECT routine_schema, routine_name, routine_definition
+        FROM information_schema.routines
+        WHERE routine_type = 'PROCEDURE'
+          AND routine_schema NOT IN (\(excludedSchemasList))\(schemaFilter("routine_schema"))
+          AND (
+            \(clause)
+          )
+        ORDER BY routine_schema, routine_name
+        LIMIT \(DatabaseSearchService.QueryConstants.maxNameResults);
+        """
+        let result = try await session.simpleQuery(sql)
+        return result.rows.compactMap { row in
+            guard row.count >= 3, let schema = row[0], let name = row[1] else { return nil }
+            let definition = row[2] ?? ""
+            let snippet = DatabaseSearchService.makeSnippet(from: definition, matching: query)
+            let payload = SearchSidebarResult.Payload.procedure(schema: schema, name: name)
+            return SearchSidebarResult(
+                category: .procedures,
                 title: name,
                 subtitle: schema,
                 metadata: schema,

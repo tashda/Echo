@@ -1,5 +1,5 @@
 {
-  "originHash" : "59d11a4981c975a9d78eeead8d46a00afbd6720a7074b384cc35d57a67a2a82a",
+  "originHash" : "fb1ce009bfac5cdf62f6a5dc4c1a85f37b8ce2d6a108f424e4a780984c806a93",
   "pins" : [
     {
       "identity" : "mysql-nio",
@@ -20,12 +20,12 @@
       }
     },
     {
-      "identity" : "sqlite.swift",
+      "identity" : "sqlite-nio",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/stephencelis/SQLite.swift.git",
+      "location" : "https://github.com/vapor/sqlite-nio.git",
       "state" : {
-        "revision" : "392dd6058624d9f6c5b4c769d165ddd8c7293394",
-        "version" : "0.15.4"
+        "revision" : "a4c62fa1d99db69bf96d48f5b903eca1427f4a0e",
+        "version" : "1.12.0"
       }
     },
     {
@@ -152,15 +152,6 @@
       "state" : {
         "revision" : "395a77f0aa927f0ff73941d7ac35f2b46d47c9db",
         "version" : "1.6.3"
-      }
-    },
-    {
-      "identity" : "swift-toolchain-sqlite",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/swiftlang/swift-toolchain-sqlite",
-      "state" : {
-        "revision" : "b626d3002773b1a1304166643e7f118f724b2132",
-        "version" : "1.0.4"
       }
     }
   ],

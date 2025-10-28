@@ -7,4 +7,6 @@ enum WorkspaceChromeMetrics {
     static let tabStripTotalHeight: CGFloat = 38
     /// Inset applied above chrome controls to align with the tab strip base plate.
     static let chromeTopInset: CGFloat = (tabStripTotalHeight - chromeBackgroundHeight) / 2
+    /// Height used by the toolbar-integrated tab bar accessory.
+    static let toolbarTabBarHeight: CGFloat = 32
 }

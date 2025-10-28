@@ -7,6 +7,15 @@ actor ResultStreamIngestionService {
     private let rowCache: ResultSpoolRowCache
     private let onSpoolReady: SpoolReadyHandler?
 
+#if DEBUG
+    private let debugID = String(UUID().uuidString.prefix(8))
+    private func debugLog(_ message: @autoclosure () -> String) {
+        print("[ResultStreamIngestionService][\(debugID)] \(message())")
+    }
+#else
+    private func debugLog(_ message: @autoclosure () -> String) {}
+#endif
+
     private var spoolHandle: ResultSpoolHandle?
     private var hasNotifiedReady = false
     private var totalRowCount: Int = 0
@@ -37,22 +46,49 @@ actor ResultStreamIngestionService {
 
     func enqueue(update: QueryStreamUpdate, isPreview: Bool) async {
         guard !isFinished, !isCancelled else { return }
-        guard !update.appendedRows.isEmpty || !update.encodedRows.isEmpty else { return }
+        guard !update.appendedRows.isEmpty || !update.encodedRows.isEmpty || !update.rawRows.isEmpty else { return }
 
         do {
+#if DEBUG
+            let enqueueStart = CFAbsoluteTimeGetCurrent()
+            debugLog("enqueue start preview=\(isPreview) appended=\(update.appendedRows.count) encoded=\(update.encodedRows.count) total=\(update.totalRowCount)")
+#endif
+            let appendCountEstimate = max(update.appendedRows.count, max(update.encodedRows.count, update.rawRows.count))
+            let resolvedRange: Range<Int>? = {
+                if let range = update.rowRange, range.count == appendCountEstimate {
+                    return range
+                }
+                return nil
+            }()
+
             let handle = try await ensureHandle()
 
+#if DEBUG
+            let rowDiagnosticsEnabled = ProcessInfo.processInfo.environment["ECHO_ROW_DEBUG"] == "1"
+            if rowDiagnosticsEnabled, let range = update.rowRange, range.count != appendCountEstimate {
+                print("[RowDiagnostics][ingestion] rowRange count \(range.count) != appendCountEstimate \(appendCountEstimate)")
+            }
+            if rowDiagnosticsEnabled, let range = resolvedRange, range.upperBound > update.totalRowCount {
+                print("[RowDiagnostics][ingestion] resolvedRange upperBound \(range.upperBound) exceeds total \(update.totalRowCount)")
+            }
+#endif
+
             if isPreview, !update.appendedRows.isEmpty {
-                let startIndex = totalRowCount
-                rowCache.ingest(rows: update.appendedRows, startingAt: startIndex)
+                let startIndex = resolvedRange?.lowerBound ?? totalRowCount
+                let rowsForCache = update.appendedRows
+                DispatchQueue.global(qos: .utility).async { [rowCache] in
+                    rowCache.ingest(rows: rowsForCache, startingAt: startIndex)
+                }
             }
 
             let encodedRows: [ResultBinaryRow]
             if !update.encodedRows.isEmpty {
                 encodedRows = update.encodedRows
-            } else if isPreview {
-                encodedRows = []
-            } else if !update.appendedRows.isEmpty {
+            } else if !update.rawRows.isEmpty {
+                encodedRows = update.rawRows.map { payload in
+                    ResultBinaryRowCodec.encodeRaw(cells: payload.cells.map(\.bytes))
+                }
+            } else if !update.appendedRows.isEmpty && !isPreview {
 #if DEBUG
                 if !didWarnAboutEncodingFallback {
                     didWarnAboutEncodingFallback = true
@@ -68,7 +104,21 @@ actor ResultStreamIngestionService {
             let appendCount = max(rowsForAppend.count, encodedRows.count)
             guard appendCount > 0 else { return }
 
-            totalRowCount &+= appendCount
+            let rangeForAppend: Range<Int>
+            if let resolvedRange = resolvedRange {
+                rangeForAppend = resolvedRange
+                totalRowCount = max(totalRowCount, resolvedRange.upperBound)
+            } else {
+                let start = totalRowCount
+                let end = start + appendCount
+                rangeForAppend = start..<end
+                totalRowCount = end
+            }
+#if DEBUG
+            if ProcessInfo.processInfo.environment["ECHO_ROW_DEBUG"] == "1", rangeForAppend.upperBound > update.totalRowCount {
+                print("[RowDiagnostics][ingestion] rangeForAppend \(rangeForAppend) exceeds update total \(update.totalRowCount)")
+            }
+#endif
 
             let previousTask = appendTask
             let columns = update.columns
@@ -80,6 +130,9 @@ actor ResultStreamIngestionService {
             logDiagnostics(event: enqueueEvent, rows: appendCount, metrics: metrics)
 #endif
             appendTask = Task.detached(priority: .utility) {
+#if DEBUG
+                await self.debugLog("append task start preview=\(isPreview) rows=\(appendCount)")
+#endif
                 if let previousTask {
                     await previousTask.value
                 }
@@ -89,6 +142,7 @@ actor ResultStreamIngestionService {
                         columns: columns,
                         rows: rowsForAppend,
                         encodedRows: encodedRows,
+                        rowRange: rangeForAppend,
                         metrics: metrics
                     )
 #if DEBUG
@@ -102,6 +156,8 @@ actor ResultStreamIngestionService {
 #endif
                 }
 #if DEBUG
+                let duration = CFAbsoluteTimeGetCurrent() - enqueueStart
+                await self.debugLog("append task finished preview=\(isPreview) rows=\(appendCount) duration=\(String(format: "%.3f", duration))")
                 let flushEvent = isPreview ? "flush-preview" : "flush-background"
                 await self.recordAppendCompletion(rows: appendCount, metrics: metrics, event: flushEvent)
 #endif
@@ -140,6 +196,7 @@ actor ResultStreamIngestionService {
                         columns: result.columns,
                         rows: result.rows,
                         encodedRows: [],
+                        rowRange: 0..<result.rows.count,
                         metrics: nil
                     )
                     totalRowCount = result.rows.count
@@ -170,6 +227,7 @@ actor ResultStreamIngestionService {
                     columns: result.columns,
                     rows: result.rows,
                     encodedRows: [],
+                    rowRange: 0..<result.rows.count,
                     metrics: nil
                 )
                 totalRowCount = result.rows.count
@@ -211,12 +269,18 @@ actor ResultStreamIngestionService {
         let handle = try await spoolManager.makeSpoolHandle()
         spoolHandle = handle
         await notifyHandleReady(handle)
+#if DEBUG
+        debugLog("ensureHandle created new spool id=\(handle.id.uuidString.prefix(8))")
+#endif
         return handle
     }
 
     private func notifyHandleReady(_ handle: ResultSpoolHandle) async {
         guard !hasNotifiedReady else { return }
         hasNotifiedReady = true
+#if DEBUG
+        debugLog("notifyHandleReady spool id=\(handle.id.uuidString.prefix(8))")
+#endif
         if let onSpoolReady {
             await onSpoolReady(handle)
         }

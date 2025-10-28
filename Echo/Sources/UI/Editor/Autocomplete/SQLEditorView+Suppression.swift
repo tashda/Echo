@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import EchoSense
 
 extension SQLTextView {
     private var suppressionEnvironment: SQLAutocompleteRuleEngine.Environment { ruleEnvironment }
@@ -74,7 +75,8 @@ extension SQLTextView {
         let newSuppression = SuppressedCompletion(
             tokenRange: result.suppression.tokenRange,
             canonicalText: result.suppression.canonicalText,
-            hasFollowUps: result.suppression.hasFollowUps
+            hasFollowUps: result.suppression.hasFollowUps,
+            allowTrailingWhitespace: shouldAllowTrailingWhitespace(for: result.suppression)
         )
 
         suppressedCompletions.removeAll { NSIntersectionRange($0.tokenRange, newSuppression.tokenRange).length > 0 }
@@ -85,9 +87,10 @@ extension SQLTextView {
 
     func suppressedCompletionEntry(containing selection: NSRange, caretLocation: Int) -> (Int, SuppressedCompletion)? {
         guard selection.location != NSNotFound else { return nil }
+        let nsString = string as NSString
         for (index, entry) in suppressedCompletions.enumerated() {
             let tokenRange = entry.tokenRange
-            guard sqlRangeIsValid(tokenRange, upperBound: (string as NSString).length) else {
+            guard sqlRangeIsValid(tokenRange, upperBound: nsString.length) else {
                 continue
             }
 
@@ -96,12 +99,22 @@ extension SQLTextView {
                     return (index, entry)
                 }
             } else {
-                if caretLocation >= tokenRange.location && caretLocation <= NSMaxRange(tokenRange) {
+                let lowerBound = tokenRange.location
+                var upperBound = NSMaxRange(tokenRange)
+                if entry.allowTrailingWhitespace {
+                    let extraSpan = trailingWhitespaceSpan(after: upperBound, in: nsString)
+                    upperBound = min(nsString.length, upperBound + extraSpan)
+                }
+                if caretLocation >= lowerBound && caretLocation <= upperBound {
                     return (index, entry)
                 }
             }
         }
         return nil
+    }
+
+    private func shouldAllowTrailingWhitespace(for suppression: SQLAutocompleteRuleEngine.Suppression) -> Bool {
+        suppression.hasFollowUps
     }
 
     private func suppressionForTrigger(at caretLocation: Int) -> SuppressedCompletion? {
@@ -172,11 +185,30 @@ extension SQLTextView {
 
         let suppression = SuppressedCompletion(tokenRange: result.suppression.tokenRange,
                                                canonicalText: result.suppression.canonicalText,
-                                               hasFollowUps: result.suppression.hasFollowUps)
+                                               hasFollowUps: result.suppression.hasFollowUps,
+                                               allowTrailingWhitespace: shouldAllowTrailingWhitespace(for: result.suppression))
         suppressedCompletions.removeAll { NSIntersectionRange($0.tokenRange, suppression.tokenRange).length > 0 }
         suppressedCompletions.append(suppression)
         updateCompletionIndicator()
         return suppression
+    }
+
+    private func trailingWhitespaceSpan(after index: Int, in string: NSString) -> Int {
+        guard index < string.length else { return 0 }
+        let whitespace = CharacterSet.whitespacesAndNewlines
+        var span = 0
+        var cursor = index
+        while cursor < string.length {
+            let value = string.character(at: cursor)
+            guard let scalar = UnicodeScalar(UInt32(value)) else { break }
+            if whitespace.contains(scalar) {
+                span += 1
+                cursor += 1
+            } else {
+                break
+            }
+        }
+        return span
     }
 
     func finalizeAppliedCompletion(for suggestion: SQLAutoCompletionSuggestion,
@@ -201,9 +233,21 @@ extension SQLTextView {
         suppressedCompletions.removeAll { existing in
             NSIntersectionRange(existing.tokenRange, tokenRange).length > 0
         }
+
+        if suppressionForTrigger(at: tokenRange.location) != nil {
+            return
+        }
+
+        let canonicalText = insertion.substring(with: NSRange(location: 0, length: canonicalLength))
+        let suppression = SuppressedCompletion(tokenRange: tokenRange,
+                                               canonicalText: canonicalText,
+                                               hasFollowUps: false,
+                                               allowTrailingWhitespace: true)
+        suppressedCompletions.append(suppression)
         updateCompletionIndicator()
     }
 
+    @MainActor
     func updateCompletionIndicator() {
         guard !isCompletionVisible else {
             removeCompletionIndicator()
@@ -255,6 +299,7 @@ extension SQLTextView {
         completionIndicatorView?.update(for: boundingRect)
     }
 
+    @MainActor
     func removeCompletionIndicator() {
         completionIndicatorView?.removeFromSuperview()
         completionIndicatorView = nil
@@ -278,9 +323,12 @@ extension SQLTextView {
         deactivateManualCompletionSuppression()
         clearSnippetPlaceholders()
         completionEngine.clearPostCommitSuppression()
+        suppressNextCompletionPopover = false
 
         if let query = makeCompletionQuery() {
             let caretLocation = query.replacementRange.location
+            completionEngine.beginManualTrigger()
+            defer { completionEngine.endManualTrigger() }
             let engineResult = completionEngine.suggestions(for: query,
                                                             text: string,
                                                             caretLocation: caretLocation)

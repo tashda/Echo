@@ -59,6 +59,7 @@ private struct PerformanceMonitorView: View {
                 .background(themeManager.windowBackground)
             }
         }
+        .preferredColorScheme(themeManager.effectiveColorScheme)
     }
 
     private var header: some View {
@@ -179,7 +180,7 @@ private struct PerformanceMonitorQueryContent: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
-                let rowSummary = "\(query.totalAvailableRowCount) rows"
+                let rowSummary = "\(max(query.rowProgress.reported, query.rowProgress.materialized)) rows"
                 Label(rowSummary, systemImage: "tablecells")
                     .labelStyle(.titleAndIcon)
                     .font(.caption)

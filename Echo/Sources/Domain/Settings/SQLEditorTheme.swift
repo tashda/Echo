@@ -2,6 +2,20 @@ import SwiftUI
 import CoreGraphics
 import CoreText
 
+enum SQLCompletionAggressiveness: String, CaseIterable, Codable, Equatable, Hashable, Sendable {
+    case focused
+    case balanced
+    case eager
+
+    var displayName: String {
+        switch self {
+        case .focused: return "Focused"
+        case .balanced: return "Balanced"
+        case .eager: return "Eager"
+        }
+    }
+}
+
 struct SQLEditorSurfaceColors: Codable, Equatable {
     var background: ColorRepresentable
     var text: ColorRepresentable
@@ -143,10 +157,15 @@ struct SQLEditorDisplayOptions: Codable, Equatable {
     var suggestTableAliasesInCompletion: Bool
     var qualifyTableCompletions: Bool
     var suggestKeywordsInCompletion: Bool
+    var inlineKeywordSuggestionsEnabled: Bool
     var suggestFunctionsInCompletion: Bool
     var suggestSnippetsInCompletion: Bool
     var suggestHistoryInCompletion: Bool
     var suggestJoinsInCompletion: Bool
+    var completionAggressiveness: SQLCompletionAggressiveness
+    var allowCommandPeriodTrigger: Bool
+    var allowControlSpaceTrigger: Bool
+    var showSystemSchemasInCompletion: Bool
 
     init(
         showLineNumbers: Bool = true,
@@ -158,10 +177,15 @@ struct SQLEditorDisplayOptions: Codable, Equatable {
         suggestTableAliasesInCompletion: Bool = false,
         qualifyTableCompletions: Bool = false,
         suggestKeywordsInCompletion: Bool = true,
+        inlineKeywordSuggestionsEnabled: Bool = true,
         suggestFunctionsInCompletion: Bool = true,
         suggestSnippetsInCompletion: Bool = true,
         suggestHistoryInCompletion: Bool = true,
-        suggestJoinsInCompletion: Bool = true
+        suggestJoinsInCompletion: Bool = true,
+        completionAggressiveness: SQLCompletionAggressiveness = .balanced,
+        allowCommandPeriodTrigger: Bool = true,
+        allowControlSpaceTrigger: Bool = true,
+        showSystemSchemasInCompletion: Bool = false
     ) {
         self.showLineNumbers = showLineNumbers
         self.highlightSelectedSymbol = highlightSelectedSymbol
@@ -172,10 +196,15 @@ struct SQLEditorDisplayOptions: Codable, Equatable {
         self.suggestTableAliasesInCompletion = suggestTableAliasesInCompletion
         self.qualifyTableCompletions = qualifyTableCompletions
         self.suggestKeywordsInCompletion = suggestKeywordsInCompletion
+        self.inlineKeywordSuggestionsEnabled = inlineKeywordSuggestionsEnabled
         self.suggestFunctionsInCompletion = suggestFunctionsInCompletion
         self.suggestSnippetsInCompletion = suggestSnippetsInCompletion
         self.suggestHistoryInCompletion = suggestHistoryInCompletion
         self.suggestJoinsInCompletion = suggestJoinsInCompletion
+        self.completionAggressiveness = completionAggressiveness
+        self.allowCommandPeriodTrigger = allowCommandPeriodTrigger
+        self.allowControlSpaceTrigger = allowControlSpaceTrigger
+        self.showSystemSchemasInCompletion = showSystemSchemasInCompletion
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -188,10 +217,15 @@ struct SQLEditorDisplayOptions: Codable, Equatable {
         case suggestTableAliasesInCompletion
         case qualifyTableCompletions
         case suggestKeywordsInCompletion
+        case inlineKeywordSuggestionsEnabled
         case suggestFunctionsInCompletion
         case suggestSnippetsInCompletion
         case suggestHistoryInCompletion
         case suggestJoinsInCompletion
+        case completionAggressiveness
+        case allowCommandPeriodTrigger
+        case allowControlSpaceTrigger
+        case showSystemSchemasInCompletion
     }
 
     init(from decoder: Decoder) throws {
@@ -205,10 +239,15 @@ struct SQLEditorDisplayOptions: Codable, Equatable {
         suggestTableAliasesInCompletion = try container.decodeIfPresent(Bool.self, forKey: .suggestTableAliasesInCompletion) ?? false
         qualifyTableCompletions = try container.decodeIfPresent(Bool.self, forKey: .qualifyTableCompletions) ?? false
         suggestKeywordsInCompletion = try container.decodeIfPresent(Bool.self, forKey: .suggestKeywordsInCompletion) ?? true
+        inlineKeywordSuggestionsEnabled = try container.decodeIfPresent(Bool.self, forKey: .inlineKeywordSuggestionsEnabled) ?? true
         suggestFunctionsInCompletion = try container.decodeIfPresent(Bool.self, forKey: .suggestFunctionsInCompletion) ?? true
         suggestSnippetsInCompletion = try container.decodeIfPresent(Bool.self, forKey: .suggestSnippetsInCompletion) ?? true
         suggestHistoryInCompletion = try container.decodeIfPresent(Bool.self, forKey: .suggestHistoryInCompletion) ?? true
         suggestJoinsInCompletion = try container.decodeIfPresent(Bool.self, forKey: .suggestJoinsInCompletion) ?? true
+        completionAggressiveness = try container.decodeIfPresent(SQLCompletionAggressiveness.self, forKey: .completionAggressiveness) ?? .balanced
+        allowCommandPeriodTrigger = try container.decodeIfPresent(Bool.self, forKey: .allowCommandPeriodTrigger) ?? true
+        allowControlSpaceTrigger = try container.decodeIfPresent(Bool.self, forKey: .allowControlSpaceTrigger) ?? true
+        showSystemSchemasInCompletion = try container.decodeIfPresent(Bool.self, forKey: .showSystemSchemasInCompletion) ?? false
     }
 
     func encode(to encoder: Encoder) throws {
@@ -222,10 +261,15 @@ struct SQLEditorDisplayOptions: Codable, Equatable {
         try container.encode(suggestTableAliasesInCompletion, forKey: .suggestTableAliasesInCompletion)
         try container.encode(qualifyTableCompletions, forKey: .qualifyTableCompletions)
         try container.encode(suggestKeywordsInCompletion, forKey: .suggestKeywordsInCompletion)
+        try container.encode(inlineKeywordSuggestionsEnabled, forKey: .inlineKeywordSuggestionsEnabled)
         try container.encode(suggestFunctionsInCompletion, forKey: .suggestFunctionsInCompletion)
         try container.encode(suggestSnippetsInCompletion, forKey: .suggestSnippetsInCompletion)
         try container.encode(suggestHistoryInCompletion, forKey: .suggestHistoryInCompletion)
         try container.encode(suggestJoinsInCompletion, forKey: .suggestJoinsInCompletion)
+        try container.encode(completionAggressiveness, forKey: .completionAggressiveness)
+        try container.encode(allowCommandPeriodTrigger, forKey: .allowCommandPeriodTrigger)
+        try container.encode(allowControlSpaceTrigger, forKey: .allowControlSpaceTrigger)
+        try container.encode(showSystemSchemasInCompletion, forKey: .showSystemSchemasInCompletion)
     }
 }
 
@@ -1395,10 +1439,15 @@ enum SQLEditorThemeResolver {
             autoCompletionEnabled: globalSettings.editorEnableAutocomplete,
             qualifyTableCompletions: globalSettings.editorQualifyTableCompletions,
             suggestKeywordsInCompletion: globalSettings.editorSuggestKeywords,
+            inlineKeywordSuggestionsEnabled: globalSettings.editorEnableInlineSuggestions,
             suggestFunctionsInCompletion: globalSettings.editorSuggestFunctions,
             suggestSnippetsInCompletion: globalSettings.editorSuggestSnippets,
             suggestHistoryInCompletion: globalSettings.editorSuggestHistory,
-            suggestJoinsInCompletion: globalSettings.editorSuggestJoins
+            suggestJoinsInCompletion: globalSettings.editorSuggestJoins,
+            completionAggressiveness: globalSettings.editorCompletionAggressiveness,
+            allowCommandPeriodTrigger: globalSettings.editorAllowCommandPeriodTrigger,
+            allowControlSpaceTrigger: globalSettings.editorAllowControlSpaceTrigger,
+            showSystemSchemasInCompletion: globalSettings.editorShowSystemSchemas
         )
     }
 
