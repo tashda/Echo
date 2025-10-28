@@ -798,6 +798,7 @@ private struct CommandScrollZoomCapture: NSViewRepresentable {
         nsView.onZoom = onZoom
     }
 
+    @MainActor
     final class ZoomCaptureView: NSView {
         var onZoom: ((CGFloat) -> Void)?
         private var scrollMonitor: Any?
@@ -830,7 +831,9 @@ private struct CommandScrollZoomCapture: NSViewRepresentable {
         }
 
         deinit {
-            removeMonitor()
+            Task { @MainActor [weak self] in
+                self?.removeMonitor()
+            }
         }
 
         private func installMonitorIfNeeded() {

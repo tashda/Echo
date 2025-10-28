@@ -215,7 +215,7 @@ actor SQLiteSession: DatabaseSession {
         ORDER BY name;
         """
         let rows = try await connection.query(sql)
-        return try await MainActor.run {
+        return await MainActor.run {
             rows.compactMap { row -> SchemaObjectInfo? in
                 guard
                     let name = row.column("name")?.string,
@@ -265,7 +265,7 @@ actor SQLiteSession: DatabaseSession {
             )
         }
 
-        return try await MainActor.run {
+        return await MainActor.run {
             rawColumns.map { column in
                 ColumnInfo(
                     name: column.name,
@@ -326,7 +326,7 @@ actor SQLiteSession: DatabaseSession {
         let rawForeignKeys = try await fetchForeignKeys(schema: schema, table: table)
         let normalizedSchemaName = normalizedDatabaseName(schema)
 
-        return try await MainActor.run {
+        return await MainActor.run {
             let columns = columnsInfo.map { column in
                 TableStructureDetails.Column(
                     name: column.name,

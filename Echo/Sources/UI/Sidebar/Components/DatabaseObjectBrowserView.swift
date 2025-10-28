@@ -9,8 +9,38 @@ private struct HoveredExplorerRowIDKey: EnvironmentKey {
     static let defaultValue: String? = nil
 }
 
+private func makeSelectStatement(
+    qualifiedName: String,
+    columnLines: String,
+    databaseType: DatabaseType,
+    limit: Int?,
+    offset: Int = 0
+) -> String {
+    switch databaseType {
+    case .microsoftSQL:
+        var statement = "SELECT\n    \(columnLines)\nFROM \(qualifiedName)"
+        if let limit {
+            statement += "\nORDER BY (SELECT NULL)\nOFFSET \(offset) ROWS\nFETCH NEXT \(limit) ROWS ONLY"
+        }
+        statement += ";"
+        return statement
+    case .postgresql, .mysql, .sqlite:
+        var statement = "SELECT\n    \(columnLines)\nFROM \(qualifiedName)"
+        if let limit {
+            statement += "\nLIMIT \(limit)"
+            if offset > 0 {
+                statement += "\nOFFSET \(offset)"
+            }
+        } else if offset > 0 {
+            statement += "\nOFFSET \(offset)"
+        }
+        statement += ";"
+        return statement
+    }
+}
+
 private struct SetHoveredExplorerRowIDKey: EnvironmentKey {
-    nonisolated(unsafe) static let defaultValue: @Sendable (String?) -> Void = { _ in }
+    static let defaultValue: @Sendable (String?) -> Void = { _ in }
 }
 
 private extension EnvironmentValues {
@@ -242,13 +272,17 @@ struct DatabaseObjectBrowserView: View {
                 }
                 .environment(\.hoveredExplorerRowID, hoveredRowID)
                 .environment(\.setHoveredExplorerRowID, { value in
-                    if hoveredRowID != value {
-                        hoveredRowID = value
+                    Task { @MainActor in
+                        if hoveredRowID != value {
+                            hoveredRowID = value
+                        }
                     }
                 })
                 .onHover { hovering in
-                    if !hovering {
-                        hoveredRowID = nil
+                    Task { @MainActor in
+                        if !hovering {
+                            hoveredRowID = nil
+                        }
                     }
                 }
                 .transaction { transaction in
@@ -369,7 +403,7 @@ private struct SearchEmptyStateView: View {
         
         private var rowContent: some View {
             VStack(alignment: .leading, spacing: object.type == .trigger ? 6 : 0) {
-                HStack(spacing: 8) {
+                HStack(alignment: .top, spacing: 8) {
                     if canExpand {
                         Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
                             .font(.system(size: 10, weight: .medium))
@@ -378,27 +412,47 @@ private struct SearchEmptyStateView: View {
                     } else {
                         Spacer().frame(width: 12)
                     }
-                    
-                    Image(systemName: iconName)
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundStyle(accentColor)
-                    
-                    Text(displayName)
-                        .font(.system(size: 13))
-                        .foregroundStyle(.primary)
-                        .lineLimit(1)
-                        .contentShape(Rectangle())
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack(spacing: 8) {
+                            Image(systemName: iconName)
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundStyle(accentColor)
+
+                            Text(displayName)
+                                .font(.system(size: 13))
+                                .foregroundStyle(.primary)
+                                .lineLimit(1)
+                                .contentShape(Rectangle())
+                                .frame(maxWidth: .infinity, alignment: .leading)
+
+                            Spacer(minLength: 4)
+
+                            if showColumns && !object.columns.isEmpty {
+                                Text("\(object.columns.count)")
+                                    .font(.system(size: 11, weight: .medium))
+                                    .foregroundStyle(accentColor)
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 2)
+                                    .background(accentColor.opacity(0.12), in: Capsule())
+                            }
+                        }
+
+                        if let comment = object.comment?.trimmingCharacters(in: .whitespacesAndNewlines), !comment.isEmpty {
+                            Text(comment)
+                                .font(.system(size: 11))
+                                .foregroundStyle(.secondary)
+                                .lineLimit(3)
+                                .multilineTextAlignment(.leading)
+                                .fixedSize(horizontal: false, vertical: true)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+#if os(macOS)
+                                .help(comment)
+#endif
+                        }
+                    }
 
                     Spacer()
-
-                    if showColumns && !object.columns.isEmpty {
-                        Text("\(object.columns.count)")
-                            .font(.system(size: 11, weight: .medium))
-                            .foregroundStyle(accentColor)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(accentColor.opacity(0.12), in: Capsule())
-                    }
                 }
                 
                 if object.type == .trigger {
@@ -473,7 +527,7 @@ private struct SearchEmptyStateView: View {
         private var columnsList: some View {
             VStack(alignment: .leading, spacing: 2) {
                 ForEach(object.columns, id: \.name) { (column: ColumnInfo) in
-                    HStack(spacing: 8) {
+                    HStack(alignment: .top, spacing: 8) {
                         let (iconName, iconColor): (String, Color) = {
                             if column.isPrimaryKey {
                                 return ("key.fill", accentColor)
@@ -487,14 +541,28 @@ private struct SearchEmptyStateView: View {
                         Image(systemName: iconName)
                             .font(.system(size: iconName == "circle.fill" ? 8 : 10))
                             .foregroundStyle(iconColor)
-                        
-                        Text(column.name)
-                            .font(.system(size: 11))
-                            .foregroundStyle(.primary)
-                            .lineLimit(1)
-                        
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(column.name)
+                                .font(.system(size: 11))
+                                .foregroundStyle(.primary)
+                                .lineLimit(1)
+
+                            if let comment = column.comment?.trimmingCharacters(in: .whitespacesAndNewlines), !comment.isEmpty {
+                                Text(comment)
+                                    .font(.system(size: 10))
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(2)
+                                    .fixedSize(horizontal: false, vertical: true)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+#if os(macOS)
+                                    .help(comment)
+#endif
+                            }
+                        }
+
                         Spacer(minLength: 0)
-                        
+
                         Text(formatDataType(column.dataType))
                             .font(.system(size: 10, weight: .medium))
                             .foregroundStyle(.primary)
@@ -978,11 +1046,21 @@ private struct SearchEmptyStateView: View {
         
         private func openDataPreview() {
             guard let session = appModel.sessionManager.sessionForConnection(connection.id) else { return }
+            let qualified = qualifiedName(schema: object.schema, name: object.name)
+            let columns = object.columns.isEmpty ? ["*"] : object.columns.map { quoteIdentifier($0.name) }
+            let columnLines = columns.joined(separator: ",\n    ")
+            let databaseType = connection.databaseType
             appModel.openDataPreviewTab(
                 for: session,
                 object: object,
                 sqlBuilder: { limit, offset in
-                    selectStatement(limit: limit, offset: offset)
+            makeSelectStatement(
+                        qualifiedName: qualified,
+                        columnLines: columnLines,
+                        databaseType: databaseType,
+                        limit: limit,
+                        offset: offset
+                    )
                 }
             )
         }
@@ -1114,7 +1192,15 @@ private struct SearchEmptyStateView: View {
             if object.type == .function || object.type == .procedure {
                 sql = executeStatement()
             } else {
-                sql = selectStatement(limit: limit)
+                let qualified = qualifiedName(schema: object.schema, name: object.name)
+                let columns = object.columns.isEmpty ? ["*"] : object.columns.map { quoteIdentifier($0.name) }
+                let columnLines = columns.joined(separator: ",\n    ")
+                sql = makeSelectStatement(
+                    qualifiedName: qualified,
+                    columnLines: columnLines,
+                    databaseType: connection.databaseType,
+                    limit: limit
+                )
             }
             openScriptTab(with: sql)
         }
@@ -1175,7 +1261,8 @@ private struct SearchEmptyStateView: View {
             messageLabel.lineBreakMode = .byWordWrapping
             messageLabel.maximumNumberOfLines = 0
             messageLabel.preferredMaxLayoutWidth = 320
-            messageLabel.alignment = .left
+            // Center the message within the alert
+            messageLabel.alignment = .center
             
             let textField = NSTextField(string: object.name)
             textField.translatesAutoresizingMaskIntoConstraints = false
@@ -1185,7 +1272,9 @@ private struct SearchEmptyStateView: View {
             stack.orientation = .vertical
             stack.translatesAutoresizingMaskIntoConstraints = false
             stack.spacing = 8
-            stack.alignment = .leading
+            // Center the content horizontally so the text appears
+            // in the visual center of the alert.
+            stack.alignment = .centerX
             stack.edgeInsets = NSEdgeInsets(top: 4, left: 0, bottom: 0, right: 0)
             stack.addArrangedSubview(messageLabel)
             stack.addArrangedSubview(textField)
@@ -1274,13 +1363,16 @@ private struct SearchEmptyStateView: View {
             messageLabel.lineBreakMode = .byWordWrapping
             messageLabel.maximumNumberOfLines = 0
             messageLabel.preferredMaxLayoutWidth = 320
-            messageLabel.alignment = .left
+            // Center the message within the alert
+            messageLabel.alignment = .center
             
             let stack = NSStackView()
             stack.orientation = .vertical
             stack.translatesAutoresizingMaskIntoConstraints = false
             stack.spacing = 6
-            stack.alignment = .leading
+            // Center the content horizontally so the text appears
+            // in the visual center of the alert.
+            stack.alignment = .centerX
             stack.edgeInsets = NSEdgeInsets(top: 4, left: 0, bottom: 0, right: 0)
             stack.addArrangedSubview(messageLabel)
             stack.setHuggingPriority(.required, for: .vertical)
@@ -1353,13 +1445,16 @@ private struct SearchEmptyStateView: View {
             messageLabel.lineBreakMode = .byWordWrapping
             messageLabel.maximumNumberOfLines = 0
             messageLabel.preferredMaxLayoutWidth = 320
-            messageLabel.alignment = .left
+            // Center the message within the alert
+            messageLabel.alignment = .center
             
             let stack = NSStackView()
             stack.orientation = .vertical
             stack.translatesAutoresizingMaskIntoConstraints = false
             stack.spacing = 6
-            stack.alignment = .leading
+            // Center the content horizontally so the text appears
+            // in the visual center of the alert.
+            stack.alignment = .centerX
             stack.edgeInsets = NSEdgeInsets(top: 4, left: 0, bottom: 0, right: 0)
             stack.addArrangedSubview(messageLabel)
             stack.setHuggingPriority(.required, for: .vertical)
@@ -1549,34 +1644,6 @@ private struct SearchEmptyStateView: View {
             
             statement += ";"
             return statement
-        }
-        
-        private func selectStatement(limit: Int?, offset: Int = 0) -> String {
-            let qualified = qualifiedName(schema: object.schema, name: object.name)
-            let columns = object.columns.isEmpty ? ["*"] : object.columns.map { quoteIdentifier($0.name) }
-            let columnLines = columns.joined(separator: ",\n    ")
-            
-            switch connection.databaseType {
-            case .microsoftSQL:
-                var statement = "SELECT\n    \(columnLines)\nFROM \(qualified)"
-                if let limit {
-                    statement += "\nORDER BY (SELECT NULL)\nOFFSET \(offset) ROWS\nFETCH NEXT \(limit) ROWS ONLY"
-                }
-                statement += ";"
-                return statement
-            case .postgresql, .mysql, .sqlite:
-                var statement = "SELECT\n    \(columnLines)\nFROM \(qualified)"
-                if let limit {
-                    statement += "\nLIMIT \(limit)"
-                    if offset > 0 {
-                        statement += "\nOFFSET \(offset)"
-                    }
-                } else if offset > 0 {
-                    statement += "\nOFFSET \(offset)"
-                }
-                statement += ";"
-                return statement
-            }
         }
         
         private func executeStatement() -> String {

@@ -192,6 +192,7 @@ private struct MacSQLEditorRepresentable: NSViewRepresentable {
         }
     }
 
+    @MainActor
     final class Coordinator: NSObject, SQLTextViewDelegate {
         var parent: MacSQLEditorRepresentable
         weak var textView: SQLTextView?
@@ -235,6 +236,7 @@ extension SQLTextViewDelegate {
     func sqlTextView(_ view: SQLTextView, didRequestBookmarkWithContent content: String) {}
 }
 
+@MainActor
 private final class SQLScrollView: NSScrollView {
     let sqlTextView: SQLTextView
     private var theme: SQLEditorTheme
@@ -310,7 +312,9 @@ private final class SQLScrollView: NSScrollView {
     }
 
     deinit {
-        sqlTextView.cancelPendingCompletions()
+        Task { @MainActor [weak sqlTextView] in
+            sqlTextView?.cancelPendingCompletions()
+        }
     }
 
     func updateTheme(_ theme: SQLEditorTheme) {
@@ -412,6 +416,7 @@ func sqlRangeIsValid(_ range: NSRange, upperBound: Int) -> Bool {
     return NSMaxRange(range) <= upperBound
 }
 
+@MainActor
 final class SQLTextView: NSTextView, NSTextViewDelegate {
     private final class FallbackResponder: NSResponder {
         private let manager = UndoManager()
@@ -1242,6 +1247,7 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
         DispatchQueue.main.asyncAfter(deadline: deadline, execute: workItem)
     }
 
+    @MainActor
     private func hideCompletions() {
         completionGeneration += 1
         completionWorkItem?.cancel()
@@ -1271,6 +1277,7 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
     }
 
     @discardableResult
+    @MainActor
     func ensureCompletionController() -> SQLAutoCompletionController? {
         if completionController == nil {
             completionController = SQLAutoCompletionController(textView: self)
@@ -2292,6 +2299,7 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
 
     // MARK: - Inline keyword suggestions
 
+    @MainActor
     func showInlineKeywordSuggestions(_ suggestions: [SQLAutoCompletionSuggestion], query: SQLAutoCompletionQuery) {
         guard displayOptions.autoCompletionEnabled,
               displayOptions.inlineKeywordSuggestionsEnabled else {
@@ -2314,6 +2322,7 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
         updateInlineSuggestionPosition()
     }
 
+    @MainActor
     func hideInlineKeywordSuggestion(preserveState: Bool = false) {
         inlineSuggestionView?.removeFromSuperview()
         inlineSuggestionView = nil
@@ -2322,6 +2331,7 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
         }
     }
 
+    @MainActor
     private func ensureInlineSuggestionView() -> InlineSuggestionLabel {
         if let view = inlineSuggestionView {
             return view
@@ -2333,6 +2343,7 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
         return view
     }
 
+    @MainActor
     private func applyInlineSuggestionAppearance(to view: InlineSuggestionLabel? = nil) {
         guard let target = view ?? inlineSuggestionView else { return }
         target.font = theme.nsFont
@@ -2368,6 +2379,7 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
         view.invalidateIntrinsicContentSize()
     }
 
+    @MainActor
     private func updateInlineSuggestionPosition() {
         guard let view = inlineSuggestionView,
               inlineInsertedRange == nil,

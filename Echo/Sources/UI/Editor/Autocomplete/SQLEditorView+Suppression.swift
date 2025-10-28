@@ -247,6 +247,7 @@ extension SQLTextView {
         updateCompletionIndicator()
     }
 
+    @MainActor
     func updateCompletionIndicator() {
         guard !isCompletionVisible else {
             removeCompletionIndicator()
@@ -298,6 +299,7 @@ extension SQLTextView {
         completionIndicatorView?.update(for: boundingRect)
     }
 
+    @MainActor
     func removeCompletionIndicator() {
         completionIndicatorView?.removeFromSuperview()
         completionIndicatorView = nil

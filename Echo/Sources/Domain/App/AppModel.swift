@@ -64,6 +64,8 @@ final class AppModel: ObservableObject {
             UserDefaults.standard.set(globalSettings.resultsStreamingFetchRampMultiplier, forKey: ResultStreamingFetchRampMultiplierDefaultsKey)
             UserDefaults.standard.set(globalSettings.resultsStreamingFetchRampMax, forKey: ResultStreamingFetchRampMaxDefaultsKey)
             UserDefaults.standard.set(globalSettings.resultsUseCursorStreaming, forKey: ResultStreamingUseCursorDefaultsKey)
+            UserDefaults.standard.set(globalSettings.resultsCursorStreamingLimitThreshold, forKey: ResultStreamingCursorLimitThresholdDefaultsKey)
+            UserDefaults.standard.set(globalSettings.resultsStreamingMode.rawValue, forKey: ResultStreamingModeDefaultsKey)
             UserDefaults.standard.set(globalSettings.resultsEnableTypeFormatting, forKey: ResultFormattingEnabledDefaultsKey)
             UserDefaults.standard.set(globalSettings.resultsFormattingMode.rawValue, forKey: ResultFormattingModeDefaultsKey)
         }
@@ -1245,7 +1247,9 @@ final class AppModel: ObservableObject {
         backgroundFetchSize: Int? = nil,
         backgroundFetchRampMultiplier: Int? = nil,
         backgroundFetchRampMax: Int? = nil,
-        useCursorStreaming: Bool? = nil
+        useCursorStreaming: Bool? = nil,
+        cursorLimitThreshold: Int? = nil,
+        streamingMode: ResultStreamingExecutionMode? = nil
     ) async {
         let clampedInitial = initialRowLimit.map { max(100, $0) }
         let clampedPreview = previewBatchSize.map { max(100, $0) }
@@ -1253,7 +1257,8 @@ final class AppModel: ObservableObject {
         let clampedFetch = backgroundFetchSize.map { max(128, min($0, 16_384)) }
         let clampedRampMultiplier = backgroundFetchRampMultiplier.map { max(1, min($0, 64)) }
         let clampedRampMax = backgroundFetchRampMax.map { max(256, min($0, 1_048_576)) }
-        let shouldUpdate = [clampedInitial, clampedPreview, clampedBackground, clampedFetch, clampedRampMultiplier, clampedRampMax].contains { $0 != nil } || useCursorStreaming != nil
+        let clampedCursorThreshold = cursorLimitThreshold.map { max(0, min($0, 1_000_000)) }
+        let shouldUpdate = [clampedInitial, clampedPreview, clampedBackground, clampedFetch, clampedRampMultiplier, clampedRampMax, clampedCursorThreshold].contains { $0 != nil } || useCursorStreaming != nil || streamingMode != nil
         guard shouldUpdate else { return }
 
         await updateGlobalEditorDisplay { settings in
@@ -1277,6 +1282,12 @@ final class AppModel: ObservableObject {
             }
             if let cursor = useCursorStreaming {
                 settings.resultsUseCursorStreaming = cursor
+            }
+            if let value = clampedCursorThreshold {
+                settings.resultsCursorStreamingLimitThreshold = value
+            }
+            if let mode = streamingMode {
+                settings.resultsStreamingMode = mode
             }
         }
 
@@ -1304,6 +1315,12 @@ final class AppModel: ObservableObject {
         }
         if let cursor = useCursorStreaming {
             UserDefaults.standard.set(cursor, forKey: ResultStreamingUseCursorDefaultsKey)
+        }
+        if let value = clampedCursorThreshold {
+            UserDefaults.standard.set(value, forKey: ResultStreamingCursorLimitThresholdDefaultsKey)
+        }
+        if let mode = streamingMode {
+            UserDefaults.standard.set(mode.rawValue, forKey: ResultStreamingModeDefaultsKey)
         }
     }
 
@@ -1737,6 +1754,30 @@ final class AppModel: ObservableObject {
         }
     }
 
+    // MARK: - Job Management Tab
+
+    @MainActor
+    func openJobManagementTab(for session: ConnectionSession? = nil, selectJobID: String? = nil) {
+        guard let targetSession = session ?? sessionManager.activeSession ?? sessionManager.activeSessions.first else { return }
+        sessionManager.setActiveSession(targetSession.id)
+        selectedConnectionID = targetSession.connection.id
+
+        let titleBase = "Jobs"
+        let existingCount = tabManager.tabs.filter { $0.connection.id == targetSession.connection.id && $0.kind == .jobManagement }.count
+        let title = existingCount == 0 ? titleBase : "\(titleBase) #\(existingCount + 1)"
+
+        let viewModel = JobManagementViewModel(session: targetSession.session, connection: targetSession.connection, initialSelectedJobID: selectJobID)
+        let newTab = WorkspaceTab(
+            connection: targetSession.connection,
+            session: targetSession.session,
+            connectionSessionID: targetSession.id,
+            title: title,
+            content: .jobManagement(viewModel)
+        )
+        tabManager.addTab(newTab)
+        tabManager.activeTabId = newTab.id
+    }
+
     func closeActiveQueryTab() {
         guard let activeTab = tabManager.activeTab else { return }
         tabManager.closeTab(id: activeTab.id)
@@ -1900,6 +1941,7 @@ final class AppModel: ObservableObject {
         connectionStates.removeValue(forKey: connection.id)
 
         if let session = sessionManager.sessionForConnection(connection.id) {
+            await session.cancelStructureLoadTask()
             await session.session.close()
             sessionManager.removeSession(withID: session.id)
         }
@@ -2422,6 +2464,7 @@ final class AppModel: ObservableObject {
         if let existing = sessionManager.sessionForConnection(connection.id) {
             if forceReconnect {
                 priorSession = existing
+                await existing.cancelStructureLoadTask()
                 await existing.session.close()
                 sessionManager.removeSession(withID: existing.id)
             } else {
@@ -2489,21 +2532,7 @@ final class AppModel: ObservableObject {
             let targetDatabase = session.selectedDatabaseName ?? (resolvedConnection.database.isEmpty ? nil : resolvedConnection.database)
             recordRecentConnection(for: resolvedConnection, databaseName: targetDatabase)
 
-            Task {
-                do {
-                    let structure = try await loadDatabaseStructureForSession(session)
-                    await MainActor.run {
-                        session.databaseStructure = structure
-                        session.structureLoadingState = .ready
-                        cacheStructure(structure, for: session.connection.id)
-                    }
-                } catch {
-                    await MainActor.run {
-                        session.structureLoadingState = .failed(message: error.localizedDescription)
-                    }
-                    print("Failed to load database structure: \(error)")
-                }
-            }
+            startStructureLoadTask(for: session)
         } catch {
             let dbError = DatabaseError.from(error)
             connectionStates[connection.id] = .error(dbError)
@@ -2528,6 +2557,7 @@ final class AppModel: ObservableObject {
 
     func disconnect() async {
         for session in sessionManager.activeSessions {
+            await session.cancelStructureLoadTask()
             await session.session.close()
             connectionStates[session.connection.id] = .disconnected
         }
@@ -2539,6 +2569,7 @@ final class AppModel: ObservableObject {
 
     func disconnectSession(withID sessionID: UUID) async {
         guard let session = sessionManager.activeSessions.first(where: { $0.id == sessionID }) else { return }
+        await session.cancelStructureLoadTask()
         await session.session.close()
         sessionManager.removeSession(withID: sessionID)
         connectionStates[session.connection.id] = .disconnected
@@ -2579,6 +2610,35 @@ final class AppModel: ObservableObject {
     }
 
     // MARK: - Database Metadata
+    @MainActor
+    private func startStructureLoadTask(for session: ConnectionSession) {
+        session.structureLoadTask?.cancel()
+        session.structureLoadTask = Task { @MainActor [weak self, weak session] in
+            guard let self, let session else { return }
+            defer { session.structureLoadTask = nil }
+            ConnectionDebug.log("[AppModel] Starting structure load task for session=\(session.connection.connectionName) selected=\(session.selectedDatabaseName ?? "<nil>")")
+            do {
+                let structure = try await self.loadDatabaseStructureForSession(session)
+                session.databaseStructure = structure
+                session.structureLoadingState = .ready
+                session.structureLoadingMessage = nil
+                self.cacheStructure(structure, for: session.connection.id)
+                ConnectionDebug.log("[AppModel] Structure load completed for session=\(session.connection.connectionName) databases=\(structure.databases.count)")
+            } catch is CancellationError {
+                session.structureLoadingMessage = nil
+                session.structureLoadingState = .idle
+                ConnectionDebug.log("[AppModel] Structure load cancelled for session=\(session.connection.connectionName)")
+            } catch {
+                session.structureLoadingMessage = error.localizedDescription
+                session.structureLoadingState = .failed(message: error.localizedDescription)
+                // Log both user-friendly and debug representations for opaque errors (e.g. PostgresDecodingError)
+                print("Failed to load database structure: \(error)")
+                print("Failed to load database structure (debug): \(String(reflecting: error))")
+                ConnectionDebug.log("[AppModel] Structure load failed for session=\(session.connection.connectionName) error=\(error.localizedDescription)")
+            }
+        }
+    }
+
     func loadDatabaseStructureForSession(_ connectionSession: ConnectionSession) async throws -> DatabaseStructure {
         try Task.checkCancellation()
 
@@ -2630,6 +2690,8 @@ final class AppModel: ObservableObject {
                 credentials: .init(authentication: credentials),
                 selectedDatabase: selectedDatabase,
                 reuseSession: connectionSession.session,
+                databaseFilter: nil,
+                cachedStructure: connectionSession.connection.cachedStructure,
                 progressHandler: { progress in
                     await MainActor.run {
                         connectionSession.structureLoadingState = .loading(progress: progress.fraction)
@@ -2640,7 +2702,9 @@ final class AppModel: ObservableObject {
                 },
                 databaseHandler: { database, _, _ in
                     await MainActor.run {
-                        var databases = connectionSession.databaseStructure?.databases ?? []
+                        var databases = connectionSession.databaseStructure?.databases
+                            ?? connectionSession.connection.cachedStructure?.databases
+                            ?? []
                         if let index = databases.firstIndex(where: { $0.name == database.name }) {
                             databases[index] = database
                         } else {
@@ -2650,10 +2714,17 @@ final class AppModel: ObservableObject {
                         if ConnectionDebug.isEnabled {
                             ConnectionDebug.log("[AppModel] Incremental update for session=\(connectionSession.connection.connectionName) database=\(database.name) schemas=\(database.schemas.count) totalDatabases=\(databases.count)")
                         }
-                        connectionSession.databaseStructure = DatabaseStructure(
-                            serverVersion: interimServerVersion,
+                        let resolvedServerVersion = interimServerVersion
+                            ?? connectionSession.databaseStructure?.serverVersion
+                            ?? connectionSession.connection.cachedStructure?.serverVersion
+                            ?? connectionSession.connection.serverVersion
+                        let updatedStructure = DatabaseStructure(
+                            serverVersion: resolvedServerVersion,
                             databases: databases
                         )
+                        connectionSession.databaseStructure = updatedStructure
+                        self.ensureSelectedDatabaseIfNeeded(for: connectionSession, availableDatabases: databases)
+                        self.cacheStructure(updatedStructure, for: connectionSession.connection.id)
                     }
                 }
             )
@@ -2662,10 +2733,11 @@ final class AppModel: ObservableObject {
                 interimServerVersion = serverVersion
             }
 
-            connectionSession.databaseStructure = DatabaseStructure(
+            let finalStructure = DatabaseStructure(
                 serverVersion: interimServerVersion,
                 databases: structure.databases
             )
+            connectionSession.databaseStructure = finalStructure
             if ConnectionDebug.isEnabled {
                 let totalSchemas = structure.databases.reduce(0) { $0 + $1.schemas.count }
                 let totalObjects = structure.databases.reduce(0) { result, database in
@@ -2676,11 +2748,8 @@ final class AppModel: ObservableObject {
             connectionSession.structureLoadingState = .ready
             connectionSession.structureLoadingMessage = nil
 
-            if connectionSession.selectedDatabaseName == nil,
-               !connectionSession.connection.database.isEmpty,
-               let firstDatabase = structure.databases.first?.name {
-                connectionSession.selectedDatabaseName = firstDatabase
-            }
+            ensureSelectedDatabaseIfNeeded(for: connectionSession, availableDatabases: structure.databases)
+            cacheStructure(finalStructure, for: connectionSession.connection.id)
 
             return structure
         } catch {
@@ -2821,6 +2890,7 @@ final class AppModel: ObservableObject {
                     selectedDatabase: targetDatabase,
                     reuseSession: session.session,
                     databaseFilter: [targetDatabase],
+                    cachedStructure: session.connection.cachedStructure,
                     progressHandler: { progress in
                         await MainActor.run {
                             session.structureLoadingState = .loading(progress: progress.fraction)
@@ -2868,6 +2938,32 @@ final class AppModel: ObservableObject {
     }
 
     // MARK: - Pin helpers
+    private func ensureSelectedDatabaseIfNeeded(for session: ConnectionSession, availableDatabases: [DatabaseInfo]) {
+        let currentSelection = session.selectedDatabaseName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        guard currentSelection.isEmpty else { return }
+
+        if let configured = nonEmptyString(session.connection.database),
+           availableDatabases.contains(where: { $0.name.caseInsensitiveCompare(configured) == .orderedSame }) {
+            session.selectedDatabaseName = configured
+            return
+        }
+
+        if let populated = availableDatabases.first(where: { !$0.schemas.isEmpty }) {
+            session.selectedDatabaseName = populated.name
+            return
+        }
+
+        if let fallback = availableDatabases.first {
+            session.selectedDatabaseName = fallback.name
+        }
+    }
+
+    private func nonEmptyString(_ value: String?) -> String? {
+        guard let value = value else { return nil }
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
+    }
+
     func pinObject(withID id: String) {
         guard !pinnedObjectIDs.contains(id) else { return }
         pinnedObjectIDs.append(id)
@@ -2909,8 +3005,13 @@ final class AppModel: ObservableObject {
         let structure = try await fetcher.fetchStructure(
             for: connection,
             credentials: .init(authentication: credentials),
-                selectedDatabase: connection.database.isEmpty ? nil : connection.database
-            )
+            selectedDatabase: connection.database.isEmpty ? nil : connection.database,
+            reuseSession: nil,
+            databaseFilter: nil,
+            cachedStructure: connection.cachedStructure,
+            progressHandler: nil,
+            databaseHandler: nil
+        )
             cacheStructure(structure, for: connection.id)
         } catch {
             print("Failed to preload structure for connection \(connection.connectionName): \(error)")

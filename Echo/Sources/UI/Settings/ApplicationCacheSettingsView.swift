@@ -393,6 +393,8 @@ private func tabMemoryContextLabel(for tab: WorkspaceTab) -> String {
                 return "Diagram • \(tableCount) table\(tableCount == 1 ? "" : "s")"
             }
             return "Diagram"
+        case .jobManagement:
+            return "Jobs"
         }
     }
 

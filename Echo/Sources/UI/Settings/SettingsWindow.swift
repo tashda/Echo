@@ -372,9 +372,6 @@ struct SettingsView: View {
         }
     }
 
-#if os(macOS)
-    @State private var columnVisibility: NavigationSplitViewVisibility = .all
-#endif
     @State private var preferredColumn: NavigationSplitViewColumn = .sidebar
     @State private var selection: SettingsSection? = .appearance
     @State private var navigationHistory: [SettingsSection] = [.appearance]
@@ -385,14 +382,11 @@ struct SettingsView: View {
 
     var body: some View {
         settingsSplitView
-            .frame(minWidth: 720, minHeight: 520)
+            .frame(minWidth: 1000, minHeight: 700)
             .onAppear {
                 if selection == nil {
                     selection = .appearance
                 }
-#if os(macOS)
-                columnVisibility = .all
-#endif
                 navigationHistory = [.appearance]
                 historyIndex = 0
                 toolbarBridge.performBack = { navigateBack() }
@@ -404,9 +398,6 @@ struct SettingsView: View {
                       let section = SettingsSection(rawValue: raw) else { return }
                 selection = section
                 preferredColumn = .sidebar
-#if os(macOS)
-                columnVisibility = .all
-#endif
             }
             .onChange(of: selection) { _, newValue in
                 guard !isUpdatingFromHistory else {
@@ -450,19 +441,11 @@ struct SettingsView: View {
 
     @ViewBuilder
     private var settingsSplitView: some View {
-#if os(macOS)
-        NavigationSplitView(columnVisibility: $columnVisibility, preferredCompactColumn: $preferredColumn) {
-            sidebar
-        } detail: {
-            detailContent
-        }
-#else
         NavigationSplitView(preferredCompactColumn: $preferredColumn) {
             sidebar
         } detail: {
             detailContent
         }
-#endif
     }
 
     private var sidebar: some View {
@@ -478,12 +461,8 @@ struct SettingsView: View {
         }
         .listStyle(.sidebar)
         .navigationSplitViewColumnWidth(min: fixedSidebarWidth, ideal: fixedSidebarWidth, max: fixedSidebarWidth)
-#if os(macOS)
-        .background(Color.clear)
-#else
         .scrollContentBackground(.hidden)
         .background(themeManager.surfaceBackgroundColor)
-#endif
     }
 
     private var detailContent: some View {
@@ -649,6 +628,7 @@ enum SettingsWindowStyle: String, CaseIterable {
     }
 }
 
+@MainActor
 enum SettingsWindowPresenter {
     private static let defaultsKey = "com.fuzee.settings.preferredWindowStyle"
     private nonisolated(unsafe) static var cachedStyle: SettingsWindowStyle?

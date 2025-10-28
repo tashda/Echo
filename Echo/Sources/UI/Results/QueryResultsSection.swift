@@ -7,15 +7,42 @@ import UIKit
 #endif
 
 /// Smoothly animates a counter from one value to another using SwiftUI animation
-private struct AnimatedCounter: View {
-    let targetValue: Int
-    let isActive: Bool
-    let formatter: (Int) -> String
+/// without tying increments to backend delivery cadence.
+    private struct AnimatedCounter: View {
+        let targetValue: Int
+        let isActive: Bool
+        let formatter: (Int) -> String
+
+    @State private var displayedValue: Double = 0
+    @State private var previousTarget: Int = 0
+
+    private func animationDuration(for delta: Int) -> Double {
+        // Keep it snappy; larger deltas animate slightly longer but remain quick.
+        let perThousand: Double = 0.06 // ~60ms per 1k rows
+        let clamped = min(0.8, max(0.12, (Double(max(delta, 0)) / 1000.0) * perThousand))
+        return clamped
+    }
 
     var body: some View {
-        Text(formatter(targetValue))
-            .font(.system(size: 11, weight: .medium, design: .monospaced))
+        Text(formatter(Int(displayedValue.rounded())))
+            .font(.system(size: 11))
             .lineLimit(1)
+            .onChange(of: targetValue) { old, new in
+                guard isActive else {
+                    displayedValue = Double(new)
+                    previousTarget = new
+                    return
+                }
+                let delta = abs(new - previousTarget)
+                previousTarget = new
+                withAnimation(.linear(duration: animationDuration(for: delta))) {
+                    displayedValue = Double(new)
+                }
+            }
+            .onAppear {
+                displayedValue = Double(targetValue)
+                previousTarget = targetValue
+            }
     }
 }
 
@@ -49,15 +76,18 @@ struct QueryResultsSection: View {
     private let statusChipHeight: CGFloat = 28
     private let statusBarHeight: CGFloat = 36
     private let statusBarHorizontalPadding: CGFloat = 12
-    private let statusBarChipSpacing: CGFloat = 10
+    private let statusBarChipSpacing: CGFloat = 8
 
 #if os(macOS)
     // Fixed widths for macOS to prevent shifting when content changes
-    private let rowCountChipWidth: CGFloat = 90
+    private let rowCountChipWidth: CGFloat = 130
     private let timeChipWidth: CGFloat = 110
     private let statusChipWidth: CGFloat = 100
+    private let modeChipWidth: CGFloat = 72
+    private let statusBarContentYOffset: CGFloat = -2 // Nudge chips up for visual centering
     private var statusBarVerticalPadding: CGFloat {
-        max(0, (statusBarHeight - statusChipHeight) / 2)
+        // Nudge up by 3pt to center visually with the bottom window edge.
+        max(0, (statusBarHeight - statusChipHeight) / 2 - 3)
     }
 #else
     private let connectionChipMinWidth: CGFloat = 180
@@ -245,7 +275,7 @@ struct QueryResultsSection: View {
                 rowOrder: rowOrder,
                 onColumnTap: { index in toggleHighlightedColumn(index) },
                 onSort: { index, action in handleSortAction(columnIndex: index, action: action) },
-                onClearColumnHighlight: { highlightedColumnIndex = nil },
+                onClearColumnHighlight: { DispatchQueue.main.async { highlightedColumnIndex = nil } },
                 backgroundColor: gridBackgroundColor,
                 foreignKeyDisplayMode: foreignKeyDisplayMode,
                 foreignKeyInspectorBehavior: foreignKeyInspectorBehavior,
@@ -417,13 +447,15 @@ struct QueryResultsSection: View {
                 QueryResultsStatusBarContainer(
                     height: statusBarHeight,
                     verticalPadding: statusBarVerticalPadding,
+                    contentOffset: statusBarContentYOffset,
                     background: themeManager.windowBackground,
                     dividerOpacity: 0.3
                 ) {
                     HStack(alignment: .center, spacing: statusBarChipSpacing) {
                         connectionStatusChip
                         Spacer(minLength: 0)
-                        HStack(spacing: 6) {
+                        HStack(spacing: statusBarChipSpacing) {
+                            modeStatusChip
                             rowCountStatusChip
                             timeStatusChip
                             statusSummaryChip
@@ -482,27 +514,19 @@ struct QueryResultsSection: View {
 
                 // Animated counter that smoothly counts up
                 if isExecuting && progress.displayCount > 0 {
-                    HStack(spacing: 2) {
-                        AnimatedCounter(
-                            targetValue: progress.displayCount,
-                            isActive: isExecuting,
-                            formatter: { formatCompact($0) }
-                        )
-                        .foregroundStyle(.secondary)
-
-                        Text("+")
-                            .font(.system(size: 11, weight: .medium, design: .monospaced))
-                            .foregroundStyle(.secondary)
-                    }
+                    AnimatedCounter(
+                        targetValue: progress.displayCount,
+                        isActive: isExecuting,
+                        formatter: { formatCompact($0) }
+                    )
+                    .foregroundStyle(.secondary)
                 } else if isExecuting {
                     Text("…")
                         .font(.system(size: 11))
-                        .fontDesign(.monospaced)
                         .foregroundStyle(.secondary)
                 } else {
                     Text(formatCompact(progress.displayCount))
                         .font(.system(size: 11))
-                        .fontDesign(.monospaced)
                         .foregroundStyle(.primary)
                         .lineLimit(1)
                 }
@@ -540,6 +564,28 @@ struct QueryResultsSection: View {
         .disabled(!isEnabled)
         .popover(isPresented: $showTimeInfoPopover, arrowEdge: .bottom) {
             timeInfoPopover
+        }
+    }
+
+    private var modeStatusChip: some View {
+        statusBarChip(width: modeChipWidth) {
+            Menu {
+                Button(action: { query.streamingModeOverride = .auto }) {
+                    HStack { if query.streamingModeOverride == .auto { Image(systemName: "checkmark") }; Text("Auto") }
+                }
+                Button(action: { query.streamingModeOverride = .simple }) {
+                    HStack { if query.streamingModeOverride == .simple { Image(systemName: "checkmark") }; Text("Simple") }
+                }
+                Button(action: { query.streamingModeOverride = .cursor }) {
+                    HStack { if query.streamingModeOverride == .cursor { Image(systemName: "checkmark") }; Text("Cursor") }
+                }
+            } label: {
+                Text(query.streamingModeOverride.displayName)
+                    .font(.system(size: 11))
+                    .lineLimit(1)
+            }
+            .menuStyle(.borderlessButton)
+            .menuIndicator(.hidden)
         }
     }
 
@@ -622,20 +668,12 @@ struct QueryResultsSection: View {
         }
 
         var body: some View {
-            GeometryReader { geometry in
-                let availableHeight = geometry.size.height
-                let clampedHeight = max(0, min(height, availableHeight))
-                let inset = max(0, (availableHeight - clampedHeight) / 2)
-
-                VStack(spacing: 0) {
-                    Spacer(minLength: inset)
-                    HStack(spacing: 6) {
-                        contentBuilder()
-                    }
-                    .padding(.horizontal, 10)
-                    .frame(height: clampedHeight, alignment: .center)
-                    Spacer(minLength: inset)
+            ZStack(alignment: .center) {
+                HStack(spacing: 6) {
+                    contentBuilder()
                 }
+                .padding(.horizontal, 8)
+                .frame(height: height, alignment: .center)
             }
             .frame(height: height, alignment: .center)
             .frame(width: width, alignment: .center)
@@ -650,6 +688,7 @@ struct QueryResultsSection: View {
     private struct QueryResultsStatusBarContainer<Content: View>: View {
         let height: CGFloat
         let verticalPadding: CGFloat
+        let contentOffset: CGFloat
         let background: Color
         let dividerOpacity: Double
         @ViewBuilder var content: () -> Content
@@ -658,9 +697,9 @@ struct QueryResultsSection: View {
             ZStack(alignment: .center) {
                 background
                 content()
-                    .frame(maxWidth: .infinity, alignment: .center)
-                    .frame(height: height - (verticalPadding * 2), alignment: .center)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
                     .padding(.vertical, verticalPadding)
+                    .offset(y: contentOffset)
             }
             .frame(maxWidth: .infinity)
             .frame(height: height)

@@ -107,7 +107,7 @@ struct TableStructureEditorView: View {
                 viewModel.requestedSection = nil
             }
         }
-        .onChange(of: viewModel.columns) { _ in
+        .onChange(of: viewModel.columns) { _, _ in
             // Rebuild lookup when columns change
             rebuildColumnIndexLookup()
             pruneSelectedColumns()

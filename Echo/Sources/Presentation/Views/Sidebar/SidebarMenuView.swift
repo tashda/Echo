@@ -197,6 +197,7 @@ struct SidebarMenu: View {
             )
         case .database:
             DatabaseSidebarView(
+                selectedConnectionID: $selectedConnectionID,
                 icon: "cylinder.split.1x2.fill",
                 title: "Database",
                 description: "Database administration and management tools"

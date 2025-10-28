@@ -290,29 +290,38 @@ final class ThemeManager: ObservableObject {
     // MARK: - Mutating API
 
     func applyChrome(theme: AppColorTheme, tone: SQLEditorPalette.Tone, palette: SQLEditorTokenPalette? = nil) {
-        themesByTone[tone] = theme
-        updateResultGridPalette(for: tone, theme: theme, palette: palette)
-        if tone == activeTone {
-            updateOutputs(for: tone)
-        }
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            self.themesByTone[tone] = theme
+            self.updateResultGridPalette(for: tone, theme: theme, palette: palette)
+            if tone == self.activeTone {
+                self.updateOutputs(for: tone)
+            }
 #if os(macOS)
-        NSApp?.appearance = NSAppearance(named: tone == .dark ? .darkAqua : .aqua)
-        applyChromeToWindows(theme)
+            NSApp?.appearance = NSAppearance(named: tone == .dark ? .darkAqua : .aqua)
+            self.applyChromeToWindows(theme)
 #endif
+        }
     }
 
     func setActiveTone(_ tone: SQLEditorPalette.Tone) {
         guard tone != activeTone else { return }
-        activeTone = tone
-        effectiveColorScheme = ThemeManager.colorScheme(for: tone)
-        updateOutputs(for: tone)
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            self.activeTone = tone
+            self.effectiveColorScheme = ThemeManager.colorScheme(for: tone)
+            self.updateOutputs(for: tone)
+        }
     }
 
     func overrideColorScheme(_ scheme: ColorScheme) {
         let tone = ThemeManager.tone(for: scheme)
-        effectiveColorScheme = scheme
-        activeTone = tone
-        updateOutputs(for: tone)
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            self.effectiveColorScheme = scheme
+            self.activeTone = tone
+            self.updateOutputs(for: tone)
+        }
     }
 
     func applyAppearanceMode(_ mode: AppearanceMode) {
@@ -324,9 +333,13 @@ final class ThemeManager: ObservableObject {
         case .system:
 #if os(macOS)
             let scheme = ThemeManager.currentSystemColorScheme()
-            effectiveColorScheme = scheme
-            activeTone = ThemeManager.tone(for: scheme)
-            updateOutputs(for: activeTone)
+            let tone = ThemeManager.tone(for: scheme)
+            DispatchQueue.main.async { [weak self] in
+                guard let self else { return }
+                self.effectiveColorScheme = scheme
+                self.activeTone = tone
+                self.updateOutputs(for: tone)
+            }
 #else
             setActiveTone(.light)
 #endif
@@ -334,17 +347,20 @@ final class ThemeManager: ObservableObject {
     }
 
     func applyResultsGridPreferences(themeResultsGrid: Bool, alternateRowShading: Bool) {
-        if useAppThemeForResultsGrid != themeResultsGrid {
-            useAppThemeForResultsGrid = themeResultsGrid
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            if self.useAppThemeForResultsGrid != themeResultsGrid {
+                self.useAppThemeForResultsGrid = themeResultsGrid
 #if os(macOS)
-            updateCachedGridBackgroundColors()
+                self.updateCachedGridBackgroundColors()
 #endif
-        }
-        if resultsAlternateRowShading != alternateRowShading {
-            resultsAlternateRowShading = alternateRowShading
+            }
+            if self.resultsAlternateRowShading != alternateRowShading {
+                self.resultsAlternateRowShading = alternateRowShading
 #if os(macOS)
-            updateCachedGridBackgroundColors()
+                self.updateCachedGridBackgroundColors()
 #endif
+            }
         }
     }
 

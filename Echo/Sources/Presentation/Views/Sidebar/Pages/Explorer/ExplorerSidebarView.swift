@@ -91,11 +91,13 @@ struct ExplorerSidebarView: View {
                     }
                     .onAppear(perform: syncSelectionWithSessions)
                     .onChange(of: sessions.map { $0.connection.id }) { _, _ in
+                        ConnectionDebug.log("[ExplorerSidebar] sessions changed; syncing selection")
                         syncSelectionWithSessions()
                     }
                     .onChange(of: selectedConnectionID) { _, newValue in
                         guard let id = newValue,
                               let session = appModel.sessionManager.sessionForConnection(id) else { return }
+                        ConnectionDebug.log("[ExplorerSidebar] selectedConnectionID=\(id) -> session=\(session.connection.connectionName)")
                         appModel.sessionManager.setActiveSession(session.id)
                         ensureServerExpanded(for: id)
                         resetFilters(for: session)
@@ -106,6 +108,8 @@ struct ExplorerSidebarView: View {
                         }
                     }
                     .onChange(of: selectedSession?.selectedDatabaseName) { _, _ in
+                        let db = selectedSession?.selectedDatabaseName ?? "<nil>"
+                        ConnectionDebug.log("[ExplorerSidebar] selectedDatabaseName changed -> \(db)")
                         let hasDatabase = selectedSession?.selectedDatabaseName != nil
                         if !hasDatabase {
                             withAnimation(.easeInOut(duration: 0.3)) {
@@ -658,6 +662,7 @@ struct ExplorerSidebarView: View {
 
     private func handleDatabaseSelection(_ databaseName: String, in session: ConnectionSession) {
         Task { @MainActor in
+            ConnectionDebug.log("[ExplorerSidebar] handleDatabaseSelection selected=\(databaseName) session=\(session.connection.connectionName)")
             await appModel.loadSchemaForDatabase(databaseName, connectionSession: session)
             selectedConnectionID = session.connection.id
             ensureServerExpanded(for: session.connection.id)
@@ -860,6 +865,7 @@ struct ExplorerSidebarView: View {
                         expandedConnectedServerIDs.insert(session.connection.id)
                     }
                     Task {
+                        ConnectionDebug.log("[ExplorerSidebar] manual refresh for session=\(session.connection.connectionName) db=\(session.selectedDatabaseName ?? "<nil>")")
                         await appModel.refreshDatabaseStructure(
                             for: session.id,
                             scope: .selectedDatabase,
@@ -1335,6 +1341,7 @@ private struct ExplorerSidebarFocusResetter: NSViewRepresentable {
         nsView.isSearchFieldFocused = isSearchFieldFocused
     }
 
+    @MainActor
     final class FocusResetView: NSView {
         var onDismiss: (() -> Void)?
         var isSearchFieldFocused: Bool = false {
@@ -1365,7 +1372,10 @@ private struct ExplorerSidebarFocusResetter: NSViewRepresentable {
             super.viewWillMove(toWindow: newWindow)
         }
 
-        deinit {
+        @MainActor deinit {
+            // Remove the local event monitor synchronously during deinit.
+            // Capturing `self` weakly in an async Task during deallocation
+            // can trigger: "Cannot form weak reference to instance ... It is possible that this object was over-released, or is in the process of deallocation."
             removeMonitor()
         }
 
