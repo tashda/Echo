@@ -1,3 +1,0 @@
-module MetricsTestKit {
-    header "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/MetricsTestKit.build/include/MetricsTestKit-Swift.h"
-}

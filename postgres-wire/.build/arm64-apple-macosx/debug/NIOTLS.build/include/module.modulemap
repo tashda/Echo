@@ -1,3 +1,0 @@
-module NIOTLS {
-    header "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/NIOTLS.build/include/NIOTLS-Swift.h"
-}

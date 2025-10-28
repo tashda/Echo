@@ -1,3 +1,0 @@
-module _ConnectionPoolTestUtils {
-    header "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/_ConnectionPoolTestUtils.build/include/_ConnectionPoolTestUtils-Swift.h"
-}

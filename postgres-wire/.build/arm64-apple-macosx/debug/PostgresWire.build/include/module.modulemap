@@ -1,3 +1,0 @@
-module PostgresWire {
-    header "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresWire.build/include/PostgresWire-Swift.h"
-}

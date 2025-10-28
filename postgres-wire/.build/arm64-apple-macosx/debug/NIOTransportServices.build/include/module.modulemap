@@ -1,3 +1,0 @@
-module NIOTransportServices {
-    header "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/NIOTransportServices.build/include/NIOTransportServices-Swift.h"
-}

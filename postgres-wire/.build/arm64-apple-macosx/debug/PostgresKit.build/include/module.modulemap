@@ -1,3 +1,0 @@
-module PostgresKit {
-    header "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresKit.build/include/PostgresKit-Swift.h"
-}

@@ -1,3 +1,0 @@
-module NIOEmbedded {
-    header "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/NIOEmbedded.build/include/NIOEmbedded-Swift.h"
-}

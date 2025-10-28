@@ -1,3 +1,0 @@
-module CryptoExtras {
-    header "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/CryptoExtras.build/include/CryptoExtras-Swift.h"
-}

@@ -1,3 +1,0 @@
-module Metrics {
-    header "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/Metrics.build/include/Metrics-Swift.h"
-}

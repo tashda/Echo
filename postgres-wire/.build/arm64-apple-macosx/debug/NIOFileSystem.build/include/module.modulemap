@@ -1,3 +1,0 @@
-module NIOFileSystem {
-    header "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/NIOFileSystem.build/include/NIOFileSystem-Swift.h"
-}

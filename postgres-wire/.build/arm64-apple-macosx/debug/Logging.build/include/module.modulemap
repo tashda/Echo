@@ -1,3 +1,0 @@
-module Logging {
-    header "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/Logging.build/include/Logging-Swift.h"
-}

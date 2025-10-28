@@ -1,3 +1,0 @@
-module CoreMetrics {
-    header "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/CoreMetrics.build/include/CoreMetrics-Swift.h"
-}

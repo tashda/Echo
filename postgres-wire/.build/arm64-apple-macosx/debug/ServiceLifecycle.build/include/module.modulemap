@@ -1,3 +1,0 @@
-module ServiceLifecycle {
-    header "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/ServiceLifecycle.build/include/ServiceLifecycle-Swift.h"
-}

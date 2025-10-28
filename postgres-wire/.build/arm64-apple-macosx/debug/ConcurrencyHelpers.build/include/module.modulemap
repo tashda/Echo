@@ -1,3 +1,0 @@
-module ConcurrencyHelpers {
-    header "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/ConcurrencyHelpers.build/include/ConcurrencyHelpers-Swift.h"
-}
