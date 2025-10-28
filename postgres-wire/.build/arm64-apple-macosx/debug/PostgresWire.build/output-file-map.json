@@ -1,0 +1,26 @@
+{
+  "": {
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresWire.build/master.swiftdeps"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/Sources/PostgresWire/Exports.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresWire.build/Exports.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresWire.build/Exports.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresWire.build/Exports~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresWire.build/Exports.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresWire.build/Exports.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/Sources/PostgresWire/WireClient.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresWire.build/WireClient.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresWire.build/WireClient.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresWire.build/WireClient~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresWire.build/WireClient.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresWire.build/WireClient.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/Sources/PostgresWire/WireTypes.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresWire.build/WireTypes.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresWire.build/WireTypes.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresWire.build/WireTypes~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresWire.build/WireTypes.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresWire.build/WireTypes.dia"
+  }
+}

@@ -46,6 +46,9 @@ struct WorkspaceContentView: View {
                 } else if let diagram = tab.diagram {
                     SchemaDiagramView(viewModel: diagram)
                         .background(themeManager.windowBackground)
+                } else if let jobs = tab.jobManagement {
+                    JobManagementView(viewModel: jobs)
+                        .background(themeManager.windowBackground)
                 } else if let query = tab.query {
                     QueryEditorContainer(
                         tab: tab,

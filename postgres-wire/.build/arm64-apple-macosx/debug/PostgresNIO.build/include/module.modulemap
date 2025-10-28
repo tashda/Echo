@@ -1,0 +1,3 @@
+module PostgresNIO {
+    header "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/include/PostgresNIO-Swift.h"
+}

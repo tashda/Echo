@@ -1,0 +1,3 @@
+module NIOCore {
+    header "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/NIOCore.build/include/NIOCore-Swift.h"
+}

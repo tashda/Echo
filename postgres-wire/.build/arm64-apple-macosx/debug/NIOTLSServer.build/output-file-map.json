@@ -1,0 +1,12 @@
+{
+  "": {
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/NIOTLSServer.build/master.swiftdeps"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/swift-nio-ssl/Sources/NIOTLSServer/main.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/NIOTLSServer.build/main.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/NIOTLSServer.build/main.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/NIOTLSServer.build/main~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/NIOTLSServer.build/main.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/NIOTLSServer.build/main.dia"
+  }
+}

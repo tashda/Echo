@@ -1,0 +1,12 @@
+{
+  "": {
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/Collections.build/master.swiftdeps"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/swift-collections/Sources/Collections/Collections.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/Collections.build/Collections.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/Collections.build/Collections.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/Collections.build/Collections~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/Collections.build/Collections.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/Collections.build/Collections.dia"
+  }
+}

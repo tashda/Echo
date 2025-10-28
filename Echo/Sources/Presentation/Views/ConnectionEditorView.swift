@@ -711,7 +711,7 @@ struct ConnectionEditorView: View {
                 // Add timeout task
                 group.addTask {
                     try await Task.sleep(nanoseconds: 10_000_000_000) // 10 seconds
-                    return await ConnectionTestResult(
+                    return ConnectionTestResult(
                         isSuccessful: false,
                         message: "Connection timed out",
                         responseTime: 10.0,

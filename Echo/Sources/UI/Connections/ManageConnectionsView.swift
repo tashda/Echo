@@ -1749,6 +1749,7 @@ private struct DoubleClickableTable<Content: View>: NSViewRepresentable {
         return nil
     }
 
+    @MainActor
     class Coordinator: NSObject {
         var connections: [SavedConnection]
         var selection: Set<SavedConnection.ID>

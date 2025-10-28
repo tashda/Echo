@@ -1,0 +1,18 @@
+/Users/k/Development/fuzee/postgres-wire/.build/checkouts/swift-asn1/Sources/SwiftASN1/ASN1.swift
+/Users/k/Development/fuzee/postgres-wire/.build/checkouts/swift-asn1/Sources/SwiftASN1/BER.swift
+'/Users/k/Development/fuzee/postgres-wire/.build/checkouts/swift-asn1/Sources/SwiftASN1/Basic ASN1 Types/ASN1Any.swift'
+'/Users/k/Development/fuzee/postgres-wire/.build/checkouts/swift-asn1/Sources/SwiftASN1/Basic ASN1 Types/ASN1BitString.swift'
+'/Users/k/Development/fuzee/postgres-wire/.build/checkouts/swift-asn1/Sources/SwiftASN1/Basic ASN1 Types/ASN1Boolean.swift'
+'/Users/k/Development/fuzee/postgres-wire/.build/checkouts/swift-asn1/Sources/SwiftASN1/Basic ASN1 Types/ASN1Identifier.swift'
+'/Users/k/Development/fuzee/postgres-wire/.build/checkouts/swift-asn1/Sources/SwiftASN1/Basic ASN1 Types/ASN1Integer.swift'
+'/Users/k/Development/fuzee/postgres-wire/.build/checkouts/swift-asn1/Sources/SwiftASN1/Basic ASN1 Types/ASN1Null.swift'
+'/Users/k/Development/fuzee/postgres-wire/.build/checkouts/swift-asn1/Sources/SwiftASN1/Basic ASN1 Types/ASN1OctetString.swift'
+'/Users/k/Development/fuzee/postgres-wire/.build/checkouts/swift-asn1/Sources/SwiftASN1/Basic ASN1 Types/ASN1Strings.swift'
+'/Users/k/Development/fuzee/postgres-wire/.build/checkouts/swift-asn1/Sources/SwiftASN1/Basic ASN1 Types/ArraySliceBigint.swift'
+'/Users/k/Development/fuzee/postgres-wire/.build/checkouts/swift-asn1/Sources/SwiftASN1/Basic ASN1 Types/GeneralizedTime.swift'
+'/Users/k/Development/fuzee/postgres-wire/.build/checkouts/swift-asn1/Sources/SwiftASN1/Basic ASN1 Types/ObjectIdentifier.swift'
+'/Users/k/Development/fuzee/postgres-wire/.build/checkouts/swift-asn1/Sources/SwiftASN1/Basic ASN1 Types/PEMDocument.swift'
+'/Users/k/Development/fuzee/postgres-wire/.build/checkouts/swift-asn1/Sources/SwiftASN1/Basic ASN1 Types/TimeUtilities.swift'
+'/Users/k/Development/fuzee/postgres-wire/.build/checkouts/swift-asn1/Sources/SwiftASN1/Basic ASN1 Types/UTCTime.swift'
+/Users/k/Development/fuzee/postgres-wire/.build/checkouts/swift-asn1/Sources/SwiftASN1/DER.swift
+/Users/k/Development/fuzee/postgres-wire/.build/checkouts/swift-asn1/Sources/SwiftASN1/Errors.swift

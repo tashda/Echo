@@ -1,0 +1,8 @@
+/Users/k/Development/fuzee/postgres-wire/.build/checkouts/swift-service-lifecycle/Sources/ServiceLifecycle/AsyncCancelOnGracefulShutdownSequence.swift
+/Users/k/Development/fuzee/postgres-wire/.build/checkouts/swift-service-lifecycle/Sources/ServiceLifecycle/AsyncGracefulShutdownSequence.swift
+/Users/k/Development/fuzee/postgres-wire/.build/checkouts/swift-service-lifecycle/Sources/ServiceLifecycle/CancellationWaiter.swift
+/Users/k/Development/fuzee/postgres-wire/.build/checkouts/swift-service-lifecycle/Sources/ServiceLifecycle/GracefulShutdown.swift
+/Users/k/Development/fuzee/postgres-wire/.build/checkouts/swift-service-lifecycle/Sources/ServiceLifecycle/Service.swift
+/Users/k/Development/fuzee/postgres-wire/.build/checkouts/swift-service-lifecycle/Sources/ServiceLifecycle/ServiceGroup.swift
+/Users/k/Development/fuzee/postgres-wire/.build/checkouts/swift-service-lifecycle/Sources/ServiceLifecycle/ServiceGroupConfiguration.swift
+/Users/k/Development/fuzee/postgres-wire/.build/checkouts/swift-service-lifecycle/Sources/ServiceLifecycle/ServiceRunnerError.swift

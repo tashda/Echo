@@ -1,0 +1,12 @@
+/Users/k/Development/fuzee/postgres-wire/Sources/PostgresKit/Admin.swift
+/Users/k/Development/fuzee/postgres-wire/Sources/PostgresKit/AsyncNotifications.swift
+/Users/k/Development/fuzee/postgres-wire/Sources/PostgresKit/BulkCopy.swift
+/Users/k/Development/fuzee/postgres-wire/Sources/PostgresKit/Errors.swift
+/Users/k/Development/fuzee/postgres-wire/Sources/PostgresKit/Exports.swift
+/Users/k/Development/fuzee/postgres-wire/Sources/PostgresKit/Metadata.swift
+/Users/k/Development/fuzee/postgres-wire/Sources/PostgresKit/PostgresClient.swift
+/Users/k/Development/fuzee/postgres-wire/Sources/PostgresKit/PostgresConfiguration.swift
+/Users/k/Development/fuzee/postgres-wire/Sources/PostgresKit/PostgresConnection.swift
+/Users/k/Development/fuzee/postgres-wire/Sources/PostgresKit/PreparedServerCache.swift
+/Users/k/Development/fuzee/postgres-wire/Sources/PostgresKit/SearchSQL.swift
+/Users/k/Development/fuzee/postgres-wire/Sources/PostgresKit/StatementCache.swift

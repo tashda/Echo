@@ -13,6 +13,10 @@ final class ResultStreamBatchWorker: @unchecked Sendable {
         case raw(RawRow)
     }
 
+    private struct SendableBufferPointer<Element>: @unchecked Sendable {
+        var buffer: UnsafeMutableBufferPointer<Element>
+    }
+
     struct Payload: Sendable {
         let previewValues: [String?]?
         let storage: BinaryRowStorage
@@ -143,7 +147,9 @@ final class ResultStreamBatchWorker: @unchecked Sendable {
             var buffer = Array<ResultBinaryRow?>(repeating: nil, count: batchCount)
             let concurrency = ProcessInfo.processInfo.processorCount
             buffer.withUnsafeMutableBufferPointer { pointer in
+                let sendablePointer = SendableBufferPointer(buffer: pointer)
                 DispatchQueue.concurrentPerform(iterations: concurrency) { workerIndex in
+                    let pointer = sendablePointer.buffer
                     var index = workerIndex
                     while index < batchCount {
                         let storage = storageBatch[index]

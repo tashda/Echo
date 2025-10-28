@@ -1,0 +1,89 @@
+{
+  "": {
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresKit.build/master.swiftdeps"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/Sources/PostgresKit/Admin.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresKit.build/Admin.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresKit.build/Admin.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresKit.build/Admin~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresKit.build/Admin.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresKit.build/Admin.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/Sources/PostgresKit/AsyncNotifications.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresKit.build/AsyncNotifications.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresKit.build/AsyncNotifications.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresKit.build/AsyncNotifications~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresKit.build/AsyncNotifications.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresKit.build/AsyncNotifications.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/Sources/PostgresKit/BulkCopy.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresKit.build/BulkCopy.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresKit.build/BulkCopy.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresKit.build/BulkCopy~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresKit.build/BulkCopy.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresKit.build/BulkCopy.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/Sources/PostgresKit/Errors.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresKit.build/Errors.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresKit.build/Errors.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresKit.build/Errors~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresKit.build/Errors.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresKit.build/Errors.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/Sources/PostgresKit/Exports.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresKit.build/Exports.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresKit.build/Exports.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresKit.build/Exports~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresKit.build/Exports.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresKit.build/Exports.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/Sources/PostgresKit/Metadata.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresKit.build/Metadata.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresKit.build/Metadata.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresKit.build/Metadata~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresKit.build/Metadata.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresKit.build/Metadata.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/Sources/PostgresKit/PostgresClient.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresKit.build/PostgresClient.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresKit.build/PostgresClient.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresKit.build/PostgresClient~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresKit.build/PostgresClient.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresKit.build/PostgresClient.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/Sources/PostgresKit/PostgresConfiguration.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresKit.build/PostgresConfiguration.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresKit.build/PostgresConfiguration.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresKit.build/PostgresConfiguration~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresKit.build/PostgresConfiguration.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresKit.build/PostgresConfiguration.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/Sources/PostgresKit/PostgresConnection.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresKit.build/PostgresConnection.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresKit.build/PostgresConnection.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresKit.build/PostgresConnection~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresKit.build/PostgresConnection.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresKit.build/PostgresConnection.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/Sources/PostgresKit/PreparedServerCache.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresKit.build/PreparedServerCache.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresKit.build/PreparedServerCache.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresKit.build/PreparedServerCache~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresKit.build/PreparedServerCache.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresKit.build/PreparedServerCache.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/Sources/PostgresKit/SearchSQL.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresKit.build/SearchSQL.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresKit.build/SearchSQL.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresKit.build/SearchSQL~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresKit.build/SearchSQL.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresKit.build/SearchSQL.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/Sources/PostgresKit/StatementCache.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresKit.build/StatementCache.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresKit.build/StatementCache.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresKit.build/StatementCache~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresKit.build/StatementCache.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresKit.build/StatementCache.dia"
+  }
+}

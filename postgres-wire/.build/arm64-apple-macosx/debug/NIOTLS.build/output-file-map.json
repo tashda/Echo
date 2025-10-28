@@ -1,0 +1,40 @@
+{
+  "": {
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/NIOTLS.build/master.swiftdeps"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/swift-nio/Sources/NIOTLS/ApplicationProtocolNegotiationHandler.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/NIOTLS.build/ApplicationProtocolNegotiationHandler.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/NIOTLS.build/ApplicationProtocolNegotiationHandler.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/NIOTLS.build/ApplicationProtocolNegotiationHandler~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/NIOTLS.build/ApplicationProtocolNegotiationHandler.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/NIOTLS.build/ApplicationProtocolNegotiationHandler.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/swift-nio/Sources/NIOTLS/NIOTypedApplicationProtocolNegotiationHandler.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/NIOTLS.build/NIOTypedApplicationProtocolNegotiationHandler.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/NIOTLS.build/NIOTypedApplicationProtocolNegotiationHandler.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/NIOTLS.build/NIOTypedApplicationProtocolNegotiationHandler~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/NIOTLS.build/NIOTypedApplicationProtocolNegotiationHandler.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/NIOTLS.build/NIOTypedApplicationProtocolNegotiationHandler.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/swift-nio/Sources/NIOTLS/ProtocolNegotiationHandlerStateMachine.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/NIOTLS.build/ProtocolNegotiationHandlerStateMachine.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/NIOTLS.build/ProtocolNegotiationHandlerStateMachine.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/NIOTLS.build/ProtocolNegotiationHandlerStateMachine~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/NIOTLS.build/ProtocolNegotiationHandlerStateMachine.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/NIOTLS.build/ProtocolNegotiationHandlerStateMachine.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/swift-nio/Sources/NIOTLS/SNIHandler.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/NIOTLS.build/SNIHandler.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/NIOTLS.build/SNIHandler.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/NIOTLS.build/SNIHandler~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/NIOTLS.build/SNIHandler.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/NIOTLS.build/SNIHandler.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/swift-nio/Sources/NIOTLS/TLSEvents.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/NIOTLS.build/TLSEvents.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/NIOTLS.build/TLSEvents.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/NIOTLS.build/TLSEvents~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/NIOTLS.build/TLSEvents.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/NIOTLS.build/TLSEvents.dia"
+  }
+}

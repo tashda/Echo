@@ -167,7 +167,8 @@ struct QueryTabsView: View {
                         state.updateForeignKeyResolutionContext(schema: nil, table: nil)
                     }
                 }
-                let result = try await tab.session.simpleQuery(effectiveSQL) { [weak state] update in
+                let perQueryMode = await MainActor.run { state.streamingModeOverride }
+                let result = try await tab.session.simpleQuery(effectiveSQL, executionMode: perQueryMode) { [weak state] update in
                     guard let state else { return }
 
                     Task { @MainActor in

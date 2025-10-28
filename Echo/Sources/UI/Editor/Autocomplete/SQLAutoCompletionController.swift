@@ -6,6 +6,7 @@ import AppKit
 import UIKit
 #endif
 
+@MainActor
 final class SQLAutoCompletionController {
     weak var textView: SQLTextView?
 
@@ -33,7 +34,9 @@ final class SQLAutoCompletionController {
     }
 
     deinit {
-        popover.performClose(nil)
+        // Avoid calling main-actor isolated AppKit APIs from deinit,
+        // which runs in a nonisolated context under Swift Concurrency.
+        // Popover will be torn down automatically when deallocated.
     }
 
     private var isVisible: Bool { popover.isShown && !flatSuggestions.isEmpty }
@@ -199,7 +202,11 @@ final class SQLAutoCompletionController {
             suggestions: flatSuggestions,
             selectedID: selectedSuggestion?.id,
             onSelect: { [weak self] suggestion in
-                self?.accept(suggestion)
+                // Ensure the accept action runs on the main actor even if the
+                // callback is invoked from a nonisolated context.
+                Task { @MainActor in
+                    self?.accept(suggestion)
+                }
             },
             detailResetID: detailResetToken,
             statusMessage: statusMessage

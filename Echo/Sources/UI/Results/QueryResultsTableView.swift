@@ -304,11 +304,13 @@ struct QueryResultsTableView: NSViewRepresentable {
                 object: state,
                 queue: .main
             ) { [weak self] _ in
-                guard let self else { return }
-                if let tableView = self.tableView {
-                    self.scheduleRowCountUpdate(for: tableView)
-                } else {
-                    self.pendingRowCountCorrection = true
+                Task { @MainActor [weak self] in
+                    guard let self else { return }
+                    if let tableView = self.tableView {
+                        self.scheduleRowCountUpdate(for: tableView)
+                    } else {
+                        self.pendingRowCountCorrection = true
+                    }
                 }
             }
         }
@@ -2494,15 +2496,14 @@ final class ResultTableContainerView: NSView {
         leadingView.isHidden = actualWidth <= 0
         leadingView.frame = NSRect(x: 0, y: 0, width: actualWidth, height: bounds.height)
         scrollView.frame = bounds
-        if let clipView = scrollView.contentView as? NSClipView {
-            let newInsets = NSEdgeInsets(top: 0, left: 0, bottom: 0, right: 0)
-            if cachedContentInsets.top != newInsets.top
-                || cachedContentInsets.left != newInsets.left
-                || cachedContentInsets.bottom != newInsets.bottom
-                || cachedContentInsets.right != newInsets.right {
-                cachedContentInsets = newInsets
-                clipView.contentInsets = newInsets
-            }
+        let clipView = scrollView.contentView
+        let newInsets = NSEdgeInsets(top: 0, left: 0, bottom: 0, right: 0)
+        if cachedContentInsets.top != newInsets.top
+            || cachedContentInsets.left != newInsets.left
+            || cachedContentInsets.bottom != newInsets.bottom
+            || cachedContentInsets.right != newInsets.right {
+            cachedContentInsets = newInsets
+            clipView.contentInsets = newInsets
         }
     }
 }

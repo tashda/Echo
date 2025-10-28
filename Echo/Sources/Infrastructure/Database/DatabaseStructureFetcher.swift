@@ -19,6 +19,31 @@ nonisolated struct DatabaseStructureFetcher: Sendable {
     let factory: DatabaseFactory
     let databaseType: DatabaseType
 
+    // MARK: - Timeout helper (for resilience against indefinite driver/server stalls)
+    private enum MetadataTimeoutError: LocalizedError {
+        case timedOut(stage: String, database: String, schema: String?)
+        var errorDescription: String? {
+            switch self {
+            case let .timedOut(stage, database, schema):
+                if let schema { return "Metadata \(stage) timed out for \(database).\(schema)" }
+                return "Metadata \(stage) timed out for \(database)"
+            }
+        }
+    }
+
+    private static func withTimeout<T: Sendable>(seconds: TimeInterval, stage: String, database: String, schema: String?, operation: @Sendable @escaping () async throws -> T) async throws -> T {
+        try await withThrowingTaskGroup(of: T.self) { group in
+            group.addTask { try await operation() }
+            group.addTask {
+                try await Task.sleep(nanoseconds: UInt64(max(0, seconds) * 1_000_000_000))
+                throw MetadataTimeoutError.timedOut(stage: stage, database: database, schema: schema)
+            }
+            defer { group.cancelAll() }
+            let result = try await group.next()!
+            return result
+        }
+    }
+
     @Sendable
     private static func message(for type: SchemaObjectInfo.ObjectType) -> String {
         switch type {
@@ -43,10 +68,12 @@ nonisolated struct DatabaseStructureFetcher: Sendable {
         selectedDatabase: String?,
         reuseSession: DatabaseSession? = nil,
         databaseFilter: [String]? = nil,
+        cachedStructure: DatabaseStructure? = nil,
         progressHandler: (@Sendable (Progress) async -> Void)? = nil,
         databaseHandler: (@Sendable (DatabaseInfo, Int, Int) async -> Void)? = nil
     ) async throws -> DatabaseStructure {
-        ConnectionDebug.log("Starting structure fetch for connection=\(connection.connectionName) type=\(connection.databaseType.displayName) selectedDatabase=\(selectedDatabase ?? "<nil>") filter=\(databaseFilter ?? [])")
+        let runID = String(UUID().uuidString.prefix(8))
+        ConnectionDebug.log("[Structure][\(runID)] start connection=\(connection.connectionName) type=\(connection.databaseType.displayName) selected=\(selectedDatabase ?? "<nil>") filter=\(databaseFilter ?? [])")
         try Task.checkCancellation()
 
         let progressCallback = progressHandler
@@ -116,39 +143,29 @@ nonisolated struct DatabaseStructureFetcher: Sendable {
                     serverVersion = version
                 }
             case .microsoftSQL:
-                if let result = try? await baseSession.simpleQuery("SELECT CONCAT(CONVERT(varchar(100), SERVERPROPERTY('ProductVersion')), ' ', CONVERT(varchar(100), SERVERPROPERTY('Edition')))") ,
-                   let rawValue = result.rows.first?.first,
-                   let version = rawValue,
+                if let mssqlSession = baseSession as? MSSQLSession,
+                   let version = try? await mssqlSession.serverVersion(),
                    !version.isEmpty {
+                    serverVersion = version
+                } else if let result = try? await baseSession.simpleQuery("SELECT CONCAT(CONVERT(varchar(100), SERVERPROPERTY('ProductVersion')), ' ', CONVERT(varchar(100), SERVERPROPERTY('Edition')))"),
+                          let rawValue = result.rows.first?.first,
+                          let version = rawValue,
+                          !version.isEmpty {
                     serverVersion = version
                 }
             }
         }
 
-        var baseSessionDatabaseName: String?
+        // Identify current database if needed in future; currently unused
         switch databaseType {
         case .postgresql:
-            try Task.checkCancellation()
-            if let currentDatabase = try? await baseSession.simpleQuery("SELECT current_database()"),
-               let rawValue = currentDatabase.rows.first?.first,
-               let databaseName = rawValue,
-               !databaseName.isEmpty {
-                baseSessionDatabaseName = databaseName
-            }
+            _ = try? await baseSession.simpleQuery("SELECT current_database()")
         case .mysql:
-            try Task.checkCancellation()
-            if let currentDatabase = try? await baseSession.simpleQuery("SELECT DATABASE()"),
-               let rawValue = currentDatabase.rows.first?.first,
-               let databaseName = rawValue,
-               !databaseName.isEmpty {
-                baseSessionDatabaseName = databaseName
-            }
+            _ = try? await baseSession.simpleQuery("SELECT DATABASE()")
         case .sqlite:
-            baseSessionDatabaseName = "main"
+            break
         case .microsoftSQL:
-            if !connection.database.isEmpty {
-                baseSessionDatabaseName = connection.database
-            }
+            break
         }
 
         var databaseNames: [String]
@@ -174,11 +191,35 @@ nonisolated struct DatabaseStructureFetcher: Sendable {
             }
         }
 
-        ConnectionDebug.log("Fetched database names for \(connection.connectionName): \(databaseNames)")
+        ConnectionDebug.log("[Structure][\(runID)] databases count=\(databaseNames.count) names=\(databaseNames)")
         let normalizedFilter = databaseFilter?
             .compactMap { $0.isEmpty ? nil : $0.lowercased() }
         let totalDatabases = max(databaseNames.count, 1)
-        var databaseInfos: [DatabaseInfo] = []
+        var databaseInfoMap: [String: DatabaseInfo] = [:]
+        for name in databaseNames {
+            databaseInfoMap[name] = DatabaseInfo(name: name, schemas: [], schemaCount: 0)
+        }
+
+        if let cachedStructure {
+            let cachedDatabases = cachedStructure.databases.filter { info in
+                if let filter = databaseFilter, !filter.isEmpty {
+                    return filter.contains { $0.caseInsensitiveCompare(info.name) == .orderedSame }
+                }
+                return true
+            }
+
+            for cached in cachedDatabases {
+                databaseInfoMap[cached.name] = cached
+                if let databaseHandler,
+                   let index = databaseNames.firstIndex(where: { $0.caseInsensitiveCompare(cached.name) == .orderedSame }) {
+                    await databaseHandler(cached, index, totalDatabases)
+                }
+            }
+
+            if serverVersion == nil {
+                serverVersion = cachedStructure.serverVersion
+            }
+        }
 
         func shouldLoadMetadata(for databaseName: String) -> Bool {
             if let selectedDatabase,
@@ -208,6 +249,29 @@ nonisolated struct DatabaseStructureFetcher: Sendable {
             return SchemaInfo(name: schema.name, objects: filteredObjects)
         }
 
+        // Heartbeat logger: prints every 2s to show forward progress in Console (via actor for race‑free state)
+        actor HeartbeatState {
+            var stage: String = "init"
+            var dbIndex: Int = 0
+            var schema: String = ""
+            var running: Bool = true
+            func snapshot() -> (String, Int, String, Bool) { (stage, dbIndex, schema, running) }
+            func update(stage: String? = nil, dbIndex: Int? = nil, schema: String? = nil) { if let stage { self.stage = stage }; if let dbIndex { self.dbIndex = dbIndex }; if let schema { self.schema = schema } }
+            func stop() { running = false }
+        }
+        let hb = HeartbeatState()
+        let hbTotal = databaseNames.count
+        let heartbeat = Task.detached(priority: .utility) {
+            while true {
+                let snap = await hb.snapshot()
+                if !snap.3 { break }
+                let ts = String(format: "%.3f", CFAbsoluteTimeGetCurrent())
+                ConnectionDebug.log("[Structure][\(runID)] hb t=\(ts) stage=\(snap.0) db=\(snap.1+1)/\(max(1, hbTotal)) schema=\(snap.2)")
+                try? await Task.sleep(nanoseconds: 2_000_000_000)
+            }
+        }
+        defer { Task { await hb.stop() }; heartbeat.cancel() }
+
         for (databaseIndex, databaseName) in databaseNames.enumerated() {
             try Task.checkCancellation()
             let loadMetadata = shouldLoadMetadata(for: databaseName)
@@ -215,6 +279,8 @@ nonisolated struct DatabaseStructureFetcher: Sendable {
             let initialMessage = loadMetadata
                 ? "Updating database \(databaseName)…"
                 : "Metadata deferred until database selection"
+            await hb.update(stage: "prepare-db", dbIndex: databaseIndex)
+            structureLogger.info("[\(runID)] Starting metadata prep for database \(databaseName, privacy: .public) loadMetadata=\(loadMetadata, privacy: .public)")
             try Task.checkCancellation()
             await emitProgress(databaseStartFraction, databaseName: databaseName, schemaName: nil, message: initialMessage)
 
@@ -223,44 +289,40 @@ nonisolated struct DatabaseStructureFetcher: Sendable {
             var connectionError: Error?
 
             if loadMetadata {
+                // Use a dedicated session for per-database metadata to avoid contention
+                // with the primary session (query editor or other consumers). This prevents
+                // shared-connection stalls and ensures cancel reliably aborts in-flight work.
                 try Task.checkCancellation()
-                if let reuseSession,
-                   let selectedDatabase,
-                   databaseName.caseInsensitiveCompare(selectedDatabase) == .orderedSame {
-                    sessionForDatabase = reuseSession
-                } else if reuseSession == nil,
-                          let baseDatabaseName = baseSessionDatabaseName,
-                          databaseName.caseInsensitiveCompare(baseDatabaseName) == .orderedSame {
-                    sessionForDatabase = baseSession
-                } else {
-                    do {
-                        try Task.checkCancellation()
-                        sessionForDatabase = try await factory.connect(
-                            host: connection.host,
-                            port: connection.port,
-                            database: databaseName.isEmpty ? nil : databaseName,
-                            tls: connection.useTLS,
-                            authentication: credentials.authentication
-                        )
-                        try Task.checkCancellation()
-                        shouldCloseSession = (sessionForDatabase != nil)
-                    } catch {
-                        connectionError = error
-                    }
+                do {
+                    await hb.update(stage: "connect-db")
+                    sessionForDatabase = try await factory.connect(
+                        host: connection.host,
+                        port: connection.port,
+                        database: databaseName.isEmpty ? nil : databaseName,
+                        tls: connection.useTLS,
+                        authentication: credentials.authentication
+                    )
+                    structureLogger.info("[\(runID)] Connected dedicated metadata session for database \(databaseName, privacy: .public)")
+                    try Task.checkCancellation()
+                    shouldCloseSession = (sessionForDatabase != nil)
+                } catch {
+                    structureLogger.error("[\(runID)] Connection attempt failed for database \(databaseName, privacy: .public): \(error.localizedDescription, privacy: .public)")
+                    connectionError = error
                 }
             }
 
-            ConnectionDebug.log("Preparing database=\(databaseName) (index=\(databaseIndex + 1)/\(totalDatabases)) loadMetadata=\(loadMetadata)")
+            ConnectionDebug.log("[Structure][\(runID)] prepare db=\(databaseName) index=\(databaseIndex + 1)/\(totalDatabases) load=\(loadMetadata)")
             guard loadMetadata, let activeSession = sessionForDatabase else {
                 if Task.isCancelled {
                     throw CancellationError()
                 }
                 if loadMetadata, let error = connectionError {
+                    structureLogger.error("Skipping metadata for database \(databaseName, privacy: .public) due to connection error: \(error.localizedDescription, privacy: .public)")
                     print("Failed to connect to database \(databaseName) for connection \(connection.connectionName): \(error.localizedDescription)")
                 }
 
                 let placeholder = DatabaseInfo(name: databaseName, schemas: [], schemaCount: 0)
-                databaseInfos.append(placeholder)
+                databaseInfoMap[databaseName] = placeholder
                 ConnectionDebug.log("Database=\(databaseName) skipped metadata. error=\(connectionError?.localizedDescription ?? "none")")
                 if let databaseHandler {
                     if Task.isCancelled {
@@ -292,9 +354,11 @@ nonisolated struct DatabaseStructureFetcher: Sendable {
                 attempt += 1
                 do {
                     try Task.checkCancellation()
+                    await hb.update(stage: "list-schemas")
                     let schemaNames = try await sessionForAttempt.listSchemas()
+                    structureLogger.info("[\(runID)] Database \(databaseName, privacy: .public) attempt \(attempt, privacy: .public) discovered \(schemaNames.count, privacy: .public) schemas")
                     let totalSchemas = max(schemaNames.count, 1)
-                    ConnectionDebug.log("Database=\(databaseName) schema count=\(schemaNames.count) attempt=\(attempt)")
+                    ConnectionDebug.log("[Structure][\(runID)] schemas db=\(databaseName) count=\(schemaNames.count) attempt=\(attempt)")
 
                     if schemaNames.isEmpty {
                         let completionFraction = Double(databaseIndex + 1) / Double(totalDatabases)
@@ -306,6 +370,7 @@ nonisolated struct DatabaseStructureFetcher: Sendable {
 
                     var schemas: [SchemaInfo] = []
                     for (schemaIndex, schemaName) in schemaNames.enumerated() {
+                        await hb.update(stage: "schema-\(schemaIndex+1)/\(totalSchemas)", schema: schemaName)
                         try Task.checkCancellation()
                         let schemaBaseFraction = (
                             Double(databaseIndex)
@@ -316,24 +381,73 @@ nonisolated struct DatabaseStructureFetcher: Sendable {
                         }
                         await emitProgress(schemaBaseFraction, databaseName: databaseName, schemaName: schemaName, message: "Updating schema \(schemaName)…")
 
+                        var summaryIndex: Int?
+                        var summaryResult: SchemaInfo?
+                        if let summaryProvider = sessionForAttempt as? DatabaseSchemaSummaryProviding {
+                            try Task.checkCancellation()
+                            do {
+                                await hb.update(stage: "summary")
+                                // Avoid capturing non-Sendable provider inside a @Sendable closure
+                                let summary = sanitizedSchemaInfo(try await summaryProvider.loadSchemaSummary(schemaName))
+                                summaryResult = summary
+                                if !summary.objects.isEmpty {
+                                    schemas.append(summary)
+                                    summaryIndex = schemas.count - 1
+                                    if let databaseHandler {
+                                        if Task.isCancelled {
+                                            throw CancellationError()
+                                        }
+                                        let partial = DatabaseInfo(
+                                            name: databaseName,
+                                            schemas: schemas,
+                                            schemaCount: schemas.count
+                                        )
+                                        await databaseHandler(partial, databaseIndex, totalDatabases)
+                                    }
+                                }
+                            } catch {
+                                structureLogger.warning("Failed to load summary for \(databaseName, privacy: .public).\(schemaName, privacy: .public): \(error.localizedDescription, privacy: .public)")
+                            }
+                        }
+
                         let rawSchemaInfo: SchemaInfo
                         if let metadataSession = sessionForAttempt as? DatabaseMetadataSession {
                             try Task.checkCancellation()
-                            rawSchemaInfo = try await metadataSession.loadSchemaInfo(schemaName) { objectType, currentIndex, total in
-                                guard supportedObjectTypes.contains(objectType) else {
-                                    structureLogger.warning("Received unsupported object type \(objectType.rawValue, privacy: .public) for \(databaseType.displayName, privacy: .public) (schema \(schemaName, privacy: .public))")
-                                    return
+                            do {
+                                await hb.update(stage: "details")
+                                rawSchemaInfo = try await Self.withTimeout(
+                                    seconds: 60,
+                                    stage: "details",
+                                    database: databaseName,
+                                    schema: schemaName,
+                                    operation: {
+                                        try await metadataSession.loadSchemaInfo(schemaName) { objectType, currentIndex, total in
+                                            guard supportedObjectTypes.contains(objectType) else {
+                                                structureLogger.warning("Received unsupported object type \(objectType.rawValue, privacy: .public) for \(databaseType.displayName, privacy: .public) (schema \(schemaName, privacy: .public))")
+                                                return
+                                            }
+                                            guard !Task.isCancelled else { return }
+                                            let normalizedTotal = max(total, 1)
+                                            let objectFraction = Double(currentIndex) / Double(normalizedTotal)
+                                            let schemaFraction = (
+                                                Double(schemaIndex) + objectFraction
+                                            ) / Double(totalSchemas)
+                                            let overallFraction = (
+                                                Double(databaseIndex) + schemaFraction
+                                            ) / Double(totalDatabases)
+                                            await emitProgress(overallFraction, databaseName: databaseName, schemaName: schemaName, message: Self.message(for: objectType))
+                                        }
+                                    }
+                                )
+                            } catch {
+                                let message = "Details failed for \(databaseName).\(schemaName): \(error.localizedDescription) — using summary if available"
+                                structureLogger.error("\(message, privacy: .public)")
+                                ConnectionDebug.log("[Structure][\(runID)] \(message)")
+                                // Fall back to summary (or empty) so we keep making forward progress.
+                                let summaryFromArray: SchemaInfo? = summaryIndex.flatMap { idx in
+                                    schemas.indices.contains(idx) ? schemas[idx] : nil
                                 }
-                                guard !Task.isCancelled else { return }
-                                let normalizedTotal = max(total, 1)
-                                let objectFraction = Double(currentIndex) / Double(normalizedTotal)
-                                let schemaFraction = (
-                                    Double(schemaIndex) + objectFraction
-                                ) / Double(totalSchemas)
-                                let overallFraction = (
-                                    Double(databaseIndex) + schemaFraction
-                                ) / Double(totalDatabases)
-                                await emitProgress(overallFraction, databaseName: databaseName, schemaName: schemaName, message: Self.message(for: objectType))
+                                rawSchemaInfo = summaryFromArray ?? summaryResult ?? SchemaInfo(name: schemaName, objects: [])
                             }
                         } else {
                             try Task.checkCancellation()
@@ -342,7 +456,31 @@ nonisolated struct DatabaseStructureFetcher: Sendable {
                         }
 
                         let schemaInfo = sanitizedSchemaInfo(rawSchemaInfo)
-                        schemas.append(schemaInfo)
+                        if schemaInfo.objects.isEmpty {
+                            structureLogger.info("Skipping schema \(schemaName, privacy: .public) for database \(databaseName, privacy: .public) because it contains no supported objects")
+                            if let index = summaryIndex, schemas.indices.contains(index) {
+                                schemas.remove(at: index)
+                            }
+                            continue
+                        }
+
+                        if let index = summaryIndex, schemas.indices.contains(index) {
+                            schemas[index] = schemaInfo
+                        } else {
+                            schemas.append(schemaInfo)
+                        }
+
+                        if let databaseHandler {
+                            if Task.isCancelled {
+                                throw CancellationError()
+                            }
+                            let partial = DatabaseInfo(
+                                name: databaseName,
+                                schemas: schemas,
+                                schemaCount: schemas.count
+                            )
+                            await databaseHandler(partial, databaseIndex, totalDatabases)
+                        }
 
                         let schemaCompletionFraction = (
                             Double(databaseIndex)
@@ -362,7 +500,7 @@ nonisolated struct DatabaseStructureFetcher: Sendable {
                     }
                 } catch let sessionError as MSSQLSessionError {
                     lastFailure = sessionError
-                    structureLogger.error("SQL Server closed the connection while loading metadata for \(databaseName, privacy: .public) (attempt \(attempt)/\(maxAttempts)): connection closed")
+                    structureLogger.error("SQL Server session error while loading metadata for \(databaseName, privacy: .public) (attempt \(attempt)/\(maxAttempts)): \(sessionError, privacy: .public)")
                     ConnectionDebug.log("Database=\(databaseName) metadata attempt=\(attempt) connectionClosed")
 
                     if closeSessionWhenDone {
@@ -409,6 +547,7 @@ nonisolated struct DatabaseStructureFetcher: Sendable {
                         }
                     } else {
                         lastFailure = sqlError
+                        structureLogger.error("SQL Server error while loading metadata for \(databaseName, privacy: .public) (attempt \(attempt)/\(maxAttempts)): \(sqlError.description, privacy: .public)")
                         if closeSessionWhenDone {
                             await sessionForAttempt.close()
                         }
@@ -416,6 +555,12 @@ nonisolated struct DatabaseStructureFetcher: Sendable {
                     }
                 } catch {
                     lastFailure = error
+                    structureLogger.error("Unexpected error while loading metadata for \(databaseName, privacy: .public) (attempt \(attempt)/\(maxAttempts)): \(error.localizedDescription, privacy: .public)")
+                    // Also log a reflection of the error to aid debugging of opaque errors
+                    // like PostgresNIO.PostgresDecodingError which intentionally obscures details
+                    // in localizedDescription.
+                    let debugDescription = String(reflecting: error)
+                    print("[DatabaseStructureFetcher] Debug error details (\(databaseName)) attempt=\(attempt): \(debugDescription)")
                     if closeSessionWhenDone {
                         await sessionForAttempt.close()
                     }
@@ -426,8 +571,9 @@ nonisolated struct DatabaseStructureFetcher: Sendable {
             if metadataLoaded {
                 let totalObjects = loadedSchemas.reduce(0) { $0 + $1.objects.count }
                 ConnectionDebug.log("Database=\(databaseName) loaded schemas=\(loadedSchemas.count) totalObjects=\(totalObjects)")
+                    structureLogger.info("[\(runID)] Finished metadata load for database \(databaseName, privacy: .public) schemas=\(loadedSchemas.count, privacy: .public) objects=\(totalObjects, privacy: .public)")
                 let info = DatabaseInfo(name: databaseName, schemas: loadedSchemas, schemaCount: loadedSchemas.count)
-                databaseInfos.append(info)
+                databaseInfoMap[databaseName] = info
                 if let databaseHandler {
                     if Task.isCancelled {
                         throw CancellationError()
@@ -436,10 +582,10 @@ nonisolated struct DatabaseStructureFetcher: Sendable {
                 }
             } else {
                 let failure = lastFailure ?? DatabaseError.queryError("Failed to load metadata for database \(databaseName)")
-                structureLogger.error("Giving up on metadata for \(databaseName, privacy: .public) after \(attempt) attempt(s): \(failure.localizedDescription, privacy: .public)")
-                ConnectionDebug.log("Database=\(databaseName) metadata final failure: \(failure.localizedDescription)")
+                structureLogger.error("[\(runID)] Giving up on metadata for \(databaseName, privacy: .public) after \(attempt) attempt(s): \(failure.localizedDescription, privacy: .public)")
+                ConnectionDebug.log("[Structure][\(runID)] failure db=\(databaseName) error=\(failure.localizedDescription)")
                 let placeholder = DatabaseInfo(name: databaseName, schemas: [], schemaCount: 0)
-                databaseInfos.append(placeholder)
+                databaseInfoMap[databaseName] = placeholder
                 if let databaseHandler {
                     if Task.isCancelled {
                         throw CancellationError()
@@ -458,9 +604,10 @@ nonisolated struct DatabaseStructureFetcher: Sendable {
             await emitProgress(databaseCompletionFraction, databaseName: databaseName, schemaName: nil, message: "Database \(databaseName) updated")
         }
 
+        let sortedDatabases = databaseNames.compactMap { databaseInfoMap[$0] }
         let structure = DatabaseStructure(
             serverVersion: serverVersion,
-            databases: databaseInfos.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+            databases: sortedDatabases
         )
 
         if Task.isCancelled {
@@ -468,7 +615,7 @@ nonisolated struct DatabaseStructureFetcher: Sendable {
         }
         await emitProgress(1.0, databaseName: "", schemaName: nil, message: "Metadata cached")
 
-        ConnectionDebug.log("Completed structure fetch for connection=\(connection.connectionName) databases=\(structure.databases.count) totalSchemas=\(structure.databases.reduce(0) { $0 + $1.schemas.count })")
+        ConnectionDebug.log("[Structure][\(runID)] done databases=\(structure.databases.count) totalSchemas=\(structure.databases.reduce(0) { $0 + $1.schemas.count })")
         return structure
     }
 }

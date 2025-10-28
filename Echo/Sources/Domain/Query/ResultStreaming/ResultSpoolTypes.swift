@@ -1,6 +1,6 @@
 import Foundation
 import NIOCore
-import PostgresNIO
+import PostgresKit
 
 struct ResultSpoolConfiguration: Equatable, Sendable {
     var rootDirectory: URL

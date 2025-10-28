@@ -1,0 +1,824 @@
+{
+  "": {
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/master.swiftdeps"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/Connection/PostgresConnection+Configuration.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresConnection+Configuration.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresConnection+Configuration.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresConnection+Configuration~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresConnection+Configuration.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresConnection+Configuration.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/Connection/PostgresConnection.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresConnection.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresConnection.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresConnection~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresConnection.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresConnection.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/Connection/PostgresDatabase+PreparedQuery.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresDatabase+PreparedQuery.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresDatabase+PreparedQuery.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresDatabase+PreparedQuery~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresDatabase+PreparedQuery.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresDatabase+PreparedQuery.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/Data/PostgresData+Array.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresData+Array.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresData+Array.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresData+Array~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresData+Array.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresData+Array.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/Data/PostgresData+Bool.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresData+Bool.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresData+Bool.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresData+Bool~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresData+Bool.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresData+Bool.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/Data/PostgresData+Bytes.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresData+Bytes.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresData+Bytes.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresData+Bytes~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresData+Bytes.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresData+Bytes.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/Data/PostgresData+Date.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresData+Date.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresData+Date.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresData+Date~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresData+Date.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresData+Date.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/Data/PostgresData+Decimal.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresData+Decimal.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresData+Decimal.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresData+Decimal~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresData+Decimal.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresData+Decimal.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/Data/PostgresData+Double.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresData+Double.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresData+Double.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresData+Double~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresData+Double.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresData+Double.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/Data/PostgresData+Float.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresData+Float.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresData+Float.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresData+Float~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresData+Float.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresData+Float.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/Data/PostgresData+Int.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresData+Int.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresData+Int.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresData+Int~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresData+Int.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresData+Int.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/Data/PostgresData+JSON.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresData+JSON.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresData+JSON.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresData+JSON~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresData+JSON.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresData+JSON.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/Data/PostgresData+JSONB.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresData+JSONB.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresData+JSONB.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresData+JSONB~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresData+JSONB.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresData+JSONB.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/Data/PostgresData+Numeric.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresData+Numeric.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresData+Numeric.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresData+Numeric~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresData+Numeric.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresData+Numeric.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/Data/PostgresData+Optional.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresData+Optional.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresData+Optional.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresData+Optional~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresData+Optional.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresData+Optional.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/Data/PostgresData+RawRepresentable.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresData+RawRepresentable.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresData+RawRepresentable.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresData+RawRepresentable~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresData+RawRepresentable.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresData+RawRepresentable.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/Data/PostgresData+Set.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresData+Set.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresData+Set.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresData+Set~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresData+Set.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresData+Set.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/Data/PostgresData+String.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresData+String.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresData+String.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresData+String~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresData+String.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresData+String.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/Data/PostgresData+UUID.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresData+UUID.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresData+UUID.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresData+UUID~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresData+UUID.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresData+UUID.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/Data/PostgresData.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresData.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresData.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresData~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresData.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresData.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/Data/PostgresDataConvertible.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresDataConvertible.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresDataConvertible.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresDataConvertible~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresDataConvertible.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresDataConvertible.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/Data/PostgresDataType.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresDataType.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresDataType.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresDataType~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresDataType.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresDataType.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/Data/PostgresRow.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresRow.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresRow.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresRow~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresRow.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresRow.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/Deprecated/PostgresConnection+Configuration+Deprecated.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresConnection+Configuration+Deprecated.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresConnection+Configuration+Deprecated.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresConnection+Configuration+Deprecated~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresConnection+Configuration+Deprecated.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresConnection+Configuration+Deprecated.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/Deprecated/PostgresData+UInt.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresData+UInt.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresData+UInt.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresData+UInt~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresData+UInt.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresData+UInt.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/Deprecated/PostgresMessage+Authentication.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+Authentication.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+Authentication.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+Authentication~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+Authentication.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+Authentication.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/Deprecated/PostgresMessage+Bind.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+Bind.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+Bind.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+Bind~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+Bind.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+Bind.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/Deprecated/PostgresMessage+Close.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+Close.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+Close.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+Close~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+Close.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+Close.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/Deprecated/PostgresMessage+CommandComplete.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+CommandComplete.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+CommandComplete.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+CommandComplete~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+CommandComplete.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+CommandComplete.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/Deprecated/PostgresMessage+Describe.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+Describe.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+Describe.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+Describe~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+Describe.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+Describe.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/Deprecated/PostgresMessage+Execute.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+Execute.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+Execute.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+Execute~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+Execute.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+Execute.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/Deprecated/PostgresMessage+ParameterDescription.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+ParameterDescription.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+ParameterDescription.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+ParameterDescription~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+ParameterDescription.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+ParameterDescription.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/Deprecated/PostgresMessage+ParameterStatus.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+ParameterStatus.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+ParameterStatus.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+ParameterStatus~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+ParameterStatus.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+ParameterStatus.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/Deprecated/PostgresMessage+Parse.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+Parse.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+Parse.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+Parse~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+Parse.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+Parse.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/Deprecated/PostgresMessage+Password.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+Password.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+Password.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+Password~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+Password.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+Password.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/Deprecated/PostgresMessage+ReadyForQuery.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+ReadyForQuery.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+ReadyForQuery.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+ReadyForQuery~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+ReadyForQuery.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+ReadyForQuery.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/Deprecated/PostgresMessage+SASLResponse.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+SASLResponse.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+SASLResponse.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+SASLResponse~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+SASLResponse.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+SASLResponse.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/Deprecated/PostgresMessage+SSLRequest.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+SSLRequest.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+SSLRequest.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+SSLRequest~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+SSLRequest.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+SSLRequest.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/Deprecated/PostgresMessage+SimpleQuery.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+SimpleQuery.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+SimpleQuery.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+SimpleQuery~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+SimpleQuery.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+SimpleQuery.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/Deprecated/PostgresMessage+Startup.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+Startup.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+Startup.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+Startup~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+Startup.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+Startup.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/Deprecated/PostgresMessage+Sync.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+Sync.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+Sync.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+Sync~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+Sync.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+Sync.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/Deprecated/PostgresMessage+Terminate.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+Terminate.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+Terminate.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+Terminate~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+Terminate.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+Terminate.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/Deprecated/PostgresMessageDecoder.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessageDecoder.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessageDecoder.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessageDecoder~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessageDecoder.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessageDecoder.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/Deprecated/PostgresMessageEncoder.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessageEncoder.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessageEncoder.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessageEncoder~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessageEncoder.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessageEncoder.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/Message/PostgresMessage+0.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+0.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+0.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+0~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+0.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+0.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/Message/PostgresMessage+BackendKeyData.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+BackendKeyData.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+BackendKeyData.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+BackendKeyData~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+BackendKeyData.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+BackendKeyData.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/Message/PostgresMessage+DataRow.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+DataRow.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+DataRow.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+DataRow~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+DataRow.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+DataRow.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/Message/PostgresMessage+Error.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+Error.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+Error.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+Error~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+Error.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+Error.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/Message/PostgresMessage+Identifier.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+Identifier.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+Identifier.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+Identifier~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+Identifier.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+Identifier.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/Message/PostgresMessage+NotificationResponse.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+NotificationResponse.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+NotificationResponse.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+NotificationResponse~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+NotificationResponse.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+NotificationResponse.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/Message/PostgresMessage+RowDescription.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+RowDescription.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+RowDescription.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+RowDescription~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+RowDescription.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessage+RowDescription.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/Message/PostgresMessageType.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessageType.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessageType.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessageType~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessageType.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresMessageType.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/New/Connection State Machine/AuthenticationStateMachine.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/AuthenticationStateMachine.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/AuthenticationStateMachine.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/AuthenticationStateMachine~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/AuthenticationStateMachine.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/AuthenticationStateMachine.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/New/Connection State Machine/CloseStateMachine.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/CloseStateMachine.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/CloseStateMachine.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/CloseStateMachine~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/CloseStateMachine.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/CloseStateMachine.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/New/Connection State Machine/ConnectionStateMachine.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/ConnectionStateMachine.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/ConnectionStateMachine.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/ConnectionStateMachine~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/ConnectionStateMachine.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/ConnectionStateMachine.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/New/Connection State Machine/ExtendedQueryStateMachine.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/ExtendedQueryStateMachine.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/ExtendedQueryStateMachine.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/ExtendedQueryStateMachine~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/ExtendedQueryStateMachine.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/ExtendedQueryStateMachine.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/New/Connection State Machine/ListenStateMachine.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/ListenStateMachine.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/ListenStateMachine.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/ListenStateMachine~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/ListenStateMachine.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/ListenStateMachine.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/New/Connection State Machine/PreparedStatementStateMachine.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PreparedStatementStateMachine.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PreparedStatementStateMachine.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PreparedStatementStateMachine~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PreparedStatementStateMachine.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PreparedStatementStateMachine.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/New/Connection State Machine/RowStreamStateMachine.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/RowStreamStateMachine.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/RowStreamStateMachine.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/RowStreamStateMachine~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/RowStreamStateMachine.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/RowStreamStateMachine.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/New/Data/Array+PostgresCodable.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/Array+PostgresCodable.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/Array+PostgresCodable.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/Array+PostgresCodable~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/Array+PostgresCodable.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/Array+PostgresCodable.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/New/Data/Bool+PostgresCodable.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/Bool+PostgresCodable.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/Bool+PostgresCodable.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/Bool+PostgresCodable~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/Bool+PostgresCodable.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/Bool+PostgresCodable.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/New/Data/Bytes+PostgresCodable.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/Bytes+PostgresCodable.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/Bytes+PostgresCodable.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/Bytes+PostgresCodable~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/Bytes+PostgresCodable.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/Bytes+PostgresCodable.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/New/Data/Date+PostgresCodable.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/Date+PostgresCodable.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/Date+PostgresCodable.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/Date+PostgresCodable~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/Date+PostgresCodable.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/Date+PostgresCodable.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/New/Data/Decimal+PostgresCodable.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/Decimal+PostgresCodable.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/Decimal+PostgresCodable.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/Decimal+PostgresCodable~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/Decimal+PostgresCodable.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/Decimal+PostgresCodable.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/New/Data/Float+PostgresCodable.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/Float+PostgresCodable.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/Float+PostgresCodable.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/Float+PostgresCodable~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/Float+PostgresCodable.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/Float+PostgresCodable.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/New/Data/Int+PostgresCodable.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/Int+PostgresCodable.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/Int+PostgresCodable.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/Int+PostgresCodable~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/Int+PostgresCodable.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/Int+PostgresCodable.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/New/Data/JSON+PostgresCodable.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/JSON+PostgresCodable.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/JSON+PostgresCodable.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/JSON+PostgresCodable~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/JSON+PostgresCodable.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/JSON+PostgresCodable.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/New/Data/Range+PostgresCodable.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/Range+PostgresCodable.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/Range+PostgresCodable.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/Range+PostgresCodable~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/Range+PostgresCodable.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/Range+PostgresCodable.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/New/Data/RawRepresentable+PostgresCodable.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/RawRepresentable+PostgresCodable.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/RawRepresentable+PostgresCodable.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/RawRepresentable+PostgresCodable~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/RawRepresentable+PostgresCodable.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/RawRepresentable+PostgresCodable.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/New/Data/String+PostgresCodable.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/String+PostgresCodable.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/String+PostgresCodable.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/String+PostgresCodable~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/String+PostgresCodable.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/String+PostgresCodable.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/New/Data/UUID+PostgresCodable.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/UUID+PostgresCodable.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/UUID+PostgresCodable.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/UUID+PostgresCodable~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/UUID+PostgresCodable.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/UUID+PostgresCodable.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/New/Extensions/ByteBuffer+PSQL.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/ByteBuffer+PSQL.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/ByteBuffer+PSQL.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/ByteBuffer+PSQL~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/ByteBuffer+PSQL.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/ByteBuffer+PSQL.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/New/Extensions/Logging+PSQL.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/Logging+PSQL.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/Logging+PSQL.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/Logging+PSQL~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/Logging+PSQL.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/Logging+PSQL.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/New/Messages/Authentication.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/Authentication.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/Authentication.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/Authentication~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/Authentication.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/Authentication.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/New/Messages/BackendKeyData.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/BackendKeyData.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/BackendKeyData.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/BackendKeyData~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/BackendKeyData.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/BackendKeyData.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/New/Messages/CopyInMessage.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/CopyInMessage.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/CopyInMessage.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/CopyInMessage~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/CopyInMessage.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/CopyInMessage.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/New/Messages/DataRow.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/DataRow.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/DataRow.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/DataRow~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/DataRow.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/DataRow.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/New/Messages/ErrorResponse.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/ErrorResponse.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/ErrorResponse.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/ErrorResponse~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/ErrorResponse.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/ErrorResponse.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/New/Messages/NotificationResponse.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/NotificationResponse.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/NotificationResponse.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/NotificationResponse~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/NotificationResponse.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/NotificationResponse.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/New/Messages/ParameterDescription.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/ParameterDescription.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/ParameterDescription.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/ParameterDescription~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/ParameterDescription.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/ParameterDescription.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/New/Messages/ParameterStatus.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/ParameterStatus.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/ParameterStatus.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/ParameterStatus~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/ParameterStatus.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/ParameterStatus.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/New/Messages/ReadyForQuery.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/ReadyForQuery.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/ReadyForQuery.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/ReadyForQuery~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/ReadyForQuery.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/ReadyForQuery.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/New/Messages/RowDescription.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/RowDescription.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/RowDescription.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/RowDescription~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/RowDescription.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/RowDescription.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/New/NotificationListener.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/NotificationListener.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/NotificationListener.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/NotificationListener~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/NotificationListener.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/NotificationListener.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/New/PSQLError.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PSQLError.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PSQLError.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PSQLError~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PSQLError.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PSQLError.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/New/PSQLEventsHandler.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PSQLEventsHandler.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PSQLEventsHandler.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PSQLEventsHandler~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PSQLEventsHandler.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PSQLEventsHandler.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/New/PSQLPreparedStatement.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PSQLPreparedStatement.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PSQLPreparedStatement.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PSQLPreparedStatement~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PSQLPreparedStatement.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PSQLPreparedStatement.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/New/PSQLRowStream.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PSQLRowStream.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PSQLRowStream.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PSQLRowStream~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PSQLRowStream.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PSQLRowStream.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/New/PSQLTask.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PSQLTask.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PSQLTask.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PSQLTask~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PSQLTask.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PSQLTask.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/New/PostgresBackendMessage.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresBackendMessage.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresBackendMessage.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresBackendMessage~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresBackendMessage.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresBackendMessage.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/New/PostgresBackendMessageDecoder.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresBackendMessageDecoder.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresBackendMessageDecoder.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresBackendMessageDecoder~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresBackendMessageDecoder.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresBackendMessageDecoder.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/New/PostgresCell.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresCell.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresCell.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresCell~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresCell.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresCell.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/New/PostgresChannelHandler.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresChannelHandler.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresChannelHandler.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresChannelHandler~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresChannelHandler.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresChannelHandler.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/New/PostgresCodable.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresCodable.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresCodable.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresCodable~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresCodable.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresCodable.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/New/PostgresFrontendMessageEncoder.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresFrontendMessageEncoder.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresFrontendMessageEncoder.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresFrontendMessageEncoder~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresFrontendMessageEncoder.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresFrontendMessageEncoder.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/New/PostgresNotificationSequence.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresNotificationSequence.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresNotificationSequence.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresNotificationSequence~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresNotificationSequence.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresNotificationSequence.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/New/PostgresQuery.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresQuery.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresQuery.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresQuery~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresQuery.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresQuery.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/New/PostgresRowSequence.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresRowSequence.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresRowSequence.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresRowSequence~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresRowSequence.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresRowSequence.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/New/PostgresTransactionError.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresTransactionError.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresTransactionError.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresTransactionError~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresTransactionError.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresTransactionError.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/New/PreparedStatement.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PreparedStatement.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PreparedStatement.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PreparedStatement~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PreparedStatement.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PreparedStatement.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/New/VariadicGenerics.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/VariadicGenerics.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/VariadicGenerics.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/VariadicGenerics~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/VariadicGenerics.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/VariadicGenerics.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/Pool/ConnectionFactory.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/ConnectionFactory.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/ConnectionFactory.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/ConnectionFactory~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/ConnectionFactory.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/ConnectionFactory.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/Pool/PostgresClient.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresClient.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresClient.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresClient~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresClient.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresClient.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/Pool/PostgresClientMetrics.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresClientMetrics.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresClientMetrics.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresClientMetrics~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresClientMetrics.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresClientMetrics.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/Postgres+PSQLCompat.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/Postgres+PSQLCompat.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/Postgres+PSQLCompat.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/Postgres+PSQLCompat~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/Postgres+PSQLCompat.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/Postgres+PSQLCompat.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/PostgresDatabase+Query.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresDatabase+Query.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresDatabase+Query.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresDatabase+Query~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresDatabase+Query.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresDatabase+Query.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/PostgresDatabase+SimpleQuery.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresDatabase+SimpleQuery.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresDatabase+SimpleQuery.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresDatabase+SimpleQuery~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresDatabase+SimpleQuery.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresDatabase+SimpleQuery.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/PostgresDatabase.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresDatabase.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresDatabase.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresDatabase~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresDatabase.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresDatabase.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/PostgresRequest.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresRequest.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresRequest.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresRequest~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresRequest.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresRequest.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/Utilities/Exports.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/Exports.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/Exports.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/Exports~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/Exports.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/Exports.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/Utilities/NIOUtils.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/NIOUtils.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/NIOUtils.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/NIOUtils~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/NIOUtils.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/NIOUtils.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/Utilities/PostgresError+Code.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresError+Code.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresError+Code.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresError+Code~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresError+Code.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresError+Code.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/Utilities/PostgresError.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresError.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresError.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresError~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresError.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresError.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/Utilities/PostgresJSONDecoder.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresJSONDecoder.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresJSONDecoder.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresJSONDecoder~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresJSONDecoder.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresJSONDecoder.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/Utilities/PostgresJSONEncoder.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresJSONEncoder.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresJSONEncoder.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresJSONEncoder~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresJSONEncoder.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/PostgresJSONEncoder.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/Utilities/SASLAuthentication+SCRAM-SHA256.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/SASLAuthentication+SCRAM-SHA256.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/SASLAuthentication+SCRAM-SHA256.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/SASLAuthentication+SCRAM-SHA256~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/SASLAuthentication+SCRAM-SHA256.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/SASLAuthentication+SCRAM-SHA256.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/postgres-nio/Sources/PostgresNIO/Utilities/SASLAuthenticationManager.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/SASLAuthenticationManager.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/SASLAuthenticationManager.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/SASLAuthenticationManager~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/SASLAuthenticationManager.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/PostgresNIO.build/SASLAuthenticationManager.dia"
+  }
+}

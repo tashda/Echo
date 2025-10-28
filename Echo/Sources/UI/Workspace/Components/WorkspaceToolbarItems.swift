@@ -7,6 +7,7 @@ import AppKit
 import UIKit
 #endif
 
+@MainActor
 private func toolbarIdleFill(for scheme: ColorScheme) -> Color {
 #if os(macOS)
     if let active = NSApplication.shared.windows.first?.isKeyWindow, !active {
@@ -41,8 +42,57 @@ struct WorkspaceToolbarItems: ToolbarContent {
             projectMenu
         }
 
-        ToolbarItem(id: "workspace.primary.actions", placement: .primaryAction) {
-            trailingActions
+        // Split trailing actions into stable, individual toolbar items.
+        // This avoids occasional reflow where the entire HStack migrates left
+        // during sidebar collapse/expand animations.
+        ToolbarItem(id: "workspace.primary.refresh", placement: .primaryAction) {
+            RefreshToolbarButton()
+                .labelStyle(.iconOnly)
+        }
+
+        ToolbarItem(id: "workspace.primary.newtab", placement: .primaryAction) {
+            Button {
+                appModel.openQueryTab()
+            } label: {
+                Label("New Tab", systemImage: "plus")
+            }
+            .help("Open a new query tab")
+            .disabled(!canOpenNewTab)
+            .labelStyle(.iconOnly)
+            .accessibilityLabel("New Tab")
+        }
+
+        ToolbarItem(id: "workspace.primary.taboverview", placement: .primaryAction) {
+            Button {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    appState.showTabOverview.toggle()
+                }
+            } label: {
+                Label(
+                    appState.showTabOverview ? "Hide Tab Overview" : "Tab Overview",
+                    systemImage: appState.showTabOverview ? "rectangle.grid.2x2.fill" : "rectangle.grid.2x2"
+                )
+            }
+            .help(appState.showTabOverview ? "Hide Tab Overview" : "Show all tabs")
+            .disabled(appModel.tabManager.tabs.isEmpty)
+            .labelStyle(.iconOnly)
+            .accessibilityLabel(appState.showTabOverview ? "Hide Tab Overview" : "Show Tab Overview")
+        }
+
+        ToolbarItem(id: "workspace.primary.toggleinspector", placement: .primaryAction) {
+            Button {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    appState.showInfoSidebar.toggle()
+                }
+            } label: {
+                Label(
+                    appState.showInfoSidebar ? "Hide Inspector" : "Show Inspector",
+                    systemImage: appState.showInfoSidebar ? "sidebar.trailing" : "sidebar.right"
+                )
+            }
+            .help(appState.showInfoSidebar ? "Hide Inspector" : "Show Inspector")
+            .labelStyle(.iconOnly)
+            .accessibilityLabel(appState.showInfoSidebar ? "Hide Inspector" : "Show Inspector")
         }
     }
 #else

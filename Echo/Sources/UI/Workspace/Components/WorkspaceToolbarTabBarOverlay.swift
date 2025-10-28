@@ -149,7 +149,9 @@ final class WorkspaceToolbarTabBarOverlay {
                 object: toolbarView,
                 queue: .main
             ) { [weak self] _ in
-                self?.scheduleLayoutUpdate()
+                Task { @MainActor [weak self] in
+                    self?.scheduleLayoutUpdate()
+                }
             }
         )
 
@@ -159,7 +161,9 @@ final class WorkspaceToolbarTabBarOverlay {
                 object: window,
                 queue: .main
             ) { [weak self] _ in
-                self?.scheduleLayoutUpdate()
+                Task { @MainActor [weak self] in
+                    self?.scheduleLayoutUpdate()
+                }
             }
         )
 
@@ -169,7 +173,9 @@ final class WorkspaceToolbarTabBarOverlay {
                 object: window,
                 queue: .main
             ) { [weak self] _ in
-                self?.scheduleLayoutUpdate()
+                Task { @MainActor [weak self] in
+                    self?.scheduleLayoutUpdate()
+                }
             }
         )
     }

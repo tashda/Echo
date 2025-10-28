@@ -1,0 +1,19 @@
+{
+  "": {
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/ConcurrencyHelpers.build/master.swiftdeps"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/swift-service-lifecycle/Sources/ConcurrencyHelpers/Lock.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/ConcurrencyHelpers.build/Lock.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/ConcurrencyHelpers.build/Lock.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/ConcurrencyHelpers.build/Lock~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/ConcurrencyHelpers.build/Lock.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/ConcurrencyHelpers.build/Lock.dia"
+  },
+  "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/swift-service-lifecycle/Sources/ConcurrencyHelpers/LockedValueBox.swift": {
+    "dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/ConcurrencyHelpers.build/LockedValueBox.d",
+    "object": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/ConcurrencyHelpers.build/LockedValueBox.swift.o",
+    "swiftmodule": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/ConcurrencyHelpers.build/LockedValueBox~partial.swiftmodule",
+    "swift-dependencies": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/ConcurrencyHelpers.build/LockedValueBox.swiftdeps",
+    "diagnostics": "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/ConcurrencyHelpers.build/LockedValueBox.dia"
+  }
+}

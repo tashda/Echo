@@ -63,7 +63,17 @@
          </EnvironmentVariable>
          <EnvironmentVariable
             key = "ECHO_CONNECTION_DEBUG"
-            value = "0"
+            value = "1"
+            isEnabled = "YES">
+         </EnvironmentVariable>
+         <EnvironmentVariable
+            key = "LOG_LEVEL"
+            value = "trace"
+            isEnabled = "YES">
+         </EnvironmentVariable>
+         <EnvironmentVariable
+            key = "TDS_TOKEN_RING"
+            value = "512"
             isEnabled = "YES">
          </EnvironmentVariable>
       </EnvironmentVariables>

@@ -1,0 +1,3 @@
+module ContainersPreview {
+    header "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/ContainersPreview.build/include/ContainersPreview-Swift.h"
+}

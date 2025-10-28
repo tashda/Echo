@@ -1,0 +1,3 @@
+module _NIOFileSystemFoundationCompat {
+    header "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/_NIOFileSystemFoundationCompat.build/include/_NIOFileSystemFoundationCompat-Swift.h"
+}

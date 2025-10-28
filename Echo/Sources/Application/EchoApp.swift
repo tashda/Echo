@@ -124,19 +124,6 @@ struct AppSettingsCommands: Commands {
             }
             .keyboardShortcut(",", modifiers: [.command])
         }
-#if os(macOS)
-        CommandMenu("Settings Window Style") {
-            Picker("Settings Window Style",
-                   selection: Binding(
-                       get: { SettingsWindowPresenter.preferredStyle },
-                       set: { SettingsWindowPresenter.preferredStyle = $0 }
-                   )) {
-                ForEach(SettingsWindowStyle.allCases, id: \.self) { style in
-                    Text(style.displayName).tag(style)
-                }
-            }
-        }
-#endif
     }
 }
 

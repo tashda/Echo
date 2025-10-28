@@ -1054,6 +1054,8 @@ private struct TabPreviewCard: View {
             return diagramMetrics
         case .structure:
             return structureMetrics
+        case .jobManagement:
+            return []
         }
     }
 
@@ -1123,6 +1125,8 @@ private struct TabPreviewCard: View {
             return "Diagram"
         case .structure:
             return "Table Structure"
+        case .jobManagement:
+            return "Jobs"
         }
     }
 
@@ -1147,6 +1151,8 @@ private struct TabPreviewCard: View {
             } else {
                 EmptyPreviewPlaceholder(message: "Structure unavailable")
             }
+        case .jobManagement:
+            EmptyPreviewPlaceholder(message: "Jobs")
         }
     }
 
@@ -1315,6 +1321,8 @@ private struct CompactTabPreviewCard: View {
             return "Diagram"
         case .structure:
             return "Structure"
+        case .jobManagement:
+            return "Jobs"
         }
     }
 
@@ -1331,6 +1339,8 @@ private struct CompactTabPreviewCard: View {
             if let editor = tab.structureEditor {
                 return "\(editor.schemaName).\(editor.tableName)"
             }
+            return nil
+        case .jobManagement:
             return nil
         }
     }
@@ -1373,6 +1383,8 @@ private struct CompactTabPreviewCard: View {
         case .structure:
             guard let editor = tab.structureEditor else { return [] }
             return [("tablecells", "\(editor.columns.count)", Color.secondary)]
+        case .jobManagement:
+            return []
         }
     }
 
@@ -1461,6 +1473,11 @@ private func tabOverviewStatus(for tab: WorkspaceTab, themeManager: ThemeManager
                 return ("checkmark.circle.fill", success, .green)
             }
             return ("tablecells", "Ready", Color.secondary)
+        }
+        return ("circle", "Unavailable", Color.secondary.opacity(0.4))
+    case .jobManagement:
+        if tab.jobManagement != nil {
+            return ("wrench.and.screwdriver", "Ready", Color.secondary)
         }
         return ("circle", "Unavailable", Color.secondary.opacity(0.4))
     }

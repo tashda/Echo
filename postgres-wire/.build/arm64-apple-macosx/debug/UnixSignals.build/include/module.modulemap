@@ -1,0 +1,3 @@
+module UnixSignals {
+    header "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/UnixSignals.build/include/UnixSignals-Swift.h"
+}

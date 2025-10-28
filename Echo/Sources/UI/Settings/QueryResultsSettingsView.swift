@@ -20,7 +20,10 @@ private enum ResultStreamingDefaults {
     static let fetchSize = 4_096
     static let fetchRampMultiplier = 24
     static let fetchRampMax = 524_288
-    static let useCursor = false
+    // Default to auto mode via cursor heuristic (ON), so Echo chooses the fastest path per query.
+    static let useCursor = true
+    // Route LIMITed queries like 100k to simple path by default; large/no LIMIT use cursor.
+    static let cursorLimitThreshold = 25_000
 }
 
 struct QueryResultsSettingsView: View {
@@ -101,6 +104,16 @@ struct QueryResultsSettingsView: View {
         )
     }
 
+    private var streamingModeBinding: Binding<ResultStreamingExecutionMode> {
+        Binding(
+            get: { appModel.globalSettings.resultsStreamingMode },
+            set: { newValue in
+                guard appModel.globalSettings.resultsStreamingMode != newValue else { return }
+                Task { await appModel.updateResultsStreaming(streamingMode: newValue) }
+            }
+        )
+    }
+
     private var fetchRampMultiplierBinding: Binding<Int> {
         Binding(
             get: { appModel.globalSettings.resultsStreamingFetchRampMultiplier },
@@ -123,12 +136,58 @@ struct QueryResultsSettingsView: View {
         )
     }
 
+    // Engine-specific mode bindings (UI-level, for future runtime mapping)
+    private var mssqlModeBinding: Binding<ResultStreamingExecutionMode> {
+        Binding(
+            get: { appModel.globalSettings.mssqlStreamingMode },
+            set: { newValue in
+                guard appModel.globalSettings.mssqlStreamingMode != newValue else { return }
+                Task { await appModel.updateGlobalEditorDisplay { $0.mssqlStreamingMode = newValue } }
+            }
+        )
+    }
+
+    private var mysqlModeBinding: Binding<ResultStreamingExecutionMode> {
+        Binding(
+            get: { appModel.globalSettings.mysqlStreamingMode },
+            set: { newValue in
+                guard appModel.globalSettings.mysqlStreamingMode != newValue else { return }
+                Task { await appModel.updateGlobalEditorDisplay { $0.mysqlStreamingMode = newValue } }
+            }
+        )
+    }
+
+    private var sqliteModeBinding: Binding<ResultStreamingExecutionMode> {
+        Binding(
+            get: { appModel.globalSettings.sqliteStreamingMode },
+            set: { newValue in
+                guard appModel.globalSettings.sqliteStreamingMode != newValue else { return }
+                Task { await appModel.updateGlobalEditorDisplay { $0.sqliteStreamingMode = newValue } }
+            }
+        )
+    }
+
+    @State private var selectedEngineTab: EngineTab = .postgres
+
+    private enum EngineTab: Hashable { case postgres, sqlserver, mysql, sqlite }
+
     private var useCursorStreamingBinding: Binding<Bool> {
         Binding(
             get: { appModel.globalSettings.resultsUseCursorStreaming },
             set: { newValue in
                 guard appModel.globalSettings.resultsUseCursorStreaming != newValue else { return }
                 Task { await appModel.updateResultsStreaming(useCursorStreaming: newValue) }
+            }
+        )
+    }
+
+    private var cursorLimitThresholdBinding: Binding<Int> {
+        Binding(
+            get: { appModel.globalSettings.resultsCursorStreamingLimitThreshold },
+            set: { newValue in
+                let clamped = max(0, min(newValue, 100_000))
+                guard appModel.globalSettings.resultsCursorStreamingLimitThreshold != clamped else { return }
+                Task { await appModel.updateResultsStreaming(cursorLimitThreshold: clamped) }
             }
         )
     }
@@ -144,7 +203,8 @@ struct QueryResultsSettingsView: View {
         settings.resultsStreamingFetchSize == ResultStreamingDefaults.fetchSize &&
         settings.resultsStreamingFetchRampMultiplier == ResultStreamingDefaults.fetchRampMultiplier &&
         settings.resultsStreamingFetchRampMax == ResultStreamingDefaults.fetchRampMax &&
-        settings.resultsUseCursorStreaming == ResultStreamingDefaults.useCursor
+        settings.resultsUseCursorStreaming == ResultStreamingDefaults.useCursor &&
+        settings.resultsCursorStreamingLimitThreshold == ResultStreamingDefaults.cursorLimitThreshold
     }
 
     var body: some View {
@@ -244,12 +304,18 @@ struct QueryResultsSettingsView: View {
                     defaultValue: ResultStreamingDefaults.fetchRampMax
                 )
 
-                Toggle("Use cursor-based streaming", isOn: useCursorStreamingBinding)
-                    .toggleStyle(.switch)
-                Text("Keeps the legacy DECLARE/FETCH pipeline active. Disable for the new simple streaming worker.")
+                Picker("Streaming mode", selection: streamingModeBinding) {
+                    ForEach(ResultStreamingExecutionMode.allCases, id: \.self) { mode in
+                        Text(mode.displayName).tag(mode)
+                    }
+                }
+                .pickerStyle(.segmented)
+                Text("Auto: simple for LIMITed results (≤ threshold), cursor for very large/no-LIMIT queries.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                     .padding(.top, 2)
+
+                // Per-engine thresholds live under Engine Profiles → PostgreSQL
 
                 HStack {
                     Spacer()
@@ -262,7 +328,9 @@ struct QueryResultsSettingsView: View {
                                 backgroundFetchSize: ResultStreamingDefaults.fetchSize,
                                 backgroundFetchRampMultiplier: ResultStreamingDefaults.fetchRampMultiplier,
                                 backgroundFetchRampMax: ResultStreamingDefaults.fetchRampMax,
-                                useCursorStreaming: ResultStreamingDefaults.useCursor
+                                useCursorStreaming: ResultStreamingDefaults.useCursor,
+                                cursorLimitThreshold: ResultStreamingDefaults.cursorLimitThreshold,
+                                streamingMode: .auto
                             )
                         }
                     }
@@ -275,6 +343,111 @@ struct QueryResultsSettingsView: View {
         .formStyle(.grouped)
         .scrollContentBackground(.hidden)
         .background(themeManager.surfaceBackground)
+        Section("Engine Profiles") {
+            HStack {
+                Spacer(minLength: 0)
+                Picker("", selection: $selectedEngineTab) {
+                    Text("PostgreSQL").tag(EngineTab.postgres)
+                    Text("SQL Server").tag(EngineTab.sqlserver)
+                    Text("MySQL").tag(EngineTab.mysql)
+                    Text("SQLite").tag(EngineTab.sqlite)
+                }
+                .pickerStyle(.segmented)
+                .frame(maxWidth: 520)
+                Spacer(minLength: 0)
+            }
+
+            switch selectedEngineTab {
+            case .postgres:
+                StreamingPresetPickerControl(
+                    title: "Cursor threshold (LIMIT)",
+                    value: cursorLimitThresholdBinding,
+                    description: "LIMIT ≤ threshold → simple streaming; larger/no LIMIT → server‑side cursor.",
+                    presets: streamingThresholdPresets,
+                    range: 0...1_000_000,
+                    formatter: formatRowCount,
+                    defaultValue: ResultStreamingDefaults.cursorLimitThreshold
+                )
+                StreamingPresetPickerControl(
+                    title: "Cursor fetch size (baseline)",
+                    value: backgroundFetchSizeBinding,
+                    description: "Recommended ≥ 4,096 for large results.",
+                    presets: streamingFetchPresets,
+                    range: 128...16_384,
+                    formatter: formatRowCount,
+                    defaultValue: ResultStreamingDefaults.fetchSize
+                )
+                StreamingPresetPickerControl(
+                    title: "Fetch ramp multiplier",
+                    value: fetchRampMultiplierBinding,
+                    description: "Aggressiveness of background fetch growth.",
+                    presets: streamingFetchRampMultiplierPresets,
+                    range: 1...64,
+                    formatter: formatMultiplier,
+                    defaultValue: ResultStreamingDefaults.fetchRampMultiplier
+                )
+                StreamingPresetPickerControl(
+                    title: "Fetch ramp maximum",
+                    value: fetchRampMaxBinding,
+                    description: "Ceiling for background fetch size.",
+                    presets: streamingFetchRampMaxPresets,
+                    range: 256...1_048_576,
+                    formatter: formatRowCount,
+                    defaultValue: ResultStreamingDefaults.fetchRampMax
+                )
+                Text("These options apply to PostgreSQL only.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+
+            case .sqlserver:
+                LabeledContent {
+                    Picker("", selection: mssqlModeBinding) {
+                        ForEach(ResultStreamingExecutionMode.allCases, id: \.self) { mode in
+                            Text(mode.displayName).tag(mode)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .frame(maxWidth: 320)
+                } label: {
+                    Text("Streaming mode (SQL Server)")
+                }
+                Text("SQL Server uses SELECT TOP/FETCH NEXT; LIMIT threshold does not apply. Cursor behaves like Simple if unsupported by the driver.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+
+            case .mysql:
+                LabeledContent {
+                    Picker("", selection: mysqlModeBinding) {
+                        ForEach(ResultStreamingExecutionMode.allCases, id: \.self) { mode in
+                            Text(mode.displayName).tag(mode)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .frame(maxWidth: 320)
+                } label: {
+                    Text("Streaming mode (MySQL)")
+                }
+                Text("MySQL streams results without explicit cursors; Cursor behaves like Simple if unsupported.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+
+            case .sqlite:
+                LabeledContent {
+                    Picker("", selection: sqliteModeBinding) {
+                        ForEach(ResultStreamingExecutionMode.allCases, id: \.self) { mode in
+                            Text(mode.displayName).tag(mode)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .frame(maxWidth: 320)
+                } label: {
+                    Text("Streaming mode (SQLite)")
+                }
+                Text("SQLite is in‑process; streaming/cursors don’t apply. General settings still affect preview and formatting.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+        }
     }
 
     private func displayName(for mode: ForeignKeyDisplayMode) -> String {

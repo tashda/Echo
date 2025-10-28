@@ -30,12 +30,14 @@ final class WorkspaceTab: ObservableObject, Identifiable {
         case query
         case structure
         case diagram
+        case jobManagement
     }
 
     enum Content {
         case query(QueryEditorState)
         case structure(TableStructureEditorViewModel)
         case diagram(SchemaDiagramViewModel)
+        case jobManagement(JobManagementViewModel)
     }
 
     let id = UUID()
@@ -75,6 +77,7 @@ final class WorkspaceTab: ObservableObject, Identifiable {
         case .query: return .query
         case .structure: return .structure
         case .diagram: return .diagram
+        case .jobManagement: return .jobManagement
         }
     }
 
@@ -93,6 +96,11 @@ final class WorkspaceTab: ObservableObject, Identifiable {
         return nil
     }
 
+    var jobManagement: JobManagementViewModel? {
+        if case .jobManagement(let vm) = content { return vm }
+        return nil
+    }
+
     func setContent(_ newContent: Content) {
         content = newContent
         subscribeToContent()
@@ -108,6 +116,8 @@ final class WorkspaceTab: ObservableObject, Identifiable {
             return baseOverhead + editor.estimatedMemoryUsageBytes()
         case .diagram(let diagram):
             return baseOverhead + diagram.estimatedMemoryUsageBytes()
+        case .jobManagement:
+            return baseOverhead
         }
     }
 
@@ -127,6 +137,10 @@ final class WorkspaceTab: ObservableObject, Identifiable {
                 .sink { [weak self] _ in self?.objectWillChange.send() }
         case .diagram(let diagram):
             contentCancellable = diagram.objectWillChange
+                .receive(on: RunLoop.main)
+                .sink { [weak self] _ in self?.objectWillChange.send() }
+        case .jobManagement(let vm):
+            contentCancellable = vm.objectWillChange
                 .receive(on: RunLoop.main)
                 .sink { [weak self] _ in self?.objectWillChange.send() }
         }
@@ -302,9 +316,11 @@ final class QueryResultsGridState {
         let modes: [RunLoop.Mode] = [.default]
 #endif
         RunLoop.main.perform(inModes: modes) { [weak self] in
-            guard let self else { return }
-            self.isRowCountRefreshScheduled = false
-            NotificationCenter.default.post(name: .queryResultsRowCountDidChange, object: self)
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                self.isRowCountRefreshScheduled = false
+                NotificationCenter.default.post(name: .queryResultsRowCountDidChange, object: self)
+            }
         }
     }
 }
@@ -373,6 +389,7 @@ final class QueryResultsGridState {
     @Published var shouldAutoExecuteOnAppear: Bool = false
     @Published private(set) var lastPerformanceReport: QueryPerformanceTracker.Report?
     @Published private(set) var livePerformanceReport: QueryPerformanceTracker.Report?
+    @Published var streamingModeOverride: ResultStreamingExecutionMode = .auto
     var rowCountRefreshHandler: (() -> Void)?
 
     enum StreamingMode: Equatable {
@@ -952,6 +969,21 @@ final class QueryResultsGridState {
                 rowProgress = updatedProgress
             }
         }
+        else {
+            // Progress-only update: advance reported total without integrating rows
+            let newReported = max(rowProgress.totalReported, update.totalRowCount)
+            if newReported != rowProgress.totalReported {
+                rowProgress = RowProgress(
+                    totalReceived: rowProgress.totalReceived,
+                    totalReported: newReported,
+                    materialized: rowProgress.materialized
+                )
+                markResultDataChanged()
+                if streamingMode == .preview || isExecuting {
+                    refreshLivePerformanceReport()
+                }
+            }
+        }
 
         let estimatedTotal = max(update.totalRowCount, streamedRowCount)
         if appendedRowCount > 0 {
@@ -1033,7 +1065,9 @@ final class QueryResultsGridState {
 
         let columnsForBatch = streamingColumns.isEmpty ? update.columns : streamingColumns
         let treatAsPreview = !effectiveShouldPersist && (modeForSpool == .preview || modeForSpool == .idle)
-        let shouldDefer = resultsTypeFormattingEnabled && resultsFormattingMode == .deferred && !rawRows.isEmpty
+        // Defer formatting when in background streaming mode, regardless of the global setting,
+        // to keep large result ingestion fast while maintaining a quick preview.
+        let shouldDefer = resultsTypeFormattingEnabled && !rawRows.isEmpty && (resultsFormattingMode == .deferred || streamingMode != .preview)
         var spoolPreviewRows: [[String?]] = []
 
         if !shouldDefer {

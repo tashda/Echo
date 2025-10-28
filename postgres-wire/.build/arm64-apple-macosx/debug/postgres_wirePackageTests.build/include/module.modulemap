@@ -1,0 +1,3 @@
+module postgres_wirePackageTests {
+    header "/Users/k/Development/fuzee/postgres-wire/.build/arm64-apple-macosx/debug/postgres_wirePackageTests.build/include/postgres-wirePackageTests-Swift.h"
+}

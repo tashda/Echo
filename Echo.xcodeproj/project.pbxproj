@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		0A79557E2E8F10A9002279AE /* MySQLNIO in Frameworks */ = {isa = PBXBuildFile; productRef = 0A79557D2E8F10A9002279AE /* MySQLNIO */; };
 		0A8E31A12EAB923F00C86FF3 /* SQLServerKit in Frameworks */ = {isa = PBXBuildFile; productRef = 0A8E31A02EAB923F00C86FF3 /* SQLServerKit */; };
+		0AAD2B062EB0049400D16113 /* PostgresKit in Frameworks */ = {isa = PBXBuildFile; productRef = 0AAD2B052EB0049400D16113 /* PostgresKit */; };
 		0AD4AA2B2E8D55E100F42692 /* build_sqruff.sh in Resources */ = {isa = PBXBuildFile; fileRef = 0AD4AA292E8D55E100F42692 /* build_sqruff.sh */; };
 		0ADF94B92E78BAA400E993F8 /* PostgresNIO in Frameworks */ = {isa = PBXBuildFile; productRef = 0ADF94B82E78BAA400E993F8 /* PostgresNIO */; };
 		0ADF94BB2E78BAA400E993F8 /* _ConnectionPoolModule in Frameworks */ = {isa = PBXBuildFile; productRef = 0ADF94BA2E78BAA400E993F8 /* _ConnectionPoolModule */; };
@@ -114,6 +115,7 @@
 			files = (
 				A98A655E2EAA65CF007AAB86 /* SQLiteNIO in Frameworks */,
 				0ADF94BD2E78BAA400E993F8 /* _ConnectionPoolTestUtils in Frameworks */,
+				0AAD2B062EB0049400D16113 /* PostgresKit in Frameworks */,
 				0ADF94BB2E78BAA400E993F8 /* _ConnectionPoolModule in Frameworks */,
 				0ADF94B92E78BAA400E993F8 /* PostgresNIO in Frameworks */,
 				0A79557E2E8F10A9002279AE /* MySQLNIO in Frameworks */,
@@ -245,6 +247,7 @@
 				0C1234512F9ABC0100ABCDE /* EchoSense */,
 				A98A655D2EAA65CF007AAB86 /* SQLiteNIO */,
 				0A8E31A02EAB923F00C86FF3 /* SQLServerKit */,
+				0AAD2B052EB0049400D16113 /* PostgresKit */,
 			);
 			productName = Echo;
 			productReference = 0ADF94952E78B95200E993F8 /* Echo.app */;
@@ -324,6 +327,7 @@
 				0C1234502F9ABC0100ABCDE /* XCLocalSwiftPackageReference "../EchoSense" */,
 				A98A655C2EAA65CF007AAB86 /* XCRemoteSwiftPackageReference "sqlite-nio" */,
 				0A8E319F2EAB923F00C86FF3 /* XCLocalSwiftPackageReference "../sqlserver-nio" */,
+				0AAD2B042EB0049400D16113 /* XCLocalSwiftPackageReference "postgres-wire" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 0ADF94962E78B95200E993F8 /* Products */;
@@ -761,6 +765,10 @@
 			isa = XCLocalSwiftPackageReference;
 			relativePath = "../sqlserver-nio";
 		};
+		0AAD2B042EB0049400D16113 /* XCLocalSwiftPackageReference "postgres-wire" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = "postgres-wire";
+		};
 		0C1234502F9ABC0100ABCDE /* XCLocalSwiftPackageReference "../EchoSense" */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = ../EchoSense;
@@ -803,6 +811,10 @@
 		0A8E31A02EAB923F00C86FF3 /* SQLServerKit */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = SQLServerKit;
+		};
+		0AAD2B052EB0049400D16113 /* PostgresKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = PostgresKit;
 		};
 		0ADF94B82E78BAA400E993F8 /* PostgresNIO */ = {
 			isa = XCSwiftPackageProductDependency;

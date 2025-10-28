@@ -32,6 +32,7 @@ final class ConnectionSession: ObservableObject, Identifiable {
     // Query tabs specific to this connection
     @Published var queryTabs: [WorkspaceTab] = []
     @Published var activeQueryTabID: UUID?
+    var structureLoadTask: Task<Void, Never>?
 
     init(
         id: UUID = UUID(),
@@ -125,6 +126,11 @@ final class ConnectionSession: ObservableObject, Identifiable {
 
     func closeQueryTab(withID tabID: UUID) {
         guard let index = queryTabs.firstIndex(where: { $0.id == tabID }) else { return }
+
+        // Proactively cancel any executing query task for this tab before removal
+        if let state = queryTabs[index].query {
+            state.cancelExecution()
+        }
         queryTabs.remove(at: index)
 
         // Adjust active tab
@@ -154,6 +160,15 @@ final class ConnectionSession: ObservableObject, Identifiable {
 
     func updateDefaultBackgroundFetchSize(_ fetchSize: Int) {
         defaultBackgroundFetchSize = max(128, min(fetchSize, 16_384))
+    }
+
+    func cancelStructureLoadTask() async {
+        let task = structureLoadTask
+        structureLoadTask = nil
+        task?.cancel()
+        if let task {
+            await task.value
+        }
     }
 }
 
@@ -195,6 +210,15 @@ final class ConnectionSessionManager: ObservableObject {
 
     func removeSession(withID sessionID: UUID) {
         guard let index = activeSessions.firstIndex(where: { $0.id == sessionID }) else { return }
+
+        // Cancel any in-flight queries belonging to this session before removing it
+        let session = activeSessions[index]
+        for tab in session.queryTabs {
+            if let state = tab.query {
+                state.cancelExecution()
+            }
+        }
+
         activeSessions.remove(at: index)
 
         // Adjust active session

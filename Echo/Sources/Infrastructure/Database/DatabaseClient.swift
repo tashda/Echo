@@ -5,6 +5,8 @@ import NIOCore
 @preconcurrency let ResultStreamingFetchRampMultiplierDefaultsKey = "dk.tippr.echo.streaming.fetchRampMultiplier"
 @preconcurrency let ResultStreamingFetchRampMaxDefaultsKey = "dk.tippr.echo.streaming.fetchRampMax"
 @preconcurrency let ResultStreamingUseCursorDefaultsKey = "dk.tippr.echo.streaming.useCursor"
+@preconcurrency let ResultStreamingCursorLimitThresholdDefaultsKey = "dk.tippr.echo.streaming.cursorThreshold"
+@preconcurrency let ResultStreamingModeDefaultsKey = "dk.tippr.echo.streaming.mode"
 @preconcurrency let ResultFormattingEnabledDefaultsKey = "dk.tippr.echo.results.formattingEnabled"
 @preconcurrency let ResultFormattingModeDefaultsKey = "dk.tippr.echo.results.formattingMode"
 
@@ -20,6 +22,22 @@ public enum ResultsFormattingMode: String, Sendable, Codable, CaseIterable, Iden
             return "Wait for formatting"
         case .deferred:
             return "Show immediately, format later"
+        }
+    }
+}
+
+public enum ResultStreamingExecutionMode: String, Sendable, Codable, CaseIterable, Identifiable {
+    case auto
+    case simple
+    case cursor
+
+    public nonisolated var id: String { rawValue }
+
+    public nonisolated var displayName: String {
+        switch self {
+        case .auto: return "Auto"
+        case .simple: return "Simple"
+        case .cursor: return "Cursor"
         }
     }
 }
@@ -56,14 +74,24 @@ public struct ColumnInfo: Sendable, Identifiable, Codable, Hashable {
     public let isNullable: Bool
     public let maxLength: Int?
     public var foreignKey: ForeignKeyReference?
+    public let comment: String?
 
-    public nonisolated init(name: String, dataType: String, isPrimaryKey: Bool = false, isNullable: Bool = true, maxLength: Int? = nil, foreignKey: ForeignKeyReference? = nil) {
+    public nonisolated init(
+        name: String,
+        dataType: String,
+        isPrimaryKey: Bool = false,
+        isNullable: Bool = true,
+        maxLength: Int? = nil,
+        foreignKey: ForeignKeyReference? = nil,
+        comment: String? = nil
+    ) {
         self.name = name
         self.dataType = dataType
         self.isPrimaryKey = isPrimaryKey
         self.isNullable = isNullable
         self.maxLength = maxLength
         self.foreignKey = foreignKey
+        self.comment = comment
     }
 
     public struct ForeignKeyReference: Sendable, Codable, Hashable {
@@ -226,6 +254,7 @@ public struct SchemaObjectInfo: Sendable, Identifiable, Codable, Hashable {
     public var parameters: [ProcedureParameterInfo]
     public let triggerAction: String?
     public let triggerTable: String?
+    public let comment: String?
 
     public nonisolated init(
         name: String,
@@ -234,7 +263,8 @@ public struct SchemaObjectInfo: Sendable, Identifiable, Codable, Hashable {
         columns: [ColumnInfo] = [],
         parameters: [ProcedureParameterInfo] = [],
         triggerAction: String? = nil,
-        triggerTable: String? = nil
+        triggerTable: String? = nil,
+        comment: String? = nil
     ) {
         self.name = name
         self.schema = schema
@@ -243,6 +273,7 @@ public struct SchemaObjectInfo: Sendable, Identifiable, Codable, Hashable {
         self.parameters = parameters
         self.triggerAction = triggerAction
         self.triggerTable = triggerTable
+        self.comment = comment
     }
 
     public nonisolated var fullName: String {
@@ -257,6 +288,7 @@ public struct SchemaObjectInfo: Sendable, Identifiable, Codable, Hashable {
         case parameters
         case triggerAction
         case triggerTable
+        case comment
     }
 
     public nonisolated init(from decoder: Decoder) throws {
@@ -268,6 +300,7 @@ public struct SchemaObjectInfo: Sendable, Identifiable, Codable, Hashable {
         self.parameters = try container.decodeIfPresent([ProcedureParameterInfo].self, forKey: .parameters) ?? []
         self.triggerAction = try container.decodeIfPresent(String.self, forKey: .triggerAction)
         self.triggerTable = try container.decodeIfPresent(String.self, forKey: .triggerTable)
+        self.comment = try container.decodeIfPresent(String.self, forKey: .comment)
     }
 
     public nonisolated func encode(to encoder: Encoder) throws {
@@ -283,6 +316,7 @@ public struct SchemaObjectInfo: Sendable, Identifiable, Codable, Hashable {
         }
         try container.encodeIfPresent(triggerAction, forKey: .triggerAction)
         try container.encodeIfPresent(triggerTable, forKey: .triggerTable)
+        try container.encodeIfPresent(comment, forKey: .comment)
     }
 }
 
@@ -657,6 +691,7 @@ public protocol DatabaseSession: Sendable {
     func close() async
     func simpleQuery(_ sql: String) async throws -> QueryResultSet
     func simpleQuery(_ sql: String, progressHandler: QueryProgressHandler?) async throws -> QueryResultSet
+    func simpleQuery(_ sql: String, executionMode: ResultStreamingExecutionMode?, progressHandler: QueryProgressHandler?) async throws -> QueryResultSet
     func listTablesAndViews(schema: String?) async throws -> [SchemaObjectInfo]
     func listDatabases() async throws -> [String]
     func listSchemas() async throws -> [String]
@@ -684,8 +719,17 @@ public protocol DatabaseMetadataSession: DatabaseSession {
     ) async throws -> SchemaInfo
 }
 
+public protocol DatabaseSchemaSummaryProviding: AnyObject {
+    func loadSchemaSummary(_ schemaName: String) async throws -> SchemaInfo
+}
+
 public extension DatabaseSession {
     func simpleQuery(_ sql: String, progressHandler: QueryProgressHandler?) async throws -> QueryResultSet {
         try await simpleQuery(sql)
+    }
+
+    func simpleQuery(_ sql: String, executionMode: ResultStreamingExecutionMode?, progressHandler: QueryProgressHandler?) async throws -> QueryResultSet {
+        // Default implementation ignores executionMode and defers to existing API.
+        try await simpleQuery(sql, progressHandler: progressHandler)
     }
 }

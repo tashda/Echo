@@ -1,0 +1,4 @@
+module CNIOPosix {
+    umbrella header "/Users/k/Development/fuzee/postgres-wire/.build/checkouts/swift-nio/Sources/CNIOPosix/include/CNIOPosix.h"
+    export *
+}
