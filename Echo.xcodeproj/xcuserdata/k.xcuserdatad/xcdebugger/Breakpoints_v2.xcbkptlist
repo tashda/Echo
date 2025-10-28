@@ -7,17 +7,17 @@
       <BreakpointProxy
          BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
          <BreakpointContent
-            uuid = "F5874733-9232-4AFA-9FBC-DCF9C78EB063"
+            uuid = "CA9954D9-30CC-4B98-ACFD-747853819195"
             shouldBeEnabled = "Yes"
             ignoreCount = "0"
             continueAfterRunningActions = "No"
-            filePath = "Echo/Sources/UI/Connections/ManageConnectionsView.swift"
+            filePath = "Echo/Sources/UI/Settings/AppKitSettingsWindowController.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "35"
-            endingLineNumber = "35"
-            landmarkName = "ManageConnectionsView"
-            landmarkType = "14">
+            startingLineNumber = "117"
+            endingLineNumber = "117"
+            landmarkName = "setupWindow()"
+            landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
    </Breakpoints>

@@ -26,19 +26,19 @@ final class ThemeManager: ObservableObject {
     @Published private(set) var surfaceForegroundColor: Color
     @Published private(set) var useAppThemeForResultsGrid: Bool
     @Published private(set) var resultsAlternateRowShading: Bool
-
 #if os(macOS)
     @Published private(set) var accentNSColor: NSColor
     @Published private(set) var windowBackgroundNSColor: NSColor
     @Published private(set) var surfaceBackgroundNSColor: NSColor
     @Published private(set) var surfaceForegroundNSColor: NSColor
+    @Published private(set) var resultsGridCellBackgroundNSColor: NSColor
+    @Published private(set) var resultsGridAlternateRowNSColor: NSColor
 #endif
 
     /// Combine publisher for imperative consumers that need to react to accent color changes.
     var accentPublisher: AnyPublisher<Color, Never> {
         accentSubject.eraseToAnyPublisher()
     }
-
     var activePaletteTone: SQLEditorPalette.Tone { activeTone }
     var windowBackground: Color { windowBackgroundColor }
     var surfaceBackground: Color { surfaceBackgroundColor }
@@ -47,10 +47,11 @@ final class ThemeManager: ObservableObject {
     private var themesByTone: [SQLEditorPalette.Tone: AppColorTheme]
     private var tokenPalettesByTone: [SQLEditorPalette.Tone: SQLEditorTokenPalette]
     private var resultGridColorsByTone: [SQLEditorPalette.Tone: SQLEditorTokenPalette.ResultGridColors]
+    private var resultGridTextStylesByTone: [SQLEditorPalette.Tone: SQLEditorTokenPalette.ResultGridStyle]
     private var activeTone: SQLEditorPalette.Tone
     private let accentSubject: CurrentValueSubject<Color, Never>
 #if os(macOS)
-    private var appearanceObserver: NSObjectProtocol?
+    private nonisolated(unsafe) var appearanceObserver: NSObjectProtocol?
     private static let appearanceDidChangeNotification = Notification.Name("NSApplicationDidChangeEffectiveAppearanceNotification")
 #endif
 
@@ -62,6 +63,7 @@ final class ThemeManager: ObservableObject {
         themesByTone = [.light: defaultLightTheme, .dark: defaultDarkTheme]
         tokenPalettesByTone = [:]
         resultGridColorsByTone = [:]
+        resultGridTextStylesByTone = [:]
 
 #if os(macOS)
         let initialScheme = ThemeManager.currentSystemColorScheme()
@@ -79,16 +81,37 @@ final class ThemeManager: ObservableObject {
         windowBackgroundColor = initialTheme.windowBackground.color
         surfaceBackgroundColor = initialTheme.surfaceBackground.color
         surfaceForegroundColor = initialTheme.surfaceForeground.color
-        useAppThemeForResultsGrid = true
-        resultsAlternateRowShading = false
+        let initialUseThemeForResultsGrid = true
+        let initialAlternateRowShading = false
+        useAppThemeForResultsGrid = initialUseThemeForResultsGrid
+        resultsAlternateRowShading = initialAlternateRowShading
+        let initialTextStyle = SQLEditorTokenPalette.ResultGridStyle(
+            color: initialTheme.surfaceForeground,
+            isBold: false,
+            isItalic: false
+        )
         resultGridColorsByTone[activeTone] = SQLEditorTokenPalette.ResultGridColors.defaults(for: activeTone)
+        resultGridTextStylesByTone[activeTone] = initialTextStyle
         accentSubject = CurrentValueSubject<Color, Never>(initialAccentColor)
 
 #if os(macOS)
-        accentNSColor = accentRepresentable.nsColor
-        windowBackgroundNSColor = initialTheme.windowBackground.nsColor
+        let initialAccentNSColor = accentRepresentable.nsColor
+        let initialWindowBackgroundNSColor = initialTheme.windowBackground.nsColor
+        accentNSColor = initialAccentNSColor
+        windowBackgroundNSColor = initialWindowBackgroundNSColor
         surfaceBackgroundNSColor = initialTheme.surfaceBackground.nsColor
         surfaceForegroundNSColor = initialTheme.surfaceForeground.nsColor
+        let initialBaseGrid = ThemeManager.baseGridBackgroundColor(
+            useTheme: initialUseThemeForResultsGrid,
+            windowColor: initialWindowBackgroundNSColor
+        )
+        resultsGridCellBackgroundNSColor = initialBaseGrid
+        resultsGridAlternateRowNSColor = ThemeManager.computeAlternateRowColor(
+            base: initialBaseGrid,
+            accent: initialAccentNSColor,
+            useTheme: initialUseThemeForResultsGrid,
+            shadingEnabled: initialAlternateRowShading
+        )
         observeSystemAppearanceChanges()
 #endif
     }
@@ -152,6 +175,12 @@ final class ThemeManager: ObservableObject {
 
         tokenPalettesByTone[tone] = resolved
         resultGridColorsByTone[tone] = resolved.resultGrid
+        cacheResultGridTextStyle(for: tone, foreground: theme.surfaceForeground)
+#if os(macOS)
+        if tone == activeTone {
+            updateCachedGridBackgroundColors()
+        }
+#endif
     }
 
     private func resultGridColors(for tone: SQLEditorPalette.Tone) -> SQLEditorTokenPalette.ResultGridColors {
@@ -181,16 +210,21 @@ final class ThemeManager: ObservableObject {
             case .json:
                 return colors.json
             case .text:
-                return SQLEditorTokenPalette.ResultGridStyle(
+                if let cached = resultGridTextStylesByTone[activeTone] {
+                    return cached
+                }
+                let style = SQLEditorTokenPalette.ResultGridStyle(
                     color: ColorRepresentable(color: surfaceForegroundColor),
                     isBold: false,
                     isItalic: false
                 )
+                resultGridTextStylesByTone[activeTone] = style
+                return style
+            }
         }
-    } else {
+
         return fallbackResultGridStyle(for: kind)
     }
-}
 
     private func fallbackResultGridStyle(for kind: ResultGridValueKind) -> SQLEditorTokenPalette.ResultGridStyle {
         switch kind {
@@ -256,29 +290,38 @@ final class ThemeManager: ObservableObject {
     // MARK: - Mutating API
 
     func applyChrome(theme: AppColorTheme, tone: SQLEditorPalette.Tone, palette: SQLEditorTokenPalette? = nil) {
-        themesByTone[tone] = theme
-        updateResultGridPalette(for: tone, theme: theme, palette: palette)
-        if tone == activeTone {
-            updateOutputs(for: tone)
-        }
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            self.themesByTone[tone] = theme
+            self.updateResultGridPalette(for: tone, theme: theme, palette: palette)
+            if tone == self.activeTone {
+                self.updateOutputs(for: tone)
+            }
 #if os(macOS)
-        NSApp?.appearance = NSAppearance(named: tone == .dark ? .darkAqua : .aqua)
-        applyChromeToWindows(theme)
+            NSApp?.appearance = NSAppearance(named: tone == .dark ? .darkAqua : .aqua)
+            self.applyChromeToWindows(theme)
 #endif
+        }
     }
 
     func setActiveTone(_ tone: SQLEditorPalette.Tone) {
         guard tone != activeTone else { return }
-        activeTone = tone
-        effectiveColorScheme = ThemeManager.colorScheme(for: tone)
-        updateOutputs(for: tone)
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            self.activeTone = tone
+            self.effectiveColorScheme = ThemeManager.colorScheme(for: tone)
+            self.updateOutputs(for: tone)
+        }
     }
 
     func overrideColorScheme(_ scheme: ColorScheme) {
         let tone = ThemeManager.tone(for: scheme)
-        effectiveColorScheme = scheme
-        activeTone = tone
-        updateOutputs(for: tone)
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            self.effectiveColorScheme = scheme
+            self.activeTone = tone
+            self.updateOutputs(for: tone)
+        }
     }
 
     func applyAppearanceMode(_ mode: AppearanceMode) {
@@ -290,9 +333,13 @@ final class ThemeManager: ObservableObject {
         case .system:
 #if os(macOS)
             let scheme = ThemeManager.currentSystemColorScheme()
-            effectiveColorScheme = scheme
-            activeTone = ThemeManager.tone(for: scheme)
-            updateOutputs(for: activeTone)
+            let tone = ThemeManager.tone(for: scheme)
+            DispatchQueue.main.async { [weak self] in
+                guard let self else { return }
+                self.effectiveColorScheme = scheme
+                self.activeTone = tone
+                self.updateOutputs(for: tone)
+            }
 #else
             setActiveTone(.light)
 #endif
@@ -300,11 +347,20 @@ final class ThemeManager: ObservableObject {
     }
 
     func applyResultsGridPreferences(themeResultsGrid: Bool, alternateRowShading: Bool) {
-        if useAppThemeForResultsGrid != themeResultsGrid {
-            useAppThemeForResultsGrid = themeResultsGrid
-        }
-        if resultsAlternateRowShading != alternateRowShading {
-            resultsAlternateRowShading = alternateRowShading
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            if self.useAppThemeForResultsGrid != themeResultsGrid {
+                self.useAppThemeForResultsGrid = themeResultsGrid
+#if os(macOS)
+                self.updateCachedGridBackgroundColors()
+#endif
+            }
+            if self.resultsAlternateRowShading != alternateRowShading {
+                self.resultsAlternateRowShading = alternateRowShading
+#if os(macOS)
+                self.updateCachedGridBackgroundColors()
+#endif
+            }
         }
     }
 
@@ -322,6 +378,7 @@ final class ThemeManager: ObservableObject {
         windowBackgroundColor = theme.windowBackground.color
         surfaceBackgroundColor = theme.surfaceBackground.color
         surfaceForegroundColor = theme.surfaceForeground.color
+        cacheResultGridTextStyle(for: tone, foreground: theme.surfaceForeground)
         accentSubject.send(accentColor)
 
 #if os(macOS)
@@ -330,6 +387,7 @@ final class ThemeManager: ObservableObject {
         surfaceBackgroundNSColor = theme.surfaceBackground.nsColor
         surfaceForegroundNSColor = theme.surfaceForeground.nsColor
         applyChromeToWindows(theme)
+        updateCachedGridBackgroundColors()
 #endif
     }
 
@@ -375,6 +433,58 @@ final class ThemeManager: ObservableObject {
 #endif
     }
 
+    private func cacheResultGridTextStyle(for tone: SQLEditorPalette.Tone, foreground: ColorRepresentable) {
+        resultGridTextStylesByTone[tone] = SQLEditorTokenPalette.ResultGridStyle(
+            color: foreground,
+            isBold: false,
+            isItalic: false
+        )
+    }
+#if os(macOS)
+    private func updateCachedGridBackgroundColors() {
+        let base = ThemeManager.baseGridBackgroundColor(
+            useTheme: useAppThemeForResultsGrid,
+            windowColor: windowBackgroundNSColor
+        )
+        resultsGridCellBackgroundNSColor = base
+        resultsGridAlternateRowNSColor = ThemeManager.computeAlternateRowColor(
+            base: base,
+            accent: accentNSColor,
+            useTheme: useAppThemeForResultsGrid,
+            shadingEnabled: resultsAlternateRowShading
+        )
+    }
+
+    private static func baseGridBackgroundColor(useTheme: Bool, windowColor: NSColor) -> NSColor {
+        useTheme ? windowColor : NSColor.textBackgroundColor
+    }
+
+    private static func computeAlternateRowColor(
+        base: NSColor,
+        accent: NSColor,
+        useTheme: Bool,
+        shadingEnabled: Bool
+    ) -> NSColor {
+        guard shadingEnabled else { return base }
+        if useTheme {
+            let baseSRGB = base.usingColorSpace(.extendedSRGB) ?? base
+            let accentSRGB = accent.usingColorSpace(.extendedSRGB) ?? accent
+            return baseSRGB.blended(withFraction: 0.04, of: accentSRGB) ?? baseSRGB
+        }
+
+        let alternating: [NSColor]
+        if #available(macOS 11, *) {
+            alternating = NSColor.alternatingContentBackgroundColors
+        } else {
+            alternating = NSColor.controlAlternatingRowBackgroundColors
+        }
+        if alternating.count > 1 {
+            return alternating[1]
+        }
+        return alternating.first ?? base
+    }
+#endif
+
     private static func tone(for scheme: ColorScheme) -> SQLEditorPalette.Tone {
         scheme == .dark ? .dark : .light
     }
@@ -417,9 +527,7 @@ extension ThemeManager {
     }
 
 #if os(macOS)
-    var resultsGridBackgroundNSColor: NSColor {
-        useAppThemeForResultsGrid ? windowBackgroundNSColor : NSColor.textBackgroundColor
-    }
+    var resultsGridBackgroundNSColor: NSColor { resultsGridCellBackgroundNSColor }
 #elseif canImport(UIKit)
     var resultsGridBackgroundUIColor: UIColor {
         if useAppThemeForResultsGrid {
@@ -439,30 +547,8 @@ extension ThemeManager {
     }
 
 #if os(macOS)
-    var resultsGridCellBackgroundNSColor: NSColor { resultsGridBackgroundNSColor }
-
     var resultsGridCellTextNSColor: NSColor {
         useAppThemeForResultsGrid ? surfaceForegroundNSColor : NSColor.labelColor
-    }
-
-    var resultsGridAlternateRowNSColor: NSColor {
-        guard resultsAlternateRowShading else { return resultsGridCellBackgroundNSColor }
-        if useAppThemeForResultsGrid {
-            let base = resultsGridCellBackgroundNSColor.usingColorSpace(.extendedSRGB) ?? resultsGridCellBackgroundNSColor
-            let accent = accentNSColor.usingColorSpace(.extendedSRGB) ?? accentNSColor
-            return base.blended(withFraction: 0.04, of: accent) ?? base
-        } else {
-            let alternating: [NSColor]
-            if #available(macOS 11, *) {
-                alternating = NSColor.alternatingContentBackgroundColors
-            } else {
-                alternating = NSColor.controlAlternatingRowBackgroundColors
-            }
-            if alternating.count > 1 {
-                return alternating[1]
-            }
-            return alternating.first ?? NSColor.textBackgroundColor
-        }
     }
 
     var resultsGridHeaderBackgroundNSColor: NSColor {

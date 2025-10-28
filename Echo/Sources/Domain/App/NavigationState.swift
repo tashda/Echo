@@ -117,7 +117,7 @@ enum NavigationLevel: Identifiable, Hashable {
         }
     }
 
-    var color: Color? {
+    @MainActor var color: Color? {
         switch self {
         case .project(let project):
             return project.color

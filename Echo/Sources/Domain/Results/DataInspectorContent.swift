@@ -17,12 +17,20 @@ struct ForeignKeyInspectorContent: Sendable, Equatable {
     let subtitle: String?
     let fields: [Field]
     let related: [ForeignKeyInspectorContent]
+    let lookupQuerySQL: String?
 
-    init(title: String, subtitle: String? = nil, fields: [Field], related: [ForeignKeyInspectorContent] = []) {
+    init(
+        title: String,
+        subtitle: String? = nil,
+        fields: [Field],
+        related: [ForeignKeyInspectorContent] = [],
+        lookupQuerySQL: String? = nil
+    ) {
         self.title = title
         self.subtitle = subtitle
         self.fields = fields
         self.related = related
+        self.lookupQuerySQL = lookupQuerySQL
     }
 }
 

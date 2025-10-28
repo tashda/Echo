@@ -7,18 +7,30 @@ import AppKit
 struct SchemaDiagramView: View {
     @ObservedObject var viewModel: SchemaDiagramViewModel
     @Environment(\.colorScheme) private var colorScheme
+    @EnvironmentObject private var appModel: AppModel
+    @EnvironmentObject private var themeManager: ThemeManager
 
     @State private var zoom: CGFloat = 1.0
     @State private var contentOffset: CGSize = .zero
     @State private var lastDragOffset: CGSize = .zero
     @State private var hasCenteredDiagram = false
     @State private var isDraggingNode = false
+    @State private var persistTask: Task<Void, Never>?
+    @State private var isRefreshing = false
+    @State private var lastKnownNodeCount: Int = 0
+    @State private var lastLoadingState: Bool = false
 
     private let minZoom: CGFloat = 0.4
     private let maxZoom: CGFloat = 2.5
 
     var body: some View {
         GeometryReader { geometry in
+            let shouldRenderEdges: Bool = {
+                if viewModel.edges.count <= 200 {
+                    return true
+                }
+                return appModel.globalSettings.diagramRenderRelationshipsForLargeDiagrams
+            }()
             ZStack {
                 backgroundGrid(in: geometry.size)
 
@@ -26,12 +38,15 @@ struct SchemaDiagramView: View {
                     viewModel: viewModel,
                     zoom: zoom,
                     offset: contentOffset,
-                    isDraggingNode: $isDraggingNode
+                    palette: palette,
+                    renderEdges: shouldRenderEdges,
+                    isDraggingNode: $isDraggingNode,
+                    onLayoutCommitted: persistLayout
                 )
 
                 zoomControls
             }
-            .background(Color(nsColor: .windowBackgroundColor))
+            .background(palette.canvasBackground)
             .clipped()
             .gesture(panGesture)
             .gesture(magnificationGesture, including: .gesture)
@@ -39,14 +54,165 @@ struct SchemaDiagramView: View {
                 applyZoom(from: delta)
             })
             .onAppear {
-                centerDiagramIfNeeded(in: geometry.size)
+                centerDiagram(in: geometry.size)
+                lastKnownNodeCount = viewModel.nodes.count
+                lastLoadingState = viewModel.isLoading
             }
             .onChange(of: geometry.size) { _, newSize in
-                centerDiagramIfNeeded(in: newSize)
+                centerDiagram(in: newSize)
+            }
+            .onChange(of: viewModel.nodes.count) { oldValue, newValue in
+                if oldValue == 1 && newValue > 1 {
+                    centerDiagram(in: geometry.size, force: true)
+                }
+                lastKnownNodeCount = newValue
+            }
+            .onChange(of: viewModel.isLoading) { oldValue, newValue in
+                if oldValue && !newValue {
+                    centerDiagram(in: geometry.size, force: true)
+                }
+                lastLoadingState = newValue
+            }
+            .overlay(statusOverlay)
+            .overlay(alignment: .topTrailing) {
+                toolbarOverlay
+                    .padding(.top, 16)
+                    .padding(.trailing, 16)
             }
         }
         .navigationTitle(viewModel.title)
     }
+
+    private var palette: DiagramPalette {
+        if appModel.globalSettings.diagramUseThemedAppearance {
+            let theme = themeManager.activeTheme
+            let accent = theme.accent?.color ?? themeManager.accentColor
+            let foreground = theme.surfaceForeground.color
+            let detail = foreground.opacity(0.65)
+            let nodeShadow = Color.black.opacity(colorScheme == .dark ? 0.45 : 0.18)
+            return DiagramPalette(
+                canvasBackground: theme.windowBackground.color,
+                gridLine: foreground.opacity(0.12),
+                nodeBackground: theme.surfaceBackground.color.opacity(0.95),
+                nodeBorder: foreground.opacity(0.14),
+                nodeShadow: nodeShadow,
+                headerBackground: accent.opacity(0.22),
+                headerBorder: accent.opacity(0.45),
+                headerTitle: foreground,
+                headerSubtitle: detail,
+                columnText: foreground,
+                columnDetail: detail,
+                columnHighlight: accent.opacity(0.12),
+                accent: accent,
+                edgeColor: accent.opacity(0.9),
+                overlayBackground: theme.surfaceBackground.color.opacity(0.96),
+                overlayBorder: foreground.opacity(0.14)
+            )
+        } else {
+            let canvasBackground = Color(nsColor: .windowBackgroundColor)
+            let controlBackground = Color(nsColor: .controlBackgroundColor)
+            let primary = Color.primary
+            let secondary = Color.secondary
+            let accent = Color.accentColor
+            let shadow = Color.black.opacity(colorScheme == .dark ? 0.5 : 0.16)
+            return DiagramPalette(
+                canvasBackground: canvasBackground,
+                gridLine: primary.opacity(colorScheme == .dark ? 0.14 : 0.08),
+                nodeBackground: controlBackground.opacity(colorScheme == .dark ? 0.85 : 1.0),
+                nodeBorder: primary.opacity(0.12),
+                nodeShadow: shadow,
+                headerBackground: accent.opacity(0.18),
+                headerBorder: accent.opacity(0.35),
+                headerTitle: primary,
+                headerSubtitle: secondary,
+                columnText: primary,
+                columnDetail: secondary,
+                columnHighlight: accent.opacity(0.08),
+                accent: accent.opacity(0.9),
+                edgeColor: accent.opacity(0.85),
+                overlayBackground: canvasBackground.opacity(0.98),
+                overlayBorder: primary.opacity(0.08)
+            )
+        }
+    }
+
+    private func persistLayout() {
+        persistTask?.cancel()
+        persistTask = Task { @MainActor [viewModel] in
+            await appModel.persistDiagramLayout(viewModel)
+            persistTask = nil
+        }
+    }
+
+    private var toolbarOverlay: some View {
+        HStack(spacing: 12) {
+            loadSourceBadge
+            if isRefreshing || viewModel.isLoading {
+                ProgressView()
+                    .controlSize(.small)
+            }
+            Button {
+                guard !isRefreshing else { return }
+                isRefreshing = true
+                Task {
+                    await appModel.refreshDiagram(viewModel)
+                    await MainActor.run {
+                        isRefreshing = false
+                    }
+                }
+            } label: {
+                Label("Refresh", systemImage: "arrow.clockwise")
+                    .labelStyle(.iconOnly)
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.small)
+            .disabled(viewModel.isLoading)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(.ultraThinMaterial, in: Capsule())
+        .shadow(color: .black.opacity(0.12), radius: 12, x: 0, y: 6)
+    }
+
+    private var loadSourceBadge: some View {
+        let descriptor = loadSourceDescriptor(for: viewModel.loadSource)
+        return Label(descriptor.text, systemImage: descriptor.icon)
+            .font(.system(size: 12, weight: .semibold))
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(descriptor.background, in: Capsule())
+            .foregroundColor(descriptor.foreground)
+    }
+
+    private func loadSourceDescriptor(for source: DiagramLoadSource) -> (text: String, icon: String, foreground: Color, background: Color) {
+        switch source {
+        case .live(let date):
+            return (
+                "Live · " + relativeTimeString(since: date),
+                "bolt.fill",
+                Color.green.opacity(0.9),
+                Color.green.opacity(0.15)
+            )
+        case .cache(let date):
+            return (
+                "Cached · " + relativeTimeString(since: date),
+                "clock.arrow.circlepath",
+                Color.blue.opacity(0.9),
+                Color.blue.opacity(0.15)
+            )
+        }
+    }
+
+    private func relativeTimeString(since date: Date) -> String {
+        let formatter = SchemaDiagramView.relativeFormatter
+        return formatter.localizedString(for: date, relativeTo: Date())
+    }
+
+    private static let relativeFormatter: RelativeDateTimeFormatter = {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .abbreviated
+        return formatter
+    }()
 
     private var zoomControls: some View {
         VStack {
@@ -110,7 +276,20 @@ struct SchemaDiagramView: View {
 
     private func updateZoom(to newValue: CGFloat) {
         let clamped = max(minZoom, min(maxZoom, newValue))
+        let basePosition = viewModel.node(for: viewModel.baseNodeID)?.position ?? .zero
+        let currentCenter = CGPoint(x: basePosition.x * zoom, y: basePosition.y * zoom)
+        let newCenter = CGPoint(x: basePosition.x * clamped, y: basePosition.y * clamped)
+        let deltaOffset = CGSize(
+            width: currentCenter.x - newCenter.x,
+            height: currentCenter.y - newCenter.y
+        )
         zoom = clamped
+        let adjustedOffset = CGSize(
+            width: contentOffset.width + deltaOffset.width,
+            height: contentOffset.height + deltaOffset.height
+        )
+        contentOffset = adjustedOffset
+        lastDragOffset = adjustedOffset
     }
 
     private func applyZoom(from delta: CGFloat) {
@@ -119,16 +298,26 @@ struct SchemaDiagramView: View {
         updateZoom(to: zoom * adjustment)
     }
 
-    private func centerDiagramIfNeeded(in size: CGSize) {
+    private func centerDiagram(in size: CGSize, force: Bool = false) {
+        if force {
+            hasCenteredDiagram = false
+        }
         guard !hasCenteredDiagram else { return }
+        guard size.width.isFinite, size.height.isFinite else { return }
+        let basePosition = viewModel.node(for: viewModel.baseNodeID)?.position ?? .zero
+        let centerPoint = CGPoint(x: size.width / 2, y: size.height / 2)
+        let scaledBase = CGPoint(x: basePosition.x * zoom, y: basePosition.y * zoom)
+        let targetOffset = CGSize(
+            width: centerPoint.x - scaledBase.x,
+            height: centerPoint.y - scaledBase.y
+        )
+        contentOffset = targetOffset
+        lastDragOffset = targetOffset
         hasCenteredDiagram = true
-        let initialOffset = CGSize(width: size.width / 2, height: size.height / 2)
-        contentOffset = initialOffset
-        lastDragOffset = initialOffset
     }
 
     private func backgroundGrid(in size: CGSize) -> some View {
-        let gridColor = Color.primary.opacity(colorScheme == .dark ? 0.08 : 0.06)
+        let gridColor = palette.gridLine
         let spacing: CGFloat = 64
         return Canvas { context, canvasSize in
             let step = spacing * zoom
@@ -155,13 +344,119 @@ struct SchemaDiagramView: View {
             context.stroke(path, with: .color(gridColor), lineWidth: 1)
         }
     }
+
+    @ViewBuilder
+    private var statusOverlay: some View {
+        if let error = viewModel.errorMessage {
+            blockingStatusCard(
+                icon: "exclamationmark.triangle.fill",
+                tint: palette.accent,
+                title: "Unable to Load Diagram",
+                message: error
+            )
+        } else if viewModel.isLoading && viewModel.nodes.isEmpty {
+            blockingStatusCard(
+                icon: nil,
+                tint: palette.accent,
+                title: "Loading Diagram…",
+                message: viewModel.statusMessage ?? "Fetching structure and relationships"
+            )
+        } else if let message = viewModel.statusMessage, !message.isEmpty {
+            bannerStatus(message: message, showsProgress: viewModel.isLoading)
+        }
+    }
+
+    private func blockingStatusCard(
+        icon: String?,
+        tint: Color,
+        title: String,
+        message: String
+    ) -> some View {
+        ZStack {
+            Color.black.opacity(0.18)
+                .ignoresSafeArea()
+                .allowsHitTesting(false)
+            VStack(spacing: 16) {
+                if let icon {
+                    Image(systemName: icon)
+                        .font(.system(size: 40, weight: .bold))
+                        .foregroundStyle(tint)
+                } else {
+                    ProgressView()
+                        .progressViewStyle(.linear)
+                        .frame(width: 240)
+                        .tint(tint)
+                }
+                VStack(spacing: 6) {
+                    Text(title)
+                        .font(.headline)
+                        .foregroundStyle(palette.headerTitle)
+                    Text(message)
+                        .font(.subheadline)
+                        .foregroundStyle(palette.headerSubtitle)
+                        .multilineTextAlignment(.center)
+                }
+            }
+            .padding(24)
+            .background(
+                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    .fill(palette.overlayBackground)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 20, style: .continuous)
+                            .stroke(palette.overlayBorder, lineWidth: 1)
+                    )
+            )
+            .shadow(color: palette.nodeShadow.opacity(0.7), radius: 18, x: 0, y: 12)
+        }
+    }
+
+    private func bannerStatus(message: String, showsProgress: Bool) -> some View {
+        VStack {
+            HStack {
+                if showsProgress {
+                    ProgressView()
+                        .controlSize(.small)
+                        .tint(palette.accent)
+                } else {
+                    Image(systemName: "info.circle.fill")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(palette.accent)
+                }
+                Text(message)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(palette.headerTitle)
+                Spacer()
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .background(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(palette.overlayBackground)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .stroke(palette.overlayBorder, lineWidth: 1)
+                    )
+            )
+            .shadow(color: palette.nodeShadow.opacity(0.4), radius: 12, x: 0, y: 6)
+            .padding(.top, 16)
+            .padding(.horizontal, 24)
+
+            Spacer()
+        }
+        .allowsHitTesting(false)
+        .transition(.move(edge: .top).combined(with: .opacity))
+        .animation(.easeInOut(duration: 0.2), value: showsProgress)
+    }
 }
 
 private struct DiagramCanvas: View {
     @ObservedObject var viewModel: SchemaDiagramViewModel
     let zoom: CGFloat
     let offset: CGSize
+    let palette: DiagramPalette
+    let renderEdges: Bool
     @Binding var isDraggingNode: Bool
+    let onLayoutCommitted: () -> Void
 
     var body: some View {
         GeometryReader { geometry in
@@ -170,7 +465,9 @@ private struct DiagramCanvas: View {
                     SchemaDiagramNodeView(
                         node: node,
                         zoom: zoom,
-                        isDraggingNode: $isDraggingNode
+                        palette: palette,
+                        isDraggingNode: $isDraggingNode,
+                        onPositionCommitted: onLayoutCommitted
                     )
                         .position(position(for: node.position))
                 }
@@ -181,17 +478,21 @@ private struct DiagramCanvas: View {
             .background(
                 Color.clear
                     .overlayPreferenceValue(DiagramColumnAnchorPreferenceKey.self) { anchors in
-                        Canvas { context, size in
-                            renderEdges(
-                                context: &context,
-                                anchors: anchors,
-                                size: size,
-                                geometry: geometry
-                            )
+                        if renderEdges {
+                            Canvas { context, size in
+                                renderEdges(
+                                    context: &context,
+                                    anchors: anchors,
+                                    size: size,
+                                    geometry: geometry
+                                )
+                            }
+                            .allowsHitTesting(false)
+                            .scaleEffect(zoom, anchor: .topLeading)
+                            .offset(offset)
+                        } else {
+                            EmptyView()
                         }
-                        .allowsHitTesting(false)
-                        .scaleEffect(zoom, anchor: .topLeading)
-                        .offset(offset)
                     }
             )
         }
@@ -236,10 +537,19 @@ private struct DiagramCanvas: View {
     private func drawConnection(
         context: inout GraphicsContext,
         from start: CGPoint,
-        to end: CGPoint
+                to end: CGPoint
     ) {
-        let strokeColor = Color.accentColor.opacity(0.85)
-        let pathWidth: CGFloat = 2.0
+        let strokeColor = palette.edgeColor
+        var backgroundPath = Path()
+        backgroundPath.move(to: start)
+        backgroundPath.addLine(to: end)
+        context.stroke(
+            backgroundPath,
+            with: .color(strokeColor.opacity(0.2)),
+            style: StrokeStyle(lineWidth: 5.0, lineCap: .round, lineJoin: .round)
+        )
+
+        let pathWidth: CGFloat = 2.4
         var path = Path()
         path.move(to: start)
         path.addLine(to: end)
@@ -274,30 +584,29 @@ private struct DiagramCanvas: View {
 private struct SchemaDiagramNodeView: View {
     @ObservedObject var node: SchemaDiagramNodeModel
     let zoom: CGFloat
+    let palette: DiagramPalette
     @Binding var isDraggingNode: Bool
+    let onPositionCommitted: () -> Void
 
     @State private var dragStartPosition: CGPoint?
-
-    private let headerColor = Color.accentColor.opacity(0.2)
-    private let borderColor = Color.primary.opacity(0.12)
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             header
             Divider()
-                .foregroundStyle(Color.primary.opacity(0.08))
+                .foregroundStyle(palette.nodeBorder)
             columnsList
         }
         .fixedSize(horizontal: true, vertical: false)
         .background(
             RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(.thinMaterial)
+                .fill(palette.nodeBackground)
         )
         .overlay(
             RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .stroke(borderColor, lineWidth: 1)
+                .stroke(palette.nodeBorder, lineWidth: 1)
         )
-        .shadow(color: Color.black.opacity(0.12), radius: 16, x: 0, y: 6)
+        .shadow(color: palette.nodeShadow, radius: 16, x: 0, y: 6)
         .highPriorityGesture(dragGesture)
     }
 
@@ -305,20 +614,20 @@ private struct SchemaDiagramNodeView: View {
         VStack(alignment: .leading, spacing: 4) {
             Text(node.name)
                 .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(Color.primary)
+                .foregroundStyle(palette.headerTitle)
             Text(node.schema)
                 .font(.system(size: 11, weight: .medium))
-                .foregroundStyle(Color.secondary)
+                .foregroundStyle(palette.headerSubtitle)
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
             RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(headerColor)
+                .fill(palette.headerBackground)
                 .overlay(
                     RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .stroke(Color.accentColor.opacity(0.35), lineWidth: 1)
+                        .stroke(palette.headerBorder, lineWidth: 1)
                 )
         )
     }
@@ -326,7 +635,7 @@ private struct SchemaDiagramNodeView: View {
     private var columnsList: some View {
         VStack(alignment: .leading, spacing: 4) {
             ForEach(node.columns) { column in
-                ColumnRow(nodeID: node.id, column: column)
+                ColumnRow(nodeID: node.id, column: column, palette: palette)
             }
         }
         .padding(.horizontal, 14)
@@ -343,26 +652,39 @@ private struct SchemaDiagramNodeView: View {
                 if !isDraggingNode {
                     isDraggingNode = true
                 }
-                let start = dragStartPosition ?? node.position
+                let origin = dragStartPosition ?? node.position
                 let delta = CGSize(
                     width: value.translation.width / zoom,
                     height: value.translation.height / zoom
                 )
                 let newPosition = CGPoint(
-                    x: start.x + delta.width,
-                    y: start.y + delta.height
+                    x: origin.x + delta.width,
+                    y: origin.y + delta.height
                 )
-                if node.position != newPosition {
-                    var transaction = Transaction()
-                    transaction.disablesAnimations = true
-                    withTransaction(transaction) {
-                        node.position = newPosition
-                    }
+                var transaction = Transaction()
+                transaction.disablesAnimations = true
+                withTransaction(transaction) {
+                    node.position = newPosition
                 }
             }
-            .onEnded { _ in
+            .onEnded { value in
+                let origin = dragStartPosition ?? node.position
+                let delta = CGSize(
+                    width: value.translation.width / zoom,
+                    height: value.translation.height / zoom
+                )
+                let newPosition = CGPoint(
+                    x: origin.x + delta.width,
+                    y: origin.y + delta.height
+                )
+                var transaction = Transaction()
+                transaction.disablesAnimations = true
+                withTransaction(transaction) {
+                    node.position = newPosition
+                }
                 dragStartPosition = nil
                 isDraggingNode = false
+                onPositionCommitted()
             }
     }
 }
@@ -370,6 +692,7 @@ private struct SchemaDiagramNodeView: View {
 private struct ColumnRow: View {
     let nodeID: String
     let column: SchemaDiagramColumn
+    let palette: DiagramPalette
 
     var body: some View {
         HStack(spacing: 8) {
@@ -380,18 +703,18 @@ private struct ColumnRow: View {
                 .lineLimit(1)
                 .layoutPriority(1)
                 .font(.system(size: 12, weight: column.isPrimaryKey ? .semibold : .regular))
-                .foregroundStyle(Color.primary)
+                .foregroundStyle(palette.columnText)
             Spacer(minLength: 12)
             Text(column.dataType)
                 .lineLimit(1)
                 .font(.system(size: 11))
-                .foregroundStyle(Color.secondary)
+                .foregroundStyle(palette.columnDetail)
         }
         .padding(.vertical, 4)
         .fixedSize(horizontal: true, vertical: false)
         .background(
             RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .fill(Color.primary.opacity(column.isForeignKey ? 0.06 : 0))
+                .fill(columnHighlightColor)
         )
         .anchorPreference(key: DiagramColumnAnchorPreferenceKey.self, value: .bounds) {
             [DiagramColumnAnchor(nodeID: nodeID, columnName: column.name, bounds: $0)]
@@ -410,25 +733,49 @@ private struct ColumnRow: View {
 
     private var iconColor: Color {
         if column.isPrimaryKey || column.isForeignKey {
-            return .accentColor
+            return palette.accent
         }
-        return .secondary
+        return palette.columnDetail
+    }
+
+    private var columnHighlightColor: Color {
+        (column.isPrimaryKey || column.isForeignKey) ? palette.columnHighlight : Color.clear
     }
 }
 
+private struct DiagramPalette {
+    let canvasBackground: Color
+    let gridLine: Color
+    let nodeBackground: Color
+    let nodeBorder: Color
+    let nodeShadow: Color
+    let headerBackground: Color
+    let headerBorder: Color
+    let headerTitle: Color
+    let headerSubtitle: Color
+    let columnText: Color
+    let columnDetail: Color
+    let columnHighlight: Color
+    let accent: Color
+    let edgeColor: Color
+    let overlayBackground: Color
+    let overlayBorder: Color
+}
+
 private struct DiagramColumnAnchor: Identifiable {
-    let id = UUID()
     let nodeID: String
     let columnName: String
     let bounds: Anchor<CGRect>
 
+    var id: String { Self.key(nodeID: nodeID, columnName: columnName) }
+
     static func key(nodeID: String, columnName: String) -> String {
-        "\(nodeID)#\(columnName)"
+        "\(nodeID.diagramAnchorComponent)#\(columnName.diagramAnchorComponent)"
     }
 }
 
 private struct DiagramColumnAnchorPreferenceKey: PreferenceKey {
-    static var defaultValue: [DiagramColumnAnchor] = []
+    nonisolated(unsafe) static var defaultValue: [DiagramColumnAnchor] = []
 
     static func reduce(value: inout [DiagramColumnAnchor], nextValue: () -> [DiagramColumnAnchor]) {
         value.append(contentsOf: nextValue())
@@ -451,6 +798,7 @@ private struct CommandScrollZoomCapture: NSViewRepresentable {
         nsView.onZoom = onZoom
     }
 
+    @MainActor
     final class ZoomCaptureView: NSView {
         var onZoom: ((CGFloat) -> Void)?
         private var scrollMonitor: Any?
@@ -483,7 +831,9 @@ private struct CommandScrollZoomCapture: NSViewRepresentable {
         }
 
         deinit {
-            removeMonitor()
+            Task { @MainActor [weak self] in
+                self?.removeMonitor()
+            }
         }
 
         private func installMonitorIfNeeded() {
@@ -514,3 +864,9 @@ private struct CommandScrollZoomCapture: View {
     var body: some View { Color.clear }
 }
 #endif
+
+private extension String {
+    var diagramAnchorComponent: String {
+        trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+    }
+}

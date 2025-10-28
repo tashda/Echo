@@ -13,7 +13,7 @@ struct PlatformRGBAComponents: Equatable, Codable {
     var alpha: Double
 }
 
-final class PlatformColorConverter {
+final class PlatformColorConverter: @unchecked Sendable {
     static let shared = PlatformColorConverter()
 
     private init() {}

@@ -6,7 +6,7 @@ import AppKit
 import UIKit
 #endif
 
-private let postgresDataTypeOptions: [String] = [
+let postgresDataTypeOptions: [String] = [
     "bigint",
     "bigserial",
     "bit",
@@ -56,24 +56,41 @@ struct TableStructureEditorView: View {
     @ObservedObject var viewModel: TableStructureEditorViewModel
     @EnvironmentObject private var appModel: AppModel
     
-    @State private var activeIndexEditor: IndexEditorPresentation?
-    @State private var activeColumnEditor: ColumnEditorPresentation?
-    @State private var activePrimaryKeyEditor: PrimaryKeyEditorPresentation?
-    @State private var activeUniqueConstraintEditor: UniqueConstraintEditorPresentation?
-    @State private var activeForeignKeyEditor: ForeignKeyEditorPresentation?
-    @State private var selectedSection: TableStructureSection
-    @State private var selectedColumnIDs: Set<TableStructureEditorViewModel.ColumnModel.ID> = []
-    @FocusState private var focusedCustomColumnID: TableStructureEditorViewModel.ColumnModel.ID?
-    @State private var bulkColumnEditor: BulkColumnEditorPresentation?
-    @EnvironmentObject private var themeManager: ThemeManager
+    @State internal var activeIndexEditor: IndexEditorPresentation?
+    @State internal var activeColumnEditor: ColumnEditorPresentation?
+    @State internal var activePrimaryKeyEditor: PrimaryKeyEditorPresentation?
+    @State internal var activeUniqueConstraintEditor: UniqueConstraintEditorPresentation?
+    @State internal var activeForeignKeyEditor: ForeignKeyEditorPresentation?
+    @State internal var selectedSection: TableStructureSection
+    @State internal var selectedColumnIDs: Set<TableStructureEditorViewModel.ColumnModel.ID> = []
+    @State internal var columnIndexLookup: [UUID: Int] = [:]
+    @State internal var selectionAnchor: TableStructureEditorViewModel.ColumnModel.ID?
+    @FocusState internal var focusedCustomColumnID: TableStructureEditorViewModel.ColumnModel.ID?
+    @State internal var bulkColumnEditor: BulkColumnEditorPresentation?
+    @EnvironmentObject internal var themeManager: ThemeManager
 
     init(tab: WorkspaceTab, viewModel: TableStructureEditorViewModel) {
         _tab = ObservedObject(initialValue: tab)
         _viewModel = ObservedObject(initialValue: viewModel)
         _selectedSection = State(initialValue: viewModel.requestedSection ?? .columns)
+        
+        // Initialize column index lookup
+        _columnIndexLookup = State(
+            initialValue: Dictionary(
+                uniqueKeysWithValues: viewModel.columns.enumerated().map { pair in
+                    let (index, column) = pair
+                    return (column.id, index)
+                }
+            )
+        )
     }
 
-    private var visibleColumns: [TableStructureEditorViewModel.ColumnModel] {
+    // Direct access to visible columns - no caching
+    internal var visibleColumns: [TableStructureEditorViewModel.ColumnModel] {
+        viewModel.columns.filter { !$0.isDeleted }
+    }
+    
+    internal var cachedVisibleColumns: [TableStructureEditorViewModel.ColumnModel] {
         viewModel.columns.filter { !$0.isDeleted }
     }
 
@@ -82,43 +99,33 @@ struct TableStructureEditorView: View {
             header
             content
         }
-#if os(macOS)
         .background(Color(nsColor: themeManager.windowBackgroundNSColor))
-#else
-        .background(themeManager.windowBackgroundColor)
-#endif
-        .onDisappear {
-            viewModel.lastError = nil
-            viewModel.lastSuccessMessage = nil
-        }
-        .onAppear {
+        .task {
+            // Lightweight initialization
             if let requested = viewModel.requestedSection {
                 selectedSection = requested
                 viewModel.requestedSection = nil
             }
         }
-        .onChange(of: viewModel.columns) { _ in
+        .onChange(of: viewModel.columns) { _, _ in
+            // Rebuild lookup when columns change
+            rebuildColumnIndexLookup()
             pruneSelectedColumns()
-        }
-        .onReceive(viewModel.$requestedSection.compactMap { $0 }) { section in
-            selectedSection = section
-            viewModel.requestedSection = nil
         }
         .sheet(item: $activeIndexEditor) { presentation in
             if let binding = indexBinding(for: presentation.indexID) {
-                let isNew = binding.wrappedValue.isNew
                 IndexEditorSheet(
                     index: binding,
                     availableColumns: viewModel.columns.filter { !$0.isDeleted }.map { $0.name },
                     onDelete: {
-                        let model = binding.wrappedValue
-                        viewModel.removeIndex(model)
+                        viewModel.removeIndex(binding.wrappedValue)
                         activeIndexEditor = nil
                     },
                     onCancelNew: {
-                        guard isNew else { return }
-                        let model = binding.wrappedValue
-                        viewModel.removeIndex(model)
+                        if binding.wrappedValue.isNew {
+                            viewModel.removeIndex(binding.wrappedValue)
+                        }
+                        activeIndexEditor = nil
                     }
                 )
             }
@@ -129,81 +136,17 @@ struct TableStructureEditorView: View {
                     column: binding,
                     databaseType: tab.connection.databaseType,
                     onDelete: {
-                        let model = binding.wrappedValue
-                        viewModel.removeColumn(model)
+                        viewModel.removeColumn(binding.wrappedValue)
                         activeColumnEditor = nil
                     },
                     onCancelNew: {
-                        guard presentation.isNew else { return }
-                        let model = binding.wrappedValue
-                        viewModel.removeColumn(model)
+                        if binding.wrappedValue.isNew {
+                            viewModel.removeColumn(binding.wrappedValue)
+                        }
+                        activeColumnEditor = nil
                     }
                 )
             }
-        }
-        .sheet(item: $activePrimaryKeyEditor) { presentation in
-            if let binding = primaryKeyBinding {
-                PrimaryKeyEditorSheet(
-                    primaryKey: binding,
-                    availableColumns: viewModel.columns.filter { !$0.isDeleted }.map { $0.name },
-                    onDelete: {
-                        viewModel.removePrimaryKey()
-                        activePrimaryKeyEditor = nil
-                    },
-                    onCancelNew: {
-                        guard presentation.isNew else { return }
-                        viewModel.primaryKey = nil
-                        viewModel.clearPrimaryKeyRemoval()
-                    }
-                )
-            }
-        }
-        .sheet(item: $activeUniqueConstraintEditor) { presentation in
-            if let binding = uniqueConstraintBinding(for: presentation.constraintID) {
-                UniqueConstraintEditorSheet(
-                    constraint: binding,
-                    availableColumns: viewModel.columns.filter { !$0.isDeleted }.map { $0.name },
-                    onDelete: {
-                        let model = binding.wrappedValue
-                        viewModel.removeUniqueConstraint(model)
-                        activeUniqueConstraintEditor = nil
-                    },
-                    onCancelNew: {
-                        guard presentation.isNew else { return }
-                        let model = binding.wrappedValue
-                        viewModel.removeUniqueConstraint(model)
-                    }
-                )
-            }
-        }
-        .sheet(item: $activeForeignKeyEditor) { presentation in
-            if let binding = foreignKeyBinding(for: presentation.foreignKeyID) {
-                ForeignKeyEditorSheet(
-                    foreignKey: binding,
-                    availableColumns: viewModel.columns.filter { !$0.isDeleted }.map { $0.name },
-                    onDelete: {
-                        let model = binding.wrappedValue
-                        viewModel.removeForeignKey(model)
-                        activeForeignKeyEditor = nil
-                    },
-                    onCancelNew: {
-                        guard presentation.isNew else { return }
-                        let model = binding.wrappedValue
-                        viewModel.removeForeignKey(model)
-                    }
-                )
-            }
-        }
-        .sheet(item: $bulkColumnEditor) { presentation in
-            let bindings = presentation.columnIDs.compactMap { columnBinding(for: $0) }
-            BulkColumnEditorSheet(
-                mode: presentation.mode,
-                columns: bindings,
-                databaseType: tab.connection.databaseType,
-                onApply: { value in
-                    applyBulkEdit(mode: presentation.mode, value: value, bindings: bindings)
-                }
-            )
         }
     }
 
@@ -213,9 +156,10 @@ struct TableStructureEditorView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("\(viewModel.schemaName).\(viewModel.tableName)")
                         .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(headerPrimaryColor)
                     Label(tab.connection.connectionName, systemImage: "externaldrive.connected.to.line.below")
                         .font(.system(size: 12, weight: .medium))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(headerSecondaryColor)
                         .labelStyle(.titleAndIcon)
                 }
 
@@ -236,6 +180,14 @@ struct TableStructureEditorView: View {
         .padding(.horizontal, 24)
         .padding(.top, 24)
         .padding(.bottom, 12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(headerBackgroundColor)
+        .overlay(
+            Rectangle()
+                .fill(headerBorderColor)
+                .frame(height: 1),
+            alignment: .bottom
+        )
     }
 
     private var content: some View {
@@ -465,94 +417,109 @@ struct TableStructureEditorView: View {
 #endif
     }
 
+    private var headerBackgroundColor: Color {
+#if os(macOS)
+        Color(nsColor: themeManager.surfaceBackgroundNSColor)
+#else
+        themeManager.surfaceBackgroundColor
+#endif
+    }
+
+    private var headerBorderColor: Color {
+        themeManager.surfaceForegroundColor.opacity(themeManager.effectiveColorScheme == .dark ? 0.35 : 0.12)
+    }
+
+    private var headerPrimaryColor: Color {
+        themeManager.surfaceForegroundColor
+    }
+
+    private var headerSecondaryColor: Color {
+        themeManager.surfaceForegroundColor.opacity(themeManager.effectiveColorScheme == .dark ? 0.7 : 0.55)
+    }
+
     private var columnsSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 12) {
+            modernColumnsHeader
+            adaptiveColumnsTable
+        }
+        .padding(.vertical, 6)
+    }
+    
+    private var modernColumnsHeader: some View {
+        HStack(spacing: 12) {
+            Label("Columns", systemImage: "tablecells")
+                .labelStyle(.titleAndIcon)
+                .font(.system(size: 15, weight: .semibold))
+            
+            if !selectedColumnIDs.isEmpty {
+                Text("(\(selectedColumnIDs.count) selected)")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+            }
+            
+            Spacer()
+            
             HStack(spacing: 8) {
-                Label("Columns", systemImage: "tablecells")
-                    .labelStyle(.titleAndIcon)
-                Spacer()
+                if !selectedColumnIDs.isEmpty {
+                    Menu {
+                        let targets = selectedColumnIDs.compactMap { id in
+                            visibleColumns.first(where: { $0.id == id })
+                        }
+                        
+                        if targets.count > 1 {
+                            Button("Edit Data Type") { 
+                                presentBulkEditor(mode: .dataType, columns: targets) 
+                            }
+                            Button("Edit Default Value") { 
+                                presentBulkEditor(mode: .defaultValue, columns: targets) 
+                            }
+                            Button("Edit Generated Expression") { 
+                                presentBulkEditor(mode: .generatedExpression, columns: targets) 
+                            }
+                            Divider()
+                        }
+                        
+                        Button("Remove Selected", role: .destructive) {
+                            removeColumns(targets)
+                        }
+                    } label: {
+                        Label("Actions", systemImage: "ellipsis.circle")
+                    }
+                    .controlSize(.small)
+                    .buttonStyle(.bordered)
+                }
+                
                 Button(action: presentNewColumn) {
                     Label("Add Column", systemImage: "plus")
                 }
                 .controlSize(.small)
-            }
-
-            Divider()
-
-            if visibleColumns.isEmpty {
-                placeholderText("No columns yet")
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.vertical, 18)
-            } else {
-                columnsTable
+                .buttonStyle(.borderedProminent)
             }
         }
-        .padding(.vertical, 6)
     }
 
     @ViewBuilder
-    private var columnsTable: some View {
+    internal var columnsTable: some View {
 #if os(macOS)
-        Table(visibleColumns, selection: $selectedColumnIDs) {
-            TableColumn("Name") { column in
-                Button { presentColumnEditor(for: column) } label: {
-                    Text(column.name)
-                        .font(.system(size: 13))
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                }
-                .buttonStyle(.plain)
-            }
-            .width(ColumnLayout.name)
+        VStack(spacing: 0) {
+            columnsHeader
 
-            TableColumn("Data Type") { column in
-                dataTypeCell(for: column, binding: columnBinding(for: column.id))
-            }
-            .width(ColumnLayout.dataType)
+            Divider()
+                .background(tableDividerColor)
 
-            TableColumn("Allow Null") { column in
-                allowNullCell(for: column, binding: columnBinding(for: column.id))
-            }
-            .width(ColumnLayout.allowNull)
-
-            TableColumn("Default") { column in
-                defaultValueCell(for: column, binding: columnBinding(for: column.id))
-            }
-            .width(ColumnLayout.defaultValue)
-
-            TableColumn("Generated") { column in
-                generatedExpressionCell(for: column, binding: columnBinding(for: column.id))
-            }
-            .width(ColumnLayout.generated)
-
-            TableColumn("Status") { column in
-                statusCell(for: column)
-            }
-            .width(ColumnLayout.status)
-
-            TableColumn("Changes") { column in
-                changesCell(for: column)
-            }
-        }
-        .tableStyle(.inset(alternatesRowBackgrounds: true))
-        .contextMenu(forSelectionType: TableStructureEditorViewModel.ColumnModel.ID.self) { selection in
-            let targets = visibleColumns.filter { selection.contains($0.id) }
-            if let first = targets.first, targets.count == 1 {
-                Button("Edit Column") { presentColumnEditor(for: first) }
-            }
-            if targets.count > 1 {
-                Menu("Edit Columns") {
-                    Button("Edit Data Type") { presentBulkEditor(mode: .dataType, columns: targets) }
-                    Button("Edit Default Value") { presentBulkEditor(mode: .defaultValue, columns: targets) }
-                    Button("Edit Generated Expression") { presentBulkEditor(mode: .generatedExpression, columns: targets) }
+            LazyVStack(spacing: 0) {
+                ForEach(Array(visibleColumns.enumerated()), id: \.element.id) { index, column in
+                    columnRow(for: column, index: index)
+                        .background(rowBackgroundColor(for: index, isSelected: selectedColumnIDs.contains(column.id)))
                 }
             }
-            if !targets.isEmpty {
-                let title = targets.count == 1 ? "Remove Column" : "Remove Columns"
-                Button(title, role: .destructive) { removeColumns(targets) }
-            }
         }
-        .modifier(DisableTableScrolling())
-        .frame(height: columnsTableHeight)
+        .background(tableBackgroundColor)
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .stroke(tableBorderColor, lineWidth: 1)
+        )
 #else
         List(visibleColumns) { column in
             VStack(alignment: .leading, spacing: 4) {
@@ -576,10 +543,190 @@ struct TableStructureEditorView: View {
     }
 
 #if os(macOS)
+    private var columnsHeader: some View {
+        HStack(spacing: 0) {
+            headerLabel("Name", width: ColumnLayout.name, alignment: .leading)
+            headerLabel("Data Type", width: ColumnLayout.dataType, alignment: .leading)
+            headerLabel("Allow Null", width: ColumnLayout.allowNull, alignment: .center)
+            headerLabel("Default", width: ColumnLayout.defaultValue, alignment: .trailing)
+            headerLabel("Generated", width: ColumnLayout.generated, alignment: .trailing)
+            headerLabel("Status", width: ColumnLayout.status, alignment: .leading)
+            Text("Changes")
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .font(.system(size: 12, weight: .semibold))
+        .foregroundStyle(tableHeaderTextColor)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background(tableHeaderBackgroundColor)
+    }
+
+    private func headerLabel(_ title: String, width: CGFloat, alignment: Alignment) -> some View {
+        Text(title)
+            .frame(width: width, alignment: alignment)
+    }
+
+    private func columnRow(for column: TableStructureEditorViewModel.ColumnModel, index: Int) -> some View {
+        let binding = columnBinding(for: column.id)
+        let isSelected = selectedColumnIDs.contains(column.id)
+        let shouldShowMenu = isSelected || selectionAnchor == column.id || focusedCustomColumnID == column.id
+
+        return HStack(spacing: 0) {
+            Text(column.name)
+                .font(.system(size: 13))
+                .frame(width: ColumnLayout.name, alignment: .leading)
+                .padding(.vertical, 1)
+                .padding(.leading, 4)
+
+            dataTypeCell(for: column, binding: binding, isMenuVisible: shouldShowMenu)
+                .frame(width: ColumnLayout.dataType, alignment: .leading)
+                .padding(.horizontal, 8)
+
+            allowNullCell(for: column, binding: binding)
+                .frame(width: ColumnLayout.allowNull, alignment: .center)
+
+            defaultValueCell(for: column, binding: binding)
+                .frame(width: ColumnLayout.defaultValue, alignment: .trailing)
+                .padding(.horizontal, 8)
+
+            generatedExpressionCell(for: column, binding: binding)
+                .frame(width: ColumnLayout.generated, alignment: .trailing)
+                .padding(.horizontal, 8)
+
+            statusCell(for: column)
+                .frame(width: ColumnLayout.status, alignment: .leading)
+                .padding(.horizontal, 8)
+
+            changesCell(for: column)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 12)
+        }
+        .padding(.vertical, 6)
+        .overlay(
+            Rectangle()
+                .fill(rowDividerColor)
+                .frame(height: 1),
+            alignment: .bottom
+        )
+        .contentShape(Rectangle())
+        .onTapGesture {
+            updateSelection(with: column.id)
+        }
+        .onTapGesture(count: 2) {
+            presentColumnEditor(for: column)
+        }
+        .contextMenu {
+            let targets = contextMenuTargets(for: column)
+            if let first = targets.first, targets.count == 1 {
+                Button("Edit Column") { presentColumnEditor(for: first) }
+            }
+            if targets.count > 1 {
+                Menu("Edit Columns") {
+                    Button("Edit Data Type") { presentBulkEditor(mode: .dataType, columns: targets) }
+                    Button("Edit Default Value") { presentBulkEditor(mode: .defaultValue, columns: targets) }
+                    Button("Edit Generated Expression") { presentBulkEditor(mode: .generatedExpression, columns: targets) }
+                }
+            }
+            if !targets.isEmpty {
+                let title = targets.count == 1 ? "Remove Column" : "Remove Columns"
+                Button(title, role: .destructive) { removeColumns(targets) }
+            }
+        }
+        .background(rowBackgroundColor(for: index, isSelected: isSelected))
+    }
+
+    private func updateSelection(with columnID: UUID) {
+#if os(macOS)
+        if let event = NSApp.currentEvent {
+            let modifiers = event.modifierFlags
+            if modifiers.contains(.command) {
+                if selectedColumnIDs.contains(columnID) {
+                    selectedColumnIDs.remove(columnID)
+                    if selectionAnchor == columnID {
+                        selectionAnchor = selectedColumnIDs.first
+                    }
+                } else {
+                    selectedColumnIDs.insert(columnID)
+                    selectionAnchor = columnID
+                }
+                return
+            }
+
+            if modifiers.contains(.shift), let anchor = selectionAnchor,
+               let anchorIndex = indexOfVisibleColumn(anchor),
+               let currentIndex = indexOfVisibleColumn(columnID) {
+                let range = anchorIndex <= currentIndex ? anchorIndex...currentIndex : currentIndex...anchorIndex
+                let ids = range.map { visibleColumns[$0].id }
+                selectedColumnIDs = Set(ids)
+                return
+            }
+        }
+#endif
+        selectedColumnIDs = [columnID]
+        selectionAnchor = columnID
+    }
+
+    internal func contextMenuTargets(for column: TableStructureEditorViewModel.ColumnModel) -> [TableStructureEditorViewModel.ColumnModel] {
+        if selectedColumnIDs.contains(column.id) {
+            let selected = selectedColumnIDs
+            return visibleColumns.filter { selected.contains($0.id) }
+        } else {
+            return [column]
+        }
+    }
+
+    private func indexOfVisibleColumn(_ id: UUID) -> Int? {
+        visibleColumns.firstIndex { $0.id == id }
+    }
+
+    private func rowBackgroundColor(for index: Int, isSelected: Bool) -> Color {
+        if isSelected {
+            return rowSelectedBackgroundColor
+        }
+        return index.isMultiple(of: 2) ? tableRowPrimaryColor : tableRowAlternateColor
+    }
+
+    private var tableBackgroundColor: Color {
+        Color(nsColor: themeManager.surfaceBackgroundNSColor)
+    }
+
+    private var tableHeaderBackgroundColor: Color {
+        Color(nsColor: themeManager.surfaceBackgroundNSColor.withAlphaComponent(themeManager.effectiveColorScheme == .dark ? 0.9 : 0.96))
+    }
+
+    private var tableHeaderTextColor: Color {
+        themeManager.surfaceForegroundColor.opacity(themeManager.effectiveColorScheme == .dark ? 0.85 : 0.65)
+    }
+
+    private var tableBorderColor: Color {
+        themeManager.surfaceForegroundColor.opacity(themeManager.effectiveColorScheme == .dark ? 0.4 : 0.15)
+    }
+
+    private var tableDividerColor: Color {
+        themeManager.surfaceForegroundColor.opacity(themeManager.effectiveColorScheme == .dark ? 0.35 : 0.1)
+    }
+
+    private var tableRowPrimaryColor: Color {
+        tableBackgroundColor
+    }
+
+    private var tableRowAlternateColor: Color {
+        Color(nsColor: themeManager.surfaceBackgroundNSColor.withAlphaComponent(themeManager.effectiveColorScheme == .dark ? 0.78 : 0.99))
+    }
+
+    private var rowDividerColor: Color {
+        themeManager.surfaceForegroundColor.opacity(themeManager.effectiveColorScheme == .dark ? 0.3 : 0.08)
+    }
+
+    private var rowSelectedBackgroundColor: Color {
+        accentColor.opacity(themeManager.effectiveColorScheme == .dark ? 0.38 : 0.2)
+    }
+
     @ViewBuilder
     private func dataTypeCell(
         for column: TableStructureEditorViewModel.ColumnModel,
-        binding: Binding<TableStructureEditorViewModel.ColumnModel>?
+        binding: Binding<TableStructureEditorViewModel.ColumnModel>?,
+        isMenuVisible: Bool
     ) -> some View {
         if let binding {
             HStack(spacing: 4) {
@@ -593,41 +740,8 @@ struct TableStructureEditorView: View {
                 )
                 .focused($focusedCustomColumnID, equals: column.id)
 
-                if #available(macOS 13.0, *) {
-                    Menu {
-                        ForEach(postgresDataTypeOptions, id: \.self) { option in
-                            Button(option) { binding.wrappedValue.dataType = option }
-                        }
-                        Divider()
-                        Button("Custom…") { focusedCustomColumnID = column.id }
-                    } label: {
-                        Image(systemName: "chevron.down")
-                            .font(.system(size: 11, weight: .semibold))
-                            .foregroundStyle(.secondary)
-                            .padding(.vertical, 3)
-                            .padding(.horizontal, 5)
-                            .background(inlineButtonBackground)
-                            .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
-                    }
-                    .menuStyle(.borderlessButton)
-                    .menuIndicator(.hidden)
-                } else {
-                    Menu {
-                        ForEach(postgresDataTypeOptions, id: \.self) { option in
-                            Button(option) { binding.wrappedValue.dataType = option }
-                        }
-                        Divider()
-                        Button("Custom…") { focusedCustomColumnID = column.id }
-                    } label: {
-                        Image(systemName: "chevron.down")
-                            .font(.system(size: 11, weight: .semibold))
-                            .foregroundStyle(.secondary)
-                            .padding(.vertical, 3)
-                            .padding(.horizontal, 5)
-                            .background(inlineButtonBackground)
-                            .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
-                    }
-                    .menuStyle(.borderlessButton)
+                if isMenuVisible {
+                    dataTypeMenuButton(for: column, binding: binding)
                 }
             }
         } else {
@@ -636,6 +750,49 @@ struct TableStructureEditorView: View {
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
+    }
+
+    @ViewBuilder
+    private func dataTypeMenuButton(
+        for column: TableStructureEditorViewModel.ColumnModel,
+        binding: Binding<TableStructureEditorViewModel.ColumnModel>
+    ) -> some View {
+        if #available(macOS 13.0, *) {
+            dataTypeMenuBase(for: column, binding: binding)
+                .menuIndicator(.hidden)
+        } else {
+            dataTypeMenuBase(for: column, binding: binding)
+        }
+    }
+
+    private func dataTypeMenuBase(
+        for column: TableStructureEditorViewModel.ColumnModel,
+        binding: Binding<TableStructureEditorViewModel.ColumnModel>
+    ) -> some View {
+        Menu {
+            dataTypeMenuItems(for: column, binding: binding)
+        } label: {
+            Image(systemName: "chevron.down")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(.secondary)
+                .padding(.vertical, 3)
+                .padding(.horizontal, 5)
+                .background(inlineButtonBackground)
+                .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
+        }
+        .menuStyle(.borderlessButton)
+    }
+
+    @ViewBuilder
+    private func dataTypeMenuItems(
+        for column: TableStructureEditorViewModel.ColumnModel,
+        binding: Binding<TableStructureEditorViewModel.ColumnModel>
+    ) -> some View {
+        ForEach(postgresDataTypeOptions, id: \.self) { option in
+            Button(option) { binding.wrappedValue.dataType = option }
+        }
+        Divider()
+        Button("Custom…") { focusedCustomColumnID = column.id }
     }
     @ViewBuilder
     private func allowNullCell(for column: TableStructureEditorViewModel.ColumnModel, binding: Binding<TableStructureEditorViewModel.ColumnModel>?) -> some View {
@@ -710,12 +867,6 @@ struct TableStructureEditorView: View {
         }
     }
 
-    private var columnsTableHeight: CGFloat {
-        let header: CGFloat = 30
-        let row: CGFloat = 28
-        return max(header + CGFloat(max(visibleColumns.count, 1)) * row, header + row * 3)
-    }
-
     private enum ColumnLayout {
         static let name: CGFloat = 220
         static let dataType: CGFloat = 160
@@ -769,23 +920,203 @@ struct TableStructureEditorView: View {
         placeholder: String,
         alignment: TextAlignment
     ) -> some View {
-        let resolvedAlignment: Alignment = alignment == .trailing ? .trailing : (alignment == .center ? .center : .leading)
-
-        return ZStack(alignment: resolvedAlignment) {
-            if text.wrappedValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                Text(placeholder)
-                    .foregroundStyle(Color.secondary.opacity(0.5))
-            }
-
-            TextField("", text: text)
-                .textFieldStyle(.plain)
-                .font(.system(size: 12))
-                .multilineTextAlignment(alignment)
-        }
-        .frame(maxWidth: .infinity, alignment: resolvedAlignment)
+        InlineEditableCell(
+            value: text,
+            placeholder: placeholder,
+            alignment: alignment,
+            themeManager: themeManager
+        )
     }
 
-    private func columnStatusMetadata(for column: TableStructureEditorViewModel.ColumnModel) -> (title: String, systemImage: String, tint: Color) {
+#if os(macOS)
+    private struct InlineEditableCell: View {
+        @Binding var value: String
+        let placeholder: String
+        let alignment: TextAlignment
+        let themeManager: ThemeManager
+
+        @State private var isEditing = false
+        @State private var workingValue: String = ""
+        @State private var focusSession: Int = 0
+
+        private var swiftAlignment: Alignment {
+            switch alignment {
+            case .trailing: return .trailing
+            case .center: return .center
+            default: return .leading
+            }
+        }
+
+        private var textAlignment: NSTextAlignment {
+            switch alignment {
+            case .trailing: return .right
+            case .center: return .center
+            default: return .left
+            }
+        }
+
+        private var textColor: Color {
+            Color(nsColor: themeManager.surfaceForegroundNSColor)
+        }
+
+        private var placeholderColor: Color {
+            let nsColor = themeManager.surfaceForegroundNSColor.withAlphaComponent(themeManager.effectiveColorScheme == .dark ? 0.4 : 0.45)
+            return Color(nsColor: nsColor)
+        }
+
+        private var displayValue: String {
+            value
+        }
+
+        private var isValueEmpty: Bool {
+            displayValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        }
+
+        var body: some View {
+            ZStack(alignment: swiftAlignment) {
+                if isEditing {
+                    InlineEditableTextField(
+                        text: $workingValue,
+                        alignment: textAlignment,
+                        themeManager: themeManager,
+                        focusSession: focusSession,
+                        onCommit: commit,
+                        onCancel: cancel
+                    )
+                    .frame(maxWidth: .infinity, alignment: swiftAlignment)
+                } else {
+                    if isValueEmpty {
+                        Text(placeholder)
+                            .foregroundStyle(placeholderColor)
+                            .frame(maxWidth: .infinity, alignment: swiftAlignment)
+                    } else {
+                        Text(displayValue)
+                            .foregroundStyle(textColor)
+                            .frame(maxWidth: .infinity, alignment: swiftAlignment)
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: swiftAlignment)
+            .contentShape(Rectangle())
+            .onTapGesture {
+                beginEditing()
+            }
+        }
+
+        private func beginEditing() {
+            workingValue = value
+            focusSession &+= 1
+            isEditing = true
+        }
+
+        private func commit(_ newValue: String) {
+            value = newValue
+            workingValue = newValue
+            isEditing = false
+        }
+
+        private func cancel() {
+            workingValue = value
+            isEditing = false
+        }
+    }
+
+    private struct InlineEditableTextField: NSViewRepresentable {
+        @Binding var text: String
+        let alignment: NSTextAlignment
+        let themeManager: ThemeManager
+        let focusSession: Int
+        let onCommit: (String) -> Void
+        let onCancel: () -> Void
+
+        func makeCoordinator() -> Coordinator {
+            Coordinator(parent: self)
+        }
+
+        func makeNSView(context: Context) -> NSTextField {
+            let field = NSTextField()
+            field.isBordered = false
+            field.drawsBackground = false
+            field.font = NSFont.systemFont(ofSize: 12)
+            field.alignment = alignment
+            field.delegate = context.coordinator
+            field.focusRingType = .none
+            field.lineBreakMode = .byTruncatingTail
+            field.translatesAutoresizingMaskIntoConstraints = false
+            return field
+        }
+
+        func updateNSView(_ nsView: NSTextField, context: Context) {
+            context.coordinator.parent = self
+
+            if nsView.stringValue != text {
+                nsView.stringValue = text
+            }
+
+            nsView.alignment = alignment
+            nsView.font = NSFont.systemFont(ofSize: 12)
+            nsView.textColor = themeManager.surfaceForegroundNSColor
+
+            if context.coordinator.lastFocusSession != focusSession {
+                context.coordinator.lastFocusSession = focusSession
+                DispatchQueue.main.async {
+                    nsView.window?.makeFirstResponder(nsView)
+                    if let editor = nsView.currentEditor() {
+                        editor.selectedRange = NSRange(location: 0, length: (nsView.stringValue as NSString).length)
+                    }
+                }
+            }
+        }
+
+        final class Coordinator: NSObject, NSTextFieldDelegate {
+            var parent: InlineEditableTextField
+            var lastFocusSession: Int = -1
+            private var didHandleCommand = false
+
+            init(parent: InlineEditableTextField) {
+                self.parent = parent
+            }
+
+            func control(_ control: NSControl, textView: NSTextView, doCommandBy commandSelector: Selector) -> Bool {
+                switch commandSelector {
+                case #selector(NSResponder.cancelOperation(_:)):
+                    didHandleCommand = true
+                    parent.onCancel()
+                    return true
+                case #selector(NSResponder.insertNewline(_:)):
+                    didHandleCommand = true
+                    parent.onCommit(control.stringValue)
+                    return true
+                default:
+                    return false
+                }
+            }
+
+            func controlTextDidEndEditing(_ notification: Notification) {
+                guard let field = notification.object as? NSTextField else { return }
+                if didHandleCommand {
+                    didHandleCommand = false
+                    return
+                }
+                parent.onCommit(field.stringValue)
+            }
+        }
+    }
+#else
+    private struct InlineEditableCell: View {
+        @Binding var value: String
+        let placeholder: String
+        let alignment: TextAlignment
+        let themeManager: ThemeManager
+
+        var body: some View {
+            TextField(placeholder, text: $value)
+                .multilineTextAlignment(alignment)
+                .textFieldStyle(.plain)
+        }
+    }
+#endif
+    internal func columnStatusMetadata(for column: TableStructureEditorViewModel.ColumnModel) -> (title: String, systemImage: String, tint: Color) {
         if column.isNew {
             return ("New", "sparkles", Color.accentColor)
         }
@@ -795,7 +1126,7 @@ struct TableStructureEditorView: View {
         return ("Synced", "checkmark.circle", Color.secondary)
     }
 
-    private func columnChangeDescription(for column: TableStructureEditorViewModel.ColumnModel) -> String? {
+    internal func columnChangeDescription(for column: TableStructureEditorViewModel.ColumnModel) -> String? {
         var parts: [String] = []
 
         if column.hasRename, let previous = column.original?.name {
@@ -819,7 +1150,7 @@ struct TableStructureEditorView: View {
         return parts.isEmpty ? nil : parts.joined(separator: " • ")
     }
 
-    private func removeColumns(_ columns: [TableStructureEditorViewModel.ColumnModel]) {
+    internal func removeColumns(_ columns: [TableStructureEditorViewModel.ColumnModel]) {
         guard !columns.isEmpty else { return }
         columns.forEach { column in
             viewModel.removeColumn(column)
@@ -827,7 +1158,7 @@ struct TableStructureEditorView: View {
         pruneSelectedColumns()
     }
 
-    private func presentBulkEditor(mode: BulkColumnEditorPresentation.Mode, columns: [TableStructureEditorViewModel.ColumnModel]) {
+    internal func presentBulkEditor(mode: BulkColumnEditorPresentation.Mode, columns: [TableStructureEditorViewModel.ColumnModel]) {
         guard !columns.isEmpty else { return }
         bulkColumnEditor = BulkColumnEditorPresentation(columnIDs: columns.map(\.id), mode: mode)
     }
@@ -860,6 +1191,18 @@ struct TableStructureEditorView: View {
     private func pruneSelectedColumns() {
         let valid = Set(visibleColumns.map(\.id))
         selectedColumnIDs = selectedColumnIDs.intersection(valid)
+        if let anchor = selectionAnchor, !valid.contains(anchor) {
+            selectionAnchor = selectedColumnIDs.first
+        }
+    }
+
+    private func rebuildColumnIndexLookup() {
+        columnIndexLookup = Dictionary(
+            uniqueKeysWithValues: viewModel.columns.enumerated().map { pair in
+                let (index, column) = pair
+                return (column.id, index)
+            }
+        )
     }
 
     private func presentNewColumn() {
@@ -867,7 +1210,7 @@ struct TableStructureEditorView: View {
         activeColumnEditor = ColumnEditorPresentation(columnID: model.id, isNew: true)
     }
 
-    private func presentColumnEditor(for column: TableStructureEditorViewModel.ColumnModel) {
+    internal func presentColumnEditor(for column: TableStructureEditorViewModel.ColumnModel) {
         activeColumnEditor = ColumnEditorPresentation(columnID: column.id, isNew: column.isNew)
     }
 
@@ -1304,8 +1647,8 @@ struct TableStructureEditorView: View {
         }
     }
 
-    private func columnBinding(for columnID: UUID) -> Binding<TableStructureEditorViewModel.ColumnModel>? {
-        guard let index = viewModel.columns.firstIndex(where: { $0.id == columnID }) else { return nil }
+    internal func columnBinding(for columnID: UUID) -> Binding<TableStructureEditorViewModel.ColumnModel>? {
+        guard let index = columnIndexLookup[columnID], index < viewModel.columns.count else { return nil }
         return $viewModel.columns[index]
     }
 
@@ -1507,35 +1850,35 @@ struct TableStructureEditorView: View {
         }
     }
 
-    private struct ColumnEditorPresentation: Identifiable {
+    internal struct ColumnEditorPresentation: Identifiable {
         let columnID: UUID
         let isNew: Bool
         var id: UUID { columnID }
     }
 
-    private struct PrimaryKeyEditorPresentation: Identifiable {
+    internal struct PrimaryKeyEditorPresentation: Identifiable {
         let id = UUID()
         let isNew: Bool
     }
 
-    private struct UniqueConstraintEditorPresentation: Identifiable {
+    internal struct UniqueConstraintEditorPresentation: Identifiable {
         let constraintID: UUID
         let isNew: Bool
         var id: UUID { constraintID }
     }
 
-    private struct ForeignKeyEditorPresentation: Identifiable {
+    internal struct ForeignKeyEditorPresentation: Identifiable {
         let foreignKeyID: UUID
         let isNew: Bool
         var id: UUID { foreignKeyID }
     }
 
-    private struct IndexEditorPresentation: Identifiable {
+    internal struct IndexEditorPresentation: Identifiable {
         let indexID: UUID
         var id: UUID { indexID }
     }
 
-    fileprivate struct BulkColumnEditorPresentation: Identifiable {
+    struct BulkColumnEditorPresentation: Identifiable {
         enum Mode: String, Identifiable {
             case dataType
             case defaultValue
@@ -1567,1711 +1910,5 @@ struct TableStructureEditorView: View {
             self.action = action
         }
     }
+    
 }
-
-
-private struct DisableTableScrolling: ViewModifier {
-    func body(content: Content) -> some View {
-        if #available(macOS 13.0, *) {
-            content.scrollDisabled(true)
-        } else {
-            content
-        }
-    }
-}
-
-// MARK: - Column Editor Sheet
-
-private struct ColumnEditorSheet: View {
-    @Binding var column: TableStructureEditorViewModel.ColumnModel
-    let databaseType: DatabaseType
-    let onDelete: () -> Void
-    let onCancelNew: () -> Void
-
-    @Environment(\.dismiss) private var dismiss
-    @EnvironmentObject private var themeManager: ThemeManager
-    @State private var draft: Draft
-
-    init(
-        column: Binding<TableStructureEditorViewModel.ColumnModel>,
-        databaseType: DatabaseType,
-        onDelete: @escaping () -> Void,
-        onCancelNew: @escaping () -> Void
-    ) {
-        self._column = column
-        self.databaseType = databaseType
-        self.onDelete = onDelete
-        self.onCancelNew = onCancelNew
-        _draft = State(initialValue: Draft(model: column.wrappedValue, databaseType: databaseType))
-    }
-
-    var body: some View {
-        VStack(spacing: 0) {
-            Form {
-                generalSection
-                behaviorSection
-            }
-            .formStyle(.grouped)
-            .scrollContentBackground(.hidden)
-
-            Divider()
-
-            toolbar
-        }
-        .frame(minWidth: 440, idealWidth: 500, minHeight: 360)
-        .navigationTitle(draft.isEditingExisting ? "Edit Column" : "New Column")
-        .onChange(of: draft.dataType) { newValue in
-            guard isPostgres else { return }
-            if let match = postgresDataTypeOptions.first(where: { $0.caseInsensitiveCompare(newValue) == .orderedSame }) {
-                draft.selectedDataType = match
-            } else {
-                draft.selectedDataType = nil
-            }
-        }
-    }
-
-    private var generalSection: some View {
-        Section {
-            labeledRow(title: "Column Name") {
-                TextField("", text: $draft.name)
-                    .frame(maxWidth: .infinity, alignment: .trailing)
-            }
-            if isPostgres {
-                labeledRow(title: "Data Type") {
-                    Picker("", selection: postgresTypeSelectionBinding) {
-                        Text("Custom").tag("")
-                        ForEach(postgresDataTypeOptions, id: \.self) { type in
-                            Text(type).tag(type)
-                        }
-                    }
-                    .pickerStyle(.menu)
-                    .labelsHidden()
-                    .frame(width: 180, alignment: .trailing)
-                }
-                if draft.selectedDataType == nil {
-                    labeledRow(title: "Custom Data Type") {
-                        TextField("", text: $draft.dataType)
-                            .frame(maxWidth: .infinity, alignment: .trailing)
-                    }
-                }
-            } else {
-                labeledRow(title: "Data Type") {
-                    TextField("", text: $draft.dataType)
-                        .frame(maxWidth: .infinity, alignment: .trailing)
-                }
-            }
-        } footer: {
-            if !draft.canSave {
-                Text("Name and data type cannot be empty.")
-                    .foregroundStyle(.red)
-            }
-        }
-    }
-
-    private var behaviorSection: some View {
-        Section {
-            Toggle("Allow NULL values", isOn: $draft.isNullable)
-            labeledRow(title: "Default Value") {
-                TextField("", text: $draft.defaultValue)
-                    .frame(maxWidth: .infinity, alignment: .trailing)
-            }
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Generated Expression")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-
-                TextEditor(text: $draft.generatedExpression)
-                    .font(.system(size: 13))
-                    .frame(minHeight: generatedExpressionHeight, maxHeight: generatedExpressionHeight)
-                    .padding(.vertical, 6)
-                    .padding(.horizontal, 8)
-                    .background(
-                        RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .fill(fieldBackgroundColor)
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .stroke(fieldStrokeColor, lineWidth: 1)
-                    )
-            }
-        } header: {
-            Text("Behavior")
-        } footer: {
-            Text("Leave optional fields blank to omit them.")
-        }
-    }
-
-    private func labeledRow<Content: View>(title: String, @ViewBuilder content: () -> Content) -> some View {
-        HStack(alignment: .center, spacing: 12) {
-            Text(title)
-                .frame(minWidth: 120, alignment: .leading)
-            Spacer(minLength: 0)
-            content()
-        }
-        .frame(maxWidth: .infinity)
-    }
-
-    private var toolbar: some View {
-        HStack(spacing: 12) {
-            if draft.isEditingExisting {
-                Button("Delete Column", role: .destructive) {
-                    dismiss()
-                    onDelete()
-                }
-                .buttonStyle(.bordered)
-                .tint(.red)
-            }
-
-            Spacer()
-
-            Button("Cancel") {
-                cancelEditing()
-            }
-            .keyboardShortcut(.cancelAction)
-
-            Button("Save") {
-                applyDraft()
-            }
-            .buttonStyle(.borderedProminent)
-            .disabled(!draft.canSave)
-            .keyboardShortcut(.defaultAction)
-            .tint(themeManager.accentColor)
-        }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 14)
-        .background(toolbarBackgroundColor)
-        .overlay(
-            Rectangle()
-                .fill(toolbarBorderColor)
-                .frame(height: 1),
-            alignment: .top
-        )
-    }
-
-    private func applyDraft() {
-        column.name = draft.name.trimmingCharacters(in: .whitespacesAndNewlines)
-        column.dataType = draft.dataType.trimmingCharacters(in: .whitespacesAndNewlines)
-        column.isNullable = draft.isNullable
-
-        let defaultTrimmed = draft.defaultValue.trimmingCharacters(in: .whitespacesAndNewlines)
-        column.defaultValue = defaultTrimmed.isEmpty ? nil : defaultTrimmed
-
-        let expressionTrimmed = draft.generatedExpression.trimmingCharacters(in: .whitespacesAndNewlines)
-        column.generatedExpression = expressionTrimmed.isEmpty ? nil : expressionTrimmed
-
-        dismiss()
-    }
-
-    private func cancelEditing() {
-        dismiss()
-        if !draft.isEditingExisting {
-            onCancelNew()
-        }
-    }
-
-    private var isPostgres: Bool { databaseType == .postgresql }
-
-    private var sheetBackgroundColor: Color {
-        #if os(macOS)
-        Color(nsColor: themeManager.windowBackgroundNSColor)
-        #else
-        themeManager.windowBackgroundColor
-        #endif
-    }
-
-    private var fieldBackgroundColor: Color {
-        #if os(macOS)
-        Color(nsColor: themeManager.surfaceBackgroundNSColor).opacity(0.9)
-        #else
-        themeManager.surfaceBackgroundColor.opacity(0.9)
-        #endif
-    }
-
-    private var fieldStrokeColor: Color {
-        let foreground = themeManager.surfaceForegroundColor
-        return foreground.opacity(themeManager.effectiveColorScheme == .dark ? 0.18 : 0.25)
-    }
-
-    private var toolbarBackgroundColor: Color {
-#if os(macOS)
-        Color(nsColor: themeManager.surfaceBackgroundNSColor)
-#else
-        themeManager.surfaceBackgroundColor
-#endif
-    }
-
-    private var toolbarBorderColor: Color {
-        themeManager.surfaceForegroundColor.opacity(themeManager.effectiveColorScheme == .dark ? 0.3 : 0.12)
-    }
-
-    private var sheetCornerRadius: CGFloat { 18 }
-
-    private var sheetShape: RoundedRectangle {
-        RoundedRectangle(cornerRadius: sheetCornerRadius, style: .continuous)
-    }
-
-    private var sheetBorderColor: Color {
-        let foreground = themeManager.surfaceForegroundColor
-        return foreground.opacity(themeManager.effectiveColorScheme == .dark ? 0.2 : 0.08)
-    }
-
-    private var sheetShadowColor: Color {
-        themeManager.effectiveColorScheme == .dark ? Color.black.opacity(0.45) : Color.black.opacity(0.16)
-    }
-
-    private var generatedExpressionHeight: CGFloat {
-        CGFloat(88) // approximate four lines of text
-    }
-
-    private var postgresTypeSelectionBinding: Binding<String> {
-        Binding<String>(
-            get: { draft.selectedDataType ?? "" },
-            set: { newValue in
-                draft.selectedDataType = newValue.isEmpty ? nil : newValue
-                if !newValue.isEmpty {
-                    draft.dataType = newValue
-                }
-            }
-        )
-    }
-
-    private struct Draft {
-        var name: String
-        var dataType: String
-        var isNullable: Bool
-        var defaultValue: String
-        var generatedExpression: String
-        let isEditingExisting: Bool
-        var selectedDataType: String?
-
-        init(model: TableStructureEditorViewModel.ColumnModel, databaseType: DatabaseType) {
-            self.name = model.name
-            self.dataType = model.dataType
-            self.isNullable = model.isNullable
-            self.defaultValue = model.defaultValue ?? ""
-            self.generatedExpression = model.generatedExpression ?? ""
-            self.isEditingExisting = !model.isNew
-            if databaseType == .postgresql,
-               let match = postgresDataTypeOptions.first(where: { $0.caseInsensitiveCompare(model.dataType) == .orderedSame }) {
-                self.selectedDataType = match
-            } else {
-                self.selectedDataType = nil
-            }
-        }
-
-        var canSave: Bool {
-            !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
-                !dataType.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        }
-    }
-
-}
-// MARK: - Primary Key Editor Sheet
-
-private struct PrimaryKeyEditorSheet: View {
-    @Binding var primaryKey: TableStructureEditorViewModel.PrimaryKeyModel
-    let availableColumns: [String]
-    let onDelete: () -> Void
-    let onCancelNew: () -> Void
-
-    @Environment(\.dismiss) private var dismiss
-    @State private var draft: Draft
-
-    init(
-        primaryKey: Binding<TableStructureEditorViewModel.PrimaryKeyModel>,
-        availableColumns: [String],
-        onDelete: @escaping () -> Void,
-        onCancelNew: @escaping () -> Void
-    ) {
-        self._primaryKey = primaryKey
-        self.availableColumns = availableColumns
-        self.onDelete = onDelete
-        self.onCancelNew = onCancelNew
-        _draft = State(initialValue: Draft(model: primaryKey.wrappedValue, availableColumns: availableColumns))
-    }
-
-    var body: some View {
-        VStack(spacing: 0) {
-            Form {
-                generalSection
-                columnsSection
-            }
-            .formStyle(.grouped)
-            .scrollContentBackground(.hidden)
-
-            Divider()
-
-            toolbar
-        }
-        .frame(minWidth: 460, idealWidth: 500, minHeight: 400)
-        .navigationTitle(draft.isEditingExisting ? "Edit Primary Key" : "New Primary Key")
-    }
-
-    private var generalSection: some View {
-        Section {
-            TextField("Constraint Name", text: $draft.name)
-        } footer: {
-            if draft.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                Text("Name is required.")
-                    .foregroundStyle(.red)
-            }
-        }
-    }
-
-    private var columnsSection: some View {
-        Section {
-            ForEach(Array(draft.columns.enumerated()), id: \.element.id) { index, column in
-                columnRow(for: binding(for: column.id), index: index)
-            }
-
-            HStack {
-                Menu {
-                    ForEach(addableColumns, id: \.self) { name in
-                        Button(name) {
-                            addColumn(named: name)
-                        }
-                    }
-                } label: {
-                    Label("Add Column", systemImage: "plus")
-                }
-                .menuStyle(.borderlessButton)
-                .disabled(addableColumns.isEmpty)
-
-                Spacer()
-            }
-        } footer: {
-            if draft.columns.isEmpty {
-                Text("At least one column is required.")
-                    .foregroundStyle(.red)
-            } else if addableColumns.isEmpty {
-                Text("All available columns are already included.")
-            } else {
-                Text("Columns use the order shown above.")
-            }
-        }
-    }
-
-    private func columnRow(for column: Binding<Draft.Column>, index: Int) -> some View {
-        let columnID = column.wrappedValue.id
-        return HStack(spacing: 12) {
-            VStack(spacing: 2) {
-                Button {
-                    moveColumn(at: index, by: -1)
-                } label: {
-                    Image(systemName: "chevron.up")
-                        .font(.system(size: 10, weight: .bold))
-                }
-                .buttonStyle(.borderless)
-                .disabled(index == 0)
-
-                Button {
-                    moveColumn(at: index, by: 1)
-                } label: {
-                    Image(systemName: "chevron.down")
-                        .font(.system(size: 10, weight: .bold))
-                }
-                .buttonStyle(.borderless)
-                .disabled(index == draft.columns.count - 1)
-            }
-            .frame(width: 24)
-
-            Picker("", selection: column.name) {
-                ForEach(columnOptions(for: columnID), id: \.self) { option in
-                    Text(option).tag(option)
-                }
-            }
-            .labelsHidden()
-            .pickerStyle(.menu)
-            .frame(maxWidth: .infinity)
-
-            Button(role: .destructive) {
-                removeColumn(withID: columnID)
-            } label: {
-                Image(systemName: "minus.circle.fill")
-            }
-            .buttonStyle(.borderless)
-            .disabled(draft.columns.count <= 1)
-        }
-    }
-
-    private var toolbar: some View {
-        HStack(spacing: 12) {
-            if draft.isEditingExisting {
-                Button("Delete Primary Key", role: .destructive) {
-                    dismiss()
-                    onDelete()
-                }
-                .buttonStyle(.bordered)
-            }
-
-            Spacer()
-
-            Button("Cancel") {
-                cancelEditing()
-            }
-            .keyboardShortcut(.cancelAction)
-
-            Button("Save") {
-                applyDraft()
-            }
-            .buttonStyle(.borderedProminent)
-            .disabled(!draft.canSave)
-            .keyboardShortcut(.defaultAction)
-        }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 14)
-        .background(Color(nsColor: .windowBackgroundColor))
-    }
-
-    private func applyDraft() {
-        primaryKey.name = draft.name.trimmingCharacters(in: .whitespacesAndNewlines)
-        primaryKey.columns = draft.columns.map { $0.name }
-        dismiss()
-    }
-
-    private func cancelEditing() {
-        dismiss()
-        if !draft.isEditingExisting {
-            onCancelNew()
-        }
-    }
-
-    private func binding(for columnID: UUID) -> Binding<Draft.Column> {
-        guard let index = draft.columns.firstIndex(where: { $0.id == columnID }) else {
-            fatalError("Column not found")
-        }
-        return $draft.columns[index]
-    }
-
-    private func columnOptions(for columnID: UUID) -> [String] {
-        let selectedByOthers = Set(draft.columns.filter { $0.id != columnID }.map { $0.name })
-        let options = availableColumns.filter { !selectedByOthers.contains($0) }
-        if let current = draft.columns.first(where: { $0.id == columnID })?.name,
-           !current.isEmpty,
-           !options.contains(current) {
-            return (options + [current]).sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
-        }
-        return options.sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
-    }
-
-    private var addableColumns: [String] {
-        availableColumns.filter { name in
-            !draft.columns.contains { $0.name == name }
-        }.sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
-    }
-
-    private func addColumn(named name: String) {
-        draft.columns.append(.init(name: name))
-    }
-
-    private func removeColumn(withID id: UUID) {
-        draft.columns.removeAll { $0.id == id }
-    }
-
-    private func moveColumn(at index: Int, by offset: Int) {
-        let newIndex = index + offset
-        guard newIndex >= 0 && newIndex < draft.columns.count else { return }
-        draft.columns.move(fromOffsets: IndexSet(integer: index), toOffset: newIndex > index ? newIndex + 1 : newIndex)
-    }
-
-    private struct Draft {
-        struct Column: Identifiable {
-            let id = UUID()
-            var name: String
-        }
-
-        var name: String
-        var columns: [Column]
-        let isEditingExisting: Bool
-
-        init(
-            model: TableStructureEditorViewModel.PrimaryKeyModel,
-            availableColumns: [String]
-        ) {
-            self.name = model.name
-            self.columns = model.columns.map { Column(name: $0) }
-            self.isEditingExisting = model.original != nil
-
-            if columns.isEmpty, let first = availableColumns.first {
-                self.columns = [Column(name: first)]
-            }
-        }
-
-        var canSave: Bool {
-            !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
-                !columns.isEmpty &&
-                columns.allSatisfy { !$0.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
-        }
-    }
-}
-
-fileprivate enum BulkColumnEditValue {
-    case dataType(String)
-    case defaultValue(String?)
-    case generatedExpression(String?)
-}
-
-// MARK: - Bulk Column Editor
-
-private struct BulkColumnEditorSheet: View {
-    let mode: TableStructureEditorView.BulkColumnEditorPresentation.Mode
-    let columns: [Binding<TableStructureEditorViewModel.ColumnModel>]
-    let databaseType: DatabaseType
-    let onApply: (BulkColumnEditValue) -> Void
-
-    @Environment(\.dismiss) private var dismiss
-    @EnvironmentObject private var themeManager: ThemeManager
-    @State private var dataType: String = ""
-    @State private var defaultValue: String = ""
-    @State private var generatedExpression: String = ""
-    @State private var selectedPresetType: String? = nil
-
-    init(
-        mode: TableStructureEditorView.BulkColumnEditorPresentation.Mode,
-        columns: [Binding<TableStructureEditorViewModel.ColumnModel>],
-        databaseType: DatabaseType,
-        onApply: @escaping (BulkColumnEditValue) -> Void
-    ) {
-        self.mode = mode
-        self.columns = columns
-        self.databaseType = databaseType
-        self.onApply = onApply
-
-        if let first = columns.first?.wrappedValue {
-            switch mode {
-            case .dataType:
-                if databaseType == .postgresql,
-                   let preset = postgresDataTypeOptions.first(where: { $0.caseInsensitiveCompare(first.dataType) == .orderedSame }) {
-                    _selectedPresetType = State(initialValue: preset)
-                    _dataType = State(initialValue: preset)
-                } else {
-                    _selectedPresetType = State(initialValue: nil)
-                    _dataType = State(initialValue: first.dataType)
-                }
-            case .defaultValue:
-                _selectedPresetType = State(initialValue: nil)
-                _defaultValue = State(initialValue: first.defaultValue ?? "")
-            case .generatedExpression:
-                _selectedPresetType = State(initialValue: nil)
-                _generatedExpression = State(initialValue: first.generatedExpression ?? "")
-            }
-        }
-    }
-
-    var body: some View {
-        VStack(spacing: 0) {
-            contentContainer
-
-            Divider()
-
-            toolbar
-        }
-        .frame(minWidth: 360, idealWidth: 420, minHeight: formHeight)
-        .background(Color(nsColor: .windowBackgroundColor))
-        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-        .shadow(color: Color.black.opacity(0.12), radius: 18, y: 10)
-        .navigationTitle("Edit Columns")
-    }
-
-    private var contentContainer: some View {
-        VStack(spacing: 0) {
-            Section(header: Text(sectionTitle), footer: sectionFooter) {
-                content
-            }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 16)
-        }
-    }
-
-    @ViewBuilder
-    private var content: some View {
-        switch mode {
-        case .dataType:
-            FormRow(label: "Data Type") {
-                dataTypePicker
-            }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 8)
-            if needsCustomTypeField {
-                FormRow(label: "Custom Type") {
-                    plainField(text: $dataType, alignment: .trailing)
-                }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 8)
-            }
-        case .defaultValue:
-            FormRow(label: "Default Value") {
-                plainField(text: $defaultValue, alignment: .trailing)
-            }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 8)
-
-        case .generatedExpression:
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Generated Expression")
-                    .frame(minWidth: 120, alignment: .leading)
-                TextEditor(text: $generatedExpression)
-                    .font(.system(size: 13))
-                    .frame(minHeight: 120)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 8)
-                    .background(
-                        RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .fill(Color(nsColor: .textBackgroundColor))
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .stroke(Color.secondary.opacity(0.25))
-                    )
-            }
-        }
-    }
-
-    private var needsCustomTypeField: Bool {
-        mode == .dataType && (databaseType != .postgresql || selectedPresetType == nil)
-    }
-
-    @ViewBuilder
-    private var dataTypePicker: some View {
-        if databaseType == .postgresql {
-            Picker("", selection: $selectedPresetType) {
-                ForEach(postgresDataTypeOptions, id: \.self) { option in
-                    Text(option).tag(Optional(option))
-                }
-                Text("Custom…").tag(Optional<String>.none)
-            }
-            .labelsHidden()
-            .pickerStyle(.menu)
-            .frame(width: 200, alignment: .trailing)
-            .onChange(of: selectedPresetType) { newValue in
-                if let preset = newValue {
-                    dataType = preset
-                }
-            }
-        } else {
-            plainField(text: $dataType, alignment: .trailing)
-        }
-    }
-
-    private func plainField(text: Binding<String>, alignment: TextAlignment) -> some View {
-        let frameAlignment: Alignment
-        switch alignment {
-        case .trailing: frameAlignment = .trailing
-        case .center: frameAlignment = .center
-        default: frameAlignment = .leading
-        }
-
-        return TextField("", text: text)
-            .textFieldStyle(.plain)
-            .font(.system(size: 13))
-            .multilineTextAlignment(alignment)
-            .padding(.vertical, 6)
-            .frame(maxWidth: .infinity, alignment: frameAlignment)
-    }
-
-    private var sectionTitle: String {
-        switch mode {
-        case .dataType: return "Data Type"
-        case .defaultValue: return "Default"
-        case .generatedExpression: return "Generated Expression"
-        }
-    }
-
-    @ViewBuilder
-    private var sectionFooter: some View {
-        switch mode {
-        case .dataType:
-            Text("Leave blank to retain current types. Choosing a value applies to all selected columns.")
-        case .defaultValue, .generatedExpression:
-            Text("Leave empty to clear the value on all selected columns.")
-        }
-    }
-
-    private var toolbar: some View {
-        HStack(spacing: 12) {
-            Button("Cancel") { dismiss() }
-                .keyboardShortcut(.cancelAction)
-
-            Spacer()
-
-            Button("Apply") {
-                switch mode {
-                case .dataType:
-                    let resolved: String
-                    if databaseType == .postgresql, let preset = selectedPresetType {
-                        resolved = preset
-                    } else {
-                        let trimmed = dataType.trimmingCharacters(in: .whitespacesAndNewlines)
-                        guard !trimmed.isEmpty else { dismiss(); return }
-                        resolved = trimmed
-                    }
-                    onApply(.dataType(resolved))
-                case .defaultValue:
-                    let trimmed = defaultValue.trimmingCharacters(in: .whitespacesAndNewlines)
-                    onApply(.defaultValue(trimmed.isEmpty ? nil : trimmed))
-                case .generatedExpression:
-                    let trimmed = generatedExpression.trimmingCharacters(in: .whitespacesAndNewlines)
-                    onApply(.generatedExpression(trimmed.isEmpty ? nil : trimmed))
-                }
-                dismiss()
-            }
-            .keyboardShortcut(.defaultAction)
-            .buttonStyle(.borderedProminent)
-            .disabled(!canApply)
-        }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 14)
-        .background(.ultraThinMaterial)
-    }
-
-    private var canApply: Bool {
-        switch mode {
-        case .dataType:
-            if databaseType == .postgresql {
-                if let preset = selectedPresetType {
-                    return !preset.isEmpty
-                }
-            }
-            return !dataType.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        case .defaultValue, .generatedExpression:
-            return true
-        }
-    }
-
-    private var formHeight: CGFloat {
-        switch mode {
-        case .dataType, .defaultValue:
-            return 240
-        case .generatedExpression:
-            return 340
-        }
-    }
-}
-
-
-private struct FormRow<Content: View>: View {
-    let label: String
-    let content: Content
-
-    init(label: String, @ViewBuilder content: () -> Content) {
-        self.label = label
-        self.content = content()
-    }
-
-    var body: some View {
-        HStack(alignment: .center, spacing: 12) {
-            Text(label)
-                .frame(minWidth: 120, alignment: .leading)
-            Spacer(minLength: 0)
-            content
-        }
-    }
-}
-// MARK: - Unique Constraint Editor Sheet
-
-private struct UniqueConstraintEditorSheet: View {
-    @Binding var constraint: TableStructureEditorViewModel.UniqueConstraintModel
-    let availableColumns: [String]
-    let onDelete: () -> Void
-    let onCancelNew: () -> Void
-
-    @Environment(\.dismiss) private var dismiss
-    @State private var draft: Draft
-
-    init(
-        constraint: Binding<TableStructureEditorViewModel.UniqueConstraintModel>,
-        availableColumns: [String],
-        onDelete: @escaping () -> Void,
-        onCancelNew: @escaping () -> Void
-    ) {
-        self._constraint = constraint
-        self.availableColumns = availableColumns
-        self.onDelete = onDelete
-        self.onCancelNew = onCancelNew
-        _draft = State(initialValue: Draft(model: constraint.wrappedValue, availableColumns: availableColumns))
-    }
-
-    var body: some View {
-        VStack(spacing: 0) {
-            Form {
-                generalSection
-                columnsSection
-            }
-            .formStyle(.grouped)
-            .scrollContentBackground(.hidden)
-
-            Divider()
-
-            toolbar
-        }
-        .frame(minWidth: 460, idealWidth: 500, minHeight: 400)
-        .navigationTitle(draft.isEditingExisting ? "Edit Unique Constraint" : "New Unique Constraint")
-    }
-
-    private var generalSection: some View {
-        Section {
-            TextField("Constraint Name", text: $draft.name)
-        } footer: {
-            if draft.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                Text("Name is required.")
-                    .foregroundStyle(.red)
-            }
-        }
-    }
-
-    private var columnsSection: some View {
-        Section {
-            ForEach(Array(draft.columns.enumerated()), id: \.element.id) { index, column in
-                columnRow(for: binding(for: column.id), index: index)
-            }
-
-            HStack {
-                Menu {
-                    ForEach(addableColumns, id: \.self) { name in
-                        Button(name) {
-                            addColumn(named: name)
-                        }
-                    }
-                } label: {
-                    Label("Add Column", systemImage: "plus")
-                }
-                .menuStyle(.borderlessButton)
-                .disabled(addableColumns.isEmpty)
-
-                Spacer()
-            }
-        } footer: {
-            if draft.columns.isEmpty {
-                Text("At least one column is required.")
-                    .foregroundStyle(.red)
-            } else if addableColumns.isEmpty {
-                Text("All available columns are already included.")
-            } else {
-                Text("Columns use the order shown above.")
-            }
-        }
-    }
-
-    private func columnRow(for column: Binding<Draft.Column>, index: Int) -> some View {
-        let columnID = column.wrappedValue.id
-        return HStack(spacing: 12) {
-            VStack(spacing: 2) {
-                Button {
-                    moveColumn(at: index, by: -1)
-                } label: {
-                    Image(systemName: "chevron.up")
-                        .font(.system(size: 10, weight: .bold))
-                }
-                .buttonStyle(.borderless)
-                .disabled(index == 0)
-
-                Button {
-                    moveColumn(at: index, by: 1)
-                } label: {
-                    Image(systemName: "chevron.down")
-                        .font(.system(size: 10, weight: .bold))
-                }
-                .buttonStyle(.borderless)
-                .disabled(index == draft.columns.count - 1)
-            }
-            .frame(width: 24)
-
-            Picker("", selection: column.name) {
-                ForEach(columnOptions(for: columnID), id: \.self) { option in
-                    Text(option).tag(option)
-                }
-            }
-            .labelsHidden()
-            .pickerStyle(.menu)
-            .frame(maxWidth: .infinity)
-
-            Button(role: .destructive) {
-                removeColumn(withID: columnID)
-            } label: {
-                Image(systemName: "minus.circle.fill")
-            }
-            .buttonStyle(.borderless)
-            .disabled(draft.columns.count <= 1)
-        }
-    }
-
-    private var toolbar: some View {
-        HStack(spacing: 12) {
-            if draft.isEditingExisting {
-                Button("Delete Constraint", role: .destructive) {
-                    dismiss()
-                    onDelete()
-                }
-                .buttonStyle(.bordered)
-            }
-
-            Spacer()
-
-            Button("Cancel") {
-                cancelEditing()
-            }
-            .keyboardShortcut(.cancelAction)
-
-            Button("Save") {
-                applyDraft()
-            }
-            .buttonStyle(.borderedProminent)
-            .disabled(!draft.canSave)
-            .keyboardShortcut(.defaultAction)
-        }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 14)
-        .background(.ultraThinMaterial)
-    }
-
-    private func applyDraft() {
-        constraint.name = draft.name.trimmingCharacters(in: .whitespacesAndNewlines)
-        constraint.columns = draft.columns.map { $0.name }
-        dismiss()
-    }
-
-    private func cancelEditing() {
-        dismiss()
-        if !draft.isEditingExisting {
-            onCancelNew()
-        }
-    }
-
-    private func binding(for columnID: UUID) -> Binding<Draft.Column> {
-        guard let index = draft.columns.firstIndex(where: { $0.id == columnID }) else {
-            fatalError("Column not found")
-        }
-        return $draft.columns[index]
-    }
-
-    private func columnOptions(for columnID: UUID) -> [String] {
-        let selectedByOthers = Set(draft.columns.filter { $0.id != columnID }.map { $0.name })
-        let options = availableColumns.filter { !selectedByOthers.contains($0) }
-        if let current = draft.columns.first(where: { $0.id == columnID })?.name,
-           !current.isEmpty,
-           !options.contains(current) {
-            return (options + [current]).sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
-        }
-        return options.sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
-    }
-
-    private var addableColumns: [String] {
-        availableColumns.filter { name in
-            !draft.columns.contains { $0.name == name }
-        }.sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
-    }
-
-    private func addColumn(named name: String) {
-        draft.columns.append(.init(name: name))
-    }
-
-    private func removeColumn(withID id: UUID) {
-        draft.columns.removeAll { $0.id == id }
-    }
-
-    private func moveColumn(at index: Int, by offset: Int) {
-        let newIndex = index + offset
-        guard newIndex >= 0 && newIndex < draft.columns.count else { return }
-        draft.columns.move(fromOffsets: IndexSet(integer: index), toOffset: newIndex > index ? newIndex + 1 : newIndex)
-    }
-
-    private struct Draft {
-        struct Column: Identifiable {
-            let id = UUID()
-            var name: String
-        }
-
-        var name: String
-        var columns: [Column]
-        let isEditingExisting: Bool
-
-        init(
-            model: TableStructureEditorViewModel.UniqueConstraintModel,
-            availableColumns: [String]
-        ) {
-            self.name = model.name
-            self.columns = model.columns.map { Column(name: $0) }
-            self.isEditingExisting = model.original != nil
-
-            if columns.isEmpty, let first = availableColumns.first {
-                self.columns = [Column(name: first)]
-            }
-        }
-
-        var canSave: Bool {
-            !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
-                !columns.isEmpty &&
-                columns.allSatisfy { !$0.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
-        }
-    }
-}
-
-// MARK: - Foreign Key Editor Sheet
-
-private struct ForeignKeyEditorSheet: View {
-    @Binding var foreignKey: TableStructureEditorViewModel.ForeignKeyModel
-    let availableColumns: [String]
-    let onDelete: () -> Void
-    let onCancelNew: () -> Void
-
-    @Environment(\.dismiss) private var dismiss
-    @State private var draft: Draft
-
-    init(
-        foreignKey: Binding<TableStructureEditorViewModel.ForeignKeyModel>,
-        availableColumns: [String],
-        onDelete: @escaping () -> Void,
-        onCancelNew: @escaping () -> Void
-    ) {
-        self._foreignKey = foreignKey
-        self.availableColumns = availableColumns
-        self.onDelete = onDelete
-        self.onCancelNew = onCancelNew
-        _draft = State(initialValue: Draft(model: foreignKey.wrappedValue, availableColumns: availableColumns))
-    }
-
-    var body: some View {
-        VStack(spacing: 0) {
-            Form {
-                generalSection
-                columnsSection
-                referenceSection
-                actionsSection
-            }
-            .formStyle(.grouped)
-            .scrollContentBackground(.hidden)
-
-            Divider()
-
-            toolbar
-        }
-        .frame(minWidth: 520, idealWidth: 560, minHeight: 460)
-        .navigationTitle(draft.isEditingExisting ? "Edit Foreign Key" : "New Foreign Key")
-    }
-
-    private var generalSection: some View {
-        Section {
-            TextField("Constraint Name", text: $draft.name)
-
-            HStack {
-                TextField("Schema", text: $draft.referencedSchema)
-                TextField("Table", text: $draft.referencedTable)
-            }
-        } header: {
-            Text("General")
-        } footer: {
-            VStack(alignment: .leading, spacing: 2) {
-                if draft.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                    Text("Name is required.")
-                        .foregroundStyle(.red)
-                }
-                if draft.referencedTable.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                    Text("Referenced table is required.")
-                        .foregroundStyle(.red)
-                }
-            }
-        }
-    }
-
-    private var columnsSection: some View {
-        Section {
-            ForEach(Array(draft.columns.enumerated()), id: \.element.id) { index, column in
-                columnRow(for: binding(for: column.id), index: index)
-            }
-
-            HStack {
-                Menu {
-                    ForEach(addableColumns, id: \.self) { name in
-                        Button(name) {
-                            addColumn(named: name)
-                        }
-                    }
-                } label: {
-                    Label("Add Column", systemImage: "plus")
-                }
-                .menuStyle(.borderlessButton)
-                .disabled(addableColumns.isEmpty)
-
-                Spacer()
-            }
-        } header: {
-            Text("Columns")
-        } footer: {
-            if draft.columns.isEmpty {
-                Text("At least one local column is required.")
-                    .foregroundStyle(.red)
-            } else if addableColumns.isEmpty {
-                Text("All columns are already included.")
-            } else {
-                Text("Order matches the referenced columns below.")
-            }
-        }
-    }
-
-    private func columnRow(for column: Binding<Draft.Column>, index: Int) -> some View {
-        let columnID = column.wrappedValue.id
-        return HStack(spacing: 12) {
-            VStack(spacing: 2) {
-                Button {
-                    moveColumn(at: index, by: -1)
-                } label: {
-                    Image(systemName: "chevron.up")
-                        .font(.system(size: 10, weight: .bold))
-                }
-                .buttonStyle(.borderless)
-                .disabled(index == 0)
-
-                Button {
-                    moveColumn(at: index, by: 1)
-                } label: {
-                    Image(systemName: "chevron.down")
-                        .font(.system(size: 10, weight: .bold))
-                }
-                .buttonStyle(.borderless)
-                .disabled(index == draft.columns.count - 1)
-            }
-            .frame(width: 24)
-
-            Picker("", selection: column.name) {
-                ForEach(columnOptions(for: columnID), id: \.self) { option in
-                    Text(option).tag(option)
-                }
-            }
-            .labelsHidden()
-            .pickerStyle(.menu)
-            .frame(maxWidth: .infinity)
-
-            Button(role: .destructive) {
-                removeColumn(withID: columnID)
-            } label: {
-                Image(systemName: "minus.circle.fill")
-            }
-            .buttonStyle(.borderless)
-            .disabled(draft.columns.count <= 1)
-        }
-    }
-
-    private var referenceSection: some View {
-        Section {
-            TextField("Referenced Columns", text: $draft.referencedColumnsInput)
-        } header: {
-            Text("References")
-        } footer: {
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Separate names with commas in the same order as local columns.")
-                if draft.referencedColumnsMismatch {
-                    Text("Column counts do not match.")
-                        .foregroundStyle(.orange)
-                }
-            }
-        }
-    }
-
-    private var actionsSection: some View {
-        Section {
-            TextField("ON UPDATE", text: $draft.onUpdate)
-            TextField("ON DELETE", text: $draft.onDelete)
-        } header: {
-            Text("Actions")
-        } footer: {
-            Text("Leave blank to use database defaults.")
-        }
-    }
-
-    private var toolbar: some View {
-        HStack(spacing: 12) {
-            if draft.isEditingExisting {
-                Button("Delete Foreign Key", role: .destructive) {
-                    dismiss()
-                    onDelete()
-                }
-                .buttonStyle(.bordered)
-            }
-
-            Spacer()
-
-            Button("Cancel") {
-                cancelEditing()
-            }
-            .keyboardShortcut(.cancelAction)
-
-            Button("Save") {
-                applyDraft()
-            }
-            .buttonStyle(.borderedProminent)
-            .disabled(!draft.canSave)
-            .keyboardShortcut(.defaultAction)
-        }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 14)
-        .background(.ultraThinMaterial)
-    }
-
-    private func applyDraft() {
-        foreignKey.name = draft.name.trimmingCharacters(in: .whitespacesAndNewlines)
-        foreignKey.columns = draft.columns.map { $0.name }
-        foreignKey.referencedSchema = draft.referencedSchema.trimmingCharacters(in: .whitespacesAndNewlines)
-        foreignKey.referencedTable = draft.referencedTable.trimmingCharacters(in: .whitespacesAndNewlines)
-        foreignKey.referencedColumns = draft.referencedColumns
-
-        let updateTrimmed = draft.onUpdate.trimmingCharacters(in: .whitespacesAndNewlines)
-        foreignKey.onUpdate = updateTrimmed.isEmpty ? nil : updateTrimmed
-
-        let deleteTrimmed = draft.onDelete.trimmingCharacters(in: .whitespacesAndNewlines)
-        foreignKey.onDelete = deleteTrimmed.isEmpty ? nil : deleteTrimmed
-
-        dismiss()
-    }
-
-    private func cancelEditing() {
-        dismiss()
-        if !draft.isEditingExisting {
-            onCancelNew()
-        }
-    }
-
-    private func binding(for columnID: UUID) -> Binding<Draft.Column> {
-        guard let index = draft.columns.firstIndex(where: { $0.id == columnID }) else {
-            fatalError("Column not found")
-        }
-        return $draft.columns[index]
-    }
-
-    private func columnOptions(for columnID: UUID) -> [String] {
-        let selectedByOthers = Set(draft.columns.filter { $0.id != columnID }.map { $0.name })
-        let options = availableColumns.filter { !selectedByOthers.contains($0) }
-        if let current = draft.columns.first(where: { $0.id == columnID })?.name,
-           !current.isEmpty,
-           !options.contains(current) {
-            return (options + [current]).sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
-        }
-        return options.sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
-    }
-
-    private var addableColumns: [String] {
-        availableColumns.filter { name in
-            !draft.columns.contains { $0.name == name }
-        }.sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
-    }
-
-    private func addColumn(named name: String) {
-        draft.columns.append(.init(name: name))
-    }
-
-    private func removeColumn(withID id: UUID) {
-        draft.columns.removeAll { $0.id == id }
-    }
-
-    private func moveColumn(at index: Int, by offset: Int) {
-        let newIndex = index + offset
-        guard newIndex >= 0 && newIndex < draft.columns.count else { return }
-        draft.columns.move(fromOffsets: IndexSet(integer: index), toOffset: newIndex > index ? newIndex + 1 : newIndex)
-    }
-
-    private struct Draft {
-        struct Column: Identifiable {
-            let id = UUID()
-            var name: String
-        }
-
-        var name: String
-        var referencedSchema: String
-        var referencedTable: String
-        var columns: [Column]
-        var referencedColumnsInput: String
-        var onUpdate: String
-        var onDelete: String
-        let isEditingExisting: Bool
-
-        init(
-            model: TableStructureEditorViewModel.ForeignKeyModel,
-            availableColumns: [String]
-        ) {
-            self.name = model.name
-            self.referencedSchema = model.referencedSchema
-            self.referencedTable = model.referencedTable
-            self.columns = model.columns.map { Column(name: $0) }
-            self.referencedColumnsInput = model.referencedColumns.joined(separator: ", ")
-            self.onUpdate = model.onUpdate ?? ""
-            self.onDelete = model.onDelete ?? ""
-            self.isEditingExisting = model.original != nil
-
-            if columns.isEmpty, let first = availableColumns.first {
-                self.columns = [Column(name: first)]
-            }
-        }
-
-        var referencedColumns: [String] {
-            referencedColumnsInput
-                .split(separator: ",")
-                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-                .filter { !$0.isEmpty }
-        }
-
-        var referencedColumnsMismatch: Bool {
-            !columns.isEmpty && referencedColumns.count != columns.count
-        }
-
-        var canSave: Bool {
-            !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
-                !referencedTable.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
-                !columns.isEmpty &&
-                columns.allSatisfy { !$0.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
-        }
-    }
-}
-
-// MARK: - Index Editor Sheet
-
-private struct IndexEditorSheet: View {
-    @Binding var index: TableStructureEditorViewModel.IndexModel
-    let availableColumns: [String]
-    let onDelete: () -> Void
-    let onCancelNew: () -> Void
-
-    @Environment(\.dismiss) private var dismiss
-    @State private var draft: Draft
-
-    init(
-        index: Binding<TableStructureEditorViewModel.IndexModel>,
-        availableColumns: [String],
-        onDelete: @escaping () -> Void,
-        onCancelNew: @escaping () -> Void
-    ) {
-        self._index = index
-        self.availableColumns = availableColumns
-        self.onDelete = onDelete
-        self.onCancelNew = onCancelNew
-        _draft = State(initialValue: Draft(model: index.wrappedValue, availableColumns: availableColumns))
-    }
-
-    var body: some View {
-        VStack(spacing: 0) {
-            ScrollView {
-                Form {
-                    generalSection
-                    columnsSection
-                }
-                .formStyle(.grouped)
-                .scrollContentBackground(.hidden)
-            }
-
-            Divider()
-
-            toolbar
-        }
-        .frame(minWidth: 500, idealWidth: 540, minHeight: 420)
-        .navigationTitle(draft.isEditingExisting ? "Edit Index" : "New Index")
-    }
-
-    private var generalSection: some View {
-        Section {
-            LabeledContent("Name") {
-                TextField("Index name", text: $draft.name)
-            }
-
-            Toggle("Unique", isOn: $draft.isUnique)
-
-            LabeledContent("Filter") {
-                TextField("WHERE status = 'active'", text: $draft.filterCondition, axis: .vertical)
-                    .lineLimit(3...6)
-                    .multilineTextAlignment(.trailing)
-            }
-        } header: {
-            Text("General")
-        } footer: {
-            if draft.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                Text("Name is required.")
-                    .foregroundStyle(.red)
-            } else {
-                Text("Filter condition allows creating partial indexes.")
-            }
-        }
-    }
-
-    private var columnsSection: some View {
-        Section {
-            ForEach(Array(draft.columns.enumerated()), id: \.element.id) { index, column in
-                columnRow(for: binding(for: column.id), index: index)
-            }
-
-            HStack {
-                Menu {
-                    ForEach(addableColumns, id: \.self) { columnName in
-                        Button(columnName) {
-                            addColumn(named: columnName)
-                        }
-                    }
-                } label: {
-                    Label("Add Column", systemImage: "plus")
-                }
-                .menuStyle(.borderlessButton)
-                .disabled(addableColumns.isEmpty)
-
-                Spacer()
-            }
-        } header: {
-            Text("Columns")
-        } footer: {
-            if draft.columns.isEmpty {
-                Text("At least one column is required.")
-                    .foregroundStyle(.red)
-            } else if addableColumns.isEmpty {
-                Text("All available columns are already included.")
-            } else {
-                Text("Columns are indexed in the order shown above. Use arrows to reorder.")
-            }
-        }
-    }
-
-    private func binding(for columnID: UUID) -> Binding<Draft.Column> {
-        guard let index = draft.columns.firstIndex(where: { $0.id == columnID }) else {
-            fatalError("Column not found")
-        }
-        return $draft.columns[index]
-    }
-
-    private func columnRow(for column: Binding<Draft.Column>, index: Int) -> some View {
-        let columnID = column.wrappedValue.id
-
-        return HStack(spacing: 12) {
-            VStack(spacing: 2) {
-                Button {
-                    moveColumn(at: index, by: -1)
-                } label: {
-                    Image(systemName: "chevron.up")
-                        .font(.system(size: 10))
-                }
-                .buttonStyle(.borderless)
-                .disabled(index == 0)
-                .help("Move up")
-
-                Button {
-                    moveColumn(at: index, by: 1)
-                } label: {
-                    Image(systemName: "chevron.down")
-                        .font(.system(size: 10))
-                }
-                .buttonStyle(.borderless)
-                .disabled(index == draft.columns.count - 1)
-                .help("Move down")
-            }
-            .frame(width: 20)
-
-            Picker("", selection: column.name) {
-                ForEach(columnOptions, id: \.self) { option in
-                    Text(option).tag(option)
-                }
-            }
-            .labelsHidden()
-            .pickerStyle(.menu)
-            .frame(maxWidth: 200)
-
-            Picker("", selection: column.sortOrder) {
-                Text("Ascending").tag(TableStructureEditorViewModel.IndexModel.Column.SortOrder.ascending)
-                Text("Descending").tag(TableStructureEditorViewModel.IndexModel.Column.SortOrder.descending)
-            }
-            .labelsHidden()
-            .pickerStyle(.segmented)
-            .frame(maxWidth: 180)
-
-            Spacer()
-
-            Button(role: .destructive) {
-                removeColumn(withID: columnID)
-            } label: {
-                Image(systemName: "minus.circle.fill")
-            }
-            .buttonStyle(.borderless)
-            .disabled(draft.columns.count <= 1)
-            .help("Remove column")
-        }
-    }
-
-    private func moveColumn(at index: Int, by offset: Int) {
-        let newIndex = index + offset
-        guard newIndex >= 0 && newIndex < draft.columns.count else { return }
-        withAnimation {
-            draft.columns.move(fromOffsets: IndexSet(integer: index), toOffset: newIndex > index ? newIndex + 1 : newIndex)
-        }
-    }
-
-    private var toolbar: some View {
-        HStack(spacing: 12) {
-            if draft.isEditingExisting {
-                Button("Delete Index", role: .destructive) {
-                    dismiss()
-                    onDelete()
-                }
-                .buttonStyle(.bordered)
-            }
-
-            Spacer()
-
-            Button("Cancel") {
-                cancelEditing()
-            }
-            .keyboardShortcut(.cancelAction)
-
-            Button("Save") {
-                applyDraft()
-                dismiss()
-            }
-            .buttonStyle(.borderedProminent)
-            .disabled(!draft.canSave)
-            .keyboardShortcut(.defaultAction)
-        }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 14)
-        .background(.ultraThinMaterial)
-    }
-
-    private var columnOptions: [String] {
-        let current = draft.columns.map(\.name)
-        let combined = Set(availableColumns + current)
-        return combined.sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
-    }
-
-    private var addableColumns: [String] {
-        availableColumns.filter { name in
-            !draft.columns.contains { $0.name == name }
-        }.sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
-    }
-
-    private func addColumn(named name: String) {
-        draft.columns.append(.init(name: name, sortOrder: .ascending))
-    }
-
-    private func removeColumn(withID id: UUID) {
-        draft.columns.removeAll { $0.id == id }
-    }
-
-    private func applyDraft() {
-        index.name = draft.name.trimmingCharacters(in: .whitespacesAndNewlines)
-        index.isUnique = draft.isUnique
-        index.filterCondition = draft.filterCondition.trimmingCharacters(in: .whitespacesAndNewlines)
-        index.columns = draft.columns.map { column in
-            TableStructureEditorViewModel.IndexModel.Column(name: column.name, sortOrder: column.sortOrder)
-        }
-    }
-
-    private func cancelEditing() {
-        if draft.isEditingExisting {
-            dismiss()
-        } else {
-            dismiss()
-            onCancelNew()
-        }
-    }
-
-    struct Draft: Identifiable {
-        struct Column: Identifiable {
-            let id = UUID()
-            var name: String
-            var sortOrder: TableStructureEditorViewModel.IndexModel.Column.SortOrder
-        }
-
-        var id = UUID()
-        var name: String
-        var isUnique: Bool
-        var filterCondition: String
-        var columns: [Column]
-        let isEditingExisting: Bool
-
-        init(
-            model: TableStructureEditorViewModel.IndexModel,
-            availableColumns: [String]
-        ) {
-            self.name = model.name
-            self.isUnique = model.isUnique
-            self.filterCondition = model.filterCondition
-            self.columns = model.columns.map { Column(name: $0.name, sortOrder: $0.sortOrder) }
-            self.isEditingExisting = !model.isNew
-
-            if columns.isEmpty {
-                let initialName = model.columns.first?.name ?? availableColumns.first ?? ""
-                if !initialName.isEmpty {
-                    self.columns = [Column(name: initialName, sortOrder: .ascending)]
-                }
-            }
-        }
-
-        var canSave: Bool {
-            !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !columns.isEmpty && columns.allSatisfy { !$0.name.isEmpty }
-        }
-    }
-}
-
-// MARK: - Layout Helpers
-
-private struct FlowLayout: Layout {
-    var alignment: HorizontalAlignment = .leading
-    var spacing: CGFloat = 6
-
-    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
-        guard !subviews.isEmpty else { return .zero }
-
-        let availableWidth = proposal.width ?? .infinity
-        var rowWidth: CGFloat = 0
-        var rowHeight: CGFloat = 0
-        var totalHeight: CGFloat = 0
-        var maxRowWidth: CGFloat = 0
-
-        for subview in subviews {
-            let size = subview.sizeThatFits(.unspecified)
-            let itemWidth = size.width
-
-            if rowWidth > 0, rowWidth + spacing + itemWidth > availableWidth {
-                totalHeight += rowHeight + spacing
-                maxRowWidth = max(maxRowWidth, rowWidth)
-                rowWidth = 0
-                rowHeight = 0
-            }
-
-            rowWidth += itemWidth
-            rowHeight = max(rowHeight, size.height)
-            if subview != subviews.last {
-                rowWidth += spacing
-            }
-        }
-
-        totalHeight += rowHeight
-        maxRowWidth = max(maxRowWidth, rowWidth)
-
-        return CGSize(width: min(maxRowWidth, availableWidth), height: totalHeight)
-    }
-
-    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
-        guard !subviews.isEmpty else { return }
-
-        var origin = bounds.origin
-        var rowHeight: CGFloat = 0
-
-        for subview in subviews {
-            let size = subview.sizeThatFits(.unspecified)
-            let itemWidth = size.width
-
-            if origin.x > bounds.origin.x, origin.x + itemWidth > bounds.maxX {
-                origin.x = bounds.origin.x
-                origin.y += rowHeight + spacing
-                rowHeight = 0
-            }
-
-            subview.place(at: CGPoint(x: origin.x, y: origin.y), proposal: ProposedViewSize(width: size.width, height: size.height))
-
-            origin.x += itemWidth + spacing
-            rowHeight = max(rowHeight, size.height)
-        }
-    }
-}
-
-#if os(macOS)
-private extension Color {
-    var nsColor: NSColor? {
-        if let cgColor = self.cgColor {
-            return NSColor(cgColor: cgColor)
-        }
-        return NSColor(self)
-    }
-}
-#endif

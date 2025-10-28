@@ -27,10 +27,12 @@ final class ConnectionSession: ObservableObject, Identifiable {
     @Published var structureLoadingMessage: String?
     private var defaultInitialBatchSize: Int
     private var defaultBackgroundStreamingThreshold: Int
+    private var defaultBackgroundFetchSize: Int
 
     // Query tabs specific to this connection
     @Published var queryTabs: [WorkspaceTab] = []
     @Published var activeQueryTabID: UUID?
+    var structureLoadTask: Task<Void, Never>?
 
     init(
         id: UUID = UUID(),
@@ -38,6 +40,7 @@ final class ConnectionSession: ObservableObject, Identifiable {
         session: DatabaseSession,
         defaultInitialBatchSize: Int = 500,
         defaultBackgroundStreamingThreshold: Int = 512,
+        defaultBackgroundFetchSize: Int = 4_096,
         spoolManager: ResultSpoolManager
     ) {
         self.id = id
@@ -45,6 +48,7 @@ final class ConnectionSession: ObservableObject, Identifiable {
         self.session = session
         self.defaultInitialBatchSize = max(100, defaultInitialBatchSize)
         self.defaultBackgroundStreamingThreshold = max(100, defaultBackgroundStreamingThreshold)
+        self.defaultBackgroundFetchSize = max(128, min(defaultBackgroundFetchSize, 16_384))
         self.spoolManager = spoolManager
 
         // Auto-select database if one is saved in the connection
@@ -82,7 +86,8 @@ final class ConnectionSession: ObservableObject, Identifiable {
             sql: query.isEmpty ? "SELECT current_timestamp;" : query,
             initialVisibleRowBatch: defaultInitialBatchSize,
             previewRowLimit: previewLimit,
-            spoolManager: spoolManager
+            spoolManager: spoolManager,
+            backgroundFetchSize: defaultBackgroundFetchSize
         )
 
         func normalized(_ value: String) -> String? {
@@ -121,6 +126,11 @@ final class ConnectionSession: ObservableObject, Identifiable {
 
     func closeQueryTab(withID tabID: UUID) {
         guard let index = queryTabs.firstIndex(where: { $0.id == tabID }) else { return }
+
+        // Proactively cancel any executing query task for this tab before removal
+        if let state = queryTabs[index].query {
+            state.cancelExecution()
+        }
         queryTabs.remove(at: index)
 
         // Adjust active tab
@@ -146,6 +156,19 @@ final class ConnectionSession: ObservableObject, Identifiable {
 
     func updateDefaultBackgroundStreamingThreshold(_ threshold: Int) {
         defaultBackgroundStreamingThreshold = max(100, threshold)
+    }
+
+    func updateDefaultBackgroundFetchSize(_ fetchSize: Int) {
+        defaultBackgroundFetchSize = max(128, min(fetchSize, 16_384))
+    }
+
+    func cancelStructureLoadTask() async {
+        let task = structureLoadTask
+        structureLoadTask = nil
+        task?.cancel()
+        if let task {
+            await task.value
+        }
     }
 }
 
@@ -187,6 +210,15 @@ final class ConnectionSessionManager: ObservableObject {
 
     func removeSession(withID sessionID: UUID) {
         guard let index = activeSessions.firstIndex(where: { $0.id == sessionID }) else { return }
+
+        // Cancel any in-flight queries belonging to this session before removing it
+        let session = activeSessions[index]
+        for tab in session.queryTabs {
+            if let state = tab.query {
+                state.cancelExecution()
+            }
+        }
+
         activeSessions.remove(at: index)
 
         // Adjust active session
@@ -268,6 +300,7 @@ final class ConnectionSessionManager: ObservableObject {
 
 // MARK: - Server Switcher Data
 
+@MainActor
 struct ServerSwitcherItem: Identifiable {
     let id: UUID
     let session: ConnectionSession

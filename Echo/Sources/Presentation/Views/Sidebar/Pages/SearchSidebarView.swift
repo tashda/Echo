@@ -236,7 +236,7 @@ struct SearchSidebarView: View {
         switch payload {
         case .schemaObject(let schema, let name, let type):
             switch type {
-            case .view, .materializedView, .function, .trigger:
+            case .view, .materializedView, .function, .procedure, .trigger:
                 return {
                     try await session.session.getObjectDefinition(
                         objectName: name,
@@ -253,6 +253,14 @@ struct SearchSidebarView: View {
                     objectName: name,
                     schemaName: schema,
                     objectType: .function
+                )
+            }
+        case .procedure(let schema, let name):
+            return {
+                try await session.session.getObjectDefinition(
+                    objectName: name,
+                    schemaName: schema,
+                    objectType: .procedure
                 )
             }
         case .trigger(let schema, _, let name):
@@ -337,7 +345,7 @@ struct SearchSidebarView: View {
                 } else {
                     focusExplorer(on: session, database: databaseName, schema: schema, objectName: name, columnName: nil, objectType: .table)
                 }
-            case .view, .materializedView, .function, .trigger:
+            case .view, .materializedView, .function, .procedure, .trigger:
                 if openInNewTab {
                     openDefinition(for: name, schema: schema, type: type, in: session)
                 } else {
@@ -368,6 +376,8 @@ struct SearchSidebarView: View {
 
         case .function(let schema, let name):
             openDefinition(for: name, schema: schema, type: .function, in: session)
+        case .procedure(let schema, let name):
+            openDefinition(for: name, schema: schema, type: .procedure, in: session)
 
         case .trigger(let schema, _, let name):
             openDefinition(for: name, schema: schema, type: .trigger, in: session)
@@ -709,7 +719,7 @@ private struct SearchResultRow: View {
 
     private var shouldHighlightSnippet: Bool {
         switch result.category {
-        case .views, .materializedViews, .functions, .triggers, .queryTabs:
+        case .views, .materializedViews, .functions, .procedures, .triggers, .queryTabs:
             return true
         default:
             return false
@@ -832,6 +842,7 @@ private struct FilterPopoverView: View {
     }
 }
 
+@MainActor
 private func queryTabSnapshots(from appModel: AppModel?) -> [SearchSidebarQueryTabSnapshot] {
     guard let appModel else { return [] }
     let sessionsByID = Dictionary(uniqueKeysWithValues: appModel.sessionManager.sessions.map { ($0.id, $0) })

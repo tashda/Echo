@@ -1,6 +1,5 @@
 import SwiftUI
 
-/// Shared sidebar search field used by multiple sidebar pages to ensure consistent styling and layout.
 struct SidebarSearchBar<Accessory: View>: View {
     let placeholder: String
     @Binding var text: String
@@ -9,7 +8,7 @@ struct SidebarSearchBar<Accessory: View>: View {
     var onClear: (() -> Void)?
     var focusBinding: FocusState<Bool>.Binding?
     var clearShortcut: KeyboardShortcut?
-    let accessory: Accessory
+    @ViewBuilder var accessory: Accessory
 
     init(
         placeholder: String,
@@ -37,7 +36,7 @@ struct SidebarSearchBar<Accessory: View>: View {
                 Image(systemName: "magnifyingglass")
                     .foregroundStyle(.secondary)
 
-                searchTextField
+                searchField
 
                 if showsClearButton, let onClear {
                     clearButton(onClear: onClear)
@@ -61,16 +60,15 @@ struct SidebarSearchBar<Accessory: View>: View {
     }
 
     @ViewBuilder
-    private var searchTextField: some View {
+    private var searchField: some View {
+        let field = TextField(placeholder, text: $text)
+            .textFieldStyle(.plain)
+            .disabled(isDisabled)
+
         if let focusBinding {
-            TextField(placeholder, text: $text)
-                .textFieldStyle(.plain)
-                .disabled(isDisabled)
-                .focused(focusBinding)
+            field.focused(focusBinding)
         } else {
-            TextField(placeholder, text: $text)
-                .textFieldStyle(.plain)
-                .disabled(isDisabled)
+            field
         }
     }
 

@@ -66,10 +66,10 @@ final class MySQLSession: DatabaseSession {
     private let eventLoopGroup: MultiThreadedEventLoopGroup
     private let logger: Logger
     private let defaultDatabase: String?
-    private let formatter = MySQLCellFormatter()
+    private nonisolated(unsafe) let formatter = MySQLCellFormatter()
 
     private let shutdownQueue = DispatchQueue(label: "dk.tippr.echo.mysql.shutdown")
-    private var isClosed = false
+    private nonisolated(unsafe) var isClosed = false
 
     init(
         connection: MySQLConnection,
@@ -164,13 +164,18 @@ final class MySQLSession: DatabaseSession {
             }
 
             if worker == nil, let handler = progressHandler, !columnInfo.isEmpty {
+                let bridgedHandler: QueryProgressHandler = { update in
+                    Task { @MainActor in
+                        handler(update)
+                    }
+                }
                 worker = ResultStreamBatchWorker(
                     label: "dk.tippr.echo.mysql.streamWorker",
                     columns: columnInfo,
                     streamingPreviewLimit: streamingPreviewLimit,
                     maxFlushLatency: maxFlushLatency,
                     operationStart: operationStart,
-                    progressHandler: handler
+                    progressHandler: bridgedHandler
                 )
             }
 
@@ -204,14 +209,15 @@ final class MySQLSession: DatabaseSession {
 
             let encodedRow = ResultBinaryRowCodec.encodeRaw(cells: rawCells)
 
-            worker?.enqueue(
-                .init(
+            if let worker {
+                let payload = ResultStreamBatchWorker.Payload(
                     previewValues: previewValues,
-                    encodedRow: encodedRow,
+                    storage: .encoded(encodedRow),
                     totalRowCount: totalRowCount,
                     decodeDuration: decodeDuration
                 )
-            )
+                worker.enqueue(payload)
+            }
         }
 
         do {
@@ -354,6 +360,8 @@ final class MySQLSession: DatabaseSession {
             throw DatabaseError.queryError("MySQL does not support materialized views")
         case .function:
             sql = "SHOW CREATE FUNCTION `\(objectName.replacingOccurrences(of: "`", with: "``"))`"
+        case .procedure:
+            sql = "SHOW CREATE PROCEDURE `\(objectName.replacingOccurrences(of: "`", with: "``"))`"
         case .trigger:
             sql = "SHOW CREATE TRIGGER `\(objectName.replacingOccurrences(of: "`", with: "``"))`"
         }
@@ -375,8 +383,7 @@ final class MySQLSession: DatabaseSession {
 
         let combined = row.values.compactMap { buffer -> String? in
             guard let buffer else { return nil }
-            var copy = buffer
-            return copy.readString(length: copy.readableBytes)
+            return buffer.getString(at: buffer.readerIndex, length: buffer.readableBytes)
         }
         if let definition = combined.last {
             return definition
@@ -906,6 +913,7 @@ private extension SchemaObjectInfo.ObjectType {
     init?(mysqlRoutineType: String) {
         switch mysqlRoutineType.uppercased() {
         case "FUNCTION": self = .function
+        case "PROCEDURE": self = .procedure
         default: return nil
         }
     }
@@ -1034,8 +1042,7 @@ private struct MySQLCellFormatter {
     }
 
     private func hexString(from buffer: ByteBuffer) -> String {
-        var copy = buffer
-        guard let bytes = copy.readBytes(length: copy.readableBytes) else { return "0x" }
+        guard let bytes = buffer.getBytes(at: buffer.readerIndex, length: buffer.readableBytes) else { return "0x" }
         return bytes.reduce(into: "0x") { partial, byte in
             partial.append(String(format: "%02X", byte))
         }

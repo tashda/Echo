@@ -1,449 +1,420 @@
 import SwiftUI
-#if !os(macOS)
+#if canImport(AppKit)
+import AppKit
+#elseif canImport(UIKit)
 import UIKit
 #endif
 
 struct ResultMessagesView: View {
     let results: QueryResultSet
-    @State private var queryMessages: [QueryMessage] = []
-    @State private var expandedMessages: Set<UUID> = []
-    @State private var columnWidths: [CGFloat] = [60, 300, 80, 70, 80, 150, 60]
 
-    struct QueryMessage: Identifiable {
+    @ObservedObject private var themeManager = ThemeManager.shared
+    @State private var messages: [Message] = []
+    @State private var expandedRows: Set<UUID> = []
+    private let columnWidths: [CGFloat] = [64, 320, 110, 90, 110, 160, 80]
+
+    struct Message: Identifiable {
+        struct Detail: Identifiable {
+            let id = UUID()
+            let key: String
+            let value: String
+            let highlight: Highlight
+
+            enum Highlight {
+                case normal
+                case emphasis
+                case warning
+
+                var valueColor: Color {
+                    switch self {
+                    case .normal:
+                        return Color.primary
+                    case .emphasis:
+                        return Color.accentColor
+                    case .warning:
+                        return Color.orange
+                    }
+                }
+            }
+        }
+
+        enum Severity: String, CaseIterable {
+            case info, warning, error, debug
+
+            var iconName: String {
+                switch self {
+                case .info: return "info.circle"
+                case .warning: return "exclamationmark.triangle"
+                case .error: return "xmark.octagon"
+                case .debug: return "ladybug"
+                }
+            }
+
+            @MainActor func tint(using theme: ThemeManager) -> Color {
+                switch self {
+                case .info:
+                    return theme.accentColor
+                case .warning:
+                    return Color.orange
+                case .error:
+                    return Color.red
+                case .debug:
+                    return Color.secondary
+                }
+            }
+        }
+
         let id = UUID()
-        let number: Int
-        let message: String
-        let time: Date
+        let sequence: Int
+        let title: String
+        let timestamp: Date
         let delta: TimeInterval
         let duration: TimeInterval?
         let procedure: String?
         let line: String?
-        let severity: MessageSeverity
-        let details: [String: Any]
-
-        enum MessageSeverity: String, CaseIterable {
-            case info = "info"
-            case warning = "warning"
-            case error = "error"
-            case debug = "debug"
-
-            var color: Color {
-                switch self {
-                case .info: return .blue
-                case .warning: return .orange
-                case .error: return .red
-                case .debug: return .secondary
-                }
-            }
-
-            var icon: String {
-                switch self {
-                case .info: return "info.circle"
-                case .warning: return "exclamationmark.triangle"
-                case .error: return "xmark.circle"
-                case .debug: return "ladybug"
-                }
-            }
-        }
+        let severity: Severity
+        let details: [Detail]
     }
 
-    private var textBackgroundColor: Color {
-        #if os(macOS)
-        return Color(PlatformColor.textBackgroundColor)
-        #else
-        return Color(PlatformColor.systemBackground)
-        #endif
+    private var headerBackground: Color {
+        themeManager.surfaceBackground
     }
 
-    private var controlBackgroundColor: Color {
-        #if os(macOS)
-        return Color(PlatformColor.controlBackgroundColor)
-        #else
-        return Color(PlatformColor.secondarySystemBackground)
-        #endif
+    private var gridBackground: Color {
+        themeManager.windowBackground
     }
 
     var body: some View {
         VStack(spacing: 0) {
-            // Header
-            messageHeader
+            headerView
+            Divider()
 
-            // Messages table
-            ScrollView {
-                LazyVStack(spacing: 0) {
-                    // Table header
-                    messagesTableHeader
-
-                    // Message rows
-                    ForEach(queryMessages) { message in
-                        messageRow(message: message)
-
-                        // Expanded details
-                        if expandedMessages.contains(message.id) {
-                            messageDetails(message: message)
-                        }
-                    }
-                }
+            if messages.isEmpty {
+                emptyState
+            } else {
+                tableView
             }
-            .background(textBackgroundColor)
         }
+        .background(gridBackground)
         .onAppear {
-            generateQueryMessages()
+            buildMessages()
         }
     }
 
-    var messageHeader: some View {
-        HStack {
-            Text("Query Messages")
-                .font(.headline)
-                .foregroundStyle(.primary)
+    // MARK: - Components
+
+    private var headerView: some View {
+        HStack(spacing: 16) {
+            Label("Messages", systemImage: "text.bubble")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(themeManager.surfaceForeground)
 
             Spacer()
 
-            Text("\(queryMessages.count) messages")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+            HStack(spacing: 12) {
+                ForEach(Message.Severity.allCases, id: \.self) { severity in
+                    let count = messages.filter { $0.severity == severity }.count
+                    Label("\(severity.rawValue.capitalized) (\(count))", systemImage: severity.iconName)
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(severity.tint(using: themeManager))
+                }
+            }
 
-            Button("Clear Messages") {
-                queryMessages.removeAll()
-                expandedMessages.removeAll()
+            Spacer()
+
+            Button {
+                messages.removeAll()
+                expandedRows.removeAll()
+            } label: {
+                Label("Clear", systemImage: "trash")
+                    .font(.system(size: 11, weight: .medium))
             }
             .buttonStyle(.borderless)
-            .font(.caption)
         }
         .padding(.horizontal, 16)
-        .padding(.vertical, 12)
-        .background(controlBackgroundColor.opacity(0.5))
+        .padding(.vertical, 10)
+        .background(headerBackground)
     }
 
-    var messagesTableHeader: some View {
-        HStack(spacing: 1) {
-            headerCell(title: "Number", columnIndex: 0)
-            headerCell(title: "Message", columnIndex: 1)
-            headerCell(title: "Time", columnIndex: 2)
-            headerCell(title: "Delta", columnIndex: 3)
-            headerCell(title: "Duration", columnIndex: 4)
-            headerCell(title: "Procedure", columnIndex: 5)
-            headerCell(title: "Line", columnIndex: 6)
-            Spacer()
+    private var tableView: some View {
+        ScrollView {
+            LazyVStack(spacing: 0, pinnedViews: []) {
+                tableHeader
+                ForEach(Array(messages.enumerated()), id: \.element.id) { index, message in
+                    messageRow(message, index: index)
+                    if expandedRows.contains(message.id) {
+                        messageDetails(message, index: index)
+                    }
+                    Divider()
+                }
+            }
         }
-        .frame(height: 32)
-        .background(controlBackgroundColor)
-        .overlay(
-            Rectangle()
-                .frame(height: 1)
-                .foregroundStyle(.separator),
-            alignment: .bottom
-        )
+        .background(gridBackground)
     }
 
-    func headerCell(title: String, columnIndex: Int) -> some View {
+    private var tableHeader: some View {
         HStack(spacing: 0) {
-            Text(title)
-                .font(.system(.caption, design: .default))
-                .fontWeight(.semibold)
-                .foregroundStyle(.primary)
-                .frame(width: columnWidths[columnIndex] - 6, alignment: .leading)
-                .padding(.horizontal, 6)
-
-            // Resize handle
-            Rectangle()
-                .fill(Color.clear)
-                .frame(width: 6)
-                .contentShape(Rectangle())
-                .gesture(
-                    DragGesture()
-                        .onChanged { value in
-                            resizeColumn(columnIndex: columnIndex, delta: value.translation.width)
-                        }
-                )
+            headerCell("Number", width: columnWidths[0], alignment: .leading)
+            headerCell("Message", width: columnWidths[1], alignment: .leading)
+            headerCell("Time", width: columnWidths[2], alignment: .leading)
+            headerCell("Delta", width: columnWidths[3], alignment: .leading)
+            headerCell("Duration", width: columnWidths[4], alignment: .leading)
+            headerCell("Procedure", width: columnWidths[5], alignment: .leading)
+            headerCell("Line", width: columnWidths[6], alignment: .leading)
+            Spacer(minLength: 0)
         }
-        .frame(width: columnWidths[columnIndex])
-        .overlay(
-            Rectangle()
-                .frame(width: 1)
-                .foregroundStyle(.separator)
-                .opacity(0.5),
-            alignment: .trailing
-        )
+        .padding(.horizontal, 12)
+        .frame(height: 28)
+        .background(headerBackground)
+        .overlay(alignment: .bottom) {
+            Divider()
+        }
     }
 
-    func resizeColumn(columnIndex: Int, delta: CGFloat) {
-        guard columnIndex < columnWidths.count else { return }
-        let minWidth: CGFloat = 60
-        let maxWidth: CGFloat = 500
-        let newWidth = max(minWidth, min(maxWidth, columnWidths[columnIndex] + delta))
-        columnWidths[columnIndex] = newWidth
+    private func headerCell(_ title: String, width: CGFloat, alignment: Alignment) -> some View {
+        Text(title)
+            .font(.system(size: 11, weight: .semibold))
+            .foregroundColor(.secondary)
+            .frame(width: width, alignment: alignment)
     }
 
-    func messageRow(message: QueryMessage) -> some View {
-        HStack(spacing: 1) {
-            // Number
-            Text("\(message.number)")
-                .font(.system(.caption, design: .monospaced))
+    private func messageRow(_ message: Message, index: Int) -> some View {
+        let isExpanded = expandedRows.contains(message.id)
+        return HStack(spacing: 0) {
+            Text("\(message.sequence)")
+                .font(.system(.callout, design: .monospaced))
                 .foregroundStyle(.secondary)
                 .frame(width: columnWidths[0], alignment: .leading)
-                .padding(.horizontal, 6)
 
-            // Message with severity icon
-            HStack(spacing: 6) {
-                Image(systemName: message.severity.icon)
-                    .font(.caption)
-                    .foregroundStyle(message.severity.color)
-
-                Text(message.message)
-                    .font(.system(.caption, design: .default))
-                    .foregroundStyle(.primary)
-                    .lineLimit(nil)
+            HStack(spacing: 8) {
+                Image(systemName: message.severity.iconName)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(message.severity.tint(using: themeManager))
+                Text(message.title)
+                    .font(.system(size: 12))
+                    .foregroundStyle(themeManager.surfaceForeground)
+                    .lineLimit(1)
             }
             .frame(width: columnWidths[1], alignment: .leading)
-            .padding(.horizontal, 6)
 
-            // Time
-            Text(formatTime(message.time))
-                .font(.system(.caption, design: .monospaced))
+            Text(formattedTime(message.timestamp))
+                .font(.system(.footnote, design: .monospaced))
                 .foregroundStyle(.secondary)
                 .frame(width: columnWidths[2], alignment: .leading)
-                .padding(.horizontal, 6)
 
-            // Delta
-            Text(formatDuration(message.delta))
-                .font(.system(.caption, design: .monospaced))
+            Text(formattedDuration(message.delta))
+                .font(.system(.footnote, design: .monospaced))
                 .foregroundStyle(.secondary)
                 .frame(width: columnWidths[3], alignment: .leading)
-                .padding(.horizontal, 6)
 
-            // Duration
-            Text(message.duration.map(formatDuration) ?? "n/a")
-                .font(.system(.caption, design: .monospaced))
+            Text(message.duration.map(formattedDuration) ?? "—")
+                .font(.system(.footnote, design: .monospaced))
                 .foregroundStyle(.secondary)
                 .frame(width: columnWidths[4], alignment: .leading)
-                .padding(.horizontal, 6)
 
-            // Procedure
             Text(message.procedure ?? "")
-                .font(.system(.caption, design: .monospaced))
+                .font(.system(.footnote, design: .monospaced))
                 .foregroundStyle(.secondary)
                 .frame(width: columnWidths[5], alignment: .leading)
-                .padding(.horizontal, 6)
 
-            // Line
             Text(message.line ?? "")
-                .font(.system(.caption, design: .monospaced))
+                .font(.system(.footnote, design: .monospaced))
                 .foregroundStyle(.secondary)
                 .frame(width: columnWidths[6], alignment: .leading)
-                .padding(.horizontal, 6)
 
-            Spacer()
+            Spacer(minLength: 0)
 
-            // Expand button
             Button {
-                if expandedMessages.contains(message.id) {
-                    expandedMessages.remove(message.id)
-                } else {
-                    expandedMessages.insert(message.id)
-                }
+                toggle(message.id)
             } label: {
-                Image(systemName: expandedMessages.contains(message.id) ? "chevron.down" : "chevron.right")
-                    .font(.caption)
+                Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
+                    .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(.secondary)
             }
             .buttonStyle(.borderless)
-            .padding(.trailing, 8)
+            .padding(.trailing, 10)
         }
-        .frame(height: 24)
-        .background(messageRowBackground(message: message))
+        .padding(.horizontal, 12)
+        .frame(minHeight: 28, alignment: .center)
+        .background(rowBackground(index: index, severity: message.severity))
         .contentShape(Rectangle())
         .onTapGesture {
-            if expandedMessages.contains(message.id) {
-                expandedMessages.remove(message.id)
-            } else {
-                expandedMessages.insert(message.id)
-            }
+            toggle(message.id)
         }
-        .overlay(
-            Rectangle()
-                .frame(height: 1)
-                .foregroundStyle(.separator)
-                .opacity(0.1),
-            alignment: .bottom
-        )
     }
 
-    func messageDetails(message: QueryMessage) -> some View {
-        HStack(spacing: 1) {
-            // Empty columns for Number
-            Spacer()
-                .frame(width: columnWidths[0])
+    private func messageDetails(_ message: Message, index: Int) -> some View {
+        let indent = columnWidths[0] + 12
+        let detailBackground = headerBackground.opacity(0.65)
 
-            // Object details under Message column
+        return HStack(spacing: 0) {
+            Color.clear.frame(width: indent)
+
             VStack(alignment: .leading, spacing: 4) {
-                Text("Object Details")
-                    .font(.caption)
-                    .fontWeight(.semibold)
+                Text("Object {")
+                    .font(.system(.footnote, design: .monospaced))
                     .foregroundStyle(.secondary)
 
-                VStack(alignment: .leading, spacing: 2) {
-                    detailRow(key: "message", value: message.message)
-                    detailRow(key: "time", value: ISO8601DateFormatter().string(from: message.time))
-                    detailRow(key: "severity", value: message.severity.rawValue)
+                ForEach(message.details) { detail in
+                    HStack(alignment: .top, spacing: 6) {
+                        Text(detail.key + ":")
+                            .font(.system(.footnote, design: .monospaced))
+                            .foregroundStyle(.secondary)
+                            .frame(width: 90, alignment: .leading)
 
-                    if let duration = message.duration {
-                        detailRow(key: "duration", value: formatDuration(duration))
-                    }
-
-                    if let procedure = message.procedure {
-                        detailRow(key: "procedure", value: procedure)
-                    }
-
-                    if let line = message.line {
-                        detailRow(key: "line", value: line)
+                        Text(detail.value)
+                            .font(.system(.footnote, design: .monospaced))
+                            .foregroundStyle(detail.highlight.valueColor)
+                            .textSelection(.enabled)
                     }
                 }
+
+                Text("}")
+                    .font(.system(.footnote, design: .monospaced))
+                    .foregroundStyle(.secondary)
             }
-            .frame(width: columnWidths[1], alignment: .leading)
-            .padding(.horizontal, 6)
+            .padding(.vertical, 8)
+            .padding(.horizontal, 12)
+            .background(detailBackground)
+            .cornerRadius(6)
 
-            Spacer()
+            Spacer(minLength: 0)
         }
-        .padding(.vertical, 8)
-        .background(controlBackgroundColor.opacity(0.3))
-        .overlay(
-            Rectangle()
-                .frame(height: 1)
-                .foregroundStyle(.separator)
-                .opacity(0.1),
-            alignment: .bottom
-        )
+        .padding(.horizontal, 12)
+        .padding(.bottom, 6)
+        .background(rowBackground(index: index, severity: message.severity).opacity(0.4))
     }
 
-    func detailRow(key: String, value: String) -> some View {
-        HStack {
-            Text("\(key):")
-                .font(.system(.caption, design: .monospaced))
-                .fontWeight(.medium)
+    private var emptyState: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "tray")
+                .font(.system(size: 40))
                 .foregroundStyle(.secondary)
-                .frame(minWidth: 80, alignment: .leading)
+            Text("No Messages")
+                .font(.system(size: 16, weight: .semibold))
+            Text("Server and execution output will appear here once available.")
+                .font(.system(size: 13))
+                .foregroundStyle(.secondary)
+        }
+        .padding(.vertical, 60)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(gridBackground)
+    }
 
-            Text(value)
-                .font(.system(.caption, design: .monospaced))
-                .foregroundStyle(.primary)
-                .textSelection(.enabled)
+    // MARK: - Helpers
+
+    private func toggle(_ id: UUID) {
+        if expandedRows.contains(id) {
+            expandedRows.remove(id)
+        } else {
+            expandedRows.insert(id)
         }
     }
 
-    func messageRowBackground(message: QueryMessage) -> Color {
-        switch message.severity {
+    private func rowBackground(index: Int, severity: Message.Severity) -> some View {
+        var base = themeManager.surfaceBackground
+        if themeManager.resultsAlternateRowShading && index.isMultiple(of: 2) {
+            base = base.opacity(0.92)
+        }
+
+        let overlay: Color
+        switch severity {
         case .error:
-            return Color.red.opacity(0.05)
+            overlay = Color.red.opacity(0.08)
         case .warning:
-            return Color.orange.opacity(0.05)
+            overlay = Color.orange.opacity(0.06)
         case .info:
-            return Color.blue.opacity(0.02)
+            overlay = themeManager.accentColor.opacity(0.04)
         case .debug:
-            return Color.clear
+            overlay = Color.clear
         }
+        return base.overlay(overlay)
     }
 
-    func formatTime(_ date: Date) -> String {
+    private func formattedTime(_ date: Date) -> String {
         let formatter = DateFormatter()
         formatter.dateFormat = "HH:mm:ss"
         return formatter.string(from: date)
     }
 
-    func formatDuration(_ duration: TimeInterval) -> String {
-        if duration < 0.001 {
-            return "< 1 ms"
-        } else if duration < 1.0 {
-            return "\(Int(duration * 1000)) ms"
-        } else if duration < 60.0 {
-            return String(format: "%.1f s", duration)
+    private func formattedDuration(_ value: TimeInterval) -> String {
+        if value == 0 {
+            return "0"
+        } else if value < 1.0 {
+            return String(format: "%.0f ms", value * 1000)
+        } else if value < 60 {
+            return String(format: "%.2f s", value)
         } else {
-            let minutes = Int(duration / 60)
-            let seconds = Int(duration.truncatingRemainder(dividingBy: 60))
+            let minutes = Int(value / 60)
+            let seconds = Int(value.truncatingRemainder(dividingBy: 60))
             return "\(minutes)m \(seconds)s"
         }
     }
 
-    func generateQueryMessages() {
+    private func buildMessages() {
+        // Placeholder content until live server messages are wired in.
         let baseTime = Date()
-        var messages: [QueryMessage] = []
+        var builder: [Message] = []
 
-        // Query execution started
-        messages.append(QueryMessage(
-            number: 1,
-            message: "Query execution started",
-            time: baseTime,
-            delta: 0,
-            duration: nil,
-            procedure: nil,
-            line: nil,
-            severity: .info,
-            details: [
-                "message": "Query execution started",
-                "time": baseTime,
-                "severity": "info"
-            ]
-        ))
-
-        // Query execution finished
-        let finishTime = baseTime.addingTimeInterval(0.505)
-        messages.append(QueryMessage(
-            number: 2,
-            message: "Query execution finished",
-            time: finishTime,
-            delta: 0.505,
-            duration: 0.505,
-            procedure: nil,
-            line: nil,
-            severity: .info,
-            details: [
-                "message": "Query execution finished",
-                "time": finishTime,
-                "severity": "info"
-            ]
-        ))
-
-        // Add command tag if available
-        if let commandTag = results.commandTag, !commandTag.isEmpty {
-            let responseTime = finishTime.addingTimeInterval(0.002)
-            messages.append(QueryMessage(
-                number: 3,
-                message: commandTag,
-                time: responseTime,
-                delta: 0.507,
+        builder.append(
+            Message(
+                sequence: 1,
+                title: "Query execution started",
+                timestamp: baseTime,
+                delta: 0,
                 duration: nil,
                 procedure: nil,
                 line: nil,
                 severity: .info,
                 details: [
-                    "message": commandTag,
-                    "time": responseTime,
-                    "severity": "info",
-                    "rows_returned": results.rows.count,
-                    "columns": results.columns.count
+                    .init(key: "message", value: "Query execution started", highlight: .emphasis),
+                    .init(key: "time", value: ISO8601DateFormatter().string(from: baseTime), highlight: .normal),
+                    .init(key: "severity", value: "info", highlight: .normal)
                 ]
-            ))
+            )
+        )
+
+        let finish = baseTime.addingTimeInterval(0.712)
+        builder.append(
+            Message(
+                sequence: 2,
+                title: "Query execution finished",
+                timestamp: finish,
+                delta: finish.timeIntervalSince(baseTime),
+                duration: finish.timeIntervalSince(baseTime),
+                procedure: nil,
+                line: nil,
+                severity: .info,
+                details: [
+                    .init(key: "message", value: "Query execution finished", highlight: .emphasis),
+                    .init(key: "time", value: ISO8601DateFormatter().string(from: finish), highlight: .normal),
+                    .init(key: "severity", value: "info", highlight: .normal),
+                    .init(key: "rows", value: "\(results.rows.count)", highlight: .normal),
+                    .init(key: "columns", value: "\(results.columns.count)", highlight: .normal)
+                ]
+            )
+        )
+
+        if let tag = results.commandTag, !tag.isEmpty {
+            let tagTime = finish.addingTimeInterval(0.031)
+            builder.append(
+                Message(
+                    sequence: 3,
+                    title: tag,
+                    timestamp: tagTime,
+                    delta: tagTime.timeIntervalSince(baseTime),
+                    duration: nil,
+                    procedure: nil,
+                    line: nil,
+                    severity: .info,
+                    details: [
+                        .init(key: "commandTag", value: tag, highlight: .emphasis),
+                        .init(key: "time", value: ISO8601DateFormatter().string(from: tagTime), highlight: .normal)
+                    ]
+                )
+            )
         }
 
-        // Query session information
-        let sessionTime = finishTime.addingTimeInterval(5.0)
-        messages.append(QueryMessage(
-            number: messages.count + 1,
-            message: "Query session active",
-            time: sessionTime,
-            delta: 5.505,
-            duration: 5.505,
-            procedure: nil,
-            line: nil,
-            severity: .debug,
-            details: [
-                "message": "Query session active",
-                "time": sessionTime,
-                "severity": "debug"
-            ]
-        ))
-
-        self.queryMessages = messages
+        messages = builder
     }
 }

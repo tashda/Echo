@@ -1,9 +1,271 @@
 import Foundation
-import PostgresNIO
+import os.signpost
+import os.log
 import NIOCore
+import NIOFoundationCompat
+import PostgresKit
 import Logging
 
 typealias PostgresQueryResult = PostgresRowSequence
+
+private let postgresFetchLog = OSLog(subsystem: "dk.tippr.echo", category: .pointsOfInterest)
+
+private extension ResultCellPayload {
+    nonisolated init(cell: PostgresCell) {
+        let formatRaw = UInt8(clamping: cell.format.rawValue)
+        let format = ResultCellPayload.Format(rawValue: formatRaw) ?? .text
+
+        let data: Data?
+        if var buffer = cell.bytes {
+            let readable = buffer.readableBytes
+            if readable > 0 {
+                if let extracted = buffer.readData(length: readable) {
+                    data = extracted
+                } else if let bytes = buffer.readBytes(length: readable) {
+                    data = Data(bytes)
+                } else {
+                    data = Data()
+                }
+            } else {
+                data = Data()
+            }
+        } else {
+            data = nil
+        }
+
+        self.init(dataTypeOID: cell.dataType.rawValue, format: format, bytes: data)
+    }
+}
+
+actor QueryStreamState {
+    var columns: [ColumnInfo] = []
+    var previewRows: [[String?]] = []
+    var totalRowCount = 0
+    var batchDecodeDuration: TimeInterval = 0
+    var batchCount = 0
+    var rawPayloadRows: [ResultRowPayload] = []
+    var batchRows: [[String?]] = []
+    var encodedRows: [ResultBinaryRow] = []
+    var firstRowLogged = false
+    var flushRequestRowCount: Int
+    var batchStartTime: CFAbsoluteTime
+    var dynamicBackgroundFlushSize: Int
+    var firstBatchDelivered = false
+    var commandTag: String?
+    var lastProgressPublish: CFAbsoluteTime
+    var lastProgressReported: Int
+
+    let streamingPreviewLimit: Int
+    let formatterContext: CellFormatterContext
+    let formattingEnabled: Bool
+    let formattingMode: ResultsFormattingMode
+    let logger: Logger
+    let operationStart: CFAbsoluteTime
+    let streamDebugID: String?
+
+    init(streamingPreviewLimit: Int, formatterContext: CellFormatterContext, formattingEnabled: Bool, formattingMode: ResultsFormattingMode, logger: Logger, operationStart: CFAbsoluteTime, streamDebugID: String?, previewFetchSize: Int, backgroundFetchBaseline: Int) {
+        self.streamingPreviewLimit = streamingPreviewLimit
+        self.formatterContext = formatterContext
+        self.formattingEnabled = formattingEnabled
+        self.formattingMode = formattingMode
+        self.logger = logger
+        self.operationStart = operationStart
+        self.streamDebugID = streamDebugID
+        self.flushRequestRowCount = previewFetchSize
+        self.batchStartTime = operationStart
+        self.dynamicBackgroundFlushSize = backgroundFetchBaseline
+        self.lastProgressPublish = operationStart
+        self.lastProgressReported = 0
+    }
+
+    func appendColumn(_ column: ColumnInfo) {
+        columns.append(column)
+    }
+
+    func appendRawPayloadRow(_ rowPayload: ResultRowPayload) {
+        rawPayloadRows.append(rowPayload)
+    }
+
+    func appendFormattedRow(_ formattedRow: [String?]) {
+        batchRows.append(formattedRow)
+    }
+
+    func appendEncodedRow(_ encodedRow: ResultBinaryRow) {
+        encodedRows.append(encodedRow)
+    }
+
+    func appendPreviewRow(_ formattedRow: [String?]) {
+        if previewRows.count < streamingPreviewLimit {
+            previewRows.append(formattedRow)
+        }
+    }
+
+    func setColumns(_ newColumns: [ColumnInfo]) {
+        columns = newColumns
+    }
+
+    func incrementCounts(decodeDuration: TimeInterval) {
+        totalRowCount += 1
+        batchCount += 1
+        batchDecodeDuration += decodeDuration
+    }
+
+    func setFirstRowLogged() {
+        firstRowLogged = true
+    }
+
+    func resetBatch() {
+        batchRows.removeAll(keepingCapacity: true)
+        encodedRows.removeAll(keepingCapacity: true)
+        rawPayloadRows.removeAll(keepingCapacity: true)
+        batchCount = 0
+        batchDecodeDuration = 0
+        batchStartTime = CFAbsoluteTimeGetCurrent()
+    }
+
+    func incrementTotalOnly() {
+        totalRowCount &+= 1
+    }
+
+    func updateFlushRequestRowCount(
+        rampMaxRows: Int,
+        backgroundFetchBaseline: Int,
+        previewFetchSize: Int,
+        rampEligible: Bool,
+        rampMultiplier: Int
+    ) {
+        if totalRowCount >= streamingPreviewLimit {
+            // Ensure we elevate to at least the baseline once the preview is complete
+            if dynamicBackgroundFlushSize < backgroundFetchBaseline {
+                dynamicBackgroundFlushSize = backgroundFetchBaseline
+            }
+
+            // Aggressively ramp up to reduce round-trips, respecting a ceiling.
+            // Previous logic keyed off `batchCount >= flushRequestRowCount`, which typically
+            // resets to 0 after a flush and prevented any ramping beyond the baseline.
+            // Here we ramp as soon as we are eligible (i.e., after preview) and below the cap.
+            if rampEligible, dynamicBackgroundFlushSize < rampMaxRows {
+                let targetByDoubling = max(dynamicBackgroundFlushSize, backgroundFetchBaseline) * 2
+                let targetByMultiplier = backgroundFetchBaseline * max(1, rampMultiplier)
+                let candidate = max(targetByDoubling, targetByMultiplier)
+                let nextSize = min(rampMaxRows, candidate)
+                if nextSize > dynamicBackgroundFlushSize {
+                    dynamicBackgroundFlushSize = nextSize
+                }
+            }
+
+            flushRequestRowCount = min(dynamicBackgroundFlushSize, rampMaxRows)
+        } else {
+            // Still in preview window; keep small request size for interactivity
+            flushRequestRowCount = previewFetchSize
+        }
+    }
+
+    func setFirstBatchDelivered() {
+        firstBatchDelivered = true
+    }
+
+    func setCommandTag(_ tag: String?) {
+        commandTag = tag
+    }
+
+    func debugLog(_ message: @autoclosure @Sendable () -> String) {
+        guard let streamDebugID else { return }
+        let elapsed = CFAbsoluteTimeGetCurrent() - operationStart
+        print("[PostgresStream][\(streamDebugID)] t=\(String(format: "%.3f", elapsed)) \(message())")
+    }
+
+    func publishBatch(expectedRequestSize: Int, rampEligible: Bool, progressHandler: @escaping QueryProgressHandler) async {
+        guard batchCount > 0 || !encodedRows.isEmpty || !rawPayloadRows.isEmpty else { return }
+        let flushedCount = batchCount > 0 ? batchCount : (!encodedRows.isEmpty ? encodedRows.count : rawPayloadRows.count)
+        let flushDuration = CFAbsoluteTimeGetCurrent() - batchStartTime
+        let networkWait = max(flushDuration - batchDecodeDuration, 0)
+        let rowRange = (totalRowCount - flushedCount)..<totalRowCount
+
+        let metrics = QueryStreamMetrics(
+            batchRowCount: flushedCount,
+            loopElapsed: flushDuration,
+            decodeDuration: batchDecodeDuration,
+            totalElapsed: CFAbsoluteTimeGetCurrent() - operationStart,
+            cumulativeRowCount: totalRowCount,
+            fetchRequestRowCount: expectedRequestSize,
+            fetchRowCount: flushedCount,
+            fetchDuration: flushDuration,
+            fetchWait: networkWait
+        )
+
+        let update = QueryStreamUpdate(
+            columns: columns,
+            appendedRows: batchRows,
+            encodedRows: encodedRows,
+            rawRows: rawPayloadRows,
+            totalRowCount: totalRowCount,
+            metrics: metrics,
+            rowRange: rowRange
+        )
+
+        if !firstBatchDelivered {
+            firstBatchDelivered = true
+            let now = CFAbsoluteTimeGetCurrent()
+            let message = String(
+                format: "[PostgresStream] first-batch rows=%d latency=%.3fs",
+                flushedCount,
+                now - operationStart
+            )
+            logger.debug(.init(stringLiteral: message))
+            print(message)
+#if DEBUG
+            debugLog("First batch handler rows=\(flushedCount)")
+#endif
+        }
+
+#if DEBUG
+        let debugTotalRowCount = totalRowCount
+        let debugBatchDecodeDuration = batchDecodeDuration
+        debugLog("Flush completed rows=\(flushedCount) totalRowCount=\(debugTotalRowCount) decode=\(String(format: "%.3f", debugBatchDecodeDuration)) wait=\(String(format: "%.3f", networkWait)) rampEligible=\(rampEligible)")
+#endif
+
+        await MainActor.run {
+            progressHandler(update)
+        }
+
+        resetBatch()
+    }
+
+    /// Publish a lightweight progress-only update (no rows), throttled by time.
+    func maybePublishProgress(throttle: TimeInterval, progressHandler: @escaping QueryProgressHandler) async {
+        let now = CFAbsoluteTimeGetCurrent()
+        let shouldPublishTime = (now - lastProgressPublish) >= throttle
+        let shouldPublishCount = totalRowCount > lastProgressReported
+        guard shouldPublishTime && shouldPublishCount else { return }
+        lastProgressPublish = now
+        lastProgressReported = totalRowCount
+
+        let metrics = QueryStreamMetrics(
+            batchRowCount: 0,
+            loopElapsed: now - batchStartTime,
+            decodeDuration: 0,
+            totalElapsed: now - operationStart,
+            cumulativeRowCount: totalRowCount,
+            fetchRequestRowCount: nil,
+            fetchRowCount: 0,
+            fetchDuration: 0,
+            fetchWait: 0
+        )
+        let update = QueryStreamUpdate(
+            columns: columns,
+            appendedRows: [],
+            encodedRows: [],
+            rawRows: [],
+            totalRowCount: totalRowCount,
+            metrics: metrics,
+            rowRange: nil
+        )
+        await MainActor.run {
+            progressHandler(update)
+        }
+    }
+}
 
 struct PostgresNIOFactory: DatabaseFactory {
     private let logger = Logger(label: "dk.tippr.echo.postgres")
@@ -23,47 +285,35 @@ struct PostgresNIOFactory: DatabaseFactory {
         let databaseLabel = effectiveDatabase ?? "postgres"
         logger.info("Connecting to PostgreSQL at \(host):\(port)/\(databaseLabel)")
 
-        let configuration = PostgresClient.Configuration(
+        let configuration = PostgresConfiguration(
             host: host,
             port: port,
+            database: effectiveDatabase ?? "postgres",
             username: authentication.username,
             password: authentication.password,
-            database: effectiveDatabase,
-            tls: tls ? .require(.makeClientConfiguration()) : .disable
+            useTLS: tls,
+            applicationName: "Echo"
         )
 
-        let client = PostgresClient(configuration: configuration, backgroundLogger: logger)
-        let clientTask = Task {
-            await client.run()
-        }
+        let client = try await PostgresDatabaseClient.connect(configuration: configuration, logger: logger)
 
-        // Ensure the run loop has started before leasing connections to avoid warnings from PostgresNIO
-        await Task.yield()
-
-        do {
-            _ = try await client.query("SELECT 1", logger: logger)
-        } catch {
-            clientTask.cancel()
-            throw DatabaseError.connectionFailed("Failed to connect: \(error.localizedDescription)")
-        }
-
-        return PostgresSession(client: client, clientTask: clientTask, logger: logger)
+        return PostgresSession(client: client, logger: logger)
     }
 }
 
+extension PostgresSession: @unchecked Sendable {}
+
 final class PostgresSession: DatabaseSession {
-    private let client: PostgresClient
-    private let clientTask: Task<Void, Never>
+    private let client: PostgresDatabaseClient
     private let logger: Logger
 
-    init(client: PostgresClient, clientTask: Task<Void, Never>, logger: Logger) {
+    init(client: PostgresDatabaseClient, logger: Logger) {
         self.client = client
-        self.clientTask = clientTask
         self.logger = logger
     }
 
     func close() async {
-        clientTask.cancel()
+        client.close()
     }
 
     func simpleQuery(_ sql: String) async throws -> QueryResultSet {
@@ -73,149 +323,391 @@ final class PostgresSession: DatabaseSession {
     func simpleQuery(_ sql: String, progressHandler: QueryProgressHandler?) async throws -> QueryResultSet {
         if let progressHandler {
             let sanitized = sanitizeSQL(sql)
-            return try await streamQuery(sanitizedSQL: sanitized, progressHandler: progressHandler)
+            return try await streamQuery(sanitizedSQL: sanitized, progressHandler: progressHandler, modeOverride: nil)
+        } else {
+            return try await executeSimpleQuery(sql)
+        }
+    }
+
+    func simpleQuery(_ sql: String, executionMode: ResultStreamingExecutionMode?, progressHandler: QueryProgressHandler?) async throws -> QueryResultSet {
+        if let progressHandler {
+            let sanitized = sanitizeSQL(sql)
+            return try await streamQuery(sanitizedSQL: sanitized, progressHandler: progressHandler, modeOverride: executionMode)
         } else {
             return try await executeSimpleQuery(sql)
         }
     }
 
     private func executeSimpleQuery(_ sql: String) async throws -> QueryResultSet {
-        let query = PostgresQuery(unsafeSQL: sql)
-        let result = try await client.query(query, logger: logger)
+        do {
+            let result = try await client.simpleQuery(sql)
 
-        var columns: [ColumnInfo] = []
-        var rows: [[String?]] = []
-        rows.reserveCapacity(512)
+            var columns: [ColumnInfo] = []
+            var rows: [[String?]] = []
+            rows.reserveCapacity(512)
 
-        let formatterContext = CellFormatterContext()
+            let formatterContext = CellFormatterContext()
 
-        for try await row in result {
-            if columns.isEmpty {
-                for cell in row {
-                    columns.append(ColumnInfo(
-                        name: cell.columnName,
-                        dataType: "\(cell.dataType)",
-                        isPrimaryKey: false,
-                        isNullable: true,
-                        maxLength: nil
-                    ))
+            for try await row in result {
+                if columns.isEmpty {
+                    for cell in row {
+                        columns.append(ColumnInfo(
+                            name: cell.columnName,
+                            dataType: "\(cell.dataType)",
+                            isPrimaryKey: false,
+                            isNullable: true,
+                            maxLength: nil
+                        ))
+                    }
                 }
+
+                var rowValues: [String?] = []
+                rowValues.reserveCapacity(row.count)
+                for cell in row {
+                    rowValues.append(formatterContext.stringValue(for: cell))
+                }
+                rows.append(rowValues)
             }
 
-            var rowValues: [String?] = []
-            rowValues.reserveCapacity(row.count)
-            for cell in row {
-                rowValues.append(formatterContext.stringValue(for: cell))
-            }
-            rows.append(rowValues)
+            #if DEBUG
+            print("[PostgresStream] simpleQuery fetched \(rows.count) rows")
+            #endif
+
+            let resolvedColumns = columns.isEmpty
+                ? [ColumnInfo(name: "result", dataType: "text")]
+                : columns
+
+            return QueryResultSet(
+                columns: resolvedColumns,
+                rows: rows
+            )
+        } catch {
+            throw normalizeError(error, contextSQL: sql)
         }
-
-        let resolvedColumns = columns.isEmpty
-            ? [ColumnInfo(name: "result", dataType: "text")]
-            : columns
-
-        return QueryResultSet(
-            columns: resolvedColumns,
-            rows: rows
-        )
     }
 
-    private func streamQuery(sanitizedSQL: String, progressHandler: @escaping QueryProgressHandler) async throws -> QueryResultSet {
-        let formatterContext = CellFormatterContext()
+    private func streamQuery(
+        sanitizedSQL: String,
+        progressHandler: @escaping QueryProgressHandler,
+        modeOverride: ResultStreamingExecutionMode?
+    ) async throws -> QueryResultSet {
+        let defaults = UserDefaults.standard
+        // Determine execution mode: override > stored mode > legacy toggle
+        let selectedMode: ResultStreamingExecutionMode = {
+            if let modeOverride { return modeOverride }
+            if let raw = defaults.string(forKey: ResultStreamingModeDefaultsKey),
+               let mode = ResultStreamingExecutionMode(rawValue: raw) {
+                return mode
+            }
+            // Legacy fallback: toggle implies .auto or .simple
+            let cursorPrefEnabled = defaults.bool(forKey: ResultStreamingUseCursorDefaultsKey)
+            return cursorPrefEnabled ? .auto : .simple
+        }()
 
+        let useCursorStreaming: Bool = {
+            switch selectedMode {
+            case .simple:
+                return false
+            case .cursor:
+                return true
+            case .auto:
+                let limit = simpleQueryFastPathLimit(for: sanitizedSQL)
+                let thresholdKey = ResultStreamingCursorLimitThresholdDefaultsKey
+                let threshold: Int = (defaults.object(forKey: thresholdKey) != nil)
+                    ? max(0, defaults.integer(forKey: thresholdKey))
+                    : 25_000
+                return (limit == nil) || ((limit ?? 0) > threshold)
+            }
+        }()
+
+        if useCursorStreaming {
+            return try await streamQueryUsingCursor(
+                sanitizedSQL: sanitizedSQL,
+                progressHandler: progressHandler
+            )
+        } else {
+            return try await streamQueryUsingSimpleProtocol(
+                sanitizedSQL: sanitizedSQL,
+                progressHandler: progressHandler
+            )
+        }
+    }
+
+    private func streamQueryUsingCursor(sanitizedSQL: String, progressHandler: @escaping QueryProgressHandler) async throws -> QueryResultSet {
         let logger = self.logger
         let operationStart = CFAbsoluteTimeGetCurrent()
-        var columns: [ColumnInfo] = []
         let streamingPreviewLimit = 512
-        let maxFlushLatency: TimeInterval = 0.5
-        var previewRows: [[String?]] = []
-        previewRows.reserveCapacity(streamingPreviewLimit)
-        var totalRowCount = 0
-        var worker: ResultStreamBatchWorker?
-        var firstBatchLogged = false
-        var firstRowLogged = false
+        let formatterContext = CellFormatterContext()
+        let formattingEnabled = (UserDefaults.standard.object(forKey: ResultFormattingEnabledDefaultsKey) as? Bool) ?? true
+        let formattingModeRaw = UserDefaults.standard.string(forKey: ResultFormattingModeDefaultsKey)
+        let formattingMode = ResultsFormattingMode(rawValue: formattingModeRaw ?? "") ?? .immediate
 
-        func rawData(for cell: PostgresCell) -> Data? {
-            guard var buffer = cell.bytes else { return nil }
-            let readable = buffer.readableBytes
-            guard readable > 0 else { return Data() }
-            if let bytes = buffer.readBytes(length: readable) {
-                return Data(bytes)
-            }
-            return Data()
-        }
-
-        func executeVoidStatement(_ sql: String) async throws {
-            let statement = PostgresQuery(unsafeSQL: sql)
-            let result = try await client.query(statement, logger: logger)
-            for try await _ in result {}
-        }
-
-        let cursorName = "echo_cursor_\(UUID().uuidString.replacingOccurrences(of: "-", with: ""))"
         let previewFetchSize = streamingPreviewLimit
-        let backgroundFetchSize = max(4096, streamingPreviewLimit * 4)
+        let storedFetchSize = UserDefaults.standard.integer(forKey: ResultStreamingFetchSizeDefaultsKey)
+        let resolvedFetchSize = storedFetchSize >= 128 ? storedFetchSize : 4_096
+        let configuredFetchSize = min(max(resolvedFetchSize, 128), 16_384)
+        let backgroundFetchBaseline = max(streamingPreviewLimit, configuredFetchSize)
+        let rampMultiplier = max(1, UserDefaults.standard.integer(forKey: ResultStreamingFetchRampMultiplierDefaultsKey))
+        let rampMaxRows = max(256, UserDefaults.standard.integer(forKey: ResultStreamingFetchRampMaxDefaultsKey))
+        let maxAutoFetchSize = rampMaxRows
 
-        var transactionBegan = false
-        var cursorActive = false
-
-        try await executeVoidStatement("BEGIN")
-        transactionBegan = true
-
-        do {
-            try Task.checkCancellation()
-
-            let declareSQL = "DECLARE \(cursorName) BINARY CURSOR FOR \(sanitizedSQL)"
-            try await executeVoidStatement(declareSQL)
-            cursorActive = true
-
-            let readyTimestamp = CFAbsoluteTimeGetCurrent()
-            let readyMessage = String(
-                format: "[PostgresStream] sequence-ready latency=%.3fs",
-                readyTimestamp - operationStart
+        return try await self.client.withConnection { connection in
+            let streamState = QueryStreamState(
+                streamingPreviewLimit: streamingPreviewLimit,
+                formatterContext: formatterContext,
+                formattingEnabled: formattingEnabled,
+                formattingMode: formattingMode,
+                logger: logger,
+                operationStart: operationStart,
+                streamDebugID: nil,
+                previewFetchSize: previewFetchSize,
+                backgroundFetchBaseline: backgroundFetchBaseline
             )
-            logger.debug(.init(stringLiteral: readyMessage))
-            print(readyMessage)
 
-            var fetchSize = previewFetchSize
+            let cursorName = "echo_cur_" + String(UUID().uuidString.prefix(8))
+            var began = false
+            var declared = false
+            do {
+                _ = try await connection.simpleQuery("BEGIN")
+                began = true
+                _ = try await connection.simpleQuery("DECLARE \(cursorName) NO SCROLL CURSOR FOR \(sanitizedSQL)")
+                declared = true
 
-            let proxiedHandler: QueryProgressHandler = { update in
-                guard !update.appendedRows.isEmpty || !update.encodedRows.isEmpty else {
-                    progressHandler(update)
-                    return
-                }
+                var fetchSize = previewFetchSize
+                var totalFetched = 0
 
-                if !firstBatchLogged {
-                    firstBatchLogged = true
-                    let now = CFAbsoluteTimeGetCurrent()
-                    let batchSize = max(update.encodedRows.count, update.appendedRows.count)
-                    let message = String(
-                        format: "[PostgresStream] first-batch rows=%d latency=%.3fs",
-                        batchSize,
-                        now - operationStart
+                fetchLoop: while true {
+                    // Adjust dynamic fetch size based on prior throughput
+                    let rampEligible = await streamState.totalRowCount >= streamingPreviewLimit
+                    await streamState.updateFlushRequestRowCount(
+                        rampMaxRows: maxAutoFetchSize,
+                        backgroundFetchBaseline: backgroundFetchBaseline,
+                        previewFetchSize: previewFetchSize,
+                        rampEligible: rampEligible,
+                        rampMultiplier: rampMultiplier
                     )
-                    logger.debug(.init(stringLiteral: message))
-                    print(message)
+                    fetchSize = await streamState.flushRequestRowCount
+
+                    let fetchSQL = "FETCH FORWARD \(fetchSize) FROM \(cursorName)"
+                    let rows = try await connection.simpleQuery(fetchSQL)
+
+                    var fetchedThisRound = 0
+                    for try await row in rows {
+                        if Task.isCancelled { throw CancellationError() }
+
+                        let currentColumns = await streamState.columns
+                        if currentColumns.isEmpty {
+                            var newColumns: [ColumnInfo] = []
+                            newColumns.reserveCapacity(row.count)
+                            for cell in row {
+                                newColumns.append(ColumnInfo(
+                                    name: cell.columnName,
+                                    dataType: "\(cell.dataType)",
+                                    isPrimaryKey: false,
+                                    isNullable: true,
+                                    maxLength: nil
+                                ))
+                            }
+                            await streamState.setColumns(newColumns)
+                        }
+
+                        let conversionStart = CFAbsoluteTimeGetCurrent()
+                        var payloadCells: [ResultCellPayload] = []
+                        // Prefer preview-first: format rows only until preview limit.
+                        // Background rows are deferred for performance regardless of global setting.
+                        let previewRowsNow = await streamState.previewRows
+                        let isPreviewPhase: Bool = previewRowsNow.count < streamingPreviewLimit
+                        let needsRawPayloadForDeferred = formattingEnabled && isPreviewPhase
+                        let shouldFormatRow: Bool = formattingEnabled && isPreviewPhase
+
+                        var formattedRow: [String?] = []
+                        if shouldFormatRow { formattedRow.reserveCapacity(row.count) }
+
+                        if shouldFormatRow || needsRawPayloadForDeferred {
+                            payloadCells.reserveCapacity(row.count)
+                        }
+
+                        for cell in row {
+                            if shouldFormatRow || needsRawPayloadForDeferred {
+                                payloadCells.append(ResultCellPayload(cell: cell))
+                            }
+                            guard shouldFormatRow else { continue }
+                            let displayValue: String?
+                            if formattingEnabled {
+                                switch formattingMode {
+                                case .immediate, .deferred:
+                                    displayValue = formatterContext.stringValue(for: cell)
+                                }
+                            } else {
+                                displayValue = Self.cheapStringValue(for: cell) ?? formatterContext.stringValue(for: cell)
+                            }
+                            formattedRow.append(displayValue)
+                        }
+
+                        if shouldFormatRow {
+                            let decodeDuration = CFAbsoluteTimeGetCurrent() - conversionStart
+                            await streamState.incrementCounts(decodeDuration: decodeDuration)
+                        } else {
+                            // Count background rows without incurring decode costs.
+                            await streamState.incrementTotalOnly()
+                        }
+
+                        if needsRawPayloadForDeferred {
+                            await streamState.appendRawPayloadRow(ResultRowPayload(cells: payloadCells))
+                        }
+
+                        if shouldFormatRow {
+                            await streamState.appendFormattedRow(formattedRow)
+                            await streamState.appendEncodedRow(ResultBinaryRowCodec.encode(row: formattedRow))
+                            await streamState.appendPreviewRow(formattedRow)
+                        } else {
+                            if needsRawPayloadForDeferred {
+                                let rawCells = payloadCells.map { $0.bytes }
+                                await streamState.appendEncodedRow(ResultBinaryRowCodec.encodeRaw(cells: rawCells))
+                            } else {
+                                // Skip building encoded rows for background to keep CPU minimal.
+                            }
+                        }
+
+                        if !(await streamState.firstRowLogged) {
+                            await streamState.setFirstRowLogged()
+                            let firstRowLatency = CFAbsoluteTimeGetCurrent() - operationStart
+                            let message = String(format: "[PostgresStream] first-row latency=%.3fs", firstRowLatency)
+                            logger.debug(.init(stringLiteral: message))
+                            print(message)
+                        }
+
+                        fetchedThisRound += 1
+                        totalFetched += 1
+
+                        // Throttle progress-only updates so row counter advances smoothly without UI cost.
+                        if await streamState.totalRowCount >= streamingPreviewLimit {
+                            await streamState.maybePublishProgress(throttle: 0.12, progressHandler: progressHandler)
+                        }
+
+                        let totalRowCount = await streamState.totalRowCount
+                        if totalRowCount >= streamingPreviewLimit {
+                            // Publish batches opportunistically during long fetches
+                            let batchCount = await streamState.batchCount
+                            let flushRequestRowCount = await streamState.flushRequestRowCount
+                            if batchCount >= flushRequestRowCount {
+                                await streamState.publishBatch(expectedRequestSize: flushRequestRowCount, rampEligible: true, progressHandler: progressHandler)
+                            }
+                        }
+                    }
+
+                    if fetchedThisRound == 0 { break fetchLoop }
+
+                    // Flush any partial batch or buffered encoded rows between fetches to keep UI snappy
+                    let remainingBatchCount = await streamState.batchCount
+                    let bufferedEncoded = await streamState.encodedRows
+                    let bufferedRaw = await streamState.rawPayloadRows
+                    if remainingBatchCount > 0 || !bufferedEncoded.isEmpty || !bufferedRaw.isEmpty {
+                        let flushRequestRowCount = await streamState.flushRequestRowCount
+                        let rampEligible = (await streamState.totalRowCount) > streamingPreviewLimit
+                        let expectedSize: Int
+                        if rampEligible {
+                            expectedSize = flushRequestRowCount
+                        } else if remainingBatchCount > 0 {
+                            expectedSize = remainingBatchCount
+                        } else if !bufferedEncoded.isEmpty {
+                            expectedSize = bufferedEncoded.count
+                        } else {
+                            expectedSize = bufferedRaw.count
+                        }
+                        await streamState.publishBatch(expectedRequestSize: expectedSize, rampEligible: rampEligible, progressHandler: progressHandler)
+                    }
                 }
 
-                progressHandler(update)
+                _ = try? await connection.simpleQuery("CLOSE \(cursorName)")
+                declared = false
+                _ = try await connection.simpleQuery("COMMIT")
+                began = false
+
+                let finalTotalRowCount = await streamState.totalRowCount
+                let totalElapsed = CFAbsoluteTimeGetCurrent() - operationStart
+                let completionMessage = String(format: "[PostgresStream] completed rows=%d elapsed=%.3fs", finalTotalRowCount, totalElapsed)
+                logger.debug(.init(stringLiteral: completionMessage))
+                print(completionMessage)
+
+                let columnsAfterStreaming = await streamState.columns
+                let resolvedColumns = columnsAfterStreaming.isEmpty
+                    ? [ColumnInfo(name: "result", dataType: "text")]
+                    : columnsAfterStreaming
+                let previewRows = await streamState.previewRows
+                let commandTag = await streamState.commandTag
+
+                return QueryResultSet(
+                    columns: resolvedColumns,
+                    rows: previewRows,
+                    totalRowCount: finalTotalRowCount,
+                    commandTag: commandTag
+                )
+            } catch {
+                if declared { _ = try? await connection.simpleQuery("CLOSE \(cursorName)") }
+                if began { _ = try? await connection.simpleQuery("ROLLBACK") }
+                throw normalizeError(error, contextSQL: sanitizedSQL)
             }
+        }
+    }
 
-            fetchLoop: while true {
-                try Task.checkCancellation()
+    private func streamQueryUsingSimpleProtocol(
+        sanitizedSQL: String,
+        progressHandler: @escaping QueryProgressHandler
+    ) async throws -> QueryResultSet {
+        let logger = self.logger
+        let operationStart = CFAbsoluteTimeGetCurrent()
+#if DEBUG
+        let streamDebugID = String(UUID().uuidString.prefix(8))
+        func debugLog(_ message: @autoclosure () -> String) {
+            let elapsed = CFAbsoluteTimeGetCurrent() - operationStart
+            print("[PostgresStream][\(streamDebugID)] t=\(String(format: "%.3f", elapsed)) \(message())")
+        }
+#else
+        func debugLog(_ message: @autoclosure () -> String) {}
+#endif
 
-                let fetchSQL = "FETCH FORWARD \(fetchSize) FROM \(cursorName)"
-                let fetchQuery = PostgresQuery(unsafeSQL: fetchSQL)
-                let batchSequence = try await client.query(fetchQuery, logger: logger)
+        let streamingPreviewLimit = 512
+        let formatterContext = CellFormatterContext()
+        let formattingEnabled = (UserDefaults.standard.object(forKey: ResultFormattingEnabledDefaultsKey) as? Bool) ?? true
+        let formattingModeRaw = UserDefaults.standard.string(forKey: ResultFormattingModeDefaultsKey)
+        let formattingMode = ResultsFormattingMode(rawValue: formattingModeRaw ?? "") ?? .immediate
 
-                var batchCount = 0
+        let previewFetchSize = streamingPreviewLimit
+        let storedFetchSize = UserDefaults.standard.integer(forKey: ResultStreamingFetchSizeDefaultsKey)
+        let resolvedFetchSize = storedFetchSize >= 128 ? storedFetchSize : 4_096
+        let configuredFetchSize = min(max(resolvedFetchSize, 128), 16_384)
+        let backgroundFetchBaseline = max(streamingPreviewLimit, configuredFetchSize)
 
-                for try await row in batchSequence {
-                    try Task.checkCancellation()
+        // Note: simple protocol path does not use ramp ceilings
 
-                    if columns.isEmpty {
-                        columns.reserveCapacity(row.count)
+        return try await self.client.withConnection { connection in
+            let streamState = QueryStreamState(
+                streamingPreviewLimit: streamingPreviewLimit,
+                formatterContext: formatterContext,
+                formattingEnabled: formattingEnabled,
+                formattingMode: formattingMode,
+                logger: logger,
+                operationStart: operationStart,
+                streamDebugID: streamDebugID,
+                previewFetchSize: previewFetchSize,
+                backgroundFetchBaseline: backgroundFetchBaseline
+            )
+
+            do {
+                let rowSequence = try await connection.simpleQuery(sanitizedSQL)
+
+                for try await row in rowSequence {
+                    if Task.isCancelled {
+                        throw CancellationError()
+                    }
+
+                    let currentColumns = await streamState.columns
+                    if currentColumns.isEmpty {
+                        var newColumns: [ColumnInfo] = []
+                        newColumns.reserveCapacity(row.count)
                         for cell in row {
-                            columns.append(ColumnInfo(
+                            newColumns.append(ColumnInfo(
                                 name: cell.columnName,
                                 dataType: "\(cell.dataType)",
                                 isPrimaryKey: false,
@@ -223,56 +715,71 @@ final class PostgresSession: DatabaseSession {
                                 maxLength: nil
                             ))
                         }
-                        if worker == nil {
-                            worker = ResultStreamBatchWorker(
-                                label: "dk.tippr.echo.postgres.streamWorker",
-                                columns: columns,
-                                streamingPreviewLimit: streamingPreviewLimit,
-                                maxFlushLatency: maxFlushLatency,
-                                operationStart: operationStart,
-                                progressHandler: proxiedHandler
-                            )
-                        }
+                        await streamState.setColumns(newColumns)
                     }
-
-                    let currentIndex = totalRowCount
-                    let capturePreview = currentIndex < streamingPreviewLimit
-
-                    var rawCells: [Data?] = []
-                    rawCells.reserveCapacity(row.count)
-
-                    var previewValues: [String?]? = nil
 
                     let conversionStart = CFAbsoluteTimeGetCurrent()
+                    var payloadCells: [ResultCellPayload] = []
+                    // Prefer preview-first: only format rows until the preview is filled; background is deferred for speed.
+                    let previewRowsNow = await streamState.previewRows
+                    let isPreviewPhase = previewRowsNow.count < streamingPreviewLimit
+                    let shouldFormatRow: Bool = formattingEnabled && isPreviewPhase
+                    let needsRawPayloadForDeferred: Bool = formattingEnabled && isPreviewPhase
 
-                    if capturePreview {
-                        var values: [String?] = []
-                        values.reserveCapacity(row.count)
-                        for cell in row {
-                            rawCells.append(rawData(for: cell))
-                            values.append(formatterContext.stringValue(for: cell))
+                    var formattedRow: [String?] = []
+                    if shouldFormatRow {
+                        formattedRow.reserveCapacity(row.count)
+                    }
+
+                    if shouldFormatRow || needsRawPayloadForDeferred {
+                        payloadCells.reserveCapacity(row.count)
+                    }
+
+                    for cell in row {
+                        if shouldFormatRow || needsRawPayloadForDeferred {
+                            payloadCells.append(ResultCellPayload(cell: cell))
                         }
-                        previewValues = values
+                        guard shouldFormatRow else { continue }
+
+                        let displayValue: String?
+                        if formattingEnabled {
+                            switch formattingMode {
+                            case .immediate, .deferred:
+                                displayValue = formatterContext.stringValue(for: cell)
+                            }
+                        } else {
+                            displayValue = Self.cheapStringValue(for: cell) ?? formatterContext.stringValue(for: cell)
+                        }
+                        formattedRow.append(displayValue)
+                    }
+
+                    if shouldFormatRow {
+                        let decodeDuration = CFAbsoluteTimeGetCurrent() - conversionStart
+                        await streamState.incrementCounts(decodeDuration: decodeDuration)
                     } else {
-                        for cell in row {
-                            rawCells.append(rawData(for: cell))
+                        await streamState.incrementTotalOnly()
+                    }
+
+                    if needsRawPayloadForDeferred {
+                        await streamState.appendRawPayloadRow(ResultRowPayload(cells: payloadCells))
+                    }
+
+                    if shouldFormatRow {
+                        await streamState.appendFormattedRow(formattedRow)
+                        await streamState.appendEncodedRow(ResultBinaryRowCodec.encode(row: formattedRow))
+                        await streamState.appendPreviewRow(formattedRow)
+                    } else {
+                        if needsRawPayloadForDeferred {
+                            let rawCells = payloadCells.map { $0.bytes }
+                            await streamState.appendEncodedRow(ResultBinaryRowCodec.encodeRaw(cells: rawCells))
+                        } else {
+                            // In simple mode, skip building encoded rows for background to keep CPU minimal.
                         }
                     }
 
-                    let decodeDuration = CFAbsoluteTimeGetCurrent() - conversionStart
-
-                    if let values = previewValues {
-                        if previewRows.count < streamingPreviewLimit {
-                            previewRows.append(values)
-                        }
-                    }
-
-                    let encodedRow = ResultBinaryRowCodec.encodeRaw(cells: rawCells)
-                    totalRowCount += 1
-                    batchCount += 1
-
+                    let firstRowLogged = await streamState.firstRowLogged
                     if !firstRowLogged {
-                        firstRowLogged = true
+                        await streamState.setFirstRowLogged()
                         let firstRowLatency = CFAbsoluteTimeGetCurrent() - operationStart
                         let message = String(
                             format: "[PostgresStream] first-row latency=%.3fs",
@@ -282,79 +789,105 @@ final class PostgresSession: DatabaseSession {
                         print(message)
                     }
 
-                    worker?.enqueue(
-                        .init(
-                            previewValues: previewValues,
-                            encodedRow: encodedRow,
-                            totalRowCount: totalRowCount,
-                            decodeDuration: decodeDuration
-                        )
-                    )
-
-                    if totalRowCount % 2048 == 0 {
-                        await Task.yield()
+                    let totalRowCount = await streamState.totalRowCount
+                    if totalRowCount < streamingPreviewLimit {
+                        continue
                     }
+
+                    let batchCount = await streamState.batchCount
+                    if totalRowCount == streamingPreviewLimit {
+                        await streamState.publishBatch(expectedRequestSize: batchCount, rampEligible: false, progressHandler: progressHandler)
+                        continue
+                    }
+
+                    // Keep the UI counter lively during long simple-protocol streams without forcing heavy UI merges
+                    await streamState.maybePublishProgress(throttle: 0.12, progressHandler: progressHandler)
+
+                    // Skip interim timed/threshold flushes in simple mode to minimize UI churn; rely on
+                    // preview flush above and a single final flush below.
                 }
 
-                if batchCount == 0 {
-                    break fetchLoop
-                }
-
-                if batchCount < fetchSize {
-                    break fetchLoop
-                }
-
-                if fetchSize == previewFetchSize, totalRowCount >= streamingPreviewLimit {
-                    fetchSize = backgroundFetchSize
-                }
-
-                await Task.yield()
+                // await streamState.setCommandTag(rowSequence.commandTag)
+            } catch {
+                throw normalizeError(error, contextSQL: sanitizedSQL)
             }
 
-            worker?.finish(totalRowCount: totalRowCount)
-
-            if cursorActive {
-                try await executeVoidStatement("CLOSE \(cursorName)")
-                cursorActive = false
-            }
-            if transactionBegan {
-                try await executeVoidStatement("COMMIT")
-                transactionBegan = false
-            }
-        } catch {
-            worker?.finish(totalRowCount: totalRowCount)
-
-            if cursorActive {
-                try? await executeVoidStatement("CLOSE \(cursorName)")
-            }
-            if transactionBegan {
-                try? await executeVoidStatement("ROLLBACK")
+            let remainingBatchCount = await streamState.batchCount
+            if remainingBatchCount > 0 {
+                await streamState.publishBatch(expectedRequestSize: remainingBatchCount, rampEligible: false, progressHandler: progressHandler)
             }
 
-            if let cancellation = error as? CancellationError {
-                throw cancellation
-            }
-            throw error
+            let finalTotalRowCount = await streamState.totalRowCount
+            let totalElapsed = CFAbsoluteTimeGetCurrent() - operationStart
+            let completionMessage = String(
+                format: "[PostgresStream] completed rows=%d elapsed=%.3fs",
+                finalTotalRowCount,
+                totalElapsed
+            )
+            logger.debug(.init(stringLiteral: completionMessage))
+            print(completionMessage)
+#if DEBUG
+            await streamState.debugLog("Streaming complete totalRows=\(finalTotalRowCount)")
+#endif
+
+            let columnsAfterStreaming = await streamState.columns
+            let resolvedColumns = columnsAfterStreaming.isEmpty
+                ? [ColumnInfo(name: "result", dataType: "text")]
+                : columnsAfterStreaming
+            let previewRows = await streamState.previewRows
+            let commandTag = await streamState.commandTag
+
+            return QueryResultSet(
+                columns: resolvedColumns,
+                rows: previewRows,
+                totalRowCount: finalTotalRowCount,
+                commandTag: commandTag
+            )
         }
+    }
 
-        let totalElapsed = CFAbsoluteTimeGetCurrent() - operationStart
-        let completionMessage = String(
-            format: "[PostgresStream] completed rows=%d elapsed=%.3fs",
-            totalRowCount,
-            totalElapsed
-        )
-        logger.debug(.init(stringLiteral: completionMessage))
-        print(completionMessage)
+    @Sendable
+    private nonisolated static func cheapStringValue(for cell: PostgresCell) -> String? {
+        if cell.format == .text, let buffer = cell.bytes {
+            let readable = buffer.readableBytes
+            guard readable > 0 else { return "" }
+            return buffer.getString(at: buffer.readerIndex, length: readable)
+        }
+        if let decoded = try? cell.decode(String.self, context: .default) {
+            return decoded
+        }
+        if var buffer = cell.bytes {
+            let readable = buffer.readableBytes
+            guard readable > 0 else { return "" }
+            if let string = buffer.getString(at: buffer.readerIndex, length: readable) {
+                return string
+            }
+            if let bytes = buffer.readBytes(length: readable) {
+                return bytes.reduce(into: "0x") { result, byte in
+                    result.append(String(format: "%02X", byte))
+                }
+            }
+        }
+        return nil
+    }
 
-        let resolvedColumns = columns.isEmpty
-            ? [ColumnInfo(name: "result", dataType: "text")]
-            : columns
+    private func simpleQueryFastPathLimit(for sql: String) -> Int? {
+        let trimmed = sql.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
 
-        return QueryResultSet(
-            columns: resolvedColumns,
-            rows: previewRows,
-            totalRowCount: totalRowCount
-        )
+        let normalizedPrefix = trimmed.lowercased()
+        guard normalizedPrefix.hasPrefix("select") || normalizedPrefix.hasPrefix("with ") else { return nil }
+
+        let pattern = #"(?i)\blimit\s+(\d+)\b"#
+        guard let regex = try? NSRegularExpression(pattern: pattern) else { return nil }
+        let range = NSRange(trimmed.startIndex..<trimmed.endIndex, in: trimmed)
+        guard let match = regex.firstMatch(in: trimmed, options: [], range: range),
+              match.numberOfRanges > 1,
+              let bound = Range(match.range(at: 1), in: trimmed),
+              let value = Int(trimmed[bound]) else {
+            return nil
+        }
+        return value
     }
 
     private func sanitizeSQL(_ sql: String) -> String {
@@ -366,53 +899,62 @@ final class PostgresSession: DatabaseSession {
         return trimmed
     }
 
+    private func normalizeError(_ error: Error, contextSQL: String? = nil) -> Error {
+        guard let pgError = error as? PSQLError else { return error }
+
+        var lines: [String] = []
+        if let message = pgError.serverInfo?[.message], !message.isEmpty {
+            lines.append(message)
+        } else {
+            lines.append(pgError.localizedDescription)
+        }
+        if let detail = pgError.serverInfo?[.detail], !detail.isEmpty {
+            lines.append(detail)
+        }
+        if let hint = pgError.serverInfo?[.hint], !hint.isEmpty {
+            lines.append("Hint: \(hint)")
+        }
+        if let sqlState = pgError.serverInfo?[.sqlState], !sqlState.isEmpty {
+            lines.append("SQLSTATE: \(sqlState)")
+        }
+        if
+            let positionString = pgError.serverInfo?[.position],
+            let position = Int(positionString),
+            position > 0,
+            let sql = contextSQL
+        {
+            let limitedSQL = sql.prefix(2_000)
+            lines.append(String(limitedSQL))
+            let caretPosition = min(position - 1, limitedSQL.count - 1)
+            let pointer = String(repeating: " ", count: max(0, caretPosition)) + "^"
+            lines.append(pointer)
+        }
+
+        let message = lines.joined(separator: "\n")
+        logger.error(.init(stringLiteral: "PostgreSQL error: \(message)"))
+        return DatabaseError.queryError(message)
+    }
+
     func queryWithPaging(_ sql: String, limit: Int, offset: Int) async throws -> QueryResultSet {
         let pagedSQL = "\(sql) LIMIT \(limit) OFFSET \(offset)"
         return try await simpleQuery(pagedSQL)
     }
 
     func executeUpdate(_ sql: String) async throws -> Int {
-        let query = PostgresQuery(unsafeSQL: sql)
-        let result = try await client.query(query, logger: logger)
-
+        let result = try await client.simpleQuery(sql)
         var count = 0
-        for try await _ in result {
-            count += 1
-        }
+        for try await _ in result { count += 1 }
         return count
     }
 
     func listDatabases() async throws -> [String] {
-        let sql = """
-        SELECT datname
-        FROM pg_database
-        WHERE datallowconn = true
-          AND datistemplate = false
-        ORDER BY datname;
-        """
-        let result = try await performQuery(sql)
-        var names: [String] = []
-        for try await name in result.decode(String.self) {
-            names.append(name)
-        }
-        return names
+        let meta = PostgresMetadata()
+        return try await meta.listDatabases(using: client)
     }
 
     func listSchemas() async throws -> [String] {
-        let sql = """
-        SELECT schema_name
-        FROM information_schema.schemata
-        WHERE schema_name NOT IN ('pg_catalog', 'pg_toast', 'information_schema')
-          AND schema_name NOT LIKE 'pg_temp_%'
-          AND schema_name NOT LIKE 'pg_toast_temp_%'
-        ORDER BY schema_name;
-        """
-        let result = try await performQuery(sql)
-        var schemas: [String] = []
-        for try await schema in result.decode(String.self) {
-            schemas.append(schema)
-        }
-        return schemas
+        let meta = PostgresMetadata()
+        return try await meta.listSchemas(using: client)
     }
 
     func listTablesAndViews(schema: String?) async throws -> [SchemaObjectInfo] {
@@ -422,421 +964,76 @@ final class PostgresSession: DatabaseSession {
 
     func getTableSchema(_ tableName: String, schemaName: String?) async throws -> [ColumnInfo] {
         let schema = schemaName ?? "public"
-        let columnMap = try await fetchColumnsByObject(schemaName: schema)
-        return columnMap[tableName] ?? []
+        let meta = PostgresMetadata()
+        let cols = try await meta.listColumns(using: client, schema: schema, table: tableName)
+        return cols.map { ColumnInfo(name: $0.name, dataType: $0.dataType, isPrimaryKey: false, isNullable: $0.isNullable, maxLength: nil) }
     }
 
     func getTableStructureDetails(schema: String, table: String) async throws -> TableStructureDetails {
-        var columns: [TableStructureDetails.Column] = []
-
-        let columnsSQL = """
-        SELECT
-            column_name,
-            data_type,
-            is_nullable,
-            column_default,
-            generation_expression,
-            ordinal_position
-        FROM information_schema.columns
-        WHERE table_schema = $1 AND table_name = $2
-        ORDER BY ordinal_position;
-        """
-
-        let columnResult = try await performQuery(columnsSQL, binds: [PostgresData(string: schema), PostgresData(string: table)])
-        for try await (name, dataType, nullable, defaultValue, generated, _) in columnResult.decode((String, String, String, String?, String?, Int).self) {
-            let column = TableStructureDetails.Column(
-                name: name,
-                dataType: dataType,
-                isNullable: nullable.uppercased() == "YES",
-                defaultValue: defaultValue,
-                generatedExpression: generated
-            )
-            columns.append(column)
-        }
-
-        // Primary key
-        var primaryKeyName: String?
-        var primaryKeyColumns: [String] = []
-        let primaryKeySQL = """
-        SELECT tc.constraint_name, kcu.column_name
-        FROM information_schema.table_constraints AS tc
-        JOIN information_schema.key_column_usage AS kcu
-          ON tc.constraint_name = kcu.constraint_name
-          AND tc.table_schema = kcu.table_schema
-        WHERE tc.constraint_type = 'PRIMARY KEY'
-          AND tc.table_schema = $1
-          AND tc.table_name = $2
-        ORDER BY kcu.ordinal_position;
-        """
-
-        let pkResult = try await performQuery(primaryKeySQL, binds: [PostgresData(string: schema), PostgresData(string: table)])
-        for try await (name, column) in pkResult.decode((String, String).self) {
-            primaryKeyName = name
-            primaryKeyColumns.append(column)
-        }
-
-        var primaryKey: TableStructureDetails.PrimaryKey?
-        if let pkName = primaryKeyName {
-            primaryKey = TableStructureDetails.PrimaryKey(name: pkName, columns: primaryKeyColumns)
-        }
-
-        // Indexes (non-primary)
-        struct IndexAccumulator {
-            var isUnique: Bool
-            var columns: [TableStructureDetails.Index.Column]
-            var filterCondition: String?
-        }
-
-        var indexes: [String: IndexAccumulator] = [:]
-        let indexSQL = """
-        SELECT
-            idx.relname AS index_name,
-            ix.indisunique,
-            ord.position,
-            att.attname,
-            ((ix.indoption[ord.position] & 1) = 1) AS is_descending,
-            pg_get_expr(ix.indpred, tab.oid) AS predicate
-        FROM pg_class tab
-        JOIN pg_index ix ON tab.oid = ix.indrelid
-        JOIN pg_class idx ON idx.oid = ix.indexrelid
-        JOIN pg_namespace ns ON ns.oid = tab.relnamespace
-        CROSS JOIN LATERAL generate_subscripts(ix.indkey, 1) AS ord(position)
-        LEFT JOIN pg_attribute att ON att.attrelid = tab.oid AND att.attnum = ix.indkey[ord.position]
-        WHERE ns.nspname = $1
-          AND tab.relname = $2
-          AND ix.indisprimary = false
-        ORDER BY idx.relname, ord.position;
-        """
-
-        let indexResult = try await performQuery(indexSQL, binds: [PostgresData(string: schema), PostgresData(string: table)])
-        for try await (indexName, isUnique, position, column, isDescending, predicate) in indexResult.decode((String, Bool, Int, String?, Bool, String?).self) {
-            var entry = indexes[indexName] ?? IndexAccumulator(isUnique: isUnique, columns: [], filterCondition: predicate)
-            entry.filterCondition = predicate
-            if let column {
-                let sortOrder: TableStructureDetails.Index.Column.SortOrder = isDescending ? .descending : .ascending
-                entry.columns.append(
-                    TableStructureDetails.Index.Column(
-                        name: column,
-                        position: position,
-                        sortOrder: sortOrder
-                    )
-                )
+        let meta = PostgresMetadata()
+        async let cols: [TableStructureDetails.Column] = {
+            let list = try? await meta.listColumns(using: client, schema: schema, table: table)
+            return (list ?? []).map { TableStructureDetails.Column(name: $0.name, dataType: $0.dataType, isNullable: $0.isNullable, defaultValue: $0.defaultValue, generatedExpression: nil) }
+        }()
+        async let pk: TableStructureDetails.PrimaryKey? = {
+            if let p = try? await meta.primaryKey(using: client, schema: schema, table: table) {
+                return TableStructureDetails.PrimaryKey(name: p.name, columns: p.columns)
             }
-            indexes[indexName] = entry
-        }
-
-        let indexModels: [TableStructureDetails.Index] = indexes.map { name, value in
-            let sortedColumns = value.columns.sorted { $0.position < $1.position }
-            return TableStructureDetails.Index(
-                name: name,
-                columns: sortedColumns,
-                isUnique: value.isUnique,
-                filterCondition: value.filterCondition?.trimmingCharacters(in: .whitespacesAndNewlines)
-            )
-        }.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
-
-        // Unique constraints
-        var uniqueConstraints: [String: [String]] = [:]
-        let uniqueSQL = """
-        SELECT tc.constraint_name, kcu.column_name, kcu.ordinal_position
-        FROM information_schema.table_constraints AS tc
-        JOIN information_schema.key_column_usage AS kcu
-          ON tc.constraint_name = kcu.constraint_name
-          AND tc.table_schema = kcu.table_schema
-        WHERE tc.constraint_type = 'UNIQUE'
-          AND tc.table_schema = $1
-          AND tc.table_name = $2
-        ORDER BY tc.constraint_name, kcu.ordinal_position;
-        """
-
-        let uniqueResult = try await performQuery(uniqueSQL, binds: [PostgresData(string: schema), PostgresData(string: table)])
-        for try await (name, column, _) in uniqueResult.decode((String, String, Int).self) {
-            uniqueConstraints[name, default: []].append(column)
-        }
-
-        let uniqueModels: [TableStructureDetails.UniqueConstraint] = uniqueConstraints.map { name, columns in
-            TableStructureDetails.UniqueConstraint(name: name, columns: columns)
-        }.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
-
-        // Foreign keys
-        struct ForeignKeyRow {
-            let name: String
-            let column: String
-            let referencedSchema: String
-            let referencedTable: String
-            let referencedColumn: String
-            let onUpdate: String?
-            let onDelete: String?
-            let position: Int
-        }
-
-        var foreignKeyRows: [ForeignKeyRow] = []
-        let foreignKeySQL = """
-        SELECT
-            tc.constraint_name,
-            kcu.column_name,
-            ccu.table_schema,
-            ccu.table_name,
-            ccu.column_name,
-            rc.update_rule,
-            rc.delete_rule,
-            kcu.ordinal_position
-        FROM information_schema.table_constraints AS tc
-        JOIN information_schema.key_column_usage AS kcu
-          ON tc.constraint_name = kcu.constraint_name
-          AND tc.table_schema = kcu.table_schema
-        JOIN information_schema.referential_constraints AS rc
-          ON rc.constraint_name = tc.constraint_name
-          AND rc.constraint_schema = tc.table_schema
-        JOIN information_schema.constraint_column_usage AS ccu
-          ON ccu.constraint_name = tc.constraint_name
-          AND ccu.constraint_schema = tc.constraint_schema
-        WHERE tc.constraint_type = 'FOREIGN KEY'
-          AND tc.table_schema = $1
-          AND tc.table_name = $2
-        ORDER BY tc.constraint_name, kcu.ordinal_position;
-        """
-
-        let foreignResult = try await performQuery(foreignKeySQL, binds: [PostgresData(string: schema), PostgresData(string: table)])
-        for try await (name, column, refSchema, refTable, refColumn, onUpdate, onDelete, position) in foreignResult.decode((String, String, String, String, String, String?, String?, Int).self) {
-            foreignKeyRows.append(
-                ForeignKeyRow(
-                    name: name,
-                    column: column,
-                    referencedSchema: refSchema,
-                    referencedTable: refTable,
-                    referencedColumn: refColumn,
-                    onUpdate: onUpdate,
-                    onDelete: onDelete,
-                    position: position
-                )
-            )
-        }
-
-        let groupedFK = Dictionary(grouping: foreignKeyRows, by: { $0.name })
-        let foreignKeyModels: [TableStructureDetails.ForeignKey] = groupedFK.map { name, rows in
-            let sortedRows = rows.sorted { $0.position < $1.position }
-            return TableStructureDetails.ForeignKey(
-                name: name,
-                columns: sortedRows.map { $0.column },
-                referencedSchema: sortedRows.first?.referencedSchema ?? schema,
-                referencedTable: sortedRows.first?.referencedTable ?? "",
-                referencedColumns: sortedRows.map { $0.referencedColumn },
-                onUpdate: sortedRows.first?.onUpdate,
-                onDelete: sortedRows.first?.onDelete
-            )
-        }.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
-
-        // Dependencies (incoming foreign keys)
-        struct DependencyRow {
-            let name: String
-            let sourceTable: String
-            let referencingColumn: String
-            let referencedColumn: String
-            let onUpdate: String?
-            let onDelete: String?
-            let position: Int
-        }
-
-        var dependencyRows: [DependencyRow] = []
-        let dependencySQL = """
-        SELECT
-            tc.constraint_name,
-            kcu.table_schema,
-            kcu.table_name,
-            kcu.column_name,
-            ccu.column_name,
-            rc.update_rule,
-            rc.delete_rule,
-            kcu.ordinal_position
-        FROM information_schema.referential_constraints AS rc
-        JOIN information_schema.table_constraints AS tc
-          ON tc.constraint_name = rc.constraint_name
-          AND tc.constraint_schema = rc.constraint_schema
-        JOIN information_schema.key_column_usage AS kcu
-          ON kcu.constraint_name = tc.constraint_name
-          AND kcu.constraint_schema = tc.constraint_schema
-        JOIN information_schema.constraint_column_usage AS ccu
-          ON ccu.constraint_name = tc.constraint_name
-          AND ccu.constraint_schema = tc.constraint_schema
-        WHERE ccu.table_schema = $1
-          AND ccu.table_name = $2
-        ORDER BY tc.constraint_name, kcu.ordinal_position;
-        """
-
-        let dependencyResult = try await performQuery(dependencySQL, binds: [PostgresData(string: schema), PostgresData(string: table)])
-        for try await (name, sourceSchema, sourceTable, sourceColumn, targetColumn, onUpdate, onDelete, position) in dependencyResult.decode((String, String, String, String, String, String?, String?, Int).self) {
-            let fullSourceTable: String
-            if sourceSchema == schema {
-                fullSourceTable = sourceTable
-            } else {
-                fullSourceTable = "\(sourceSchema).\(sourceTable)"
+            return nil
+        }()
+        async let idx: [TableStructureDetails.Index] = {
+            let list = try? await meta.listIndexes(using: client, schema: schema, table: table)
+            return (list ?? []).map { i in
+                let columns = i.columns.enumerated().map { (pos, c) in
+                    TableStructureDetails.Index.Column(name: c.name, position: pos + 1, sortOrder: c.isDescending ? .descending : .ascending)
+                }
+                return TableStructureDetails.Index(name: i.name, columns: columns, isUnique: i.isUnique, filterCondition: i.predicate)
             }
-
-            dependencyRows.append(
-                DependencyRow(
-                    name: name,
-                    sourceTable: fullSourceTable,
-                    referencingColumn: sourceColumn,
-                    referencedColumn: targetColumn,
-                    onUpdate: onUpdate,
-                    onDelete: onDelete,
-                    position: position
-                )
-            )
-        }
-
-        let groupedDependencies = Dictionary(grouping: dependencyRows, by: { $0.name })
-        let dependencyModels: [TableStructureDetails.Dependency] = groupedDependencies.map { name, rows in
-            let sortedRows = rows.sorted { $0.position < $1.position }
-            return TableStructureDetails.Dependency(
-                name: name,
-                baseColumns: sortedRows.map { $0.referencingColumn },
-                referencedTable: sortedRows.first?.sourceTable ?? "",
-                referencedColumns: sortedRows.map { $0.referencedColumn },
-                onUpdate: sortedRows.first?.onUpdate,
-                onDelete: sortedRows.first?.onDelete
-            )
-        }.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
-
-        return TableStructureDetails(
-            columns: columns,
-            primaryKey: primaryKey,
-            indexes: indexModels,
-            uniqueConstraints: uniqueModels,
-            foreignKeys: foreignKeyModels,
-            dependencies: dependencyModels
-        )
+        }()
+        async let fks: [TableStructureDetails.ForeignKey] = {
+            let list = try? await meta.foreignKeys(using: client, schema: schema, table: table)
+            return (list ?? []).map { fk in
+                TableStructureDetails.ForeignKey(name: fk.name, columns: fk.columns, referencedSchema: fk.referencedSchema, referencedTable: fk.referencedTable, referencedColumns: fk.referencedColumns, onUpdate: fk.onUpdate, onDelete: fk.onDelete)
+            }
+        }()
+        async let uniques: [TableStructureDetails.UniqueConstraint] = {
+            let list = try? await meta.uniqueConstraints(using: client, schema: schema, table: table)
+            return (list ?? []).map { TableStructureDetails.UniqueConstraint(name: $0.name, columns: $0.columns) }
+        }()
+        async let deps: [TableStructureDetails.Dependency] = {
+            let list = try? await meta.dependencies(using: client, schema: schema, table: table)
+            return (list ?? []).map { d in
+                TableStructureDetails.Dependency(name: d.name, baseColumns: d.referencingColumns, referencedTable: d.sourceTable, referencedColumns: d.referencedColumns, onUpdate: d.onUpdate, onDelete: d.onDelete)
+            }
+        }()
+        let (columns, primaryKey, indexes, foreignKeys, uniqueConstraints, dependencies) = await (cols, pk, idx, fks, uniques, deps)
+        return TableStructureDetails(columns: columns, primaryKey: primaryKey, indexes: indexes, uniqueConstraints: uniqueConstraints, foreignKeys: foreignKeys, dependencies: dependencies)
     }
 
     private func fetchColumnsByObject(schemaName: String) async throws -> [String: [ColumnInfo]] {
-        struct ColumnRecord {
-            let name: String
-            let dataType: String
-            let isNullable: Bool
-            let maxLength: Int?
-            let ordinal: Int
-        }
-
-        var columnsByTable: [String: [ColumnRecord]] = [:]
-
-        let columnsSQL = """
-        SELECT table_name, column_name, data_type, is_nullable, character_maximum_length, ordinal_position
-        FROM information_schema.columns
-        WHERE table_schema = $1
-        ORDER BY table_name, ordinal_position;
-        """
-        let columnResult = try await performQuery(columnsSQL, binds: [PostgresData(string: schemaName)])
-        for try await (table, column, dataType, nullable, maxLength, ordinal) in columnResult.decode((String, String, String, String, Int?, Int).self) {
-            var list = columnsByTable[table, default: []]
-            list.append(
-                ColumnRecord(
-                    name: column,
-                    dataType: dataType,
-                    isNullable: nullable.uppercased() == "YES",
-                    maxLength: maxLength,
-                    ordinal: ordinal
-                )
-            )
-            columnsByTable[table] = list
-        }
-
-        let pkSQL = """
-        SELECT tc.table_name, kcu.column_name
-        FROM information_schema.table_constraints AS tc
-        JOIN information_schema.key_column_usage AS kcu
-          ON tc.constraint_name = kcu.constraint_name
-          AND tc.table_schema = kcu.table_schema
-        WHERE tc.constraint_type = 'PRIMARY KEY'
-          AND tc.table_schema = $1;
-        """
-        var primaryKeysByTable: [String: Set<String>] = [:]
-        let pkResult = try await performQuery(pkSQL, binds: [PostgresData(string: schemaName)])
-        for try await (table, column) in pkResult.decode((String, String).self) {
-            var columns = primaryKeysByTable[table, default: []]
-            columns.insert(column)
-            primaryKeysByTable[table] = columns
-        }
-
-        let foreignKeysSQL = """
-        SELECT
-            cls.relname AS table_name,
-            att.attname AS column_name,
-            nsp_ref.nspname AS referenced_schema,
-            cls_ref.relname AS referenced_table,
-            att_ref.attname AS referenced_column,
-            con.conname AS constraint_name
-        FROM pg_constraint con
-        JOIN pg_class cls ON cls.oid = con.conrelid
-        JOIN pg_namespace nsp ON nsp.oid = cls.relnamespace
-        JOIN pg_class cls_ref ON cls_ref.oid = con.confrelid
-        JOIN pg_namespace nsp_ref ON nsp_ref.oid = cls_ref.relnamespace
-        JOIN LATERAL generate_subscripts(con.conkey, 1) AS idx(pos) ON TRUE
-        JOIN pg_attribute att ON att.attrelid = con.conrelid AND att.attnum = con.conkey[idx.pos]
-        JOIN pg_attribute att_ref ON att_ref.attrelid = con.confrelid AND att_ref.attnum = con.confkey[idx.pos]
-        WHERE con.contype = 'f'
-          AND nsp.nspname = $1
-        ORDER BY cls.relname, idx.pos;
-        """
-
-        var foreignKeysByTable: [String: [String: ColumnInfo.ForeignKeyReference]] = [:]
-        let foreignKeysResult = try await performQuery(foreignKeysSQL, binds: [PostgresData(string: schemaName)])
-        for try await (table, column, referencedSchema, referencedTable, referencedColumn, constraintName) in foreignKeysResult.decode((String, String, String, String, String, String).self) {
-            var tableMap = foreignKeysByTable[table, default: [:]]
-            tableMap[column] = ColumnInfo.ForeignKeyReference(
-                constraintName: constraintName,
-                referencedSchema: referencedSchema,
-                referencedTable: referencedTable,
-                referencedColumn: referencedColumn
-            )
-            foreignKeysByTable[table] = tableMap
-        }
-
-        // Materialized view columns may not appear in information_schema in some versions
-        let matViewColumnSQL = """
-        SELECT c.relname, a.attname, pg_catalog.format_type(a.atttypid, a.atttypmod), NOT a.attnotnull, NULL::integer, a.attnum
-        FROM pg_attribute a
-        JOIN pg_class c ON c.oid = a.attrelid
-        JOIN pg_namespace n ON n.oid = c.relnamespace
-        WHERE n.nspname = $1
-          AND c.relkind = 'm'
-          AND a.attnum > 0
-          AND NOT a.attisdropped
-        ORDER BY c.relname, a.attnum;
-        """
-        let matResult = try await performQuery(matViewColumnSQL, binds: [PostgresData(string: schemaName)])
-        for try await (table, column, dataType, nullable, _, ordinal) in matResult.decode((String, String, String, Bool, Int?, Int).self) {
-            var list = columnsByTable[table, default: []]
-            list.append(
-                ColumnRecord(
-                    name: column,
-                    dataType: dataType,
-                    isNullable: nullable,
-                    maxLength: nil,
-                    ordinal: ordinal
-                )
-            )
-            columnsByTable[table] = list
-        }
-
+        let meta = PostgresMetadata()
+        let details = try await meta.columnsByTable(using: client, schema: schemaName)
         var result: [String: [ColumnInfo]] = [:]
-        for (table, records) in columnsByTable {
-            let sorted = records.sorted { $0.ordinal < $1.ordinal }
-            let primaryKeys = primaryKeysByTable[table] ?? []
-            let foreignKeys = foreignKeysByTable[table] ?? [:]
-            let columns = sorted.map { record in
-                ColumnInfo(
-                    name: record.name,
-                    dataType: record.dataType,
-                    isPrimaryKey: primaryKeys.contains(record.name),
-                    isNullable: record.isNullable,
-                    maxLength: record.maxLength,
-                    foreignKey: foreignKeys[record.name]
+        for (table, cols) in details {
+            result[table] = cols.map { d in
+                let fk: ColumnInfo.ForeignKeyReference? = d.foreignKey.map { ref in
+                    ColumnInfo.ForeignKeyReference(
+                        constraintName: ref.constraintName,
+                        referencedSchema: ref.referencedSchema,
+                        referencedTable: ref.referencedTable,
+                        referencedColumn: ref.referencedColumn
+                    )
+                }
+                return ColumnInfo(
+                    name: d.name,
+                    dataType: d.dataType,
+                    isPrimaryKey: d.isPrimaryKey,
+                    isNullable: d.isNullable,
+                    maxLength: d.maxLength,
+                    foreignKey: fk
                 )
             }
-            result[table] = columns
         }
-
         return result
     }
 
@@ -870,39 +1067,23 @@ final class PostgresSession: DatabaseSession {
             """
 
         case .view:
-            let sql = """
-            SELECT pg_get_viewdef(format('%I.%I', $1, $2)::regclass, true);
-            """
-            if let definition = try await firstString(sql, binds: [PostgresData(string: schemaName), PostgresData(string: objectName)]) {
+            let meta = PostgresMetadata()
+            if let definition = try await meta.viewDefinition(using: client, schema: schemaName, view: objectName) {
                 return definition
             }
             return "-- View definition unavailable"
 
-        case .function:
-            let sql = """
-            SELECT pg_catalog.pg_get_functiondef(p.oid)
-            FROM pg_proc p
-            JOIN pg_namespace n ON n.oid = p.pronamespace
-            WHERE n.nspname = $1 AND p.proname = $2
-            ORDER BY p.oid
-            LIMIT 1;
-            """
-            if let definition = try await firstString(sql, binds: [PostgresData(string: schemaName), PostgresData(string: objectName)]) {
+        case .function, .procedure:
+            let meta = PostgresMetadata()
+            if let definition = try await meta.functionDefinition(using: client, schema: schemaName, name: objectName) {
                 return definition
             }
-            return "-- Function definition unavailable"
+            let descriptor = objectType == .function ? "Function" : "Procedure"
+            return "-- \(descriptor) definition unavailable"
 
         case .trigger:
-            let sql = """
-            SELECT pg_catalog.pg_get_triggerdef(t.oid, true)
-            FROM pg_trigger t
-            JOIN pg_class c ON c.oid = t.tgrelid
-            JOIN pg_namespace n ON n.oid = c.relnamespace
-            WHERE n.nspname = $1 AND t.tgname = $2
-            ORDER BY t.oid
-            LIMIT 1;
-            """
-            if let definition = try await firstString(sql, binds: [PostgresData(string: schemaName), PostgresData(string: objectName)]) {
+            let meta = PostgresMetadata()
+            if let definition = try await meta.triggerDefinition(using: client, schema: schemaName, name: objectName) {
                 return definition
             }
             return "-- Trigger definition unavailable"
@@ -912,20 +1093,9 @@ final class PostgresSession: DatabaseSession {
     // MARK: - Helpers
 
     private func performQuery(_ sql: String, binds: [PostgresData] = []) async throws -> PostgresRowSequence {
-        let query = makeQuery(sql, binds: binds)
-        return try await client.query(query, logger: logger)
-    }
-
-    private func makeQuery(_ sql: String, binds: [PostgresData]) -> PostgresQuery {
-        guard !binds.isEmpty else {
-            return PostgresQuery(unsafeSQL: sql)
+        try await client.withConnection { conn in
+            try await conn.query(sql, binds: binds)
         }
-
-        var bindings = PostgresBindings()
-        for bind in binds {
-            bindings.append(bind)
-        }
-        return PostgresQuery(unsafeSQL: sql, binds: bindings)
     }
 
     private func firstString(_ sql: String, binds: [PostgresData]) async throws -> String? {
@@ -939,10 +1109,32 @@ final class PostgresSession: DatabaseSession {
     }
 }
 
-private struct CellFormatterContext {
-    func stringValue(for cell: PostgresCell) -> String? {
+struct CellFormatterContext: Sendable {
+    nonisolated private static let postgresEpoch: Date = {
+        var components = DateComponents()
+        components.calendar = Calendar(identifier: .gregorian)
+        components.timeZone = TimeZone(secondsFromGMT: 0)
+        components.year = 2000
+        components.month = 1
+        components.day = 1
+        return components.date!
+    }()
+    
+    nonisolated private static var utcCalendar: Calendar {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        return calendar
+    }
+    
+    nonisolated private static var localCalendar: Calendar {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone.current
+        return calendar
+    }
+    
+    nonisolated func stringValue(for cell: PostgresCell) -> String? {
         guard let buffer = cell.bytes else { return nil }
-
+        
         if cell.format == .text {
             let readableBytes = buffer.readableBytes
             guard readableBytes > 0 else { return "" }
@@ -953,7 +1145,7 @@ private struct CellFormatterContext {
             }
             return raw
         }
-
+        
         switch cell.dataType {
         case .bool:
             if let value = try? cell.decode(Bool.self) {
@@ -985,27 +1177,158 @@ private struct CellFormatterContext {
             if var mutableBuffer = cell.bytes {
                 return hexString(from: &mutableBuffer)
             }
+        case .timestamp:
+            if var mutableBuffer = cell.bytes,
+               let microseconds: Int64 = mutableBuffer.readInteger(as: Int64.self) {
+                return formatTimestamp(microseconds: microseconds)
+            }
+        case .timestamptz:
+            if var mutableBuffer = cell.bytes,
+               let microseconds: Int64 = mutableBuffer.readInteger(as: Int64.self) {
+                return formatTimestampWithTimeZone(microseconds: microseconds)
+            }
+        case .date:
+            if var mutableBuffer = cell.bytes,
+               let days: Int32 = mutableBuffer.readInteger(as: Int32.self) {
+                return formatDate(days: Int(days))
+            }
+        case .time:
+            if var mutableBuffer = cell.bytes,
+               let microseconds: Int64 = mutableBuffer.readInteger(as: Int64.self) {
+                return formatTime(microseconds: microseconds)
+            }
+        case .timetz:
+            if var mutableBuffer = cell.bytes,
+               let microseconds: Int64 = mutableBuffer.readInteger(as: Int64.self),
+               let tzOffset: Int32 = mutableBuffer.readInteger(as: Int32.self) {
+                return formatTimeWithTimeZone(microseconds: microseconds, offsetMinutesWest: Int(tzOffset))
+            }
         default:
             if let string = try? cell.decode(String.self, context: .default) {
                 return string
             }
         }
-
+        
         if var mutableBuffer = cell.bytes {
             return hexString(from: &mutableBuffer)
         }
         return nil
     }
-
-    private func integerString<Integer>(from cell: PostgresCell, as type: Integer.Type) -> String?
+    
+    private nonisolated func integerString<Integer>(from cell: PostgresCell, as type: Integer.Type) -> String?
     where Integer: FixedWidthInteger & PostgresDecodable {
         guard let value = try? cell.decode(type, context: .default) else { return nil }
         return String(value)
     }
-
-    private func hexString(from buffer: inout ByteBuffer) -> String {
+    
+    private nonisolated func hexString(from buffer: inout ByteBuffer) -> String {
         let bytes = buffer.readBytes(length: buffer.readableBytes) ?? []
         return bytes.map { String(format: "%02x", $0) }.joined()
+    }
+    
+    private nonisolated func formatTimestamp(microseconds: Int64) -> String {
+        let (seconds, microsRemainder) = Self.splitMicroseconds(microseconds)
+        let date = Date(timeInterval: TimeInterval(seconds), since: Self.postgresEpoch)
+        let calendar = Self.utcCalendar
+        let components = calendar.dateComponents([.year, .month, .day, .hour, .minute, .second], from: date)
+        guard
+            let year = components.year,
+            let month = components.month,
+            let day = components.day,
+            let hour = components.hour,
+            let minute = components.minute,
+            let second = components.second
+        else {
+            return ""
+        }
+        let fractional = formatFractionalMicroseconds(microsRemainder)
+        return String(format: "%04d-%02d-%02d %02d:%02d:%02d%@", year, month, day, hour, minute, second, fractional)
+    }
+    
+    private nonisolated func formatTimestampWithTimeZone(microseconds: Int64) -> String {
+        let (seconds, microsRemainder) = Self.splitMicroseconds(microseconds)
+        let date = Date(timeInterval: TimeInterval(seconds), since: Self.postgresEpoch)
+        let calendar = Self.localCalendar
+        let components = calendar.dateComponents([.year, .month, .day, .hour, .minute, .second, .timeZone], from: date)
+        guard
+            let year = components.year,
+            let month = components.month,
+            let day = components.day,
+            let hour = components.hour,
+            let minute = components.minute,
+            let second = components.second
+        else {
+            return ""
+        }
+        let fractional = formatFractionalMicroseconds(microsRemainder)
+        let timeZone = components.timeZone ?? TimeZone.current
+        let offsetSeconds = timeZone.secondsFromGMT(for: date)
+        let offsetSign = offsetSeconds >= 0 ? "+" : "-"
+        let offset = abs(offsetSeconds)
+        let offsetHours = offset / 3600
+        let offsetMinutes = (offset % 3600) / 60
+        return String(
+            format: "%04d-%02d-%02d %02d:%02d:%02d%@%@%02d:%02d",
+            year,
+            month,
+            day,
+            hour,
+            minute,
+            second,
+            fractional,
+            offsetSign,
+            offsetHours,
+            offsetMinutes
+        )
+    }
+    
+    private nonisolated func formatDate(days: Int) -> String {
+        if let date = Self.utcCalendar.date(byAdding: .day, value: days, to: Self.postgresEpoch) {
+            let components = Self.utcCalendar.dateComponents([.year, .month, .day], from: date)
+            if let year = components.year, let month = components.month, let day = components.day {
+                return String(format: "%04d-%02d-%02d", year, month, day)
+            }
+        }
+        return ""
+    }
+    
+    private nonisolated func formatTime(microseconds: Int64) -> String {
+        let (seconds, microsRemainder) = Self.splitMicroseconds(microseconds)
+        let normalizedSeconds = ((seconds % 86_400) + 86_400) % 86_400
+        let hour = normalizedSeconds / 3_600
+        let minute = (normalizedSeconds % 3_600) / 60
+        let second = normalizedSeconds % 60
+        let fractional = formatFractionalMicroseconds(microsRemainder)
+        return String(format: "%02d:%02d:%02d%@", hour, minute, second, fractional)
+    }
+    
+    private nonisolated func formatTimeWithTimeZone(microseconds: Int64, offsetMinutesWest: Int) -> String {
+        let timeString = formatTime(microseconds: microseconds)
+        let minutesEast = -offsetMinutesWest
+        let sign = minutesEast >= 0 ? "+" : "-"
+        let absoluteMinutes = abs(minutesEast)
+        let hours = absoluteMinutes / 60
+        let minutes = absoluteMinutes % 60
+        return String(format: "%@%@%02d:%02d", timeString, sign, hours, minutes)
+    }
+    
+    nonisolated private static func splitMicroseconds(_ value: Int64) -> (seconds: Int64, remainder: Int64) {
+        var seconds = value / 1_000_000
+        var remainder = value % 1_000_000
+        if remainder < 0 {
+            remainder += 1_000_000
+            seconds -= 1
+        }
+        return (seconds, remainder)
+    }
+    
+    private nonisolated func formatFractionalMicroseconds(_ value: Int64) -> String {
+        guard value != 0 else { return "" }
+        var fractional = String(format: "%06lld", value)
+        while fractional.last == "0" {
+            fractional.removeLast()
+        }
+        return "." + fractional
     }
 }
 
@@ -1014,149 +1337,52 @@ extension PostgresSession: DatabaseMetadataSession {
         _ schemaName: String,
         progress: (@Sendable (SchemaObjectInfo.ObjectType, Int, Int) async -> Void)?
     ) async throws -> SchemaInfo {
-        let columnsByObject = try await fetchColumnsByObject(schemaName: schemaName)
+        let meta = PostgresMetadata()
+        let summary = try await meta.schemaSummary(using: client, schema: schemaName) { type, current, total in
+            if let progress {
+                let mapped: SchemaObjectInfo.ObjectType
+                switch type {
+                case .table: mapped = .table
+                case .view: mapped = .view
+                case .materializedView: mapped = .materializedView
+                case .function: mapped = .function
+                case .trigger: mapped = .trigger
+                }
+                await progress(mapped, current, total)
+            }
+        }
 
         var objects: [SchemaObjectInfo] = []
-
-        let tableSQL = """
-        SELECT table_name, table_type
-        FROM information_schema.tables
-        WHERE table_schema = $1
-          AND table_type IN ('BASE TABLE', 'VIEW')
-        ORDER BY table_type, table_name;
-        """
-        let tableResult = try await performQuery(tableSQL, binds: [PostgresData(string: schemaName)])
-        var tableEntries: [(String, SchemaObjectInfo.ObjectType)] = []
-        for try await (name, rawType) in tableResult.decode((String, String).self) {
-            let type = SchemaObjectInfo.ObjectType(rawValue: rawType) ?? .table
-            tableEntries.append((name, type))
-        }
-
-        let materializedViewSQL = """
-        SELECT matviewname
-        FROM pg_matviews
-        WHERE schemaname = $1
-        ORDER BY matviewname;
-        """
-        let matResult = try await performQuery(materializedViewSQL, binds: [PostgresData(string: schemaName)])
-        var materializedNames: [String] = []
-        for try await name in matResult.decode(String.self) {
-            materializedNames.append(name)
-        }
-
-        let functionSQL = """
-        SELECT routine_name
-        FROM information_schema.routines
-        WHERE specific_schema = $1
-          AND routine_type = 'FUNCTION'
-        ORDER BY routine_name;
-        """
-        let functionResult = try await performQuery(functionSQL, binds: [PostgresData(string: schemaName)])
-        var functionNames: [String] = []
-        for try await name in functionResult.decode(String.self) {
-            functionNames.append(name)
-        }
-
-        let triggerSQL = """
-        SELECT trigger_name, action_timing, event_manipulation, event_object_table
-        FROM information_schema.triggers
-        WHERE trigger_schema = $1
-        ORDER BY trigger_name;
-        """
-        let triggerResult = try await performQuery(triggerSQL, binds: [PostgresData(string: schemaName)])
-        var triggerRows: [(String, String, String, String)] = []
-        for try await tuple in triggerResult.decode((String, String, String, String).self) {
-            triggerRows.append(tuple)
-        }
-
-        let totalObjectsCount = max(
-            tableEntries.count + materializedNames.count + functionNames.count + triggerRows.count,
-            1
-        )
-        var processedObjects = 0
-
-        if let progress {
-            await progress(.table, processedObjects, totalObjectsCount)
-        }
-        for (name, type) in tableEntries {
-            processedObjects += 1
-            if let progress {
-                await progress(type, processedObjects, totalObjectsCount)
-            }
-            let columns = columnsByObject[name] ?? []
-            objects.append(
-                SchemaObjectInfo(
-                    name: name,
-                    schema: schemaName,
-                    type: type,
-                    columns: columns
-                )
-            )
-        }
-
-        if !materializedNames.isEmpty {
-            if let progress {
-                await progress(.materializedView, processedObjects, totalObjectsCount)
-            }
-            for name in materializedNames {
-                processedObjects += 1
-                if let progress {
-                    await progress(.materializedView, processedObjects, totalObjectsCount)
-                }
-                let columns = columnsByObject[name] ?? []
-                objects.append(
-                    SchemaObjectInfo(
-                        name: name,
-                        schema: schemaName,
-                        type: .materializedView,
-                        columns: columns
+        for o in summary.objects {
+            let columns: [ColumnInfo] = o.columns.map { d in
+                let fk: ColumnInfo.ForeignKeyReference? = d.foreignKey.map { ref in
+                    ColumnInfo.ForeignKeyReference(
+                        constraintName: ref.constraintName,
+                        referencedSchema: ref.referencedSchema,
+                        referencedTable: ref.referencedTable,
+                        referencedColumn: ref.referencedColumn
                     )
-                )
-            }
-        }
-
-        if !functionNames.isEmpty {
-            if let progress {
-                await progress(.function, processedObjects, totalObjectsCount)
-            }
-            for name in functionNames {
-                processedObjects += 1
-                if let progress {
-                    await progress(.function, processedObjects, totalObjectsCount)
                 }
-                objects.append(
-                    SchemaObjectInfo(
-                        name: name,
-                        schema: schemaName,
-                        type: .function
-                    )
-                )
+                return ColumnInfo(name: d.name, dataType: d.dataType, isPrimaryKey: d.isPrimaryKey, isNullable: d.isNullable, maxLength: d.maxLength, foreignKey: fk)
             }
-        }
 
-        if !triggerRows.isEmpty {
-            if let progress {
-                await progress(.trigger, processedObjects, totalObjectsCount)
+            let mapped: SchemaObjectInfo.ObjectType
+            switch o.type {
+            case .table: mapped = .table
+            case .view: mapped = .view
+            case .materializedView: mapped = .materializedView
+            case .function: mapped = .function
+            case .trigger: mapped = .trigger
             }
-            for row in triggerRows {
-                let (name, timing, action, table) = row
-                let actionDisplay = "\(timing.uppercased()) \(action.uppercased())".trimmingCharacters(in: .whitespaces)
-                let tableName = "\(schemaName).\(table)"
-                processedObjects += 1
-                if let progress {
-                    await progress(.trigger, processedObjects, totalObjectsCount)
-                }
-                objects.append(
-                    SchemaObjectInfo(
-                        name: name,
-                        schema: schemaName,
-                        type: .trigger,
-                        columns: [],
-                        triggerAction: actionDisplay,
-                        triggerTable: tableName
-                    )
-                )
-            }
+
+            objects.append(SchemaObjectInfo(
+                name: o.name,
+                schema: summary.schema,
+                type: mapped,
+                columns: columns,
+                triggerAction: o.triggerAction,
+                triggerTable: o.triggerTable
+            ))
         }
 
         return SchemaInfo(name: schemaName, objects: objects)

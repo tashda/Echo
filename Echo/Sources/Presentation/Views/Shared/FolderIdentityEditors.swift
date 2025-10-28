@@ -204,7 +204,6 @@ struct FolderEditorSheet: View {
         Section {
             LabeledContent("Folder Name") {
                 TextField("", text: $name, prompt: Text("Folder name"))
-                    .textFieldStyle(.roundedBorder)
             }
 
             LabeledContent("Color") {
@@ -232,7 +231,6 @@ struct FolderEditorSheet: View {
             case .manual:
                 LabeledContent("Username") {
                     TextField("", text: $manualUsername, prompt: Text("shared_user"))
-                        .textFieldStyle(.roundedBorder)
                 }
 
                 LabeledContent("Password") {
@@ -248,7 +246,6 @@ struct FolderEditorSheet: View {
                             ),
                             prompt: Text("••••••••")
                         )
-                        .textFieldStyle(.roundedBorder)
 
                         if editingFolderUsesManual && !manualPasswordDirty {
                             Text("Existing password retained")
@@ -507,17 +504,14 @@ struct IdentityEditorSheet: View {
             Section {
                 LabeledContent("Name") {
                     TextField("", text: $name, prompt: Text("Production"))
-                        .textFieldStyle(.roundedBorder)
                 }
 
                 LabeledContent("Username") {
                     TextField("", text: $username, prompt: Text("db_admin"))
-                        .textFieldStyle(.roundedBorder)
                 }
 
                 LabeledContent("Password") {
                     SecureField("", text: $password, prompt: Text("••••••••"))
-                        .textFieldStyle(.roundedBorder)
                 }
             } header: {
                 Text("Identity Details")

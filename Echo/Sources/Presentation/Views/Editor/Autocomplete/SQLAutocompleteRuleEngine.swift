@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+import EchoSense
 
 struct SQLAutocompleteRuleEngine {
     struct Environment {
@@ -123,21 +124,6 @@ struct SQLAutocompleteRuleEngine {
             return true
         }
 
-        if let match = matchingSuggestion {
-            trace?.addStep(title: "Matching Suggestion Found", details: [match.title])
-        } else {
-            trace?.addStep(title: "No Engine Suggestion Match", details: ["Consulting structure metadata"])
-            cachedStructureMatch = findStructureObject(
-                database: typedDatabase,
-                schema: typedSchema,
-                object: typedObject,
-                environment: environment
-            )
-            guard cachedStructureMatch != nil else {
-                return fail("Structure metadata did not contain the typed object")
-            }
-        }
-
         let keyword = request.query.precedingKeyword?.lowercased()
         let clause = request.clause
         let clauseIsObjectContext: Bool = {
@@ -159,7 +145,27 @@ struct SQLAutocompleteRuleEngine {
         let isObjectContext = clauseIsObjectContext || (keyword.map { request.objectContextKeywords.contains($0) } ?? false)
         let isColumnContext = clauseIsColumnContext || (keyword.map { request.columnContextKeywords.contains($0) } ?? false)
 
-        let hasAlternativeObjects: Bool = request.suggestions.contains { candidate in
+        let treatJoinHelpersAsAlternatives = clause == .joinTarget || keyword == "join"
+        let hasJoinHelpers = treatJoinHelpersAsAlternatives && request.suggestions.contains { $0.kind == .join }
+
+        if let match = matchingSuggestion {
+            trace?.addStep(title: "Matching Suggestion Found", details: [match.title])
+        } else {
+            trace?.addStep(title: "No Engine Suggestion Match", details: ["Consulting structure metadata"])
+            if !hasJoinHelpers {
+                cachedStructureMatch = findStructureObject(
+                    database: typedDatabase,
+                    schema: typedSchema,
+                    object: typedObject,
+                    environment: environment
+                )
+                guard cachedStructureMatch != nil else {
+                    return fail("Structure metadata did not contain the typed object")
+                }
+            }
+        }
+
+        let baseAlternativeObjects = request.suggestions.contains { candidate in
             guard matchingSuggestion != nil else { return false }
             guard objectKinds.contains(candidate.kind) else { return false }
             return !candidateMatchesObject(
@@ -169,6 +175,9 @@ struct SQLAutocompleteRuleEngine {
                 object: typedObject
             )
         }
+
+        let hasAlternativeObjects = baseAlternativeObjects || hasJoinHelpers
+
         if hasAlternativeObjects {
             trace?.addStep(title: "Alternative Objects Available", details: ["Glow should consider additional tables/views"])
         }
@@ -241,7 +250,7 @@ struct SQLAutocompleteRuleEngine {
             return fail("No follow-up suggestions, columns, or alternative objects")
         }
 
-        if matchingSuggestion == nil && cachedStructureMatch == nil {
+        if matchingSuggestion == nil && cachedStructureMatch == nil && !hasJoinHelpers {
             return fail("Unable to resolve typed object from suggestions or structure metadata")
         }
 
@@ -352,7 +361,8 @@ struct SQLAutocompleteRuleEngine {
                           schema: match.schema.name,
                           object: match.object.name),
             dataType: nil,
-            tableColumns: tableColumns.isEmpty ? nil : tableColumns
+            tableColumns: tableColumns.isEmpty ? nil : tableColumns,
+            source: .fallback
         )
         results.append(tableSuggestion)
 
@@ -368,12 +378,64 @@ struct SQLAutocompleteRuleEngine {
                               schema: match.schema.name,
                               object: match.object.name,
                               column: column.name),
-                dataType: column.dataType
+                dataType: column.dataType,
+                source: .fallback
             )
             results.append(columnSuggestion)
         }
 
         return results
+    }
+}
+
+// MARK: - EchoSense metadata bridging
+
+extension EchoSenseDatabaseType {
+    init(_ type: DatabaseType) {
+        switch type {
+        case .postgresql:
+            self = .postgresql
+        case .mysql:
+            self = .mysql
+        case .sqlite:
+            self = .sqlite
+        case .microsoftSQL:
+            self = .microsoftSQL
+        }
+    }
+}
+
+extension DatabaseType {
+    init(_ type: EchoSenseDatabaseType) {
+        switch type {
+        case .postgresql:
+            self = .postgresql
+        case .mysql:
+            self = .mysql
+        case .sqlite:
+            self = .sqlite
+        case .microsoftSQL:
+            self = .microsoftSQL
+        }
+    }
+}
+
+extension EchoSenseSchemaObjectInfo.ObjectType {
+    init(_ type: SchemaObjectInfo.ObjectType) {
+        switch type {
+        case .table:
+            self = .table
+        case .view:
+            self = .view
+        case .materializedView:
+            self = .materializedView
+        case .function:
+            self = .function
+        case .trigger:
+            self = .trigger
+        case .procedure:
+            self = .procedure
+        }
     }
 }
 
@@ -484,8 +546,8 @@ enum SQLAutocompleteIdentifierTools {
 private extension SQLAutocompleteRuleEngine {
     struct StructureObjectMatch {
         let database: String?
-        let schema: SchemaInfo
-        let object: SchemaObjectInfo
+        let schema: EchoSenseSchemaInfo
+        let object: EchoSenseSchemaObjectInfo
     }
 
     func candidateMatchesObject(_ candidate: SQLAutoCompletionSuggestion,
@@ -581,12 +643,12 @@ private extension SQLAutocompleteRuleEngine {
         return fallbackMatch
     }
 
-    func sqlKind(for type: SchemaObjectInfo.ObjectType) -> SQLAutoCompletionKind? {
+    func sqlKind(for type: EchoSenseSchemaObjectInfo.ObjectType) -> SQLAutoCompletionKind? {
         switch type {
         case .table: return .table
         case .view: return .view
         case .materializedView: return .materializedView
-        case .function, .trigger:
+        case .function, .trigger, .procedure:
             return nil
         }
     }

@@ -1,6 +1,6 @@
 import Foundation
 
-final class ResultSpoolRowCache {
+final class ResultSpoolRowCache: @unchecked Sendable {
     private struct Page {
         var rows: ContiguousArray<[String?]?>
         var terminalCount: Int?
@@ -117,7 +117,7 @@ final class ResultSpoolRowCache {
         return page.row(at: offset)
     }
 
-    func prefetch(range: Range<Int>, using handle: ResultSpoolHandle, onPageLoaded: @escaping () -> Void) {
+    func prefetch(range: Range<Int>, using handle: ResultSpoolHandle, onPageLoaded: @escaping @Sendable (Range<Int>) -> Void) {
         guard !range.isEmpty else { return }
         let clampedLower = max(range.lowerBound, 0)
         let clampedUpper = max(range.upperBound, clampedLower + 1)
@@ -160,8 +160,15 @@ final class ResultSpoolRowCache {
                     let rows = try await handle.loadRows(offset: offset, limit: self.pageSize)
                     let isTerminal = rows.count < self.pageSize
                     self.storeFetchedPage(rows: rows, pageIndex: pageIndex, isTerminal: isTerminal)
-                    await MainActor.run {
-                        onPageLoaded()
+                    if !rows.isEmpty {
+                        let fetchedRange = offset..<(offset + rows.count)
+                        await MainActor.run {
+                            onPageLoaded(fetchedRange)
+                        }
+                    } else {
+                        await MainActor.run {
+                            onPageLoaded(offset..<offset)
+                        }
                     }
                 } catch {
                     self.handlePrefetchFailure(pageIndex: pageIndex)
@@ -186,6 +193,84 @@ final class ResultSpoolRowCache {
         lock.lock()
         pending.remove(pageIndex)
         lock.unlock()
+    }
+
+    func contiguousMaterializedCount() -> Int {
+        lock.lock()
+        defer { lock.unlock() }
+
+        guard !pages.isEmpty else { return 0 }
+
+        let sortedPageIndices = pages.keys.sorted()
+        var expected = 0
+
+        for pageIndex in sortedPageIndices {
+            guard let page = pages[pageIndex] else { continue }
+
+            let pageStart = pageIndex * pageSize
+            if pageStart > expected {
+                break
+            }
+
+            let limit = page.terminalCount ?? page.rows.count
+            guard limit > 0 else { continue }
+
+            var local = max(expected - pageStart, 0)
+            if local >= limit {
+                continue
+            }
+
+            while local < limit {
+                if page.rows[local] == nil {
+                    return pageStart + local
+                }
+                local += 1
+            }
+
+            expected = max(expected, pageStart + limit)
+        }
+
+        return expected
+    }
+
+    func clamp(to totalCount: Int) {
+        lock.lock()
+        defer { lock.unlock() }
+
+        if totalCount <= 0 {
+            pages.removeAll(keepingCapacity: false)
+            lru.removeAll(keepingCapacity: false)
+            pending.removeAll(keepingCapacity: false)
+            return
+        }
+
+        let lastPageIndex = (totalCount - 1) / pageSize
+        let lastPageLimit = totalCount - lastPageIndex * pageSize
+
+        if !pages.isEmpty {
+            let keysToRemove = pages.keys.filter { $0 > lastPageIndex }
+            for key in keysToRemove {
+                pages.removeValue(forKey: key)
+            }
+
+            if var lastPage = pages[lastPageIndex] {
+                if lastPageLimit < lastPage.rows.count {
+                    for index in lastPageLimit..<lastPage.rows.count {
+                        lastPage.rows[index] = nil
+                    }
+                }
+                lastPage.terminalCount = lastPageLimit
+                pages[lastPageIndex] = lastPage
+            }
+        }
+
+        if !lru.isEmpty {
+            lru.removeAll { $0 > lastPageIndex }
+        }
+
+        if !pending.isEmpty {
+            pending = pending.filter { $0 <= lastPageIndex }
+        }
     }
 
     private func touchPageLocked(_ index: Int) {
