@@ -68,7 +68,7 @@ final class AppKitSettingsWindowController: NSWindowController {
         navigationContainer.addSubview(forwardButton)
         navigationContainer.addSubview(titleLabel)
 
-        // Use constraints to position the controls (296px = 280 sidebar + 16 margin)
+        // Use constraints to position the controls
         NSLayoutConstraint.activate([
             backButton.leadingAnchor.constraint(equalTo: navigationContainer.leadingAnchor, constant: 296),
             backButton.centerYAnchor.constraint(equalTo: navigationContainer.centerYAnchor),
@@ -84,9 +84,9 @@ final class AppKitSettingsWindowController: NSWindowController {
             titleLabel.centerYAnchor.constraint(equalTo: navigationContainer.centerYAnchor),
             titleLabel.trailingAnchor.constraint(lessThanOrEqualTo: navigationContainer.trailingAnchor, constant: -16),
 
-            // Container size
+            // Container size - make it span full window width
             navigationContainer.heightAnchor.constraint(equalToConstant: 32),
-            navigationContainer.widthAnchor.constraint(greaterThanOrEqualToConstant: 500)
+            navigationContainer.widthAnchor.constraint(equalToConstant: 1200) // Match window width
         ])
 
         // Button actions
@@ -105,6 +105,14 @@ final class AppKitSettingsWindowController: NSWindowController {
         window.titlebarAppearsTransparent = true
         window.titlebarSeparatorStyle = .none
 
+        // Create container view to hold both navigation controls and settings content
+        let containerView = NSView()
+        containerView.translatesAutoresizingMaskIntoConstraints = false
+
+        // Add navigation controls to container
+        containerView.addSubview(navigationContainer)
+
+        // Create settings view
         let settingsView = SettingsView(toolbarBridge: navigationBridge)
             .environmentObject(selectionModel)
             .environmentObject(AppCoordinator.shared.appModel)
@@ -112,7 +120,30 @@ final class AppKitSettingsWindowController: NSWindowController {
             .environmentObject(AppCoordinator.shared.clipboardHistory)
             .environmentObject(ThemeManager.shared)
 
-        window.contentViewController = NSHostingController(rootView: settingsView)
+        let settingsHostingView = NSHostingController(rootView: settingsView)
+        containerView.addSubview(settingsHostingView.view)
+        settingsHostingView.view.translatesAutoresizingMaskIntoConstraints = false
+
+        // Layout constraints
+        NSLayoutConstraint.activate([
+            // Navigation container at top, spans full width
+            navigationContainer.leadingAnchor.constraint(equalTo: containerView.leadingAnchor),
+            navigationContainer.topAnchor.constraint(equalTo: containerView.topAnchor, constant: 8),
+            navigationContainer.heightAnchor.constraint(equalToConstant: 32),
+            navigationContainer.widthAnchor.constraint(equalToConstant: 1200),
+
+            // Settings view fills entire container
+            settingsHostingView.view.leadingAnchor.constraint(equalTo: containerView.leadingAnchor),
+            settingsHostingView.view.topAnchor.constraint(equalTo: containerView.topAnchor),
+            settingsHostingView.view.trailingAnchor.constraint(equalTo: containerView.trailingAnchor),
+            settingsHostingView.view.bottomAnchor.constraint(equalTo: containerView.bottomAnchor)
+        ])
+
+        // Set up the window with the container view
+        let viewController = NSViewController()
+        viewController.view = containerView
+        window.contentViewController = viewController
+
         window.setContentSize(NSSize(width: 1200, height: 800))
         window.contentMinSize = NSSize(width: 1000, height: 700)
         window.center()
