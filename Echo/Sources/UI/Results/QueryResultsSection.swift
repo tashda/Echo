@@ -76,14 +76,14 @@ struct QueryResultsSection: View {
     private let statusChipHeight: CGFloat = 28
     private let statusBarHeight: CGFloat = 36
     private let statusBarHorizontalPadding: CGFloat = 12
-    private let statusBarChipSpacing: CGFloat = 8
+    private let statusBarChipSpacing: CGFloat = 4
 
 #if os(macOS)
     // Fixed widths for macOS to prevent shifting when content changes
     private let rowCountChipWidth: CGFloat = 130
     private let timeChipWidth: CGFloat = 110
     private let statusChipWidth: CGFloat = 100
-    private let modeChipWidth: CGFloat = 72
+    private let modeChipWidth: CGFloat = 64
     private let statusBarContentYOffset: CGFloat = -2 // Nudge chips up for visual centering
     private var statusBarVerticalPadding: CGFloat {
         // Nudge up by 3pt to center visually with the bottom window edge.
@@ -580,9 +580,13 @@ struct QueryResultsSection: View {
                     HStack { if query.streamingModeOverride == .cursor { Image(systemName: "checkmark") }; Text("Cursor") }
                 }
             } label: {
-                Text(query.streamingModeOverride.displayName)
-                    .font(.system(size: 11))
-                    .lineLimit(1)
+                HStack(spacing: 4) {
+                    Image(systemName: "arrow.triangle.2.circlepath")
+                        .font(.system(size: 11))
+                    Text(query.streamingModeOverride.displayName)
+                        .font(.system(size: 11))
+                        .lineLimit(1)
+                }
             }
             .menuStyle(.borderlessButton)
             .menuIndicator(.hidden)
@@ -669,10 +673,10 @@ struct QueryResultsSection: View {
 
         var body: some View {
             ZStack(alignment: .center) {
-                HStack(spacing: 6) {
+                HStack(spacing: 4) {
                     contentBuilder()
                 }
-                .padding(.horizontal, 8)
+                .padding(.horizontal, 6)
                 .frame(height: height, alignment: .center)
             }
             .frame(height: height, alignment: .center)
