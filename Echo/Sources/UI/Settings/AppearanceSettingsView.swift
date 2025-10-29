@@ -222,17 +222,12 @@ struct AppearanceSettingsView: View {
             Toggle("Match workspace tabs to editor theme", isOn: themeTabsBinding)
                 .toggleStyle(.switch)
 
-            Picker("Tab Bar Layout", selection: tabBarStyleBinding) {
-                ForEach(WorkspaceTabBarStyle.allCases, id: \.self) { style in
-                    Text(style.displayName).tag(style)
-                }
-            }
-            .pickerStyle(.segmented)
+            // Tab bar always uses the floating style; layout selection removed.
 
             Toggle("Use application theme for diagrams", isOn: diagramUseThemeBinding)
                 .toggleStyle(.switch)
 
-            Text("Choose where tabs live, sync them with the active theme, and apply connection colors beyond the editor.")
+            Text("Sync tabs with the active theme, and apply connection colors beyond the editor.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
         }
@@ -728,15 +723,7 @@ struct AppearanceSettingsView: View {
         )
     }
 
-    private var tabBarStyleBinding: Binding<WorkspaceTabBarStyle> {
-        Binding(
-            get: { appModel.globalSettings.workspaceTabBarStyle },
-            set: { newValue in
-                guard appModel.globalSettings.workspaceTabBarStyle != newValue else { return }
-                Task { await appModel.updateGlobalEditorDisplay { $0.workspaceTabBarStyle = newValue } }
-            }
-        )
-    }
+    // Tab bar style selection removed; always floating.
 
     private var tabOverviewStyleBinding: Binding<TabOverviewStyle> {
         Binding(

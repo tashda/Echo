@@ -208,7 +208,7 @@ struct QueryResultsSettingsView: View {
     }
 
     var body: some View {
-        Form {
+        return Form {
             Section("Foreign Keys") {
                 Picker("Foreign key cells", selection: displayModeBinding) {
                     ForEach(ForeignKeyDisplayMode.allCases, id: \.self) { mode in
@@ -339,11 +339,8 @@ struct QueryResultsSettingsView: View {
                 }
                 .padding(.top, 6)
             }
-        }
-        .formStyle(.grouped)
-        .scrollContentBackground(.hidden)
-        .background(themeManager.surfaceBackground)
-        Section("Engine Profiles") {
+            
+            Section("Engine Profiles") {
             HStack {
                 Spacer(minLength: 0)
                 Picker("", selection: $selectedEngineTab) {
@@ -443,12 +440,16 @@ struct QueryResultsSettingsView: View {
                 } label: {
                     Text("Streaming mode (SQLite)")
                 }
-                Text("SQLite is in‑process; streaming/cursors don’t apply. General settings still affect preview and formatting.")
+                Text("SQLite is in‑process; streaming/cursors don't apply. General settings still affect preview and formatting.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
-        }
-    }
+        } // End of Section
+        } // End of Form
+        .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
+        .background(themeManager.surfaceBackgroundColor)
+    } // End of body
 
     private func displayName(for mode: ForeignKeyDisplayMode) -> String {
         switch mode {
@@ -831,4 +832,4 @@ enum Selection: Hashable {
             return ceil(rect.width)
         }
     }
-}
+} // End of QueryResultsSettingsView struct
