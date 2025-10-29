@@ -32,6 +32,10 @@ struct MSSQLNIOFactory: DatabaseFactory {
         // Configure metadata client to include all user databases
         var metadataConfiguration = SQLServerMetadataClient.Configuration()
         metadataConfiguration.includeSystemSchemas = false
+        // Avoid heavy trigger definition payloads during list; fetch on demand when needed
+        metadataConfiguration.includeTriggerDefinitions = false
+        // Prefer catalog-based column enumeration to avoid stored-procedure edge cases under load
+        metadataConfiguration.preferStoredProcedureColumns = false
 //        metadataConfiguration.includeSystemObjects = false
 
         // Use SSMS-like defaults. Keep NOCOUNT ON to match
@@ -54,7 +58,7 @@ struct MSSQLNIOFactory: DatabaseFactory {
 
         let connection = try await SQLServerConnection.connect(
             configuration: configuration,
-            eventLoopGroupProvider: .createNew(numberOfThreads: 1),
+            eventLoopGroupProvider: .shared(EchoEventLoopGroup.shared),
             logger: sqlLogger
         ).get()
 
@@ -111,6 +115,20 @@ final class MSSQLSession: DatabaseSession {
         } catch {
             logger.warning("Failed to close MSSQL connection gracefully: \(error.localizedDescription)")
         }
+    }
+
+    // Expose a typed Agent client for SQL Server Agent operations.
+    func makeAgentClient() -> SQLServerAgentClient {
+        SQLServerAgentClient(connection: connection)
+    }
+
+    // Expose typed Security clients for database- and server-level security operations.
+    func makeDatabaseSecurityClient() -> SQLServerSecurityClient {
+        SQLServerSecurityClient(connection: connection)
+    }
+
+    func makeServerSecurityClient() -> SQLServerServerSecurityClient {
+        SQLServerServerSecurityClient(connection: connection)
     }
 
     func simpleQuery(_ sql: String) async throws -> QueryResultSet {
