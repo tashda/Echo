@@ -26,7 +26,8 @@ final class TopBarNavigatorOverlay {
     private let primaryPrefix = "workspace.primary"
     private let leadingPadding: CGFloat = 18
     private let trailingPadding: CGFloat = 12
-    private let verticalInset: CGFloat = 3.5
+    // Tiny upward nudge to visually align with circular toolbar buttons.
+    private let verticalInset: CGFloat = -0.5
 
     func apply(
         window: NSWindow,
@@ -105,7 +106,7 @@ final class TopBarNavigatorOverlay {
         leading.priority = .defaultHigh
         trailing.priority = .defaultHigh
         let centerY = hostingView.centerYAnchor.constraint(equalTo: toolbarView.centerYAnchor)
-        let height = hostingView.heightAnchor.constraint(equalToConstant: WorkspaceChromeMetrics.toolbarTabBarHeight + 4)
+        let height = hostingView.heightAnchor.constraint(equalToConstant: WorkspaceChromeMetrics.toolbarTabBarHeight)
 
         NSLayoutConstraint.activate([leading, trailing, centerY, height])
 
@@ -312,4 +313,3 @@ private final class TopBarNavigatorHostingView: NSHostingView<AnyView> {
 }
 
 #endif
-

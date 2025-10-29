@@ -1151,7 +1151,9 @@ private extension ToolbarIcon {
 }
 #endif
 
-#if os(macOS)
+/* Removed obsolete toolbar-embedded tab bar implementation to simplify the codebase. */
+
+/*
 struct WorkspaceToolbarTabBar: View {
     @EnvironmentObject private var appModel: AppModel
     @EnvironmentObject private var themeManager: ThemeManager
@@ -1890,7 +1892,7 @@ struct ToolbarWorkspaceTabChip: View {
     private var glassShadowRadius: CGFloat { isActive ? 5 : 2 }
     private var glassShadowYOffset: CGFloat { isActive ? 2.5 : 1 }
 }
-#endif
+*/
 
 private extension StructureLoadingState {
     var isLoading: Bool {
