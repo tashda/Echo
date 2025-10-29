@@ -403,7 +403,7 @@ private struct SearchEmptyStateView: View {
         
         private var rowContent: some View {
             VStack(alignment: .leading, spacing: object.type == .trigger ? 6 : 0) {
-                HStack(alignment: .top, spacing: 8) {
+                HStack(alignment: .center, spacing: 8) {
                     if canExpand {
                         Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
                             .font(.system(size: 10, weight: .medium))
@@ -426,7 +426,7 @@ private struct SearchEmptyStateView: View {
                                 .contentShape(Rectangle())
                                 .frame(maxWidth: .infinity, alignment: .leading)
 
-                            Spacer(minLength: 4)
+                            Spacer()
 
                             if showColumns && !object.columns.isEmpty {
                                 Text("\(object.columns.count)")
@@ -437,6 +437,7 @@ private struct SearchEmptyStateView: View {
                                     .background(accentColor.opacity(0.12), in: Capsule())
                             }
                         }
+                        .frame(maxWidth: .infinity, alignment: .leading)
 
                         if let comment = object.comment?.trimmingCharacters(in: .whitespacesAndNewlines), !comment.isEmpty {
                             Text(comment)
@@ -451,6 +452,7 @@ private struct SearchEmptyStateView: View {
 #endif
                         }
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
 
                     Spacer()
                 }

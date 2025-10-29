@@ -177,7 +177,7 @@ private struct InspectorSplitViewConfigurator: NSViewRepresentable {
     }
 
     @MainActor
-    final class Coordinator {
+    final class Coordinator: NSObject {
         var width: Binding<CGFloat>
         var minWidth: CGFloat
         var maxWidth: CGFloat
@@ -357,8 +357,7 @@ private struct WorkspaceWindowConfigurator: NSViewRepresentable {
     }
 
     @MainActor
-    final class Coordinator {
-        private let overlay = WorkspaceToolbarTabBarOverlay()
+    final class Coordinator: NSObject {
         private let topBarNavigatorOverlay = TopBarNavigatorOverlay()
         private var lastWindowID: ObjectIdentifier?
         private var lastStyle: WorkspaceTabBarStyle?
@@ -375,27 +374,22 @@ private struct WorkspaceWindowConfigurator: NSViewRepresentable {
             let styleChanged = lastStyle != tabBarStyle
 
             if windowChanged {
-                overlay.detach()
                 topBarNavigatorOverlay.detach()
                 lastWindowID = windowID
             }
 
             applyWindowStyling(window)
+            // Become window delegate to clamp live-resize width so the navigator never disappears
+            if window.delegate !== self {
+                window.delegate = self
+            }
 
             if windowChanged || styleChanged {
-                overlay.apply(
-                    style: tabBarStyle,
-                    window: window,
-                    appModel: appModel,
-                    appState: appState,
-                    themeManager: themeManager
-                )
                 lastStyle = tabBarStyle
             }
 
-            // Show the TopBarNavigator in the toolbar. Hide it when the toolbar tab bar is active
-            // to avoid visual overlap (the compact style uses the same toolbar region).
-            let showTopBarNavigator = (tabBarStyle != .toolbarCompact)
+            // TopBarNavigator is always enabled; toolbar-compact mode removed.
+            let showTopBarNavigator = true
             topBarNavigatorOverlay.apply(
                 window: window,
                 appModel: appModel,
@@ -434,10 +428,79 @@ private struct WorkspaceWindowConfigurator: NSViewRepresentable {
             if window.toolbar?.allowsUserCustomization != false {
                 window.toolbar?.allowsUserCustomization = false
             }
+
+            // Enforce a conservative minimum width so the TopBarNavigator
+            // always has room (min 350) between navigation and trailing items,
+            // even with wider toolbar items. Apply to both content and frame.
+            let contentMinWidth: CGFloat = 980
+            if window.contentMinSize.width < contentMinWidth {
+                window.contentMinSize.width = contentMinWidth
+            }
+            let chromeDelta = window.frame.width - window.contentLayoutRect.width
+            let frameMinWidth = contentMinWidth + chromeDelta
+            if window.minSize.width < frameMinWidth {
+                window.minSize.width = frameMinWidth
+            }
+        }
+
+        // Compute the minimum content width so the TopBarNavigator's 350pt minimum
+        // fits between navigation and primary toolbar items.
+        private func requiredContentWidth(for window: NSWindow) -> CGFloat {
+            guard let toolbar = window.toolbar, let toolbarView = findToolbarView(in: window) else {
+                return 980
+            }
+            let bounds = toolbarView.bounds
+            let navMaxX = toolbar.items
+                .filter { $0.itemIdentifier.rawValue.hasPrefix("workspace.navigation") }
+                .compactMap { $0.view }
+                .map { toolbarView.convert($0.bounds, from: $0).maxX }
+                .max() ?? 0
+            let primaryMinX = toolbar.items
+                .filter { $0.itemIdentifier.rawValue.hasPrefix("workspace.primary") }
+                .compactMap { $0.view }
+                .map { toolbarView.convert($0.bounds, from: $0).minX }
+                .min() ?? bounds.width
+
+            let leadingPadding: CGFloat = 18
+            let trailingPadding: CGFloat = 12
+            let leadingInset = max(navMaxX + leadingPadding, leadingPadding)
+            let trailingInset = max(bounds.width - primaryMinX + trailingPadding, trailingPadding)
+            let requiredToolbarWidth = leadingInset + trailingInset + 350
+            return max(980, requiredToolbarWidth)
+        }
+
+        private func findToolbarView(in window: NSWindow) -> NSView? {
+            guard let container = window.contentView?.superview else { return nil }
+            var stack: [NSView] = [container]
+            while let view = stack.popLast() {
+                let name = String(describing: type(of: view))
+                if name.contains("NSTitlebarContainerView") {
+                    stack.append(contentsOf: view.subviews)
+                    continue
+                }
+                if name.contains("NSToolbarView") { return view }
+                stack.append(contentsOf: view.subviews)
+            }
+            return nil
         }
 
     }
 }
+#if os(macOS)
+extension WorkspaceWindowConfigurator.Coordinator: NSWindowDelegate {
+    func windowWillResize(_ sender: NSWindow, to frameSize: NSSize) -> NSSize {
+        // Clamp during live resize using computed minimum content width, converted to frame width.
+        let minContent = requiredContentWidth(for: sender)
+        let chromeDelta = sender.frame.width - sender.contentLayoutRect.width
+        let minFrameWidth = minContent + chromeDelta
+        var size = frameSize
+        if size.width < minFrameWidth {
+            size.width = minFrameWidth
+        }
+        return size
+    }
+}
+#endif
 #else
 private struct WorkspaceWindowConfigurator: UIViewRepresentable {
     var tabBarStyle: WorkspaceTabBarStyle

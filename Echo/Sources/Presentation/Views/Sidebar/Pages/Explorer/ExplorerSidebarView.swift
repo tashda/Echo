@@ -1,6 +1,12 @@
 import SwiftUI
 import AppKit
 
+@MainActor
+private final class ExplorerDebugLogState {
+    static let shared = ExplorerDebugLogState()
+    var lastDatabaseBySession: [UUID: String] = [:]
+}
+
 struct ExplorerSidebarView: View {
     @Binding var selectedConnectionID: UUID?
 
@@ -634,7 +640,11 @@ struct ExplorerSidebarView: View {
         if let selectedName = session.selectedDatabaseName,
            let match = structure.databases.first(where: { $0.name == selectedName }) {
             if ConnectionDebug.isEnabled {
-                ConnectionDebug.log("[ExplorerSidebar] Matched selected database=\(selectedName) for session=\(session.connection.connectionName)")
+                let last = ExplorerDebugLogState.shared.lastDatabaseBySession[session.id]
+                if last != selectedName {
+                    ExplorerDebugLogState.shared.lastDatabaseBySession[session.id] = selectedName
+                    ConnectionDebug.log("[ExplorerSidebar] Matched selected database=\(selectedName) for session=\(session.connection.connectionName)")
+                }
             }
             return match
         }
@@ -642,7 +652,12 @@ struct ExplorerSidebarView: View {
         if !session.connection.database.isEmpty,
            let match = structure.databases.first(where: { $0.name == session.connection.database }) {
             if ConnectionDebug.isEnabled {
-                ConnectionDebug.log("[ExplorerSidebar] Falling back to connection database=\(session.connection.database) for session=\(session.connection.connectionName)")
+                let candidate = session.connection.database
+                let last = ExplorerDebugLogState.shared.lastDatabaseBySession[session.id]
+                if last != candidate {
+                    ExplorerDebugLogState.shared.lastDatabaseBySession[session.id] = candidate
+                    ConnectionDebug.log("[ExplorerSidebar] Falling back to connection database=\(candidate) for session=\(session.connection.connectionName)")
+                }
             }
             return match
         }
