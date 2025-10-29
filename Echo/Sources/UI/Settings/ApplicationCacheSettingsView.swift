@@ -15,6 +15,7 @@ struct ApplicationCacheSettingsView: View {
     @State private var isRefreshingResultCache = false
     @State private var autocompleteHistoryUsage: UInt64 = 0
     @State private var isRefreshingAutocompleteHistory = false
+    @State private var usePerTypeStorageLimits = false
 
     private let baseStorageOptions: [Int] = [
         256 * 1_024 * 1_024,
@@ -29,30 +30,33 @@ struct ApplicationCacheSettingsView: View {
         let store = clipboardHistory
 
         Form {
-            workspaceTabSection
-            resultCacheSection
-            autocompleteHistorySection
+            // Group: Workspace Memory, Query Results, Clipboard History
+            Section("Cache Management") {
+                // Workspace Tabs
+                workspaceTabToggleSection
 
-            Section("Clipboard History") {
-                Toggle("Enable clipboard history", isOn: clipboardEnabledBinding(for: store))
-                    .toggleStyle(.switch)
+                // Query Result Retention (simplified from resultCacheSection)
+                queryResultRetentionSection
 
-                Text("Echo stores recently copied queries and results locally for quick reuse. Data stays on this Mac.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
+                // Clipboard History
+                VStack(alignment: .leading, spacing: 8) {
+                    ToggleWithInfo(
+                        title: "Enable clipboard history",
+                        isOn: clipboardEnabledBinding(for: store),
+                        description: "Echo stores recently copied queries and results locally for quick reuse. Data stays on this Mac."
+                    )
 
-                if !store.isEnabled {
-                    Text("History capture is disabled. Re-enable it to keep new copies.")
-                        .font(.footnote)
-                        .foregroundStyle(.tertiary)
-                        .padding(.top, 4)
+                    if !store.isEnabled {
+                        Text("History capture is disabled. Re-enable it to keep new copies.")
+                            .font(.footnote)
+                            .foregroundStyle(.tertiary)
+                            .padding(.top, 4)
+                    }
                 }
             }
 
-            if store.isEnabled {
-                storageLimitSection(for: store)
-                storageLocationSection
-            }
+            // Unified Storage Section
+            unifiedStorageSection
         }
         .formStyle(.grouped)
         .scrollContentBackground(.hidden)
@@ -503,6 +507,334 @@ private func tabMemoryContextLabel(for tab: WorkspaceTab) -> String {
             LabeledContent("Grid Data") {
                 Text(usageBreakdown.grid)
                     .monospacedDigit()
+            }
+        }
+    }
+
+    // MARK: - Simplified Sections
+
+    private var workspaceTabToggleSection: some View {
+        ToggleWithInfo(
+            title: "Keep tabs in memory",
+            isOn: keepTabsBinding,
+            description: "Keeps each tab's editor and results view alive when switching. This speeds up tab changes at the cost of additional memory usage."
+        )
+    }
+
+    private var queryResultRetentionSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Stepper(value: resultCacheRetentionBinding, in: 1...(24 * 14)) {
+                let hours = appModel.globalSettings.resultSpoolRetentionHours
+                let days = Double(hours) / 24.0
+                let formattedDays = String(format: "%.1f", days)
+                Text("Query Result Retention: \(hours) hour\(hours == 1 ? "" : "s") (~\(formattedDays) days)")
+            }
+        }
+    }
+
+    // MARK: - Unified Storage Section
+
+    private var unifiedStorageSection: some View {
+        let store = clipboardHistory
+        let usage = store.formattedUsageBreakdown()
+
+        return Section("Storage") {
+            // Global maximum storage setting (only show when per-type is disabled)
+            if !usePerTypeStorageLimits {
+                LabeledContent {
+                    Picker("", selection: resultCacheMaxBinding) {
+                        ForEach([1, 2, 5, 10, 20], id: \.self) { gb in
+                            Text("\(gb) GB").tag(gb * 1_024 * 1_024 * 1_024)
+                        }
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.menu)
+                    .controlSize(.regular)
+                    .frame(minWidth: 120, idealWidth: 160, maxWidth: 200, alignment: .trailing)
+                } label: {
+                    Text("Maximum storage")
+                }
+            }
+
+            // Toggle for per-type storage limits
+            Toggle("Set storage limits per cache type", isOn: $usePerTypeStorageLimits)
+                .toggleStyle(.switch)
+
+            if usePerTypeStorageLimits {
+                // Per-type storage limits
+                VStack(alignment: .leading, spacing: 8) {
+                    LabeledContent {
+                        Picker("", selection: resultCacheMaxBinding) {
+                            ForEach([0.5, 1, 2, 5, 10], id: \.self) { gb in
+                                Text("\(gb) GB").tag(Int(gb * 1_024 * 1_024 * 1_024))
+                            }
+                        }
+                        .labelsHidden()
+                        .pickerStyle(.menu)
+                        .controlSize(.regular)
+                        .frame(minWidth: 120, idealWidth: 160, maxWidth: 200, alignment: .trailing)
+                    } label: {
+                        Text("Result Cache")
+                    }
+
+                    if store.isEnabled {
+                        LabeledContent {
+                            Picker("", selection: storageLimitBinding(for: store)) {
+                                ForEach([0.5, 1, 2, 5, 10], id: \.self) { gb in
+                                    Text("\(gb) GB").tag(Int(gb * 1_024 * 1_024 * 1_024))
+                                }
+                            }
+                            .labelsHidden()
+                            .pickerStyle(.menu)
+                            .controlSize(.regular)
+                            .frame(minWidth: 120, idealWidth: 160, maxWidth: 200, alignment: .trailing)
+                        } label: {
+                            Text("Clipboard History")
+                        }
+                    }
+
+                    LabeledContent {
+                        Picker("", selection: .constant(100 * 1_024 * 1_024)) {
+                            Text("10 MB").tag(10 * 1_024 * 1_024)
+                            Text("50 MB").tag(50 * 1_024 * 1_024)
+                            Text("100 MB").tag(100 * 1_024 * 1_024)
+                            Text("250 MB").tag(250 * 1_024 * 1_024)
+                            Text("500 MB").tag(500 * 1_024 * 1_024)
+                        }
+                        .labelsHidden()
+                        .pickerStyle(.menu)
+                        .controlSize(.regular)
+                        .frame(minWidth: 120, idealWidth: 160, maxWidth: 200, alignment: .trailing)
+                    } label: {
+                        Text("EchoSense History")
+                    }
+                }
+            }
+
+            Divider()
+                .padding(.vertical, 8)
+
+            // Storage location (unified)
+            unifiedStorageLocationRow
+
+            Divider()
+                .padding(.vertical, 4)
+
+            // Storage usage for each type
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Cache Usage")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.primary)
+
+                // Result Cache usage info
+                storageUsageRow(
+                    title: "Result Cache",
+                    usage: resultCacheUsage,
+                    isRefreshing: isRefreshingResultCache,
+                    onRefresh: { await refreshResultCacheUsage() },
+                    onClear: { clearResultCache() }
+                )
+
+                // EchoSense History usage info
+                storageUsageRow(
+                    title: "EchoSense History",
+                    usage: autocompleteHistoryUsage,
+                    isRefreshing: isRefreshingAutocompleteHistory,
+                    onRefresh: { await refreshAutocompleteHistoryUsage() },
+                    onClear: { clearAutocompleteHistory() }
+                )
+
+                // Clipboard History usage info (only if enabled)
+                if store.isEnabled {
+                    storageUsageRow(
+                        title: "Clipboard History",
+                        usage: UInt64(store.usage.totalBytes),
+                        isRefreshing: false,
+                        onRefresh: nil,
+                        onClear: { clearClipboardHistory() },
+                        usageBreakdown: usage
+                    )
+                }
+            }
+        }
+    }
+
+    private var unifiedStorageLocationRow: some View {
+        UnifiedStorageLocationRow()
+    }
+
+    private func storageUsageRow(
+        title: String,
+        usage: UInt64,
+        isRefreshing: Bool,
+        onRefresh: (() async -> Void)?,
+        onClear: @escaping () -> Void,
+        usageBreakdown: (total: String, query: String, grid: String)? = nil
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            // Title and action buttons
+            HStack {
+                Text(title)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.primary)
+
+                Spacer()
+
+                HStack(spacing: 12) {
+                    // Current usage
+                    if isRefreshing {
+                        ProgressView()
+                            .controlSize(.small)
+                            .progressViewStyle(.circular)
+                            .frame(width: 16, height: 16)
+                    } else {
+                        Text(formatByteCount(usage))
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(.secondary)
+                    }
+
+                    // Refresh button
+                    if let onRefresh = onRefresh {
+                        Button(action: { Task { await onRefresh() } }) {
+                            Image(systemName: "arrow.clockwise")
+                                .font(.system(size: 12, weight: .regular))
+                                .foregroundStyle(.secondary)
+                        }
+                        .buttonStyle(.plain)
+                    }
+
+                    // Clear button
+                    Button(action: onClear) {
+                        Image(systemName: "trash")
+                            .font(.system(size: 12, weight: .regular))
+                            .foregroundStyle(.red)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+
+            // Usage breakdown for clipboard history
+            if let breakdown = usageBreakdown {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Usage Breakdown")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(.secondary)
+
+                    HStack {
+                        Text("Queries:")
+                            .font(.system(size: 10))
+                            .foregroundStyle(.tertiary)
+                        Spacer()
+                        Text(breakdown.query)
+                            .font(.system(size: 10, weight: .medium))
+                            .monospacedDigit()
+                            .foregroundStyle(.secondary)
+                    }
+
+                    HStack {
+                        Text("Grid Data:")
+                            .font(.system(size: 10))
+                            .foregroundStyle(.tertiary)
+                        Spacer()
+                        Text(breakdown.grid)
+                            .font(.system(size: 10, weight: .medium))
+                            .monospacedDigit()
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .padding(.top, 2)
+            }
+        }
+        .padding(.vertical, 4)
+    }
+
+    private func clearClipboardHistory() {
+        clipboardHistory.clearHistory()
+    }
+
+}
+
+// MARK: - Helper Components
+
+private struct UnifiedStorageLocationRow: View {
+    private var storageLocation: URL {
+        let fm = FileManager.default
+        let baseSupport = (try? fm.url(
+            for: .applicationSupportDirectory,
+            in: .userDomainMask,
+            appropriateFor: nil,
+            create: true
+        )) ?? fm.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support", isDirectory: true)
+        return baseSupport.appendingPathComponent("Echo", isDirectory: true)
+    }
+
+    private func displayPath(_ path: String) -> String {
+        let homePath = FileManager.default.homeDirectoryForCurrentUser.path
+        if path.hasPrefix(homePath) {
+            let suffix = path.dropFirst(homePath.count)
+            return "~" + suffix
+        }
+        return path
+    }
+
+    var body: some View {
+        LabeledContent {
+            Button(action: { NSWorkspace.shared.activateFileViewerSelecting([storageLocation]) }) {
+                Image(systemName: "arrow.up.right.square")
+                    .font(.system(size: 14, weight: .regular))
+                    .foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
+        } label: {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Storage Location")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(.primary)
+
+                Text(displayPath(storageLocation.path))
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                    .textSelection(.enabled)
+            }
+        }
+    }
+}
+
+// MARK: - Toggle with Info Component
+
+private struct ToggleWithInfo: View {
+    let title: String
+    @Binding var isOn: Bool
+    let description: String
+    @State private var showInfoPopover = false
+
+    var body: some View {
+        HStack {
+            Toggle(title, isOn: $isOn)
+                .toggleStyle(.switch)
+
+            Spacer()
+
+            Button(action: { showInfoPopover.toggle() }) {
+                Image(systemName: "info.circle")
+                    .imageScale(.medium)
+                    .font(.system(size: 13, weight: .regular))
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(.secondary)
+            .popover(isPresented: $showInfoPopover,
+                     attachmentAnchor: .rect(.bounds),
+                     arrowEdge: .trailing) {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text(description)
+                        .font(.system(size: 13))
+                        .foregroundStyle(Color.primary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding()
+                .frame(width: 240)
+                .background(Color(.controlBackgroundColor))
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
             }
         }
     }
