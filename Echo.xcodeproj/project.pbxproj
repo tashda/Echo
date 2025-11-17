@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		0A6738322EB80FAC0048CFCB /* PostgresKit in Frameworks */ = {isa = PBXBuildFile; productRef = 0A6738312EB80FAC0048CFCB /* PostgresKit */; };
 		0A79557E2E8F10A9002279AE /* MySQLNIO in Frameworks */ = {isa = PBXBuildFile; productRef = 0A79557D2E8F10A9002279AE /* MySQLNIO */; };
 		0A8E31A12EAB923F00C86FF3 /* SQLServerKit in Frameworks */ = {isa = PBXBuildFile; productRef = 0A8E31A02EAB923F00C86FF3 /* SQLServerKit */; };
 		0AAD2B062EB0049400D16113 /* PostgresKit in Frameworks */ = {isa = PBXBuildFile; productRef = 0AAD2B052EB0049400D16113 /* PostgresKit */; };
@@ -120,6 +121,7 @@
 				0ADF94B92E78BAA400E993F8 /* PostgresNIO in Frameworks */,
 				0A79557E2E8F10A9002279AE /* MySQLNIO in Frameworks */,
 				0C1234522F9ABC0100ABCDE /* EchoSense in Frameworks */,
+				0A6738322EB80FAC0048CFCB /* PostgresKit in Frameworks */,
 				0A8E31A12EAB923F00C86FF3 /* SQLServerKit in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -248,6 +250,7 @@
 				A98A655D2EAA65CF007AAB86 /* SQLiteNIO */,
 				0A8E31A02EAB923F00C86FF3 /* SQLServerKit */,
 				0AAD2B052EB0049400D16113 /* PostgresKit */,
+				0A6738312EB80FAC0048CFCB /* PostgresKit */,
 			);
 			productName = Echo;
 			productReference = 0ADF94952E78B95200E993F8 /* Echo.app */;
@@ -297,7 +300,7 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
 				LastSwiftUpdateCheck = 2600;
-				LastUpgradeCheck = 2600;
+				LastUpgradeCheck = 2610;
 				TargetAttributes = {
 					0ADF94942E78B95200E993F8 = {
 						CreatedOnToolsVersion = 26.0;
@@ -327,7 +330,7 @@
 				0C1234502F9ABC0100ABCDE /* XCLocalSwiftPackageReference "../EchoSense" */,
 				A98A655C2EAA65CF007AAB86 /* XCRemoteSwiftPackageReference "sqlite-nio" */,
 				0A8E319F2EAB923F00C86FF3 /* XCLocalSwiftPackageReference "../sqlserver-nio" */,
-				0AAD2B042EB0049400D16113 /* XCLocalSwiftPackageReference "postgres-wire" */,
+				0A6738302EB80FAC0048CFCB /* XCLocalSwiftPackageReference "../postgres-wire" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 0ADF94962E78B95200E993F8 /* Products */;
@@ -467,6 +470,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = JQU2HR44D8;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -491,7 +495,8 @@
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
-				SDKROOT = macosx26.0;
+				SDKROOT = macosx;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 6.0;
@@ -532,6 +537,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = JQU2HR44D8;
 				ENABLE_NS_ASSERTIONS = NO;
@@ -549,7 +555,8 @@
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
-				SDKROOT = macosx26.0;
+				SDKROOT = macosx;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_VERSION = 6.0;
 			};
@@ -566,9 +573,13 @@
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = JQU2HR44D8;
+				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
 				ENABLE_PREVIEWS = YES;
+				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -579,7 +590,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = dk.tippr.echo;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
-				SDKROOT = macosx26.0;
+				SDKROOT = macosx;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SUPPORTED_PLATFORMS = macosx;
 				SUPPORTS_MACCATALYST = NO;
@@ -602,9 +613,13 @@
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = JQU2HR44D8;
+				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
 				ENABLE_PREVIEWS = YES;
+				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -615,7 +630,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = dk.tippr.echo;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
-				SDKROOT = macosx26.0;
+				SDKROOT = macosx;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SUPPORTED_PLATFORMS = macosx;
 				SUPPORTS_MACCATALYST = NO;
@@ -633,6 +648,7 @@
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = JQU2HR44D8;
 				GENERATE_INFOPLIST_FILE = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -656,6 +672,7 @@
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = JQU2HR44D8;
 				GENERATE_INFOPLIST_FILE = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -678,6 +695,7 @@
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = JQU2HR44D8;
 				GENERATE_INFOPLIST_FILE = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -701,6 +719,7 @@
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = JQU2HR44D8;
 				GENERATE_INFOPLIST_FILE = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -761,13 +780,13 @@
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
+		0A6738302EB80FAC0048CFCB /* XCLocalSwiftPackageReference "../postgres-wire" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = "../postgres-wire";
+		};
 		0A8E319F2EAB923F00C86FF3 /* XCLocalSwiftPackageReference "../sqlserver-nio" */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = "../sqlserver-nio";
-		};
-		0AAD2B042EB0049400D16113 /* XCLocalSwiftPackageReference "postgres-wire" */ = {
-			isa = XCLocalSwiftPackageReference;
-			relativePath = "postgres-wire";
 		};
 		0C1234502F9ABC0100ABCDE /* XCLocalSwiftPackageReference "../EchoSense" */ = {
 			isa = XCLocalSwiftPackageReference;
@@ -803,6 +822,10 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		0A6738312EB80FAC0048CFCB /* PostgresKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = PostgresKit;
+		};
 		0A79557D2E8F10A9002279AE /* MySQLNIO */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 0A79557C2E8F10A9002279AE /* XCRemoteSwiftPackageReference "mysql-nio" */;

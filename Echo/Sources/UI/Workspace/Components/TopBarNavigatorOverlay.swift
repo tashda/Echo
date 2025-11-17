@@ -309,7 +309,9 @@ private final class TopBarNavigatorHostingView: NSHostingView<AnyView> {
     @available(*, unavailable)
     required init(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
-    override func hitTest(_ point: NSPoint) -> NSView? { nil }
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        super.hitTest(point)
+    }
 }
 
 #endif
