@@ -35,7 +35,17 @@
       "Bash(xargs open:*)",
       "Bash(osascript -e 'tell application \"\"\"\"System Events\"\"\"\" to tell process \"\"\"\"Echo\"\"\"\" to keystroke \"\"\"\",\"\"\"\" using command down')",
       "Bash(log show:*)",
-      "Bash(osascript:*)"
+      "Bash(osascript:*)",
+      "Bash(psql:*)",
+      "Bash(time:*)",
+      "Bash(defaults:*)",
+      "Bash(swiftc:*)",
+      "mcp__swiftlens__swift_validate_file",
+      "mcp__apple-doc__search_symbols",
+      "mcp__apple-doc__discover_technologies",
+      "mcp__apple-doc__choose_technology",
+      "mcp__apple-doc__get_documentation",
+      "WebFetch(domain:docs.vapor.codes)"
     ],
     "deny": [],
     "ask": []

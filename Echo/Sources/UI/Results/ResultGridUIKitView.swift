@@ -1012,6 +1012,8 @@ private final class ResultGridCell: UICollectionViewCell {
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
         titleLabel.numberOfLines = 1
         titleLabel.lineBreakMode = .byTruncatingTail
+        titleLabel.setContentHuggingPriority(.defaultHigh, for: .horizontal)
+        titleLabel.setContentCompressionResistancePriority(.required, for: .horizontal)
 
         indicatorView.translatesAutoresizingMaskIntoConstraints = false
         indicatorView.contentMode = .scaleAspectFit
@@ -1061,6 +1063,7 @@ private final class ResultGridCell: UICollectionViewCell {
         case .header:
             titleLabel.font = UIFont.systemFont(ofSize: 13, weight: .semibold)
             titleLabel.textColor = palette.headerText
+            titleLabel.textAlignment = .left
             background = isHighlightedColumn ? palette.columnHighlight : palette.headerBackground
             if let sortIndicator {
                 indicatorView.isHidden = false

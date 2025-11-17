@@ -55,6 +55,13 @@ private extension EnvironmentValues {
     }
 }
 
+private enum ExplorerColumnMetrics {
+    static let contentLeading: CGFloat = 24
+    static let highlightExtension: CGFloat = 10
+    static let iconSize: CGFloat = 14
+    static let spacing: CGFloat = 8
+}
+
 /// Database Explorer – hierarchical object list rendered in the explorer sidebar.
 struct DatabaseObjectBrowserView: View {
     let database: DatabaseInfo
@@ -163,7 +170,7 @@ struct DatabaseObjectBrowserView: View {
             if isSearching && snapshot.filteredCount == 0 {
                 SearchEmptyStateView(query: searchText)
             } else {
-                LazyVStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: 4) {
                     if !pinnedList.isEmpty {
                         VStack(alignment: .leading, spacing: 4) {
                                 Button {
@@ -423,10 +430,8 @@ private struct SearchEmptyStateView: View {
                                 .font(.system(size: 13))
                                 .foregroundStyle(.primary)
                                 .lineLimit(1)
-                                .contentShape(Rectangle())
-                                .frame(maxWidth: .infinity, alignment: .leading)
 
-                            Spacer()
+                            Spacer(minLength: 0)
 
                             if showColumns && !object.columns.isEmpty {
                                 Text("\(object.columns.count)")
@@ -453,8 +458,6 @@ private struct SearchEmptyStateView: View {
                         }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
-
-                    Spacer()
                 }
                 
                 if object.type == .trigger {
@@ -527,9 +530,11 @@ private struct SearchEmptyStateView: View {
         }
         
         private var columnsList: some View {
-            VStack(alignment: .leading, spacing: 2) {
+            let highlightInset = ExplorerColumnMetrics.highlightExtension
+            let remainingIndent = max(ExplorerColumnMetrics.contentLeading - highlightInset, 0)
+            return VStack(alignment: .leading, spacing: 2) {
                 ForEach(object.columns, id: \.name) { (column: ColumnInfo) in
-                    HStack(alignment: .top, spacing: 8) {
+                    HStack(alignment: .center, spacing: ExplorerColumnMetrics.spacing) {
                         let (iconName, iconColor): (String, Color) = {
                             if column.isPrimaryKey {
                                 return ("key.fill", accentColor)
@@ -543,6 +548,7 @@ private struct SearchEmptyStateView: View {
                         Image(systemName: iconName)
                             .font(.system(size: iconName == "circle.fill" ? 8 : 10))
                             .foregroundStyle(iconColor)
+                            .frame(width: ExplorerColumnMetrics.iconSize, height: ExplorerColumnMetrics.iconSize, alignment: .center)
 
                         VStack(alignment: .leading, spacing: 2) {
                             Text(column.name)
@@ -563,7 +569,7 @@ private struct SearchEmptyStateView: View {
                             }
                         }
 
-                        Spacer(minLength: 0)
+                        Spacer()
 
                         Text(formatDataType(column.dataType))
                             .font(.system(size: 10, weight: .medium))
@@ -575,6 +581,7 @@ private struct SearchEmptyStateView: View {
                                     .fill(Color.primary.opacity(0.06))
                             )
                     }
+                    .padding(.leading, highlightInset)
                     .padding(.vertical, 2)
                     .padding(.trailing, 12)
                     .background(
@@ -587,7 +594,7 @@ private struct SearchEmptyStateView: View {
                             }
                         }
                     )
-                    .padding(.leading, 36)
+                    .padding(.leading, remainingIndent)
                     .contentShape(Rectangle())
 #if os(macOS)
                     .onHover { hovering in

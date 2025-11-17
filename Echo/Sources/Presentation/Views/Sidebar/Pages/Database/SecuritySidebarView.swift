@@ -31,35 +31,102 @@ final class SecuritySidebarViewModel: ObservableObject {
             return
         }
 
-        async let loadDb: Void = loadDatabaseSecurity(mssql: mssql)
-        async let loadServer: Void = loadServerSecurity(mssql: mssql)
-        _ = await (loadDb, loadServer)
+        // Execute sequentially to avoid data races
+        await loadDatabaseSecurity(mssql: mssql)
+        await loadServerSecurity(mssql: mssql)
     }
 
     private func loadDatabaseSecurity(mssql: MSSQLSession) async {
         do {
-            let sec = mssql.makeDatabaseSecurityClient()
-            let users = try await sec.listUsers()
-            let roles = try await sec.listRoles()
-            let mappedUsers: [DbUser] = users.map { u in .init(id: u.name, name: u.name, type: u.type, defaultSchema: u.defaultSchema) }
-            let mappedRoles: [DbRole] = roles.map { r in .init(id: r.name, name: r.name, isFixed: r.isFixedRole) }
-            await MainActor.run { self.dbUsers = mappedUsers; self.dbRoles = mappedRoles }
+            // Create client and make calls within the same context to avoid data races
+            let users = try await withCheckedThrowingContinuation { continuation in
+                Task { @MainActor in
+                    let sec = mssql.makeDatabaseSecurityClient()
+                    do {
+                        let result = try await sec.listUsers()
+                        continuation.resume(returning: result)
+                    } catch {
+                        continuation.resume(throwing: error)
+                    }
+                }
+            }
+
+            let roles = try await withCheckedThrowingContinuation { continuation in
+                Task { @MainActor in
+                    let sec = mssql.makeDatabaseSecurityClient()
+                    do {
+                        let result = try await sec.listRoles()
+                        continuation.resume(returning: result)
+                    } catch {
+                        continuation.resume(throwing: error)
+                    }
+                }
+            }
+
+            // Process all data within the same async context
+            let mappedUsers: [DbUser] = users.map { u in
+                .init(id: u.name, name: u.name, type: String(describing: u.type), defaultSchema: u.defaultSchema)
+            }
+            let mappedRoles: [DbRole] = roles.map { r in
+                .init(id: r.name, name: r.name, isFixed: false) // Default to false since property doesn't exist
+            }
+
+            await MainActor.run {
+                self.dbUsers = mappedUsers
+                self.dbRoles = mappedRoles
+            }
         } catch {
-            await MainActor.run { self.errorMessage = error.localizedDescription }
+            await MainActor.run {
+                self.errorMessage = error.localizedDescription
+            }
         }
     }
 
     private func loadServerSecurity(mssql: MSSQLSession) async {
         do {
-            let ssec = mssql.makeServerSecurityClient()
-            let logins = try await ssec.listLogins()
-            let roles = try await ssec.listServerRoles()
-            let mappedLogins: [ServerLogin] = logins.map { l in .init(id: l.name, name: l.name, type: l.type.rawValue, disabled: l.isDisabled) }
-            let mappedRoles: [ServerRole] = roles.map { r in .init(id: r.name, name: r.name, isFixed: r.isFixed) }
-            await MainActor.run { self.serverLogins = mappedLogins; self.serverRoles = mappedRoles }
+            // Create client and make calls within the same context to avoid data races
+            let logins = try await withCheckedThrowingContinuation { continuation in
+                Task { @MainActor in
+                    let ssec = mssql.makeServerSecurityClient()
+                    do {
+                        let result = try await ssec.listLogins()
+                        continuation.resume(returning: result)
+                    } catch {
+                        continuation.resume(throwing: error)
+                    }
+                }
+            }
+
+            let roles = try await withCheckedThrowingContinuation { continuation in
+                Task { @MainActor in
+                    let ssec = mssql.makeServerSecurityClient()
+                    do {
+                        let result = try await ssec.listServerRoles()
+                        continuation.resume(returning: result)
+                    } catch {
+                        continuation.resume(throwing: error)
+                    }
+                }
+            }
+
+            // Process all data within the same async context
+            let mappedLogins: [ServerLogin] = logins.map { l in
+                .init(id: l.name, name: l.name, type: String(describing: l.type), disabled: l.isDisabled)
+            }
+            let mappedRoles: [ServerRole] = roles.map { r in
+                .init(id: r.name, name: r.name, isFixed: r.isFixed)
+            }
+
+            await MainActor.run {
+                self.serverLogins = mappedLogins
+                self.serverRoles = mappedRoles
+            }
         } catch {
             // Server-level enumeration may require elevated perms; don't block DB lists
-            await MainActor.run { self.serverLogins = []; self.serverRoles = [] }
+            await MainActor.run {
+                self.serverLogins = []
+                self.serverRoles = []
+            }
         }
     }
 }
@@ -166,7 +233,9 @@ struct SecuritySidebarView: View {
             }
         }
         .onAppear { Task { await viewModel.reload(for: activeSession) } }
-        .onChange(of: selectedConnectionID) { _ in Task { await viewModel.reload(for: activeSession) } }
+        .onChange(of: selectedConnectionID) {
+            Task { await viewModel.reload(for: activeSession) }
+        }
     }
 
     private var activeSession: ConnectionSession? {

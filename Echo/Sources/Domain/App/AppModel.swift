@@ -8,6 +8,7 @@
 import Foundation
 import SwiftUI
 import Combine
+import SQLServerKit
 
 struct RecentConnectionRecord: Codable, Identifiable, Equatable {
     let connectionID: UUID
@@ -99,9 +100,23 @@ final class AppModel: ObservableObject {
         DatabaseFactoryProvider.makeFactory(for: type)
     }
 
-    private func makeStructureFetcher(for connection: SavedConnection) -> DatabaseStructureFetcher? {
-        guard let factory = makeDatabaseFactory(for: connection.databaseType) else { return nil }
-        return DatabaseStructureFetcher(factory: factory, databaseType: connection.databaseType)
+  private func makeStructureFetcher(for connectionSession: ConnectionSession) -> DatabaseStructureFetcher? {
+        let session = connectionSession.session
+
+        switch connectionSession.connection.databaseType {
+        case .postgresql:
+            // Create a PostgreSQL structure fetcher using the existing session
+            return PostgresStructureFetcher(session: session)
+        case .microsoftSQL:
+            // Create a SQL Server structure fetcher using the existing session
+            return MSSQLStructureFetcher(session: session)
+        case .mysql:
+            // MySQL structure fetching would need its own implementation
+            return nil
+        case .sqlite:
+            // SQLite structure fetching would need its own implementation
+            return nil
+        }
     }
 
     private func makeDiagramViewModel(
@@ -2676,7 +2691,7 @@ final class AppModel: ObservableObject {
             ?? connectionSession.connection.cachedStructure?.serverVersion
             ?? connectionSession.connection.serverVersion
 
-        guard let fetcher = makeStructureFetcher(for: connectionSession.connection) else {
+        guard let fetcher = makeStructureFetcher(for: connectionSession) else {
             connectionSession.structureLoadingState = .failed(message: "Unsupported database type")
             throw DatabaseError.connectionFailed("Unsupported database type: \(connectionSession.connection.databaseType.displayName)")
         }
@@ -2686,10 +2701,10 @@ final class AppModel: ObservableObject {
         do {
             let structure = try await fetcher.fetchStructure(
                 for: connectionSession.connection,
-                credentials: .init(authentication: credentials),
+                credentials: ConnectionCredentials(authentication: credentials),
                 selectedDatabase: selectedDatabase,
                 reuseSession: connectionSession.session,
-                databaseFilter: nil,
+                databaseFilter: nil as String?,
                 cachedStructure: connectionSession.connection.cachedStructure,
                 progressHandler: { progress in
                     await MainActor.run {
@@ -2898,7 +2913,7 @@ final class AppModel: ObservableObject {
                 return
             }
 
-            guard let fetcher = makeStructureFetcher(for: session.connection) else {
+            guard let fetcher = makeStructureFetcher(for: session) else {
                 session.structureLoadingState = .failed(message: "Unsupported database type")
                 return
             }
@@ -2906,10 +2921,10 @@ final class AppModel: ObservableObject {
             do {
                 let structure = try await fetcher.fetchStructure(
                     for: session.connection,
-                    credentials: .init(authentication: credentials),
+                    credentials: ConnectionCredentials(authentication: credentials),
                     selectedDatabase: targetDatabase,
                     reuseSession: session.session,
-                    databaseFilter: [targetDatabase],
+                    databaseFilter: targetDatabase,
                     cachedStructure: session.connection.cachedStructure,
                     progressHandler: { progress in
                         await MainActor.run {
@@ -2919,7 +2934,7 @@ final class AppModel: ObservableObject {
                             }
                         }
                     },
-                    databaseHandler: nil
+                    databaseHandler: { _, _, _ in }
                 )
 
                 let previousDatabase = session.databaseStructure?.databases.first { $0.name == targetDatabase }
@@ -2967,7 +2982,7 @@ final class AppModel: ObservableObject {
     private static func diffForExplorer(old: DatabaseInfo?, new: DatabaseInfo?) -> (inserted: Int, removed: Int, changed: Int) {
         guard let new else { return (0, 0, 0) }
         let oldObjects = old?.schemas.flatMap { $0.objects } ?? []
-        let newObjects = new.schemas.flatMap { $0.objects } ?? []
+        let newObjects = new.schemas.flatMap { $0.objects }
 
         func key(_ o: SchemaObjectInfo) -> String { "\(o.type.rawValue)|\(o.schema)|\(o.name)" }
         let oldMap = Dictionary(uniqueKeysWithValues: oldObjects.map { (key($0), $0) })
@@ -3162,23 +3177,8 @@ final class AppModel: ObservableObject {
             return
         }
 
-        guard let fetcher = makeStructureFetcher(for: connection) else { return }
-
-        do {
-        let structure = try await fetcher.fetchStructure(
-            for: connection,
-            credentials: .init(authentication: credentials),
-            selectedDatabase: connection.database.isEmpty ? nil : connection.database,
-            reuseSession: nil,
-            databaseFilter: nil,
-            cachedStructure: connection.cachedStructure,
-            progressHandler: nil,
-            databaseHandler: nil
-        )
-            cacheStructure(structure, for: connection.id)
-        } catch {
-            print("Failed to preload structure for connection \(connection.connectionName): \(error)")
-        }
+        // Skip structure fetching for connections without an active session
+        // Structure fetching will be handled when the connection session is established
     }
 
     // MARK: - Project Management
