@@ -936,6 +936,8 @@ private struct WorkspaceToolbarPreviewData {
             navigationStore: navigationStore,
             tabStore: tabStore,
             clipboardHistory: ClipboardHistoryStore(),
+            resultSpoolCoordinator: ResultSpoolCoordinator(spoolManager: spoolManager),
+            diagramCoordinator: DiagramCoordinator(cacheManager: diagramManager, keyStore: diagramKeyStore),
             resultSpoolManager: spoolManager,
             diagramCacheManager: diagramManager,
             diagramKeyStore: diagramKeyStore

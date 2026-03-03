@@ -24,6 +24,8 @@ final class AppCoordinator: ObservableObject {
     let connectionStore: ConnectionStore
     let navigationStore: NavigationStore
     let tabStore: TabStore
+    let resultSpoolCoordinator: ResultSpoolCoordinator
+    let diagramCoordinator: DiagramCoordinator
     let appModel: AppModel
     let appState: AppState
     let clipboardHistory: ClipboardHistoryStore
@@ -67,7 +69,34 @@ final class AppCoordinator: ObservableObject {
         
         self.navigationStore = NavigationStore()
         self.tabStore = TabStore()
+        self.themeManager = ThemeManager.shared
         
+        // Initialize new domain coordinators
+        self.resultSpoolCoordinator = ResultSpoolCoordinator(spoolManager: resultSpoolManager)
+        self.diagramCoordinator = DiagramCoordinator(cacheManager: cacheManager, keyStore: keyStore)
+        
+        self.appModel = AppModel(
+            projectStore: projectStore,
+            connectionStore: connectionStore,
+            navigationStore: navigationStore,
+            tabStore: tabStore,
+            clipboardHistory: clipboardHistory,
+            resultSpoolCoordinator: resultSpoolCoordinator,
+            diagramCoordinator: diagramCoordinator,
+            resultSpoolManager: resultSpoolManager,
+            diagramCacheManager: cacheManager,
+            diagramKeyStore: keyStore
+        )
+        
+        // Setup cross-domain providers for DiagramCoordinator after AppModel is initialized
+        diagramCoordinator.globalSettingsProvider = { @MainActor [weak self] in
+            self?.projectStore.globalSettings ?? GlobalSettings()
+        }
+        diagramCoordinator.sessionProvider = { @MainActor [weak self] sessionID in
+            guard let self = self else { return nil }
+            return self.appModel.sessionManager.activeSessions.first { $0.id == sessionID }
+        }
+
         Task {
             await cacheManager.updateKeyProvider { projectID in
                 try await MainActor.run {
@@ -75,17 +104,7 @@ final class AppCoordinator: ObservableObject {
                 }
             }
         }
-        self.appModel = AppModel(
-            projectStore: projectStore,
-            connectionStore: connectionStore,
-            navigationStore: navigationStore,
-            tabStore: tabStore,
-            clipboardHistory: clipboardHistory,
-            resultSpoolManager: resultSpoolManager,
-            diagramCacheManager: cacheManager,
-            diagramKeyStore: keyStore
-        )
-        self.themeManager = ThemeManager.shared
+
         self.appModel.tabManager.delegate = self
         setupBindings()
 #if os(macOS)

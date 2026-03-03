@@ -98,6 +98,7 @@ final class ConnectionSession: ObservableObject, Identifiable {
         let serverName = normalized(connection.connectionName) ?? normalized(connection.host)
 
         let databaseName: String?
+
         if let value = database, let normalizedValue = normalized(value) {
             databaseName = normalizedValue
         } else if let selected = selectedDatabaseName, let normalizedSelected = normalized(selected) {
@@ -311,4 +312,14 @@ struct ServerSwitcherItem: Identifiable {
     var queryTabCount: Int { session.queryTabs.count }
     var connectionColor: Color { session.connection.color }
     var lastActivity: Date { session.lastActivity }
+}
+
+extension ConnectionSession: DiagramSchemaProvider {
+    nonisolated var connectionID: UUID {
+        connection.id
+    }
+
+    func getTableStructureDetails(schema: String, table: String) async throws -> TableStructureDetails {
+        try await session.getTableStructureDetails(schema: schema, table: table)
+    }
 }
