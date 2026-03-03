@@ -20,6 +20,10 @@ final class AppCoordinator: ObservableObject {
     static let shared = AppCoordinator()
     
     // MARK: - Dependencies
+    let projectStore: ProjectStore
+    let connectionStore: ConnectionStore
+    let navigationStore: NavigationStore
+    let tabStore: TabStore
     let appModel: AppModel
     let appState: AppState
     let clipboardHistory: ClipboardHistoryStore
@@ -49,6 +53,21 @@ final class AppCoordinator: ObservableObject {
         let cacheManager = DiagramCacheManager(configuration: diagramConfig)
         self.diagramCacheManager = cacheManager
         self.diagramKeyStore = keyStore
+        
+        // Initialize modular stores
+        let projectRepository = ProjectRepository(diskStore: ProjectDiskStore())
+        self.projectStore = ProjectStore(repository: projectRepository)
+        
+        let connectionRepository = ConnectionRepository(
+            connectionStore: ConnectionDiskStore(),
+            folderStore: FolderDiskStore(),
+            identityStore: IdentityDiskStore()
+        )
+        self.connectionStore = ConnectionStore(repository: connectionRepository)
+        
+        self.navigationStore = NavigationStore()
+        self.tabStore = TabStore()
+        
         Task {
             await cacheManager.updateKeyProvider { projectID in
                 try await MainActor.run {
@@ -57,6 +76,10 @@ final class AppCoordinator: ObservableObject {
             }
         }
         self.appModel = AppModel(
+            projectStore: projectStore,
+            connectionStore: connectionStore,
+            navigationStore: navigationStore,
+            tabStore: tabStore,
             clipboardHistory: clipboardHistory,
             resultSpoolManager: resultSpoolManager,
             diagramCacheManager: cacheManager,
@@ -74,6 +97,14 @@ final class AppCoordinator: ObservableObject {
     func initialize() async {
         guard !isInitialized else { return }
 
+        // Load foundational stores
+        do {
+            try await projectStore.load()
+            try await connectionStore.load()
+        } catch {
+            print("Failed to load modular stores: \(error)")
+        }
+
         await appModel.load()
 
         isInitialized = true
@@ -82,29 +113,37 @@ final class AppCoordinator: ObservableObject {
 
     // MARK: - Theme Binding
     private func setupBindings() {
-        appModel.$selectedProject
-            .combineLatest(appModel.$globalSettings)
-            .receive(on: RunLoop.main)
-            .sink { [weak self] project, global in
-                self?.applyEditorAppearance(project: project, global: global)
+        // Observe ProjectStore state for appearance changes
+        // Using withObservationTracking is an alternative for @Observable,
+        // but since we are in a Coordinator with Combine/Task logic, 
+        // we'll bridge manually or use the Store's published-like behavior.
+        // For now, we still need to sync AppModel's legacy references until they are fully removed.
+
+        _ = withObservationTracking {
+            projectStore.selectedProject
+        } onChange: { [weak self] in
+            Task { @MainActor in
+                guard let self else { return }
+                self.applyEditorAppearance(project: self.projectStore.selectedProject, global: self.projectStore.globalSettings)
+                self.setupBindings() // Re-track
             }
-            .store(in: &cancellables)
+        }
+
+        _ = withObservationTracking {
+            projectStore.globalSettings
+        } onChange: { [weak self] in
+            Task { @MainActor in
+                guard let self else { return }
+                self.applyEditorAppearance(project: self.projectStore.selectedProject, global: self.projectStore.globalSettings)
+                self.setupBindings() // Re-track
+            }
+        }
 
         ThemeManager.shared.$effectiveColorScheme
             .receive(on: RunLoop.main)
             .sink { [weak self] _ in
                 guard let self else { return }
-                self.applyEditorTheme(project: self.appModel.selectedProject, global: self.appModel.globalSettings)
-            }
-            .store(in: &cancellables)
-
-        appModel.$projects
-            .receive(on: RunLoop.main)
-            .sink { [weak self] projects in
-                guard let self, let selectedId = self.appModel.selectedProject?.id else { return }
-                if let updated = projects.first(where: { $0.id == selectedId }), updated != self.appModel.selectedProject {
-                    self.appModel.selectedProject = updated
-                }
+                self.applyEditorTheme(project: self.projectStore.selectedProject, global: self.projectStore.globalSettings)
             }
             .store(in: &cancellables)
 
@@ -148,21 +187,21 @@ final class AppCoordinator: ObservableObject {
     }
 
     private func presentConnectionsIfNeeded() {
-        guard !appModel.isManageConnectionsPresented else { return }
+        guard !navigationStore.isManageConnectionsPresented else { return }
 #if os(macOS)
         ManageConnectionsWindowController.shared.present()
 #else
-        appModel.isManageConnectionsPresented = true
+        navigationStore.isManageConnectionsPresented = true
 #endif
     }
 
     private func dismissConnectionsIfNeeded() {
 #if os(macOS)
-        if appModel.isManageConnectionsPresented {
+        if navigationStore.isManageConnectionsPresented {
             ManageConnectionsWindowController.shared.closeWindow()
         }
 #else
-        appModel.isManageConnectionsPresented = false
+        navigationStore.isManageConnectionsPresented = false
 #endif
     }
 
@@ -199,10 +238,10 @@ final class AppCoordinator: ObservableObject {
 
     private func updateWorkspaceKeyState() {
         guard let keyWindow = NSApplication.shared.keyWindow else {
-            appModel.isWorkspaceWindowKey = false
+            navigationStore.isWorkspaceWindowKey = false
             return
         }
-        appModel.isWorkspaceWindowKey = keyWindow.identifier == AppWindowIdentifier.workspace
+        navigationStore.isWorkspaceWindowKey = keyWindow.identifier == AppWindowIdentifier.workspace
     }
 #endif
 

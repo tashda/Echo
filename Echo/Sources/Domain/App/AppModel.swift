@@ -39,50 +39,114 @@ final class AppModel: ObservableObject {
     }
 
     // MARK: - Published State
-    @Published var connections: [SavedConnection] = []
-    @Published var selectedConnectionID: UUID?
-    @Published var folders: [SavedFolder] = []
-    @Published var identities: [SavedIdentity] = []
-    @Published var selectedFolderID: UUID?
-    @Published var selectedIdentityID: UUID?
     @Published var connectionStates: [UUID: ConnectionState] = [:]
     @Published var sessionManager = ConnectionSessionManager()
-    @Published var tabManager = TabManager()
     @Published var pinnedObjectIDs: [String] = []
     @Published private(set) var recentConnections: [RecentConnectionRecord] = []
-    @Published var pendingExplorerFocus: ExplorerFocus?
     @Published var searchSidebarCaches: [SearchSidebarContextKey: SearchSidebarCache] = [:]
     @Published var dataInspectorContent: DataInspectorContent?
     @Published private(set) var expandedConnectionFolderIDs: Set<UUID> = []
 
-    // Project management
-    @Published var projects: [Project] = []
-    @Published var selectedProject: Project?
-    @Published var globalSettings: GlobalSettings = GlobalSettings() {
-        didSet {
-            UserDefaults.standard.set(globalSettings.resultsStreamingFetchSize, forKey: ResultStreamingFetchSizeDefaultsKey)
-            UserDefaults.standard.set(globalSettings.resultsStreamingFetchRampMultiplier, forKey: ResultStreamingFetchRampMultiplierDefaultsKey)
-            UserDefaults.standard.set(globalSettings.resultsStreamingFetchRampMax, forKey: ResultStreamingFetchRampMaxDefaultsKey)
-            UserDefaults.standard.set(globalSettings.resultsUseCursorStreaming, forKey: ResultStreamingUseCursorDefaultsKey)
-            UserDefaults.standard.set(globalSettings.resultsCursorStreamingLimitThreshold, forKey: ResultStreamingCursorLimitThresholdDefaultsKey)
-            UserDefaults.standard.set(globalSettings.resultsStreamingMode.rawValue, forKey: ResultStreamingModeDefaultsKey)
-            UserDefaults.standard.set(globalSettings.resultsEnableTypeFormatting, forKey: ResultFormattingEnabledDefaultsKey)
-            UserDefaults.standard.set(globalSettings.resultsFormattingMode.rawValue, forKey: ResultFormattingModeDefaultsKey)
+    // Navigation (LEGACY - transitioning to NavigationStore)
+    var navigationState: NavigationState {
+        get { navigationStore.navigationState }
+        set { navigationStore.navigationState = newValue }
+    }
+    var pendingExplorerFocus: ExplorerFocus? {
+        get { navigationStore.pendingExplorerFocus }
+        set { navigationStore.pendingExplorerFocus = newValue }
+    }
+    var isWorkspaceWindowKey: Bool {
+        get { navigationStore.isWorkspaceWindowKey }
+        set { navigationStore.isWorkspaceWindowKey = newValue }
+    }
+    var isManageConnectionsPresented: Bool {
+        get { navigationStore.isManageConnectionsPresented }
+        set { navigationStore.isManageConnectionsPresented = newValue }
+    }
+    var showNewProjectSheet: Bool {
+        get { navigationStore.showNewProjectSheet }
+        set { navigationStore.showNewProjectSheet = newValue }
+    }
+    var showManageProjectsSheet: Bool {
+        get { navigationStore.showManageProjectsSheet }
+        set { navigationStore.showManageProjectsSheet = newValue }
+    }
+
+    // Tabs (LEGACY - transitioning to TabStore)
+    var tabManager: TabManager {
+        get { tabStore.tabManager }
+        set { tabStore.tabManager = newValue }
+    }
+
+    // Connection management (LEGACY - transitioning to ConnectionStore)
+    var connections: [SavedConnection] { 
+        get { connectionStore.connections }
+        set { 
+            Task { @MainActor in
+                try? await connectionStore.saveConnections() 
+            }
         }
     }
-    @Published var navigationState = NavigationState()
-    @Published var isWorkspaceWindowKey = false
-    @Published var isManageConnectionsPresented = false
-    @Published var showNewProjectSheet = false
-    @Published var showManageProjectsSheet = false
+    var folders: [SavedFolder] { 
+        get { connectionStore.folders }
+        set {
+            Task { @MainActor in
+                try? await connectionStore.saveFolders()
+            }
+        }
+    }
+    var identities: [SavedIdentity] { 
+        get { connectionStore.identities }
+        set {
+            Task { @MainActor in
+                try? await connectionStore.saveIdentities()
+            }
+        }
+    }
+    var selectedConnectionID: UUID? {
+        get { connectionStore.selectedConnectionID }
+        set { connectionStore.selectedConnectionID = newValue }
+    }
+    var selectedFolderID: UUID? {
+        get { connectionStore.selectedFolderID }
+        set { connectionStore.selectedFolderID = newValue }
+    }
+    var selectedIdentityID: UUID? {
+        get { connectionStore.selectedIdentityID }
+        set { connectionStore.selectedIdentityID = newValue }
+    }
+
+    // Project management (LEGACY - transitioning to ProjectStore)
+    var projects: [Project] { 
+        get { projectStore.projects }
+        set {
+            Task { @MainActor in
+                try? await projectStore.saveProjects(newValue)
+            }
+        }
+    }
+    var selectedProject: Project? { 
+        get { projectStore.selectedProject }
+        set { projectStore.selectedProject = newValue }
+    }
+    var globalSettings: GlobalSettings { 
+        get { projectStore.globalSettings }
+        set { 
+            Task { @MainActor in
+                try? await projectStore.updateGlobalSettings(newValue)
+            }
+        }
+    }
+
     @Published var lastError: DatabaseError?
     @Published var inspectorWidth: CGFloat = 360
 
     // MARK: - Dependencies
-    private let store = ConnectionStore()
-    private let folderStore = FolderStore()
-    private let identityStore = IdentityStore()
-    private let projectStore = ProjectStore()
+    let projectStore: ProjectStore
+    let connectionStore: ConnectionStore
+    let navigationStore: NavigationStore
+    let tabStore: TabStore
     private let keychain = KeychainHelper()
     private let clipboardHistory: ClipboardHistoryStore
     let resultSpoolManager: ResultSpoolManager
@@ -950,15 +1014,24 @@ final class AppModel: ObservableObject {
 
     // MARK: - Initialization
     init(
+        projectStore: ProjectStore,
+        connectionStore: ConnectionStore,
+        navigationStore: NavigationStore,
+        tabStore: TabStore,
         clipboardHistory: ClipboardHistoryStore,
         resultSpoolManager: ResultSpoolManager,
         diagramCacheManager: DiagramCacheManager,
         diagramKeyStore: DiagramEncryptionKeyStore
     ) {
+        self.projectStore = projectStore
+        self.connectionStore = connectionStore
+        self.navigationStore = navigationStore
+        self.tabStore = tabStore
         self.clipboardHistory = clipboardHistory
         self.resultSpoolManager = resultSpoolManager
         self.diagramCacheManager = diagramCacheManager
         self.diagramKeyStore = diagramKeyStore
+        
         sessionManager.$activeSessionID
             .sink { [weak self] id in
                 guard let self else { return }
@@ -992,12 +1065,18 @@ final class AppModel: ObservableObject {
             }
             .store(in: &cancellables)
 
-        $selectedConnectionID
-            .removeDuplicates()
-            .sink { [weak self] id in
-                self?.applySelectedConnection(id)
+        // Bridge @Observable state changes to AppModel's subscribers
+        // This is temporary until the UI uses stores directly.
+        _ = withObservationTracking {
+            connectionStore.selectedConnectionID
+        } onChange: { [weak self] in
+            Task { @MainActor in
+                guard let self else { return }
+                self.objectWillChange.send()
+                self.applySelectedConnection(self.selectedConnectionID)
+                self.retrackConnectionChanges()
             }
-            .store(in: &cancellables)
+        }
 
         tabManager.objectWillChange
             .receive(on: RunLoop.main)
@@ -1006,73 +1085,97 @@ final class AppModel: ObservableObject {
             }
             .store(in: &cancellables)
 
+        _ = withObservationTracking {
+            navigationStore.navigationState
+        } onChange: { [weak self] in
+            Task { @MainActor in
+                self?.objectWillChange.send()
+                self?.retrackNavigationChanges()
+            }
+        }
+
         loadRecentConnections()
 
-        $selectedProject
-            .map { $0?.id }
-            .removeDuplicates()
-            .sink { [weak self] projectID in
-                self?.loadExpandedConnectionFolders(for: projectID)
-            }
-            .store(in: &cancellables)
-
-        $globalSettings
-            .removeDuplicates()
-            .sink { [weak self] settings in
+        // Bridge @Observable state changes to AppModel's subscribers
+        // This is temporary until the UI uses ProjectStore directly.
+        _ = withObservationTracking {
+            projectStore.selectedProject
+        } onChange: { [weak self] in
+            Task { @MainActor in
                 guard let self else { return }
-                Task {
-                    await self.applyResultSpoolConfiguration(for: settings)
-                    await self.applyDiagramCacheConfiguration(for: settings)
-                    await self.handleDiagramSettingsChange(settings)
-                }
-            }
-            .store(in: &cancellables)
-
-        Task {
-            await applyResultSpoolConfiguration(for: globalSettings)
-            await applyDiagramCacheConfiguration(for: globalSettings)
-        }
-
-        Task {
-            await diagramCacheManager.updateKeyProvider { projectID in
-                try await MainActor.run {
-                    try diagramKeyStore.symmetricKey(forProjectID: projectID)
-                }
+                self.objectWillChange.send()
+                self.loadExpandedConnectionFolders(for: self.selectedProject?.id)
+                self.retrackProjectChanges()
             }
         }
-        Task { [weak self] in
-            guard let self else { return }
-            await self.diagramPrefetchService.setHandler { [weak self] request in
-                guard let self else { return false }
-                return await self.handlePrefetchRequest(request)
+
+        _ = withObservationTracking {
+            projectStore.globalSettings
+        } onChange: { [weak self] in
+            Task { @MainActor in
+                guard let self else { return }
+                self.objectWillChange.send()
+                await self.applyResultSpoolConfiguration(for: self.globalSettings)
+                await self.applyDiagramCacheConfiguration(for: self.globalSettings)
+                await self.handleDiagramSettingsChange(self.globalSettings)
+                self.retrackProjectChanges()
             }
-            await self.handleDiagramSettingsChange(self.globalSettings)
+        }
+    }
+
+    private func retrackNavigationChanges() {
+        _ = withObservationTracking {
+            navigationStore.navigationState
+        } onChange: { [weak self] in
+            Task { @MainActor in
+                self?.objectWillChange.send()
+                self?.retrackNavigationChanges()
+            }
+        }
+    }
+
+    private func retrackConnectionChanges() {
+        _ = withObservationTracking {
+            connectionStore.selectedConnectionID
+        } onChange: { [weak self] in
+            Task { @MainActor in
+                guard let self else { return }
+                self.objectWillChange.send()
+                self.applySelectedConnection(self.selectedConnectionID)
+                self.retrackConnectionChanges()
+            }
+        }
+    }
+
+    private func retrackProjectChanges() {
+        _ = withObservationTracking {
+            projectStore.selectedProject
+        } onChange: { [weak self] in
+            Task { @MainActor in
+                self?.objectWillChange.send()
+                self?.loadExpandedConnectionFolders(for: self?.selectedProject?.id)
+                self?.retrackProjectChanges()
+            }
+        }
+        
+        _ = withObservationTracking {
+            projectStore.globalSettings
+        } onChange: { [weak self] in
+            Task { @MainActor in
+                guard let self else { return }
+                self.objectWillChange.send()
+                await self.applyResultSpoolConfiguration(for: self.globalSettings)
+                await self.applyDiagramCacheConfiguration(for: self.globalSettings)
+                await self.handleDiagramSettingsChange(self.globalSettings)
+                self.retrackProjectChanges()
+            }
         }
     }
 
     // MARK: - Persistence
     func load() async {
         do {
-            async let connectionsTask = store.load()
-            async let foldersTask = folderStore.load()
-            async let identitiesTask = identityStore.load()
-            async let projectsTask = projectStore.load()
-            async let globalSettingsTask = projectStore.loadGlobalSettings()
-
-            let (loadedConnections, loadedFolders, loadedIdentities, loadedProjects, loadedGlobalSettings) = try await (
-                connectionsTask,
-                foldersTask,
-                identitiesTask,
-                projectsTask,
-                globalSettingsTask
-            )
-
-            connections = loadedConnections
-            folders = loadedFolders
-            identities = loadedIdentities
-            projects = loadedProjects
-            globalSettings = loadedGlobalSettings
-            inspectorWidth = CGFloat(loadedGlobalSettings.inspectorWidth ?? Double(defaultInspectorWidth))
+            inspectorWidth = CGFloat(globalSettings.inspectorWidth ?? Double(defaultInspectorWidth))
 
             await normalizeEditorPreferences()
 
@@ -1119,24 +1222,18 @@ final class AppModel: ObservableObject {
     func ensureDefaultProjectExists(assignNavigation: Bool = true) async {
         var didCreateDefault = false
 
-        if projects.isEmpty {
-            let defaultProject = Project.defaultProject
-            projects = [defaultProject]
-            do {
-                try await projectStore.save(projects)
-            } catch {
-                print("Failed to save default project: \(error)")
-            }
+        if projectStore.projects.isEmpty {
+            _ = try? await projectStore.createProject(name: "Default Project")
             didCreateDefault = true
         }
 
-        if selectedProject == nil || didCreateDefault {
-            selectedProject = projects.first(where: { $0.isDefault }) ?? projects.first
+        if projectStore.selectedProject == nil || didCreateDefault {
+            projectStore.selectProject(projectStore.projects.first(where: { $0.isDefault }) ?? projectStore.projects.first)
         }
 
         if assignNavigation {
             if navigationState.selectedProject == nil || didCreateDefault,
-               let project = selectedProject {
+               let project = projectStore.selectedProject {
                 navigationState.selectProject(project)
             }
         }
@@ -1221,7 +1318,7 @@ final class AppModel: ObservableObject {
 
         if didMutateProjects {
             do {
-                try await projectStore.save(projects)
+                try await projectStore.saveProjects(projects)
             } catch {
                 print("Failed to persist normalized project settings: \(error)")
             }
@@ -1377,7 +1474,7 @@ final class AppModel: ObservableObject {
 
         if removed || didMutateProjects {
             do {
-                try await projectStore.save(projects)
+                try await projectStore.saveProjects(projects)
             } catch {
                 print("Failed to persist project updates after palette removal: \(error)")
             }
@@ -1967,7 +2064,7 @@ final class AppModel: ObservableObject {
 
     private func persistConnections() async {
         do {
-            try await store.save(connections)
+            try await connectionStore.saveConnections()
         } catch {
             print("Failed to persist connections: \(error)")
         }
@@ -1975,7 +2072,7 @@ final class AppModel: ObservableObject {
 
     private func persistFolders() async {
         do {
-            try await folderStore.save(folders)
+            try await connectionStore.saveFolders()
         } catch {
             print("Failed to persist folders: \(error)")
         }
@@ -1983,7 +2080,7 @@ final class AppModel: ObservableObject {
 
     private func persistIdentities() async {
         do {
-            try await identityStore.save(identities)
+            try await connectionStore.saveIdentities()
         } catch {
             print("Failed to persist identities: \(error)")
         }
@@ -3217,81 +3314,6 @@ final class AppModel: ObservableObject {
         }
     }
 
-    func createProject(_ project: Project) async {
-        projects.append(project)
-        do {
-            try await projectStore.save(projects)
-        } catch {
-            print("Failed to save new project: \(error)")
-        }
-    }
-
-    func updateProject(_ project: Project) async {
-        guard let index = projects.firstIndex(where: { $0.id == project.id }) else { return }
-        projects[index] = project
-        do {
-            try await projectStore.save(projects)
-        } catch {
-            print("Failed to update project: \(error)")
-        }
-    }
-
-    func deleteProject(_ project: Project) async {
-        // Don't delete the default project
-        guard !project.isDefault else { return }
-
-        // Delete all associated data
-        connections.removeAll { $0.projectID == project.id }
-        identities.removeAll { $0.projectID == project.id }
-        folders.removeAll { $0.projectID == project.id }
-
-        await persistConnections()
-        await persistIdentities()
-        await persistFolders()
-
-        projects.removeAll { $0.id == project.id }
-        do {
-            try await projectStore.save(projects)
-        } catch {
-            print("Failed to delete project: \(error)")
-        }
-
-        // Select default project if we deleted the selected one
-        if selectedProject?.id == project.id {
-            selectedProject = projects.first(where: { $0.isDefault }) ?? projects.first
-            if let newProject = selectedProject {
-                navigationState.selectProject(newProject)
-            }
-        }
-    }
-
-    func exportProject(
-        _ project: Project,
-        includeGlobalSettings: Bool,
-        includeClipboardHistory: Bool,
-        includeAutocompleteHistory: Bool,
-        password: String
-    ) async throws -> Data {
-        let projectConnections = connections.filter { $0.projectID == project.id }
-        let projectIdentities = identities.filter { $0.projectID == project.id }
-        let projectFolders = folders.filter { $0.projectID == project.id }
-        _ = includeAutocompleteHistory
-        let clipboardEntries = includeClipboardHistory ? clipboardHistory.entries : nil
-        let diagramCaches = await diagramCacheManager.listPayloads(for: project.id)
-
-        return try await projectStore.exportProject(
-            project,
-            connections: projectConnections,
-            identities: projectIdentities,
-            folders: projectFolders,
-            globalSettings: includeGlobalSettings ? globalSettings : nil,
-            clipboardHistory: clipboardEntries,
-            autocompleteHistory: nil,
-            diagramCaches: diagramCaches,
-            password: password
-        )
-    }
-
     func importProject(from data: Data, password: String) async throws {
         let exportData = try await projectStore.importProject(from: data, password: password)
 
@@ -3364,7 +3386,7 @@ final class AppModel: ObservableObject {
         folders.append(contentsOf: importedFolders)
 
         // Save everything
-        try await projectStore.save(projects)
+        try await projectStore.saveProjects(projects)
         await persistConnections()
         await persistIdentities()
         await persistFolders()
@@ -3380,7 +3402,7 @@ final class AppModel: ObservableObject {
         }
 
         // Select the newly imported project
-        selectedProject = importedProject
+        projectStore.selectProject(importedProject)
         navigationState.selectProject(importedProject)
     }
 
@@ -3541,7 +3563,7 @@ extension AppModel {
         }
 
         do {
-            try await projectStore.save(projects)
+            try await projectStore.saveProjects(projects)
         } catch {
             print("Failed to persist bookmarks: \(error)")
         }

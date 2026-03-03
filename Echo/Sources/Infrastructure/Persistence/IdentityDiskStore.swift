@@ -1,6 +1,6 @@
 import Foundation
 
-actor IdentityStore {
+actor IdentityDiskStore {
     private let fileURL: URL
 
     init() {

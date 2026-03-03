@@ -2,7 +2,7 @@ import Foundation
 import CryptoKit
 import EchoSense
 
-actor ProjectStore {
+actor ProjectDiskStore {
     private let fileURL: URL
     private let globalSettingsURL: URL
 

@@ -921,7 +921,20 @@ private struct WorkspaceToolbarPreviewData {
                 }
             }
         }
+        let projectStore = ProjectStore(repository: ProjectRepository(diskStore: ProjectDiskStore()))
+        let connectionStore = ConnectionStore(repository: ConnectionRepository(
+            connectionStore: ConnectionDiskStore(),
+            folderStore: FolderDiskStore(),
+            identityStore: IdentityDiskStore()
+        ))
+        let navigationStore = NavigationStore()
+        let tabStore = TabStore()
+        
         let appModel = AppModel(
+            projectStore: projectStore,
+            connectionStore: connectionStore,
+            navigationStore: navigationStore,
+            tabStore: tabStore,
             clipboardHistory: ClipboardHistoryStore(),
             resultSpoolManager: spoolManager,
             diagramCacheManager: diagramManager,

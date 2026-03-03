@@ -41,7 +41,7 @@ final class ManageConnectionsWindowController: NSWindowController, NSWindowDeleg
 
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
-        AppCoordinator.shared.appModel.isManageConnectionsPresented = true
+        AppCoordinator.shared.navigationStore.isManageConnectionsPresented = true
     }
 
     func closeWindow() {
@@ -87,7 +87,7 @@ final class ManageConnectionsWindowController: NSWindowController, NSWindowDeleg
     }
 
     func windowWillClose(_ notification: Notification) {
-        AppCoordinator.shared.appModel.isManageConnectionsPresented = false
+        AppCoordinator.shared.navigationStore.isManageConnectionsPresented = false
     }
 
     private func bindThemeUpdates(for window: NSWindow) {

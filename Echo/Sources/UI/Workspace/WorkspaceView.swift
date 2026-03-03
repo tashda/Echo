@@ -4,9 +4,13 @@ import AppKit
 #endif
 
 struct WorkspaceView: View {
+    @Environment(ProjectStore.self) private var projectStore
+    @Environment(ConnectionStore.self) private var connectionStore
+    @Environment(NavigationStore.self) private var navigationStore
+    @Environment(TabStore.self) private var tabStore
+    
     @EnvironmentObject private var appModel: AppModel
     @EnvironmentObject private var appState: AppState
-    @EnvironmentObject private var navigationState: NavigationState
     @EnvironmentObject private var themeManager: ThemeManager
     @EnvironmentObject private var clipboardHistory: ClipboardHistoryStore
 
@@ -84,14 +88,22 @@ struct WorkspaceView: View {
             .environmentObject(appModel)
             .environmentObject(appState)
         }
-        .sheet(isPresented: $appModel.showManageProjectsSheet) {
+        .sheet(isPresented: Binding(
+            get: { navigationStore.showManageProjectsSheet },
+            set: { navigationStore.showManageProjectsSheet = $0 }
+        )) {
             ManageProjectsSheet()
+                .environment(projectStore)
                 .environmentObject(appModel)
                 .environmentObject(clipboardHistory)
                 .environmentObject(themeManager)
         }
-        .sheet(isPresented: $appModel.showNewProjectSheet) {
+        .sheet(isPresented: Binding(
+            get: { navigationStore.showNewProjectSheet },
+            set: { navigationStore.showNewProjectSheet = $0 }
+        )) {
             NewProjectSheet()
+                .environment(projectStore)
                 .environmentObject(appModel)
         }
         .task {
@@ -510,7 +522,7 @@ private struct WorkspaceWindowConfigurator: NSViewRepresentable {
 
             let isKey = window.isKeyWindow && window.identifier == AppWindowIdentifier.workspace
             if lastKeyState != isKey {
-                AppCoordinator.shared.appModel.isWorkspaceWindowKey = isKey
+                AppCoordinator.shared.navigationStore.isWorkspaceWindowKey = isKey
                 lastKeyState = isKey
             }
         }

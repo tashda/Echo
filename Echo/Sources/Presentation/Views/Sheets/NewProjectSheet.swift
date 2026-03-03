@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct NewProjectSheet: View {
+    @Environment(ProjectStore.self) private var projectStore
     @EnvironmentObject private var appModel: AppModel
     @Environment(\.dismiss) private var dismiss
 
@@ -140,10 +141,19 @@ struct NewProjectSheet: View {
         )
 
         Task {
-            await appModel.createProject(newProject)
-            appModel.selectedProject = newProject
-            appModel.navigationState.selectProject(newProject)
-            dismiss()
+            do {
+                let project = try await projectStore.createProject(name: trimmedName)
+                var updatedProject = project
+                updatedProject.colorHex = selectedColorHex
+                updatedProject.iconName = selectedIconName
+                try await projectStore.updateProject(updatedProject)
+                
+                projectStore.selectProject(updatedProject)
+                appModel.navigationState.selectProject(updatedProject)
+                dismiss()
+            } catch {
+                print("Failed to create project: \(error)")
+            }
         }
     }
 }
