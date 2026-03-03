@@ -24,7 +24,6 @@ struct DiagramSettingsView: View {
         }
         .formStyle(.grouped)
         .scrollContentBackground(.hidden)
-        .background(themeManager.surfaceBackgroundColor)
         .task {
             await refreshUsage()
         }
@@ -122,6 +121,7 @@ struct DiagramSettingsView: View {
         )
     }
 
+    // Toggle: Verify cached diagram data before refreshing.
     private var verifyBinding: Binding<Bool> {
         Binding(
             get: { appModel.globalSettings.diagramVerifyBeforeRefresh },
@@ -131,6 +131,7 @@ struct DiagramSettingsView: View {
         )
     }
 
+    // Toggle: Render relationships in very large diagrams.
     private var renderRelationshipsBinding: Binding<Bool> {
         Binding(
             get: { appModel.globalSettings.diagramRenderRelationshipsForLargeDiagrams },

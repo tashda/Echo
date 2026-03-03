@@ -64,5 +64,5 @@ if CommandLine.arguments.count > 1 && CommandLine.arguments[1] == "apply" {
 } else {
     showCurrentSettings()
     print("")
-    print("💡 Run 'swift performance_settings.swift apply' to apply optimal settings")
+    print("💡 Run 'swift Scripts/performance/performance_settings.swift apply' to apply optimal settings")
 }

@@ -357,7 +357,7 @@ struct TableStructureEditorView: View {
 
     #if os(macOS)
     private var accentNSColor: NSColor {
-        if appModel.useServerColorAsAccent,
+        if appModel.globalSettings.useServerColorAsAccent,
            let serverColor = tab.connection.color.nsColor {
             return serverColor
         }
@@ -378,7 +378,7 @@ struct TableStructureEditorView: View {
     }
     #else
     private var accentColor: Color {
-        appModel.useServerColorAsAccent ? tab.connection.color : .accentColor
+        appModel.globalSettings.useServerColorAsAccent ? tab.connection.color : .accentColor
     }
 
     private var applyActiveForegroundColor: Color {

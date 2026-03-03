@@ -50,6 +50,7 @@ struct QueryResultsSettingsView: View {
         )
     }
 
+    // Toggle: Include related foreign key rows when inspecting a selected record.
     private var includeRelatedBinding: Binding<Bool> {
         Binding(
             get: { appModel.globalSettings.foreignKeyIncludeRelated },
@@ -448,7 +449,6 @@ struct QueryResultsSettingsView: View {
         } // End of Form
         .formStyle(.grouped)
         .scrollContentBackground(.hidden)
-        .background(themeManager.surfaceBackgroundColor)
     } // End of body
 
     private func displayName(for mode: ForeignKeyDisplayMode) -> String {
@@ -787,6 +787,7 @@ enum Selection: Hashable {
                 Text(description)
                     .font(.system(size: 13))
                     .foregroundStyle(Color.primary)
+                    .multilineTextAlignment(.leading)
                     .fixedSize(horizontal: false, vertical: true)
 
                 Divider()
@@ -794,6 +795,7 @@ enum Selection: Hashable {
                 Text("Default: \(defaultLabel)")
                     .font(.system(size: 12))
                     .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.leading)
                     .fixedSize(horizontal: false, vertical: true)
             }
             .padding(16)

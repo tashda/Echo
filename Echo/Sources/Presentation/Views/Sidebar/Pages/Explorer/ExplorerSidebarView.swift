@@ -473,7 +473,7 @@ struct ExplorerSidebarView: View {
         session: ConnectionSession,
         database: DatabaseInfo
     ) -> some View {
-        let accentColor = appModel.useServerColorAsAccent ? session.connection.color : Color.accentColor
+        let accentColor = appModel.globalSettings.useServerColorAsAccent ? session.connection.color : Color.accentColor
         let controlBackground = Color.primary.opacity(0.04)
         let borderColor = Color.primary.opacity(0.08)
         let availableSchemas = database.schemas.filter { !$0.objects.isEmpty }
@@ -1038,7 +1038,7 @@ private struct StickyTopBarContent: View {
             .background(
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
                     .fill(
-                        appModel.useServerColorAsAccent ?
+                        appModel.globalSettings.useServerColorAsAccent ?
                         LinearGradient(
                             gradient: Gradient(colors: [
                                 Color(nsColor: .controlBackgroundColor).opacity(0.85),
@@ -1061,7 +1061,7 @@ private struct StickyTopBarContent: View {
             .overlay(
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
                     .strokeBorder(
-                        appModel.useServerColorAsAccent ?
+                        appModel.globalSettings.useServerColorAsAccent ?
                         session.connection.color.opacity(0.15) :
                         Color.primary.opacity(0.08),
                         lineWidth: 0.5
