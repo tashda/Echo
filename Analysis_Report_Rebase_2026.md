@@ -86,8 +86,20 @@ Many files exceed the new strict limits. The most critical offenders are:
 - **Sub-step 3.4: Domain Logic Separation (Diagrams & Spooling)** [COMPLETED]
     - Created `DiagramCoordinator` and `ResultSpoolCoordinator`.
     - Extracted ~1000 lines of complex layout and prefetch logic from `AppModel`.
-    - Defined `DiagramSchemaProvider` and `DiagramCoordinatorProtocol`.
-    - Successfully integrated coordinators into `AppCoordinator` and environment.
+- **Sub-step 3.5: Identity & Auth Extraction** [TODO]
+    - Create `IdentityRepository` for Keychain and credential resolution.
+    - Remove all sensitive auth logic from `AppModel`.
+- **Sub-step 3.6: Schema Management Extraction** [TODO]
+    - Create `SchemaDiscoveryService` and `SchemaComparator`.
+    - Relocate metadata fetching and diffing logic from `AppModel`.
+- **Sub-step 3.7: Bookmark & History Extraction** [TODO]
+    - Create `BookmarkRepository` and `HistoryRepository`.
+- **Sub-step 3.8: Systematic UI Migration** [TODO]
+    - Refactor all SwiftUI Views to use specific modular `@Observable` stores.
+    - Replace `@EnvironmentObject(AppModel.self)` with specific `@Environment` calls.
+- **Sub-step 3.9: Final AppModel Pruning** [TODO]
+    - Remove all bridge/legacy properties.
+    - Verify `AppModel.swift` is < 500 lines.
 
 ### Step 4: EchoSense Modularization [COMPLETED]
 - **Research:** Researched Apple's suggestion patterns and modular architecture.

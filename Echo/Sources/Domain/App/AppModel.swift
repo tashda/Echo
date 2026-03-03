@@ -142,7 +142,10 @@ final class AppModel: ObservableObject {
     let tabStore: TabStore
     let resultSpoolCoordinator: ResultSpoolCoordinator
     let diagramCoordinator: DiagramCoordinator
-    private let keychain = KeychainHelper()
+    let identityRepository: IdentityRepository
+    let schemaDiscoveryCoordinator: SchemaDiscoveryCoordinator
+    let bookmarkRepository: BookmarkRepository
+    let historyRepository: HistoryRepository
     private let clipboardHistory: ClipboardHistoryStore
     let resultSpoolManager: ResultSpoolManager
     let diagramCacheManager: DiagramCacheManager
@@ -326,6 +329,10 @@ final class AppModel: ObservableObject {
         clipboardHistory: ClipboardHistoryStore,
         resultSpoolCoordinator: ResultSpoolCoordinator,
         diagramCoordinator: DiagramCoordinator,
+        identityRepository: IdentityRepository,
+        schemaDiscoveryCoordinator: SchemaDiscoveryCoordinator,
+        bookmarkRepository: BookmarkRepository,
+        historyRepository: HistoryRepository,
         resultSpoolManager: ResultSpoolManager,
         diagramCacheManager: DiagramCacheManager,
         diagramKeyStore: DiagramEncryptionKeyStore
@@ -337,6 +344,10 @@ final class AppModel: ObservableObject {
         self.clipboardHistory = clipboardHistory
         self.resultSpoolCoordinator = resultSpoolCoordinator
         self.diagramCoordinator = diagramCoordinator
+        self.identityRepository = identityRepository
+        self.schemaDiscoveryCoordinator = schemaDiscoveryCoordinator
+        self.bookmarkRepository = bookmarkRepository
+        self.historyRepository = historyRepository
         self.resultSpoolManager = resultSpoolManager
         self.diagramCacheManager = diagramCacheManager
         self.diagramKeyStore = diagramKeyStore
@@ -842,40 +853,27 @@ final class AppModel: ObservableObject {
         switch updated.credentialSource {
         case .manual:
             if let password, !password.isEmpty {
-                if updated.keychainIdentifier == nil {
-                    updated.keychainIdentifier = "echo.\(updated.id.uuidString)"
-                }
-                if let identifier = updated.keychainIdentifier {
-                    do {
-                        try keychain.setPassword(password, account: identifier)
-                    } catch {
-                        print("Keychain set failed: \(error)")
-                    }
-                }
+                try? identityRepository.setPassword(password, for: &updated)
             } else if updated.keychainIdentifier == nil, let existingIdentifier = existing?.keychainIdentifier {
                 updated.keychainIdentifier = existingIdentifier
             }
-
             updated.identityID = nil
-
         case .identity:
             updated.keychainIdentifier = nil
-            if let identifier = existing?.keychainIdentifier, existing?.credentialSource == .manual {
-                try? keychain.deletePassword(account: identifier)
+            if existing?.credentialSource == .manual {
+                identityRepository.deletePassword(for: updated)
             }
-
             if let identityID = updated.identityID,
                let identity = identities.first(where: { $0.id == identityID }) {
                 updated.username = identity.username
             } else {
                 updated.identityID = nil
             }
-
         case .inherit:
             updated.identityID = nil
             updated.keychainIdentifier = nil
-            if let identifier = existing?.keychainIdentifier, existing?.credentialSource == .manual {
-                try? keychain.deletePassword(account: identifier)
+            if existing?.credentialSource == .manual {
+                identityRepository.deletePassword(for: updated)
             }
         }
 
@@ -1348,10 +1346,7 @@ final class AppModel: ObservableObject {
     }
 
     func deleteConnection(_ connection: SavedConnection) async {
-        if let identifier = connection.keychainIdentifier {
-            try? keychain.deletePassword(account: identifier)
-        }
-
+        identityRepository.deletePassword(for: connection)
         connections.removeAll { $0.id == connection.id }
         connectionStates.removeValue(forKey: connection.id)
 
@@ -1400,16 +1395,7 @@ final class AppModel: ObservableObject {
         var updated = identity
 
         if let password, !password.isEmpty {
-            if updated.keychainIdentifier == nil {
-                updated.keychainIdentifier = "echo.identity.\(updated.id.uuidString)"
-            }
-            if let identifier = updated.keychainIdentifier {
-                do {
-                    try keychain.setPassword(password, account: identifier)
-                } catch {
-                    print("Failed to save identity password: \(error)")
-                }
-            }
+            try? identityRepository.setPassword(password, for: &updated)
         }
 
         if let index = identities.firstIndex(where: { $0.id == updated.id }) {
@@ -1433,9 +1419,7 @@ final class AppModel: ObservableObject {
     }
 
     func deleteIdentity(_ identity: SavedIdentity) async {
-        if let identifier = identity.keychainIdentifier {
-            try? keychain.deletePassword(account: identifier)
-        }
+        identityRepository.deletePassword(for: identity)
 
         identities.removeAll { $0.id == identity.id }
         await persistIdentities()
@@ -1494,20 +1478,11 @@ final class AppModel: ObservableObject {
 
             updated.manualUsername = trimmedUsername
 
-            let identifier = existing?.manualKeychainIdentifier ?? updated.manualKeychainIdentifier ?? "echo.folder.manual.\(updated.id.uuidString)"
-            updated.manualKeychainIdentifier = identifier
-
             if let password = trimmedManualPassword {
-                do {
-                    try keychain.setPassword(password, account: identifier)
-                } catch {
-                    updated.manualUsername = nil
-                    updated.manualKeychainIdentifier = nil
-                    updated.credentialMode = .none
-                }
+                try? identityRepository.setPassword(password, for: &updated)
             } else if existing?.credentialMode != .manual || existing?.manualKeychainIdentifier == nil {
                 // No password available to persist
-                try? keychain.deletePassword(account: identifier)
+                identityRepository.deletePassword(for: updated)
                 updated.manualUsername = nil
                 updated.manualKeychainIdentifier = nil
                 updated.credentialMode = .none
@@ -1515,10 +1490,7 @@ final class AppModel: ObservableObject {
 
         default:
             updated.manualUsername = nil
-            let identifier = existing?.manualKeychainIdentifier ?? updated.manualKeychainIdentifier
-            if let identifier {
-                try? keychain.deletePassword(account: identifier)
-            }
+            identityRepository.deletePassword(for: updated)
             updated.manualKeychainIdentifier = nil
         }
 
@@ -1591,8 +1563,8 @@ final class AppModel: ObservableObject {
         }
 
         for folderID in allFolderIDs {
-            if let identifier = folders.first(where: { $0.id == folderID })?.manualKeychainIdentifier {
-                try? keychain.deletePassword(account: identifier)
+            if let folderToDelete = self.folder(withID: folderID) {
+                identityRepository.deletePassword(for: folderToDelete)
             }
         }
 
@@ -1666,10 +1638,8 @@ final class AppModel: ObservableObject {
         copy.cachedStructureUpdatedAt = nil
 
         var password: String?
-        if connection.credentialSource == .manual,
-           let identifier = connection.keychainIdentifier,
-           let storedPassword = try? keychain.getPassword(account: identifier) {
-            password = storedPassword
+        if connection.credentialSource == .manual {
+            password = identityRepository.password(for: connection)
             copy.keychainIdentifier = nil
         }
 
@@ -1723,105 +1693,15 @@ final class AppModel: ObservableObject {
         return attempt
     }
 
-    private func identity(withID id: UUID?) -> SavedIdentity? {
-        guard let id else { return nil }
-        return identities.first { $0.id == id }
-    }
-
-    private func folder(withID id: UUID?) -> SavedFolder? {
-        guard let id else { return nil }
-        return folders.first { $0.id == id }
-    }
-
-    private enum FolderResolvedCredentials {
-        case manual(username: String, password: String?)
-        case identity(SavedIdentity)
-    }
-
-    private func resolvedIdentity(forFolderID folderID: UUID, visited: Set<UUID> = []) -> SavedIdentity? {
-        guard !visited.contains(folderID), let folder = folder(withID: folderID) else {
-            return nil
-        }
-
-        switch folder.credentialMode {
-        case .none:
-            return nil
-        case .manual:
-            return nil
-        case .identity:
-            return identity(withID: folder.identityID)
-        case .inherit:
-            guard let parentID = folder.parentFolderID else { return nil }
-            var updatedVisited = visited
-            updatedVisited.insert(folderID)
-            return resolvedIdentity(forFolderID: parentID, visited: updatedVisited)
-        }
-    }
-
-    private func resolvedFolderCredentials(forFolderID folderID: UUID, visited: Set<UUID> = []) -> FolderResolvedCredentials? {
-        guard !visited.contains(folderID), let folder = folder(withID: folderID) else {
-            return nil
-        }
-
-        switch folder.credentialMode {
-        case .none:
-            return nil
-        case .manual:
-            guard let username = folder.manualUsername?.trimmingCharacters(in: .whitespacesAndNewlines), !username.isEmpty else {
-                return nil
-            }
-            let password = folder.manualKeychainIdentifier.flatMap { try? keychain.getPassword(account: $0) }
-            return .manual(username: username, password: password)
-        case .identity:
-            guard let identity = identity(withID: folder.identityID) else { return nil }
-            return .identity(identity)
-        case .inherit:
-            guard let parentID = folder.parentFolderID else { return nil }
-            var updatedVisited = visited
-            updatedVisited.insert(folderID)
-            return resolvedFolderCredentials(forFolderID: parentID, visited: updatedVisited)
-        }
-    }
-
     private func resolvedCredentials(for connection: SavedConnection, overridePassword: String? = nil) -> DatabaseAuthenticationConfiguration? {
-        let username: String
-        let password: String?
-
-        switch connection.credentialSource {
-        case .manual:
-            username = connection.username
-            password = overridePassword ?? connection.keychainIdentifier.flatMap { try? keychain.getPassword(account: $0) }
-        case .identity:
-            guard let identity = identity(withID: connection.identityID) else { return nil }
-            username = identity.username
-            password = overridePassword ?? identity.keychainIdentifier.flatMap { try? keychain.getPassword(account: $0) }
-        case .inherit:
-            guard let folderID = connection.folderID,
-                  let credentials = resolvedFolderCredentials(forFolderID: folderID) else { return nil }
-
-            switch credentials {
-            case .identity(let identity):
-                username = identity.username
-                password = overridePassword ?? identity.keychainIdentifier.flatMap { try? keychain.getPassword(account: $0) }
-            case .manual(let manualUsername, let storedPassword):
-                username = manualUsername
-                password = overridePassword ?? storedPassword
-            }
-        }
-
-        let trimmedDomain = connection.domain.trimmingCharacters(in: .whitespacesAndNewlines)
-        let domain = trimmedDomain.isEmpty ? nil : trimmedDomain
-
-        return DatabaseAuthenticationConfiguration(
-            method: connection.authenticationMethod,
-            username: username,
-            password: password,
-            domain: domain
-        )
+        identityRepository.resolveAuthenticationConfiguration(for: connection, overridePassword: overridePassword)
     }
 
     func folderIdentity(for folderID: UUID) -> SavedIdentity? {
-        resolvedIdentity(forFolderID: folderID)
+        guard let connectionStore = (self.connectionStore as Any) as? ConnectionStore else { return nil }
+        // For now, let's keep it simple and reach into the repository or store
+        // Actually, let's just bridge it to a new repository method for consistency
+        return identityRepository.resolveInheritedIdentity(folderID: folderID)
     }
 
     private func synchronizeConnections(forIdentityID identityID: UUID, using identity: SavedIdentity) async {
@@ -2027,178 +1907,11 @@ final class AppModel: ObservableObject {
     // MARK: - Database Metadata
     @MainActor
     private func startStructureLoadTask(for session: ConnectionSession) {
-        session.structureLoadTask?.cancel()
-        session.structureLoadTask = Task { @MainActor [weak self, weak session] in
-            guard let self, let session else { return }
-            defer { session.structureLoadTask = nil }
-            ConnectionDebug.log("[AppModel] Starting structure load task for session=\(session.connection.connectionName) selected=\(session.selectedDatabaseName ?? "<nil>")")
-            do {
-                let structure = try await self.loadDatabaseStructureForSession(session)
-                session.structureLoadingState = .ready
-                session.structureLoadingMessage = nil
-                let activeStructure = session.databaseStructure ?? structure
-                ConnectionDebug.log("[AppModel] Structure load completed for session=\(session.connection.connectionName) databases=\(activeStructure.databases.count)")
-            } catch is CancellationError {
-                session.structureLoadingMessage = nil
-                session.structureLoadingState = .idle
-                ConnectionDebug.log("[AppModel] Structure load cancelled for session=\(session.connection.connectionName)")
-            } catch {
-                session.structureLoadingMessage = error.localizedDescription
-                session.structureLoadingState = .failed(message: error.localizedDescription)
-                // Log both user-friendly and debug representations for opaque errors (e.g. PostgresDecodingError)
-                print("Failed to load database structure: \(error)")
-                print("Failed to load database structure (debug): \(String(reflecting: error))")
-                ConnectionDebug.log("[AppModel] Structure load failed for session=\(session.connection.connectionName) error=\(error.localizedDescription)")
-            }
-        }
+        schemaDiscoveryCoordinator.startStructureLoadTask(for: session)
     }
 
     func loadDatabaseStructureForSession(_ connectionSession: ConnectionSession) async throws -> DatabaseStructure {
-        try Task.checkCancellation()
-
-        connectionSession.structureLoadingState = .loading(progress: 0)
-        connectionSession.structureLoadingMessage = "Preparing update…"
-
-        if connectionSession.databaseStructure == nil {
-            connectionSession.databaseStructure = DatabaseStructure(serverVersion: nil, databases: [])
-        }
-
-        if connectionSession.selectedDatabaseName == nil,
-           !connectionSession.connection.database.isEmpty {
-            connectionSession.selectedDatabaseName = connectionSession.connection.database
-        }
-
-        if ConnectionDebug.isEnabled {
-            let existingDatabases = connectionSession.databaseStructure?.databases.count ?? 0
-            ConnectionDebug.log("[AppModel] Beginning structure load for session=\(connectionSession.connection.connectionName) selected=\(connectionSession.selectedDatabaseName ?? "<nil>") existingDatabases=\(existingDatabases)")
-        }
-
-        guard let credentials = resolvedCredentials(for: connectionSession.connection) else {
-            connectionSession.structureLoadingState = .failed(message: "Missing credentials")
-            throw DatabaseError.connectionFailed("Missing credentials")
-        }
-
-        let selectedDatabase: String?
-        if let selected = connectionSession.selectedDatabaseName, !selected.isEmpty {
-            selectedDatabase = selected
-        } else if !connectionSession.connection.database.isEmpty {
-            selectedDatabase = connectionSession.connection.database
-        } else {
-            selectedDatabase = nil
-        }
-
-        var interimServerVersion = connectionSession.databaseStructure?.serverVersion
-            ?? connectionSession.connection.cachedStructure?.serverVersion
-            ?? connectionSession.connection.serverVersion
-
-        guard let fetcher = makeStructureFetcher(for: connectionSession) else {
-            connectionSession.structureLoadingState = .failed(message: "Unsupported database type")
-            throw DatabaseError.connectionFailed("Unsupported database type: \(connectionSession.connection.databaseType.displayName)")
-        }
-
-        try Task.checkCancellation()
-
-        do {
-            let structure = try await fetcher.fetchStructure(
-                for: connectionSession.connection,
-                credentials: ConnectionCredentials(authentication: credentials),
-                selectedDatabase: selectedDatabase,
-                reuseSession: connectionSession.session,
-                databaseFilter: nil as String?,
-                cachedStructure: connectionSession.connection.cachedStructure,
-                progressHandler: { progress in
-                    await MainActor.run {
-                        connectionSession.structureLoadingState = .loading(progress: progress.fraction)
-                        if let message = progress.message {
-                            connectionSession.structureLoadingMessage = message
-                        }
-                    }
-                },
-                databaseHandler: { database, _, _ in
-                    await MainActor.run {
-                        var databases = connectionSession.databaseStructure?.databases
-                            ?? connectionSession.connection.cachedStructure?.databases
-                            ?? []
-                        if let index = databases.firstIndex(where: { $0.name == database.name }) {
-                            let previous = databases[index]
-                            let merged = Self.mergeDatabaseInfo(partial: database, existing: previous)
-                            if previous == merged {
-                                if ConnectionDebug.isEnabled {
-                                    ConnectionDebug.log("[AppModel] Skipping incremental update for session=\(connectionSession.connection.connectionName) database=\(database.name) – no changes detected")
-                                }
-                                self.ensureSelectedDatabaseIfNeeded(
-                                    for: connectionSession,
-                                    availableDatabases: connectionSession.databaseStructure?.databases ?? databases
-                                )
-                                return
-                            }
-                            databases[index] = merged
-                        } else {
-                            let fallbackExisting = connectionSession.databaseStructure?.databases.first(where: { $0.name == database.name })
-                            let merged = Self.mergeDatabaseInfo(partial: database, existing: fallbackExisting)
-                            databases.append(merged)
-                            databases.sort { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
-                        }
-                        let resolvedServerVersion = interimServerVersion
-                            ?? connectionSession.databaseStructure?.serverVersion
-                            ?? connectionSession.connection.cachedStructure?.serverVersion
-                            ?? connectionSession.connection.serverVersion
-                        let updatedStructure = DatabaseStructure(
-                            serverVersion: resolvedServerVersion,
-                            databases: databases
-                        )
-                        let didUpdate = self.applyStructureUpdateIfNeeded(
-                            updatedStructure,
-                            to: connectionSession,
-                            cacheResult: true
-                        )
-                        if ConnectionDebug.isEnabled {
-                            let action = didUpdate ? "Applied" : "Skipped"
-                            ConnectionDebug.log("[AppModel] \(action) incremental update for session=\(connectionSession.connection.connectionName) database=\(database.name) schemas=\(database.schemas.count) totalDatabases=\(databases.count)")
-                        }
-                        let available = connectionSession.databaseStructure?.databases ?? databases
-                        self.ensureSelectedDatabaseIfNeeded(for: connectionSession, availableDatabases: available)
-                    }
-                }
-            )
-
-            if let serverVersion = structure.serverVersion {
-                interimServerVersion = serverVersion
-            }
-
-            let finalStructure = DatabaseStructure(
-                serverVersion: interimServerVersion,
-                databases: structure.databases
-            )
-            let didApplyFinal = self.applyStructureUpdateIfNeeded(
-                finalStructure,
-                to: connectionSession,
-                cacheResult: true
-            )
-            if ConnectionDebug.isEnabled {
-                let totalSchemas = structure.databases.reduce(0) { $0 + $1.schemas.count }
-                let totalObjects = structure.databases.reduce(0) { result, database in
-                    result + database.schemas.reduce(0) { $0 + $1.objects.count }
-                }
-                ConnectionDebug.log("[AppModel] Completed structure load for session=\(connectionSession.connection.connectionName) databases=\(structure.databases.count) schemas=\(totalSchemas) objects=\(totalObjects) changed=\(didApplyFinal)")
-            }
-            connectionSession.structureLoadingState = .ready
-            connectionSession.structureLoadingMessage = nil
-
-            let activeDatabases = connectionSession.databaseStructure?.databases ?? finalStructure.databases
-            ensureSelectedDatabaseIfNeeded(for: connectionSession, availableDatabases: activeDatabases)
-
-            return connectionSession.databaseStructure ?? finalStructure
-        } catch {
-            if error is CancellationError {
-                connectionSession.structureLoadingMessage = nil
-                connectionSession.structureLoadingState = .idle
-            } else {
-                connectionSession.structureLoadingMessage = error.localizedDescription
-                connectionSession.structureLoadingState = .failed(message: error.localizedDescription)
-            }
-            throw error
-        }
+        try await schemaDiscoveryCoordinator.loadDatabaseStructureForSession(connectionSession)
     }
     func testConnection(_ connection: SavedConnection, passwordOverride: String? = nil) async -> ConnectionTestResult {
         connectionStates[connection.id] = .testing
@@ -2268,250 +1981,7 @@ final class AppModel: ObservableObject {
 
     func refreshDatabaseStructure(for sessionID: UUID, scope: StructureRefreshScope = .selectedDatabase, databaseOverride: String? = nil) async {
         guard let session = sessionManager.activeSessions.first(where: { $0.id == sessionID }) else { return }
-
-        switch scope {
-        case .full:
-            if Task.isCancelled {
-                session.structureLoadingMessage = nil
-                session.structureLoadingState = .idle
-                return
-            }
-
-            do {
-                _ = try await loadDatabaseStructureForSession(session)
-            } catch {
-                if error is CancellationError {
-                    session.structureLoadingMessage = nil
-                    session.structureLoadingState = .idle
-                } else {
-                    session.structureLoadingMessage = error.localizedDescription
-                    session.structureLoadingState = .failed(message: error.localizedDescription)
-                }
-            }
-
-        case .selectedDatabase:
-            let targetDatabase = databaseOverride ?? (session.selectedDatabaseName?.isEmpty == false
-                ? session.selectedDatabaseName
-                : (session.connection.database.isEmpty ? nil : session.connection.database))
-
-            guard let targetDatabase else {
-                await refreshDatabaseStructure(for: sessionID, scope: .full)
-                return
-            }
-
-            guard let credentials = resolvedCredentials(for: session.connection) else {
-                session.structureLoadingState = .failed(message: "Missing credentials")
-                return
-            }
-
-            session.structureLoadingState = .loading(progress: 0)
-            session.structureLoadingMessage = "Updating \(targetDatabase)…"
-
-            if Task.isCancelled {
-                session.structureLoadingMessage = nil
-                session.structureLoadingState = .idle
-                return
-            }
-
-            guard let fetcher = makeStructureFetcher(for: session) else {
-                session.structureLoadingState = .failed(message: "Unsupported database type")
-                return
-            }
-
-            do {
-                let structure = try await fetcher.fetchStructure(
-                    for: session.connection,
-                    credentials: ConnectionCredentials(authentication: credentials),
-                    selectedDatabase: targetDatabase,
-                    reuseSession: session.session,
-                    databaseFilter: targetDatabase,
-                    cachedStructure: session.connection.cachedStructure,
-                    progressHandler: { progress in
-                        await MainActor.run {
-                            session.structureLoadingState = .loading(progress: progress.fraction)
-                            if let message = progress.message {
-                                session.structureLoadingMessage = message
-                            }
-                        }
-                    },
-                    databaseHandler: { _, _, _ in }
-                )
-
-                let previousDatabase = session.databaseStructure?.databases.first { $0.name == targetDatabase }
-                let updatedDatabase = structure.databases.first { $0.name == targetDatabase }
-
-                var mergedDatabases = session.databaseStructure?.databases ?? []
-                if let updatedDatabase {
-                    if let index = mergedDatabases.firstIndex(where: { $0.name == updatedDatabase.name }) {
-                        mergedDatabases[index] = updatedDatabase
-                    } else {
-                        mergedDatabases.append(updatedDatabase)
-                        mergedDatabases.sort { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
-                    }
-                }
-
-                let updatedStructure = DatabaseStructure(
-                    serverVersion: structure.serverVersion ?? session.databaseStructure?.serverVersion ?? session.connection.serverVersion,
-                    databases: mergedDatabases
-                )
-
-                if ConnectionDebug.isEnabled {
-                    let delta = Self.diffForExplorer(old: previousDatabase, new: updatedDatabase)
-                    let summary = "inserted=\(delta.inserted) removed=\(delta.removed) changed=\(delta.changed) total=\(updatedDatabase?.schemas.reduce(0) { $0 + $1.objects.count } ?? 0)"
-                    ConnectionDebug.log("[ExplorerSidebar] Incremental update for session=\(session.connection.databaseType.displayName.lowercased()) database=\(targetDatabase) \(summary)")
-                }
-
-                session.databaseStructure = updatedStructure
-                session.structureLoadingState = .ready
-                session.structureLoadingMessage = nil
-
-                cacheStructure(updatedStructure, for: session.connection.id)
-
-            } catch {
-                if error is CancellationError {
-                    session.structureLoadingMessage = nil
-                    session.structureLoadingState = .idle
-                } else {
-                    session.structureLoadingMessage = error.localizedDescription
-                    session.structureLoadingState = .failed(message: error.localizedDescription)
-                }
-            }
-        }
-    }
-
-    private static func diffForExplorer(old: DatabaseInfo?, new: DatabaseInfo?) -> (inserted: Int, removed: Int, changed: Int) {
-        guard let new else { return (0, 0, 0) }
-        let oldObjects = old?.schemas.flatMap { $0.objects } ?? []
-        let newObjects = new.schemas.flatMap { $0.objects }
-
-        func key(_ o: SchemaObjectInfo) -> String { "\(o.type.rawValue)|\(o.id)" }
-        let oldMap = Dictionary(oldObjects.map { (key($0), $0) }, uniquingKeysWith: { first, _ in first })
-        let newMap = Dictionary(newObjects.map { (key($0), $0) }, uniquingKeysWith: { first, _ in first })
-
-        let oldKeys = Set(oldMap.keys)
-        let newKeys = Set(newMap.keys)
-        let inserted = newKeys.subtracting(oldKeys).count
-        let removed = oldKeys.subtracting(newKeys).count
-
-        var changed = 0
-        for commonKey in oldKeys.intersection(newKeys) {
-            if let lhs = oldMap[commonKey], let rhs = newMap[commonKey] {
-                let columnsChanged = lhs.columns.count != rhs.columns.count
-                let commentChanged = (lhs.comment ?? "") != (rhs.comment ?? "")
-                if columnsChanged || commentChanged { changed &+= 1 }
-            }
-        }
-
-        return (inserted, removed, changed)
-    }
-
-    private static func mergeDatabaseInfo(partial: DatabaseInfo, existing: DatabaseInfo?) -> DatabaseInfo {
-        guard let existing else {
-            let sortedSchemas = partial.schemas.sorted { lhs, rhs in
-                lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
-            }
-            let resolvedSchemaCount = max(partial.schemaCount, sortedSchemas.count)
-            return DatabaseInfo(
-                name: partial.name,
-                schemas: sortedSchemas,
-                schemaCount: resolvedSchemaCount
-            )
-        }
-
-        var mergedSchemas = mergeSchemas(
-            partialSchemas: partial.schemas,
-            existingSchemas: existing.schemas
-        )
-
-        // Ensure alphabetical ordering for stable presentation
-        mergedSchemas.sort { lhs, rhs in
-            lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
-        }
-
-        let resolvedSchemaCount = max(existing.schemaCount, partial.schemaCount, mergedSchemas.count)
-
-        return DatabaseInfo(
-            name: existing.name,
-            schemas: mergedSchemas,
-            schemaCount: resolvedSchemaCount
-        )
-    }
-
-    private static func mergeSchemas(partialSchemas: [SchemaInfo], existingSchemas: [SchemaInfo]) -> [SchemaInfo] {
-        var schemaMap = Dictionary(uniqueKeysWithValues: existingSchemas.map { ($0.name, $0) })
-
-        for schema in partialSchemas {
-            if let current = schemaMap[schema.name] {
-                schemaMap[schema.name] = mergeSchemaInfo(partial: schema, existing: current)
-            } else {
-                schemaMap[schema.name] = schema
-            }
-        }
-
-        var orderedNames = Set<String>()
-        var result: [SchemaInfo] = []
-
-        for schema in existingSchemas {
-            guard let merged = schemaMap[schema.name], !orderedNames.contains(schema.name) else { continue }
-            orderedNames.insert(schema.name)
-            result.append(merged)
-        }
-
-        for schema in partialSchemas {
-            guard let merged = schemaMap[schema.name], !orderedNames.contains(schema.name) else { continue }
-            orderedNames.insert(schema.name)
-            result.append(merged)
-        }
-
-        return result
-    }
-
-    private static func mergeSchemaInfo(partial: SchemaInfo, existing: SchemaInfo) -> SchemaInfo {
-        var objectMap = Dictionary(uniqueKeysWithValues: existing.objects.map { ($0.id, $0) })
-        var orderedIDs = existing.objects.map(\.id)
-
-        for object in partial.objects {
-            if let index = orderedIDs.firstIndex(of: object.id) {
-                orderedIDs[index] = object.id
-            } else {
-                orderedIDs.append(object.id)
-            }
-            objectMap[object.id] = object
-        }
-
-        let mergedObjects = orderedIDs.compactMap { objectMap[$0] }
-
-        return SchemaInfo(
-            name: existing.name,
-            objects: mergedObjects
-        )
-    }
-
-    // MARK: - Pin helpers
-    private func ensureSelectedDatabaseIfNeeded(for session: ConnectionSession, availableDatabases: [DatabaseInfo]) {
-        let currentSelection = session.selectedDatabaseName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        guard currentSelection.isEmpty else { return }
-
-        if let configured = nonEmptyString(session.connection.database),
-           availableDatabases.contains(where: { $0.name.caseInsensitiveCompare(configured) == .orderedSame }) {
-            session.selectedDatabaseName = configured
-            return
-        }
-
-        if let populated = availableDatabases.first(where: { !$0.schemas.isEmpty }) {
-            session.selectedDatabaseName = populated.name
-            return
-        }
-
-        if let fallback = availableDatabases.first {
-            session.selectedDatabaseName = fallback.name
-        }
-    }
-
-    private func nonEmptyString(_ value: String?) -> String? {
-        guard let value = value else { return nil }
-        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmed.isEmpty ? nil : trimmed
+        await schemaDiscoveryCoordinator.refreshStructure(for: session, scope: scope)
     }
 
     func pinObject(withID id: String) {
@@ -2532,53 +2002,6 @@ final class AppModel: ObservableObject {
         guard let index = connections.firstIndex(where: { $0.id == id }) else { return }
         update(&connections[index])
         Task { await persistConnections() }
-    }
-
-    @discardableResult
-    @MainActor
-    private func applyStructureUpdateIfNeeded(
-        _ structure: DatabaseStructure,
-        to session: ConnectionSession,
-        cacheResult: Bool
-    ) -> Bool {
-        let currentStructure = session.databaseStructure
-        let hasDatabaseChanges = currentStructure?.databases != structure.databases
-        let hasServerVersionChange = currentStructure?.serverVersion != structure.serverVersion
-        guard hasDatabaseChanges || hasServerVersionChange || currentStructure == nil else {
-            return false
-        }
-
-        var updatedStructure = structure
-        if let existingID = currentStructure?.id {
-            updatedStructure.id = existingID
-        }
-
-        session.databaseStructure = updatedStructure
-
-        if cacheResult {
-            cacheStructure(updatedStructure, for: session.connection.id)
-        }
-
-        return true
-    }
-
-    private func cacheStructure(_ structure: DatabaseStructure, for connectionID: UUID) {
-        updateCachedConnection(id: connectionID) { connection in
-            connection.cachedStructure = structure
-            connection.cachedStructureUpdatedAt = Date()
-            if let serverVersion = structure.serverVersion {
-                connection.serverVersion = serverVersion
-            }
-        }
-    }
-
-    private func preloadStructure(for connection: SavedConnection, overridePassword: String?) async {
-        guard let credentials = resolvedCredentials(for: connection, overridePassword: overridePassword) else {
-            return
-        }
-
-        // Skip structure fetching for connections without an active session
-        // Structure fetching will be handled when the connection session is established
     }
 
     // MARK: - Project Management
@@ -2732,26 +2155,14 @@ final class AppModel: ObservableObject {
 
 extension AppModel {
     func bookmarks(for connectionID: UUID) -> [Bookmark] {
-        guard let projectID = connectionProjectID(connectionID) else { return [] }
-        guard let projectIndex = projects.firstIndex(where: { $0.id == projectID }) else {
-            let selected = selectedProject?.bookmarks ?? []
-            return sortedBookmarks(selected.filter { $0.connectionID == connectionID })
-        }
-        let bookmarks = projects[projectIndex].bookmarks
-            .filter { $0.connectionID == connectionID }
-        return sortedBookmarks(bookmarks)
+        guard let project = projects.first(where: { $0.id == connectionProjectID(connectionID) }) ?? selectedProject else { return [] }
+        return bookmarkRepository.bookmarks(for: connectionID, in: project)
     }
 
     func bookmarks(in projectID: UUID?) -> [Bookmark] {
         let targetID = projectID ?? selectedProject?.id
-        guard let id = targetID else { return [] }
-        if let index = projects.firstIndex(where: { $0.id == id }) {
-            return sortedBookmarks(projects[index].bookmarks)
-        }
-        if selectedProject?.id == id {
-            return sortedBookmarks(selectedProject?.bookmarks ?? [])
-        }
-        return []
+        guard let id = targetID, let project = projects.first(where: { $0.id == id }) ?? (selectedProject?.id == id ? selectedProject : nil) else { return [] }
+        return project.bookmarks.sorted { $0.updatedAt > $1.updatedAt }
     }
 
     func addBookmark(
@@ -2763,7 +2174,7 @@ extension AppModel {
     ) async {
         let normalizedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !normalizedQuery.isEmpty else { return }
-        guard let projectID = connection.projectID ?? selectedProject?.id else { return }
+        guard var project = projects.first(where: { $0.id == (connection.projectID ?? selectedProject?.id) }) else { return }
 
         let bookmark = Bookmark(
             connectionID: connection.id,
@@ -2773,46 +2184,33 @@ extension AppModel {
             source: source
         )
 
-        await mutateBookmarks(for: projectID) { bookmarks in
-            // Prevent duplicate entries with the same query for the same database/server pair
-            if let existingIndex = bookmarks.firstIndex(where: {
-                $0.connectionID == bookmark.connectionID &&
-                $0.databaseName?.caseInsensitiveCompare(bookmark.databaseName ?? "") == .orderedSame &&
-                $0.query == bookmark.query
-            }) {
-                bookmarks.remove(at: existingIndex)
-            }
-            bookmarks.insert(bookmark, at: 0)
-        }
+        bookmarkRepository.addBookmark(bookmark, &project)
+        await projectStore.saveProject(project)
     }
 
     func removeBookmark(_ bookmark: Bookmark) async {
-        guard let projectID = connectionProjectID(bookmark.connectionID) ?? selectedProject?.id else { return }
-        await mutateBookmarks(for: projectID) { bookmarks in
-            bookmarks.removeAll { $0.id == bookmark.id }
-        }
+        guard var project = projects.first(where: { $0.id == (connectionProjectID(bookmark.connectionID) ?? selectedProject?.id) }) else { return }
+        bookmarkRepository.removeBookmark(bookmark.id, from: &project)
+        await projectStore.saveProject(project)
     }
 
     func renameBookmark(_ bookmark: Bookmark, to title: String?) async {
-        guard let projectID = connectionProjectID(bookmark.connectionID) ?? selectedProject?.id else { return }
-        await mutateBookmarks(for: projectID) { bookmarks in
-            guard let index = bookmarks.firstIndex(where: { $0.id == bookmark.id }) else { return }
-            var updated = bookmarks[index]
-            updated.title = normalizedTitle(title)
-            updated.updatedAt = Date()
-            bookmarks[index] = updated
+        guard var project = projects.first(where: { $0.id == (connectionProjectID(bookmark.connectionID) ?? selectedProject?.id) }) else { return }
+        bookmarkRepository.updateBookmark(bookmark.id, in: &project) { b in
+            b.title = normalizedTitle(title)
+            b.updatedAt = Date()
         }
+        await projectStore.saveProject(project)
     }
 
     func updateBookmarkQuery(_ bookmarkID: UUID, newQuery: String) async {
-        guard let projectID = projectIDContainingBookmark(bookmarkID) else { return }
-        await mutateBookmarks(for: projectID) { bookmarks in
-            guard let index = bookmarks.firstIndex(where: { $0.id == bookmarkID }) else { return }
-            var updated = bookmarks[index]
-            updated.query = newQuery
-            updated.updatedAt = Date()
-            bookmarks[index] = updated
+        guard let projectID = projectIDContainingBookmark(bookmarkID),
+              var project = projects.first(where: { $0.id == projectID }) else { return }
+        bookmarkRepository.updateBookmark(bookmarkID, in: &project) { b in
+            b.query = newQuery
+            b.updatedAt = Date()
         }
+        await projectStore.saveProject(project)
     }
 
     func removeBookmarks(forConnectionID connectionID: UUID, projectID: UUID? = nil) async {
@@ -2862,24 +2260,9 @@ extension AppModel {
                      bookmarkContext: context)
     }
 
-    private func mutateBookmarks(for projectID: UUID, update: (inout [Bookmark]) -> Void) async {
-        guard let index = projects.firstIndex(where: { $0.id == projectID }) else { return }
-        update(&projects[index].bookmarks)
-        projects[index].updatedAt = Date()
-
-        if selectedProject?.id == projectID {
-            selectedProject = projects[index]
-        }
-
-        do {
-            try await projectStore.saveProjects(projects)
-        } catch {
-            print("Failed to persist bookmarks: \(error)")
-        }
-    }
-
-    private func connectionProjectID(_ connectionID: UUID) -> UUID? {
-        connections.first(where: { $0.id == connectionID })?.projectID
+    private func projectContainingConnection(_ connectionID: UUID) -> Project? {
+        let id = connectionProjectID(connectionID) ?? selectedProject?.id
+        return projects.first(where: { $0.id == id })
     }
 
     private func normalizedDatabaseName(_ name: String?) -> String? {
@@ -2893,27 +2276,14 @@ extension AppModel {
     }
 
     private func projectIDContainingBookmark(_ bookmarkID: UUID) -> UUID? {
-        if let project = projects.first(where: { project in
-            project.bookmarks.contains(where: { $0.id == bookmarkID })
-        }) {
+        if let project = projects.first(where: { $0.bookmarks.contains(where: { $0.id == bookmarkID }) }) {
             return project.id
         }
-
-        if let project = selectedProject,
-           project.bookmarks.contains(where: { $0.id == bookmarkID }) {
-            return project.id
-        }
-
-        return nil
+        return selectedProject?.bookmarks.contains(where: { $0.id == bookmarkID }) == true ? selectedProject?.id : nil
     }
 
-    private func sortedBookmarks(_ bookmarks: [Bookmark]) -> [Bookmark] {
-        bookmarks.sorted { lhs, rhs in
-            if lhs.createdAt == rhs.createdAt {
-                return lhs.id.uuidString > rhs.id.uuidString
-            }
-            return lhs.createdAt > rhs.createdAt
-        }
+    private func connectionProjectID(_ connectionID: UUID) -> UUID? {
+        connections.first(where: { $0.id == connectionID })?.projectID
     }
 }
 
@@ -2959,68 +2329,42 @@ private extension AppModel {
     // MARK: - Recent Connections
 
     private func loadRecentConnections() {
-        guard let data = UserDefaults.standard.data(forKey: Self.recentConnectionsKey) else {
-            recentConnections = []
-            return
-        }
-
-        do {
-            recentConnections = try JSONDecoder().decode([RecentConnectionRecord].self, from: data)
-            pruneRecentConnections()
-        } catch {
-            recentConnections = []
-            print("Failed to load recent connections: \(error)")
-        }
+        recentConnections = historyRepository.loadRecentConnections()
     }
 
     private func saveRecentConnections() {
-        guard let data = try? JSONEncoder().encode(recentConnections) else { return }
-        UserDefaults.standard.set(data, forKey: Self.recentConnectionsKey)
+        historyRepository.saveRecentConnections(recentConnections)
     }
 
     private func recordRecentConnection(for connection: SavedConnection, databaseName: String?) {
         var normalizedDatabase = databaseName?.trimmingCharacters(in: .whitespacesAndNewlines)
-        if normalizedDatabase?.isEmpty == true {
-            normalizedDatabase = nil
-        }
+        if normalizedDatabase?.isEmpty == true { normalizedDatabase = nil }
 
         let record = RecentConnectionRecord(
-            connectionID: connection.id,
+            id: connection.id,
+            connectionName: connection.connectionName,
+            host: connection.host,
             databaseName: normalizedDatabase,
-            lastConnectedAt: Date()
+            databaseType: connection.databaseType,
+            colorHex: connection.metadataColorHex,
+            lastUsedAt: Date()
         )
 
         recentConnections.removeAll { $0.id == record.id }
         recentConnections.insert(record, at: 0)
-        pruneRecentConnections()
+        recentConnections = Array(recentConnections.prefix(20))
         saveRecentConnections()
     }
 
-    private func pruneRecentConnections() {
-        recentConnections.sort { $0.lastConnectedAt > $1.lastConnectedAt }
-        if recentConnections.count > 5 {
-            recentConnections = Array(recentConnections.prefix(5))
-        }
-    }
-
     private func removeRecentConnections(for connectionID: UUID) {
-        let filtered = recentConnections.filter { $0.connectionID != connectionID }
-        if filtered != recentConnections {
-            recentConnections = filtered
-            pruneRecentConnections()
-            saveRecentConnections()
-        }
+        recentConnections.removeAll { $0.id == connectionID }
+        saveRecentConnections()
     }
 
     private func synchronizeRecentConnectionsWithConnections() {
-        pruneRecentConnections()
         let existingIDs = Set(connections.map { $0.id })
-        let filtered = recentConnections.filter { existingIDs.contains($0.connectionID) }
-        if filtered != recentConnections {
-            recentConnections = filtered
-            pruneRecentConnections()
-            saveRecentConnections()
-        }
+        recentConnections.removeAll { !existingIDs.contains($0.id) }
+        saveRecentConnections()
     }
 
     func updateNavigation(for session: ConnectionSession?) {

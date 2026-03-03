@@ -26,6 +26,10 @@ final class AppCoordinator: ObservableObject {
     let tabStore: TabStore
     let resultSpoolCoordinator: ResultSpoolCoordinator
     let diagramCoordinator: DiagramCoordinator
+    let identityRepository: IdentityRepository
+    let schemaDiscoveryCoordinator: SchemaDiscoveryCoordinator
+    let bookmarkRepository: BookmarkRepository
+    let historyRepository: HistoryRepository
     let appModel: AppModel
     let appState: AppState
     let clipboardHistory: ClipboardHistoryStore
@@ -66,6 +70,10 @@ final class AppCoordinator: ObservableObject {
             identityStore: IdentityDiskStore()
         )
         self.connectionStore = ConnectionStore(repository: connectionRepository)
+        self.identityRepository = IdentityRepository(connectionStore: connectionStore)
+        self.schemaDiscoveryCoordinator = SchemaDiscoveryCoordinator(identityRepository: identityRepository, connectionStore: connectionStore)
+        self.bookmarkRepository = BookmarkRepository()
+        self.historyRepository = HistoryRepository()
         
         self.navigationStore = NavigationStore()
         self.tabStore = TabStore()
@@ -83,10 +91,21 @@ final class AppCoordinator: ObservableObject {
             clipboardHistory: clipboardHistory,
             resultSpoolCoordinator: resultSpoolCoordinator,
             diagramCoordinator: diagramCoordinator,
+            identityRepository: identityRepository,
+            schemaDiscoveryCoordinator: schemaDiscoveryCoordinator,
+            bookmarkRepository: bookmarkRepository,
+            historyRepository: historyRepository,
             resultSpoolManager: resultSpoolManager,
             diagramCacheManager: cacheManager,
             diagramKeyStore: keyStore
         )
+        
+        schemaDiscoveryCoordinator.onPersistConnections = { @MainActor [weak self] in
+            await self?.appModel.persistConnections()
+        }
+        schemaDiscoveryCoordinator.onEnqueuePrefetch = { @MainActor [weak self] session in
+            await self?.appModel.enqueuePrefetchForSessionIfNeeded(session)
+        }
         
         // Setup cross-domain providers for DiagramCoordinator after AppModel is initialized
         diagramCoordinator.globalSettingsProvider = { @MainActor [weak self] in
