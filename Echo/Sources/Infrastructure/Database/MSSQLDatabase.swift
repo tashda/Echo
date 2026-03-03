@@ -15,6 +15,18 @@ struct MSSQLNIOFactory: DatabaseFactory {
         tls: Bool,
         authentication: DatabaseAuthenticationConfiguration
     ) async throws -> DatabaseSession {
+        let resolvedDatabase = database?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let loginDatabase = resolvedDatabase?.isEmpty == false ? resolvedDatabase! : "master"
+        let metadataTimeout: TimeInterval = 30
+        let metadataConfiguration = SQLServerMetadataClient.Configuration(
+            includeSystemSchemas: false,
+            enableColumnCache: true,
+            includeRoutineDefinitions: false,
+            includeTriggerDefinitions: true,
+            commandTimeout: metadataTimeout,
+            extractParameterDefaults: false,
+            preferStoredProcedureColumns: false
+        )
         // Convert Echo authentication to SQLServerKit authentication
         let sqlServerAuth: TDSAuthentication
 
@@ -34,15 +46,19 @@ struct MSSQLNIOFactory: DatabaseFactory {
         let configuration = SQLServerClient.Configuration(
             hostname: host,
             port: port,
-            login: .init(database: database ?? "master", authentication: sqlServerAuth),
-            tlsConfiguration: tls ? .makeClientConfiguration() : nil
+            login: .init(database: loginDatabase, authentication: sqlServerAuth),
+            tlsConfiguration: tls ? .makeClientConfiguration() : nil,
+            metadataConfiguration: metadataConfiguration
         )
 
-        logger.info("Connecting to SQL Server at \(host):\(port)/\(database ?? "master")")
+        logger.info("Connecting to SQL Server at \(host):\(port)/\(loginDatabase)")
 
         // SQLServerClient.connect returns an EventLoopFuture, so we need to await it properly
         let client = try await withCheckedThrowingContinuation { continuation in
-            SQLServerClient.connect(configuration: configuration).whenComplete { result in
+            SQLServerClient.connect(
+                configuration: configuration,
+                eventLoopGroupProvider: .shared(EchoEventLoopGroup.shared)
+            ).whenComplete { result in
                 switch result {
                 case .success(let client):
                     continuation.resume(returning: client)
@@ -53,7 +69,10 @@ struct MSSQLNIOFactory: DatabaseFactory {
         }
 
         // Wrap the SQLServerClient in an adapter that conforms to DatabaseSession
-        return SQLServerSessionAdapter(client: client)
+        return SQLServerSessionAdapter(
+            client: client,
+            database: resolvedDatabase?.isEmpty == false ? resolvedDatabase : nil
+        )
     }
 }
 
@@ -62,13 +81,29 @@ struct MSSQLNIOFactory: DatabaseFactory {
 /// Adapter to make SQLServerClient conform to Echo's DatabaseSession protocol
 final class SQLServerSessionAdapter: DatabaseSession {
     private let client: SQLServerClient
+    private let database: String?
+    private let logger = Logger(label: "dk.tippr.echo.mssql.metadata")
+    private let metadataTraceEnabled = ProcessInfo.processInfo.environment["MSSQL_METADATA_TRACE"] == "1"
+    private let metadataTracePath: String?
+    private static let metadataTraceQueue = DispatchQueue(label: "dk.tippr.echo.mssql.metadata.trace")
 
-    init(client: SQLServerClient) {
+    init(client: SQLServerClient, database: String?) {
         self.client = client
+        self.database = database
+        if metadataTraceEnabled {
+            let envPath = ProcessInfo.processInfo.environment["MSSQL_METADATA_TRACE_PATH"]
+            metadataTracePath = envPath?.isEmpty == false ? envPath : "/tmp/echo-mssql-metadata-trace.log"
+        } else {
+            metadataTracePath = nil
+        }
     }
 
     func close() async {
-        // SQLServerClient doesn't have a close method, so we'll rely on connection pool cleanup
+        do {
+            try await client.shutdownGracefully().get()
+        } catch {
+            // Ignore shutdown errors; the app is shutting down the session.
+        }
     }
 
     func simpleQuery(_ sql: String) async throws -> QueryResultSet {
@@ -88,55 +123,64 @@ final class SQLServerSessionAdapter: DatabaseSession {
     }
 
     func listTablesAndViews(schema: String?) async throws -> [SchemaObjectInfo] {
-        // Use SQLServerKit's listTables method and convert to Echo's format
-        let tableMetadata: [TableMetadata] = try await withCheckedThrowingContinuation { continuation in
-            client.listTables(database: "master").whenComplete { result in
-                switch result {
-                case .success(let tables):
-                    continuation.resume(returning: tables)
-                case .failure(let error):
-                    continuation.resume(throwing: error)
-                }
+        let tables = try await client.listTables(
+            database: database,
+            schema: schema,
+            includeComments: false
+        )
+        return tables.compactMap { table in
+            if table.isSystemObject {
+                return nil
             }
-        }
-
-        return tableMetadata.map { table in
-            SchemaObjectInfo(
+            let objectType: SchemaObjectInfo.ObjectType = table.isView ? .view : .table
+            return SchemaObjectInfo(
                 name: table.name,
                 schema: table.schema,
-                type: table.type.contains("VIEW") ? .view : .table
+                type: objectType,
+                comment: table.comment
             )
         }
     }
 
     func listDatabases() async throws -> [String] {
-        let databaseMetadata = try await withCheckedThrowingContinuation { continuation in
-            client.listDatabases().whenComplete { result in
-                switch result {
-                case .success(let databases):
-                    continuation.resume(returning: databases)
-                case .failure(let error):
-                    continuation.resume(throwing: error)
-                }
-            }
-        }
-
-        return databaseMetadata.map { $0.name }
+        let databases = try await client.listDatabases()
+        return databases.map(\.name)
     }
 
     func listSchemas() async throws -> [String] {
-        // Use a raw SQL query to get schemas since SQLServerKit doesn't have a direct method
-        let query = "SELECT DISTINCT schema_name FROM information_schema.schemata WHERE schema_name NOT IN ('sys', 'INFORMATION_SCHEMA')"
-        let rows: [TDSRow] = try await client.query(query)
+        let schemas = try await client.listSchemas(in: database)
+        return schemas.map(\.name)
+    }
 
-        // Extract schema names from the result
-        var schemas: [String] = []
-        for row in rows {
-            if let schema = row.column("schema_name")?.string {
-                schemas.append(schema)
-            }
+    func loadDatabaseInfo(databaseName: String) async throws -> DatabaseInfo {
+        let structure = try await metadataTimed("loadDatabaseStructure") {
+            try await client.loadDatabaseStructure(database: databaseName, includeComments: false)
         }
-        return schemas
+
+        let schemaInfos = structure.schemas.map { schema -> SchemaInfo in
+            var objects: [SchemaObjectInfo] = []
+            objects.reserveCapacity(schema.tables.count + schema.views.count + schema.functions.count + schema.procedures.count + schema.triggers.count)
+
+            for table in schema.tables {
+                objects.append(makeTableObjectInfo(from: table, type: .table))
+            }
+            for view in schema.views {
+                objects.append(makeTableObjectInfo(from: view, type: .view))
+            }
+            for routine in schema.functions {
+                objects.append(makeRoutineObjectInfo(from: routine))
+            }
+            for routine in schema.procedures {
+                objects.append(makeRoutineObjectInfo(from: routine))
+            }
+            for trigger in schema.triggers {
+                objects.append(makeTriggerObjectInfo(from: trigger))
+            }
+
+            return SchemaInfo(name: schema.name, objects: objects)
+        }
+
+        return DatabaseInfo(name: databaseName, schemas: schemaInfos, schemaCount: schemaInfos.count)
     }
 
     func queryWithPaging(_ sql: String, limit: Int, offset: Int) async throws -> QueryResultSet {
@@ -152,26 +196,25 @@ final class SQLServerSessionAdapter: DatabaseSession {
     }
 
     func getTableSchema(_ tableName: String, schemaName: String?) async throws -> [ColumnInfo] {
-        let columnMetadata: [ColumnMetadata] = try await withCheckedThrowingContinuation { continuation in
-            client.listColumns(
-                database: "master",
-                schema: schemaName ?? "dbo",
-                table: tableName
-            ).whenComplete { result in
-                switch result {
-                case .success(let columns):
-                    continuation.resume(returning: columns)
-                case .failure(let error):
-                    continuation.resume(throwing: error)
-                }
-            }
-        }
+        let schema = schemaName ?? "dbo"
+        let columns = try await client.listColumns(
+            database: database,
+            schema: schema,
+            table: tableName,
+            includeComments: false
+        )
+        let primaryKeys = try await client.listPrimaryKeysFromCatalog(
+            database: database,
+            schema: schema,
+            table: tableName
+        )
+        let primaryKeyColumns = Set(primaryKeys.flatMap { $0.columns.map { $0.column.lowercased() } })
 
-        return columnMetadata.map { column in
+        return columns.map { column in
             ColumnInfo(
                 name: column.name,
                 dataType: column.typeName,
-                isPrimaryKey: false, // Would need separate query
+                isPrimaryKey: primaryKeyColumns.contains(column.name.lowercased()),
                 isNullable: column.isNullable,
                 maxLength: column.maxLength
             )
@@ -216,20 +259,53 @@ final class SQLServerSessionAdapter: DatabaseSession {
     }
 
     func getTableStructureDetails(schema: String, table: String) async throws -> TableStructureDetails {
-        let columnMetadata: [ColumnMetadata] = try await withCheckedThrowingContinuation { continuation in
-            client.listColumns(
-                database: "master",
+        async let columnMetadataResult: [ColumnMetadata] = {
+            (try? await client.listColumns(
+                database: database,
                 schema: schema,
                 table: table
-            ).whenComplete { result in
-                switch result {
-                case .success(let columns):
-                    continuation.resume(returning: columns)
-                case .failure(let error):
-                    continuation.resume(throwing: error)
-                }
-            }
-        }
+            )) ?? []
+        }()
+
+        async let primaryKeyMetadataResult: [KeyConstraintMetadata] = {
+            (try? await client.listPrimaryKeys(
+                database: database,
+                schema: schema,
+                table: table
+            )) ?? []
+        }()
+
+        async let uniqueConstraintMetadataResult: [KeyConstraintMetadata] = {
+            (try? await client.listUniqueConstraints(
+                database: database,
+                schema: schema,
+                table: table
+            )) ?? []
+        }()
+
+        async let foreignKeyMetadataResult: [ForeignKeyMetadata] = {
+            (try? await client.listForeignKeys(
+                database: database,
+                schema: schema,
+                table: table
+            )) ?? []
+        }()
+
+        async let indexMetadataResult: [IndexMetadata] = {
+            (try? await client.listIndexes(
+                database: database,
+                schema: schema,
+                table: table
+            )) ?? []
+        }()
+
+        let (columnMetadata, primaryKeyMetadata, uniqueConstraintMetadata, foreignKeyMetadata, indexMetadata) = await (
+            columnMetadataResult,
+            primaryKeyMetadataResult,
+            uniqueConstraintMetadataResult,
+            foreignKeyMetadataResult,
+            indexMetadataResult
+        )
 
         let columns = columnMetadata.map { column in
             TableStructureDetails.Column(
@@ -241,17 +317,103 @@ final class SQLServerSessionAdapter: DatabaseSession {
             )
         }
 
+        let primaryKey = primaryKeyMetadata.first(where: { $0.type == .primaryKey }).map { pk in
+            let ordered = pk.columns.sorted { $0.ordinal < $1.ordinal }.map(\.column)
+            return TableStructureDetails.PrimaryKey(name: pk.name, columns: ordered)
+        }
+
+        let uniqueConstraints = uniqueConstraintMetadata.map { constraint in
+            let ordered = constraint.columns.sorted { $0.ordinal < $1.ordinal }.map(\.column)
+            return TableStructureDetails.UniqueConstraint(name: constraint.name, columns: ordered)
+        }
+
+        let foreignKeys = foreignKeyMetadata.map { fk in
+            let ordered = fk.columns.sorted { $0.ordinal < $1.ordinal }
+            return TableStructureDetails.ForeignKey(
+                name: fk.name,
+                columns: ordered.map(\.parentColumn),
+                referencedSchema: fk.referencedSchema,
+                referencedTable: fk.referencedTable,
+                referencedColumns: ordered.map(\.referencedColumn),
+                onUpdate: fk.updateAction,
+                onDelete: fk.deleteAction
+            )
+        }
+
+        let excludedIndexNames = Set(uniqueConstraintMetadata.map(\.name)).union(Set(primaryKeyMetadata.map(\.name)))
+        let indexes = indexMetadata
+            .filter { !excludedIndexNames.contains($0.name) }
+            .map { index in
+                let columns = index.columns
+                    .sorted { $0.ordinal < $1.ordinal }
+                    .map { column in
+                        TableStructureDetails.Index.Column(
+                            name: column.column,
+                            position: column.ordinal,
+                            sortOrder: column.isDescending ? .descending : .ascending
+                        )
+                    }
+                return TableStructureDetails.Index(
+                    name: index.name,
+                    columns: columns,
+                    isUnique: index.isUnique,
+                    filterCondition: index.filterDefinition
+                )
+            }
+
         return TableStructureDetails(
             columns: columns,
-            primaryKey: nil, // Would need separate query
-            indexes: [], // Would need separate query
-            uniqueConstraints: [],
-            foreignKeys: [],
+            primaryKey: primaryKey,
+            indexes: indexes,
+            uniqueConstraints: uniqueConstraints,
+            foreignKeys: foreignKeys,
             dependencies: []
         )
     }
 
     // MARK: - Helper Methods
+
+    private func makeTableObjectInfo(from table: SQLServerTableStructure, type: SchemaObjectInfo.ObjectType) -> SchemaObjectInfo {
+        let primaryKeyColumns = Set(table.primaryKey?.columns.map { $0.column.lowercased() } ?? [])
+        let columns = table.columns.map { column in
+            ColumnInfo(
+                name: column.name,
+                dataType: column.typeName,
+                isPrimaryKey: primaryKeyColumns.contains(column.name.lowercased()),
+                isNullable: column.isNullable,
+                maxLength: column.maxLength
+            )
+        }
+        return SchemaObjectInfo(
+            name: table.table.name,
+            schema: table.table.schema,
+            type: type,
+            columns: columns,
+            comment: table.table.comment
+        )
+    }
+
+    private func makeRoutineObjectInfo(from routine: RoutineMetadata) -> SchemaObjectInfo {
+        let type: SchemaObjectInfo.ObjectType = routine.type == .procedure ? .procedure : .function
+        return SchemaObjectInfo(
+            name: routine.name,
+            schema: routine.schema,
+            type: type,
+            comment: routine.comment
+        )
+    }
+
+    private func makeTriggerObjectInfo(from trigger: TriggerMetadata) -> SchemaObjectInfo {
+        SchemaObjectInfo(
+            name: trigger.name,
+            schema: trigger.schema,
+            type: .trigger,
+            columns: [],
+            triggerAction: trigger.isInsteadOf ? "INSTEAD OF" : "AFTER",
+            triggerTable: trigger.table,
+            comment: trigger.comment
+        )
+    }
 
     private func convertSQLServerRowsToEcho(_ rows: [TDSRow]) async throws -> QueryResultSet {
         // Convert SQLServerKit's TDSRow array to Echo's QueryResultSet
@@ -293,7 +455,88 @@ final class SQLServerSessionAdapter: DatabaseSession {
             return nil
         }
 
+        guard data.value != nil else {
+            return nil
+        }
+
         return data.description
+    }
+
+    private func metadataTrace(_ line: String) {
+        guard metadataTraceEnabled else { return }
+        logger.info("\(line)")
+        print(line)
+        guard let path = metadataTracePath else { return }
+        let payload = line + "\n"
+        guard let data = payload.data(using: .utf8) else { return }
+        Self.metadataTraceQueue.async {
+            let url = URL(fileURLWithPath: path)
+            if FileManager.default.fileExists(atPath: path) {
+                if let handle = try? FileHandle(forWritingTo: url) {
+                    defer { try? handle.close() }
+                    handle.seekToEndOfFile()
+                    try? handle.write(contentsOf: data)
+                }
+            } else {
+                try? data.write(to: url, options: .atomic)
+            }
+        }
+    }
+
+    private func metadataTimed<T>(_ label: String, operation: () async throws -> T) async throws -> T {
+        guard metadataTraceEnabled else {
+            return try await operation()
+        }
+        let started = Date()
+        let result = try await operation()
+        let elapsed = String(format: "%.3f", Date().timeIntervalSince(started))
+        metadataTrace("[MSSQLMetadataTrace] step \(label) \(elapsed)s")
+        return result
+    }
+}
+
+extension SQLServerSessionAdapter: DatabaseMetadataSession {
+    func loadSchemaInfo(
+        _ schemaName: String,
+        progress: (@Sendable (SchemaObjectInfo.ObjectType, Int, Int) async -> Void)?
+    ) async throws -> SchemaInfo {
+        let schema = try await client.loadSchemaStructure(
+            database: database,
+            schema: schemaName,
+            includeComments: false
+        )
+
+        var objects: [SchemaObjectInfo] = []
+        objects.reserveCapacity(schema.tables.count + schema.views.count + schema.functions.count + schema.procedures.count + schema.triggers.count)
+
+        for table in schema.tables {
+            objects.append(makeTableObjectInfo(from: table, type: .table))
+        }
+        for view in schema.views {
+            objects.append(makeTableObjectInfo(from: view, type: .view))
+        }
+        for routine in schema.functions {
+            objects.append(makeRoutineObjectInfo(from: routine))
+        }
+        for routine in schema.procedures {
+            objects.append(makeRoutineObjectInfo(from: routine))
+        }
+        for trigger in schema.triggers {
+            objects.append(makeTriggerObjectInfo(from: trigger))
+        }
+
+        if let progress {
+            let total = objects.count
+            if total > 0 {
+                var current = 0
+                for object in objects {
+                    current += 1
+                    await progress(object.type, current, total)
+                }
+            }
+        }
+
+        return SchemaInfo(name: schemaName, objects: objects)
     }
 }
 

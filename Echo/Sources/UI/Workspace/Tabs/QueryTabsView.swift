@@ -168,7 +168,8 @@ struct QueryTabsView: View {
                     }
                 }
                 let perQueryMode = await MainActor.run { state.streamingModeOverride }
-                let result = try await tab.session.simpleQuery(effectiveSQL, executionMode: perQueryMode) { [weak state] update in
+                let executionMode: ResultStreamingExecutionMode? = perQueryMode == .auto ? nil : perQueryMode
+                let result = try await tab.session.simpleQuery(effectiveSQL, executionMode: executionMode) { [weak state] update in
                     guard let state else { return }
 
                     Task { @MainActor in

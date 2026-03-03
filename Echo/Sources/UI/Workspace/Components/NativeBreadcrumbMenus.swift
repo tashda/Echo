@@ -5,18 +5,12 @@ import AppKit
 
 @MainActor
 final class ConnectionsPopoverController: NSViewController, NSTableViewDelegate, NSTableViewDataSource, NSSearchFieldDelegate {
-    private enum Row {
-        case section(String)
-        case connection(SavedConnection)
-    }
-
     private let appModel: AppModel
-    private var rows: [Row] = []
-    private var recent: [SavedConnection] = []
+    private var rows: [SavedConnection] = []
     private var all: [SavedConnection] = []
 
     private let searchField = NSSearchField(frame: .zero)
-    private let tableView = NSTableView(frame: .zero)
+    private let tableView = HoverTableView(frame: .zero)
     private let scrollView = NSScrollView(frame: .zero)
 
     init(appModel: AppModel) {
@@ -30,7 +24,10 @@ final class ConnectionsPopoverController: NSViewController, NSTableViewDelegate,
     }
 
     override func loadView() {
-        view = NSView()
+        let rootView = NSView()
+        rootView.wantsLayer = true
+        rootView.layer?.backgroundColor = NSColor.clear.cgColor
+        view = rootView
     }
 
     override func viewDidLoad() {
@@ -39,34 +36,41 @@ final class ConnectionsPopoverController: NSViewController, NSTableViewDelegate,
         reloadConnections()
     }
 
+    override func viewDidAppear() {
+        super.viewDidAppear()
+        view.window?.acceptsMouseMovedEvents = true
+    }
+
     private func configureUI() {
-        view.translatesAutoresizingMaskIntoConstraints = false
-        view.widthAnchor.constraint(equalToConstant: 320).isActive = true
-        view.heightAnchor.constraint(equalToConstant: 420).isActive = true
+        preferredContentSize = NSSize(width: 260, height: 320)
 
         let stack = NSStackView()
         stack.orientation = .vertical
-        stack.spacing = 10
-        stack.edgeInsets = NSEdgeInsets(top: 14, left: 14, bottom: 14, right: 14)
+        stack.spacing = 8
+        stack.alignment = .leading
         stack.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(stack)
 
         NSLayoutConstraint.activate([
-            stack.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            stack.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            stack.topAnchor.constraint(equalTo: view.topAnchor),
-            stack.bottomAnchor.constraint(equalTo: view.bottomAnchor)
+            stack.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 10),
+            stack.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -10),
+            stack.topAnchor.constraint(equalTo: view.topAnchor, constant: 10),
+            stack.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: -8)
         ])
 
-        let titleLabel = NSTextField(labelWithString: "Connections")
-        titleLabel.font = NSFont.systemFont(ofSize: 13, weight: .semibold)
-        stack.addArrangedSubview(titleLabel)
-
-        searchField.placeholderString = "Filter connections"
+        searchField.placeholderString = "Filter"
+        searchField.controlSize = .small
+        searchField.font = NSFont.systemFont(ofSize: 12)
+        searchField.focusRingType = .default
+        searchField.sendsSearchStringImmediately = true
         searchField.delegate = self
+        searchField.translatesAutoresizingMaskIntoConstraints = false
         stack.addArrangedSubview(searchField)
 
         scrollView.hasVerticalScroller = true
+        scrollView.autohidesScrollers = true
+        scrollView.drawsBackground = false
+        scrollView.borderType = .noBorder
         scrollView.documentView = tableView
         scrollView.translatesAutoresizingMaskIntoConstraints = false
         stack.addArrangedSubview(scrollView)
@@ -74,21 +78,49 @@ final class ConnectionsPopoverController: NSViewController, NSTableViewDelegate,
         tableView.headerView = nil
         tableView.delegate = self
         tableView.dataSource = self
-        tableView.rowHeight = 30
-        tableView.intercellSpacing = NSSize(width: 0, height: 6)
-        tableView.allowsEmptySelection = false
+        tableView.rowHeight = 22
+        tableView.rowSizeStyle = .small
+        tableView.intercellSpacing = NSSize(width: 0, height: 0)
+        tableView.allowsEmptySelection = true
         tableView.focusRingType = .none
         tableView.selectionHighlightStyle = .regular
+        tableView.backgroundColor = .clear
+        tableView.usesAlternatingRowBackgroundColors = false
+        tableView.gridStyleMask = []
+        if #available(macOS 11, *) {
+            tableView.style = .plain
+        }
+        tableView.columnAutoresizingStyle = .firstColumnOnlyAutoresizingStyle
 
         let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("connection"))
-        column.width = 280
+        column.width = 240
         tableView.addTableColumn(column)
+
+        let separator = NSBox()
+        separator.boxType = .separator
+        separator.translatesAutoresizingMaskIntoConstraints = false
+        stack.addArrangedSubview(separator)
+
+        let actionsStack = NSStackView()
+        actionsStack.orientation = .vertical
+        actionsStack.spacing = 2
+        actionsStack.alignment = .leading
+        actionsStack.translatesAutoresizingMaskIntoConstraints = false
+        actionsStack.addArrangedSubview(makeActionButton(title: "New Connection…", action: #selector(openNewConnection)))
+        actionsStack.addArrangedSubview(makeActionButton(title: "Manage Connections…", action: #selector(openManageConnections)))
+        stack.addArrangedSubview(actionsStack)
+
+        NSLayoutConstraint.activate([
+            searchField.widthAnchor.constraint(equalTo: stack.widthAnchor),
+            scrollView.widthAnchor.constraint(equalTo: stack.widthAnchor),
+            separator.widthAnchor.constraint(equalTo: stack.widthAnchor),
+            actionsStack.widthAnchor.constraint(equalTo: stack.widthAnchor)
+        ])
     }
 
     private func reloadConnections() {
-        all = appModel.connections.sorted { $0.connectionName < $1.connectionName }
-        recent = appModel.connections.filter { conn in
-            appModel.recentConnections.contains { $0.connectionID == conn.id }
+        all = appModel.connections.sorted { lhs, rhs in
+            displayName(for: lhs).localizedCaseInsensitiveCompare(displayName(for: rhs)) == .orderedAscending
         }
         applyFilter(searchField.stringValue)
     }
@@ -101,91 +133,137 @@ final class ConnectionsPopoverController: NSViewController, NSTableViewDelegate,
                 connection.host.localizedCaseInsensitiveContains(trimmed)
         }
 
-        let filteredRecent = recent.filter(filter)
-        let filteredAll = all.filter(filter)
-
-        var assembled: [Row] = []
-        if !filteredRecent.isEmpty {
-            assembled.append(.section("Recents"))
-            assembled.append(contentsOf: filteredRecent.map { .connection($0) })
-        }
-        if !filteredAll.isEmpty {
-            assembled.append(.section("All"))
-            assembled.append(contentsOf: filteredAll.map { .connection($0) })
-        }
-        rows = assembled
+        rows = all.filter(filter)
         tableView.reloadData()
+        updateSelection()
     }
 
     func numberOfRows(in tableView: NSTableView) -> Int { rows.count }
 
-    func tableView(_ tableView: NSTableView, isGroupRow row: Int) -> Bool {
-        guard rows.indices.contains(row) else { return false }
-        if case .section = rows[row] { return true }
-        return false
+    func tableView(_ tableView: NSTableView, shouldSelectRow row: Int) -> Bool {
+        rows.indices.contains(row)
     }
 
-    func tableView(_ tableView: NSTableView, shouldSelectRow row: Int) -> Bool {
-        guard rows.indices.contains(row) else { return false }
-        if case .section = rows[row] { return false }
-        return true
+    func tableView(_ tableView: NSTableView, rowViewForRow row: Int) -> NSTableRowView? {
+        let rowView = HoverTableRowView()
+        rowView.selectionHighlightStyle = .regular
+        if let hoverTableView = tableView as? HoverTableView {
+            rowView.isHovered = hoverTableView.hoveredRow == row
+        }
+        return rowView
     }
 
     func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
         guard rows.indices.contains(row) else { return nil }
-        switch rows[row] {
-        case .section(let title):
-            let id = NSUserInterfaceItemIdentifier("section")
-            let label: NSTextField
-            if let existing = tableView.makeView(withIdentifier: id, owner: self) as? NSTextField {
-                label = existing
-            } else {
-                label = NSTextField(labelWithString: "")
-                label.identifier = id
-                label.font = NSFont.systemFont(ofSize: 11, weight: .semibold)
-                label.textColor = .secondaryLabelColor
-            }
-            label.stringValue = title.uppercased()
-            return label
-        case .connection(let connection):
-            let identifier = NSUserInterfaceItemIdentifier("connectionCell")
-            if let existing = tableView.makeView(withIdentifier: identifier, owner: self) as? NSTableCellView {
-                configure(cell: existing, with: connection)
-                return existing
-            }
-            let cell = NSTableCellView()
-            cell.identifier = identifier
-            cell.textField = NSTextField(labelWithString: "")
-            cell.textField?.font = NSFont.systemFont(ofSize: 13, weight: .medium)
-            cell.textField?.translatesAutoresizingMaskIntoConstraints = false
-
-            let iconView = NSImageView(image: NSImage(systemSymbolName: "server.rack", accessibilityDescription: nil) ?? NSImage())
-            iconView.contentTintColor = .secondaryLabelColor
-            iconView.translatesAutoresizingMaskIntoConstraints = false
-
-            let innerStack = NSStackView(views: [iconView, cell.textField!])
-            innerStack.orientation = .horizontal
-            innerStack.spacing = 8
-            innerStack.alignment = .centerY
-            innerStack.translatesAutoresizingMaskIntoConstraints = false
-            cell.addSubview(innerStack)
-
-            NSLayoutConstraint.activate([
-                innerStack.leadingAnchor.constraint(equalTo: cell.leadingAnchor, constant: 8),
-                innerStack.trailingAnchor.constraint(equalTo: cell.trailingAnchor, constant: -8),
-                innerStack.topAnchor.constraint(equalTo: cell.topAnchor),
-                innerStack.bottomAnchor.constraint(equalTo: cell.bottomAnchor),
-                iconView.widthAnchor.constraint(equalToConstant: 16),
-                iconView.heightAnchor.constraint(equalToConstant: 16)
-            ])
-
-            configure(cell: cell, with: connection)
-            return cell
+        let connection = rows[row]
+        let identifier = NSUserInterfaceItemIdentifier("connectionCell")
+        let cell: NSTableCellView
+        if let existing = tableView.makeView(withIdentifier: identifier, owner: self) as? NSTableCellView {
+            cell = existing
+        } else {
+            cell = makeConnectionCell(identifier: identifier)
         }
+
+        configure(cell: cell, with: connection)
+        return cell
     }
 
     private func configure(cell: NSTableCellView, with connection: SavedConnection) {
-        cell.textField?.stringValue = connection.connectionName
+        cell.textField?.stringValue = displayName(for: connection)
+        cell.textField?.toolTip = "\(connection.username)@\(connection.host)"
+        if let checkmarkView = cell.viewWithTag(1) as? NSImageView {
+            let isSelected = connection.id == appModel.selectedConnectionID
+            checkmarkView.alphaValue = isSelected ? 1 : 0
+        }
+        if let iconView = cell.viewWithTag(2) as? NSImageView {
+            if let image = NSImage(named: connection.databaseType.iconName) {
+                iconView.image = image
+                iconView.contentTintColor = nil
+            } else {
+                iconView.image = NSImage(systemSymbolName: "server.rack", accessibilityDescription: nil)
+                iconView.contentTintColor = .secondaryLabelColor
+            }
+        }
+    }
+
+    private func makeConnectionCell(identifier: NSUserInterfaceItemIdentifier) -> NSTableCellView {
+        let cell = NSTableCellView()
+        cell.identifier = identifier
+
+        let checkmarkView = NSImageView()
+        checkmarkView.tag = 1
+        checkmarkView.image = NSImage(systemSymbolName: "checkmark", accessibilityDescription: nil)
+        checkmarkView.contentTintColor = .secondaryLabelColor
+        checkmarkView.translatesAutoresizingMaskIntoConstraints = false
+
+        let iconView = NSImageView()
+        iconView.tag = 2
+        iconView.imageScaling = .scaleProportionallyUpOrDown
+        iconView.translatesAutoresizingMaskIntoConstraints = false
+
+        let textField = NSTextField(labelWithString: "")
+        textField.font = NSFont.systemFont(ofSize: 12, weight: .regular)
+        textField.alignment = .left
+        textField.lineBreakMode = .byTruncatingTail
+        textField.translatesAutoresizingMaskIntoConstraints = false
+        cell.textField = textField
+        cell.imageView = iconView
+
+        cell.addSubview(checkmarkView)
+        cell.addSubview(iconView)
+        cell.addSubview(textField)
+
+        NSLayoutConstraint.activate([
+            checkmarkView.leadingAnchor.constraint(equalTo: cell.leadingAnchor, constant: 6),
+            checkmarkView.centerYAnchor.constraint(equalTo: cell.centerYAnchor),
+            checkmarkView.widthAnchor.constraint(equalToConstant: 10),
+            checkmarkView.heightAnchor.constraint(equalToConstant: 10),
+            iconView.leadingAnchor.constraint(equalTo: checkmarkView.trailingAnchor, constant: 6),
+            iconView.centerYAnchor.constraint(equalTo: cell.centerYAnchor),
+            iconView.widthAnchor.constraint(equalToConstant: 14),
+            iconView.heightAnchor.constraint(equalToConstant: 14),
+            textField.leadingAnchor.constraint(equalTo: iconView.trailingAnchor, constant: 6),
+            textField.trailingAnchor.constraint(equalTo: cell.trailingAnchor, constant: -6),
+            textField.centerYAnchor.constraint(equalTo: cell.centerYAnchor)
+        ])
+
+        return cell
+    }
+
+    private func displayName(for connection: SavedConnection) -> String {
+        let trimmed = connection.connectionName.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? connection.host : trimmed
+    }
+
+    private func updateSelection() {
+        guard let selectedID = appModel.selectedConnectionID,
+              let index = rows.firstIndex(where: { $0.id == selectedID }) else {
+            tableView.deselectAll(nil)
+            return
+        }
+        tableView.selectRowIndexes(IndexSet(integer: index), byExtendingSelection: false)
+        tableView.scrollRowToVisible(index)
+    }
+
+    private func makeActionButton(title: String, action: Selector) -> NSButton {
+        let button = NSButton(title: title, target: self, action: action)
+        button.isBordered = false
+        button.bezelStyle = .inline
+        button.font = NSFont.systemFont(ofSize: 12, weight: .regular)
+        button.alignment = .left
+        button.contentTintColor = .labelColor
+        button.focusRingType = .none
+        return button
+    }
+
+    @objc private func openNewConnection() {
+        ManageConnectionsWindowController.shared.present()
+        appModel.isManageConnectionsPresented = true
+    }
+
+    @objc private func openManageConnections() {
+        ManageConnectionsWindowController.shared.present()
+        appModel.isManageConnectionsPresented = true
     }
 
     func tableViewSelectionDidChange(_ notification: Notification) {
@@ -194,8 +272,10 @@ final class ConnectionsPopoverController: NSViewController, NSTableViewDelegate,
 
     private func selectConnection(at index: Int) {
         guard rows.indices.contains(index) else { return }
-        guard case let .connection(connection) = rows[index] else { return }
-        appModel.selectedConnectionID = connection.id
+        let connection = rows[index]
+        Task {
+            await appModel.connect(to: connection)
+        }
         view.window?.performClose(nil)
     }
 
@@ -204,19 +284,69 @@ final class ConnectionsPopoverController: NSViewController, NSTableViewDelegate,
     }
 }
 
-@MainActor
-final class DatabasePopoverController: NSViewController, NSTableViewDelegate, NSTableViewDataSource, NSSearchFieldDelegate {
-    private enum Row {
-        case section(String)
-        case database(String)
+private final class HoverTableView: NSTableView {
+    private var trackingArea: NSTrackingArea?
+    private(set) var hoveredRow: Int = -1
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        if let trackingArea {
+            removeTrackingArea(trackingArea)
+        }
+        let options: NSTrackingArea.Options = [.activeInKeyWindow, .mouseMoved, .mouseEnteredAndExited, .inVisibleRect]
+        let trackingArea = NSTrackingArea(rect: bounds, options: options, owner: self, userInfo: nil)
+        addTrackingArea(trackingArea)
+        self.trackingArea = trackingArea
     }
 
+    override func mouseMoved(with event: NSEvent) {
+        super.mouseMoved(with: event)
+        let point = convert(event.locationInWindow, from: nil)
+        setHoveredRow(row(at: point))
+    }
+
+    override func mouseExited(with event: NSEvent) {
+        super.mouseExited(with: event)
+        setHoveredRow(-1)
+    }
+
+    private func setHoveredRow(_ row: Int) {
+        if row == hoveredRow { return }
+        let previousRow = hoveredRow
+        hoveredRow = row
+        if previousRow >= 0,
+           let rowView = rowView(atRow: previousRow, makeIfNecessary: false) as? HoverTableRowView {
+            rowView.isHovered = false
+        }
+        if hoveredRow >= 0,
+           let rowView = rowView(atRow: hoveredRow, makeIfNecessary: false) as? HoverTableRowView {
+            rowView.isHovered = true
+        }
+    }
+}
+
+private final class HoverTableRowView: NSTableRowView {
+    var isHovered = false {
+        didSet { needsDisplay = true }
+    }
+
+    override func drawBackground(in dirtyRect: NSRect) {
+        if isHovered && !isSelected {
+            NSColor.controlAccentColor.withAlphaComponent(0.12).setFill()
+            dirtyRect.fill()
+            return
+        }
+        super.drawBackground(in: dirtyRect)
+    }
+}
+
+@MainActor
+final class DatabasePopoverController: NSViewController, NSTableViewDelegate, NSTableViewDataSource, NSSearchFieldDelegate {
     private let appModel: AppModel
     private let connectionID: UUID
 
     private var all: [String] = []
-    private var recent: [String] = []
-    private var rows: [Row] = []
+    private var rows: [String] = []
     private var loadTask: Task<Void, Never>?
 
     private let searchField = NSSearchField(frame: .zero)
@@ -240,7 +370,11 @@ final class DatabasePopoverController: NSViewController, NSTableViewDelegate, NS
     }
 
     override func loadView() {
-        view = NSView()
+        let effectView = NSVisualEffectView()
+        effectView.material = .popover
+        effectView.blendingMode = .withinWindow
+        effectView.state = .active
+        view = effectView
     }
 
     override func viewDidLoad() {
@@ -250,14 +384,12 @@ final class DatabasePopoverController: NSViewController, NSTableViewDelegate, NS
     }
 
     private func configureUI() {
-        view.translatesAutoresizingMaskIntoConstraints = false
-        view.widthAnchor.constraint(equalToConstant: 280).isActive = true
-        view.heightAnchor.constraint(equalToConstant: 320).isActive = true
+        preferredContentSize = NSSize(width: 280, height: 320)
 
         let stack = NSStackView()
         stack.orientation = .vertical
-        stack.spacing = 12
-        stack.edgeInsets = NSEdgeInsets(top: 16, left: 16, bottom: 16, right: 16)
+        stack.spacing = 8
+        stack.edgeInsets = NSEdgeInsets(top: 12, left: 12, bottom: 10, right: 12)
         stack.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(stack)
 
@@ -268,11 +400,8 @@ final class DatabasePopoverController: NSViewController, NSTableViewDelegate, NS
             stack.bottomAnchor.constraint(equalTo: view.bottomAnchor)
         ])
 
-        let titleLabel = NSTextField(labelWithString: "Databases")
-        titleLabel.font = NSFont.systemFont(ofSize: 13, weight: .semibold)
-        stack.addArrangedSubview(titleLabel)
-
-        searchField.placeholderString = "Filter databases"
+        searchField.placeholderString = "Filter"
+        searchField.sendsSearchStringImmediately = true
         searchField.delegate = self
         stack.addArrangedSubview(searchField)
 
@@ -282,16 +411,25 @@ final class DatabasePopoverController: NSViewController, NSTableViewDelegate, NS
         stack.addArrangedSubview(progressIndicator)
 
         scrollView.hasVerticalScroller = true
+        scrollView.drawsBackground = false
+        scrollView.borderType = .noBorder
         scrollView.documentView = tableView
         stack.addArrangedSubview(scrollView)
 
         tableView.headerView = nil
         tableView.delegate = self
         tableView.dataSource = self
-        tableView.rowHeight = 28
-        tableView.selectionHighlightStyle = .regular
-        tableView.intercellSpacing = NSSize(width: 0, height: 6)
+        tableView.rowHeight = 24
+        tableView.selectionHighlightStyle = .sourceList
+        tableView.intercellSpacing = NSSize(width: 0, height: 2)
         tableView.focusRingType = .none
+        tableView.allowsEmptySelection = true
+        tableView.backgroundColor = .clear
+        tableView.usesAlternatingRowBackgroundColors = false
+        tableView.gridStyleMask = []
+        if #available(macOS 11, *) {
+            tableView.style = .sourceList
+        }
 
         let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("database"))
         column.width = 240
@@ -325,11 +463,8 @@ final class DatabasePopoverController: NSViewController, NSTableViewDelegate, NS
 
     private func handle(structure: DatabaseStructure) {
         progressIndicator.stopAnimation(nil)
-        all = structure.databases.map(\.name).sorted()
-        // Basic recents: keep currently selected database first if present.
-        if let session = appModel.sessionManager.sessionForConnection(connectionID),
-           let selected = session.selectedDatabaseName {
-            recent = all.filter { $0 == selected }
+        all = structure.databases.map(\.name).sorted {
+            $0.localizedCaseInsensitiveCompare($1) == .orderedAscending
         }
         applyFilter(searchField.stringValue)
     }
@@ -341,92 +476,100 @@ final class DatabasePopoverController: NSViewController, NSTableViewDelegate, NS
             return name.localizedCaseInsensitiveContains(trimmed)
         }
 
-        let filteredRecent = recent.filter(filter)
-        let filteredAll = all.filter(filter)
-
-        var assembled: [Row] = []
-        if !filteredRecent.isEmpty {
-            assembled.append(.section("Recents"))
-            assembled.append(contentsOf: filteredRecent.map { .database($0) })
-        }
-        if !filteredAll.isEmpty {
-            assembled.append(.section("All"))
-            assembled.append(contentsOf: filteredAll.map { .database($0) })
-        }
-        rows = assembled
+        rows = all.filter(filter)
         tableView.reloadData()
+        updateSelection()
     }
 
     func numberOfRows(in tableView: NSTableView) -> Int { rows.count }
 
-    func tableView(_ tableView: NSTableView, isGroupRow row: Int) -> Bool {
-        guard rows.indices.contains(row) else { return false }
-        if case .section = rows[row] { return true }
-        return false
+    func tableView(_ tableView: NSTableView, shouldSelectRow row: Int) -> Bool {
+        rows.indices.contains(row)
     }
 
-    func tableView(_ tableView: NSTableView, shouldSelectRow row: Int) -> Bool {
-        guard rows.indices.contains(row) else { return false }
-        if case .section = rows[row] { return false }
-        return true
+    func tableView(_ tableView: NSTableView, rowViewForRow row: Int) -> NSTableRowView? {
+        let rowView = NSTableRowView()
+        rowView.selectionHighlightStyle = .sourceList
+        return rowView
     }
 
     func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
         guard rows.indices.contains(row) else { return nil }
-        switch rows[row] {
-        case .section(let title):
-            let id = NSUserInterfaceItemIdentifier("section")
-            let label: NSTextField
-            if let existing = tableView.makeView(withIdentifier: id, owner: self) as? NSTextField {
-                label = existing
-            } else {
-                label = NSTextField(labelWithString: "")
-                label.identifier = id
-                label.font = NSFont.systemFont(ofSize: 11, weight: .semibold)
-                label.textColor = .secondaryLabelColor
-            }
-            label.stringValue = title.uppercased()
-            return label
-        case .database(let name):
-            let identifier = NSUserInterfaceItemIdentifier("databaseCell")
-            if let existing = tableView.makeView(withIdentifier: identifier, owner: self) as? NSTableCellView {
-                configureDatabase(cell: existing, name: name)
-                return existing
-            }
-
-            let cell = NSTableCellView()
-            cell.identifier = identifier
-            cell.textField = NSTextField(labelWithString: "")
-            cell.textField?.font = NSFont.systemFont(ofSize: 13, weight: .medium)
-            cell.textField?.translatesAutoresizingMaskIntoConstraints = false
-
-            let iconView = NSImageView(image: NSImage(systemSymbolName: "cylinder.fill", accessibilityDescription: nil) ?? NSImage())
-            iconView.contentTintColor = .secondaryLabelColor
-            iconView.translatesAutoresizingMaskIntoConstraints = false
-
-            let innerStack = NSStackView(views: [iconView, cell.textField!])
-            innerStack.orientation = .horizontal
-            innerStack.spacing = 8
-            innerStack.alignment = .centerY
-            innerStack.translatesAutoresizingMaskIntoConstraints = false
-            cell.addSubview(innerStack)
-
-            NSLayoutConstraint.activate([
-                innerStack.leadingAnchor.constraint(equalTo: cell.leadingAnchor, constant: 8),
-                innerStack.trailingAnchor.constraint(equalTo: cell.trailingAnchor, constant: -8),
-                innerStack.topAnchor.constraint(equalTo: cell.topAnchor),
-                innerStack.bottomAnchor.constraint(equalTo: cell.bottomAnchor),
-                iconView.widthAnchor.constraint(equalToConstant: 16),
-                iconView.heightAnchor.constraint(equalToConstant: 16)
-            ])
-
-            configureDatabase(cell: cell, name: name)
-            return cell
+        let name = rows[row]
+        let identifier = NSUserInterfaceItemIdentifier("databaseCell")
+        let cell: NSTableCellView
+        if let existing = tableView.makeView(withIdentifier: identifier, owner: self) as? NSTableCellView {
+            cell = existing
+        } else {
+            cell = makeDatabaseCell(identifier: identifier)
         }
+
+        configureDatabase(cell: cell, name: name)
+        return cell
     }
 
     private func configureDatabase(cell: NSTableCellView, name: String) {
         cell.textField?.stringValue = name
+        if let checkmarkView = cell.viewWithTag(1) as? NSImageView {
+            let isSelected = appModel.sessionManager.sessionForConnection(connectionID)?.selectedDatabaseName == name
+            checkmarkView.alphaValue = isSelected ? 1 : 0
+        }
+        if let iconView = cell.viewWithTag(2) as? NSImageView {
+            iconView.image = NSImage(systemSymbolName: "cylinder.fill", accessibilityDescription: nil)
+            iconView.contentTintColor = .secondaryLabelColor
+        }
+    }
+
+    private func makeDatabaseCell(identifier: NSUserInterfaceItemIdentifier) -> NSTableCellView {
+        let cell = NSTableCellView()
+        cell.identifier = identifier
+
+        let checkmarkView = NSImageView()
+        checkmarkView.tag = 1
+        checkmarkView.image = NSImage(systemSymbolName: "checkmark", accessibilityDescription: nil)
+        checkmarkView.contentTintColor = .secondaryLabelColor
+        checkmarkView.translatesAutoresizingMaskIntoConstraints = false
+
+        let iconView = NSImageView()
+        iconView.tag = 2
+        iconView.imageScaling = .scaleProportionallyUpOrDown
+        iconView.translatesAutoresizingMaskIntoConstraints = false
+
+        let textField = NSTextField(labelWithString: "")
+        textField.font = NSFont.systemFont(ofSize: 13, weight: .regular)
+        textField.lineBreakMode = .byTruncatingTail
+        textField.translatesAutoresizingMaskIntoConstraints = false
+        cell.textField = textField
+
+        let innerStack = NSStackView(views: [checkmarkView, iconView, textField])
+        innerStack.orientation = .horizontal
+        innerStack.spacing = 6
+        innerStack.alignment = .centerY
+        innerStack.translatesAutoresizingMaskIntoConstraints = false
+        cell.addSubview(innerStack)
+
+        NSLayoutConstraint.activate([
+            innerStack.leadingAnchor.constraint(equalTo: cell.leadingAnchor, constant: 6),
+            innerStack.trailingAnchor.constraint(equalTo: cell.trailingAnchor, constant: -6),
+            innerStack.topAnchor.constraint(equalTo: cell.topAnchor),
+            innerStack.bottomAnchor.constraint(equalTo: cell.bottomAnchor),
+            checkmarkView.widthAnchor.constraint(equalToConstant: 12),
+            checkmarkView.heightAnchor.constraint(equalToConstant: 12),
+            iconView.widthAnchor.constraint(equalToConstant: 16),
+            iconView.heightAnchor.constraint(equalToConstant: 16)
+        ])
+
+        return cell
+    }
+
+    private func updateSelection() {
+        guard let selectedName = appModel.sessionManager.sessionForConnection(connectionID)?.selectedDatabaseName,
+              let index = rows.firstIndex(of: selectedName) else {
+            tableView.deselectAll(nil)
+            return
+        }
+        tableView.selectRowIndexes(IndexSet(integer: index), byExtendingSelection: false)
+        tableView.scrollRowToVisible(index)
     }
 
     func tableViewSelectionDidChange(_ notification: Notification) {
@@ -435,7 +578,7 @@ final class DatabasePopoverController: NSViewController, NSTableViewDelegate, NS
 
     private func selectDatabase(at index: Int) {
         guard rows.indices.contains(index) else { return }
-        guard case let .database(name) = rows[index] else { return }
+        let name = rows[index]
 
         loadTask?.cancel()
         loadTask = Task { [weak self] in

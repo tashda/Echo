@@ -25,6 +25,7 @@
 		B66C2F887E35A3358F209F93 /* Hack-Regular.ttf in CopyFiles */ = {isa = PBXBuildFile; fileRef = B76434B110ACC86CC86642A1 /* Hack-Regular.ttf */; };
 		C93850D54E3A549BC7E315B3 /* Inconsolata-Regular.ttf in CopyFiles */ = {isa = PBXBuildFile; fileRef = 23F736A358A1CCBACD3B0834 /* Inconsolata-Regular.ttf */; };
 		D316B590203F49689AC5D29A /* SQLEditorRegexTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD46E27623774768B647E31C /* SQLEditorRegexTests.swift */; };
+		E2C0B9A3C4F74E7C9E1D4B61 /* MSSQLMetadataLoadingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2C0B9A4C4F74E7C9E1D4B61 /* MSSQLMetadataLoadingTests.swift */; };
 		D3BB6F6FC954AA040392C7C7 /* AnonymousPro-Regular.ttf in CopyFiles */ = {isa = PBXBuildFile; fileRef = CC1194D7AF45D51E8E8EA8C4 /* AnonymousPro-Regular.ttf */; };
 		E1CF7F199F60040BF42A54DF /* MesloLGS-Regular.ttf in CopyFiles */ = {isa = PBXBuildFile; fileRef = 9CC0B2EBE9BD3F338658D526 /* MesloLGS-Regular.ttf */; };
 		E2E872DC3647C4621284F1B2 /* Iosevka-Regular.ttf in CopyFiles */ = {isa = PBXBuildFile; fileRef = 9914A75C43EF3F555CE8E868 /* Iosevka-Regular.ttf */; };
@@ -93,6 +94,7 @@
 		C7719E187414448D93AD6120 /* EchoTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = EchoTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		CC1194D7AF45D51E8E8EA8C4 /* AnonymousPro-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; name = "AnonymousPro-Regular.ttf"; path = "Echo/Resources/Fonts/AnonymousPro-Regular.ttf"; sourceTree = "<group>"; };
 		CD46E27623774768B647E31C /* SQLEditorRegexTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SQLEditorRegexTests.swift; sourceTree = "<group>"; };
+		E2C0B9A4C4F74E7C9E1D4B61 /* MSSQLMetadataLoadingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MSSQLMetadataLoadingTests.swift; sourceTree = "<group>"; };
 		E50DD38876CF4E95827F9B3D /* QueryEditorUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QueryEditorUITests.swift; sourceTree = "<group>"; };
 		F17A0E0F2FC1B3F8007F5489 /* FiraCode-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; name = "FiraCode-Regular.ttf"; path = "Echo/Resources/Fonts/FiraCode-Regular.ttf"; sourceTree = "<group>"; };
 		F17A0E102FC1B3F8007F5489 /* IBMPlexMono-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; name = "IBMPlexMono-Regular.ttf"; path = "Echo/Resources/Fonts/IBMPlexMono-Regular.ttf"; sourceTree = "<group>"; };
@@ -208,6 +210,7 @@
 				4B31BB19E0A4450CA3048867 /* PostgresStreamingBenchmarkTests.swift */,
 				CD46E27623774768B647E31C /* SQLEditorRegexTests.swift */,
 				2D1E734A2FF0AC7A00A1B2C3 /* QueryPerformanceTrackerTests.swift */,
+				E2C0B9A4C4F74E7C9E1D4B61 /* MSSQLMetadataLoadingTests.swift */,
 			);
 			path = EchoTests;
 			sourceTree = "<group>";
@@ -409,6 +412,7 @@
 				432EC302287042ACB5AE946D /* PostgresStreamingBenchmarkTests.swift in Sources */,
 				D316B590203F49689AC5D29A /* SQLEditorRegexTests.swift in Sources */,
 				2D1E734B2FF0AC7A00A1B2C3 /* QueryPerformanceTrackerTests.swift in Sources */,
+				E2C0B9A3C4F74E7C9E1D4B61 /* MSSQLMetadataLoadingTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

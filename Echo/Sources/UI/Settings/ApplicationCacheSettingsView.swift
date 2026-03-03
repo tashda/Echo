@@ -31,36 +31,12 @@ struct ApplicationCacheSettingsView: View {
 
         Form {
             // Group: Workspace Memory, Query Results, Clipboard History
-            Section("Cache Management") {
-                // Workspace Tabs
-                workspaceTabToggleSection
-
-                // Query Result Retention (simplified from resultCacheSection)
-                queryResultRetentionSection
-
-                // Clipboard History
-                VStack(alignment: .leading, spacing: 8) {
-                    ToggleWithInfo(
-                        title: "Enable clipboard history",
-                        isOn: clipboardEnabledBinding(for: store),
-                        description: "Echo stores recently copied queries and results locally for quick reuse. Data stays on this Mac."
-                    )
-
-                    if !store.isEnabled {
-                        Text("History capture is disabled. Re-enable it to keep new copies.")
-                            .font(.footnote)
-                            .foregroundStyle(.tertiary)
-                            .padding(.top, 4)
-                    }
-                }
-            }
-
-            // Unified Storage Section
-            unifiedStorageSection
+            cacheManagementSection(for: store)
+            storageLimitsSection
+            storageUsageSection(for: store)
         }
         .formStyle(.grouped)
         .scrollContentBackground(.hidden)
-        .background(themeManager.surfaceBackgroundColor)
         .task {
             await refreshResultCacheUsage()
             await refreshAutocompleteHistoryUsage()
@@ -76,6 +52,30 @@ struct ApplicationCacheSettingsView: View {
             }
         } message: {
             Text("Echo will immediately delete all saved clipboard items. This action cannot be undone.")
+        }
+    }
+
+    // MARK: - Cache Management
+
+    private func cacheManagementSection(for store: ClipboardHistoryStore) -> some View {
+        Section("Cache Management") {
+            workspaceTabToggleRow
+            queryResultRetentionRow
+
+            VStack(alignment: .leading, spacing: 4) {
+                ToggleWithInfo(
+                    title: "Enable clipboard history",
+                    isOn: clipboardEnabledBinding(for: store),
+                    description: "Echo stores recently copied queries and results locally for quick reuse. Data stays on this Mac."
+                )
+
+                if !store.isEnabled {
+                    Text("History capture is disabled. Re-enable it to keep new copies.")
+                        .font(.footnote)
+                        .foregroundStyle(.tertiary)
+                        .padding(.top, 2)
+                }
+            }
         }
     }
 
@@ -361,6 +361,7 @@ struct ApplicationCacheSettingsView: View {
     }
 #endif
 
+    // Toggle: Keep editor/results views alive when switching tabs.
     private var keepTabsBinding: Binding<Bool> {
         Binding(
             get: { appModel.globalSettings.keepTabsInMemory },
@@ -463,6 +464,7 @@ private func tabMemoryContextLabel(for tab: WorkspaceTab) -> String {
         NSWorkspace.shared.activateFileViewerSelecting([url])
     }
 
+    // Toggle: Enable/disable clipboard history capture (disabling clears stored entries).
     private func clipboardEnabledBinding(for store: ClipboardHistoryStore) -> Binding<Bool> {
         Binding(
             get: { store.isEnabled },
@@ -511,9 +513,9 @@ private func tabMemoryContextLabel(for tab: WorkspaceTab) -> String {
         }
     }
 
-    // MARK: - Simplified Sections
+    // MARK: - Simplified Rows
 
-    private var workspaceTabToggleSection: some View {
+    private var workspaceTabToggleRow: some View {
         ToggleWithInfo(
             title: "Keep tabs in memory",
             isOn: keepTabsBinding,
@@ -521,22 +523,19 @@ private func tabMemoryContextLabel(for tab: WorkspaceTab) -> String {
         )
     }
 
-    private var queryResultRetentionSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Stepper(value: resultCacheRetentionBinding, in: 1...(24 * 14)) {
-                let hours = appModel.globalSettings.resultSpoolRetentionHours
-                let days = Double(hours) / 24.0
-                let formattedDays = String(format: "%.1f", days)
-                Text("Query Result Retention: \(hours) hour\(hours == 1 ? "" : "s") (~\(formattedDays) days)")
-            }
+    private var queryResultRetentionRow: some View {
+        Stepper(value: resultCacheRetentionBinding, in: 1...(24 * 14)) {
+            let hours = appModel.globalSettings.resultSpoolRetentionHours
+            let days = Double(hours) / 24.0
+            let formattedDays = String(format: "%.1f", days)
+            Text("Query Result Retention: \(hours) hour\(hours == 1 ? "" : "s") (~\(formattedDays) days)")
         }
     }
 
-    // MARK: - Unified Storage Section
+    // MARK: - Storage Sections
 
-    private var unifiedStorageSection: some View {
+    private var storageLimitsSection: some View {
         let store = clipboardHistory
-        let usage = store.formattedUsageBreakdown()
 
         return Section("Storage") {
             // Global maximum storage setting (only show when per-type is disabled)
@@ -556,15 +555,28 @@ private func tabMemoryContextLabel(for tab: WorkspaceTab) -> String {
                 }
             }
 
-            // Toggle for per-type storage limits
             Toggle("Set storage limits per cache type", isOn: $usePerTypeStorageLimits)
                 .toggleStyle(.switch)
 
+            // UI-only toggle: switches between unified vs per-type storage limit controls.
             if usePerTypeStorageLimits {
-                // Per-type storage limits
-                VStack(alignment: .leading, spacing: 8) {
+                LabeledContent {
+                    Picker("", selection: resultCacheMaxBinding) {
+                        ForEach([0.5, 1, 2, 5, 10], id: \.self) { gb in
+                            Text("\(gb) GB").tag(Int(gb * 1_024 * 1_024 * 1_024))
+                        }
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.menu)
+                    .controlSize(.regular)
+                    .frame(minWidth: 120, idealWidth: 160, maxWidth: 200, alignment: .trailing)
+                } label: {
+                    Text("Result Cache")
+                }
+
+                if store.isEnabled {
                     LabeledContent {
-                        Picker("", selection: resultCacheMaxBinding) {
+                        Picker("", selection: storageLimitBinding(for: store)) {
                             ForEach([0.5, 1, 2, 5, 10], id: \.self) { gb in
                                 Text("\(gb) GB").tag(Int(gb * 1_024 * 1_024 * 1_024))
                             }
@@ -574,87 +586,48 @@ private func tabMemoryContextLabel(for tab: WorkspaceTab) -> String {
                         .controlSize(.regular)
                         .frame(minWidth: 120, idealWidth: 160, maxWidth: 200, alignment: .trailing)
                     } label: {
-                        Text("Result Cache")
-                    }
-
-                    if store.isEnabled {
-                        LabeledContent {
-                            Picker("", selection: storageLimitBinding(for: store)) {
-                                ForEach([0.5, 1, 2, 5, 10], id: \.self) { gb in
-                                    Text("\(gb) GB").tag(Int(gb * 1_024 * 1_024 * 1_024))
-                                }
-                            }
-                            .labelsHidden()
-                            .pickerStyle(.menu)
-                            .controlSize(.regular)
-                            .frame(minWidth: 120, idealWidth: 160, maxWidth: 200, alignment: .trailing)
-                        } label: {
-                            Text("Clipboard History")
-                        }
-                    }
-
-                    LabeledContent {
-                        Picker("", selection: .constant(100 * 1_024 * 1_024)) {
-                            Text("10 MB").tag(10 * 1_024 * 1_024)
-                            Text("50 MB").tag(50 * 1_024 * 1_024)
-                            Text("100 MB").tag(100 * 1_024 * 1_024)
-                            Text("250 MB").tag(250 * 1_024 * 1_024)
-                            Text("500 MB").tag(500 * 1_024 * 1_024)
-                        }
-                        .labelsHidden()
-                        .pickerStyle(.menu)
-                        .controlSize(.regular)
-                        .frame(minWidth: 120, idealWidth: 160, maxWidth: 200, alignment: .trailing)
-                    } label: {
-                        Text("EchoSense History")
+                        Text("Clipboard History")
                     }
                 }
+
+                Text("EchoSense history size is managed automatically for now.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
             }
 
-            Divider()
-                .padding(.vertical, 8)
-
-            // Storage location (unified)
             unifiedStorageLocationRow
+        }
+    }
 
-            Divider()
-                .padding(.vertical, 4)
+    private func storageUsageSection(for store: ClipboardHistoryStore) -> some View {
+        let usage = store.formattedUsageBreakdown()
 
-            // Storage usage for each type
-            VStack(alignment: .leading, spacing: 12) {
-                Text("Cache Usage")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(.primary)
+        return Section("Cache Usage") {
+            storageUsageRow(
+                title: "Result Cache",
+                usage: resultCacheUsage,
+                isRefreshing: isRefreshingResultCache,
+                onRefresh: { await refreshResultCacheUsage() },
+                onClear: { clearResultCache() }
+            )
 
-                // Result Cache usage info
+            storageUsageRow(
+                title: "EchoSense History",
+                usage: autocompleteHistoryUsage,
+                isRefreshing: isRefreshingAutocompleteHistory,
+                onRefresh: { await refreshAutocompleteHistoryUsage() },
+                onClear: { clearAutocompleteHistory() }
+            )
+
+            if store.isEnabled {
                 storageUsageRow(
-                    title: "Result Cache",
-                    usage: resultCacheUsage,
-                    isRefreshing: isRefreshingResultCache,
-                    onRefresh: { await refreshResultCacheUsage() },
-                    onClear: { clearResultCache() }
+                    title: "Clipboard History",
+                    usage: UInt64(store.usage.totalBytes),
+                    isRefreshing: false,
+                    onRefresh: nil,
+                    onClear: { clearClipboardHistory() },
+                    usageBreakdown: usage
                 )
-
-                // EchoSense History usage info
-                storageUsageRow(
-                    title: "EchoSense History",
-                    usage: autocompleteHistoryUsage,
-                    isRefreshing: isRefreshingAutocompleteHistory,
-                    onRefresh: { await refreshAutocompleteHistoryUsage() },
-                    onClear: { clearAutocompleteHistory() }
-                )
-
-                // Clipboard History usage info (only if enabled)
-                if store.isEnabled {
-                    storageUsageRow(
-                        title: "Clipboard History",
-                        usage: UInt64(store.usage.totalBytes),
-                        isRefreshing: false,
-                        onRefresh: nil,
-                        onClear: { clearClipboardHistory() },
-                        usageBreakdown: usage
-                    )
-                }
             }
         }
     }
@@ -829,6 +802,7 @@ private struct ToggleWithInfo: View {
                     Text(description)
                         .font(.system(size: 13))
                         .foregroundStyle(Color.primary)
+                        .multilineTextAlignment(.leading)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 .padding()

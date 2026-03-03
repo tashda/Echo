@@ -324,8 +324,40 @@ extension SQLTextView {
         clearSnippetPlaceholders()
         completionEngine.clearPostCommitSuppression()
         suppressNextCompletionPopover = false
+        
+        if var query = makeCompletionQuery() {
+            // Special-case identifiers that end with a dot (e.g. "public.")
+            // so that we treat the preceding components as a completed
+            // database/schema path and start suggesting objects immediately
+            // after the dot, even if no table/view prefix has been typed yet.
+            let selection = selectedRange()
+            let caretIndex = selection.location
+            if caretIndex != NSNotFound,
+               let textStorage,
+               caretIndex <= textStorage.length,
+               caretIndex > 0 {
+                let nsString = string as NSString
+                let previousChar = nsString.character(at: caretIndex - 1)
+                if previousChar == 46 { // "."
+                    let rawToken = query.token.trimmingCharacters(in: .whitespacesAndNewlines)
+                    if rawToken.hasSuffix(".") {
+                        let trimmed = String(rawToken.dropLast())
+                        let parts = trimmed.split(separator: ".", omittingEmptySubsequences: true).map { String($0) }
+                        query = SQLAutoCompletionQuery(
+                            token: "",
+                            prefix: "",
+                            pathComponents: parts,
+                            replacementRange: NSRange(location: caretIndex, length: 0),
+                            precedingKeyword: query.precedingKeyword,
+                            precedingCharacter: query.precedingCharacter,
+                            focusTable: query.focusTable,
+                            tablesInScope: query.tablesInScope,
+                            clause: query.clause
+                        )
+                    }
+                }
+            }
 
-        if let query = makeCompletionQuery() {
             let caretLocation = query.replacementRange.location
             completionEngine.beginManualTrigger()
             defer { completionEngine.endManualTrigger() }

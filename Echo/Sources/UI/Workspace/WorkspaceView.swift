@@ -13,7 +13,7 @@ struct WorkspaceView: View {
     var body: some View {
         let tabBarStyle = appState.workspaceTabBarStyle
 
-        NavigationSplitView {
+        NavigationSplitView(columnVisibility: $appState.workspaceSidebarVisibility) {
             SidebarColumn()
                 .navigationSplitViewColumnWidth(
                     min: WorkspaceLayoutMetrics.sidebarMinWidth,
@@ -23,9 +23,6 @@ struct WorkspaceView: View {
             WorkspaceMainContent()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(themeManager.windowBackgroundColor)
-                .toolbar {
-                    WorkspaceToolbarItems()
-                }
                 .inspector(isPresented: $appState.showInfoSidebar) {
                     let widthBinding = Binding<CGFloat>(
                         get: { appModel.inspectorWidth },
@@ -56,6 +53,9 @@ struct WorkspaceView: View {
                 }
         }
         .navigationSplitViewStyle(.balanced)
+        .toolbar {
+            WorkspaceToolbarItems()
+        }
         .background(WorkspaceWindowConfigurator(tabBarStyle: tabBarStyle))
         .sheet(
             isPresented: Binding(
@@ -122,6 +122,11 @@ private struct SidebarColumn: View {
             onAddConnection: { appState.showSheet(.connectionEditor) }
         )
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        #if os(macOS)
+        .background(
+            SidebarSplitViewObserver(width: $appState.workspaceSidebarWidth)
+        )
+        #endif
     }
 }
 
@@ -308,6 +313,111 @@ private struct InspectorSplitViewConfigurator: NSViewRepresentable {
     }
 }
 
+private struct SidebarSplitViewObserver: NSViewRepresentable {
+    @Binding var width: CGFloat
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(width: $width)
+    }
+
+    func makeNSView(context: Context) -> ObserverView {
+        let view = ObserverView()
+        view.coordinator = context.coordinator
+        context.coordinator.register(observedView: view)
+        return view
+    }
+
+    func updateNSView(_ nsView: ObserverView, context: Context) {
+        context.coordinator.width = $width
+        context.coordinator.register(observedView: nsView)
+    }
+
+    @MainActor
+    final class Coordinator: NSObject {
+        var width: Binding<CGFloat>
+        private weak var observedView: NSView?
+        private var pendingUpdate = false
+
+        init(width: Binding<CGFloat>) {
+            self.width = width
+        }
+
+        func register(observedView view: NSView) {
+            if observedView !== view {
+                observedView = view
+            }
+            scheduleUpdate()
+        }
+
+        func sidebarDidDetach() {
+            if abs(width.wrappedValue) > 0.5 {
+                width.wrappedValue = 0
+            }
+        }
+
+        private func scheduleUpdate() {
+            guard !pendingUpdate else { return }
+            pendingUpdate = true
+            Task { @MainActor [weak self] in
+                guard let self, let view = self.observedView else {
+                    self?.pendingUpdate = false
+                    return
+                }
+                self.pendingUpdate = false
+                self.performUpdate(using: view)
+            }
+        }
+
+        private func performUpdate(using nsView: NSView) {
+            guard let (_, splitView, index) = locateSplitViewInfo(from: nsView),
+                  let sidebarView = splitView.safeSubview(at: index) else { return }
+
+            let measuredWidth = max(0, sidebarView.frame.width)
+            if abs(width.wrappedValue - measuredWidth) > 0.5 {
+                width.wrappedValue = measuredWidth
+            }
+        }
+
+        private func locateSplitViewInfo(from view: NSView) -> (NSSplitViewController, NSSplitView, Int)? {
+            var responder: NSResponder? = view
+            while let current = responder {
+                if let controller = current as? NSSplitViewController {
+                    let splitView = controller.splitView
+                    for (index, item) in controller.splitViewItems.enumerated() {
+                        if item.viewController.view.isDescendant(of: view) || view.isDescendant(of: item.viewController.view) {
+                            return (controller, splitView, index)
+                        }
+                    }
+                }
+                responder = current.nextResponder
+            }
+            return nil
+        }
+    }
+
+    final class ObserverView: NSView {
+        weak var coordinator: Coordinator?
+
+        override func layout() {
+            super.layout()
+            coordinator?.register(observedView: self)
+        }
+
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            if window == nil {
+                coordinator?.sidebarDidDetach()
+            } else {
+                coordinator?.register(observedView: self)
+            }
+        }
+
+        override func hitTest(_ point: NSPoint) -> NSView? {
+            nil
+        }
+    }
+}
+
 private extension NSSplitView {
     func safeSubview(at index: Int) -> NSView? {
         guard index >= 0 && index < subviews.count else { return nil }
@@ -449,22 +559,21 @@ private struct WorkspaceWindowConfigurator: NSViewRepresentable {
             guard let toolbar = window.toolbar, let toolbarView = findToolbarView(in: window) else {
                 return 980
             }
-            let bounds = toolbarView.bounds
-            let navMaxX = toolbar.items
+            let navFrames = toolbar.items
                 .filter { $0.itemIdentifier.rawValue.hasPrefix("workspace.navigation") }
                 .compactMap { $0.view }
-                .map { toolbarView.convert($0.bounds, from: $0).maxX }
-                .max() ?? 0
-            let primaryMinX = toolbar.items
+                .map { toolbarView.convert($0.bounds, from: $0) }
+            let primaryFrames = toolbar.items
                 .filter { $0.itemIdentifier.rawValue.hasPrefix("workspace.primary") }
                 .compactMap { $0.view }
-                .map { toolbarView.convert($0.bounds, from: $0).minX }
-                .min() ?? bounds.width
+                .map { toolbarView.convert($0.bounds, from: $0) }
+            let navMaxX = navFrames.map(\.maxX).max() ?? 0
+            let primaryGroupWidth = groupWidth(from: primaryFrames)
 
             let leadingPadding: CGFloat = 18
             let trailingPadding: CGFloat = 12
             let leadingInset = max(navMaxX + leadingPadding, leadingPadding)
-            let trailingInset = max(bounds.width - primaryMinX + trailingPadding, trailingPadding)
+            let trailingInset = max(primaryGroupWidth + trailingPadding * 2, trailingPadding)
             let requiredToolbarWidth = leadingInset + trailingInset + 350
             return max(980, requiredToolbarWidth)
         }
@@ -482,6 +591,14 @@ private struct WorkspaceWindowConfigurator: NSViewRepresentable {
                 stack.append(contentsOf: view.subviews)
             }
             return nil
+        }
+
+        private func groupWidth(from frames: [CGRect]) -> CGFloat {
+            guard let minX = frames.map(\.minX).min(),
+                  let maxX = frames.map(\.maxX).max() else {
+                return 0
+            }
+            return max(0, maxX - minX)
         }
 
     }

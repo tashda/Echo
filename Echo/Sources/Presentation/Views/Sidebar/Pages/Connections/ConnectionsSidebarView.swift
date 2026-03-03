@@ -480,7 +480,7 @@ private struct ConnectionListRow: View {
     @State private var isHovering = false
 
     private var accentColor: Color {
-        appModel.useServerColorAsAccent ? connection.color : Color.accentColor
+        appModel.globalSettings.useServerColorAsAccent ? connection.color : Color.accentColor
     }
 
     private var displayName: String {

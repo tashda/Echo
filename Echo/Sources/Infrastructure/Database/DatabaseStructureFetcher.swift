@@ -64,10 +64,26 @@ public struct PostgresStructureFetcher: DatabaseStructureFetcher {
         let _ = selectedDatabase ?? connection.database ?? "postgres"
 
         await progressHandler(Progress(fraction: 0.1, message: "Listing databases"))
-        let databases = try await session.listDatabases()
+        let databases: [String]
+        if let selectedDb = selectedDatabase, !selectedDb.isEmpty {
+            databases = [selectedDb]
+        } else {
+            do {
+                databases = try await session.listDatabases()
+            } catch {
+                structureLogger.warning("SQL Server listDatabases failed; falling back to master: \(error)")
+                databases = ["master"]
+            }
+        }
 
         await progressHandler(Progress(fraction: 0.2, message: "Loading schemas"))
-        let schemas = try await session.listSchemas()
+        let schemas: [String]
+        do {
+            schemas = try await session.listSchemas()
+        } catch {
+            structureLogger.warning("SQL Server listSchemas failed; falling back to dbo: \(error)")
+            schemas = ["dbo"]
+        }
 
         var echoDatabases: [DatabaseInfo] = []
 
@@ -149,7 +165,18 @@ public struct MSSQLStructureFetcher: DatabaseStructureFetcher {
 
         await progressHandler(Progress(fraction: 0.0, message: "Starting SQL Server structure fetch"))
 
-        let _ = selectedDatabase ?? connection.database ?? "master"
+        let resolvedDatabase = selectedDatabase ?? connection.database ?? "master"
+
+        if let sqlSession = session as? SQLServerSessionAdapter {
+            await progressHandler(Progress(fraction: 0.2, message: "Loading SQL Server metadata"))
+            let databaseInfo = try await sqlSession.loadDatabaseInfo(databaseName: resolvedDatabase)
+            await databaseHandler(databaseInfo, resolvedDatabase, "Microsoft SQL Server")
+            await progressHandler(Progress(fraction: 1.0, message: "SQL Server structure fetch completed"))
+            return DatabaseStructure(
+                serverVersion: "Microsoft SQL Server",
+                databases: [databaseInfo]
+            )
+        }
 
         await progressHandler(Progress(fraction: 0.1, message: "Listing databases"))
         let databases = try await session.listDatabases()
@@ -177,7 +204,23 @@ public struct MSSQLStructureFetcher: DatabaseStructureFetcher {
 
             // Load tables for each schema
             for schema in schemas {
-                let objects = try await session.listTablesAndViews(schema: schema)
+                if let metadataSession = session as? DatabaseMetadataSession {
+                    do {
+                        let schemaInfo = try await metadataSession.loadSchemaInfo(schema, progress: nil)
+                        schemaInfos.append(schemaInfo)
+                    } catch {
+                        structureLogger.warning("SQL Server schema load failed for \(schema): \(error)")
+                    }
+                    continue
+                }
+
+                let objects: [SchemaObjectInfo]
+                do {
+                    objects = try await session.listTablesAndViews(schema: schema)
+                } catch {
+                    structureLogger.warning("SQL Server listTablesAndViews failed for \(schema): \(error)")
+                    continue
+                }
 
                 let filteredObjects = objects.filter { obj in
                     // Skip system schemas if not requested

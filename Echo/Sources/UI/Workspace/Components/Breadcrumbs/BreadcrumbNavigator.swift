@@ -1,5 +1,9 @@
 import SwiftUI
 
+#if os(macOS)
+import AppKit
+#endif
+
 // Import the WorkspaceChromeMetrics
 extension WorkspaceChromeMetrics {}
 
@@ -7,39 +11,75 @@ extension WorkspaceChromeMetrics {}
 struct BreadcrumbNavigator: View {
     @EnvironmentObject private var appModel: AppModel
     @EnvironmentObject private var themeManager: ThemeManager
+    @EnvironmentObject private var layoutState: TopBarNavigatorLayoutState
     @Environment(\.colorScheme) private var colorScheme
 
     @StateObject private var navigationState = BreadcrumbNavigationState()
+#if os(macOS)
+    @State private var activePopoverController: NSViewController?
+#endif
 
     var body: some View {
         GeometryReader { proxy in
-            let available = max(proxy.size.width, 0)
+            let availableFromLayout = layoutState.availableWidth
+            let available = max(availableFromLayout > 0 ? availableFromLayout : proxy.size.width, 0)
+            let centerFromLayout = layoutState.centerX
             let controlHeight = max(WorkspaceChromeMetrics.chromeBackgroundHeight, proxy.size.height)
-            let target = clamp(available * 0.6, minWidth: 350, idealWidth: 450, maxWidth: 800)
+
+            // Width tuned to be very close to Xcode / Safari:
+            // fill most of the center region, but keep a clear margin to
+            // the navigation items and primary toolbar buttons.
+            let fillRatio: CGFloat = availableFromLayout > 0 ? 0.9 : 0.65
+            let rawWidth = available * fillRatio
+            let idealWidth = clamp(rawWidth, minWidth: 420, idealWidth: 540, maxWidth: 880)
+            // Never request a pill wider than the overlay region itself.
+            let target = min(idealWidth, available)
 
             ZStack {
-                // Capsule background (preserving existing TopBarNavigator styling)
                 let corner = controlHeight / 2
-                let base = RoundedRectangle(cornerRadius: corner, style: .continuous)
+                let shape = RoundedRectangle(cornerRadius: corner, style: .continuous)
 
-                base
-                    .fill(capsuleFill)
-                    .overlay(
-                        base.stroke(capsuleBorder, lineWidth: 1)
-                    )
-                    .overlay(capsuleTopHighlight(cornerRadius: corner))
-                    .shadow(color: capsuleShadowColor, radius: capsuleShadowRadius, y: capsuleShadowYOffset)
+                // Use system chrome so the pill matches Safari/Xcode.
+                #if os(macOS)
+                if #available(macOS 15, *) {
+                    shape
+                        .fill(.clear)
+                        .glassEffect()
+                        .frame(width: target, height: controlHeight)
+                } else {
+                    shape
+                        .fill(.clear)
+                        .background(.regularMaterial, in: shape)
+                        .overlay(shape.stroke(capsuleBorder, lineWidth: 1))
+                        .frame(width: target, height: controlHeight)
+                }
+                #else
+                shape
+                    .fill(.clear)
+                    .background(.regularMaterial, in: shape)
+                    .overlay(shape.stroke(capsuleBorder, lineWidth: 1))
                     .frame(width: target, height: controlHeight)
+                #endif
 
                 // Breadcrumb content
                 HStack(spacing: 0) {
                     breadcrumbContent
+                    Spacer(minLength: 0)
+                    breadcrumbStatus
                 }
                 .padding(.horizontal, 16)
-                .frame(width: target, height: controlHeight)
+                .frame(width: target, height: controlHeight, alignment: .leading)
                 .clipShape(RoundedRectangle(cornerRadius: corner, style: .continuous))
+
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+            .frame(width: target, height: controlHeight)
+            .position(
+                x: centerFromLayout > 0 ? centerFromLayout : proxy.size.width / 2,
+                y: proxy.size.height / 2
+            )
+            .backgroundPreferenceValue(BreadcrumbAnchorKey.self) { anchors in
+                breadcrumbPopover(anchors: anchors)
+            }
             .onAppear {
                 updateBreadcrumbSegments()
             }
@@ -48,6 +88,17 @@ struct BreadcrumbNavigator: View {
             }
             .onChange(of: appModel.sessionManager.sessions.count) { _, _ in
                 updateBreadcrumbSegments()
+            }
+            .onChange(of: appModel.sessionManager.activeSession?.selectedDatabaseName) { _, _ in
+                updateBreadcrumbSegments()
+            }
+            .onChange(of: navigationState.isMenuPresented) { _, isPresented in
+                if !isPresented {
+                    navigationState.presentedMenuIndex = nil
+#if os(macOS)
+                    activePopoverController = nil
+#endif
+                }
             }
         }
         .accessibilityHidden(true)
@@ -67,17 +118,18 @@ struct BreadcrumbNavigator: View {
     }
 
     private var connectionsSegment: some View {
-        HStack(spacing: 0) {
-            BreadcrumbSegmentView(
-                segment: defaultConnectionsSegment,
-                isLast: true,
-                onTap: {
-                    navigationState.presentMenu(for: 0)
-                },
-                onMenuTap: {
-                    navigationState.presentMenu(for: 0)
-                }
-            )
+        BreadcrumbSegmentView(
+            segment: defaultConnectionsSegment,
+            isLast: true,
+            onTap: {
+                defaultConnectionsSegment.action?()
+            },
+            onMenuTap: {
+                presentMenu(for: 0, segment: defaultConnectionsSegment)
+            }
+        )
+        .anchorPreference(key: BreadcrumbAnchorKey.self, value: .bounds) { anchor in
+            [BreadcrumbAnchorInfo(index: 0, anchor: anchor)]
         }
     }
 
@@ -87,6 +139,7 @@ struct BreadcrumbNavigator: View {
             icon: "server.rack",
             hasMenu: true,
             isActive: true,
+            isEnabled: true,
             action: nil,
             menuContent: {
                 AnyView(ConnectionsBreadcrumbMenu())
@@ -102,9 +155,7 @@ struct BreadcrumbNavigator: View {
                 segment.action?()
             },
             onMenuTap: {
-                if segment.hasMenu {
-                    navigationState.presentMenu(for: index)
-                }
+                presentMenu(for: index, segment: segment)
             }
         )
         .anchorPreference(key: BreadcrumbAnchorKey.self, value: .bounds) { anchor in
@@ -112,68 +163,148 @@ struct BreadcrumbNavigator: View {
         }
     }
 
-    private func updateBreadcrumbSegments() {
-        var segments: [BreadcrumbSegment] = []
+    @ViewBuilder
+    private var breadcrumbStatus: some View {
+        if let status = statusText {
+            Text(status)
+                .font(.system(size: 11, weight: .regular))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+        }
+    }
 
-        // Always show Connections breadcrumb
-        segments.append(
-            BreadcrumbSegment(
-                title: "Connections",
-                icon: "server.rack",
-                hasMenu: true,
-                isActive: appModel.selectedConnectionID == nil,
-                action: {
-                    // Deselect current connection
-                    appModel.selectedConnectionID = nil
-                },
-                menuContent: {
-                    AnyView(ConnectionsBreadcrumbMenu())
-                }
-            )
-        )
+    @ViewBuilder
+    private func breadcrumbPopover(anchors: [BreadcrumbAnchorInfo]) -> some View {
+#if os(macOS)
+        if navigationState.isMenuPresented,
+           let menuIndex = navigationState.presentedMenuIndex,
+           let controller = activePopoverController,
+           let targetAnchorInfo = anchors.first(where: { $0.index == menuIndex }) {
+            GeometryReader { geometry in
+                Color.clear
+                    .background(
+                        NativePopoverController(
+                            controller: controller,
+                            isPresented: $navigationState.isMenuPresented,
+                            anchorRect: geometry[targetAnchorInfo.anchor]
+                        )
+                    )
+            }
+            .allowsHitTesting(false)
+        }
+#else
+        EmptyView()
+#endif
+    }
 
-        // Add Database breadcrumb if a connection is selected
-        if let connectionID = appModel.selectedConnectionID,
-           let session = appModel.sessionManager.sessionForConnection(connectionID),
-           let databaseName = session.selectedDatabaseName {
-            segments.append(
-                BreadcrumbSegment(
-                    title: databaseName,
-                    icon: "cylinder.fill",
-                    hasMenu: true,
-                    isActive: true,
-                    action: {
-                        // Focus on database (could show database details)
-                    },
-                    menuContent: {
-                        AnyView(DatabaseBreadcrumbMenu(connectionID: connectionID))
-                    }
-                )
-            )
-        } else if appModel.selectedConnectionID != nil {
-            // Connection selected but no database
-            segments.append(
-                BreadcrumbSegment(
-                    title: "Select Database",
-                    icon: "cylinder",
-                    hasMenu: true,
-                    isActive: true,
-                    action: {
-                        // Could show database picker
-                    },
-                    menuContent: {
-                        AnyView(DatabaseBreadcrumbMenu(connectionID: appModel.selectedConnectionID!))
-                    }
-                )
-            )
+    private var statusText: String? {
+        guard let selectedID = appModel.selectedConnectionID else {
+            return "No Connection"
         }
 
-        navigationState.updateSegments(segments)
+        let state = appModel.connectionStates[selectedID]
+        switch state {
+        case .testing:
+            return "Testing…"
+        case .connecting:
+            return "Connecting…"
+        case .connected:
+            return "Connected"
+        case .disconnected:
+            return "Disconnected"
+        case .error:
+            return "Connection Error"
+        case .none:
+            if appModel.sessionManager.sessionForConnection(selectedID) != nil {
+                return "Connected"
+            }
+            return "Disconnected"
+        }
+    }
+
+    private func presentMenu(for index: Int, segment: BreadcrumbSegment) {
+        guard segment.hasMenu, segment.isEnabled else { return }
+#if os(macOS)
+        guard let controller = menuController(for: index) else { return }
+        if navigationState.isMenuPresented {
+            if navigationState.presentedMenuIndex == index {
+                navigationState.isMenuPresented = false
+                return
+            }
+            navigationState.isMenuPresented = false
+            DispatchQueue.main.async {
+                activePopoverController = controller
+                navigationState.presentMenu(for: index)
+            }
+        } else {
+            activePopoverController = controller
+            navigationState.presentMenu(for: index)
+        }
+#else
+        navigationState.presentMenu(for: index)
+#endif
+    }
+
+#if os(macOS)
+    private func menuController(for index: Int) -> NSViewController? {
+        switch index {
+        case 0:
+            return ConnectionsPopoverController(appModel: appModel)
+        case 1:
+            guard let connectionID = appModel.selectedConnectionID else { return nil }
+            return DatabasePopoverController(appModel: appModel, connectionID: connectionID)
+        default:
+            return nil
+        }
+    }
+#endif
+
+    private func updateBreadcrumbSegments() {
+        let connectionTitle: String
+        if let connection = appModel.selectedConnection {
+            connectionTitle = connection.connectionName.isEmpty ? connection.host : connection.connectionName
+        } else {
+            connectionTitle = "Connections"
+        }
+
+        let connectionSegment = BreadcrumbSegment(
+            title: connectionTitle,
+            icon: "server.rack",
+            hasMenu: true,
+            isActive: true,
+            isEnabled: true,
+            action: nil,
+            menuContent: nil
+        )
+
+        let databaseTitle: String
+        let isDatabaseEnabled = appModel.selectedConnectionID != nil
+        if let connectionID = appModel.selectedConnectionID,
+           let session = appModel.sessionManager.sessionForConnection(connectionID),
+           let databaseName = session.selectedDatabaseName,
+           !databaseName.isEmpty {
+            databaseTitle = databaseName
+        } else {
+            databaseTitle = "Databases"
+        }
+
+        let databaseSegment = BreadcrumbSegment(
+            title: databaseTitle,
+            icon: "cylinder.fill",
+            hasMenu: true,
+            isActive: isDatabaseEnabled,
+            isEnabled: isDatabaseEnabled,
+            action: nil,
+            menuContent: nil
+        )
+
+        navigationState.updateSegments([connectionSegment, databaseSegment])
     }
 
     // MARK: - Styling (preserving existing TopBarNavigator styling)
 
     private var capsuleFill: LinearGradient {
+        // Unused now that we rely on .bar material, but kept for older fallbacks.
         if colorScheme == .dark {
             return LinearGradient(
                 colors: [
@@ -196,10 +327,11 @@ struct BreadcrumbNavigator: View {
     }
 
     private var capsuleBorder: Color {
-        if colorScheme == .dark {
-            return Color.white.opacity(0.16)
-        }
+        #if os(macOS)
+        return Color(nsColor: .separatorColor)
+        #else
         return Color.black.opacity(0.09)
+        #endif
     }
 
     private func capsuleTopHighlight(cornerRadius: CGFloat) -> some View {
@@ -231,9 +363,13 @@ struct BreadcrumbNavigator: View {
 
 // MARK: - Preference Keys for Popover Positioning
 
-struct BreadcrumbAnchorInfo {
+struct BreadcrumbAnchorInfo: Equatable {
     let index: Int
     let anchor: Anchor<CGRect>
+
+    static func == (lhs: BreadcrumbAnchorInfo, rhs: BreadcrumbAnchorInfo) -> Bool {
+        lhs.index == rhs.index
+    }
 }
 
 struct BreadcrumbAnchorKey: PreferenceKey {
@@ -275,39 +411,194 @@ struct PreferenceBasedPopover: View {
 }
 
 #if os(macOS)
+struct PreferenceBasedControllerPopover: View {
+    let controller: NSViewController
+    @Binding var isPresented: Bool
+    let anchorIndex: Int
+
+    @Environment(\.breadcrumbAnchors) private var breadcrumbAnchors
+
+    var body: some View {
+        if isPresented, let targetAnchorInfo = breadcrumbAnchors.first(where: { $0.index == anchorIndex }) {
+            GeometryReader { geometry in
+                Color.clear
+                    .background(
+                        NativePopoverController(
+                            controller: controller,
+                            isPresented: $isPresented,
+                            anchorRect: geometry[targetAnchorInfo.anchor]
+                        )
+                    )
+            }
+        } else {
+            EmptyView()
+        }
+    }
+}
+#endif
+
+#if os(macOS)
+private final class PopoverAnchorView: NSView {
+    var onWindowReady: ((NSView) -> Void)?
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        guard window != nil else { return }
+        onWindowReady?(self)
+    }
+
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        nil
+    }
+}
+
+@MainActor
 private struct NativePopover: NSViewRepresentable {
     let content: AnyView
     @Binding var isPresented: Bool
     let anchorRect: CGRect
 
     func makeNSView(context: Context) -> NSView {
-        let view = NSView()
+        let view = PopoverAnchorView()
+        view.onWindowReady = { [weak view] _ in
+            guard let view else { return }
+            context.coordinator.anchorView = view
+            context.coordinator.tryPresentIfNeeded()
+        }
+        context.coordinator.anchorView = view
         return view
     }
 
     func updateNSView(_ nsView: NSView, context: Context) {
-        if isPresented && context.coordinator.popover == nil {
-            let popover = NSPopover()
-            popover.contentViewController = NSHostingController(rootView: content)
-            popover.behavior = .semitransient
-            popover.animates = true
-            popover.appearance = NSApp.effectiveAppearance
-
-            // Show popover below the anchor
-            popover.show(relativeTo: anchorRect, of: nsView, preferredEdge: .minY)
-            context.coordinator.popover = popover
-        } else if !isPresented {
-            context.coordinator.popover?.performClose(nil)
-            context.coordinator.popover = nil
+        context.coordinator.onClose = {
+            isPresented = false
         }
+        context.coordinator.isPresented = isPresented
+        context.coordinator.anchorRect = anchorRect
+        context.coordinator.content = content
+        context.coordinator.tryPresentIfNeeded()
     }
 
     func makeCoordinator() -> Coordinator {
         Coordinator()
     }
 
-    class Coordinator {
+    @MainActor
+    class Coordinator: NSObject, NSPopoverDelegate {
+        weak var anchorView: NSView?
         var popover: NSPopover?
+        var onClose: (() -> Void)?
+        var isPresented = false
+        var anchorRect: CGRect = .zero
+        var content: AnyView?
+
+        func popoverDidClose(_ notification: Notification) {
+            popover = nil
+            onClose?()
+        }
+
+        func tryPresentIfNeeded() {
+            guard let anchorView else { return }
+
+            if !isPresented {
+                popover?.performClose(nil)
+                popover = nil
+                return
+            }
+
+            guard anchorView.window != nil else { return }
+            guard !anchorRect.isEmpty, !anchorRect.isNull else { return }
+            guard popover == nil, let content else { return }
+
+            let popover = NSPopover()
+            let hostingController = NSHostingController(rootView: content)
+            popover.contentViewController = hostingController
+            popover.behavior = .semitransient
+            popover.animates = true
+            let appearance = anchorView.effectiveAppearance
+            popover.appearance = appearance
+            hostingController.view.appearance = appearance
+            popover.delegate = self
+
+            popover.show(relativeTo: anchorRect, of: anchorView, preferredEdge: .minY)
+            self.popover = popover
+        }
+    }
+}
+#endif
+
+#if os(macOS)
+@MainActor
+private struct NativePopoverController: NSViewRepresentable {
+    let controller: NSViewController
+    @Binding var isPresented: Bool
+    let anchorRect: CGRect
+
+    func makeNSView(context: Context) -> NSView {
+        let view = PopoverAnchorView()
+        view.onWindowReady = { [weak view] _ in
+            guard let view else { return }
+            context.coordinator.anchorView = view
+            context.coordinator.tryPresentIfNeeded()
+        }
+        context.coordinator.anchorView = view
+        return view
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {
+        context.coordinator.onClose = {
+            isPresented = false
+        }
+
+        context.coordinator.isPresented = isPresented
+        context.coordinator.anchorRect = anchorRect
+        context.coordinator.controller = controller
+        context.coordinator.tryPresentIfNeeded()
+    }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator()
+    }
+
+    @MainActor
+    class Coordinator: NSObject, NSPopoverDelegate {
+        weak var anchorView: NSView?
+        var popover: NSPopover?
+        var onClose: (() -> Void)?
+        var isPresented = false
+        var anchorRect: CGRect = .zero
+        var controller: NSViewController?
+
+        func popoverDidClose(_ notification: Notification) {
+            popover = nil
+            onClose?()
+        }
+
+        func tryPresentIfNeeded() {
+            guard let anchorView else { return }
+
+            if !isPresented {
+                popover?.performClose(nil)
+                popover = nil
+                return
+            }
+
+            guard anchorView.window != nil else { return }
+            guard !anchorRect.isEmpty, !anchorRect.isNull else { return }
+            guard popover == nil, let controller else { return }
+
+            let popover = NSPopover()
+            popover.contentViewController = controller
+            popover.behavior = .semitransient
+            popover.animates = true
+            let appearance = anchorView.effectiveAppearance
+            popover.appearance = appearance
+            controller.view.appearance = appearance
+            popover.delegate = self
+
+            popover.show(relativeTo: anchorRect, of: anchorView, preferredEdge: .minY)
+            self.popover = popover
+        }
     }
 }
 #endif

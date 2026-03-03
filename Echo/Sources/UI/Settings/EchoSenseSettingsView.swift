@@ -9,6 +9,7 @@ struct EchoSenseSettingsView: View {
     @EnvironmentObject private var appModel: AppModel
     @EnvironmentObject private var appState: AppState
     @EnvironmentObject private var themeManager: ThemeManager
+    // Toggle: Include SQL keywords in EchoSense suggestions.
     private var suggestKeywordsBinding: Binding<Bool> {
         Binding(
             get: { appModel.globalSettings.editorSuggestKeywords },
@@ -19,6 +20,7 @@ struct EchoSenseSettingsView: View {
         )
     }
 
+    // Toggle: Show inline keyword previews while typing.
     private var inlineKeywordPreviewBinding: Binding<Bool> {
         Binding(
             get: { appModel.globalSettings.editorEnableInlineSuggestions },
@@ -29,6 +31,7 @@ struct EchoSenseSettingsView: View {
         )
     }
 
+    // Toggle: Suggest SQL functions in completions.
     private var suggestFunctionsBinding: Binding<Bool> {
         Binding(
             get: { appModel.globalSettings.editorSuggestFunctions },
@@ -39,6 +42,7 @@ struct EchoSenseSettingsView: View {
         )
     }
 
+    // Toggle: Suggest saved snippets in completions.
     private var suggestSnippetsBinding: Binding<Bool> {
         Binding(
             get: { appModel.globalSettings.editorSuggestSnippets },
@@ -49,6 +53,7 @@ struct EchoSenseSettingsView: View {
         )
     }
 
+    // Toggle: Qualify table completions with schema names.
     private var qualifyTablesBinding: Binding<Bool> {
         Binding(
             get: { appModel.globalSettings.editorQualifyTableCompletions },
@@ -59,6 +64,7 @@ struct EchoSenseSettingsView: View {
         )
     }
 
+    // Toggle: Boost suggestions using previously accepted history.
     private var suggestHistoryBinding: Binding<Bool> {
         Binding(
             get: { appModel.globalSettings.editorSuggestHistory },
@@ -69,6 +75,7 @@ struct EchoSenseSettingsView: View {
         )
     }
 
+    // Toggle: Suggest JOIN helpers based on schema relationships.
     private var suggestJoinsBinding: Binding<Bool> {
         Binding(
             get: { appModel.globalSettings.editorSuggestJoins },
@@ -89,6 +96,7 @@ struct EchoSenseSettingsView: View {
         )
     }
 
+    // Toggle: Include system schemas in EchoSense suggestions.
     private var showSystemSchemasBinding: Binding<Bool> {
         Binding(
             get: { appModel.globalSettings.editorShowSystemSchemas },
@@ -99,6 +107,7 @@ struct EchoSenseSettingsView: View {
         )
     }
 
+    // Toggle: Allow Command + Period to trigger suggestions.
     private var commandTriggerBinding: Binding<Bool> {
         Binding(
             get: { appModel.globalSettings.editorAllowCommandPeriodTrigger },
@@ -109,6 +118,7 @@ struct EchoSenseSettingsView: View {
         )
     }
 
+    // Toggle: Allow Control + Space to trigger suggestions.
     private var controlTriggerBinding: Binding<Bool> {
         Binding(
             get: { appModel.globalSettings.editorAllowControlSpaceTrigger },
@@ -148,29 +158,34 @@ struct EchoSenseSettingsView: View {
                     isOn: suggestKeywordsBinding,
                     topic: .keywords
                 )
+
                 ToggleRow(
                     title: "Inline keyword preview",
                     isOn: inlineKeywordPreviewBinding,
                     topic: .inlineKeywords
                 )
                 .disabled(!appState.sqlEditorDisplay.autoCompletionEnabled)
+
                 ToggleRow(
                     title: "Functions",
                     isOn: suggestFunctionsBinding,
                     topic: .functions
                 )
+
                 ToggleRow(
                     title: "Snippets",
                     isOn: suggestSnippetsBinding,
                     topic: .snippets
                 )
+
                 ToggleRow(
-                    title: "Join Helpers",
+                    title: "Join helpers",
                     isOn: suggestJoinsBinding,
                     topic: .joins
                 )
+
                 ToggleRow(
-                    title: "History Boosting",
+                    title: "History boosting",
                     isOn: suggestHistoryBinding,
                     topic: .history
                 )
@@ -182,6 +197,7 @@ struct EchoSenseSettingsView: View {
                     isOn: qualifyTablesBinding,
                     topic: .qualifiedTables
                 )
+
                 ToggleRow(
                     title: "Show system schemas",
                     isOn: showSystemSchemasBinding,
@@ -190,19 +206,16 @@ struct EchoSenseSettingsView: View {
             }
 
             Section("Behaviour") {
-                Picker("Suggestion aggressiveness", selection: aggressivenessBinding) {
-                    ForEach(SQLCompletionAggressiveness.allCases, id: \.self) { mode in
-                        Text(mode.displayName).tag(mode)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .frame(maxWidth: 360)
+                AggressivenessRow(
+                    selection: aggressivenessBinding
+                )
 
                 ToggleRow(
                     title: "Enable Command + Period",
                     isOn: commandTriggerBinding,
                     topic: .commandTrigger
                 )
+
                 ToggleRow(
                     title: "Enable Control + Space",
                     isOn: controlTriggerBinding,
@@ -218,9 +231,6 @@ struct EchoSenseSettingsView: View {
         }
         .formStyle(.grouped)
         .scrollContentBackground(.hidden)
-        .background(themeManager.surfaceBackgroundColor)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.top, 12)
     }
 }
 
@@ -290,18 +300,16 @@ private struct ToggleRow: View {
     @State private var isPopoverPresented = false
 
     var body: some View {
-        HStack(alignment: .center, spacing: 12) {
-            Text(title)
-                .font(.system(size: 13))
-                .foregroundStyle(.primary)
-            Spacer(minLength: 12)
-            Toggle("", isOn: $isOn)
-                .labelsHidden()
+        HStack(alignment: .center, spacing: 8) {
+            Toggle(title, isOn: $isOn)
                 .toggleStyle(.switch)
-                .accessibilityLabel(Text(title))
+
+            Spacer(minLength: 8)
+
             Button(action: { isPopoverPresented.toggle() }) {
                 Image(systemName: "info.circle")
-                    .font(.system(size: 13, weight: .semibold))
+                    .imageScale(.medium)
+                    .font(.system(size: 13, weight: .regular))
             }
             .buttonStyle(.plain)
             .foregroundStyle(.secondary)
@@ -309,18 +317,41 @@ private struct ToggleRow: View {
                 InfoPopover(topic: topic)
             }
         }
-        .padding(.vertical, 8)
-        .padding(.horizontal, 10)
-        .background(toggleRowBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
+}
 
-    private var toggleRowBackground: some View {
-#if os(macOS)
-        Color(nsColor: .controlBackgroundColor).opacity(0.28)
-#else
-        Color(uiColor: .secondarySystemBackground)
-#endif
+private struct AggressivenessRow: View {
+    @Binding var selection: SQLCompletionAggressiveness
+    @State private var isPopoverPresented = false
+
+    var body: some View {
+        LabeledContent {
+            HStack(spacing: 8) {
+                Picker("", selection: $selection) {
+                    ForEach(SQLCompletionAggressiveness.allCases, id: \.self) { mode in
+                        Text(mode.displayName).tag(mode)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .frame(maxWidth: 360)
+
+                Button(action: { isPopoverPresented.toggle() }) {
+                    Image(systemName: "info.circle")
+                        .imageScale(.medium)
+                        .font(.system(size: 13, weight: .regular))
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(.secondary)
+                .popover(isPresented: $isPopoverPresented,
+                         attachmentAnchor: .rect(.bounds),
+                         arrowEdge: .trailing) {
+                    InfoPopover(topic: .aggressiveness)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .trailing)
+        } label: {
+            Text("Suggestion aggressiveness")
+        }
     }
 }
 
@@ -332,10 +363,12 @@ private struct InfoPopover: View {
             Text(topic.title)
                 .font(.system(size: 15, weight: .semibold))
                 .foregroundStyle(.primary)
+                .multilineTextAlignment(.leading)
                 .fixedSize(horizontal: false, vertical: true)
             Text(topic.message)
                 .font(.system(size: 13))
                 .foregroundStyle(.primary)
+                .multilineTextAlignment(.leading)
                 .fixedSize(horizontal: false, vertical: true)
         }
         .padding(16)

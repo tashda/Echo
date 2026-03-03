@@ -144,18 +144,20 @@ final class PostgresStreamingBenchmarkTests: XCTestCase {
         let start = CFAbsoluteTimeGetCurrent()
 
         let result = try await session.simpleQuery(sql) { update in
-            tracker.recordStreamUpdate(
-                appendedRowCount: update.appendedRows.count,
-                totalRowCount: update.totalRowCount
-            )
-            if let metrics = update.metrics {
-                tracker.recordBackendMetrics(metrics)
-            }
-            if !didRecordInitialBatch, update.totalRowCount >= initialBatchTarget {
-                tracker.recordInitialBatchReady(totalRowCount: update.totalRowCount)
-                tracker.recordVisibleInitialLimitSatisfied()
-                tracker.recordTableReload()
-                didRecordInitialBatch = true
+            Task { @MainActor in
+                tracker.recordStreamUpdate(
+                    appendedRowCount: update.appendedRows.count,
+                    totalRowCount: update.totalRowCount
+                )
+                if let metrics = update.metrics {
+                    tracker.recordBackendMetrics(metrics)
+                }
+                if !didRecordInitialBatch, update.totalRowCount >= initialBatchTarget {
+                    tracker.recordInitialBatchReady(totalRowCount: update.totalRowCount)
+                    tracker.recordVisibleInitialLimitSatisfied()
+                    tracker.recordTableReload()
+                    didRecordInitialBatch = true
+                }
             }
         }
 

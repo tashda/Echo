@@ -12,6 +12,8 @@ import Combine
     @Published var activeSheet: ActiveSheet?
     @Published var showTabOverview = false
     @Published var showInfoSidebar = false
+    @Published var workspaceSidebarVisibility: NavigationSplitViewVisibility = .automatic
+    @Published var workspaceSidebarWidth: CGFloat = 320
     @Published var themeTabs = false
     @Published var workspaceTabBarStyle: WorkspaceTabBarStyle = .floating
     @Published var keepTabsInMemory = false

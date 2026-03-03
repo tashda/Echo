@@ -8,6 +8,7 @@ struct BreadcrumbSegment: Identifiable, Equatable {
     let icon: String?
     let hasMenu: Bool
     let isActive: Bool
+    let isEnabled: Bool
 
     // Actions and menu content
     let action: (() -> Void)?
@@ -18,6 +19,7 @@ struct BreadcrumbSegment: Identifiable, Equatable {
         icon: String? = nil,
         hasMenu: Bool = false,
         isActive: Bool = false,
+        isEnabled: Bool = true,
         action: (() -> Void)? = nil,
         menuContent: (() -> AnyView)? = nil
     ) {
@@ -25,6 +27,7 @@ struct BreadcrumbSegment: Identifiable, Equatable {
         self.icon = icon
         self.hasMenu = hasMenu
         self.isActive = isActive
+        self.isEnabled = isEnabled
         self.action = action
         self.menuContent = menuContent
     }
@@ -33,7 +36,8 @@ struct BreadcrumbSegment: Identifiable, Equatable {
         return lhs.title == rhs.title &&
                lhs.icon == rhs.icon &&
                lhs.hasMenu == rhs.hasMenu &&
-               lhs.isActive == rhs.isActive
+               lhs.isActive == rhs.isActive &&
+               lhs.isEnabled == rhs.isEnabled
     }
 }
 

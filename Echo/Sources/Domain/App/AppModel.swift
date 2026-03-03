@@ -49,7 +49,6 @@ final class AppModel: ObservableObject {
     @Published var sessionManager = ConnectionSessionManager()
     @Published var tabManager = TabManager()
     @Published var pinnedObjectIDs: [String] = []
-    @Published var useServerColorAsAccent: Bool = UserDefaults.standard.bool(forKey: "useServerColorAsAccent")
     @Published private(set) var recentConnections: [RecentConnectionRecord] = []
     @Published var pendingExplorerFocus: ExplorerFocus?
     @Published var searchSidebarCaches: [SearchSidebarContextKey: SearchSidebarCache] = [:]
@@ -1000,12 +999,6 @@ final class AppModel: ObservableObject {
             }
             .store(in: &cancellables)
 
-        $useServerColorAsAccent
-            .sink { useServerColor in
-                UserDefaults.standard.set(useServerColor, forKey: "useServerColorAsAccent")
-            }
-            .store(in: &cancellables)
-
         tabManager.objectWillChange
             .receive(on: RunLoop.main)
             .sink { [weak self] _ in
@@ -1152,6 +1145,15 @@ final class AppModel: ObservableObject {
     private func normalizeEditorPreferences() async {
         var didMutateProjects = false
         var didMutateGlobalSettings = false
+
+        if UserDefaults.standard.object(forKey: "useServerColorAsAccent") != nil {
+            let storedAccent = UserDefaults.standard.bool(forKey: "useServerColorAsAccent")
+            if globalSettings.useServerColorAsAccent != storedAccent {
+                globalSettings.useServerColorAsAccent = storedAccent
+                didMutateGlobalSettings = true
+            }
+            UserDefaults.standard.removeObject(forKey: "useServerColorAsAccent")
+        }
 
         let legacyPalette = globalSettings.palette(withID: globalSettings.defaultEditorTheme)
 
@@ -2984,9 +2986,9 @@ final class AppModel: ObservableObject {
         let oldObjects = old?.schemas.flatMap { $0.objects } ?? []
         let newObjects = new.schemas.flatMap { $0.objects }
 
-        func key(_ o: SchemaObjectInfo) -> String { "\(o.type.rawValue)|\(o.schema)|\(o.name)" }
-        let oldMap = Dictionary(uniqueKeysWithValues: oldObjects.map { (key($0), $0) })
-        let newMap = Dictionary(uniqueKeysWithValues: newObjects.map { (key($0), $0) })
+        func key(_ o: SchemaObjectInfo) -> String { "\(o.type.rawValue)|\(o.id)" }
+        let oldMap = Dictionary(oldObjects.map { (key($0), $0) }, uniquingKeysWith: { first, _ in first })
+        let newMap = Dictionary(newObjects.map { (key($0), $0) }, uniquingKeysWith: { first, _ in first })
 
         let oldKeys = Set(oldMap.keys)
         let newKeys = Set(newMap.keys)
