@@ -36,19 +36,19 @@ struct WorkspaceContentView: View {
 
     var body: some View {
         ZStack {
-            themeManager.windowBackground
+            ColorTokens.Background.primary
                 .ignoresSafeArea()
 
             Group {
                 if let structureEditor = tab.structureEditor {
                     TableStructureEditorView(tab: tab, viewModel: structureEditor)
-                        .background(themeManager.windowBackground)
+                        .background(ColorTokens.Background.primary)
                 } else if let diagram = tab.diagram {
                     SchemaDiagramView(viewModel: diagram)
-                        .background(themeManager.windowBackground)
+                        .background(ColorTokens.Background.primary)
                 } else if let jobs = tab.jobManagement {
                     JobManagementView(viewModel: jobs)
-                        .background(themeManager.windowBackground)
+                        .background(ColorTokens.Background.primary)
                 } else if let query = tab.query {
                     QueryEditorContainer(
                         tab: tab,
@@ -88,7 +88,7 @@ struct QueryEditorContainer: View {
     var body: some View {
         GeometryReader { geometry in
             let totalHeight = geometry.size.height
-            let backgroundColor = themeManager.windowBackground
+            let backgroundColor = ColorTokens.Background.primary
             let shouldShowResultsOnly = query.isResultsOnly
             let ratioBinding = Binding<CGFloat>(
                 get: { min(max(query.splitRatio, minRatio), maxRatio) },
@@ -189,7 +189,7 @@ struct QueryEditorContainer: View {
                 }
             }
         }
-        .background(themeManager.windowBackground)
+        .background(ColorTokens.Background.primary)
         .onAppear {
             updateClipboardContext()
         }

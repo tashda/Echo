@@ -23,38 +23,11 @@ struct QueryInputSection: View {
     }
 
     private var editorTheme: SQLEditorTheme {
-        var resolved = appState.sqlEditorTheme
-        if resolved.tone != targetTone {
-            resolved = SQLEditorThemeResolver.resolve(
-                globalSettings: appModel.globalSettings,
-                project: appModel.selectedProject,
-                tone: targetTone
-            )
-        }
-        let chrome = themeManager.activeTheme
-        resolved.surfaces.background = chrome.windowBackground
-        resolved.surfaces.text = chrome.editorForeground
-        resolved.surfaces.gutterBackground = chrome.editorGutterBackground
-        resolved.surfaces.gutterText = chrome.editorGutterForeground
-        resolved.surfaces.gutterAccent = chrome.accent ?? chrome.editorForeground
-        resolved.surfaces.selection = chrome.editorSelection
-        resolved.surfaces.currentLine = chrome.editorCurrentLine
-        if let strong = chrome.editorSymbolHighlightStrong {
-            resolved.surfaces.symbolHighlightStrong = strong
-        }
-        if let bright = chrome.editorSymbolHighlightBright {
-            resolved.surfaces.symbolHighlightBright = bright
-        }
-#if DEBUG
-        if QueryInputSection.isEditorDiagnosticsEnabled {
-            logEditorThemeDiagnostics(resolved: resolved, chrome: chrome)
-        }
-#endif
-        return resolved
+        appState.sqlEditorTheme
     }
 
     private var editorBackground: Color {
-        themeManager.activeTheme.windowBackground.color
+        ColorTokens.Background.primary
     }
 
     @State private var currentSelection = SQLEditorSelection(

@@ -25,6 +25,7 @@ struct QueryResultsTableView: NSViewRepresentable {
     var persistedState: QueryResultsGridState?
     var isResizing: Bool = false
 
+    @EnvironmentObject private var appModel: AppModel
     @EnvironmentObject private var clipboardHistory: ClipboardHistoryStore
     struct SelectedCell: Equatable {
         let row: Int
@@ -81,7 +82,7 @@ struct QueryResultsTableView: NSViewRepresentable {
         }
 
         let tableView = ResultTableView()
-        tableView.usesAlternatingRowBackgroundColors = ThemeManager.shared.showAlternateRowShading
+        tableView.usesAlternatingRowBackgroundColors = false
         tableView.rowHeight = 24
         tableView.headerView = NSTableHeaderView()
         tableView.gridStyleMask = []
@@ -101,7 +102,7 @@ struct QueryResultsTableView: NSViewRepresentable {
         context.coordinator.configure(tableView: tableView, scrollView: scrollView)
         tableView.selectionDelegate = context.coordinator
         scrollView.documentView = tableView
-        let leadingWidth = ThemeManager.shared.resultsGridLeadingInset
+        let leadingWidth: CGFloat = 0.0
         let container = ResultTableContainerView(scrollView: scrollView, leadingWidth: leadingWidth)
         container.updateBackgroundColor(backgroundColor)
         return container
@@ -111,8 +112,8 @@ struct QueryResultsTableView: NSViewRepresentable {
         guard let tableView = container.tableView else { return }
         context.coordinator.updatePersistedState(persistedState)
         tableView.backgroundColor = backgroundColor
-        tableView.usesAlternatingRowBackgroundColors = ThemeManager.shared.showAlternateRowShading
-        container.updateLeadingWidth(ThemeManager.shared.resultsGridLeadingInset)
+        tableView.usesAlternatingRowBackgroundColors = false
+        container.updateLeadingWidth(0.0)
         container.updateBackgroundColor(backgroundColor)
         context.coordinator.update(parent: self, tableView: tableView)
     }
@@ -660,15 +661,14 @@ struct QueryResultsTableView: NSViewRepresentable {
         }
 
         private func paletteSignature() -> String {
-            let theme = ThemeManager.shared
             return [
-                String(theme.useAppThemeForResultsGrid),
-                String(theme.resultsAlternateRowShading),
-                colorSignature(theme.resultsGridCellBackgroundNSColor),
-                colorSignature(theme.resultsGridAlternateRowNSColor),
-                colorSignature(theme.resultsGridCellTextNSColor),
-                colorSignature(theme.resultsGridHeaderBackgroundNSColor),
-                colorSignature(theme.resultsGridHeaderTextNSColor)
+                "true",
+                "false",
+                colorSignature(NSColor(ColorTokens.Background.tertiary)),
+                colorSignature(NSColor(ColorTokens.Background.tertiary)),
+                colorSignature(NSColor(ColorTokens.Text.primary)),
+                colorSignature(NSColor(ColorTokens.Background.secondary)),
+                colorSignature(NSColor(ColorTokens.Text.primary))
             ].joined(separator: "|")
         }
 
@@ -708,6 +708,12 @@ struct QueryResultsTableView: NSViewRepresentable {
                 tableView.setIndicatorImage(indicator, in: tableColumn)
             }
             // Column highlighting is managed explicitly when the user selects a column.
+        }
+
+        private func fallbackResultGridStyle(for kind: ResultGridValueKind) -> SQLEditorTokenPalette.ResultGridStyle {
+            let tone: SQLEditorPalette.Tone = ThemeManager.shared.effectiveColorScheme == .dark ? .dark : .light
+            let defaults = SQLEditorTokenPalette.ResultGridColors.defaults(for: tone)
+            return defaults.style(for: kind)
         }
 
         private func width(for column: ColumnInfo) -> CGFloat {
@@ -805,7 +811,7 @@ struct QueryResultsTableView: NSViewRepresentable {
                 }
                 let value = parent.query.valueForDisplay(row: sourceRow, column: column)
                 let kind = ResultGridValueClassifier.kind(for: columnInfo, value: value)
-                let style = theme.resultGridStyle(for: kind)
+                let style = fallbackResultGridStyle(for: kind)
                 let font = resolvedFont(for: style)
                 let resolvedString: String
                 if let value {
@@ -939,7 +945,7 @@ struct QueryResultsTableView: NSViewRepresentable {
             rowView.configure(
                 row: row,
                 colorProvider: { [weak self] index in
-                    self?.rowBackgroundColor(for: index) ?? ThemeManager.shared.resultsGridCellBackgroundNSColor
+                    self?.rowBackgroundColor(for: index) ?? NSColor(ColorTokens.Background.tertiary)
                 },
                 highlightProvider: { [weak self, weak tableView] view, index in
                     guard let self, let tableView else { return nil }
@@ -950,11 +956,7 @@ struct QueryResultsTableView: NSViewRepresentable {
         }
 
         private func rowBackgroundColor(for row: Int) -> NSColor {
-            let theme = ThemeManager.shared
-            if theme.resultsAlternateRowShading && row.isMultiple(of: 2) {
-                return theme.resultsGridAlternateRowNSColor
-            }
-            return theme.resultsGridCellBackgroundNSColor
+            return NSColor(ColorTokens.Background.tertiary)
         }
 
         private func refreshVisibleRowBackgrounds(_ tableView: NSTableView) {
@@ -969,7 +971,7 @@ struct QueryResultsTableView: NSViewRepresentable {
                 rowView.configure(
                     row: row,
                     colorProvider: { [weak self] index in
-                        self?.rowBackgroundColor(for: index) ?? ThemeManager.shared.resultsGridCellBackgroundNSColor
+                        self?.rowBackgroundColor(for: index) ?? NSColor(ColorTokens.Background.tertiary)
                     },
                     highlightProvider: { [weak self, weak tableView] view, index in
                         guard let self, let tableView else { return nil }
@@ -1280,7 +1282,7 @@ struct QueryResultsTableView: NSViewRepresentable {
                     print("[RowDiagnostics][tableView] skipping configureCellView for out-of-range row=\(row)")
                 }
                 let theme = ThemeManager.shared
-                let fallbackStyle = theme.resultGridStyle(for: .text)
+                let fallbackStyle = fallbackResultGridStyle(for: .text)
                 let baseColor = fallbackStyle.nsColor
                 cellView.apply(
                     text: "",
@@ -1318,7 +1320,7 @@ struct QueryResultsTableView: NSViewRepresentable {
             if let cachedStyle = cachedResultGridStyles[kind] {
                 style = cachedStyle
             } else {
-                let resolvedStyle = theme.resultGridStyle(for: kind)
+                let resolvedStyle = fallbackResultGridStyle(for: kind)
                 cachedResultGridStyles[kind] = resolvedStyle
                 style = resolvedStyle
             }
@@ -2681,7 +2683,7 @@ private final class ResultTableView: NSTableView {
     }
 
     override func drawBackground(inClipRect clipRect: NSRect) {
-        ThemeManager.shared.resultsGridCellBackgroundNSColor.setFill()
+        NSColor(ColorTokens.Background.tertiary).setFill()
         clipRect.fill()
     }
 

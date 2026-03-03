@@ -113,7 +113,7 @@ struct AutocompleteManagementRootView: View {
             }
             .padding(24)
             .frame(minWidth: 560, maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            .background(themeManager.surfaceBackgroundColor)
+            .background(ColorTokens.Background.secondary)
 
             Divider()
 
@@ -127,10 +127,10 @@ struct AutocompleteManagementRootView: View {
                 .frame(maxWidth: .infinity, alignment: .topLeading)
             }
             .frame(minWidth: 360, maxWidth: 420, maxHeight: .infinity)
-            .background(themeManager.surfaceBackgroundColor)
+            .background(ColorTokens.Background.secondary)
         }
         .frame(minWidth: 960, minHeight: 600)
-        .background(themeManager.windowBackground)
+        .background(ColorTokens.Background.primary)
         .preferredColorScheme(themeManager.effectiveColorScheme)
         .accentColor(themeManager.accentColor)
     }

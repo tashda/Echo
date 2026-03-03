@@ -34,13 +34,12 @@ struct TabChromePalette {
     let actionButtonIcon: Color
     let separatorGradient: LinearGradient
 
-    init(theme: AppColorTheme, accent: NSColor, fallbackScheme: ColorScheme) {
-        _ = fallbackScheme
-        let baseBackground = theme.surfaceBackground.nsColor.usingColorSpace(.deviceRGB) ?? theme.surfaceBackground.nsColor
-        let selection = theme.editorSelection.nsColor.usingColorSpace(.deviceRGB) ?? theme.editorSelection.nsColor
-        let textColor = theme.surfaceForeground.nsColor.usingColorSpace(.deviceRGB) ?? theme.surfaceForeground.nsColor
-        let accentColor = (theme.accent?.nsColor ?? accent).usingColorSpace(.deviceRGB) ?? accent
-        let toneIsDark = theme.tone == .dark
+    init(accent: NSColor, colorScheme: ColorScheme) {
+        let toneIsDark = colorScheme == .dark
+        let baseBackground = NSColor(ColorTokens.Background.secondary)
+        let selection = NSColor(ColorTokens.Background.tertiary)
+        let textColor = NSColor(ColorTokens.Text.primary)
+        let accentColor = accent.usingColorSpace(.deviceRGB) ?? accent
 
         let neutralBase = blend(baseBackground, with: toneIsDark ? .black : .white, amount: toneIsDark ? 0.05 : 0.04)
         let baseTop = lighten(neutralBase, by: toneIsDark ? 0.02 : 0.03)

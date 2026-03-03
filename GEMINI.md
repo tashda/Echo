@@ -1,32 +1,44 @@
-# Echo Project Overview
+# Echo Project Overview (Rebase 2026)
 
-The project "Echo" is a macOS application developed using Swift and SwiftUI. It functions as a database client, providing tools for connecting to, querying, and managing various types of databases including PostgreSQL, MySQL, SQLite, and Microsoft SQL Server. The application leverages NIO (NIO.framework) for database interactions and includes a local Swift package, `EchoSense`, which handles database schema metadata. It also integrates `sqruff`, a Rust-based SQL formatting tool, to maintain code quality.
+The project "Echo" is a macOS application developed using Swift and SwiftUI. It functions as a multi-database client (PostgreSQL, MySQL, SQLite, and Microsoft SQL Server). The application leverages SwiftNIO for database interactions and includes a local Swift package, `EchoSense`, for schema metadata management.
 
-## Key Features:
-*   **Multi-database support:** Connects to PostgreSQL, MySQL, SQLite, and Microsoft SQL Server.
-*   **Query Editor:** Provides a tabbed interface for writing and executing SQL queries.
-*   **Schema Browsing:** Displays database, schema, table, view, materialized view, function, trigger, and column information.
-*   **Autocomplete:** Assists users in writing SQL queries.
-*   **Connection Management:** Allows users to manage multiple database connections and projects.
-*   **Performance Monitoring:** Includes a tool for monitoring query performance.
-*   **SQL Formatting:** Integrates `sqruff` for SQL code formatting.
-*   **Theming:** Supports custom themes and appearance settings.
+## Core Mandates:
+*   **Documentation Compliance:** 
+    - **Platform-Native:** Before refactoring SwiftUI, Concurrency, or AppKit/UIKit layers, use `sosumi` to verify compliance with official Apple Documentation and HIG.
+    - **Domain-Specific:** For SQL logic, Database protocols, and third-party tools (like `sqruff`), use `web_fetch` or `google_web_search` to ensure industry-standard implementations.
+*   **Protocol-First Development:** Every service, repository, or data provider must define a protocol before implementation to facilitate testing and mocking.
+*   **Naming Clarity:** Use standardized, obvious names. Ban vague suffixes such as `Helper`, `Utility`, `Manager`, or `Service`. If a type is a "Manager," call it what it actually does (e.g., `ConnectionCoordinator`).
+*   **Testing Coverage:** Every component (function, view, logic) must be testable and tested across Echo, `sqlserver-nio`, `Postgres-wire`, and `EchoSense`.
 
-## Architecture:
-The application follows a Model-View-ViewModel (MVVM) like architecture, with `AppCoordinator` acting as a central manager for application state and dependencies. `AppModel` and `AppState` manage the core data and UI state, respectively. `EchoSense` provides the domain models for database schema.
+## File & Code Standards:
+*   **Size Limits:**
+    - Maximum file size: 500 lines.
+    - View files: Maximum 200 lines.
+    - ViewModels: Maximum 300 lines.
+    - Files exceeding these limits MUST be split before merging.
+*   **Single Responsibility:** Each file must handle exactly one responsibility. (e.g., separate formatting from network logic).
+*   **Design Tokens:** NEVER hardcode colors, spacing, or fonts. Use design tokens: `Colors.textPrimary`, `Spacing.md`, etc.
+*   **Modular UI:** Extract reusable components into a dedicated shared directory (e.g., `UI/Shared/Components/`), ensuring they are decoupled from feature-specific logic.
+
+## Application Architecture:
+*   **MVVM/Coordinator:** Follows MVVM with an `AppCoordinator` for state management.
+*   **Theming:** Simplified Light/Dark mode implementation. Only accent color and editor font are user-configurable.
+*   **Formatting:** `sqruff` is currently used but is under review for potential replacement or improvement.
+*   **Package Simplification:** `sqlserver-nio`, `Postgres-wire`, and `EchoSense` are being refactored for simplicity and ease of feature additions.
+
+## Tooling & Workflows:
+*   **Apple Documentation:** Utilize `sosumi` to access official Apple Documentation (via `fetchAppleDocumentation` and `searchAppleDocumentation`) for platform-native implementations and best practices.
+*   **Database Validation:** Use Gemini PostgreSQL and SQL extensions to interact with test servers for validation.
+*   **Incremental Commits:** Commit frequently for every logical change. Each commit message must precisely describe "what" and "why" to provide a clear audit trail for PRs.
 
 ## Building and Running:
-This is an Xcode project. To build and run the application, open `Echo.xcodeproj` in Xcode.
+This is an Xcode project. All builds must be performed via the CLI:
 
-1.  **Open Project:** `open Echo.xcodeproj`
-2.  **Select Target:** Choose the "Echo" target.
-3.  **Build and Run:** Use Xcode's standard build and run commands (Cmd+R).
+```bash
+xcodebuild -project Echo.xcodeproj -scheme Echo -destination "platform=macOS" build | xcbeautify
+```
 
-The `build_sqruff.sh` script handles the `sqruff` binary, either by downloading a pre-built version or compiling it from source. This script is executed as part of the Xcode build process.
-
-## Development Conventions:
-*   **SwiftUI:** The UI is built using SwiftUI.
-*   **Swift Concurrency:** Uses `async/await` for asynchronous operations. All code must adhere to Swift 6 data-race safety checks and concurrency rules.
-*   **Combine:** Utilizes the Combine framework for reactive programming.
-*   **SQL Formatting:** Adheres to `sqruff` formatting rules for SQL code.
-*   **Database Interaction:** Uses NIO-based libraries for database connectivity.
+## Engineering Standards:
+*   **SwiftUI:** Primary UI framework.
+*   **Swift 6 Concurrency:** Mandatory adherence to data-race safety and modern concurrency rules.
+*   **NIO:** Core database connectivity layer.

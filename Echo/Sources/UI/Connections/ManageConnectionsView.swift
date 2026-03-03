@@ -139,7 +139,7 @@ private extension ManageConnectionsView {
             )
             .toolbar {
                 ToolbarItem(placement: .principal) {
-                    ManageConnectionsToolbarTitle(
+                    ToolbarTitleWithSubtitle(
                         title: navigationTitleText,
                         subtitle: navigationSubtitleText
                     )
@@ -193,7 +193,7 @@ private extension ManageConnectionsView {
                 }
             }
         } label: {
-            ToolbarAddButton(themeManager: themeManager)
+            ToolbarAddButton()
         }
         .menuIndicator(.hidden)
         .menuStyle(.borderlessButton)
@@ -1555,74 +1555,6 @@ private struct ChangeHandlers: ViewModifier {
             .onChange(of: appModel.folders) { oldFolders, newFolders in
                 onFoldersChange(oldFolders, newFolders)
             }
-    }
-}
-
-private struct ManageConnectionsToolbarTitle: View {
-    let title: String
-    let subtitle: String
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(title)
-                .font(.system(size: 20, weight: .semibold))
-            if subtitle.isEmpty {
-                Text(" ")
-                    .font(.system(size: 12))
-                    .foregroundStyle(.clear)
-                    .accessibilityHidden(true)
-            } else {
-                Text(subtitle)
-                    .font(.system(size: 12))
-                    .italic()
-                    .foregroundStyle(.secondary)
-            }
-        }
-    }
-}
-
-private struct ToolbarAddButton: View {
-    @ObservedObject var themeManager: ThemeManager
-    @State private var isHovered = false
-
-    var body: some View {
-        let isDark = themeManager.effectiveColorScheme == .dark
-
-        let baseTop = isDark ? Color.white.opacity(0.22) : Color.white
-        let baseBottom = isDark ? Color.white.opacity(0.16) : Color.white.opacity(0.88)
-        let hoverTop = isDark ? Color.white.opacity(0.28) : Color.white
-        let hoverBottom = isDark ? Color.white.opacity(0.22) : Color.white.opacity(0.96)
-        let gradient = LinearGradient(
-            colors: isHovered ? [hoverTop, hoverBottom] : [baseTop, baseBottom],
-            startPoint: .top,
-            endPoint: .bottom
-        )
-
-        let border = isDark ? Color.white.opacity(0.35) : Color.black.opacity(0.12)
-        let hoverBorder = isDark ? Color.white.opacity(0.48) : Color.black.opacity(0.18)
-        let highlight = isDark ? Color.white.opacity(0.24) : Color.white.opacity(0.7)
-        let iconColor = Color(nsColor: isDark ? .secondaryLabelColor : .secondaryLabelColor)
-
-        return Circle()
-            .fill(gradient)
-            .overlay(
-                Circle()
-                    .strokeBorder(isHovered ? hoverBorder : border, lineWidth: 1)
-                    .overlay(
-                        Circle()
-                            .strokeBorder(highlight, lineWidth: 0.5)
-                            .blendMode(.plusLighter)
-                    )
-            )
-            .overlay(
-                Image(systemName: "plus")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(iconColor)
-            )
-            .frame(width: 30, height: 30)
-            .contentShape(Circle())
-            .onHover { isHovered = $0 }
-            .shadow(color: Color.black.opacity(isDark ? 0.32 : 0.12), radius: isHovered ? 1.6 : 1, y: 0.6)
     }
 }
 

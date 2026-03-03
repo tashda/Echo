@@ -35,7 +35,7 @@ struct QueryResultsGridView: View {
                 onSort(columnIndex, gridAction)
             },
             onClearColumnHighlight: onClearColumnHighlight,
-            backgroundColor: themeManager.resultsGridCellBackgroundNSColor,
+            backgroundColor: NSColor(ColorTokens.Background.tertiary),
             foreignKeyDisplayMode: .disabled,
             foreignKeyInspectorBehavior: .respectInspectorVisibility,
             onForeignKeyEvent: { _ in },

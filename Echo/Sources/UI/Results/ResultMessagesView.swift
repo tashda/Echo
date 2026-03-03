@@ -8,7 +8,7 @@ import UIKit
 struct ResultMessagesView: View {
     let results: QueryResultSet
 
-    @ObservedObject private var themeManager = ThemeManager.shared
+    @EnvironmentObject private var themeManager: ThemeManager
     @State private var messages: [Message] = []
     @State private var expandedRows: Set<UUID> = []
     private let columnWidths: [CGFloat] = [64, 320, 110, 90, 110, 160, 80]
@@ -28,7 +28,7 @@ struct ResultMessagesView: View {
                 var valueColor: Color {
                     switch self {
                     case .normal:
-                        return Color.primary
+                        return ColorTokens.Text.primary
                     case .emphasis:
                         return Color.accentColor
                     case .warning:
@@ -50,16 +50,16 @@ struct ResultMessagesView: View {
                 }
             }
 
-            @MainActor func tint(using theme: ThemeManager) -> Color {
+            @MainActor func tint(using accent: Color) -> Color {
                 switch self {
                 case .info:
-                    return theme.accentColor
+                    return accent
                 case .warning:
                     return Color.orange
                 case .error:
                     return Color.red
                 case .debug:
-                    return Color.secondary
+                    return ColorTokens.Text.secondary
                 }
             }
         }
@@ -77,11 +77,11 @@ struct ResultMessagesView: View {
     }
 
     private var headerBackground: Color {
-        themeManager.surfaceBackground
+        ColorTokens.Background.secondary
     }
 
     private var gridBackground: Color {
-        themeManager.windowBackground
+        ColorTokens.Background.primary
     }
 
     var body: some View {
@@ -107,7 +107,7 @@ struct ResultMessagesView: View {
         HStack(spacing: 16) {
             Label("Messages", systemImage: "text.bubble")
                 .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(themeManager.surfaceForeground)
+                .foregroundStyle(ColorTokens.Text.primary)
 
             Spacer()
 
@@ -116,7 +116,7 @@ struct ResultMessagesView: View {
                     let count = messages.filter { $0.severity == severity }.count
                     Label("\(severity.rawValue.capitalized) (\(count))", systemImage: severity.iconName)
                         .font(.system(size: 11, weight: .medium))
-                        .foregroundStyle(severity.tint(using: themeManager))
+                        .foregroundStyle(severity.tint(using: themeManager.accentColor))
                 }
             }
 
@@ -174,7 +174,7 @@ struct ResultMessagesView: View {
     private func headerCell(_ title: String, width: CGFloat, alignment: Alignment) -> some View {
         Text(title)
             .font(.system(size: 11, weight: .semibold))
-            .foregroundColor(.secondary)
+            .foregroundColor(ColorTokens.Text.secondary)
             .frame(width: width, alignment: alignment)
     }
 
@@ -183,43 +183,43 @@ struct ResultMessagesView: View {
         return HStack(spacing: 0) {
             Text("\(message.sequence)")
                 .font(.system(.callout, design: .monospaced))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(ColorTokens.Text.secondary)
                 .frame(width: columnWidths[0], alignment: .leading)
 
             HStack(spacing: 8) {
                 Image(systemName: message.severity.iconName)
                     .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(message.severity.tint(using: themeManager))
+                    .foregroundStyle(message.severity.tint(using: themeManager.accentColor))
                 Text(message.title)
                     .font(.system(size: 12))
-                    .foregroundStyle(themeManager.surfaceForeground)
+                    .foregroundStyle(ColorTokens.Text.primary)
                     .lineLimit(1)
             }
             .frame(width: columnWidths[1], alignment: .leading)
 
             Text(formattedTime(message.timestamp))
                 .font(.system(.footnote, design: .monospaced))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(ColorTokens.Text.secondary)
                 .frame(width: columnWidths[2], alignment: .leading)
 
             Text(formattedDuration(message.delta))
                 .font(.system(.footnote, design: .monospaced))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(ColorTokens.Text.secondary)
                 .frame(width: columnWidths[3], alignment: .leading)
 
             Text(message.duration.map(formattedDuration) ?? "—")
                 .font(.system(.footnote, design: .monospaced))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(ColorTokens.Text.secondary)
                 .frame(width: columnWidths[4], alignment: .leading)
 
             Text(message.procedure ?? "")
                 .font(.system(.footnote, design: .monospaced))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(ColorTokens.Text.secondary)
                 .frame(width: columnWidths[5], alignment: .leading)
 
             Text(message.line ?? "")
                 .font(.system(.footnote, design: .monospaced))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(ColorTokens.Text.secondary)
                 .frame(width: columnWidths[6], alignment: .leading)
 
             Spacer(minLength: 0)
@@ -229,7 +229,7 @@ struct ResultMessagesView: View {
             } label: {
                 Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
                     .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(ColorTokens.Text.secondary)
             }
             .buttonStyle(.borderless)
             .padding(.trailing, 10)
@@ -253,13 +253,13 @@ struct ResultMessagesView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Object {")
                     .font(.system(.footnote, design: .monospaced))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(ColorTokens.Text.secondary)
 
                 ForEach(message.details) { detail in
                     HStack(alignment: .top, spacing: 6) {
                         Text(detail.key + ":")
                             .font(.system(.footnote, design: .monospaced))
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(ColorTokens.Text.secondary)
                             .frame(width: 90, alignment: .leading)
 
                         Text(detail.value)
@@ -271,7 +271,7 @@ struct ResultMessagesView: View {
 
                 Text("}")
                     .font(.system(.footnote, design: .monospaced))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(ColorTokens.Text.secondary)
             }
             .padding(.vertical, 8)
             .padding(.horizontal, 12)
@@ -289,12 +289,12 @@ struct ResultMessagesView: View {
         VStack(spacing: 12) {
             Image(systemName: "tray")
                 .font(.system(size: 40))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(ColorTokens.Text.secondary)
             Text("No Messages")
                 .font(.system(size: 16, weight: .semibold))
             Text("Server and execution output will appear here once available.")
                 .font(.system(size: 13))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(ColorTokens.Text.secondary)
         }
         .padding(.vertical, 60)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -312,10 +312,7 @@ struct ResultMessagesView: View {
     }
 
     private func rowBackground(index: Int, severity: Message.Severity) -> some View {
-        var base = themeManager.surfaceBackground
-        if themeManager.resultsAlternateRowShading && index.isMultiple(of: 2) {
-            base = base.opacity(0.92)
-        }
+        let base = ColorTokens.Background.secondary
 
         let overlay: Color
         switch severity {
