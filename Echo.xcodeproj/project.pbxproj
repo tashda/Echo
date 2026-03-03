@@ -25,9 +25,9 @@
 		B66C2F887E35A3358F209F93 /* Hack-Regular.ttf in CopyFiles */ = {isa = PBXBuildFile; fileRef = B76434B110ACC86CC86642A1 /* Hack-Regular.ttf */; };
 		C93850D54E3A549BC7E315B3 /* Inconsolata-Regular.ttf in CopyFiles */ = {isa = PBXBuildFile; fileRef = 23F736A358A1CCBACD3B0834 /* Inconsolata-Regular.ttf */; };
 		D316B590203F49689AC5D29A /* SQLEditorRegexTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD46E27623774768B647E31C /* SQLEditorRegexTests.swift */; };
-		E2C0B9A3C4F74E7C9E1D4B61 /* MSSQLMetadataLoadingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2C0B9A4C4F74E7C9E1D4B61 /* MSSQLMetadataLoadingTests.swift */; };
 		D3BB6F6FC954AA040392C7C7 /* AnonymousPro-Regular.ttf in CopyFiles */ = {isa = PBXBuildFile; fileRef = CC1194D7AF45D51E8E8EA8C4 /* AnonymousPro-Regular.ttf */; };
 		E1CF7F199F60040BF42A54DF /* MesloLGS-Regular.ttf in CopyFiles */ = {isa = PBXBuildFile; fileRef = 9CC0B2EBE9BD3F338658D526 /* MesloLGS-Regular.ttf */; };
+		E2C0B9A3C4F74E7C9E1D4B61 /* MSSQLMetadataLoadingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2C0B9A4C4F74E7C9E1D4B61 /* MSSQLMetadataLoadingTests.swift */; };
 		E2E872DC3647C4621284F1B2 /* Iosevka-Regular.ttf in CopyFiles */ = {isa = PBXBuildFile; fileRef = 9914A75C43EF3F555CE8E868 /* Iosevka-Regular.ttf */; };
 		F17A0E1C2FC1C3BC007F5489 /* FiraCode-Regular.ttf in CopyFiles */ = {isa = PBXBuildFile; fileRef = F17A0E0F2FC1B3F8007F5489 /* FiraCode-Regular.ttf */; };
 		F17A0E1D2FC1C3BC007F5489 /* IBMPlexMono-Regular.ttf in CopyFiles */ = {isa = PBXBuildFile; fileRef = F17A0E102FC1B3F8007F5489 /* IBMPlexMono-Regular.ttf */; };

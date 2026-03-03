@@ -93,23 +93,7 @@ final class ManageConnectionsWindowController: NSWindowController, NSWindowDeleg
     private func bindThemeUpdates(for window: NSWindow) {
         themeCancellables.removeAll()
 
-        ThemeManager.shared.$activeTheme
-            .receive(on: RunLoop.main)
-            .sink { [weak self, weak window] _ in
-                guard let window else { return }
-                self?.applyTheme(to: window)
-            }
-            .store(in: &themeCancellables)
-
         ThemeManager.shared.$effectiveColorScheme
-            .receive(on: RunLoop.main)
-            .sink { [weak self, weak window] _ in
-                guard let window else { return }
-                self?.applyTheme(to: window)
-            }
-            .store(in: &themeCancellables)
-
-        ThemeManager.shared.$surfaceBackgroundNSColor
             .receive(on: RunLoop.main)
             .sink { [weak self, weak window] _ in
                 guard let window else { return }

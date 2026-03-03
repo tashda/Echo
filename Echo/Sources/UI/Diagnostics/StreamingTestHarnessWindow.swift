@@ -55,7 +55,7 @@ private struct StreamingTestHarnessView: View {
             content
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(themeManager.windowBackground)
+        .background(ColorTokens.Background.primary)
         .preferredColorScheme(themeManager.effectiveColorScheme)
         .onAppear {
             if selectedSessionID == nil {

@@ -84,16 +84,19 @@ struct SchemaDiagramView: View {
     }
 
     private var palette: DiagramPalette {
+        let accent = themeManager.accentColor
+        let foreground = ColorTokens.Text.primary
+        let detail = ColorTokens.Text.secondary
+        let nodeShadow = Color.black.opacity(colorScheme == .dark ? 0.45 : 0.18)
+        let canvasBackground = ColorTokens.Background.primary
+        let surfaceBackground = ColorTokens.Background.secondary
+        let controlBackground = ColorTokens.Background.tertiary
+        
         if appModel.globalSettings.diagramUseThemedAppearance {
-            let theme = themeManager.activeTheme
-            let accent = theme.accent?.color ?? themeManager.accentColor
-            let foreground = theme.surfaceForeground.color
-            let detail = foreground.opacity(0.65)
-            let nodeShadow = Color.black.opacity(colorScheme == .dark ? 0.45 : 0.18)
             return DiagramPalette(
-                canvasBackground: theme.windowBackground.color,
+                canvasBackground: canvasBackground,
                 gridLine: foreground.opacity(0.12),
-                nodeBackground: theme.surfaceBackground.color.opacity(0.95),
+                nodeBackground: surfaceBackground.opacity(0.95),
                 nodeBorder: foreground.opacity(0.14),
                 nodeShadow: nodeShadow,
                 headerBackground: accent.opacity(0.22),
@@ -105,33 +108,28 @@ struct SchemaDiagramView: View {
                 columnHighlight: accent.opacity(0.12),
                 accent: accent,
                 edgeColor: accent.opacity(0.9),
-                overlayBackground: theme.surfaceBackground.color.opacity(0.96),
+                overlayBackground: surfaceBackground.opacity(0.96),
                 overlayBorder: foreground.opacity(0.14)
             )
         } else {
-            let canvasBackground = Color(nsColor: .windowBackgroundColor)
-            let controlBackground = Color(nsColor: .controlBackgroundColor)
-            let primary = Color.primary
-            let secondary = Color.secondary
-            let accent = Color.accentColor
             let shadow = Color.black.opacity(colorScheme == .dark ? 0.5 : 0.16)
             return DiagramPalette(
                 canvasBackground: canvasBackground,
-                gridLine: primary.opacity(colorScheme == .dark ? 0.14 : 0.08),
+                gridLine: foreground.opacity(colorScheme == .dark ? 0.14 : 0.08),
                 nodeBackground: controlBackground.opacity(colorScheme == .dark ? 0.85 : 1.0),
-                nodeBorder: primary.opacity(0.12),
+                nodeBorder: foreground.opacity(0.12),
                 nodeShadow: shadow,
                 headerBackground: accent.opacity(0.18),
                 headerBorder: accent.opacity(0.35),
-                headerTitle: primary,
-                headerSubtitle: secondary,
-                columnText: primary,
-                columnDetail: secondary,
+                headerTitle: foreground,
+                headerSubtitle: detail,
+                columnText: foreground,
+                columnDetail: detail,
                 columnHighlight: accent.opacity(0.08),
                 accent: accent.opacity(0.9),
                 edgeColor: accent.opacity(0.85),
                 overlayBackground: canvasBackground.opacity(0.98),
-                overlayBorder: primary.opacity(0.08)
+                overlayBorder: foreground.opacity(0.08)
             )
         }
     }

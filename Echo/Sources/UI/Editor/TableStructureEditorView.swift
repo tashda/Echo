@@ -99,7 +99,7 @@ struct TableStructureEditorView: View {
             header
             content
         }
-        .background(Color(nsColor: themeManager.windowBackgroundNSColor))
+        .background(ColorTokens.Background.primary)
         .task {
             // Lightweight initialization
             if let requested = viewModel.requestedSection {
@@ -410,31 +410,23 @@ struct TableStructureEditorView: View {
     #endif
 
     private var inlineButtonBackground: Color {
-#if os(macOS)
-        Color(nsColor: themeManager.surfaceBackgroundNSColor).opacity(0.2)
-#else
-        themeManager.surfaceBackgroundColor.opacity(0.2)
-#endif
+        ColorTokens.Background.secondary.opacity(0.2)
     }
 
     private var headerBackgroundColor: Color {
-#if os(macOS)
-        Color(nsColor: themeManager.surfaceBackgroundNSColor)
-#else
-        themeManager.surfaceBackgroundColor
-#endif
+        ColorTokens.Background.secondary
     }
 
     private var headerBorderColor: Color {
-        themeManager.surfaceForegroundColor.opacity(themeManager.effectiveColorScheme == .dark ? 0.35 : 0.12)
+        ColorTokens.Text.primary.opacity(themeManager.effectiveColorScheme == .dark ? 0.35 : 0.12)
     }
 
     private var headerPrimaryColor: Color {
-        themeManager.surfaceForegroundColor
+        ColorTokens.Text.primary
     }
 
     private var headerSecondaryColor: Color {
-        themeManager.surfaceForegroundColor.opacity(themeManager.effectiveColorScheme == .dark ? 0.7 : 0.55)
+        ColorTokens.Text.primary.opacity(themeManager.effectiveColorScheme == .dark ? 0.7 : 0.55)
     }
 
     private var columnsSection: some View {
@@ -687,23 +679,23 @@ struct TableStructureEditorView: View {
     }
 
     private var tableBackgroundColor: Color {
-        Color(nsColor: themeManager.surfaceBackgroundNSColor)
+        ColorTokens.Background.secondary
     }
 
     private var tableHeaderBackgroundColor: Color {
-        Color(nsColor: themeManager.surfaceBackgroundNSColor.withAlphaComponent(themeManager.effectiveColorScheme == .dark ? 0.9 : 0.96))
+        ColorTokens.Background.secondary.opacity(themeManager.effectiveColorScheme == .dark ? 0.9 : 0.96)
     }
 
     private var tableHeaderTextColor: Color {
-        themeManager.surfaceForegroundColor.opacity(themeManager.effectiveColorScheme == .dark ? 0.85 : 0.65)
+        ColorTokens.Text.primary.opacity(themeManager.effectiveColorScheme == .dark ? 0.85 : 0.65)
     }
 
     private var tableBorderColor: Color {
-        themeManager.surfaceForegroundColor.opacity(themeManager.effectiveColorScheme == .dark ? 0.4 : 0.15)
+        ColorTokens.Text.primary.opacity(themeManager.effectiveColorScheme == .dark ? 0.4 : 0.15)
     }
 
     private var tableDividerColor: Color {
-        themeManager.surfaceForegroundColor.opacity(themeManager.effectiveColorScheme == .dark ? 0.35 : 0.1)
+        ColorTokens.Text.primary.opacity(themeManager.effectiveColorScheme == .dark ? 0.35 : 0.1)
     }
 
     private var tableRowPrimaryColor: Color {
@@ -711,15 +703,15 @@ struct TableStructureEditorView: View {
     }
 
     private var tableRowAlternateColor: Color {
-        Color(nsColor: themeManager.surfaceBackgroundNSColor.withAlphaComponent(themeManager.effectiveColorScheme == .dark ? 0.78 : 0.99))
+        ColorTokens.Background.secondary.opacity(themeManager.effectiveColorScheme == .dark ? 0.78 : 0.99)
     }
 
     private var rowDividerColor: Color {
-        themeManager.surfaceForegroundColor.opacity(themeManager.effectiveColorScheme == .dark ? 0.3 : 0.08)
+        ColorTokens.Text.primary.opacity(themeManager.effectiveColorScheme == .dark ? 0.3 : 0.08)
     }
 
     private var rowSelectedBackgroundColor: Color {
-        accentColor.opacity(themeManager.effectiveColorScheme == .dark ? 0.38 : 0.2)
+        themeManager.accentColor.opacity(themeManager.effectiveColorScheme == .dark ? 0.38 : 0.2)
     }
 
     @ViewBuilder
@@ -956,12 +948,11 @@ struct TableStructureEditorView: View {
         }
 
         private var textColor: Color {
-            Color(nsColor: themeManager.surfaceForegroundNSColor)
+            ColorTokens.Text.primary
         }
 
         private var placeholderColor: Color {
-            let nsColor = themeManager.surfaceForegroundNSColor.withAlphaComponent(themeManager.effectiveColorScheme == .dark ? 0.4 : 0.45)
-            return Color(nsColor: nsColor)
+            ColorTokens.Text.primary.opacity(themeManager.effectiveColorScheme == .dark ? 0.4 : 0.45)
         }
 
         private var displayValue: String {
@@ -1055,7 +1046,7 @@ struct TableStructureEditorView: View {
 
             nsView.alignment = alignment
             nsView.font = NSFont.systemFont(ofSize: 12)
-            nsView.textColor = themeManager.surfaceForegroundNSColor
+            nsView.textColor = NSColor(ColorTokens.Text.primary)
 
             if context.coordinator.lastFocusSession != focusSession {
                 context.coordinator.lastFocusSession = focusSession

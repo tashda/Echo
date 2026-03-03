@@ -70,7 +70,7 @@ struct ExplorerSidebarView: View {
                                             }
                                         )
                                 } header: {
-                                    ExplorerSectionHeader(title: "Connected Servers")
+                                    SidebarSectionHeader(title: "Connected Servers")
                                 }
                                 .transition(.opacity.combined(with: .scale(scale: 0.98, anchor: .top)))
                             }
@@ -1089,25 +1089,6 @@ private enum ExplorerSidebarConstants {
     static let connectedServersAnchor = "ExplorerSidebarConnectedServers"
     static let scrollBottomPadding: CGFloat = 32
     static let bottomControlHeight: CGFloat = 20
-}
-
-// MARK: - Section Header
-
-private struct ExplorerSectionHeader: View {
-    let title: String
-
-    var body: some View {
-        HStack {
-            Text(title.uppercased())
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(.secondary)
-            Spacer()
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, 16)
-        .padding(.vertical, 8)
-        .background(Color(nsColor: .controlBackgroundColor))
-    }
 }
 
 // MARK: - Saved Connections Menu

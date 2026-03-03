@@ -20,9 +20,8 @@ struct QueryTabStrip: View {
 #if os(macOS)
         guard appState.themeTabs else { return nil }
         return TabChromePalette(
-            theme: themeManager.activeTheme,
             accent: themeManager.accentNSColor,
-            fallbackScheme: colorScheme
+            colorScheme: themeManager.effectiveColorScheme
         )
 #else
         return nil

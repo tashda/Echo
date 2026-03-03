@@ -34,7 +34,7 @@ private struct PerformanceMonitorView: View {
                         .foregroundStyle(.secondary)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(themeManager.windowBackground)
+                .background(ColorTokens.Background.primary)
             } else {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
@@ -56,7 +56,7 @@ private struct PerformanceMonitorView: View {
                     .padding(.vertical, 24)
                     .padding(.horizontal, 32)
                 }
-                .background(themeManager.windowBackground)
+                .background(ColorTokens.Background.primary)
             }
         }
         .preferredColorScheme(themeManager.effectiveColorScheme)
@@ -116,7 +116,7 @@ private struct PerformanceMonitorRow: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(themeManager.surfaceBackgroundColor)
+                .fill(ColorTokens.Background.secondary)
                 .shadow(
                     color: Color.black.opacity(themeManager.effectiveColorScheme == .dark ? 0.35 : 0.12),
                     radius: 8,
