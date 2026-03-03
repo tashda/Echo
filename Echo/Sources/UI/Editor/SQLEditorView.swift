@@ -811,6 +811,7 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
     private func triggerCompletion(immediate: Bool) {
         guard displayOptions.autoCompletionEnabled else { return }
         guard !manualCompletionSuppression else { return }
+        if isAliasTypingContext() { return }
         suppressNextCompletionRefresh = true
         refreshCompletions(immediate: immediate)
     }
@@ -844,6 +845,13 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
         let prefixLength = max(0, caretLocation - lineRange.location)
         guard prefixLength > 0 else { return "" }
         return nsString.substring(with: NSRange(location: lineRange.location, length: prefixLength))
+    }
+
+    private func isAliasTypingContext() -> Bool {
+        let prefix = currentLinePrefix()
+        guard !prefix.isEmpty else { return false }
+        let pattern = #"(?i)\b(from|join|update|into)\s+([A-Za-z0-9_\.\"`\[\]]+)\s+[A-Za-z_][A-Za-z0-9_]*$"#
+        return prefix.range(of: pattern, options: .regularExpression) != nil
     }
 
     private func isIdentifierContinuation(_ value: String) -> Bool {
@@ -1111,6 +1119,10 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
     private func refreshCompletions(immediate: Bool = false) {
         if suppressNextCompletionPopover {
             suppressNextCompletionPopover = false
+            return
+        }
+        if isAliasTypingContext() {
+            hideCompletions()
             return
         }
         guard !isApplyingCompletion else { return }
@@ -1818,8 +1830,64 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
     }
 
     func filterSuggestionsForContext(_ suggestions: [SQLAutoCompletionSuggestion],
-                                             query: SQLAutoCompletionQuery) -> [SQLAutoCompletionSuggestion] {
-        suggestions
+                                     query: SQLAutoCompletionQuery) -> [SQLAutoCompletionSuggestion] {
+        guard !suggestions.isEmpty else { return suggestions }
+
+        var filtered = suggestions
+
+        // Avoid suggesting a redundant FROM keyword once the current SELECT
+        // statement already contains a FROM clause before the caret.
+        if hasExistingFromKeywordInCurrentSelectSegment() {
+            filtered.removeAll { suggestion in
+                guard suggestion.kind == .keyword else { return false }
+                let keyword = suggestion.insertText
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                    .lowercased()
+                return keyword == "from"
+            }
+        }
+
+        return filtered
+    }
+
+    private func hasExistingFromKeywordInCurrentSelectSegment() -> Bool {
+        let selection = selectedRange()
+        let caretLocation = selection.location
+        guard caretLocation != NSNotFound else { return false }
+
+        let nsString = string as NSString
+        guard caretLocation <= nsString.length else { return false }
+
+        let searchSelectRange = NSRange(location: 0, length: caretLocation)
+        let selectRange = nsString.range(of: "select",
+                                         options: [.caseInsensitive, .backwards],
+                                         range: searchSelectRange)
+        guard selectRange.location != NSNotFound else { return false }
+
+        let fromSearchStart = selectRange.upperBound
+        guard fromSearchStart < caretLocation else { return false }
+
+        let fromSearchRange = NSRange(location: fromSearchStart,
+                                      length: caretLocation - fromSearchStart)
+        var searchLocation = fromSearchRange.location
+        let searchUpperBound = NSMaxRange(fromSearchRange)
+
+        while searchLocation < searchUpperBound {
+            let remainingLength = searchUpperBound - searchLocation
+            let searchRange = NSRange(location: searchLocation, length: remainingLength)
+            let fromRange = nsString.range(of: "from",
+                                           options: [.caseInsensitive],
+                                           range: searchRange)
+            if fromRange.location == NSNotFound { break }
+
+            if isWholeWord(range: fromRange, in: nsString) {
+                return true
+            }
+
+            searchLocation = fromRange.location + fromRange.length
+        }
+
+        return false
     }
 
     func limitSuggestions(_ suggestions: [SQLAutoCompletionSuggestion]) -> [SQLAutoCompletionSuggestion] {
@@ -2009,9 +2077,20 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
         if suggestion.kind == .keyword && !insertionText.hasSuffix(" ") {
             insertionText += " "
         }
-        _ = performCompletionInsertion(suggestion: suggestion,
-                                       query: query,
-                                       insertion: insertionText)
+
+        let insertionResult = performCompletionInsertion(suggestion: suggestion,
+                                                         query: query,
+                                                         insertion: insertionText)
+
+        // After inserting a schema (e.g. "public."), immediately trigger a
+        // follow-up completion popover so table suggestions are shown without
+        // requiring the user to type another character.
+        if insertionResult != nil, suggestion.kind == .schema {
+            DispatchQueue.main.async { [weak self] in
+                guard let self else { return }
+                _ = self.forcePresentImmediateCompletions()
+            }
+        }
     }
 
     func consumePopoverSuppressionFlag() -> Bool {

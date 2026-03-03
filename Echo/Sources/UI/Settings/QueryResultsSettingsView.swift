@@ -50,6 +50,7 @@ struct QueryResultsSettingsView: View {
         )
     }
 
+    // Toggle: Include related foreign key rows when inspecting a selected record.
     private var includeRelatedBinding: Binding<Bool> {
         Binding(
             get: { appModel.globalSettings.foreignKeyIncludeRelated },
@@ -208,7 +209,7 @@ struct QueryResultsSettingsView: View {
     }
 
     var body: some View {
-        Form {
+        return Form {
             Section("Foreign Keys") {
                 Picker("Foreign key cells", selection: displayModeBinding) {
                     ForEach(ForeignKeyDisplayMode.allCases, id: \.self) { mode in
@@ -339,11 +340,8 @@ struct QueryResultsSettingsView: View {
                 }
                 .padding(.top, 6)
             }
-        }
-        .formStyle(.grouped)
-        .scrollContentBackground(.hidden)
-        .background(themeManager.surfaceBackground)
-        Section("Engine Profiles") {
+            
+            Section("Engine Profiles") {
             HStack {
                 Spacer(minLength: 0)
                 Picker("", selection: $selectedEngineTab) {
@@ -443,12 +441,15 @@ struct QueryResultsSettingsView: View {
                 } label: {
                     Text("Streaming mode (SQLite)")
                 }
-                Text("SQLite is in‑process; streaming/cursors don’t apply. General settings still affect preview and formatting.")
+                Text("SQLite is in‑process; streaming/cursors don't apply. General settings still affect preview and formatting.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
-        }
-    }
+        } // End of Section
+        } // End of Form
+        .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
+    } // End of body
 
     private func displayName(for mode: ForeignKeyDisplayMode) -> String {
         switch mode {
@@ -786,6 +787,7 @@ enum Selection: Hashable {
                 Text(description)
                     .font(.system(size: 13))
                     .foregroundStyle(Color.primary)
+                    .multilineTextAlignment(.leading)
                     .fixedSize(horizontal: false, vertical: true)
 
                 Divider()
@@ -793,6 +795,7 @@ enum Selection: Hashable {
                 Text("Default: \(defaultLabel)")
                     .font(.system(size: 12))
                     .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.leading)
                     .fixedSize(horizontal: false, vertical: true)
             }
             .padding(16)
@@ -831,4 +834,4 @@ enum Selection: Hashable {
             return ceil(rect.width)
         }
     }
-}
+} // End of QueryResultsSettingsView struct

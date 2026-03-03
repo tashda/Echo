@@ -1,6 +1,12 @@
 import SwiftUI
 import AppKit
 
+@MainActor
+private final class ExplorerDebugLogState {
+    static let shared = ExplorerDebugLogState()
+    var lastDatabaseBySession: [UUID: String] = [:]
+}
+
 struct ExplorerSidebarView: View {
     @Binding var selectedConnectionID: UUID?
 
@@ -467,7 +473,7 @@ struct ExplorerSidebarView: View {
         session: ConnectionSession,
         database: DatabaseInfo
     ) -> some View {
-        let accentColor = appModel.useServerColorAsAccent ? session.connection.color : Color.accentColor
+        let accentColor = appModel.globalSettings.useServerColorAsAccent ? session.connection.color : Color.accentColor
         let controlBackground = Color.primary.opacity(0.04)
         let borderColor = Color.primary.opacity(0.08)
         let availableSchemas = database.schemas.filter { !$0.objects.isEmpty }
@@ -634,7 +640,11 @@ struct ExplorerSidebarView: View {
         if let selectedName = session.selectedDatabaseName,
            let match = structure.databases.first(where: { $0.name == selectedName }) {
             if ConnectionDebug.isEnabled {
-                ConnectionDebug.log("[ExplorerSidebar] Matched selected database=\(selectedName) for session=\(session.connection.connectionName)")
+                let last = ExplorerDebugLogState.shared.lastDatabaseBySession[session.id]
+                if last != selectedName {
+                    ExplorerDebugLogState.shared.lastDatabaseBySession[session.id] = selectedName
+                    ConnectionDebug.log("[ExplorerSidebar] Matched selected database=\(selectedName) for session=\(session.connection.connectionName)")
+                }
             }
             return match
         }
@@ -642,7 +652,12 @@ struct ExplorerSidebarView: View {
         if !session.connection.database.isEmpty,
            let match = structure.databases.first(where: { $0.name == session.connection.database }) {
             if ConnectionDebug.isEnabled {
-                ConnectionDebug.log("[ExplorerSidebar] Falling back to connection database=\(session.connection.database) for session=\(session.connection.connectionName)")
+                let candidate = session.connection.database
+                let last = ExplorerDebugLogState.shared.lastDatabaseBySession[session.id]
+                if last != candidate {
+                    ExplorerDebugLogState.shared.lastDatabaseBySession[session.id] = candidate
+                    ConnectionDebug.log("[ExplorerSidebar] Falling back to connection database=\(candidate) for session=\(session.connection.connectionName)")
+                }
             }
             return match
         }
@@ -1023,7 +1038,7 @@ private struct StickyTopBarContent: View {
             .background(
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
                     .fill(
-                        appModel.useServerColorAsAccent ?
+                        appModel.globalSettings.useServerColorAsAccent ?
                         LinearGradient(
                             gradient: Gradient(colors: [
                                 Color(nsColor: .controlBackgroundColor).opacity(0.85),
@@ -1046,7 +1061,7 @@ private struct StickyTopBarContent: View {
             .overlay(
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
                     .strokeBorder(
-                        appModel.useServerColorAsAccent ?
+                        appModel.globalSettings.useServerColorAsAccent ?
                         session.connection.color.opacity(0.15) :
                         Color.primary.opacity(0.08),
                         lineWidth: 0.5

@@ -80,7 +80,6 @@ struct AppearanceSettingsView: View {
         }
         .formStyle(.grouped)
         .scrollContentBackground(.hidden)
-        .background(themeManager.surfaceBackgroundColor)
         .alert(
             "Delete Theme?",
             isPresented: Binding(
@@ -222,17 +221,12 @@ struct AppearanceSettingsView: View {
             Toggle("Match workspace tabs to editor theme", isOn: themeTabsBinding)
                 .toggleStyle(.switch)
 
-            Picker("Tab Bar Layout", selection: tabBarStyleBinding) {
-                ForEach(WorkspaceTabBarStyle.allCases, id: \.self) { style in
-                    Text(style.displayName).tag(style)
-                }
-            }
-            .pickerStyle(.segmented)
+            // Tab bar always uses the floating style; layout selection removed.
 
             Toggle("Use application theme for diagrams", isOn: diagramUseThemeBinding)
                 .toggleStyle(.switch)
 
-            Text("Choose where tabs live, sync them with the active theme, and apply connection colors beyond the editor.")
+            Text("Sync tabs with the active theme, and apply connection colors beyond the editor.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
         }
@@ -708,6 +702,7 @@ struct AppearanceSettingsView: View {
         )
     }
 
+    // Toggle: Use the active connection color for accent tinting in sidebars/editor UI.
     private var useServerAccentBinding: Binding<Bool> {
         Binding(
             get: { appModel.globalSettings.useServerColorAsAccent },
@@ -718,6 +713,7 @@ struct AppearanceSettingsView: View {
         )
     }
 
+    // Toggle: Keep workspace tabs themed to the active editor palette.
     private var themeTabsBinding: Binding<Bool> {
         Binding(
             get: { appModel.globalSettings.themeTabs },
@@ -728,15 +724,7 @@ struct AppearanceSettingsView: View {
         )
     }
 
-    private var tabBarStyleBinding: Binding<WorkspaceTabBarStyle> {
-        Binding(
-            get: { appModel.globalSettings.workspaceTabBarStyle },
-            set: { newValue in
-                guard appModel.globalSettings.workspaceTabBarStyle != newValue else { return }
-                Task { await appModel.updateGlobalEditorDisplay { $0.workspaceTabBarStyle = newValue } }
-            }
-        )
-    }
+    // Tab bar style selection removed; always floating.
 
     private var tabOverviewStyleBinding: Binding<TabOverviewStyle> {
         Binding(
@@ -748,6 +736,7 @@ struct AppearanceSettingsView: View {
         )
     }
 
+    // Toggle: Apply the active theme colors to diagram surfaces and accents.
     private var diagramUseThemeBinding: Binding<Bool> {
         Binding(
             get: { appModel.globalSettings.diagramUseThemedAppearance },
@@ -758,6 +747,7 @@ struct AppearanceSettingsView: View {
         )
     }
 
+    // Toggle: Apply theme colors to the results grid chrome.
     private var themeResultsGridBinding: Binding<Bool> {
         Binding(
             get: { appModel.globalSettings.themeResultsGrid },
@@ -768,6 +758,7 @@ struct AppearanceSettingsView: View {
         )
     }
 
+    // Toggle: Alternate row shading in the results grid.
     private var alternateRowShadingBinding: Binding<Bool> {
         Binding(
             get: { appModel.globalSettings.resultsAlternateRowShading },
@@ -778,6 +769,7 @@ struct AppearanceSettingsView: View {
         )
     }
 
+    // Toggle: Enable data-type-specific formatting in results.
     private var resultsTypeFormattingBinding: Binding<Bool> {
         Binding(
             get: { appModel.globalSettings.resultsEnableTypeFormatting },
@@ -798,6 +790,7 @@ struct AppearanceSettingsView: View {
         )
     }
 
+    // Toggle: Show/hide line numbers in the SQL editor.
     private var showLineNumbersBinding: Binding<Bool> {
         Binding(
             get: { appModel.globalSettings.editorShowLineNumbers },
@@ -807,6 +800,7 @@ struct AppearanceSettingsView: View {
         )
     }
 
+    // Toggle: Highlight all instances of the selected symbol.
     private var highlightSelectedSymbolBinding: Binding<Bool> {
         Binding(
             get: { appModel.globalSettings.editorHighlightSelectedSymbol },
@@ -825,6 +819,7 @@ struct AppearanceSettingsView: View {
         )
     }
 
+    // Toggle: Enable/disable editor auto-completion (also disables inline previews when off).
     private var enableAutoCompletionBinding: Binding<Bool> {
         Binding(
             get: { appModel.globalSettings.editorEnableAutocomplete },
@@ -857,6 +852,7 @@ struct AppearanceSettingsView: View {
         return String(format: "%.2fx", clamped)
     }
 
+    // Toggle: Wrap long lines to the editor width.
     private var wrapLinesBinding: Binding<Bool> {
         Binding(
             get: { appModel.globalSettings.editorWrapLines },

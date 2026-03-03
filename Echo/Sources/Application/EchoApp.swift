@@ -40,10 +40,10 @@ struct EchoApp: App {
             ConnectMenuCommands(appModel: coordinator.appModel)
 #endif
         }
-
         AutocompleteManagementWindow()
         PerformanceMonitorWindow()
         StreamingTestHarnessWindow()
+        SettingsWindowScene()
     }
 }
 
@@ -114,19 +114,6 @@ struct QueryCommands: Commands {
     }
 }
 
-struct AppSettingsCommands: Commands {
-    var body: some Commands {
-        CommandGroup(replacing: .appSettings) {
-            Button("Settings…") {
-                #if os(macOS)
-                SettingsWindowPresenter.present()
-                #endif
-            }
-            .keyboardShortcut(",", modifiers: [.command])
-        }
-    }
-}
-
 struct AutocompleteManagementCommands: Commands {
     @Environment(\.openWindow) private var openWindow
 
@@ -162,6 +149,19 @@ struct StreamingTestHarnessCommands: Commands {
                 openWindow(id: StreamingTestHarnessWindow.sceneID)
             }
             .keyboardShortcut("t", modifiers: [.command, .option, .shift])
+        }
+    }
+}
+
+struct AppSettingsCommands: Commands {
+    @Environment(\.openWindow) private var openWindow
+
+    var body: some Commands {
+        CommandGroup(replacing: .appSettings) {
+            Button("Settings…") {
+                openWindow(id: SettingsWindowScene.sceneID)
+            }
+            .keyboardShortcut(",", modifiers: [.command])
         }
     }
 }

@@ -411,6 +411,11 @@ final class ThemeManager: ObservableObject {
 
     private func applyChromeToWindows(_ theme: AppColorTheme) {
         for window in NSApp?.windows ?? [] {
+            // Only apply themed backgrounds to the main workspace window.
+            guard let identifier = window.identifier,
+                  identifier == AppWindowIdentifier.workspace else {
+                continue
+            }
             window.backgroundColor = theme.windowBackground.nsColor
         }
     }

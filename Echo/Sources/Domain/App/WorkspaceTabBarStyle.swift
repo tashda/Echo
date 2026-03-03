@@ -2,32 +2,23 @@ import Foundation
 
 enum WorkspaceTabBarStyle: String, Codable, CaseIterable, Hashable {
     case floating
-    case toolbarCompact
 
-    var displayName: String {
-        switch self {
-        case .floating:
-            return "Floating Tab Bar"
-        case .toolbarCompact:
-            return "Toolbar Tabs"
-        }
+    var displayName: String { "Floating Tab Bar" }
+    var showsFloatingStrip: Bool { true }
+    var maxVisibleToolbarTabs: Int { Int.max }
+}
+
+// Backward-compatible decoding: map any previously stored values (e.g. "toolbarCompact") to `.floating`.
+extension WorkspaceTabBarStyle {
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        let raw = (try? container.decode(String.self)) ?? "floating"
+        self = WorkspaceTabBarStyle(rawValue: raw) ?? .floating
+        if self != .floating { self = .floating }
     }
 
-    var showsFloatingStrip: Bool {
-        switch self {
-        case .floating:
-            return true
-        case .toolbarCompact:
-            return false
-        }
-    }
-
-    var maxVisibleToolbarTabs: Int {
-        switch self {
-        case .floating:
-            return Int.max
-        case .toolbarCompact:
-            return Int.max
-        }
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        try container.encode("floating")
     }
 }

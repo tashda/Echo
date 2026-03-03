@@ -6,6 +6,9 @@ import AppKit
 
 struct ClipboardHistoryView: View {
     @EnvironmentObject private var clipboardHistory: ClipboardHistoryStore
+    #if os(macOS)
+    @Environment(\.openWindow) private var openWindow
+    #endif
     @State private var copiedEntryID: UUID?
     @State private var filter: HistoryFilter = .all
 
@@ -169,9 +172,15 @@ struct ClipboardHistoryView: View {
     }
 
     private func openClipboardSettings() {
-#if os(macOS)
-        SettingsWindowPresenter.present(section: .applicationCache)
-#endif
+        #if os(macOS)
+        openWindow(id: SettingsWindowScene.sceneID)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            NotificationCenter.default.post(
+                name: .openSettingsSection,
+                object: SettingsView.SettingsSection.applicationCache.rawValue
+            )
+        }
+        #endif
     }
 
     private enum HistoryFilter: CaseIterable {
