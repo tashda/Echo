@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		0A6738322EB80FAC0048CFCB /* PostgresKit in Frameworks */ = {isa = PBXBuildFile; productRef = 0A6738312EB80FAC0048CFCB /* PostgresKit */; };
 		0A79557E2E8F10A9002279AE /* MySQLNIO in Frameworks */ = {isa = PBXBuildFile; productRef = 0A79557D2E8F10A9002279AE /* MySQLNIO */; };
 		0A8E31A12EAB923F00C86FF3 /* SQLServerKit in Frameworks */ = {isa = PBXBuildFile; productRef = 0A8E31A02EAB923F00C86FF3 /* SQLServerKit */; };
 		0AAD2B062EB0049400D16113 /* PostgresKit in Frameworks */ = {isa = PBXBuildFile; productRef = 0AAD2B052EB0049400D16113 /* PostgresKit */; };
@@ -24,6 +25,7 @@
 		B66C2F887E35A3358F209F93 /* Hack-Regular.ttf in CopyFiles */ = {isa = PBXBuildFile; fileRef = B76434B110ACC86CC86642A1 /* Hack-Regular.ttf */; };
 		C93850D54E3A549BC7E315B3 /* Inconsolata-Regular.ttf in CopyFiles */ = {isa = PBXBuildFile; fileRef = 23F736A358A1CCBACD3B0834 /* Inconsolata-Regular.ttf */; };
 		D316B590203F49689AC5D29A /* SQLEditorRegexTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD46E27623774768B647E31C /* SQLEditorRegexTests.swift */; };
+		E2C0B9A3C4F74E7C9E1D4B61 /* MSSQLMetadataLoadingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2C0B9A4C4F74E7C9E1D4B61 /* MSSQLMetadataLoadingTests.swift */; };
 		D3BB6F6FC954AA040392C7C7 /* AnonymousPro-Regular.ttf in CopyFiles */ = {isa = PBXBuildFile; fileRef = CC1194D7AF45D51E8E8EA8C4 /* AnonymousPro-Regular.ttf */; };
 		E1CF7F199F60040BF42A54DF /* MesloLGS-Regular.ttf in CopyFiles */ = {isa = PBXBuildFile; fileRef = 9CC0B2EBE9BD3F338658D526 /* MesloLGS-Regular.ttf */; };
 		E2E872DC3647C4621284F1B2 /* Iosevka-Regular.ttf in CopyFiles */ = {isa = PBXBuildFile; fileRef = 9914A75C43EF3F555CE8E868 /* Iosevka-Regular.ttf */; };
@@ -92,6 +94,7 @@
 		C7719E187414448D93AD6120 /* EchoTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = EchoTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		CC1194D7AF45D51E8E8EA8C4 /* AnonymousPro-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; name = "AnonymousPro-Regular.ttf"; path = "Echo/Resources/Fonts/AnonymousPro-Regular.ttf"; sourceTree = "<group>"; };
 		CD46E27623774768B647E31C /* SQLEditorRegexTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SQLEditorRegexTests.swift; sourceTree = "<group>"; };
+		E2C0B9A4C4F74E7C9E1D4B61 /* MSSQLMetadataLoadingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MSSQLMetadataLoadingTests.swift; sourceTree = "<group>"; };
 		E50DD38876CF4E95827F9B3D /* QueryEditorUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QueryEditorUITests.swift; sourceTree = "<group>"; };
 		F17A0E0F2FC1B3F8007F5489 /* FiraCode-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; name = "FiraCode-Regular.ttf"; path = "Echo/Resources/Fonts/FiraCode-Regular.ttf"; sourceTree = "<group>"; };
 		F17A0E102FC1B3F8007F5489 /* IBMPlexMono-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; name = "IBMPlexMono-Regular.ttf"; path = "Echo/Resources/Fonts/IBMPlexMono-Regular.ttf"; sourceTree = "<group>"; };
@@ -120,6 +123,7 @@
 				0ADF94B92E78BAA400E993F8 /* PostgresNIO in Frameworks */,
 				0A79557E2E8F10A9002279AE /* MySQLNIO in Frameworks */,
 				0C1234522F9ABC0100ABCDE /* EchoSense in Frameworks */,
+				0A6738322EB80FAC0048CFCB /* PostgresKit in Frameworks */,
 				0A8E31A12EAB923F00C86FF3 /* SQLServerKit in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -206,6 +210,7 @@
 				4B31BB19E0A4450CA3048867 /* PostgresStreamingBenchmarkTests.swift */,
 				CD46E27623774768B647E31C /* SQLEditorRegexTests.swift */,
 				2D1E734A2FF0AC7A00A1B2C3 /* QueryPerformanceTrackerTests.swift */,
+				E2C0B9A4C4F74E7C9E1D4B61 /* MSSQLMetadataLoadingTests.swift */,
 			);
 			path = EchoTests;
 			sourceTree = "<group>";
@@ -248,6 +253,7 @@
 				A98A655D2EAA65CF007AAB86 /* SQLiteNIO */,
 				0A8E31A02EAB923F00C86FF3 /* SQLServerKit */,
 				0AAD2B052EB0049400D16113 /* PostgresKit */,
+				0A6738312EB80FAC0048CFCB /* PostgresKit */,
 			);
 			productName = Echo;
 			productReference = 0ADF94952E78B95200E993F8 /* Echo.app */;
@@ -297,7 +303,7 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
 				LastSwiftUpdateCheck = 2600;
-				LastUpgradeCheck = 2600;
+				LastUpgradeCheck = 2610;
 				TargetAttributes = {
 					0ADF94942E78B95200E993F8 = {
 						CreatedOnToolsVersion = 26.0;
@@ -327,7 +333,7 @@
 				0C1234502F9ABC0100ABCDE /* XCLocalSwiftPackageReference "../EchoSense" */,
 				A98A655C2EAA65CF007AAB86 /* XCRemoteSwiftPackageReference "sqlite-nio" */,
 				0A8E319F2EAB923F00C86FF3 /* XCLocalSwiftPackageReference "../sqlserver-nio" */,
-				0AAD2B042EB0049400D16113 /* XCLocalSwiftPackageReference "postgres-wire" */,
+				0A6738302EB80FAC0048CFCB /* XCLocalSwiftPackageReference "../postgres-wire" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 0ADF94962E78B95200E993F8 /* Products */;
@@ -406,6 +412,7 @@
 				432EC302287042ACB5AE946D /* PostgresStreamingBenchmarkTests.swift in Sources */,
 				D316B590203F49689AC5D29A /* SQLEditorRegexTests.swift in Sources */,
 				2D1E734B2FF0AC7A00A1B2C3 /* QueryPerformanceTrackerTests.swift in Sources */,
+				E2C0B9A3C4F74E7C9E1D4B61 /* MSSQLMetadataLoadingTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -467,6 +474,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = JQU2HR44D8;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -491,7 +499,8 @@
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
-				SDKROOT = macosx26.0;
+				SDKROOT = macosx;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 6.0;
@@ -532,6 +541,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = JQU2HR44D8;
 				ENABLE_NS_ASSERTIONS = NO;
@@ -549,7 +559,8 @@
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
-				SDKROOT = macosx26.0;
+				SDKROOT = macosx;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_VERSION = 6.0;
 			};
@@ -566,9 +577,13 @@
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = JQU2HR44D8;
+				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
 				ENABLE_PREVIEWS = YES;
+				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -579,7 +594,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = dk.tippr.echo;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
-				SDKROOT = macosx26.0;
+				SDKROOT = macosx;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SUPPORTED_PLATFORMS = macosx;
 				SUPPORTS_MACCATALYST = NO;
@@ -602,9 +617,13 @@
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = JQU2HR44D8;
+				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
 				ENABLE_PREVIEWS = YES;
+				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -615,7 +634,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = dk.tippr.echo;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
-				SDKROOT = macosx26.0;
+				SDKROOT = macosx;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SUPPORTED_PLATFORMS = macosx;
 				SUPPORTS_MACCATALYST = NO;
@@ -633,6 +652,7 @@
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = JQU2HR44D8;
 				GENERATE_INFOPLIST_FILE = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -656,6 +676,7 @@
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = JQU2HR44D8;
 				GENERATE_INFOPLIST_FILE = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -678,6 +699,7 @@
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = JQU2HR44D8;
 				GENERATE_INFOPLIST_FILE = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -701,6 +723,7 @@
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = JQU2HR44D8;
 				GENERATE_INFOPLIST_FILE = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -761,13 +784,13 @@
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
+		0A6738302EB80FAC0048CFCB /* XCLocalSwiftPackageReference "../postgres-wire" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = "../postgres-wire";
+		};
 		0A8E319F2EAB923F00C86FF3 /* XCLocalSwiftPackageReference "../sqlserver-nio" */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = "../sqlserver-nio";
-		};
-		0AAD2B042EB0049400D16113 /* XCLocalSwiftPackageReference "postgres-wire" */ = {
-			isa = XCLocalSwiftPackageReference;
-			relativePath = "postgres-wire";
 		};
 		0C1234502F9ABC0100ABCDE /* XCLocalSwiftPackageReference "../EchoSense" */ = {
 			isa = XCLocalSwiftPackageReference;
@@ -803,6 +826,10 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		0A6738312EB80FAC0048CFCB /* PostgresKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = PostgresKit;
+		};
 		0A79557D2E8F10A9002279AE /* MySQLNIO */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 0A79557C2E8F10A9002279AE /* XCRemoteSwiftPackageReference "mysql-nio" */;

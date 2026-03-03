@@ -21,3 +21,10 @@ Echo.xcodeproj/xcuserdata/
 GEMINI.md
 .claude
 .codex_cache
+
+# OS-specific
+.DS_Store
+
+# Build artifacts
+build/
+.deriveddata-mssql/

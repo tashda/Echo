@@ -46,53 +46,61 @@ struct WorkspaceToolbarItems: ToolbarContent {
         // This avoids occasional reflow where the entire HStack migrates left
         // during sidebar collapse/expand animations.
         ToolbarItem(id: "workspace.primary.refresh", placement: .primaryAction) {
-            RefreshToolbarButton()
-                .labelStyle(.iconOnly)
+            toolbarIconButton {
+                RefreshToolbarButton()
+                    .labelStyle(.iconOnly)
+            }
         }
 
         ToolbarItem(id: "workspace.primary.newtab", placement: .primaryAction) {
-            Button {
-                appModel.openQueryTab()
-            } label: {
-                Label("New Tab", systemImage: "plus")
+            toolbarIconButton {
+                Button {
+                    appModel.openQueryTab()
+                } label: {
+                    Label("New Tab", systemImage: "plus")
+                }
+                .help("Open a new query tab")
+                .disabled(!canOpenNewTab)
+                .labelStyle(.iconOnly)
+                .accessibilityLabel("New Tab")
             }
-            .help("Open a new query tab")
-            .disabled(!canOpenNewTab)
-            .labelStyle(.iconOnly)
-            .accessibilityLabel("New Tab")
         }
 
         ToolbarItem(id: "workspace.primary.taboverview", placement: .primaryAction) {
-            Button {
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    appState.showTabOverview.toggle()
+            toolbarIconButton {
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        appState.showTabOverview.toggle()
+                    }
+                } label: {
+                    Label(
+                        appState.showTabOverview ? "Hide Tab Overview" : "Tab Overview",
+                        systemImage: appState.showTabOverview ? "rectangle.grid.2x2.fill" : "rectangle.grid.2x2"
+                    )
                 }
-            } label: {
-                Label(
-                    appState.showTabOverview ? "Hide Tab Overview" : "Tab Overview",
-                    systemImage: appState.showTabOverview ? "rectangle.grid.2x2.fill" : "rectangle.grid.2x2"
-                )
+                .help(appState.showTabOverview ? "Hide Tab Overview" : "Show all tabs")
+                .disabled(appModel.tabManager.tabs.isEmpty)
+                .labelStyle(.iconOnly)
+                .accessibilityLabel(appState.showTabOverview ? "Hide Tab Overview" : "Show Tab Overview")
             }
-            .help(appState.showTabOverview ? "Hide Tab Overview" : "Show all tabs")
-            .disabled(appModel.tabManager.tabs.isEmpty)
-            .labelStyle(.iconOnly)
-            .accessibilityLabel(appState.showTabOverview ? "Hide Tab Overview" : "Show Tab Overview")
         }
 
         ToolbarItem(id: "workspace.primary.toggleinspector", placement: .primaryAction) {
-            Button {
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    appState.showInfoSidebar.toggle()
+            toolbarIconButton {
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        appState.showInfoSidebar.toggle()
+                    }
+                } label: {
+                    Label(
+                        appState.showInfoSidebar ? "Hide Inspector" : "Show Inspector",
+                        systemImage: appState.showInfoSidebar ? "sidebar.trailing" : "sidebar.right"
+                    )
                 }
-            } label: {
-                Label(
-                    appState.showInfoSidebar ? "Hide Inspector" : "Show Inspector",
-                    systemImage: appState.showInfoSidebar ? "sidebar.trailing" : "sidebar.right"
-                )
+                .help(appState.showInfoSidebar ? "Hide Inspector" : "Show Inspector")
+                .labelStyle(.iconOnly)
+                .accessibilityLabel(appState.showInfoSidebar ? "Hide Inspector" : "Show Inspector")
             }
-            .help(appState.showInfoSidebar ? "Hide Inspector" : "Show Inspector")
-            .labelStyle(.iconOnly)
-            .accessibilityLabel(appState.showInfoSidebar ? "Hide Inspector" : "Show Inspector")
         }
     }
 #else
@@ -446,6 +454,17 @@ struct WorkspaceToolbarItems: ToolbarContent {
         .padding(.vertical, 4)
         .contentShape(Rectangle())
     }
+
+#if os(macOS)
+    @ViewBuilder
+    private func toolbarIconButton<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
+        content()
+            .frame(width: WorkspaceChromeMetrics.toolbarTabBarHeight,
+                   height: WorkspaceChromeMetrics.toolbarTabBarHeight)
+            .contentShape(Rectangle())
+    }
+
+#endif
 
     @ViewBuilder
     private func menuRow(icon: ToolbarIcon, title: String, isSelected: Bool = false) -> some View {
@@ -1151,7 +1170,9 @@ private extension ToolbarIcon {
 }
 #endif
 
-#if os(macOS)
+/* Removed obsolete toolbar-embedded tab bar implementation to simplify the codebase. */
+
+/*
 struct WorkspaceToolbarTabBar: View {
     @EnvironmentObject private var appModel: AppModel
     @EnvironmentObject private var themeManager: ThemeManager
@@ -1890,7 +1911,7 @@ struct ToolbarWorkspaceTabChip: View {
     private var glassShadowRadius: CGFloat { isActive ? 5 : 2 }
     private var glassShadowYOffset: CGFloat { isActive ? 2.5 : 1 }
 }
-#endif
+*/
 
 private extension StructureLoadingState {
     var isLoading: Bool {

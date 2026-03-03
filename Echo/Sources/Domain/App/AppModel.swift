@@ -8,6 +8,7 @@
 import Foundation
 import SwiftUI
 import Combine
+import SQLServerKit
 
 struct RecentConnectionRecord: Codable, Identifiable, Equatable {
     let connectionID: UUID
@@ -48,7 +49,6 @@ final class AppModel: ObservableObject {
     @Published var sessionManager = ConnectionSessionManager()
     @Published var tabManager = TabManager()
     @Published var pinnedObjectIDs: [String] = []
-    @Published var useServerColorAsAccent: Bool = UserDefaults.standard.bool(forKey: "useServerColorAsAccent")
     @Published private(set) var recentConnections: [RecentConnectionRecord] = []
     @Published var pendingExplorerFocus: ExplorerFocus?
     @Published var searchSidebarCaches: [SearchSidebarContextKey: SearchSidebarCache] = [:]
@@ -99,9 +99,23 @@ final class AppModel: ObservableObject {
         DatabaseFactoryProvider.makeFactory(for: type)
     }
 
-    private func makeStructureFetcher(for connection: SavedConnection) -> DatabaseStructureFetcher? {
-        guard let factory = makeDatabaseFactory(for: connection.databaseType) else { return nil }
-        return DatabaseStructureFetcher(factory: factory, databaseType: connection.databaseType)
+  private func makeStructureFetcher(for connectionSession: ConnectionSession) -> DatabaseStructureFetcher? {
+        let session = connectionSession.session
+
+        switch connectionSession.connection.databaseType {
+        case .postgresql:
+            // Create a PostgreSQL structure fetcher using the existing session
+            return PostgresStructureFetcher(session: session)
+        case .microsoftSQL:
+            // Create a SQL Server structure fetcher using the existing session
+            return MSSQLStructureFetcher(session: session)
+        case .mysql:
+            // MySQL structure fetching would need its own implementation
+            return nil
+        case .sqlite:
+            // SQLite structure fetching would need its own implementation
+            return nil
+        }
     }
 
     private func makeDiagramViewModel(
@@ -985,12 +999,6 @@ final class AppModel: ObservableObject {
             }
             .store(in: &cancellables)
 
-        $useServerColorAsAccent
-            .sink { useServerColor in
-                UserDefaults.standard.set(useServerColor, forKey: "useServerColorAsAccent")
-            }
-            .store(in: &cancellables)
-
         tabManager.objectWillChange
             .receive(on: RunLoop.main)
             .sink { [weak self] _ in
@@ -1137,6 +1145,15 @@ final class AppModel: ObservableObject {
     private func normalizeEditorPreferences() async {
         var didMutateProjects = false
         var didMutateGlobalSettings = false
+
+        if UserDefaults.standard.object(forKey: "useServerColorAsAccent") != nil {
+            let storedAccent = UserDefaults.standard.bool(forKey: "useServerColorAsAccent")
+            if globalSettings.useServerColorAsAccent != storedAccent {
+                globalSettings.useServerColorAsAccent = storedAccent
+                didMutateGlobalSettings = true
+            }
+            UserDefaults.standard.removeObject(forKey: "useServerColorAsAccent")
+        }
 
         let legacyPalette = globalSettings.palette(withID: globalSettings.defaultEditorTheme)
 
@@ -2619,11 +2636,10 @@ final class AppModel: ObservableObject {
             ConnectionDebug.log("[AppModel] Starting structure load task for session=\(session.connection.connectionName) selected=\(session.selectedDatabaseName ?? "<nil>")")
             do {
                 let structure = try await self.loadDatabaseStructureForSession(session)
-                session.databaseStructure = structure
                 session.structureLoadingState = .ready
                 session.structureLoadingMessage = nil
-                self.cacheStructure(structure, for: session.connection.id)
-                ConnectionDebug.log("[AppModel] Structure load completed for session=\(session.connection.connectionName) databases=\(structure.databases.count)")
+                let activeStructure = session.databaseStructure ?? structure
+                ConnectionDebug.log("[AppModel] Structure load completed for session=\(session.connection.connectionName) databases=\(activeStructure.databases.count)")
             } catch is CancellationError {
                 session.structureLoadingMessage = nil
                 session.structureLoadingState = .idle
@@ -2677,7 +2693,7 @@ final class AppModel: ObservableObject {
             ?? connectionSession.connection.cachedStructure?.serverVersion
             ?? connectionSession.connection.serverVersion
 
-        guard let fetcher = makeStructureFetcher(for: connectionSession.connection) else {
+        guard let fetcher = makeStructureFetcher(for: connectionSession) else {
             connectionSession.structureLoadingState = .failed(message: "Unsupported database type")
             throw DatabaseError.connectionFailed("Unsupported database type: \(connectionSession.connection.databaseType.displayName)")
         }
@@ -2687,10 +2703,10 @@ final class AppModel: ObservableObject {
         do {
             let structure = try await fetcher.fetchStructure(
                 for: connectionSession.connection,
-                credentials: .init(authentication: credentials),
+                credentials: ConnectionCredentials(authentication: credentials),
                 selectedDatabase: selectedDatabase,
                 reuseSession: connectionSession.session,
-                databaseFilter: nil,
+                databaseFilter: nil as String?,
                 cachedStructure: connectionSession.connection.cachedStructure,
                 progressHandler: { progress in
                     await MainActor.run {
@@ -2706,13 +2722,24 @@ final class AppModel: ObservableObject {
                             ?? connectionSession.connection.cachedStructure?.databases
                             ?? []
                         if let index = databases.firstIndex(where: { $0.name == database.name }) {
-                            databases[index] = database
+                            let previous = databases[index]
+                            let merged = Self.mergeDatabaseInfo(partial: database, existing: previous)
+                            if previous == merged {
+                                if ConnectionDebug.isEnabled {
+                                    ConnectionDebug.log("[AppModel] Skipping incremental update for session=\(connectionSession.connection.connectionName) database=\(database.name) – no changes detected")
+                                }
+                                self.ensureSelectedDatabaseIfNeeded(
+                                    for: connectionSession,
+                                    availableDatabases: connectionSession.databaseStructure?.databases ?? databases
+                                )
+                                return
+                            }
+                            databases[index] = merged
                         } else {
-                            databases.append(database)
+                            let fallbackExisting = connectionSession.databaseStructure?.databases.first(where: { $0.name == database.name })
+                            let merged = Self.mergeDatabaseInfo(partial: database, existing: fallbackExisting)
+                            databases.append(merged)
                             databases.sort { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
-                        }
-                        if ConnectionDebug.isEnabled {
-                            ConnectionDebug.log("[AppModel] Incremental update for session=\(connectionSession.connection.connectionName) database=\(database.name) schemas=\(database.schemas.count) totalDatabases=\(databases.count)")
                         }
                         let resolvedServerVersion = interimServerVersion
                             ?? connectionSession.databaseStructure?.serverVersion
@@ -2722,9 +2749,17 @@ final class AppModel: ObservableObject {
                             serverVersion: resolvedServerVersion,
                             databases: databases
                         )
-                        connectionSession.databaseStructure = updatedStructure
-                        self.ensureSelectedDatabaseIfNeeded(for: connectionSession, availableDatabases: databases)
-                        self.cacheStructure(updatedStructure, for: connectionSession.connection.id)
+                        let didUpdate = self.applyStructureUpdateIfNeeded(
+                            updatedStructure,
+                            to: connectionSession,
+                            cacheResult: true
+                        )
+                        if ConnectionDebug.isEnabled {
+                            let action = didUpdate ? "Applied" : "Skipped"
+                            ConnectionDebug.log("[AppModel] \(action) incremental update for session=\(connectionSession.connection.connectionName) database=\(database.name) schemas=\(database.schemas.count) totalDatabases=\(databases.count)")
+                        }
+                        let available = connectionSession.databaseStructure?.databases ?? databases
+                        self.ensureSelectedDatabaseIfNeeded(for: connectionSession, availableDatabases: available)
                     }
                 }
             )
@@ -2737,21 +2772,25 @@ final class AppModel: ObservableObject {
                 serverVersion: interimServerVersion,
                 databases: structure.databases
             )
-            connectionSession.databaseStructure = finalStructure
+            let didApplyFinal = self.applyStructureUpdateIfNeeded(
+                finalStructure,
+                to: connectionSession,
+                cacheResult: true
+            )
             if ConnectionDebug.isEnabled {
                 let totalSchemas = structure.databases.reduce(0) { $0 + $1.schemas.count }
                 let totalObjects = structure.databases.reduce(0) { result, database in
                     result + database.schemas.reduce(0) { $0 + $1.objects.count }
                 }
-                ConnectionDebug.log("[AppModel] Completed structure load for session=\(connectionSession.connection.connectionName) databases=\(structure.databases.count) schemas=\(totalSchemas) objects=\(totalObjects)")
+                ConnectionDebug.log("[AppModel] Completed structure load for session=\(connectionSession.connection.connectionName) databases=\(structure.databases.count) schemas=\(totalSchemas) objects=\(totalObjects) changed=\(didApplyFinal)")
             }
             connectionSession.structureLoadingState = .ready
             connectionSession.structureLoadingMessage = nil
 
-            ensureSelectedDatabaseIfNeeded(for: connectionSession, availableDatabases: structure.databases)
-            cacheStructure(finalStructure, for: connectionSession.connection.id)
+            let activeDatabases = connectionSession.databaseStructure?.databases ?? finalStructure.databases
+            ensureSelectedDatabaseIfNeeded(for: connectionSession, availableDatabases: activeDatabases)
 
-            return structure
+            return connectionSession.databaseStructure ?? finalStructure
         } catch {
             if error is CancellationError {
                 connectionSession.structureLoadingMessage = nil
@@ -2841,9 +2880,7 @@ final class AppModel: ObservableObject {
             }
 
             do {
-                let structure = try await loadDatabaseStructureForSession(session)
-                session.databaseStructure = structure
-                cacheStructure(structure, for: session.connection.id)
+                _ = try await loadDatabaseStructureForSession(session)
             } catch {
                 if error is CancellationError {
                     session.structureLoadingMessage = nil
@@ -2878,7 +2915,7 @@ final class AppModel: ObservableObject {
                 return
             }
 
-            guard let fetcher = makeStructureFetcher(for: session.connection) else {
+            guard let fetcher = makeStructureFetcher(for: session) else {
                 session.structureLoadingState = .failed(message: "Unsupported database type")
                 return
             }
@@ -2886,10 +2923,10 @@ final class AppModel: ObservableObject {
             do {
                 let structure = try await fetcher.fetchStructure(
                     for: session.connection,
-                    credentials: .init(authentication: credentials),
+                    credentials: ConnectionCredentials(authentication: credentials),
                     selectedDatabase: targetDatabase,
                     reuseSession: session.session,
-                    databaseFilter: [targetDatabase],
+                    databaseFilter: targetDatabase,
                     cachedStructure: session.connection.cachedStructure,
                     progressHandler: { progress in
                         await MainActor.run {
@@ -2899,9 +2936,10 @@ final class AppModel: ObservableObject {
                             }
                         }
                     },
-                    databaseHandler: nil
+                    databaseHandler: { _, _, _ in }
                 )
 
+                let previousDatabase = session.databaseStructure?.databases.first { $0.name == targetDatabase }
                 let updatedDatabase = structure.databases.first { $0.name == targetDatabase }
 
                 var mergedDatabases = session.databaseStructure?.databases ?? []
@@ -2919,6 +2957,12 @@ final class AppModel: ObservableObject {
                     databases: mergedDatabases
                 )
 
+                if ConnectionDebug.isEnabled {
+                    let delta = Self.diffForExplorer(old: previousDatabase, new: updatedDatabase)
+                    let summary = "inserted=\(delta.inserted) removed=\(delta.removed) changed=\(delta.changed) total=\(updatedDatabase?.schemas.reduce(0) { $0 + $1.objects.count } ?? 0)"
+                    ConnectionDebug.log("[ExplorerSidebar] Incremental update for session=\(session.connection.databaseType.displayName.lowercased()) database=\(targetDatabase) \(summary)")
+                }
+
                 session.databaseStructure = updatedStructure
                 session.structureLoadingState = .ready
                 session.structureLoadingMessage = nil
@@ -2935,6 +2979,114 @@ final class AppModel: ObservableObject {
                 }
             }
         }
+    }
+
+    private static func diffForExplorer(old: DatabaseInfo?, new: DatabaseInfo?) -> (inserted: Int, removed: Int, changed: Int) {
+        guard let new else { return (0, 0, 0) }
+        let oldObjects = old?.schemas.flatMap { $0.objects } ?? []
+        let newObjects = new.schemas.flatMap { $0.objects }
+
+        func key(_ o: SchemaObjectInfo) -> String { "\(o.type.rawValue)|\(o.id)" }
+        let oldMap = Dictionary(oldObjects.map { (key($0), $0) }, uniquingKeysWith: { first, _ in first })
+        let newMap = Dictionary(newObjects.map { (key($0), $0) }, uniquingKeysWith: { first, _ in first })
+
+        let oldKeys = Set(oldMap.keys)
+        let newKeys = Set(newMap.keys)
+        let inserted = newKeys.subtracting(oldKeys).count
+        let removed = oldKeys.subtracting(newKeys).count
+
+        var changed = 0
+        for commonKey in oldKeys.intersection(newKeys) {
+            if let lhs = oldMap[commonKey], let rhs = newMap[commonKey] {
+                let columnsChanged = lhs.columns.count != rhs.columns.count
+                let commentChanged = (lhs.comment ?? "") != (rhs.comment ?? "")
+                if columnsChanged || commentChanged { changed &+= 1 }
+            }
+        }
+
+        return (inserted, removed, changed)
+    }
+
+    private static func mergeDatabaseInfo(partial: DatabaseInfo, existing: DatabaseInfo?) -> DatabaseInfo {
+        guard let existing else {
+            let sortedSchemas = partial.schemas.sorted { lhs, rhs in
+                lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
+            }
+            let resolvedSchemaCount = max(partial.schemaCount, sortedSchemas.count)
+            return DatabaseInfo(
+                name: partial.name,
+                schemas: sortedSchemas,
+                schemaCount: resolvedSchemaCount
+            )
+        }
+
+        var mergedSchemas = mergeSchemas(
+            partialSchemas: partial.schemas,
+            existingSchemas: existing.schemas
+        )
+
+        // Ensure alphabetical ordering for stable presentation
+        mergedSchemas.sort { lhs, rhs in
+            lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
+        }
+
+        let resolvedSchemaCount = max(existing.schemaCount, partial.schemaCount, mergedSchemas.count)
+
+        return DatabaseInfo(
+            name: existing.name,
+            schemas: mergedSchemas,
+            schemaCount: resolvedSchemaCount
+        )
+    }
+
+    private static func mergeSchemas(partialSchemas: [SchemaInfo], existingSchemas: [SchemaInfo]) -> [SchemaInfo] {
+        var schemaMap = Dictionary(uniqueKeysWithValues: existingSchemas.map { ($0.name, $0) })
+
+        for schema in partialSchemas {
+            if let current = schemaMap[schema.name] {
+                schemaMap[schema.name] = mergeSchemaInfo(partial: schema, existing: current)
+            } else {
+                schemaMap[schema.name] = schema
+            }
+        }
+
+        var orderedNames = Set<String>()
+        var result: [SchemaInfo] = []
+
+        for schema in existingSchemas {
+            guard let merged = schemaMap[schema.name], !orderedNames.contains(schema.name) else { continue }
+            orderedNames.insert(schema.name)
+            result.append(merged)
+        }
+
+        for schema in partialSchemas {
+            guard let merged = schemaMap[schema.name], !orderedNames.contains(schema.name) else { continue }
+            orderedNames.insert(schema.name)
+            result.append(merged)
+        }
+
+        return result
+    }
+
+    private static func mergeSchemaInfo(partial: SchemaInfo, existing: SchemaInfo) -> SchemaInfo {
+        var objectMap = Dictionary(uniqueKeysWithValues: existing.objects.map { ($0.id, $0) })
+        var orderedIDs = existing.objects.map(\.id)
+
+        for object in partial.objects {
+            if let index = orderedIDs.firstIndex(of: object.id) {
+                orderedIDs[index] = object.id
+            } else {
+                orderedIDs.append(object.id)
+            }
+            objectMap[object.id] = object
+        }
+
+        let mergedObjects = orderedIDs.compactMap { objectMap[$0] }
+
+        return SchemaInfo(
+            name: existing.name,
+            objects: mergedObjects
+        )
     }
 
     // MARK: - Pin helpers
@@ -2984,6 +3136,34 @@ final class AppModel: ObservableObject {
         Task { await persistConnections() }
     }
 
+    @discardableResult
+    @MainActor
+    private func applyStructureUpdateIfNeeded(
+        _ structure: DatabaseStructure,
+        to session: ConnectionSession,
+        cacheResult: Bool
+    ) -> Bool {
+        let currentStructure = session.databaseStructure
+        let hasDatabaseChanges = currentStructure?.databases != structure.databases
+        let hasServerVersionChange = currentStructure?.serverVersion != structure.serverVersion
+        guard hasDatabaseChanges || hasServerVersionChange || currentStructure == nil else {
+            return false
+        }
+
+        var updatedStructure = structure
+        if let existingID = currentStructure?.id {
+            updatedStructure.id = existingID
+        }
+
+        session.databaseStructure = updatedStructure
+
+        if cacheResult {
+            cacheStructure(updatedStructure, for: session.connection.id)
+        }
+
+        return true
+    }
+
     private func cacheStructure(_ structure: DatabaseStructure, for connectionID: UUID) {
         updateCachedConnection(id: connectionID) { connection in
             connection.cachedStructure = structure
@@ -2999,23 +3179,8 @@ final class AppModel: ObservableObject {
             return
         }
 
-        guard let fetcher = makeStructureFetcher(for: connection) else { return }
-
-        do {
-        let structure = try await fetcher.fetchStructure(
-            for: connection,
-            credentials: .init(authentication: credentials),
-            selectedDatabase: connection.database.isEmpty ? nil : connection.database,
-            reuseSession: nil,
-            databaseFilter: nil,
-            cachedStructure: connection.cachedStructure,
-            progressHandler: nil,
-            databaseHandler: nil
-        )
-            cacheStructure(structure, for: connection.id)
-        } catch {
-            print("Failed to preload structure for connection \(connection.connectionName): \(error)")
-        }
+        // Skip structure fetching for connections without an active session
+        // Structure fetching will be handled when the connection session is established
     }
 
     // MARK: - Project Management

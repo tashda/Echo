@@ -46,6 +46,7 @@ final class SQLEditorRegexTests: XCTestCase {
     }
 }
 
+@MainActor
 final class SQLAutoCompletionEngineTests: XCTestCase {
     private let stubCompletionEngine = StubCompletionEngine(result: SQLCompletionResult(suggestions: [],
                                                                                         metadata: SQLCompletionMetadata(clause: .unknown,
@@ -825,7 +826,6 @@ final class SQLAutoCompletionEngineTests: XCTestCase {
                                                        detail: nil,
                                                        insertText: "fixture_id",
                                                        kind: .column,
-                                                       origin: .init(database: nil, schema: "public", object: "fixture", column: "fixture_id"),
                                                        priority: 1000)
 
         let tableReference = SQLCompletionMetadata.TableReference(schema: "public", name: "fixture", alias: nil)
@@ -880,7 +880,6 @@ SELECT
                                                     detail: nil,
                                                     insertText: "fixture_id",
                                                     kind: .column,
-                                                    origin: .init(database: nil, schema: "public", object: "fixture", column: "fixture_id"),
                                                     priority: 1200)
         let leagueColumn = SQLCompletionSuggestion(id: "column|league_id",
                                                    title: "league_id",
@@ -888,7 +887,6 @@ SELECT
                                                    detail: nil,
                                                    insertText: "league_id",
                                                    kind: .column,
-                                                   origin: .init(database: nil, schema: "public", object: "fixture", column: "league_id"),
                                                    priority: 1180)
         let startDateColumn = SQLCompletionSuggestion(id: "column|start_date",
                                                      title: "start_date",
@@ -896,7 +894,6 @@ SELECT
                                                      detail: nil,
                                                      insertText: "start_date",
                                                      kind: .column,
-                                                     origin: .init(database: nil, schema: "public", object: "fixture", column: "start_date"),
                                                      priority: 1170)
 
         let tableReference = SQLCompletionMetadata.TableReference(schema: "public", name: "fixture", alias: nil)
@@ -942,14 +939,13 @@ SELECT
             return
         }
 
-        let suggestion = SQLCompletionSuggestion(id: "column|start_date",
-                                                 title: "start_date",
-                                                 subtitle: "public.fixture",
-                                                 detail: nil,
-                                                 insertText: "start_date",
-                                                 kind: .column,
-                                                 origin: .init(database: nil, schema: "public", object: "fixture", column: "start_date"),
-                                                 priority: 1100)
+        let suggestion = SQLAutoCompletionSuggestion(id: "column|start_date",
+                                                     title: "start_date",
+                                                     subtitle: "public.fixture",
+                                                     detail: nil,
+                                                     insertText: "start_date",
+                                                     kind: .column,
+                                                     priority: 1100)
 
         textView.applyCompletion(suggestion, query: query)
 
@@ -1181,7 +1177,7 @@ SELECT
                                              cteColumns: [:])
         stubCompletionEngine.result = SQLCompletionResult(suggestions: [unqualified], metadata: metadata)
 
-        var context = sampleContext()
+        let context = sampleContext()
         engine.updateContext(context)
 
         let text = "SELECT * FROM fi"

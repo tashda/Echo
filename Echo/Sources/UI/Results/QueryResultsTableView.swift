@@ -839,6 +839,10 @@ struct QueryResultsTableView: NSViewRepresentable {
                 tableColumn.headerCell.controlSize = .regular
                 tableColumn.headerCell.alignment = .left
                 tableColumn.headerCell.font = NSFont.systemFont(ofSize: 12, weight: .semibold)
+                // Set data cell alignment to left
+                if let dataCell = tableColumn.dataCell as? NSTextFieldCell {
+                    dataCell.alignment = .left
+                }
                 tableView.addTableColumn(tableColumn)
             }
         }
@@ -2755,7 +2759,6 @@ private final class ResultTableView: NSTableView {
 }
 
 private final class VerticallyCenteredTextFieldCell: NSTextFieldCell {
-    private let horizontalPadding: CGFloat = ResultsGridMetrics.horizontalPadding
     private var cachedDrawingBounds: NSRect?
     private var cachedDrawingRect: NSRect = .zero
     private var cachedMeasuredBounds: NSRect?
@@ -2780,8 +2783,6 @@ private final class VerticallyCenteredTextFieldCell: NSTextFieldCell {
             newRect.origin.y += heightDelta / 2
             newRect.size.height = textSize.height
         }
-        newRect.origin.x += horizontalPadding
-        newRect.size.width = max(0, newRect.size.width - horizontalPadding * 2)
         cachedDrawingBounds = rect
         cachedDrawingRect = newRect
         return newRect
@@ -2811,8 +2812,9 @@ private final class ResultTableDataCellView: NSTableCellView {
     private var baseTextColor: NSColor = .labelColor
     private var selectionTextColor: NSColor = .labelColor
     private var isSelectionActive = false
-    private var lastLayoutBounds: NSRect = .zero
-    private var lastLayoutIconVisibility = false
+    private var textTrailingToContainerConstraint: NSLayoutConstraint?
+    private var textTrailingToButtonConstraint: NSLayoutConstraint?
+    private var actionButtonConstraints: [NSLayoutConstraint] = []
 
     override init(frame frameRect: NSRect) {
         contentTextField = NSTextField(frame: .zero)
@@ -2847,10 +2849,18 @@ private final class ResultTableDataCellView: NSTableCellView {
         contentTextField.usesSingleLineMode = true
         contentTextField.maximumNumberOfLines = 1
         contentTextField.alignment = .left
-        contentTextField.translatesAutoresizingMaskIntoConstraints = true
-        contentTextField.autoresizingMask = [.width, .height]
+        contentTextField.translatesAutoresizingMaskIntoConstraints = false
         addSubview(contentTextField)
         textField = contentTextField
+        NSLayoutConstraint.activate([
+            contentTextField.leadingAnchor.constraint(equalTo: leadingAnchor, constant: ResultsGridMetrics.horizontalPadding),
+            contentTextField.centerYAnchor.constraint(equalTo: centerYAnchor)
+        ])
+        textTrailingToContainerConstraint = contentTextField.trailingAnchor.constraint(
+            equalTo: trailingAnchor,
+            constant: -ResultsGridMetrics.horizontalPadding
+        )
+        textTrailingToContainerConstraint?.isActive = true
 
         actionButton.target = self
         actionButton.action = #selector(handleAction)
@@ -2860,9 +2870,19 @@ private final class ResultTableDataCellView: NSTableCellView {
         actionButton.imageScaling = .scaleProportionallyDown
         actionButton.contentTintColor = NSColor.secondaryLabelColor
         actionButton.isHidden = true
-        actionButton.translatesAutoresizingMaskIntoConstraints = true
-        actionButton.autoresizingMask = []
+        actionButton.translatesAutoresizingMaskIntoConstraints = false
         addSubview(actionButton)
+        actionButtonConstraints = [
+            actionButton.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -ResultsGridMetrics.horizontalPadding),
+            actionButton.centerYAnchor.constraint(equalTo: centerYAnchor),
+            actionButton.widthAnchor.constraint(equalToConstant: 18),
+            actionButton.heightAnchor.constraint(equalToConstant: 16)
+        ]
+        textTrailingToButtonConstraint = contentTextField.trailingAnchor.constraint(
+            equalTo: actionButton.leadingAnchor,
+            constant: -6
+        )
+        updateIconConstraintActivation()
     }
 
     func apply(text: String,
@@ -2879,8 +2899,18 @@ private final class ResultTableDataCellView: NSTableCellView {
             contentTextField.font = font
             shouldInvalidateMetrics = true
         }
-        if shouldInvalidateMetrics, let cell = contentTextField.cell as? VerticallyCenteredTextFieldCell {
-            cell.invalidateCachedMetrics()
+        // Ensure left alignment is always enforced
+        if contentTextField.alignment != .left {
+            contentTextField.alignment = .left
+        }
+        if let cell = contentTextField.cell as? VerticallyCenteredTextFieldCell {
+            if cell.alignment != .left {
+                cell.alignment = .left
+                shouldInvalidateMetrics = true
+            }
+            if shouldInvalidateMetrics {
+                cell.invalidateCachedMetrics()
+            }
         }
         self.baseTextColor = baseTextColor
         self.selectionTextColor = selectionTextColor
@@ -2894,36 +2924,12 @@ private final class ResultTableDataCellView: NSTableCellView {
             isIconVisible = shouldShow
             actionButton.isHidden = !shouldShow
             actionButton.isEnabled = shouldShow
+            updateIconConstraintActivation()
             needsLayout = true
             needsDisplay = true
         } else {
             actionButton.isEnabled = shouldShow
-        }
-    }
-
-    override func layout() {
-        super.layout()
-        let didBoundsChange = !bounds.equalTo(lastLayoutBounds)
-        let didIconChange = lastLayoutIconVisibility != isIconVisible
-        guard didBoundsChange || didIconChange else { return }
-        lastLayoutBounds = bounds
-        lastLayoutIconVisibility = isIconVisible
-        let padding = ResultsGridMetrics.horizontalPadding
-        let buttonWidth: CGFloat = isIconVisible ? 18 : 0
-        let spacing: CGFloat = isIconVisible ? 6 : 0
-        let availableWidth = max(bounds.width - padding * 2 - buttonWidth - spacing, 0)
-        let contentFrame = NSRect(x: padding, y: 0, width: availableWidth, height: bounds.height)
-        if contentTextField.frame != contentFrame {
-            contentTextField.frame = contentFrame
-        }
-
-        if isIconVisible {
-            let buttonHeight: CGFloat = 16
-            let originY = (bounds.height - buttonHeight) / 2
-            let buttonFrame = NSRect(x: bounds.width - padding - buttonWidth, y: originY, width: buttonWidth, height: buttonHeight)
-            if actionButton.frame != buttonFrame {
-                actionButton.frame = buttonFrame
-            }
+            updateIconConstraintActivation()
         }
     }
 
@@ -2935,8 +2941,6 @@ private final class ResultTableDataCellView: NSTableCellView {
         selectionTextColor = .labelColor
         isSelectionActive = false
         contentTextField.textColor = baseTextColor
-        lastLayoutBounds = .zero
-        lastLayoutIconVisibility = false
     }
 
     @objc private func handleAction() {
@@ -2953,6 +2957,22 @@ private final class ResultTableDataCellView: NSTableCellView {
         let targetColor = isSelected ? selectionTextColor : baseTextColor
         if contentTextField.textColor != targetColor {
             contentTextField.textColor = targetColor
+        }
+    }
+
+    private func updateIconConstraintActivation() {
+        if isIconVisible {
+            textTrailingToContainerConstraint?.isActive = false
+            if let toButton = textTrailingToButtonConstraint {
+                toButton.isActive = true
+            }
+            NSLayoutConstraint.activate(actionButtonConstraints)
+        } else {
+            if let toButton = textTrailingToButtonConstraint {
+                toButton.isActive = false
+            }
+            NSLayoutConstraint.deactivate(actionButtonConstraints)
+            textTrailingToContainerConstraint?.isActive = true
         }
     }
 }
@@ -3240,9 +3260,21 @@ private final class ResultTableHeaderCell: NSTableHeaderCell {
     }
 
     override func drawInterior(withFrame cellFrame: NSRect, in controlView: NSView) {
-        let attributed = attributedStringValue.length > 0
-            ? attributedStringValue
-            : NSAttributedString(string: title)
+        let baseAttributed: NSAttributedString
+        if attributedStringValue.length > 0 {
+            baseAttributed = attributedStringValue
+        } else {
+            let attributes: [NSAttributedString.Key: Any] = [
+                .font: font ?? NSFont.systemFont(ofSize: NSFont.systemFontSize),
+                .foregroundColor: textColor ?? NSColor.labelColor
+            ]
+            baseAttributed = NSAttributedString(string: title, attributes: attributes)
+        }
+        let attributed = NSMutableAttributedString(attributedString: baseAttributed)
+        let paragraphStyle = NSMutableParagraphStyle()
+        paragraphStyle.alignment = .left
+        paragraphStyle.lineBreakMode = .byTruncatingTail
+        attributed.addAttribute(.paragraphStyle, value: paragraphStyle, range: NSRange(location: 0, length: attributed.length))
         let options: NSString.DrawingOptions = [.usesLineFragmentOrigin, .truncatesLastVisibleLine]
         let rect = titleRect(forBounds: cellFrame)
         attributed.draw(with: rect, options: options)

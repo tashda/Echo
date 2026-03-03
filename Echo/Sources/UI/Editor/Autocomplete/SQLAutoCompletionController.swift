@@ -227,6 +227,19 @@ final class SQLAutoCompletionController {
         guard !suggestions.isEmpty else { return nil }
         guard query.pathComponents.isEmpty else { return nil }
 
+        // Avoid inline keyword suggestions in object/alias positions inside
+        // FROM / JOIN target clauses. Once at least one table is in scope,
+        // inline SQL syntax (e.g. "FROM", "FULL JOIN") tends to be noisy when
+        // the user is naming an alias.
+        switch query.clause {
+        case .from, .joinTarget:
+            if !query.tablesInScope.isEmpty {
+                return nil
+            }
+        default:
+            break
+        }
+
         var loweredPrefix = query.prefix.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         if loweredPrefix.isEmpty {
             loweredPrefix = query.token.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
