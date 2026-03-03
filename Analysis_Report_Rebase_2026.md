@@ -83,9 +83,11 @@ Many files exceed the new strict limits. The most critical offenders are:
     - Created `NavigationStore` and `TabStore`.
     - Refactored `EchoApp` and `WorkspaceView` to use `@Environment` stores.
     - Resolved `Task` and `WindowGroup` ambiguity conflicts.
-- **Sub-step 3.4: Domain Logic Separation (Diagrams & Spooling)** [IN PROGRESS]
-    - Extract `DiagramCoordinator` and `ResultSpoolCoordinator`.
-    - Transition to thin services with protocol-first definitions.
+- **Sub-step 3.4: Domain Logic Separation (Diagrams & Spooling)** [COMPLETED]
+    - Created `DiagramCoordinator` and `ResultSpoolCoordinator`.
+    - Extracted ~1000 lines of complex layout and prefetch logic from `AppModel`.
+    - Defined `DiagramSchemaProvider` and `DiagramCoordinatorProtocol`.
+    - Successfully integrated coordinators into `AppCoordinator` and environment.
 
 ### Step 4: EchoSense Modularization
 - **Research:** Use `sosumi` to research best practices for building suggestion/completion engines in SwiftUI/AppKit.
