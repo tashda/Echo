@@ -19,11 +19,14 @@ struct EchoApp: App {
     }
 
     var body: some Scene {
-        WindowGroup {
+        SwiftUI.WindowGroup {
             WorkspaceView()
+                .environment(coordinator.projectStore)
+                .environment(coordinator.connectionStore)
+                .environment(coordinator.navigationStore)
+                .environment(coordinator.tabStore)
                 .environmentObject(coordinator.appModel)
                 .environmentObject(coordinator.appState)
-                .environmentObject(coordinator.appModel.navigationState)
                 .environmentObject(coordinator.clipboardHistory)
                 .environmentObject(coordinator.themeManager)
                 .task { await coordinator.initialize() }
@@ -31,13 +34,15 @@ struct EchoApp: App {
         .windowStyle(.hiddenTitleBar)
         .commands {
             QueryCommands(appModel: coordinator.appModel,
-                          appState: coordinator.appState)
+                          appState: coordinator.appState,
+                          navigationStore: coordinator.navigationStore)
             AppSettingsCommands()
             AutocompleteManagementCommands()
             PerformanceMonitorCommands()
             StreamingTestHarnessCommands()
 #if os(macOS)
-            ConnectMenuCommands(appModel: coordinator.appModel)
+            ConnectMenuCommands(appModel: coordinator.appModel,
+                                navigationStore: coordinator.navigationStore)
 #endif
         }
         AutocompleteManagementWindow()
@@ -52,6 +57,7 @@ struct EchoApp: App {
 struct QueryCommands: Commands {
     @ObservedObject var appModel: AppModel
     @ObservedObject var appState: AppState
+    let navigationStore: NavigationStore
 
     var body: some Commands {
         CommandGroup(after: .newItem) {
@@ -62,7 +68,7 @@ struct QueryCommands: Commands {
             .disabled(!appModel.canOpenQueryTab)
 
             Button(action: {
-                guard appModel.isWorkspaceWindowKey else { return }
+                guard navigationStore.isWorkspaceWindowKey else { return }
                 appModel.tabManager.activateNextTab()
                 if appState.showTabOverview {
                     appState.showTabOverview = false
@@ -73,7 +79,7 @@ struct QueryCommands: Commands {
             .keyboardShortcut(.tab, modifiers: [.control])
 
             Button(action: {
-                guard appModel.isWorkspaceWindowKey else { return }
+                guard navigationStore.isWorkspaceWindowKey else { return }
                 appModel.tabManager.activatePreviousTab()
                 if appState.showTabOverview {
                     appState.showTabOverview = false
@@ -84,7 +90,7 @@ struct QueryCommands: Commands {
             .keyboardShortcut(.tab, modifiers: [.control, .shift])
 
             Button(action: {
-                guard appModel.isWorkspaceWindowKey else { return }
+                guard navigationStore.isWorkspaceWindowKey else { return }
                 if appModel.tabManager.reopenLastClosedTab(activate: true) != nil {
                     if appState.showTabOverview {
                         appState.showTabOverview = false
@@ -101,7 +107,7 @@ struct QueryCommands: Commands {
             .keyboardShortcut("o", modifiers: [.command])
 
             Button("Close Query Tab") {
-                if appModel.isWorkspaceWindowKey {
+                if navigationStore.isWorkspaceWindowKey {
                     if appModel.tabManager.activeTab != nil {
                         appModel.closeActiveQueryTab()
                     }
@@ -168,6 +174,7 @@ struct AppSettingsCommands: Commands {
 
 struct ConnectMenuCommands: Commands {
     @ObservedObject var appModel: AppModel
+    let navigationStore: NavigationStore
 
     var body: some Commands {
         CommandMenu("Connect") {
@@ -204,7 +211,7 @@ struct ConnectMenuCommands: Commands {
 #if os(macOS)
                 ManageConnectionsWindowController.shared.present()
 #else
-                appModel.isManageConnectionsPresented = true
+                navigationStore.isManageConnectionsPresented = true
 #endif
             }
             .keyboardShortcut("m", modifiers: [.command, .shift])
@@ -320,14 +327,14 @@ struct ConnectMenuCommands: Commands {
             await MainActor.run {
                 appModel.sessionManager.setActiveSession(session.id)
                 appModel.selectedConnectionID = session.connection.id
-                appModel.navigationState.selectConnection(session.connection)
-                appModel.navigationState.selectDatabase(databaseName)
+                navigationStore.navigationState.selectConnection(session.connection)
+                navigationStore.navigationState.selectDatabase(databaseName)
             }
             await appModel.loadSchemaForDatabase(databaseName, connectionSession: session)
             await MainActor.run {
                 appModel.selectedConnectionID = session.connection.id
-                appModel.navigationState.selectConnection(session.connection)
-                appModel.navigationState.selectDatabase(databaseName)
+                navigationStore.navigationState.selectConnection(session.connection)
+                navigationStore.navigationState.selectDatabase(databaseName)
             }
         }
     }
@@ -454,6 +461,7 @@ struct ConnectMenuCommands: Commands {
             await MainActor.run {
                 appModel.selectedConnectionID = connection.id
                 appModel.selectedFolderID = connection.folderID
+                navigationStore.navigationState.selectConnection(connection)
             }
             await appModel.connect(to: connection)
         }

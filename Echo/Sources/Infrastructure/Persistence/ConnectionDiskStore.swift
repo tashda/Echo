@@ -1,6 +1,6 @@
 import Foundation
 
-actor ConnectionStore {
+actor ConnectionDiskStore {
     private let fileURL: URL
 
     init() {

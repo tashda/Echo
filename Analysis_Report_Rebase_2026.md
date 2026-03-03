@@ -71,9 +71,21 @@ Many files exceed the new strict limits. The most critical offenders are:
 - Verified successful CLI build for macOS target.
 
 ### Step 3: AppModel Decomposition [IN PROGRESS]
-- **Research:** Use `sosumi` to research Modern App Architecture (MVVM/Coordinator) and proper ObservableObject vs. @Observable patterns.
-- Create `ConnectionCoordinator.swift`, `ProjectRepository.swift`, and `NavigationCoordinator.swift`.
-- Transition to thin services with protocol-first definitions.
+- **Sub-step 3.1: Project Domain** [COMPLETED]
+    - Created `ProjectRepository` and modern `@Observable` `ProjectStore`.
+    - Migrated persistence logic to `ProjectDiskStore`.
+    - Refactored `NewProjectSheet` and `ManageProjectsSheet`.
+- **Sub-step 3.2: Connection Domain** [COMPLETED]
+    - Created `ConnectionRepository` and modern `@Observable` `ConnectionStore`.
+    - Renamed legacy disk stores to `ConnectionDiskStore`, `FolderDiskStore`, and `IdentityDiskStore`.
+    - Successfully bridged `AppModel` to use the new store.
+- **Sub-step 3.3: Navigation & Tab Domain** [COMPLETED]
+    - Created `NavigationStore` and `TabStore`.
+    - Refactored `EchoApp` and `WorkspaceView` to use `@Environment` stores.
+    - Resolved `Task` and `WindowGroup` ambiguity conflicts.
+- **Sub-step 3.4: Domain Logic Separation (Diagrams & Spooling)** [IN PROGRESS]
+    - Extract `DiagramCoordinator` and `ResultSpoolCoordinator`.
+    - Transition to thin services with protocol-first definitions.
 
 ### Step 4: EchoSense Modularization
 - **Research:** Use `sosumi` to research best practices for building suggestion/completion engines in SwiftUI/AppKit.

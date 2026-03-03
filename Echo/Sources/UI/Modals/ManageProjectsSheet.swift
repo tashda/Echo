@@ -2,6 +2,7 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 struct ManageProjectsSheet: View {
+    @Environment(ProjectStore.self) private var projectStore
     @EnvironmentObject private var appModel: AppModel
     @EnvironmentObject private var clipboardHistory: ClipboardHistoryStore
     @Environment(\.dismiss) private var dismiss
@@ -32,7 +33,7 @@ struct ManageProjectsSheet: View {
 
     private var selectedProject: Project? {
         guard let id = selectedProjectID else { return nil }
-        return appModel.projects.first { $0.id == id }
+        return projectStore.projects.first { $0.id == id }
     }
 
     var body: some View {
@@ -46,7 +47,7 @@ struct ManageProjectsSheet: View {
             .alert("Delete Project?", isPresented: $showDeleteConfirmation, presenting: projectToDelete) { project in
                 Button("Delete", role: .destructive) {
                     Task {
-                        await appModel.deleteProject(project)
+                        try? await projectStore.deleteProject(project)
                         selectedProjectID = nil
                         projectToDelete = nil
                     }
@@ -54,14 +55,15 @@ struct ManageProjectsSheet: View {
                 Button("Cancel", role: .cancel) {
                     projectToDelete = nil
                 }
-            } message: { project in
+            }
+ message: { project in
                 Text("Are you sure you want to delete '\(project.name)'? This will permanently delete all connections, identities, and folders in this project.")
             }
             .task { await runInitialSetup() }
-            .onChange(of: appModel.projects) { _, projects in
+            .onChange(of: projectStore.projects) { _, projects in
                 updateSelectionForProjects(projects)
             }
-            .onChange(of: appModel.selectedProject?.id) { _, newID in
+            .onChange(of: projectStore.selectedProject?.id) { _, newID in
                 updateSelectedProjectID(newID)
             }
     }
@@ -73,10 +75,9 @@ struct ManageProjectsSheet: View {
     }
 
     private func runInitialSetup() async {
-        await appModel.ensureDefaultProjectExists(assignNavigation: false)
-        trackedProjectCount = appModel.projects.count
+        trackedProjectCount = projectStore.projects.count
         if selectedProjectID == nil {
-            selectedProjectID = appModel.selectedProject?.id ?? appModel.projects.first?.id
+            selectedProjectID = projectStore.selectedProject?.id ?? projectStore.projects.first?.id
         }
     }
 
@@ -85,10 +86,10 @@ struct ManageProjectsSheet: View {
             selectedProjectID = nil
         } else {
             if projects.count > trackedProjectCount {
-                selectedProjectID = appModel.selectedProject?.id ?? projects.last?.id
+                selectedProjectID = projectStore.selectedProject?.id ?? projects.last?.id
             } else if let currentSelection = selectedProjectID,
                       !projects.contains(where: { $0.id == currentSelection }) {
-                selectedProjectID = appModel.selectedProject?.id ?? projects.first?.id
+                selectedProjectID = projectStore.selectedProject?.id ?? projects.first?.id
             }
         }
         trackedProjectCount = projects.count
@@ -146,7 +147,7 @@ struct ManageProjectsSheet: View {
 
             // List
             List(selection: $selectedProjectID) {
-                ForEach(appModel.projects) { project in
+                ForEach(projectStore.projects) { project in
                     ProjectRow(project: project)
                         .tag(project.id)
                 }
@@ -213,7 +214,7 @@ struct ManageProjectsSheet: View {
 
                     Spacer()
 
-                    if appModel.selectedProject?.id == project.id {
+                    if projectStore.selectedProject?.id == project.id {
                         HStack(spacing: 6) {
                             Circle()
                                 .fill(Color.green)
@@ -266,9 +267,9 @@ struct ManageProjectsSheet: View {
                         .foregroundStyle(.secondary)
 
                     VStack(spacing: 8) {
-                        if appModel.selectedProject?.id != project.id {
+                        if projectStore.selectedProject?.id != project.id {
                             Button(action: {
-                                appModel.selectedProject = project
+                                projectStore.selectProject(project)
                                 appModel.navigationState.selectProject(project)
                             }) {
                                 HStack {
@@ -490,11 +491,15 @@ struct ManageProjectsSheet: View {
 
         Task {
             do {
-                let data = try await appModel.exportProject(
+                let data = try await projectStore.exportProject(
                     project,
-                    includeGlobalSettings: includeGlobalSettings,
-                    includeClipboardHistory: includeClipboardHistory,
-                    includeAutocompleteHistory: includeAutocompleteHistory,
+                    connections: appModel.connections.filter { $0.projectID == project.id },
+                    identities: appModel.identities.filter { $0.projectID == project.id },
+                    folders: appModel.folders.filter { $0.projectID == project.id },
+                    globalSettings: includeGlobalSettings ? projectStore.globalSettings : nil,
+                    clipboardHistory: includeClipboardHistory ? clipboardHistory.entries : nil,
+                    autocompleteHistory: nil, // TODO: Update after EchoSense refactor
+                    diagramCaches: await appModel.diagramCacheManager.listPayloads(for: project.id),
                     password: exportPassword
                 )
 
@@ -549,6 +554,10 @@ struct ManageProjectsSheet: View {
         Task {
             do {
                 let data = try Data(contentsOf: url)
+                // Need a way to handle the full import logic that involves AppModel (connections, etc)
+                // For now, let's keep the core import in AppModel but use ProjectStore for the projects list
+                // OR better: Move full import logic to a specialized Coordinator later.
+                // For now, let's call the updated AppModel import.
                 try await appModel.importProject(from: data, password: importPassword)
 
                 await MainActor.run {

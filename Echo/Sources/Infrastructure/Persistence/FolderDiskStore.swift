@@ -1,6 +1,6 @@
 import Foundation
 
-actor FolderStore {
+actor FolderDiskStore {
     private let fileURL: URL
 
     init() {
