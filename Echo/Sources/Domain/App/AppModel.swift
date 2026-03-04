@@ -81,6 +81,7 @@ final class AppModel: ObservableObject {
         self.diagramCacheManager = diagramCacheManager
         self.diagramKeyStore = diagramKeyStore
         
+        self.tabStore.delegate = self
         setupBindings()
         loadRecentConnections()
     }
@@ -230,18 +231,25 @@ final class AppModel: ObservableObject {
     }
 
     // MARK: - Tab Management
+    func registerTab(_ tab: WorkspaceTab) {
+        tabStore.addTab(tab)
+    }
+
     func openQueryTab(for session: ConnectionSession? = nil, presetQuery: String? = nil, autoExecute: Bool = false) {
         let targetSession = session ?? sessionManager.activeSession ?? sessionManager.activeSessions.first
         guard let targetSession else { return }
-        targetSession.addQueryTab(withQuery: presetQuery ?? "")
+        let tab = targetSession.addQueryTab(withQuery: presetQuery ?? "")
+        registerTab(tab)
     }
 
     func openJobManagementTab(for session: ConnectionSession, selectJobID: String? = nil) {
-        session.addJobManagementTab(selectJobID: selectJobID)
+        let tab = session.addJobManagementTab(selectJobID: selectJobID)
+        registerTab(tab)
     }
 
     func openStructureTab(for session: ConnectionSession, object: SchemaObjectInfo, focus: TableStructureSection? = nil) {
-        // Implementation
+        let tab = session.addStructureTab(for: object, focus: focus)
+        registerTab(tab)
     }
 
     func openDiagramTab(for session: ConnectionSession, object: SchemaObjectInfo) {
@@ -376,5 +384,39 @@ final class AppModel: ObservableObject {
 
     func preloadStructure(for connection: SavedConnection, overridePassword: String? = nil) async {
         await schemaDiscoveryCoordinator.preloadStructure(for: connection, overridePassword: overridePassword)
+    }
+}
+
+// MARK: - TabStoreDelegate
+extension AppModel: TabStoreDelegate {
+    func tabStore(_ store: TabStore, didAdd tab: WorkspaceTab) {
+        if let session = sessionManager.activeSessions.first(where: { $0.id == tab.connectionSessionID }) {
+            if !session.queryTabs.contains(where: { $0.id == tab.id }) {
+                session.queryTabs.append(tab)
+            }
+        }
+    }
+    
+    func tabStore(_ store: TabStore, shouldClose tab: WorkspaceTab) async -> Bool {
+        return true
+    }
+    
+    func tabStore(_ store: TabStore, didRemoveTabID tabID: UUID) {
+        for session in sessionManager.activeSessions {
+            if let index = session.queryTabs.firstIndex(where: { $0.id == tabID }) {
+                session.queryTabs.remove(at: index)
+            }
+        }
+    }
+    
+    func tabStore(_ store: TabStore, didSetActiveTabID tabID: UUID?) {
+        guard let tabID, let tab = store.getTab(id: tabID) else { return }
+        if sessionManager.activeSessionID != tab.connectionSessionID {
+            sessionManager.setActiveSession(tab.connectionSessionID)
+        }
+    }
+    
+    func tabStoreDidReorderTabs(_ store: TabStore) {
+        // No-op
     }
 }
