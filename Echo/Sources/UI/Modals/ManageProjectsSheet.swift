@@ -6,7 +6,7 @@ struct ManageProjectsSheet: View {
     @Environment(ConnectionStore.self) private var connectionStore
     @Environment(NavigationStore.self) private var navigationStore
     
-    @EnvironmentObject private var workspaceSessionStore: WorkspaceSessionStore
+    @EnvironmentObject private var environmentState: EnvironmentState
     @EnvironmentObject private var clipboardHistory: ClipboardHistoryStore
     @Environment(\.dismiss) private var dismiss
 
@@ -46,7 +46,7 @@ struct ManageProjectsSheet: View {
             .sheet(isPresented: $isPresentingNewProjectSheet) {
                 NewProjectSheet()
                     .environment(projectStore)
-                    .environmentObject(workspaceSessionStore)
+                    .environmentObject(environmentState)
             }
             .alert("Delete Project?", isPresented: $showDeleteConfirmation, presenting: projectToDelete) { project in
                 Button("Delete", role: .destructive) {
@@ -503,7 +503,7 @@ struct ManageProjectsSheet: View {
                     globalSettings: includeGlobalSettings ? projectStore.globalSettings : nil,
                     clipboardHistory: includeClipboardHistory ? clipboardHistory.entries : nil,
                     autocompleteHistory: nil, // TODO: Update after EchoSense refactor
-                    diagramCaches: await workspaceSessionStore.diagramCacheManager.listPayloads(for: project.id),
+                    diagramCaches: await environmentState.diagramCacheManager.listPayloads(for: project.id),
                     password: exportPassword
                 )
 
@@ -558,11 +558,11 @@ struct ManageProjectsSheet: View {
         Task {
             do {
                 let data = try Data(contentsOf: url)
-                // Need a way to handle the full import logic that involves WorkspaceSessionStore (connections, etc)
-                // For now, let's keep the core import in WorkspaceSessionStore but use ProjectStore for the projects list
+                // Need a way to handle the full import logic that involves EnvironmentState (connections, etc)
+                // For now, let's keep the core import in EnvironmentState but use ProjectStore for the projects list
                 // OR better: Move full import logic to a specialized Coordinator later.
-                // For now, let's call the updated WorkspaceSessionStore import.
-                // try await workspaceSessionStore.importProject(from: data, password: importPassword)
+                // For now, let's call the updated EnvironmentState import.
+                // try await environmentState.importProject(from: data, password: importPassword)
 
                 await MainActor.run {
                     showImportSheet = false
