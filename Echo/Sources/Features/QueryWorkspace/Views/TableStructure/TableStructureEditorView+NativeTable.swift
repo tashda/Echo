@@ -9,7 +9,6 @@ extension TableStructureEditorView {
     
     @ViewBuilder
     var adaptiveColumnsTable: some View {
-        // Use the ORIGINAL working implementation
-        columnsTable
+        adaptiveColumnsTableUI
     }
 }

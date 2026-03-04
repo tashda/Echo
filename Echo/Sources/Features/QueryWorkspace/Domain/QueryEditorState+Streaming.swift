@@ -1,266 +1,155 @@
 import Foundation
+import os.log
+import os.signpost
 
 extension QueryEditorState {
-
-    // MARK: - Streaming & Spooling
-
     @MainActor
-    func prepareSpoolForNewExecution() {
-        spoolStatsTask?.cancel()
-        spoolStatsTask = nil
-        streamingMode = .idle
-        shouldPersistResults = false
+    func applyStreamUpdate(_ update: QueryStreamUpdate) {
+        guard !update.columns.isEmpty else { return }
+        if streamingMode == .idle { streamingMode = .preview }
+        let modeForSpool = streamingMode
+        if streamingColumns.isEmpty { streamingColumns = update.columns }
 
-        if let existingService = ingestionService {
-            Task.detached(priority: .utility) {
-                await existingService.cancel()
+        let appendedRowCount = update.rowRange?.count ?? (!update.rawRows.isEmpty ? update.rawRows.count : (!update.appendedRows.isEmpty ? update.appendedRows.count : (!update.encodedRows.isEmpty ? update.encodedRows.count : 0)))
+
+        if appendedRowCount > 0 {
+            let previous = streamedRowCount
+            let provisional = previous &+ appendedRowCount
+            let upperBound = [update.totalRowCount, rowProgress.totalReported, rowProgress.totalReceived, materializedHighWaterMark, results?.totalRowCount ?? 0].filter { $0 > 0 }.max() ?? provisional
+            streamedRowCount = min(provisional, upperBound)
+            didReceiveStreamingUpdate = true
+            rowProgress = RowProgress(totalReceived: max(streamedRowCount, rowProgress.totalReceived), totalReported: rowProgress.totalReported, materialized: rowProgress.materialized)
+        } else {
+            let newReported = max(rowProgress.totalReported, update.totalRowCount)
+            if newReported != rowProgress.totalReported {
+                rowProgress = RowProgress(totalReceived: rowProgress.totalReceived, totalReported: newReported, materialized: rowProgress.materialized)
+                markResultDataChanged()
+                if streamingMode == .preview || isExecuting { refreshLivePerformanceReport() }
             }
         }
-        ingestionService = nil
-        deferredSpoolUpdates.removeAll(keepingCapacity: false)
-        isSpoolActivationDeferred = true
 
-        rowCache.reset()
-        streamedRowCount = 0
-        rowProgress = RowProgress()
-        materializedHighWaterMark = 0
-        lastVisibleDisplayRange = 0..<0
-        lastPrefetchedSourceRange = 0..<0
-        if let previousID = resultSpoolID {
-            let manager = spoolManager
-            Task.detached(priority: .utility) {
-                await manager.removeSpool(for: previousID)
-            }
+        let estimatedTotal = max(update.totalRowCount, streamedRowCount)
+        if appendedRowCount > 0 { performanceTracker.recordStreamUpdate(appendedRowCount: appendedRowCount, totalRowCount: estimatedTotal) }
+        if estimatedTotal >= initialVisibleRowBatch { performanceTracker.recordInitialBatchReady(totalRowCount: estimatedTotal) }
+        if let metrics = update.metrics { performanceTracker.recordBackendMetrics(metrics) }
+
+        if streamingMode == .preview, (streamedRowCount + appendedRowCount) >= spoolActivationThreshold {
+            streamingMode = .background
+            if !isResultsOnly { visibleRowLimit = nil }
+            shouldPersistResults = true
         }
-        spoolHandle = nil
-        resultSpoolID = nil
-    }
 
-    @MainActor
-    func submitToSpool(update: QueryStreamUpdate, mode: StreamingMode) {
-        let treatAsPreview = (mode == .preview || mode == .idle)
-        if !shouldPersistResults {
-            deferredSpoolUpdates.append(.init(update: update, treatAsPreview: treatAsPreview))
+        let effectiveShouldPersist = shouldPersistResults || streamingMode == .background
+        let bufferLimit = effectiveShouldPersist ? frontBufferLimit : max(frontBufferLimit, estimatedTotal)
+        
+        if effectiveShouldPersist, appendedRowCount > 0, max(bufferLimit - streamingRows.count, 0) <= 0 {
+            let spoolPayload = QueryStreamUpdate(
+                columns: update.columns,
+                appendedRows: update.encodedRows.isEmpty && update.rawRows.isEmpty ? update.appendedRows : [],
+                encodedRows: update.encodedRows,
+                rawRows: update.rawRows,
+                totalRowCount: update.totalRowCount,
+                metrics: update.metrics,
+                rowRange: update.rowRange
+            )
+            submitToSpool(update: spoolPayload, mode: modeForSpool)
+            let resolvedTotal = estimatedTotal > 0 ? estimatedTotal : rowProgress.totalReported
+            if resolvedTotal > 0, streamedRowCount > resolvedTotal { streamedRowCount = resolvedTotal }
+            rowProgress = RowProgress(totalReceived: resolvedTotal > 0 ? min(max(streamedRowCount, rowProgress.totalReceived), resolvedTotal) : max(streamedRowCount, rowProgress.totalReceived), totalReported: resolvedTotal, materialized: resolvedTotal > 0 ? min(rowProgress.materialized, resolvedTotal) : rowProgress.materialized)
+            markResultDataChanged()
+            if streamingMode == .preview || isExecuting { refreshLivePerformanceReport() }
+            activateSpoolIfNeeded()
             return
         }
-        if shouldDeferSpool(for: mode) {
-            deferredSpoolUpdates.append(.init(update: update, treatAsPreview: treatAsPreview))
-            return
-        }
 
-        let service = ensureIngestionService()
-        Task.detached(priority: .utility) {
-            await service.enqueue(update: update, isPreview: treatAsPreview)
-        }
-    }
+        let treatAsPreview = !effectiveShouldPersist && (modeForSpool == .preview || modeForSpool == .idle)
+        let shouldDefer = resultsTypeFormattingEnabled && !update.rawRows.isEmpty && (resultsFormattingMode == .deferred || streamingMode != .preview)
+        var spoolPreviewRows: [[String?]] = []
 
-    @MainActor
-    private func shouldDeferSpool(for mode: StreamingMode) -> Bool {
-        guard isSpoolActivationDeferred else { return false }
-        return mode == .preview || mode == .idle
-    }
+        if !shouldDefer {
+            let rangeLower = update.rowRange?.lowerBound ?? max(streamingRows.count, rowProgress.materialized)
+            let displayCap = effectiveShouldPersist ? bufferLimit : max(frontBufferLimit, previewRowLimit)
+            let displayCount = max(0, min(appendedRowCount, min(rangeLower + appendedRowCount, displayCap) - rangeLower))
+            let formattedRows: [[String?]]
+            if !update.appendedRows.isEmpty {
+                formattedRows = (effectiveShouldPersist && displayCount == 0) ? [] : (effectiveShouldPersist && displayCount < update.appendedRows.count ? Array(update.appendedRows.prefix(displayCount)) : update.appendedRows)
+            } else if !update.rawRows.isEmpty {
+                formattedRows = formatRowsSynchronously(effectiveShouldPersist ? Array(update.rawRows.prefix(displayCount)) : update.rawRows)
+            } else { formattedRows = [] }
 
-    @MainActor
-    @discardableResult
-    private func ensureIngestionService() -> ResultStreamIngestionService {
-        if let service = ingestionService {
-            return service
-        }
-        let manager = spoolManager
-        let service = ResultStreamIngestionService(
-            spoolManager: manager,
-            rowCache: rowCache,
-            onSpoolReady: { [weak self] handle in
-                guard let self else { return }
-                self.spoolHandle = handle
-                self.resultSpoolID = handle.id
-                self.attachSpoolStats(from: handle)
+            if !formattedRows.isEmpty {
+                integrateFormattedRows(rows: formattedRows, range: rangeLower..<(rangeLower + formattedRows.count), totalRowCount: estimatedTotal, metrics: update.metrics, treatAsPreview: treatAsPreview, columns: streamingColumns)
+                if treatAsPreview { spoolPreviewRows = formattedRows }
             }
+        } else {
+            let rangeLower = update.rowRange?.lowerBound ?? max(streamingRows.count, rowProgress.materialized)
+            let displayCap = effectiveShouldPersist ? bufferLimit : max(frontBufferLimit, previewRowLimit)
+            var immediateCount = 0
+            if let range = update.rowRange, !update.appendedRows.isEmpty {
+                immediateCount = max(0, min(update.appendedRows.count, min(rangeLower + appendedRowCount, displayCap) - rangeLower))
+                if immediateCount > 0 {
+                    let rows = immediateCount < update.appendedRows.count ? Array(update.appendedRows.prefix(immediateCount)) : update.appendedRows
+                    integrateFormattedRows(rows: rows, range: range.lowerBound..<(range.lowerBound + rows.count), totalRowCount: estimatedTotal, metrics: update.metrics, treatAsPreview: treatAsPreview, columns: streamingColumns)
+                    if treatAsPreview { spoolPreviewRows = rows }
+                }
+            } else if !update.rawRows.isEmpty {
+                immediateCount = min(max(previewRowLimit - rowProgress.materialized, 0), min(update.rawRows.count, max(0, min(rangeLower + appendedRowCount, displayCap) - rangeLower)))
+                if immediateCount > 0 {
+                    let rows = formatRowsSynchronously(Array(update.rawRows.prefix(immediateCount)))
+                    integrateFormattedRows(rows: rows, range: rangeLower..<(rangeLower + immediateCount), totalRowCount: estimatedTotal, metrics: update.metrics, treatAsPreview: true, columns: streamingColumns)
+                    if treatAsPreview { spoolPreviewRows = rows }
+                }
+            }
+            if update.rawRows.count > immediateCount {
+                let deferredStart = (update.rowRange?.lowerBound ?? max(streamingRows.count, rowProgress.materialized)) + immediateCount
+                let deferredRows = Array(update.rawRows.dropFirst(immediateCount))
+                enqueueDeferredBatch(rows: deferredRows, range: deferredStart..<(deferredStart + deferredRows.count), totalRowCount: estimatedTotal, metrics: update.metrics, treatAsPreview: false, columns: streamingColumns)
+            }
+        }
+
+        let spoolPayload = QueryStreamUpdate(
+            columns: update.columns,
+            appendedRows: treatAsPreview ? (!spoolPreviewRows.isEmpty ? spoolPreviewRows : []) : (update.encodedRows.isEmpty && update.rawRows.isEmpty ? update.appendedRows : []),
+            encodedRows: update.encodedRows,
+            rawRows: update.rawRows,
+            totalRowCount: update.totalRowCount,
+            metrics: update.metrics,
+            rowRange: update.rowRange
         )
-        ingestionService = service
-        return service
+        submitToSpool(update: spoolPayload, mode: modeForSpool)
+
+        if appendedRowCount > 0 && spoolPreviewRows.isEmpty {
+            let resTotal = estimatedTotal > 0 ? estimatedTotal : rowProgress.totalReported
+            if resTotal > 0, streamedRowCount > resTotal { streamedRowCount = resTotal }
+            rowProgress = RowProgress(totalReceived: resTotal > 0 ? min(max(streamedRowCount, rowProgress.totalReceived), resTotal) : max(streamedRowCount, rowProgress.totalReceived), totalReported: resTotal, materialized: resTotal > 0 ? min(rowProgress.materialized, resTotal) : rowProgress.materialized)
+            markResultDataChanged()
+        }
+
+        if streamingMode == .preview, streamedRowCount >= spoolActivationThreshold {
+            streamingMode = .background
+            if !isResultsOnly { visibleRowLimit = nil }
+            shouldPersistResults = true
+        }
+        if streamingMode == .preview || isExecuting { refreshLivePerformanceReport() }
+        activateSpoolIfNeeded()
     }
 
-    @MainActor
-    func activateSpoolIfNeeded(force: Bool = false) {
-        guard shouldPersistResults else { return }
-        guard isSpoolActivationDeferred else { return }
-        if !force {
-            guard streamingMode == .background || streamingMode == .completed else { return }
-        }
-
-        isSpoolActivationDeferred = false
-
-        guard !deferredSpoolUpdates.isEmpty else { return }
-        let buffered = deferredSpoolUpdates
-        deferredSpoolUpdates.removeAll(keepingCapacity: false)
-        let service = ensureIngestionService()
-        let pendingUpdates: [(QueryStreamUpdate, Bool)] = buffered.map { update in
-            (update.update, update.treatAsPreview)
-        }
-
-        Task.detached(priority: .utility) {
-            for (update, treatAsPreview) in pendingUpdates {
-                await service.enqueue(update: update, isPreview: treatAsPreview)
-            }
-        }
-    }
-
-    @MainActor
-    func finalizeSpool(with result: QueryResultSet) {
-        guard shouldPersistResults else { return }
-        let service = ingestionService
-        Task.detached(priority: .utility) { [weak self] in
-            guard let self else { return }
-            if let service {
-                await service.finalize(with: result)
-            } else if !result.columns.isEmpty || !result.rows.isEmpty {
-                do {
-                    let handle = try await self.spoolManager.makeSpoolHandle()
-                    if !result.rows.isEmpty {
-                        try await handle.append(
-                            columns: result.columns,
-                            rows: result.rows,
-                            encodedRows: [],
-                            rowRange: 0..<result.rows.count,
-                            metrics: nil
-                        )
-                    }
-                    try await handle.markFinished(commandTag: result.commandTag, metrics: nil)
-                    await MainActor.run {
-                        self.spoolHandle = handle
-                        self.resultSpoolID = handle.id
-                        self.attachSpoolStats(from: handle)
-                    }
-                } catch {
-#if DEBUG
-                    print("ResultSpool finalize failed: \(error)")
-#endif
-                }
-            }
-            await MainActor.run {
-                self.ingestionService = nil
-            }
-        }
-    }
-
-    @MainActor
-    func finalizeSpoolOnCompletion(cancelled _: Bool) {
-        let currentService = ingestionService
-
-        guard shouldPersistResults else {
-            Task.detached(priority: .utility) { [weak self] in
-                guard let self else { return }
-                if let service = currentService {
-                    await service.cancel()
-                }
-                await MainActor.run {
-                    self.ingestionService = nil
-                    self.spoolHandle = nil
-                    self.resultSpoolID = nil
-                    self.deferredSpoolUpdates.removeAll(keepingCapacity: false)
-                    self.shouldPersistResults = false
-                }
-            }
-            return
-        }
-        if isSpoolActivationDeferred {
-            deferredSpoolUpdates.removeAll(keepingCapacity: false)
-        }
-        Task.detached(priority: .utility) { [weak self] in
-            guard let self else { return }
-            if let service = currentService {
-                await service.finalize(commandTag: nil, metrics: nil)
-            } else {
-                let handle = await MainActor.run { self.spoolHandle }
-#if DEBUG
-                if handle == nil {
-                    print("ResultSpoolOnCompletion skipped: no active spool")
-                }
-#endif
-                guard let handle else { return }
-                do {
-                    try await handle.markFinished(commandTag: nil, metrics: nil)
-                } catch {
-#if DEBUG
-                    print("ResultSpool completion finalize failed: \(error)")
-#endif
-                }
-            }
-            await MainActor.run {
-                self.ingestionService = nil
-            }
-        }
-    }
-
-    private func attachSpoolStats(from handle: ResultSpoolHandle) {
-        spoolStatsTask?.cancel()
-        spoolStatsTask = Task.detached(priority: .utility) { [weak self] in
-            guard let self else { return }
-            let stream = await handle.statsStream()
-            for await stats in stream {
-                await MainActor.run {
-                    self.applySpoolStats(stats)
-                }
-                if stats.isFinished { break }
-            }
-            await MainActor.run {
-                if self.spoolStatsTask?.isCancelled == false {
-                    self.spoolStatsTask = nil
-                }
-            }
-        }
-    }
-
-    private func applySpoolStats(_ stats: ResultSpoolStats) {
-        var shouldRefreshReport = false
-        if let metrics = stats.metrics {
-            performanceTracker.recordBackendMetrics(metrics)
-            shouldRefreshReport = true
-        }
-
-        let previousCount = lastSpoolStatsRowCount
-        if stats.rowCount > previousCount {
-            lastSpoolStatsRowCount = stats.rowCount
-            if rowDiagnosticsEnabled && stats.rowCount > streamedRowCount {
-                debugReportRowAnomaly(
-                    stage: "spoolStats",
-                    message: "spool rowCount \(stats.rowCount) exceeds streamedRowCount \(streamedRowCount)"
-                )
-            }
-            let newReported = max(rowProgress.totalReported, stats.rowCount)
-            let newReceived = max(max(streamedRowCount, stats.rowCount), rowProgress.totalReceived)
-            if rowProgress.totalReported != newReported || rowProgress.totalReceived != newReceived {
-                rowProgress = RowProgress(
-                    totalReceived: newReceived,
-                    totalReported: newReported,
-                    materialized: rowProgress.materialized
-                )
-                markResultDataChanged()
-                if var existing = results, existing.totalRowCount != newReported {
-                    existing.totalRowCount = newReported
-                    results = existing
-                }
-            }
-            if streamingMode == .background, !isResultsOnly, visibleRowLimit != nil {
-                visibleRowLimit = nil
-            }
-            shouldRefreshReport = true
-            if !lastPrefetchedSourceRange.isEmpty {
-                ensureRowsMaterialized(range: lastPrefetchedSourceRange)
-            }
-        }
-
-        if stats.isFinished && !hasAppliedFinalSpoolStats {
-            hasAppliedFinalSpoolStats = true
-            if !isExecuting {
-                markResultDataChanged()
-            }
-            shouldRefreshReport = true
-        }
-
-        if shouldRefreshReport {
-            refreshLivePerformanceReport()
+    func consumeFinalResult(_ result: QueryResultSet) {
+        let total = result.totalRowCount ?? result.rows.count
+        performanceTracker.markResultSetReceived(totalRowCount: total)
+        streamingMode = .completed; streamingColumns = result.columns
+        shouldPersistResults = shouldPersistResults || total >= spoolActivationThreshold
+        let truncated = Array(result.rows.prefix(shouldPersistResults ? frontBufferLimit : max(frontBufferLimit, total)))
+        rowCache.ingest(rows: truncated, startingAt: 0)
+        streamedRowCount = max(streamedRowCount, total)
+        if streamingRows.count < truncated.count { streamingRows = truncated } else { for i in 0..<truncated.count { streamingRows[i] = truncated[i] } }
+        results = QueryResultSet(columns: result.columns, rows: truncated, totalRowCount: total, commandTag: result.commandTag)
+        rowProgress = RowProgress(materialized: max(rowProgress.materialized, truncated.count), reported: max(rowProgress.reported, total), received: streamedRowCount)
+        materializedHighWaterMark = max(materializedHighWaterMark, rowProgress.materialized)
+        visibleRowLimit = isResultsOnly ? min(initialVisibleRowBatch, total) : nil
+        refreshMaterializedProgress(); markResultDataChanged(); refreshLivePerformanceReport()
+        if shouldPersistResults { activateSpoolIfNeeded(); finalizeSpool(with: result) } else {
+            shouldPersistResults = false; deferredSpoolUpdates.removeAll(); ingestionService = nil; spoolHandle = nil; resultSpoolID = nil; spoolStatsTask?.cancel(); spoolStatsTask = nil
         }
     }
 }
