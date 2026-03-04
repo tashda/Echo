@@ -437,7 +437,11 @@ private extension NSSplitView {
 
 #if os(macOS)
 private struct WorkspaceWindowConfigurator: NSViewRepresentable {
+    @Environment(ProjectStore.self) private var projectStore
+    @Environment(ConnectionStore.self) private var connectionStore
     @Environment(NavigationStore.self) private var navigationStore
+    @Environment(TabStore.self) private var tabStore
+    
     @EnvironmentObject private var appModel: AppModel
     @EnvironmentObject private var appState: AppState
     @EnvironmentObject private var themeManager: ThemeManager
@@ -458,7 +462,10 @@ private struct WorkspaceWindowConfigurator: NSViewRepresentable {
                 appModel: appModel,
                 appState: appState,
                 themeManager: themeManager,
-                navigationStore: navigationStore
+                projectStore: projectStore,
+                connectionStore: connectionStore,
+                navigationStore: navigationStore,
+                tabStore: tabStore
             )
         }
         return view
@@ -473,7 +480,10 @@ private struct WorkspaceWindowConfigurator: NSViewRepresentable {
                 appModel: appModel,
                 appState: appState,
                 themeManager: themeManager,
-                navigationStore: navigationStore
+                projectStore: projectStore,
+                connectionStore: connectionStore,
+                navigationStore: navigationStore,
+                tabStore: tabStore
             )
         }
     }
@@ -490,7 +500,10 @@ private struct WorkspaceWindowConfigurator: NSViewRepresentable {
             appModel: AppModel,
             appState: AppState,
             themeManager: ThemeManager,
-            navigationStore: NavigationStore
+            projectStore: ProjectStore,
+            connectionStore: ConnectionStore,
+            navigationStore: NavigationStore,
+            tabStore: TabStore
         ) {
             let windowID = ObjectIdentifier(window)
             let windowChanged = lastWindowID != windowID
@@ -516,7 +529,10 @@ private struct WorkspaceWindowConfigurator: NSViewRepresentable {
                 appModel: appModel,
                 appState: appState,
                 themeManager: themeManager,
+                projectStore: projectStore,
+                connectionStore: connectionStore,
                 navigationStore: navigationStore,
+                tabStore: tabStore,
                 isEnabled: showTopBarNavigator
             )
 

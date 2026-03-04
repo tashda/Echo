@@ -52,7 +52,10 @@ final class TopBarNavigatorOverlay {
         appModel: AppModel,
         appState: AppState,
         themeManager: ThemeManager,
+        projectStore: ProjectStore,
+        connectionStore: ConnectionStore,
         navigationStore: NavigationStore,
+        tabStore: TabStore,
         isEnabled: Bool
     ) {
         self.appModel = appModel
@@ -70,7 +73,10 @@ final class TopBarNavigatorOverlay {
             appModel: appModel,
             appState: appState,
             themeManager: themeManager,
-            navigationStore: navigationStore
+            projectStore: projectStore,
+            connectionStore: connectionStore,
+            navigationStore: navigationStore,
+            tabStore: tabStore
         )
         scheduleLayoutUpdate()
     }
@@ -104,7 +110,10 @@ final class TopBarNavigatorOverlay {
         appModel: AppModel,
         appState: AppState,
         themeManager: ThemeManager,
-        navigationStore: NavigationStore
+        projectStore: ProjectStore,
+        connectionStore: ConnectionStore,
+        navigationStore: NavigationStore,
+        tabStore: TabStore
     ) {
         if let hostingView, let toolbarView {
             removeExistingHostingViews(from: toolbarView, keeping: hostingView)
@@ -121,7 +130,10 @@ final class TopBarNavigatorOverlay {
                 appModel: appModel,
                 appState: appState,
                 themeManager: themeManager,
-                navigationStore: navigationStore
+                projectStore: projectStore,
+                connectionStore: connectionStore,
+                navigationStore: navigationStore,
+                tabStore: tabStore
             )
             lastLayoutState = nil
             toolbarView.layoutSubtreeIfNeeded()
@@ -139,7 +151,10 @@ final class TopBarNavigatorOverlay {
                 appModel: appModel,
                 appState: appState,
                 themeManager: themeManager,
-                navigationStore: navigationStore
+                projectStore: projectStore,
+                connectionStore: connectionStore,
+                navigationStore: navigationStore,
+                tabStore: tabStore
             )
         )
 
@@ -194,11 +209,17 @@ final class TopBarNavigatorOverlay {
         appModel: AppModel,
         appState: AppState,
         themeManager: ThemeManager,
-        navigationStore: NavigationStore
+        projectStore: ProjectStore,
+        connectionStore: ConnectionStore,
+        navigationStore: NavigationStore,
+        tabStore: TabStore
     ) -> AnyView {
         AnyView(
             TopBarNavigator()
+                .environment(projectStore)
+                .environment(connectionStore)
                 .environment(navigationStore)
+                .environment(tabStore)
                 .environmentObject(appModel)
                 .environmentObject(appState)
                 .environmentObject(themeManager)
