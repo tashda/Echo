@@ -1,8 +1,4 @@
 import SwiftUI
-#if os(macOS)
-import AppKit
-import UniformTypeIdentifiers
-#endif
 
 struct ConnectionEditorView: View {
     enum SaveAction {
@@ -18,35 +14,35 @@ struct ConnectionEditorView: View {
         "F2E2BA"
     ]
 
-    @Environment(\.dismiss) private var dismiss
-    @Environment(ProjectStore.self) private var projectStore
-    @Environment(ConnectionStore.self) private var connectionStore
-    @Environment(NavigationStore.self) private var navigationStore
+    @Environment(\.dismiss) internal var dismiss
+    @Environment(ProjectStore.self) internal var projectStore
+    @Environment(ConnectionStore.self) internal var connectionStore
+    @Environment(NavigationStore.self) internal var navigationStore
     
-    @EnvironmentObject private var environmentState: EnvironmentState // Temporary bridge for actions
+    @EnvironmentObject internal var environmentState: EnvironmentState
 
-    @State private var selectedDatabaseType: DatabaseType
-    @State private var connectionName: String
-    @State private var host: String
-    @State private var port: Int
-    @State private var database: String
-    @State private var username: String
-    @State private var domain: String
-    @State private var password: String
-    @State private var authenticationMethod: DatabaseAuthenticationMethod
-    @State private var credentialSource: CredentialSource
-    @State private var identityID: UUID?
-    @State private var folderID: UUID?
-    @State private var useTLS: Bool
-    @State private var colorHex: String
+    @State internal var selectedDatabaseType: DatabaseType
+    @State internal var connectionName: String
+    @State internal var host: String
+    @State internal var port: Int
+    @State internal var database: String
+    @State internal var username: String
+    @State internal var domain: String
+    @State internal var password: String
+    @State internal var authenticationMethod: DatabaseAuthenticationMethod
+    @State internal var credentialSource: CredentialSource
+    @State internal var identityID: UUID?
+    @State internal var folderID: UUID?
+    @State internal var useTLS: Bool
+    @State internal var colorHex: String
 
-    @State private var isTestingConnection = false
-    @State private var testResult: ConnectionTestResult?
-    @State private var testTask: Task<Void, Never>?
-    @State private var identityEditorState: IdentityEditorState?
-    @State private var showingTestAlert = false
+    @State internal var isTestingConnection = false
+    @State internal var testResult: ConnectionTestResult?
+    @State internal var testTask: Task<Void, Never>?
+    @State internal var identityEditorState: IdentityEditorState?
+    @State internal var showingTestAlert = false
 
-    private let originalConnection: SavedConnection?
+    internal let originalConnection: SavedConnection?
     let onSave: (SavedConnection, String?, SaveAction) -> Void
 
     init(connection: SavedConnection?, onSave: @escaping (SavedConnection, String?, SaveAction) -> Void) {
@@ -90,11 +86,11 @@ struct ConnectionEditorView: View {
         _colorHex = State(initialValue: model.colorHex.isEmpty ? (ConnectionEditorView.colorPalette.first ?? "") : model.colorHex)
     }
 
-    private var currentColor: Color {
+    internal var currentColor: Color {
         Color(hex: colorHex) ?? .accentColor
     }
 
-    private var sortedFolders: [SavedFolder] {
+    internal var sortedFolders: [SavedFolder] {
         connectionStore.folders
             .filter { $0.kind == .connections }
             .sorted { lhs, rhs in
@@ -102,20 +98,15 @@ struct ConnectionEditorView: View {
             }
     }
 
-    private var sortedIdentities: [SavedIdentity] {
+    internal var sortedIdentities: [SavedIdentity] {
         connectionStore.identities.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
     }
 
-    private var selectedIdentity: SavedIdentity? {
-        guard let identityID = identityID else { return nil }
-        return sortedIdentities.first { $0.id == identityID }
-    }
-
-    private var availableAuthenticationMethods: [DatabaseAuthenticationMethod] {
+    internal var availableAuthenticationMethods: [DatabaseAuthenticationMethod] {
         selectedDatabaseType.supportedAuthenticationMethods
     }
 
-    private var availableCredentialSources: [CredentialSource] {
+    internal var availableCredentialSources: [CredentialSource] {
         var sources: [CredentialSource] = [.manual]
         if authenticationMethod.supportsExternalCredentials {
             sources.append(.identity)
@@ -126,12 +117,12 @@ struct ConnectionEditorView: View {
         return sources
     }
 
-    private var inheritedIdentity: SavedIdentity? {
+    internal var inheritedIdentity: SavedIdentity? {
         guard let folderID = folderID else { return nil }
         return environmentState.identityRepository.resolveInheritedIdentity(folderID: folderID)
     }
 
-    private var isFormValid: Bool {
+    internal var isFormValid: Bool {
         let trimmedName = connectionName.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedHost = host.trimmingCharacters(in: .whitespacesAndNewlines)
 
@@ -198,587 +189,5 @@ struct ConnectionEditorView: View {
             }
         }
         .background(Color.clear)
-    }
-
-    // MARK: - Sidebar
-    private var sidebarView: some View {
-        List(selection: $selectedDatabaseType) {
-            ForEach(DatabaseType.allCases, id: \.self) { type in
-                Label {
-                    Text(type.displayName)
-                } icon: {
-                    Image(type.iconName)
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .frame(width: 18, height: 18)
-                }
-                .tag(type)
-            }
-        }
-        .navigationTitle("Database")
-        .navigationSplitViewColumnWidth(min: 160, ideal: 160, max: 200)
-        .onChange(of: selectedDatabaseType) { oldType, newType in
-            if newType == .sqlite {
-                port = 0
-                useTLS = false
-                credentialSource = .manual
-                identityID = nil
-                username = ""
-                password = ""
-                database = ""
-                authenticationMethod = .sqlPassword
-                domain = ""
-            } else {
-                if oldType == .sqlite || port == 0 || port == oldType.defaultPort {
-                    port = newType.defaultPort
-                }
-                let supportedMethods = newType.supportedAuthenticationMethods
-                if !supportedMethods.contains(authenticationMethod) {
-                    authenticationMethod = newType.defaultAuthenticationMethod
-                }
-                if authenticationMethod == .windowsIntegrated {
-                    credentialSource = .manual
-                }
-            }
-        }
-        .onChange(of: authenticationMethod) { _, newMethod in
-            if newMethod == .windowsIntegrated {
-                credentialSource = .manual
-            }
-        }
-    }
-
-    // MARK: - Detail View
-    private var detailView: some View {
-        VStack(spacing: 0) {
-            ScrollView {
-                Form {
-                    Section {
-                        LabeledContent("Name") {
-                            TextField("", text: $connectionName, prompt: Text("My Connection"))
-                                .multilineTextAlignment(.trailing)
-                        }
-
-                        LabeledContent("Color") {
-                            HStack(spacing: 8) {
-                                ForEach(Self.colorPalette, id: \.self) { hex in
-                                    Button {
-                                        colorHex = hex.uppercased()
-                                    } label: {
-                                        Circle()
-                                            .fill(Color(hex: hex) ?? .accentColor)
-                                            .frame(width: 28, height: 28)
-                                            .overlay(
-                                                Circle()
-                                                    .strokeBorder(
-                                                        Color.primary.opacity(colorHex.uppercased() == hex.uppercased() ? 0.6 : 0.2),
-                                                        lineWidth: colorHex.uppercased() == hex.uppercased() ? 2.5 : 1
-                                                    )
-                                            )
-                                            .overlay(
-                                                Group {
-                                                    if colorHex.uppercased() == hex.uppercased() {
-                                                        Image(systemName: "checkmark")
-                                                            .font(.system(size: 11, weight: .bold))
-                                                            .foregroundStyle(.white)
-                                                            .shadow(color: .black.opacity(0.3), radius: 1, x: 0, y: 0.5)
-                                                    }
-                                                }
-                                            )
-                                    }
-                                    .buttonStyle(.plain)
-                                }
-                            }
-                        }
-                    } header: {
-                        Text("General")
-                    }
-
-                    Section {
-                        Picker("Folder", selection: $folderID) {
-                            Text("Root").tag(nil as UUID?)
-                            ForEach(sortedFolders, id: \.id) { folder in
-                                Text(folderDisplayName(folder)).tag(folder.id as UUID?)
-                            }
-                        }
-                        .onChange(of: folderID) { _, newFolderID in
-                            if newFolderID == nil && credentialSource == .inherit {
-                                credentialSource = .manual
-                            }
-                        }
-                    } header: {
-                        Text("Organization")
-                    }
-
-                    Section {
-                        LabeledContent(selectedDatabaseType == .sqlite ? "Database File" : "Host") {
-                            HStack(spacing: 8) {
-                                TextField(
-                                    "",
-                                    text: $host,
-                                    prompt: Text(selectedDatabaseType == .sqlite ? "/path/to/database.sqlite" : "localhost")
-                                )
-                                .multilineTextAlignment(.trailing)
-
-#if os(macOS)
-                                if selectedDatabaseType == .sqlite {
-                                    Button("Browse…") {
-                                        browseForSQLiteFile()
-                                    }
-                                    .buttonStyle(.borderless)
-                                }
-#endif
-                            }
-                        }
-
-                        if selectedDatabaseType != .sqlite {
-                            LabeledContent("Port") {
-                                TextField("", value: $port, format: .number.grouping(.never), prompt: Text("\(selectedDatabaseType.defaultPort)"))
-                                    .multilineTextAlignment(.trailing)
-                            }
-
-                            LabeledContent("Database") {
-                                TextField("", text: $database, prompt: Text("postgres (optional)"))
-                                    .multilineTextAlignment(.trailing)
-                            }
-                        } else {
-                            LabeledContent("Database") {
-                                Text("Not required")
-                                    .foregroundStyle(.secondary)
-                                    .frame(maxWidth: .infinity, alignment: .trailing)
-                            }
-                        }
-                    } header: {
-                        Text(selectedDatabaseType == .sqlite ? "Database" : "Server")
-                    }
-
-                    if selectedDatabaseType != .sqlite {
-                        Section {
-                        Picker("Method", selection: $credentialSource) {
-                            ForEach(availableCredentialSources, id: \.self) { source in
-                                Text(source.displayName).tag(source)
-                            }
-                        }
-                        .pickerStyle(.menu)
-                        .onChange(of: credentialSource) { _, newSource in
-                            switch newSource {
-                            case .manual:
-                                break
-                            case .identity:
-                                password = ""
-                                if identityID == nil || !connectionStore.identities.contains(where: { $0.id == identityID }) {
-                                    identityID = connectionStore.identities.first?.id
-                                }
-                            case .inherit:
-                                password = ""
-                            }
-                        }
-
-                        switch credentialSource {
-                        case .manual:
-                            if availableAuthenticationMethods.count > 1 {
-                                Picker("Authentication", selection: $authenticationMethod) {
-                                    ForEach(availableAuthenticationMethods, id: \.self) { method in
-                                        Text(method.displayName).tag(method)
-                                    }
-                                }
-                                .pickerStyle(.menu)
-                            }
-
-                            if authenticationMethod.requiresDomain {
-                                LabeledContent("Domain") {
-                                    TextField("", text: $domain, prompt: Text("DOMAIN"))
-                                        .multilineTextAlignment(.trailing)
-                                }
-                            }
-
-                            LabeledContent("Username") {
-                                TextField("", text: $username, prompt: Text("username"))
-                                    .multilineTextAlignment(.trailing)
-                            }
-
-                            LabeledContent("Password") {
-                                SecureField("", text: $password, prompt: Text(authenticationMethod == .windowsIntegrated ? "Windows password" : "password"))
-                                    .multilineTextAlignment(.trailing)
-                            }
-
-                        case .identity:
-                            if sortedIdentities.isEmpty {
-                                VStack(alignment: .leading, spacing: 8) {
-                                    Text("No identities available.")
-                                        .foregroundStyle(.secondary)
-                                        .font(.callout)
-                                    HStack {
-                                        Spacer()
-                                        Button("Create Linked Identity…") {
-                                            identityEditorState = .create(parent: nil, token: UUID())
-                                        }
-                                        .buttonStyle(.link)
-                                    }
-                                }
-                            } else {
-                                Picker("Identity", selection: $identityID) {
-                                    ForEach(sortedIdentities, id: \.id) { identity in
-                                        Text(identity.name).tag(identity.id as UUID?)
-                                    }
-                                }
-                                .pickerStyle(.menu)
-
-                                HStack {
-                                    Spacer()
-                                    Button("Create Linked Identity…") {
-                                        identityEditorState = .create(parent: nil, token: UUID())
-                                    }
-                                    .buttonStyle(.link)
-                                }
-                            }
-
-                        case .inherit:
-                            if let identity = inheritedIdentity {
-                                Text("This connection will use the identity '\(identity.name)' inherited from the selected folder.")
-                                    .foregroundStyle(.secondary)
-                                    .font(.callout)
-                                    .fixedSize(horizontal: false, vertical: true)
-                            } else {
-                                Text("The selected folder does not have credentials configured.")
-                                    .foregroundStyle(.red)
-                                    .font(.callout)
-                            }
-                        }
-                        } header: {
-                            Text("Authentication")
-                        }
-                    }
-
-                    if selectedDatabaseType != .sqlite {
-                        Section {
-                            Toggle("Use SSL/TLS", isOn: $useTLS)
-                        } header: {
-                            Text("Security")
-                        } footer: {
-                            Text("Enable encrypted connections when supported by the server.")
-                        }
-                    }
-                }
-                .formStyle(.grouped)
-                .scrollContentBackground(.hidden)
-            }
-
-            Divider()
-
-            toolbarView
-        }
-    }
-
-    // MARK: - Toolbar
-    private var toolbarView: some View {
-        HStack(spacing: 12) {
-            Button(action: handleTestButton) {
-                HStack(spacing: 6) {
-                    if isTestingConnection {
-                        ProgressView().controlSize(.small)
-                        Text("Cancel Test")
-                    } else {
-                        Image(systemName: "link.badge.plus")
-                        Text("Test Connection")
-                    }
-                }
-            }
-            .buttonStyle(.bordered)
-            .disabled(!isTestingConnection && !isFormValid)
-
-            Spacer()
-
-            Button("Cancel") {
-                dismiss()
-            }
-            .keyboardShortcut(.cancelAction)
-
-            Button("Save") {
-                handleSave(action: .save)
-            }
-            .disabled(!isFormValid)
-
-            Button("Save & Connect") {
-                handleSave(action: .saveAndConnect)
-            }
-            .buttonStyle(.borderedProminent)
-            .disabled(!isFormValid)
-            .keyboardShortcut(.defaultAction)
-        }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 14)
-        .background(.ultraThinMaterial)
-    }
-
-    // MARK: - Actions
-    private func handleSave(action: SaveAction) {
-        cancelActiveTest()
-
-        let generatedLogo = generateConnectionLogo(
-            databaseType: selectedDatabaseType,
-            color: currentColor
-        )
-
-        let trimmedHost = host.trimmingCharacters(in: .whitespacesAndNewlines)
-        let trimmedDatabase = database.trimmingCharacters(in: .whitespacesAndNewlines)
-        let trimmedUsername = username.trimmingCharacters(in: .whitespacesAndNewlines)
-        let trimmedDomain = domain.trimmingCharacters(in: .whitespacesAndNewlines)
-        let sanitizedPort = selectedDatabaseType == .sqlite ? 0 : port
-        let sanitizedDatabase = selectedDatabaseType == .sqlite ? "" : trimmedDatabase
-        let sanitizedUsername = selectedDatabaseType == .sqlite ? "" : trimmedUsername
-        let sanitizedAuthenticationMethod: DatabaseAuthenticationMethod = {
-            if selectedDatabaseType == .sqlite {
-                return .sqlPassword
-            }
-            let supported = selectedDatabaseType.supportedAuthenticationMethods
-            return supported.contains(authenticationMethod) ? authenticationMethod : selectedDatabaseType.defaultAuthenticationMethod
-        }()
-
-        var sanitizedCredentialSource: CredentialSource = selectedDatabaseType == .sqlite ? .manual : credentialSource
-        if !sanitizedAuthenticationMethod.supportsExternalCredentials {
-            sanitizedCredentialSource = .manual
-        }
-
-        let sanitizedIdentityID = selectedDatabaseType == .sqlite ? nil : identityID
-        let sanitizedUseTLS = selectedDatabaseType == .sqlite ? false : useTLS
-        let sanitizedDomain = selectedDatabaseType == .sqlite ? "" : trimmedDomain
-
-        let connection = SavedConnection(
-            id: originalConnection?.id ?? UUID(),
-            projectID: originalConnection?.projectID ?? projectStore.selectedProject?.id,
-            connectionName: connectionName.trimmingCharacters(in: .whitespacesAndNewlines),
-            host: trimmedHost,
-            port: sanitizedPort,
-            database: sanitizedDatabase,
-            username: sanitizedUsername,
-            authenticationMethod: sanitizedAuthenticationMethod,
-            domain: sanitizedDomain,
-            credentialSource: sanitizedCredentialSource,
-            identityID: sanitizedIdentityID,
-            keychainIdentifier: originalConnection?.keychainIdentifier,
-            folderID: folderID,
-            useTLS: sanitizedUseTLS,
-            databaseType: selectedDatabaseType,
-            serverVersion: originalConnection?.serverVersion,
-            colorHex: colorHex,
-            logo: generatedLogo,
-            cachedStructure: originalConnection?.cachedStructure,
-            cachedStructureUpdatedAt: originalConnection?.cachedStructureUpdatedAt
-        )
-
-        let passwordToPersist: String?
-        if selectedDatabaseType == .sqlite {
-            passwordToPersist = nil
-        } else if sanitizedCredentialSource == .manual && !password.isEmpty {
-            passwordToPersist = password
-        } else {
-            passwordToPersist = nil
-        }
-        onSave(connection, passwordToPersist, action)
-        dismiss()
-    }
-
-    private func generateConnectionLogo(databaseType: DatabaseType, color: Color) -> Data? {
-        let size: CGFloat = 64
-        let image = NSImage(size: NSSize(width: size, height: size))
-
-        image.lockFocus()
-        defer { image.unlockFocus() }
-
-        // Draw background with color
-        let backgroundColor = NSColor(color.opacity(0.15))
-        backgroundColor.setFill()
-        let backgroundPath = NSBezierPath(roundedRect: NSRect(x: 0, y: 0, width: size, height: size), xRadius: 12, yRadius: 12)
-        backgroundPath.fill()
-
-        // Draw database icon
-        if let iconImage = NSImage(named: databaseType.iconName) ?? NSImage(systemSymbolName: databaseType.iconName, accessibilityDescription: nil) {
-            let iconSize: CGFloat = 32
-            let iconRect = NSRect(
-                x: (size - iconSize) / 2,
-                y: (size - iconSize) / 2,
-                width: iconSize,
-                height: iconSize
-            )
-
-            iconImage.draw(in: iconRect, from: .zero, operation: .sourceOver, fraction: 1.0)
-
-            // Tint the icon with the color
-            NSColor(color).setFill()
-            iconRect.fill(using: .sourceAtop)
-        }
-
-        // Convert to PNG
-        guard let tiffData = image.tiffRepresentation,
-              let bitmapRep = NSBitmapImageRep(data: tiffData),
-              let pngData = bitmapRep.representation(using: .png, properties: [:]) else {
-            return nil
-        }
-
-        return pngData
-    }
-
-    private func handleTestButton() {
-        if isTestingConnection {
-            cancelActiveTest()
-        } else {
-            startConnectionTest()
-        }
-    }
-
-#if os(macOS)
-    private func browseForSQLiteFile() {
-        let panel = NSOpenPanel()
-        panel.canChooseFiles = true
-        panel.canChooseDirectories = false
-        panel.allowsMultipleSelection = false
-        let allowedTypes = ["sqlite", "sqlite3", "db", "db3"].compactMap { UTType(filenameExtension: $0) }
-        if !allowedTypes.isEmpty {
-            panel.allowedContentTypes = allowedTypes
-        }
-        panel.message = "Select an existing SQLite database file."
-        if panel.runModal() == .OK, let url = panel.url {
-            host = url.path
-        }
-    }
-#endif
-
-    private func startConnectionTest() {
-        cancelActiveTest()
-        isTestingConnection = true
-        testResult = nil
-
-        let trimmedUsername = username.trimmingCharacters(in: .whitespacesAndNewlines)
-        let trimmedDomain = domain.trimmingCharacters(in: .whitespacesAndNewlines)
-        let sanitizedAuthenticationMethod: DatabaseAuthenticationMethod = {
-            if selectedDatabaseType == .sqlite {
-                return .sqlPassword
-            }
-            let supported = selectedDatabaseType.supportedAuthenticationMethods
-            return supported.contains(authenticationMethod) ? authenticationMethod : selectedDatabaseType.defaultAuthenticationMethod
-        }()
-
-        var sanitizedCredentialSource = selectedDatabaseType == .sqlite ? .manual : credentialSource
-        if !sanitizedAuthenticationMethod.supportsExternalCredentials {
-            sanitizedCredentialSource = .manual
-        }
-
-        let connection = SavedConnection(
-            id: originalConnection?.id ?? UUID(),
-            projectID: originalConnection?.projectID ?? projectStore.selectedProject?.id,
-            connectionName: connectionName,
-            host: host,
-            port: selectedDatabaseType == .sqlite ? 0 : port,
-            database: selectedDatabaseType == .sqlite ? "" : database,
-            username: selectedDatabaseType == .sqlite ? "" : trimmedUsername,
-            authenticationMethod: sanitizedAuthenticationMethod,
-            domain: selectedDatabaseType == .sqlite ? "" : trimmedDomain,
-            credentialSource: sanitizedCredentialSource,
-            identityID: selectedDatabaseType == .sqlite ? nil : identityID,
-            keychainIdentifier: originalConnection?.keychainIdentifier,
-            folderID: folderID,
-            useTLS: selectedDatabaseType == .sqlite ? false : useTLS,
-            databaseType: selectedDatabaseType,
-            serverVersion: nil,
-            colorHex: colorHex,
-            cachedStructure: nil,
-            cachedStructureUpdatedAt: nil
-        )
-
-        let overridePassword: String?
-        if selectedDatabaseType == .sqlite {
-            overridePassword = nil
-        } else {
-            overridePassword = sanitizedCredentialSource == .manual ? password : nil
-        }
-        testTask = Task {
-            await runConnectionTest(connection: connection, passwordOverride: overridePassword)
-        }
-    }
-
-    private func cancelActiveTest() {
-        testTask?.cancel()
-        testTask = nil
-        isTestingConnection = false
-    }
-
-    private func runConnectionTest(connection: SavedConnection, passwordOverride: String?) async {
-        // Run the actual test with timeout
-        do {
-            let result = try await withThrowingTaskGroup(of: ConnectionTestResult.self) { group in
-                // Add connection test task
-                group.addTask {
-                    await environmentState.testConnection(connection, passwordOverride: passwordOverride)
-                }
-
-                // Add timeout task
-                group.addTask {
-                    try await Task.sleep(nanoseconds: 10_000_000_000) // 10 seconds
-                    return ConnectionTestResult(
-                        isSuccessful: false,
-                        message: "Connection timed out",
-                        responseTime: 10.0,
-                        serverVersion: nil
-                    )
-                }
-
-                // Return the first result
-                let result = try await group.next()!
-                group.cancelAll()
-                return result
-            }
-
-            guard !Task.isCancelled else {
-                await MainActor.run {
-                    testResult = ConnectionTestResult(
-                        isSuccessful: false,
-                        message: "Connection test cancelled",
-                        responseTime: nil,
-                        serverVersion: nil
-                    )
-                    isTestingConnection = false
-                    self.testTask = nil
-                    showingTestAlert = true
-                }
-                return
-            }
-
-            await MainActor.run {
-                testResult = result
-                isTestingConnection = false
-                self.testTask = nil
-                showingTestAlert = true
-            }
-        } catch {
-            // Handle cancellation
-            await MainActor.run {
-                testResult = ConnectionTestResult(
-                    isSuccessful: false,
-                    message: "Connection test cancelled",
-                    responseTime: nil,
-                    serverVersion: nil
-                )
-                isTestingConnection = false
-                self.testTask = nil
-                showingTestAlert = true
-            }
-        }
-    }
-
-    private func folderDisplayName(_ folder: SavedFolder) -> String {
-        var components: [String] = [folder.name]
-        var current = folder
-        var visited: Set<UUID> = [folder.id]
-
-        while let parentID = current.parentFolderID,
-              !visited.contains(parentID),
-              let parent = connectionStore.folders.first(where: { $0.id == parentID }) {
-            components.append(parent.name)
-            current = parent
-            visited.insert(parent.id)
-        }
-
-        return components.reversed().joined(separator: " / ")
     }
 }
