@@ -6,8 +6,10 @@ struct PerformanceMonitorWindow: Scene {
     var body: some Scene {
         Window("Performance Monitor", id: Self.sceneID) {
             PerformanceMonitorView()
-                .environment(AppCoordinator.shared.tabStore)
+                .environment(AppCoordinator.shared.projectStore)
+                .environment(AppCoordinator.shared.connectionStore)
                 .environment(AppCoordinator.shared.navigationStore)
+                .environment(AppCoordinator.shared.tabStore)
                 .environmentObject(AppCoordinator.shared.appModel)
                 .environmentObject(AppCoordinator.shared.appState)
                 .environmentObject(AppCoordinator.shared.themeManager)

@@ -117,12 +117,17 @@ private struct ManageConnectionsWindowRootView: View {
     let onClose: () -> Void
 
     var body: some View {
+        let coordinator = AppCoordinator.shared
         ManageConnectionsView(onClose: onClose)
             .ignoresSafeArea()
-            .environmentObject(AppCoordinator.shared.appModel)
-            .environmentObject(AppCoordinator.shared.appState)
-            .environmentObject(AppCoordinator.shared.themeManager)
-            .environmentObject(AppCoordinator.shared.clipboardHistory)
+            .environment(coordinator.projectStore)
+            .environment(coordinator.connectionStore)
+            .environment(coordinator.navigationStore)
+            .environment(coordinator.tabStore)
+            .environmentObject(coordinator.appModel)
+            .environmentObject(coordinator.appState)
+            .environmentObject(coordinator.themeManager)
+            .environmentObject(coordinator.clipboardHistory)
     }
 }
 #endif

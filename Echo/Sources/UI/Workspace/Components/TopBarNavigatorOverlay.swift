@@ -316,7 +316,7 @@ final class TopBarNavigatorOverlay {
     }
 
     private func disableImplicitAnimations(for view: NSView) {
-        var animations = view.animations ?? [:]
+        var animations = view.animations
         animations["frameOrigin"] = NSNull()
         animations["frameSize"] = NSNull()
         animations["bounds"] = NSNull()
@@ -342,7 +342,7 @@ final class TopBarNavigatorOverlay {
     }
 
     private func updateLayout() {
-        guard let toolbarView, let hostingView, let window, let toolbar = window.toolbar else { return }
+        guard let toolbarView, let _ = hostingView, let window, let toolbar = window.toolbar else { return }
         toolbarView.layoutSubtreeIfNeeded()
         updateToolbarItemObservers(toolbar: toolbar, toolbarView: toolbarView)
 

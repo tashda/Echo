@@ -7,6 +7,10 @@ struct SettingsWindowScene: Scene {
     var body: some Scene {
         WindowGroup(id: Self.sceneID) {
             SettingsView()
+                .environment(coordinator.projectStore)
+                .environment(coordinator.connectionStore)
+                .environment(coordinator.navigationStore)
+                .environment(coordinator.tabStore)
                 .environmentObject(coordinator.appModel)
                 .environmentObject(coordinator.appState)
                 .environmentObject(coordinator.clipboardHistory)
