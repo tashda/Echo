@@ -2,7 +2,12 @@ import SwiftUI
 import Combine
 
 struct SearchSidebarView: View {
-    @EnvironmentObject private var appModel: AppModel
+    @Environment(ProjectStore.self) private var projectStore
+    @Environment(ConnectionStore.self) private var connectionStore
+    @Environment(NavigationStore.self) private var navigationStore
+    @Environment(TabStore.self) private var tabStore
+    
+    @EnvironmentObject private var appModel: AppModel // Temporary bridge for context and actions
     @StateObject private var viewModel = SearchSidebarViewModel()
     @FocusState private var isSearchFieldFocused: Bool
     @State private var didRestoreCache = false
@@ -29,7 +34,7 @@ struct SearchSidebarView: View {
             }
             viewModel.notifyQueryTabsChanged()
         }
-        .onChange(of: appModel.selectedConnectionID) { _, _ in syncContext() }
+        .onChange(of: connectionStore.selectedConnectionID) { _, _ in syncContext() }
         .onChange(of: activeSession?.id) { _, _ in syncContext() }
         .onChange(of: activeSession?.selectedDatabaseName) { _, _ in syncContext() }
         .onReceive(viewModel.$query.removeDuplicates()) { _ in cacheState() }
@@ -37,10 +42,10 @@ struct SearchSidebarView: View {
         .onReceive(viewModel.$results) { _ in cacheState() }
         .onReceive(viewModel.$errorMessage.removeDuplicates()) { _ in cacheState() }
         .onReceive(viewModel.$isSearching.removeDuplicates()) { _ in cacheState() }
-        .onChange(of: appModel.tabManager.tabs.map(\.id)) { _, _ in
+        .onChange(of: tabStore.tabs.map(\.id)) { _, _ in
             viewModel.notifyQueryTabsChanged()
         }
-        .onChange(of: appModel.tabManager.activeTabId) { _, _ in
+        .onChange(of: tabStore.activeTabId) { _, _ in
             viewModel.notifyQueryTabsChanged()
         }
         .onDisappear { persistActiveCache() }
@@ -277,7 +282,7 @@ struct SearchSidebarView: View {
     }
 
     private var activeSession: ConnectionSession? {
-        if let selectedID = appModel.selectedConnectionID,
+        if let selectedID = connectionStore.selectedConnectionID,
            let session = appModel.sessionManager.sessionForConnection(selectedID) {
             return session
         }
@@ -384,7 +389,7 @@ struct SearchSidebarView: View {
 
         case .queryTab(let tabID, let connectionSessionID):
             appModel.sessionManager.setActiveSession(connectionSessionID)
-            appModel.tabManager.setActiveTab(tabID)
+            tabStore.activeTabId = tabID
         }
     }
 
@@ -460,7 +465,7 @@ struct SearchSidebarView: View {
             objectType: objectType,
             columnName: columnName
         )
-        appModel.pendingExplorerFocus = focus
+        navigationStore.focusExplorer(focus)
     }
 
     private func openDefinition(for objectName: String, schema: String, type: SchemaObjectInfo.ObjectType, in session: ConnectionSession) {
@@ -849,7 +854,7 @@ private func queryTabSnapshots(from appModel: AppModel?) -> [SearchSidebarQueryT
 
     var snapshots: [SearchSidebarQueryTabSnapshot] = []
 
-    for tab in appModel.tabManager.tabs {
+    for tab in appModel.tabStore.tabs {
         guard let queryState = tab.query else { continue }
         let session = sessionsByID[tab.connectionSessionID]
         let connection = tab.connection

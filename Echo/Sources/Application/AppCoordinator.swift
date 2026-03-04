@@ -124,7 +124,7 @@ final class AppCoordinator: ObservableObject {
             }
         }
 
-        self.appModel.tabManager.delegate = self
+        self.tabStore.delegate = self
         setupBindings()
 #if os(macOS)
         observeWindowFocusChanges()
@@ -219,7 +219,7 @@ final class AppCoordinator: ObservableObject {
 #if !os(macOS)
             presentConnectionsIfNeeded()
 #endif
-        } else if appModel.tabManager.tabs.isEmpty {
+        } else if tabStore.tabs.isEmpty {
             appModel.openQueryTab()
         }
     }
@@ -290,16 +290,16 @@ final class AppCoordinator: ObservableObject {
 #endif
 }
 
-// MARK: - TabManagerDelegate
+// MARK: - TabStoreDelegate
 
-extension AppCoordinator: TabManagerDelegate {
-    func tabManager(_ manager: TabManager, didAdd tab: WorkspaceTab) {
-        if manager.activeTabId == tab.id {
+extension AppCoordinator: TabStoreDelegate {
+    func tabStore(_ store: TabStore, didAdd tab: WorkspaceTab) {
+        if store.activeTabId == tab.id {
             appModel.sessionManager.setActiveSession(tab.connectionSessionID)
         }
     }
 
-    func tabManager(_ manager: TabManager, shouldClose tab: WorkspaceTab) -> Bool {
+    func tabStore(_ store: TabStore, shouldClose tab: WorkspaceTab) async -> Bool {
         guard let context = tab.bookmarkContext, let queryState = tab.query else {
             return true
         }
@@ -317,8 +317,13 @@ extension AppCoordinator: TabManagerDelegate {
         switch response {
         case .alertFirstButtonReturn:
             let currentQuery = queryState.sql
-            Task { [weak self] in
-                await self?.appModel.updateBookmarkQuery(context.bookmarkID, newQuery: currentQuery)
+            if let connection = connectionStore.connections.first(where: { $0.id == tab.connection.id }),
+               let projectID = connection.projectID,
+               var project = projectStore.projects.first(where: { $0.id == projectID }) {
+                appModel.bookmarkRepository.updateBookmark(context.bookmarkID, in: &project) { b in
+                    b.query = currentQuery
+                }
+                await projectStore.saveProject(project)
             }
             return true
         case .alertSecondButtonReturn:
@@ -331,16 +336,16 @@ extension AppCoordinator: TabManagerDelegate {
 #endif
     }
 
-    func tabManager(_ manager: TabManager, didRemoveTabID tabID: UUID) {
-        if let activeTab = manager.activeTab {
+    func tabStore(_ store: TabStore, didRemoveTabID tabID: UUID) {
+        if let activeTab = store.activeTab {
             appModel.sessionManager.setActiveSession(activeTab.connectionSessionID)
         } else {
             appModel.sessionManager.activeSessionID = nil
         }
     }
 
-    func tabManager(_ manager: TabManager, didSetActiveTabID tabID: UUID?) {
-        guard let tabID, let tab = manager.getTab(id: tabID) else {
+    func tabStore(_ store: TabStore, didSetActiveTabID tabID: UUID?) {
+        guard let tabID, let tab = store.getTab(id: tabID) else {
             appModel.sessionManager.activeSessionID = nil
 #if !os(macOS)
             presentConnectionsIfNeeded()
@@ -351,7 +356,7 @@ extension AppCoordinator: TabManagerDelegate {
         appModel.sessionManager.setActiveSession(tab.connectionSessionID)
     }
 
-    func tabManagerDidReorderTabs(_ manager: TabManager) {
+    func tabStoreDidReorderTabs(_ store: TabStore) {
         // Future hook for syncing external UI
     }
 }

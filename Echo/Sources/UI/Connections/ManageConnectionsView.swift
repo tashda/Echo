@@ -3,7 +3,11 @@ import AppKit
 
 @MainActor
 struct ManageConnectionsView: View {
-    @EnvironmentObject private var appModel: AppModel
+    @Environment(ProjectStore.self) private var projectStore
+    @Environment(ConnectionStore.self) private var connectionStore
+    @Environment(NavigationStore.self) private var navigationStore
+    
+    @EnvironmentObject private var appModel: AppModel // Temporary bridge for actions
     @EnvironmentObject private var appState: AppState
     @ObservedObject private var themeManager = ThemeManager.shared
     @Environment(\.dismiss) private var dismiss
@@ -36,10 +40,7 @@ struct ManageConnectionsView: View {
         contentView
             .onAppear(perform: ensureSectionSelection)
             .onAppear {
-                // Initialize sort orders if empty
                 if connectionSortOrder.isEmpty {
-                    // Swift 6 Note: WritableKeyPath is not Sendable, but this is safe as we're
-                    // initializing @State on the main actor. This warning can be suppressed.
                     connectionSortOrder = [KeyPathComparator(\SavedConnection.connectionName, order: .forward)]
                 }
                 if identitySortOrder.isEmpty {
@@ -87,7 +88,8 @@ struct ManageConnectionsView: View {
                 Text("Do you want to copy the bookmark history into the duplicated connection?")
             }
             .modifier(ChangeHandlers(
-                appModel: appModel,
+                connectionStore: connectionStore,
+                projectStore: projectStore,
                 selectedSection: $selectedSection,
                 sidebarSelection: $sidebarSelection,
                 pendingConnectionMove: $pendingConnectionMove,
@@ -230,7 +232,7 @@ private extension ManageConnectionsView {
         nodes: [FolderNode],
         totalCount: Int
     ) -> some View {
-        DisclosureGroup(isExpanded: binding(for: section)) {
+         DisclosureGroup(isExpanded: binding(for: section)) {
             OutlineGroup(nodes, children: \.childNodes) { node in
                 sidebarFolderLink(node: node, section: section)
             }
@@ -426,6 +428,9 @@ private extension ManageConnectionsView {
         ConnectionEditorView(connection: presentation.connection) { connection, password, action in
             handleConnectionEditorSave(connection: connection, password: password, action: action)
         }
+        .environment(projectStore)
+        .environment(connectionStore)
+        .environment(navigationStore)
         .environmentObject(appModel)
         .environmentObject(appState)
     }
@@ -457,7 +462,7 @@ private extension ManageConnectionsView {
     func handleSectionChange(_ section: ManageSection) {
         searchText = ""
         if section == .connections {
-            appModel.selectedIdentityID = nil
+            connectionStore.selectedIdentityID = nil
         }
 
         let target: SidebarSelection = .section(section)
@@ -475,12 +480,12 @@ private extension ManageConnectionsView {
 
         switch selection {
         case .section:
-            if appModel.selectedFolderID != nil {
-                appModel.selectedFolderID = nil
+            if connectionStore.selectedFolderID != nil {
+                connectionStore.selectedFolderID = nil
             }
         case .folder(let folderID, _):
-            if appModel.selectedFolderID != folderID {
-                appModel.selectedFolderID = folderID
+            if connectionStore.selectedFolderID != folderID {
+                connectionStore.selectedFolderID = folderID
             }
         }
     }
@@ -537,34 +542,34 @@ private extension ManageConnectionsView {
 
     func pruneNavigationStacks() {
         guard let projectID = selectedProjectID else {
-            appModel.selectedFolderID = nil
-            appModel.selectedIdentityID = nil
-            appModel.selectedConnectionID = nil
+            connectionStore.selectedFolderID = nil
+            connectionStore.selectedIdentityID = nil
+            connectionStore.selectedConnectionID = nil
             return
         }
 
-        if let folderID = appModel.selectedFolderID,
-           !appModel.folders.contains(where: { $0.id == folderID && $0.projectID == projectID }) {
-            appModel.selectedFolderID = nil
+        if let folderID = connectionStore.selectedFolderID,
+           !connectionStore.folders.contains(where: { $0.id == folderID && $0.projectID == projectID }) {
+            connectionStore.selectedFolderID = nil
         }
 
-        if let identityID = appModel.selectedIdentityID,
-           !appModel.identities.contains(where: { $0.id == identityID && $0.projectID == projectID }) {
-            appModel.selectedIdentityID = nil
+        if let identityID = connectionStore.selectedIdentityID,
+           !connectionStore.identities.contains(where: { $0.id == identityID && $0.projectID == projectID }) {
+            connectionStore.selectedIdentityID = nil
         }
 
-        if let connectionID = appModel.selectedConnectionID,
-           !appModel.connections.contains(where: { $0.id == connectionID && $0.projectID == projectID }) {
-            appModel.selectedConnectionID = nil
+        if let connectionID = connectionStore.selectedConnectionID,
+           !connectionStore.connections.contains(where: { $0.id == connectionID && $0.projectID == projectID }) {
+            connectionStore.selectedConnectionID = nil
         }
 
-        syncSidebarSelection(withFolderID: appModel.selectedFolderID)
+        syncSidebarSelection(withFolderID: connectionStore.selectedFolderID)
     }
 
     func ensureSectionSelection() {
         if selectedSection == nil {
-            if let identityID = appModel.selectedIdentityID,
-               appModel.identities.contains(where: { $0.id == identityID }) {
+            if let identityID = connectionStore.selectedIdentityID,
+               connectionStore.identities.contains(where: { $0.id == identityID }) {
                 selectedSection = .identities
             } else {
                 selectedSection = .connections
@@ -572,7 +577,7 @@ private extension ManageConnectionsView {
         }
 
         if sidebarSelection == nil {
-            if let folderID = appModel.selectedFolderID {
+            if let folderID = connectionStore.selectedFolderID {
                 syncSidebarSelection(withFolderID: folderID)
             } else if let section = selectedSection {
                 sidebarSelection = .section(section)
@@ -582,13 +587,13 @@ private extension ManageConnectionsView {
         }
 
         if connectionSelection.isEmpty,
-           let id = appModel.selectedConnectionID,
+           let id = connectionStore.selectedConnectionID,
            filteredConnectionsForTable.contains(where: { $0.id == id }) {
             connectionSelection = [id]
         }
 
         if identitySelection.isEmpty,
-           let id = appModel.selectedIdentityID,
+           let id = connectionStore.selectedIdentityID,
            filteredIdentitiesForTable.contains(where: { $0.id == id }) {
             identitySelection = [id]
         }
@@ -599,23 +604,23 @@ private extension ManageConnectionsView {
 
 private extension ManageConnectionsView {
     var selectedProjectID: UUID? {
-        appModel.selectedProject?.id
+        projectStore.selectedProject?.id
     }
 
     var projectConnections: [SavedConnection] {
-        appModel.connections.filter { $0.projectID == selectedProjectID }
+        connectionStore.connections.filter { $0.projectID == selectedProjectID }
     }
 
     var projectIdentities: [SavedIdentity] {
-        appModel.identities.filter { $0.projectID == selectedProjectID }
+        connectionStore.identities.filter { $0.projectID == selectedProjectID }
     }
 
     var connectionFolders: [SavedFolder] {
-        appModel.folders.filter { $0.kind == .connections && $0.projectID == selectedProjectID }
+        connectionStore.folders.filter { $0.kind == .connections && $0.projectID == selectedProjectID }
     }
 
     var identityFolders: [SavedFolder] {
-        appModel.folders.filter { $0.kind == .identities && $0.projectID == selectedProjectID }
+        connectionStore.folders.filter { $0.kind == .identities && $0.projectID == selectedProjectID }
     }
 
     var connectionFolderNodes: [FolderNode] {
@@ -749,7 +754,7 @@ private extension ManageConnectionsView {
     }
 
     func folder(withID id: UUID) -> SavedFolder? {
-        appModel.folders.first(where: { $0.id == id })
+        connectionStore.folders.first(where: { $0.id == id })
     }
 }
 
@@ -766,7 +771,7 @@ private extension ManageConnectionsView {
 
             await MainActor.run {
                 selectedSection = .connections
-                appModel.selectedFolderID = connection.folderID
+                connectionStore.selectedFolderID = connection.folderID
                 connectionSelection = [connection.id]
                 connectionEditorPresentation = nil
             }
@@ -789,9 +794,9 @@ private extension ManageConnectionsView {
         case .connection(let connection):
             Task { await appModel.deleteConnection(connection) }
         case .folder(let folder):
-            Task { await appModel.deleteFolder(folder) }
+            Task { try? await connectionStore.deleteFolder(folder) }
         case .identity(let identity):
-            Task { await appModel.deleteIdentity(identity) }
+            Task { try? await connectionStore.deleteIdentity(identity) }
         }
         pendingDeletion = nil
     }
@@ -799,13 +804,13 @@ private extension ManageConnectionsView {
     func createNewConnection() {
         selectedSection = .connections
         let parent = currentFolder(for: .connections) ?? defaultFolder(for: .connections)
-        appModel.selectedFolderID = parent?.id
+        connectionStore.selectedFolderID = parent?.id
         connectionEditorPresentation = ConnectionEditorPresentation(connection: nil)
     }
 
     func editConnection(_ connection: SavedConnection) {
         selectedSection = .connections
-        appModel.selectedFolderID = connection.folderID
+        connectionStore.selectedFolderID = connection.folderID
         connectionEditorPresentation = ConnectionEditorPresentation(connection: connection)
     }
 
@@ -816,7 +821,25 @@ private extension ManageConnectionsView {
     func performDuplicate(_ connection: SavedConnection, copyBookmarks: Bool) {
         Task {
             pendingDuplicateConnection = nil
-            await appModel.duplicateConnection(connection, copyBookmarks: copyBookmarks)
+            var duplicated = connection
+            duplicated.id = UUID()
+            duplicated.connectionName = "\(connection.connectionName) (Copy)"
+            
+            // Password duplication usually requires security clearance or manual re-entry
+            // but for simple duplication we try to copy the secret reference if possible
+            
+            try? await connectionStore.updateConnection(duplicated)
+            
+            if copyBookmarks, let projectID = connection.projectID,
+               var project = projectStore.projects.first(where: { $0.id == projectID }) {
+                let existingBookmarks = appModel.bookmarkRepository.bookmarks(for: connection.id, in: project)
+                for var bookmark in existingBookmarks {
+                    bookmark.id = UUID()
+                    bookmark.connectionID = duplicated.id
+                    appModel.bookmarkRepository.addBookmark(bookmark, to: &project)
+                }
+                await projectStore.saveProject(project)
+            }
         }
     }
 
@@ -865,7 +888,7 @@ private extension ManageConnectionsView {
            selectedSection == section {
             return folder(withID: id)
         }
-        if let folderID = appModel.selectedFolderID,
+        if let folderID = connectionStore.selectedFolderID,
            let folder = folder(withID: folderID),
            folder.kind.manageSection == section {
             return folder
@@ -878,26 +901,26 @@ private extension ManageConnectionsView {
 
         switch section {
         case .connections:
-            if let folderID = appModel.selectedFolderID,
+            if let folderID = connectionStore.selectedFolderID,
                let folder = folder(withID: folderID),
                folder.projectID == projectID,
                folder.kind == .connections {
                 return folder
             }
-            if let connectionID = appModel.selectedConnectionID,
+            if let connectionID = connectionStore.selectedConnectionID,
                let connection = projectConnections.first(where: { $0.id == connectionID }),
                let folderID = connection.folderID,
                let folder = folder(withID: folderID) {
                 return folder
             }
         case .identities:
-            if let folderID = appModel.selectedFolderID,
+            if let folderID = connectionStore.selectedFolderID,
                let folder = folder(withID: folderID),
                folder.projectID == projectID,
                folder.kind == .identities {
                 return folder
             }
-            if let identityID = appModel.selectedIdentityID,
+            if let identityID = connectionStore.selectedIdentityID,
                let identity = projectIdentities.first(where: { $0.id == identityID }),
                let folderID = identity.folderID,
                let folder = folder(withID: folderID) {
@@ -986,7 +1009,7 @@ private extension ManageConnectionsView {
         var updatedIdentity = identity
         updatedIdentity.folderID = folder.id
         Task {
-            await appModel.upsertIdentity(updatedIdentity, password: nil)
+            try? await connectionStore.updateIdentity(updatedIdentity)
         }
     }
 
@@ -1517,7 +1540,8 @@ private extension ManageConnectionsView {
 // MARK: - Change Handlers
 
 private struct ChangeHandlers: ViewModifier {
-    let appModel: AppModel
+    let connectionStore: ConnectionStore
+    let projectStore: ProjectStore
     @Binding var selectedSection: ManageSection?
     @Binding var sidebarSelection: SidebarSelection?
     @Binding var pendingConnectionMove: SavedConnection?
@@ -1534,7 +1558,7 @@ private struct ChangeHandlers: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .onChange(of: appModel.selectedProject?.id) { _, _ in
+            .onChange(of: projectStore.selectedProject?.id) { _, _ in
                 onProjectChange()
             }
             .onChange(of: selectedSection) { _, section in
@@ -1543,7 +1567,7 @@ private struct ChangeHandlers: ViewModifier {
             .onChange(of: sidebarSelection) { _, selection in
                 onSidebarSelectionChange(selection)
             }
-            .onChange(of: appModel.selectedFolderID) { _, folderID in
+            .onChange(of: connectionStore.selectedFolderID) { _, folderID in
                 onFolderIDChange(folderID)
             }
             .onChange(of: filteredConnectionsForTable.map(\.id)) { _, ids in
@@ -1552,7 +1576,7 @@ private struct ChangeHandlers: ViewModifier {
             .onChange(of: filteredIdentitiesForTable.map(\.id)) { _, ids in
                 onIdentitiesChange(ids)
             }
-            .onChange(of: appModel.folders) { oldFolders, newFolders in
+            .onChange(of: connectionStore.folders) { oldFolders, newFolders in
                 onFoldersChange(oldFolders, newFolders)
             }
     }

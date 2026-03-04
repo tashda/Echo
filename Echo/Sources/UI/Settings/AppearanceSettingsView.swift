@@ -2,7 +2,7 @@ import SwiftUI
 import Foundation
 
 struct AppearanceSettingsView: View {
-    @EnvironmentObject private var appModel: AppModel
+    @Environment(ProjectStore.self) private var projectStore
     @EnvironmentObject private var themeManager: ThemeManager
 
     var body: some View {
@@ -34,12 +34,19 @@ struct AppearanceSettingsView: View {
 
     private var accentColorSection: some View {
         Section("Accent Color") {
-            Toggle("Use Server Color as Accent", isOn: $appModel.globalSettings.useServerColorAsAccent)
+            Toggle("Use Server Color as Accent", isOn: Binding(
+                get: { projectStore.globalSettings.useServerColorAsAccent },
+                set: { newValue in
+                    var settings = projectStore.globalSettings
+                    settings.useServerColorAsAccent = newValue
+                    Task { try? await projectStore.updateGlobalSettings(settings) }
+                }
+            ))
             
             ColorPicker("Custom Accent Color", selection: customAccentColorBinding)
-                .disabled(appModel.globalSettings.useServerColorAsAccent)
+                .disabled(projectStore.globalSettings.useServerColorAsAccent)
             
-            if appModel.globalSettings.useServerColorAsAccent {
+            if projectStore.globalSettings.useServerColorAsAccent {
                 Text("When enabled, the accent color will change based on the active database connection.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
@@ -52,23 +59,41 @@ struct AppearanceSettingsView: View {
             HStack {
                 Text("Font Family")
                 Spacer()
-                TextField("Font Family", text: $appModel.globalSettings.defaultEditorFontFamily)
-                    .textFieldStyle(.roundedBorder)
-                    .frame(width: 200)
+                TextField("Font Family", text: Binding(
+                    get: { projectStore.globalSettings.defaultEditorFontFamily },
+                    set: { newValue in
+                        var settings = projectStore.globalSettings
+                        settings.defaultEditorFontFamily = newValue
+                        Task { try? await projectStore.updateGlobalSettings(settings) }
+                    }
+                ))
+                .textFieldStyle(.roundedBorder)
+                .frame(width: 200)
             }
 
-            Stepper(value: $appModel.globalSettings.defaultEditorFontSize, in: 8...24, step: 0.5) {
+            Stepper(value: Binding(
+                get: { projectStore.globalSettings.defaultEditorFontSize },
+                set: { newValue in
+                    var settings = projectStore.globalSettings
+                    settings.defaultEditorFontSize = newValue
+                    Task { try? await projectStore.updateGlobalSettings(settings) }
+                }
+            ), in: 8...24, step: 0.5) {
                 HStack {
                     Text("Font Size")
                     Spacer()
-                    Text("\(String(format: "%.1f", appModel.globalSettings.defaultEditorFontSize)) pt")
+                    Text("\(String(format: "%.1f", projectStore.globalSettings.defaultEditorFontSize)) pt")
                         .foregroundStyle(.secondary)
                 }
             }
             
             Toggle("Enable Ligatures", isOn: Binding(
-                get: { appModel.globalSettings.fontLigatureOverrides[appModel.globalSettings.defaultEditorFontFamily] ?? true },
-                set: { appModel.globalSettings.fontLigatureOverrides[appModel.globalSettings.defaultEditorFontFamily] = $0 }
+                get: { projectStore.globalSettings.fontLigatureOverrides[projectStore.globalSettings.defaultEditorFontFamily] ?? true },
+                set: { newValue in
+                    var settings = projectStore.globalSettings
+                    settings.fontLigatureOverrides[projectStore.globalSettings.defaultEditorFontFamily] = newValue
+                    Task { try? await projectStore.updateGlobalSettings(settings) }
+                }
             ))
         }
     }
@@ -77,9 +102,11 @@ struct AppearanceSettingsView: View {
 
     private var appearanceModeBinding: Binding<AppearanceMode> {
         Binding(
-            get: { appModel.globalSettings.appearanceMode },
+            get: { projectStore.globalSettings.appearanceMode },
             set: { newValue in
-                appModel.globalSettings.appearanceMode = newValue
+                var settings = projectStore.globalSettings
+                settings.appearanceMode = newValue
+                Task { try? await projectStore.updateGlobalSettings(settings) }
                 themeManager.applyAppearanceMode(newValue)
             }
         )

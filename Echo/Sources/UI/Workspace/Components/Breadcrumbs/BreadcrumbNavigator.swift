@@ -9,6 +9,8 @@ extension WorkspaceChromeMetrics {}
 
 /// Main breadcrumb navigator that displays Xcode-style breadcrumbs
 struct BreadcrumbNavigator: View {
+    @Environment(ProjectStore.self) private var projectStore
+    @Environment(ConnectionStore.self) private var connectionStore
     @EnvironmentObject private var appModel: AppModel
     @EnvironmentObject private var themeManager: ThemeManager
     @EnvironmentObject private var layoutState: TopBarNavigatorLayoutState
@@ -83,7 +85,7 @@ struct BreadcrumbNavigator: View {
             .onAppear {
                 updateBreadcrumbSegments()
             }
-            .onChange(of: appModel.selectedConnectionID) { _, _ in
+            .onChange(of: connectionStore.selectedConnectionID) { _, _ in
                 updateBreadcrumbSegments()
             }
             .onChange(of: appModel.sessionManager.sessions.count) { _, _ in
@@ -198,7 +200,7 @@ struct BreadcrumbNavigator: View {
     }
 
     private var statusText: String? {
-        guard let selectedID = appModel.selectedConnectionID else {
+        guard let selectedID = connectionStore.selectedConnectionID else {
             return "No Connection"
         }
 
@@ -249,9 +251,9 @@ struct BreadcrumbNavigator: View {
     private func menuController(for index: Int) -> NSViewController? {
         switch index {
         case 0:
-            return ConnectionsPopoverController(appModel: appModel)
+            return ConnectionsPopoverController(connectionStore: connectionStore, appModel: appModel)
         case 1:
-            guard let connectionID = appModel.selectedConnectionID else { return nil }
+            guard let connectionID = connectionStore.selectedConnectionID else { return nil }
             return DatabasePopoverController(appModel: appModel, connectionID: connectionID)
         default:
             return nil
@@ -261,7 +263,7 @@ struct BreadcrumbNavigator: View {
 
     private func updateBreadcrumbSegments() {
         let connectionTitle: String
-        if let connection = appModel.selectedConnection {
+        if let connection = connectionStore.selectedConnection {
             connectionTitle = connection.connectionName.isEmpty ? connection.host : connection.connectionName
         } else {
             connectionTitle = "Connections"
@@ -278,8 +280,8 @@ struct BreadcrumbNavigator: View {
         )
 
         let databaseTitle: String
-        let isDatabaseEnabled = appModel.selectedConnectionID != nil
-        if let connectionID = appModel.selectedConnectionID,
+        let isDatabaseEnabled = connectionStore.selectedConnectionID != nil
+        if let connectionID = connectionStore.selectedConnectionID,
            let session = appModel.sessionManager.sessionForConnection(connectionID),
            let databaseName = session.selectedDatabaseName,
            !databaseName.isEmpty {

@@ -41,25 +41,29 @@ private func buildForeignKeyMapping(from details: TableStructureDetails) -> Fore
 #endif
 
 struct QueryTabsView: View {
+    @Environment(ProjectStore.self) private var projectStore
+    @Environment(ConnectionStore.self) private var connectionStore
+    @Environment(NavigationStore.self) private var navigationStore
+    @Environment(TabStore.self) private var tabStore
+    
     @EnvironmentObject private var appModel: AppModel
     @EnvironmentObject private var appState: AppState
     @EnvironmentObject private var themeManager: ThemeManager
     @Environment(\.hostedWorkspaceTabID) private var hostedWorkspaceTabID
 
-
     var showsTabStrip: Bool = true
     var tabBarLeadingPadding: CGFloat = 6
     var tabBarTrailingPadding: CGFloat = 6
+    
     private var recentConnectionItems: [RecentConnectionItem] {
         appModel.recentConnections.compactMap { record in
-            guard let connection = appModel.connections.first(where: { $0.id == record.connectionID }) else {
+            guard let connection = connectionStore.connections.first(where: { $0.id == record.id }) else {
                 return nil
             }
 
             let trimmedName = connection.connectionName.trimmingCharacters(in: .whitespacesAndNewlines)
             let displayName = trimmedName.isEmpty ? connection.host : trimmedName
-            let trimmedDatabase = record.databaseName?.trimmingCharacters(in: .whitespacesAndNewlines)
-            let database = (trimmedDatabase?.isEmpty == false) ? trimmedDatabase : nil
+            let database = record.databaseName
 
             return RecentConnectionItem(
                 id: record.id,
@@ -67,18 +71,19 @@ struct QueryTabsView: View {
                 name: displayName,
                 server: connection.host,
                 database: database,
-                lastConnectedAt: record.lastConnectedAt,
+                lastConnectedAt: record.lastUsedAt,
                 databaseType: connection.databaseType
             )
         }
     }
+    
     private var currentWorkspaceTab: WorkspaceTab? {
         if let hostedWorkspaceTabID,
-           let hostedTab = appModel.tabManager.getTab(id: hostedWorkspaceTabID) {
+           let hostedTab = tabStore.tabs.first(where: { $0.id == hostedWorkspaceTabID }) {
             return hostedTab
         }
 
-        return appModel.tabManager.activeTab
+        return tabStore.activeTab
     }
 
     var body: some View {
@@ -92,14 +97,14 @@ struct QueryTabsView: View {
 
             if appState.showTabOverview {
                 TabOverviewView(
-                    tabs: appModel.tabManager.tabs,
-                    activeTabId: appModel.tabManager.activeTabId,
+                    tabs: tabStore.tabs,
+                    activeTabId: tabStore.activeTabId,
                     onSelectTab: { tabId in
-                        appModel.tabManager.activeTabId = tabId
+                        tabStore.activeTabId = tabId
                         appState.showTabOverview = false
                     },
                     onCloseTab: { tabId in
-                        appModel.tabManager.closeTab(id: tabId)
+                        tabStore.closeTab(id: tabId)
                     }
                 )
             } else if let currentTab = currentWorkspaceTab {
@@ -117,10 +122,10 @@ struct QueryTabsView: View {
             }
         }
         .onAppear(perform: createInitialTabIfNeeded)
-        .onChange(of: appModel.selectedConnection) { _, _ in
+        .onChange(of: connectionStore.selectedConnectionID) { _, _ in
             createInitialTabIfNeeded()
         }
-        .onChange(of: appModel.tabManager.activeTabId) { _, _ in
+        .onChange(of: tabStore.activeTabId) { _, _ in
             if appState.showTabOverview {
                 appState.showTabOverview = false
             }
@@ -128,14 +133,14 @@ struct QueryTabsView: View {
     }
 
     private func createInitialTabIfNeeded() {
-        guard appModel.tabManager.tabs.isEmpty,
+        guard tabStore.tabs.isEmpty,
               let activeSession = appModel.sessionManager.activeSession else { return }
 
         appModel.openQueryTab(for: activeSession)
     }
 
     private func runQuery(tabId: UUID, sql: String) async {
-        guard let tab = appModel.tabManager.getTab(id: tabId),
+        guard let tab = tabStore.tabs.first(where: { $0.id == tabId }),
               let queryState = tab.query else { return }
 
         let trimmedSQL = sql.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -151,7 +156,7 @@ struct QueryTabsView: View {
         await MainActor.run {
             queryState.updateClipboardObjectName(inferredObject)
         }
-        let foreignKeyMode = await MainActor.run { appModel.globalSettings.foreignKeyDisplayMode }
+        let foreignKeyMode = await MainActor.run { projectStore.globalSettings.foreignKeyDisplayMode }
         let shouldResolveForeignKeys = foreignKeyMode != .disabled
         let foreignKeySource = shouldResolveForeignKeys ? resolveSchemaAndTable(for: inferredObject, connection: tab.connection) : nil
 
@@ -224,14 +229,15 @@ struct QueryTabsView: View {
     }
 
     private func cancelQuery(tabId: UUID) {
-        guard let tab = appModel.tabManager.getTab(id: tabId),
+        guard let tab = tabStore.tabs.first(where: { $0.id == tabId }),
               let queryState = tab.query else { return }
         queryState.cancelExecution()
     }
 
     private func connectToRecentConnection(_ item: RecentConnectionItem) {
+        guard let connection = connectionStore.connections.first(where: { $0.id == item.id }) else { return }
         Task {
-            await appModel.connectToRecentConnection(item.record)
+            await appModel.connect(to: connection)
         }
     }
 

@@ -51,9 +51,9 @@ final class ProjectStore {
         self.selectedProject = project
     }
     
-    func createProject(name: String) async throws -> Project {
+    func createProject(name: String, colorHex: String, iconName: String?) async throws -> Project {
         let uniqueName = generateUniqueProjectName(for: name)
-        let newProject = Project(id: UUID(), name: uniqueName, isDefault: false)
+        let newProject = Project(id: UUID(), name: uniqueName, colorHex: colorHex, iconName: iconName, isDefault: false)
         projects.append(newProject)
         try await saveProjects(projects)
         return newProject
@@ -63,6 +63,13 @@ final class ProjectStore {
         guard let index = projects.firstIndex(where: { $0.id == project.id }) else { return }
         projects[index] = project
         try await saveProjects(projects)
+    }
+    
+    func saveProject(_ project: Project) async {
+        if let index = projects.firstIndex(where: { $0.id == project.id }) {
+            projects[index] = project
+        }
+        try? await repository.saveProject(project)
     }
     
     func deleteProject(_ project: Project) async throws {

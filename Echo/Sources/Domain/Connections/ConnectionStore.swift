@@ -13,6 +13,7 @@ final class ConnectionStore {
     var selectedConnectionID: UUID?
     var selectedFolderID: UUID?
     var selectedIdentityID: UUID?
+    var expandedConnectionFolderIDs: Set<UUID> = []
     
     // MARK: - Dependencies
     private let repository: any ConnectionRepositoryProtocol
@@ -23,6 +24,11 @@ final class ConnectionStore {
     }
     
     // MARK: - Public API
+    
+    var selectedConnection: SavedConnection? {
+        guard let id = selectedConnectionID else { return nil }
+        return connections.first { $0.id == id }
+    }
     
     func load() async throws {
         self.connections = try await repository.loadConnections()
@@ -50,6 +56,10 @@ final class ConnectionStore {
         try await repository.saveIdentities(identities)
     }
     
+    func updateExpandedConnectionFolders(_ ids: Set<UUID>) {
+        self.expandedConnectionFolderIDs = ids
+    }
+    
     // MARK: - CRUD
     
     func addConnection(_ connection: SavedConnection) async throws {
@@ -66,5 +76,33 @@ final class ConnectionStore {
     func deleteConnection(_ connection: SavedConnection) async throws {
         connections.removeAll { $0.id == connection.id }
         try await saveConnections()
+    }
+    
+    func deleteFolder(_ folder: SavedFolder) async throws {
+        folders.removeAll { $0.id == folder.id }
+        try await saveFolders()
+    }
+    
+    func updateFolder(_ folder: SavedFolder) async throws {
+        if let index = folders.firstIndex(where: { $0.id == folder.id }) {
+            folders[index] = folder
+        } else {
+            folders.append(folder)
+        }
+        try await saveFolders()
+    }
+    
+    func updateIdentity(_ identity: SavedIdentity) async throws {
+        if let index = identities.firstIndex(where: { $0.id == identity.id }) {
+            identities[index] = identity
+        } else {
+            identities.append(identity)
+        }
+        try await saveIdentities()
+    }
+    
+    func deleteIdentity(_ identity: SavedIdentity) async throws {
+        identities.removeAll { $0.id == identity.id }
+        try await saveIdentities()
     }
 }

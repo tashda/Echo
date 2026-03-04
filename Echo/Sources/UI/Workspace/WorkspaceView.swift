@@ -29,9 +29,9 @@ struct WorkspaceView: View {
                 .background(themeManager.windowBackgroundColor)
                 .inspector(isPresented: $appState.showInfoSidebar) {
                     let widthBinding = Binding<CGFloat>(
-                        get: { appModel.inspectorWidth },
+                        get: { navigationStore.inspectorWidth },
                         set: { newValue in
-                            appModel.updateInspectorWidth(
+                            navigationStore.updateInspectorWidth(
                                 newValue,
                                 min: WorkspaceLayoutMetrics.inspectorMinWidth,
                                 max: WorkspaceLayoutMetrics.inspectorMaxWidth
@@ -72,7 +72,7 @@ struct WorkspaceView: View {
             )
         ) {
             ConnectionEditorView(
-                connection: appModel.selectedConnection,
+                connection: connectionStore.selectedConnection,
                 onSave: { connection, password, action in
                     Task {
                         await appModel.upsertConnection(connection, password: password)
@@ -117,19 +117,18 @@ struct WorkspaceView: View {
 }
 
 private struct SidebarColumn: View {
-    @EnvironmentObject private var appModel: AppModel
+    @Environment(ConnectionStore.self) private var connectionStore
     @EnvironmentObject private var appState: AppState
-    @EnvironmentObject private var themeManager: ThemeManager
 
     var body: some View {
         SidebarView(
             selectedConnectionID: Binding(
-                get: { appModel.selectedConnectionID },
-                set: { appModel.selectedConnectionID = $0 }
+                get: { connectionStore.selectedConnectionID },
+                set: { connectionStore.selectedConnectionID = $0 }
             ),
             selectedIdentityID: Binding(
-                get: { appModel.selectedIdentityID },
-                set: { appModel.selectedIdentityID = $0 }
+                get: { connectionStore.selectedIdentityID },
+                set: { connectionStore.selectedIdentityID = $0 }
             ),
             onAddConnection: { appState.showSheet(.connectionEditor) }
         )
@@ -250,13 +249,11 @@ private struct InspectorSplitViewConfigurator: NSViewRepresentable {
             let previouslyApplied = lastAppliedWidth ?? inspectorWidth
 
             if abs(desiredWidth - previouslyApplied) > 0.5 {
-                // Programmatic width change; drive split view to desired width.
                 if abs(inspectorWidth - desiredWidth) > 0.5 {
                     adjustDividerPosition(splitView: splitView, itemIndex: index, targetWidth: desiredWidth)
                 }
                 lastAppliedWidth = desiredWidth
             } else {
-                // User-driven change; capture the new inspector width.
                 if abs(inspectorWidth - desiredWidth) > 0.5 {
                     let clampedInspector = clamp(inspectorWidth)
                     if abs(width.wrappedValue - clampedInspector) > 0.1 {
@@ -440,6 +437,7 @@ private extension NSSplitView {
 
 #if os(macOS)
 private struct WorkspaceWindowConfigurator: NSViewRepresentable {
+    @Environment(NavigationStore.self) private var navigationStore
     @EnvironmentObject private var appModel: AppModel
     @EnvironmentObject private var appState: AppState
     @EnvironmentObject private var themeManager: ThemeManager
@@ -459,7 +457,8 @@ private struct WorkspaceWindowConfigurator: NSViewRepresentable {
                 tabBarStyle: tabBarStyle,
                 appModel: appModel,
                 appState: appState,
-                themeManager: themeManager
+                themeManager: themeManager,
+                navigationStore: navigationStore
             )
         }
         return view
@@ -473,7 +472,8 @@ private struct WorkspaceWindowConfigurator: NSViewRepresentable {
                 tabBarStyle: tabBarStyle,
                 appModel: appModel,
                 appState: appState,
-                themeManager: themeManager
+                themeManager: themeManager,
+                navigationStore: navigationStore
             )
         }
     }
@@ -489,7 +489,8 @@ private struct WorkspaceWindowConfigurator: NSViewRepresentable {
             tabBarStyle: WorkspaceTabBarStyle,
             appModel: AppModel,
             appState: AppState,
-            themeManager: ThemeManager
+            themeManager: ThemeManager,
+            navigationStore: NavigationStore
         ) {
             let windowID = ObjectIdentifier(window)
             let windowChanged = lastWindowID != windowID
@@ -501,7 +502,6 @@ private struct WorkspaceWindowConfigurator: NSViewRepresentable {
             }
 
             applyWindowStyling(window)
-            // Become window delegate to clamp live-resize width so the navigator never disappears
             if window.delegate !== self {
                 window.delegate = self
             }
@@ -510,19 +510,19 @@ private struct WorkspaceWindowConfigurator: NSViewRepresentable {
                 lastStyle = tabBarStyle
             }
 
-            // TopBarNavigator is always enabled; toolbar-compact mode removed.
             let showTopBarNavigator = true
             topBarNavigatorOverlay.apply(
                 window: window,
                 appModel: appModel,
                 appState: appState,
                 themeManager: themeManager,
+                navigationStore: navigationStore,
                 isEnabled: showTopBarNavigator
             )
 
             let isKey = window.isKeyWindow && window.identifier == AppWindowIdentifier.workspace
             if lastKeyState != isKey {
-                AppCoordinator.shared.navigationStore.isWorkspaceWindowKey = isKey
+                navigationStore.isWorkspaceWindowKey = isKey
                 lastKeyState = isKey
             }
         }
@@ -551,9 +551,6 @@ private struct WorkspaceWindowConfigurator: NSViewRepresentable {
                 window.toolbar?.allowsUserCustomization = false
             }
 
-            // Enforce a conservative minimum width so the TopBarNavigator
-            // always has room (min 350) between navigation and trailing items,
-            // even with wider toolbar items. Apply to both content and frame.
             let contentMinWidth: CGFloat = 980
             if window.contentMinSize.width < contentMinWidth {
                 window.contentMinSize.width = contentMinWidth
@@ -565,8 +562,6 @@ private struct WorkspaceWindowConfigurator: NSViewRepresentable {
             }
         }
 
-        // Compute the minimum content width so the TopBarNavigator's 350pt minimum
-        // fits between navigation and primary toolbar items.
         private func requiredContentWidth(for window: NSWindow) -> CGFloat {
             guard let toolbar = window.toolbar, let toolbarView = findToolbarView(in: window) else {
                 return 980
@@ -618,7 +613,6 @@ private struct WorkspaceWindowConfigurator: NSViewRepresentable {
 #if os(macOS)
 extension WorkspaceWindowConfigurator.Coordinator: NSWindowDelegate {
     func windowWillResize(_ sender: NSWindow, to frameSize: NSSize) -> NSSize {
-        // Clamp during live resize using computed minimum content width, converted to frame width.
         let minContent = requiredContentWidth(for: sender)
         let chromeDelta = sender.frame.width - sender.contentLayoutRect.width
         let minFrameWidth = minContent + chromeDelta

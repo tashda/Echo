@@ -11,6 +11,10 @@ struct TabOverviewView: View {
     let onSelectTab: (UUID) -> Void
     let onCloseTab: (UUID) -> Void
 
+    @Environment(ProjectStore.self) private var projectStore
+    @Environment(ConnectionStore.self) private var connectionStore
+    @Environment(TabStore.self) private var tabStore
+    
     @EnvironmentObject private var themeManager: ThemeManager
     @EnvironmentObject private var appModel: AppModel
     @Environment(\.colorScheme) private var colorScheme
@@ -94,7 +98,7 @@ struct TabOverviewView: View {
         .onDrop(of: [UTType.plainText], delegate: TabOverviewDropDelegate(
             targetTabID: tab.id,
             isTrailingPlaceholder: false,
-            appModel: appModel,
+            tabStore: tabStore,
             draggingTabId: $draggingTabId,
             dropTargetTabId: $dropTargetTabId
         ))
@@ -104,7 +108,7 @@ struct TabOverviewView: View {
     private var animation: Animation { .spring(response: 0.45, dampingFraction: 0.82, blendDuration: 0.2) }
 
     private var overviewStyle: TabOverviewStyle {
-        appModel.globalSettings.tabOverviewStyle
+        projectStore.globalSettings.tabOverviewStyle
     }
 
     private var gridConfiguration: (columns: [GridItem], spacing: CGFloat) {
@@ -152,7 +156,7 @@ struct TabOverviewView: View {
                         .onDrop(of: [UTType.plainText], delegate: TabOverviewDropDelegate(
                             targetTabID: nil,
                             isTrailingPlaceholder: true,
-                            appModel: appModel,
+                            tabStore: tabStore,
                             draggingTabId: $draggingTabId,
                             dropTargetTabId: $dropTargetTabId
                         ))
@@ -180,7 +184,7 @@ struct TabOverviewView: View {
         .onDrop(of: [UTType.plainText], delegate: TabOverviewDropDelegate(
             targetTabID: nil,
             isTrailingPlaceholder: true,
-            appModel: appModel,
+            tabStore: tabStore,
             draggingTabId: $draggingTabId,
             dropTargetTabId: $dropTargetTabId
         ))
@@ -461,7 +465,7 @@ struct TabOverviewView: View {
         let grouped = Dictionary(grouping: tabs) { $0.connection.id }
 
         return grouped.keys.compactMap { id in
-            guard let connection = appModel.connections.first(where: { $0.id == id }) else { return nil }
+            guard let connection = connectionStore.connections.first(where: { $0.id == id }) else { return nil }
             let serverTabs = grouped[id] ?? []
             return ServerGroup(
                 connection: connection,
@@ -599,7 +603,8 @@ struct TabOverviewView: View {
                 }
             } label: {
                 HStack(spacing: 8) {
-                    Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
+                    Image(systemName: "chevron.down")
+                        .rotationEffect(.degrees(isExpanded ? 0 : -90))
                         .font(.system(size: 11, weight: .bold))
                         .foregroundStyle(.secondary)
 
@@ -648,7 +653,7 @@ struct TabOverviewView: View {
     @ViewBuilder
     private func tabContextMenu(for tab: WorkspaceTab, serverID: UUID, databaseIdentifier: String) -> some View {
         Button(tab.isPinned ? "Unpin Tab" : "Pin Tab") {
-            appModel.tabManager.togglePin(for: tab.id)
+            tabStore.togglePin(for: tab.id)
         }
 
         Button("Duplicate Tab") {
@@ -713,7 +718,7 @@ struct TabOverviewView: View {
     private func closeTabs(_ targets: [WorkspaceTab]) {
         guard !targets.isEmpty else { return }
         for tab in targets {
-            appModel.tabManager.closeTab(id: tab.id)
+            tabStore.closeTab(id: tab.id)
         }
     }
 
@@ -1308,6 +1313,30 @@ private struct CompactTabPreviewCard: View {
         return Color.primary.opacity(colorScheme == .dark ? 0.18 : 0.08)
     }
 
+    private var metrics: [(icon: String, text: String, color: Color)] {
+        switch tab.kind {
+        case .query:
+            guard let query = tab.query else { return [] }
+            var items: [(String, String, Color)] = []
+            let rows = query.rowProgress.displayCount
+            if rows > 0 {
+                items.append(("tablecells", "\(formattedNumber(rows))", Color.secondary))
+            }
+            if let event = query.messages.last(where: { $0.severity != .debug }) {
+                items.append(("clock.arrow.circlepath", relativeDescription(for: event.timestamp), Color.secondary))
+            }
+            return items
+        case .diagram:
+            guard let diagram = tab.diagram else { return [] }
+            return [("square.grid.2x2", "\(diagram.nodes.count)", Color.secondary)]
+        case .structure:
+            guard let editor = tab.structureEditor else { return [] }
+            return [("tablecells", "\(editor.columns.count)", Color.secondary)]
+        case .jobManagement:
+            return []
+        }
+    }
+
     private var tabTitle: String {
         let title = tab.title.trimmingCharacters(in: .whitespacesAndNewlines)
         return title.isEmpty ? "Untitled" : title
@@ -1364,28 +1393,16 @@ private struct CompactTabPreviewCard: View {
         .foregroundStyle(status.color)
     }
 
-    private var metrics: [(icon: String, text: String, color: Color)] {
-        switch tab.kind {
-        case .query:
-            guard let query = tab.query else { return [] }
-            var items: [(String, String, Color)] = []
-            let rows = query.rowProgress.displayCount
-            if rows > 0 {
-                items.append(("tablecells", "\(formattedNumber(rows))", Color.secondary))
-            }
-            if let event = query.messages.last(where: { $0.severity != .debug }) {
-                items.append(("clock.arrow.circlepath", relativeDescription(for: event.timestamp), Color.secondary))
-            }
-            return items
-        case .diagram:
-            guard let diagram = tab.diagram else { return [] }
-            return [("square.grid.2x2", "\(diagram.nodes.count)", Color.secondary)]
-        case .structure:
-            guard let editor = tab.structureEditor else { return [] }
-            return [("tablecells", "\(editor.columns.count)", Color.secondary)]
-        case .jobManagement:
-            return []
-        }
+    private func formattedNumber(_ value: Int) -> String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        return formatter.string(from: NSNumber(value: value)) ?? "\(value)"
+    }
+
+    private func relativeDescription(for date: Date) -> String {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .short
+        return formatter.localizedString(for: date, relativeTo: Date()).capitalized
     }
 
     @ViewBuilder
@@ -1414,18 +1431,6 @@ private struct CompactTabPreviewCard: View {
             .buttonStyle(.plain)
         }
 #endif
-    }
-
-    private func formattedNumber(_ value: Int) -> String {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .decimal
-        return formatter.string(from: NSNumber(value: value)) ?? "\(value)"
-    }
-
-    private func relativeDescription(for date: Date) -> String {
-        let formatter = RelativeDateTimeFormatter()
-        formatter.unitsStyle = .short
-        return formatter.localizedString(for: date, relativeTo: Date()).capitalized
     }
 }
 
@@ -1602,7 +1607,7 @@ private struct StructureTabPreview: View {
 private struct TabOverviewDropDelegate: DropDelegate {
     let targetTabID: UUID?
     let isTrailingPlaceholder: Bool
-    let appModel: AppModel
+    let tabStore: TabStore
     @Binding var draggingTabId: UUID?
     @Binding var dropTargetTabId: UUID?
 
@@ -1614,15 +1619,15 @@ private struct TabOverviewDropDelegate: DropDelegate {
         guard let draggingID = draggingTabId else { return }
         Task { @MainActor in
             if isTrailingPlaceholder {
-                let count = appModel.tabManager.tabs.count
+                let count = tabStore.tabs.count
                 guard count > 0 else { return }
                 let destinationIndex = count - 1
-                appModel.tabManager.moveTab(id: draggingID, to: destinationIndex)
+                tabStore.moveTab(id: draggingID, to: destinationIndex)
                 dropTargetTabId = nil
             } else if let targetID = targetTabID,
                       targetID != draggingID,
-                      let targetIndex = appModel.tabManager.index(of: targetID) {
-                appModel.tabManager.moveTab(id: draggingID, to: targetIndex)
+                      let targetIndex = tabStore.index(of: targetID) {
+                tabStore.moveTab(id: draggingID, to: targetIndex)
                 dropTargetTabId = targetID
             }
         }

@@ -7,7 +7,12 @@ import AppKit
 struct SchemaDiagramView: View {
     @ObservedObject var viewModel: SchemaDiagramViewModel
     @Environment(\.colorScheme) private var colorScheme
-    @EnvironmentObject private var appModel: AppModel
+    
+    @Environment(ProjectStore.self) private var projectStore
+    @Environment(ConnectionStore.self) private var connectionStore
+    @Environment(NavigationStore.self) private var navigationStore
+    @Environment(DiagramCoordinator.self) private var diagramCoordinator
+    
     @EnvironmentObject private var themeManager: ThemeManager
 
     @State private var zoom: CGFloat = 1.0
@@ -29,7 +34,7 @@ struct SchemaDiagramView: View {
                 if viewModel.edges.count <= 200 {
                     return true
                 }
-                return appModel.globalSettings.diagramRenderRelationshipsForLargeDiagrams
+                return projectStore.globalSettings.diagramRenderRelationshipsForLargeDiagrams
             }()
             ZStack {
                 backgroundGrid(in: geometry.size)
@@ -92,7 +97,7 @@ struct SchemaDiagramView: View {
         let surfaceBackground = ColorTokens.Background.secondary
         let controlBackground = ColorTokens.Background.tertiary
         
-        if appModel.globalSettings.diagramUseThemedAppearance {
+        if projectStore.globalSettings.diagramUseThemedAppearance {
             return DiagramPalette(
                 canvasBackground: canvasBackground,
                 gridLine: foreground.opacity(0.12),
@@ -137,7 +142,7 @@ struct SchemaDiagramView: View {
     private func persistLayout() {
         persistTask?.cancel()
         persistTask = Task { @MainActor [viewModel] in
-            await appModel.persistDiagramLayout(viewModel)
+            await diagramCoordinator.persistDiagramLayout(for: viewModel)
             persistTask = nil
         }
     }
@@ -153,7 +158,7 @@ struct SchemaDiagramView: View {
                 guard !isRefreshing else { return }
                 isRefreshing = true
                 Task {
-                    await appModel.refreshDiagram(viewModel)
+                    await diagramCoordinator.refreshDiagram(for: viewModel)
                     await MainActor.run {
                         isRefreshing = false
                     }

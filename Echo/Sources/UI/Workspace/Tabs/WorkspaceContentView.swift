@@ -71,6 +71,9 @@ struct QueryEditorContainer: View {
     let runQuery: (String) async -> Void
     let cancelQuery: () -> Void
     let gridStateProvider: () -> QueryResultsGridState
+    
+    @Environment(ProjectStore.self) private var projectStore
+    @Environment(ConnectionStore.self) private var connectionStore
     @EnvironmentObject private var themeManager: ThemeManager
     @EnvironmentObject private var appModel: AppModel
     @EnvironmentObject private var appState: AppState
@@ -241,15 +244,15 @@ struct QueryEditorContainer: View {
 
 #if os(macOS)
     private var foreignKeyDisplayMode: ForeignKeyDisplayMode {
-        appModel.globalSettings.foreignKeyDisplayMode
+        projectStore.globalSettings.foreignKeyDisplayMode
     }
 
     private var foreignKeyInspectorBehavior: ForeignKeyInspectorBehavior {
-        appModel.globalSettings.foreignKeyInspectorBehavior
+        projectStore.globalSettings.foreignKeyInspectorBehavior
     }
 
     private var includeRelatedForeignKeys: Bool {
-        appModel.globalSettings.foreignKeyIncludeRelated
+        projectStore.globalSettings.foreignKeyIncludeRelated
     }
 #endif
 

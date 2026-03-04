@@ -354,6 +354,34 @@ final class DiagramCoordinator: DiagramCoordinatorProtocol, @unchecked Sendable 
     }
 
     @MainActor
+    func persistDiagramLayout(for viewModel: SchemaDiagramViewModel) async {
+        guard let snapshot = viewModel.cachedStructure,
+              let checksum = viewModel.cachedChecksum else { return }
+        
+        let cacheKey = DiagramCacheKey(
+            projectID: UUID(), // Fallback, will need proper resolution
+            connectionID: UUID(), // Fallback
+            schema: viewModel.nodes.first?.schema ?? "",
+            table: viewModel.nodes.first?.name ?? ""
+        )
+        
+        let payload = DiagramCachePayload(
+            key: cacheKey,
+            checksum: checksum,
+            structure: snapshot,
+            layout: viewModel.layoutSnapshot(),
+            loadingSummary: nil
+        )
+        
+        try? await cacheManager.stashPayload(payload)
+    }
+
+    @MainActor
+    func refreshDiagram(for viewModel: SchemaDiagramViewModel) async {
+        // AppModel bridge for now until DiagramCoordinator has everything
+    }
+
+    @MainActor
     func scheduleRelatedPrefetch(
         session: any DiagramSchemaProvider,
         baseKey: DiagramTableKey,

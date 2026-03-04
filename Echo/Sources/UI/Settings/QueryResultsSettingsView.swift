@@ -27,25 +27,29 @@ private enum ResultStreamingDefaults {
 }
 
 struct QueryResultsSettingsView: View {
-    @EnvironmentObject private var appModel: AppModel
+    @Environment(ProjectStore.self) private var projectStore
     @EnvironmentObject private var themeManager: ThemeManager
 
     private var displayModeBinding: Binding<ForeignKeyDisplayMode> {
         Binding(
-            get: { appModel.globalSettings.foreignKeyDisplayMode },
+            get: { projectStore.globalSettings.foreignKeyDisplayMode },
             set: { newValue in
-                guard appModel.globalSettings.foreignKeyDisplayMode != newValue else { return }
-                Task { await appModel.updateGlobalEditorDisplay { $0.foreignKeyDisplayMode = newValue } }
+                guard projectStore.globalSettings.foreignKeyDisplayMode != newValue else { return }
+                var settings = projectStore.globalSettings
+                settings.foreignKeyDisplayMode = newValue
+                Task { try? await projectStore.updateGlobalSettings(settings) }
             }
         )
     }
 
     private var inspectorBehaviorBinding: Binding<ForeignKeyInspectorBehavior> {
         Binding(
-            get: { appModel.globalSettings.foreignKeyInspectorBehavior },
+            get: { projectStore.globalSettings.foreignKeyInspectorBehavior },
             set: { newValue in
-                guard appModel.globalSettings.foreignKeyInspectorBehavior != newValue else { return }
-                Task { await appModel.updateGlobalEditorDisplay { $0.foreignKeyInspectorBehavior = newValue } }
+                guard projectStore.globalSettings.foreignKeyInspectorBehavior != newValue else { return }
+                var settings = projectStore.globalSettings
+                settings.foreignKeyInspectorBehavior = newValue
+                Task { try? await projectStore.updateGlobalSettings(settings) }
             }
         )
     }
@@ -53,86 +57,102 @@ struct QueryResultsSettingsView: View {
     // Toggle: Include related foreign key rows when inspecting a selected record.
     private var includeRelatedBinding: Binding<Bool> {
         Binding(
-            get: { appModel.globalSettings.foreignKeyIncludeRelated },
+            get: { projectStore.globalSettings.foreignKeyIncludeRelated },
             set: { newValue in
-                guard appModel.globalSettings.foreignKeyIncludeRelated != newValue else { return }
-                Task { await appModel.updateGlobalEditorDisplay { $0.foreignKeyIncludeRelated = newValue } }
+                guard projectStore.globalSettings.foreignKeyIncludeRelated != newValue else { return }
+                var settings = projectStore.globalSettings
+                settings.foreignKeyIncludeRelated = newValue
+                Task { try? await projectStore.updateGlobalSettings(settings) }
             }
         )
     }
 
     private var initialRowLimitBinding: Binding<Int> {
         Binding(
-            get: { appModel.globalSettings.resultsInitialRowLimit },
+            get: { projectStore.globalSettings.resultsInitialRowLimit },
             set: { newValue in
                 let clamped = max(100, min(newValue, 100_000))
-                guard appModel.globalSettings.resultsInitialRowLimit != clamped else { return }
-                Task { await appModel.updateResultsStreaming(initialRowLimit: clamped) }
+                guard projectStore.globalSettings.resultsInitialRowLimit != clamped else { return }
+                var settings = projectStore.globalSettings
+                settings.resultsInitialRowLimit = clamped
+                Task { try? await projectStore.updateGlobalSettings(settings) }
             }
         )
     }
 
     private var previewBatchSizeBinding: Binding<Int> {
         Binding(
-            get: { appModel.globalSettings.resultsPreviewBatchSize },
+            get: { projectStore.globalSettings.resultsPreviewBatchSize },
             set: { newValue in
                 let clamped = max(100, min(newValue, 100_000))
-                guard appModel.globalSettings.resultsPreviewBatchSize != clamped else { return }
-                Task { await appModel.updateResultsStreaming(previewBatchSize: clamped) }
+                guard projectStore.globalSettings.resultsPreviewBatchSize != clamped else { return }
+                var settings = projectStore.globalSettings
+                settings.resultsPreviewBatchSize = clamped
+                Task { try? await projectStore.updateGlobalSettings(settings) }
             }
         )
     }
 
     private var backgroundStreamingThresholdBinding: Binding<Int> {
         Binding(
-            get: { appModel.globalSettings.resultsBackgroundStreamingThreshold },
+            get: { projectStore.globalSettings.resultsBackgroundStreamingThreshold },
             set: { newValue in
                 let clamped = max(100, min(newValue, 1_000_000))
-                guard appModel.globalSettings.resultsBackgroundStreamingThreshold != clamped else { return }
-                Task { await appModel.updateResultsStreaming(backgroundStreamingThreshold: clamped) }
+                guard projectStore.globalSettings.resultsBackgroundStreamingThreshold != clamped else { return }
+                var settings = projectStore.globalSettings
+                settings.resultsBackgroundStreamingThreshold = clamped
+                Task { try? await projectStore.updateGlobalSettings(settings) }
             }
         )
     }
 
     private var backgroundFetchSizeBinding: Binding<Int> {
         Binding(
-            get: { appModel.globalSettings.resultsStreamingFetchSize },
+            get: { projectStore.globalSettings.resultsStreamingFetchSize },
             set: { newValue in
                 let clamped = max(128, min(newValue, 16_384))
-                guard appModel.globalSettings.resultsStreamingFetchSize != clamped else { return }
-                Task { await appModel.updateResultsStreaming(backgroundFetchSize: clamped) }
+                guard projectStore.globalSettings.resultsStreamingFetchSize != clamped else { return }
+                var settings = projectStore.globalSettings
+                settings.resultsStreamingFetchSize = clamped
+                Task { try? await projectStore.updateGlobalSettings(settings) }
             }
         )
     }
 
     private var streamingModeBinding: Binding<ResultStreamingExecutionMode> {
         Binding(
-            get: { appModel.globalSettings.resultsStreamingMode },
+            get: { projectStore.globalSettings.resultsStreamingMode },
             set: { newValue in
-                guard appModel.globalSettings.resultsStreamingMode != newValue else { return }
-                Task { await appModel.updateResultsStreaming(streamingMode: newValue) }
+                guard projectStore.globalSettings.resultsStreamingMode != newValue else { return }
+                var settings = projectStore.globalSettings
+                settings.resultsStreamingMode = newValue
+                Task { try? await projectStore.updateGlobalSettings(settings) }
             }
         )
     }
 
     private var fetchRampMultiplierBinding: Binding<Int> {
         Binding(
-            get: { appModel.globalSettings.resultsStreamingFetchRampMultiplier },
+            get: { projectStore.globalSettings.resultsStreamingFetchRampMultiplier },
             set: { newValue in
                 let clamped = max(1, min(newValue, 64))
-                guard appModel.globalSettings.resultsStreamingFetchRampMultiplier != clamped else { return }
-                Task { await appModel.updateResultsStreaming(backgroundFetchRampMultiplier: clamped) }
+                guard projectStore.globalSettings.resultsStreamingFetchRampMultiplier != clamped else { return }
+                var settings = projectStore.globalSettings
+                settings.resultsStreamingFetchRampMultiplier = clamped
+                Task { try? await projectStore.updateGlobalSettings(settings) }
             }
         )
     }
 
     private var fetchRampMaxBinding: Binding<Int> {
         Binding(
-            get: { appModel.globalSettings.resultsStreamingFetchRampMax },
+            get: { projectStore.globalSettings.resultsStreamingFetchRampMax },
             set: { newValue in
                 let clamped = max(256, min(newValue, 1_048_576))
-                guard appModel.globalSettings.resultsStreamingFetchRampMax != clamped else { return }
-                Task { await appModel.updateResultsStreaming(backgroundFetchRampMax: clamped) }
+                guard projectStore.globalSettings.resultsStreamingFetchRampMax != clamped else { return }
+                var settings = projectStore.globalSettings
+                settings.resultsStreamingFetchRampMax = clamped
+                Task { try? await projectStore.updateGlobalSettings(settings) }
             }
         )
     }
@@ -140,30 +160,36 @@ struct QueryResultsSettingsView: View {
     // Engine-specific mode bindings (UI-level, for future runtime mapping)
     private var mssqlModeBinding: Binding<ResultStreamingExecutionMode> {
         Binding(
-            get: { appModel.globalSettings.mssqlStreamingMode },
+            get: { projectStore.globalSettings.mssqlStreamingMode },
             set: { newValue in
-                guard appModel.globalSettings.mssqlStreamingMode != newValue else { return }
-                Task { await appModel.updateGlobalEditorDisplay { $0.mssqlStreamingMode = newValue } }
+                guard projectStore.globalSettings.mssqlStreamingMode != newValue else { return }
+                var settings = projectStore.globalSettings
+                settings.mssqlStreamingMode = newValue
+                Task { try? await projectStore.updateGlobalSettings(settings) }
             }
         )
     }
 
     private var mysqlModeBinding: Binding<ResultStreamingExecutionMode> {
         Binding(
-            get: { appModel.globalSettings.mysqlStreamingMode },
+            get: { projectStore.globalSettings.mysqlStreamingMode },
             set: { newValue in
-                guard appModel.globalSettings.mysqlStreamingMode != newValue else { return }
-                Task { await appModel.updateGlobalEditorDisplay { $0.mysqlStreamingMode = newValue } }
+                guard projectStore.globalSettings.mysqlStreamingMode != newValue else { return }
+                var settings = projectStore.globalSettings
+                settings.mysqlStreamingMode = newValue
+                Task { try? await projectStore.updateGlobalSettings(settings) }
             }
         )
     }
 
     private var sqliteModeBinding: Binding<ResultStreamingExecutionMode> {
         Binding(
-            get: { appModel.globalSettings.sqliteStreamingMode },
+            get: { projectStore.globalSettings.sqliteStreamingMode },
             set: { newValue in
-                guard appModel.globalSettings.sqliteStreamingMode != newValue else { return }
-                Task { await appModel.updateGlobalEditorDisplay { $0.sqliteStreamingMode = newValue } }
+                guard projectStore.globalSettings.sqliteStreamingMode != newValue else { return }
+                var settings = projectStore.globalSettings
+                settings.sqliteStreamingMode = newValue
+                Task { try? await projectStore.updateGlobalSettings(settings) }
             }
         )
     }
@@ -174,21 +200,25 @@ struct QueryResultsSettingsView: View {
 
     private var useCursorStreamingBinding: Binding<Bool> {
         Binding(
-            get: { appModel.globalSettings.resultsUseCursorStreaming },
+            get: { projectStore.globalSettings.resultsUseCursorStreaming },
             set: { newValue in
-                guard appModel.globalSettings.resultsUseCursorStreaming != newValue else { return }
-                Task { await appModel.updateResultsStreaming(useCursorStreaming: newValue) }
+                guard projectStore.globalSettings.resultsUseCursorStreaming != newValue else { return }
+                var settings = projectStore.globalSettings
+                settings.resultsUseCursorStreaming = newValue
+                Task { try? await projectStore.updateGlobalSettings(settings) }
             }
         )
     }
 
     private var cursorLimitThresholdBinding: Binding<Int> {
         Binding(
-            get: { appModel.globalSettings.resultsCursorStreamingLimitThreshold },
+            get: { projectStore.globalSettings.resultsCursorStreamingLimitThreshold },
             set: { newValue in
                 let clamped = max(0, min(newValue, 100_000))
-                guard appModel.globalSettings.resultsCursorStreamingLimitThreshold != clamped else { return }
-                Task { await appModel.updateResultsStreaming(cursorLimitThreshold: clamped) }
+                guard projectStore.globalSettings.resultsCursorStreamingLimitThreshold != clamped else { return }
+                var settings = projectStore.globalSettings
+                settings.resultsCursorStreamingLimitThreshold = clamped
+                Task { try? await projectStore.updateGlobalSettings(settings) }
             }
         )
     }
@@ -197,7 +227,7 @@ struct QueryResultsSettingsView: View {
     private var selectedBehavior: ForeignKeyInspectorBehavior { inspectorBehaviorBinding.wrappedValue }
 
     private var streamingSettingsAreDefault: Bool {
-        let settings = appModel.globalSettings
+        let settings = projectStore.globalSettings
         return settings.resultsInitialRowLimit == ResultStreamingDefaults.initialRows &&
         settings.resultsPreviewBatchSize == ResultStreamingDefaults.previewBatch &&
         settings.resultsBackgroundStreamingThreshold == ResultStreamingDefaults.backgroundThreshold &&
@@ -316,24 +346,11 @@ struct QueryResultsSettingsView: View {
                     .foregroundStyle(.secondary)
                     .padding(.top, 2)
 
-                // Per-engine thresholds live under Engine Profiles → PostgreSQL
-
                 HStack {
                     Spacer()
                     Button("Revert to Default") {
-                        Task {
-                            await appModel.updateResultsStreaming(
-                                initialRowLimit: ResultStreamingDefaults.initialRows,
-                                previewBatchSize: ResultStreamingDefaults.previewBatch,
-                                backgroundStreamingThreshold: ResultStreamingDefaults.backgroundThreshold,
-                                backgroundFetchSize: ResultStreamingDefaults.fetchSize,
-                                backgroundFetchRampMultiplier: ResultStreamingDefaults.fetchRampMultiplier,
-                                backgroundFetchRampMax: ResultStreamingDefaults.fetchRampMax,
-                                useCursorStreaming: ResultStreamingDefaults.useCursor,
-                                cursorLimitThreshold: ResultStreamingDefaults.cursorLimitThreshold,
-                                streamingMode: .auto
-                            )
-                        }
+                        let settings = GlobalSettings() // Uses defaults
+                        Task { try? await projectStore.updateGlobalSettings(settings) }
                     }
                     .buttonStyle(.bordered)
                     .disabled(streamingSettingsAreDefault)

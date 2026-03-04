@@ -3,6 +3,11 @@ import SwiftUI
 struct SidebarView: View {
     @Binding var selectedConnectionID: UUID?
     @Binding var selectedIdentityID: UUID?
+    
+    @Environment(ProjectStore.self) private var projectStore
+    @Environment(ConnectionStore.self) private var connectionStore
+    @Environment(NavigationStore.self) private var navigationStore
+    
     @EnvironmentObject var appModel: AppModel
     @EnvironmentObject var appState: AppState
 
@@ -14,8 +19,6 @@ struct SidebarView: View {
             selectedIdentityID: $selectedIdentityID,
             onAddConnection: onAddConnection
         )
-        .environmentObject(appModel)
-        .environmentObject(appState)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 }

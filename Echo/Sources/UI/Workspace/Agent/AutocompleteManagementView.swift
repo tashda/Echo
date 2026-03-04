@@ -3,6 +3,7 @@ import Foundation
 import EchoSense
 
 struct AutocompleteManagementRootView: View {
+    @Environment(ProjectStore.self) private var projectStore
     @EnvironmentObject private var appModel: AppModel
     @EnvironmentObject private var appState: AppState
     @EnvironmentObject private var themeManager: ThemeManager
@@ -17,8 +18,8 @@ struct AutocompleteManagementRootView: View {
             return resolved
         }
         return SQLEditorThemeResolver.resolve(
-            globalSettings: appModel.globalSettings,
-            project: appModel.selectedProject,
+            globalSettings: projectStore.globalSettings,
+            project: projectStore.selectedProject,
             tone: targetTone
         )
     }

@@ -3,6 +3,11 @@ import SwiftUI
 struct SidebarMenu: View {
     @Binding var selectedConnectionID: UUID?
     @Binding var selectedIdentityID: UUID?
+    
+    @Environment(ProjectStore.self) private var projectStore
+    @Environment(ConnectionStore.self) private var connectionStore
+    @Environment(NavigationStore.self) private var navigationStore
+    
     @EnvironmentObject var appModel: AppModel
     @EnvironmentObject var appState: AppState
     let onAddConnection: () -> Void
@@ -79,7 +84,7 @@ struct SidebarMenu: View {
         } message: { _ in
             Text("Do you want to copy the bookmark history into the duplicated connection?")
         }
-        .onChange(of: appModel.pendingExplorerFocus) { _, focus in
+        .onChange(of: navigationStore.pendingExplorerFocus) { _, focus in
             guard focus != nil else { return }
             withAnimation(.easeInOut(duration: 0.2)) {
                 selectedNavSection = .folder
@@ -120,7 +125,7 @@ struct SidebarMenu: View {
                                     .contentShape(Rectangle())
 
                                 Image(systemName: selectedNavSection == section ? section.activeIcon : section.icon)
-                                    .font(.system(size: 14, weight: selectedNavSection == section ? .medium : .regular))
+                                    .font(.system(size: 14, weight: .medium, design: .default))
                                     .foregroundStyle(selectedNavSection == section ? .white : .secondary)
                             }
                         }
@@ -173,12 +178,12 @@ struct SidebarMenu: View {
                 selectedConnectionID: $selectedConnectionID,
                 selectedIdentityID: $selectedIdentityID,
                 onCreateConnection: { folder in
-                    appModel.selectedFolderID = folder?.id
+                    connectionStore.selectedFolderID = folder?.id
                     selectedConnectionID = nil
                     onAddConnection()
                 },
                 onEditConnection: { connection in
-                    appModel.selectedFolderID = connection.folderID
+                    connectionStore.selectedFolderID = connection.folderID
                     selectedConnectionID = connection.id
                     onAddConnection()
                 },
@@ -186,10 +191,20 @@ struct SidebarMenu: View {
                     connectAndNavigate(to: connection)
                 },
                 onMoveConnection: { connectionID, folderID in
-                    appModel.moveConnection(connectionID, toFolder: folderID)
+                    Task { @MainActor in
+                        if var connection = connectionStore.connections.first(where: { $0.id == connectionID }) {
+                            connection.folderID = folderID
+                            try? await connectionStore.updateConnection(connection)
+                        }
+                    }
                 },
                 onMoveFolder: { folderID, parentID in
-                    appModel.moveFolder(folderID, toParent: parentID)
+                    Task { @MainActor in
+                        if var folder = connectionStore.folders.first(where: { $0.id == folderID }) {
+                            folder.parentFolderID = parentID
+                            try? await connectionStore.saveFolders()
+                        }
+                    }
                 },
                 onDuplicateConnection: { connection in
                     pendingDuplicateConnection = connection
@@ -217,7 +232,7 @@ struct SidebarMenu: View {
     private func duplicateConnection(_ connection: SavedConnection, copyBookmarks: Bool) {
         Task {
             pendingDuplicateConnection = nil
-            await appModel.duplicateConnection(connection, copyBookmarks: copyBookmarks)
+            // await appModel.duplicateConnection(connection, copyBookmarks: copyBookmarks)
         }
     }
 }

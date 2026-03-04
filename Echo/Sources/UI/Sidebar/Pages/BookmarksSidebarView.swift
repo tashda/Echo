@@ -1,6 +1,10 @@
 import SwiftUI
 
 struct BookmarksSidebarView: View {
+    @Environment(ProjectStore.self) private var projectStore
+    @Environment(ConnectionStore.self) private var connectionStore
+    @Environment(NavigationStore.self) private var navigationStore
+    
     @EnvironmentObject private var appModel: AppModel
     @AppStorage("BookmarksSidebarGroupByDatabase") private var groupByDatabase = true
 
@@ -21,7 +25,7 @@ struct BookmarksSidebarView: View {
             content
         }
         .onAppear(perform: initializeSelection)
-        .onChange(of: appModel.selectedConnectionID) { _, newValue in
+        .onChange(of: connectionStore.selectedConnectionID) { _, newValue in
             guard selectedConnectionID == nil else { return }
             if let newValue, connectionExists(newValue) {
                 selectedConnectionID = newValue
@@ -207,8 +211,8 @@ struct BookmarksSidebarView: View {
     }
 
     private var availableConnections: [SavedConnection] {
-        let projectID = appModel.selectedProject?.id
-        return appModel.connections
+        let projectID = projectStore.selectedProject?.id
+        return connectionStore.connections
             .filter { $0.projectID == projectID }
             .sorted { connectionDisplayName($0).localizedCaseInsensitiveCompare(connectionDisplayName($1)) == .orderedAscending }
     }
@@ -217,7 +221,7 @@ struct BookmarksSidebarView: View {
         if let id = selectedConnectionID, let connection = availableConnections.first(where: { $0.id == id }) {
             return connection
         }
-        if let selectedID = appModel.selectedConnectionID, let connection = availableConnections.first(where: { $0.id == selectedID }) {
+        if let selectedID = connectionStore.selectedConnectionID, let connection = availableConnections.first(where: { $0.id == selectedID }) {
             return connection
         }
         return availableConnections.first
@@ -230,7 +234,7 @@ struct BookmarksSidebarView: View {
 
     private func initializeSelection() {
         if let currentID = selectedConnectionID, connectionExists(currentID) { return }
-        if let appSelected = appModel.selectedConnectionID, connectionExists(appSelected) {
+        if let appSelected = connectionStore.selectedConnectionID, connectionExists(appSelected) {
             selectedConnectionID = appSelected
             return
         }
@@ -259,9 +263,11 @@ struct BookmarksSidebarView: View {
 
     private func open(bookmark: Bookmark) {
         recentlyOpenedBookmarkID = bookmark.id
-        Task {
-            await appModel.openBookmark(bookmark)
+        // recentlyOpenedBookmarkID logic preservation
+        if let connection = connectionStore.connections.first(where: { $0.id == bookmark.connectionID }) {
+            appModel.openQueryTab(presetQuery: bookmark.query)
         }
+        
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
             if recentlyOpenedBookmarkID == bookmark.id {
                 withAnimation(.easeInOut(duration: 0.2)) {

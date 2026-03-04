@@ -5,6 +5,7 @@ import AppKit
 
 @MainActor
 final class ConnectionsPopoverController: NSViewController, NSTableViewDelegate, NSTableViewDataSource, NSSearchFieldDelegate {
+    private let connectionStore: ConnectionStore
     private let appModel: AppModel
     private var rows: [SavedConnection] = []
     private var all: [SavedConnection] = []
@@ -13,7 +14,8 @@ final class ConnectionsPopoverController: NSViewController, NSTableViewDelegate,
     private let tableView = HoverTableView(frame: .zero)
     private let scrollView = NSScrollView(frame: .zero)
 
-    init(appModel: AppModel) {
+    init(connectionStore: ConnectionStore, appModel: AppModel) {
+        self.connectionStore = connectionStore
         self.appModel = appModel
         super.init(nibName: nil, bundle: nil)
     }
@@ -119,7 +121,7 @@ final class ConnectionsPopoverController: NSViewController, NSTableViewDelegate,
     }
 
     private func reloadConnections() {
-        all = appModel.connections.sorted { lhs, rhs in
+        all = connectionStore.connections.sorted { lhs, rhs in
             displayName(for: lhs).localizedCaseInsensitiveCompare(displayName(for: rhs)) == .orderedAscending
         }
         applyFilter(searchField.stringValue)
@@ -172,7 +174,7 @@ final class ConnectionsPopoverController: NSViewController, NSTableViewDelegate,
         cell.textField?.stringValue = displayName(for: connection)
         cell.textField?.toolTip = "\(connection.username)@\(connection.host)"
         if let checkmarkView = cell.viewWithTag(1) as? NSImageView {
-            let isSelected = connection.id == appModel.selectedConnectionID
+            let isSelected = connection.id == connectionStore.selectedConnectionID
             checkmarkView.alphaValue = isSelected ? 1 : 0
         }
         if let iconView = cell.viewWithTag(2) as? NSImageView {
@@ -236,7 +238,7 @@ final class ConnectionsPopoverController: NSViewController, NSTableViewDelegate,
     }
 
     private func updateSelection() {
-        guard let selectedID = appModel.selectedConnectionID,
+        guard let selectedID = connectionStore.selectedConnectionID,
               let index = rows.firstIndex(where: { $0.id == selectedID }) else {
             tableView.deselectAll(nil)
             return
@@ -258,12 +260,10 @@ final class ConnectionsPopoverController: NSViewController, NSTableViewDelegate,
 
     @objc private func openNewConnection() {
         ManageConnectionsWindowController.shared.present()
-        appModel.isManageConnectionsPresented = true
     }
 
     @objc private func openManageConnections() {
         ManageConnectionsWindowController.shared.present()
-        appModel.isManageConnectionsPresented = true
     }
 
     func tableViewSelectionDidChange(_ notification: Notification) {
@@ -586,7 +586,6 @@ final class DatabasePopoverController: NSViewController, NSTableViewDelegate, NS
             guard let session = self.appModel.sessionManager.sessionForConnection(self.connectionID) else { return }
             await self.appModel.loadSchemaForDatabase(name, connectionSession: session)
             await MainActor.run {
-                self.appModel.selectedConnectionID = self.connectionID
                 self.view.window?.performClose(nil)
             }
         }

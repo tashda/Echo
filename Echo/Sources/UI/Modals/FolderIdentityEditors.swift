@@ -59,6 +59,8 @@ enum IdentityEditorState: Identifiable {
 }
 
 struct FolderEditorSheet: View {
+    @Environment(ProjectStore.self) private var projectStore
+    @Environment(ConnectionStore.self) private var connectionStore
     @EnvironmentObject private var appModel: AppModel
     @Environment(\.dismiss) private var dismiss
     @ObservedObject private var themeManager = ThemeManager.shared
@@ -89,7 +91,7 @@ struct FolderEditorSheet: View {
             return parent
         case .edit(let folder):
             guard let parentID = folder.parentFolderID else { return nil }
-            return appModel.folders.first(where: { $0.id == parentID })
+            return connectionStore.folders.first(where: { $0.id == parentID })
         }
     }
 
@@ -100,7 +102,8 @@ struct FolderEditorSheet: View {
 
     private var inheritedIdentity: SavedIdentity? {
         guard let parent = parentFolder else { return nil }
-        return appModel.folderIdentity(for: parent.id)
+        // For now, identity inheritance still needs identityRepository access
+        return appModel.identityRepository.resolveInheritedIdentity(folderID: parent.id)
     }
 
     private var editingFolderUsesManual: Bool {
@@ -120,7 +123,7 @@ struct FolderEditorSheet: View {
     }
 
     private var availableIdentities: [SavedIdentity] {
-        appModel.identities.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+        connectionStore.identities.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
     }
 
     private var folderColorBinding: Binding<Color> {
@@ -179,6 +182,8 @@ struct FolderEditorSheet: View {
                 selectedIdentityID = identity.id
                 credentialMode = .identity
             }
+            .environment(projectStore)
+            .environment(connectionStore)
             .environmentObject(appModel)
         }
         .onAppear(perform: prepareInitialValues)
@@ -356,7 +361,7 @@ struct FolderEditorSheet: View {
             if let folder = editingFolder {
                 Button(role: .destructive) {
                     Task {
-                        await appModel.deleteFolder(folder)
+                        try? await connectionStore.deleteFolder(folder)
                         dismiss()
                     }
                 } label: {
@@ -426,7 +431,7 @@ struct FolderEditorSheet: View {
         case .create(let kind, let parent, _):
             folder = SavedFolder(name: name)
             folder.id = UUID()
-            folder.projectID = appModel.selectedProject?.id
+            folder.projectID = projectStore.selectedProject?.id
             folder.parentFolderID = parent?.id
             folder.kind = kind
         case .edit(let existing):
@@ -447,15 +452,21 @@ struct FolderEditorSheet: View {
             passwordToPersist = nil
         }
 
-        await appModel.upsertFolder(folder, manualPassword: passwordToPersist)
+        if let passwordToPersist {
+            try? appModel.identityRepository.setPassword(passwordToPersist, for: &folder)
+        }
+        try? await connectionStore.updateFolder(folder)
+        
         if folder.kind == .connections {
-            appModel.selectedFolderID = folder.id
+            connectionStore.selectedFolderID = folder.id
         }
         dismiss()
     }
 }
 
 struct IdentityEditorSheet: View {
+    @Environment(ProjectStore.self) private var projectStore
+    @Environment(ConnectionStore.self) private var connectionStore
     @EnvironmentObject private var appModel: AppModel
     @Environment(\.dismiss) private var dismiss
     @ObservedObject private var themeManager = ThemeManager.shared
@@ -474,7 +485,7 @@ struct IdentityEditorSheet: View {
     }
 
     private var availableFolders: [SavedFolder] {
-        appModel.folders
+        connectionStore.folders
             .filter { $0.kind == .identities }
             .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
     }
@@ -547,7 +558,7 @@ struct IdentityEditorSheet: View {
             if let identity = editingIdentity {
                 Button("Delete", role: .destructive) {
                     Task {
-                        await appModel.deleteIdentity(identity)
+                        try? await connectionStore.deleteIdentity(identity)
                         dismiss()
                     }
                 }
@@ -592,7 +603,7 @@ struct IdentityEditorSheet: View {
         switch state {
         case .create:
             identity = SavedIdentity(
-                projectID: appModel.selectedProject?.id,
+                projectID: projectStore.selectedProject?.id,
                 name: name,
                 username: username,
                 keychainIdentifier: "echo.identity.\(UUID().uuidString)",
@@ -605,7 +616,10 @@ struct IdentityEditorSheet: View {
             identity.folderID = selectedFolderID
         }
 
-        await appModel.upsertIdentity(identity, password: password.isEmpty ? nil : password)
+        if !password.isEmpty {
+            try? appModel.identityRepository.setPassword(password, for: &identity)
+        }
+        try? await connectionStore.updateIdentity(identity)
         onSave?(identity)
         dismiss()
     }

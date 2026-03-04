@@ -54,6 +54,8 @@ let postgresDataTypeOptions: [String] = [
 struct TableStructureEditorView: View {
     @ObservedObject var tab: WorkspaceTab
     @ObservedObject var viewModel: TableStructureEditorViewModel
+    
+    @Environment(ProjectStore.self) private var projectStore
     @EnvironmentObject private var appModel: AppModel
     
     @State internal var activeIndexEditor: IndexEditorPresentation?
@@ -357,7 +359,7 @@ struct TableStructureEditorView: View {
 
     #if os(macOS)
     private var accentNSColor: NSColor {
-        if appModel.globalSettings.useServerColorAsAccent,
+        if projectStore.globalSettings.useServerColorAsAccent,
            let serverColor = tab.connection.color.nsColor {
             return serverColor
         }
@@ -378,7 +380,7 @@ struct TableStructureEditorView: View {
     }
     #else
     private var accentColor: Color {
-        appModel.globalSettings.useServerColorAsAccent ? tab.connection.color : .accentColor
+        projectStore.globalSettings.useServerColorAsAccent ? tab.connection.color : .accentColor
     }
 
     private var applyActiveForegroundColor: Color {

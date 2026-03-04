@@ -36,7 +36,11 @@ private enum InspectorLayout {
 }
 
 struct InfoSidebarView: View {
-    @EnvironmentObject private var appModel: AppModel
+    @Environment(ProjectStore.self) private var projectStore
+    @Environment(ConnectionStore.self) private var connectionStore
+    @Environment(NavigationStore.self) private var navigationStore
+    
+    @EnvironmentObject private var appModel: AppModel // Temporary bridge for content and actions
     @EnvironmentObject private var themeManager: ThemeManager
 
     @State private var selectedTab: InspectorTab = .dataInspector
@@ -94,7 +98,7 @@ struct InfoSidebarView: View {
                 switch content {
                 case .foreignKey(let foreignKeyContent):
                     InspectorPanelView(content: foreignKeyContent, depth: 0)
-                    if !appModel.globalSettings.foreignKeyIncludeRelated {
+                    if !projectStore.globalSettings.foreignKeyIncludeRelated {
                         Text("Enable related foreign keys in Settings › Query Results to automatically expand referenced rows when available.")
                             .font(.footnote)
                             .foregroundStyle(.secondary)
@@ -117,7 +121,7 @@ struct InfoSidebarView: View {
     @ViewBuilder
     private var connectionInspectorContent: some View {
         VStack(alignment: .leading, spacing: 16) {
-            if let connection = appModel.selectedConnection {
+            if let connection = connectionStore.selectedConnection {
                 let connectionFields: [ForeignKeyInspectorContent.Field] = [
                     .init(label: "Name", value: connection.connectionName),
                     .init(label: "Host", value: connection.host),

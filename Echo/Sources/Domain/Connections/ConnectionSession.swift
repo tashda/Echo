@@ -125,6 +125,42 @@ final class ConnectionSession: ObservableObject, Identifiable {
         lastActivity = Date()
     }
 
+    func addJobManagementTab(selectJobID: String? = nil) {
+        let viewModel = JobManagementViewModel(session: session, connection: connection, initialSelectedJobID: selectJobID)
+        let tab = WorkspaceTab(
+            connection: connection,
+            session: session,
+            connectionSessionID: id,
+            title: "Jobs",
+            content: .jobManagement(viewModel)
+        )
+        queryTabs.append(tab)
+        activeQueryTabID = tab.id
+        lastActivity = Date()
+    }
+
+    func addStructureTab(for object: SchemaObjectInfo, focus: TableStructureSection? = nil) {
+        let viewModel = TableStructureEditorViewModel(
+            schemaName: object.schema,
+            tableName: object.name,
+            details: TableStructureDetails(), // Placeholder, reload() will fetch real data
+            session: session
+        )
+        if let focus {
+            viewModel.focusSection(focus)
+        }
+        let tab = WorkspaceTab(
+            connection: connection,
+            session: session,
+            connectionSessionID: id,
+            title: "\(object.name) (Structure)",
+            content: .structure(viewModel)
+        )
+        queryTabs.append(tab)
+        activeQueryTabID = tab.id
+        lastActivity = Date()
+    }
+
     func closeQueryTab(withID tabID: UUID) {
         guard let index = queryTabs.firstIndex(where: { $0.id == tabID }) else { return }
 

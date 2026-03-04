@@ -6,6 +6,8 @@ struct PerformanceMonitorWindow: Scene {
     var body: some Scene {
         Window("Performance Monitor", id: Self.sceneID) {
             PerformanceMonitorView()
+                .environment(AppCoordinator.shared.tabStore)
+                .environment(AppCoordinator.shared.navigationStore)
                 .environmentObject(AppCoordinator.shared.appModel)
                 .environmentObject(AppCoordinator.shared.appState)
                 .environmentObject(AppCoordinator.shared.themeManager)
@@ -15,13 +17,14 @@ struct PerformanceMonitorWindow: Scene {
 }
 
 private struct PerformanceMonitorView: View {
+    @Environment(TabStore.self) private var tabStore
     @EnvironmentObject private var appModel: AppModel
     @EnvironmentObject private var themeManager: ThemeManager
     @ObservedObject private var coordinator = AppCoordinator.shared
 
     private var queryTabs: [WorkspaceTab] {
         guard coordinator.isInitialized else { return [] }
-        return appModel.tabManager.tabs.filter { $0.query != nil }
+        return tabStore.tabs.filter { $0.query != nil }
     }
 
     var body: some View {

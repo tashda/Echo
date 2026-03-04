@@ -17,6 +17,23 @@ final class ProjectRepository: ProjectRepositoryProtocol {
     func saveProjects(_ projects: [Project]) async throws {
         try await diskStore.save(projects)
     }
+
+    func saveProject(_ project: Project) async throws {
+        var current = try await loadProjects()
+        if let index = current.firstIndex(where: { $0.id == project.id }) {
+            current[index] = project
+        } else {
+            current.append(project)
+        }
+        try await saveProjects(current)
+    }
+
+    func deleteProject(_ project: Project) async throws {
+        var current = try await loadProjects()
+        current.removeAll { $0.id == project.id }
+        try await saveProjects(current)
+    }
+
     
     func loadGlobalSettings() async throws -> GlobalSettings {
         try await diskStore.loadGlobalSettings()

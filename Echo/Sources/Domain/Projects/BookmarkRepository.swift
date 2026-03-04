@@ -33,6 +33,6 @@ final class BookmarkRepository: BookmarkRepositoryProtocol, @unchecked Sendable 
     }
     
     private func sort(_ bookmarks: [Bookmark]) -> [Bookmark] {
-        bookmarks.sorted { $0.updatedAt > $1.updatedAt }
+        bookmarks.sorted { ($0.updatedAt ?? $0.createdAt) > ($1.updatedAt ?? $1.createdAt) }
     }
 }

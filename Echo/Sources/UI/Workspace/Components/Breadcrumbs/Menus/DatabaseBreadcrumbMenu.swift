@@ -1,11 +1,15 @@
 import SwiftUI
 
 struct DatabaseBreadcrumbMenu: View {
+    @Environment(ConnectionStore.self) private var connectionStore
     @EnvironmentObject private var appModel: AppModel
-    let connectionID: UUID
-
+    
     @State private var searchText = ""
     @State private var availableDatabases: [DatabaseInfo] = []
+
+    private var connectionID: UUID? {
+        connectionStore.selectedConnectionID
+    }
 
     private var filteredDatabases: [DatabaseInfo] {
         if searchText.isEmpty {
@@ -28,187 +32,117 @@ struct DatabaseBreadcrumbMenu: View {
             }
             .padding(.horizontal, 16)
             .padding(.top, 16)
-            .padding(.bottom, 12)
+            .padding(.bottom, 8)
 
-            // Database list
+            Divider()
+
+            // List
             ScrollView {
-                VStack(alignment: .leading, spacing: 2) {
-                    if !filteredDatabases.isEmpty {
-                        ForEach(filteredDatabases, id: \.name) { database in
-                            DatabaseMenuItem(
-                                database: database,
-                                connectionID: connectionID
-                            )
-                        }
-                    } else if !searchText.isEmpty {
-                        VStack(spacing: 8) {
-                            Image(systemName: "magnifyingglass")
-                                .font(.system(size: 20))
-                                .foregroundStyle(.secondary)
-                            Text("No databases found")
-                                .font(.system(size: 12))
-                                .foregroundStyle(.secondary)
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 24)
+                VStack(alignment: .leading, spacing: 4) {
+                    if availableDatabases.isEmpty {
+                        Text("Loading databases...")
+                            .font(.system(size: 12))
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 8)
+                    } else if filteredDatabases.isEmpty {
+                        Text("No matches found")
+                            .font(.system(size: 12))
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 8)
                     } else {
-                        VStack(spacing: 8) {
-                            ProgressView()
-                                .scaleEffect(0.8)
-                            Text("Loading databases...")
-                                .font(.system(size: 12))
-                                .foregroundStyle(.secondary)
+                        ForEach(filteredDatabases) { database in
+                            databaseRow(database)
                         }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 24)
                     }
                 }
-                .padding(.horizontal, 8)
+                .padding(.vertical, 8)
             }
-            .frame(maxHeight: 200)
+            .frame(maxHeight: 300)
+
+            Divider()
+
+            // Footer actions
+            Button(action: {
+                Task {
+                    if let connectionID {
+                        await appModel.refreshDatabaseStructure(for: connectionID, scope: .full)
+                        await loadDatabases()
+                    }
+                }
+            }) {
+                HStack {
+                    Image(systemName: "arrow.clockwise")
+                    Text("Refresh List")
+                    Spacer()
+                }
+                .font(.system(size: 12))
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+            }
+            .buttonStyle(.plain)
         }
-        .frame(width: 260)
-        .background(Color(NSColor.controlBackgroundColor))
+        .frame(width: 240)
         .onAppear {
-            loadDatabases()
-        }
-    }
-
-    private func loadDatabases() {
-        Task { @MainActor in
-            guard let session = appModel.sessionManager.sessionForConnection(connectionID) else {
-                return
-            }
-
-            // Get databases from session
-            if let structure = session.databaseStructure {
-                availableDatabases = structure.databases.sorted { $0.name < $1.name }
-            } else {
-                // Request structure refresh if not available
-                await appModel.refreshDatabaseStructure(for: session.id, scope: .full)
-
-                // Try again after refresh
-                if let structure = session.databaseStructure {
-                    availableDatabases = structure.databases.sorted { $0.name < $1.name }
-                }
+            Task {
+                await loadDatabases()
             }
         }
     }
-}
 
-// MARK: - Database Menu Item
-
-struct DatabaseMenuItem: View {
-    let database: DatabaseInfo
-    let connectionID: UUID
-
-    @EnvironmentObject private var appModel: AppModel
-    @State private var isHovered = false
-
-    private var isSelected: Bool {
-        guard let session = appModel.sessionManager.sessionForConnection(connectionID) else {
-            return false
-        }
-        return session.selectedDatabaseName == database.name
-    }
-
-    private var databaseStats: (schemas: Int, tables: Int, views: Int) {
-        let schemas = database.schemas.count
-        let tables = database.schemas.flatMap { $0.objects }.filter { $0.type == .table }.count
-        let views = database.schemas.flatMap { $0.objects }.filter { $0.type == .view || $0.type == .materializedView }.count
-        return (schemas, tables, views)
-    }
-
-    var body: some View {
+    private func databaseRow(_ database: DatabaseInfo) -> some View {
         Button(action: {
-            // Handle database selection
-            Task { @MainActor in
-                guard let session = appModel.sessionManager.sessionForConnection(connectionID) else {
-                    return
-                }
-
-                await appModel.loadSchemaForDatabase(database.name, connectionSession: session)
-                appModel.selectedConnectionID = connectionID
-            }
+            selectDatabase(database)
         }) {
-            HStack(spacing: 12) {
-                // Database icon
-                ZStack {
-                    RoundedRectangle(cornerRadius: 4, style: .continuous)
-                        .fill(isSelected ? Color.accentColor.opacity(0.15) : Color.blue.opacity(0.15))
-                        .frame(width: 24, height: 24)
-                    Image(systemName: "cylinder.fill")
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundStyle(isSelected ? Color.accentColor : Color.blue)
-                }
-
-                // Database info
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(database.name)
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundStyle(.primary)
-                        .lineLimit(1)
-
-                    // Stats
-                    HStack(spacing: 8) {
-                        if databaseStats.schemas > 0 {
-                            DatabaseStatBadge(icon: "list.bullet", count: databaseStats.schemas, label: "schema")
-                        }
-                        if databaseStats.tables > 0 {
-                            DatabaseStatBadge(icon: "tablecells", count: databaseStats.tables, label: "table")
-                        }
-                        if databaseStats.views > 0 {
-                            DatabaseStatBadge(icon: "eye", count: databaseStats.views, label: "view")
-                        }
-                    }
-                }
-
-                Spacer(minLength: 8)
-
-                // Selection indicator
-                if isSelected {
+            HStack {
+                Image(systemName: "cylinder")
+                    .foregroundStyle(.secondary)
+                Text(database.name)
+                    .font(.system(size: 13))
+                Spacer()
+                if isSelected(database) {
                     Image(systemName: "checkmark")
-                        .font(.system(size: 12, weight: .semibold))
                         .foregroundStyle(Color.accentColor)
                 }
             }
             .padding(.horizontal, 12)
-            .padding(.vertical, 8)
+            .padding(.vertical, 6)
             .background(
                 RoundedRectangle(cornerRadius: 6, style: .continuous)
-                    .fill(isSelected ? Color.accentColor.opacity(0.1) : (isHovered ? Color.accentColor.opacity(0.06) : Color.clear))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 6, style: .continuous)
-                    .stroke(isSelected ? Color.accentColor.opacity(0.3) : Color.clear, lineWidth: 1)
+                    .fill(isSelected(database) ? Color.accentColor.opacity(0.1) : Color.clear)
             )
         }
         .buttonStyle(.plain)
-        .onHover { hovering in
-            withAnimation(.easeInOut(duration: 0.15)) {
-                isHovered = hovering
-            }
+        .padding(.horizontal, 4)
+    }
+
+    private func isSelected(_ database: DatabaseInfo) -> Bool {
+        guard let connectionID else { return false }
+        return appModel.sessionManager.sessionForConnection(connectionID)?.selectedDatabaseName == database.name
+    }
+
+    private func selectDatabase(_ database: DatabaseInfo) {
+        guard let connectionID,
+              let session = appModel.sessionManager.sessionForConnection(connectionID) else { return }
+        
+        Task {
+            await appModel.loadSchemaForDatabase(database.name, connectionSession: session)
         }
     }
-}
 
-// MARK: - Database Stat Badge
+    private func loadDatabases() async {
+        guard let connectionID,
+              let session = appModel.sessionManager.sessionForConnection(connectionID) else { return }
 
-struct DatabaseStatBadge: View {
-    let icon: String
-    let count: Int
-    let label: String
-
-    var body: some View {
-        HStack(spacing: 3) {
-            Image(systemName: icon)
-                .font(.system(size: 9, weight: .medium))
-                .foregroundStyle(.secondary)
-
-            Text("\(count)")
-                .font(.system(size: 10, weight: .medium))
-                .foregroundStyle(.secondary)
+        if let structure = session.databaseStructure {
+            self.availableDatabases = structure.databases
+        } else {
+            // Try to load if not available
+            await appModel.refreshDatabaseStructure(for: session.id, scope: .full)
+            if let structure = session.databaseStructure {
+                self.availableDatabases = structure.databases
+            }
         }
-        .help("\(count) \(label)\(count != 1 ? "s" : "")")
     }
 }

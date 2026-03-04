@@ -6,7 +6,7 @@ import UIKit
 #endif
 
 struct RecentConnectionItem: Identifiable {
-    let id: String
+    let id: UUID
     let record: RecentConnectionRecord
     let name: String
     let server: String
@@ -53,102 +53,80 @@ private struct RecentConnectionsList: View {
 
     var body: some View {
         VStack(spacing: 8) {
-            let lastID = connections.last?.id
             ForEach(connections) { connection in
                 RecentConnectionRow(
-                    item: connection,
-                    onTap: { onSelectConnection(connection) }
+                    connection: connection,
+                    action: { onSelectConnection(connection) }
                 )
-                .padding(.horizontal, 12)
-
-                if connection.id != lastID {
-                    Divider()
-                        .padding(.leading, 44)
-                }
             }
         }
     }
 }
 
 private struct RecentConnectionRow: View {
-    let item: RecentConnectionItem
-    let onTap: () -> Void
+    let connection: RecentConnectionItem
+    let action: () -> Void
 
-    private var formattedTimestamp: String {
-        item.lastConnectedAt.formatted(date: .abbreviated, time: .shortened)
-    }
+    @State private var isHovered = false
 
     var body: some View {
-        Button(action: onTap) {
-            HStack(alignment: .center, spacing: 12) {
-                ConnectionIconView(databaseType: item.databaseType)
-                    .frame(width: 28, height: 28)
-
+        Button(action: action) {
+            HStack(spacing: 12) {
+                icon
+                
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(item.name)
-                        .font(.body.weight(.medium))
+                    Text(connection.name)
+                        .font(.system(size: 13, weight: .medium))
                         .foregroundStyle(.primary)
-                    Text(item.subtitle)
-                        .font(.subheadline)
+                    
+                    Text(connection.subtitle)
+                        .font(.system(size: 11))
                         .foregroundStyle(.secondary)
+                        .lineLimit(1)
                 }
-
+                
                 Spacer()
-
-                Text(formattedTimestamp)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
+                
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundStyle(.tertiary)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.vertical, 6)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .contentShape(Rectangle())
+            .background(
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(isHovered ? Color.primary.opacity(0.05) : Color.primary.opacity(0.02))
+            )
         }
         .buttonStyle(.plain)
-        .contentShape(Rectangle())
-    }
-}
-
-private struct ConnectionIconView: View {
-    let databaseType: DatabaseType
-
-    var body: some View {
-#if os(macOS)
-        if let nsImage = NSImage(named: databaseType.iconName) {
-            Image(nsImage: nsImage)
-                .resizable()
-                .scaledToFit()
-        } else {
-            fallbackIcon
-        }
-#else
-        if let uiImage = UIImage(named: databaseType.iconName) {
-            Image(uiImage: uiImage)
-                .resizable()
-                .scaledToFit()
-        } else {
-            fallbackIcon
-        }
-#endif
+        .onHover { isHovered = $0 }
     }
 
-    private var fallbackIcon: some View {
-        Image(systemName: "server.rack")
-            .resizable()
-            .scaledToFit()
-            .foregroundStyle(.secondary)
+    private var icon: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(Color.accentColor.opacity(0.12))
+                .frame(width: 32, height: 32)
+            Image(connection.databaseType.iconName)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(width: 16, height: 16)
+                .foregroundStyle(Color.accentColor)
+        }
     }
 }
 
 private struct EmptyRecentConnectionsView: View {
     var body: some View {
-        VStack(spacing: 6) {
-            Text("You have not connected to any servers yet.")
+        VStack(spacing: 12) {
+            Image(systemName: "clock.arrow.circlepath")
+                .font(.system(size: 32))
+                .foregroundStyle(.tertiary)
+            Text("No connections yet")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
-            Text("Use the sidebar to add a server and it will appear here next time.")
-                .font(.footnote)
-                .foregroundStyle(.tertiary)
-                .multilineTextAlignment(.center)
         }
-        .frame(maxWidth: .infinity)
+        .padding(.vertical, 20)
     }
 }

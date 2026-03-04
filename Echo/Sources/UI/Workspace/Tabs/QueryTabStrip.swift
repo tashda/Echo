@@ -3,10 +3,22 @@ import SwiftUI
 import AppKit
 #endif
 
+struct TabGroupWidthPreferenceKey: PreferenceKey {
+    nonisolated(unsafe) static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = nextValue()
+    }
+}
+
 struct QueryTabStrip: View {
     let leadingPadding: CGFloat
     let trailingPadding: CGFloat
 
+    @Environment(ProjectStore.self) private var projectStore
+    @Environment(ConnectionStore.self) private var connectionStore
+    @Environment(NavigationStore.self) private var navigationStore
+    @Environment(TabStore.self) private var tabStore
+    
     @EnvironmentObject private var appModel: AppModel
     @EnvironmentObject private var appState: AppState
     @Environment(\.colorScheme) private var colorScheme
@@ -72,7 +84,7 @@ struct QueryTabStrip: View {
 
     var body: some View {
         GeometryReader { geo in
-            let tabs = appModel.tabManager.tabs
+            let tabs = tabStore.tabs
             let hasTabs = !tabs.isEmpty
             let orderedTabs = combinedTabs(from: tabs)
 
@@ -114,7 +126,7 @@ struct QueryTabStrip: View {
                 .padding(.trailing, effectiveTrailingPadding)
                 .padding(.vertical, tabContentVerticalPadding)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .animation(tabReorderAnimation, value: appModel.tabManager.tabs.map(\.id))
+                .animation(tabReorderAnimation, value: tabStore.tabs.map(\.id))
             }
         }
         .frame(height: tabStripHeight)
@@ -122,12 +134,12 @@ struct QueryTabStrip: View {
         .onPreferenceChange(TabGroupWidthPreferenceKey.self) { width in
             measuredTabGroupWidth = width
         }
-        .onChange(of: appModel.tabManager.tabs.isEmpty) { _, isEmpty in
+        .onChange(of: tabStore.tabs.isEmpty) { _, isEmpty in
             if isEmpty {
                 hoveredTabID = nil
             }
         }
-        .onChange(of: appModel.tabManager.tabs.map(\.id)) { _, ids in
+        .onChange(of: tabStore.tabs.map(\.id)) { _, ids in
             if let hovered = hoveredTabID, !ids.contains(hovered) {
                 hoveredTabID = nil
             }
@@ -223,7 +235,7 @@ struct QueryTabStrip: View {
     private func separatorOpacity(between current: WorkspaceTab, and next: WorkspaceTab, separatorIndex: Int) -> Double {
         if dragState.isActive,
            let draggingId = dragState.id {
-            let orderedTabs = combinedTabs(from: appModel.tabManager.tabs).map { $0.0 }
+            let orderedTabs = combinedTabs(from: tabStore.tabs).map { $0.0 }
             guard let originalIndex = orderedTabs.firstIndex(where: { $0.id == draggingId }) else {
                 return 1
             }
@@ -249,7 +261,7 @@ struct QueryTabStrip: View {
             }
         }
 
-        if current.id == appModel.tabManager.activeTabId || next.id == appModel.tabManager.activeTabId {
+        if current.id == tabStore.activeTabId || next.id == tabStore.activeTabId {
             return 0
         }
         if current.id == hoveredTabID || next.id == hoveredTabID {
@@ -298,7 +310,7 @@ struct QueryTabStrip: View {
     }
 
     private func boundsForDraggingTab(_ tab: WorkspaceTab) -> (min: Int, max: Int)? {
-        let total = combinedTabs(from: appModel.tabManager.tabs).count
+        let total = combinedTabs(from: tabStore.tabs).count
         guard total > 0 else { return nil }
         return tabBounds(for: tab, totalCount: total)
     }
@@ -350,7 +362,7 @@ struct QueryTabStrip: View {
 
                 if shouldMove {
                     withAnimation(tabReorderAnimation) {
-                        appModel.tabManager.moveTab(id: tab.id, to: finalIndex)
+                        tabStore.moveTab(id: tab.id, to: finalIndex)
                     }
                 }
 
@@ -368,7 +380,7 @@ struct QueryTabStrip: View {
     }
 
     private func tabBounds(for tab: WorkspaceTab, totalCount: Int) -> (min: Int, max: Int) {
-        let pinnedCount = appModel.tabManager.tabs.filter { $0.isPinned }.count
+        let pinnedCount = tabStore.tabs.filter { $0.isPinned }.count
         if tab.isPinned {
             return (0, max(pinnedCount - 1, 0))
         } else {
@@ -378,8 +390,8 @@ struct QueryTabStrip: View {
 
     @ViewBuilder
     private func tabButtonView(tab: WorkspaceTab, targetWidth: CGFloat, index: Int, totalCount: Int, appearance: TabChromePalette?) -> some View {
-        let isActive = appModel.tabManager.activeTabId == tab.id
-        let tabIndex = appModel.tabManager.index(of: tab.id) ?? 0
+        let isActive = tabStore.activeTabId == tab.id
+        let tabIndex = tabStore.index(of: tab.id) ?? 0
         let hasLeft = tabIndex > 0
         let hasRight = tabIndex < totalCount - 1
         let canDuplicate = tab.kind == .query
@@ -389,14 +401,14 @@ struct QueryTabStrip: View {
         QueryTabButton(
             tab: tab,
             isActive: isActive,
-            onSelect: { appModel.tabManager.activeTabId = tab.id },
-            onClose: { appModel.tabManager.closeTab(id: tab.id) },
+            onSelect: { tabStore.activeTabId = tab.id },
+            onClose: { tabStore.closeTab(id: tab.id) },
             onAddBookmark: tab.query == nil ? nil : { bookmark(tab: tab) },
-            onPinToggle: { appModel.tabManager.togglePin(for: tab.id) },
+            onPinToggle: { tabStore.togglePin(for: tab.id) },
             onDuplicate: { appModel.duplicateTab(tab) },
-            onCloseOthers: { appModel.tabManager.closeOtherTabs(keeping: tab.id) },
-            onCloseLeft: { appModel.tabManager.closeTabsLeft(of: tab.id) },
-            onCloseRight: { appModel.tabManager.closeTabsRight(of: tab.id) },
+            onCloseOthers: { tabStore.closeOtherTabs(keeping: tab.id) },
+            onCloseLeft: { tabStore.closeTabsLeft(of: tab.id) },
+            onCloseRight: { tabStore.closeTabsRight(of: tab.id) },
             canDuplicate: canDuplicate,
             closeOthersDisabled: closeOthersDisabled,
             closeTabsLeftDisabled: !hasLeft,
@@ -435,13 +447,5 @@ struct QueryTabStrip: View {
                 source: .tab
             )
         }
-    }
-}
-
-struct TabGroupWidthPreferenceKey: PreferenceKey {
-    nonisolated(unsafe) static var defaultValue: CGFloat = 0
-
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
-        value = nextValue()
     }
 }
