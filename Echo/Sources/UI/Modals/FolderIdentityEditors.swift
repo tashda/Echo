@@ -61,7 +61,7 @@ enum IdentityEditorState: Identifiable {
 struct FolderEditorSheet: View {
     @Environment(ProjectStore.self) private var projectStore
     @Environment(ConnectionStore.self) private var connectionStore
-    @EnvironmentObject private var appModel: AppModel
+    @EnvironmentObject private var workspaceSessionStore: WorkspaceSessionStore
     @Environment(\.dismiss) private var dismiss
     @ObservedObject private var themeManager = ThemeManager.shared
 
@@ -103,7 +103,7 @@ struct FolderEditorSheet: View {
     private var inheritedIdentity: SavedIdentity? {
         guard let parent = parentFolder else { return nil }
         // For now, identity inheritance still needs identityRepository access
-        return appModel.identityRepository.resolveInheritedIdentity(folderID: parent.id)
+        return workspaceSessionStore.identityRepository.resolveInheritedIdentity(folderID: parent.id)
     }
 
     private var editingFolderUsesManual: Bool {
@@ -184,7 +184,7 @@ struct FolderEditorSheet: View {
             }
             .environment(projectStore)
             .environment(connectionStore)
-            .environmentObject(appModel)
+            .environmentObject(workspaceSessionStore)
         }
         .onAppear(perform: prepareInitialValues)
     }
@@ -453,7 +453,7 @@ struct FolderEditorSheet: View {
         }
 
         if let passwordToPersist {
-            try? appModel.identityRepository.setPassword(passwordToPersist, for: &folder)
+            try? workspaceSessionStore.identityRepository.setPassword(passwordToPersist, for: &folder)
         }
         try? await connectionStore.updateFolder(folder)
         
@@ -467,7 +467,7 @@ struct FolderEditorSheet: View {
 struct IdentityEditorSheet: View {
     @Environment(ProjectStore.self) private var projectStore
     @Environment(ConnectionStore.self) private var connectionStore
-    @EnvironmentObject private var appModel: AppModel
+    @EnvironmentObject private var workspaceSessionStore: WorkspaceSessionStore
     @Environment(\.dismiss) private var dismiss
     @ObservedObject private var themeManager = ThemeManager.shared
 
@@ -617,7 +617,7 @@ struct IdentityEditorSheet: View {
         }
 
         if !password.isEmpty {
-            try? appModel.identityRepository.setPassword(password, for: &identity)
+            try? workspaceSessionStore.identityRepository.setPassword(password, for: &identity)
         }
         try? await connectionStore.updateIdentity(identity)
         onSave?(identity)

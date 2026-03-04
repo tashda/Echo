@@ -15,7 +15,7 @@ struct DatabaseObjectBrowserView: View {
     @Environment(ProjectStore.self) private var projectStore
     @Environment(ConnectionStore.self) private var connectionStore
     @Environment(NavigationStore.self) private var navigationStore
-    @EnvironmentObject private var appModel: AppModel
+    @EnvironmentObject private var workspaceSessionStore: WorkspaceSessionStore
     
     @State private var snapshotCache = ExplorerSnapshotCache()
     @State private var hoveredRowID: String?

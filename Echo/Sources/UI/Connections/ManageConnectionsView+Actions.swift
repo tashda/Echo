@@ -156,7 +156,7 @@ extension ManageConnectionsView {
         action: ConnectionEditorView.SaveAction
     ) {
         Task {
-            await appModel.upsertConnection(connection, password: password)
+            await workspaceSessionStore.upsertConnection(connection, password: password)
 
             await MainActor.run {
                 selectedSection = .connections
@@ -166,7 +166,7 @@ extension ManageConnectionsView {
             }
 
             if action == .saveAndConnect {
-                await appModel.connect(to: connection)
+                await workspaceSessionStore.connect(to: connection)
                 await MainActor.run {
                     closeManageConnections()
                 }
@@ -181,7 +181,7 @@ extension ManageConnectionsView {
     func performDeletion(for target: DeletionTarget) {
         switch target {
         case .connection(let connection):
-            Task { await appModel.deleteConnection(connection) }
+            Task { await workspaceSessionStore.deleteConnection(connection) }
         case .folder(let folder):
             Task { try? await connectionStore.deleteFolder(folder) }
         case .identity(let identity):
@@ -218,11 +218,11 @@ extension ManageConnectionsView {
             
             if copyBookmarks, let projectID = connection.projectID,
                var project = projectStore.projects.first(where: { $0.id == projectID }) {
-                let existingBookmarks = appModel.bookmarkRepository.bookmarks(for: connection.id, in: project)
+                let existingBookmarks = workspaceSessionStore.bookmarkRepository.bookmarks(for: connection.id, in: project)
                 for var bookmark in existingBookmarks {
                     bookmark.id = UUID()
                     bookmark.connectionID = duplicated.id
-                    appModel.bookmarkRepository.addBookmark(bookmark, to: &project)
+                    workspaceSessionStore.bookmarkRepository.addBookmark(bookmark, to: &project)
                 }
                 await projectStore.saveProject(project)
             }
@@ -231,7 +231,7 @@ extension ManageConnectionsView {
 
     func connectToConnection(_ connection: SavedConnection) {
         Task {
-            await appModel.connect(to: connection)
+            await workspaceSessionStore.connect(to: connection)
             await MainActor.run {
                 closeManageConnections()
             }
@@ -320,7 +320,7 @@ extension ManageConnectionsView {
         var updatedConnection = connection
         updatedConnection.folderID = folder.id
         Task {
-            await appModel.upsertConnection(updatedConnection, password: nil)
+            await workspaceSessionStore.upsertConnection(updatedConnection, password: nil)
         }
     }
 

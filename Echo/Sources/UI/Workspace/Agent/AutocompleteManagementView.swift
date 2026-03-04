@@ -4,7 +4,7 @@ import EchoSense
 
 struct AutocompleteManagementRootView: View {
     @Environment(ProjectStore.self) private var projectStore
-    @EnvironmentObject private var appModel: AppModel
+    @EnvironmentObject private var workspaceSessionStore: WorkspaceSessionStore
     @EnvironmentObject private var appState: AppState
     @EnvironmentObject private var themeManager: ThemeManager
     @State private var sqlText: String = "SELECT * FROM "
@@ -34,7 +34,7 @@ struct AutocompleteManagementRootView: View {
     }
 
     private var completionContext: SQLEditorCompletionContext? {
-        guard let session = appModel.sessionManager.activeSession else { return nil }
+        guard let session = workspaceSessionStore.sessionManager.activeSession else { return nil }
         let connection = session.connection
         let databaseType = EchoSenseDatabaseType(connection.databaseType)
         let selectedDatabase = normalize(session.selectedDatabaseName)
@@ -50,7 +50,7 @@ struct AutocompleteManagementRootView: View {
     }
 
     private var activeConnectionSummary: String? {
-        guard let session = appModel.sessionManager.activeSession else { return nil }
+        guard let session = workspaceSessionStore.sessionManager.activeSession else { return nil }
         let connection = session.connection
         let databasePart = normalize(session.selectedDatabaseName) ?? normalize(connection.database)
         if let databasePart, !databasePart.isEmpty {
@@ -60,7 +60,7 @@ struct AutocompleteManagementRootView: View {
     }
 
     private var structureStatusMessage: String? {
-        guard let session = appModel.sessionManager.activeSession else { return nil }
+        guard let session = workspaceSessionStore.sessionManager.activeSession else { return nil }
         switch session.structureLoadingState {
         case .idle:
             return session.databaseStructure == nil ? "Database structure not loaded yet. Trigger a refresh if suggestions remain limited." : nil

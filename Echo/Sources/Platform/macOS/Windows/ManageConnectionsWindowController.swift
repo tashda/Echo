@@ -124,7 +124,7 @@ private struct ManageConnectionsWindowRootView: View {
             .environment(coordinator.connectionStore)
             .environment(coordinator.navigationStore)
             .environment(coordinator.tabStore)
-            .environmentObject(coordinator.appModel)
+            .environmentObject(coordinator.workspaceSessionStore)
             .environmentObject(coordinator.appState)
             .environmentObject(coordinator.themeManager)
             .environmentObject(coordinator.clipboardHistory)

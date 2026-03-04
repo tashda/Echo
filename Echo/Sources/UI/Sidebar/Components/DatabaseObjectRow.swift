@@ -12,7 +12,7 @@ struct DatabaseObjectRow: View, Equatable {
     
     @Environment(ProjectStore.self) internal var projectStore
     @Environment(ConnectionStore.self) internal var connectionStore
-    @EnvironmentObject internal var appModel: AppModel
+    @EnvironmentObject internal var workspaceSessionStore: WorkspaceSessionStore
     
     @Environment(\.hoveredExplorerRowID) private var hoveredExplorerRowID
     @Environment(\.setHoveredExplorerRowID) private var setHoveredExplorerRowID
@@ -235,8 +235,8 @@ extension DatabaseObjectRow {
     
     internal func openStructureEditor(for column: ColumnInfo, preferDrop: Bool = false) {
         Task { @MainActor in
-            guard let session = appModel.sessionManager.sessionForConnection(connection.id) else { return }
-            appModel.openStructureTab(for: session, object: object, focus: .columns)
+            guard let session = workspaceSessionStore.sessionManager.sessionForConnection(connection.id) else { return }
+            workspaceSessionStore.openStructureTab(for: session, object: object, focus: .columns)
         }
     }
 }

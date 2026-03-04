@@ -378,7 +378,7 @@ final class DiagramCoordinator: DiagramCoordinatorProtocol, @unchecked Sendable 
 
     @MainActor
     func refreshDiagram(for viewModel: SchemaDiagramViewModel) async {
-        // AppModel bridge for now until DiagramCoordinator has everything
+        // WorkspaceSessionStore bridge for now until DiagramCoordinator has everything
     }
 
     @MainActor

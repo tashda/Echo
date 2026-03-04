@@ -15,7 +15,7 @@ struct StreamingTestHarnessWindow: Scene {
                 .environment(AppCoordinator.shared.projectStore)
                 .environment(AppCoordinator.shared.connectionStore)
                 .environment(AppCoordinator.shared.navigationStore)
-                .environmentObject(AppCoordinator.shared.appModel)
+                .environmentObject(AppCoordinator.shared.workspaceSessionStore)
                 .environmentObject(AppCoordinator.shared.themeManager)
         }
         .defaultSize(width: 840, height: 620)
@@ -27,7 +27,7 @@ private struct StreamingTestHarnessView: View {
     @Environment(ConnectionStore.self) private var connectionStore
     @Environment(NavigationStore.self) private var navigationStore
     
-    @EnvironmentObject private var appModel: AppModel
+    @EnvironmentObject private var workspaceSessionStore: WorkspaceSessionStore
     @EnvironmentObject private var themeManager: ThemeManager
     @ObservedObject private var coordinator = AppCoordinator.shared
 
@@ -47,7 +47,7 @@ private struct StreamingTestHarnessView: View {
 
     private var availableSessions: [ConnectionSession] {
         guard coordinator.isInitialized else { return [] }
-        return appModel.sessionManager.sortedSessions
+        return workspaceSessionStore.sessionManager.sortedSessions
     }
 
     private var selectedSession: ConnectionSession? {

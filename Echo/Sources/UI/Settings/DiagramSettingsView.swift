@@ -3,7 +3,7 @@ import Foundation
 
 struct DiagramSettingsView: View {
     @Environment(ProjectStore.self) private var projectStore
-    @EnvironmentObject private var appModel: AppModel
+    @EnvironmentObject private var workspaceSessionStore: WorkspaceSessionStore
     @EnvironmentObject private var themeManager: ThemeManager
     @State private var cacheUsage: UInt64 = 0
     @State private var isRefreshingUsage = false
@@ -163,7 +163,7 @@ struct DiagramSettingsView: View {
 
     private func refreshUsage() async {
         await MainActor.run { isRefreshingUsage = true }
-        let usage = await appModel.diagramCacheManager.currentUsageBytes()
+        let usage = await workspaceSessionStore.diagramCacheManager.currentUsageBytes()
         await MainActor.run {
             cacheUsage = usage
             isRefreshingUsage = false
@@ -171,7 +171,7 @@ struct DiagramSettingsView: View {
     }
 
     private func clearCache() async {
-        await appModel.diagramCacheManager.removeAll()
+        await workspaceSessionStore.diagramCacheManager.removeAll()
         await refreshUsage()
     }
 

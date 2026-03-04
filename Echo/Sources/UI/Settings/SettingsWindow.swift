@@ -10,7 +10,7 @@ import AppKit
 
 /// Hosts the sidebar/detail split view and renders each settings section.
 struct SettingsView: View {
-    @EnvironmentObject private var appModel: AppModel
+    @EnvironmentObject private var workspaceSessionStore: WorkspaceSessionStore
     @EnvironmentObject private var appState: AppState
     @EnvironmentObject private var clipboardHistory: ClipboardHistoryStore
     @EnvironmentObject private var themeManager: ThemeManager
@@ -127,25 +127,25 @@ struct SettingsView: View {
         switch section {
         case .appearance:
             AppearanceSettingsView()
-                .environmentObject(appModel)
+                .environmentObject(workspaceSessionStore)
                 .environmentObject(appState)
                 .environmentObject(themeManager)
 
         case .queryResults:
             QueryResultsSettingsView()
-                .environmentObject(appModel)
+                .environmentObject(workspaceSessionStore)
                 .environmentObject(appState)
                 .environmentObject(themeManager)
 
         case .echoSense:
             EchoSenseSettingsView()
-                .environmentObject(appModel)
+                .environmentObject(workspaceSessionStore)
                 .environmentObject(appState)
                 .environmentObject(themeManager)
 
         case .diagrams:
             DiagramSettingsView()
-                .environmentObject(appModel)
+                .environmentObject(workspaceSessionStore)
                 .environmentObject(themeManager)
 
         case .applicationCache:
@@ -199,7 +199,7 @@ private func configureSettingsWindowIdentifier() {
 
 #Preview("Settings Window") {
     SettingsView()
-        .environmentObject(AppCoordinator.shared.appModel)
+        .environmentObject(AppCoordinator.shared.workspaceSessionStore)
         .environmentObject(AppCoordinator.shared.appState)
         .environmentObject(AppCoordinator.shared.clipboardHistory)
         .environmentObject(ThemeManager.shared)

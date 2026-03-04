@@ -8,7 +8,7 @@ struct SidebarView: View {
     @Environment(ConnectionStore.self) private var connectionStore
     @Environment(NavigationStore.self) private var navigationStore
     
-    @EnvironmentObject var appModel: AppModel
+    @EnvironmentObject var workspaceSessionStore: WorkspaceSessionStore
     @EnvironmentObject var appState: AppState
 
     var onAddConnection: () -> Void

@@ -30,16 +30,16 @@ extension DatabaseObjectRow {
     }
     
     internal func openNewQueryTab() {
-        guard let session = appModel.sessionManager.sessionForConnection(connection.id) else { return }
+        guard let session = workspaceSessionStore.sessionManager.sessionForConnection(connection.id) else { return }
         let qualified = qualifiedName(schema: object.schema, name: object.name)
         let sql = "-- Query for \(qualified)\n"
         Task { @MainActor in
-            appModel.openQueryTab(for: session, presetQuery: sql)
+            workspaceSessionStore.openQueryTab(for: session, presetQuery: sql)
         }
     }
     
     internal func openDataPreview() {
-        guard let session = appModel.sessionManager.sessionForConnection(connection.id) else { return }
+        guard let session = workspaceSessionStore.sessionManager.sessionForConnection(connection.id) else { return }
         let qualified = qualifiedName(schema: object.schema, name: object.name)
         let columns = object.columns.isEmpty ? ["*"] : object.columns.map { quoteIdentifier($0.name) }
         let columnLines = columns.joined(separator: ",\n    ")
@@ -52,27 +52,27 @@ extension DatabaseObjectRow {
             offset: 0
         )
         Task { @MainActor in
-            appModel.openQueryTab(for: session, presetQuery: sql)
+            workspaceSessionStore.openQueryTab(for: session, presetQuery: sql)
         }
     }
     
     internal func openStructureTab() {
         Task { @MainActor in
-            guard let session = appModel.sessionManager.sessionForConnection(connection.id) else { return }
-            appModel.openStructureTab(for: session, object: object)
+            guard let session = workspaceSessionStore.sessionManager.sessionForConnection(connection.id) else { return }
+            workspaceSessionStore.openStructureTab(for: session, object: object)
         }
     }
     
     internal func openRelationsDiagram() {
         guard supportsDiagram else { return }
         Task { @MainActor in
-            guard let session = appModel.sessionManager.sessionForConnection(connection.id) else { return }
-            appModel.openDiagramTab(for: session, object: object)
+            guard let session = workspaceSessionStore.sessionManager.sessionForConnection(connection.id) else { return }
+            workspaceSessionStore.openDiagramTab(for: session, object: object)
         }
     }
     
     internal func openCreateDefinition(insertOrReplace: Bool) {
-        guard let session = appModel.sessionManager.sessionForConnection(connection.id) else { return }
+        guard let session = workspaceSessionStore.sessionManager.sessionForConnection(connection.id) else { return }
         Task {
             do {
                 let definition = try await session.session.getObjectDefinition(
@@ -82,18 +82,18 @@ extension DatabaseObjectRow {
                 )
                 let adjusted = insertOrReplace ? applyCreateOrReplace(to: definition) : definition
                 await MainActor.run {
-                    appModel.openQueryTab(for: session, presetQuery: adjusted)
+                    workspaceSessionStore.openQueryTab(for: session, presetQuery: adjusted)
                 }
             } catch {
                 await MainActor.run {
-                    appModel.lastError = DatabaseError.from(error)
+                    workspaceSessionStore.lastError = DatabaseError.from(error)
                 }
             }
         }
     }
     
     internal func openCreateTableScript() {
-        guard let session = appModel.sessionManager.sessionForConnection(connection.id) else { return }
+        guard let session = workspaceSessionStore.sessionManager.sessionForConnection(connection.id) else { return }
         Task {
             do {
                 let details = try await session.session.getTableStructureDetails(
@@ -102,11 +102,11 @@ extension DatabaseObjectRow {
                 )
                 let script = makeCreateTableScript(details: details)
                 await MainActor.run {
-                    appModel.openQueryTab(for: session, presetQuery: script)
+                    workspaceSessionStore.openQueryTab(for: session, presetQuery: script)
                 }
             } catch {
                 await MainActor.run {
-                    appModel.lastError = DatabaseError.from(error)
+                    workspaceSessionStore.lastError = DatabaseError.from(error)
                 }
             }
         }
@@ -225,7 +225,7 @@ extension DatabaseObjectRow {
 #if os(macOS)
     @MainActor
     internal func presentRenamePrompt() async {
-        guard let session = appModel.sessionManager.sessionForConnection(connection.id) else { return }
+        guard let session = workspaceSessionStore.sessionManager.sessionForConnection(connection.id) else { return }
         
         let alert = NSAlert()
         alert.icon = NSImage(size: .zero)
@@ -294,14 +294,14 @@ extension DatabaseObjectRow {
         Task {
             do {
                 _ = try await session.session.executeUpdate(sql)
-                await appModel.refreshDatabaseStructure(
+                await workspaceSessionStore.refreshDatabaseStructure(
                     for: session.id,
                     scope: .selectedDatabase,
                     databaseOverride: session.selectedDatabaseName
                 )
             } catch {
                 await MainActor.run {
-                    appModel.lastError = DatabaseError.from(error)
+                    workspaceSessionStore.lastError = DatabaseError.from(error)
                 }
             }
         }
@@ -322,7 +322,7 @@ extension DatabaseObjectRow {
 #if os(macOS)
     @MainActor
     internal func presentDropPrompt(includeIfExists: Bool) async {
-        guard let session = appModel.sessionManager.sessionForConnection(connection.id) else { return }
+        guard let session = workspaceSessionStore.sessionManager.sessionForConnection(connection.id) else { return }
         
         let alert = NSAlert()
         alert.icon = NSImage(size: .zero)
@@ -385,14 +385,14 @@ extension DatabaseObjectRow {
                         onTogglePin()
                     }
                 }
-                await appModel.refreshDatabaseStructure(
+                await workspaceSessionStore.refreshDatabaseStructure(
                     for: session.id,
                     scope: .selectedDatabase,
                     databaseOverride: session.selectedDatabaseName
                 )
             } catch {
                 await MainActor.run {
-                    appModel.lastError = DatabaseError.from(error)
+                    workspaceSessionStore.lastError = DatabaseError.from(error)
                 }
             }
         }
@@ -400,7 +400,7 @@ extension DatabaseObjectRow {
     
     @MainActor
     internal func presentTruncatePrompt() async {
-        guard let session = appModel.sessionManager.sessionForConnection(connection.id) else { return }
+        guard let session = workspaceSessionStore.sessionManager.sessionForConnection(connection.id) else { return }
         
         let alert = NSAlert()
         alert.icon = NSImage(size: .zero)
@@ -458,14 +458,14 @@ extension DatabaseObjectRow {
         Task {
             do {
                 _ = try await session.session.executeUpdate(statement)
-                await appModel.refreshDatabaseStructure(
+                await workspaceSessionStore.refreshDatabaseStructure(
                     for: session.id,
                     scope: .selectedDatabase,
                     databaseOverride: session.selectedDatabaseName
                 )
             } catch {
                 await MainActor.run {
-                    appModel.lastError = DatabaseError.from(error)
+                    workspaceSessionStore.lastError = DatabaseError.from(error)
                 }
             }
         }
@@ -473,9 +473,9 @@ extension DatabaseObjectRow {
 #endif
     
     internal func openScriptTab(with sql: String) {
-        guard let session = appModel.sessionManager.sessionForConnection(connection.id) else { return }
+        guard let session = workspaceSessionStore.sessionManager.sessionForConnection(connection.id) else { return }
         Task { @MainActor in
-            appModel.openQueryTab(for: session, presetQuery: sql)
+            workspaceSessionStore.openQueryTab(for: session, presetQuery: sql)
         }
     }
     

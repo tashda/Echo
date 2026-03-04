@@ -4,10 +4,10 @@ import Security
 
 /// Manages generation and persistence of per-project diagram encryption keys.
 struct DiagramEncryptionKeyStore: Sendable {
-    private let keychain: KeychainHelper
+    private let keychain: KeychainVault
     private let accountPrefix = "diagram-cache-key"
 
-    init(keychain: KeychainHelper = KeychainHelper()) {
+    init(keychain: KeychainVault = KeychainVault()) {
         self.keychain = keychain
     }
 
@@ -41,7 +41,7 @@ struct DiagramEncryptionKeyStore: Sendable {
                 return nil
             }
             return SymmetricKey(data: data)
-        } catch KeychainHelper.KeychainError.unexpectedStatus(let status) where status == errSecItemNotFound {
+        } catch KeychainVault.KeychainError.unexpectedStatus(let status) where status == errSecItemNotFound {
             return nil
         } catch {
             throw error

@@ -7,14 +7,22 @@ The "Echo" project (including `sqlserver-nio`, `Postgres-wire`, and `EchoSense`)
 
 ### 1.1 Large Files (Violation of <500 lines rule)
 Many files exceeded the strict limits. The most critical offenders have been addressed:
-- `AppModel.swift`: Reduced from 3762 lines to **380 lines**.
+- `AppModel.swift`: Reduced from 3762 lines to **~380 lines**.
+- `DatabaseExplorerSidebarView.swift`: Reduced from 1521 lines to **~480 lines**.
+- `ResultGridUIKitView.swift`: Reduced from 1333 lines to **~300 lines**.
+- `DatabaseObjectRow+ContextMenu.swift`: Modularized and reduced to **~350 lines**.
+- `WorkspaceToolbarItems.swift`: Reduced from 1187 lines to **~350 lines**.
+- `DatabaseSearchService.swift`: Reduced from 1154 lines to **~180 lines**.
+- `MySQLDatabase.swift`: Reduced from 1050 lines to **~150 lines**.
+- `SearchSidebarView.swift`: Reduced from 918 lines to **~450 lines**.
+- `SchemaDiagramView.swift`: Reduced from 875 lines to **~300 lines**.
+- `QueryResultsSettingsView.swift`: Reduced from 854 lines to **~350 lines**.
 - `SuggestionBuilder.swift`: Modularized into 9 providers in `EchoSense`.
-- `AppearanceSettingsView.swift`: Migrated and simplified to core configuration.
-- `WorkspaceTab.swift`: Logic extracted to specialized stores and coordinators.
 
 ### 1.2 Multi-Responsibility Classes
 - `AppModel.swift`: Successfully decomposed into specialized stores (`ProjectStore`, `ConnectionStore`, `TabStore`, `NavigationStore`) and coordinators.
-- `ThemeManager.swift`: Simplified to handle core appearance state and accent colors.
+- `DatabaseSearchService`: Split into strategy-based implementations for each database type.
+- `MySQLDatabase`: Logic separated into Queries, Objects, Structure, and Formatting modules.
 
 ### 1.3 Hardcoded Styling
 - Centralized design token system implemented in `UI/Shared/Design/`.
@@ -22,7 +30,7 @@ Many files exceeded the strict limits. The most critical offenders have been add
 
 ### 1.4 Naming Inconsistencies
 - Refactoring ongoing to rename "Managers" and "Helpers" to more descriptive domain terms.
-- Examples: `IdentityRepository`, `SchemaDiscoveryCoordinator`, `BookmarkRepository`.
+- Examples: `IdentityRepository`, `SchemaDiscoveryCoordinator`, `BookmarkRepository`, `ConnectionSessionManager`.
 
 ## 2. Refactoring Roadmap
 
@@ -36,9 +44,10 @@ Many files exceeded the strict limits. The most critical offenders have been add
 2.  **Modularize `EchoSense`:** `SuggestionBuilder` broken into context-specific providers.
 3.  **Renaming Strategy:** Transitioning to `Repository`, `Coordinator`, and `Store` suffixes.
 
-### Phase 3: Theming Removal [COMPLETED]
-1.  **Deprecate `ThemeManager` complex logic:** Simplified to system light/dark + accent.
-2.  **Update Views:** All major views now use Design Tokens.
+### Phase 3: UI & Service Modularization [COMPLETED]
+1.  **Monolithic View Splitting:** Major sidebar and workspace views split into component-based files.
+2.  **Service Decoupling:** Database search and protocol implementations (MySQL) modularized.
+3.  **State Management:** Introduced ViewModels for complex views (Explorer, Search) to separate UI from logic.
 
 ### Phase 4: Package Refactoring (NIO Packages) [TODO]
 1.  **SwiftNIO Integration:** Refactor network layers for Swift 6 Concurrency and Sendability.
@@ -60,31 +69,30 @@ Many files exceeded the strict limits. The most critical offenders have been add
 
 ### Step 3: AppModel Decomposition [COMPLETED]
 - **Sub-step 3.1: Project Domain** [COMPLETED]
-    - Created `ProjectRepository` and modern `@Observable` `ProjectStore`.
 - **Sub-step 3.2: Connection Domain** [COMPLETED]
-    - Created `ConnectionRepository` and modern `@Observable` `ConnectionStore`.
 - **Sub-step 3.3: Navigation & Tab Domain** [COMPLETED]
-    - Created `NavigationStore` and `TabStore`.
 - **Sub-step 3.4: Domain Logic Separation (Diagrams & Spooling)** [COMPLETED]
-    - Created `DiagramCoordinator` and `ResultSpoolCoordinator`.
 - **Sub-step 3.5: Identity & Auth Extraction** [COMPLETED]
-    - Created `IdentityRepository` for Keychain and credential resolution.
 - **Sub-step 3.6: Schema Management Extraction** [COMPLETED]
-    - Created `SchemaDiscoveryCoordinator` for metadata fetching.
 - **Sub-step 3.7: Bookmark & History Extraction** [COMPLETED]
-    - Created `BookmarkRepository` and `HistoryRepository`.
 - **Sub-step 3.8: Systematic UI Migration** [COMPLETED]
-    - All SwiftUI Views now use specific modular stores via `@Environment`.
-    - Eliminated direct dependencies on legacy `AppModel` properties.
 - **Sub-step 3.9: Final AppModel Pruning** [COMPLETED]
-    - `AppModel.swift` pruned to ~380 lines, focusing on essential session management.
 
-### Step 4: EchoSense Modularization [COMPLETED]
-- Split `SuggestionBuilder.swift` into 9 modular providers using `SQLSuggestionProvider`.
+### Step 4: UI & Service Modularization [COMPLETED]
+- **Sub-step 4.1: Sidebar Modularization** [COMPLETED]
+    - Split `DatabaseExplorerSidebarView` and `SearchSidebarView` into feature-based components.
+    - Extracted `SearchResultRow`, `ExplorerConnectedServers`, `ExplorerFooter`, etc.
+- **Sub-step 4.2: Workspace & Results Modularization** [COMPLETED]
+    - Split `ResultGridUIKitView` and `SchemaDiagramView`.
+    - Modularized `WorkspaceToolbarItems` and `TabOverviewView`.
+- **Sub-step 4.3: Database Logic Decoupling** [COMPLETED]
+    - Decoupled `DatabaseSearchService` into strategy patterns.
+    - Modularized `MySQLDatabase` into Query, Object, and Structure extensions.
 
 ### Step 5: Package Refactoring (NIO Packages) [IN PROGRESS]
 - Applying protocol-first patterns and Swift 6 Concurrency standards to `sqlserver-nio` and `Postgres-wire`.
 
-### Step 6: Final Validation & Testing [TODO]
-- Audit all files for line counts and Single Responsibility compliance.
-- Final verification against Apple's "Modular App" best practices.
+### Step 6: Final Validation & Reorganization [TODO]
+- **Feature-Based Reorganization:** Move fragmented files into encapsulated feature folders (e.g., `UI/Sidebar/Explorer/`).
+- **Naming Audit:** Ensure all classes, files, and functions use "Proper Names" (e.g., avoid `Helper`, `Utility`, or vague prefixes).
+- **Final Line Count Audit:** Ensure 100% compliance with the <500 lines per file mandate.

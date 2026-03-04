@@ -8,7 +8,7 @@ struct SidebarMenu: View {
     @Environment(ConnectionStore.self) private var connectionStore
     @Environment(NavigationStore.self) private var navigationStore
     
-    @EnvironmentObject var appModel: AppModel
+    @EnvironmentObject var workspaceSessionStore: WorkspaceSessionStore
     @EnvironmentObject var appState: AppState
     let onAddConnection: () -> Void
 
@@ -160,7 +160,7 @@ struct SidebarMenu: View {
     private var contentView: some View {
         switch selectedNavSection {
         case .folder:
-            ExplorerSidebarView(selectedConnectionID: $selectedConnectionID)
+            DatabaseExplorerSidebarView(selectedConnectionID: $selectedConnectionID)
         case .bookmark:
             BookmarksSidebarView()
         case .search:
@@ -225,14 +225,14 @@ struct SidebarMenu: View {
         selectedNavSection = .folder
 
         Task {
-            await appModel.connect(to: connection)
+            await workspaceSessionStore.connect(to: connection)
         }
     }
 
     private func duplicateConnection(_ connection: SavedConnection, copyBookmarks: Bool) {
         Task {
             pendingDuplicateConnection = nil
-            // await appModel.duplicateConnection(connection, copyBookmarks: copyBookmarks)
+            // await workspaceSessionStore.duplicateConnection(connection, copyBookmarks: copyBookmarks)
         }
     }
 }
