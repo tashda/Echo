@@ -28,7 +28,7 @@ struct EchoApp: App {
                 .environment(coordinator.resultSpoolCoordinator)
                 .environment(coordinator.diagramCoordinator)
                 .environmentObject(coordinator.navigationStore.navigationState)
-                .environmentObject(coordinator.appModel)
+                .environmentObject(coordinator.workspaceSessionStore)
                 .environmentObject(coordinator.appState)
                 .environmentObject(coordinator.clipboardHistory)
                 .environmentObject(coordinator.themeManager)
@@ -37,7 +37,7 @@ struct EchoApp: App {
         .windowStyle(.hiddenTitleBar)
         .commands {
             QueryCommands(
-                appModel: coordinator.appModel,
+                workspaceSessionStore: coordinator.workspaceSessionStore,
                 appState: coordinator.appState,
                 navigationStore: coordinator.navigationStore,
                 tabStore: coordinator.tabStore
@@ -48,7 +48,7 @@ struct EchoApp: App {
             StreamingTestHarnessCommands()
 #if os(macOS)
             ConnectMenuCommands(
-                appModel: coordinator.appModel,
+                workspaceSessionStore: coordinator.workspaceSessionStore,
                 projectStore: coordinator.projectStore,
                 connectionStore: coordinator.connectionStore,
                 navigationStore: coordinator.navigationStore
@@ -65,7 +65,7 @@ struct EchoApp: App {
 #if os(macOS)
 @MainActor
 struct QueryCommands: Commands {
-    @ObservedObject var appModel: AppModel
+    @ObservedObject var workspaceSessionStore: WorkspaceSessionStore
     @ObservedObject var appState: AppState
     let navigationStore: NavigationStore
     let tabStore: TabStore
@@ -73,7 +73,7 @@ struct QueryCommands: Commands {
     var body: some Commands {
         CommandGroup(after: .newItem) {
             Button("New Query Tab") {
-                appModel.openQueryTab()
+                workspaceSessionStore.openQueryTab()
             }
             .keyboardShortcut("t", modifiers: [.command])
             .disabled(false) // Re-evaluate condition later if needed
@@ -184,7 +184,7 @@ struct AppSettingsCommands: Commands {
 }
 
 struct ConnectMenuCommands: Commands {
-    @ObservedObject var appModel: AppModel
+    @ObservedObject var workspaceSessionStore: WorkspaceSessionStore
     let projectStore: ProjectStore
     let connectionStore: ConnectionStore
     let navigationStore: NavigationStore
@@ -200,7 +200,7 @@ struct ConnectMenuCommands: Commands {
 
             if hasActiveSessions {
                 ForEach(activeSessions, id: \.id) { session in
-                    let isPrimary = session.id == appModel.sessionManager.activeSessionID
+                    let isPrimary = session.id == workspaceSessionStore.sessionManager.activeSessionID
                     activeSessionMenu(for: session, isPrimary: isPrimary)
                 }
             }
@@ -232,10 +232,10 @@ struct ConnectMenuCommands: Commands {
     }
 
     private func prioritizedSessions(for projectID: UUID?) -> [ConnectionSession] {
-        var sessions = appModel.sessionManager.sortedSessions
+        var sessions = workspaceSessionStore.sessionManager.sortedSessions
         guard !sessions.isEmpty else { return [] }
 
-        if let activeID = appModel.sessionManager.activeSessionID,
+        if let activeID = workspaceSessionStore.sessionManager.activeSessionID,
            let index = sessions.firstIndex(where: { $0.id == activeID }) {
             let active = sessions.remove(at: index)
             sessions.insert(active, at: 0)
@@ -338,12 +338,12 @@ struct ConnectMenuCommands: Commands {
         guard !databaseNamesEqual(databaseName, session.selectedDatabaseName) else { return }
         Task {
             await MainActor.run {
-                appModel.sessionManager.setActiveSession(session.id)
+                workspaceSessionStore.sessionManager.setActiveSession(session.id)
                 connectionStore.selectedConnectionID = session.connection.id
                 navigationStore.navigationState.selectConnection(session.connection)
                 navigationStore.navigationState.selectDatabase(databaseName)
             }
-            await appModel.loadSchemaForDatabase(databaseName, connectionSession: session)
+            await workspaceSessionStore.loadSchemaForDatabase(databaseName, connectionSession: session)
             await MainActor.run {
                 connectionStore.selectedConnectionID = session.connection.id
                 navigationStore.navigationState.selectConnection(session.connection)
@@ -476,7 +476,7 @@ struct ConnectMenuCommands: Commands {
                 connectionStore.selectedFolderID = connection.folderID
                 navigationStore.navigationState.selectConnection(connection)
             }
-            await appModel.connect(to: connection)
+            await workspaceSessionStore.connect(to: connection)
         }
     }
 }

@@ -9,7 +9,7 @@ struct WorkspaceView: View {
     @Environment(NavigationStore.self) private var navigationStore
     @Environment(TabStore.self) private var tabStore
     
-    @EnvironmentObject private var appModel: AppModel
+    @EnvironmentObject private var workspaceSessionStore: WorkspaceSessionStore
     @EnvironmentObject private var appState: AppState
     @EnvironmentObject private var themeManager: ThemeManager
     @EnvironmentObject private var clipboardHistory: ClipboardHistoryStore
@@ -40,7 +40,7 @@ struct WorkspaceView: View {
                     )
 
                     InfoSidebarView()
-                        .environmentObject(appModel)
+                        .environmentObject(workspaceSessionStore)
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                         .padding(.top, appState.workspaceTabBarStyle.chromeTopPadding)
                         .padding(.bottom, 12)
@@ -75,9 +75,9 @@ struct WorkspaceView: View {
                 connection: connectionStore.selectedConnection,
                 onSave: { connection, password, action in
                     Task {
-                        await appModel.upsertConnection(connection, password: password)
+                        await workspaceSessionStore.upsertConnection(connection, password: password)
                         if action == .saveAndConnect {
-                            await appModel.connect(to: connection)
+                            await workspaceSessionStore.connect(to: connection)
                         }
                         await MainActor.run {
                             appState.dismissSheet()
@@ -85,7 +85,7 @@ struct WorkspaceView: View {
                     }
                 }
             )
-            .environmentObject(appModel)
+            .environmentObject(workspaceSessionStore)
             .environmentObject(appState)
         }
         .sheet(isPresented: Binding(
@@ -94,7 +94,7 @@ struct WorkspaceView: View {
         )) {
             ManageProjectsSheet()
                 .environment(projectStore)
-                .environmentObject(appModel)
+                .environmentObject(workspaceSessionStore)
                 .environmentObject(clipboardHistory)
                 .environmentObject(themeManager)
         }
@@ -104,7 +104,7 @@ struct WorkspaceView: View {
         )) {
             NewProjectSheet()
                 .environment(projectStore)
-                .environmentObject(appModel)
+                .environmentObject(workspaceSessionStore)
         }
         .task {
             if !AppCoordinator.shared.isInitialized {
@@ -147,7 +147,7 @@ private struct WorkspaceMainContent: View {
 
     var body: some View {
         let tabBarStyle = appState.workspaceTabBarStyle
-        QueryTabsView(
+        WorkspaceTabContainerView(
             showsTabStrip: tabBarStyle.showsFloatingStrip,
             tabBarLeadingPadding: 8,
             tabBarTrailingPadding: 8
@@ -442,7 +442,7 @@ private struct WorkspaceWindowConfigurator: NSViewRepresentable {
     @Environment(NavigationStore.self) private var navigationStore
     @Environment(TabStore.self) private var tabStore
     
-    @EnvironmentObject private var appModel: AppModel
+    @EnvironmentObject private var workspaceSessionStore: WorkspaceSessionStore
     @EnvironmentObject private var appState: AppState
     @EnvironmentObject private var themeManager: ThemeManager
 
@@ -459,7 +459,7 @@ private struct WorkspaceWindowConfigurator: NSViewRepresentable {
             context.coordinator.configure(
                 window: window,
                 tabBarStyle: tabBarStyle,
-                appModel: appModel,
+                workspaceSessionStore: workspaceSessionStore,
                 appState: appState,
                 themeManager: themeManager,
                 projectStore: projectStore,
@@ -477,7 +477,7 @@ private struct WorkspaceWindowConfigurator: NSViewRepresentable {
             context.coordinator.configure(
                 window: window,
                 tabBarStyle: tabBarStyle,
-                appModel: appModel,
+                workspaceSessionStore: workspaceSessionStore,
                 appState: appState,
                 themeManager: themeManager,
                 projectStore: projectStore,
@@ -497,7 +497,7 @@ private struct WorkspaceWindowConfigurator: NSViewRepresentable {
         func configure(
             window: NSWindow,
             tabBarStyle: WorkspaceTabBarStyle,
-            appModel: AppModel,
+            workspaceSessionStore: WorkspaceSessionStore,
             appState: AppState,
             themeManager: ThemeManager,
             projectStore: ProjectStore,
@@ -526,7 +526,7 @@ private struct WorkspaceWindowConfigurator: NSViewRepresentable {
             let showTopBarNavigator = true
             topBarNavigatorOverlay.apply(
                 window: window,
-                appModel: appModel,
+                workspaceSessionStore: workspaceSessionStore,
                 appState: appState,
                 themeManager: themeManager,
                 projectStore: projectStore,

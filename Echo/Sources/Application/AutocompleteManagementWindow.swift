@@ -11,7 +11,7 @@ struct AutocompleteManagementWindow: Scene {
                 .environment(coordinator.connectionStore)
                 .environment(coordinator.navigationStore)
                 .environment(coordinator.tabStore)
-                .environmentObject(coordinator.appModel)
+                .environmentObject(coordinator.workspaceSessionStore)
                 .environmentObject(coordinator.appState)
                 .environmentObject(coordinator.clipboardHistory)
                 .environmentObject(ThemeManager.shared)

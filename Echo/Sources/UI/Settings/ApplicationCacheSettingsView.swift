@@ -10,7 +10,7 @@ struct ApplicationCacheSettingsView: View {
     @Environment(ConnectionStore.self) private var connectionStore
     @Environment(TabStore.self) private var tabStore
     
-    @EnvironmentObject private var appModel: AppModel
+    @EnvironmentObject private var workspaceSessionStore: WorkspaceSessionStore
     @EnvironmentObject private var appState: AppState
     @EnvironmentObject private var clipboardHistory: ClipboardHistoryStore
     @EnvironmentObject private var themeManager: ThemeManager
@@ -364,7 +364,7 @@ struct ApplicationCacheSettingsView: View {
             return true
         }
         guard shouldContinue else { return }
-        let bytes = await appModel.resultSpoolManager.currentUsageBytes()
+        let bytes = await workspaceSessionStore.resultSpoolManager.currentUsageBytes()
         await MainActor.run {
             self.resultCacheUsage = bytes
             self.isRefreshingResultCache = false
@@ -373,7 +373,7 @@ struct ApplicationCacheSettingsView: View {
 
     private func clearResultCache() {
         Task {
-            await appModel.resultSpoolManager.clearAll()
+            await workspaceSessionStore.resultSpoolManager.clearAll()
             await refreshResultCacheUsage()
         }
     }

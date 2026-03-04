@@ -23,7 +23,7 @@ struct ConnectionEditorView: View {
     @Environment(ConnectionStore.self) private var connectionStore
     @Environment(NavigationStore.self) private var navigationStore
     
-    @EnvironmentObject private var appModel: AppModel // Temporary bridge for actions
+    @EnvironmentObject private var workspaceSessionStore: WorkspaceSessionStore // Temporary bridge for actions
 
     @State private var selectedDatabaseType: DatabaseType
     @State private var connectionName: String
@@ -128,7 +128,7 @@ struct ConnectionEditorView: View {
 
     private var inheritedIdentity: SavedIdentity? {
         guard let folderID = folderID else { return nil }
-        return appModel.identityRepository.resolveInheritedIdentity(folderID: folderID)
+        return workspaceSessionStore.identityRepository.resolveInheritedIdentity(folderID: folderID)
     }
 
     private var isFormValid: Bool {
@@ -184,7 +184,7 @@ struct ConnectionEditorView: View {
             IdentityEditorSheet(state: state, onSave: { newIdentity in
                 identityID = newIdentity.id
             })
-            .environmentObject(appModel)
+            .environmentObject(workspaceSessionStore)
         }
         .alert(testResult?.success == true ? "Connection Successful" : "Connection Failed", isPresented: $showingTestAlert) {
             Button("OK", role: .cancel) { }
@@ -709,7 +709,7 @@ struct ConnectionEditorView: View {
             let result = try await withThrowingTaskGroup(of: ConnectionTestResult.self) { group in
                 // Add connection test task
                 group.addTask {
-                    await appModel.testConnection(connection, passwordOverride: passwordOverride)
+                    await workspaceSessionStore.testConnection(connection, passwordOverride: passwordOverride)
                 }
 
                 // Add timeout task

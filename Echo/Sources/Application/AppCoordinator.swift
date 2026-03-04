@@ -30,7 +30,7 @@ final class AppCoordinator: ObservableObject {
     let schemaDiscoveryCoordinator: SchemaDiscoveryCoordinator
     let bookmarkRepository: BookmarkRepository
     let historyRepository: HistoryRepository
-    let appModel: AppModel
+    let workspaceSessionStore: WorkspaceSessionStore
     let appState: AppState
     let clipboardHistory: ClipboardHistoryStore
     let themeManager: ThemeManager
@@ -83,7 +83,7 @@ final class AppCoordinator: ObservableObject {
         self.resultSpoolCoordinator = ResultSpoolCoordinator(spoolManager: resultSpoolManager)
         self.diagramCoordinator = DiagramCoordinator(cacheManager: cacheManager, keyStore: keyStore)
         
-        self.appModel = AppModel(
+        self.workspaceSessionStore = WorkspaceSessionStore(
             projectStore: projectStore,
             connectionStore: connectionStore,
             navigationStore: navigationStore,
@@ -101,19 +101,19 @@ final class AppCoordinator: ObservableObject {
         )
         
         schemaDiscoveryCoordinator.onPersistConnections = { @MainActor [weak self] in
-            await self?.appModel.persistConnections()
+            await self?.workspaceSessionStore.persistConnections()
         }
         schemaDiscoveryCoordinator.onEnqueuePrefetch = { @MainActor [weak self] session in
-            await self?.appModel.enqueuePrefetchForSessionIfNeeded(session)
+            await self?.workspaceSessionStore.enqueuePrefetchForSessionIfNeeded(session)
         }
         
-        // Setup cross-domain providers for DiagramCoordinator after AppModel is initialized
+        // Setup cross-domain providers for DiagramCoordinator after WorkspaceSessionStore is initialized
         diagramCoordinator.globalSettingsProvider = { @MainActor [weak self] in
             self?.projectStore.globalSettings ?? GlobalSettings()
         }
         diagramCoordinator.sessionProvider = { @MainActor [weak self] sessionID in
             guard let self = self else { return nil }
-            return self.appModel.sessionManager.activeSessions.first { $0.id == sessionID }
+            return self.workspaceSessionStore.sessionManager.activeSessions.first { $0.id == sessionID }
         }
 
         Task {
@@ -143,7 +143,7 @@ final class AppCoordinator: ObservableObject {
             print("Failed to load modular stores: \(error)")
         }
 
-        await appModel.load()
+        await workspaceSessionStore.load()
 
         isInitialized = true
         ensureInitialWorkspaceState()
@@ -155,7 +155,7 @@ final class AppCoordinator: ObservableObject {
         // Using withObservationTracking is an alternative for @Observable,
         // but since we are in a Coordinator with Combine/Task logic, 
         // we'll bridge manually or use the Store's published-like behavior.
-        // For now, we still need to sync AppModel's legacy references until they are fully removed.
+        // For now, we still need to sync WorkspaceSessionStore's legacy references until they are fully removed.
 
         _ = withObservationTracking {
             projectStore.selectedProject
@@ -185,7 +185,7 @@ final class AppCoordinator: ObservableObject {
             }
             .store(in: &cancellables)
 
-        appModel.sessionManager.$activeSessions
+        workspaceSessionStore.sessionManager.$activeSessions
             .receive(on: RunLoop.main)
             .sink { [weak self] sessions in
                 guard let self else { return }
@@ -215,12 +215,12 @@ final class AppCoordinator: ObservableObject {
     }
 
     private func ensureInitialWorkspaceState() {
-        if appModel.sessionManager.activeSessions.isEmpty {
+        if workspaceSessionStore.sessionManager.activeSessions.isEmpty {
 #if !os(macOS)
             presentConnectionsIfNeeded()
 #endif
         } else if tabStore.tabs.isEmpty {
-            appModel.openQueryTab()
+            workspaceSessionStore.openQueryTab()
         }
     }
 
@@ -295,7 +295,7 @@ final class AppCoordinator: ObservableObject {
 extension AppCoordinator: TabStoreDelegate {
     func tabStore(_ store: TabStore, didAdd tab: WorkspaceTab) {
         if store.activeTabId == tab.id {
-            appModel.sessionManager.setActiveSession(tab.connectionSessionID)
+            workspaceSessionStore.sessionManager.setActiveSession(tab.connectionSessionID)
         }
     }
 
@@ -320,7 +320,7 @@ extension AppCoordinator: TabStoreDelegate {
             if let connection = connectionStore.connections.first(where: { $0.id == tab.connection.id }),
                let projectID = connection.projectID,
                var project = projectStore.projects.first(where: { $0.id == projectID }) {
-                appModel.bookmarkRepository.updateBookmark(context.bookmarkID, in: &project) { b in
+                workspaceSessionStore.bookmarkRepository.updateBookmark(context.bookmarkID, in: &project) { b in
                     b.query = currentQuery
                 }
                 await projectStore.saveProject(project)
@@ -338,22 +338,22 @@ extension AppCoordinator: TabStoreDelegate {
 
     func tabStore(_ store: TabStore, didRemoveTabID tabID: UUID) {
         if let activeTab = store.activeTab {
-            appModel.sessionManager.setActiveSession(activeTab.connectionSessionID)
+            workspaceSessionStore.sessionManager.setActiveSession(activeTab.connectionSessionID)
         } else {
-            appModel.sessionManager.activeSessionID = nil
+            workspaceSessionStore.sessionManager.activeSessionID = nil
         }
     }
 
     func tabStore(_ store: TabStore, didSetActiveTabID tabID: UUID?) {
         guard let tabID, let tab = store.getTab(id: tabID) else {
-            appModel.sessionManager.activeSessionID = nil
+            workspaceSessionStore.sessionManager.activeSessionID = nil
 #if !os(macOS)
             presentConnectionsIfNeeded()
 #endif
             return
         }
 
-        appModel.sessionManager.setActiveSession(tab.connectionSessionID)
+        workspaceSessionStore.sessionManager.setActiveSession(tab.connectionSessionID)
     }
 
     func tabStoreDidReorderTabs(_ store: TabStore) {

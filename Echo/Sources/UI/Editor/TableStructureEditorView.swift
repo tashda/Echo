@@ -6,7 +6,7 @@ struct TableStructureEditorView: View {
     @ObservedObject var viewModel: TableStructureEditorViewModel
     
     @Environment(ProjectStore.self) internal var projectStore
-    @EnvironmentObject internal var appModel: AppModel
+    @EnvironmentObject internal var workspaceSessionStore: WorkspaceSessionStore
     
     @State internal var activeIndexEditor: IndexEditorPresentation?
     @State internal var activeColumnEditor: ColumnEditorPresentation?
@@ -199,7 +199,7 @@ struct TableStructureEditorView: View {
         Task {
             await viewModel.applyChanges()
             if viewModel.lastError == nil {
-                await appModel.refreshDatabaseStructure(
+                await workspaceSessionStore.refreshDatabaseStructure(
                     for: tab.connectionSessionID,
                     scope: .selectedDatabase,
                     databaseOverride: tab.connection.database.isEmpty ? nil : tab.connection.database

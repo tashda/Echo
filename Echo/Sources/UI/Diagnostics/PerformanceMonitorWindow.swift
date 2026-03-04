@@ -10,7 +10,7 @@ struct PerformanceMonitorWindow: Scene {
                 .environment(AppCoordinator.shared.connectionStore)
                 .environment(AppCoordinator.shared.navigationStore)
                 .environment(AppCoordinator.shared.tabStore)
-                .environmentObject(AppCoordinator.shared.appModel)
+                .environmentObject(AppCoordinator.shared.workspaceSessionStore)
                 .environmentObject(AppCoordinator.shared.appState)
                 .environmentObject(AppCoordinator.shared.themeManager)
         }
@@ -20,7 +20,7 @@ struct PerformanceMonitorWindow: Scene {
 
 private struct PerformanceMonitorView: View {
     @Environment(TabStore.self) private var tabStore
-    @EnvironmentObject private var appModel: AppModel
+    @EnvironmentObject private var workspaceSessionStore: WorkspaceSessionStore
     @EnvironmentObject private var themeManager: ThemeManager
     @ObservedObject private var coordinator = AppCoordinator.shared
 

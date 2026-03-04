@@ -7,7 +7,7 @@ struct ManageConnectionsView: View {
     @Environment(ConnectionStore.self) internal var connectionStore
     @Environment(NavigationStore.self) internal var navigationStore
     
-    @EnvironmentObject internal var appModel: AppModel
+    @EnvironmentObject internal var workspaceSessionStore: WorkspaceSessionStore
     @EnvironmentObject internal var appState: AppState
     @ObservedObject internal var themeManager = ThemeManager.shared
     @Environment(\.dismiss) internal var dismiss
@@ -211,13 +211,13 @@ struct ManageConnectionsView: View {
     @ViewBuilder
     func folderEditorSheet(_ state: FolderEditorState) -> some View {
         FolderEditorSheet(state: state)
-            .environmentObject(appModel)
+            .environmentObject(workspaceSessionStore)
     }
 
     @ViewBuilder
     func identityEditorSheet(_ state: IdentityEditorState) -> some View {
         IdentityEditorSheet(state: state)
-            .environmentObject(appModel)
+            .environmentObject(workspaceSessionStore)
     }
 
     @ViewBuilder
@@ -228,7 +228,7 @@ struct ManageConnectionsView: View {
         .environment(projectStore)
         .environment(connectionStore)
         .environment(navigationStore)
-        .environmentObject(appModel)
+        .environmentObject(workspaceSessionStore)
         .environmentObject(appState)
     }
 
