@@ -1,30 +1,5 @@
 import SwiftUI
-#if os(macOS)
-import AppKit
-private typealias StreamingPopoverFont = NSFont
-#elseif canImport(UIKit)
-import UIKit
-private typealias StreamingPopoverFont = UIFont
-#endif
-
-private let streamingRowPresets: [Int] = [100, 250, 500, 750, 1_000, 2_000, 5_000, 10_000]
-private let streamingThresholdPresets: [Int] = [512, 1_000, 2_000, 5_000, 10_000, 20_000, 50_000, 100_000, 250_000, 500_000, 1_000_000]
-private let streamingFetchPresets: [Int] = [128, 256, 384, 512, 768, 1_024, 2_048, 4_096, 8_192, 16_384]
-private let streamingFetchRampMultiplierPresets: [Int] = [2, 4, 6, 8, 12, 16, 24, 32, 48, 64]
-private let streamingFetchRampMaxPresets: [Int] = [32_768, 65_536, 131_072, 262_144, 524_288, 786_432, 1_048_576]
-
-private enum ResultStreamingDefaults {
-    static let initialRows = 500
-    static let previewBatch = 500
-    static let backgroundThreshold = 512
-    static let fetchSize = 4_096
-    static let fetchRampMultiplier = 24
-    static let fetchRampMax = 524_288
-    // Default to auto mode via cursor heuristic (ON), so Echo chooses the fastest path per query.
-    static let useCursor = true
-    // Route LIMITed queries like 100k to simple path by default; large/no LIMIT use cursor.
-    static let cursorLimitThreshold = 25_000
-}
+import EchoSense
 
 struct QueryResultsSettingsView: View {
     @Environment(ProjectStore.self) private var projectStore
@@ -54,7 +29,6 @@ struct QueryResultsSettingsView: View {
         )
     }
 
-    // Toggle: Include related foreign key rows when inspecting a selected record.
     private var includeRelatedBinding: Binding<Bool> {
         Binding(
             get: { projectStore.globalSettings.foreignKeyIncludeRelated },
@@ -157,7 +131,6 @@ struct QueryResultsSettingsView: View {
         )
     }
 
-    // Engine-specific mode bindings (UI-level, for future runtime mapping)
     private var mssqlModeBinding: Binding<ResultStreamingExecutionMode> {
         Binding(
             get: { projectStore.globalSettings.mssqlStreamingMode },
@@ -198,18 +171,6 @@ struct QueryResultsSettingsView: View {
 
     private enum EngineTab: Hashable { case postgres, sqlserver, mysql, sqlite }
 
-    private var useCursorStreamingBinding: Binding<Bool> {
-        Binding(
-            get: { projectStore.globalSettings.resultsUseCursorStreaming },
-            set: { newValue in
-                guard projectStore.globalSettings.resultsUseCursorStreaming != newValue else { return }
-                var settings = projectStore.globalSettings
-                settings.resultsUseCursorStreaming = newValue
-                Task { try? await projectStore.updateGlobalSettings(settings) }
-            }
-        )
-    }
-
     private var cursorLimitThresholdBinding: Binding<Int> {
         Binding(
             get: { projectStore.globalSettings.resultsCursorStreamingLimitThreshold },
@@ -239,7 +200,7 @@ struct QueryResultsSettingsView: View {
     }
 
     var body: some View {
-        return Form {
+        Form {
             Section("Foreign Keys") {
                 Picker("Foreign key cells", selection: displayModeBinding) {
                     ForEach(ForeignKeyDisplayMode.allCases, id: \.self) { mode in
@@ -267,7 +228,7 @@ struct QueryResultsSettingsView: View {
                     Toggle("Include related foreign keys", isOn: includeRelatedBinding)
                         .toggleStyle(.switch)
 
-                    Text("When enabled, the inspector also loads rows referenced by the selected record's foreign keys. This can increase query count on large schemas.")
+                    Text("When enabled, the inspector also loads rows referenced by the selected record's foreign keys.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                         .padding(.top, 2)
@@ -288,7 +249,7 @@ struct QueryResultsSettingsView: View {
                 StreamingPresetPickerControl(
                     title: "Data preview batch size",
                     value: previewBatchSizeBinding,
-                    description: "Used when opening table previews from the sidebar. Additional batches keep loading in the background until the table finishes streaming.",
+                    description: "Used when opening table previews from the sidebar.",
                     presets: streamingRowPresets,
                     range: 100...100_000,
                     formatter: formatRowCount,
@@ -298,7 +259,7 @@ struct QueryResultsSettingsView: View {
                 StreamingPresetPickerControl(
                     title: "Background streaming threshold",
                     value: backgroundStreamingThresholdBinding,
-                    description: "After this many rows are streamed, Echo hands off ingestion to a background worker so the grid stays responsive. Increase the value if you prefer more live rows in memory, decrease it for faster background streaming.",
+                    description: "After this many rows are streamed, Echo hands off ingestion to a background worker.",
                     presets: streamingThresholdPresets,
                     range: 100...1_000_000,
                     formatter: formatRowCount,
@@ -308,7 +269,7 @@ struct QueryResultsSettingsView: View {
                 StreamingPresetPickerControl(
                     title: "Background fetch batch size",
                     value: backgroundFetchSizeBinding,
-                    description: "Controls how many rows Echo asks the server for in each background fetch. Smaller batches stream more frequently; larger batches minimize network round-trips but can increase latency before updates appear.",
+                    description: "Controls how many rows Echo asks the server for in each background fetch.",
                     presets: streamingFetchPresets,
                     range: 128...16_384,
                     formatter: formatRowCount,
@@ -318,7 +279,7 @@ struct QueryResultsSettingsView: View {
                 StreamingPresetPickerControl(
                     title: "Fetch ramp multiplier",
                     value: fetchRampMultiplierBinding,
-                    description: "Determines how aggressively Echo expands background fetch sizes once the initial preview is loaded.",
+                    description: "Determines how aggressively Echo expands background fetch sizes.",
                     presets: streamingFetchRampMultiplierPresets,
                     range: 1...64,
                     formatter: formatMultiplier,
@@ -328,7 +289,7 @@ struct QueryResultsSettingsView: View {
                 StreamingPresetPickerControl(
                     title: "Fetch ramp maximum",
                     value: fetchRampMaxBinding,
-                    description: "Caps the largest background fetch Echo will request to help balance latency with memory usage.",
+                    description: "Caps the largest background fetch Echo will request.",
                     presets: streamingFetchRampMaxPresets,
                     range: 256...1_048_576,
                     formatter: formatRowCount,
@@ -341,15 +302,11 @@ struct QueryResultsSettingsView: View {
                     }
                 }
                 .pickerStyle(.segmented)
-                Text("Auto: simple for LIMITed results (≤ threshold), cursor for very large/no-LIMIT queries.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .padding(.top, 2)
 
                 HStack {
                     Spacer()
                     Button("Revert to Default") {
-                        let settings = GlobalSettings() // Uses defaults
+                        let settings = GlobalSettings()
                         Task { try? await projectStore.updateGlobalSettings(settings) }
                     }
                     .buttonStyle(.bordered)
@@ -359,114 +316,95 @@ struct QueryResultsSettingsView: View {
             }
             
             Section("Engine Profiles") {
-            HStack {
-                Spacer(minLength: 0)
-                Picker("", selection: $selectedEngineTab) {
-                    Text("PostgreSQL").tag(EngineTab.postgres)
-                    Text("SQL Server").tag(EngineTab.sqlserver)
-                    Text("MySQL").tag(EngineTab.mysql)
-                    Text("SQLite").tag(EngineTab.sqlite)
+                HStack {
+                    Spacer(minLength: 0)
+                    Picker("", selection: $selectedEngineTab) {
+                        Text("PostgreSQL").tag(EngineTab.postgres)
+                        Text("SQL Server").tag(EngineTab.sqlserver)
+                        Text("MySQL").tag(EngineTab.mysql)
+                        Text("SQLite").tag(EngineTab.sqlite)
+                    }
+                    .pickerStyle(.segmented)
+                    .frame(maxWidth: 520)
+                    Spacer(minLength: 0)
                 }
-                .pickerStyle(.segmented)
-                .frame(maxWidth: 520)
-                Spacer(minLength: 0)
+
+                engineSpecificSettings
             }
-
-            switch selectedEngineTab {
-            case .postgres:
-                StreamingPresetPickerControl(
-                    title: "Cursor threshold (LIMIT)",
-                    value: cursorLimitThresholdBinding,
-                    description: "LIMIT ≤ threshold → simple streaming; larger/no LIMIT → server‑side cursor.",
-                    presets: streamingThresholdPresets,
-                    range: 0...1_000_000,
-                    formatter: formatRowCount,
-                    defaultValue: ResultStreamingDefaults.cursorLimitThreshold
-                )
-                StreamingPresetPickerControl(
-                    title: "Cursor fetch size (baseline)",
-                    value: backgroundFetchSizeBinding,
-                    description: "Recommended ≥ 4,096 for large results.",
-                    presets: streamingFetchPresets,
-                    range: 128...16_384,
-                    formatter: formatRowCount,
-                    defaultValue: ResultStreamingDefaults.fetchSize
-                )
-                StreamingPresetPickerControl(
-                    title: "Fetch ramp multiplier",
-                    value: fetchRampMultiplierBinding,
-                    description: "Aggressiveness of background fetch growth.",
-                    presets: streamingFetchRampMultiplierPresets,
-                    range: 1...64,
-                    formatter: formatMultiplier,
-                    defaultValue: ResultStreamingDefaults.fetchRampMultiplier
-                )
-                StreamingPresetPickerControl(
-                    title: "Fetch ramp maximum",
-                    value: fetchRampMaxBinding,
-                    description: "Ceiling for background fetch size.",
-                    presets: streamingFetchRampMaxPresets,
-                    range: 256...1_048_576,
-                    formatter: formatRowCount,
-                    defaultValue: ResultStreamingDefaults.fetchRampMax
-                )
-                Text("These options apply to PostgreSQL only.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-
-            case .sqlserver:
-                LabeledContent {
-                    Picker("", selection: mssqlModeBinding) {
-                        ForEach(ResultStreamingExecutionMode.allCases, id: \.self) { mode in
-                            Text(mode.displayName).tag(mode)
-                        }
-                    }
-                    .pickerStyle(.segmented)
-                    .frame(maxWidth: 320)
-                } label: {
-                    Text("Streaming mode (SQL Server)")
-                }
-                Text("SQL Server uses SELECT TOP/FETCH NEXT; LIMIT threshold does not apply. Cursor behaves like Simple if unsupported by the driver.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-
-            case .mysql:
-                LabeledContent {
-                    Picker("", selection: mysqlModeBinding) {
-                        ForEach(ResultStreamingExecutionMode.allCases, id: \.self) { mode in
-                            Text(mode.displayName).tag(mode)
-                        }
-                    }
-                    .pickerStyle(.segmented)
-                    .frame(maxWidth: 320)
-                } label: {
-                    Text("Streaming mode (MySQL)")
-                }
-                Text("MySQL streams results without explicit cursors; Cursor behaves like Simple if unsupported.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-
-            case .sqlite:
-                LabeledContent {
-                    Picker("", selection: sqliteModeBinding) {
-                        ForEach(ResultStreamingExecutionMode.allCases, id: \.self) { mode in
-                            Text(mode.displayName).tag(mode)
-                        }
-                    }
-                    .pickerStyle(.segmented)
-                    .frame(maxWidth: 320)
-                } label: {
-                    Text("Streaming mode (SQLite)")
-                }
-                Text("SQLite is in‑process; streaming/cursors don't apply. General settings still affect preview and formatting.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            }
-        } // End of Section
-        } // End of Form
+        }
         .formStyle(.grouped)
         .scrollContentBackground(.hidden)
-    } // End of body
+    }
+
+    @ViewBuilder
+    private var engineSpecificSettings: some View {
+        switch selectedEngineTab {
+        case .postgres:
+            StreamingPresetPickerControl(
+                title: "Cursor threshold (LIMIT)",
+                value: cursorLimitThresholdBinding,
+                description: "LIMIT ≤ threshold → simple streaming; larger/no LIMIT → server‑side cursor.",
+                presets: streamingThresholdPresets,
+                range: 0...1_000_000,
+                formatter: formatRowCount,
+                defaultValue: ResultStreamingDefaults.cursorLimitThreshold
+            )
+            StreamingPresetPickerControl(
+                title: "Cursor fetch size (baseline)",
+                value: backgroundFetchSizeBinding,
+                description: "Recommended ≥ 4,096 for large results.",
+                presets: streamingFetchPresets,
+                range: 128...16_384,
+                formatter: formatRowCount,
+                defaultValue: ResultStreamingDefaults.fetchSize
+            )
+            Text("These options apply to PostgreSQL only.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+
+        case .sqlserver:
+            LabeledContent("Streaming mode (SQL Server)") {
+                Picker("", selection: mssqlModeBinding) {
+                    ForEach(ResultStreamingExecutionMode.allCases, id: \.self) { mode in
+                        Text(mode.displayName).tag(mode)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .frame(maxWidth: 320)
+            }
+            Text("SQL Server uses SELECT TOP/FETCH NEXT; LIMIT threshold does not apply.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+
+        case .mysql:
+            LabeledContent("Streaming mode (MySQL)") {
+                Picker("", selection: mysqlModeBinding) {
+                    ForEach(ResultStreamingExecutionMode.allCases, id: \.self) { mode in
+                        Text(mode.displayName).tag(mode)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .frame(maxWidth: 320)
+            }
+            Text("MySQL streams results without explicit cursors.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+
+        case .sqlite:
+            LabeledContent("Streaming mode (SQLite)") {
+                Picker("", selection: sqliteModeBinding) {
+                    ForEach(ResultStreamingExecutionMode.allCases, id: \.self) { mode in
+                        Text(mode.displayName).tag(mode)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .frame(maxWidth: 320)
+            }
+            Text("SQLite is in‑process; streaming/cursors don't apply.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        }
+    }
 
     private func displayName(for mode: ForeignKeyDisplayMode) -> String {
         switch mode {
@@ -478,12 +416,9 @@ struct QueryResultsSettingsView: View {
 
     private func displayDescription(for mode: ForeignKeyDisplayMode) -> String {
         switch mode {
-        case .showInspector:
-            return "Selecting a foreign key cell immediately loads the referenced record."
-        case .showIcon:
-            return "Foreign key cells display an inline action icon so you can open the referenced record on demand."
-        case .disabled:
-            return "Foreign key metadata is ignored in the results grid."
+        case .showInspector: return "Selecting a foreign key cell immediately loads the referenced record."
+        case .showIcon: return "Foreign key cells display an inline action icon."
+        case .disabled: return "Foreign key metadata is ignored."
         }
     }
 
@@ -496,359 +431,11 @@ struct QueryResultsSettingsView: View {
 
     private func behaviorDescription(for behavior: ForeignKeyInspectorBehavior) -> String {
         switch behavior {
-        case .respectInspectorVisibility:
-            return "Only populate the inspector when it is already visible."
-        case .autoOpenAndClose:
-            return "Automatically open the inspector when a foreign key is activated and close it when the selection moves away."
+        case .respectInspectorVisibility: return "Only populate the inspector when it is already visible."
+        case .autoOpenAndClose: return "Automatically open/close the inspector based on selection."
         }
     }
 
-    private func formatMultiplier(_ value: Int) -> String {
-        "\(value)x"
-    }
-
-    private func formatRowCount(_ value: Int) -> String {
-        value.formatted()
-    }
+    private func formatMultiplier(_ value: Int) -> String { "\(value)x" }
+    private func formatRowCount(_ value: Int) -> String { value.formatted() }
 }
-
-private struct StreamingPresetPickerControl: View {
-enum Selection: Hashable {
-        case preset(Int)
-        case custom
-    }
-
-    let title: String
-    @Binding var value: Int
-    let description: String
-    let presets: [Int]
-    let range: ClosedRange<Int>
-    let formatter: (Int) -> String
-    let defaultValue: Int
-
-    @State private var selection: Selection
-    @State private var customText: String
-    @State private var showInfoPopover = false
-    @State private var showCustomPopover = false
-    @State private var isSynchronizingSelection = false
-
-    init(title: String,
-         value: Binding<Int>,
-         description: String,
-         presets: [Int],
-         range: ClosedRange<Int>,
-         formatter: @escaping (Int) -> String,
-         defaultValue: Int) {
-        self.title = title
-        self._value = value
-        self.description = description
-        self.presets = presets
-        self.range = range
-        self.formatter = formatter
-        self.defaultValue = defaultValue
-
-        let initialValue = value.wrappedValue
-        if presets.contains(initialValue) {
-            _selection = State(initialValue: .preset(initialValue))
-        } else {
-            _selection = State(initialValue: .custom)
-        }
-        _customText = State(initialValue: String(initialValue))
-    }
-
-    var body: some View {
-        content
-        .onChange(of: selection, initial: false) { _, newSelection in
-            handleSelectionChange(newSelection)
-        }
-        .onChange(of: value, initial: false) { _, newValue in
-            syncSelection(with: newValue)
-        }
-        .onChange(of: showCustomPopover) { _, isPresented in
-            if !isPresented {
-                resetCustomDraft()
-            }
-        }
-    }
-
-    @ViewBuilder
-    private var content: some View {
-#if os(macOS)
-        macRow
-#else
-        iOSRow
-#endif
-    }
-
-#if os(macOS)
-    private var macRow: some View {
-        LabeledContent {
-            HStack(spacing: 6) {
-                macPicker
-                infoButton
-            }
-            .frame(maxWidth: .infinity, alignment: .trailing)
-        } label: {
-            Text(title)
-                .font(.system(size: 13))
-        }
-    }
-
-    private var macPicker: some View {
-        Picker("", selection: $selection) {
-            ForEach(presets, id: \.self) { preset in
-                Text(label(for: preset))
-                    .tag(Selection.preset(preset))
-            }
-            Text(selection == .custom ? displayValueLabel : "Custom…")
-                .tag(Selection.custom)
-        }
-        .labelsHidden()
-        .pickerStyle(.menu)
-        .controlSize(.regular)
-        .frame(minWidth: 120, idealWidth: 160, maxWidth: 200, alignment: .trailing)
-        .popover(isPresented: $showCustomPopover,
-                 attachmentAnchor: .rect(.bounds),
-                 arrowEdge: .trailing) {
-            CustomValuePopover(
-                title: title,
-                text: $customText,
-                rangeDescription: "\(formatter(range.lowerBound)) – \(formatter(range.upperBound))",
-                onSubmit: applyCustomValue,
-                onCancel: { showCustomPopover = false }
-            )
-            .frame(width: 240)
-        }
-    }
-#else
-    private var iOSRow: some View {
-        HStack(alignment: .center, spacing: 8) {
-            Text(title)
-                .font(.system(size: 13))
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-            iOSPicker
-
-            infoButton
-        }
-        .frame(height: 44)
-        .padding(.vertical, 1.5)
-        .padding(.horizontal, 10)
-        .background(rowBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-    }
-#endif
-
-    private var infoButton: some View {
-        Button(action: { showInfoPopover.toggle() }) {
-            Image(systemName: "info.circle")
-                .imageScale(.medium)
-                .font(.system(size: 13, weight: .regular))
-        }
-        .buttonStyle(.plain)
-        .foregroundStyle(.secondary)
-        .popover(isPresented: $showInfoPopover,
-                 attachmentAnchor: .rect(.bounds),
-                 arrowEdge: .trailing) {
-            InfoPopover(description: description, defaultLabel: defaultLabel)
-        }
-    }
-
-    private func handleSelectionChange(_ newSelection: Selection) {
-        switch newSelection {
-        case .preset(let preset):
-            setValue(preset)
-            showCustomPopover = false
-        case .custom:
-            customText = String(value)
-            if !isSynchronizingSelection {
-                showCustomPopover = true
-            }
-        }
-        isSynchronizingSelection = false
-    }
-
-    private func syncSelection(with newValue: Int) {
-        if presets.contains(newValue) {
-            let target = Selection.preset(newValue)
-            if selection != target {
-                isSynchronizingSelection = true
-                selection = target
-            }
-            customText = String(newValue)
-            return
-        }
-
-        if selection != .custom {
-            isSynchronizingSelection = true
-            selection = .custom
-        }
-        customText = String(newValue)
-    }
-
-    private func applyCustomValue() {
-        guard let raw = Int(customText) else {
-            customText = String(value)
-            return
-        }
-        setValue(raw)
-        showCustomPopover = false
-    }
-
-    private func resetCustomDraft() {
-        customText = String(value)
-    }
-
-    private func setValue(_ newValue: Int) {
-        let clamped = clamp(newValue)
-        value = clamped
-        customText = String(clamped)
-    }
-
-    private func clamp(_ candidate: Int) -> Int {
-        min(max(candidate, range.lowerBound), range.upperBound)
-    }
-
-    private func label(for preset: Int) -> String {
-        formatter(preset)
-    }
-
-    private var displayValueLabel: String {
-        formatter(value)
-    }
-
-    private var defaultLabel: String {
-        formatter(defaultValue)
-    }
-
-    private var rowBackground: some View {
-#if os(macOS)
-        Color.clear
-#else
-        Color(uiColor: .systemBackground).opacity(0.8)
-#endif
-    }
-
-#if !os(macOS)
-    private var iOSPicker: some View {
-        Picker(selection: $selection) {
-            ForEach(presets, id: \.self) { preset in
-                Text(label(for: preset)).tag(Selection.preset(preset))
-            }
-            Text("Custom…").tag(Selection.custom)
-        } label: {
-            EmptyView()
-        }
-        .pickerStyle(.menu)
-        .labelsHidden()
-        .fixedSize()
-        .popover(isPresented: $showCustomPopover, attachmentAnchor: .rect(.bounds), arrowEdge: .trailing) {
-            CustomValuePopover(
-                title: title,
-                text: $customText,
-                rangeDescription: "\(formatter(range.lowerBound)) – \(formatter(range.upperBound))",
-                onSubmit: applyCustomValue,
-                onCancel: { showCustomPopover = false }
-            )
-        }
-    }
-#endif
-
-    private struct CustomValuePopover: View {
-        let title: String
-        @Binding var text: String
-        let rangeDescription: String
-        let onSubmit: () -> Void
-        let onCancel: () -> Void
-        @FocusState private var fieldFocused: Bool
-
-        var body: some View {
-            VStack(alignment: .leading, spacing: 12) {
-                Text("Custom \(title)")
-                    .font(.headline)
-
-                TextField("Value", text: $text)
-                    .textFieldStyle(.roundedBorder)
-#if os(iOS)
-                    .keyboardType(.numberPad)
-#endif
-                    .focused($fieldFocused)
-
-                Text("Allowed range: \(rangeDescription)")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-
-                HStack {
-                    Spacer()
-                    Button("Cancel", role: .cancel, action: onCancel)
-                    Button("Done", action: onSubmit)
-                        .keyboardShortcut(.defaultAction)
-                }
-            }
-            .padding(16)
-            .frame(width: 240)
-            .onAppear {
-                DispatchQueue.main.async {
-                    fieldFocused = true
-                }
-            }
-        }
-    }
-
-    private struct InfoPopover: View {
-        let description: String
-        let defaultLabel: String
-
-        var body: some View {
-            VStack(alignment: .leading, spacing: 12) {
-                Text(description)
-                    .font(.system(size: 13))
-                    .foregroundStyle(Color.primary)
-                    .multilineTextAlignment(.leading)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                Divider()
-
-                Text("Default: \(defaultLabel)")
-                    .font(.system(size: 12))
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.leading)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            .padding(16)
-            .frame(width: preferredWidth)
-        }
-
-        private var preferredWidth: CGFloat {
-            let padding: CGFloat = 32
-            let minWidth: CGFloat = 220
-            let maxWidth: CGFloat = 320
-            let contentLimit = maxWidth - padding
-
-            let descriptionWidth = measuredWidth(for: description, font: platformFont(size: 13), limit: contentLimit)
-            let defaultWidth = measuredWidth(for: "Default: \(defaultLabel)", font: platformFont(size: 12), limit: contentLimit)
-            let contentWidth = max(descriptionWidth, defaultWidth)
-            return min(maxWidth, max(minWidth, contentWidth + padding))
-        }
-
-        private func platformFont(size: CGFloat, weight: StreamingPopoverFont.Weight = .regular) -> StreamingPopoverFont {
-#if os(macOS)
-            NSFont.systemFont(ofSize: size, weight: weight)
-#else
-            UIFont.systemFont(ofSize: size, weight: weight)
-#endif
-        }
-
-        private func measuredWidth(for text: String, font: StreamingPopoverFont, limit: CGFloat) -> CGFloat {
-            guard !text.isEmpty else { return 0 }
-            let constraint = CGSize(width: limit, height: .greatestFiniteMagnitude)
-#if os(macOS)
-            let rect = NSAttributedString(string: text, attributes: [.font: font])
-                .boundingRect(with: constraint, options: [.usesLineFragmentOrigin, .usesFontLeading])
-#else
-            let rect = (text as NSString).boundingRect(with: constraint, options: [.usesLineFragmentOrigin, .usesFontLeading], attributes: [.font: font], context: nil)
-#endif
-            return ceil(rect.width)
-        }
-    }
-} // End of QueryResultsSettingsView struct

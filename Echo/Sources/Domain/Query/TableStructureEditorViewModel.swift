@@ -9,11 +9,21 @@ enum TableStructureSection: String, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 
-    var displayTitle: String {
+    var displayName: String {
         switch self {
         case .columns: return "Columns"
         case .indexes: return "Indexes"
         case .relations: return "Relations"
+        }
+    }
+
+    var displayTitle: String { displayName }
+
+    var icon: String {
+        switch self {
+        case .columns: return "tablecells"
+        case .indexes: return "bolt.horizontal"
+        case .relations: return "arrow.triangle.merge"
         }
     }
 
