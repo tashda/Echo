@@ -165,8 +165,7 @@ struct WorkspaceToolbarItems: ToolbarContent {
     // MARK: - Helpers
 
     internal var canOpenNewTab: Bool {
-        guard let session = activeSession else { return false }
-        return hasActiveDatabase(for: session)
+        activeSession != nil
     }
 
     internal var activeSession: ConnectionSession? {

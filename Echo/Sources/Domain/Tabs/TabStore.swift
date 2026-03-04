@@ -41,6 +41,14 @@ final class TabStore {
         tabManager.getTab(id: id)
     }
     
+    func addTab(_ tab: WorkspaceTab) {
+        tabManager.addTab(tab)
+    }
+    
+    func insertTab(_ tab: WorkspaceTab, at index: Int, activate: Bool = true) {
+        tabManager.insertTab(tab, at: index, activate: activate)
+    }
+    
     func selectTab(_ tab: WorkspaceTab) {
         tabManager.activeTabId = tab.id
     }

@@ -80,7 +80,8 @@ final class ConnectionSession: ObservableObject, Identifiable {
         return connectionState.isConnected
     }
 
-    func addQueryTab(withQuery query: String = "", database: String? = nil) {
+    @discardableResult
+    func addQueryTab(withQuery query: String = "", database: String? = nil) -> WorkspaceTab {
         let previewLimit = max(defaultBackgroundStreamingThreshold, defaultInitialBatchSize)
         let queryState = QueryEditorState(
             sql: query.isEmpty ? "SELECT current_timestamp;" : query,
@@ -123,9 +124,11 @@ final class ConnectionSession: ObservableObject, Identifiable {
         queryTabs.append(tab)
         activeQueryTabID = tab.id
         lastActivity = Date()
+        return tab
     }
 
-    func addJobManagementTab(selectJobID: String? = nil) {
+    @discardableResult
+    func addJobManagementTab(selectJobID: String? = nil) -> WorkspaceTab {
         let viewModel = JobManagementViewModel(session: session, connection: connection, initialSelectedJobID: selectJobID)
         let tab = WorkspaceTab(
             connection: connection,
@@ -137,9 +140,11 @@ final class ConnectionSession: ObservableObject, Identifiable {
         queryTabs.append(tab)
         activeQueryTabID = tab.id
         lastActivity = Date()
+        return tab
     }
 
-    func addStructureTab(for object: SchemaObjectInfo, focus: TableStructureSection? = nil) {
+    @discardableResult
+    func addStructureTab(for object: SchemaObjectInfo, focus: TableStructureSection? = nil) -> WorkspaceTab {
         let viewModel = TableStructureEditorViewModel(
             schemaName: object.schema,
             tableName: object.name,
@@ -159,6 +164,7 @@ final class ConnectionSession: ObservableObject, Identifiable {
         queryTabs.append(tab)
         activeQueryTabID = tab.id
         lastActivity = Date()
+        return tab
     }
 
     func closeQueryTab(withID tabID: UUID) {
