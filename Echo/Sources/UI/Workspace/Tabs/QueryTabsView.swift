@@ -17,29 +17,6 @@ func tabHairlineWidth() -> CGFloat {
 func tabHairlineWidth() -> CGFloat { 1 }
 #endif
 
-fileprivate typealias ForeignKeyMapping = [String: ColumnInfo.ForeignKeyReference]
-
-#if os(macOS)
-private func buildForeignKeyMapping(from details: TableStructureDetails) -> ForeignKeyMapping {
-    var mapping: ForeignKeyMapping = [:]
-    for foreignKey in details.foreignKeys {
-        guard foreignKey.columns.count == foreignKey.referencedColumns.count,
-              foreignKey.columns.count == 1,
-              let localColumn = foreignKey.columns.first,
-              let referencedColumn = foreignKey.referencedColumns.first else { continue }
-
-        let reference = ColumnInfo.ForeignKeyReference(
-            constraintName: foreignKey.name,
-            referencedSchema: foreignKey.referencedSchema,
-            referencedTable: foreignKey.referencedTable,
-            referencedColumn: referencedColumn
-        )
-        mapping[localColumn.lowercased()] = reference
-    }
-    return mapping
-}
-#endif
-
 struct QueryTabsView: View {
     @Environment(ProjectStore.self) private var projectStore
     @Environment(ConnectionStore.self) private var connectionStore

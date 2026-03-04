@@ -143,6 +143,8 @@ struct SavedFolder: Identifiable, Codable, Hashable, Sendable {
 }
 
 extension SavedFolder {
+    var displayName: String { name }
+
     nonisolated var color: Color {
         Color(hex: colorHex) ?? .blue
     }

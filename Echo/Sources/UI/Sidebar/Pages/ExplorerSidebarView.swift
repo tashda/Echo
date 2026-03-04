@@ -1,37 +1,39 @@
 import SwiftUI
 import AppKit
-
-@MainActor
-private final class ExplorerDebugLogState {
-    static let shared = ExplorerDebugLogState()
-    var lastDatabaseBySession: [UUID: String] = [:]
-}
+import EchoSense
 
 struct ExplorerSidebarView: View {
     @Binding var selectedConnectionID: UUID?
 
-    @Environment(ProjectStore.self) private var projectStore
-    @Environment(ConnectionStore.self) private var connectionStore
-    @Environment(NavigationStore.self) private var navigationStore
+    @Environment(ProjectStore.self) internal var projectStore
+    @Environment(ConnectionStore.self) internal var connectionStore
+    @Environment(NavigationStore.self) internal var navigationStore
     
-    @EnvironmentObject private var appModel: AppModel
+    @EnvironmentObject internal var appModel: AppModel
     @EnvironmentObject private var appState: AppState
-
-    @State private var searchText = ""
-    @State private var debouncedSearchText = ""
-    @State private var selectedSchemaName: String?
-    @State private var isSearchFieldFocused = false
-    @State private var expandedObjectGroups: Set<SchemaObjectInfo.ObjectType> = Set(SchemaObjectInfo.ObjectType.allCases)
-    @State private var expandedServerIDs: Set<UUID> = []
-    @State private var expandedObjectIDs: Set<String> = []
-    @State private var expandedConnectedServerIDs: Set<UUID> = []
-    @State private var isHoveringConnectedServers = false
-    @State private var connectedServersHeight: CGFloat = 0
-    @State private var knownSessionIDs: Set<UUID> = []
-    @State private var pinnedObjectIDsByDatabase: [String: Set<String>] = [:]
-    @State private var pinnedSectionExpandedByDatabase: [String: Bool] = [:]
-    @State private var searchDebounceTask: Task<Void, Never>?
     
+    @StateObject internal var viewModel = ExplorerSidebarViewModel()
+
+    internal var searchText: String {
+        get { viewModel.searchText }
+        set { viewModel.searchText = newValue }
+    }
+    
+    internal var selectedSchemaName: String? {
+        get { viewModel.selectedSchemaName }
+        set { viewModel.selectedSchemaName = newValue }
+    }
+    
+    internal var expandedObjectGroups: Set<SchemaObjectInfo.ObjectType> {
+        get { viewModel.expandedObjectGroups }
+        set { viewModel.expandedObjectGroups = newValue }
+    }
+    
+    internal var expandedObjectIDs: Set<String> {
+        get { viewModel.expandedObjectIDs }
+        set { viewModel.expandedObjectIDs = newValue }
+    }
+
     private let showConnectedServersSection = false
 
     private var sessions: [ConnectionSession] { appModel.sessionManager.sessions }
@@ -51,7 +53,7 @@ struct ExplorerSidebarView: View {
                 if showConnectedServersSection,
                    let session = selectedSession,
                    session.selectedDatabaseName != nil,
-                   !isHoveringConnectedServers {
+                   !viewModel.isHoveringConnectedServers {
                     stickyTopBar()
                         .transition(.move(edge: .top).combined(with: .opacity))
                 }
@@ -59,7 +61,7 @@ struct ExplorerSidebarView: View {
                 VStack(spacing: 0) {
                     ScrollView {
                         LazyVStack(alignment: .leading, spacing: 10, pinnedViews: .sectionHeaders) {
-                            if showConnectedServersSection && (isHoveringConnectedServers || selectedSession?.selectedDatabaseName == nil) {
+                            if showConnectedServersSection && (viewModel.isHoveringConnectedServers || selectedSession?.selectedDatabaseName == nil) {
                                 Section {
                                     Color.clear.frame(height: 0)
                                         .id(ExplorerSidebarConstants.connectedServersAnchor)
@@ -78,9 +80,9 @@ struct ExplorerSidebarView: View {
                     }
                     .simultaneousGesture(
                         TapGesture().onEnded { _ in
-                            if isSearchFieldFocused {
+                            if viewModel.isSearchFieldFocused {
                                 withAnimation(.easeInOut(duration: 0.2)) {
-                                    isSearchFieldFocused = false
+                                    viewModel.isSearchFieldFocused = false
                                 }
                             }
                         }
@@ -91,7 +93,10 @@ struct ExplorerSidebarView: View {
                     .overlay(alignment: .top) {
                         loadingOverlay
                     }
-                    .onAppear(perform: syncSelectionWithSessions)
+                    .onAppear {
+                        syncSelectionWithSessions()
+                        viewModel.setupSearchDebounce(proxy: proxy)
+                    }
                     .onChange(of: sessions.map { $0.connection.id }) { _, _ in
                         syncSelectionWithSessions()
                     }
@@ -99,9 +104,9 @@ struct ExplorerSidebarView: View {
                         guard let id = newValue,
                               let session = appModel.sessionManager.sessionForConnection(id) else { return }
                         appModel.sessionManager.setActiveSession(session.id)
-                        ensureServerExpanded(for: id)
-                        resetFilters(for: session)
-                        if !isHoveringConnectedServers {
+                        viewModel.ensureServerExpanded(for: id, sessions: sessions)
+                        viewModel.resetFilters(for: session, selectedSession: selectedSession)
+                        if !viewModel.isHoveringConnectedServers {
                             withAnimation(.easeInOut(duration: 0.35)) {
                                 proxy.scrollTo(ExplorerSidebarConstants.objectsTopAnchor, anchor: .top)
                             }
@@ -111,15 +116,15 @@ struct ExplorerSidebarView: View {
                         let hasDatabase = selectedSession?.selectedDatabaseName != nil
                         if !hasDatabase {
                             withAnimation(.easeInOut(duration: 0.3)) {
-                                isHoveringConnectedServers = true
+                                viewModel.isHoveringConnectedServers = true
                             }
-                        } else if !isHoveringConnectedServers {
+                        } else if !viewModel.isHoveringConnectedServers {
                             withAnimation(.easeInOut(duration: 0.35)) {
                                 proxy.scrollTo(ExplorerSidebarConstants.objectsTopAnchor, anchor: .top)
                             }
                         }
                     }
-                    .onChange(of: selectedSchemaName) { oldValue, newValue in
+                    .onChange(of: viewModel.selectedSchemaName) { oldValue, newValue in
                         let hasMeaningfulChange: Bool
                         switch (oldValue, newValue) {
                         case (.none, .none):
@@ -130,42 +135,17 @@ struct ExplorerSidebarView: View {
                             hasMeaningfulChange = true
                         }
                         guard hasMeaningfulChange else { return }
-                        if !expandedObjectIDs.isEmpty {
-                            expandedObjectIDs.removeAll()
+                        if !viewModel.expandedObjectIDs.isEmpty {
+                            viewModel.expandedObjectIDs.removeAll()
                         }
                         proxy.scrollTo(ExplorerSidebarConstants.objectsTopAnchor, anchor: .top)
-                    }
-                    .onChange(of: searchText) { oldValue, newValue in
-                        let trimmedOld = oldValue.trimmingCharacters(in: .whitespacesAndNewlines)
-                        let trimmedNew = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
-                        guard trimmedOld != trimmedNew else { return }
-
-                        searchDebounceTask?.cancel()
-                        if trimmedNew.isEmpty {
-                            searchDebounceTask = Task { @MainActor in
-                                debouncedSearchText = ""
-                                await Task.yield()
-                                guard !Task.isCancelled else { return }
-                                proxy.scrollTo(ExplorerSidebarConstants.objectsTopAnchor, anchor: .top)
-                            }
-                        } else {
-                            let pendingText = newValue
-                            searchDebounceTask = Task { @MainActor in
-                                try? await Task.sleep(nanoseconds: 200_000_000)
-                                guard !Task.isCancelled else { return }
-                                debouncedSearchText = pendingText
-                                await Task.yield()
-                                guard !Task.isCancelled else { return }
-                                proxy.scrollTo(ExplorerSidebarConstants.objectsTopAnchor, anchor: .top)
-                            }
-                        }
                     }
 
                     footerView
                 }
             }
             .onAppear {
-                debouncedSearchText = searchText
+                viewModel.debouncedSearchText = viewModel.searchText
                 if let focus = navigationStore.pendingExplorerFocus {
                     handleExplorerFocus(focus, proxy: proxy)
                 }
@@ -175,12 +155,11 @@ struct ExplorerSidebarView: View {
                 handleExplorerFocus(focus, proxy: proxy)
             }
             .onDisappear {
-                searchDebounceTask?.cancel()
-                searchDebounceTask = nil
+                viewModel.stopSearchDebounce()
             }
         }
         .background(
-            ExplorerSidebarFocusResetter(isSearchFieldFocused: $isSearchFieldFocused)
+            ExplorerSidebarFocusResetter(isSearchFieldFocused: $viewModel.isSearchFieldFocused)
                 .allowsHitTesting(false)
         )
     }
@@ -188,7 +167,7 @@ struct ExplorerSidebarView: View {
     private func connectToSavedConnection(_ connection: SavedConnection) async {
         await MainActor.run {
             let _: Void = withAnimation(.easeInOut(duration: 0.3)) {
-                isHoveringConnectedServers = true
+                viewModel.isHoveringConnectedServers = true
             }
         }
 
@@ -196,7 +175,7 @@ struct ExplorerSidebarView: View {
 
         await MainActor.run {
             let _: Void = withAnimation(.easeInOut(duration: 0.3)) {
-                expandedConnectedServerIDs.insert(connection.id)
+                viewModel.expandedConnectedServerIDs.insert(connection.id)
             }
             selectedConnectionID = connection.id
         }
@@ -214,7 +193,14 @@ struct ExplorerSidebarView: View {
                     if !connectionStore.connections.isEmpty {
                         Divider()
                         Menu("Saved Connections") {
-                            savedConnectionsMenuItems(parentID: nil)
+                            SavedConnectionsMenuItems(parentID: nil) { connection in
+                                withAnimation(.easeInOut(duration: 0.3)) {
+                                    viewModel.isHoveringConnectedServers = true
+                                }
+                                Task {
+                                    await connectToSavedConnection(connection)
+                                }
+                            }
                         }
                     }
                 } label: {
@@ -246,12 +232,12 @@ struct ExplorerSidebarView: View {
                         session: session,
                         isSelected: session.connection.id == selectedConnectionID,
                         isExpanded: Binding(
-                            get: { expandedConnectedServerIDs.contains(session.connection.id) },
+                            get: { viewModel.expandedConnectedServerIDs.contains(session.connection.id) },
                             set: { isExpanded in
                                 if isExpanded {
-                                    expandedConnectedServerIDs.insert(session.connection.id)
+                                    viewModel.expandedConnectedServerIDs.insert(session.connection.id)
                                 } else {
-                                    expandedConnectedServerIDs.remove(session.connection.id)
+                                    viewModel.expandedConnectedServerIDs.remove(session.connection.id)
                                 }
                             }
                         ),
@@ -285,12 +271,12 @@ struct ExplorerSidebarView: View {
                             DatabaseObjectBrowserView(
                                 database: database,
                                 connection: session.connection,
-                                searchText: $debouncedSearchText,
-                                selectedSchemaName: $selectedSchemaName,
-                                expandedObjectGroups: $expandedObjectGroups,
-                                expandedObjectIDs: $expandedObjectIDs,
-                                pinnedObjectIDs: pinnedObjectsBinding(for: database, connectionID: session.connection.id),
-                                isPinnedSectionExpanded: pinnedSectionExpandedBinding(for: database, connectionID: session.connection.id),
+                                searchText: $viewModel.debouncedSearchText,
+                                selectedSchemaName: $viewModel.selectedSchemaName,
+                                expandedObjectGroups: $viewModel.expandedObjectGroups,
+                                expandedObjectIDs: $viewModel.expandedObjectIDs,
+                                pinnedObjectIDs: viewModel.pinnedObjectsBinding(for: database, connectionID: session.connection.id),
+                                isPinnedSectionExpanded: viewModel.pinnedSectionExpandedBinding(for: database, connectionID: session.connection.id),
                                 scrollTo: { id, anchor in
                                     withAnimation(.easeInOut(duration: 0.3)) {
                                         proxy.scrollTo(id, anchor: anchor)
@@ -328,9 +314,9 @@ struct ExplorerSidebarView: View {
         .contentShape(Rectangle())
         .onTapGesture {
             guard let session = selectedSession, session.selectedDatabaseName != nil else { return }
-            if isHoveringConnectedServers {
+            if viewModel.isHoveringConnectedServers {
                 withAnimation(.easeInOut(duration: 0.25)) {
-                    isHoveringConnectedServers = false
+                    viewModel.isHoveringConnectedServers = false
                 }
             }
         }
@@ -387,8 +373,8 @@ struct ExplorerSidebarView: View {
         let borderColor = Color.primary.opacity(0.08)
         let availableSchemas = database.schemas.filter { !$0.objects.isEmpty }
         let schemaPresentation: (displayName: String, selectedName: String?) = {
-            if let selectedSchemaName {
-                return (selectedSchemaName, selectedSchemaName)
+            if let schemaName = viewModel.selectedSchemaName {
+                return (schemaName, schemaName)
             }
             if availableSchemas.count == 1, let onlySchema = availableSchemas.first?.name {
                 return (onlySchema, onlySchema)
@@ -398,14 +384,14 @@ struct ExplorerSidebarView: View {
         let schemaDisplayName = schemaPresentation.displayName
         let currentSchemaSelection = schemaPresentation.selectedName
 
-        let shouldShowSchemaPicker = !availableSchemas.isEmpty && !isSearchFieldFocused
+        let shouldShowSchemaPicker = !availableSchemas.isEmpty && !viewModel.isSearchFieldFocused
         let creationOptions = creationOptions(for: session.connection.databaseType)
-        let shouldShowAddButton = !isSearchFieldFocused && !creationOptions.isEmpty
+        let shouldShowAddButton = !viewModel.isSearchFieldFocused && !creationOptions.isEmpty
 
         return HStack(spacing: 6) {
             ExplorerFooterSearchField(
-                text: $searchText,
-                isFocused: $isSearchFieldFocused,
+                text: $viewModel.searchText,
+                isFocused: $viewModel.isSearchFieldFocused,
                 placeholder: "Search",
                 controlBackground: controlBackground,
                 borderColor: borderColor,
@@ -440,7 +426,7 @@ struct ExplorerSidebarView: View {
                 Menu {
                     Button {
                         withAnimation(.easeInOut(duration: 0.2)) {
-                            selectedSchemaName = nil
+                            viewModel.selectedSchemaName = nil
                         }
                     } label: {
                         if currentSchemaSelection == nil {
@@ -454,7 +440,7 @@ struct ExplorerSidebarView: View {
                         let objectCount = schema.objects.count
                         Button {
                             withAnimation(.easeInOut(duration: 0.2)) {
-                                selectedSchemaName = schema.name
+                                viewModel.selectedSchemaName = schema.name
                             }
                         } label: {
                             if currentSchemaSelection == schema.name {
@@ -474,12 +460,12 @@ struct ExplorerSidebarView: View {
                             .renderingMode(.template)
                             .resizable()
                             .frame(width: 12, height: 12)
-                            .foregroundStyle(selectedSchemaName == nil ? .secondary : accentColor)
+                            .foregroundStyle(viewModel.selectedSchemaName == nil ? .secondary : accentColor)
 
                         Text(schemaDisplayName)
                             .font(.system(size: 12, weight: .medium))
                             .lineLimit(1)
-                            .foregroundStyle(selectedSchemaName == nil ? Color.primary : accentColor)
+                            .foregroundStyle(viewModel.selectedSchemaName == nil ? Color.primary : accentColor)
                     }
                     .padding(.horizontal, 10)
                     .padding(.vertical, 4)
@@ -552,103 +538,40 @@ struct ExplorerSidebarView: View {
     private func selectSession(_ session: ConnectionSession) {
         selectedConnectionID = session.connection.id
         appModel.sessionManager.setActiveSession(session.id)
-        ensureServerExpanded(for: session.connection.id)
+        viewModel.ensureServerExpanded(for: session.connection.id, sessions: sessions)
     }
 
     private func handleDatabaseSelection(_ databaseName: String, in session: ConnectionSession) {
         Task { @MainActor in
             await appModel.loadSchemaForDatabase(databaseName, connectionSession: session)
             selectedConnectionID = session.connection.id
-            ensureServerExpanded(for: session.connection.id)
-            resetFilters(for: session)
+            viewModel.ensureServerExpanded(for: session.connection.id, sessions: sessions)
+            viewModel.resetFilters(for: session, selectedSession: selectedSession)
             withAnimation(.easeInOut(duration: 0.3)) {
-                isHoveringConnectedServers = false
-                expandedConnectedServerIDs.removeAll()
+                viewModel.isHoveringConnectedServers = false
+                viewModel.expandedConnectedServerIDs.removeAll()
             }
         }
-    }
-
-    private func ensureServerExpanded(for connectionID: UUID) {
-        expandedServerIDs = expandedServerIDs.filter { id in
-            sessions.contains { $0.connection.id == id }
-        }
-        expandedServerIDs.insert(connectionID)
-    }
-
-    private func resetFilters(for session: ConnectionSession? = nil) {
-        if !searchText.isEmpty {
-            searchText = ""
-            debouncedSearchText = ""
-            searchDebounceTask?.cancel()
-        }
-        if selectedSchemaName != nil {
-            selectedSchemaName = nil
-        }
-        if !expandedObjectIDs.isEmpty {
-            expandedObjectIDs.removeAll()
-        }
-        let targetSession = session ?? selectedSession
-        let supportedSet = Set(supportedObjectTypes(for: targetSession))
-        if supportedSet.isEmpty {
-            if !expandedObjectGroups.isEmpty {
-                expandedObjectGroups.removeAll()
-            }
-        } else if expandedObjectGroups != supportedSet {
-            expandedObjectGroups = supportedSet
-        }
-    }
-
-    private func pinnedStorageKey(connectionID: UUID, databaseName: String) -> String {
-        "\(connectionID.uuidString)#\(databaseName)"
-    }
-
-    private func supportedObjectTypes(for session: ConnectionSession?) -> [SchemaObjectInfo.ObjectType] {
-        guard let session else { return SchemaObjectInfo.ObjectType.allCases }
-        return SchemaObjectInfo.ObjectType.supported(for: session.connection.databaseType)
-    }
-
-    private func pinnedObjectsBinding(for database: DatabaseInfo, connectionID: UUID) -> Binding<Set<String>> {
-        let key = pinnedStorageKey(connectionID: connectionID, databaseName: database.name)
-        return Binding(
-            get: { pinnedObjectIDsByDatabase[key] ?? [] },
-            set: { newValue in
-                if newValue.isEmpty {
-                    pinnedObjectIDsByDatabase.removeValue(forKey: key)
-                } else {
-                    pinnedObjectIDsByDatabase[key] = newValue
-                }
-            }
-        )
-    }
-
-    private func pinnedSectionExpandedBinding(for database: DatabaseInfo, connectionID: UUID) -> Binding<Bool> {
-        let key = pinnedStorageKey(connectionID: connectionID, databaseName: database.name)
-        return Binding(
-            get: { pinnedSectionExpandedByDatabase[key] ?? true },
-            set: { newValue in
-                pinnedSectionExpandedByDatabase[key] = newValue
-            }
-        )
     }
 
     private func syncSelectionWithSessions() {
-        expandedServerIDs = expandedServerIDs.filter { id in
+        viewModel.expandedServerIDs = viewModel.expandedServerIDs.filter { id in
             sessions.contains { $0.connection.id == id }
         }
 
         let currentIDs = Set(sessions.map { $0.connection.id })
-        if knownSessionIDs.isEmpty && !currentIDs.isEmpty {
-            isHoveringConnectedServers = true
-            expandedConnectedServerIDs.formUnion(currentIDs)
+        if viewModel.knownSessionIDs.isEmpty && !currentIDs.isEmpty {
+            viewModel.isHoveringConnectedServers = true
+            viewModel.expandedConnectedServerIDs.formUnion(currentIDs)
         }
-        knownSessionIDs = currentIDs
+        viewModel.knownSessionIDs = currentIDs
 
         if selectedConnectionID == nil || !sessions.contains(where: { $0.connection.id == selectedConnectionID }) {
             selectedConnectionID = sessions.first?.connection.id
         }
 
         if let id = selectedConnectionID {
-            ensureServerExpanded(for: id)
+            viewModel.ensureServerExpanded(for: id, sessions: sessions)
         }
     }
 
@@ -729,17 +652,17 @@ struct ExplorerSidebarView: View {
                 databaseName: databaseName,
                 onTap: {
                     withAnimation(.easeInOut(duration: 0.3)) {
-                        let shouldOpen = !isHoveringConnectedServers
-                        isHoveringConnectedServers = shouldOpen
+                        let shouldOpen = !viewModel.isHoveringConnectedServers
+                        viewModel.isHoveringConnectedServers = shouldOpen
                         if shouldOpen {
-                            expandedConnectedServerIDs.insert(session.connection.id)
+                            viewModel.expandedConnectedServerIDs.insert(session.connection.id)
                         }
                     }
                 },
                 onRefresh: {
                     withAnimation(.easeInOut(duration: 0.3)) {
-                        isHoveringConnectedServers = true
-                        expandedConnectedServerIDs.insert(session.connection.id)
+                        viewModel.isHoveringConnectedServers = true
+                        viewModel.expandedConnectedServerIDs.insert(session.connection.id)
                     }
                     Task {
                         await appModel.refreshDatabaseStructure(
@@ -752,770 +675,5 @@ struct ExplorerSidebarView: View {
             )
             .environmentObject(appModel)
         }
-    }
-}
-
-private struct StickyTopBarContent: View {
-    @ObservedObject var session: ConnectionSession
-    let databaseName: String
-    let onTap: () -> Void
-    let onRefresh: () -> Void
-
-    @Environment(ProjectStore.self) private var projectStore
-    @EnvironmentObject private var appModel: AppModel
-    @State private var isHovered = false
-
-    private var progressValue: Double? {
-        if case .loading(let value) = session.structureLoadingState {
-            return value
-        }
-        return nil
-    }
-
-    private var isUpdating: Bool {
-        if case .loading = session.structureLoadingState {
-            return true
-        }
-        return false
-    }
-
-    private var updateMessage: String {
-        session.structureLoadingMessage ?? "Updating…"
-    }
-
-    var body: some View {
-        Button(action: onTap) {
-            VStack(alignment: .leading, spacing: isUpdating ? 12 : 0) {
-                HStack(spacing: 12) {
-                    if let logoData = session.connection.logo, let nsImage = NSImage(data: logoData) {
-                        Image(nsImage: nsImage)
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .frame(width: 28, height: 28)
-                            .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
-                    } else {
-                        ZStack {
-                            RoundedRectangle(cornerRadius: 6, style: .continuous)
-                                .fill(session.connection.color.opacity(0.15))
-                                .frame(width: 28, height: 28)
-                            Image(session.connection.databaseType.iconName)
-                                .resizable()
-                                .aspectRatio(contentMode: .fit)
-                                .frame(width: 13, height: 13)
-                                .foregroundStyle(session.connection.color)
-                        }
-                    }
-
-                    VStack(alignment: .leading, spacing: 2) {
-                        HStack(spacing: 6) {
-                            Text(session.connection.connectionName)
-                                .font(.system(size: 12, weight: .semibold))
-                                .foregroundStyle(.primary)
-                                .lineLimit(1)
-
-                            if let version = session.connection.serverVersion {
-                                Text("•")
-                                    .font(.system(size: 10, weight: .medium))
-                                    .foregroundStyle(.tertiary)
-                                Text(version)
-                                    .font(.system(size: 10, weight: .medium))
-                                    .foregroundStyle(.tertiary)
-                                    .lineLimit(1)
-                            }
-                        }
-
-                        Text("\(session.connection.username)@\(session.connection.host)")
-                            .font(.system(size: 10, weight: .medium))
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                    }
-
-                    Spacer()
-
-                    if isHovered {
-                        Button(action: {
-                            onRefresh()
-                        }) {
-                            Image(systemName: "arrow.clockwise")
-                                .font(.system(size: 11, weight: .medium))
-                                .foregroundStyle(.secondary)
-                                .frame(width: 24, height: 24)
-                                .background(
-                                    Circle()
-                                        .fill(Color.primary.opacity(0.06))
-                                )
-                        }
-                        .buttonStyle(.plain)
-                        .transition(.scale.combined(with: .opacity))
-                    }
-
-                    Text(databaseName)
-                        .font(.system(size: 10, weight: .medium))
-                        .foregroundStyle(.primary)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 5)
-                    .background(
-                        Capsule()
-                            .fill(Color(nsColor: .controlBackgroundColor).opacity(0.6))
-                            .background(.ultraThinMaterial, in: Capsule())
-                    )
-                    .overlay(
-                        Capsule()
-                            .strokeBorder(session.connection.color.opacity(0.2), lineWidth: 0.5)
-                    )
-                    .shadow(color: session.connection.color.opacity(0.1), radius: 4, x: 0, y: 2)
-                    .contextMenu {
-                        if let structure = session.databaseStructure {
-                            ForEach(structure.databases, id: \.name) { database in
-                                Button {
-                                    Task { @MainActor in
-                                        await appModel.loadSchemaForDatabase(database.name, connectionSession: session)
-                                    }
-                                } label: {
-                                    Label(database.name, systemImage: "database")
-                                }
-                            }
-                        }
-                    }
-            }
-                if isUpdating {
-                    VStack(alignment: .leading, spacing: 4) {
-                        ProgressView(value: min(max(progressValue ?? 0, 0), 1), total: 1)
-                            .progressViewStyle(.linear)
-                            .tint(session.connection.color)
-                        Text(updateMessage)
-                            .font(.system(size: 10, weight: .medium))
-                            .foregroundStyle(.secondary)
-                    }
-                    .transition(.opacity.combined(with: .move(edge: .bottom)))
-                }
-            }
-            .padding(.horizontal, 14)
-            .padding(.vertical, isUpdating ? 16 : 12)
-            .background(
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .fill(
-                        projectStore.globalSettings.useServerColorAsAccent ?
-                        LinearGradient(
-                            gradient: Gradient(colors: [
-                                Color(nsColor: .controlBackgroundColor).opacity(0.85),
-                                session.connection.color.opacity(0.08)
-                            ]),
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        ) :
-                        LinearGradient(
-                            gradient: Gradient(colors: [
-                                Color(nsColor: .controlBackgroundColor).opacity(0.85),
-                                Color(nsColor: .controlBackgroundColor).opacity(0.85)
-                            ]),
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
-                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .strokeBorder(
-                        projectStore.globalSettings.useServerColorAsAccent ?
-                        session.connection.color.opacity(0.15) :
-                        Color.primary.opacity(0.08),
-                        lineWidth: 0.5
-                    )
-            )
-            .shadow(color: .black.opacity(0.15), radius: 20, x: 0, y: 8)
-            .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
-            .animation(.easeInOut(duration: 0.2), value: isUpdating)
-        }
-        .buttonStyle(.plain)
-        .onHover { hovering in
-            withAnimation(.easeInOut(duration: 0.2)) {
-                isHovered = hovering
-            }
-        }
-        .padding(.horizontal, 8)
-        .padding(.top, 20)
-        .padding(.bottom, 8)
-    }
-}
-
-private enum ExplorerSidebarConstants {
-    static let scrollCoordinateSpace = "ExplorerSidebarScrollSpace"
-    static let objectsTopAnchor = "ExplorerSidebarObjectsTop"
-    static let connectedServersAnchor = "ExplorerSidebarConnectedServers"
-    static let scrollBottomPadding: CGFloat = 32
-    static let bottomControlHeight: CGFloat = 20
-}
-
-extension ExplorerSidebarView {
-    private func savedConnectionsMenuItems(parentID: UUID?) -> AnyView {
-        let folders = connectionStore.folders
-            .filter { $0.kind == .connections && $0.parentFolderID == parentID }
-            .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
-
-        let connections = connectionStore.connections
-            .filter { $0.folderID == parentID }
-            .sorted { $0.connectionName.localizedCaseInsensitiveCompare($1.connectionName) == .orderedAscending }
-
-        return AnyView(
-            Group {
-                ForEach(folders, id: \.id) { folder in
-                    Menu(folder.name) {
-                        savedConnectionsMenuItems(parentID: folder.id)
-                    }
-                }
-
-                ForEach(connections, id: \.id) { connection in
-                    Button(connection.connectionName.isEmpty ? connection.host : connection.connectionName) {
-                        withAnimation(.easeInOut(duration: 0.3)) {
-                            isHoveringConnectedServers = true
-                        }
-                        Task {
-                            await connectToSavedConnection(connection)
-                        }
-                    }
-                }
-            }
-        )
-    }
-}
-
-extension ExplorerSidebarView {
-    private func handleExplorerFocus(_ focus: ExplorerFocus, proxy: ScrollViewProxy) {
-        Task {
-            await processExplorerFocus(focus, proxy: proxy)
-        }
-    }
-
-    private func processExplorerFocus(_ focus: ExplorerFocus, proxy: ScrollViewProxy) async {
-        guard let session = await MainActor.run(body: {
-            appModel.sessionManager.sessionForConnection(focus.connectionID)
-        }) else {
-            await MainActor.run { navigationStore.pendingExplorerFocus = nil }
-            return
-        }
-
-        await MainActor.run {
-            searchText = ""
-            if selectedConnectionID != focus.connectionID {
-                selectedConnectionID = focus.connectionID
-            }
-            appModel.sessionManager.setActiveSession(session.id)
-        }
-
-        if session.selectedDatabaseName?.localizedCaseInsensitiveCompare(focus.databaseName) != .orderedSame {
-            await appModel.reconnectSession(session, to: focus.databaseName)
-        }
-
-        await appModel.refreshDatabaseStructure(for: session.id, scope: .selectedDatabase, databaseOverride: focus.databaseName)
-
-        guard let refreshedSession = await MainActor.run(body: {
-            appModel.sessionManager.sessionForConnection(focus.connectionID)
-        }) else {
-            await MainActor.run { navigationStore.pendingExplorerFocus = nil }
-            return
-        }
-
-        await MainActor.run {
-            applyExplorerFocus(focus, session: refreshedSession, proxy: proxy)
-            navigationStore.pendingExplorerFocus = nil
-        }
-    }
-
-    private func applyExplorerFocus(_ focus: ExplorerFocus, session: ConnectionSession, proxy: ScrollViewProxy) {
-        if selectedSchemaName?.caseInsensitiveCompare(focus.schemaName) != .orderedSame {
-            selectedSchemaName = focus.schemaName
-        }
-        if !expandedObjectGroups.contains(focus.objectType) {
-            expandedObjectGroups.insert(focus.objectType)
-        }
-
-        guard let structure = session.databaseStructure,
-              let database = structure.databases.first(where: { $0.name.localizedCaseInsensitiveCompare(focus.databaseName) == .orderedSame }),
-              let schema = database.schemas.first(where: { $0.name.localizedCaseInsensitiveCompare(focus.schemaName) == .orderedSame }) else {
-            return
-        }
-
-        if let object = schema.objects.first(where: { $0.type == focus.objectType && $0.name.localizedCaseInsensitiveCompare(focus.objectName) == .orderedSame }) {
-            expandedObjectGroups.insert(object.type)
-            let wasExpanded = expandedObjectIDs.contains(object.id)
-            if !wasExpanded {
-                DispatchQueue.main.async {
-                    expandedObjectIDs.insert(object.id)
-                }
-            }
-
-            withAnimation(.easeInOut(duration: 0.3)) {
-                proxy.scrollTo(object.id, anchor: .center)
-            }
-        }
-    }
-}
-
-private struct ExplorerFooterSearchField: View {
-    @Binding var text: String
-    @Binding var isFocused: Bool
-    let placeholder: String
-    let controlBackground: Color
-    let borderColor: Color
-    let height: CGFloat
-
-    @FocusState private var internalFocus: Bool
-
-    var body: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "magnifyingglass")
-                .foregroundStyle(.secondary)
-
-            ZStack(alignment: .leading) {
-                if text.isEmpty {
-                    Text(placeholder)
-                        .foregroundStyle(.secondary)
-                        .padding(.vertical, 1)
-                }
-
-                TextField("", text: $text)
-                    .textFieldStyle(.plain)
-                    .focused($internalFocus)
-            }
-        }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 3)
-        .frame(height: height)
-        .background(
-            RoundedRectangle(cornerRadius: 9, style: .continuous)
-                .fill(controlBackground)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 9, style: .continuous)
-                .stroke(borderColor, lineWidth: 0.5)
-        )
-        .onChange(of: internalFocus) { _, newValue in
-            guard newValue != isFocused else { return }
-            withAnimation(.easeInOut(duration: 0.2)) {
-                isFocused = newValue
-            }
-        }
-        .onChange(of: isFocused) { _, newValue in
-            guard newValue != internalFocus else { return }
-            internalFocus = newValue
-        }
-    }
-}
-
-private struct ExplorerCreationMenuItem: Hashable {
-    enum Icon: Hashable {
-        case system(String)
-        case asset(String)
-    }
-
-    let title: String
-    let icon: Icon
-
-    @ViewBuilder
-    func iconView(accentColor: Color) -> some View {
-        switch icon {
-        case .system(let name):
-            Image(systemName: name)
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(accentColor)
-        case .asset(let name):
-            Image(name)
-                .renderingMode(.template)
-                .resizable()
-                .frame(width: 12, height: 12)
-                .foregroundStyle(accentColor)
-        }
-    }
-}
-
-private struct ExplorerFooterActionButton: View {
-    let accentColor: Color
-
-    var body: some View {
-        ZStack {
-            Circle()
-                .fill(
-                    LinearGradient(
-                        colors: [
-                            Color.white.opacity(0.55),
-                            accentColor.opacity(0.3)
-                        ],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                )
-                .background(
-                    Circle()
-                        .fill(.ultraThinMaterial)
-                )
-                .overlay(
-                    Circle()
-                        .stroke(Color.white.opacity(0.45), lineWidth: 0.6)
-                )
-                .overlay(
-                    Circle()
-                        .stroke(Color.primary.opacity(0.1), lineWidth: 0.5)
-                )
-
-            Image(systemName: "plus")
-                .font(.system(size: 12, weight: .bold))
-                .foregroundStyle(accentColor)
-        }
-        .frame(width: 26, height: 26)
-        .shadow(color: accentColor.opacity(0.18), radius: 8, x: 0, y: 4)
-    }
-}
-
-#if os(macOS)
-private struct ExplorerSidebarFocusResetter: NSViewRepresentable {
-    @Binding var isSearchFieldFocused: Bool
-
-    func makeNSView(context: Context) -> FocusResetView {
-        FocusResetView()
-    }
-
-    func updateNSView(_ nsView: FocusResetView, context: Context) {
-        nsView.onDismiss = { [binding = $isSearchFieldFocused] in
-            DispatchQueue.main.async {
-                guard binding.wrappedValue else { return }
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    binding.wrappedValue = false
-                }
-            }
-        }
-        nsView.isSearchFieldFocused = isSearchFieldFocused
-    }
-
-    @MainActor
-    final class FocusResetView: NSView {
-        var onDismiss: (() -> Void)?
-        var isSearchFieldFocused: Bool = false {
-            didSet { updateMonitor() }
-        }
-
-        private var monitor: Any?
-
-        override init(frame frameRect: NSRect) {
-            super.init(frame: frameRect)
-            translatesAutoresizingMaskIntoConstraints = false
-            wantsLayer = false
-        }
-
-        required init?(coder: NSCoder) {
-            super.init(coder: coder)
-        }
-
-        override func viewDidMoveToWindow() {
-            super.viewDidMoveToWindow()
-            updateMonitor()
-        }
-
-        override func viewWillMove(toWindow newWindow: NSWindow?) {
-            if newWindow == nil {
-                removeMonitor()
-            }
-            super.viewWillMove(toWindow: newWindow)
-        }
-
-        @MainActor deinit {
-            removeMonitor()
-        }
-
-        private func updateMonitor() {
-            guard window != nil else {
-                removeMonitor()
-                return
-            }
-
-            if isSearchFieldFocused {
-                installMonitorIfNeeded()
-            } else {
-                removeMonitor()
-            }
-        }
-
-        private func installMonitorIfNeeded() {
-            guard monitor == nil else { return }
-            monitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown, .otherMouseDown]) { [weak self] event in
-                guard let self else { return event }
-                guard let window = self.window else {
-                    self.onDismiss?()
-                    return event
-                }
-
-                if event.window !== window {
-                    self.onDismiss?()
-                    return event
-                }
-
-                let locationInWindow = event.locationInWindow
-                let locationInView = self.convert(locationInWindow, from: nil)
-                if !self.bounds.contains(locationInView) {
-                    self.onDismiss?()
-                }
-
-                return event
-            }
-        }
-
-        private func removeMonitor() {
-            if let monitor {
-                NSEvent.removeMonitor(monitor)
-                self.monitor = nil
-            }
-        }
-    }
-}
-#else
-private struct ExplorerSidebarFocusResetter: View {
-    @Binding var isSearchFieldFocused: Bool
-    var body: some View {
-        EmptyView()
-    }
-}
-#endif
-
-private struct ConnectedServerCard: View {
-    let session: ConnectionSession
-    let isSelected: Bool
-    @Binding var isExpanded: Bool
-    let showCurrentDatabase: Bool
-    let onSelectServer: () -> Void
-    let onPickDatabase: (String) -> Void
-
-    @EnvironmentObject private var appModel: AppModel
-    @State private var isHovered = false
-
-    private var availableDatabases: [DatabaseInfo] {
-        if let structure = session.databaseStructure {
-            return structure.databases
-        }
-        if let cached = session.connection.cachedStructure {
-            return cached.databases
-        }
-        return []
-    }
-
-    private var gridColumns: [GridItem] {
-        Array(repeating: GridItem(.flexible(), spacing: 8, alignment: .top), count: 2)
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            header
-
-            if isExpanded, !availableDatabases.isEmpty {
-                Divider()
-                    .padding(.horizontal, 16)
-                    .padding(.top, 6)
-
-                ScrollView {
-                    LazyVGrid(columns: gridColumns, alignment: .leading, spacing: 8) {
-                        ForEach(availableDatabases) { database in
-                            CompactDatabaseCard(
-                                database: database,
-                                isSelected: database.name == session.selectedDatabaseName,
-                                serverColor: session.connection.color,
-                                onSelect: {
-                                    onPickDatabase(database.name)
-                                }
-                            )
-                        }
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 12)
-                }
-                .frame(maxHeight: 160)
-                .scrollIndicators(.hidden)
-            }
-        }
-        .background(cardBackground)
-        .overlay(cardBorder)
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .shadow(color: .black.opacity(isHovered || isExpanded ? 0.14 : 0.05), radius: isExpanded ? 12 : 6, x: 0, y: isExpanded ? 8 : 3)
-        .animation(.spring(response: 0.32, dampingFraction: 0.85), value: isExpanded)
-        .onHover { hovering in
-            withAnimation(.easeInOut(duration: 0.2)) {
-                isHovered = hovering
-            }
-        }
-    }
-
-    private var header: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            HStack(spacing: 12) {
-                icon
-
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(session.connection.connectionName)
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(.primary)
-                        .lineLimit(1)
-                    Text("\(session.connection.username)@\(session.connection.host)")
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                }
-
-                Spacer(minLength: 8)
-
-                if showCurrentDatabase, let database = session.selectedDatabaseName {
-                    Text(database)
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundStyle(.primary)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 3)
-                        .background(session.connection.color.opacity(0.18), in: Capsule())
-                        .overlay(
-                            Capsule()
-                                .stroke(session.connection.color.opacity(0.35), lineWidth: 0.6)
-                        )
-                        .shadow(color: session.connection.color.opacity(0.2), radius: 4, x: 0, y: 2)
-                }
-
-                Image(systemName: "chevron.down")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(.secondary)
-                    .rotationEffect(.degrees(isExpanded ? 180 : 0))
-                    .frame(width: 20, height: 20)
-            }
-            .padding(.horizontal, 18)
-            .padding(.vertical, 14)
-            .contentShape(Rectangle())
-            .onTapGesture {
-                withAnimation(.spring(response: 0.32, dampingFraction: 0.85)) {
-                    isExpanded.toggle()
-                }
-            }
-            .onTapGesture(count: 2) {
-                onSelectServer()
-            }
-        }
-    }
-
-    private var icon: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .fill(session.connection.color.opacity(0.18))
-                .frame(width: 32, height: 32)
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .stroke(session.connection.color.opacity(0.35), lineWidth: 1)
-            Image(session.connection.databaseType.iconName)
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-                .frame(width: 15, height: 15)
-                .foregroundStyle(session.connection.color)
-        }
-        .shadow(color: session.connection.color.opacity(0.15), radius: 2, x: 0, y: 1)
-    }
-
-    private var cardBackground: some View {
-        RoundedRectangle(cornerRadius: 14, style: .continuous)
-            .fill(
-                isSelected ? session.connection.color.opacity(0.18) : Color.primary.opacity(isHovered ? 0.07 : 0.04)
-            )
-    }
-
-    private var cardBorder: some View {
-        RoundedRectangle(cornerRadius: 14, style: .continuous)
-            .stroke(isSelected ? session.connection.color.opacity(0.35) : Color.primary.opacity(0.05), lineWidth: 0.9)
-    }
-}
-
-private struct CompactDatabaseCard: View {
-    let database: DatabaseInfo
-    let isSelected: Bool
-    let serverColor: Color
-    let onSelect: () -> Void
-
-    @State private var isHovered = false
-
-    private var schemaCountText: String {
-        let count = database.schemas.isEmpty ? database.schemaCount : database.schemas.count
-        return "\(count)"
-    }
-
-    var body: some View {
-        Button(action: onSelect) {
-            VStack(alignment: .leading, spacing: 6) {
-                HStack(spacing: 6) {
-                    Circle()
-                        .fill(serverColor)
-                        .frame(width: 4, height: 4)
-                    Text(database.name)
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundStyle(isSelected ? serverColor : .primary)
-                        .lineLimit(1)
-                    Spacer(minLength: 4)
-                    if isSelected {
-                        Image(systemName: "checkmark")
-                            .font(.system(size: 9, weight: .semibold))
-                            .foregroundStyle(serverColor)
-                    }
-                }
-
-                HStack(spacing: 4) {
-                    Image(systemName: "list.bullet")
-                        .font(.system(size: 8, weight: .medium))
-                        .foregroundStyle(.tertiary)
-                    Text(schemaCountText)
-                        .font(.system(size: 9, weight: .medium))
-                        .foregroundStyle(.tertiary)
-                }
-            }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 8)
-            .frame(maxWidth: .infinity, minHeight: 50, alignment: .topLeading)
-            .background(
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(.ultraThinMaterial)
-                    .background(
-                        RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .fill(isSelected ? serverColor.opacity(0.08) : Color.clear)
-                    )
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .strokeBorder(
-                        isSelected ? serverColor.opacity(0.3) : (isHovered ? Color.primary.opacity(0.05) : .clear),
-                        lineWidth: isSelected ? 1 : 0.5
-                    )
-            )
-            .scaleEffect(isHovered ? 1.05 : 1.0)
-            .animation(.easeInOut(duration: 0.15), value: isHovered)
-        }
-        .buttonStyle(.plain)
-        .onHover { hovering in
-            isHovered = hovering
-        }
-    }
-}
-
-private struct ExplorerLoadingOverlay: View {
-    let progress: Double?
-    let message: String
-
-    var body: some View {
-        VStack(spacing: 10) {
-            if let progress {
-                ProgressView(value: progress)
-                    .progressViewStyle(.linear)
-                    .frame(width: 160)
-            } else {
-                ProgressView()
-                    .scaleEffect(0.85)
-            }
-
-            Text(message)
-                .font(.system(size: 11, weight: .medium))
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-        }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 16)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .shadow(color: .black.opacity(0.22), radius: 18, x: 0, y: 12)
     }
 }

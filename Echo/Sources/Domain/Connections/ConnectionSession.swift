@@ -220,6 +220,14 @@ final class ConnectionSessionManager: ObservableObject {
 
     // MARK: - Computed Properties
 
+    var activeConnectionID: UUID? {
+        activeSession?.connection.id
+    }
+
+    var activeDatabaseName: String? {
+        activeSession?.selectedDatabaseName
+    }
+
     var activeSession: ConnectionSession? {
         guard let activeID = activeSessionID else { return nil }
         return activeSessions.first { $0.id == activeID }
