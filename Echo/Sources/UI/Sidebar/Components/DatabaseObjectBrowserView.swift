@@ -74,7 +74,12 @@ struct DatabaseObjectBrowserView: View {
     @Binding var isPinnedSectionExpanded: Bool
     let scrollTo: (String, UnitPoint) -> Void
     
-    @EnvironmentObject private var appModel: AppModel
+    @Environment(ProjectStore.self) private var projectStore
+    @Environment(ConnectionStore.self) private var connectionStore
+    @Environment(NavigationStore.self) private var navigationStore
+    
+    @EnvironmentObject private var appModel: AppModel // Temporary bridge for specific actions
+    
     @State private var snapshotCache = ExplorerSnapshotCache()
     @State private var hoveredRowID: String?
 
@@ -211,7 +216,6 @@ struct DatabaseObjectBrowserView: View {
                                         onTogglePin: { togglePin(for: object) },
                                         onTriggerTableTap: object.type == .trigger ? { tableName in revealTable(fullName: tableName) } : nil
                                     )
-                                    .environmentObject(appModel)
                                     .id("pinned-\(object.id)")
                                 }
                             }
@@ -269,7 +273,6 @@ struct DatabaseObjectBrowserView: View {
                                         onTriggerTableTap: object.type == .trigger ? { tableName in revealTable(fullName: tableName) } : nil
                                     )
                                     .equatable()
-                                    .environmentObject(appModel)
                                     .id(object.id)
                                 }
                             }
@@ -299,19 +302,9 @@ struct DatabaseObjectBrowserView: View {
         }
         .onAppear {
             snapshotCache.update(with: input)
-            if ConnectionDebug.isEnabled {
-                let groupedTotals = snapshotCache.data.grouped.mapValues { $0.count }
-                let totalObjects = snapshotCache.data.grouped.values.reduce(0) { $0 + $1.count }
-                ConnectionDebug.log("[ExplorerSidebar] Snapshot initialised for database=\(database.name) search='\(searchText)' schema=\(selectedSchemaName ?? "<all>") objectTotals=\(groupedTotals) pinnedCount=\(snapshotCache.data.pinned.count) totalObjects=\(totalObjects)")
-            }
         }
         .onChange(of: input) { _, newValue in
             snapshotCache.update(with: newValue)
-            if ConnectionDebug.isEnabled {
-                let groupedTotals = snapshotCache.data.grouped.mapValues { $0.count }
-                let totalObjects = snapshotCache.data.grouped.values.reduce(0) { $0 + $1.count }
-                ConnectionDebug.log("[ExplorerSidebar] Snapshot updated for database=\(database.name) search='\(searchText)' schema=\(selectedSchemaName ?? "<all>") objectTotals=\(groupedTotals) pinnedCount=\(snapshotCache.data.pinned.count) totalObjects=\(totalObjects)")
-            }
         }
     }
 
@@ -356,7 +349,10 @@ private struct SearchEmptyStateView: View {
         let onTogglePin: () -> Void
         let onTriggerTableTap: ((String) -> Void)?
         
+        @Environment(ProjectStore.self) private var projectStore
+        @Environment(ConnectionStore.self) private var connectionStore
         @EnvironmentObject private var appModel: AppModel
+        
         @Environment(\.hoveredExplorerRowID) private var hoveredExplorerRowID
         @Environment(\.setHoveredExplorerRowID) private var setHoveredExplorerRowID
         @State private var hoveredColumnID: String?
@@ -370,7 +366,7 @@ private struct SearchEmptyStateView: View {
         }
         
         private var accentColor: Color {
-            appModel.globalSettings.useServerColorAsAccent ? connection.color : Color.accentColor
+            projectStore.globalSettings.useServerColorAsAccent ? connection.color : Color.accentColor
         }
         
         private var iconName: String {
@@ -661,9 +657,6 @@ private struct SearchEmptyStateView: View {
             Task { @MainActor in
                 guard let session = appModel.sessionManager.sessionForConnection(connection.id) else { return }
                 appModel.openStructureTab(for: session, object: object, focus: .columns)
-                if preferDrop {
-                    // Future enhancement: surface drop column affordance once editor supports deep linking.
-                }
             }
         }
         
@@ -1059,19 +1052,16 @@ private struct SearchEmptyStateView: View {
             let columns = object.columns.isEmpty ? ["*"] : object.columns.map { quoteIdentifier($0.name) }
             let columnLines = columns.joined(separator: ",\n    ")
             let databaseType = connection.databaseType
-            appModel.openDataPreviewTab(
-                for: session,
-                object: object,
-                sqlBuilder: { limit, offset in
-            makeSelectStatement(
-                        qualifiedName: qualified,
-                        columnLines: columnLines,
-                        databaseType: databaseType,
-                        limit: limit,
-                        offset: offset
-                    )
-                }
+            let sql = makeSelectStatement(
+                qualifiedName: qualified,
+                columnLines: columnLines,
+                databaseType: databaseType,
+                limit: 200,
+                offset: 0
             )
+            Task { @MainActor in
+                appModel.openQueryTab(for: session, presetQuery: sql)
+            }
         }
         
         private func openStructureTab() {
@@ -1310,12 +1300,11 @@ private struct SearchEmptyStateView: View {
                 return
             }
             
-            appModel.sessionManager.setActiveSession(session.id)
-            appModel.selectedConnectionID = session.connection.id
+            connectionStore.selectedConnectionID = session.connection.id
             
             Task {
                 do {
-                    _ = try await appModel.executeUpdate(sql)
+                    _ = try await session.session.executeUpdate(sql)
                     await appModel.refreshDatabaseStructure(
                         for: session.id,
                         scope: .selectedDatabase,
@@ -1400,12 +1389,11 @@ private struct SearchEmptyStateView: View {
             
             let statement = dropStatement(includeIfExists: includeIfExists)
             
-            appModel.sessionManager.setActiveSession(session.id)
-            appModel.selectedConnectionID = session.connection.id
+            connectionStore.selectedConnectionID = session.connection.id
             
             Task {
                 do {
-                    _ = try await appModel.executeUpdate(statement)
+                    _ = try await session.session.executeUpdate(statement)
                     if isPinned {
                         await MainActor.run {
                             onTogglePin()
@@ -1482,12 +1470,11 @@ private struct SearchEmptyStateView: View {
             
             let statement = truncateStatement()
             
-            appModel.sessionManager.setActiveSession(session.id)
-            appModel.selectedConnectionID = session.connection.id
+            connectionStore.selectedConnectionID = session.connection.id
             
             Task {
                 do {
-                    _ = try await appModel.executeUpdate(statement)
+                    _ = try await session.session.executeUpdate(statement)
                     await appModel.refreshDatabaseStructure(
                         for: session.id,
                         scope: .selectedDatabase,

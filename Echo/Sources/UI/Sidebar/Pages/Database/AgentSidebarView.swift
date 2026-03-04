@@ -1,7 +1,6 @@
 import SwiftUI
 import Combine
 import SQLServerKit
-import SQLServerKit
 
 // MARK: - View Model
 
@@ -193,7 +192,11 @@ private extension Array where Element == String? {
 
 struct AgentSidebarView: View {
     @Binding var selectedConnectionID: UUID?
+    
+    @Environment(ProjectStore.self) private var projectStore
+    @Environment(ConnectionStore.self) private var connectionStore
     @EnvironmentObject private var appModel: AppModel
+    
     @StateObject private var viewModel = AgentSidebarViewModel()
     @State private var searchText: String = ""
     @State private var showNewJobSheet = false
@@ -301,97 +304,8 @@ struct AgentSidebarView: View {
                         }
                         .padding(.horizontal, 16)
                         .padding(.top, 4)
-                        group("Jobs", isExpanded: $expandedJobs) {
-                            let jobs = viewModel.jobs.filter { searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || $0.name.localizedCaseInsensitiveContains(searchText) }
-                            if jobs.isEmpty {
-                                placeholder("No jobs found")
-                            } else {
-                                ForEach(jobs) { job in
-                                    HStack(spacing: 8) {
-                                        Image(systemName: job.enabled ? "checkmark.circle.fill" : "slash.circle")
-                                            .foregroundStyle(job.enabled ? .green : .secondary)
-                                        VStack(alignment: .leading, spacing: 2) {
-                                            Text(job.name).lineLimit(1)
-                                            if let outcome = job.lastOutcome {
-                                                Text(outcome).font(.caption2).foregroundStyle(.secondary)
-                                            }
-                                        }
-                                    }
-                                    .padding(.horizontal, 16)
-                                    .padding(.vertical, 4)
-                                }
-                            }
-                        }
-
-                        group("Alerts", isExpanded: $expandedAlerts) {
-                            if viewModel.alerts.isEmpty {
-                                placeholder("No alerts found")
-                            } else {
-                                ForEach(viewModel.alerts) { alert in
-                                    HStack(spacing: 8) {
-                                        Image(systemName: alert.enabled ? "exclamationmark.triangle.fill" : "exclamationmark.triangle")
-                                            .foregroundStyle(alert.enabled ? .yellow : .secondary)
-                                        Text(alert.name).lineLimit(1)
-                                    }
-                                    .padding(.horizontal, 16)
-                                    .padding(.vertical, 4)
-                                }
-                            }
-                        }
-
-                        group("Operators", isExpanded: $expandedOperators) {
-                            if viewModel.operators.isEmpty {
-                                placeholder("No operators found")
-                            } else {
-                                ForEach(viewModel.operators) { op in
-                                    HStack(spacing: 8) {
-                                        Image(systemName: op.enabled ? "person.fill" : "person")
-                                        VStack(alignment: .leading, spacing: 2) {
-                                            Text(op.name).lineLimit(1)
-                                            if let email = op.email, !email.isEmpty { Text(email).font(.caption2).foregroundStyle(.secondary).lineLimit(1) }
-                                        }
-                                    }
-                                    .padding(.horizontal, 16)
-                                    .padding(.vertical, 4)
-                                }
-                            }
-                        }
-
-                        group("Proxies", isExpanded: $expandedProxies) {
-                            if viewModel.proxies.isEmpty {
-                                placeholder("No proxies found")
-                            } else {
-                                ForEach(viewModel.proxies) { px in
-                                    HStack(spacing: 8) {
-                                        Image(systemName: px.enabled ? "shield.fill" : "shield")
-                                        VStack(alignment: .leading, spacing: 2) {
-                                            Text(px.name).lineLimit(1)
-                                            if let cred = px.credentialName { Text(cred).font(.caption2).foregroundStyle(.secondary).lineLimit(1) }
-                                        }
-                                    }
-                                    .padding(.horizontal, 16)
-                                    .padding(.vertical, 4)
-                                }
-                            }
-                        }
-
-                        group("Error Logs", isExpanded: $expandedErrorLogs) {
-                            if viewModel.errorLogs.isEmpty {
-                                placeholder("No error logs visible")
-                            } else {
-                                ForEach(viewModel.errorLogs) { log in
-                                    HStack(spacing: 8) {
-                                        Image(systemName: "doc.text.magnifyingglass")
-                                        VStack(alignment: .leading, spacing: 2) {
-                                            Text("Archive #\(log.archiveNumber)")
-                                            Text(log.date).font(.caption2).foregroundStyle(.secondary)
-                                        }
-                                    }
-                                    .padding(.horizontal, 16)
-                                    .padding(.vertical, 4)
-                                }
-                            }
-                        }
+                        
+                        agentGroups
                     }
                     .padding(.top, 4)
                     .padding(.bottom, 8)
@@ -413,98 +327,206 @@ struct AgentSidebarView: View {
         .onAppear { Task { await viewModel.reload(for: selectedSession) } }
         .onChange(of: selectedConnectionID) { _, _ in Task { await viewModel.reload(for: selectedSession) } }
         .sheet(isPresented: $showNewJobSheet) {
-            VStack(alignment: .leading, spacing: 12) {
-                Text("New SQL Server Agent Job").font(.headline)
-                if let err = newJobError, !err.isEmpty { Text(err).font(.footnote).foregroundStyle(.red) }
-                TabView {
-                    // General
-                    VStack(alignment: .leading, spacing: 10) {
-                        TextField("Name", text: $newJobName)
-                        TextField("Description (optional)", text: $newJobDescription)
-                        Toggle("Enabled", isOn: $newJobEnabled)
-                        Toggle("Start job after creation", isOn: $startAfterCreate)
-                        Divider()
-                        Text("Owner and Category").font(.subheadline)
-                        TextField("Owner (default current login)", text: $newJobOwner)
-                        TextField("Category (optional)", text: $newJobCategory)
-                    }
-                    .tabItem { Text("General") }
+            newJobSheetContent
+        }
+    }
 
-                    // Steps
-                    VStack(alignment: .leading, spacing: 10) {
-                        ForEach(Array(wizardSteps.enumerated()), id: \.element.id) { index, step in
-                            VStack(alignment: .leading, spacing: 6) {
-                                HStack { TextField("Step name", text: $wizardSteps[index].name); Picker("Subsystem", selection: $wizardSteps[index].subsystem) { ForEach(SubsystemChoice.allCases) { Text($0.rawValue).tag($0) } }.frame(width: 180) }
-                                if step.subsystem == .tsql { TextField("Database", text: $wizardSteps[index].database) }
-                                TextField("Command", text: $wizardSteps[index].command, axis: .vertical).lineLimit(2...5)
-                                HStack { TextField("Run As (Proxy)", text: $wizardSteps[index].proxyName); TextField("Output file", text: $wizardSteps[index].outputFile); Toggle("Append", isOn: $wizardSteps[index].appendOutput) }
-                                HStack { Picker("On success", selection: $wizardSteps[index].onSuccess) { ForEach(StepActionChoice.allCases) { Text($0.rawValue).tag($0) } } ; if step.onSuccess == .goToStep { TextField("Step ID", value: $wizardSteps[index].onSuccessGoTo, formatter: NumberFormatter()).frame(width: 80) } }
-                                HStack { Picker("On failure", selection: $wizardSteps[index].onFail) { ForEach(StepActionChoice.allCases) { Text($0.rawValue).tag($0) } } ; if step.onFail == .goToStep { TextField("Step ID", value: $wizardSteps[index].onFailGoTo, formatter: NumberFormatter()).frame(width: 80) } }
-                                HStack { TextField("Retry attempts", value: $wizardSteps[index].retryAttempts, formatter: NumberFormatter()).frame(width: 120); TextField("Retry interval (min)", value: $wizardSteps[index].retryInterval, formatter: NumberFormatter()).frame(width: 160) }
-                                HStack { Button("Remove", role: .destructive) { wizardSteps.remove(at: index); if let sid = startStepId, sid > wizardSteps.count { startStepId = wizardSteps.count } } ; Spacer() }
+    @ViewBuilder
+    private var agentGroups: some View {
+        group("Jobs", isExpanded: $expandedJobs) {
+            let jobs = viewModel.jobs.filter { searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || $0.name.localizedCaseInsensitiveContains(searchText) }
+            if jobs.isEmpty {
+                placeholder("No jobs found")
+            } else {
+                ForEach(jobs) { job in
+                    HStack(spacing: 8) {
+                        Image(systemName: job.enabled ? "checkmark.circle.fill" : "slash.circle")
+                            .foregroundStyle(job.enabled ? .green : .secondary)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(job.name).lineLimit(1)
+                            if let outcome = job.lastOutcome {
+                                Text(outcome).font(.caption2).foregroundStyle(.secondary)
                             }
-                            .padding(8)
-                            .background(Color.primary.opacity(0.03))
-                            .cornerRadius(8)
                         }
-                        HStack { Button("Add step") { wizardSteps.append(WizardStep(name: "Step \(wizardSteps.count+1)")) } ; Spacer() }
-                        HStack { Text("Start step ID: "); TextField("", value: Binding(get: { startStepId ?? 1 }, set: { startStepId = $0 }), formatter: NumberFormatter()).frame(width: 60) }
                     }
-                    .tabItem { Text("Steps") }
-
-                    // Schedules
-                    VStack(alignment: .leading, spacing: 10) {
-                        ForEach(Array(wizardSchedules.enumerated()), id: \.element.id) { index, sch in
-                            VStack(alignment: .leading, spacing: 6) {
-                                HStack { TextField("Name", text: $wizardSchedules[index].name); Toggle("Enabled", isOn: $wizardSchedules[index].enabled) }
-                                Picker("Mode", selection: $wizardSchedules[index].mode) { ForEach(ScheduleMode.allCases) { Text($0.rawValue).tag($0) } }
-                                HStack { TextField("Start time (HHMMSS)", text: $wizardSchedules[index].startHHMMSS).frame(width: 120); TextField("End time (HHMMSS)", text: $wizardSchedules[index].endHHMMSS).frame(width: 120) }
-                                HStack { TextField("Start date (YYYYMMDD)", text: $wizardSchedules[index].startDateYYYYMMDD).frame(width: 150); TextField("End date (YYYYMMDD)", text: $wizardSchedules[index].endDateYYYYMMDD).frame(width: 150) }
-                                if wizardSchedules[index].mode == .daily {
-                                    HStack { Text("Every"); TextField("Days", value: $wizardSchedules[index].everyDays, formatter: NumberFormatter()).frame(width: 60); Text("days") }
-                                } else if wizardSchedules[index].mode == .weekly {
-                                    HStack { Text("Every"); TextField("Weeks", value: $wizardSchedules[index].weeklyEveryWeeks, formatter: NumberFormatter()).frame(width: 60); Text("weeks on:") }
-                                    HStack { ForEach(WeeklyDayChoice.allCases) { day in Toggle(day.rawValue, isOn: Binding(get: { wizardSchedules[index].weeklyDays.contains(day) }, set: { checked in if checked { wizardSchedules[index].weeklyDays.insert(day) } else { wizardSchedules[index].weeklyDays.remove(day) } })) } }
-                                } else if wizardSchedules[index].mode == .monthly {
-                                    HStack { Text("Day"); TextField("", value: $wizardSchedules[index].everyDays, formatter: NumberFormatter()).frame(width: 60); Text("of every"); TextField("", value: $wizardSchedules[index].weeklyEveryWeeks, formatter: NumberFormatter()).frame(width: 60); Text("month(s)") }
-                                } else if wizardSchedules[index].mode == .monthlyRelative {
-                                    HStack { Picker("Week", selection: $wizardSchedules[index].weeklyEveryWeeks) { Text("First").tag(1); Text("Second").tag(2); Text("Third").tag(3); Text("Fourth").tag(4); Text("Last").tag(5) } ; Picker("Day", selection: Binding(get: { wizardSchedules[index].weeklyDays.first ?? .monday }, set: { wizardSchedules[index].weeklyDays = [$0] })) { ForEach(WeeklyDayChoice.allCases) { Text($0.rawValue).tag($0) } } ; Text("of every"); TextField("", value: $wizardSchedules[index].everyDays, formatter: NumberFormatter()).frame(width: 60); Text("month(s)") }
-                                }
-                                Divider()
-                                Text("Subday frequency").font(.subheadline)
-                                HStack { Text("Occurs every"); TextField("", value: $wizardSchedules[index].subdayInterval, formatter: NumberFormatter()).frame(width: 80); Picker("", selection: $wizardSchedules[index].subdayUnit) { Text("(none)").tag(0); Text("Minutes").tag(4); Text("Hours").tag(8) }.pickerStyle(.segmented).frame(width: 240) }
-                                HStack { Button("Remove", role: .destructive) { wizardSchedules.remove(at: index) } ; Spacer() }
-                            }
-                            .padding(8)
-                            .background(Color.primary.opacity(0.03))
-                            .cornerRadius(8)
-                        }
-                        HStack { Button("Add schedule") { wizardSchedules.append(WizardSchedule()) } ; Spacer() }
-                    }
-                    .tabItem { Text("Schedules") }
-
-                    // Notifications
-                    VStack(alignment: .leading, spacing: 10) {
-                        TextField("Operator name", text: $notifyOperatorName)
-                        Picker("Notify", selection: $notifyLevel) { ForEach(NotifyLevel.allCases) { Text($0.rawValue).tag($0) } }
-                    }
-                    .tabItem { Text("Notifications") }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 4)
                 }
-                HStack { Spacer(); Button("Cancel") { showNewJobSheet = false }; Button("Create") { Task { await createJobWithBuilder() } }.keyboardShortcut(.defaultAction) }
             }
-            .padding(20)
-            .frame(minWidth: 720, minHeight: 520)
-            .onAppear {
-                // Default owner to current login if blank
-                if newJobOwner.isEmpty, let session = selectedSession {
-                    Task {
-                        do {
-                            let rs = try await session.session.simpleQuery("SELECT SUSER_SNAME() AS name;")
-                            let idx = rs.columns.firstIndex { $0.name.caseInsensitiveCompare("name") == .orderedSame } ?? 0
-                            let val = rs.rows.first?[safe: idx] ?? ""
-                            await MainActor.run { newJobOwner = val ?? "" }
-                        } catch { /* ignore */ }
+        }
+
+        group("Alerts", isExpanded: $expandedAlerts) {
+            if viewModel.alerts.isEmpty {
+                placeholder("No alerts found")
+            } else {
+                ForEach(viewModel.alerts) { alert in
+                    HStack(spacing: 8) {
+                        Image(systemName: alert.enabled ? "exclamationmark.triangle.fill" : "exclamationmark.triangle")
+                            .foregroundStyle(alert.enabled ? .yellow : .secondary)
+                        Text(alert.name).lineLimit(1)
                     }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 4)
+                }
+            }
+        }
+
+        group("Operators", isExpanded: $expandedOperators) {
+            if viewModel.operators.isEmpty {
+                placeholder("No operators found")
+            } else {
+                ForEach(viewModel.operators) { op in
+                    HStack(spacing: 8) {
+                        Image(systemName: op.enabled ? "person.fill" : "person")
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(op.name).lineLimit(1)
+                            if let email = op.email, !email.isEmpty { Text(email).font(.caption2).foregroundStyle(.secondary).lineLimit(1) }
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 4)
+                }
+            }
+        }
+
+        group("Proxies", isExpanded: $expandedProxies) {
+            if viewModel.proxies.isEmpty {
+                placeholder("No proxies found")
+            } else {
+                ForEach(viewModel.proxies) { px in
+                    HStack(spacing: 8) {
+                        Image(systemName: px.enabled ? "shield.fill" : "shield")
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(px.name).lineLimit(1)
+                            if let cred = px.credentialName { Text(cred).font(.caption2).foregroundStyle(.secondary).lineLimit(1) }
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 4)
+                }
+            }
+        }
+
+        group("Error Logs", isExpanded: $expandedErrorLogs) {
+            if viewModel.errorLogs.isEmpty {
+                placeholder("No error logs visible")
+            } else {
+                ForEach(viewModel.errorLogs) { log in
+                    HStack(spacing: 8) {
+                        Image(systemName: "doc.text.magnifyingglass")
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Archive #\(log.archiveNumber)")
+                            Text(log.date).font(.caption2).foregroundStyle(.secondary)
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 4)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var newJobSheetContent: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("New SQL Server Agent Job").font(.headline)
+            if let err = newJobError, !err.isEmpty { Text(err).font(.footnote).foregroundStyle(.red) }
+            TabView {
+                // General
+                VStack(alignment: .leading, spacing: 10) {
+                    TextField("Name", text: $newJobName)
+                    TextField("Description (optional)", text: $newJobDescription)
+                    Toggle("Enabled", isOn: $newJobEnabled)
+                    Toggle("Start job after creation", isOn: $startAfterCreate)
+                    Divider()
+                    Text("Owner and Category").font(.subheadline)
+                    TextField("Owner (default current login)", text: $newJobOwner)
+                    TextField("Category (optional)", text: $newJobCategory)
+                }
+                .tabItem { Text("General") }
+
+                // Steps
+                VStack(alignment: .leading, spacing: 10) {
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 10) {
+                            ForEach(Array(wizardSteps.enumerated()), id: \.element.id) { index, step in
+                                VStack(alignment: .leading, spacing: 6) {
+                                    HStack { TextField("Step name", text: $wizardSteps[index].name); Picker("Subsystem", selection: $wizardSteps[index].subsystem) { ForEach(SubsystemChoice.allCases) { Text($0.rawValue).tag($0) } }.frame(width: 180) }
+                                    if step.subsystem == .tsql { TextField("Database", text: $wizardSteps[index].database) }
+                                    TextField("Command", text: $wizardSteps[index].command, axis: .vertical).lineLimit(2...5)
+                                    HStack { TextField("Run As (Proxy)", text: $wizardSteps[index].proxyName); TextField("Output file", text: $wizardSteps[index].outputFile); Toggle("Append", isOn: $wizardSteps[index].appendOutput) }
+                                    HStack { Picker("On success", selection: $wizardSteps[index].onSuccess) { ForEach(StepActionChoice.allCases) { Text($0.rawValue).tag($0) } } ; if step.onSuccess == .goToStep { TextField("Step ID", value: $wizardSteps[index].onSuccessGoTo, formatter: NumberFormatter()).frame(width: 80) } }
+                                    HStack { Picker("On failure", selection: $wizardSteps[index].onFail) { ForEach(StepActionChoice.allCases) { Text($0.rawValue).tag($0) } } ; if step.onFail == .goToStep { TextField("Step ID", value: $wizardSteps[index].onFailGoTo, formatter: NumberFormatter()).frame(width: 80) } }
+                                    HStack { TextField("Retry attempts", value: $wizardSteps[index].retryAttempts, formatter: NumberFormatter()).frame(width: 120); TextField("Retry interval (min)", value: $wizardSteps[index].retryInterval, formatter: NumberFormatter()).frame(width: 160) }
+                                    HStack { Button("Remove", role: .destructive) { wizardSteps.remove(at: index); if let sid = startStepId, sid > wizardSteps.count { startStepId = wizardSteps.count } } ; Spacer() }
+                                }
+                                .padding(8)
+                                .background(Color.primary.opacity(0.03))
+                                .cornerRadius(8)
+                            }
+                        }
+                    }
+                    HStack { Button("Add step") { wizardSteps.append(WizardStep(name: "Step \(wizardSteps.count+1)")) } ; Spacer() }
+                    HStack { Text("Start step ID: "); TextField("", value: Binding(get: { startStepId ?? 1 }, set: { startStepId = $0 }), formatter: NumberFormatter()).frame(width: 60) }
+                }
+                .tabItem { Text("Steps") }
+
+                // Schedules
+                VStack(alignment: .leading, spacing: 10) {
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 10) {
+                            ForEach(Array(wizardSchedules.enumerated()), id: \.element.id) { index, sch in
+                                VStack(alignment: .leading, spacing: 6) {
+                                    HStack { TextField("Name", text: $wizardSchedules[index].name); Toggle("Enabled", isOn: $wizardSchedules[index].enabled) }
+                                    Picker("Mode", selection: $wizardSchedules[index].mode) { ForEach(ScheduleMode.allCases) { Text($0.rawValue).tag($0) } }
+                                    HStack { TextField("Start time (HHMMSS)", text: $wizardSchedules[index].startHHMMSS).frame(width: 120); TextField("End time (HHMMSS)", text: $wizardSchedules[index].endHHMMSS).frame(width: 120) }
+                                    HStack { TextField("Start date (YYYYMMDD)", text: $wizardSchedules[index].startDateYYYYMMDD).frame(width: 150); TextField("End date (YYYYMMDD)", text: $wizardSchedules[index].endDateYYYYMMDD).frame(width: 150) }
+                                    if wizardSchedules[index].mode == .daily {
+                                        HStack { Text("Every"); TextField("Days", value: $wizardSchedules[index].everyDays, formatter: NumberFormatter()).frame(width: 60); Text("days") }
+                                    } else if wizardSchedules[index].mode == .weekly {
+                                        HStack { Text("Every"); TextField("Weeks", value: $wizardSchedules[index].weeklyEveryWeeks, formatter: NumberFormatter()).frame(width: 60); Text("weeks on:") }
+                                        HStack { ForEach(WeeklyDayChoice.allCases) { day in Toggle(day.rawValue, isOn: Binding(get: { wizardSchedules[index].weeklyDays.contains(day) }, set: { checked in if checked { wizardSchedules[index].weeklyDays.insert(day) } else { wizardSchedules[index].weeklyDays.remove(day) } })) } }
+                                    } else if wizardSchedules[index].mode == .monthly {
+                                        HStack { Text("Day"); TextField("", value: $wizardSchedules[index].everyDays, formatter: NumberFormatter()).frame(width: 60); Text("of every"); TextField("", value: $wizardSchedules[index].weeklyEveryWeeks, formatter: NumberFormatter()).frame(width: 60); Text("month(s)") }
+                                    } else if wizardSchedules[index].mode == .monthlyRelative {
+                                        HStack { Picker("Week", selection: $wizardSchedules[index].weeklyEveryWeeks) { Text("First").tag(1); Text("Second").tag(2); Text("Third").tag(3); Text("Fourth").tag(4); Text("Last").tag(5) } ; Picker("Day", selection: Binding(get: { wizardSchedules[index].weeklyDays.first ?? .monday }, set: { wizardSchedules[index].weeklyDays = [$0] })) { ForEach(WeeklyDayChoice.allCases) { Text($0.rawValue).tag($0) } } ; Text("of every"); TextField("", value: $wizardSchedules[index].everyDays, formatter: NumberFormatter()).frame(width: 60); Text("month(s)") }
+                                    }
+                                    Divider()
+                                    Text("Subday frequency").font(.subheadline)
+                                    HStack { Text("Occurs every"); TextField("", value: $wizardSchedules[index].subdayInterval, formatter: NumberFormatter()).frame(width: 80); Picker("", selection: $wizardSchedules[index].subdayUnit) { Text("(none)").tag(0); Text("Minutes").tag(4); Text("Hours").tag(8) }.pickerStyle(.segmented).frame(width: 240) }
+                                    HStack { Button("Remove", role: .destructive) { wizardSchedules.remove(at: index) } ; Spacer() }
+                                }
+                                .padding(8)
+                                .background(Color.primary.opacity(0.03))
+                                .cornerRadius(8)
+                            }
+                        }
+                    }
+                    HStack { Button("Add schedule") { wizardSchedules.append(WizardSchedule()) } ; Spacer() }
+                }
+                .tabItem { Text("Schedules") }
+
+                // Notifications
+                VStack(alignment: .leading, spacing: 10) {
+                    TextField("Operator name", text: $notifyOperatorName)
+                    Picker("Notify", selection: $notifyLevel) { ForEach(NotifyLevel.allCases) { Text($0.rawValue).tag($0) } }
+                }
+                .tabItem { Text("Notifications") }
+            }
+            HStack { Spacer(); Button("Cancel") { showNewJobSheet = false }; Button("Create") { Task { await createJobWithBuilder() } }.keyboardShortcut(.defaultAction) }
+        }
+        .padding(20)
+        .frame(minWidth: 720, minHeight: 520)
+        .onAppear {
+            // Default owner to current login if blank
+            if newJobOwner.isEmpty, let session = selectedSession {
+                Task {
+                    do {
+                        let rs = try await session.session.simpleQuery("SELECT SUSER_SNAME() AS name;")
+                        let idx = rs.columns.firstIndex { $0.name.caseInsensitiveCompare("name") == .orderedSame } ?? 0
+                        let val = rs.rows.first?[safe: idx] ?? ""
+                        await MainActor.run { newJobOwner = val ?? "" }
+                    } catch { /* ignore */ }
                 }
             }
         }
@@ -540,97 +562,6 @@ struct AgentSidebarView: View {
             .foregroundStyle(.secondary)
             .padding(.horizontal, 16)
             .padding(.vertical, 2)
-    }
-
-    private func createJob() async {
-        guard let session = selectedSession else { return }
-        let name = newJobName.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !name.isEmpty else { newJobError = "Job name is required"; return }
-        func esc(_ s: String) -> String { s.replacingOccurrences(of: "'", with: "''") }
-        newJobError = nil
-        // Preflight Agent
-        do {
-            let status = try await session.session.simpleQuery("""
-                SELECT CAST(ISNULL(SERVERPROPERTY('IsSqlAgentEnabled'),0) AS INT) AS is_enabled,
-                       COALESCE((SELECT TOP (1) CASE WHEN status_desc='Running' THEN 1 ELSE 0 END FROM sys.dm_server_services WHERE servicename LIKE 'SQL Server Agent%'),0) AS is_running
-            """)
-            let enIdx = status.columns.firstIndex { $0.name.caseInsensitiveCompare("is_enabled") == .orderedSame } ?? 0
-            let rnIdx = status.columns.firstIndex { $0.name.caseInsensitiveCompare("is_running") == .orderedSame } ?? 1
-            let row = status.rows.first ?? []
-            let enabled = (row[safe: enIdx] ?? "0") == "1"
-            let running = (row[safe: rnIdx] ?? "0") == "1"
-            if !(enabled && running) {
-                newJobError = "SQL Server Agent is not running or Agent XPs are disabled."
-                return
-            }
-        } catch {
-            newJobError = error.localizedDescription
-            return
-        }
-
-        do {
-            // Ensure category exists if provided
-            let trimmedCategory = newJobCategory.trimmingCharacters(in: .whitespacesAndNewlines)
-            if !trimmedCategory.isEmpty {
-                let exists = try await session.session.simpleQuery("SELECT 1 FROM msdb.dbo.syscategories WHERE [class]=1 AND name = N'\(esc(trimmedCategory))'")
-                if exists.rows.isEmpty {
-                    _ = try await session.session.simpleQuery("EXEC msdb.dbo.sp_add_category @class = N'JOB', @type = N'LOCAL', @name = N'\(esc(trimmedCategory))';")
-                }
-            }
-
-            // Create job
-            var addJob = "EXEC msdb.dbo.sp_add_job @job_name = N'\(esc(name))', @enabled = \(newJobEnabled ? 1 : 0)"
-            if !newJobDescription.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { addJob += ", @description = N'\(esc(newJobDescription))'" }
-            if !newJobOwner.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { addJob += ", @owner_login_name = N'\(esc(newJobOwner))'" }
-            if !trimmedCategory.isEmpty { addJob += ", @category_name = N'\(esc(trimmedCategory))'" }
-            addJob += ";"
-            _ = try await session.session.simpleQuery(addJob)
-
-            // Attach to server
-            _ = try? await session.session.simpleQuery("EXEC msdb.dbo.sp_add_jobserver @job_name = N'\(esc(name))';")
-
-            // Resolve job_id
-            let lookup = try await session.session.simpleQuery("SELECT CONVERT(nvarchar(36), job_id) AS job_id FROM msdb.dbo.sysjobs WHERE name = N'\(esc(name))'")
-            let jobIdIndex = lookup.columns.firstIndex { $0.name.caseInsensitiveCompare("job_id") == .orderedSame } ?? 0
-            let jobID = lookup.rows.first?[safe: jobIdIndex] ?? ""
-
-            // Optional initial step
-            let stepCmd = newStepCommand.trimmingCharacters(in: .whitespacesAndNewlines)
-            if !stepCmd.isEmpty {
-                var addStep = "EXEC msdb.dbo.sp_add_jobstep @job_id = N'\(jobID)', @step_name = N'\(esc(newStepName.isEmpty ? "Step 1" : newStepName))', @subsystem = N'TSQL', @command = N'\(esc(stepCmd))'"
-                if !newStepDatabase.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { addStep += ", @database_name = N'\(esc(newStepDatabase))'" }
-                addStep += ";"
-                _ = try await session.session.simpleQuery(addStep)
-                // Set start step to 1 if not specified
-                _ = try? await session.session.simpleQuery("EXEC msdb.dbo.sp_update_job @job_id = N'\(jobID)', @start_step_id = 1;")
-            }
-
-            // Optional schedule (daily)
-            if addDailySchedule {
-                let startTime = Int(scheduleStartHHMMSS.filter({ $0.isNumber })) ?? 90000
-                let interval = Int(scheduleInterval) ?? 1
-                let schedName = scheduleName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Daily" : scheduleName
-                _ = try await session.session.simpleQuery("EXEC msdb.dbo.sp_add_schedule @schedule_name = N'\(esc(schedName))', @enabled = \(scheduleEnabled ? 1 : 0), @freq_type = 4, @freq_interval = \(interval), @active_start_time = \(startTime);")
-                let sLookup = try await session.session.simpleQuery("SELECT schedule_id FROM msdb.dbo.sysschedules WHERE name = N'\(esc(schedName))'")
-                let sIdx = sLookup.columns.firstIndex { $0.name.caseInsensitiveCompare("schedule_id") == .orderedSame } ?? 0
-                if let schedID = sLookup.rows.first?[safe: sIdx], !schedID.isEmpty {
-                    _ = try await session.session.simpleQuery("EXEC msdb.dbo.sp_attach_schedule @job_id = N'\(jobID)', @schedule_id = \(schedID);")
-                }
-            }
-
-            await MainActor.run {
-                showNewJobSheet = false
-                // reset fields
-                newJobName = ""; newJobDescription = ""; newJobEnabled = true
-                newJobOwner = ""; newJobCategory = ""
-                newStepName = "Step 1"; newStepDatabase = ""; newStepCommand = ""
-                addDailySchedule = false; scheduleName = "Daily"; scheduleEnabled = true; scheduleStartHHMMSS = "090000"; scheduleInterval = "1"
-                appModel.openJobManagementTab(for: session, selectJobID: jobID)
-            }
-            await viewModel.reload(for: selectedSession)
-        } catch {
-            await MainActor.run { newJobError = String(describing: error) }
-        }
     }
 
     // New builder-based creation path (uses wizard when provided, falls back to simple fields)

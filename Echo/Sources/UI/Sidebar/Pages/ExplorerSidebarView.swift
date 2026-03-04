@@ -10,6 +10,10 @@ private final class ExplorerDebugLogState {
 struct ExplorerSidebarView: View {
     @Binding var selectedConnectionID: UUID?
 
+    @Environment(ProjectStore.self) private var projectStore
+    @Environment(ConnectionStore.self) private var connectionStore
+    @Environment(NavigationStore.self) private var navigationStore
+    
     @EnvironmentObject private var appModel: AppModel
     @EnvironmentObject private var appState: AppState
 
@@ -27,8 +31,7 @@ struct ExplorerSidebarView: View {
     @State private var pinnedObjectIDsByDatabase: [String: Set<String>] = [:]
     @State private var pinnedSectionExpandedByDatabase: [String: Bool] = [:]
     @State private var searchDebounceTask: Task<Void, Never>?
-    // Control visibility of Connected Servers section
-    // Set to false to hide the section (future: make this user-configurable)
+    
     private let showConnectedServersSection = false
 
     private var sessions: [ConnectionSession] { appModel.sessionManager.sessions }
@@ -62,13 +65,6 @@ struct ExplorerSidebarView: View {
                                         .id(ExplorerSidebarConstants.connectedServersAnchor)
 
                                     connectedServersList
-                                        .background(
-                                            GeometryReader { geo in
-                                                Color.clear.onAppear {
-                                                    connectedServersHeight = geo.size.height
-                                                }
-                                            }
-                                        )
                                 } header: {
                                     SidebarSectionHeader(title: "Connected Servers")
                                 }
@@ -97,13 +93,11 @@ struct ExplorerSidebarView: View {
                     }
                     .onAppear(perform: syncSelectionWithSessions)
                     .onChange(of: sessions.map { $0.connection.id }) { _, _ in
-                        ConnectionDebug.log("[ExplorerSidebar] sessions changed; syncing selection")
                         syncSelectionWithSessions()
                     }
                     .onChange(of: selectedConnectionID) { _, newValue in
                         guard let id = newValue,
                               let session = appModel.sessionManager.sessionForConnection(id) else { return }
-                        ConnectionDebug.log("[ExplorerSidebar] selectedConnectionID=\(id) -> session=\(session.connection.connectionName)")
                         appModel.sessionManager.setActiveSession(session.id)
                         ensureServerExpanded(for: id)
                         resetFilters(for: session)
@@ -114,8 +108,6 @@ struct ExplorerSidebarView: View {
                         }
                     }
                     .onChange(of: selectedSession?.selectedDatabaseName) { _, _ in
-                        let db = selectedSession?.selectedDatabaseName ?? "<nil>"
-                        ConnectionDebug.log("[ExplorerSidebar] selectedDatabaseName changed -> \(db)")
                         let hasDatabase = selectedSession?.selectedDatabaseName != nil
                         if !hasDatabase {
                             withAnimation(.easeInOut(duration: 0.3)) {
@@ -174,11 +166,11 @@ struct ExplorerSidebarView: View {
             }
             .onAppear {
                 debouncedSearchText = searchText
-                if let focus = appModel.pendingExplorerFocus {
+                if let focus = navigationStore.pendingExplorerFocus {
                     handleExplorerFocus(focus, proxy: proxy)
                 }
             }
-            .onChange(of: appModel.pendingExplorerFocus) { _, focus in
+            .onChange(of: navigationStore.pendingExplorerFocus) { _, focus in
                 guard let focus else { return }
                 handleExplorerFocus(focus, proxy: proxy)
             }
@@ -192,8 +184,6 @@ struct ExplorerSidebarView: View {
                 .allowsHitTesting(false)
         )
     }
-
-    // MARK: - Connection Management
 
     private func connectToSavedConnection(_ connection: SavedConnection) async {
         await MainActor.run {
@@ -221,7 +211,7 @@ struct ExplorerSidebarView: View {
                         appState.showSheet(.connectionEditor)
                     }
 
-                    if !appModel.connections.isEmpty {
+                    if !connectionStore.connections.isEmpty {
                         Divider()
                         Menu("Saved Connections") {
                             savedConnectionsMenuItems(parentID: nil)
@@ -246,24 +236,13 @@ struct ExplorerSidebarView: View {
                     )
                 }
                 .menuStyle(.borderlessButton)
-
-                VStack(spacing: 12) {
-                    Image(systemName: "externaldrive")
-                        .font(.system(size: 26, weight: .semibold))
-                        .foregroundStyle(.secondary)
-                    Text("No connected servers")
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.center)
-                }
-                .frame(maxWidth: .infinity, alignment: .center)
             }
             .frame(maxWidth: .infinity, alignment: .center)
             .padding(.vertical, 32)
         } else {
             VStack(alignment: .leading, spacing: 4) {
                 ForEach(sessions, id: \.connection.id) { session in
-                    LiquidGlassServerCard(
+                    ConnectedServerCard(
                         session: session,
                         isSelected: session.connection.id == selectedConnectionID,
                         isExpanded: Binding(
@@ -276,86 +255,16 @@ struct ExplorerSidebarView: View {
                                 }
                             }
                         ),
+                        showCurrentDatabase: true,
                         onSelectServer: {
-                            let isExpandedNow = expandedConnectedServerIDs.contains(session.connection.id)
-                            withAnimation(.easeInOut(duration: 0.3)) {
-                                if isExpandedNow {
-                                    isHoveringConnectedServers = true
-                                } else if selectedSession?.selectedDatabaseName == nil {
-                                    isHoveringConnectedServers = true
-                                } else {
-                                    isHoveringConnectedServers = false
-                                }
-                            }
-                            if selectedConnectionID != session.connection.id {
-                                selectSession(session)
-                            }
+                            selectSession(session)
                         },
-                        onSelectDatabase: { database in
+                        onPickDatabase: { database in
                             handleDatabaseSelection(database, in: session)
-                        },
-                        onRefresh: {
-                            withAnimation(.easeInOut(duration: 0.3)) {
-                                isHoveringConnectedServers = true
-                                expandedConnectedServerIDs.insert(session.connection.id)
-                            }
-                            Task {
-                                await appModel.refreshDatabaseStructure(for: session.id, scope: .full)
-                            }
-                        },
-                        onDisconnect: {
-                            Task {
-                                await appModel.disconnectSession(withID: session.id)
-                            }
                         }
                     )
                     .environmentObject(appModel)
                 }
-
-                Menu {
-                    Button("New Connection…") {
-                        appState.showSheet(.connectionEditor)
-                    }
-
-                    if !appModel.connections.isEmpty {
-                        Divider()
-                        Menu("Saved Connections") {
-                            savedConnectionsMenuItems(parentID: nil)
-                        }
-                    }
-                } label: {
-                    HStack(spacing: 12) {
-                        Image(systemName: "server.rack")
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundStyle(sessionAccentColor)
-                            .frame(width: 20, height: 20)
-                            .background(
-                                Circle()
-                                    .fill(sessionAccentColor.opacity(0.18))
-                            )
-                        Text("Connect to Server")
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundStyle(.primary)
-                        Spacer()
-                        Image(systemName: "chevron.down")
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundStyle(.secondary)
-                    }
-                    .padding(.horizontal, 18)
-                    .padding(.vertical, 12)
-                    .background(
-                        RoundedRectangle(cornerRadius: 14, style: .continuous)
-                            .fill(.ultraThinMaterial)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                    .stroke(sessionAccentColor.opacity(0.25), lineWidth: 1)
-                            )
-                    )
-                    .shadow(color: .black.opacity(0.12), radius: 12, x: 0, y: 6)
-                }
-                .menuStyle(.borderlessButton)
-                .frame(maxWidth: .infinity)
-                .padding(.horizontal, 12)
             }
             .padding(.horizontal, 12)
         }
@@ -473,7 +382,7 @@ struct ExplorerSidebarView: View {
         session: ConnectionSession,
         database: DatabaseInfo
     ) -> some View {
-        let accentColor = appModel.globalSettings.useServerColorAsAccent ? session.connection.color : Color.accentColor
+        let accentColor = projectStore.globalSettings.useServerColorAsAccent ? session.connection.color : Color.accentColor
         let controlBackground = Color.primary.opacity(0.04)
         let borderColor = Color.primary.opacity(0.08)
         let availableSchemas = database.schemas.filter { !$0.objects.isEmpty }
@@ -488,12 +397,6 @@ struct ExplorerSidebarView: View {
         }()
         let schemaDisplayName = schemaPresentation.displayName
         let currentSchemaSelection = schemaPresentation.selectedName
-        if let selected = selectedSchemaName,
-           !availableSchemas.contains(where: { $0.name == selected }) {
-            DispatchQueue.main.async {
-                self.selectedSchemaName = nil
-            }
-        }
 
         let shouldShowSchemaPicker = !availableSchemas.isEmpty && !isSearchFieldFocused
         let creationOptions = creationOptions(for: session.connection.databaseType)
@@ -595,11 +498,8 @@ struct ExplorerSidebarView: View {
                 .transition(.opacity)
             }
         }
-        .animation(.easeInOut(duration: 0.18), value: isSearchFieldFocused)
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
-        .animation(.easeInOut(duration: 0.2), value: shouldShowSchemaPicker)
-        .animation(.easeInOut(duration: 0.2), value: isSearchFieldFocused)
     }
 
     private func creationOptions(for databaseType: DatabaseType) -> [ExplorerCreationMenuItem] {
@@ -639,32 +539,12 @@ struct ExplorerSidebarView: View {
     private func selectedDatabase(in structure: DatabaseStructure, for session: ConnectionSession) -> DatabaseInfo? {
         if let selectedName = session.selectedDatabaseName,
            let match = structure.databases.first(where: { $0.name == selectedName }) {
-            if ConnectionDebug.isEnabled {
-                let last = ExplorerDebugLogState.shared.lastDatabaseBySession[session.id]
-                if last != selectedName {
-                    ExplorerDebugLogState.shared.lastDatabaseBySession[session.id] = selectedName
-                    ConnectionDebug.log("[ExplorerSidebar] Matched selected database=\(selectedName) for session=\(session.connection.connectionName)")
-                }
-            }
             return match
         }
 
         if !session.connection.database.isEmpty,
            let match = structure.databases.first(where: { $0.name == session.connection.database }) {
-            if ConnectionDebug.isEnabled {
-                let candidate = session.connection.database
-                let last = ExplorerDebugLogState.shared.lastDatabaseBySession[session.id]
-                if last != candidate {
-                    ExplorerDebugLogState.shared.lastDatabaseBySession[session.id] = candidate
-                    ConnectionDebug.log("[ExplorerSidebar] Falling back to connection database=\(candidate) for session=\(session.connection.connectionName)")
-                }
-            }
             return match
-        }
-
-        if ConnectionDebug.isEnabled {
-            let available = structure.databases.map(\.name)
-            ConnectionDebug.log("[ExplorerSidebar] No database match for session=\(session.connection.connectionName). selected=\(session.selectedDatabaseName ?? "<nil>") connectionDefault=\(session.connection.database) available=\(available)")
         }
         return nil
     }
@@ -677,7 +557,6 @@ struct ExplorerSidebarView: View {
 
     private func handleDatabaseSelection(_ databaseName: String, in session: ConnectionSession) {
         Task { @MainActor in
-            ConnectionDebug.log("[ExplorerSidebar] handleDatabaseSelection selected=\(databaseName) session=\(session.connection.connectionName)")
             await appModel.loadSchemaForDatabase(databaseName, connectionSession: session)
             selectedConnectionID = session.connection.id
             ensureServerExpanded(for: session.connection.id)
@@ -773,21 +652,6 @@ struct ExplorerSidebarView: View {
         }
     }
 
-    private func expansionBinding(for connectionID: UUID) -> Binding<Bool> {
-        Binding(
-            get: { expandedServerIDs.contains(connectionID) },
-            set: { newValue in
-                withAnimation(.spring(response: 0.32, dampingFraction: 0.85)) {
-                    if newValue {
-                        expandedServerIDs.insert(connectionID)
-                    } else {
-                        expandedServerIDs.remove(connectionID)
-                    }
-                }
-            }
-        )
-    }
-
     private func loadingPlaceholder(_ message: String) -> some View {
         VStack(spacing: 12) {
             ProgressView()
@@ -857,8 +721,6 @@ struct ExplorerSidebarView: View {
         await appModel.refreshDatabaseStructure(for: session.id)
     }
 
-    // MARK: - Sticky Top Bar
-
     @ViewBuilder
     private func stickyTopBar() -> some View {
         if let session = selectedSession, let databaseName = session.selectedDatabaseName {
@@ -880,7 +742,6 @@ struct ExplorerSidebarView: View {
                         expandedConnectedServerIDs.insert(session.connection.id)
                     }
                     Task {
-                        ConnectionDebug.log("[ExplorerSidebar] manual refresh for session=\(session.connection.connectionName) db=\(session.selectedDatabaseName ?? "<nil>")")
                         await appModel.refreshDatabaseStructure(
                             for: session.id,
                             scope: .selectedDatabase,
@@ -894,14 +755,13 @@ struct ExplorerSidebarView: View {
     }
 }
 
-// MARK: - Sticky Top Bar Content
-
 private struct StickyTopBarContent: View {
     @ObservedObject var session: ConnectionSession
     let databaseName: String
     let onTap: () -> Void
     let onRefresh: () -> Void
 
+    @Environment(ProjectStore.self) private var projectStore
     @EnvironmentObject private var appModel: AppModel
     @State private var isHovered = false
 
@@ -927,7 +787,6 @@ private struct StickyTopBarContent: View {
         Button(action: onTap) {
             VStack(alignment: .leading, spacing: isUpdating ? 12 : 0) {
                 HStack(spacing: 12) {
-                    // Server logo/icon
                     if let logoData = session.connection.logo, let nsImage = NSImage(data: logoData) {
                         Image(nsImage: nsImage)
                             .resizable()
@@ -973,7 +832,6 @@ private struct StickyTopBarContent: View {
 
                     Spacer()
 
-                    // Refresh button (visible on hover)
                     if isHovered {
                         Button(action: {
                             onRefresh()
@@ -991,7 +849,6 @@ private struct StickyTopBarContent: View {
                         .transition(.scale.combined(with: .opacity))
                     }
 
-                    // Database bubble with context menu
                     Text(databaseName)
                         .font(.system(size: 10, weight: .medium))
                         .foregroundStyle(.primary)
@@ -1038,7 +895,7 @@ private struct StickyTopBarContent: View {
             .background(
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
                     .fill(
-                        appModel.globalSettings.useServerColorAsAccent ?
+                        projectStore.globalSettings.useServerColorAsAccent ?
                         LinearGradient(
                             gradient: Gradient(colors: [
                                 Color(nsColor: .controlBackgroundColor).opacity(0.85),
@@ -1061,7 +918,7 @@ private struct StickyTopBarContent: View {
             .overlay(
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
                     .strokeBorder(
-                        appModel.globalSettings.useServerColorAsAccent ?
+                        projectStore.globalSettings.useServerColorAsAccent ?
                         session.connection.color.opacity(0.15) :
                         Color.primary.opacity(0.08),
                         lineWidth: 0.5
@@ -1091,15 +948,13 @@ private enum ExplorerSidebarConstants {
     static let bottomControlHeight: CGFloat = 20
 }
 
-// MARK: - Saved Connections Menu
-
 extension ExplorerSidebarView {
     private func savedConnectionsMenuItems(parentID: UUID?) -> AnyView {
-        let folders = appModel.folders
+        let folders = connectionStore.folders
             .filter { $0.kind == .connections && $0.parentFolderID == parentID }
             .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
 
-        let connections = appModel.connections
+        let connections = connectionStore.connections
             .filter { $0.folderID == parentID }
             .sorted { $0.connectionName.localizedCaseInsensitiveCompare($1.connectionName) == .orderedAscending }
 
@@ -1126,8 +981,6 @@ extension ExplorerSidebarView {
     }
 }
 
-// MARK: - Explorer Focus Handling
-
 extension ExplorerSidebarView {
     private func handleExplorerFocus(_ focus: ExplorerFocus, proxy: ScrollViewProxy) {
         Task {
@@ -1139,7 +992,7 @@ extension ExplorerSidebarView {
         guard let session = await MainActor.run(body: {
             appModel.sessionManager.sessionForConnection(focus.connectionID)
         }) else {
-            await MainActor.run { appModel.pendingExplorerFocus = nil }
+            await MainActor.run { navigationStore.pendingExplorerFocus = nil }
             return
         }
 
@@ -1160,13 +1013,13 @@ extension ExplorerSidebarView {
         guard let refreshedSession = await MainActor.run(body: {
             appModel.sessionManager.sessionForConnection(focus.connectionID)
         }) else {
-            await MainActor.run { appModel.pendingExplorerFocus = nil }
+            await MainActor.run { navigationStore.pendingExplorerFocus = nil }
             return
         }
 
         await MainActor.run {
             applyExplorerFocus(focus, session: refreshedSession, proxy: proxy)
-            appModel.pendingExplorerFocus = nil
+            navigationStore.pendingExplorerFocus = nil
         }
     }
 
@@ -1199,8 +1052,6 @@ extension ExplorerSidebarView {
         }
     }
 }
-
-// MARK: - Auxiliary Controls
 
 private struct ExplorerFooterSearchField: View {
     @Binding var text: String
@@ -1369,9 +1220,6 @@ private struct ExplorerSidebarFocusResetter: NSViewRepresentable {
         }
 
         @MainActor deinit {
-            // Remove the local event monitor synchronously during deinit.
-            // Capturing `self` weakly in an async Task during deallocation
-            // can trigger: "Cannot form weak reference to instance ... It is possible that this object was over-released, or is in the process of deallocation."
             removeMonitor()
         }
 
@@ -1428,452 +1276,6 @@ private struct ExplorerSidebarFocusResetter: View {
     }
 }
 #endif
-
-// MARK: - Liquid Glass Server Card
-
-private struct LiquidGlassServerCard: View {
-    let session: ConnectionSession
-    let isSelected: Bool
-    @Binding var isExpanded: Bool
-    let onSelectServer: () -> Void
-    let onSelectDatabase: (String) -> Void
-    let onRefresh: () -> Void
-    let onDisconnect: () -> Void
-
-    @EnvironmentObject private var appModel: AppModel
-    @State private var isHovered = false
-
-    private var availableDatabases: [DatabaseInfo] {
-        if let structure = session.databaseStructure {
-            return structure.databases
-        }
-        if let cached = session.connection.cachedStructure {
-            return cached.databases
-        }
-        return []
-    }
-
-    private var progressValue: Double? {
-        if case .loading(let value) = session.structureLoadingState {
-            return value
-        }
-        return nil
-    }
-
-    private var isUpdating: Bool {
-        if case .loading = session.structureLoadingState {
-            return true
-        }
-        return false
-    }
-
-    private var shouldShowUpdateIndicator: Bool { isUpdating }
-
-    var body: some View {
-        VStack(spacing: 0) {
-            Button {
-                let targetExpanded = !isExpanded
-                withAnimation(.spring(response: 0.32, dampingFraction: 0.85)) {
-                    isExpanded = targetExpanded
-                }
-                onSelectServer()
-            } label: {
-                cardContent
-            }
-            .buttonStyle(.plain)
-            .onHover { hovering in
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    isHovered = hovering
-                }
-            }
-            .contextMenu {
-                Button {
-                    onRefresh()
-                } label: {
-                    Label("Refresh", systemImage: "arrow.clockwise")
-                }
-                Button {
-                    onDisconnect()
-                } label: {
-                    Label("Disconnect", systemImage: "bolt.slash")
-                }
-                Divider()
-                if !availableDatabases.isEmpty {
-                    ForEach(availableDatabases, id: \.name) { database in
-                        Button {
-                            onSelectDatabase(database.name)
-                        } label: {
-                            Label(database.name, systemImage: "database")
-                        }
-                    }
-                }
-            }
-
-            // Expanded database list
-            if isExpanded && !availableDatabases.isEmpty {
-                databaseList
-                    .transition(.opacity.combined(with: .scale(scale: 0.98, anchor: .top)))
-            }
-        }
-        .onChange(of: session.structureLoadingState) { _, newValue in
-            if case .loading = newValue, isSelected, !isExpanded {
-                withAnimation(.spring(response: 0.32, dampingFraction: 0.85)) {
-                    isExpanded = true
-                }
-            }
-        }
-    }
-
-    @ViewBuilder
-    private var cardContent: some View {
-        VStack(alignment: .leading, spacing: shouldShowUpdateIndicator ? 12 : 0) {
-            HStack(spacing: 12) {
-                connectionIcon
-                connectionInfo
-                Spacer(minLength: 8)
-                if isHovered || isUpdating {
-                    refreshButton
-                }
-                databaseSelector
-            }
-
-            if shouldShowUpdateIndicator {
-                updatingIndicator
-                    .transition(.opacity.combined(with: .move(edge: .bottom)))
-            }
-        }
-        .padding(.horizontal, 14)
-        .padding(.vertical, shouldShowUpdateIndicator ? 16 : 12)
-        .background(cardBackground)
-        .shadow(color: .black.opacity(0.15), radius: 20, x: 0, y: 8)
-        .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
-        .animation(.easeInOut(duration: 0.2), value: shouldShowUpdateIndicator)
-    }
-
-    @ViewBuilder
-    private var updatingIndicator: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            if let progressValue {
-                ProgressView(value: min(max(progressValue, 0), 1), total: 1)
-                    .progressViewStyle(.linear)
-                    .tint(session.connection.color)
-            } else {
-                ProgressView()
-                    .progressViewStyle(.linear)
-                    .tint(session.connection.color)
-            }
-            Text(session.structureLoadingMessage ?? "Updating…")
-                .font(.system(size: 10, weight: .medium))
-                .foregroundStyle(.secondary)
-        }
-    }
-
-    @ViewBuilder
-    private var connectionIcon: some View {
-        if let logoData = session.connection.logo, let nsImage = NSImage(data: logoData) {
-            Image(nsImage: nsImage)
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-                .frame(width: 28, height: 28)
-                .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
-        } else {
-            ZStack {
-                RoundedRectangle(cornerRadius: 6, style: .continuous)
-                    .fill(session.connection.color.opacity(0.15))
-                    .frame(width: 28, height: 28)
-                Image(session.connection.databaseType.iconName)
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: 13, height: 13)
-                    .foregroundStyle(session.connection.color)
-            }
-        }
-    }
-
-    @ViewBuilder
-    private var connectionInfo: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            HStack(spacing: 6) {
-                Text(session.connection.connectionName)
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(.primary)
-                    .lineLimit(1)
-
-                if let version = session.connection.serverVersion {
-                    Text("•")
-                        .font(.system(size: 10, weight: .medium))
-                        .foregroundStyle(.tertiary)
-                    Text(version)
-                        .font(.system(size: 10, weight: .medium))
-                        .foregroundStyle(.tertiary)
-                        .lineLimit(1)
-                }
-            }
-
-            Text("\(session.connection.username)@\(session.connection.host)")
-                .font(.system(size: 10, weight: .medium))
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-        }
-    }
-
-    @ViewBuilder
-    private var databaseSelector: some View {
-        if availableDatabases.count == 1 {
-            // Single database - show as selected bubble
-            if let currentDB = session.selectedDatabaseName {
-                selectedDatabaseBubble(currentDB)
-            }
-        } else if availableDatabases.count > 1 {
-            // Multiple databases - show count badge
-            Menu {
-                ForEach(availableDatabases, id: \.name) { database in
-                    Button(database.name) {
-                        onSelectDatabase(database.name)
-                    }
-                }
-            } label: {
-                HStack(spacing: 4) {
-                    Image(systemName: "cylinder.fill")
-                        .font(.system(size: 9, weight: .medium))
-                    Text("\(availableDatabases.count)")
-                        .font(.system(size: 10, weight: .semibold))
-                }
-                .foregroundStyle(.primary)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 5)
-                .background(
-                    Capsule()
-                        .fill(Color(nsColor: .controlBackgroundColor).opacity(0.6))
-                        .background(.ultraThinMaterial, in: Capsule())
-                )
-                .overlay(
-                    Capsule()
-                        .strokeBorder(session.connection.color.opacity(0.2), lineWidth: 0.5)
-                )
-                .shadow(color: session.connection.color.opacity(0.1), radius: 4, x: 0, y: 2)
-            }
-            .menuStyle(.borderlessButton)
-        }
-    }
-
-    private var refreshButton: some View {
-        Button(action: onRefresh) {
-            Image(systemName: "arrow.clockwise")
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(.secondary)
-                .frame(width: 22, height: 22)
-                .background(
-                    Circle()
-                        .fill(Color.primary.opacity(0.08))
-                )
-        }
-        .buttonStyle(.plain)
-    }
-
-    @ViewBuilder
-    private func selectedDatabaseBubble(_ databaseName: String) -> some View {
-        Text(databaseName)
-            .font(.system(size: 10, weight: .medium))
-            .foregroundStyle(.primary)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 5)
-            .background(
-                Capsule()
-                    .fill(Color(nsColor: .controlBackgroundColor).opacity(0.6))
-                    .background(.ultraThinMaterial, in: Capsule())
-            )
-            .overlay(
-                Capsule()
-                    .strokeBorder(session.connection.color.opacity(0.2), lineWidth: 0.5)
-            )
-            .shadow(color: session.connection.color.opacity(0.1), radius: 4, x: 0, y: 2)
-    }
-
-    @ViewBuilder
-    private var cardBackground: some View {
-        RoundedRectangle(cornerRadius: 14, style: .continuous)
-            .fill(
-                LinearGradient(
-                    gradient: Gradient(colors: [
-                        Color(nsColor: .controlBackgroundColor).opacity(0.85),
-                        Color(nsColor: .controlBackgroundColor).opacity(0.85)
-                    ]),
-                    startPoint: .leading,
-                    endPoint: .trailing
-                )
-            )
-            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .strokeBorder(Color.primary.opacity(0.08), lineWidth: 0.5)
-            )
-    }
-
-    @ViewBuilder
-    private var databaseList: some View {
-        VStack(spacing: 4) {
-            ForEach(availableDatabases, id: \.name) { database in
-                DatabaseBubble(
-                    database: database,
-                    isSelected: database.name == session.selectedDatabaseName,
-                    serverColor: session.connection.color,
-                    onSelect: { onSelectDatabase(database.name) },
-                    onRefresh: {
-                        Task {
-                            await appModel.refreshDatabaseStructure(
-                                for: session.id,
-                                scope: .selectedDatabase,
-                                databaseOverride: database.name
-                            )
-                        }
-                    }
-                )
-            }
-        }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 6)
-    }
-
-    private func databaseStats(for database: DatabaseInfo) -> (tables: Int, views: Int, functions: Int, triggers: Int) {
-        var tables = 0
-        var views = 0
-        var functions = 0
-        var triggers = 0
-
-        for schema in database.schemas {
-            for object in schema.objects {
-                switch object.type {
-                case .table:
-                    tables += 1
-                case .view, .materializedView:
-                    views += 1
-                case .function, .procedure:
-                    functions += 1
-                case .trigger:
-                    triggers += 1
-                }
-            }
-        }
-
-        return (tables, views, functions, triggers)
-    }
-}
-
-// MARK: - Database Bubble
-
-private struct DatabaseBubble: View {
-    let database: DatabaseInfo
-    let isSelected: Bool
-    let serverColor: Color
-    let onSelect: () -> Void
-    let onRefresh: () -> Void
-
-    @State private var isHovered = false
-
-    private var stats: (tables: Int, views: Int, functions: Int, triggers: Int) {
-        var tables = 0
-        var views = 0
-        var functions = 0
-        var triggers = 0
-
-        for schema in database.schemas {
-            for object in schema.objects {
-                switch object.type {
-                case .table:
-                    tables += 1
-                case .view, .materializedView:
-                    views += 1
-                case .function, .procedure:
-                    functions += 1
-                case .trigger:
-                    triggers += 1
-                }
-            }
-        }
-
-        return (tables, views, functions, triggers)
-    }
-
-    var body: some View {
-        Button(action: onSelect) {
-            VStack(alignment: .leading, spacing: 4) {
-                HStack(spacing: 8) {
-                    Circle()
-                        .fill(serverColor)
-                        .frame(width: 6, height: 6)
-                    Text(database.name)
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundStyle(isSelected ? serverColor : .primary)
-                        .lineLimit(1)
-                    Spacer()
-                    if isSelected {
-                        Image(systemName: "checkmark.circle.fill")
-                            .font(.system(size: 12))
-                            .foregroundStyle(serverColor)
-                    }
-                }
-
-                // Stats row
-                HStack(spacing: 10) {
-                    StatBadge(icon: "tablecells", count: stats.tables, color: .blue)
-                    StatBadge(icon: "eye", count: stats.views, color: .purple)
-                    StatBadge(icon: "function", count: stats.functions, color: .orange)
-                    StatBadge(icon: "bolt", count: stats.triggers, color: .yellow)
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
-            .background(
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .fill(
-                        isSelected
-                            ? serverColor.opacity(0.16)
-                            : (isHovered ? Color.primary.opacity(0.05) : Color.clear)
-                    )
-            )
-        }
-        .buttonStyle(.plain)
-        .contentShape(Rectangle())
-        .contextMenu {
-            Button {
-                onRefresh()
-            } label: {
-                Label("Refresh", systemImage: "arrow.clockwise")
-            }
-            Button {
-                onSelect()
-            } label: {
-                Label("Connect", systemImage: "bolt.horizontal.circle")
-            }
-        }
-        .onHover { hovering in
-            isHovered = hovering
-        }
-    }
-}
-
-// MARK: - Stat Badge
-
-private struct StatBadge: View {
-    let icon: String
-    let count: Int
-    let color: Color
-
-    var body: some View {
-        HStack(spacing: 3) {
-            Image(systemName: icon)
-                .font(.system(size: 9, weight: .medium))
-                .foregroundStyle(color)
-            Text("\(count)")
-                .font(.system(size: 10, weight: .medium))
-                .foregroundStyle(.secondary)
-        }
-    }
-}
-
-// MARK: - Legacy Connected Server Card (keeping for reference)
 
 private struct ConnectedServerCard: View {
     let session: ConnectionSession
@@ -2022,8 +1424,6 @@ private struct ConnectedServerCard: View {
     }
 }
 
-// MARK: - Database Card
-
 private struct CompactDatabaseCard: View {
     let database: DatabaseInfo
     let isSelected: Bool
@@ -2092,8 +1492,6 @@ private struct CompactDatabaseCard: View {
         }
     }
 }
-
-// MARK: - Loading Overlay
 
 private struct ExplorerLoadingOverlay: View {
     let progress: Double?

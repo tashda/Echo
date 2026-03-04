@@ -2,6 +2,7 @@ import SwiftUI
 import Foundation
 
 struct DiagramSettingsView: View {
+    @Environment(ProjectStore.self) private var projectStore
     @EnvironmentObject private var appModel: AppModel
     @EnvironmentObject private var themeManager: ThemeManager
     @State private var cacheUsage: UInt64 = 0
@@ -27,7 +28,7 @@ struct DiagramSettingsView: View {
         .task {
             await refreshUsage()
         }
-        .task(id: appModel.globalSettings.diagramCacheMaxBytes) {
+        .task(id: projectStore.globalSettings.diagramCacheMaxBytes) {
             await refreshUsage()
         }
     }
@@ -105,18 +106,22 @@ struct DiagramSettingsView: View {
 
     private var prefetchBinding: Binding<DiagramPrefetchMode> {
         Binding(
-            get: { appModel.globalSettings.diagramPrefetchMode },
+            get: { projectStore.globalSettings.diagramPrefetchMode },
             set: { newValue in
-                Task { await appModel.updateGlobalEditorDisplay { $0.diagramPrefetchMode = newValue } }
+                var settings = projectStore.globalSettings
+                settings.diagramPrefetchMode = newValue
+                Task { try? await projectStore.updateGlobalSettings(settings) }
             }
         )
     }
 
     private var refreshCadenceBinding: Binding<DiagramRefreshCadence> {
         Binding(
-            get: { appModel.globalSettings.diagramRefreshCadence },
+            get: { projectStore.globalSettings.diagramRefreshCadence },
             set: { newValue in
-                Task { await appModel.updateGlobalEditorDisplay { $0.diagramRefreshCadence = newValue } }
+                var settings = projectStore.globalSettings
+                settings.diagramRefreshCadence = newValue
+                Task { try? await projectStore.updateGlobalSettings(settings) }
             }
         )
     }
@@ -124,9 +129,11 @@ struct DiagramSettingsView: View {
     // Toggle: Verify cached diagram data before refreshing.
     private var verifyBinding: Binding<Bool> {
         Binding(
-            get: { appModel.globalSettings.diagramVerifyBeforeRefresh },
+            get: { projectStore.globalSettings.diagramVerifyBeforeRefresh },
             set: { newValue in
-                Task { await appModel.updateGlobalEditorDisplay { $0.diagramVerifyBeforeRefresh = newValue } }
+                var settings = projectStore.globalSettings
+                settings.diagramVerifyBeforeRefresh = newValue
+                Task { try? await projectStore.updateGlobalSettings(settings) }
             }
         )
     }
@@ -134,18 +141,22 @@ struct DiagramSettingsView: View {
     // Toggle: Render relationships in very large diagrams.
     private var renderRelationshipsBinding: Binding<Bool> {
         Binding(
-            get: { appModel.globalSettings.diagramRenderRelationshipsForLargeDiagrams },
+            get: { projectStore.globalSettings.diagramRenderRelationshipsForLargeDiagrams },
             set: { newValue in
-                Task { await appModel.updateGlobalEditorDisplay { $0.diagramRenderRelationshipsForLargeDiagrams = newValue } }
+                var settings = projectStore.globalSettings
+                settings.diagramRenderRelationshipsForLargeDiagrams = newValue
+                Task { try? await projectStore.updateGlobalSettings(settings) }
             }
         )
     }
 
     private var cacheLimitBinding: Binding<Int> {
         Binding(
-            get: { appModel.globalSettings.diagramCacheMaxBytes },
+            get: { projectStore.globalSettings.diagramCacheMaxBytes },
             set: { newValue in
-                Task { await appModel.updateGlobalEditorDisplay { $0.diagramCacheMaxBytes = max(64 * 1_024 * 1_024, newValue) } }
+                var settings = projectStore.globalSettings
+                settings.diagramCacheMaxBytes = max(64 * 1_024 * 1_024, newValue)
+                Task { try? await projectStore.updateGlobalSettings(settings) }
             }
         )
     }

@@ -5,6 +5,11 @@ struct DatabaseSidebarView: View {
     let icon: String
     let title: String
     let description: String
+    
+    @Environment(ProjectStore.self) private var projectStore
+    @Environment(ConnectionStore.self) private var connectionStore
+    @Environment(NavigationStore.self) private var navigationStore
+    
     @State private var selectedSection: Section = .agent
 
     enum Section: String, CaseIterable, Identifiable {
@@ -15,6 +20,13 @@ struct DatabaseSidebarView: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            header
+                .padding(.horizontal, 16)
+                .padding(.top, 12)
+                .padding(.bottom, 8)
+            
+            Divider()
+            
             HStack {
                 Picker("", selection: $selectedSection) {
                     ForEach(Section.allCases) { s in
@@ -35,5 +47,16 @@ struct DatabaseSidebarView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
+    }
+    
+    private var header: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title)
+                .font(.headline)
+            Text(description)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }

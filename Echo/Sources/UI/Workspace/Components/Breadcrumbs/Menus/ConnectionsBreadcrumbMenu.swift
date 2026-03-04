@@ -6,10 +6,11 @@ import AppKit
 
 struct ConnectionsBreadcrumbMenu: View {
     #if os(macOS)
+    @Environment(ConnectionStore.self) private var connectionStore
     @EnvironmentObject private var appModel: AppModel
 
     var body: some View {
-        NativeConnectionsBreadcrumbMenu(appModel: appModel)
+        NativeConnectionsBreadcrumbMenu(connectionStore: connectionStore, appModel: appModel)
     }
     #else
     var body: some View {
@@ -20,10 +21,11 @@ struct ConnectionsBreadcrumbMenu: View {
 
 #if os(macOS)
 private struct NativeConnectionsBreadcrumbMenu: NSViewControllerRepresentable {
+    let connectionStore: ConnectionStore
     let appModel: AppModel
 
     func makeNSViewController(context: Context) -> ConnectionsPopoverController {
-        ConnectionsPopoverController(appModel: appModel)
+        ConnectionsPopoverController(connectionStore: connectionStore, appModel: appModel)
     }
 
     func updateNSViewController(_ nsViewController: ConnectionsPopoverController, context: Context) {

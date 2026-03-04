@@ -12,6 +12,9 @@ struct StreamingTestHarnessWindow: Scene {
     var body: some Scene {
         Window("Streaming Test Harness", id: Self.sceneID) {
             StreamingTestHarnessView()
+                .environment(AppCoordinator.shared.projectStore)
+                .environment(AppCoordinator.shared.connectionStore)
+                .environment(AppCoordinator.shared.navigationStore)
                 .environmentObject(AppCoordinator.shared.appModel)
                 .environmentObject(AppCoordinator.shared.themeManager)
         }
@@ -20,6 +23,10 @@ struct StreamingTestHarnessWindow: Scene {
 }
 
 private struct StreamingTestHarnessView: View {
+    @Environment(ProjectStore.self) private var projectStore
+    @Environment(ConnectionStore.self) private var connectionStore
+    @Environment(NavigationStore.self) private var navigationStore
+    
     @EnvironmentObject private var appModel: AppModel
     @EnvironmentObject private var themeManager: ThemeManager
     @ObservedObject private var coordinator = AppCoordinator.shared
@@ -300,7 +307,7 @@ private struct StreamingTestHarnessView: View {
         debugAggregator.reset()
         appendLog("[Start] Executing diagnostic query (\(sql.count) chars).", debug: false)
 
-        let initialBatchTarget = max(100, appModel.globalSettings.resultsInitialRowLimit)
+        let initialBatchTarget = max(100, projectStore.globalSettings.resultsInitialRowLimit)
         let newTracker = QueryPerformanceTracker(initialBatchTarget: initialBatchTarget)
         tracker = newTracker
         tracker.reset()
@@ -677,4 +684,48 @@ private struct StreamingReportSummary: View {
         return String(format: "%.2f s", time)
     }
 
+}
+
+private final class PreviewDatabaseSession: DatabaseSession, @unchecked Sendable {
+    func close() async {}
+
+    func simpleQuery(_ sql: String) async throws -> QueryResultSet {
+        QueryResultSet(columns: [])
+    }
+
+    func simpleQuery(_ sql: String, progressHandler: QueryProgressHandler?) async throws -> QueryResultSet {
+        try await simpleQuery(sql)
+    }
+
+    func listTablesAndViews(schema: String?) async throws -> [SchemaObjectInfo] {
+        []
+    }
+
+    func listDatabases() async throws -> [String] {
+        ["analytics"]
+    }
+
+    func listSchemas() async throws -> [String] {
+        ["public"]
+    }
+
+    func queryWithPaging(_ sql: String, limit: Int, offset: Int) async throws -> QueryResultSet {
+        try await simpleQuery(sql)
+    }
+
+    func getTableSchema(_ tableName: String, schemaName: String?) async throws -> [ColumnInfo] {
+        []
+    }
+
+    func getObjectDefinition(objectName: String, schemaName: String, objectType: SchemaObjectInfo.ObjectType) async throws -> String {
+        "-- preview definition"
+    }
+
+    func executeUpdate(_ sql: String) async throws -> Int {
+        0
+    }
+
+    func getTableStructureDetails(schema: String, table: String) async throws -> TableStructureDetails {
+        TableStructureDetails()
+    }
 }

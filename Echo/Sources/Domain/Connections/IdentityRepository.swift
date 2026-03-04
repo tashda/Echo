@@ -1,5 +1,6 @@
 import Foundation
 
+@MainActor
 final class IdentityRepository: IdentityRepositoryProtocol, @unchecked Sendable {
     private let keychain = KeychainHelper()
     
@@ -69,7 +70,7 @@ final class IdentityRepository: IdentityRepositoryProtocol, @unchecked Sendable 
         guard let config = resolveAuthenticationConfiguration(for: connection, overridePassword: overridePassword) else {
             return nil
         }
-        return ConnectionCredentials(username: config.username, password: config.password, database: connection.database)
+        return ConnectionCredentials(authentication: config)
     }
 
     func resolveAuthenticationConfiguration(for connection: SavedConnection, overridePassword: String?) -> DatabaseAuthenticationConfiguration? {

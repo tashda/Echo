@@ -5,6 +5,7 @@ import AppKit
 #endif
 
 struct ClipboardHistoryView: View {
+    @Environment(ProjectStore.self) private var projectStore
     @EnvironmentObject private var clipboardHistory: ClipboardHistoryStore
     #if os(macOS)
     @Environment(\.openWindow) private var openWindow

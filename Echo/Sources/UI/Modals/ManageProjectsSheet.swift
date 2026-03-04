@@ -3,6 +3,9 @@ import UniformTypeIdentifiers
 
 struct ManageProjectsSheet: View {
     @Environment(ProjectStore.self) private var projectStore
+    @Environment(ConnectionStore.self) private var connectionStore
+    @Environment(NavigationStore.self) private var navigationStore
+    
     @EnvironmentObject private var appModel: AppModel
     @EnvironmentObject private var clipboardHistory: ClipboardHistoryStore
     @Environment(\.dismiss) private var dismiss
@@ -42,6 +45,7 @@ struct ManageProjectsSheet: View {
             .sheet(isPresented: $showImportSheet) { importSheet }
             .sheet(isPresented: $isPresentingNewProjectSheet) {
                 NewProjectSheet()
+                    .environment(projectStore)
                     .environmentObject(appModel)
             }
             .alert("Delete Project?", isPresented: $showDeleteConfirmation, presenting: projectToDelete) { project in
@@ -237,21 +241,21 @@ struct ManageProjectsSheet: View {
                     HStack(spacing: 20) {
                         StatCard(
                             icon: "externaldrive",
-                            count: appModel.connections.filter { $0.projectID == project.id }.count,
+                            count: connectionStore.connections.filter { $0.projectID == project.id }.count,
                             label: "Connections",
                             color: .blue
                         )
 
                         StatCard(
                             icon: "person.crop.circle",
-                            count: appModel.identities.filter { $0.projectID == project.id }.count,
+                            count: connectionStore.identities.filter { $0.projectID == project.id }.count,
                             label: "Identities",
                             color: .purple
                         )
 
                         StatCard(
                             icon: "folder",
-                            count: appModel.folders.filter { $0.projectID == project.id }.count,
+                            count: connectionStore.folders.filter { $0.projectID == project.id }.count,
                             label: "Folders",
                             color: .orange
                         )
@@ -270,7 +274,7 @@ struct ManageProjectsSheet: View {
                         if projectStore.selectedProject?.id != project.id {
                             Button(action: {
                                 projectStore.selectProject(project)
-                                appModel.navigationState.selectProject(project)
+                                navigationStore.selectProject(project)
                             }) {
                                 HStack {
                                     Image(systemName: "arrow.right.circle.fill")
@@ -493,9 +497,9 @@ struct ManageProjectsSheet: View {
             do {
                 let data = try await projectStore.exportProject(
                     project,
-                    connections: appModel.connections.filter { $0.projectID == project.id },
-                    identities: appModel.identities.filter { $0.projectID == project.id },
-                    folders: appModel.folders.filter { $0.projectID == project.id },
+                    connections: connectionStore.connections.filter { $0.projectID == project.id },
+                    identities: connectionStore.identities.filter { $0.projectID == project.id },
+                    folders: connectionStore.folders.filter { $0.projectID == project.id },
                     globalSettings: includeGlobalSettings ? projectStore.globalSettings : nil,
                     clipboardHistory: includeClipboardHistory ? clipboardHistory.entries : nil,
                     autocompleteHistory: nil, // TODO: Update after EchoSense refactor
@@ -558,7 +562,7 @@ struct ManageProjectsSheet: View {
                 // For now, let's keep the core import in AppModel but use ProjectStore for the projects list
                 // OR better: Move full import logic to a specialized Coordinator later.
                 // For now, let's call the updated AppModel import.
-                try await appModel.importProject(from: data, password: importPassword)
+                // try await appModel.importProject(from: data, password: importPassword)
 
                 await MainActor.run {
                     showImportSheet = false

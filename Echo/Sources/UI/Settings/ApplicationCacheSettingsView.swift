@@ -6,6 +6,10 @@ import AppKit
 #endif
 
 struct ApplicationCacheSettingsView: View {
+    @Environment(ProjectStore.self) private var projectStore
+    @Environment(ConnectionStore.self) private var connectionStore
+    @Environment(TabStore.self) private var tabStore
+    
     @EnvironmentObject private var appModel: AppModel
     @EnvironmentObject private var appState: AppState
     @EnvironmentObject private var clipboardHistory: ClipboardHistoryStore
@@ -79,466 +83,47 @@ struct ApplicationCacheSettingsView: View {
         }
     }
 
-    private var workspaceTabSection: some View {
-        let tabs = appModel.tabManager.tabs
-        let totalBytes = tabs.reduce(0) { $0 + $1.estimatedMemoryUsageBytes() }
-        let formatter = ByteCountFormatter()
-        formatter.allowedUnits = [.useBytes, .useKB, .useMB, .useGB]
-        formatter.countStyle = .memory
-
-        return Section("Workspace Tabs") {
-            Toggle("Keep tabs in memory", isOn: keepTabsBinding)
-                .toggleStyle(.switch)
-
-            Text("Keeps each tab's editor and results view alive when switching. This speeds up tab changes at the cost of additional memory usage.")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-
-            if tabs.isEmpty {
-                Text("No tabs are currently open.")
-                    .font(.footnote)
-                    .foregroundStyle(.tertiary)
-                    .padding(.top, 4)
-            } else {
-                VStack(alignment: .leading, spacing: 8) {
-                    ForEach(tabs) { tab in
-                        TabMemoryRow(
-                            tab: tab,
-                            formatter: formatter,
-                            contextProvider: { tabMemoryContextLabel(for: $0) }
-                        )
-                    }
-
-                    Divider()
-
-                    HStack {
-                        Text("Total for open tabs")
-                            .font(.system(size: 12, weight: .semibold))
-                        Spacer()
-                        Text(formatter.string(fromByteCount: Int64(totalBytes)))
-                            .font(.system(size: 12, weight: .semibold))
-                    }
-                    .padding(.top, 2)
-                }
-                .padding(.top, 6)
-            }
-        }
-    }
-
-    private var resultCacheSection: some View {
-        Section("Result Cache") {
-            cacheLocationRow
-
-            Picker("Maximum storage", selection: resultCacheMaxBinding) {
-                ForEach(storageOptions(for: appModel.globalSettings.resultSpoolMaxBytes), id: \.self) { value in
-                    Text(ClipboardHistoryStore.formatByteCount(value)).tag(value)
-                }
-            }
-            .frame(maxWidth: 320)
-
-            Stepper(value: resultCacheRetentionBinding, in: 1...(24 * 14)) {
-                let hours = appModel.globalSettings.resultSpoolRetentionHours
-                let days = Double(hours) / 24.0
-                let formattedDays = String(format: "%.1f", days)
-                Text("Retention: \(hours) hour\(hours == 1 ? "" : "s") (~\(formattedDays) days)")
-            }
-
-            VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    Text("Current usage")
-                    Spacer()
-                    if isRefreshingResultCache {
-                        ProgressView()
-                            .controlSize(.small)
-                            .progressViewStyle(.circular)
-                            .frame(width: 18, height: 18)
-                            .frame(minWidth: 18, idealWidth: 18, maxWidth: 18, minHeight: 18, idealHeight: 18, maxHeight: 18)
-                            .fixedSize()
-                    } else {
-                        Text(formatByteCount(resultCacheUsage))
-                            .font(.system(size: 12, weight: .semibold))
-                    }
-                }
-
-                Text("Echo stores streamed query results on disk so large result sets stay fast and light on memory. Change the limits above to tune cache size and automatic cleanup.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            }
-
-            Button("Clear Result Cache", role: .destructive) {
-                clearResultCache()
-            }
-        }
-        .task(id: appModel.globalSettings.resultSpoolCustomLocation) {
-            await refreshResultCacheUsage()
-        }
-    }
-
-    private var autocompleteHistorySection: some View {
-        Section("EchoSense History") {
-            HStack {
-                Text("Stored suggestions")
-                Spacer()
-                if isRefreshingAutocompleteHistory {
-                    ProgressView()
-                        .controlSize(.small)
-                        .progressViewStyle(.circular)
-                        .frame(width: 18, height: 18)
-                        .frame(minWidth: 18, idealWidth: 18, maxWidth: 18, minHeight: 18, idealHeight: 18, maxHeight: 18)
-                        .fixedSize()
-                } else {
-                    Text(formatByteCount(autocompleteHistoryUsage))
-                        .font(.system(size: 12, weight: .semibold))
-                }
-            }
-
-            Text("Echo remembers the EchoSense suggestions you accept so the most relevant tables, columns, joins, and snippets appear first. History is stored locally on this Mac.")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-
-            HStack(spacing: 12) {
-                Button("Clear EchoSense History", role: .destructive) {
-                    clearAutocompleteHistory()
-                }
-                .buttonStyle(.bordered)
-
-                Button("Refresh Size") {
-                    Task { await refreshAutocompleteHistoryUsage() }
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(.accentColor)
-
-                Spacer()
-            }
-            .padding(.top, 6)
-        }
-    }
-
-    private func storageLimitSection(for store: ClipboardHistoryStore) -> some View {
-        let usage = store.formattedUsageBreakdown()
-        let options = storageOptions(for: store.storageLimit)
-
-        return Section("Storage Limit") {
-            Picker("Maximum storage", selection: storageLimitBinding(for: store)) {
-                ForEach(options, id: \.self) { value in
-                    Text(ClipboardHistoryStore.formatByteCount(value))
-                        .tag(value)
-                }
-            }
-            .frame(maxWidth: 320)
-
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Clipboard items persist until the storage limit is reached or you uninstall Echo.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-
-                usageView(usage)
-            }
-            .padding(.top, 8)
-        }
-    }
-
-    @ViewBuilder
-    private var cacheLocationRow: some View {
-        let url = resolvedResultCacheURL()
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(alignment: .firstTextBaseline) {
-                Text("Cache location")
-                Spacer()
-                Text(url.path)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .textSelection(.enabled)
-                    .lineLimit(2)
-            }
-
-#if os(macOS)
-            HStack(spacing: 12) {
-                Button("Change…") { presentResultCacheLocationPicker(current: url) }
-                Button("Reveal in Finder") { revealResultCacheLocation(url) }
-                if appModel.globalSettings.resultSpoolCustomLocation != nil {
-                    Button("Use Default") {
-                        Task { await appModel.updateGlobalEditorDisplay { $0.resultSpoolCustomLocation = nil } }
-                    }
-                }
-            }
-#endif
-        }
-    }
-
     private var resultCacheMaxBinding: Binding<Int> {
         Binding(
-            get: { appModel.globalSettings.resultSpoolMaxBytes },
+            get: { projectStore.globalSettings.resultSpoolMaxBytes },
             set: { newValue in
-                Task { await appModel.updateGlobalEditorDisplay { $0.resultSpoolMaxBytes = max(256 * 1_024 * 1_024, newValue) } }
-                Task { await refreshResultCacheUsage() }
+                var settings = projectStore.globalSettings
+                settings.resultSpoolMaxBytes = max(256 * 1_024 * 1_024, newValue)
+                Task { 
+                    try? await projectStore.updateGlobalSettings(settings)
+                    await refreshResultCacheUsage()
+                }
             }
         )
     }
 
     private var resultCacheRetentionBinding: Binding<Int> {
         Binding(
-            get: { appModel.globalSettings.resultSpoolRetentionHours },
+            get: { projectStore.globalSettings.resultSpoolRetentionHours },
             set: { newValue in
-                Task { await appModel.updateGlobalEditorDisplay { $0.resultSpoolRetentionHours = max(1, newValue) } }
+                var settings = projectStore.globalSettings
+                settings.resultSpoolRetentionHours = max(1, newValue)
+                Task { try? await projectStore.updateGlobalSettings(settings) }
             }
         )
     }
 
-    private func resolvedResultCacheURL() -> URL {
-        if let custom = appModel.globalSettings.resultSpoolCustomLocation,
-           !custom.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            return URL(fileURLWithPath: (custom as NSString).expandingTildeInPath, isDirectory: true)
-        }
-        return ResultSpoolManager.defaultRootDirectory()
-    }
-
-    private func refreshResultCacheUsage() async {
-        let shouldContinue = await MainActor.run { () -> Bool in
-            if isRefreshingResultCache { return false }
-            isRefreshingResultCache = true
-            return true
-        }
-        guard shouldContinue else { return }
-        let bytes = await appModel.resultSpoolManager.currentUsageBytes()
-        await MainActor.run {
-            self.resultCacheUsage = bytes
-            self.isRefreshingResultCache = false
-        }
-    }
-
-    private func clearResultCache() {
-        Task {
-            await appModel.resultSpoolManager.clearAll()
-            await refreshResultCacheUsage()
-        }
-    }
-
-    private func clearAutocompleteHistory() {
-        SQLAutoCompletionHistoryStore.shared.reset()
-        autocompleteHistoryUsage = 0
-    }
-
-    private func refreshAutocompleteHistoryUsage() async {
-        let shouldContinue = await MainActor.run { () -> Bool in
-            if isRefreshingAutocompleteHistory { return false }
-            isRefreshingAutocompleteHistory = true
-            return true
-        }
-        guard shouldContinue else { return }
-
-        let usage = SQLAutoCompletionHistoryStore.shared.currentUsageBytes()
-        await MainActor.run {
-            autocompleteHistoryUsage = usage
-            isRefreshingAutocompleteHistory = false
-        }
-    }
-
-    private func formatByteCount(_ bytes: UInt64) -> String {
-        let formatter = ByteCountFormatter()
-        formatter.allowedUnits = [.useBytes, .useKB, .useMB, .useGB]
-        formatter.countStyle = .memory
-        return formatter.string(fromByteCount: Int64(bytes))
-    }
-
-#if os(macOS)
-    private func presentResultCacheLocationPicker(current: URL) {
-        let panel = NSOpenPanel()
-        panel.canChooseFiles = false
-        panel.canChooseDirectories = true
-        panel.allowsMultipleSelection = false
-        panel.prompt = "Choose"
-        panel.directoryURL = current
-        panel.title = "Select Result Cache Location"
-        if panel.runModal() == .OK, let selected = panel.url {
-            Task { await appModel.updateGlobalEditorDisplay { $0.resultSpoolCustomLocation = selected.path } }
-            Task { await refreshResultCacheUsage() }
-        }
-    }
-
-    private func revealResultCacheLocation(_ url: URL) {
-        NSWorkspace.shared.activateFileViewerSelecting([url])
-    }
-#endif
-
-    // Toggle: Keep editor/results views alive when switching tabs.
     private var keepTabsBinding: Binding<Bool> {
         Binding(
-            get: { appModel.globalSettings.keepTabsInMemory },
+            get: { projectStore.globalSettings.keepTabsInMemory },
             set: { newValue in
-                guard appModel.globalSettings.keepTabsInMemory != newValue else { return }
-                Task { await appModel.updateGlobalEditorDisplay { $0.keepTabsInMemory = newValue } }
+                guard projectStore.globalSettings.keepTabsInMemory != newValue else { return }
+                var settings = projectStore.globalSettings
+                settings.keepTabsInMemory = newValue
+                Task { try? await projectStore.updateGlobalSettings(settings) }
             }
         )
     }
-
-private func tabMemoryContextLabel(for tab: WorkspaceTab) -> String {
-        switch tab.kind {
-        case .query:
-            if let query = tab.query {
-                if query.isExecuting {
-                    return "Query (executing)"
-                }
-                let rowCount = max(query.rowProgress.totalReported, query.rowProgress.materialized)
-                if rowCount > 0 {
-                    return "Query results • \(rowCount) row\(rowCount == 1 ? "" : "s")"
-                }
-                return "Query editor"
-            }
-            return "Query editor"
-        case .structure:
-            if let editor = tab.structureEditor {
-                let columnCount = editor.columns.count
-                return "Structure • \(columnCount) column\(columnCount == 1 ? "" : "s")"
-            }
-            return "Structure editor"
-        case .diagram:
-            if let diagram = tab.diagram {
-                let tableCount = diagram.nodes.count
-                return "Diagram • \(tableCount) table\(tableCount == 1 ? "" : "s")"
-            }
-            return "Diagram"
-        case .jobManagement:
-            return "Jobs"
-        }
-    }
-
-    private var storageLocationSection: some View {
-        Section("Storage Location") {
-            Button(action: openHistoryFolder) {
-                HStack(alignment: .center, spacing: 12) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(historyDirectoryDisplayPath)
-                            .font(.system(size: 12, weight: .semibold))
-                            .textSelection(.enabled)
-
-                        Text("Open this folder in Finder to inspect or remove files manually.")
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                    }
-
-                    Spacer(minLength: 12)
-
-                    Image(systemName: "arrow.up.right.square")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(.secondary)
-                        .accessibilityHidden(true)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.vertical, 6)
-            }
-            .buttonStyle(.plain)
-            .contentShape(Rectangle())
-        }
-    }
-
-    private var historyDirectoryURL: URL {
-        let fm = FileManager.default
-        let baseSupport = (try? fm.url(
-            for: .applicationSupportDirectory,
-            in: .userDomainMask,
-            appropriateFor: nil,
-            create: true
-        )) ?? fm.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support", isDirectory: true)
-        return baseSupport
-            .appendingPathComponent("Echo", isDirectory: true)
-            .appendingPathComponent("ClipboardHistory", isDirectory: true)
-    }
-
-    private var historyDirectoryDisplayPath: String {
-        let fullPath = historyDirectoryURL.path
-        let homePath = FileManager.default.homeDirectoryForCurrentUser.path
-        if fullPath.hasPrefix(homePath) {
-            let suffix = fullPath.dropFirst(homePath.count)
-            return "~" + suffix
-        }
-        return fullPath
-    }
-
-    private func openHistoryFolder() {
-        let url = historyDirectoryURL
-        let fm = FileManager.default
-        if !fm.fileExists(atPath: url.path) {
-            try? fm.createDirectory(at: url, withIntermediateDirectories: true)
-        }
-        NSWorkspace.shared.activateFileViewerSelecting([url])
-    }
-
-    // Toggle: Enable/disable clipboard history capture (disabling clears stored entries).
-    private func clipboardEnabledBinding(for store: ClipboardHistoryStore) -> Binding<Bool> {
-        Binding(
-            get: { store.isEnabled },
-            set: { newValue in
-                if newValue {
-                    store.setEnabled(true)
-                } else {
-                    confirmDisableHistory = true
-                }
-            }
-        )
-    }
-
-    private func storageLimitBinding(for store: ClipboardHistoryStore) -> Binding<Int> {
-        Binding(
-            get: { store.storageLimit },
-            set: { store.updateStorageLimit($0) }
-        )
-    }
-
-    private func storageOptions(for limit: Int) -> [Int] {
-        var options = baseStorageOptions
-        if !options.contains(limit) {
-            options.append(limit)
-            options.sort()
-        }
-        return options
-    }
-
-    private func usageView(_ usageBreakdown: (total: String, query: String, grid: String)) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            LabeledContent("Used Total") {
-                Text(usageBreakdown.total)
-                    .monospacedDigit()
-            }
-
-            LabeledContent("Queries") {
-                Text(usageBreakdown.query)
-                    .monospacedDigit()
-            }
-
-            LabeledContent("Grid Data") {
-                Text(usageBreakdown.grid)
-                    .monospacedDigit()
-            }
-        }
-    }
-
-    // MARK: - Simplified Rows
-
-    private var workspaceTabToggleRow: some View {
-        ToggleWithInfo(
-            title: "Keep tabs in memory",
-            isOn: keepTabsBinding,
-            description: "Keeps each tab's editor and results view alive when switching. This speeds up tab changes at the cost of additional memory usage."
-        )
-    }
-
-    private var queryResultRetentionRow: some View {
-        Stepper(value: resultCacheRetentionBinding, in: 1...(24 * 14)) {
-            let hours = appModel.globalSettings.resultSpoolRetentionHours
-            let days = Double(hours) / 24.0
-            let formattedDays = String(format: "%.1f", days)
-            Text("Query Result Retention: \(hours) hour\(hours == 1 ? "" : "s") (~\(formattedDays) days)")
-        }
-    }
-
-    // MARK: - Storage Sections
 
     private var storageLimitsSection: some View {
         let store = clipboardHistory
 
         return Section("Storage") {
-            // Global maximum storage setting (only show when per-type is disabled)
             if !usePerTypeStorageLimits {
                 LabeledContent {
                     Picker("", selection: resultCacheMaxBinding) {
@@ -558,7 +143,6 @@ private func tabMemoryContextLabel(for tab: WorkspaceTab) -> String {
             Toggle("Set storage limits per cache type", isOn: $usePerTypeStorageLimits)
                 .toggleStyle(.switch)
 
-            // UI-only toggle: switches between unified vs per-type storage limit controls.
             if usePerTypeStorageLimits {
                 LabeledContent {
                     Picker("", selection: resultCacheMaxBinding) {
@@ -632,6 +216,56 @@ private func tabMemoryContextLabel(for tab: WorkspaceTab) -> String {
         }
     }
 
+    private var workspaceTabToggleRow: some View {
+        ToggleWithInfo(
+            title: "Keep tabs in memory",
+            isOn: keepTabsBinding,
+            description: "Keeps each tab's editor and results view alive when switching. This speeds up tab changes at the cost of additional memory usage."
+        )
+    }
+
+    private var queryResultRetentionRow: some View {
+        Stepper(value: resultCacheRetentionBinding, in: 1...(24 * 14)) {
+            let hours = projectStore.globalSettings.resultSpoolRetentionHours
+            let days = Double(hours) / 24.0
+            let formattedDays = String(format: "%.1f", days)
+            Text("Query Result Retention: \(hours) hour\(hours == 1 ? "" : "s") (~\(formattedDays) days)")
+        }
+    }
+
+    private func storageOptions(for limit: Int) -> [Int] {
+        var options = baseStorageOptions
+        if !options.contains(limit) {
+            options.append(limit)
+            options.sort()
+        }
+        return options
+    }
+
+    private func storageLimitBinding(for store: ClipboardHistoryStore) -> Binding<Int> {
+        Binding(
+            get: { store.storageLimit },
+            set: { store.updateStorageLimit($0) }
+        )
+    }
+
+    private func clearClipboardHistory() {
+        clipboardHistory.clearHistory()
+    }
+
+    private func clipboardEnabledBinding(for store: ClipboardHistoryStore) -> Binding<Bool> {
+        Binding(
+            get: { store.isEnabled },
+            set: { newValue in
+                if newValue {
+                    store.setEnabled(true)
+                } else {
+                    confirmDisableHistory = true
+                }
+            }
+        )
+    }
+
     private var unifiedStorageLocationRow: some View {
         UnifiedStorageLocationRow()
     }
@@ -645,7 +279,6 @@ private func tabMemoryContextLabel(for tab: WorkspaceTab) -> String {
         usageBreakdown: (total: String, query: String, grid: String)? = nil
     ) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            // Title and action buttons
             HStack {
                 Text(title)
                     .font(.system(size: 13, weight: .semibold))
@@ -654,7 +287,6 @@ private func tabMemoryContextLabel(for tab: WorkspaceTab) -> String {
                 Spacer()
 
                 HStack(spacing: 12) {
-                    // Current usage
                     if isRefreshing {
                         ProgressView()
                             .controlSize(.small)
@@ -666,7 +298,6 @@ private func tabMemoryContextLabel(for tab: WorkspaceTab) -> String {
                             .foregroundStyle(.secondary)
                     }
 
-                    // Refresh button
                     if let onRefresh = onRefresh {
                         Button(action: { Task { await onRefresh() } }) {
                             Image(systemName: "arrow.clockwise")
@@ -676,7 +307,6 @@ private func tabMemoryContextLabel(for tab: WorkspaceTab) -> String {
                         .buttonStyle(.plain)
                     }
 
-                    // Clear button
                     Button(action: onClear) {
                         Image(systemName: "trash")
                             .font(.system(size: 12, weight: .regular))
@@ -686,7 +316,6 @@ private func tabMemoryContextLabel(for tab: WorkspaceTab) -> String {
                 }
             }
 
-            // Usage breakdown for clipboard history
             if let breakdown = usageBreakdown {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Usage Breakdown")
@@ -721,13 +350,54 @@ private func tabMemoryContextLabel(for tab: WorkspaceTab) -> String {
         .padding(.vertical, 4)
     }
 
-    private func clearClipboardHistory() {
-        clipboardHistory.clearHistory()
+    private func formatByteCount(_ bytes: UInt64) -> String {
+        let formatter = ByteCountFormatter()
+        formatter.allowedUnits = [.useBytes, .useKB, .useMB, .useGB]
+        formatter.countStyle = .memory
+        return formatter.string(fromByteCount: Int64(bytes))
     }
 
-}
+    private func refreshResultCacheUsage() async {
+        let shouldContinue = await MainActor.run { () -> Bool in
+            if isRefreshingResultCache { return false }
+            isRefreshingResultCache = true
+            return true
+        }
+        guard shouldContinue else { return }
+        let bytes = await appModel.resultSpoolManager.currentUsageBytes()
+        await MainActor.run {
+            self.resultCacheUsage = bytes
+            self.isRefreshingResultCache = false
+        }
+    }
 
-// MARK: - Helper Components
+    private func clearResultCache() {
+        Task {
+            await appModel.resultSpoolManager.clearAll()
+            await refreshResultCacheUsage()
+        }
+    }
+
+    private func clearAutocompleteHistory() {
+        SQLAutoCompletionHistoryStore.shared.reset()
+        autocompleteHistoryUsage = 0
+    }
+
+    private func refreshAutocompleteHistoryUsage() async {
+        let shouldContinue = await MainActor.run { () -> Bool in
+            if isRefreshingAutocompleteHistory { return false }
+            isRefreshingAutocompleteHistory = true
+            return true
+        }
+        guard shouldContinue else { return }
+
+        let usage = SQLAutoCompletionHistoryStore.shared.currentUsageBytes()
+        await MainActor.run {
+            autocompleteHistoryUsage = usage
+            isRefreshingAutocompleteHistory = false
+        }
+    }
+}
 
 private struct UnifiedStorageLocationRow: View {
     private var storageLocation: URL {
@@ -773,8 +443,6 @@ private struct UnifiedStorageLocationRow: View {
     }
 }
 
-// MARK: - Toggle with Info Component
-
 private struct ToggleWithInfo: View {
     let title: String
     @Binding var isOn: Bool
@@ -811,32 +479,5 @@ private struct ToggleWithInfo: View {
                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
             }
         }
-    }
-}
-
-private struct TabMemoryRow: View {
-    @ObservedObject var tab: WorkspaceTab
-    let formatter: ByteCountFormatter
-    let contextProvider: (WorkspaceTab) -> String
-
-    var body: some View {
-        let bytes = tab.estimatedMemoryUsageBytes()
-
-        return HStack(alignment: .firstTextBaseline, spacing: 12) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(tab.title.isEmpty ? "Untitled" : tab.title)
-                    .font(.system(size: 13, weight: .semibold))
-                Text(contextProvider(tab))
-                    .font(.system(size: 12))
-                    .foregroundStyle(.secondary)
-            }
-
-            Spacer(minLength: 16)
-
-            Text(formatter.string(fromByteCount: Int64(bytes)))
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(.primary)
-        }
-        .padding(.vertical, 4)
     }
 }

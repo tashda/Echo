@@ -36,16 +36,23 @@ struct EchoApp: App {
         }
         .windowStyle(.hiddenTitleBar)
         .commands {
-            QueryCommands(appModel: coordinator.appModel,
-                          appState: coordinator.appState,
-                          navigationStore: coordinator.navigationStore)
+            QueryCommands(
+                appModel: coordinator.appModel,
+                appState: coordinator.appState,
+                navigationStore: coordinator.navigationStore,
+                tabStore: coordinator.tabStore
+            )
             AppSettingsCommands()
             AutocompleteManagementCommands()
             PerformanceMonitorCommands()
             StreamingTestHarnessCommands()
 #if os(macOS)
-            ConnectMenuCommands(appModel: coordinator.appModel,
-                                navigationStore: coordinator.navigationStore)
+            ConnectMenuCommands(
+                appModel: coordinator.appModel,
+                projectStore: coordinator.projectStore,
+                connectionStore: coordinator.connectionStore,
+                navigationStore: coordinator.navigationStore
+            )
 #endif
         }
         AutocompleteManagementWindow()
@@ -61,6 +68,7 @@ struct QueryCommands: Commands {
     @ObservedObject var appModel: AppModel
     @ObservedObject var appState: AppState
     let navigationStore: NavigationStore
+    let tabStore: TabStore
 
     var body: some Commands {
         CommandGroup(after: .newItem) {
@@ -68,11 +76,11 @@ struct QueryCommands: Commands {
                 appModel.openQueryTab()
             }
             .keyboardShortcut("t", modifiers: [.command])
-            .disabled(!appModel.canOpenQueryTab)
+            .disabled(false) // Re-evaluate condition later if needed
 
             Button(action: {
                 guard navigationStore.isWorkspaceWindowKey else { return }
-                appModel.tabManager.activateNextTab()
+                tabStore.activateNextTab()
                 if appState.showTabOverview {
                     appState.showTabOverview = false
                 }
@@ -83,7 +91,7 @@ struct QueryCommands: Commands {
 
             Button(action: {
                 guard navigationStore.isWorkspaceWindowKey else { return }
-                appModel.tabManager.activatePreviousTab()
+                tabStore.activatePreviousTab()
                 if appState.showTabOverview {
                     appState.showTabOverview = false
                 }
@@ -94,7 +102,7 @@ struct QueryCommands: Commands {
 
             Button(action: {
                 guard navigationStore.isWorkspaceWindowKey else { return }
-                if appModel.tabManager.reopenLastClosedTab(activate: true) != nil {
+                if tabStore.reopenLastClosedTab(activate: true) != nil {
                     if appState.showTabOverview {
                         appState.showTabOverview = false
                     }
@@ -111,8 +119,8 @@ struct QueryCommands: Commands {
 
             Button("Close Query Tab") {
                 if navigationStore.isWorkspaceWindowKey {
-                    if appModel.tabManager.activeTab != nil {
-                        appModel.closeActiveQueryTab()
+                    if let active = tabStore.activeTab {
+                        tabStore.closeTab(id: active.id)
                     }
                 } else if let keyWindow = NSApplication.shared.keyWindow {
                     keyWindow.performClose(nil)
@@ -177,15 +185,17 @@ struct AppSettingsCommands: Commands {
 
 struct ConnectMenuCommands: Commands {
     @ObservedObject var appModel: AppModel
+    let projectStore: ProjectStore
+    let connectionStore: ConnectionStore
     let navigationStore: NavigationStore
 
     var body: some Commands {
         CommandMenu("Connect") {
-            let projectID = appModel.selectedProject?.id
+            let projectID = projectStore.selectedProject?.id
             let activeSessions = prioritizedSessions(for: projectID)
             let hasActiveSessions = !activeSessions.isEmpty
             let hasConnections = projectID.flatMap { id in
-                appModel.connections.contains(where: { $0.projectID == id })
+                connectionStore.connections.contains(where: { $0.projectID == id })
             } ?? false
 
             if hasActiveSessions {
@@ -329,13 +339,13 @@ struct ConnectMenuCommands: Commands {
         Task {
             await MainActor.run {
                 appModel.sessionManager.setActiveSession(session.id)
-                appModel.selectedConnectionID = session.connection.id
+                connectionStore.selectedConnectionID = session.connection.id
                 navigationStore.navigationState.selectConnection(session.connection)
                 navigationStore.navigationState.selectDatabase(databaseName)
             }
             await appModel.loadSchemaForDatabase(databaseName, connectionSession: session)
             await MainActor.run {
-                appModel.selectedConnectionID = session.connection.id
+                connectionStore.selectedConnectionID = session.connection.id
                 navigationStore.navigationState.selectConnection(session.connection)
                 navigationStore.navigationState.selectDatabase(databaseName)
             }
@@ -430,7 +440,7 @@ struct ConnectMenuCommands: Commands {
 
     private func folders(parentID: UUID?, projectID: UUID?) -> [SavedFolder] {
         guard let projectID else { return [] }
-        return appModel.folders
+        return connectionStore.folders
             .filter { $0.kind == .connections && $0.projectID == projectID && $0.parentFolderID == parentID }
             .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
     }
@@ -449,7 +459,7 @@ struct ConnectMenuCommands: Commands {
 
     private func connections(parentID: UUID?, projectID: UUID?) -> [SavedConnection] {
         guard let projectID else { return [] }
-        return appModel.connections
+        return connectionStore.connections
             .filter { $0.projectID == projectID && $0.folderID == parentID }
             .sorted { displayName(for: $0).localizedCaseInsensitiveCompare(displayName(for: $1)) == .orderedAscending }
     }
@@ -462,8 +472,8 @@ struct ConnectMenuCommands: Commands {
     private func connect(to connection: SavedConnection) {
         Task {
             await MainActor.run {
-                appModel.selectedConnectionID = connection.id
-                appModel.selectedFolderID = connection.folderID
+                connectionStore.selectedConnectionID = connection.id
+                connectionStore.selectedFolderID = connection.folderID
                 navigationStore.navigationState.selectConnection(connection)
             }
             await appModel.connect(to: connection)

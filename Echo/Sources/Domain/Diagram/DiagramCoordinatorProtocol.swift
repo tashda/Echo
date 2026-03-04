@@ -7,4 +7,6 @@ protocol DiagramCoordinatorProtocol: AnyObject, Sendable {
     func hydrateCachedDiagram(from payload: DiagramCachePayload) -> SchemaDiagramViewModel
     func queueDiagramPrefetch(for object: SchemaObjectInfo, relatedKeys: [DiagramTableKey], projectID: UUID) async
     func handleDiagramSettingsChange(_ settings: GlobalSettings) async
+    func persistDiagramLayout(for viewModel: SchemaDiagramViewModel) async
+    func refreshDiagram(for viewModel: SchemaDiagramViewModel) async
 }

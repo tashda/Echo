@@ -19,7 +19,11 @@ struct ConnectionEditorView: View {
     ]
 
     @Environment(\.dismiss) private var dismiss
-    @EnvironmentObject private var appModel: AppModel
+    @Environment(ProjectStore.self) private var projectStore
+    @Environment(ConnectionStore.self) private var connectionStore
+    @Environment(NavigationStore.self) private var navigationStore
+    
+    @EnvironmentObject private var appModel: AppModel // Temporary bridge for actions
 
     @State private var selectedDatabaseType: DatabaseType
     @State private var connectionName: String
@@ -91,7 +95,7 @@ struct ConnectionEditorView: View {
     }
 
     private var sortedFolders: [SavedFolder] {
-        appModel.folders
+        connectionStore.folders
             .filter { $0.kind == .connections }
             .sorted { lhs, rhs in
                 folderDisplayName(lhs).localizedCaseInsensitiveCompare(folderDisplayName(rhs)) == .orderedAscending
@@ -99,7 +103,7 @@ struct ConnectionEditorView: View {
     }
 
     private var sortedIdentities: [SavedIdentity] {
-        appModel.identities.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+        connectionStore.identities.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
     }
 
     private var selectedIdentity: SavedIdentity? {
@@ -124,7 +128,7 @@ struct ConnectionEditorView: View {
 
     private var inheritedIdentity: SavedIdentity? {
         guard let folderID = folderID else { return nil }
-        return appModel.folderIdentity(for: folderID)
+        return appModel.identityRepository.resolveInheritedIdentity(folderID: folderID)
     }
 
     private var isFormValid: Bool {
@@ -172,7 +176,7 @@ struct ConnectionEditorView: View {
         .frame(width: 700, height: 550)
         .onAppear {
             if originalConnection == nil && folderID == nil {
-                folderID = appModel.selectedFolderID
+                folderID = connectionStore.selectedFolderID
             }
         }
         .onDisappear { cancelActiveTest() }
@@ -362,8 +366,8 @@ struct ConnectionEditorView: View {
                                 break
                             case .identity:
                                 password = ""
-                                if identityID == nil || !appModel.identities.contains(where: { $0.id == identityID }) {
-                                    identityID = appModel.identities.first?.id
+                                if identityID == nil || !connectionStore.identities.contains(where: { $0.id == identityID }) {
+                                    identityID = connectionStore.identities.first?.id
                                 }
                             case .inherit:
                                 password = ""
@@ -542,7 +546,7 @@ struct ConnectionEditorView: View {
 
         let connection = SavedConnection(
             id: originalConnection?.id ?? UUID(),
-            projectID: originalConnection?.projectID ?? appModel.selectedProject?.id,
+            projectID: originalConnection?.projectID ?? projectStore.selectedProject?.id,
             connectionName: connectionName.trimmingCharacters(in: .whitespacesAndNewlines),
             host: trimmedHost,
             port: sanitizedPort,
@@ -662,7 +666,7 @@ struct ConnectionEditorView: View {
 
         let connection = SavedConnection(
             id: originalConnection?.id ?? UUID(),
-            projectID: originalConnection?.projectID ?? appModel.selectedProject?.id,
+            projectID: originalConnection?.projectID ?? projectStore.selectedProject?.id,
             connectionName: connectionName,
             host: host,
             port: selectedDatabaseType == .sqlite ? 0 : port,
@@ -769,7 +773,7 @@ struct ConnectionEditorView: View {
 
         while let parentID = current.parentFolderID,
               !visited.contains(parentID),
-              let parent = appModel.folders.first(where: { $0.id == parentID }) {
+              let parent = connectionStore.folders.first(where: { $0.id == parentID }) {
             components.append(parent.name)
             current = parent
             visited.insert(parent.id)

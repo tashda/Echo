@@ -1,6 +1,7 @@
 import Foundation
 
-protocol IdentityRepositoryProtocol: Sendable {
+@MainActor
+protocol IdentityRepositoryProtocol: AnyObject, Sendable {
     func password(for connection: SavedConnection) -> String?
     func password(for identity: SavedIdentity) -> String?
     func password(for folder: SavedFolder) -> String?

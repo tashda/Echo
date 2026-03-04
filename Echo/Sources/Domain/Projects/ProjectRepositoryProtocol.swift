@@ -10,6 +10,12 @@ protocol ProjectRepositoryProtocol: Sendable {
     /// Saves the current list of projects to persistence.
     func saveProjects(_ projects: [Project]) async throws
     
+    /// Saves or updates a single project.
+    func saveProject(_ project: Project) async throws
+    
+    /// Deletes a project from persistence.
+    func deleteProject(_ project: Project) async throws
+    
     /// Loads the global application settings.
     func loadGlobalSettings() async throws -> GlobalSettings
     

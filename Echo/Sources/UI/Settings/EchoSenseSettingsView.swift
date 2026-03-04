@@ -6,16 +6,20 @@ import UIKit
 #endif
 
 struct EchoSenseSettingsView: View {
-    @EnvironmentObject private var appModel: AppModel
+    @Environment(ProjectStore.self) private var projectStore
+    @Environment(NavigationStore.self) private var navigationStore
     @EnvironmentObject private var appState: AppState
     @EnvironmentObject private var themeManager: ThemeManager
+    
     // Toggle: Include SQL keywords in EchoSense suggestions.
     private var suggestKeywordsBinding: Binding<Bool> {
         Binding(
-            get: { appModel.globalSettings.editorSuggestKeywords },
+            get: { projectStore.globalSettings.editorSuggestKeywords },
             set: { newValue in
-                guard appModel.globalSettings.editorSuggestKeywords != newValue else { return }
-                Task { await appModel.updateGlobalEditorDisplay { $0.editorSuggestKeywords = newValue } }
+                guard projectStore.globalSettings.editorSuggestKeywords != newValue else { return }
+                var settings = projectStore.globalSettings
+                settings.editorSuggestKeywords = newValue
+                Task { try? await projectStore.updateGlobalSettings(settings) }
             }
         )
     }
@@ -23,10 +27,12 @@ struct EchoSenseSettingsView: View {
     // Toggle: Show inline keyword previews while typing.
     private var inlineKeywordPreviewBinding: Binding<Bool> {
         Binding(
-            get: { appModel.globalSettings.editorEnableInlineSuggestions },
+            get: { projectStore.globalSettings.editorEnableInlineSuggestions },
             set: { newValue in
-                guard appModel.globalSettings.editorEnableInlineSuggestions != newValue else { return }
-                Task { await appModel.updateGlobalEditorDisplay { $0.editorEnableInlineSuggestions = newValue } }
+                guard projectStore.globalSettings.editorEnableInlineSuggestions != newValue else { return }
+                var settings = projectStore.globalSettings
+                settings.editorEnableInlineSuggestions = newValue
+                Task { try? await projectStore.updateGlobalSettings(settings) }
             }
         )
     }
@@ -34,10 +40,12 @@ struct EchoSenseSettingsView: View {
     // Toggle: Suggest SQL functions in completions.
     private var suggestFunctionsBinding: Binding<Bool> {
         Binding(
-            get: { appModel.globalSettings.editorSuggestFunctions },
+            get: { projectStore.globalSettings.editorSuggestFunctions },
             set: { newValue in
-                guard appModel.globalSettings.editorSuggestFunctions != newValue else { return }
-                Task { await appModel.updateGlobalEditorDisplay { $0.editorSuggestFunctions = newValue } }
+                guard projectStore.globalSettings.editorSuggestFunctions != newValue else { return }
+                var settings = projectStore.globalSettings
+                settings.editorSuggestFunctions = newValue
+                Task { try? await projectStore.updateGlobalSettings(settings) }
             }
         )
     }
@@ -45,10 +53,12 @@ struct EchoSenseSettingsView: View {
     // Toggle: Suggest saved snippets in completions.
     private var suggestSnippetsBinding: Binding<Bool> {
         Binding(
-            get: { appModel.globalSettings.editorSuggestSnippets },
+            get: { projectStore.globalSettings.editorSuggestSnippets },
             set: { newValue in
-                guard appModel.globalSettings.editorSuggestSnippets != newValue else { return }
-                Task { await appModel.updateGlobalEditorDisplay { $0.editorSuggestSnippets = newValue } }
+                guard projectStore.globalSettings.editorSuggestSnippets != newValue else { return }
+                var settings = projectStore.globalSettings
+                settings.editorSuggestSnippets = newValue
+                Task { try? await projectStore.updateGlobalSettings(settings) }
             }
         )
     }
@@ -56,10 +66,12 @@ struct EchoSenseSettingsView: View {
     // Toggle: Qualify table completions with schema names.
     private var qualifyTablesBinding: Binding<Bool> {
         Binding(
-            get: { appModel.globalSettings.editorQualifyTableCompletions },
+            get: { projectStore.globalSettings.editorQualifyTableCompletions },
             set: { newValue in
-                guard appModel.globalSettings.editorQualifyTableCompletions != newValue else { return }
-                Task { await appModel.updateGlobalEditorDisplay { $0.editorQualifyTableCompletions = newValue } }
+                guard projectStore.globalSettings.editorQualifyTableCompletions != newValue else { return }
+                var settings = projectStore.globalSettings
+                settings.editorQualifyTableCompletions = newValue
+                Task { try? await projectStore.updateGlobalSettings(settings) }
             }
         )
     }
@@ -67,10 +79,12 @@ struct EchoSenseSettingsView: View {
     // Toggle: Boost suggestions using previously accepted history.
     private var suggestHistoryBinding: Binding<Bool> {
         Binding(
-            get: { appModel.globalSettings.editorSuggestHistory },
+            get: { projectStore.globalSettings.editorSuggestHistory },
             set: { newValue in
-                guard appModel.globalSettings.editorSuggestHistory != newValue else { return }
-                Task { await appModel.updateGlobalEditorDisplay { $0.editorSuggestHistory = newValue } }
+                guard projectStore.globalSettings.editorSuggestHistory != newValue else { return }
+                var settings = projectStore.globalSettings
+                settings.editorSuggestHistory = newValue
+                Task { try? await projectStore.updateGlobalSettings(settings) }
             }
         )
     }
@@ -78,20 +92,24 @@ struct EchoSenseSettingsView: View {
     // Toggle: Suggest JOIN helpers based on schema relationships.
     private var suggestJoinsBinding: Binding<Bool> {
         Binding(
-            get: { appModel.globalSettings.editorSuggestJoins },
+            get: { projectStore.globalSettings.editorSuggestJoins },
             set: { newValue in
-                guard appModel.globalSettings.editorSuggestJoins != newValue else { return }
-                Task { await appModel.updateGlobalEditorDisplay { $0.editorSuggestJoins = newValue } }
+                guard projectStore.globalSettings.editorSuggestJoins != newValue else { return }
+                var settings = projectStore.globalSettings
+                settings.editorSuggestJoins = newValue
+                Task { try? await projectStore.updateGlobalSettings(settings) }
             }
         )
     }
 
     private var aggressivenessBinding: Binding<SQLCompletionAggressiveness> {
         Binding(
-            get: { appModel.globalSettings.editorCompletionAggressiveness },
+            get: { projectStore.globalSettings.editorCompletionAggressiveness },
             set: { newValue in
-                guard appModel.globalSettings.editorCompletionAggressiveness != newValue else { return }
-                Task { await appModel.updateGlobalEditorDisplay { $0.editorCompletionAggressiveness = newValue } }
+                guard projectStore.globalSettings.editorCompletionAggressiveness != newValue else { return }
+                var settings = projectStore.globalSettings
+                settings.editorCompletionAggressiveness = newValue
+                Task { try? await projectStore.updateGlobalSettings(settings) }
             }
         )
     }
@@ -99,10 +117,12 @@ struct EchoSenseSettingsView: View {
     // Toggle: Include system schemas in EchoSense suggestions.
     private var showSystemSchemasBinding: Binding<Bool> {
         Binding(
-            get: { appModel.globalSettings.editorShowSystemSchemas },
+            get: { projectStore.globalSettings.editorShowSystemSchemas },
             set: { newValue in
-                guard appModel.globalSettings.editorShowSystemSchemas != newValue else { return }
-                Task { await appModel.updateGlobalEditorDisplay { $0.editorShowSystemSchemas = newValue } }
+                guard projectStore.globalSettings.editorShowSystemSchemas != newValue else { return }
+                var settings = projectStore.globalSettings
+                settings.editorShowSystemSchemas = newValue
+                Task { try? await projectStore.updateGlobalSettings(settings) }
             }
         )
     }
@@ -110,10 +130,12 @@ struct EchoSenseSettingsView: View {
     // Toggle: Allow Command + Period to trigger suggestions.
     private var commandTriggerBinding: Binding<Bool> {
         Binding(
-            get: { appModel.globalSettings.editorAllowCommandPeriodTrigger },
+            get: { projectStore.globalSettings.editorAllowCommandPeriodTrigger },
             set: { newValue in
-                guard appModel.globalSettings.editorAllowCommandPeriodTrigger != newValue else { return }
-                Task { await appModel.updateGlobalEditorDisplay { $0.editorAllowCommandPeriodTrigger = newValue } }
+                guard projectStore.globalSettings.editorAllowCommandPeriodTrigger != newValue else { return }
+                var settings = projectStore.globalSettings
+                settings.editorAllowCommandPeriodTrigger = newValue
+                Task { try? await projectStore.updateGlobalSettings(settings) }
             }
         )
     }
@@ -121,10 +143,12 @@ struct EchoSenseSettingsView: View {
     // Toggle: Allow Control + Space to trigger suggestions.
     private var controlTriggerBinding: Binding<Bool> {
         Binding(
-            get: { appModel.globalSettings.editorAllowControlSpaceTrigger },
+            get: { projectStore.globalSettings.editorAllowControlSpaceTrigger },
             set: { newValue in
-                guard appModel.globalSettings.editorAllowControlSpaceTrigger != newValue else { return }
-                Task { await appModel.updateGlobalEditorDisplay { $0.editorAllowControlSpaceTrigger = newValue } }
+                guard projectStore.globalSettings.editorAllowControlSpaceTrigger != newValue else { return }
+                var settings = projectStore.globalSettings
+                settings.editorAllowControlSpaceTrigger = newValue
+                Task { try? await projectStore.updateGlobalSettings(settings) }
             }
         )
     }

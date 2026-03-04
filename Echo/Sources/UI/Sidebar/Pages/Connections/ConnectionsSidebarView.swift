@@ -4,6 +4,10 @@ import AppKit
 #endif
 
 struct ConnectionsSidebarView: View {
+    @Environment(ProjectStore.self) private var projectStore
+    @Environment(ConnectionStore.self) private var connectionStore
+    @Environment(NavigationStore.self) private var navigationStore
+    
     @EnvironmentObject private var appModel: AppModel
 
     @Binding var selectedConnectionID: UUID?
@@ -20,7 +24,8 @@ struct ConnectionsSidebarView: View {
     @State private var expandedFolders: Set<UUID> = []
     @State private var folderEditorState: FolderEditorState?
     @State private var pendingDeletion: DeletionTarget?
-    private var currentProjectID: UUID? { appModel.selectedProject?.id }
+    
+    private var currentProjectID: UUID? { projectStore.selectedProject?.id }
     private var trimmedSearch: String { searchText.trimmingCharacters(in: .whitespacesAndNewlines) }
     private var isSearching: Bool { !trimmedSearch.isEmpty }
 
@@ -61,13 +66,13 @@ struct ConnectionsSidebarView: View {
             Text("Are you sure you want to delete \(target.displayName)? This action cannot be undone.")
         }
         .onAppear(perform: syncExpandedFoldersFromModel)
-        .onChange(of: appModel.expandedConnectionFolderIDs) { _, newValue in
+        .onChange(of: connectionStore.expandedConnectionFolderIDs) { _, newValue in
             if newValue != expandedFolders {
                 expandedFolders = newValue
             }
         }
         .onChange(of: expandedFolders) { _, newValue in
-            appModel.updateExpandedConnectionFolders(newValue)
+            connectionStore.updateExpandedConnectionFolders(newValue)
         }
     }
 
@@ -126,7 +131,6 @@ struct ConnectionsSidebarView: View {
                     onDuplicate: { onDuplicateConnection(connection) },
                     onDelete: { pendingDeletion = .connection(connection) }
                 )
-                .environmentObject(appModel)
             }
 
             ForEach(groups) { group in
@@ -147,7 +151,6 @@ struct ConnectionsSidebarView: View {
                     onMoveConnection: onMoveConnection,
                     onMoveFolder: onMoveFolder
                 )
-                .environmentObject(appModel)
             }
         }
     }
@@ -155,20 +158,20 @@ struct ConnectionsSidebarView: View {
     // MARK: - Helpers
 
     private var selectedConnectionFolder: SavedFolder? {
-        guard let id = appModel.selectedFolderID else { return nil }
-        return appModel.folders.first { $0.id == id && $0.kind == .connections }
+        guard let id = connectionStore.selectedFolderID else { return nil }
+        return connectionStore.folders.first { $0.id == id && $0.kind == .connections }
     }
 
     private func selectConnection(_ connection: SavedConnection) {
         selectedIdentityID = nil
         selectedConnectionID = connection.id
-        appModel.selectedFolderID = nil
+        connectionStore.selectedFolderID = nil
     }
 
     private func selectFolder(_ folder: SavedFolder) {
         selectedIdentityID = nil
         selectedConnectionID = nil
-        appModel.selectedFolderID = folder.id
+        connectionStore.selectedFolderID = folder.id
     }
 
     private func openFolderCreator(parent: SavedFolder?) {
@@ -210,26 +213,26 @@ struct ConnectionsSidebarView: View {
         case .connection(let connection):
             Task { await appModel.deleteConnection(connection) }
         case .folder(let folder):
-            Task { await appModel.deleteFolder(folder) }
+            Task { try? await connectionStore.deleteFolder(folder) }
         case .identity:
             break
         }
     }
 
     private func syncExpandedFoldersFromModel() {
-        expandedFolders = appModel.expandedConnectionFolderIDs
+        expandedFolders = connectionStore.expandedConnectionFolderIDs
     }
 
     private func connections(in folderID: UUID?) -> [SavedConnection] {
         guard let projectID = currentProjectID else { return [] }
-        return appModel.connections
+        return connectionStore.connections
             .filter { $0.folderID == folderID && $0.projectID == projectID }
             .sorted { $0.connectionName.localizedCaseInsensitiveCompare($1.connectionName) == .orderedAscending }
     }
 
     private func buildGroups(parentID: UUID?, depth: Int) -> [ConnectionFolderGroup] {
         guard let projectID = currentProjectID else { return [] }
-        let folders = appModel.folders
+        let folders = connectionStore.folders
             .filter { $0.kind == .connections && $0.parentFolderID == parentID && $0.projectID == projectID }
             .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
 
@@ -313,14 +316,15 @@ private struct ConnectionFolderView: View {
     let onMoveFolder: (UUID, UUID?) -> Void
 
     @State private var isHovering = false
-    @EnvironmentObject private var appModel: AppModel
+    
+    @Environment(ConnectionStore.self) private var connectionStore
 
     private var isExpanded: Bool {
         isSearching || expandedFolders.contains(group.folder.id)
     }
 
     private var isSelected: Bool {
-        appModel.selectedFolderID == group.folder.id
+        connectionStore.selectedFolderID == group.folder.id
     }
 
     var body: some View {
@@ -347,7 +351,6 @@ private struct ConnectionFolderView: View {
                         onDuplicate: { onDuplicate(connection) },
                         onDelete: { onDelete(.connection(connection)) }
                     )
-                    .environmentObject(appModel)
                 }
 
                 ForEach(group.children) { child in
@@ -368,7 +371,6 @@ private struct ConnectionFolderView: View {
                         onMoveConnection: onMoveConnection,
                         onMoveFolder: onMoveFolder
                     )
-                    .environmentObject(appModel)
                 }
 
                 if group.connections.isEmpty && group.children.isEmpty {
@@ -475,12 +477,12 @@ private struct ConnectionListRow: View {
     let onDuplicate: () -> Void
     let onDelete: () -> Void
 
-    @EnvironmentObject private var appModel: AppModel
+    @Environment(ProjectStore.self) private var projectStore
     @Environment(\.colorScheme) private var colorScheme
     @State private var isHovering = false
 
     private var accentColor: Color {
-        appModel.globalSettings.useServerColorAsAccent ? connection.color : Color.accentColor
+        projectStore.globalSettings.useServerColorAsAccent ? connection.color : Color.accentColor
     }
 
     private var displayName: String {
