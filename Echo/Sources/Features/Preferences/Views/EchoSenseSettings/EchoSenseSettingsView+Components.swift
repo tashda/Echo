@@ -95,9 +95,15 @@ struct EchoSenseAggressivenessRow: View {
     @Binding var selection: SQLCompletionAggressiveness
     @State private var isPopoverPresented = false
 
+    private static let modeDescriptions: [(mode: SQLCompletionAggressiveness, summary: String)] = [
+        (.focused, "Only clause-relevant entries"),
+        (.balanced, "Mix with light fallbacks"),
+        (.eager, "Full list, generous suggestions"),
+    ]
+
     var body: some View {
         LabeledContent {
-            HStack(spacing: 8) {
+            HStack(spacing: SpacingTokens.xxs2) {
                 Picker("", selection: $selection) {
                     ForEach(SQLCompletionAggressiveness.allCases, id: \.self) { mode in
                         Text(mode.displayName).tag(mode)
@@ -109,14 +115,26 @@ struct EchoSenseAggressivenessRow: View {
                 Button(action: { isPopoverPresented.toggle() }) {
                     Image(systemName: "info.circle")
                         .imageScale(.medium)
-                        .font(TypographyTokens.standard.weight(.regular))
                 }
                 .buttonStyle(.plain)
                 .foregroundStyle(.secondary)
                 .popover(isPresented: $isPopoverPresented,
                          attachmentAnchor: .rect(.bounds),
                          arrowEdge: .trailing) {
-                    EchoSenseInfoPopover(topic: .aggressiveness)
+                    VStack(alignment: .leading, spacing: SpacingTokens.sm) {
+                        ForEach(Self.modeDescriptions, id: \.mode) { item in
+                            HStack(alignment: .top, spacing: SpacingTokens.xs) {
+                                Text(item.mode.displayName)
+                                    .font(TypographyTokens.standard.weight(.semibold))
+                                    .frame(width: 72, alignment: .leading)
+                                Text(item.summary)
+                                    .font(TypographyTokens.standard)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                    .padding(SpacingTokens.md)
+                    .frame(width: 320)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .trailing)
@@ -130,43 +148,12 @@ struct EchoSenseInfoPopover: View {
     let topic: EchoSenseInfoTopic
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text(topic.title)
-                .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(.primary)
-                .multilineTextAlignment(.leading)
-                .fixedSize(horizontal: false, vertical: true)
-            Text(topic.message)
-                .font(TypographyTokens.standard)
-                .foregroundStyle(.primary)
-                .multilineTextAlignment(.leading)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-        .padding(SpacingTokens.md)
-        .frame(width: preferredWidth)
-    }
-
-    private var preferredWidth: CGFloat {
-        let padding: CGFloat = 32
-        let minWidth: CGFloat = 320
-        let maxWidth: CGFloat = 440
-        let contentLimit = maxWidth - padding
-
-        let titleWidth = measuredWidth(for: topic.title, font: platformFont(size: 15, weight: .semibold), limit: contentLimit)
-        let messageWidth = measuredWidth(for: topic.message, font: platformFont(size: 13), limit: contentLimit)
-        let contentWidth = max(titleWidth, messageWidth)
-        return min(maxWidth, max(minWidth, contentWidth + padding))
-    }
-
-    private func platformFont(size: CGFloat, weight: NSFont.Weight = .regular) -> NSFont {
-        NSFont.systemFont(ofSize: size, weight: weight)
-    }
-
-    private func measuredWidth(for text: String, font: NSFont, limit: CGFloat) -> CGFloat {
-        guard !text.isEmpty else { return 0 }
-        let constraint = CGSize(width: limit, height: .greatestFiniteMagnitude)
-        let rect = NSAttributedString(string: text, attributes: [.font: font])
-            .boundingRect(with: constraint, options: [.usesLineFragmentOrigin, .usesFontLeading])
-        return ceil(rect.width)
+        Text(topic.message)
+            .font(TypographyTokens.standard)
+            .foregroundStyle(.primary)
+            .multilineTextAlignment(.leading)
+            .fixedSize(horizontal: false, vertical: true)
+            .padding(SpacingTokens.md)
+            .frame(width: 300)
     }
 }

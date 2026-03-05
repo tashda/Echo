@@ -11,37 +11,42 @@ struct QueryResultsSettingsView: View {
 
     var body: some View {
         Form {
-            Section("Foreign Keys") {
-                Picker("Foreign key cells", selection: displayModeBinding) {
-                    ForEach(ForeignKeyDisplayMode.allCases, id: \.self) { mode in
-                        Text(displayName(for: mode)).tag(mode)
-                    }
-                }
-                .pickerStyle(.segmented)
-
-                Text(displayDescription(for: selectedDisplayMode))
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-
-                if selectedDisplayMode != .disabled {
-                    Picker("Inspector behavior", selection: inspectorBehaviorBinding) {
-                        ForEach(ForeignKeyInspectorBehavior.allCases, id: \.self) { behavior in
-                            Text(behaviorDisplayName(for: behavior)).tag(behavior)
+            Section("Foreign Key Cells") {
+                SettingsRowWithInfo(
+                    title: "Cell behavior",
+                    description: displayDescription(for: selectedDisplayMode)
+                ) {
+                    Picker("", selection: displayModeBinding) {
+                        ForEach(ForeignKeyDisplayMode.allCases, id: \.self) { mode in
+                            Text(displayName(for: mode)).tag(mode)
                         }
                     }
-                    .pickerStyle(.inline)
+                    .labelsHidden()
+                    .pickerStyle(.segmented)
+                }
 
-                    Text(behaviorDescription(for: selectedBehavior))
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
+                if selectedDisplayMode == .showInspector {
+                    SettingsRowWithInfo(
+                        title: "Inspector behavior",
+                        description: behaviorDescription(for: selectedBehavior)
+                    ) {
+                        Picker("", selection: inspectorBehaviorBinding) {
+                            ForEach(ForeignKeyInspectorBehavior.allCases, id: \.self) { behavior in
+                                Text(behaviorDisplayName(for: behavior)).tag(behavior)
+                            }
+                        }
+                        .labelsHidden()
+                        .pickerStyle(.segmented)
+                    }
 
-                    Toggle("Include related foreign keys", isOn: includeRelatedBinding)
-                        .toggleStyle(.switch)
-
-                    Text("When enabled, the inspector also loads rows referenced by the selected record's foreign keys.")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                        .padding(.top, SpacingTokens.xxxs)
+                    SettingsRowWithInfo(
+                        title: "Include related foreign keys",
+                        description: "When enabled, the inspector also loads rows referenced by the selected record's foreign keys."
+                    ) {
+                        Toggle("", isOn: includeRelatedBinding)
+                            .labelsHidden()
+                            .toggleStyle(.switch)
+                    }
                 }
             }
 

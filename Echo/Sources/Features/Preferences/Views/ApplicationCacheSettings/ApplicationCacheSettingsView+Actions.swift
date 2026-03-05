@@ -46,4 +46,25 @@ extension ApplicationCacheSettingsView {
     func clearClipboardHistory() {
         clipboardHistory.clearHistory()
     }
+
+    func refreshDiagramCacheUsage() async {
+        let shouldContinue = await MainActor.run { () -> Bool in
+            if isRefreshingDiagramCache { return false }
+            isRefreshingDiagramCache = true
+            return true
+        }
+        guard shouldContinue else { return }
+        let usage = await environmentState.diagramCacheStore.currentUsageBytes()
+        await MainActor.run {
+            diagramCacheUsage = usage
+            isRefreshingDiagramCache = false
+        }
+    }
+
+    func clearDiagramCache() {
+        Task {
+            await environmentState.diagramCacheStore.removeAll()
+            await refreshDiagramCacheUsage()
+        }
+    }
 }
