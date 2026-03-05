@@ -27,7 +27,7 @@ extension WorkspaceToolbarItems {
             Divider()
 
             Button("Manage Projects…") {
-                navigationStore.showManageProjectsSheet = true
+                ManageProjectsWindowController.shared.present()
             }
         } label: {
             toolbarButtonLabel(

@@ -1,6 +1,4 @@
 import SwiftUI
-
-#if os(macOS)
 import AppKit
 
 func configureSettingsWindowIdentifier() {
@@ -11,8 +9,8 @@ func configureSettingsWindowIdentifier() {
         }
     }
 }
-#endif
 
 extension Notification.Name {
     static let openSettingsSection = Notification.Name("com.fuzee.settings.openSection")
+    static let highlightSettingsGroup = Notification.Name("com.fuzee.settings.highlightGroup")
 }

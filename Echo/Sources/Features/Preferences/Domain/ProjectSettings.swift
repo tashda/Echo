@@ -17,7 +17,7 @@ struct ProjectSettings: Codable, Hashable {
     var enableAutocomplete: Bool?
 
     // UI Preferences
-    var useServerColorAsAccent: Bool?
+    var accentColorSource: AccentColorSource?
     var defaultSchemaFilter: String?
 
     // Future settings can be added here
@@ -36,7 +36,7 @@ struct ProjectSettings: Codable, Hashable {
         wrapLines: Bool? = nil,
         indentWrappedLines: Int? = nil,
         enableAutocomplete: Bool? = nil,
-        useServerColorAsAccent: Bool? = nil,
+        accentColorSource: AccentColorSource? = nil,
         defaultSchemaFilter: String? = nil,
         customSettings: [String: String] = [:]
     ) {
@@ -52,7 +52,7 @@ struct ProjectSettings: Codable, Hashable {
         self.wrapLines = wrapLines
         self.indentWrappedLines = indentWrappedLines
         self.enableAutocomplete = enableAutocomplete
-        self.useServerColorAsAccent = useServerColorAsAccent
+        self.accentColorSource = accentColorSource
         self.defaultSchemaFilter = defaultSchemaFilter
         self.customSettings = customSettings
     }
@@ -70,7 +70,7 @@ struct ProjectSettings: Codable, Hashable {
         case wrapLines
         case indentWrappedLines
         case enableAutocomplete
-        case useServerColorAsAccent
+        case accentColorSource
         case defaultSchemaFilter
         case customSettings
     }
@@ -97,7 +97,7 @@ struct ProjectSettings: Codable, Hashable {
         wrapLines = try container.decodeIfPresent(Bool.self, forKey: .wrapLines)
         indentWrappedLines = try container.decodeIfPresent(Int.self, forKey: .indentWrappedLines)
         enableAutocomplete = try container.decodeIfPresent(Bool.self, forKey: .enableAutocomplete)
-        useServerColorAsAccent = try container.decodeIfPresent(Bool.self, forKey: .useServerColorAsAccent)
+        accentColorSource = try container.decodeIfPresent(AccentColorSource.self, forKey: .accentColorSource)
         defaultSchemaFilter = try container.decodeIfPresent(String.self, forKey: .defaultSchemaFilter)
         customSettings = try container.decodeIfPresent([String: String].self, forKey: .customSettings) ?? [:]
     }
@@ -116,7 +116,7 @@ struct ProjectSettings: Codable, Hashable {
         try container.encodeIfPresent(wrapLines, forKey: .wrapLines)
         try container.encodeIfPresent(indentWrappedLines, forKey: .indentWrappedLines)
         try container.encodeIfPresent(enableAutocomplete, forKey: .enableAutocomplete)
-        try container.encodeIfPresent(useServerColorAsAccent, forKey: .useServerColorAsAccent)
+        try container.encodeIfPresent(accentColorSource, forKey: .accentColorSource)
         try container.encodeIfPresent(defaultSchemaFilter, forKey: .defaultSchemaFilter)
         if !customSettings.isEmpty {
             try container.encode(customSettings, forKey: .customSettings)

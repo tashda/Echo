@@ -6,7 +6,7 @@ struct ApplicationCacheSettingsView: View {
     @Environment(ProjectStore.self) var projectStore
     @Environment(ConnectionStore.self) var connectionStore
     @Environment(TabStore.self) var tabStore
-    
+
     @EnvironmentObject var environmentState: EnvironmentState
     @EnvironmentObject var appState: AppState
     @EnvironmentObject var clipboardHistory: ClipboardHistoryStore
@@ -16,19 +16,33 @@ struct ApplicationCacheSettingsView: View {
     @State var isRefreshingResultCache = false
     @State var autocompleteHistoryUsage: UInt64 = 0
     @State var isRefreshingAutocompleteHistory = false
-    @State var usePerTypeStorageLimits = false
+    @State var diagramCacheUsage: UInt64 = 0
+    @State var isRefreshingDiagramCache = false
+
+    private var usePerTypeStorageLimits: Binding<Bool> {
+        Binding(
+            get: { projectStore.globalSettings.usePerTypeStorageLimits },
+            set: { newValue in
+                var settings = projectStore.globalSettings
+                settings.usePerTypeStorageLimits = newValue
+                Task { try? await projectStore.updateGlobalSettings(settings) }
+            }
+        )
+    }
 
     var body: some View {
         Form {
             cacheManagementSection
             storageLimitsSection
             storageUsageSection
+            storageLocationSection
         }
         .formStyle(.grouped)
         .scrollContentBackground(.hidden)
         .task {
             await refreshResultCacheUsage()
             await refreshAutocompleteHistoryUsage()
+            await refreshDiagramCacheUsage()
         }
         .alert("Disable Clipboard History?", isPresented: $confirmDisableHistory) {
             Button("Disable", role: .destructive) {
@@ -45,97 +59,121 @@ struct ApplicationCacheSettingsView: View {
 
     private var cacheManagementSection: some View {
         Section("Cache Management") {
-            workspaceTabToggleRow
-            queryResultRetentionRow
+            SettingsRowWithInfo(
+                title: "Keep tabs in memory",
+                description: "Keeps each tab's editor and results view alive when switching. This speeds up tab changes at the cost of additional memory usage."
+            ) {
+                Toggle("", isOn: keepTabsBinding)
+                    .labelsHidden()
+                    .toggleStyle(.switch)
+            }
 
-            VStack(alignment: .leading, spacing: 4) {
-                ToggleWithInfo(
-                    title: "Enable clipboard history",
-                    isOn: clipboardEnabledBinding,
-                    description: "Echo stores recently copied queries and results locally for quick reuse. Data stays on this Mac."
-                )
-
-                if !clipboardHistory.isEnabled {
-                    Text("History capture is disabled. Re-enable it to keep new copies.")
-                        .font(.footnote)
-                        .foregroundStyle(.tertiary)
-                        .padding(.top, SpacingTokens.xxxs)
+            LabeledContent("Query result retention") {
+                Picker("", selection: resultCacheRetentionBinding) {
+                    ForEach(Self.retentionOptions, id: \.hours) { option in
+                        Text(option.label).tag(option.hours)
+                    }
                 }
+                .labelsHidden()
+                .pickerStyle(.menu)
+                .frame(minWidth: 120, idealWidth: 160, maxWidth: 200, alignment: .trailing)
+            }
+
+            SettingsRowWithInfo(
+                title: "Enable clipboard history",
+                description: "Echo stores recently copied queries and results locally for quick reuse. Data stays on this Mac."
+            ) {
+                Toggle("", isOn: clipboardEnabledBinding)
+                    .labelsHidden()
+                    .toggleStyle(.switch)
             }
         }
     }
 
     var storageLimitsSection: some View {
         Section("Storage") {
-            if !usePerTypeStorageLimits {
-                LabeledContent {
+            if !usePerTypeStorageLimits.wrappedValue {
+                LabeledContent("Maximum storage") {
                     Picker("", selection: resultCacheMaxBinding) {
-                        ForEach([1, 2, 5, 10, 20], id: \.self) { gb in
-                            Text("\(gb) GB").tag(gb * 1_024 * 1_024 * 1_024)
+                        ForEach(Self.unifiedStorageOptions, id: \.bytes) { option in
+                            Text(option.label).tag(option.bytes)
                         }
                     }
                     .labelsHidden()
                     .pickerStyle(.menu)
-                    .controlSize(.regular)
                     .frame(minWidth: 120, idealWidth: 160, maxWidth: 200, alignment: .trailing)
-                } label: {
-                    Text("Maximum storage")
                 }
             }
 
-            Toggle("Set storage limits per cache type", isOn: $usePerTypeStorageLimits)
+            Toggle("Set storage limits per cache type", isOn: usePerTypeStorageLimits)
                 .toggleStyle(.switch)
 
-            if usePerTypeStorageLimits {
-                LabeledContent {
+            if usePerTypeStorageLimits.wrappedValue {
+                LabeledContent("Result cache") {
                     Picker("", selection: resultCacheMaxBinding) {
-                        ForEach([0.5, 1, 2, 5, 10], id: \.self) { gb in
-                            Text("\(gb) GB").tag(Int(gb * 1_024 * 1_024 * 1_024))
+                        ForEach(Self.perTypeStorageOptions, id: \.bytes) { option in
+                            Text(option.label).tag(option.bytes)
                         }
                     }
                     .labelsHidden()
                     .pickerStyle(.menu)
-                    .controlSize(.regular)
                     .frame(minWidth: 120, idealWidth: 160, maxWidth: 200, alignment: .trailing)
-                } label: {
-                    Text("Result Cache")
+                }
+
+                LabeledContent("Diagram cache") {
+                    Picker("", selection: diagramCacheLimitBinding) {
+                        ForEach(Self.perTypeStorageOptions, id: \.bytes) { option in
+                            Text(option.label).tag(option.bytes)
+                        }
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.menu)
+                    .frame(minWidth: 120, idealWidth: 160, maxWidth: 200, alignment: .trailing)
+                }
+
+                LabeledContent("EchoSense history") {
+                    Picker("", selection: echoSenseStorageLimitBinding) {
+                        ForEach(Self.perTypeStorageOptions, id: \.bytes) { option in
+                            Text(option.label).tag(option.bytes)
+                        }
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.menu)
+                    .frame(minWidth: 120, idealWidth: 160, maxWidth: 200, alignment: .trailing)
                 }
 
                 if clipboardHistory.isEnabled {
-                    LabeledContent {
+                    LabeledContent("Clipboard history") {
                         Picker("", selection: clipboardStorageLimitBinding) {
-                            ForEach([0.5, 1, 2, 5, 10], id: \.self) { gb in
-                                Text("\(gb) GB").tag(Int(gb * 1_024 * 1_024 * 1_024))
+                            ForEach(Self.perTypeStorageOptions, id: \.bytes) { option in
+                                Text(option.label).tag(option.bytes)
                             }
                         }
                         .labelsHidden()
                         .pickerStyle(.menu)
-                        .controlSize(.regular)
                         .frame(minWidth: 120, idealWidth: 160, maxWidth: 200, alignment: .trailing)
-                    } label: {
-                        Text("Clipboard History")
                     }
                 }
-
-                Text("EchoSense history size is managed automatically for now.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
             }
-
-            unifiedStorageLocationRow
         }
     }
 
     private var storageUsageSection: some View {
-        let usage = clipboardHistory.formattedUsageBreakdown()
-
-        return Section("Cache Usage") {
+        Section("Cache Usage") {
             storageUsageRow(
                 title: "Result Cache",
                 usage: resultCacheUsage,
                 isRefreshing: isRefreshingResultCache,
                 onRefresh: { await refreshResultCacheUsage() },
                 onClear: { clearResultCache() }
+            )
+
+            storageUsageRow(
+                title: "Diagram Cache",
+                usage: diagramCacheUsage,
+                isRefreshing: isRefreshingDiagramCache,
+                onRefresh: { await refreshDiagramCacheUsage() },
+                onClear: { clearDiagramCache() }
             )
 
             storageUsageRow(
@@ -152,10 +190,47 @@ struct ApplicationCacheSettingsView: View {
                     usage: UInt64(clipboardHistory.usage.totalBytes),
                     isRefreshing: false,
                     onRefresh: nil,
-                    onClear: { clearClipboardHistory() },
-                    usageBreakdown: usage
+                    onClear: { clearClipboardHistory() }
                 )
             }
         }
     }
+
+    private var storageLocationSection: some View {
+        Section {
+            StorageLocationButton()
+        }
+    }
+
+    // MARK: - Constants
+
+    private static let gb = 1_073_741_824
+
+    private static let retentionOptions: [(label: String, hours: Int)] = [
+        ("Never", 0),
+        ("1 hour", 1),
+        ("6 hours", 6),
+        ("12 hours", 12),
+        ("24 hours", 24),
+        ("3 days", 72),
+        ("7 days", 168),
+        ("14 days", 336),
+        ("Forever", -1),
+    ]
+
+    private static let unifiedStorageOptions: [(label: String, bytes: Int)] = [
+        ("1 GB",  1 * gb),
+        ("2 GB",  2 * gb),
+        ("5 GB",  5 * gb),
+        ("10 GB", 10 * gb),
+        ("20 GB", 20 * gb),
+    ]
+
+    private static let perTypeStorageOptions: [(label: String, bytes: Int)] = [
+        ("512 MB", gb / 2),
+        ("1 GB",   1 * gb),
+        ("2 GB",   2 * gb),
+        ("5 GB",   5 * gb),
+        ("10 GB",  10 * gb),
+    ]
 }

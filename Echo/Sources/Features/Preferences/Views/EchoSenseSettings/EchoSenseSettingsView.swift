@@ -1,9 +1,5 @@
 import SwiftUI
-#if os(macOS)
 import AppKit
-#elseif canImport(UIKit)
-import UIKit
-#endif
 
 struct EchoSenseSettingsView: View {
     @Environment(ProjectStore.self) internal var projectStore
@@ -71,24 +67,26 @@ struct EchoSenseSettingsView: View {
                     selection: aggressivenessBinding
                 )
 
-                EchoSenseToggleRow(
-                    title: "Enable Command + Period",
-                    isOn: commandTriggerBinding,
-                    topic: .commandTrigger
-                )
-
-                EchoSenseToggleRow(
-                    title: "Enable Control + Space",
-                    isOn: controlTriggerBinding,
-                    topic: .controlTrigger
-                )
+                LabeledContent {
+                    Button {
+                        NotificationCenter.default.post(
+                            name: .openSettingsSection,
+                            object: "keyboardShortcuts",
+                            userInfo: ["highlightSection": "EchoSense"]
+                        )
+                    } label: {
+                        HStack(spacing: SpacingTokens.xxs) {
+                            Text("Keyboard Shortcuts")
+                            Image(systemName: "arrow.forward")
+                                .font(TypographyTokens.detail)
+                        }
+                    }
+                    .buttonStyle(.bordered)
+                } label: {
+                    Text("Trigger shortcuts")
+                }
             }
 
-            Section("Dismissal") {
-                Text(dismissalHint)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            }
         }
         .formStyle(.grouped)
         .scrollContentBackground(.hidden)

@@ -5,101 +5,66 @@ struct DiagramSettingsView: View {
     @Environment(ProjectStore.self) private var projectStore
     @EnvironmentObject private var environmentState: EnvironmentState
     @EnvironmentObject private var appearanceStore: AppearanceStore
-    @State private var cacheUsage: UInt64 = 0
-    @State private var isRefreshingUsage = false
-
-    private let cacheOptions: [Int] = [
-        128 * 1_024 * 1_024,
-        256 * 1_024 * 1_024,
-        512 * 1_024 * 1_024,
-        1 * 1_024 * 1_024 * 1_024,
-        2 * 1_024 * 1_024 * 1_024,
-        5 * 1_024 * 1_024 * 1_024
-    ]
 
     var body: some View {
         Form {
             prefetchSection
             refreshSection
-            cacheSection
         }
         .formStyle(.grouped)
         .scrollContentBackground(.hidden)
-        .task {
-            await refreshUsage()
-        }
-        .task(id: projectStore.globalSettings.diagramCacheMaxBytes) {
-            await refreshUsage()
-        }
     }
 
     private var prefetchSection: some View {
         Section("Prefetching") {
-            Picker("Diagram prefetch", selection: prefetchBinding) {
-                ForEach(DiagramPrefetchMode.allCases, id: \.self) { mode in
-                    Text(mode.displayName).tag(mode)
+            SettingsRowWithInfo(
+                title: "Diagram prefetch",
+                description: "Echo can warm diagram data in the background for faster opens. Prefetching is optional so large databases do not fetch unused metadata."
+            ) {
+                Picker("", selection: prefetchBinding) {
+                    ForEach(DiagramPrefetchMode.allCases, id: \.self) { mode in
+                        Text(mode.displayName).tag(mode)
+                    }
                 }
+                .labelsHidden()
+                .pickerStyle(.segmented)
+                .frame(maxWidth: 360)
             }
-            .pickerStyle(.segmented)
-            .frame(maxWidth: 360)
 
-            Picker("Background refresh", selection: refreshCadenceBinding) {
-                ForEach(DiagramRefreshCadence.allCases, id: \.self) { cadence in
-                    Text(cadence.displayName).tag(cadence)
+            SettingsRowWithInfo(
+                title: "Background refresh",
+                description: "Controls how often Echo re-fetches diagram data in the background to keep it up to date."
+            ) {
+                Picker("", selection: refreshCadenceBinding) {
+                    ForEach(DiagramRefreshCadence.allCases, id: \.self) { cadence in
+                        Text(cadence.displayName).tag(cadence)
+                    }
                 }
+                .labelsHidden()
+                .pickerStyle(.menu)
+                .frame(minWidth: 120, idealWidth: 160, maxWidth: 200, alignment: .trailing)
             }
-            .frame(maxWidth: 360)
-
-            Text("Echo can warm diagram data in the background for faster opens. Prefetching is optional so large databases do not fetch unused metadata.")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-                .padding(.top, SpacingTokens.xxs2)
         }
     }
 
     private var refreshSection: some View {
-        Section("Refresh & Rendering") {
-            Toggle("Verify diagram data before refresh", isOn: verifyBinding)
-                .toggleStyle(.switch)
-
-            Toggle("Render relationships in large diagrams", isOn: renderRelationshipsBinding)
-                .toggleStyle(.switch)
-
-            Text("Disable relationship rendering if diagrams with thousands of edges feel heavy; you can still re-enable it on demand.")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-                .padding(.top, SpacingTokens.xxs2)
-        }
-    }
-
-    private var cacheSection: some View {
-        Section("Cache") {
-            Picker("Maximum cache size", selection: cacheLimitBinding) {
-                ForEach(cacheOptions, id: \.self) { value in
-                    Text(EchoFormatters.bytes(value)).tag(value)
-                }
-            }
-            .frame(maxWidth: 320)
-
-            HStack {
-                Text("Current usage")
-                Spacer()
-                if isRefreshingUsage {
-                    ProgressView()
-                        .controlSize(.small)
-                } else {
-                    Text(EchoFormatters.bytes(cacheUsage))
-                        .font(TypographyTokens.caption2.weight(.semibold))
-                }
+        Section("Rendering") {
+            SettingsRowWithInfo(
+                title: "Verify diagram data before refresh",
+                description: "When enabled, Echo checks that cached diagram data is still valid before using it. Disable for faster opens if data rarely changes."
+            ) {
+                Toggle("", isOn: verifyBinding)
+                    .labelsHidden()
+                    .toggleStyle(.switch)
             }
 
-            HStack(spacing: 12) {
-                Button("Refresh Usage") {
-                    Task { await refreshUsage() }
-                }
-                Button("Clear Diagram Cache", role: .destructive) {
-                    Task { await clearCache() }
-                }
+            SettingsRowWithInfo(
+                title: "Render relationships in large diagrams",
+                description: "Disable relationship rendering if diagrams with thousands of edges feel heavy; you can still re-enable it on demand."
+            ) {
+                Toggle("", isOn: renderRelationshipsBinding)
+                    .labelsHidden()
+                    .toggleStyle(.switch)
             }
         }
     }
@@ -126,7 +91,6 @@ struct DiagramSettingsView: View {
         )
     }
 
-    // Toggle: Verify cached diagram data before refreshing.
     private var verifyBinding: Binding<Bool> {
         Binding(
             get: { projectStore.globalSettings.diagramVerifyBeforeRefresh },
@@ -138,7 +102,6 @@ struct DiagramSettingsView: View {
         )
     }
 
-    // Toggle: Render relationships in very large diagrams.
     private var renderRelationshipsBinding: Binding<Bool> {
         Binding(
             get: { projectStore.globalSettings.diagramRenderRelationshipsForLargeDiagrams },
@@ -149,30 +112,4 @@ struct DiagramSettingsView: View {
             }
         )
     }
-
-    private var cacheLimitBinding: Binding<Int> {
-        Binding(
-            get: { projectStore.globalSettings.diagramCacheMaxBytes },
-            set: { newValue in
-                var settings = projectStore.globalSettings
-                settings.diagramCacheMaxBytes = max(64 * 1_024 * 1_024, newValue)
-                Task { try? await projectStore.updateGlobalSettings(settings) }
-            }
-        )
-    }
-
-    private func refreshUsage() async {
-        await MainActor.run { isRefreshingUsage = true }
-        let usage = await environmentState.diagramCacheStore.currentUsageBytes()
-        await MainActor.run {
-            cacheUsage = usage
-            isRefreshingUsage = false
-        }
-    }
-
-    private func clearCache() async {
-        await environmentState.diagramCacheStore.removeAll()
-        await refreshUsage()
-    }
-
 }

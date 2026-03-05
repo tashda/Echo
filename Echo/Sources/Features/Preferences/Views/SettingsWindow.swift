@@ -1,8 +1,6 @@
 import SwiftUI
 import Combine
-#if os(macOS)
 import AppKit
-#endif
 
 // Simple NavigationSplitView-based settings - no complex navigation bridge needed
 
@@ -115,10 +113,17 @@ struct SettingsView: View {
             guard let raw = notification.object as? String,
                   let section = SettingsSection(rawValue: raw) else { return }
             selection = section
+            if let highlight = notification.userInfo?["highlightSection"] as? String {
+                // Brief delay so the target view has time to mount
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                    NotificationCenter.default.post(
+                        name: .highlightSettingsGroup,
+                        object: highlight
+                    )
+                }
+            }
         }
-#if os(macOS)
         .onAppear(perform: configureSettingsWindowIdentifier)
-#endif
     }
 
     @ViewBuilder
@@ -149,6 +154,8 @@ struct SettingsView: View {
 
         case .applicationCache:
             ApplicationCacheSettingsView()
+                .environmentObject(environmentState)
+                .environmentObject(appState)
                 .environmentObject(clipboardHistory)
 
         case .keyboardShortcuts:
@@ -156,7 +163,6 @@ struct SettingsView: View {
         }
     }
 
-#if os(macOS)
     @ViewBuilder
     private func iconView(for section: SettingsSection) -> some View {
         if let systemName = section.systemImage {
@@ -168,18 +174,5 @@ struct SettingsView: View {
             Image(systemName: "square")
         }
     }
-#else
-    @ViewBuilder
-    private func iconView(for section: SettingsSection) -> some View {
-        if let systemName = section.systemImage {
-            Image(systemName: systemName)
-        } else if let assetName = section.assetImageName {
-            Image(assetName)
-                .renderingMode(.template)
-        } else {
-            Image(systemName: "square")
-        }
-    }
-#endif
 
 }
