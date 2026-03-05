@@ -62,7 +62,7 @@ struct StreamingPresetPickerControl: View {
     @ViewBuilder
     private var content: some View {
         LabeledContent {
-            HStack(spacing: 6) {
+            HStack(spacing: SpacingTokens.xxs2) {
                 picker
                 infoButton
             }

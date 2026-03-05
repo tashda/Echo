@@ -64,6 +64,7 @@ struct GlobalSettings: Codable, Hashable {
     var diagramRenderRelationshipsForLargeDiagrams: Bool = true
     var diagramUseThemedAppearance: Bool = true
     var usePerTypeStorageLimits: Bool = false
+    var echoSenseStorageMaxBytes: Int = 512 * 1_024 * 1_024
     var customKeyboardShortcuts: [String: CustomShortcutBinding]?
     var defaultWindowWidth: Double?
     var defaultWindowHeight: Double?
@@ -117,7 +118,7 @@ struct GlobalSettings: Codable, Hashable {
         case inspectorWidth, keepTabsInMemory
         case diagramPrefetchMode, diagramRefreshCadence, diagramCacheMaxBytes
         case diagramVerifyBeforeRefresh, diagramRenderRelationshipsForLargeDiagrams, diagramUseThemedAppearance
-        case usePerTypeStorageLimits, customKeyboardShortcuts
+        case usePerTypeStorageLimits, echoSenseStorageMaxBytes, customKeyboardShortcuts
     }
 
     init(from decoder: Decoder) throws {
@@ -186,6 +187,7 @@ struct GlobalSettings: Codable, Hashable {
         diagramRenderRelationshipsForLargeDiagrams = try container.decodeIfPresent(Bool.self, forKey: .diagramRenderRelationshipsForLargeDiagrams) ?? true
         diagramUseThemedAppearance = try container.decodeIfPresent(Bool.self, forKey: .diagramUseThemedAppearance) ?? true
         usePerTypeStorageLimits = try container.decodeIfPresent(Bool.self, forKey: .usePerTypeStorageLimits) ?? false
+        echoSenseStorageMaxBytes = try container.decodeIfPresent(Int.self, forKey: .echoSenseStorageMaxBytes) ?? 512 * 1_024 * 1_024
         customKeyboardShortcuts = try container.decodeIfPresent([String: CustomShortcutBinding].self, forKey: .customKeyboardShortcuts)
         mssqlStreamingMode = (try? container.decodeIfPresent(ResultStreamingExecutionMode.self, forKey: .mssqlStreamingMode)) ?? .auto
         mysqlStreamingMode = (try? container.decodeIfPresent(ResultStreamingExecutionMode.self, forKey: .mysqlStreamingMode)) ?? .auto
@@ -251,6 +253,7 @@ struct GlobalSettings: Codable, Hashable {
         try container.encode(diagramRenderRelationshipsForLargeDiagrams, forKey: .diagramRenderRelationshipsForLargeDiagrams)
         try container.encode(diagramUseThemedAppearance, forKey: .diagramUseThemedAppearance)
         try container.encode(usePerTypeStorageLimits, forKey: .usePerTypeStorageLimits)
+        try container.encode(echoSenseStorageMaxBytes, forKey: .echoSenseStorageMaxBytes)
         try container.encodeIfPresent(customKeyboardShortcuts, forKey: .customKeyboardShortcuts)
         try container.encode(mssqlStreamingMode, forKey: .mssqlStreamingMode)
         try container.encode(mysqlStreamingMode, forKey: .mysqlStreamingMode)

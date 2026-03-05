@@ -7,64 +7,40 @@ extension ApplicationCacheSettingsView {
         usage: UInt64,
         isRefreshing: Bool,
         onRefresh: (() async -> Void)?,
-        onClear: @escaping () -> Void,
-        usageBreakdown: (total: String, query: String, grid: String)? = nil
+        onClear: @escaping () -> Void
     ) -> some View {
-        VStack(alignment: .leading, spacing: SpacingTokens.xs) {
-            HStack {
-                Text(title)
-                    .font(TypographyTokens.standard.weight(.medium))
+        HStack {
+            Text(title)
+                .font(TypographyTokens.standard.weight(.medium))
 
-                Spacer()
+            Spacer()
 
-                HStack(spacing: SpacingTokens.sm) {
-                    if isRefreshing {
-                        ProgressView()
-                            .controlSize(.small)
-                            .progressViewStyle(.circular)
-                            .frame(width: 16, height: 16)
-                    } else {
-                        Text(EchoFormatters.bytes(usage))
-                            .font(TypographyTokens.caption2)
+            HStack(spacing: SpacingTokens.sm) {
+                if isRefreshing {
+                    ProgressView()
+                        .controlSize(.small)
+                        .progressViewStyle(.circular)
+                        .frame(width: 16, height: 16)
+                } else {
+                    Text(EchoFormatters.bytes(usage))
+                        .font(TypographyTokens.caption2)
+                        .foregroundStyle(.secondary)
+                        .monospacedDigit()
+                }
+
+                if let onRefresh = onRefresh {
+                    Button(action: { Task { await onRefresh() } }) {
+                        Image(systemName: "arrow.clockwise")
                             .foregroundStyle(.secondary)
-                            .monospacedDigit()
-                    }
-
-                    if let onRefresh = onRefresh {
-                        Button(action: { Task { await onRefresh() } }) {
-                            Image(systemName: "arrow.clockwise")
-                                .foregroundStyle(.secondary)
-                        }
-                        .buttonStyle(.plain)
-                    }
-
-                    Button(action: onClear) {
-                        Image(systemName: "trash")
-                            .foregroundStyle(.red)
                     }
                     .buttonStyle(.plain)
                 }
-            }
 
-            if let breakdown = usageBreakdown {
-                HStack(spacing: SpacingTokens.lg) {
-                    Label {
-                        Text(breakdown.query)
-                            .monospacedDigit()
-                    } icon: {
-                        Text("Queries")
-                            .foregroundStyle(.tertiary)
-                    }
-                    Label {
-                        Text(breakdown.grid)
-                            .monospacedDigit()
-                    } icon: {
-                        Text("Grid Data")
-                            .foregroundStyle(.tertiary)
-                    }
+                Button(action: onClear) {
+                    Image(systemName: "trash")
+                        .foregroundStyle(.red)
                 }
-                .font(TypographyTokens.detail)
-                .foregroundStyle(.secondary)
+                .buttonStyle(.plain)
             }
         }
         .padding(.vertical, SpacingTokens.xxs2)
