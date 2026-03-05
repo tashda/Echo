@@ -50,21 +50,21 @@ struct BreadcrumbSegmentView: View {
 
     var body: some View {
         HStack(spacing: 0) {
-            HStack(spacing: 3) {
+            HStack(spacing: SpacingTokens.xxxs) {
                 if let icon = segment.icon {
                     Image(systemName: icon)
-                        .font(.system(size: 10, weight: .regular))
+                        .font(.system(size: 11, weight: .regular))
                         .foregroundStyle(textColor)
                 }
 
                 Text(segment.title)
-                    .font(TypographyTokens.detail.weight(.regular))
+                    .font(TypographyTokens.label.weight(.regular))
                     .foregroundStyle(textColor)
 
                 // Always in layout to prevent shifting; visibility toggled
                 if segment.hasMenu {
                     Image(systemName: "chevron.down")
-                        .font(.system(size: 6.5, weight: .semibold))
+                        .font(.system(size: 6, weight: .semibold))
                         .foregroundStyle(Color(nsColor: .tertiaryLabelColor))
                         .opacity(isHovered && isEnabled ? 1 : 0)
                 }
@@ -106,9 +106,10 @@ struct BreadcrumbSegmentView: View {
             // Separator — always in layout; opacity toggled so neighbours don't shift
             if !isLast {
                 Text("\u{203A}")
-                    .font(.system(size: 14, weight: .light))
+                    .font(.system(size: 15, weight: .medium))
+                    .scaleEffect(x: 0.65, y: 1.0)
                     .foregroundStyle(separatorColor)
-                    .padding(.leading, SpacingTokens.xxs)
+                    .padding(.leading, 1)
                     .padding(.trailing, SpacingTokens.xxs2)
                     .opacity(isHovered ? 0 : 1)
             }

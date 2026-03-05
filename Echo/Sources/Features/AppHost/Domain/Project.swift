@@ -18,6 +18,10 @@ struct Project: Identifiable, Codable, Hashable {
     var settings: ProjectSettings
     var bookmarks: [Bookmark]
 
+    /// Per-project copy of all application settings. `nil` means the project
+    /// has not been migrated yet — on first load the global defaults are copied in.
+    var projectGlobalSettings: GlobalSettings?
+
 
     init(
         id: UUID = UUID(),
@@ -28,7 +32,8 @@ struct Project: Identifiable, Codable, Hashable {
         iconName: String? = nil,
         isDefault: Bool = false,
         settings: ProjectSettings = ProjectSettings(),
-        bookmarks: [Bookmark] = []
+        bookmarks: [Bookmark] = [],
+        projectGlobalSettings: GlobalSettings? = nil
     ) {
         self.id = id
         self.name = name
@@ -39,6 +44,7 @@ struct Project: Identifiable, Codable, Hashable {
         self.isDefault = isDefault
         self.settings = settings
         self.bookmarks = bookmarks
+        self.projectGlobalSettings = projectGlobalSettings
     }
 
     static let defaultProject = Project(

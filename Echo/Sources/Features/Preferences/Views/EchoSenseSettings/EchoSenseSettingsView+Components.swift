@@ -113,7 +113,6 @@ struct EchoSenseAggressivenessRow: View {
                 }
                 .labelsHidden()
                 .pickerStyle(.segmented)
-                .frame(maxWidth: 360)
 
                 Button(action: { isPopoverPresented.toggle() }) {
                     Image(systemName: "info.circle")

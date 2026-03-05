@@ -11,9 +11,8 @@ struct BreadcrumbNavigator: View {
     @Environment(\.colorScheme) private var colorScheme
 
     @StateObject private var navigationState = BreadcrumbNavigationState()
-#if os(macOS)
-    @State private var activePopoverController: NSViewController?
-#endif
+    @State private var showConnectionsPopover = false
+    @State private var showDatabasePopover = false
 
     var body: some View {
         GeometryReader { proxy in
@@ -36,12 +35,10 @@ struct BreadcrumbNavigator: View {
             }
             .frame(width: target, height: controlHeight)
             .position(x: hostingWidth / 2, y: proxy.size.height / 2)
-            .backgroundPreferenceValue(BreadcrumbAnchorKey.self) { breadcrumbPopover(anchors: $0) }
             .onAppear { updateBreadcrumbSegments() }
             .onChange(of: connectionStore.selectedConnectionID) { _, _ in updateBreadcrumbSegments() }
             .onChange(of: environmentState.sessionCoordinator.sessions.count) { _, _ in updateBreadcrumbSegments() }
             .onChange(of: environmentState.sessionCoordinator.activeSession?.selectedDatabaseName) { _, _ in updateBreadcrumbSegments() }
-            .onChange(of: navigationState.isMenuPresented) { _, isP in if !isP { navigationState.presentedMenuIndex = nil; activePopoverController = nil } }
         }
         .accessibilityIdentifier("breadcrumb-navigator")
         .accessibilityHidden(true)
@@ -54,31 +51,46 @@ struct BreadcrumbNavigator: View {
     }
 
     private var connectionsSegment: some View {
-        BreadcrumbSegmentView(segment: defaultConnectionsSegment, isLast: true, onTap: { defaultConnectionsSegment.action?() }, onMenuTap: { presentMenu(for: 0, segment: defaultConnectionsSegment) })
-            .anchorPreference(key: BreadcrumbAnchorKey.self, value: .bounds) { [BreadcrumbAnchorInfo(index: 0, anchor: $0)] }
+        BreadcrumbSegmentView(segment: defaultConnectionsSegment, isLast: true, onTap: { defaultConnectionsSegment.action?() }, onMenuTap: { showConnectionsPopover = true })
+            .popover(isPresented: $showConnectionsPopover, arrowEdge: .bottom) { connectionsPopoverContent }
     }
 
     private var defaultConnectionsSegment: BreadcrumbSegment {
-        BreadcrumbSegment(title: "Connections", icon: "server.rack", hasMenu: true, isActive: true, isEnabled: true, action: nil, menuContent: { AnyView(ConnectionsBreadcrumbMenu()) })
+        BreadcrumbSegment(title: "Connections", icon: "server.rack", hasMenu: true, isActive: true, isEnabled: true)
     }
 
     private func breadcrumbSegmentView(for segment: BreadcrumbSegment, at index: Int) -> some View {
-        BreadcrumbSegmentView(segment: segment, isLast: index == navigationState.segments.count - 1, onTap: { segment.action?() }, onMenuTap: { presentMenu(for: index, segment: segment) })
-            .anchorPreference(key: BreadcrumbAnchorKey.self, value: .bounds) { [BreadcrumbAnchorInfo(index: index, anchor: $0)] }
+        BreadcrumbSegmentView(segment: segment, isLast: index == navigationState.segments.count - 1, onTap: { segment.action?() }, onMenuTap: {
+            if index == 0 { showConnectionsPopover = true }
+            else if index == 1 { showDatabasePopover = true }
+        })
+        .popover(isPresented: index == 0 ? $showConnectionsPopover : $showDatabasePopover, arrowEdge: .bottom) {
+            if index == 0 { connectionsPopoverContent }
+            else { databasePopoverContent }
+        }
+    }
+
+    @ViewBuilder
+    private var connectionsPopoverContent: some View {
+        ConnectionsPopoverContent(
+            connectionStore: connectionStore,
+            environmentState: environmentState,
+            dismiss: { showConnectionsPopover = false }
+        )
+        .presentationBackground(.clear)
+    }
+
+    @ViewBuilder
+    private var databasePopoverContent: some View {
+        if connectionStore.selectedConnectionID != nil {
+            DatabaseBreadcrumbMenu()
+                .presentationBackground(.clear)
+        }
     }
 
     @ViewBuilder
     private var breadcrumbStatus: some View {
         if let status = statusText { Text(status).font(TypographyTokens.detail).foregroundStyle(.secondary).lineLimit(1) }
-    }
-
-    @ViewBuilder
-    private func breadcrumbPopover(anchors: [BreadcrumbAnchorInfo]) -> some View {
-#if os(macOS)
-        if navigationState.isMenuPresented, let index = navigationState.presentedMenuIndex, let controller = activePopoverController, let info = anchors.first(where: { $0.index == index }) {
-            GeometryReader { proxy in Color.clear.background(NativePopoverController(controller: controller, isPresented: $navigationState.isMenuPresented, anchorRect: proxy[info.anchor])) }.allowsHitTesting(false)
-        }
-#endif
     }
 
     private var statusText: String? {
@@ -87,29 +99,6 @@ struct BreadcrumbNavigator: View {
         case .testing: return "Testing…"; case .connecting: return "Connecting…"; case .connected: return "Connected"; case .disconnected: return "Disconnected"; case .error: return "Error"; default: return environmentState.sessionCoordinator.sessionForConnection(id) != nil ? "Connected" : "Disconnected"
         }
     }
-
-    private func presentMenu(for index: Int, segment: BreadcrumbSegment) {
-        guard segment.hasMenu, segment.isEnabled else { return }
-#if os(macOS)
-        guard let controller = menuController(for: index) else { return }
-        if navigationState.isMenuPresented {
-            let same = navigationState.presentedMenuIndex == index; navigationState.isMenuPresented = false
-            if !same { DispatchQueue.main.async { self.activePopoverController = controller; self.navigationState.presentMenu(for: index) } }
-        } else { activePopoverController = controller; navigationState.presentMenu(for: index) }
-#else
-        navigationState.presentMenu(for: index)
-#endif
-    }
-
-#if os(macOS)
-    private func menuController(for index: Int) -> NSViewController? {
-        switch index {
-        case 0: return ConnectionsPopoverController(connectionStore: connectionStore, environmentState: environmentState)
-        case 1: return connectionStore.selectedConnectionID.map { DatabasePopoverController(environmentState: environmentState, connectionID: $0) }
-        default: return nil
-        }
-    }
-#endif
 
     private func updateBreadcrumbSegments() {
         let connTitle = connectionStore.selectedConnection.map { $0.connectionName.isEmpty ? $0.host : $0.connectionName } ?? "Connections"

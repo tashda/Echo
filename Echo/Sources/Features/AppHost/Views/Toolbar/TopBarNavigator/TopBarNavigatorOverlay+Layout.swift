@@ -82,12 +82,12 @@ extension TopBarNavigatorOverlay {
             centerOffset = verticalInset
         }
 
-        // Compute frame in toolbar-view coordinates, then convert to
-        // the container (toolbar's parent) coordinate space.
+        // Compute frame in toolbar-view coordinates. The hosting view is
+        // now a direct child of toolbarView, so no coordinate conversion needed.
         let yInToolbar = (bounds.height - desiredHeight) / 2 + centerOffset
         let toolbarRect = NSRect(x: leftEdge, y: yInToolbar,
                                  width: rightEdge - leftEdge, height: desiredHeight)
-        let newFrame = containerView.convert(toolbarRect, from: toolbarView)
+        let newFrame = toolbarRect
 
         guard let hostingView else { return }
         // During a brief cooldown after a state change that triggers toolbar
@@ -108,8 +108,7 @@ extension TopBarNavigatorOverlay {
                 hostingView.frame = newFrame
             }
         }
-        // Keep hit proxy in sync — its frame is in toolbar-view coordinates.
-        hitProxyView?.frame = toolbarRect
+        // No hit proxy to sync — hosting view is in toolbarView directly.
     }
 
     func referenceMetrics(in toolbarView: NSView, toolbar: NSToolbar) -> (height: CGFloat, midY: CGFloat)? {

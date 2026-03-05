@@ -14,7 +14,7 @@ struct QueryResultsSettingsView: View {
         Form {
             Section("Foreign Key Cells") {
                 SettingsRowWithInfo(
-                    title: "Cell behavior",
+                    title: "Cell Behaviour",
                     description: displayDescription(for: selectedDisplayMode)
                 ) {
                     Picker("", selection: displayModeBinding) {
@@ -28,7 +28,7 @@ struct QueryResultsSettingsView: View {
 
                 if selectedDisplayMode == .showInspector {
                     SettingsRowWithInfo(
-                        title: "Inspector behavior",
+                        title: "Inspector Behaviour",
                         description: behaviorDescription(for: selectedBehavior)
                     ) {
                         Picker("", selection: inspectorBehaviorBinding) {
@@ -63,7 +63,7 @@ struct QueryResultsSettingsView: View {
                 )
 
                 StreamingPresetPickerControl(
-                    title: "Data preview batch size",
+                    title: "Data Preview Batch Size",
                     value: previewBatchSizeBinding,
                     description: "Used when opening table previews from the sidebar.",
                     presets: streamingRowPresets,
@@ -73,7 +73,7 @@ struct QueryResultsSettingsView: View {
                 )
 
                 StreamingPresetPickerControl(
-                    title: "Background streaming threshold",
+                    title: "Background Streaming Threshold",
                     value: backgroundStreamingThresholdBinding,
                     description: "After this many rows are streamed, Echo hands off ingestion to a background worker.",
                     presets: streamingThresholdPresets,
@@ -83,7 +83,7 @@ struct QueryResultsSettingsView: View {
                 )
 
                 StreamingPresetPickerControl(
-                    title: "Background fetch batch size",
+                    title: "Background Fetch Batch Size",
                     value: backgroundFetchSizeBinding,
                     description: "Controls how many rows Echo asks the server for in each background fetch.",
                     presets: streamingFetchPresets,
@@ -93,7 +93,7 @@ struct QueryResultsSettingsView: View {
                 )
 
                 StreamingPresetPickerControl(
-                    title: "Fetch ramp multiplier",
+                    title: "Fetch Ramp Multiplier",
                     value: fetchRampMultiplierBinding,
                     description: "Determines how aggressively Echo expands background fetch sizes.",
                     presets: streamingFetchRampMultiplierPresets,
@@ -103,7 +103,7 @@ struct QueryResultsSettingsView: View {
                 )
 
                 StreamingPresetPickerControl(
-                    title: "Fetch ramp maximum",
+                    title: "Fetch Ramp Maximum",
                     value: fetchRampMaxBinding,
                     description: "Caps the largest background fetch Echo will request.",
                     presets: streamingFetchRampMaxPresets,
@@ -133,18 +133,16 @@ struct QueryResultsSettingsView: View {
             }
 
             Section("Engine Profiles") {
-                HStack {
-                    Spacer(minLength: 0)
-                    Picker("", selection: $selectedEngineTab) {
-                        Text("PostgreSQL").tag(EngineTab.postgres)
-                        Text("SQL Server").tag(EngineTab.sqlserver)
-                        Text("MySQL").tag(EngineTab.mysql)
-                        Text("SQLite").tag(EngineTab.sqlite)
-                    }
-                    .pickerStyle(.segmented)
-                    .frame(maxWidth: 520)
-                    Spacer(minLength: 0)
+                Picker("", selection: $selectedEngineTab) {
+                    Text("PostgreSQL").tag(EngineTab.postgres)
+                    Text("SQL Server").tag(EngineTab.sqlserver)
+                    Text("MySQL").tag(EngineTab.mysql)
+                    Text("SQLite").tag(EngineTab.sqlite)
                 }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .frame(maxWidth: 520)
+                .frame(maxWidth: .infinity)
 
                 engineSpecificSettings
                     .id("engineContent")
@@ -155,7 +153,7 @@ struct QueryResultsSettingsView: View {
         .scrollContentBackground(.hidden)
         .onChange(of: selectedEngineTab) { _, _ in
             withAnimation {
-                proxy.scrollTo("engineProfiles", anchor: .bottom)
+                proxy.scrollTo("engineProfiles", anchor: UnitPoint(x: 0.5, y: 0.85))
             }
         }
         } // ScrollViewReader
