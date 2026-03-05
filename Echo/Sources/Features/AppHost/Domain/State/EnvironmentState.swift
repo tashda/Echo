@@ -146,7 +146,8 @@ final class EnvironmentState: ObservableObject {
                 port: connection.port,
                 database: connection.database.isEmpty ? nil : connection.database,
                 tls: connection.useTLS,
-                authentication: credentials
+                authentication: credentials,
+                connectTimeoutSeconds: 10
             )
 
             let connectionSession = ConnectionSession(

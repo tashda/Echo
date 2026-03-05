@@ -23,10 +23,6 @@ extension ManageConnectionsView {
             }
         }
         .listStyle(.sidebar)
-#if os(macOS)
-        .scrollContentBackground(.hidden)
-        .background(ColorTokens.Background.secondary)
-#endif
     }
 
     @ViewBuilder
@@ -41,10 +37,7 @@ extension ManageConnectionsView {
             }
         } label: {
             NavigationLink(value: SidebarSelection.section(section)) {
-                HStack(spacing: 6) {
-                    Image(systemName: section.icon)
-                    Text(section.title)
-                }
+                Label(section.title, systemImage: section.icon)
             }
             .tag(SidebarSelection.section(section))
             .contextMenu {
@@ -79,10 +72,7 @@ extension ManageConnectionsView {
     @ViewBuilder
     func sidebarFolderLink(node: FolderNode, section: ManageSection) -> some View {
         NavigationLink(value: SidebarSelection.folder(node.folder.id, section)) {
-            HStack(spacing: 6) {
-                Image(systemName: "folder")
-                Text(node.folder.displayName)
-            }
+            Label(node.folder.displayName, systemImage: node.folder.icon)
         }
         .tag(SidebarSelection.folder(node.folder.id, section))
         .contextMenu {

@@ -47,7 +47,7 @@ extension EnvironmentState {
         removeRecentConnections(for: connection.id)
     }
 
-    func testConnection(_ connection: SavedConnection, passwordOverride: String? = nil) async -> ConnectionTestResult {
+    func testConnection(_ connection: SavedConnection, passwordOverride: String? = nil, connectTimeoutSeconds: Int = 10) async -> ConnectionTestResult {
         guard let credentials = identityRepository.resolveAuthenticationConfiguration(for: connection, overridePassword: passwordOverride) else {
             return ConnectionTestResult(isSuccessful: false, message: "Missing credentials", responseTime: nil, serverVersion: nil)
         }
@@ -60,13 +60,16 @@ extension EnvironmentState {
                 port: connection.port,
                 database: connection.database.isEmpty ? nil : connection.database,
                 tls: connection.useTLS,
-                authentication: credentials
+                authentication: credentials,
+                connectTimeoutSeconds: connectTimeoutSeconds
             )
             let duration = Date().timeIntervalSince(startTime)
             await session.close()
             return ConnectionTestResult(isSuccessful: true, message: "Success", responseTime: duration, serverVersion: nil)
         } catch {
-            return ConnectionTestResult(isSuccessful: false, message: error.localizedDescription, responseTime: nil, serverVersion: nil)
+            let duration = Date().timeIntervalSince(startTime)
+            let message = error.localizedDescription
+            return ConnectionTestResult(isSuccessful: false, message: message, responseTime: duration, serverVersion: nil)
         }
     }
 

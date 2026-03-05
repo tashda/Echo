@@ -21,7 +21,8 @@ public protocol DatabaseFactory: Sendable {
         port: Int,
         database: String?,
         tls: Bool,
-        authentication: DatabaseAuthenticationConfiguration
+        authentication: DatabaseAuthenticationConfiguration,
+        connectTimeoutSeconds: Int
     ) async throws -> DatabaseSession
 }
 

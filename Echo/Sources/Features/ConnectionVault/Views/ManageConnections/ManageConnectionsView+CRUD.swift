@@ -60,15 +60,10 @@ extension ManageConnectionsView {
     }
 
     func createNewConnection() {
-        selectedSection = .connections
-        let parent = currentFolder(for: .connections) ?? defaultFolder(for: .connections)
-        connectionStore.selectedFolderID = parent?.id
         connectionEditorPresentation = ConnectionEditorPresentation(connection: nil)
     }
 
     func editConnection(_ connection: SavedConnection) {
-        selectedSection = .connections
-        connectionStore.selectedFolderID = connection.folderID
         connectionEditorPresentation = ConnectionEditorPresentation(connection: connection)
     }
 
@@ -117,7 +112,7 @@ extension ManageConnectionsView {
 
     func createNewIdentity() {
         selectedSection = .identities
-        let parent = currentFolder(for: .identities) ?? defaultFolder(for: .identities)
+        let parent = currentFolder(for: .identities)
         identityEditorState = .create(parent: parent, token: UUID())
     }
 

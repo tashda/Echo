@@ -1,5 +1,8 @@
 import SwiftUI
 import Foundation
+#if os(macOS)
+import AppKit
+#endif
 
 struct AppearanceSettingsView: View {
     @Environment(ProjectStore.self) private var projectStore
@@ -42,10 +45,10 @@ struct AppearanceSettingsView: View {
                     Task { try? await projectStore.updateGlobalSettings(settings) }
                 }
             ))
-            
+
             ColorPicker("Custom Accent Color", selection: customAccentColorBinding)
                 .disabled(projectStore.globalSettings.useServerColorAsAccent)
-            
+
             if projectStore.globalSettings.useServerColorAsAccent {
                 Text("When enabled, the accent color will change based on the active database connection.")
                     .font(.footnote)
@@ -56,20 +59,17 @@ struct AppearanceSettingsView: View {
 
     private var editorFontSection: some View {
         Section("Editor Font") {
-            HStack {
-                Text("Font Family")
-                Spacer()
-                TextField("Font Family", text: Binding(
+            MonospacedFontPicker(
+                selectedFamily: Binding(
                     get: { projectStore.globalSettings.defaultEditorFontFamily },
                     set: { newValue in
                         var settings = projectStore.globalSettings
                         settings.defaultEditorFontFamily = newValue
                         Task { try? await projectStore.updateGlobalSettings(settings) }
                     }
-                ))
-                .textFieldStyle(.roundedBorder)
-                .frame(width: 200)
-            }
+                ),
+                fontSize: projectStore.globalSettings.defaultEditorFontSize
+            )
 
             Stepper(value: Binding(
                 get: { projectStore.globalSettings.defaultEditorFontSize },
@@ -86,7 +86,7 @@ struct AppearanceSettingsView: View {
                         .foregroundStyle(.secondary)
                 }
             }
-            
+
             Toggle("Enable Ligatures", isOn: Binding(
                 get: { projectStore.globalSettings.fontLigatureOverrides[projectStore.globalSettings.defaultEditorFontFamily] ?? true },
                 set: { newValue in

@@ -80,6 +80,20 @@ extension ManageConnectionsView {
         return items.sorted(using: identitySortOrder)
     }
 
+    var searchFilteredConnections: [SavedConnection] {
+        guard let query = normalizedQuery else { return [] }
+        return projectConnections
+            .filter { connectionMatches($0, query: query) }
+            .sorted(using: connectionSortOrder)
+    }
+
+    var searchFilteredIdentities: [SavedIdentity] {
+        guard let query = normalizedQuery else { return [] }
+        return projectIdentities
+            .filter { identityMatches($0, query: query) }
+            .sorted(using: identitySortOrder)
+    }
+
     func connectionMatches(_ connection: SavedConnection, query: String) -> Bool {
         if connection.connectionName.lowercased().contains(query) { return true }
         if connection.host.lowercased().contains(query) { return true }

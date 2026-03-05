@@ -13,117 +13,100 @@ struct ConnectionsTableView: View {
     let onDoubleClick: (SavedConnection) -> Void
     let moveConnectionToFolder: (SavedConnection, SavedFolder) -> Void
     let createFolderAndMoveConnection: (SavedConnection) -> Void
-
+    let onNewConnection: () -> Void
+    let onNewFolder: () -> Void
 
     var body: some View {
-        DoubleClickableTable(
-            connections: connections,
-            selection: $selection,
-            onDoubleClick: onDoubleClick
-        ) {
-            Table(of: SavedConnection.self, selection: $selection, sortOrder: $sortOrder) {
-                TableColumn("") { connection in
-                    ConnectionIconCell(connection: connection)
-                }
-                .width(28)
+        Table(of: SavedConnection.self, selection: $selection, sortOrder: $sortOrder) {
+            TableColumn("Type") { connection in
+                ConnectionIconCell(connection: connection)
+            }
+            .width(32)
 
-                TableColumn("Name", value: \.connectionName) { connection in
-                    Text(displayName(for: connection))
-                }
+            TableColumn("Name", value: \.connectionName) { connection in
+                Text(displayName(for: connection))
+            }
 
-                TableColumn("Server") { connection in
-                    Text(serverLabel(for: connection))
-                }
+            TableColumn("Server", value: \.host) { connection in
+                Text(connection.host.isEmpty ? "—" : connection.host)
+            }
 
-                TableColumn("Database", value: \.database) { connection in
-                    Text(connection.database.isEmpty ? "—" : connection.database)
-                }
+            TableColumn("Port") { connection in
+                Text(connection.port > 0 ? String(connection.port) : "—")
+                    .foregroundStyle(connection.port > 0 ? .primary : .secondary)
+            }
+            .width(ideal: 50, max: 70)
 
-                TableColumn("Credentials") { connection in
-                    if let decoration = identityDecorationProvider(connection) {
-                        Label {
-                            Text(decoration.name)
-                        } icon: {
-                            Image(systemName: decoration.icon)
-                        }
+            TableColumn("Database", value: \.database) { connection in
+                Text(connection.database.isEmpty ? "—" : connection.database)
+            }
+
+            TableColumn("Credentials") { connection in
+                if let decoration = identityDecorationProvider(connection) {
+                    Label {
+                        Text(decoration.name)
+                    } icon: {
+                        Image(systemName: decoration.icon)
+                    }
+                    .foregroundStyle(.secondary)
+                } else {
+                    Text("—")
                         .foregroundStyle(.secondary)
-                    } else {
-                        Text("—")
-                            .foregroundStyle(.secondary)
-                    }
-                }
-
-                TableColumn("Folder") { connection in
-                    if let folderID = connection.folderID,
-                       let folder = folderLookup[folderID] {
-                        Text(folder.displayName)
-                    } else {
-                        Text("—")
-                            .foregroundStyle(.secondary)
-                    }
-                }
-
-                TableColumn("Type") { connection in
-                    Text(connection.databaseType.displayName)
-                }
-            } rows: {
-                ForEach(connections) { connection in
-                    TableRow(connection)
-                        .itemProvider {
-                            NSItemProvider(object: "connection:\(connection.id.uuidString)" as NSString)
-                        }
                 }
             }
-            .contextMenu(forSelectionType: SavedConnection.ID.self) { items in
-                if let selectionID = items.first,
-                   let connection = connections.first(where: { $0.id == selectionID }) {
-                    Button {
-                        onConnect(connection)
-                    } label: {
-                        Text("Connect")
-                    }
 
-                    Button {
-                        onEdit(connection)
-                    } label: {
-                        Text("Edit")
-                    }
-
-                    Button {
-                        onDuplicate(connection)
-                    } label: {
-                        Text("Duplicate")
-                    }
-
-                    Menu("Move to Folder") {
-                        ForEach(Array(folderLookup.values).sorted(by: { $0.name < $1.name }), id: \.id) { folder in
-                            Button(folder.displayName) {
-                                moveConnectionToFolder(connection, folder)
-                            }
-                        }
-                        Divider()
-                        Button("Create New Folder...") {
-                            createFolderAndMoveConnection(connection)
-                        }
-                    }
-
-                    Divider()
-                    Button("Delete", role: .destructive) { onDelete(connection) }
+            TableColumn("Folder") { connection in
+                if let folderID = connection.folderID,
+                   let folder = folderLookup[folderID] {
+                    Text(folder.displayName)
+                } else {
+                    Text("—")
+                        .foregroundStyle(.secondary)
                 }
+            }
+        } rows: {
+            ForEach(connections) { connection in
+                TableRow(connection)
+                    .itemProvider {
+                        NSItemProvider(object: "connection:\(connection.id.uuidString)" as NSString)
+                    }
             }
         }
-        .background(ColorTokens.Background.secondary)
+        .contextMenu(forSelectionType: SavedConnection.ID.self) { items in
+            if let selectionID = items.first,
+               let connection = connections.first(where: { $0.id == selectionID }) {
+                Button("Connect") { onConnect(connection) }
+                Button("Edit") { onEdit(connection) }
+                Button("Duplicate") { onDuplicate(connection) }
+
+                Menu("Move to Folder") {
+                    ForEach(Array(folderLookup.values).sorted(by: { $0.name < $1.name }), id: \.id) { folder in
+                        Button(folder.displayName) {
+                            moveConnectionToFolder(connection, folder)
+                        }
+                    }
+                    Divider()
+                    Button("Create New Folder...") {
+                        createFolderAndMoveConnection(connection)
+                    }
+                }
+
+                Divider()
+                Button("Delete", role: .destructive) { onDelete(connection) }
+            } else {
+                Button("New Connection") { onNewConnection() }
+                Button("New Folder") { onNewFolder() }
+            }
+        } primaryAction: { items in
+            if let selectionID = items.first,
+               let connection = connections.first(where: { $0.id == selectionID }) {
+                onDoubleClick(connection)
+            }
+        }
     }
 
     private func displayName(for connection: SavedConnection) -> String {
         let trimmed = connection.connectionName.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed.isEmpty ? connection.host : trimmed
-    }
-
-    private func serverLabel(for connection: SavedConnection) -> String {
-        if connection.port > 0 {
-            return "\(connection.host):\(connection.port)"
-        }
-        return connection.host.isEmpty ? "—" : connection.host
     }
 }

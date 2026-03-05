@@ -1,4 +1,3 @@
-#if os(macOS)
 import AppKit
 import SwiftUI
 import Combine
@@ -56,7 +55,7 @@ final class ManageConnectionsWindowController: NSWindowController, NSWindowDeleg
         let hosting = NSHostingController(rootView: rootView)
 
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 960, height: 640),
+            contentRect: NSRect(x: 0, y: 0, width: 1100, height: 660),
             styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
             backing: .buffered,
             defer: false
@@ -64,19 +63,12 @@ final class ManageConnectionsWindowController: NSWindowController, NSWindowDeleg
         window.identifier = AppWindowIdentifier.manageConnections
         window.title = "Manage Connections"
         window.isReleasedWhenClosed = false
-        window.titlebarAppearsTransparent = true
-        window.titleVisibility = .hidden
         window.toolbarStyle = .unified
         let toolbar = NSToolbar(identifier: Self.toolbarIdentifier)
         toolbar.allowsUserCustomization = false
         toolbar.autosavesConfiguration = false
         toolbar.sizeMode = .regular
         toolbar.displayMode = .iconOnly
-        if #available(macOS 15, *) {
-            // showsBaselineSeparator removed on macOS 15
-        } else {
-            toolbar.showsBaselineSeparator = false
-        }
         window.toolbar = toolbar
         window.contentViewController = hosting
         window.delegate = self
@@ -106,12 +98,10 @@ final class ManageConnectionsWindowController: NSWindowController, NSWindowDeleg
         let manager = AppearanceStore.shared
         let isDark = manager.effectiveColorScheme == .dark
         window.appearance = NSAppearance(named: isDark ? .darkAqua : .aqua)
-        window.backgroundColor = NSColor(ColorTokens.Background.primary)
-        if #unavailable(macOS 15) {
-            window.toolbar?.showsBaselineSeparator = false
-        }
     }
 }
+
+// MARK: - Root View
 
 private struct ManageConnectionsWindowRootView: View {
     let onClose: () -> Void
@@ -119,7 +109,6 @@ private struct ManageConnectionsWindowRootView: View {
     var body: some View {
         let coordinator = AppCoordinator.shared
         ManageConnectionsView(onClose: onClose)
-            .ignoresSafeArea()
             .environment(coordinator.projectStore)
             .environment(coordinator.connectionStore)
             .environment(coordinator.navigationStore)
@@ -130,4 +119,3 @@ private struct ManageConnectionsWindowRootView: View {
             .environmentObject(coordinator.clipboardHistory)
     }
 }
-#endif

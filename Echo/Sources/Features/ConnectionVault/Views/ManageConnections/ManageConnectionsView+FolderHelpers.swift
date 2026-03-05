@@ -49,10 +49,10 @@ extension ManageConnectionsView {
     }
 
     func moveConnectionToFolder(_ connection: SavedConnection, _ folder: SavedFolder) {
-        var updatedConnection = connection
-        updatedConnection.folderID = folder.id
-        Task {
-            await environmentState.upsertConnection(updatedConnection, password: nil)
+        guard let index = connectionStore.connections.firstIndex(where: { $0.id == connection.id }) else { return }
+        connectionStore.connections[index].folderID = folder.id
+        Task { @MainActor in
+            try? await connectionStore.saveConnections()
         }
     }
 
@@ -63,10 +63,10 @@ extension ManageConnectionsView {
     }
 
     func moveIdentityToFolder(_ identity: SavedIdentity, _ folder: SavedFolder) {
-        var updatedIdentity = identity
-        updatedIdentity.folderID = folder.id
-        Task {
-            try? await connectionStore.updateIdentity(updatedIdentity)
+        guard let index = connectionStore.identities.firstIndex(where: { $0.id == identity.id }) else { return }
+        connectionStore.identities[index].folderID = folder.id
+        Task { @MainActor in
+            try? await connectionStore.saveIdentities()
         }
     }
 

@@ -77,9 +77,13 @@ enum SidebarItem: Identifiable, Hashable, Codable {
 struct SavedFolder: Identifiable, Codable, Hashable, Sendable {
     static let defaultColorHex = "007AFF"
 
+    static let defaultIcon = "folder"
+
     var id: UUID = UUID()
     var projectID: UUID?
     var name: String
+    var folderDescription: String?
+    var icon: String = SavedFolder.defaultIcon
     var parentFolderID: UUID?
     var createdAt: Date
     var colorHex: String
@@ -94,8 +98,9 @@ struct SavedFolder: Identifiable, Codable, Hashable, Sendable {
         children.filter { $0.isConnection }.count
     }
 
-    init(name: String, projectID: UUID? = nil, parentFolderID: UUID? = nil, colorHex: String = Self.defaultColorHex) {
+    init(name: String, folderDescription: String? = nil, projectID: UUID? = nil, parentFolderID: UUID? = nil, colorHex: String = Self.defaultColorHex) {
         self.name = name
+        self.folderDescription = folderDescription
         self.projectID = projectID
         self.parentFolderID = parentFolderID
         self.createdAt = Date()
@@ -105,7 +110,7 @@ struct SavedFolder: Identifiable, Codable, Hashable, Sendable {
     // MARK: - Codable Support for Color
 
     private enum CodingKeys: String, CodingKey {
-        case id, projectID, name, parentFolderID, createdAt, colorHex, kind, credentialMode, identityID, manualUsername, manualKeychainIdentifier, children
+        case id, projectID, name, folderDescription, icon, parentFolderID, createdAt, colorHex, kind, credentialMode, identityID, manualUsername, manualKeychainIdentifier, children
     }
 
     init(from decoder: Decoder) throws {
@@ -113,6 +118,8 @@ struct SavedFolder: Identifiable, Codable, Hashable, Sendable {
         id = try container.decode(UUID.self, forKey: .id)
         projectID = try container.decodeIfPresent(UUID.self, forKey: .projectID)
         name = try container.decode(String.self, forKey: .name)
+        folderDescription = try container.decodeIfPresent(String.self, forKey: .folderDescription)
+        icon = try container.decodeIfPresent(String.self, forKey: .icon) ?? SavedFolder.defaultIcon
         parentFolderID = try container.decodeIfPresent(UUID.self, forKey: .parentFolderID)
         createdAt = try container.decode(Date.self, forKey: .createdAt)
         kind = try container.decodeIfPresent(FolderKind.self, forKey: .kind) ?? .connections
@@ -130,6 +137,8 @@ struct SavedFolder: Identifiable, Codable, Hashable, Sendable {
         try container.encode(id, forKey: .id)
         try container.encodeIfPresent(projectID, forKey: .projectID)
         try container.encode(name, forKey: .name)
+        try container.encodeIfPresent(folderDescription, forKey: .folderDescription)
+        try container.encode(icon, forKey: .icon)
         try container.encodeIfPresent(parentFolderID, forKey: .parentFolderID)
         try container.encode(createdAt, forKey: .createdAt)
         try container.encode(kind, forKey: .kind)

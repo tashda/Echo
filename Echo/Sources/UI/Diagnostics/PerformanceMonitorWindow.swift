@@ -15,6 +15,8 @@ struct PerformanceMonitorWindow: Scene {
                 .environmentObject(AppCoordinator.shared.appearanceStore)
         }
         .defaultSize(width: 960, height: 620)
+        .restorationBehavior(.disabled)
+        .defaultLaunchBehavior(.suppressed)
     }
 }
 

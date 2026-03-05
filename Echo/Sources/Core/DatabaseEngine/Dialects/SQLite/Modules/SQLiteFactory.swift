@@ -11,7 +11,8 @@ struct SQLiteFactory: DatabaseFactory {
         port: Int,
         database: String?,
         tls: Bool,
-        authentication: DatabaseAuthenticationConfiguration
+        authentication: DatabaseAuthenticationConfiguration,
+        connectTimeoutSeconds: Int = 10
     ) async throws -> DatabaseSession {
         _ = authentication
         let resolvedPath = try resolveDatabasePath(host: host, database: database)

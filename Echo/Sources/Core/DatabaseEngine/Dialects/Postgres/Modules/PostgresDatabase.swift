@@ -13,7 +13,8 @@ struct PostgresNIOFactory: DatabaseFactory {
         port: Int,
         database: String?,
         tls: Bool,
-        authentication: DatabaseAuthenticationConfiguration
+        authentication: DatabaseAuthenticationConfiguration,
+        connectTimeoutSeconds: Int = 10
     ) async throws -> DatabaseSession {
         guard authentication.method == .sqlPassword else {
             throw DatabaseError.authenticationFailed("Windows authentication is not supported for PostgreSQL")
@@ -29,7 +30,8 @@ struct PostgresNIOFactory: DatabaseFactory {
             username: authentication.username,
             password: authentication.password,
             useTLS: tls,
-            applicationName: "Echo"
+            applicationName: "Echo",
+            connectTimeout: connectTimeoutSeconds
         )
 
         let client = try await PostgresDatabaseClient.connect(configuration: configuration, logger: logger)

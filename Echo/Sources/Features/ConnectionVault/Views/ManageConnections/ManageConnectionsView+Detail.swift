@@ -4,20 +4,10 @@ import AppKit
 extension ManageConnectionsView {
     var detailContent: some View {
         detailBody
-            .background(ColorTokens.Background.secondary)
             .accentColor(appearanceStore.accentColor)
-            .searchable(
-                text: $searchText,
-                placement: .toolbar,
-                prompt: Text(activeSection.searchPlaceholder)
-            )
+            .navigationTitle(navigationTitleText)
+            .navigationSubtitle(navigationSubtitleText)
             .toolbar {
-                ToolbarItem(placement: .principal) {
-                    ToolbarTitleWithSubtitle(
-                        title: navigationTitleText,
-                        subtitle: navigationSubtitleText
-                    )
-                }
                 ToolbarItem(placement: .primaryAction) {
                     addToolbarMenu
                 }
@@ -33,7 +23,11 @@ extension ManageConnectionsView {
     }
 
     var navigationSubtitleText: String {
-        if case .folder(_, _) = sidebarSelection {
+        if case .folder(let folderID, _) = sidebarSelection,
+           let folder = folder(withID: folderID) {
+            if let desc = folder.folderDescription, !desc.isEmpty {
+                return desc
+            }
             return activeSection.title
         }
         return ""
@@ -42,36 +36,26 @@ extension ManageConnectionsView {
     @ViewBuilder
     var addToolbarMenu: some View {
         Menu {
-            switch activeSection {
-            case .connections:
-                Button {
-                    handlePrimaryAdd(for: .connections)
-                } label: {
-                    Label("New Connection", systemImage: "externaldrive.badge.plus")
-                }
-                Button {
-                    presentCreateFolder(for: .connections)
-                } label: {
-                    Label("New Folder", systemImage: "folder.badge.plus")
-                }
-            case .identities:
-                Button {
-                    handlePrimaryAdd(for: .identities)
-                } label: {
-                    Label("New Identity", systemImage: "person.crop.circle.badge.plus")
-                }
-                Button {
-                    presentCreateFolder(for: .identities)
-                } label: {
-                    Label("New Folder", systemImage: "folder.badge.plus")
-                }
+            Button {
+                handlePrimaryAdd(for: .connections)
+            } label: {
+                Label("New Connection", systemImage: "externaldrive.badge.plus")
+            }
+            Button {
+                createNewIdentity()
+            } label: {
+                Label("New Identity", systemImage: "person.crop.circle.badge.plus")
+            }
+            Divider()
+            Button {
+                presentCreateFolder(for: activeSection)
+            } label: {
+                Label("New Folder", systemImage: "folder.badge.plus")
             }
         } label: {
-            ToolbarAddButton()
+            Label("Add", systemImage: "plus")
         }
         .menuIndicator(.hidden)
-        .menuStyle(.borderlessButton)
-        .controlSize(.large)
-        .help(activeSection == .connections ? "Add connection or folder" : "Add identity or folder")
+        .help("Add connection, identity, or folder")
     }
 }

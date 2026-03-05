@@ -11,7 +11,8 @@ struct MSSQLNIOFactory: DatabaseFactory {
         port: Int,
         database: String?,
         tls: Bool,
-        authentication: DatabaseAuthenticationConfiguration
+        authentication: DatabaseAuthenticationConfiguration,
+        connectTimeoutSeconds: Int = 10
     ) async throws -> DatabaseSession {
         let resolvedDatabase = database?.trimmingCharacters(in: .whitespacesAndNewlines)
         let loginDatabase = resolvedDatabase?.isEmpty == false ? resolvedDatabase! : "master"
@@ -41,12 +42,17 @@ struct MSSQLNIOFactory: DatabaseFactory {
             throw DatabaseError.authenticationFailed("Only SQL password authentication is supported for SQL Server")
         }
 
-        let configuration = SQLServerClient.Configuration(
+        let connectionConfig = SQLServerConnection.Configuration(
             hostname: host,
             port: port,
             login: .init(database: loginDatabase, authentication: sqlServerAuth),
             tlsConfiguration: tls ? .makeClientConfiguration() : nil,
-            metadataConfiguration: metadataConfiguration
+            metadataConfiguration: metadataConfiguration,
+            connectTimeoutSeconds: connectTimeoutSeconds
+        )
+        let configuration = SQLServerClient.Configuration(
+            connection: connectionConfig,
+            poolConfiguration: .init()
         )
 
         logger.info("Connecting to SQL Server at \(host):\(port)/\(loginDatabase)")

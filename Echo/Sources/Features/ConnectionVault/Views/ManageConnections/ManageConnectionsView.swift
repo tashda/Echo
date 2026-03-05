@@ -108,22 +108,19 @@ struct ManageConnectionsView: View {
 
     private var configuredSplitView: some View {
         splitView
-            .frame(minWidth: 900, minHeight: 600)
+            .frame(minWidth: 1000, minHeight: 600)
     }
 
     private var splitView: some View {
         NavigationSplitView {
             sidebar
-                .frame(minWidth: 220, idealWidth: 260, maxWidth: 300)
-#if os(macOS)
+                .frame(minWidth: 180, idealWidth: 200, maxWidth: 260)
                 .toolbar(removing: .sidebarToggle)
-#endif
         } detail: {
             detailContent
         }
-#if os(macOS)
         .navigationSplitViewStyle(.balanced)
-#endif
+        .searchable(text: $searchText, placement: .toolbar, prompt: "Search")
     }
 
     var deletionAlertBinding: Binding<Bool> {
