@@ -71,22 +71,24 @@ struct EchoSenseToggleRow: View {
     @State private var isPopoverPresented = false
 
     var body: some View {
-        HStack(alignment: .center, spacing: 8) {
-            Toggle(title, isOn: $isOn)
-                .toggleStyle(.switch)
+        LabeledContent {
+            HStack(spacing: SpacingTokens.xxs2) {
+                Toggle("", isOn: $isOn)
+                    .labelsHidden()
+                    .toggleStyle(.switch)
 
-            Spacer(minLength: 8)
-
-            Button(action: { isPopoverPresented.toggle() }) {
-                Image(systemName: "info.circle")
-                    .imageScale(.medium)
-                    .font(TypographyTokens.standard.weight(.regular))
+                Button(action: { isPopoverPresented.toggle() }) {
+                    Image(systemName: "info.circle")
+                        .imageScale(.medium)
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(.secondary)
+                .popover(isPresented: $isPopoverPresented, attachmentAnchor: .rect(.bounds), arrowEdge: .trailing) {
+                    EchoSenseInfoPopover(topic: topic)
+                }
             }
-            .buttonStyle(.plain)
-            .foregroundStyle(.secondary)
-            .popover(isPresented: $isPopoverPresented, attachmentAnchor: .rect(.bounds), arrowEdge: .trailing) {
-                EchoSenseInfoPopover(topic: topic)
-            }
+        } label: {
+            Text(title)
         }
     }
 }
@@ -109,6 +111,7 @@ struct EchoSenseAggressivenessRow: View {
                         Text(mode.displayName).tag(mode)
                     }
                 }
+                .labelsHidden()
                 .pickerStyle(.segmented)
                 .frame(maxWidth: 360)
 
@@ -137,7 +140,6 @@ struct EchoSenseAggressivenessRow: View {
                     .frame(width: 320)
                 }
             }
-            .frame(maxWidth: .infinity, alignment: .trailing)
         } label: {
             Text("Suggestion aggressiveness")
         }

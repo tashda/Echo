@@ -11,18 +11,17 @@ struct KeyboardShortcutsSettingsView: View {
 
     var body: some View {
         Form {
-            Section {
-                HStack {
-                    Spacer()
-                    Button("Reset All to Default") {
-                        var settings = projectStore.globalSettings
-                        settings.customKeyboardShortcuts = nil
-                        Task { try? await projectStore.updateGlobalSettings(settings) }
-                    }
-                    .buttonStyle(.bordered)
-                    .disabled(customShortcuts.isEmpty)
+            HStack {
+                Spacer()
+                Button("Reset All to Default") {
+                    var settings = projectStore.globalSettings
+                    settings.customKeyboardShortcuts = nil
+                    Task { try? await projectStore.updateGlobalSettings(settings) }
                 }
+                .buttonStyle(.bordered)
+                .disabled(customShortcuts.isEmpty)
             }
+            .padding(.bottom, SpacingTokens.xxs)
 
             ForEach(sections) { section in
                 Section(section.title) {
@@ -80,10 +79,8 @@ private struct ShortcutRowView: View {
                     }, onCancel: {
                         isRecording = false
                     })
-                    .frame(width: 160)
                 } else {
                     ShortcutKeyCaps(keys: displayKeys, isCustomized: isCustomized)
-                        .onTapGesture { isRecording = true }
                 }
 
                 if isCustomized && !isRecording {
@@ -94,6 +91,10 @@ private struct ShortcutRowView: View {
                     }
                     .buttonStyle(.plain)
                 }
+            }
+            .contentShape(Rectangle())
+            .onTapGesture {
+                if !isRecording { isRecording = true }
             }
         } label: {
             VStack(alignment: .leading, spacing: 2) {
@@ -110,14 +111,77 @@ private struct ShortcutRowView: View {
 
 // MARK: - Shortcut Recorder
 
-private struct ShortcutRecorderField: NSViewRepresentable {
+private struct ShortcutRecorderField: View {
     let onRecord: (CustomShortcutBinding) -> Void
     let onCancel: () -> Void
+
+    @State private var modifierText: String = ""
+
+    var body: some View {
+        ShortcutRecorderRepresentable(
+            onRecord: onRecord,
+            onCancel: onCancel,
+            onModifiersChanged: { modifierText = $0 }
+        )
+        .frame(width: 0, height: 0)
+        .opacity(0)
+        .overlay {
+            HStack(spacing: SpacingTokens.xxs) {
+                if modifierText.isEmpty {
+                    RecordingDots()
+                } else {
+                    Text(modifierText)
+                        .font(TypographyTokens.caption2.weight(.medium))
+                        .foregroundStyle(.primary)
+                }
+            }
+            .frame(minWidth: 100)
+            .padding(.horizontal, SpacingTokens.sm)
+            .padding(.vertical, SpacingTokens.xxs)
+            .background(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(.quaternary)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .strokeBorder(Color.accentColor, lineWidth: 1.5)
+            )
+        }
+    }
+}
+
+private struct RecordingDots: View {
+    @State private var phase = 0
+
+    var body: some View {
+        HStack(spacing: SpacingTokens.xxs2) {
+            ForEach(0..<3, id: \.self) { i in
+                Circle()
+                    .fill(Color.secondary)
+                    .frame(width: 5, height: 5)
+                    .opacity(phase == i ? 1.0 : 0.3)
+            }
+        }
+        .onAppear {
+            Timer.scheduledTimer(withTimeInterval: 0.4, repeats: true) { _ in
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    phase = (phase + 1) % 3
+                }
+            }
+        }
+    }
+}
+
+private struct ShortcutRecorderRepresentable: NSViewRepresentable {
+    let onRecord: (CustomShortcutBinding) -> Void
+    let onCancel: () -> Void
+    let onModifiersChanged: (String) -> Void
 
     func makeNSView(context: Context) -> ShortcutRecorderNSView {
         let view = ShortcutRecorderNSView()
         view.onRecord = onRecord
         view.onCancel = onCancel
+        view.onModifiersChanged = onModifiersChanged
         return view
     }
 
@@ -127,24 +191,10 @@ private struct ShortcutRecorderField: NSViewRepresentable {
 final class ShortcutRecorderNSView: NSView {
     var onRecord: ((CustomShortcutBinding) -> Void)?
     var onCancel: (() -> Void)?
-    private let label = NSTextField(labelWithString: "Type shortcut…")
+    var onModifiersChanged: ((String) -> Void)?
 
     override init(frame: NSRect) {
         super.init(frame: frame)
-        wantsLayer = true
-        layer?.cornerRadius = 6
-        layer?.borderWidth = 1.5
-        layer?.borderColor = NSColor.controlAccentColor.cgColor
-
-        label.font = NSFont.systemFont(ofSize: 12, weight: .medium)
-        label.textColor = .secondaryLabelColor
-        label.alignment = .center
-        label.translatesAutoresizingMaskIntoConstraints = false
-        addSubview(label)
-        NSLayoutConstraint.activate([
-            label.centerXAnchor.constraint(equalTo: centerXAnchor),
-            label.centerYAnchor.constraint(equalTo: centerYAnchor),
-        ])
     }
 
     required init?(coder: NSCoder) { fatalError() }
@@ -164,7 +214,6 @@ final class ShortcutRecorderNSView: NSView {
             return
         }
 
-        // Require at least one modifier (Cmd, Ctrl, Option) — Shift alone is not enough
         let hasRequiredModifier = modifiers.contains(.command) || modifiers.contains(.control) || modifiers.contains(.option)
         guard hasRequiredModifier else { return }
 
@@ -178,18 +227,17 @@ final class ShortcutRecorderNSView: NSView {
     }
 
     override func flagsChanged(with event: NSEvent) {
-        // Update visual feedback for modifier keys being held
         let mods = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
         var parts: [String] = []
         if mods.contains(.control) { parts.append("⌃") }
         if mods.contains(.option) { parts.append("⌥") }
         if mods.contains(.shift) { parts.append("⇧") }
         if mods.contains(.command) { parts.append("⌘") }
-        label.stringValue = parts.isEmpty ? "Type shortcut…" : parts.joined() + " …"
+        onModifiersChanged?(parts.isEmpty ? "" : parts.joined() + " …")
     }
 
     override var intrinsicContentSize: NSSize {
-        NSSize(width: 160, height: 24)
+        NSSize(width: 1, height: 1)
     }
 }
 

@@ -19,12 +19,8 @@ struct AppearanceSettingsView: View {
     // MARK: - Sections
 
     private var appearanceModeSection: some View {
-        Section {
+        Section("Appearance Mode") {
             AppearanceModePicker(selection: appearanceModeBinding)
-
-            Text("Choose Light or Dark for a fixed appearance, or System to follow macOS automatically.")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
         }
     }
 
@@ -39,12 +35,10 @@ struct AppearanceSettingsView: View {
                 }
             ))
 
-            if projectStore.globalSettings.useServerColorAsAccent {
-                Text("The accent color changes based on the active database connection.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            } else {
-                AccentColorPalette(selection: customAccentColorHexBinding)
+            if !projectStore.globalSettings.useServerColorAsAccent {
+                LabeledContent("Accent Color") {
+                    AccentColorPalette(selection: customAccentColorHexBinding)
+                }
             }
         }
     }
@@ -64,19 +58,21 @@ struct AppearanceSettingsView: View {
             )
 
             LabeledContent("Font Size") {
-                Stepper(
-                    "\(String(format: "%.1f", projectStore.globalSettings.defaultEditorFontSize)) pt",
-                    value: Binding(
-                        get: { projectStore.globalSettings.defaultEditorFontSize },
-                        set: { newValue in
-                            var settings = projectStore.globalSettings
-                            settings.defaultEditorFontSize = newValue
-                            Task { try? await projectStore.updateGlobalSettings(settings) }
-                        }
-                    ),
-                    in: 8...24,
-                    step: 0.5
-                )
+                Picker("", selection: Binding(
+                    get: { projectStore.globalSettings.defaultEditorFontSize },
+                    set: { newValue in
+                        var settings = projectStore.globalSettings
+                        settings.defaultEditorFontSize = newValue
+                        Task { try? await projectStore.updateGlobalSettings(settings) }
+                    }
+                )) {
+                    ForEach(Self.fontSizeOptions, id: \.self) { size in
+                        Text(Self.fontSizeLabel(size)).tag(size)
+                    }
+                }
+                .labelsHidden()
+                .pickerStyle(.menu)
+                .frame(minWidth: 100, idealWidth: 120, maxWidth: 160, alignment: .trailing)
             }
 
             Toggle("Enable Ligatures", isOn: Binding(
@@ -88,6 +84,16 @@ struct AppearanceSettingsView: View {
                 }
             ))
         }
+    }
+
+    // MARK: - Constants
+
+    private static let fontSizeOptions: [Double] = stride(from: 8.0, through: 24.0, by: 0.5).map { $0 }
+
+    private static func fontSizeLabel(_ size: Double) -> String {
+        size.truncatingRemainder(dividingBy: 1) == 0
+            ? "\(Int(size)),0 pt"
+            : String(format: "%.1f pt", size).replacingOccurrences(of: ".", with: ",")
     }
 
     // MARK: - Bindings

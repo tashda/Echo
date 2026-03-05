@@ -122,7 +122,18 @@ struct ApplicationCacheSettingsView: View {
 
                 LabeledContent("Diagram cache") {
                     Picker("", selection: diagramCacheLimitBinding) {
-                        ForEach(Self.diagramCacheOptions, id: \.bytes) { option in
+                        ForEach(Self.perTypeStorageOptions, id: \.bytes) { option in
+                            Text(option.label).tag(option.bytes)
+                        }
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.menu)
+                    .frame(minWidth: 120, idealWidth: 160, maxWidth: 200, alignment: .trailing)
+                }
+
+                LabeledContent("EchoSense history") {
+                    Picker("", selection: echoSenseStorageLimitBinding) {
+                        ForEach(Self.perTypeStorageOptions, id: \.bytes) { option in
                             Text(option.label).tag(option.bytes)
                         }
                     }
@@ -148,9 +159,7 @@ struct ApplicationCacheSettingsView: View {
     }
 
     private var storageUsageSection: some View {
-        let usage = clipboardHistory.formattedUsageBreakdown()
-
-        return Section("Cache Usage") {
+        Section("Cache Usage") {
             storageUsageRow(
                 title: "Result Cache",
                 usage: resultCacheUsage,
@@ -181,8 +190,7 @@ struct ApplicationCacheSettingsView: View {
                     usage: UInt64(clipboardHistory.usage.totalBytes),
                     isRefreshing: false,
                     onRefresh: nil,
-                    onClear: { clearClipboardHistory() },
-                    usageBreakdown: usage
+                    onClear: { clearClipboardHistory() }
                 )
             }
         }
@@ -199,6 +207,7 @@ struct ApplicationCacheSettingsView: View {
     private static let gb = 1_073_741_824
 
     private static let retentionOptions: [(label: String, hours: Int)] = [
+        ("Never", 0),
         ("1 hour", 1),
         ("6 hours", 6),
         ("12 hours", 12),
@@ -206,6 +215,7 @@ struct ApplicationCacheSettingsView: View {
         ("3 days", 72),
         ("7 days", 168),
         ("14 days", 336),
+        ("Forever", -1),
     ]
 
     private static let unifiedStorageOptions: [(label: String, bytes: Int)] = [
@@ -222,13 +232,5 @@ struct ApplicationCacheSettingsView: View {
         ("2 GB",   2 * gb),
         ("5 GB",   5 * gb),
         ("10 GB",  10 * gb),
-    ]
-
-    private static let diagramCacheOptions: [(label: String, bytes: Int)] = [
-        ("128 MB", 128 * 1_048_576),
-        ("256 MB", 256 * 1_048_576),
-        ("512 MB", 512 * 1_048_576),
-        ("1 GB",   1 * gb),
-        ("2 GB",   2 * gb),
     ]
 }
