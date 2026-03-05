@@ -11,6 +11,7 @@ import AppKit
 /// lets NSWindow.sendEvent deliver them through the normal dispatch.
 final class TopBarNavigatorHitProxy: NSView {
     weak var hostingView: TopBarNavigatorHostingView?
+    private var isHitTesting = false
 
     override func draw(_ dirtyRect: NSRect) {}
     override var isOpaque: Bool { false }
@@ -18,12 +19,13 @@ final class TopBarNavigatorHitProxy: NSView {
 
     override func hitTest(_ point: NSPoint) -> NSView? {
         guard let hostingView, let superview = self.superview else { return nil }
-        // Check if the hosting view has interactive content at this point.
+        // Convert to hosting view's local coordinates and do a simple
+        // bounds check. We intentionally avoid calling hostingView.hitTest()
+        // because that enters the SwiftUI layer and causes infinite
+        // recursion when a .popover() is active.
         let windowPoint = superview.convert(point, to: nil)
-        let containerPoint = hostingView.superview?.convert(windowPoint, from: nil) ?? windowPoint
-        guard hostingView.hitTest(containerPoint) != nil else { return nil }
-        // Return self — NOT the hosting view's subview — to stay within
-        // NSToolbarView's hierarchy and avoid cursor-tracking recursion.
+        let hostingLocal = hostingView.convert(windowPoint, from: nil)
+        guard hostingView.bounds.contains(hostingLocal) else { return nil }
         return self
     }
 

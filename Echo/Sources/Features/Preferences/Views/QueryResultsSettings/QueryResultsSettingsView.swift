@@ -10,38 +10,44 @@ struct QueryResultsSettingsView: View {
     internal enum EngineTab: Hashable { case postgres, sqlserver, mysql, sqlite }
 
     var body: some View {
+        ScrollViewReader { proxy in
         Form {
-            Section("Foreign Keys") {
-                Picker("Foreign key cells", selection: displayModeBinding) {
-                    ForEach(ForeignKeyDisplayMode.allCases, id: \.self) { mode in
-                        Text(displayName(for: mode)).tag(mode)
-                    }
-                }
-                .pickerStyle(.segmented)
-
-                Text(displayDescription(for: selectedDisplayMode))
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-
-                if selectedDisplayMode != .disabled {
-                    Picker("Inspector behavior", selection: inspectorBehaviorBinding) {
-                        ForEach(ForeignKeyInspectorBehavior.allCases, id: \.self) { behavior in
-                            Text(behaviorDisplayName(for: behavior)).tag(behavior)
+            Section("Foreign Key Cells") {
+                SettingsRowWithInfo(
+                    title: "Cell Behaviour",
+                    description: displayDescription(for: selectedDisplayMode)
+                ) {
+                    Picker("", selection: displayModeBinding) {
+                        ForEach(ForeignKeyDisplayMode.allCases, id: \.self) { mode in
+                            Text(displayName(for: mode)).tag(mode)
                         }
                     }
-                    .pickerStyle(.inline)
+                    .labelsHidden()
+                    .pickerStyle(.segmented)
+                }
 
-                    Text(behaviorDescription(for: selectedBehavior))
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
+                if selectedDisplayMode == .showInspector {
+                    SettingsRowWithInfo(
+                        title: "Inspector Behaviour",
+                        description: behaviorDescription(for: selectedBehavior)
+                    ) {
+                        Picker("", selection: inspectorBehaviorBinding) {
+                            ForEach(ForeignKeyInspectorBehavior.allCases, id: \.self) { behavior in
+                                Text(behaviorDisplayName(for: behavior)).tag(behavior)
+                            }
+                        }
+                        .labelsHidden()
+                        .pickerStyle(.segmented)
+                    }
 
-                    Toggle("Include related foreign keys", isOn: includeRelatedBinding)
-                        .toggleStyle(.switch)
-
-                    Text("When enabled, the inspector also loads rows referenced by the selected record's foreign keys.")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                        .padding(.top, SpacingTokens.xxxs)
+                    SettingsRowWithInfo(
+                        title: "Include related foreign keys",
+                        description: "When enabled, the inspector also loads rows referenced by the selected record's foreign keys."
+                    ) {
+                        Toggle("", isOn: includeRelatedBinding)
+                            .labelsHidden()
+                            .toggleStyle(.switch)
+                    }
                 }
             }
 
@@ -57,7 +63,7 @@ struct QueryResultsSettingsView: View {
                 )
 
                 StreamingPresetPickerControl(
-                    title: "Data preview batch size",
+                    title: "Data Preview Batch Size",
                     value: previewBatchSizeBinding,
                     description: "Used when opening table previews from the sidebar.",
                     presets: streamingRowPresets,
@@ -67,7 +73,7 @@ struct QueryResultsSettingsView: View {
                 )
 
                 StreamingPresetPickerControl(
-                    title: "Background streaming threshold",
+                    title: "Background Streaming Threshold",
                     value: backgroundStreamingThresholdBinding,
                     description: "After this many rows are streamed, Echo hands off ingestion to a background worker.",
                     presets: streamingThresholdPresets,
@@ -77,7 +83,7 @@ struct QueryResultsSettingsView: View {
                 )
 
                 StreamingPresetPickerControl(
-                    title: "Background fetch batch size",
+                    title: "Background Fetch Batch Size",
                     value: backgroundFetchSizeBinding,
                     description: "Controls how many rows Echo asks the server for in each background fetch.",
                     presets: streamingFetchPresets,
@@ -87,7 +93,7 @@ struct QueryResultsSettingsView: View {
                 )
 
                 StreamingPresetPickerControl(
-                    title: "Fetch ramp multiplier",
+                    title: "Fetch Ramp Multiplier",
                     value: fetchRampMultiplierBinding,
                     description: "Determines how aggressively Echo expands background fetch sizes.",
                     presets: streamingFetchRampMultiplierPresets,
@@ -97,7 +103,7 @@ struct QueryResultsSettingsView: View {
                 )
 
                 StreamingPresetPickerControl(
-                    title: "Fetch ramp maximum",
+                    title: "Fetch Ramp Maximum",
                     value: fetchRampMaxBinding,
                     description: "Caps the largest background fetch Echo will request.",
                     presets: streamingFetchRampMaxPresets,
@@ -106,17 +112,18 @@ struct QueryResultsSettingsView: View {
                     defaultValue: ResultStreamingDefaults.fetchRampMax
                 )
 
-                Picker("Streaming mode", selection: streamingModeBinding) {
-                    ForEach(ResultStreamingExecutionMode.allCases, id: \.self) { mode in
-                        Text(mode.displayName).tag(mode)
-                    }
-                }
-                .pickerStyle(.segmented)
-
                 HStack {
                     Spacer()
                     Button("Revert to Default") {
-                        let settings = GlobalSettings()
+                        var settings = projectStore.globalSettings
+                        settings.resultsInitialRowLimit = ResultStreamingDefaults.initialRows
+                        settings.resultsPreviewBatchSize = ResultStreamingDefaults.previewBatch
+                        settings.resultsBackgroundStreamingThreshold = ResultStreamingDefaults.backgroundThreshold
+                        settings.resultsStreamingFetchSize = ResultStreamingDefaults.fetchSize
+                        settings.resultsStreamingFetchRampMultiplier = ResultStreamingDefaults.fetchRampMultiplier
+                        settings.resultsStreamingFetchRampMax = ResultStreamingDefaults.fetchRampMax
+                        settings.resultsUseCursorStreaming = ResultStreamingDefaults.useCursor
+                        settings.resultsCursorStreamingLimitThreshold = ResultStreamingDefaults.cursorLimitThreshold
                         Task { try? await projectStore.updateGlobalSettings(settings) }
                     }
                     .buttonStyle(.bordered)
@@ -126,24 +133,30 @@ struct QueryResultsSettingsView: View {
             }
 
             Section("Engine Profiles") {
-                HStack {
-                    Spacer(minLength: 0)
-                    Picker("", selection: $selectedEngineTab) {
-                        Text("PostgreSQL").tag(EngineTab.postgres)
-                        Text("SQL Server").tag(EngineTab.sqlserver)
-                        Text("MySQL").tag(EngineTab.mysql)
-                        Text("SQLite").tag(EngineTab.sqlite)
-                    }
-                    .pickerStyle(.segmented)
-                    .frame(maxWidth: 520)
-                    Spacer(minLength: 0)
+                Picker("", selection: $selectedEngineTab) {
+                    Text("PostgreSQL").tag(EngineTab.postgres)
+                    Text("SQL Server").tag(EngineTab.sqlserver)
+                    Text("MySQL").tag(EngineTab.mysql)
+                    Text("SQLite").tag(EngineTab.sqlite)
                 }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .frame(maxWidth: 520)
+                .frame(maxWidth: .infinity)
 
                 engineSpecificSettings
+                    .id("engineContent")
             }
+            .id("engineProfiles")
         }
         .formStyle(.grouped)
         .scrollContentBackground(.hidden)
+        .onChange(of: selectedEngineTab) { _, _ in
+            withAnimation {
+                proxy.scrollTo("engineProfiles", anchor: UnitPoint(x: 0.5, y: 0.85))
+            }
+        }
+        } // ScrollViewReader
     }
 
 }

@@ -2,6 +2,20 @@ import Foundation
 import SwiftUI
 import EchoSense
 
+enum AccentColorSource: String, Codable, Hashable, CaseIterable {
+    case system
+    case connection
+    case custom
+
+    var displayName: String {
+        switch self {
+        case .system: return "System"
+        case .connection: return "Connection"
+        case .custom: return "Custom"
+        }
+    }
+}
+
 struct GlobalSettings: Codable, Hashable {
     var appearanceMode: AppearanceMode
     var defaultEditorFontSize: Double
@@ -30,7 +44,8 @@ struct GlobalSettings: Codable, Hashable {
     var editorShowSystemSchemas: Bool = false
     var editorAllowCommandPeriodTrigger: Bool = true
     var editorAllowControlSpaceTrigger: Bool = true
-    var useServerColorAsAccent: Bool
+    var accentColorSource: AccentColorSource
+    var customAccentColorHex: String?
     var workspaceTabBarStyle: WorkspaceTabBarStyle = .floating
     var tabOverviewStyle: TabOverviewStyle = .comfortable
     var resultsAlternateRowShading: Bool = false
@@ -62,6 +77,9 @@ struct GlobalSettings: Codable, Hashable {
     var diagramVerifyBeforeRefresh: Bool = true
     var diagramRenderRelationshipsForLargeDiagrams: Bool = true
     var diagramUseThemedAppearance: Bool = true
+    var usePerTypeStorageLimits: Bool = false
+    var echoSenseStorageMaxBytes: Int = 512 * 1_024 * 1_024
+    var customKeyboardShortcuts: [String: CustomShortcutBinding]?
     var defaultWindowWidth: Double?
     var defaultWindowHeight: Double?
 
@@ -76,7 +94,7 @@ struct GlobalSettings: Codable, Hashable {
         defaultEditorPaletteIDDark: String = SQLEditorPalette.midnight.id,
         customEditorPalettes: [SQLEditorTokenPalette] = [],
         defaultEditorLineHeight: Double = Double(SQLEditorTheme.defaultLineHeight),
-        useServerColorAsAccent: Bool = true
+        accentColorSource: AccentColorSource = .connection
     ) {
         self.appearanceMode = appearanceMode
         self.defaultEditorFontSize = defaultEditorFontSize
@@ -88,7 +106,7 @@ struct GlobalSettings: Codable, Hashable {
         self.defaultEditorPaletteIDDark = defaultEditorPaletteIDDark
         self.customEditorPalettes = customEditorPalettes
         self.defaultEditorLineHeight = defaultEditorLineHeight
-        self.useServerColorAsAccent = useServerColorAsAccent
+        self.accentColorSource = accentColorSource
     }
 
     enum CodingKeys: String, CodingKey {
@@ -101,7 +119,7 @@ struct GlobalSettings: Codable, Hashable {
         case editorSuggestFunctions, editorSuggestSnippets, editorSuggestHistory, editorSuggestJoins
         case editorCompletionAggressiveness, editorShowSystemSchemas
         case editorAllowCommandPeriodTrigger, editorAllowControlSpaceTrigger
-        case useServerColorAsAccent, defaultWindowWidth, defaultWindowHeight
+        case useServerColorAsAccent, accentColorSource, customAccentColorHex, defaultWindowWidth, defaultWindowHeight
         case workspaceTabBarStyle, tabOverviewStyle
         case resultsAlternateRowShading, resultsEnableTypeFormatting, resultsFormattingMode
         case foreignKeyDisplayMode, foreignKeyInspectorBehavior, foreignKeyIncludeRelated
@@ -114,6 +132,7 @@ struct GlobalSettings: Codable, Hashable {
         case inspectorWidth, keepTabsInMemory
         case diagramPrefetchMode, diagramRefreshCadence, diagramCacheMaxBytes
         case diagramVerifyBeforeRefresh, diagramRenderRelationshipsForLargeDiagrams, diagramUseThemedAppearance
+        case usePerTypeStorageLimits, echoSenseStorageMaxBytes, customKeyboardShortcuts
     }
 
     init(from decoder: Decoder) throws {
@@ -149,7 +168,13 @@ struct GlobalSettings: Codable, Hashable {
         editorShowSystemSchemas = try container.decodeIfPresent(Bool.self, forKey: .editorShowSystemSchemas) ?? false
         editorAllowCommandPeriodTrigger = try container.decodeIfPresent(Bool.self, forKey: .editorAllowCommandPeriodTrigger) ?? true
         editorAllowControlSpaceTrigger = try container.decodeIfPresent(Bool.self, forKey: .editorAllowControlSpaceTrigger) ?? true
-        useServerColorAsAccent = try container.decodeIfPresent(Bool.self, forKey: .useServerColorAsAccent) ?? true
+        if let source = try container.decodeIfPresent(AccentColorSource.self, forKey: .accentColorSource) {
+            accentColorSource = source
+        } else {
+            let legacyBool = try container.decodeIfPresent(Bool.self, forKey: .useServerColorAsAccent) ?? true
+            accentColorSource = legacyBool ? .connection : .system
+        }
+        customAccentColorHex = try container.decodeIfPresent(String.self, forKey: .customAccentColorHex)
         defaultWindowWidth = try container.decodeIfPresent(Double.self, forKey: .defaultWindowWidth)
         defaultWindowHeight = try container.decodeIfPresent(Double.self, forKey: .defaultWindowHeight)
         workspaceTabBarStyle = try container.decodeIfPresent(WorkspaceTabBarStyle.self, forKey: .workspaceTabBarStyle) ?? .floating
@@ -180,6 +205,9 @@ struct GlobalSettings: Codable, Hashable {
         diagramVerifyBeforeRefresh = try container.decodeIfPresent(Bool.self, forKey: .diagramVerifyBeforeRefresh) ?? true
         diagramRenderRelationshipsForLargeDiagrams = try container.decodeIfPresent(Bool.self, forKey: .diagramRenderRelationshipsForLargeDiagrams) ?? true
         diagramUseThemedAppearance = try container.decodeIfPresent(Bool.self, forKey: .diagramUseThemedAppearance) ?? true
+        usePerTypeStorageLimits = try container.decodeIfPresent(Bool.self, forKey: .usePerTypeStorageLimits) ?? false
+        echoSenseStorageMaxBytes = try container.decodeIfPresent(Int.self, forKey: .echoSenseStorageMaxBytes) ?? 512 * 1_024 * 1_024
+        customKeyboardShortcuts = try container.decodeIfPresent([String: CustomShortcutBinding].self, forKey: .customKeyboardShortcuts)
         mssqlStreamingMode = (try? container.decodeIfPresent(ResultStreamingExecutionMode.self, forKey: .mssqlStreamingMode)) ?? .auto
         mysqlStreamingMode = (try? container.decodeIfPresent(ResultStreamingExecutionMode.self, forKey: .mysqlStreamingMode)) ?? .auto
         sqliteStreamingMode = (try? container.decodeIfPresent(ResultStreamingExecutionMode.self, forKey: .sqliteStreamingMode)) ?? .auto
@@ -212,7 +240,8 @@ struct GlobalSettings: Codable, Hashable {
         try container.encode(editorShowSystemSchemas, forKey: .editorShowSystemSchemas)
         try container.encode(editorAllowCommandPeriodTrigger, forKey: .editorAllowCommandPeriodTrigger)
         try container.encode(editorAllowControlSpaceTrigger, forKey: .editorAllowControlSpaceTrigger)
-        try container.encode(useServerColorAsAccent, forKey: .useServerColorAsAccent)
+        try container.encode(accentColorSource, forKey: .accentColorSource)
+        try container.encodeIfPresent(customAccentColorHex, forKey: .customAccentColorHex)
         try container.encode(defaultWindowWidth, forKey: .defaultWindowWidth)
         try container.encode(defaultWindowHeight, forKey: .defaultWindowHeight)
         try container.encode(workspaceTabBarStyle, forKey: .workspaceTabBarStyle)
@@ -242,6 +271,9 @@ struct GlobalSettings: Codable, Hashable {
         try container.encode(diagramVerifyBeforeRefresh, forKey: .diagramVerifyBeforeRefresh)
         try container.encode(diagramRenderRelationshipsForLargeDiagrams, forKey: .diagramRenderRelationshipsForLargeDiagrams)
         try container.encode(diagramUseThemedAppearance, forKey: .diagramUseThemedAppearance)
+        try container.encode(usePerTypeStorageLimits, forKey: .usePerTypeStorageLimits)
+        try container.encode(echoSenseStorageMaxBytes, forKey: .echoSenseStorageMaxBytes)
+        try container.encodeIfPresent(customKeyboardShortcuts, forKey: .customKeyboardShortcuts)
         try container.encode(mssqlStreamingMode, forKey: .mssqlStreamingMode)
         try container.encode(mysqlStreamingMode, forKey: .mysqlStreamingMode)
         try container.encode(sqliteStreamingMode, forKey: .sqliteStreamingMode)

@@ -6,116 +6,71 @@ struct NewProjectSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var projectName: String = ""
-    @State private var selectedColorHex: String = "007AFF"
-    @State private var selectedIconName: String? = "folder.fill"
-
-    private let colors = [
-        "007AFF", "5856D6", "AF52DE", "FF2D55", "FF3B30",
-        "FF9500", "FFCC00", "34C759", "5AC8FA", "8E8E93"
-    ]
+    @State private var selectedIconName: String = "folder.fill"
 
     private let icons = [
         "folder.fill", "star.fill", "bookmark.fill", "tag.fill",
-        "briefcase.fill", "desktopcomputer", "server.rack", "database.fill",
+        "briefcase.fill", "desktopcomputer", "server.rack", "cylinder.fill",
         "terminal.fill", "cpu.fill", "shippingbox.fill", "archivebox.fill"
     ]
 
     var body: some View {
         VStack(spacing: 0) {
-            header
+            formContent
             Divider()
-            form
-            Divider()
-            footer
+            footerButtons
         }
-        .frame(width: 440)
-        .background(Color(nsColor: .windowBackgroundColor))
+        .frame(width: 460)
+        .fixedSize(horizontal: false, vertical: true)
     }
 
-    private var header: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 4) {
+    private var formContent: some View {
+        Form {
+            Section {
+                TextField("Name", text: $projectName, prompt: Text("Project name"))
+                LabeledContent("Icon") { iconPaletteView }
+            } header: {
                 Text("New Project")
-                    .font(TypographyTokens.displayLarge.weight(.bold))
-                Text("Create a workspace to organize your database connections.")
-                    .font(TypographyTokens.caption2)
-                    .foregroundStyle(.secondary)
             }
-            Spacer()
-            ZStack {
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(Color(hex: selectedColorHex)?.opacity(0.15) ?? .blue.opacity(0.15))
-                Image(systemName: selectedIconName ?? "folder.fill")
-                    .font(.system(size: 24, weight: .semibold))
-                    .foregroundStyle(Color(hex: selectedColorHex) ?? .blue)
-            }
-            .frame(width: 48, height: 48)
         }
-        .padding(SpacingTokens.lg)
+        .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
+        .scrollDisabled(true)
     }
 
-    private var form: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("NAME")
-                        .font(TypographyTokens.label.weight(.bold))
-                        .foregroundStyle(.secondary)
-                    TextField("Project Name", text: $projectName)
-                        .textFieldStyle(.roundedBorder)
-                        .controlSize(.large)
-                }
-
-                VStack(alignment: .leading, spacing: 10) {
-                    Text("COLOR")
-                        .font(TypographyTokens.label.weight(.bold))
-                        .foregroundStyle(.secondary)
-                    
-                    LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 5), spacing: 12) {
-                        ForEach(colors, id: \.self) { hex in
-                            ColorButton(hex: hex, isSelected: selectedColorHex == hex) {
-                                selectedColorHex = hex
-                            }
+    private var iconPaletteView: some View {
+        HStack(spacing: 6) {
+            ForEach(icons, id: \.self) { iconName in
+                iconSwatch(name: iconName, isSelected: selectedIconName == iconName)
+                    .onTapGesture {
+                        withAnimation(.easeInOut(duration: 0.15)) {
+                            selectedIconName = iconName
                         }
                     }
-                }
-
-                VStack(alignment: .leading, spacing: 10) {
-                    Text("ICON")
-                        .font(TypographyTokens.label.weight(.bold))
-                        .foregroundStyle(.secondary)
-                    
-                    LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 6), spacing: 12) {
-                        ForEach(icons, id: \.self) { icon in
-                            IconButton(icon: icon, isSelected: selectedIconName == icon, color: Color(hex: selectedColorHex) ?? .blue) {
-                                selectedIconName = icon
-                            }
-                        }
-                    }
-                }
             }
-            .padding(SpacingTokens.lg)
         }
+        .frame(maxWidth: .infinity, alignment: .trailing)
     }
 
-    private var footer: some View {
-        HStack(spacing: 12) {
+    private func iconSwatch(name: String, isSelected: Bool) -> some View {
+        Image(systemName: name)
+            .font(.system(size: 14))
+            .frame(width: 26, height: 26)
+            .foregroundStyle(isSelected ? Color.white : .secondary)
+            .background(isSelected ? Color.accentColor : Color.clear, in: RoundedRectangle(cornerRadius: 6))
+            .contentShape(Rectangle())
+    }
+
+    private var footerButtons: some View {
+        HStack {
             Spacer()
-            Button("Cancel") {
-                dismiss()
-            }
-            .keyboardShortcut(.cancelAction)
-            
-            Button("Create Project") {
-                createProject()
-            }
-            .buttonStyle(.borderedProminent)
-            .disabled(projectName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-            .keyboardShortcut(.defaultAction)
+            Button("Cancel", role: .cancel) { dismiss() }
+                .keyboardShortcut(.cancelAction)
+            Button("Create") { createProject() }
+                .keyboardShortcut(.defaultAction)
+                .disabled(projectName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
         }
-        .padding(.horizontal, SpacingTokens.lg)
-        .padding(.vertical, SpacingTokens.md)
-        .background(Color(nsColor: .controlBackgroundColor).opacity(0.5))
+        .padding(SpacingTokens.md2)
     }
 
     private func createProject() {
@@ -126,10 +81,10 @@ struct NewProjectSheet: View {
             do {
                 let project = try await projectStore.createProject(
                     name: trimmedName,
-                    colorHex: selectedColorHex,
+                    colorHex: "",
                     iconName: selectedIconName
                 )
-                
+
                 projectStore.selectProject(project)
                 navigationStore.selectProject(project)
                 dismiss()
@@ -137,53 +92,5 @@ struct NewProjectSheet: View {
                 print("Failed to create project: \(error)")
             }
         }
-    }
-}
-
-private struct ColorButton: View {
-    let hex: String
-    let isSelected: Bool
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            ZStack {
-                Circle()
-                    .fill(Color(hex: hex) ?? .blue)
-                    .frame(width: 24, height: 24)
-                if isSelected {
-                    Circle()
-                        .strokeBorder(Color.primary.opacity(0.3), lineWidth: 2)
-                        .frame(width: 32, height: 32)
-                }
-            }
-            .frame(width: 32, height: 32)
-        }
-        .buttonStyle(.plain)
-    }
-}
-
-private struct IconButton: View {
-    let icon: String
-    let isSelected: Bool
-    let color: Color
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .fill(isSelected ? color.opacity(0.15) : Color.primary.opacity(0.05))
-                    .frame(width: 40, height: 40)
-                Image(systemName: icon)
-                    .font(TypographyTokens.displayLarge)
-                    .foregroundStyle(isSelected ? color : .secondary)
-            }
-            .overlay(
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .strokeBorder(isSelected ? color.opacity(0.5) : Color.clear, lineWidth: 2)
-            )
-        }
-        .buttonStyle(.plain)
     }
 }

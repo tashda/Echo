@@ -109,7 +109,7 @@ extension TableStructureEditorView {
 
     #if os(macOS)
     internal var accentNSColor: NSColor {
-        if projectStore.globalSettings.useServerColorAsAccent {
+        if projectStore.globalSettings.accentColorSource == .connection {
             return NSColor(tab.connection.color)
         }
         return NSColor.controlAccentColor
@@ -129,7 +129,7 @@ extension TableStructureEditorView {
     }
     #else
     internal var accentColor: Color {
-        projectStore.globalSettings.useServerColorAsAccent ? tab.connection.color : .accentColor
+        projectStore.globalSettings.accentColorSource == .connection ? tab.connection.color : .accentColor
     }
 
     internal var applyActiveForegroundColor: Color {

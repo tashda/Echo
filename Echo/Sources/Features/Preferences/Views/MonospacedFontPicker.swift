@@ -1,7 +1,5 @@
 import SwiftUI
-#if os(macOS)
 import AppKit
-#endif
 
 struct MonospacedFontPicker: View {
     @Binding var selectedFamily: String
@@ -10,7 +8,6 @@ struct MonospacedFontPicker: View {
     @State private var searchText = ""
 
     private var monospacedFamilies: [String] {
-        #if os(macOS)
         let allFamilies = NSFontManager.shared.availableFontFamilies
         return allFamilies.filter { family in
             guard let font = NSFont(name: family, size: 13) else { return false }
@@ -20,12 +17,8 @@ struct MonospacedFontPicker: View {
                 let symbolicTraits = NSFontDescriptor.SymbolicTraits(rawValue: symbolic)
                 return symbolicTraits.contains(.monoSpace)
             }
-            // Fallback: check if the font has a fixed-pitch trait via the font manager
             return NSFontManager.shared.traits(of: font).contains(.fixedPitchFontMask)
         }.sorted()
-        #else
-        return ["Menlo", "Courier", "SF Mono"]
-        #endif
     }
 
     private var filteredFamilies: [String] {
@@ -39,43 +32,15 @@ struct MonospacedFontPicker: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Text("Font Family")
-                Spacer()
-                Menu {
-                    TextField("Search", text: $searchText)
-
-                    Divider()
-
-                    if filteredFamilies.isEmpty {
-                        Text("No matching fonts")
-                    } else {
-                        ForEach(filteredFamilies, id: \.self) { family in
-                            Button {
-                                selectedFamily = family
-                                searchText = ""
-                            } label: {
-                                HStack {
-                                    Text(family)
-                                    if family == selectedFamily {
-                                        Spacer()
-                                        Image(systemName: "checkmark")
-                                    }
-                                }
-                            }
-                        }
-                    }
-                } label: {
-                    HStack(spacing: 4) {
-                        Text(displayName(for: selectedFamily))
-                            .lineLimit(1)
-                        Image(systemName: "chevron.up.chevron.down")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
+            LabeledContent("Font Family") {
+                Picker("", selection: $selectedFamily) {
+                    ForEach(monospacedFamilies, id: \.self) { family in
+                        Text(displayName(for: family)).tag(family)
                     }
                 }
-                .menuStyle(.borderlessButton)
-                .fixedSize()
+                .labelsHidden()
+                .pickerStyle(.menu)
+                .frame(minWidth: 140, idealWidth: 180, maxWidth: 220, alignment: .trailing)
             }
 
             fontPreview
@@ -83,7 +48,6 @@ struct MonospacedFontPicker: View {
     }
 
     private var fontPreview: some View {
-        #if os(macOS)
         let previewFont: Font = {
             if let nsFont = NSFont(name: selectedFamily, size: fontSize) {
                 return Font(nsFont)
@@ -98,15 +62,6 @@ struct MonospacedFontPicker: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(8)
             .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 6))
-        #else
-        return Text("SELECT * FROM users WHERE id = 42;")
-            .font(.system(size: fontSize, design: .monospaced))
-            .foregroundStyle(.secondary)
-            .lineLimit(1)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(8)
-            .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 6))
-        #endif
     }
 
     private func displayName(for family: String) -> String {

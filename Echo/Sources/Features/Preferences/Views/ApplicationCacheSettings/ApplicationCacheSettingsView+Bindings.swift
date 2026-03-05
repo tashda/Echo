@@ -7,7 +7,7 @@ extension ApplicationCacheSettingsView {
             set: { newValue in
                 var settings = projectStore.globalSettings
                 settings.resultSpoolMaxBytes = max(256 * 1_024 * 1_024, newValue)
-                Task { 
+                Task {
                     try? await projectStore.updateGlobalSettings(settings)
                     await refreshResultCacheUsage()
                 }
@@ -20,7 +20,7 @@ extension ApplicationCacheSettingsView {
             get: { projectStore.globalSettings.resultSpoolRetentionHours },
             set: { newValue in
                 var settings = projectStore.globalSettings
-                settings.resultSpoolRetentionHours = max(1, newValue)
+                settings.resultSpoolRetentionHours = newValue
                 Task { try? await projectStore.updateGlobalSettings(settings) }
             }
         )
@@ -55,6 +55,28 @@ extension ApplicationCacheSettingsView {
         Binding(
             get: { clipboardHistory.storageLimit },
             set: { clipboardHistory.updateStorageLimit($0) }
+        )
+    }
+
+    var echoSenseStorageLimitBinding: Binding<Int> {
+        Binding(
+            get: { projectStore.globalSettings.echoSenseStorageMaxBytes },
+            set: { newValue in
+                var settings = projectStore.globalSettings
+                settings.echoSenseStorageMaxBytes = max(64 * 1_024 * 1_024, newValue)
+                Task { try? await projectStore.updateGlobalSettings(settings) }
+            }
+        )
+    }
+
+    var diagramCacheLimitBinding: Binding<Int> {
+        Binding(
+            get: { projectStore.globalSettings.diagramCacheMaxBytes },
+            set: { newValue in
+                var settings = projectStore.globalSettings
+                settings.diagramCacheMaxBytes = max(64 * 1_024 * 1_024, newValue)
+                Task { try? await projectStore.updateGlobalSettings(settings) }
+            }
         )
     }
 }
