@@ -16,14 +16,20 @@ extension ConnectionEditorView {
             .onChange(of: credentialSource) { _, newSource in
                 switch newSource {
                 case .manual:
-                    break
+                    // Reset dirty state so saved password shows as dots again
+                    if hasSavedPassword {
+                        passwordDirty = false
+                        password = ""
+                    }
                 case .identity:
                     password = ""
+                    passwordDirty = false
                     if identityID == nil || !connectionStore.identities.contains(where: { $0.id == identityID }) {
                         identityID = connectionStore.identities.first?.id
                     }
                 case .inherit:
                     password = ""
+                    passwordDirty = false
                 }
             }
 
@@ -62,8 +68,19 @@ extension ConnectionEditorView {
             }
 
             LabeledContent("Password") {
-                SecureField("", text: $password, prompt: Text(authenticationMethod == .windowsIntegrated ? "Windows password" : "password"))
-                    .multilineTextAlignment(.trailing)
+                SecureField(
+                    "",
+                    text: $password,
+                    prompt: Text(hasSavedPassword && !passwordDirty
+                        ? "••••••••"
+                        : (authenticationMethod == .windowsIntegrated ? "Windows password" : "password"))
+                )
+                .multilineTextAlignment(.trailing)
+                .onChange(of: password) { _, newValue in
+                    if !newValue.isEmpty {
+                        passwordDirty = true
+                    }
+                }
             }
         }
     }

@@ -52,8 +52,10 @@ extension ConnectionEditorView {
         let overridePassword: String?
         if selectedDatabaseType == .sqlite {
             overridePassword = nil
+        } else if sanitizedCredentialSource == .manual && !password.isEmpty {
+            overridePassword = password
         } else {
-            overridePassword = sanitizedCredentialSource == .manual ? password : nil
+            overridePassword = nil
         }
 
         if selectedDatabaseType == .sqlite {

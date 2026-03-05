@@ -15,93 +15,62 @@ struct BreadcrumbSegmentView: View {
 
     private var textColor: Color {
         if !isEnabled {
-            #if os(macOS)
             return Color(nsColor: .tertiaryLabelColor)
-            #else
-            return .secondary
-            #endif
         }
-        if isHovered {
-            return .primary
-        }
-        return segment.isActive ? .primary : .secondary
+        return .primary
     }
 
     private var backgroundColor: Color {
-        guard isEnabled else { return Color.clear }
+        guard isEnabled, isHovered || isPressed else { return Color.clear }
         if isPressed {
             return colorScheme == .dark
-                ? Color.white.opacity(0.20)
-                : Color.black.opacity(0.12)
-        } else if isHovered {
-            return colorScheme == .dark
                 ? Color.white.opacity(0.14)
-                : Color.black.opacity(0.08)
+                : Color.black.opacity(0.07)
         }
-        return Color.clear
+        return colorScheme == .dark
+            ? Color.white.opacity(0.09)
+            : Color.black.opacity(0.045)
     }
 
     private var borderColor: Color {
-        guard isEnabled else { return Color.clear }
+        guard isEnabled, isHovered || isPressed else { return Color.clear }
         if isPressed {
             return colorScheme == .dark
-                ? Color.white.opacity(0.34)
-                : Color.black.opacity(0.22)
-        } else if isHovered {
-            return colorScheme == .dark
-                ? Color.white.opacity(0.24)
-                : Color.black.opacity(0.18)
+                ? Color.white.opacity(0.22)
+                : Color.black.opacity(0.12)
         }
-        return Color.clear
+        return colorScheme == .dark
+            ? Color.white.opacity(0.16)
+            : Color.black.opacity(0.08)
     }
 
     private var separatorColor: Color {
-        #if os(macOS)
-        return Color(nsColor: .tertiaryLabelColor)
-        #else
-        return .secondary
-        #endif
-    }
-
-    private var chevronColor: Color {
-        #if os(macOS)
-        return Color(nsColor: .secondaryLabelColor)
-        #else
-        return .secondary
-        #endif
-    }
-
-    private var menuChevronOpacity: Double {
-        guard isEnabled else { return 0.2 }
-        return isHovered ? 1.0 : 0.55
+        Color(nsColor: .tertiaryLabelColor)
     }
 
     var body: some View {
         HStack(spacing: 0) {
-            // Segment content
-            HStack(spacing: 5) {
-                // Icon
+            HStack(spacing: 3) {
                 if let icon = segment.icon {
                     Image(systemName: icon)
-                        .font(TypographyTokens.detail.weight(.regular))
+                        .font(.system(size: 10, weight: .regular))
                         .foregroundStyle(textColor)
                 }
 
-                // Text
                 Text(segment.title)
-                    .font(TypographyTokens.caption2.weight(.regular))
+                    .font(TypographyTokens.detail.weight(.regular))
                     .foregroundStyle(textColor)
 
+                // Always in layout to prevent shifting; visibility toggled
                 if segment.hasMenu {
                     Image(systemName: "chevron.down")
-                        .font(.system(size: 8, weight: .semibold))
-                        .foregroundStyle(chevronColor)
-                        .opacity(menuChevronOpacity)
-                        .frame(width: 10, height: 10)
+                        .font(.system(size: 6.5, weight: .semibold))
+                        .foregroundStyle(Color(nsColor: .tertiaryLabelColor))
+                        .opacity(isHovered && isEnabled ? 1 : 0)
                 }
             }
-            .padding(.horizontal, SpacingTokens.xs)
-            .padding(.vertical, SpacingTokens.xxs)
+            .padding(.horizontal, SpacingTokens.xxs)
+            .padding(.vertical, SpacingTokens.xxxs)
             .background(
                 Capsule()
                     .fill(backgroundColor)
@@ -134,12 +103,14 @@ struct BreadcrumbSegmentView: View {
                     }
             )
 
-            // Separator arrow (only for non-last segments)
+            // Separator — always in layout; opacity toggled so neighbours don't shift
             if !isLast {
-                Image(systemName: "chevron.right")
-                    .font(TypographyTokens.compact.weight(.semibold))
+                Text("\u{203A}")
+                    .font(.system(size: 14, weight: .light))
                     .foregroundStyle(separatorColor)
-                    .padding(.horizontal, 7)
+                    .padding(.leading, SpacingTokens.xxs)
+                    .padding(.trailing, SpacingTokens.xxs2)
+                    .opacity(isHovered ? 0 : 1)
             }
         }
         .onHover { hovering in
