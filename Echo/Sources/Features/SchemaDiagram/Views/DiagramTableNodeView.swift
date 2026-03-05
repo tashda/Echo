@@ -33,14 +33,14 @@ struct SchemaDiagramNodeView: View {
     private var header: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(node.name)
-                .font(.system(size: 14, weight: .semibold))
+                .font(TypographyTokens.prominent.weight(.semibold))
                 .foregroundStyle(palette.headerTitle)
             Text(node.schema)
-                .font(.system(size: 11, weight: .medium))
+                .font(TypographyTokens.detail.weight(.medium))
                 .foregroundStyle(palette.headerSubtitle)
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
+        .padding(.horizontal, SpacingTokens.sm2)
+        .padding(.vertical, SpacingTokens.xs2)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
             RoundedRectangle(cornerRadius: 16, style: .continuous)
@@ -58,8 +58,8 @@ struct SchemaDiagramNodeView: View {
                 ColumnRow(nodeID: node.id, column: column, palette: palette)
             }
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 12)
+        .padding(.horizontal, SpacingTokens.sm2)
+        .padding(.vertical, SpacingTokens.sm)
         .fixedSize(horizontal: true, vertical: false)
     }
 
@@ -117,20 +117,20 @@ private struct ColumnRow: View {
     var body: some View {
         HStack(spacing: 8) {
             Image(systemName: columnIconName)
-                .font(.system(size: 10, weight: .medium))
+                .font(TypographyTokens.label.weight(.medium))
                 .foregroundStyle(iconColor)
             Text(column.name)
                 .lineLimit(1)
                 .layoutPriority(1)
-                .font(.system(size: 12, weight: column.isPrimaryKey ? .semibold : .regular))
+                .font(TypographyTokens.caption2.weight(column.isPrimaryKey ? .semibold : .regular))
                 .foregroundStyle(palette.columnText)
             Spacer(minLength: 12)
             Text(column.dataType)
                 .lineLimit(1)
-                .font(.system(size: 11))
+                .font(TypographyTokens.detail)
                 .foregroundStyle(palette.columnDetail)
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, SpacingTokens.xxs)
         .fixedSize(horizontal: true, vertical: false)
         .background(
             RoundedRectangle(cornerRadius: 8, style: .continuous)

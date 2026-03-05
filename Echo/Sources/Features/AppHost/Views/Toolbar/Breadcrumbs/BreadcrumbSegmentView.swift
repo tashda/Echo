@@ -83,13 +83,13 @@ struct BreadcrumbSegmentView: View {
                 // Icon
                 if let icon = segment.icon {
                     Image(systemName: icon)
-                        .font(.system(size: 11, weight: .regular))
+                        .font(TypographyTokens.detail.weight(.regular))
                         .foregroundStyle(textColor)
                 }
 
                 // Text
                 Text(segment.title)
-                    .font(.system(size: 12, weight: .regular))
+                    .font(TypographyTokens.caption2.weight(.regular))
                     .foregroundStyle(textColor)
 
                 if segment.hasMenu {
@@ -100,8 +100,8 @@ struct BreadcrumbSegmentView: View {
                         .frame(width: 10, height: 10)
                 }
             }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
+            .padding(.horizontal, SpacingTokens.xs)
+            .padding(.vertical, SpacingTokens.xxs)
             .background(
                 Capsule()
                     .fill(backgroundColor)
@@ -137,7 +137,7 @@ struct BreadcrumbSegmentView: View {
             // Separator arrow (only for non-last segments)
             if !isLast {
                 Image(systemName: "chevron.right")
-                    .font(.system(size: 9, weight: .semibold))
+                    .font(TypographyTokens.compact.weight(.semibold))
                     .foregroundStyle(separatorColor)
                     .padding(.horizontal, 7)
             }

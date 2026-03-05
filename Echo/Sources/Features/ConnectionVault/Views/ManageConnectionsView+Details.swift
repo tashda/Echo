@@ -57,13 +57,13 @@ extension ManageConnectionsView {
             Image(systemName: section == .connections ? "externaldrive.badge.plus" : "person.crop.circle.badge.plus")
                 .font(.system(size: 40, weight: .semibold))
                 .symbolRenderingMode(.hierarchical)
-                .foregroundStyle(themeManager.accentColor)
+                .foregroundStyle(appearanceStore.accentColor)
 
             Text(section.emptyTitle)
-                .font(.system(size: 18, weight: .semibold))
+                .font(TypographyTokens.displayLarge.weight(.semibold))
 
             Text(section.emptyMessage)
-                .font(.system(size: 13))
+                .font(TypographyTokens.standard)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: 320)
@@ -76,7 +76,7 @@ extension ManageConnectionsView {
             .buttonStyle(.borderedProminent)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(themeManager.surfaceBackgroundColor)
+        .background(ColorTokens.Background.secondary)
     }
 
     func identityDecoration(for connection: SavedConnection) -> (name: String, icon: String)? {

@@ -5,15 +5,15 @@ struct SidebarMenu: View {
     @Binding var selectedIdentityID: UUID?
     
     @Environment(ProjectStore.self) private var projectStore
-    @Environment(ConnectionStore.self) private var connectionStore
+    @Environment(ConnectionStore.self) var connectionStore
     @Environment(NavigationStore.self) private var navigationStore
-    
+
     @EnvironmentObject var environmentState: EnvironmentState
     @EnvironmentObject var appState: AppState
     let onAddConnection: () -> Void
 
-    @State private var selectedNavSection: NavSection = .folder
-    @State private var pendingDuplicateConnection: SavedConnection?
+    @State var selectedNavSection: NavSection = .folder
+    @State var pendingDuplicateConnection: SavedConnection?
 
     enum NavSection: String, CaseIterable {
         case folder = "Explorer"
@@ -54,8 +54,8 @@ struct SidebarMenu: View {
     var body: some View {
         VStack(spacing: 0) {
             navigationBar
-                .padding(.horizontal, 6)
-                .padding(.bottom, 8)
+                .padding(.horizontal, SpacingTokens.xxs2)
+                .padding(.bottom, SpacingTokens.xs)
 
             contentView
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -125,7 +125,7 @@ struct SidebarMenu: View {
                                     .contentShape(Rectangle())
 
                                 Image(systemName: selectedNavSection == section ? section.activeIcon : section.icon)
-                                    .font(.system(size: 14, weight: .medium, design: .default))
+                                    .font(TypographyTokens.prominent.weight(.medium))
                                     .foregroundStyle(selectedNavSection == section ? .white : .secondary)
                             }
                         }
@@ -156,71 +156,7 @@ struct SidebarMenu: View {
             .frame(height: controlHeight)
     }
 
-    @ViewBuilder
-    private var contentView: some View {
-        switch selectedNavSection {
-        case .folder:
-            ObjectBrowserSidebarView(selectedConnectionID: $selectedConnectionID)
-        case .bookmark:
-            BookmarksSidebarView()
-        case .search:
-            SearchSidebarView()
-        case .clipboard:
-            ClipboardHistoryView()
-        case .history:
-            HistorySidebarView(
-                icon: "clock.fill",
-                title: "History",
-                description: "Recent database operations and query history"
-            )
-        case .connections:
-            ConnectionsSidebarView(
-                selectedConnectionID: $selectedConnectionID,
-                selectedIdentityID: $selectedIdentityID,
-                onCreateConnection: { folder in
-                    connectionStore.selectedFolderID = folder?.id
-                    selectedConnectionID = nil
-                    onAddConnection()
-                },
-                onEditConnection: { connection in
-                    connectionStore.selectedFolderID = connection.folderID
-                    selectedConnectionID = connection.id
-                    onAddConnection()
-                },
-                onConnect: { connection in
-                    connectAndNavigate(to: connection)
-                },
-                onMoveConnection: { connectionID, folderID in
-                    Task { @MainActor in
-                        if var connection = connectionStore.connections.first(where: { $0.id == connectionID }) {
-                            connection.folderID = folderID
-                            try? await connectionStore.updateConnection(connection)
-                        }
-                    }
-                },
-                onMoveFolder: { folderID, parentID in
-                    Task { @MainActor in
-                        if var folder = connectionStore.folders.first(where: { $0.id == folderID }) {
-                            folder.parentFolderID = parentID
-                            try? await connectionStore.saveFolders()
-                        }
-                    }
-                },
-                onDuplicateConnection: { connection in
-                    pendingDuplicateConnection = connection
-                }
-            )
-        case .database:
-            DatabaseSidebarView(
-                selectedConnectionID: $selectedConnectionID,
-                icon: "cylinder.split.1x2.fill",
-                title: "Database",
-                description: "Database administration and management tools"
-            )
-        }
-    }
-
-    private func connectAndNavigate(to connection: SavedConnection) {
+    func connectAndNavigate(to connection: SavedConnection) {
         selectedConnectionID = connection.id
         selectedNavSection = .folder
 

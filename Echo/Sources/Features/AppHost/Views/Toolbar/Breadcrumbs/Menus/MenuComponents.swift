@@ -31,19 +31,19 @@ struct MenuItemView: View {
             HStack(spacing: 10) {
                 if let icon = icon {
                     Image(systemName: icon)
-                        .font(.system(size: 13, weight: .medium))
+                        .font(TypographyTokens.standard.weight(.medium))
                         .foregroundStyle(iconColor ?? .primary)
                         .frame(width: 16)
                 }
 
                 Text(title)
-                    .font(.system(size: 13, weight: .regular))
+                    .font(TypographyTokens.standard.weight(.regular))
                     .foregroundStyle(isDestructive ? .red : .primary)
 
                 Spacer()
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
+            .padding(.horizontal, SpacingTokens.sm)
+            .padding(.vertical, SpacingTokens.xxs2)
             .background(isHovered ? Color.accentColor.opacity(0.1) : Color.clear)
         }
         .buttonStyle(.plain)
@@ -69,13 +69,13 @@ struct MenuSectionView<Content: View>: View {
             if let title = title {
                 HStack {
                     Text(title.uppercased())
-                        .font(.system(size: 10, weight: .semibold))
+                        .font(TypographyTokens.label.weight(.semibold))
                         .foregroundStyle(.secondary)
                     Spacer()
                 }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
-                .padding(.bottom, 2)
+                .padding(.horizontal, SpacingTokens.sm)
+                .padding(.vertical, SpacingTokens.xs)
+                .padding(.bottom, SpacingTokens.xxxs)
             }
 
             VStack(alignment: .leading, spacing: 2) {
@@ -88,8 +88,8 @@ struct MenuSectionView<Content: View>: View {
 struct MenuSeparator: View {
     var body: some View {
         Divider()
-            .padding(.vertical, 4)
-            .padding(.horizontal, 8)
+            .padding(.vertical, SpacingTokens.xxs)
+            .padding(.horizontal, SpacingTokens.xs)
     }
 }
 
@@ -104,26 +104,26 @@ struct MenuSearchField: View {
     var body: some View {
         HStack(spacing: 6) {
             Image(systemName: "magnifyingglass")
-                .font(.system(size: 11, weight: .medium))
+                .font(TypographyTokens.detail.weight(.medium))
                 .foregroundStyle(.secondary)
 
             TextField(placeholder, text: $text)
                 .textFieldStyle(.plain)
-                .font(.system(size: 12))
+                .font(TypographyTokens.caption2)
                 .focused($isFocused)
 
             if !text.isEmpty {
                 Button(action: { text = "" }) {
                     Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 11))
+                        .font(TypographyTokens.detail)
                         .foregroundStyle(.secondary)
                 }
                 .buttonStyle(.plain)
                 .transition(.scale.combined(with: .opacity))
             }
         }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 4)
+        .padding(.horizontal, SpacingTokens.xs)
+        .padding(.vertical, SpacingTokens.xxs)
         .background(Color(NSColor.controlBackgroundColor))
         .overlay(
             RoundedRectangle(cornerRadius: 4, style: .continuous)

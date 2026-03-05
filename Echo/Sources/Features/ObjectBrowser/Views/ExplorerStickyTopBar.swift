@@ -56,23 +56,23 @@ struct StickyTopBarContent: View {
                     VStack(alignment: .leading, spacing: 2) {
                         HStack(spacing: 6) {
                             Text(session.connection.connectionName)
-                                .font(.system(size: 12, weight: .semibold))
+                                .font(TypographyTokens.caption2.weight(.semibold))
                                 .foregroundStyle(.primary)
                                 .lineLimit(1)
 
                             if let version = session.connection.serverVersion {
                                 Text("•")
-                                    .font(.system(size: 10, weight: .medium))
+                                    .font(TypographyTokens.label.weight(.medium))
                                     .foregroundStyle(.tertiary)
                                 Text(version)
-                                    .font(.system(size: 10, weight: .medium))
+                                    .font(TypographyTokens.label.weight(.medium))
                                     .foregroundStyle(.tertiary)
                                     .lineLimit(1)
                             }
                         }
 
                         Text("\(session.connection.username)@\(session.connection.host)")
-                            .font(.system(size: 10, weight: .medium))
+                            .font(TypographyTokens.label.weight(.medium))
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
                     }
@@ -84,7 +84,7 @@ struct StickyTopBarContent: View {
                             onRefresh()
                         }) {
                             Image(systemName: "arrow.clockwise")
-                                .font(.system(size: 11, weight: .medium))
+                                .font(TypographyTokens.detail.weight(.medium))
                                 .foregroundStyle(.secondary)
                                 .frame(width: 24, height: 24)
                                 .background(
@@ -97,13 +97,13 @@ struct StickyTopBarContent: View {
                     }
 
                     Text(databaseName)
-                        .font(.system(size: 10, weight: .medium))
+                        .font(TypographyTokens.label.weight(.medium))
                         .foregroundStyle(.primary)
-                        .padding(.horizontal, 10)
+                        .padding(.horizontal, SpacingTokens.xs2)
                         .padding(.vertical, 5)
                     .background(
                         Capsule()
-                            .fill(Color(nsColor: .controlBackgroundColor).opacity(0.6))
+                            .fill(ColorTokens.Background.secondary.opacity(0.6))
                             .background(.ultraThinMaterial, in: Capsule())
                     )
                     .overlay(
@@ -131,13 +131,13 @@ struct StickyTopBarContent: View {
                             .progressViewStyle(.linear)
                             .tint(session.connection.color)
                         Text(updateMessage)
-                            .font(.system(size: 10, weight: .medium))
+                            .font(TypographyTokens.label.weight(.medium))
                             .foregroundStyle(.secondary)
                     }
                     .transition(.opacity.combined(with: .move(edge: .bottom)))
                 }
             }
-            .padding(.horizontal, 14)
+            .padding(.horizontal, SpacingTokens.sm2)
             .padding(.vertical, isUpdating ? 16 : 12)
             .background(
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
@@ -145,7 +145,7 @@ struct StickyTopBarContent: View {
                         projectStore.globalSettings.useServerColorAsAccent ?
                         LinearGradient(
                             gradient: Gradient(colors: [
-                                Color(nsColor: .controlBackgroundColor).opacity(0.85),
+                                ColorTokens.Background.secondary.opacity(0.85),
                                 session.connection.color.opacity(0.08)
                             ]),
                             startPoint: .leading,
@@ -153,8 +153,8 @@ struct StickyTopBarContent: View {
                         ) :
                         LinearGradient(
                             gradient: Gradient(colors: [
-                                Color(nsColor: .controlBackgroundColor).opacity(0.85),
-                                Color(nsColor: .controlBackgroundColor).opacity(0.85)
+                                ColorTokens.Background.secondary.opacity(0.85),
+                                ColorTokens.Background.secondary.opacity(0.85)
                             ]),
                             startPoint: .leading,
                             endPoint: .trailing
@@ -181,8 +181,8 @@ struct StickyTopBarContent: View {
                 isHovered = hovering
             }
         }
-        .padding(.horizontal, 8)
-        .padding(.top, 20)
-        .padding(.bottom, 8)
+        .padding(.horizontal, SpacingTokens.xs)
+        .padding(.top, SpacingTokens.md2)
+        .padding(.bottom, SpacingTokens.xs)
     }
 }

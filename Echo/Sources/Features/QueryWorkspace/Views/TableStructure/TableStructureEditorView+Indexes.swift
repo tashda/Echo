@@ -28,7 +28,7 @@ extension TableStructureEditorView {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .firstTextBaseline, spacing: 10) {
                 Text(index.name)
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(TypographyTokens.prominent.weight(.semibold))
                 countBadge(for: index)
                 if index.isUnique {
                     uniqueBadge
@@ -42,7 +42,7 @@ extension TableStructureEditorView {
                         .frame(width: 68, height: 22)
                         .overlay(
                             Text(index.isDirty ? "Modified" : "Synced")
-                                .font(.system(size: 11, weight: .semibold))
+                                .font(TypographyTokens.detail.weight(.semibold))
                                 .foregroundStyle(index.isDirty ? Color.accentColor : .secondary)
                         )
                 }
@@ -74,18 +74,18 @@ extension TableStructureEditorView {
                 columnChips(for: index)
             }
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
+        .padding(.horizontal, SpacingTokens.md)
+        .padding(.vertical, SpacingTokens.sm)
         .background(cardRowBackground(isNew: index.isNew))
     }
 
     private var uniqueBadge: some View {
         Text("unique")
-            .font(.system(size: 9, weight: .semibold))
+            .font(TypographyTokens.compact.weight(.semibold))
             .textCase(.lowercase)
             .foregroundStyle(Color.accentColor)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 2)
+            .padding(.horizontal, SpacingTokens.xs)
+            .padding(.vertical, SpacingTokens.xxxs)
             .background(
                 Capsule()
                     .fill(Color.accentColor.opacity(0.16))
@@ -100,12 +100,12 @@ extension TableStructureEditorView {
             ForEach(index.columns, id: \.id) { column in
                 HStack(spacing: 4) {
                     Text(column.name)
-                        .font(.system(size: 10, weight: .semibold))
+                        .font(TypographyTokens.label.weight(.semibold))
                     Text(column.sortOrder == .ascending ? "ASC" : "DESC")
-                        .font(.system(size: 9, weight: .medium))
+                        .font(TypographyTokens.compact.weight(.medium))
                         .foregroundStyle(.secondary)
                 }
-                .padding(.horizontal, 8)
+                .padding(.horizontal, SpacingTokens.xs)
                 .padding(.vertical, 3)
                 .background(
                     Capsule()
@@ -122,10 +122,10 @@ extension TableStructureEditorView {
 
     private func countBadge(for index: TableStructureEditorViewModel.IndexModel) -> some View {
         Text("\(index.columns.count)")
-            .font(.system(size: 11, weight: .medium))
+            .font(TypographyTokens.detail.weight(.medium))
             .foregroundStyle(.secondary)
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
+            .padding(.horizontal, SpacingTokens.xxs2)
+            .padding(.vertical, SpacingTokens.xxxs)
             .background(Color.primary.opacity(0.08), in: Capsule())
             .alignmentGuide(.firstTextBaseline) { dimensions in
                 dimensions[VerticalAlignment.center]

@@ -31,7 +31,7 @@ struct ConnectionToolbarMenuItems: View {
                         .aspectRatio(contentMode: .fit)
                         .frame(width: 14, height: 14)
                     Text(folder.name)
-                        .font(.system(size: 13, weight: .regular))
+                        .font(TypographyTokens.standard.weight(.regular))
                 }
             }
         }
@@ -52,11 +52,11 @@ struct ConnectionToolbarMenuItems: View {
                         .cornerRadius(icon.isTemplate ? 0 : 3)
                     
                     Text(displayName(for: connection))
-                        .font(.system(size: 13, weight: .regular))
+                        .font(TypographyTokens.standard.weight(.regular))
                     Spacer()
                     if currentConnectionID == connection.id {
                         Image(systemName: "checkmark")
-                            .font(.system(size: 12, weight: .semibold))
+                            .font(TypographyTokens.caption2.weight(.semibold))
                     }
                 }
             }

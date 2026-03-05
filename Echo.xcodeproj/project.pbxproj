@@ -11,23 +11,17 @@
 		0A79557E2E8F10A9002279AE /* MySQLNIO in Frameworks */ = {isa = PBXBuildFile; productRef = 0A79557D2E8F10A9002279AE /* MySQLNIO */; };
 		0A8E31A12EAB923F00C86FF3 /* SQLServerKit in Frameworks */ = {isa = PBXBuildFile; productRef = 0A8E31A02EAB923F00C86FF3 /* SQLServerKit */; };
 		0AAD2B062EB0049400D16113 /* PostgresKit in Frameworks */ = {isa = PBXBuildFile; productRef = 0AAD2B052EB0049400D16113 /* PostgresKit */; };
-		0AD4AA2B2E8D55E100F42692 /* build_sqruff.sh in Resources */ = {isa = PBXBuildFile; fileRef = 0AD4AA292E8D55E100F42692 /* build_sqruff.sh */; };
 		0ADF94B92E78BAA400E993F8 /* PostgresNIO in Frameworks */ = {isa = PBXBuildFile; productRef = 0ADF94B82E78BAA400E993F8 /* PostgresNIO */; };
 		0ADF94BB2E78BAA400E993F8 /* _ConnectionPoolModule in Frameworks */ = {isa = PBXBuildFile; productRef = 0ADF94BA2E78BAA400E993F8 /* _ConnectionPoolModule */; };
 		0ADF94BD2E78BAA400E993F8 /* _ConnectionPoolTestUtils in Frameworks */ = {isa = PBXBuildFile; productRef = 0ADF94BC2E78BAA400E993F8 /* _ConnectionPoolTestUtils */; };
 		0C1234522F9ABC0100ABCDE /* EchoSense in Frameworks */ = {isa = PBXBuildFile; productRef = 0C1234512F9ABC0100ABCDE /* EchoSense */; };
-		198ED504586B4F4B8D2B074E /* QueryEditorUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E50DD38876CF4E95827F9B3D /* QueryEditorUITests.swift */; };
-		2D1E734B2FF0AC7A00A1B2C3 /* QueryPerformanceTrackerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D1E734A2FF0AC7A00A1B2C3 /* QueryPerformanceTrackerTests.swift */; };
-		432EC302287042ACB5AE946D /* PostgresStreamingBenchmarkTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B31BB19E0A4450CA3048867 /* PostgresStreamingBenchmarkTests.swift */; };
 		6030A29ABBCD58751DCA65AE /* SourceCodePro-Regular.ttf in CopyFiles */ = {isa = PBXBuildFile; fileRef = 63CF0995418024155EBA8F37 /* SourceCodePro-Regular.ttf */; };
 		8ECF63DBB3844802B62E76D4 /* UbuntuMono-Regular.ttf in CopyFiles */ = {isa = PBXBuildFile; fileRef = 533ECEA388B5E26722814A7C /* UbuntuMono-Regular.ttf */; };
 		A98A655E2EAA65CF007AAB86 /* SQLiteNIO in Frameworks */ = {isa = PBXBuildFile; productRef = A98A655D2EAA65CF007AAB86 /* SQLiteNIO */; };
 		B66C2F887E35A3358F209F93 /* Hack-Regular.ttf in CopyFiles */ = {isa = PBXBuildFile; fileRef = B76434B110ACC86CC86642A1 /* Hack-Regular.ttf */; };
 		C93850D54E3A549BC7E315B3 /* Inconsolata-Regular.ttf in CopyFiles */ = {isa = PBXBuildFile; fileRef = 23F736A358A1CCBACD3B0834 /* Inconsolata-Regular.ttf */; };
-		D316B590203F49689AC5D29A /* SQLEditorRegexTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD46E27623774768B647E31C /* SQLEditorRegexTests.swift */; };
 		D3BB6F6FC954AA040392C7C7 /* AnonymousPro-Regular.ttf in CopyFiles */ = {isa = PBXBuildFile; fileRef = CC1194D7AF45D51E8E8EA8C4 /* AnonymousPro-Regular.ttf */; };
 		E1CF7F199F60040BF42A54DF /* MesloLGS-Regular.ttf in CopyFiles */ = {isa = PBXBuildFile; fileRef = 9CC0B2EBE9BD3F338658D526 /* MesloLGS-Regular.ttf */; };
-		E2C0B9A3C4F74E7C9E1D4B61 /* MSSQLMetadataLoadingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2C0B9A4C4F74E7C9E1D4B61 /* MSSQLMetadataLoadingTests.swift */; };
 		E2E872DC3647C4621284F1B2 /* Iosevka-Regular.ttf in CopyFiles */ = {isa = PBXBuildFile; fileRef = 9914A75C43EF3F555CE8E868 /* Iosevka-Regular.ttf */; };
 		F17A0E1C2FC1C3BC007F5489 /* FiraCode-Regular.ttf in CopyFiles */ = {isa = PBXBuildFile; fileRef = F17A0E0F2FC1B3F8007F5489 /* FiraCode-Regular.ttf */; };
 		F17A0E1D2FC1C3BC007F5489 /* IBMPlexMono-Regular.ttf in CopyFiles */ = {isa = PBXBuildFile; fileRef = F17A0E102FC1B3F8007F5489 /* IBMPlexMono-Regular.ttf */; };
@@ -80,12 +74,9 @@
 /* Begin PBXFileReference section */
 		0A79556F2E8EB81C002279AE /* EchoUITests.xctestplan */ = {isa = PBXFileReference; lastKnownFileType = text; path = EchoUITests.xctestplan; sourceTree = "<group>"; };
 		0A7955702E8EF321002279AE /* EchoTests.xctestplan */ = {isa = PBXFileReference; lastKnownFileType = text; path = EchoTests.xctestplan; sourceTree = "<group>"; };
-		0AD4AA292E8D55E100F42692 /* build_sqruff.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = build_sqruff.sh; sourceTree = "<group>"; };
 		0ADF94952E78B95200E993F8 /* Echo.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Echo.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		23F736A358A1CCBACD3B0834 /* Inconsolata-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; name = "Inconsolata-Regular.ttf"; path = "Echo/Resources/Fonts/Inconsolata-Regular.ttf"; sourceTree = "<group>"; };
-		2D1E734A2FF0AC7A00A1B2C3 /* QueryPerformanceTrackerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QueryPerformanceTrackerTests.swift; sourceTree = "<group>"; };
 		44D226344BD64F6B8A29593F /* EchoUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = EchoUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		4B31BB19E0A4450CA3048867 /* PostgresStreamingBenchmarkTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostgresStreamingBenchmarkTests.swift; sourceTree = "<group>"; };
 		533ECEA388B5E26722814A7C /* UbuntuMono-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; name = "UbuntuMono-Regular.ttf"; path = "Echo/Resources/Fonts/UbuntuMono-Regular.ttf"; sourceTree = "<group>"; };
 		63CF0995418024155EBA8F37 /* SourceCodePro-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; name = "SourceCodePro-Regular.ttf"; path = "Echo/Resources/Fonts/SourceCodePro-Regular.ttf"; sourceTree = "<group>"; };
 		9914A75C43EF3F555CE8E868 /* Iosevka-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; name = "Iosevka-Regular.ttf"; path = "Echo/Resources/Fonts/Iosevka-Regular.ttf"; sourceTree = "<group>"; };
@@ -93,9 +84,6 @@
 		B76434B110ACC86CC86642A1 /* Hack-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; name = "Hack-Regular.ttf"; path = "Echo/Resources/Fonts/Hack-Regular.ttf"; sourceTree = "<group>"; };
 		C7719E187414448D93AD6120 /* EchoTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = EchoTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		CC1194D7AF45D51E8E8EA8C4 /* AnonymousPro-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; name = "AnonymousPro-Regular.ttf"; path = "Echo/Resources/Fonts/AnonymousPro-Regular.ttf"; sourceTree = "<group>"; };
-		CD46E27623774768B647E31C /* SQLEditorRegexTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SQLEditorRegexTests.swift; sourceTree = "<group>"; };
-		E2C0B9A4C4F74E7C9E1D4B61 /* MSSQLMetadataLoadingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MSSQLMetadataLoadingTests.swift; sourceTree = "<group>"; };
-		E50DD38876CF4E95827F9B3D /* QueryEditorUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QueryEditorUITests.swift; sourceTree = "<group>"; };
 		F17A0E0F2FC1B3F8007F5489 /* FiraCode-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; name = "FiraCode-Regular.ttf"; path = "Echo/Resources/Fonts/FiraCode-Regular.ttf"; sourceTree = "<group>"; };
 		F17A0E102FC1B3F8007F5489 /* IBMPlexMono-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; name = "IBMPlexMono-Regular.ttf"; path = "Echo/Resources/Fonts/IBMPlexMono-Regular.ttf"; sourceTree = "<group>"; };
 		F17A0E112FC1B3F8007F5489 /* JetBrainsMono-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; name = "JetBrainsMono-Regular.ttf"; path = "Echo/Resources/Fonts/JetBrainsMono-Regular.ttf"; sourceTree = "<group>"; };
@@ -107,6 +95,16 @@
 		0ADF94972E78B95200E993F8 /* Echo */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = Echo;
+			sourceTree = "<group>";
+		};
+		A136718CC82746DC8CBC84F8 /* EchoTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = EchoTests;
+			sourceTree = "<group>";
+		};
+		BE16104276AD4F81B99B7950 /* EchoUITests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = EchoUITests;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -171,23 +169,14 @@
 			name = "Recovered References";
 			sourceTree = "<group>";
 		};
-		0AD4AA2A2E8D55E100F42692 /* Scripts */ = {
-			isa = PBXGroup;
-			children = (
-				0AD4AA292E8D55E100F42692 /* build_sqruff.sh */,
-			);
-			path = Scripts;
-			sourceTree = "<group>";
-		};
 		0ADF948C2E78B95200E993F8 = {
 			isa = PBXGroup;
 			children = (
 				0A7955702E8EF321002279AE /* EchoTests.xctestplan */,
 				0A79556F2E8EB81C002279AE /* EchoUITests.xctestplan */,
-				0AD4AA2A2E8D55E100F42692 /* Scripts */,
 				0ADF94972E78B95200E993F8 /* Echo */,
-				A136718CC82746DC8CBC84F7 /* EchoTests */,
-				BE16104276AD4F81B99B794F /* EchoUITests */,
+				A136718CC82746DC8CBC84F8 /* EchoTests */,
+				BE16104276AD4F81B99B7950 /* EchoUITests */,
 				0A7967712E8FC887002279AE /* Frameworks */,
 				0ADF94962E78B95200E993F8 /* Products */,
 				0AA5A2732E9F189F00E00FA3 /* Recovered References */,
@@ -204,25 +193,6 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
-		A136718CC82746DC8CBC84F7 /* EchoTests */ = {
-			isa = PBXGroup;
-			children = (
-				4B31BB19E0A4450CA3048867 /* PostgresStreamingBenchmarkTests.swift */,
-				CD46E27623774768B647E31C /* SQLEditorRegexTests.swift */,
-				2D1E734A2FF0AC7A00A1B2C3 /* QueryPerformanceTrackerTests.swift */,
-				E2C0B9A4C4F74E7C9E1D4B61 /* MSSQLMetadataLoadingTests.swift */,
-			);
-			path = EchoTests;
-			sourceTree = "<group>";
-		};
-		BE16104276AD4F81B99B794F /* EchoUITests */ = {
-			isa = PBXGroup;
-			children = (
-				E50DD38876CF4E95827F9B3D /* QueryEditorUITests.swift */,
-			);
-			path = EchoUITests;
-			sourceTree = "<group>";
-		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -232,7 +202,6 @@
 			buildPhases = (
 				0ADF94912E78B95200E993F8 /* Sources */,
 				0ADF94922E78B95200E993F8 /* Frameworks */,
-				0AD4AA272E8D53F300F42692 /* Build sqruff */,
 				F17A0E1B2FC1C3BC007F5489 /* CopyFiles */,
 				0ADF94932E78B95200E993F8 /* Resources */,
 			);
@@ -272,6 +241,9 @@
 			dependencies = (
 				C508E9DC087A4F4F8949D46E /* PBXTargetDependency */,
 			);
+			fileSystemSynchronizedGroups = (
+				BE16104276AD4F81B99B7950 /* EchoUITests */,
+			);
 			name = EchoUITests;
 			productName = EchoUITests;
 			productReference = 44D226344BD64F6B8A29593F /* EchoUITests.xctest */;
@@ -289,6 +261,9 @@
 			);
 			dependencies = (
 				EB0544CC6EA5424480E0E2FF /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				A136718CC82746DC8CBC84F8 /* EchoTests */,
 			);
 			name = EchoTests;
 			productName = EchoTests;
@@ -352,7 +327,6 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				0AD4AA2B2E8D55E100F42692 /* build_sqruff.sh in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -372,31 +346,6 @@
 		};
 /* End PBXResourcesBuildPhase section */
 
-/* Begin PBXShellScriptBuildPhase section */
-		0AD4AA272E8D53F300F42692 /* Build sqruff */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-			);
-			inputPaths = (
-				"${PROJECT_DIR}/Scripts/build_sqruff.sh",
-				"${PROJECT_DIR}/BuildTools/sqruff/.sqruff",
-			);
-			name = "Build sqruff";
-			outputFileListPaths = (
-			);
-			outputPaths = (
-				"${BUILT_PRODUCTS_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/sqruff",
-				"${BUILT_PRODUCTS_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/.sqruff",
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "bash \"${PROJECT_DIR}/Scripts/build_sqruff.sh\"\n";
-		};
-/* End PBXShellScriptBuildPhase section */
-
 /* Begin PBXSourcesBuildPhase section */
 		0ADF94912E78B95200E993F8 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
@@ -409,10 +358,6 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				432EC302287042ACB5AE946D /* PostgresStreamingBenchmarkTests.swift in Sources */,
-				D316B590203F49689AC5D29A /* SQLEditorRegexTests.swift in Sources */,
-				2D1E734B2FF0AC7A00A1B2C3 /* QueryPerformanceTrackerTests.swift in Sources */,
-				E2C0B9A3C4F74E7C9E1D4B61 /* MSSQLMetadataLoadingTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -420,7 +365,6 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				198ED504586B4F4B8D2B074E /* QueryEditorUITests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -689,7 +633,7 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = macosx;
 				SUPPORTS_MACCATALYST = NO;
-				SWIFT_VERSION = 5.0;
+				SWIFT_VERSION = 6.0;
 				TEST_TARGET_NAME = Echo;
 			};
 			name = Release;
@@ -712,7 +656,7 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = macosx;
 				SUPPORTS_MACCATALYST = NO;
-				SWIFT_VERSION = 5.0;
+				SWIFT_VERSION = 6.0;
 				TEST_TARGET_NAME = Echo;
 			};
 			name = Debug;

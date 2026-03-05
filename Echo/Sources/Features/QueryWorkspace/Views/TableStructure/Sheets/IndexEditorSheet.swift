@@ -6,8 +6,8 @@ struct IndexEditorSheet: View {
     let onDelete: () -> Void
     let onCancelNew: () -> Void
 
-    @Environment(\.dismiss) private var dismiss
-    @State private var draft: Draft
+    @Environment(\.dismiss) internal var dismiss
+    @State internal var draft: Draft
 
     init(
         index: Binding<TableStructureEditorViewModel.IndexModel>,
@@ -117,7 +117,7 @@ struct IndexEditorSheet: View {
                     moveColumn(at: index, by: -1)
                 } label: {
                     Image(systemName: "chevron.up")
-                        .font(.system(size: 10))
+                        .font(TypographyTokens.label)
                 }
                 .buttonStyle(.borderless)
                 .disabled(index == 0)
@@ -127,7 +127,7 @@ struct IndexEditorSheet: View {
                     moveColumn(at: index, by: 1)
                 } label: {
                     Image(systemName: "chevron.down")
-                        .font(.system(size: 10))
+                        .font(TypographyTokens.label)
                 }
                 .buttonStyle(.borderless)
                 .disabled(index == draft.columns.count - 1)
@@ -165,14 +165,6 @@ struct IndexEditorSheet: View {
         }
     }
 
-    private func moveColumn(at index: Int, by offset: Int) {
-        let newIndex = index + offset
-        guard newIndex >= 0 && newIndex < draft.columns.count else { return }
-        withAnimation {
-            draft.columns.move(fromOffsets: IndexSet(integer: index), toOffset: newIndex > index ? newIndex + 1 : newIndex)
-        }
-    }
-
     private var toolbar: some View {
         HStack(spacing: 12) {
             if draft.isEditingExisting {
@@ -198,83 +190,8 @@ struct IndexEditorSheet: View {
             .disabled(!draft.canSave)
             .keyboardShortcut(.defaultAction)
         }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 14)
+        .padding(.horizontal, SpacingTokens.md2)
+        .padding(.vertical, SpacingTokens.sm2)
         .background(.ultraThinMaterial)
-    }
-
-    private var columnOptions: [String] {
-        let current = draft.columns.map(\.name)
-        let combined = Set(availableColumns + current)
-        return combined.sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
-    }
-
-    private var addableColumns: [String] {
-        availableColumns.filter { name in
-            !draft.columns.contains { $0.name == name }
-        }.sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
-    }
-
-    private func addColumn(named name: String) {
-        draft.columns.append(.init(name: name, sortOrder: .ascending))
-    }
-
-    private func removeColumn(withID id: UUID) {
-        draft.columns.removeAll { $0.id == id }
-    }
-
-    private func applyDraft() {
-        index.name = draft.name.trimmingCharacters(in: .whitespacesAndNewlines)
-        index.isUnique = draft.isUnique
-        index.filterCondition = draft.filterCondition.trimmingCharacters(in: .whitespacesAndNewlines)
-        index.columns = draft.columns.map { column in
-            TableStructureEditorViewModel.IndexModel.Column(name: column.name, sortOrder: column.sortOrder)
-        }
-    }
-
-    private func cancelEditing() {
-        if draft.isEditingExisting {
-            dismiss()
-        } else {
-            dismiss()
-            onCancelNew()
-        }
-    }
-
-    struct Draft: Identifiable {
-        struct Column: Identifiable {
-            let id = UUID()
-            var name: String
-            var sortOrder: TableStructureEditorViewModel.IndexModel.Column.SortOrder
-        }
-
-        var id = UUID()
-        var name: String
-        var isUnique: Bool
-        var filterCondition: String
-        var columns: [Column]
-        let isEditingExisting: Bool
-
-        init(
-            model: TableStructureEditorViewModel.IndexModel,
-            availableColumns: [String]
-        ) {
-            self.name = model.name
-            self.isUnique = model.isUnique
-            self.filterCondition = model.filterCondition
-            self.columns = model.columns.map { Column(name: $0.name, sortOrder: $0.sortOrder) }
-            self.isEditingExisting = !model.isNew
-
-            if columns.isEmpty {
-                let initialName = model.columns.first?.name ?? availableColumns.first ?? ""
-                if !initialName.isEmpty {
-                    self.columns = [Column(name: initialName, sortOrder: .ascending)]
-                }
-            }
-        }
-
-        var canSave: Bool {
-            !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !columns.isEmpty && columns.allSatisfy { !$0.name.isEmpty }
-        }
     }
 }

@@ -93,7 +93,7 @@ final class ManageConnectionsWindowController: NSWindowController, NSWindowDeleg
     private func bindThemeUpdates(for window: NSWindow) {
         themeCancellables.removeAll()
 
-        ThemeManager.shared.$effectiveColorScheme
+        AppearanceStore.shared.$effectiveColorScheme
             .receive(on: RunLoop.main)
             .sink { [weak self, weak window] _ in
                 guard let window else { return }
@@ -103,10 +103,10 @@ final class ManageConnectionsWindowController: NSWindowController, NSWindowDeleg
     }
 
     private func applyTheme(to window: NSWindow) {
-        let manager = ThemeManager.shared
-        let tone = manager.activePaletteTone
-        window.appearance = NSAppearance(named: tone == .dark ? .darkAqua : .aqua)
-        window.backgroundColor = manager.windowBackgroundNSColor
+        let manager = AppearanceStore.shared
+        let isDark = manager.effectiveColorScheme == .dark
+        window.appearance = NSAppearance(named: isDark ? .darkAqua : .aqua)
+        window.backgroundColor = NSColor(ColorTokens.Background.primary)
         if #unavailable(macOS 15) {
             window.toolbar?.showsBaselineSeparator = false
         }
@@ -126,7 +126,7 @@ private struct ManageConnectionsWindowRootView: View {
             .environment(coordinator.tabStore)
             .environmentObject(coordinator.environmentState)
             .environmentObject(coordinator.appState)
-            .environmentObject(coordinator.themeManager)
+            .environmentObject(coordinator.appearanceStore)
             .environmentObject(coordinator.clipboardHistory)
     }
 }

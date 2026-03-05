@@ -33,7 +33,7 @@ struct DiagramBlockingStatusCard: View {
                         .multilineTextAlignment(.center)
                 }
             }
-            .padding(24)
+            .padding(SpacingTokens.lg)
             .background(
                 RoundedRectangle(cornerRadius: 20, style: .continuous)
                     .fill(palette.overlayBackground)
@@ -61,16 +61,16 @@ struct DiagramBannerStatus: View {
                         .tint(palette.accent)
                 } else {
                     Image(systemName: "info.circle.fill")
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(TypographyTokens.standard.weight(.semibold))
                         .foregroundStyle(palette.accent)
                 }
                 Text(message)
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(TypographyTokens.caption2.weight(.semibold))
                     .foregroundStyle(palette.headerTitle)
                 Spacer()
             }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 10)
+            .padding(.horizontal, SpacingTokens.sm2)
+            .padding(.vertical, SpacingTokens.xs2)
             .background(
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
                     .fill(palette.overlayBackground)
@@ -80,8 +80,8 @@ struct DiagramBannerStatus: View {
                     )
             )
             .shadow(color: palette.nodeShadow.opacity(0.4), radius: 12, x: 0, y: 6)
-            .padding(.top, 16)
-            .padding(.horizontal, 24)
+            .padding(.top, SpacingTokens.md)
+            .padding(.horizontal, SpacingTokens.lg)
 
             Spacer()
         }

@@ -1,60 +1,7 @@
 #if os(macOS)
 import AppKit
+import SwiftUI
 import QuartzCore
-
-struct ResultTableHeaderStyle {
-    let topColor: NSColor
-    let bottomColor: NSColor
-    let sheenTopAlpha: CGFloat
-    let sheenMidAlpha: CGFloat
-    let highlightAlpha: CGFloat
-    let borderColor: NSColor
-    let separatorColor: CGColor
-
-    @MainActor static func make(for theme: ThemeManager) -> ResultTableHeaderStyle {
-        let baseColor = theme.resultsGridHeaderBackgroundNSColor.usingColorSpace(.extendedSRGB) ?? theme.resultsGridHeaderBackgroundNSColor
-        let accentColor = theme.accentNSColor.usingColorSpace(.extendedSRGB) ?? theme.accentNSColor
-        let isDarkMode = theme.activePaletteTone == .dark
-
-        let topBlendFraction: CGFloat = isDarkMode ? 0.12 : 0.08
-        let bottomBlendFraction: CGFloat = isDarkMode ? 0.28 : 0.24
-        let topBlendColor: NSColor = isDarkMode ? NSColor.white : accentColor
-        let bottomBlendColor: NSColor
-        if isDarkMode {
-            bottomBlendColor = accentColor
-        } else if let shadedAccent = accentColor.shadow(withLevel: 0.2) {
-            bottomBlendColor = shadedAccent
-        } else {
-            bottomBlendColor = accentColor
-        }
-
-        let topColor = baseColor.blended(withFraction: topBlendFraction, of: topBlendColor) ?? baseColor
-        let bottomColor = baseColor.blended(withFraction: bottomBlendFraction, of: bottomBlendColor) ?? baseColor
-
-        let highlightAlpha: CGFloat = isDarkMode ? 0.12 : 0.16
-        let sheenTop: CGFloat = isDarkMode ? 0.08 : 0.12
-        let sheenMid: CGFloat = isDarkMode ? 0.04 : 0.06
-        let borderColor: NSColor
-        if isDarkMode {
-            borderColor = accentColor.withAlphaComponent(0.5)
-        } else if let shadedBase = baseColor.shadow(withLevel: 0.25) {
-            borderColor = shadedBase
-        } else {
-            borderColor = theme.resultsGridHeaderSeparatorNSColor
-        }
-        let separatorColor = theme.accentNSColor.withAlphaComponent(isDarkMode ? 0.3 : 0.22).cgColor
-
-        return ResultTableHeaderStyle(
-            topColor: topColor,
-            bottomColor: bottomColor,
-            sheenTopAlpha: sheenTop,
-            sheenMidAlpha: sheenMid,
-            highlightAlpha: highlightAlpha,
-            borderColor: borderColor,
-            separatorColor: separatorColor
-        )
-    }
-}
 
 final class ResultTableHeaderView: NSTableHeaderView {
     weak var coordinator: QueryResultsTableView.Coordinator?
@@ -71,13 +18,13 @@ final class ResultTableHeaderView: NSTableHeaderView {
         self.coordinator = coordinator
         super.init(frame: .zero)
         configureLayers()
-        updateAppearance(with: ThemeManager.shared)
+        updateAppearance(with: AppearanceStore.shared)
     }
 
     required init?(coder: NSCoder) {
         super.init(coder: coder)
         configureLayers()
-        updateAppearance(with: ThemeManager.shared)
+        updateAppearance(with: AppearanceStore.shared)
     }
 
     private func configureLayers() {
@@ -105,7 +52,7 @@ final class ResultTableHeaderView: NSTableHeaderView {
         layer?.addSublayer(bottomBorderLayer)
     }
 
-    func updateAppearance(with theme: ThemeManager) {
+    func updateAppearance(with theme: AppearanceStore) {
         let style = ResultTableHeaderStyle.make(for: theme)
 
         backgroundLayer.colors = [

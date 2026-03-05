@@ -3,7 +3,7 @@ import Foundation
 
 struct AppearanceSettingsView: View {
     @Environment(ProjectStore.self) private var projectStore
-    @EnvironmentObject private var themeManager: ThemeManager
+    @EnvironmentObject private var appearanceStore: AppearanceStore
 
     var body: some View {
         Form {
@@ -107,15 +107,15 @@ struct AppearanceSettingsView: View {
                 var settings = projectStore.globalSettings
                 settings.appearanceMode = newValue
                 Task { try? await projectStore.updateGlobalSettings(settings) }
-                themeManager.applyAppearanceMode(newValue)
+                appearanceStore.applyAppearanceMode(newValue)
             }
         )
     }
 
     private var customAccentColorBinding: Binding<Color> {
         Binding(
-            get: { themeManager.accentColor },
-            set: { themeManager.setAccentColor($0) }
+            get: { appearanceStore.accentColor },
+            set: { appearanceStore.setAccentColor($0) }
         )
     }
 }

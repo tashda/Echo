@@ -14,13 +14,13 @@ extension TabOverviewView {
             } label: {
                 HStack(spacing: 12) {
                     Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
-                        .font(.system(size: 12, weight: .bold))
+                        .font(TypographyTokens.caption2.weight(.bold))
                         .foregroundStyle(Color.secondary)
                         .frame(width: 16)
 
                     Label {
                         Text(group.connection.connectionName)
-                            .font(.system(size: 18, weight: .bold))
+                            .font(TypographyTokens.displayLarge.weight(.bold))
                     } icon: {
                         Image(systemName: group.connection.databaseType.iconName)
                             .symbolRenderingMode(.hierarchical)
@@ -28,10 +28,10 @@ extension TabOverviewView {
                     }
 
                     Text("\(group.totalTabCount) tab\(group.totalTabCount == 1 ? "" : "s")")
-                        .font(.system(size: 12, weight: .medium))
+                        .font(TypographyTokens.caption2.weight(.medium))
                         .foregroundStyle(.secondary)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 2)
+                        .padding(.horizontal, SpacingTokens.xs)
+                        .padding(.vertical, SpacingTokens.xxxs)
                         .background(Color.primary.opacity(0.06), in: Capsule())
 
                     Spacer()

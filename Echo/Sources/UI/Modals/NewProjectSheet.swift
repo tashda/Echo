@@ -36,9 +36,9 @@ struct NewProjectSheet: View {
         HStack {
             VStack(alignment: .leading, spacing: 4) {
                 Text("New Project")
-                    .font(.system(size: 18, weight: .bold))
+                    .font(TypographyTokens.displayLarge.weight(.bold))
                 Text("Create a workspace to organize your database connections.")
-                    .font(.system(size: 12))
+                    .font(TypographyTokens.caption2)
                     .foregroundStyle(.secondary)
             }
             Spacer()
@@ -51,7 +51,7 @@ struct NewProjectSheet: View {
             }
             .frame(width: 48, height: 48)
         }
-        .padding(24)
+        .padding(SpacingTokens.lg)
     }
 
     private var form: some View {
@@ -59,7 +59,7 @@ struct NewProjectSheet: View {
             VStack(alignment: .leading, spacing: 20) {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("NAME")
-                        .font(.system(size: 10, weight: .bold))
+                        .font(TypographyTokens.label.weight(.bold))
                         .foregroundStyle(.secondary)
                     TextField("Project Name", text: $projectName)
                         .textFieldStyle(.roundedBorder)
@@ -68,7 +68,7 @@ struct NewProjectSheet: View {
 
                 VStack(alignment: .leading, spacing: 10) {
                     Text("COLOR")
-                        .font(.system(size: 10, weight: .bold))
+                        .font(TypographyTokens.label.weight(.bold))
                         .foregroundStyle(.secondary)
                     
                     LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 5), spacing: 12) {
@@ -82,7 +82,7 @@ struct NewProjectSheet: View {
 
                 VStack(alignment: .leading, spacing: 10) {
                     Text("ICON")
-                        .font(.system(size: 10, weight: .bold))
+                        .font(TypographyTokens.label.weight(.bold))
                         .foregroundStyle(.secondary)
                     
                     LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 6), spacing: 12) {
@@ -94,7 +94,7 @@ struct NewProjectSheet: View {
                     }
                 }
             }
-            .padding(24)
+            .padding(SpacingTokens.lg)
         }
     }
 
@@ -113,8 +113,8 @@ struct NewProjectSheet: View {
             .disabled(projectName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             .keyboardShortcut(.defaultAction)
         }
-        .padding(.horizontal, 24)
-        .padding(.vertical, 16)
+        .padding(.horizontal, SpacingTokens.lg)
+        .padding(.vertical, SpacingTokens.md)
         .background(Color(nsColor: .controlBackgroundColor).opacity(0.5))
     }
 
@@ -176,7 +176,7 @@ private struct IconButton: View {
                     .fill(isSelected ? color.opacity(0.15) : Color.primary.opacity(0.05))
                     .frame(width: 40, height: 40)
                 Image(systemName: icon)
-                    .font(.system(size: 18))
+                    .font(TypographyTokens.displayLarge)
                     .foregroundStyle(isSelected ? color : .secondary)
             }
             .overlay(

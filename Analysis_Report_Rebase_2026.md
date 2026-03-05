@@ -14,7 +14,14 @@ Many files exceeded the strict limits. The most critical offenders have been add
 - `WorkspaceToolbarItems.swift`: Reduced from 1187 lines to **~350 lines**.
 - `DatabaseSearchService.swift`: Reduced from 1154 lines to **~180 lines**.
 - `MySQLDatabase.swift`: Reduced from 1050 lines to **~150 lines**.
-- `SearchSidebarView.swift`: Reduced from 918 lines to **~450 lines**.
+- `SQLiteDatabase.swift`: Modularized into 5 components in `Dialects/SQLite/Modules/`.
+- `MSSQLDatabase.swift`: Modularized into 4 components in `Dialects/MSSQL/Modules/`.
+- `JobManagementView.swift`: Modularized into 5 components in `Navigation/JobManagement/`.
+- `TopBarNavigatorOverlay.swift`: Modularized into 6 components in `Toolbar/TopBarNavigator/`.
+- `ResultSpoolHandle.swift`: Modularized into 5 components in `Execution/ResultSpool/`.
+- `SearchSidebarView.swift`: Further modularized into 5 components in `SearchSidebar/`.
+- `InfoSidebarView.swift`: Modularized into 6 components in `InfoSidebar/`.
+- `SQLEditorPalette+BuiltIn.swift`: Split into Light, Dark, and Registry files.
 - `SchemaDiagramView.swift`: Reduced from 875 lines to **~300 lines**.
 - `QueryResultsSettingsView.swift`: Reduced from 854 lines to **~350 lines**.
 - `SuggestionBuilder.swift`: Modularized into 9 providers in `EchoSense`.
@@ -22,7 +29,7 @@ Many files exceeded the strict limits. The most critical offenders have been add
 ### 1.2 Multi-Responsibility Classes
 - `AppModel.swift`: Successfully decomposed into specialized stores (`ProjectStore`, `ConnectionStore`, `TabStore`, `NavigationStore`) and coordinators.
 - `DatabaseSearchService`: Split into strategy-based implementations for each database type.
-- `MySQLDatabase`: Logic separated into Queries, Objects, Structure, and Formatting modules.
+- `MySQLDatabase`, `SQLiteDatabase`, `MSSQLDatabase`: Logic separated into Queries, Objects, Structure, and Formatting modules.
 
 ### 1.3 Hardcoded Styling
 - Centralized design token system implemented in `UI/Shared/Design/`.

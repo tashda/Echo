@@ -14,7 +14,7 @@ struct SettingsWindowScene: Scene {
                 .environmentObject(coordinator.environmentState)
                 .environmentObject(coordinator.appState)
                 .environmentObject(coordinator.clipboardHistory)
-                .environmentObject(coordinator.themeManager)
+                .environmentObject(coordinator.appearanceStore)
         }
         .defaultSize(width: 1000, height: 700)
         .windowToolbarStyle(.unified)

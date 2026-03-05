@@ -49,14 +49,14 @@ struct SidebarSearchBar<Accessory: View>: View {
 
                 accessory
             }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 8)
+            .padding(.horizontal, SpacingTokens.xs2)
+            .padding(.vertical, SpacingTokens.xs)
             .background(
                 RoundedRectangle(cornerRadius: 10, style: .continuous)
                     .fill(Color.primary.opacity(0.05))
             )
         }
-        .padding(12)
+        .padding(SpacingTokens.sm)
     }
 
     @ViewBuilder

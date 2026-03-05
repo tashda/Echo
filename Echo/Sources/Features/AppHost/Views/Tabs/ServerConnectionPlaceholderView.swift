@@ -76,11 +76,11 @@ private struct RecentConnectionRow: View {
                 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(connection.name)
-                        .font(.system(size: 13, weight: .medium))
+                        .font(TypographyTokens.standard.weight(.medium))
                         .foregroundStyle(.primary)
                     
                     Text(connection.subtitle)
-                        .font(.system(size: 11))
+                        .font(TypographyTokens.detail)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                 }
@@ -88,11 +88,11 @@ private struct RecentConnectionRow: View {
                 Spacer()
                 
                 Image(systemName: "chevron.right")
-                    .font(.system(size: 10, weight: .bold))
+                    .font(TypographyTokens.label.weight(.bold))
                     .foregroundStyle(.tertiary)
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 10)
+            .padding(.horizontal, SpacingTokens.sm)
+            .padding(.vertical, SpacingTokens.xs2)
             .contentShape(Rectangle())
             .background(
                 RoundedRectangle(cornerRadius: 10, style: .continuous)
@@ -119,14 +119,7 @@ private struct RecentConnectionRow: View {
 
 private struct EmptyServerConnectionPlaceholderView: View {
     var body: some View {
-        VStack(spacing: 12) {
-            Image(systemName: "clock.arrow.circlepath")
-                .font(.system(size: 32))
-                .foregroundStyle(.tertiary)
-            Text("No connections yet")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-        }
-        .padding(.vertical, 20)
+        EmptyStatePlaceholder(icon: "clock.arrow.circlepath", title: "No connections yet")
+            .padding(.vertical, SpacingTokens.md2)
     }
 }

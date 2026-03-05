@@ -21,7 +21,7 @@ struct KeyboardShortcutsSettingsView: View {
                                 ShortcutRowView(item: item)
                             }
                         }
-                        .padding(16)
+                        .padding(SpacingTokens.md)
                         .background(
                             RoundedRectangle(cornerRadius: 16, style: .continuous)
                                 .fill(Color.primary.opacity(0.03))
@@ -29,7 +29,7 @@ struct KeyboardShortcutsSettingsView: View {
                     }
                 }
             }
-            .padding(24)
+            .padding(SpacingTokens.lg)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .background(Color.clear)
@@ -43,11 +43,11 @@ private struct ShortcutRowView: View {
         HStack(alignment: .center, spacing: 16) {
             VStack(alignment: .leading, spacing: 4) {
                 Text(item.title)
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(TypographyTokens.prominent.weight(.semibold))
                     .foregroundStyle(.primary)
                 if let context = item.context {
                     Text(context)
-                        .font(.system(size: 12))
+                        .font(TypographyTokens.caption2)
                         .foregroundStyle(.secondary)
                 }
             }
@@ -56,7 +56,7 @@ private struct ShortcutRowView: View {
 
             ShortcutKeyCaps(keys: item.keys)
         }
-        .padding(.vertical, 6)
+        .padding(.vertical, SpacingTokens.xxs2)
     }
 }
 
@@ -67,9 +67,9 @@ private struct ShortcutKeyCaps: View {
         HStack(spacing: 6) {
             ForEach(Array(keys.enumerated()), id: \.offset) { _, key in
                 Text(key)
-                    .font(.system(size: 12, weight: .semibold))
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
+                    .font(TypographyTokens.caption2.weight(.semibold))
+                    .padding(.horizontal, SpacingTokens.xs)
+                    .padding(.vertical, SpacingTokens.xxs)
                     .background(
                         RoundedRectangle(cornerRadius: 6, style: .continuous)
                             .fill(Color.primary.opacity(0.08))

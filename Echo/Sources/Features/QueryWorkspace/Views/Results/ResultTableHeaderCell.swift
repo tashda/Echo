@@ -1,5 +1,6 @@
 #if os(macOS)
 import AppKit
+import SwiftUI
 
 final class ResultTableHeaderCell: NSTableHeaderCell {
     override init(textCell: String) {
@@ -30,8 +31,7 @@ final class ResultTableHeaderCell: NSTableHeaderCell {
 
     override func draw(withFrame cellFrame: NSRect, in controlView: NSView) {
         if isHighlighted {
-            let theme = ThemeManager.shared
-            let base = theme.resultsGridHeaderBackgroundNSColor
+            let base = NSColor(ColorTokens.Background.secondary)
             let pressed = base.shadow(withLevel: 0.18) ?? base
             pressed.setFill()
             cellFrame.fill()

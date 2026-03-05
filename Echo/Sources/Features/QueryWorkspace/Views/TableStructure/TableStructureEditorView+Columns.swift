@@ -7,7 +7,7 @@ extension TableStructureEditorView {
             modernColumnsHeader
             adaptiveColumnsTableUI
         }
-        .padding(.vertical, 6)
+        .padding(.vertical, SpacingTokens.xxs2)
     }
 
     private var modernColumnsHeader: some View {
@@ -15,10 +15,10 @@ extension TableStructureEditorView {
             Label("Columns", systemImage: "tablecells")
                 .labelStyle(.titleAndIcon)
                 .font(.system(size: 15, weight: .semibold))
-            
+
             if !selectedColumnIDs.isEmpty {
                 Text("(\(selectedColumnIDs.count) selected)")
-                    .font(.system(size: 12))
+                    .font(TypographyTokens.caption2)
                     .foregroundStyle(.secondary)
             }
             
@@ -90,6 +90,7 @@ extension TableStructureEditorView {
                 Text(column.name)
                     .font(.system(size: 15, weight: .semibold))
                 dataTypeCell(for: column)
+
                 if let description = columnChangeDescription(for: column) {
                     Text(description)
                         .font(.footnote)
@@ -122,7 +123,7 @@ extension TableStructureEditorView {
             Spacer()
             headerCell("CHANGES", width: nil, alignment: .leading)
         }
-        .padding(.horizontal, 16)
+        .padding(.horizontal, SpacingTokens.md)
         .frame(height: 32)
         .background(tableHeaderBackgroundColor)
     }
@@ -137,73 +138,9 @@ extension TableStructureEditorView {
                     .frame(maxWidth: .infinity, alignment: alignment)
             }
         }
-        .font(.system(size: 10, weight: .bold))
+        .font(TypographyTokens.label.weight(.bold))
         .foregroundStyle(.secondary)
     }
 
-    private func columnRow(for column: TableStructureEditorViewModel.ColumnModel, index: Int) -> some View {
-        let binding = Binding(
-            get: { column },
-            set: { viewModel.updateColumn($0) }
-        )
-
-        return HStack(spacing: 0) {
-            nameCell(for: column, binding: binding)
-                .frame(width: ColumnLayout.name, alignment: .leading)
-            
-            dataTypeCell(for: column, binding: binding)
-                .frame(width: ColumnLayout.dataType, alignment: .leading)
-            
-            allowNullCell(for: column, binding: binding)
-                .frame(width: ColumnLayout.allowNull, alignment: .center)
-            
-            defaultValueCell(for: column, binding: binding)
-                .frame(width: ColumnLayout.defaultValue, alignment: .trailing)
-            
-            generatedExpressionCell(for: column, binding: binding)
-                .frame(width: ColumnLayout.generated, alignment: .trailing)
-            
-            statusCell(for: column)
-                .frame(width: ColumnLayout.status, alignment: .leading)
-            
-            Spacer()
-            
-            changesCell(for: column)
-                .frame(maxWidth: .infinity, alignment: .leading)
-        }
-        .padding(.horizontal, 16)
-        .frame(height: 38)
-        .contentShape(Rectangle())
-        .onTapGesture {
-            handleColumnClick(column)
-        }
-        .contextMenu {
-            Button("Edit Column…") { presentColumnEditor(for: column) }
-            Divider()
-            Button("Remove Column", role: .destructive) { removeColumns([column]) }
-        }
-    }
-
-    private func handleColumnClick(_ column: TableStructureEditorViewModel.ColumnModel) {
-        let modifiers = NSEvent.modifierFlags
-        if modifiers.contains(.command) {
-            if selectedColumnIDs.contains(column.id) {
-                selectedColumnIDs.remove(column.id)
-            } else {
-                selectedColumnIDs.insert(column.id)
-            }
-            selectionAnchor = column.id
-        } else if modifiers.contains(.shift), let anchor = selectionAnchor {
-            let allIDs = visibleColumns.map(\.id)
-            if let anchorIndex = allIDs.firstIndex(of: anchor),
-               let currentIndex = allIDs.firstIndex(of: column.id) {
-                let range = min(anchorIndex, currentIndex)...max(anchorIndex, currentIndex)
-                selectedColumnIDs = Set(range.map { allIDs[$0] })
-            }
-        } else {
-            selectedColumnIDs = [column.id]
-            selectionAnchor = column.id
-        }
-    }
 #endif
 }

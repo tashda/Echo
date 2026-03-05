@@ -196,7 +196,7 @@ final class MetadataDiscoveryCoordinator: MetadataDiscoveryCoordinatorProtocol, 
         }
     }
 
-    private static func mergeDatabaseInfo(partial: DatabaseInfo, existing: DatabaseInfo?) -> DatabaseInfo {
+    static func mergeDatabaseInfo(partial: DatabaseInfo, existing: DatabaseInfo?) -> DatabaseInfo {
         guard let existing else {
             let sortedSchemas = partial.schemas.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
             return DatabaseInfo(name: partial.name, schemas: sortedSchemas, schemaCount: max(partial.schemaCount, sortedSchemas.count))
@@ -206,7 +206,7 @@ final class MetadataDiscoveryCoordinator: MetadataDiscoveryCoordinatorProtocol, 
         return DatabaseInfo(name: existing.name, schemas: mergedSchemas, schemaCount: max(existing.schemaCount, partial.schemaCount, mergedSchemas.count))
     }
 
-    private static func mergeSchemas(partialSchemas: [SchemaInfo], existingSchemas: [SchemaInfo]) -> [SchemaInfo] {
+    static func mergeSchemas(partialSchemas: [SchemaInfo], existingSchemas: [SchemaInfo]) -> [SchemaInfo] {
         var schemaMap = Dictionary(uniqueKeysWithValues: existingSchemas.map { ($0.name, $0) })
         for schema in partialSchemas {
             if let current = schemaMap[schema.name] {
@@ -218,7 +218,7 @@ final class MetadataDiscoveryCoordinator: MetadataDiscoveryCoordinatorProtocol, 
         return Array(schemaMap.values)
     }
 
-    private static func mergeSchemaInfo(partial: SchemaInfo, existing: SchemaInfo) -> SchemaInfo {
+    static func mergeSchemaInfo(partial: SchemaInfo, existing: SchemaInfo) -> SchemaInfo {
         var objectMap = Dictionary(uniqueKeysWithValues: existing.objects.map { ($0.id, $0) })
         for object in partial.objects {
             objectMap[object.id] = object

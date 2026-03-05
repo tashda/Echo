@@ -70,7 +70,7 @@ struct DatabaseObjectRow: View, Equatable {
             HStack(alignment: .center, spacing: 8) {
                 if canExpand {
                     Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
-                        .font(.system(size: 10, weight: .medium))
+                        .font(TypographyTokens.label.weight(.medium))
                         .foregroundStyle(.secondary)
                         .frame(width: 12)
                 } else {
@@ -80,11 +80,11 @@ struct DatabaseObjectRow: View, Equatable {
                 VStack(alignment: .leading, spacing: 4) {
                     HStack(spacing: 8) {
                         Image(systemName: iconName)
-                            .font(.system(size: 12, weight: .medium))
+                            .font(TypographyTokens.caption2.weight(.medium))
                             .foregroundStyle(accentColor)
 
                         Text(displayName)
-                            .font(.system(size: 13))
+                            .font(TypographyTokens.standard)
                             .foregroundStyle(.primary)
                             .lineLimit(1)
 
@@ -92,10 +92,10 @@ struct DatabaseObjectRow: View, Equatable {
 
                         if showColumns && !object.columns.isEmpty {
                             Text("\(object.columns.count)")
-                                .font(.system(size: 11, weight: .medium))
+                                .font(TypographyTokens.detail.weight(.medium))
                                 .foregroundStyle(accentColor)
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 2)
+                                .padding(.horizontal, SpacingTokens.xxs2)
+                                .padding(.vertical, SpacingTokens.xxxs)
                                 .background(accentColor.opacity(0.12), in: Capsule())
                         }
                     }
@@ -103,7 +103,7 @@ struct DatabaseObjectRow: View, Equatable {
 
                     if let comment = object.comment?.trimmingCharacters(in: .whitespacesAndNewlines), !comment.isEmpty {
                         Text(comment)
-                            .font(.system(size: 11))
+                            .font(TypographyTokens.detail)
                             .foregroundStyle(.secondary)
                             .lineLimit(3)
                             .multilineTextAlignment(.leading)
@@ -121,8 +121,8 @@ struct DatabaseObjectRow: View, Equatable {
                 triggerMetadata
             }
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 4)
+        .padding(.horizontal, SpacingTokens.sm)
+        .padding(.vertical, SpacingTokens.xxs)
         .background(highlightBackground)
         .contentShape(Rectangle())
         .onTapGesture {
@@ -153,9 +153,9 @@ struct DatabaseObjectRow: View, Equatable {
         HStack(spacing: 6) {
             if let action = object.triggerAction, !action.isEmpty {
                 Text(action)
-                    .font(.system(size: 10, weight: .semibold))
+                    .font(TypographyTokens.label.weight(.semibold))
                     .foregroundStyle(accentColor)
-                    .padding(.horizontal, 8)
+                    .padding(.horizontal, SpacingTokens.xs)
                     .padding(.vertical, 3)
                     .background(accentColor.opacity(0.12), in: Capsule())
             }
@@ -164,9 +164,9 @@ struct DatabaseObjectRow: View, Equatable {
                     onTriggerTableTap?(table)
                 } label: {
                     Text(table)
-                        .font(.system(size: 10, weight: .semibold))
+                        .font(TypographyTokens.label.weight(.semibold))
                         .foregroundStyle(accentColor)
-                        .padding(.horizontal, 8)
+                        .padding(.horizontal, SpacingTokens.xs)
                         .padding(.vertical, 3)
                         .background(accentColor.opacity(0.12), in: Capsule())
                 }
@@ -174,7 +174,7 @@ struct DatabaseObjectRow: View, Equatable {
             }
             Spacer()
         }
-        .padding(.leading, 24)
+        .padding(.leading, SpacingTokens.lg)
     }
     
     private var highlightBackground: some View {
@@ -186,57 +186,4 @@ struct DatabaseObjectRow: View, Equatable {
             .animation(.easeOut(duration: 0.18), value: isExpanded)
     }
     
-    private var columnsList: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            ForEach(object.columns, id: \.name) { (column: ColumnInfo) in
-                DatabaseObjectColumnRow(
-                    column: column,
-                    accentColor: accentColor,
-                    isHovered: hoveredColumnID == column.name,
-                    onCopyName: { copyColumnName(column) },
-                    onRename: { openStructureEditor(for: column) },
-                    onDrop: { openStructureEditor(for: column, preferDrop: true) }
-                )
-#if os(macOS)
-                .onHover { hovering in
-                    var transaction = Transaction()
-                    transaction.animation = nil
-                    withTransaction(transaction) {
-                        if hovering {
-                            hoveredColumnID = column.name
-                        } else if hoveredColumnID == column.name {
-                            hoveredColumnID = nil
-                        }
-                    }
-                }
-#endif
-            }
-        }
-        .padding(.top, 6)
-        .padding(.bottom, 4)
-        .onDisappear {
-            hoveredColumnID = nil
-        }
-        .transition(.opacity.combined(with: .scale(scale: 0.95, anchor: .top)))
-    }
-}
-
-extension DatabaseObjectRow {
-    internal func copyColumnName(_ column: ColumnInfo) {
-        let name = column.name
-#if os(macOS)
-        let pasteboard = NSPasteboard.general
-        pasteboard.clearContents()
-        pasteboard.setString(name, forType: .string)
-#else
-        UIPasteboard.general.string = name
-#endif
-    }
-    
-    internal func openStructureEditor(for column: ColumnInfo, preferDrop: Bool = false) {
-        Task { @MainActor in
-            guard let session = environmentState.sessionManager.sessionForConnection(connection.id) else { return }
-            environmentState.openStructureTab(for: session, object: object, focus: .columns)
-        }
-    }
 }

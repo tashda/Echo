@@ -5,11 +5,11 @@ import SwiftUI
 /// Height matches `WorkspaceChromeMetrics.toolbarTabBarHeight` to align with circular toolbar icons.
 struct TopBarNavigator: View {
     @EnvironmentObject private var environmentState: EnvironmentState
-    @EnvironmentObject private var themeManager: ThemeManager
+    @EnvironmentObject private var appearanceStore: AppearanceStore
 
     var body: some View {
         BreadcrumbNavigator()
             .environmentObject(environmentState)
-            .environmentObject(themeManager)
+            .environmentObject(appearanceStore)
     }
 }

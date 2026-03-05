@@ -5,8 +5,8 @@ enum SQLEditorThemeResolver {
     static func resolve(globalSettings: GlobalSettings, project: Project?, tone: SQLEditorPalette.Tone) -> SQLEditorTheme {
         FontRegistrar.registerBundledFonts()
 
-        let applicationTheme = resolveApplicationTheme(globalSettings: globalSettings, tone: tone)
         let tokenPalette = resolveTokenPalette(globalSettings: globalSettings, project: project, tone: tone)
+        let basePalette = resolveSurfacePalette(globalSettings: globalSettings, tone: tone)
 
         let projectFontName = sanitizedFontName(project?.settings.editorFontFamily)
         let globalFontName = sanitizedFontName(globalSettings.defaultEditorFontFamily)
@@ -17,29 +17,27 @@ enum SQLEditorThemeResolver {
         let fontSize = max(8, CGFloat(fontSizeValue))
         let lineHeight = max(1.0, CGFloat(lineHeightValue))
 
-        let strongHighlight = applicationTheme.editorSymbolHighlightStrong
-            ?? SQLEditorTokenPalette.defaultSymbolHighlightStrong(
-                selection: applicationTheme.editorSelection,
-                accent: applicationTheme.accent,
-                background: applicationTheme.editorBackground,
-                isDark: tone == .dark
-            )
-        let brightHighlight = applicationTheme.editorSymbolHighlightBright
-            ?? SQLEditorTokenPalette.defaultSymbolHighlightBright(
-                selection: applicationTheme.editorSelection,
-                accent: applicationTheme.accent,
-                background: applicationTheme.editorBackground,
-                isDark: tone == .dark
-            )
+        let strongHighlight = SQLEditorTokenPalette.defaultSymbolHighlightStrong(
+            selection: basePalette.selection,
+            accent: nil,
+            background: basePalette.background,
+            isDark: tone == .dark
+        )
+        let brightHighlight = SQLEditorTokenPalette.defaultSymbolHighlightBright(
+            selection: basePalette.selection,
+            accent: nil,
+            background: basePalette.background,
+            isDark: tone == .dark
+        )
 
         let surfaces = SQLEditorSurfaceColors(
-            background: applicationTheme.editorBackground,
-            text: applicationTheme.editorForeground,
-            gutterBackground: applicationTheme.editorGutterBackground,
-            gutterText: applicationTheme.editorGutterForeground,
-            gutterAccent: applicationTheme.accent ?? applicationTheme.editorForeground,
-            selection: applicationTheme.editorSelection,
-            currentLine: applicationTheme.editorCurrentLine,
+            background: basePalette.background,
+            text: basePalette.text,
+            gutterBackground: basePalette.gutterBackground,
+            gutterText: basePalette.gutterText,
+            gutterAccent: basePalette.gutterAccent,
+            selection: basePalette.selection,
+            currentLine: basePalette.currentLine,
             symbolHighlightStrong: strongHighlight,
             symbolHighlightBright: brightHighlight
         )
@@ -76,17 +74,12 @@ enum SQLEditorThemeResolver {
         )
     }
 
-    private static func resolveApplicationTheme(globalSettings: GlobalSettings, tone: SQLEditorPalette.Tone) -> AppColorTheme {
-        if let themeID = globalSettings.activeThemeID(for: tone),
-           let theme = globalSettings.theme(withID: themeID, tone: tone) {
-            return theme
+    private static func resolveSurfacePalette(globalSettings: GlobalSettings, tone: SQLEditorPalette.Tone) -> SQLEditorPalette {
+        let paletteID = tone == .light ? globalSettings.defaultEditorPaletteIDLight : globalSettings.defaultEditorPaletteIDDark
+        if let palette = SQLEditorPalette.palette(withID: paletteID) {
+            return palette
         }
-
-        if let fallback = AppColorTheme.builtInThemes(for: tone).first {
-            return fallback
-        }
-
-        return AppColorTheme.fromPalette(tone == .dark ? SQLEditorPalette.midnight : SQLEditorPalette.aurora)
+        return tone == .dark ? SQLEditorPalette.midnight : SQLEditorPalette.aurora
     }
 
     private static func resolveTokenPalette(globalSettings: GlobalSettings, project _: Project?, tone: SQLEditorPalette.Tone) -> SQLEditorTokenPalette {

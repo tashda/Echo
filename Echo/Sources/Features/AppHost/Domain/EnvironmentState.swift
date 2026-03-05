@@ -20,7 +20,7 @@ final class EnvironmentState: ObservableObject {
 
     // MARK: - Published State
     @Published var connectionStates: [UUID: ConnectionState] = [:]
-    @Published var sessionManager = ActiveSessionCoordinator()
+    @Published var sessionCoordinator = ActiveSessionCoordinator()
     @Published var pinnedObjectIDs: [String] = []
     @Published var recentConnections: [RecentConnectionRecord] = []
     @Published var searchSidebarCaches: [SearchSidebarContextKey: SearchSidebarCache] = [:]
@@ -33,17 +33,17 @@ final class EnvironmentState: ObservableObject {
     let connectionStore: ConnectionStore
     let navigationStore: NavigationStore
     let tabStore: TabStore
-    let resultSpoolCoordinator: ResultSpoolCoordinator
+    let resultSpoolConfigCoordinator: ResultSpoolConfigCoordinator
     let diagramCoordinator: DiagramCoordinator
     let identityRepository: IdentityRepository
     let schemaDiscoveryCoordinator: MetadataDiscoveryCoordinator
     let bookmarkRepository: BookmarkRepository
     let historyRepository: HistoryRepository
     private let clipboardHistory: ClipboardHistoryStore
-    let resultSpoolManager: ResultSpoolManager
-    let diagramCacheManager: DiagramCacheManager
+    let resultSpoolManager: ResultSpoolCoordinator
+    let diagramCacheStore: DiagramCacheStore
     let diagramKeyStore: DiagramEncryptionKeyStore
-    
+
     private var diagramRefreshTask: Task<Void, Never>?
     private var cancellables: Set<AnyCancellable> = []
     private var sessionDatabaseCancellables: [UUID: AnyCancellable] = [:]
@@ -56,14 +56,14 @@ final class EnvironmentState: ObservableObject {
         navigationStore: NavigationStore,
         tabStore: TabStore,
         clipboardHistory: ClipboardHistoryStore,
-        resultSpoolCoordinator: ResultSpoolCoordinator,
+        resultSpoolConfigCoordinator: ResultSpoolConfigCoordinator,
         diagramCoordinator: DiagramCoordinator,
         identityRepository: IdentityRepository,
         schemaDiscoveryCoordinator: MetadataDiscoveryCoordinator,
         bookmarkRepository: BookmarkRepository,
         historyRepository: HistoryRepository,
-        resultSpoolManager: ResultSpoolManager,
-        diagramCacheManager: DiagramCacheManager,
+        resultSpoolManager: ResultSpoolCoordinator,
+        diagramCacheStore: DiagramCacheStore,
         diagramKeyStore: DiagramEncryptionKeyStore
     ) {
         self.projectStore = projectStore
@@ -71,26 +71,26 @@ final class EnvironmentState: ObservableObject {
         self.navigationStore = navigationStore
         self.tabStore = tabStore
         self.clipboardHistory = clipboardHistory
-        self.resultSpoolCoordinator = resultSpoolCoordinator
+        self.resultSpoolConfigCoordinator = resultSpoolConfigCoordinator
         self.diagramCoordinator = diagramCoordinator
         self.identityRepository = identityRepository
         self.schemaDiscoveryCoordinator = schemaDiscoveryCoordinator
         self.bookmarkRepository = bookmarkRepository
         self.historyRepository = historyRepository
         self.resultSpoolManager = resultSpoolManager
-        self.diagramCacheManager = diagramCacheManager
+        self.diagramCacheStore = diagramCacheStore
         self.diagramKeyStore = diagramKeyStore
-        
+
         self.tabStore.delegate = self
         setupBindings()
         loadRecentConnections()
     }
 
     private func setupBindings() {
-        sessionManager.$activeSessionID
+        sessionCoordinator.$activeSessionID
             .sink { [weak self] id in
                 guard let self else { return }
-                if let id, let session = self.sessionManager.activeSessions.first(where: { $0.id == id }) {
+                if let id, let session = self.sessionCoordinator.activeSessions.first(where: { $0.id == id }) {
                     self.updateNavigation(for: session)
                 } else {
                     self.updateNavigation(for: nil)
@@ -98,7 +98,7 @@ final class EnvironmentState: ObservableObject {
             }
             .store(in: &cancellables)
 
-        sessionManager.$activeSessions
+        sessionCoordinator.$activeSessions
             .sink { [weak self] sessions in
                 guard let self else { return }
                 let validIDs = sessions.map { $0.id }
@@ -111,14 +111,13 @@ final class EnvironmentState: ObservableObject {
             }
             .store(in: &cancellables)
 
-        // Observation bridges for legacy compatibility during migration
         _ = withObservationTracking {
             projectStore.selectedProject
         } onChange: { [weak self] in
             Task { @MainActor in
                 self?.objectWillChange.send()
                 self?.loadExpandedConnectionFolders(for: self?.projectStore.selectedProject?.id)
-                self?.setupBindings() // Retrack
+                self?.setupBindings()
             }
         }
     }
@@ -131,16 +130,9 @@ final class EnvironmentState: ObservableObject {
         loadExpandedConnectionFolders(for: projectStore.selectedProject?.id)
     }
 
-    // MARK: - Session Management
-    func connect(to connection: SavedConnection) async {
-        await connectToNewSession(to: connection)
-    }
+    // MARK: - Internal Connection Helpers
 
-    func disconnectSession(withID id: UUID) async {
-        sessionManager.removeSession(withID: id)
-    }
-
-    private func connectToNewSession(to connection: SavedConnection) async {
+    internal func connectToNewSession(to connection: SavedConnection) async {
         guard let credentials = identityRepository.resolveAuthenticationConfiguration(for: connection, overridePassword: nil) else {
             lastError = .connectionFailed("Missing credentials")
             return
@@ -162,8 +154,8 @@ final class EnvironmentState: ObservableObject {
                 session: session,
                 spoolManager: resultSpoolManager
             )
-            
-            sessionManager.addSession(connectionSession)
+
+            sessionCoordinator.addSession(connectionSession)
             connectionStates[connection.id] = .connected
             recordRecentConnection(for: connection, databaseName: connectionSession.selectedDatabaseName)
             startStructureLoadTask(for: connectionSession)
@@ -173,126 +165,9 @@ final class EnvironmentState: ObservableObject {
         }
     }
 
-    func reconnectSession(_ session: ConnectionSession, to databaseName: String) async {
-        // Implementation for database switching
-    }
-
-    // MARK: - Database Metadata
-    func startStructureLoadTask(for session: ConnectionSession) {
-        schemaDiscoveryCoordinator.startStructureLoadTask(for: session)
-    }
-
-    func refreshDatabaseStructure(for sessionID: UUID, scope: StructureRefreshScope = .selectedDatabase, databaseOverride: String? = nil) async {
-        guard let session = sessionManager.activeSessions.first(where: { $0.id == sessionID }) else { return }
-        await schemaDiscoveryCoordinator.refreshStructure(for: session, scope: scope)
-    }
-
-    func loadSchemaForDatabase(_ databaseName: String, connectionSession: ConnectionSession) async {
-        await reconnectSession(connectionSession, to: databaseName)
-    }
-
-    // MARK: - Connection Management
-    func upsertConnection(_ connection: SavedConnection, password: String?) async {
-        var updated = connection
-        if let password, !password.isEmpty {
-            try? identityRepository.setPassword(password, for: &updated)
-        }
-        try? await connectionStore.updateConnection(updated)
-        await preloadStructure(for: updated, overridePassword: password)
-    }
-
-    func deleteConnection(_ connection: SavedConnection) async {
-        identityRepository.deletePassword(for: connection)
-        try? await connectionStore.deleteConnection(connection)
-        removeRecentConnections(for: connection.id)
-    }
-
-    func testConnection(_ connection: SavedConnection, passwordOverride: String? = nil) async -> ConnectionTestResult {
-        guard let credentials = identityRepository.resolveAuthenticationConfiguration(for: connection, overridePassword: passwordOverride) else {
-            return ConnectionTestResult(isSuccessful: false, message: "Missing credentials", responseTime: nil, serverVersion: nil)
-        }
-        
-        let startTime = Date()
-        do {
-            let factory = DatabaseFactoryProvider.makeFactory(for: connection.databaseType)
-            let session = try await factory!.connect(
-                host: connection.host,
-                port: connection.port,
-                database: connection.database.isEmpty ? nil : connection.database,
-                tls: connection.useTLS,
-                authentication: credentials
-            )
-            let duration = Date().timeIntervalSince(startTime)
-            try await session.close()
-            return ConnectionTestResult(isSuccessful: true, message: "Success", responseTime: duration, serverVersion: nil)
-        } catch {
-            return ConnectionTestResult(isSuccessful: false, message: error.localizedDescription, responseTime: nil, serverVersion: nil)
-        }
-    }
-
-    // MARK: - Tab Management
-    func registerTab(_ tab: WorkspaceTab) {
-        tabStore.addTab(tab)
-    }
-
-    func openQueryTab(for session: ConnectionSession? = nil, presetQuery: String? = nil, autoExecute: Bool = false) {
-        let targetSession = session ?? sessionManager.activeSession ?? sessionManager.activeSessions.first
-        guard let targetSession else { return }
-        let tab = targetSession.addQueryTab(withQuery: presetQuery ?? "")
-        registerTab(tab)
-    }
-
-    func openJobManagementTab(for session: ConnectionSession, selectJobID: String? = nil) {
-        let tab = session.addJobManagementTab(selectJobID: selectJobID)
-        registerTab(tab)
-    }
-
-    func openStructureTab(for session: ConnectionSession, object: SchemaObjectInfo, focus: TableStructureSection? = nil) {
-        let tab = session.addStructureTab(for: object, focus: focus)
-        registerTab(tab)
-    }
-
-    func openDiagramTab(for session: ConnectionSession, object: SchemaObjectInfo) {
-        // Implementation
-    }
-
-    func duplicateTab(_ tab: WorkspaceTab) {
-        // Implementation
-    }
-
-    // MARK: - Bookmarks
-    func bookmarks(for connectionID: UUID) -> [Bookmark] {
-        guard let project = projectStore.projects.first(where: { p in 
-            p.id == (connectionStore.connections.first(where: { $0.id == connectionID })?.projectID ?? projectStore.selectedProject?.id)
-        }) else { return [] }
-        return bookmarkRepository.bookmarks(for: connectionID, in: project)
-    }
-
-    func addBookmark(for connection: SavedConnection, databaseName: String?, title: String?, query: String, source: Bookmark.Source) async {
-        guard var project = projectStore.projects.first(where: { $0.id == (connection.projectID ?? projectStore.selectedProject?.id) }) else { return }
-        let bookmark = Bookmark(connectionID: connection.id, databaseName: databaseName, title: title, query: query, source: source)
-        bookmarkRepository.addBookmark(bookmark, to: &project)
-        await projectStore.saveProject(project)
-    }
-
-    func removeBookmark(_ bookmark: Bookmark) async {
-        guard var project = projectStore.projects.first(where: { $0.id == (bookmark.connectionID) }) else { return }
-        bookmarkRepository.removeBookmark(bookmark.id, from: &project)
-        await projectStore.saveProject(project)
-    }
-
-    func renameBookmark(_ bookmark: Bookmark, to title: String?) async {
-        guard var project = projectStore.projects.first(where: { $0.id == (bookmark.connectionID) }) else { return }
-        bookmarkRepository.updateBookmark(bookmark.id, in: &project) { b in b.title = title }
-        await projectStore.saveProject(project)
-    }
-
-    func copyBookmark(_ bookmark: Bookmark) {
-        PlatformClipboard.copy(bookmark.query)
-    }
-
     // MARK: - Recent Connections
-    private func loadRecentConnections() {
+
+    internal func loadRecentConnections() {
         recentConnections = historyRepository.loadRecentConnections()
     }
 
@@ -300,7 +175,7 @@ final class EnvironmentState: ObservableObject {
         historyRepository.saveRecentConnections(recentConnections)
     }
 
-    private func recordRecentConnection(for connection: SavedConnection, databaseName: String?) {
+    internal func recordRecentConnection(for connection: SavedConnection, databaseName: String?) {
         let record = RecentConnectionRecord(
             id: connection.id,
             connectionName: connection.connectionName,
@@ -315,7 +190,7 @@ final class EnvironmentState: ObservableObject {
         saveRecentConnections()
     }
 
-    private func removeRecentConnections(for connectionID: UUID) {
+    internal func removeRecentConnections(for connectionID: UUID) {
         recentConnections.removeAll { $0.id == connectionID }
         saveRecentConnections()
     }
@@ -326,30 +201,7 @@ final class EnvironmentState: ObservableObject {
         saveRecentConnections()
     }
 
-    // MARK: - Helpers
-    func updateNavigation(for session: ConnectionSession?) {
-        if let session {
-            navigationStore.navigationState.selectConnection(session.connection)
-            if let db = session.selectedDatabaseName {
-                navigationStore.navigationState.selectDatabase(db)
-            }
-        } else {
-            // navigationStore.navigationState.selectedConnection = nil // Use a proper method if selectConnection doesn't handle nil
-        }
-    }
-
-    func persistConnections() async {
-        try? await connectionStore.saveConnections()
-    }
-
-    func enqueuePrefetchForSessionIfNeeded(_ session: ConnectionSession) async {
-        await diagramCoordinator.scheduleRelatedPrefetch(
-            session: session,
-            baseKey: DiagramTableKey(schema: session.connection.database, name: ""), // Needs better logic
-            relatedKeys: [],
-            projectID: session.connection.projectID ?? projectStore.selectedProject?.id ?? UUID()
-        )
-    }
+    // MARK: - Private Helpers
 
     private func pruneSessionCancellables(validIDs: [UUID]) {
         for (id, cancellable) in sessionDatabaseCancellables where !validIDs.contains(id) {
@@ -381,41 +233,37 @@ final class EnvironmentState: ObservableObject {
         let ids = storage[key]?.compactMap(UUID.init) ?? []
         expandedConnectionFolderIDs = Set(ids)
     }
-
-    func preloadStructure(for connection: SavedConnection, overridePassword: String? = nil) async {
-        await schemaDiscoveryCoordinator.preloadStructure(for: connection, overridePassword: overridePassword)
-    }
 }
 
 // MARK: - TabStoreDelegate
 extension EnvironmentState: TabStoreDelegate {
     func tabStore(_ store: TabStore, didAdd tab: WorkspaceTab) {
-        if let session = sessionManager.activeSessions.first(where: { $0.id == tab.connectionSessionID }) {
+        if let session = sessionCoordinator.activeSessions.first(where: { $0.id == tab.connectionSessionID }) {
             if !session.queryTabs.contains(where: { $0.id == tab.id }) {
                 session.queryTabs.append(tab)
             }
         }
     }
-    
+
     func tabStore(_ store: TabStore, shouldClose tab: WorkspaceTab) async -> Bool {
         return true
     }
-    
+
     func tabStore(_ store: TabStore, didRemoveTabID tabID: UUID) {
-        for session in sessionManager.activeSessions {
+        for session in sessionCoordinator.activeSessions {
             if let index = session.queryTabs.firstIndex(where: { $0.id == tabID }) {
                 session.queryTabs.remove(at: index)
             }
         }
     }
-    
+
     func tabStore(_ store: TabStore, didSetActiveTabID tabID: UUID?) {
         guard let tabID, let tab = store.getTab(id: tabID) else { return }
-        if sessionManager.activeSessionID != tab.connectionSessionID {
-            sessionManager.setActiveSession(tab.connectionSessionID)
+        if sessionCoordinator.activeSessionID != tab.connectionSessionID {
+            sessionCoordinator.setActiveSession(tab.connectionSessionID)
         }
     }
-    
+
     func tabStoreDidReorderTabs(_ store: TabStore) {
         // No-op
     }

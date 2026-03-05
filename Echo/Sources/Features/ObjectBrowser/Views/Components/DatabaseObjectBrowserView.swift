@@ -24,22 +24,22 @@ struct DatabaseObjectBrowserView: View {
         SchemaObjectInfo.ObjectType.supported(for: connection.databaseType)
     }
     
-    private var normalizedSearchQuery: String? {
+    var normalizedSearchQuery: String? {
         let trimmed = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed.isEmpty ? nil : trimmed.lowercased()
     }
     
     private var isSearching: Bool { normalizedSearchQuery != nil }
     
-    private func displayName(for object: SchemaObjectInfo) -> String {
+    func displayName(for object: SchemaObjectInfo) -> String {
         selectedSchemaName == nil ? object.fullName : object.name
     }
     
-    private func shouldShowColumns(for object: SchemaObjectInfo) -> Bool {
+    func shouldShowColumns(for object: SchemaObjectInfo) -> Bool {
         object.type == .table || object.type == .view || object.type == .materializedView
     }
     
-    private func togglePin(for object: SchemaObjectInfo) {
+    func togglePin(for object: SchemaObjectInfo) {
         withAnimation(.easeInOut(duration: 0.2)) {
             if pinnedObjectIDs.contains(object.id) {
                 pinnedObjectIDs.remove(object.id)
@@ -50,7 +50,7 @@ struct DatabaseObjectBrowserView: View {
         }
     }
     
-    private func expansionBinding(for objectID: String) -> Binding<Bool> {
+    func expansionBinding(for objectID: String) -> Binding<Bool> {
         Binding(
             get: { expandedObjectIDs.contains(objectID) },
             set: { newValue in
@@ -63,7 +63,7 @@ struct DatabaseObjectBrowserView: View {
         )
     }
     
-    private func revealTable(fullName: String) {
+    func revealTable(fullName: String) {
         guard let target = database.schemas
             .flatMap({ $0.objects.filter { $0.type == .table } })
             .first(where: { $0.fullName == fullName }) else { return }
@@ -122,87 +122,6 @@ struct DatabaseObjectBrowserView: View {
         .onChange(of: input) { _, newValue in snapshotCache.update(with: newValue) }
     }
 
-    @ViewBuilder
-    private func pinnedSection(_ pinnedList: [SchemaObjectInfo]) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Button {
-                withAnimation(.easeInOut(duration: 0.25)) { isPinnedSectionExpanded.toggle() }
-            } label: {
-                sectionHeader(title: "PINNED", count: pinnedList.count, isExpanded: isPinnedSectionExpanded)
-            }
-            .buttonStyle(.plain)
-            
-            if isPinnedSectionExpanded {
-                ForEach(pinnedList, id: \.id) { object in
-                    DatabaseObjectRow(
-                        object: object,
-                        displayName: displayName(for: object),
-                        connection: connection,
-                        showColumns: shouldShowColumns(for: object),
-                        isExpanded: expansionBinding(for: object.id),
-                        isPinned: true,
-                        onTogglePin: { togglePin(for: object) },
-                        onTriggerTableTap: object.type == .trigger ? { revealTable(fullName: $0) } : nil
-                    )
-                    .id("pinned-\(object.id)")
-                }
-            }
-        }
-    }
-
-    @ViewBuilder
-    private func typeSection(_ type: SchemaObjectInfo.ObjectType, _ objects: [SchemaObjectInfo]) -> some View {
-        let isExpanded = expandedObjectGroups.contains(type)
-        VStack(alignment: .leading, spacing: 4) {
-            Button {
-                withAnimation(.easeInOut(duration: 0.25)) {
-                    if isExpanded { expandedObjectGroups.remove(type) }
-                    else { expandedObjectGroups.insert(type) }
-                }
-            } label: {
-                sectionHeader(title: type.pluralDisplayName.uppercased(), count: objects.count, isExpanded: isExpanded)
-            }
-            .buttonStyle(.plain)
-            
-            if isExpanded {
-                ForEach(objects, id: \.id) { object in
-                    DatabaseObjectRow(
-                        object: object,
-                        displayName: displayName(for: object),
-                        connection: connection,
-                        showColumns: shouldShowColumns(for: object),
-                        isExpanded: expansionBinding(for: object.id),
-                        isPinned: pinnedObjectIDs.contains(object.id),
-                        onTogglePin: { togglePin(for: object) },
-                        onTriggerTableTap: object.type == .trigger ? { revealTable(fullName: $0) } : nil
-                    )
-                    .equatable()
-                    .id(object.id)
-                }
-            }
-        }
-    }
-
-    private func sectionHeader(title: String, count: Int, isExpanded: Bool) -> some View {
-        HStack(spacing: 6) {
-            Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
-                .font(.system(size: 10, weight: .semibold))
-                .foregroundStyle(.secondary)
-            Text(title)
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(.secondary)
-            Text("\(count)")
-                .font(.system(size: 10, weight: .semibold))
-                .foregroundStyle(.secondary.opacity(0.8))
-                .padding(.horizontal, 6)
-                .padding(.vertical, 2)
-                .background(Color.primary.opacity(0.06), in: Capsule())
-            Spacer()
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 4)
-        .contentShape(Rectangle())
-    }
 }
 
 private struct SearchEmptyStateView: View {
@@ -217,14 +136,14 @@ private struct SearchEmptyStateView: View {
                 .font(.system(size: 36, weight: .semibold))
                 .foregroundStyle(.tertiary)
             Text("Nothing found for \(formattedQuery)")
-                .font(.system(size: 13, weight: .medium))
+                .font(TypographyTokens.standard.weight(.medium))
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
             Text("Try adjusting your filters or search terms.")
-                .font(.system(size: 12))
+                .font(TypographyTokens.caption2)
                 .foregroundStyle(.tertiary)
         }
-        .padding(.vertical, 48)
+        .padding(.vertical, SpacingTokens.xxl)
         .frame(maxWidth: .infinity)
     }
 }

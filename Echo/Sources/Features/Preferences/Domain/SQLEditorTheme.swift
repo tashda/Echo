@@ -92,43 +92,37 @@ struct SQLEditorTheme: Codable, Equatable {
 #endif
 
     static func fallback(tone: SQLEditorPalette.Tone = .light) -> SQLEditorTheme {
-        let baseTheme = AppColorTheme.builtInThemes(for: tone).first
-            ?? AppColorTheme.fromPalette(tone == .dark ? SQLEditorPalette.midnight : SQLEditorPalette.aurora)
+        let basePalette = tone == .dark ? SQLEditorPalette.midnight : SQLEditorPalette.aurora
+        let tokenPalette = SQLEditorTokenPalette(from: basePalette)
 
-        let palette = SQLEditorTokenPalette.builtIn.first(where: { $0.id == baseTheme.defaultPaletteID })
-            ?? SQLEditorTokenPalette.builtIn.first(where: { $0.tone == tone })
-            ?? SQLEditorTokenPalette(from: tone == .dark ? SQLEditorPalette.midnight : SQLEditorPalette.aurora)
-
-        let strongHighlight = baseTheme.editorSymbolHighlightStrong
-            ?? SQLEditorTokenPalette.defaultSymbolHighlightStrong(
-                selection: baseTheme.editorSelection,
-                accent: baseTheme.accent,
-                background: baseTheme.editorBackground,
-                isDark: tone == .dark
-            )
-        let brightHighlight = baseTheme.editorSymbolHighlightBright
-            ?? SQLEditorTokenPalette.defaultSymbolHighlightBright(
-                selection: baseTheme.editorSelection,
-                accent: baseTheme.accent,
-                background: baseTheme.editorBackground,
-                isDark: tone == .dark
-            )
+        let strongHighlight = SQLEditorTokenPalette.defaultSymbolHighlightStrong(
+            selection: basePalette.selection,
+            accent: nil,
+            background: basePalette.background,
+            isDark: tone == .dark
+        )
+        let brightHighlight = SQLEditorTokenPalette.defaultSymbolHighlightBright(
+            selection: basePalette.selection,
+            accent: nil,
+            background: basePalette.background,
+            isDark: tone == .dark
+        )
 
         let surfaces = SQLEditorSurfaceColors(
-            background: baseTheme.editorBackground,
-            text: baseTheme.editorForeground,
-            gutterBackground: baseTheme.editorGutterBackground,
-            gutterText: baseTheme.editorGutterForeground,
-            gutterAccent: baseTheme.accent ?? baseTheme.editorForeground,
-            selection: baseTheme.editorSelection,
-            currentLine: baseTheme.editorCurrentLine,
+            background: basePalette.background,
+            text: basePalette.text,
+            gutterBackground: basePalette.gutterBackground,
+            gutterText: basePalette.gutterText,
+            gutterAccent: basePalette.gutterAccent,
+            selection: basePalette.selection,
+            currentLine: basePalette.currentLine,
             symbolHighlightStrong: strongHighlight,
             symbolHighlightBright: brightHighlight
         )
 
         return SQLEditorTheme(
             surfaces: surfaces,
-            tokenPalette: palette
+            tokenPalette: tokenPalette
         )
     }
 }

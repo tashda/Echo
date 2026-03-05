@@ -60,7 +60,7 @@ private struct AutoCompletionListPreview: View {
             detailResetID: resetID,
             statusMessage: nil
         )
-        .padding(24)
+        .padding(SpacingTokens.lg)
 #if os(macOS)
         .background(Color(NSColor.windowBackgroundColor))
 #else

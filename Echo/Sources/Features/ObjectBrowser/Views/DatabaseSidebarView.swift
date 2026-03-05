@@ -21,9 +21,9 @@ struct DatabaseSidebarView: View {
     var body: some View {
         VStack(spacing: 0) {
             header
-                .padding(.horizontal, 16)
-                .padding(.top, 12)
-                .padding(.bottom, 8)
+                .padding(.horizontal, SpacingTokens.md)
+                .padding(.top, SpacingTokens.sm)
+                .padding(.bottom, SpacingTokens.xs)
             
             Divider()
             
@@ -35,7 +35,7 @@ struct DatabaseSidebarView: View {
                 }
                 .pickerStyle(.segmented)
             }
-            .padding(8)
+            .padding(SpacingTokens.xs)
 
             Group {
                 switch selectedSection {

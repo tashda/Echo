@@ -3,7 +3,7 @@ import Foundation
 actor ResultStreamIngestionService {
     typealias SpoolReadyHandler = @MainActor @Sendable (ResultSpoolHandle) -> Void
 
-    private let spoolManager: ResultSpoolManager
+    private let spoolManager: ResultSpoolCoordinator
     private let rowCache: ResultSpoolRowCache
     private let onSpoolReady: SpoolReadyHandler?
 
@@ -31,7 +31,7 @@ actor ResultStreamIngestionService {
 #endif
 
     init(
-        spoolManager: ResultSpoolManager,
+        spoolManager: ResultSpoolCoordinator,
         rowCache: ResultSpoolRowCache,
         onSpoolReady: SpoolReadyHandler? = nil
     ) {

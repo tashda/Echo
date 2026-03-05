@@ -23,7 +23,7 @@ struct HistorySidebarView: View {
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
-                    .padding(.horizontal, 32)
+                    .padding(.horizontal, SpacingTokens.xl)
             }
             
             // Clean future features button

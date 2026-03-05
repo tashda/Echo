@@ -8,44 +8,44 @@ extension TabOverviewView {
                     Text("Tab Overview")
                         .font(.system(size: 32, weight: .bold, design: .rounded))
                     Text(heroSubtitle)
-                        .font(.system(size: 14, weight: .regular))
+                        .font(TypographyTokens.prominent.weight(.regular))
                         .foregroundStyle(.secondary)
                 }
 
                 HStack(alignment: .center, spacing: 16) {
-                    heroStat(icon: "rectangle.grid.2x2.fill", title: formattedCount(totalTabs), subtitle: "Open Tabs")
-                    heroStat(icon: "bolt.fill", title: formattedCount(runningQueriesCount), subtitle: "Running")
-                    heroStat(icon: "tablecells", title: formattedCount(totalRowCount), subtitle: "Rows Fetched")
+                    heroStat(icon: "rectangle.grid.2x2.fill", title: EchoFormatters.compactNumber(totalTabs), subtitle: "Open Tabs")
+                    heroStat(icon: "bolt.fill", title: EchoFormatters.compactNumber(runningQueriesCount), subtitle: "Running")
+                    heroStat(icon: "tablecells", title: EchoFormatters.compactNumber(totalRowCount), subtitle: "Rows Fetched")
                     Spacer(minLength: 0)
                 }
             }
-            .padding(.vertical, 30)
-            .padding(.horizontal, 32)
+            .padding(.vertical, SpacingTokens.lg2)
+            .padding(.horizontal, SpacingTokens.xl)
 
             heroUpdateChip
-                .padding(.trailing, 32)
-                .padding(.bottom, 24)
+                .padding(.trailing, SpacingTokens.xl)
+                .padding(.bottom, SpacingTokens.lg)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(heroBackground)
         .clipShape(RoundedRectangle(cornerRadius: 34, style: .continuous))
         .shadow(color: heroShadowColor, radius: 18, y: 10)
-        .padding(.horizontal, 24)
-        .padding(.top, 24)
+        .padding(.horizontal, SpacingTokens.lg)
+        .padding(.top, SpacingTokens.lg)
     }
 
     private func heroStat(icon: String, title: String, subtitle: String) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             Image(systemName: icon)
-                .font(.system(size: 14, weight: .semibold))
+                .font(TypographyTokens.prominent.weight(.semibold))
                 .foregroundStyle(heroAccentColor)
             Text(title)
-                .font(.system(size: 20, weight: .semibold))
+                .font(TypographyTokens.hero.weight(.semibold))
             Text(subtitle)
-                .font(.system(size: 12, weight: .medium))
+                .font(TypographyTokens.caption2.weight(.medium))
                 .foregroundStyle(.secondary)
         }
-        .padding(.vertical, 16)
+        .padding(.vertical, SpacingTokens.md)
         .padding(.horizontal, 18)
         .frame(minWidth: 120, alignment: .leading)
         .background(
@@ -61,7 +61,7 @@ extension TabOverviewView {
     @ViewBuilder
     private var heroUpdateChip: some View {
         if let last = latestActivityDate {
-            heroChip(text: "Updated " + relativeDateString(from: last), icon: "clock.arrow.circlepath", tint: .secondary)
+            heroChip(text: "Updated " + EchoFormatters.relativeDate(last), icon: "clock.arrow.circlepath", tint: .secondary)
         } else {
             heroChip(text: "No activity yet", icon: "clock.arrow.circlepath", tint: Color.secondary.opacity(0.6))
         }
@@ -70,13 +70,13 @@ extension TabOverviewView {
     private func heroChip(text: String, icon: String, tint: Color) -> some View {
         Label {
             Text(text)
-                .font(.system(size: 12, weight: .semibold))
+                .font(TypographyTokens.caption2.weight(.semibold))
         } icon: {
             Image(systemName: icon)
-                .font(.system(size: 12, weight: .semibold))
+                .font(TypographyTokens.caption2.weight(.semibold))
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 8)
+        .padding(.horizontal, SpacingTokens.sm2)
+        .padding(.vertical, SpacingTokens.xs)
         .background(
             Capsule(style: .continuous)
                 .fill(Color.primary.opacity(colorScheme == .dark ? 0.18 : 0.08))
@@ -100,7 +100,7 @@ extension TabOverviewView {
     }
 
     private var heroSubtitle: String {
-        "\(formattedCount(totalTabs)) open tabs across \(formattedCount(activeConnectionCount)) connection\(activeConnectionCount == 1 ? "" : "s")"
+        "\(EchoFormatters.compactNumber(totalTabs)) open tabs across \(EchoFormatters.compactNumber(activeConnectionCount)) connection\(activeConnectionCount == 1 ? "" : "s")"
     }
 
     private var totalTabs: Int { tabs.count }
@@ -134,15 +134,4 @@ extension TabOverviewView {
         return nil
     }
 
-    private func relativeDateString(from date: Date) -> String {
-        let formatter = RelativeDateTimeFormatter()
-        formatter.unitsStyle = .short
-        return formatter.localizedString(for: date, relativeTo: Date())
-    }
-
-    private func formattedCount(_ value: Int) -> String {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .decimal
-        return formatter.string(from: NSNumber(value: value)) ?? "\(value)"
-    }
 }

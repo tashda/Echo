@@ -11,7 +11,7 @@ struct PrimaryKeyEditorSheet: View {
     let onCancelNew: () -> Void
 
     @Environment(\.dismiss) private var dismiss
-    @State private var draft: Draft
+    @State var draft: Draft
 
     init(
         primaryKey: Binding<TableStructureEditorViewModel.PrimaryKeyModel>,
@@ -57,21 +57,21 @@ struct PrimaryKeyEditorSheet: View {
     private var columnsSection: some View {
         Section {
             ForEach(Array(draft.columns.enumerated()), id: \.element.id) { index, column in
-                columnRow(for: binding(for: column.id), index: index)
+                columnRow(for: bindingForColumn(column.id), index: index)
             }
 
             HStack {
                 Menu {
-                    ForEach(addableColumns, id: \.self) { name in
+                    ForEach(computedAddableColumns, id: \.self) { name in
                         Button(name) {
-                            addColumn(named: name)
+                            addDraftColumn(named: name)
                         }
                     }
                 } label: {
                     Label("Add Column", systemImage: "plus")
                 }
                 .menuStyle(.borderlessButton)
-                .disabled(addableColumns.isEmpty)
+                .disabled(computedAddableColumns.isEmpty)
 
                 Spacer()
             }
@@ -79,7 +79,7 @@ struct PrimaryKeyEditorSheet: View {
             if draft.columns.isEmpty {
                 Text("At least one column is required.")
                     .foregroundStyle(.red)
-            } else if addableColumns.isEmpty {
+            } else if computedAddableColumns.isEmpty {
                 Text("All available columns are already included.")
             } else {
                 Text("Columns use the order shown above.")
@@ -92,19 +92,19 @@ struct PrimaryKeyEditorSheet: View {
         return HStack(spacing: 12) {
             VStack(spacing: 2) {
                 Button {
-                    moveColumn(at: index, by: -1)
+                    moveDraftColumn(at: index, by: -1)
                 } label: {
                     Image(systemName: "chevron.up")
-                        .font(.system(size: 10, weight: .bold))
+                        .font(TypographyTokens.label.weight(.bold))
                 }
                 .buttonStyle(.borderless)
                 .disabled(index == 0)
 
                 Button {
-                    moveColumn(at: index, by: 1)
+                    moveDraftColumn(at: index, by: 1)
                 } label: {
                     Image(systemName: "chevron.down")
-                        .font(.system(size: 10, weight: .bold))
+                        .font(TypographyTokens.label.weight(.bold))
                 }
                 .buttonStyle(.borderless)
                 .disabled(index == draft.columns.count - 1)
@@ -112,7 +112,7 @@ struct PrimaryKeyEditorSheet: View {
             .frame(width: 24)
 
             Picker("", selection: column.name) {
-                ForEach(columnOptions(for: columnID), id: \.self) { option in
+                ForEach(columnOptionsForColumn(columnID), id: \.self) { option in
                     Text(option).tag(option)
                 }
             }
@@ -121,7 +121,7 @@ struct PrimaryKeyEditorSheet: View {
             .frame(maxWidth: .infinity)
 
             Button(role: .destructive) {
-                removeColumn(withID: columnID)
+                removeDraftColumn(withID: columnID)
             } label: {
                 Image(systemName: "minus.circle.fill")
             }
@@ -143,73 +143,22 @@ struct PrimaryKeyEditorSheet: View {
             Spacer()
 
             Button("Cancel") {
-                cancelEditing()
+                dismiss()
+                cancelIfNew()
             }
             .keyboardShortcut(.cancelAction)
 
             Button("Save") {
-                applyDraft()
+                applyDraftChanges()
+                dismiss()
             }
             .buttonStyle(.borderedProminent)
             .disabled(!draft.canSave)
             .keyboardShortcut(.defaultAction)
         }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 14)
+        .padding(.horizontal, SpacingTokens.md2)
+        .padding(.vertical, SpacingTokens.sm2)
         .background(Color(nsColor: .windowBackgroundColor))
-    }
-
-    private func applyDraft() {
-        primaryKey.name = draft.name.trimmingCharacters(in: .whitespacesAndNewlines)
-        primaryKey.columns = draft.columns.map { $0.name }
-        dismiss()
-    }
-
-    private func cancelEditing() {
-        dismiss()
-        if !draft.isEditingExisting {
-            onCancelNew()
-        }
-    }
-
-    private func binding(for columnID: UUID) -> Binding<Draft.Column> {
-        guard let index = draft.columns.firstIndex(where: { $0.id == columnID }) else {
-            fatalError("Column not found")
-        }
-        return $draft.columns[index]
-    }
-
-    private func columnOptions(for columnID: UUID) -> [String] {
-        let selectedByOthers = Set(draft.columns.filter { $0.id != columnID }.map { $0.name })
-        let options = availableColumns.filter { !selectedByOthers.contains($0) }
-        if let current = draft.columns.first(where: { $0.id == columnID })?.name,
-           !current.isEmpty,
-           !options.contains(current) {
-            return (options + [current]).sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
-        }
-        return options.sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
-    }
-
-    private var addableColumns: [String] {
-        availableColumns.filter { name in
-            !draft.columns.contains { $0.name == name }
-        }.sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
-    }
-
-    private func addColumn(named name: String) {
-        draft.columns.append(.init(name: name))
-    }
-
-    private func removeColumn(withID id: UUID) {
-        draft.columns.removeAll { $0.id == id }
-    }
-
-    private func moveColumn(at index: Int, by offset: Int) {
-        let newIndex = index + offset
-        guard newIndex >= 0 && newIndex < draft.columns.count else { return }
-        withAnimation {
-            draft.columns.move(fromOffsets: IndexSet(integer: index), toOffset: newIndex > index ? newIndex + 1 : newIndex)
-        }
     }
 
     struct Draft {

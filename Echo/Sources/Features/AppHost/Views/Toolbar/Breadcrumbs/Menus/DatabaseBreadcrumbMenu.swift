@@ -25,14 +25,14 @@ struct DatabaseBreadcrumbMenu: View {
             // Header with search
             VStack(alignment: .leading, spacing: 8) {
                 Text("Databases")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(TypographyTokens.standard.weight(.semibold))
                     .foregroundStyle(.primary)
 
                 MenuSearchField(text: $searchText, placeholder: "Search databases...")
             }
-            .padding(.horizontal, 16)
-            .padding(.top, 16)
-            .padding(.bottom, 8)
+            .padding(.horizontal, SpacingTokens.md)
+            .padding(.top, SpacingTokens.md)
+            .padding(.bottom, SpacingTokens.xs)
 
             Divider()
 
@@ -41,23 +41,23 @@ struct DatabaseBreadcrumbMenu: View {
                 VStack(alignment: .leading, spacing: 4) {
                     if availableDatabases.isEmpty {
                         Text("Loading databases...")
-                            .font(.system(size: 12))
+                            .font(TypographyTokens.caption2)
                             .foregroundStyle(.secondary)
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 8)
+                            .padding(.horizontal, SpacingTokens.md)
+                            .padding(.vertical, SpacingTokens.xs)
                     } else if filteredDatabases.isEmpty {
                         Text("No matches found")
-                            .font(.system(size: 12))
+                            .font(TypographyTokens.caption2)
                             .foregroundStyle(.secondary)
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 8)
+                            .padding(.horizontal, SpacingTokens.md)
+                            .padding(.vertical, SpacingTokens.xs)
                     } else {
                         ForEach(filteredDatabases) { database in
                             databaseRow(database)
                         }
                     }
                 }
-                .padding(.vertical, 8)
+                .padding(.vertical, SpacingTokens.xs)
             }
             .frame(maxHeight: 300)
 
@@ -77,9 +77,9 @@ struct DatabaseBreadcrumbMenu: View {
                     Text("Refresh List")
                     Spacer()
                 }
-                .font(.system(size: 12))
-                .padding(.horizontal, 16)
-                .padding(.vertical, 8)
+                .font(TypographyTokens.caption2)
+                .padding(.horizontal, SpacingTokens.md)
+                .padding(.vertical, SpacingTokens.xs)
             }
             .buttonStyle(.plain)
         }
@@ -99,32 +99,32 @@ struct DatabaseBreadcrumbMenu: View {
                 Image(systemName: "cylinder")
                     .foregroundStyle(.secondary)
                 Text(database.name)
-                    .font(.system(size: 13))
+                    .font(TypographyTokens.standard)
                 Spacer()
                 if isSelected(database) {
                     Image(systemName: "checkmark")
                         .foregroundStyle(Color.accentColor)
                 }
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
+            .padding(.horizontal, SpacingTokens.sm)
+            .padding(.vertical, SpacingTokens.xxs2)
             .background(
                 RoundedRectangle(cornerRadius: 6, style: .continuous)
                     .fill(isSelected(database) ? Color.accentColor.opacity(0.1) : Color.clear)
             )
         }
         .buttonStyle(.plain)
-        .padding(.horizontal, 4)
+        .padding(.horizontal, SpacingTokens.xxs)
     }
 
     private func isSelected(_ database: DatabaseInfo) -> Bool {
         guard let connectionID else { return false }
-        return environmentState.sessionManager.sessionForConnection(connectionID)?.selectedDatabaseName == database.name
+        return environmentState.sessionCoordinator.sessionForConnection(connectionID)?.selectedDatabaseName == database.name
     }
 
     private func selectDatabase(_ database: DatabaseInfo) {
         guard let connectionID,
-              let session = environmentState.sessionManager.sessionForConnection(connectionID) else { return }
+              let session = environmentState.sessionCoordinator.sessionForConnection(connectionID) else { return }
         
         Task {
             await environmentState.loadSchemaForDatabase(database.name, connectionSession: session)
@@ -133,7 +133,7 @@ struct DatabaseBreadcrumbMenu: View {
 
     private func loadDatabases() async {
         guard let connectionID,
-              let session = environmentState.sessionManager.sessionForConnection(connectionID) else { return }
+              let session = environmentState.sessionCoordinator.sessionForConnection(connectionID) else { return }
 
         if let structure = session.databaseStructure {
             self.availableDatabases = structure.databases

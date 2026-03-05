@@ -10,7 +10,7 @@ extension ObjectBrowserSidebarView {
 
     private func processExplorerFocus(_ focus: ExplorerFocus, proxy: ScrollViewProxy) async {
         guard let session = await MainActor.run(body: {
-            environmentState.sessionManager.sessionForConnection(focus.connectionID)
+            environmentState.sessionCoordinator.sessionForConnection(focus.connectionID)
         }) else {
             await MainActor.run { navigationStore.pendingExplorerFocus = nil }
             return
@@ -21,7 +21,7 @@ extension ObjectBrowserSidebarView {
             if selectedConnectionID != focus.connectionID {
                 selectedConnectionID = focus.connectionID
             }
-            environmentState.sessionManager.setActiveSession(session.id)
+            environmentState.sessionCoordinator.setActiveSession(session.id)
         }
 
         if session.selectedDatabaseName?.localizedCaseInsensitiveCompare(focus.databaseName) != .orderedSame {
@@ -31,7 +31,7 @@ extension ObjectBrowserSidebarView {
         await environmentState.refreshDatabaseStructure(for: session.id, scope: .selectedDatabase, databaseOverride: focus.databaseName)
 
         guard let refreshedSession = await MainActor.run(body: {
-            environmentState.sessionManager.sessionForConnection(focus.connectionID)
+            environmentState.sessionCoordinator.sessionForConnection(focus.connectionID)
         }) else {
             await MainActor.run { navigationStore.pendingExplorerFocus = nil }
             return

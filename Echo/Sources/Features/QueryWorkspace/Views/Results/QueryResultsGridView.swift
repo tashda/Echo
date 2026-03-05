@@ -13,7 +13,6 @@ struct QueryResultsGridView: View {
     var onSort: (Int, ResultGridSortAction) -> Void
     var onClearColumnHighlight: () -> Void
     var gridState: QueryResultsGridState?
-    @EnvironmentObject private var themeManager: ThemeManager
 
     var body: some View {
         QueryResultsTableView(
@@ -55,7 +54,7 @@ struct QueryResultsGridView: View {
     var onClearColumnHighlight: () -> Void
     var gridState: QueryResultsGridState?
 
-    @EnvironmentObject private var themeManager: ThemeManager
+    @EnvironmentObject private var appearanceStore: AppearanceStore
     @EnvironmentObject private var clipboardHistory: ClipboardHistoryStore
 
     var body: some View {
@@ -67,10 +66,10 @@ struct QueryResultsGridView: View {
             onColumnTap: onColumnTap,
             onSort: onSort,
             onClearColumnHighlight: onClearColumnHighlight,
-            themeManager: themeManager,
+            appearanceStore: appearanceStore,
             clipboardHistory: clipboardHistory
         )
-        .background(themeManager.resultsGridBackground)
+        .background(ColorTokens.Background.tertiary)
         .modifier(GridBackgroundEffectModifier())
     }
 }

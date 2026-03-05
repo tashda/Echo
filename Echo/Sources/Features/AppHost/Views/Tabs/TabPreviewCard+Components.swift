@@ -1,0 +1,116 @@
+import SwiftUI
+
+struct EmptyPreviewPlaceholder: View {
+    let message: String
+
+    var body: some View {
+        Text(message)
+            .font(TypographyTokens.caption2.weight(.medium))
+            .foregroundStyle(.secondary)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+            .padding(SpacingTokens.sm)
+    }
+}
+
+struct QueryTabPreview: View {
+    @ObservedObject var query: QueryEditorState
+
+    private var trimmedSQL: String {
+        let trimmed = query.sql.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? "" : trimmed
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            if trimmedSQL.isEmpty {
+                Text("Empty query")
+                    .font(.system(size: 11, weight: .medium, design: .monospaced))
+                    .foregroundStyle(.secondary)
+                    .italic()
+            } else {
+                Text(trimmedSQL)
+                    .font(.system(size: 11, design: .monospaced))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(6)
+                    .multilineTextAlignment(.leading)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .padding(SpacingTokens.sm)
+    }
+}
+
+struct DiagramTabPreview: View {
+    @ObservedObject var diagram: SchemaDiagramViewModel
+
+    private var status: (icon: String, text: String, color: Color) {
+        if diagram.isLoading {
+            return ("hourglass", "Loading…", Color.accentColor)
+        }
+        if let error = diagram.errorMessage, !error.isEmpty {
+            return ("exclamationmark.triangle.fill", "Diagram error", .orange)
+        }
+        return ("chart.xyaxis.line", "\(diagram.nodes.count) table\(diagram.nodes.count == 1 ? "" : "s")", .secondary)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(diagram.title)
+                .font(TypographyTokens.caption2.weight(.semibold))
+                .foregroundStyle(.primary)
+
+            Label(status.text, systemImage: status.icon)
+                .font(TypographyTokens.detail.weight(.medium))
+                .foregroundStyle(status.color)
+
+            if let message = diagram.statusMessage, !message.isEmpty {
+                Text(message)
+                    .font(TypographyTokens.detail)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(3)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .padding(SpacingTokens.sm)
+    }
+}
+
+struct StructureTabPreview: View {
+    @ObservedObject var editor: TableStructureEditorViewModel
+
+    private var status: (icon: String, text: String, color: Color) {
+        if editor.isApplying {
+            return ("hammer.fill", "Applying changes…", Color.accentColor)
+        }
+        if editor.isLoading {
+            return ("arrow.triangle.2.circlepath", "Refreshing…", Color.accentColor)
+        }
+        if let error = editor.lastError, !error.isEmpty {
+            return ("exclamationmark.triangle.fill", "Last update failed", .orange)
+        }
+        if let message = editor.lastSuccessMessage, !message.isEmpty {
+            return ("checkmark.circle.fill", message, .green)
+        }
+        return ("tablecells", "\(editor.columns.count) column\(editor.columns.count == 1 ? "" : "s")", .secondary)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("\(editor.schemaName).\(editor.tableName)")
+                .font(TypographyTokens.caption2.weight(.semibold))
+                .foregroundStyle(.primary)
+
+            Label(status.text, systemImage: status.icon)
+                .font(TypographyTokens.detail.weight(.medium))
+                .foregroundStyle(status.color)
+
+            if !editor.indexes.isEmpty {
+                Text("\(editor.indexes.count) index\(editor.indexes.count == 1 ? "" : "es") configured")
+                    .font(TypographyTokens.detail)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .padding(SpacingTokens.sm)
+    }
+}

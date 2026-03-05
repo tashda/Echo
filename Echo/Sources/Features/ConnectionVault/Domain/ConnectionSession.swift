@@ -17,7 +17,7 @@ final class ConnectionSession: ObservableObject, Identifiable {
     let id: UUID
     let connection: SavedConnection
     let session: DatabaseSession
-    private let spoolManager: ResultSpoolManager
+    private let spoolManager: ResultSpoolCoordinator
 
     @Published var selectedDatabaseName: String?
     @Published var databaseStructure: DatabaseStructure?
@@ -41,7 +41,7 @@ final class ConnectionSession: ObservableObject, Identifiable {
         defaultInitialBatchSize: Int = 500,
         defaultBackgroundStreamingThreshold: Int = 512,
         defaultBackgroundFetchSize: Int = 4_096,
-        spoolManager: ResultSpoolManager
+        spoolManager: ResultSpoolCoordinator
     ) {
         self.id = id
         self.connection = connection
@@ -128,14 +128,14 @@ final class ConnectionSession: ObservableObject, Identifiable {
     }
 
     @discardableResult
-    func addJobManagementTab(selectJobID: String? = nil) -> WorkspaceTab {
-        let viewModel = JobManagementViewModel(session: session, connection: connection, initialSelectedJobID: selectJobID)
+    func addJobQueueTab(selectJobID: String? = nil) -> WorkspaceTab {
+        let viewModel = JobQueueViewModel(session: session, connection: connection, initialSelectedJobID: selectJobID)
         let tab = WorkspaceTab(
             connection: connection,
             session: session,
             connectionSessionID: id,
             title: "Jobs",
-            content: .jobManagement(viewModel)
+            content: .jobQueue(viewModel)
         )
         queryTabs.append(tab)
         activeQueryTabID = tab.id

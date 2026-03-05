@@ -13,7 +13,7 @@ struct ConnectionsTableView: View {
     let onDoubleClick: (SavedConnection) -> Void
     let moveConnectionToFolder: (SavedConnection, SavedFolder) -> Void
     let createFolderAndMoveConnection: (SavedConnection) -> Void
-    @ObservedObject private var themeManager = ThemeManager.shared
+
 
     var body: some View {
         DoubleClickableTable(
@@ -112,7 +112,7 @@ struct ConnectionsTableView: View {
                 }
             }
         }
-        .background(themeManager.surfaceBackgroundColor)
+        .background(ColorTokens.Background.secondary)
     }
 
     private func displayName(for connection: SavedConnection) -> String {

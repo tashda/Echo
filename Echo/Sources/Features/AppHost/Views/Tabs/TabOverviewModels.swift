@@ -25,7 +25,7 @@ extension WorkspaceTab.Kind {
         case .query: return "Queries"
         case .structure: return "Structure"
         case .diagram: return "Diagrams"
-        case .jobManagement: return "Jobs"
+        case .jobQueue: return "Jobs"
         }
     }
 
@@ -34,7 +34,7 @@ extension WorkspaceTab.Kind {
         case .query: return "tablecells"
         case .structure: return "wrench.and.screwdriver"
         case .diagram: return "chart.xyaxis.line"
-        case .jobManagement: return "gearshape"
+        case .jobQueue: return "gearshape"
         }
     }
 }

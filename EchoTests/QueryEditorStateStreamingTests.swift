@@ -3,13 +3,20 @@ import XCTest
 
 @MainActor
 final class QueryEditorStateStreamingTests: XCTestCase {
-    func testMetricsOnlyUpdatesDoNotAdvanceRowCount() throws {
+    private var retainedStates: [QueryEditorState] = []
+
+    override func tearDown() async throws {
+        retainedStates.removeAll()
+        try await super.tearDown()
+    }
+
+    func testMetricsOnlyUpdatesDoNotAdvanceRowCount() async throws {
         let tempRoot = FileManager.default.temporaryDirectory
             .appendingPathComponent("QueryEditorStateStreamingTests-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: tempRoot, withIntermediateDirectories: true)
 
         let spoolConfig = ResultSpoolConfiguration.defaultConfiguration(rootDirectory: tempRoot)
-        let spoolManager = ResultSpoolManager(configuration: spoolConfig)
+        let spoolManager = ResultSpoolCoordinator(configuration: spoolConfig)
 
         let state = QueryEditorState(
             sql: "SELECT 1;",
@@ -17,6 +24,7 @@ final class QueryEditorStateStreamingTests: XCTestCase {
             previewRowLimit: 512,
             spoolManager: spoolManager
         )
+        retainedStates.append(state)
         state.startExecution()
 
         let columns = [ColumnInfo(name: "id", dataType: "int4")]

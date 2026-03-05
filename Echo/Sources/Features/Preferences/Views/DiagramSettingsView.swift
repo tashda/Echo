@@ -4,7 +4,7 @@ import Foundation
 struct DiagramSettingsView: View {
     @Environment(ProjectStore.self) private var projectStore
     @EnvironmentObject private var environmentState: EnvironmentState
-    @EnvironmentObject private var themeManager: ThemeManager
+    @EnvironmentObject private var appearanceStore: AppearanceStore
     @State private var cacheUsage: UInt64 = 0
     @State private var isRefreshingUsage = false
 
@@ -53,7 +53,7 @@ struct DiagramSettingsView: View {
             Text("Echo can warm diagram data in the background for faster opens. Prefetching is optional so large databases do not fetch unused metadata.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
-                .padding(.top, 6)
+                .padding(.top, SpacingTokens.xxs2)
         }
     }
 
@@ -68,7 +68,7 @@ struct DiagramSettingsView: View {
             Text("Disable relationship rendering if diagrams with thousands of edges feel heavy; you can still re-enable it on demand.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
-                .padding(.top, 6)
+                .padding(.top, SpacingTokens.xxs2)
         }
     }
 
@@ -76,7 +76,7 @@ struct DiagramSettingsView: View {
         Section("Cache") {
             Picker("Maximum cache size", selection: cacheLimitBinding) {
                 ForEach(cacheOptions, id: \.self) { value in
-                    Text(formatByteCount(value)).tag(value)
+                    Text(EchoFormatters.bytes(value)).tag(value)
                 }
             }
             .frame(maxWidth: 320)
@@ -88,8 +88,8 @@ struct DiagramSettingsView: View {
                     ProgressView()
                         .controlSize(.small)
                 } else {
-                    Text(formatByteCount(cacheUsage))
-                        .font(.system(size: 12, weight: .semibold))
+                    Text(EchoFormatters.bytes(cacheUsage))
+                        .font(TypographyTokens.caption2.weight(.semibold))
                 }
             }
 
@@ -163,7 +163,7 @@ struct DiagramSettingsView: View {
 
     private func refreshUsage() async {
         await MainActor.run { isRefreshingUsage = true }
-        let usage = await environmentState.diagramCacheManager.currentUsageBytes()
+        let usage = await environmentState.diagramCacheStore.currentUsageBytes()
         await MainActor.run {
             cacheUsage = usage
             isRefreshingUsage = false
@@ -171,18 +171,8 @@ struct DiagramSettingsView: View {
     }
 
     private func clearCache() async {
-        await environmentState.diagramCacheManager.removeAll()
+        await environmentState.diagramCacheStore.removeAll()
         await refreshUsage()
     }
 
-    private func formatByteCount(_ count: Int) -> String {
-        formatByteCount(UInt64(count))
-    }
-
-    private func formatByteCount(_ count: UInt64) -> String {
-        let formatter = ByteCountFormatter()
-        formatter.allowedUnits = [.useBytes, .useKB, .useMB, .useGB]
-        formatter.countStyle = .memory
-        return formatter.string(fromByteCount: Int64(count))
-    }
 }

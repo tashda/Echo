@@ -4,7 +4,7 @@ import EchoSense
 @MainActor
 func queryTabSnapshots(from environmentState: EnvironmentState?) -> [SearchSidebarQueryTabSnapshot] {
     guard let environmentState else { return [] }
-    let sessionsByID = Dictionary(uniqueKeysWithValues: environmentState.sessionManager.sessions.map { ($0.id, $0) })
+    let sessionsByID = Dictionary(uniqueKeysWithValues: environmentState.sessionCoordinator.sessions.map { ($0.id, $0) })
 
     var snapshots: [SearchSidebarQueryTabSnapshot] = []
 

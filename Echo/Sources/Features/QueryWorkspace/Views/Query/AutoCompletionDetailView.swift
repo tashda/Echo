@@ -16,8 +16,8 @@ struct AutoCompletionDetailView: View {
             header
             contentBody
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 12)
+        .padding(.horizontal, SpacingTokens.sm2)
+        .padding(.vertical, SpacingTokens.sm)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(detailBackground)
         .overlay(detailOverlay)
@@ -34,7 +34,7 @@ struct AutoCompletionDetailView: View {
 
     private var header: some View {
         Text(suggestion.displayKindTitle)
-            .font(.system(size: 12, weight: .semibold))
+            .font(TypographyTokens.caption2.weight(.semibold))
             .foregroundStyle(Color.primary)
     }
 
@@ -44,13 +44,13 @@ struct AutoCompletionDetailView: View {
             if let schema = suggestion.origin?.schema, let name = suggestion.origin?.object {
                 HStack(spacing: 6) {
                     schemaChip(schema)
-                    Text(name).font(.system(size: 12, weight: .medium)).foregroundStyle(Color.primary)
+                    Text(name).font(TypographyTokens.caption2.weight(.medium)).foregroundStyle(Color.primary)
                 }
             }
             if let columns = suggestion.tableColumns, !columns.isEmpty {
                 ColumnListView(columns: columns)
             } else {
-                Text("No columns available").font(.system(size: 11)).foregroundStyle(Color.secondary)
+                Text("No columns available").font(TypographyTokens.detail).foregroundStyle(Color.secondary)
             }
         }
     }
@@ -58,7 +58,7 @@ struct AutoCompletionDetailView: View {
     @ViewBuilder
     private var columnDetail: some View {
         Text(suggestion.dataType ?? "Column")
-            .font(.system(size: 11))
+            .font(TypographyTokens.detail)
             .italic(suggestion.dataType != nil)
             .foregroundStyle(Color.secondary)
     }
@@ -66,17 +66,17 @@ struct AutoCompletionDetailView: View {
     @ViewBuilder
     private var genericDetail: some View {
         if let objectPath = suggestion.displayObjectPath {
-            Text(objectPath).font(.system(size: 12, weight: .medium)).foregroundStyle(Color.primary)
+            Text(objectPath).font(TypographyTokens.caption2.weight(.medium)).foregroundStyle(Color.primary)
         }
     }
 
     private func schemaChip(_ schema: String) -> some View {
         HStack(spacing: 5) {
             Image("schema").resizable().renderingMode(.template).scaledToFit().frame(width: 12, height: 12)
-            Text(schema).font(.system(size: 11, weight: .medium))
+            Text(schema).font(TypographyTokens.detail.weight(.medium))
         }
         .foregroundStyle(Color.primary)
-        .padding(.horizontal, 9).padding(.vertical, 4)
+        .padding(.horizontal, 9).padding(.vertical, SpacingTokens.xxs)
         .background(Capsule(style: .continuous).fill(Color.primary.opacity(0.08)))
     }
 
@@ -90,10 +90,10 @@ struct AutoCompletionDetailView: View {
                     VStack(alignment: .leading, spacing: Layout.columnSpacing) {
                         ForEach(Array(columns.enumerated()), id: \.offset) { _, column in
                             HStack(spacing: 6) {
-                                Text(column.name).font(.system(size: 11)).foregroundStyle(Color.primary)
+                                Text(column.name).font(TypographyTokens.detail).foregroundStyle(Color.primary)
                                 Spacer(minLength: 10)
-                                Text(formatDataType(column.dataType))
-                                    .font(.system(size: 10, weight: .semibold))
+                                Text(EchoFormatters.abbreviatedSQLType(column.dataType))
+                                    .font(TypographyTokens.label.weight(.semibold))
                                     .foregroundStyle(Color.secondary).padding(Layout.columnBadgePadding)
                                     .background(Capsule(style: .continuous).fill(Color.primary.opacity(0.06)))
                             }
@@ -106,7 +106,7 @@ struct AutoCompletionDetailView: View {
                 if contentHeight > Layout.maxColumnListHeight {
                     LinearGradient(colors: [Color.clear, Color.primary.opacity(0.12)], startPoint: .top, endPoint: .bottom)
                         .frame(height: 28)
-                        .overlay(Image(systemName: "chevron.down").font(.system(size: 10, weight: .semibold)).foregroundStyle(Color.secondary).padding(.bottom, 6), alignment: .bottom)
+                        .overlay(Image(systemName: "chevron.down").font(TypographyTokens.label.weight(.semibold)).foregroundStyle(Color.secondary).padding(.bottom, SpacingTokens.xxs2), alignment: .bottom)
                         .allowsHitTesting(false)
                 }
             }
@@ -114,9 +114,6 @@ struct AutoCompletionDetailView: View {
             .onPreferenceChange(ColumnContentHeightKey.self) { contentHeight = $0 }
         }
 
-        private func formatDataType(_ dataType: String) -> String {
-            dataType.replacingOccurrences(of: " with time zone", with: "tz").replacingOccurrences(of: " without time zone", with: "")
-        }
     }
 
     private struct ColumnContentHeightKey: PreferenceKey {
