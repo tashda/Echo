@@ -1,117 +1,149 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
-extension ManageProjectsSheet {
-    
+extension ManageProjectsView {
+
+    internal var exportProject_: Project? {
+        guard let id = exportProjectID else { return nil }
+        return projectStore.projects.first { $0.id == id }
+    }
+
+    // MARK: - Export Sheet
+
     @ViewBuilder
     var exportSheet: some View {
-        VStack(spacing: 20) {
-            Text("Export Project")
-                .font(TypographyTokens.displayLarge.weight(.bold))
+        VStack(spacing: 0) {
+            exportFormContent
+            Divider()
+            exportFooterButtons
+        }
+        .frame(width: 460)
+        .fixedSize(horizontal: false, vertical: true)
+    }
 
-            Text("Choose a password to encrypt your project export. This will protect your connection credentials and other sensitive data.")
-                .font(TypographyTokens.standard)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-                .frame(maxWidth: 400)
+    private var exportFormContent: some View {
+        Form {
+            Section {
+                Picker("Project", selection: $exportProjectID) {
+                    ForEach(projectStore.projects) { project in
+                        Text(project.name).tag(Optional(project.id))
+                    }
+                }
 
-            VStack(alignment: .leading, spacing: 12) {
-                SecureField("Password", text: $exportPassword)
-                    .textFieldStyle(.roundedBorder)
+                SecureField("Password", text: $exportPassword, prompt: Text("Encryption password"))
+            } header: {
+                Text("Export Project")
+            }
 
-                Toggle("Include Global Settings", isOn: $includeGlobalSettings)
-                    .font(TypographyTokens.standard)
+            Section("Options") {
+                Toggle("Include Global Settings Template", isOn: $includeGlobalSettings)
+                    .help("The project's own settings are always included. This also exports the global fallback template.")
 
                 Toggle("Include Clipboard History", isOn: $includeClipboardHistory)
-                    .font(TypographyTokens.standard)
                     .help("Adds saved clipboard items to the export so they can be restored when imported.")
 
                 Toggle("Include Autocomplete History", isOn: $includeAutocompleteHistory)
-                    .font(TypographyTokens.standard)
                     .help("Preserves accepted autocomplete suggestions so ranking feels familiar after import.")
             }
-            .padding(.horizontal, SpacingTokens.md2)
 
             if let error = exportError {
-                Text(error)
-                    .font(TypographyTokens.caption2)
-                    .foregroundStyle(.red)
-            }
-
-            HStack(spacing: 12) {
-                Button("Cancel") {
-                    showExportSheet = false
-                    exportPassword = ""
-                    exportError = nil
+                Section {
+                    Text(error)
+                        .foregroundStyle(.red)
                 }
-                .keyboardShortcut(.cancelAction)
-
-                Button(action: exportProject) {
-                    if isExporting {
-                        ProgressView()
-                            .controlSize(.small)
-                    } else {
-                        Text("Export")
-                    }
-                }
-                .buttonStyle(.borderedProminent)
-                .disabled(exportPassword.isEmpty || isExporting)
-                .keyboardShortcut(.defaultAction)
             }
         }
-        .padding(SpacingTokens.lg2)
-        .frame(width: 500)
+        .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
+        .scrollDisabled(true)
     }
+
+    private var exportFooterButtons: some View {
+        HStack {
+            Spacer()
+            Button("Cancel", role: .cancel) {
+                showExportSheet = false
+                exportPassword = ""
+                exportError = nil
+            }
+            .keyboardShortcut(.cancelAction)
+
+            Button(action: exportProject) {
+                if isExporting {
+                    ProgressView()
+                        .controlSize(.small)
+                } else {
+                    Text("Export")
+                }
+            }
+            .keyboardShortcut(.defaultAction)
+            .disabled(exportPassword.isEmpty || isExporting || exportProjectID == nil)
+        }
+        .padding(SpacingTokens.md2)
+    }
+
+    // MARK: - Import Sheet
 
     @ViewBuilder
     var importSheet: some View {
-        VStack(spacing: 20) {
-            Text("Import Project")
-                .font(TypographyTokens.displayLarge.weight(.bold))
-
-            Text("Select an encrypted project file and enter the password to import it.")
-                .font(TypographyTokens.standard)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-                .frame(maxWidth: 400)
-
-            VStack(alignment: .leading, spacing: 12) {
-                Button("Choose File...") {
-                    selectImportFile()
-                }
-
-                SecureField("Password", text: $importPassword)
-                    .textFieldStyle(.roundedBorder)
-            }
-            .padding(.horizontal, SpacingTokens.md2)
-
-            if let error = importError {
-                Text(error)
-                    .font(TypographyTokens.caption2)
-                    .foregroundStyle(.red)
-            }
-
-            HStack(spacing: 12) {
-                Button("Cancel") {
-                    showImportSheet = false
-                    importPassword = ""
-                    importError = nil
-                }
-                .keyboardShortcut(.cancelAction)
-
-                Button("Import") {
-                    // Import logic triggered by file selection
-                }
-                .buttonStyle(.borderedProminent)
-                .disabled(true)
-            }
+        VStack(spacing: 0) {
+            importFormContent
+            Divider()
+            importFooterButtons
         }
-        .padding(SpacingTokens.lg2)
-        .frame(width: 500)
+        .frame(width: 460)
+        .fixedSize(horizontal: false, vertical: true)
     }
 
+    private var importFormContent: some View {
+        Form {
+            Section {
+                SecureField("Password", text: $importPassword, prompt: Text("Decryption password"))
+
+                LabeledContent("File") {
+                    Button("Choose File…") {
+                        selectImportFile()
+                    }
+                }
+            } header: {
+                Text("Import Project")
+            }
+
+            if let error = importError {
+                Section {
+                    Text(error)
+                        .foregroundStyle(.red)
+                }
+            }
+        }
+        .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
+        .scrollDisabled(true)
+    }
+
+    private var importFooterButtons: some View {
+        HStack {
+            Spacer()
+            Button("Cancel", role: .cancel) {
+                showImportSheet = false
+                importPassword = ""
+                importError = nil
+            }
+            .keyboardShortcut(.cancelAction)
+
+            Button("Import") {
+                // Import logic triggered by file selection
+            }
+            .keyboardShortcut(.defaultAction)
+            .disabled(true)
+        }
+        .padding(SpacingTokens.md2)
+    }
+
+    // MARK: - Actions
+
     func exportProject() {
-        guard let project = selectedProject, !exportPassword.isEmpty else { return }
+        guard let project = exportProject_, !exportPassword.isEmpty else { return }
 
         isExporting = true
         exportError = nil

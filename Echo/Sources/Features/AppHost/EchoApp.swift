@@ -53,7 +53,8 @@ struct EchoApp: App {
                 environmentState: coordinator.environmentState,
                 appState: coordinator.appState,
                 navigationStore: coordinator.navigationStore,
-                tabStore: coordinator.tabStore
+                tabStore: coordinator.tabStore,
+                projectStore: coordinator.projectStore
             )
             AppSettingsCommands()
             AutocompleteInspectorCommands()
@@ -82,14 +83,26 @@ struct QueryCommands: Commands {
     @ObservedObject var appState: AppState
     let navigationStore: NavigationStore
     let tabStore: TabStore
+    let projectStore: ProjectStore
+
+    private var customShortcuts: [String: CustomShortcutBinding] {
+        projectStore.globalSettings.customKeyboardShortcuts ?? [:]
+    }
+
+    private func key(for title: String, default defaultKey: KeyEquivalent) -> KeyEquivalent {
+        customShortcuts[title]?.swiftUIKey ?? defaultKey
+    }
+
+    private func mods(for title: String, default defaultMods: EventModifiers) -> EventModifiers {
+        customShortcuts[title]?.swiftUIModifiers ?? defaultMods
+    }
 
     var body: some Commands {
         CommandGroup(after: .newItem) {
             Button("New Query Tab") {
                 environmentState.openQueryTab()
             }
-            .keyboardShortcut("t", modifiers: [.command])
-            .disabled(false) // Re-evaluate condition later if needed
+            .keyboardShortcut(key(for: "New Query Tab", default: "t"), modifiers: mods(for: "New Query Tab", default: [.command]))
 
             Button(action: {
                 guard navigationStore.isWorkspaceWindowKey else { return }
@@ -100,7 +113,7 @@ struct QueryCommands: Commands {
             }) {
                 Text("Next Tab")
             }
-            .keyboardShortcut(.tab, modifiers: [.control])
+            .keyboardShortcut(key(for: "Next Tab", default: .tab), modifiers: mods(for: "Next Tab", default: [.control]))
 
             Button(action: {
                 guard navigationStore.isWorkspaceWindowKey else { return }
@@ -111,7 +124,7 @@ struct QueryCommands: Commands {
             }) {
                 Text("Previous Tab")
             }
-            .keyboardShortcut(.tab, modifiers: [.control, .shift])
+            .keyboardShortcut(key(for: "Previous Tab", default: .tab), modifiers: mods(for: "Previous Tab", default: [.control, .shift]))
 
             Button(action: {
                 guard navigationStore.isWorkspaceWindowKey else { return }
@@ -123,12 +136,12 @@ struct QueryCommands: Commands {
             }) {
                 Text("Reopen Closed Tab")
             }
-            .keyboardShortcut("t", modifiers: [.command, .shift])
+            .keyboardShortcut(key(for: "Reopen Closed Tab", default: "t"), modifiers: mods(for: "Reopen Closed Tab", default: [.command, .shift]))
 
             Button(appState.showTabOverview ? "Hide Tab Overview" : "Show Tab Overview") {
                 appState.showTabOverview.toggle()
             }
-            .keyboardShortcut("o", modifiers: [.command])
+            .keyboardShortcut(key(for: "Show Tab Overview", default: "o"), modifiers: mods(for: "Show Tab Overview", default: [.command]))
 
             Button("Close Query Tab") {
                 if navigationStore.isWorkspaceWindowKey {
@@ -139,7 +152,7 @@ struct QueryCommands: Commands {
                     keyWindow.performClose(nil)
                 }
             }
-            .keyboardShortcut("w", modifiers: [.command])
+            .keyboardShortcut(key(for: "Close Query Tab", default: "w"), modifiers: mods(for: "Close Query Tab", default: [.command]))
         }
     }
 }

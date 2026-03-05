@@ -53,12 +53,11 @@ private struct WorkspaceBody: View {
         .sheet(isPresented: Binding(get: { appState.activeSheet == .connectionEditor }, set: { if !$0 { appState.dismissSheet() } })) {
             connectionEditorSheet
         }
-        .sheet(isPresented: Binding(get: { navigationStore.showManageProjectsSheet }, set: { navigationStore.showManageProjectsSheet = $0 })) {
-            ManageProjectsSheet()
-                .environment(projectStore)
-                .environmentObject(environmentState)
-                .environmentObject(clipboardHistory)
-                .environmentObject(appearanceStore)
+        .onChange(of: navigationStore.showManageProjectsSheet) { _, show in
+            if show {
+                ManageProjectsWindowController.shared.present()
+                navigationStore.showManageProjectsSheet = false
+            }
         }
         .sheet(isPresented: Binding(get: { navigationStore.showNewProjectSheet }, set: { navigationStore.showNewProjectSheet = $0 })) {
             NewProjectSheet()

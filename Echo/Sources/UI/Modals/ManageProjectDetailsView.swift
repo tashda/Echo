@@ -1,171 +1,233 @@
 import SwiftUI
 
-extension ManageProjectsSheet {
+extension ManageProjectsView {
     @ViewBuilder
     func projectDetails(_ project: Project) -> some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 24) {
-                // Project header
-                HStack(spacing: 16) {
-                    ZStack {
-                        RoundedRectangle(cornerRadius: 16, style: .continuous)
-                            .fill(project.color.opacity(0.15))
-                        switch project.iconRenderInfo {
-                        case let (image, true):
-                            image
-                                .font(.system(size: 32, weight: .semibold))
-                                .foregroundStyle(project.color)
-                        case let (image, false):
-                            image
-                                .resizable()
-                                .scaledToFit()
-                                .padding(SpacingTokens.xs2)
-                        }
-                    }
-                    .frame(width: 64, height: 64)
+        let connectionCount = connectionStore.connections.filter { $0.projectID == project.id }.count
+        let identityCount = connectionStore.identities.filter { $0.projectID == project.id }.count
 
-                    VStack(alignment: .leading, spacing: 6) {
+        Form {
+            // MARK: - Project Summary (iCloud-style header)
+            Section {
+                // Header: name + subtitle on left, icon on right
+                HStack(alignment: .top) {
+                    VStack(alignment: .leading, spacing: 2) {
                         Text(project.name)
-                            .font(.system(size: 24, weight: .bold))
+                            .font(.system(size: 22, weight: .bold))
 
                         if project.isDefault {
-                            HStack(spacing: 6) {
-                                Image(systemName: "checkmark.seal.fill")
-                                    .font(TypographyTokens.caption2)
-                                Text("Default Project")
-                                    .font(TypographyTokens.caption2.weight(.medium))
-                            }
-                            .foregroundStyle(.secondary)
+                            Text("Default Project")
+                                .font(TypographyTokens.prominent)
+                                .foregroundStyle(.secondary)
                         }
                     }
 
                     Spacer()
 
-                    if projectStore.selectedProject?.id == project.id {
-                        HStack(spacing: 6) {
-                            Circle()
-                                .fill(Color.green)
-                                .frame(width: 8, height: 8)
-                            Text("Active")
-                                .font(TypographyTokens.caption2.weight(.medium))
+                    Button {
+                        showIconPicker = true
+                    } label: {
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .fill(.quaternary.opacity(0.5))
+                            Image(systemName: project.iconName ?? "folder.fill")
+                                .font(.system(size: 22, weight: .semibold))
                                 .foregroundStyle(.secondary)
                         }
+                        .frame(width: 48, height: 48)
                     }
+                    .buttonStyle(.plain)
+                    .help("Change Icon")
+                }
+                .padding(.bottom, SpacingTokens.xxs2)
+
+                // Stats grid
+                HStack(spacing: SpacingTokens.sm) {
+                    projectStatCard(
+                        icon: "externaldrive",
+                        iconColor: .blue,
+                        title: "Connections",
+                        value: "\(connectionCount)"
+                    )
+
+                    projectStatCard(
+                        icon: "person.crop.circle",
+                        iconColor: .purple,
+                        title: "Identities",
+                        value: "\(identityCount)"
+                    )
                 }
 
-                Divider()
-
-                // Statistics
-                VStack(alignment: .leading, spacing: 16) {
-                    Text("Statistics")
-                        .font(TypographyTokens.prominent.weight(.semibold))
-                        .foregroundStyle(.secondary)
-
-                    HStack(spacing: 20) {
-                        StatCard(
-                            icon: "externaldrive",
-                            count: connectionStore.connections.filter { $0.projectID == project.id }.count,
-                            label: "Connections",
-                            color: .blue
-                        )
-
-                        StatCard(
-                            icon: "person.crop.circle",
-                            count: connectionStore.identities.filter { $0.projectID == project.id }.count,
-                            label: "Identities",
-                            color: .purple
-                        )
-
-                        StatCard(
-                            icon: "folder",
-                            count: connectionStore.folders.filter { $0.projectID == project.id }.count,
-                            label: "Folders",
-                            color: .orange
-                        )
-                    }
+                // Dates
+                HStack {
+                    Text("Created \(project.createdAt.formatted(date: .abbreviated, time: .omitted))")
+                    Text("·")
+                    Text("Modified \(project.updatedAt.formatted(date: .abbreviated, time: .omitted))")
+                    Spacer()
                 }
+                .font(TypographyTokens.detail)
+                .foregroundStyle(.tertiary)
+            }
 
-                Divider()
-
-                // Actions
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("Actions")
-                        .font(TypographyTokens.prominent.weight(.semibold))
-                        .foregroundStyle(.secondary)
-
-                    VStack(spacing: 8) {
-                        if projectStore.selectedProject?.id != project.id {
-                            Button(action: {
-                                projectStore.selectProject(project)
-                                navigationStore.selectProject(project)
-                            }) {
-                                HStack {
-                                    Image(systemName: "arrow.right.circle.fill")
-                                    Text("Switch to This Project")
-                                    Spacer()
+            // MARK: - Settings
+            Section("Settings") {
+                VStack(alignment: .leading, spacing: SpacingTokens.xxs2) {
+                    LabeledContent("Import from Project") {
+                        if isImportingSettings {
+                            ProgressView()
+                                .controlSize(.small)
+                        } else {
+                            Menu {
+                                let otherProjects = projectStore.projects.filter { $0.id != project.id }
+                                if otherProjects.isEmpty {
+                                    Text("No Other Projects")
+                                } else {
+                                    ForEach(otherProjects) { source in
+                                        Button(source.name) {
+                                            importSettingsFromProject(source, into: project.id)
+                                        }
+                                    }
                                 }
-                                .frame(maxWidth: .infinity)
-                                .padding(SpacingTokens.sm)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                        .fill(project.color.opacity(0.1))
-                                )
+                            } label: {
+                                Text("Choose Project…")
                             }
-                            .buttonStyle(.plain)
                         }
+                    }
 
-                        Button(action: { showExportSheet = true }) {
-                            HStack {
-                                Image(systemName: "square.and.arrow.up")
-                                Text("Export Project")
-                                Spacer()
-                            }
-                            .frame(maxWidth: .infinity)
-                            .padding(SpacingTokens.sm)
-                            .background(
-                                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                    .fill(Color.primary.opacity(0.06))
-                            )
-                        }
-                        .buttonStyle(.plain)
-
-                        if !project.isDefault {
-                            Button(action: {
-                                projectToDelete = project
-                                showDeleteConfirmation = true
-                            }) {
-                                HStack {
-                                    Image(systemName: "trash")
-                                    Text("Delete Project")
-                                    Spacer()
-                                }
-                                .frame(maxWidth: .infinity)
-                                .padding(SpacingTokens.sm)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                        .fill(Color.red.opacity(0.1))
-                                )
-                                .foregroundStyle(.red)
-                            }
-                            .buttonStyle(.plain)
-                        }
+                    if let imported = lastImportedFrom {
+                        Text("Imported from \(imported.name) \(imported.date.formatted(date: .abbreviated, time: .omitted))")
+                            .font(TypographyTokens.detail)
+                            .foregroundStyle(.secondary)
                     }
                 }
 
-                Divider()
-
-                // Metadata
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Details")
-                        .font(TypographyTokens.prominent.weight(.semibold))
-                        .foregroundStyle(.secondary)
-
-                    MetadataRow(label: "Created", value: project.createdAt.formatted(date: .abbreviated, time: .shortened))
-                    MetadataRow(label: "Last Modified", value: project.updatedAt.formatted(date: .abbreviated, time: .shortened))
+                LabeledContent("Factory Defaults") {
+                    Button("Reset All Settings") {
+                        showResetSettingsConfirmation = true
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
                 }
             }
-            .padding(SpacingTokens.md2)
         }
+        .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
+    }
+
+    private func importSettingsFromProject(_ source: Project, into targetID: UUID) {
+        isImportingSettings = true
+        lastImportedFrom = nil
+        Task {
+            try? await projectStore.importSettings(from: source, into: targetID)
+            isImportingSettings = false
+            lastImportedFrom = (name: source.name, date: Date())
+        }
+    }
+
+    private func projectStatCard(icon: String, iconColor: Color, title: String, value: String) -> some View {
+        HStack(spacing: SpacingTokens.xs) {
+            Image(systemName: icon)
+                .font(TypographyTokens.display)
+                .foregroundStyle(iconColor)
+                .frame(width: 28, height: 28)
+
+            VStack(alignment: .leading, spacing: 1) {
+                Text(title)
+                    .font(TypographyTokens.standard)
+                Text(value)
+                    .font(TypographyTokens.detail)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(SpacingTokens.sm)
+        .background(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(.quaternary.opacity(0.5))
+        )
     }
 }
 
+// MARK: - Icon Picker Sheet
+
+struct ProjectIconPickerSheet: View {
+    let project: Project
+    let onSelect: (String) -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var selectedIcon: String
+
+    private let icons = [
+        "folder.fill", "star.fill", "bookmark.fill", "tag.fill",
+        "briefcase.fill", "desktopcomputer", "server.rack", "cylinder.fill",
+        "terminal.fill", "cpu.fill", "shippingbox.fill", "archivebox.fill",
+        "globe", "flask.fill", "wrench.and.screwdriver.fill", "gearshape.fill",
+        "puzzlepiece.fill", "bolt.fill", "leaf.fill", "flame.fill",
+        "heart.fill", "cube.fill", "tray.2.fill", "externaldrive.fill"
+    ]
+
+    init(project: Project, onSelect: @escaping (String) -> Void) {
+        self.project = project
+        self.onSelect = onSelect
+        self._selectedIcon = State(initialValue: project.iconName ?? "folder.fill")
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            formContent
+            Divider()
+            footerButtons
+        }
+        .frame(width: 460)
+        .fixedSize(horizontal: false, vertical: true)
+    }
+
+    private var formContent: some View {
+        Form {
+            Section {
+                LabeledContent("Icon") { iconPaletteView }
+            } header: {
+                Text("Change Icon")
+            }
+        }
+        .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
+        .scrollDisabled(true)
+    }
+
+    private var iconPaletteView: some View {
+        LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 8), spacing: 6) {
+            ForEach(icons, id: \.self) { iconName in
+                iconSwatch(name: iconName, isSelected: selectedIcon == iconName)
+                    .onTapGesture {
+                        withAnimation(.easeInOut(duration: 0.15)) {
+                            selectedIcon = iconName
+                        }
+                    }
+            }
+        }
+    }
+
+    private func iconSwatch(name: String, isSelected: Bool) -> some View {
+        Image(systemName: name)
+            .font(.system(size: 14))
+            .frame(width: 26, height: 26)
+            .foregroundStyle(isSelected ? Color.white : .secondary)
+            .background(isSelected ? Color.accentColor : Color.clear, in: RoundedRectangle(cornerRadius: 6))
+            .contentShape(Rectangle())
+    }
+
+    private var footerButtons: some View {
+        HStack {
+            Spacer()
+            Button("Cancel", role: .cancel) { dismiss() }
+                .keyboardShortcut(.cancelAction)
+            Button("Done") {
+                onSelect(selectedIcon)
+                dismiss()
+            }
+            .keyboardShortcut(.defaultAction)
+        }
+        .padding(SpacingTokens.md2)
+    }
+}

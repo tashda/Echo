@@ -26,15 +26,8 @@ struct AppearanceSettingsView: View {
 
     private var accentColorSection: some View {
         Section("Accent Color") {
-            LabeledContent("Accent color source") {
-                Picker("", selection: accentColorSourceBinding) {
-                    ForEach(AccentColorSource.allCases, id: \.self) { source in
-                        Text(source.displayName).tag(source)
-                    }
-                }
-                .labelsHidden()
-                .pickerStyle(.segmented)
-            }
+            AccentColorSourceRow(selection: accentColorSourceBinding)
+
 
             if projectStore.globalSettings.accentColorSource == .custom {
                 LabeledContent("Accent Color") {
@@ -232,6 +225,60 @@ private struct AppearanceModeCard: View {
             }
             .padding(.top, 4)
             .padding(.leading, 5)
+        }
+    }
+}
+
+// MARK: - Accent Color Source Row
+
+private struct AccentColorSourceRow: View {
+    @Binding var selection: AccentColorSource
+    @State private var isPopoverPresented = false
+
+    private static let sourceDescriptions: [(source: AccentColorSource, summary: String)] = [
+        (.system, "Uses your macOS accent color"),
+        (.connection, "Tints with the active connection color"),
+        (.custom, "Pick a specific accent color"),
+    ]
+
+    var body: some View {
+        LabeledContent {
+            HStack(spacing: SpacingTokens.xxs2) {
+                Picker("", selection: $selection) {
+                    ForEach(AccentColorSource.allCases, id: \.self) { source in
+                        Text(source.displayName).tag(source)
+                    }
+                }
+                .labelsHidden()
+                .pickerStyle(.segmented)
+
+                Button(action: { isPopoverPresented.toggle() }) {
+                    Image(systemName: "info.circle")
+                        .imageScale(.medium)
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(.secondary)
+                .popover(isPresented: $isPopoverPresented,
+                         attachmentAnchor: .rect(.bounds),
+                         arrowEdge: .trailing) {
+                    VStack(alignment: .leading, spacing: SpacingTokens.sm) {
+                        ForEach(Self.sourceDescriptions, id: \.source) { item in
+                            HStack(alignment: .top, spacing: SpacingTokens.xs) {
+                                Text(item.source.displayName)
+                                    .font(TypographyTokens.standard.weight(.semibold))
+                                    .frame(width: 80, alignment: .leading)
+                                Text(item.summary)
+                                    .font(TypographyTokens.standard)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                    .padding(SpacingTokens.md)
+                    .frame(width: 340)
+                }
+            }
+        } label: {
+            Text("Accent color source")
         }
     }
 }

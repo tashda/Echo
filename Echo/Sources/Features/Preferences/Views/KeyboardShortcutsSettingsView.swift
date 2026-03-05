@@ -5,6 +5,9 @@ struct KeyboardShortcutsSettingsView: View {
     @Environment(ProjectStore.self) private var projectStore
     private let sections = ShortcutSectionData.defaults
 
+    @State private var highlightedSectionID: String?
+    @State private var highlightOpacity: Double = 0
+
     private var customShortcuts: [String: CustomShortcutBinding] {
         projectStore.globalSettings.customKeyboardShortcuts ?? [:]
     }
@@ -24,34 +27,63 @@ struct KeyboardShortcutsSettingsView: View {
             .padding(.horizontal, SpacingTokens.lg)
             .padding(.top, SpacingTokens.sm)
 
-            Form {
-                ForEach(sections) { section in
-                    Section(section.title) {
-                        ForEach(section.items) { item in
-                            ShortcutRowView(
-                                item: item,
-                                customBinding: customShortcuts[item.id],
-                                onRecord: { binding in
-                                    var settings = projectStore.globalSettings
-                                    var shortcuts = settings.customKeyboardShortcuts ?? [:]
-                                    shortcuts[item.id] = binding
-                                    settings.customKeyboardShortcuts = shortcuts
-                                    Task { try? await projectStore.updateGlobalSettings(settings) }
-                                },
-                                onReset: {
-                                    var settings = projectStore.globalSettings
-                                    var shortcuts = settings.customKeyboardShortcuts ?? [:]
-                                    shortcuts.removeValue(forKey: item.id)
-                                    settings.customKeyboardShortcuts = shortcuts.isEmpty ? nil : shortcuts
-                                    Task { try? await projectStore.updateGlobalSettings(settings) }
-                                }
-                            )
+            ScrollViewReader { proxy in
+                Form {
+                    ForEach(sections) { section in
+                        Section(section.title) {
+                            ForEach(section.items) { item in
+                                ShortcutRowView(
+                                    item: item,
+                                    customBinding: customShortcuts[item.id],
+                                    onRecord: { binding in
+                                        var settings = projectStore.globalSettings
+                                        var shortcuts = settings.customKeyboardShortcuts ?? [:]
+                                        shortcuts[item.id] = binding
+                                        settings.customKeyboardShortcuts = shortcuts
+                                        Task { try? await projectStore.updateGlobalSettings(settings) }
+                                    },
+                                    onReset: {
+                                        var settings = projectStore.globalSettings
+                                        var shortcuts = settings.customKeyboardShortcuts ?? [:]
+                                        shortcuts.removeValue(forKey: item.id)
+                                        settings.customKeyboardShortcuts = shortcuts.isEmpty ? nil : shortcuts
+                                        Task { try? await projectStore.updateGlobalSettings(settings) }
+                                    }
+                                )
+                            }
                         }
+                        .id(section.id)
+                        .background(
+                            Group {
+                                if highlightedSectionID == section.id {
+                                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                        .fill(Color.accentColor.opacity(highlightOpacity))
+                                        .padding(-SpacingTokens.xxs2)
+                                }
+                            }
+                        )
+                    }
+                }
+                .formStyle(.grouped)
+                .scrollContentBackground(.hidden)
+                .onReceive(NotificationCenter.default.publisher(for: .highlightSettingsGroup)) { notification in
+                    guard let sectionTitle = notification.object as? String else { return }
+                    proxy.scrollTo(sectionTitle, anchor: .center)
+                    highlightedSectionID = sectionTitle
+                    highlightOpacity = 0
+                    // Smooth pulse 3 times
+                    Task { @MainActor in
+                        try? await Task.sleep(for: .milliseconds(100))
+                        for _ in 0..<3 {
+                            withAnimation(.easeInOut(duration: 0.35)) { highlightOpacity = 0.18 }
+                            try? await Task.sleep(for: .milliseconds(400))
+                            withAnimation(.easeInOut(duration: 0.35)) { highlightOpacity = 0 }
+                            try? await Task.sleep(for: .milliseconds(400))
+                        }
+                        highlightedSectionID = nil
                     }
                 }
             }
-            .formStyle(.grouped)
-            .scrollContentBackground(.hidden)
         } // VStack
     }
 }
@@ -88,26 +120,17 @@ private struct ShortcutRowView: View {
                     )
                 } else {
                     ShortcutKeyCaps(keys: displayKeys, isCustomized: isCustomized)
-                }
-
-                if isCustomized && !isRecording {
-                    Button(action: onReset) {
-                        Image(systemName: "arrow.counterclockwise")
-                            .font(TypographyTokens.detail)
-                            .foregroundStyle(.secondary)
-                    }
-                    .buttonStyle(.plain)
+                        .contextMenu {
+                            if isCustomized {
+                                Button("Revert to Default") {
+                                    onReset()
+                                }
+                            }
+                        }
                 }
             }
         } label: {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(item.title)
-                if let context = item.context {
-                    Text(context)
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                }
-            }
+            Text(item.title)
         }
         .contentShape(Rectangle())
         .onTapGesture {
@@ -123,53 +146,49 @@ private struct ShortcutRecorderField: View {
     let onRecord: (CustomShortcutBinding) -> Void
     let onCancel: () -> Void
 
-    @State private var modifierKeys: [String] = []
+    @State private var currentModifiers: [String] = []
+    @State private var recordedKeys: [String]?
 
-    var body: some View {
-        ShortcutRecorderRepresentable(
-            onRecord: onRecord,
-            onCancel: onCancel,
-            onModifiersChanged: { modifierKeys = $0 }
-        )
-        .frame(width: 0, height: 0)
-        .opacity(0)
-        .overlay(alignment: .trailing) {
-            HStack(spacing: SpacingTokens.xxs2) {
-                if modifierKeys.isEmpty {
-                    // Show existing keys grayed out + subtle dots
-                    ForEach(Array(keys.enumerated()), id: \.offset) { _, key in
-                        keyCap(key, dimmed: true)
-                    }
-                    Text("…")
-                        .font(TypographyTokens.caption2.weight(.medium))
-                        .foregroundStyle(.tertiary)
-                } else {
-                    // Show pressed modifiers as key caps + dots for remaining
-                    ForEach(Array(modifierKeys.enumerated()), id: \.offset) { _, key in
-                        keyCap(key, dimmed: false)
-                    }
-                    Text("…")
-                        .font(TypographyTokens.caption2.weight(.medium))
-                        .foregroundStyle(.secondary)
-                }
-            }
-        }
+    private var displayedKeys: [String] {
+        if let recorded = recordedKeys { return recorded }
+        if !currentModifiers.isEmpty { return currentModifiers }
+        return keys
     }
 
-    private func keyCap(_ key: String, dimmed: Bool) -> some View {
-        Text(key)
-            .font(TypographyTokens.caption2.weight(.medium))
-            .padding(.horizontal, SpacingTokens.xs)
-            .padding(.vertical, SpacingTokens.xxs2)
-            .background(
-                RoundedRectangle(cornerRadius: 6, style: .continuous)
-                    .fill(.quaternary)
+    private var isActive: Bool {
+        !currentModifiers.isEmpty || recordedKeys != nil
+    }
+
+    var body: some View {
+        HStack(spacing: SpacingTokens.xxs2) {
+            ForEach(Array(displayedKeys.enumerated()), id: \.offset) { _, key in
+                ShortcutKeyCap(
+                    key: key,
+                    isActive: isActive,
+                    isDimmed: currentModifiers.isEmpty && recordedKeys == nil
+                )
+            }
+
+        }
+        .padding(.horizontal, SpacingTokens.xs)
+        .padding(.vertical, SpacingTokens.xxs2)
+        .background(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(Color.accentColor.opacity(0.08))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .strokeBorder(Color.accentColor.opacity(0.4), lineWidth: 1)
+        )
+        .background {
+            ShortcutRecorderRepresentable(
+                onRecord: onRecord,
+                onCancel: onCancel,
+                onModifiersChanged: { currentModifiers = $0 }
             )
-            .overlay(
-                RoundedRectangle(cornerRadius: 6, style: .continuous)
-                    .strokeBorder(dimmed ? Color.clear : Color.accentColor, lineWidth: 1)
-            )
-            .opacity(dimmed ? 0.5 : 1.0)
+            .frame(width: 1, height: 1)
+            .opacity(0)
+        }
     }
 }
 
@@ -194,6 +213,9 @@ final class ShortcutRecorderNSView: NSView {
     var onCancel: (() -> Void)?
     var onModifiersChanged: (([String]) -> Void)?
 
+    private var keyMonitor: Any?
+    private var flagsMonitor: Any?
+
     override init(frame: NSRect) {
         super.init(frame: frame)
     }
@@ -205,36 +227,56 @@ final class ShortcutRecorderNSView: NSView {
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
         window?.makeFirstResponder(self)
+        installMonitors()
     }
 
-    override func keyDown(with event: NSEvent) {
-        let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+    override func removeFromSuperview() {
+        removeMonitors()
+        super.removeFromSuperview()
+    }
 
-        if event.keyCode == 53 { // Escape
-            onCancel?()
-            return
+    private func installMonitors() {
+        // Local monitor intercepts key events before menu bar / responder chain
+        keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            guard let self else { return event }
+            let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+
+            if event.keyCode == 53 { // Escape
+                self.onCancel?()
+                return nil // consume event
+            }
+
+            let hasRequiredModifier = modifiers.contains(.command) || modifiers.contains(.control) || modifiers.contains(.option)
+            guard hasRequiredModifier else { return event }
+
+            let character = event.charactersIgnoringModifiers ?? ""
+            let binding = CustomShortcutBinding(
+                keyCode: Int(event.keyCode),
+                character: character,
+                modifiers: ShortcutModifiers(from: modifiers)
+            )
+            self.onRecord?(binding)
+            return nil // consume event — prevents menu bar from handling it
         }
 
-        let hasRequiredModifier = modifiers.contains(.command) || modifiers.contains(.control) || modifiers.contains(.option)
-        guard hasRequiredModifier else { return }
-
-        let character = event.charactersIgnoringModifiers ?? ""
-        let binding = CustomShortcutBinding(
-            keyCode: Int(event.keyCode),
-            character: character,
-            modifiers: ShortcutModifiers(from: modifiers)
-        )
-        onRecord?(binding)
+        flagsMonitor = NSEvent.addLocalMonitorForEvents(matching: .flagsChanged) { [weak self] event in
+            guard let self else { return event }
+            let mods = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+            var parts: [String] = []
+            if mods.contains(.control) { parts.append("⌃") }
+            if mods.contains(.option) { parts.append("⌥") }
+            if mods.contains(.shift) { parts.append("⇧") }
+            if mods.contains(.command) { parts.append("⌘") }
+            self.onModifiersChanged?(parts)
+            return event
+        }
     }
 
-    override func flagsChanged(with event: NSEvent) {
-        let mods = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
-        var parts: [String] = []
-        if mods.contains(.control) { parts.append("⌃") }
-        if mods.contains(.option) { parts.append("⌥") }
-        if mods.contains(.shift) { parts.append("⇧") }
-        if mods.contains(.command) { parts.append("⌘") }
-        onModifiersChanged?(parts)
+    private func removeMonitors() {
+        if let keyMonitor { NSEvent.removeMonitor(keyMonitor) }
+        if let flagsMonitor { NSEvent.removeMonitor(flagsMonitor) }
+        keyMonitor = nil
+        flagsMonitor = nil
     }
 
     override var intrinsicContentSize: NSSize {
@@ -242,7 +284,29 @@ final class ShortcutRecorderNSView: NSView {
     }
 }
 
-// MARK: - Key Caps
+// MARK: - Key Cap Components
+
+private struct ShortcutKeyCap: View {
+    let key: String
+    var isActive: Bool = false
+    var isDimmed: Bool = false
+
+    var body: some View {
+        Text(key)
+            .font(TypographyTokens.caption2.weight(.medium))
+            .padding(.horizontal, SpacingTokens.xs)
+            .padding(.vertical, SpacingTokens.xxs2)
+            .background(
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .fill(.quaternary)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .strokeBorder(isActive ? Color.accentColor.opacity(0.6) : Color.clear, lineWidth: 1)
+            )
+            .opacity(isDimmed ? 0.5 : 1.0)
+    }
+}
 
 private struct ShortcutKeyCaps: View {
     let keys: [String]
@@ -251,14 +315,7 @@ private struct ShortcutKeyCaps: View {
     var body: some View {
         HStack(spacing: SpacingTokens.xxs2) {
             ForEach(Array(keys.enumerated()), id: \.offset) { _, key in
-                Text(key)
-                    .font(TypographyTokens.caption2.weight(.medium))
-                    .padding(.horizontal, SpacingTokens.xs)
-                    .padding(.vertical, SpacingTokens.xxs2)
-                    .background(
-                        RoundedRectangle(cornerRadius: 6, style: .continuous)
-                            .fill(.quaternary)
-                    )
+                ShortcutKeyCap(key: key)
             }
         }
         .opacity(isCustomized ? 1 : 0.8)
@@ -283,6 +340,32 @@ struct CustomShortcutBinding: Codable, Hashable {
         let keyLabel = Self.keyCodeLabel(keyCode, character: character)
         parts.append(keyLabel)
         return parts
+    }
+
+    var swiftUIKey: KeyEquivalent {
+        switch keyCode {
+        case 36: return .return
+        case 48: return .tab
+        case 49: return .space
+        case 51: return .delete
+        case 53: return .escape
+        case 123: return .leftArrow
+        case 124: return .rightArrow
+        case 125: return .downArrow
+        case 126: return .upArrow
+        default:
+            let ch = character.lowercased()
+            return KeyEquivalent(ch.isEmpty ? Character("?") : ch.first!)
+        }
+    }
+
+    var swiftUIModifiers: EventModifiers {
+        var mods: EventModifiers = []
+        if modifiers.command { mods.insert(.command) }
+        if modifiers.shift { mods.insert(.shift) }
+        if modifiers.option { mods.insert(.option) }
+        if modifiers.control { mods.insert(.control) }
+        return mods
     }
 
     private static func keyCodeLabel(_ keyCode: Int, character: String) -> String {
@@ -358,6 +441,13 @@ private struct ShortcutSectionData: Identifiable {
             items: [
                 .init(title: "Copy Selection", context: "Copy the selected cells.", keys: ["⌘", "C"]),
                 .init(title: "Copy with Headers", context: "Include column headers with the copied cells.", keys: ["⌘", "⇧", "C"])
+            ]
+        ),
+        ShortcutSectionData(
+            title: "EchoSense",
+            items: [
+                .init(title: "Command + Period Trigger", context: "Toggle \u{2318}. as a manual EchoSense trigger.", keys: ["⌘", "."]),
+                .init(title: "Control + Space Trigger", context: "Toggle Ctrl+Space as an alternative EchoSense trigger.", keys: ["⌃", "Space"])
             ]
         ),
         ShortcutSectionData(

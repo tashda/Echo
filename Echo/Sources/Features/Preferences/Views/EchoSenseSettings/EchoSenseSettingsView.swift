@@ -67,17 +67,24 @@ struct EchoSenseSettingsView: View {
                     selection: aggressivenessBinding
                 )
 
-                EchoSenseToggleRow(
-                    title: "Enable Command + Period",
-                    isOn: commandTriggerBinding,
-                    topic: .commandTrigger
-                )
-
-                EchoSenseToggleRow(
-                    title: "Enable Control + Space",
-                    isOn: controlTriggerBinding,
-                    topic: .controlTrigger
-                )
+                LabeledContent {
+                    Button {
+                        NotificationCenter.default.post(
+                            name: .openSettingsSection,
+                            object: "keyboardShortcuts",
+                            userInfo: ["highlightSection": "EchoSense"]
+                        )
+                    } label: {
+                        HStack(spacing: SpacingTokens.xxs) {
+                            Text("Keyboard Shortcuts")
+                            Image(systemName: "arrow.forward")
+                                .font(TypographyTokens.detail)
+                        }
+                    }
+                    .buttonStyle(.bordered)
+                } label: {
+                    Text("Trigger shortcuts")
+                }
             }
 
         }

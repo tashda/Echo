@@ -1,5 +1,4 @@
 import SwiftUI
-#if os(macOS)
 import AppKit
 
 struct PreferenceBasedPopover: View {
@@ -67,7 +66,7 @@ struct NativePopover: NSViewRepresentable {
                 return
             }
             let p = NSPopover(); let h = NSHostingController(rootView: content); p.contentViewController = h; p.behavior = .semitransient; p.animates = true
-            p.appearance = anchorView.effectiveAppearance; h.view.appearance = anchorView.effectiveAppearance; p.delegate = self
+            p.delegate = self
             p.show(relativeTo: anchorRect, of: anchorView, preferredEdge: .minY); self.popover = p
         }
     }
@@ -102,9 +101,9 @@ struct NativePopoverController: NSViewRepresentable {
                 return
             }
             let p = NSPopover(); p.contentViewController = controller; p.behavior = .semitransient; p.animates = true
-            p.appearance = anchorView.effectiveAppearance; controller.view.appearance = anchorView.effectiveAppearance; p.delegate = self
+            p.delegate = self
             p.show(relativeTo: anchorRect, of: anchorView, preferredEdge: .minY); self.popover = p
         }
     }
 }
-#endif
+

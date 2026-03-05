@@ -76,8 +76,8 @@ extension TopBarNavigatorOverlay {
         tabStore: TabStore
     ) {
         if let hostingView, let toolbarView, let containerView {
-            removeExistingHostingViews(from: containerView, keeping: hostingView)
-            if hostingView.superview !== containerView {
+            removeExistingHostingViews(from: toolbarView, keeping: hostingView)
+            if hostingView.superview !== toolbarView {
                 hostingView.removeFromSuperview()
                 addHostingView(hostingView, toolbarView: toolbarView, containerView: containerView, window: window)
                 hostingView.rootView = makeRootView(
@@ -90,7 +90,6 @@ extension TopBarNavigatorOverlay {
                     tabStore: tabStore
                 )
             }
-            installHitProxy(hostingView: hostingView, toolbarView: toolbarView)
             scheduleLayoutUpdate()
             return
         }
@@ -119,7 +118,8 @@ extension TopBarNavigatorOverlay {
 
         addHostingView(hostingView, toolbarView: toolbarView, containerView: containerView, window: window)
         registerObservers(window: window, toolbarView: toolbarView)
-        installHitProxy(hostingView: hostingView, toolbarView: toolbarView)
+        // No hit proxy needed — hosting view is now inside toolbarView
+        // so hit-testing and event dispatch work natively.
     }
 
     func addHostingView(
@@ -130,7 +130,10 @@ extension TopBarNavigatorOverlay {
     ) {
         hostingView.identifier = hostingViewIdentifier
         hostingView.translatesAutoresizingMaskIntoConstraints = true
-        containerView.addSubview(hostingView, positioned: .above, relativeTo: toolbarView)
+        // Place inside NSToolbarView so hit-testing and event dispatch work
+        // natively — no proxy forwarding needed. The intrinsicContentSize
+        // overrides prevent interference with toolbar layout.
+        toolbarView.addSubview(hostingView, positioned: .above, relativeTo: nil)
 
         let h = WorkspaceChromeMetrics.toolbarTabBarHeight
         let toolbarFrame = toolbarView.frame
