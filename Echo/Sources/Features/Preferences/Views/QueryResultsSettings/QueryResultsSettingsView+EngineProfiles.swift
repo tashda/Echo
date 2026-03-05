@@ -48,6 +48,5 @@ extension QueryResultsSettingsView {
                     .foregroundStyle(.secondary)
             }
         }
-        .frame(minHeight: 80, alignment: .top)
     }
 }

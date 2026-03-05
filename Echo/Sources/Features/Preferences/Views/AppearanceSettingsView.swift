@@ -26,16 +26,17 @@ struct AppearanceSettingsView: View {
 
     private var accentColorSection: some View {
         Section("Accent Color") {
-            Toggle("Use Server Color as Accent", isOn: Binding(
-                get: { projectStore.globalSettings.useServerColorAsAccent },
-                set: { newValue in
-                    var settings = projectStore.globalSettings
-                    settings.useServerColorAsAccent = newValue
-                    Task { try? await projectStore.updateGlobalSettings(settings) }
+            LabeledContent("Accent color source") {
+                Picker("", selection: accentColorSourceBinding) {
+                    ForEach(AccentColorSource.allCases, id: \.self) { source in
+                        Text(source.displayName).tag(source)
+                    }
                 }
-            ))
+                .labelsHidden()
+                .pickerStyle(.segmented)
+            }
 
-            if !projectStore.globalSettings.useServerColorAsAccent {
+            if projectStore.globalSettings.accentColorSource == .custom {
                 LabeledContent("Accent Color") {
                     AccentColorPalette(selection: customAccentColorHexBinding)
                 }
@@ -106,6 +107,27 @@ struct AppearanceSettingsView: View {
                 settings.appearanceMode = newValue
                 Task { try? await projectStore.updateGlobalSettings(settings) }
                 appearanceStore.applyAppearanceMode(newValue)
+            }
+        )
+    }
+
+    private var accentColorSourceBinding: Binding<AccentColorSource> {
+        Binding(
+            get: { projectStore.globalSettings.accentColorSource },
+            set: { newValue in
+                var settings = projectStore.globalSettings
+                settings.accentColorSource = newValue
+                Task { try? await projectStore.updateGlobalSettings(settings) }
+                switch newValue {
+                case .system:
+                    appearanceStore.setAccentColor(nil)
+                case .connection:
+                    appearanceStore.setAccentColor(nil)
+                case .custom:
+                    if let hex = settings.customAccentColorHex, let color = Color(hex: hex) {
+                        appearanceStore.setAccentColor(color)
+                    }
+                }
             }
         )
     }

@@ -91,7 +91,7 @@ struct ConnectionListRow: View {
     @Environment(\.colorScheme) private var colorScheme
     @State private var isHovering = false
 
-    private var accentColor: Color { projectStore.globalSettings.useServerColorAsAccent ? connection.color : Color.accentColor }
+    private var accentColor: Color { projectStore.globalSettings.accentColorSource == .connection ? connection.color : Color.accentColor }
     private var displayName: String { let t = connection.connectionName.trimmingCharacters(in: .whitespacesAndNewlines); return t.isEmpty ? connection.host : t }
 
     var body: some View {
