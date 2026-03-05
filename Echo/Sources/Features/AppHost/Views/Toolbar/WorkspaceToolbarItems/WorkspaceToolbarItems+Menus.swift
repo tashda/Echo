@@ -2,7 +2,7 @@ import SwiftUI
 import EchoSense
 
 extension WorkspaceToolbarItems {
-    
+
     // MARK: - Project Menu
 
     internal var projectMenu: some View {
@@ -35,89 +35,5 @@ extension WorkspaceToolbarItems {
                 title: projectStore.selectedProject?.name ?? "Project"
             )
         }
-    }
-
-    // MARK: - Connections Menu
-
-    internal var connectionsMenu: some View {
-#if os(macOS)
-        EmptyView()
-#else
-        Menu {
-            if connectionStore.connections.isEmpty {
-                Text("No Connections Available").foregroundStyle(.secondary)
-            } else {
-                ConnectionToolbarMenuItems(
-                    parentID: nil,
-                    currentConnectionID: navigationStore.navigationState.selectedConnection?.id,
-                    onConnect: { connection in
-                        connectionStore.selectedConnectionID = connection.id
-                        await environmentState.connect(to: connection)
-                    }
-                )
-            }
-
-            Divider()
-
-            Button("Manage Connections…") {
-                #if os(macOS)
-                ManageConnectionsWindowController.shared.present()
-                #else
-                navigationStore.isManageConnectionsPresented = true
-                #endif
-            }
-        } label: {
-            toolbarButtonLabel(
-                icon: currentServerIcon,
-                title: currentServerTitle
-            )
-        }
-        .disabled(connectionStore.connections.isEmpty)
-#endif
-    }
-
-    // MARK: - Database Menu
-
-    internal var databaseMenu: some View {
-#if os(macOS)
-        EmptyView()
-#else
-        Menu {
-            if let session = activeSession,
-               let databases = availableDatabases(in: session),
-               !databases.isEmpty {
-                ForEach(databases, id: \.name) { database in
-                    Button {
-                        selectDatabase(database.name, in: session)
-                    } label: {
-                        menuRow(
-                            icon: databaseMenuIcon,
-                            title: database.name,
-                            isSelected: session.selectedDatabaseName == database.name
-                        )
-                    }
-                }
-            } else {
-                Text("No Databases Available").foregroundStyle(.secondary)
-            }
-
-            Divider()
-
-            Button("Refresh Databases") {
-                Task {
-                    if let session = activeSession {
-                        await environmentState.refreshDatabaseStructure(for: session.id, scope: .full)
-                    }
-                }
-            }
-            .disabled(activeSession == nil)
-        } label: {
-            toolbarButtonLabel(
-                icon: databaseToolbarIcon(isSelected: navigationStore.navigationState.selectedDatabase != nil),
-                title: currentDatabaseTitle
-            )
-        }
-        .disabled(activeSession == nil)
-#endif
     }
 }

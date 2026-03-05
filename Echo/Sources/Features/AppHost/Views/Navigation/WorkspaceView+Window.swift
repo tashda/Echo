@@ -1,13 +1,16 @@
 import SwiftUI
+import os.log
 #if os(macOS)
 import AppKit
+
+private let winLog = Logger(subsystem: "com.echo.overlay", category: "window")
 
 struct WorkspaceWindowConfigurator: NSViewRepresentable {
     @Environment(ProjectStore.self) private var projectStore
     @Environment(ConnectionStore.self) private var connectionStore
     @Environment(NavigationStore.self) private var navigationStore
     @Environment(TabStore.self) private var tabStore
-    
+
     @EnvironmentObject private var environmentState: EnvironmentState
     @EnvironmentObject private var appState: AppState
     @EnvironmentObject private var appearanceStore: AppearanceStore
@@ -18,9 +21,20 @@ struct WorkspaceWindowConfigurator: NSViewRepresentable {
 
     func makeNSView(context: Context) -> NSView {
         let view = NSView()
+        winLog.warning("makeNSView called")
         DispatchQueue.main.async {
-            guard let window = view.window else { return }
-            context.coordinator.configure(window: window, tabBarStyle: tabBarStyle, environmentState: environmentState, appState: appState, appearanceStore: appearanceStore, projectStore: projectStore, connectionStore: connectionStore, navigationStore: navigationStore, tabStore: tabStore)
+            guard let window = view.window else { winLog.warning("makeNSView: no window"); return }
+            winLog.warning("makeNSView: configuring with window")
+            context.coordinator.configure(
+                window: window,
+                environmentState: environmentState,
+                appState: appState,
+                appearanceStore: appearanceStore,
+                projectStore: projectStore,
+                connectionStore: connectionStore,
+                navigationStore: navigationStore,
+                tabStore: tabStore
+            )
         }
         return view
     }
@@ -28,26 +42,53 @@ struct WorkspaceWindowConfigurator: NSViewRepresentable {
     func updateNSView(_ nsView: NSView, context: Context) {
         DispatchQueue.main.async {
             guard let window = nsView.window else { return }
-            context.coordinator.configure(window: window, tabBarStyle: tabBarStyle, environmentState: environmentState, appState: appState, appearanceStore: appearanceStore, projectStore: projectStore, connectionStore: connectionStore, navigationStore: navigationStore, tabStore: tabStore)
+            context.coordinator.configure(
+                window: window,
+                environmentState: environmentState,
+                appState: appState,
+                appearanceStore: appearanceStore,
+                projectStore: projectStore,
+                connectionStore: connectionStore,
+                navigationStore: navigationStore,
+                tabStore: tabStore
+            )
         }
     }
 
     @MainActor
     final class Coordinator: NSObject, NSWindowDelegate {
-        private let topBarNavigatorOverlay = TopBarNavigatorOverlay()
         private var lastWindowID: ObjectIdentifier?
-        private var lastStyle: WorkspaceTabBarStyle?
         private var lastKeyState: Bool?
+        private let overlay = TopBarNavigatorOverlay()
 
-        func configure(window: NSWindow, tabBarStyle: WorkspaceTabBarStyle, environmentState: EnvironmentState, appState: AppState, appearanceStore: AppearanceStore, projectStore: ProjectStore, connectionStore: ConnectionStore, navigationStore: NavigationStore, tabStore: TabStore) {
+        func configure(
+            window: NSWindow,
+            environmentState: EnvironmentState,
+            appState: AppState,
+            appearanceStore: AppearanceStore,
+            projectStore: ProjectStore,
+            connectionStore: ConnectionStore,
+            navigationStore: NavigationStore,
+            tabStore: TabStore
+        ) {
             let windowID = ObjectIdentifier(window)
-            if lastWindowID != windowID { topBarNavigatorOverlay.detach(); lastWindowID = windowID }
+            if lastWindowID != windowID { lastWindowID = windowID }
             applyWindowStyling(window)
             if window.delegate !== self { window.delegate = self }
-            lastStyle = tabBarStyle
-            topBarNavigatorOverlay.apply(window: window, environmentState: environmentState, appState: appState, appearanceStore: appearanceStore, projectStore: projectStore, connectionStore: connectionStore, navigationStore: navigationStore, tabStore: tabStore, isEnabled: true)
             let isKey = window.isKeyWindow && window.identifier == AppWindowIdentifier.workspace
             if lastKeyState != isKey { navigationStore.isWorkspaceWindowKey = isKey; lastKeyState = isKey }
+
+            overlay.apply(
+                window: window,
+                environmentState: environmentState,
+                appState: appState,
+                appearanceStore: appearanceStore,
+                projectStore: projectStore,
+                connectionStore: connectionStore,
+                navigationStore: navigationStore,
+                tabStore: tabStore,
+                isEnabled: true
+            )
         }
 
         private func applyWindowStyling(_ window: NSWindow) {
@@ -65,32 +106,16 @@ struct WorkspaceWindowConfigurator: NSViewRepresentable {
         }
 
         func windowWillResize(_ sender: NSWindow, to frameSize: NSSize) -> NSSize {
-            let minContent = requiredContentWidth(for: sender)
-            let chromeDelta = sender.frame.width - sender.contentLayoutRect.width
-            let minFrameWidth = minContent + chromeDelta
+            let minFrameWidth: CGFloat = 980 + (sender.frame.width - sender.contentLayoutRect.width)
             var size = frameSize
             if size.width < minFrameWidth { size.width = minFrameWidth }
             return size
         }
 
-        private func requiredContentWidth(for window: NSWindow) -> CGFloat {
-            guard let toolbar = window.toolbar, let toolbarView = findToolbarView(in: window) else { return 980 }
-            let navMaxX = toolbar.items.filter { $0.itemIdentifier.rawValue.hasPrefix("workspace.navigation") }.compactMap { $0.view }.map { toolbarView.convert($0.bounds, from: $0).maxX }.max() ?? 0
-            let primaryFrames = toolbar.items.filter { $0.itemIdentifier.rawValue.hasPrefix("workspace.primary") }.compactMap { $0.view }.map { toolbarView.convert($0.bounds, from: $0) }
-            let primaryGroupWidth = primaryFrames.isEmpty ? 0 : (primaryFrames.map(\.maxX).max()! - primaryFrames.map(\.minX).min()!)
-            return max(980, navMaxX + 18 + primaryGroupWidth + 24 + 350)
-        }
-
-        private func findToolbarView(in window: NSWindow) -> NSView? {
-            guard let container = window.contentView?.superview else { return nil }
-            var stack: [NSView] = [container]
-            while let view = stack.popLast() {
-                let name = String(describing: type(of: view))
-                if name.contains("NSTitlebarContainerView") { stack.append(contentsOf: view.subviews); continue }
-                if name.contains("NSToolbarView") { return view }
-                stack.append(contentsOf: view.subviews)
+        nonisolated deinit {
+            MainActor.assumeIsolated {
+                overlay.detach()
             }
-            return nil
         }
     }
 }

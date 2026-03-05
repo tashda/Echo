@@ -8,7 +8,6 @@ struct BreadcrumbNavigator: View {
     @Environment(ConnectionStore.self) private var connectionStore
     @EnvironmentObject private var environmentState: EnvironmentState
     @EnvironmentObject private var appearanceStore: AppearanceStore
-    @EnvironmentObject private var layoutState: TopBarNavigatorLayoutState
     @Environment(\.colorScheme) private var colorScheme
 
     @StateObject private var navigationState = BreadcrumbNavigationState()
@@ -18,9 +17,9 @@ struct BreadcrumbNavigator: View {
 
     var body: some View {
         GeometryReader { proxy in
-            let available = max(layoutState.availableWidth > 0 ? layoutState.availableWidth : proxy.size.width, 0)
+            let hostingWidth = proxy.size.width
             let controlHeight = max(WorkspaceChromeMetrics.chromeBackgroundHeight, proxy.size.height)
-            let target = min(clamp(available * (layoutState.availableWidth > 0 ? 0.9 : 0.65), minWidth: 420, idealWidth: 540, maxWidth: 880), available)
+            let target = max(hostingWidth * 0.82, 0)
 
             ZStack {
                 let shape = RoundedRectangle(cornerRadius: controlHeight / 2, style: .continuous)
@@ -36,7 +35,7 @@ struct BreadcrumbNavigator: View {
                 .padding(.horizontal, SpacingTokens.md).frame(width: target, height: controlHeight, alignment: .leading).clipShape(shape)
             }
             .frame(width: target, height: controlHeight)
-            .position(x: layoutState.centerX > 0 ? layoutState.centerX : proxy.size.width / 2, y: proxy.size.height / 2)
+            .position(x: hostingWidth / 2, y: proxy.size.height / 2)
             .backgroundPreferenceValue(BreadcrumbAnchorKey.self) { breadcrumbPopover(anchors: $0) }
             .onAppear { updateBreadcrumbSegments() }
             .onChange(of: connectionStore.selectedConnectionID) { _, _ in updateBreadcrumbSegments() }
@@ -127,5 +126,4 @@ struct BreadcrumbNavigator: View {
         Color.black.opacity(0.09)
 #endif
     }
-    private func clamp(_ v: CGFloat, minWidth: CGFloat, idealWidth: CGFloat, maxWidth: CGFloat) -> CGFloat { let c = max(minWidth, min(maxWidth, v)); return (c >= idealWidth && c <= maxWidth) ? max(idealWidth, c) : c }
 }

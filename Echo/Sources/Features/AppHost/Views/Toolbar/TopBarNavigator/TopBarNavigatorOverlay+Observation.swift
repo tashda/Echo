@@ -9,13 +9,15 @@ extension TopBarNavigatorOverlay {
         removeObservers()
         let center = NotificationCenter.default
 
+        // Frame / resize notifications call updateLayout() directly
+        // so the pill tracks the window edge without any async delay.
         observers.append(
             center.addObserver(
                 forName: NSView.frameDidChangeNotification,
                 object: toolbarView,
                 queue: .main
             ) { [weak self] _ in
-                Task { @MainActor [weak self] in self?.scheduleLayoutUpdate() }
+                MainActor.assumeIsolated { self?.updateLayout() }
             }
         )
 
@@ -25,7 +27,7 @@ extension TopBarNavigatorOverlay {
                 object: window,
                 queue: .main
             ) { [weak self] _ in
-                Task { @MainActor [weak self] in self?.scheduleLayoutUpdate() }
+                MainActor.assumeIsolated { self?.updateLayout() }
             }
         )
 
@@ -35,7 +37,7 @@ extension TopBarNavigatorOverlay {
                 object: window,
                 queue: .main
             ) { [weak self] _ in
-                Task { @MainActor [weak self] in self?.scheduleLayoutUpdate() }
+                MainActor.assumeIsolated { self?.updateLayout() }
             }
         )
     }
@@ -61,11 +63,29 @@ extension TopBarNavigatorOverlay {
 
         appState.$showInfoSidebar
             .receive(on: RunLoop.main)
-            .sink { [weak self] _ in self?.scheduleLayoutUpdate() }
+            .sink { [weak self] _ in
+                self?.lastStateChangeTime = CACurrentMediaTime()
+                self?.scheduleDeferredLayoutUpdate()
+            }
             .store(in: &stateCancellables)
 
-        // Observe inspectorWidth via withObservationTracking or a bridge if needed
-        // For simplicity, we trigger a manual update when it changes if possible.
+        // Observe state changes that cause toolbar buttons to re-evaluate,
+        // which triggers a transient NSToolbar re-layout. Mark the time
+        // so updateLayout() can skip the transient frame and defer.
+        appState.$showTabOverview
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                self?.lastStateChangeTime = CACurrentMediaTime()
+                self?.scheduleDeferredLayoutUpdate()
+            }
+            .store(in: &stateCancellables)
+    }
+
+    /// Schedules a layout update after a brief delay to let toolbar transitions settle.
+    func scheduleDeferredLayoutUpdate() {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
+            self?.updateLayout()
+        }
     }
 
     func updateToolbarItemObservers(toolbar: NSToolbar, toolbarView: NSView) {
@@ -91,7 +111,6 @@ extension TopBarNavigatorOverlay {
 
         let center = NotificationCenter.default
         for view in targets {
-            disableImplicitAnimations(for: view)
             view.postsFrameChangedNotifications = true
             itemObservers.append(
                 center.addObserver(
@@ -99,11 +118,10 @@ extension TopBarNavigatorOverlay {
                     object: view,
                     queue: .main
                 ) { [weak self] _ in
-                    Task { @MainActor [weak self] in self?.scheduleLayoutUpdate() }
+                    MainActor.assumeIsolated { self?.scheduleLayoutUpdate() }
                 }
             )
         }
-        disableImplicitFrameAnimationsRecursively(in: toolbarView)
     }
 
     func removeItemObservers() {
