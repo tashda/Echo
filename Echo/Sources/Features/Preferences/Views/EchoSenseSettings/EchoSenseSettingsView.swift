@@ -80,11 +80,6 @@ struct EchoSenseSettingsView: View {
                 )
             }
 
-            Section("Dismissal") {
-                Text(dismissalHint)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            }
         }
         .formStyle(.grouped)
         .scrollContentBackground(.hidden)

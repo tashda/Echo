@@ -57,7 +57,7 @@ extension ObjectBrowserSidebarView {
         session: ConnectionSession,
         database: DatabaseInfo
     ) -> some View {
-        let accentColor = projectStore.globalSettings.useServerColorAsAccent ? session.connection.color : Color.accentColor
+        let accentColor = projectStore.globalSettings.accentColorSource == .connection ? session.connection.color : Color.accentColor
         let controlBackground = Color.primary.opacity(0.04)
         let borderColor = Color.primary.opacity(0.08)
         let availableSchemas = database.schemas.filter { !$0.objects.isEmpty }

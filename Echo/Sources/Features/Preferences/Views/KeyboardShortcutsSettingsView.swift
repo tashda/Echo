@@ -10,7 +10,7 @@ struct KeyboardShortcutsSettingsView: View {
     }
 
     var body: some View {
-        Form {
+        VStack(spacing: 0) {
             HStack {
                 Spacer()
                 Button("Reset All to Default") {
@@ -21,35 +21,38 @@ struct KeyboardShortcutsSettingsView: View {
                 .buttonStyle(.bordered)
                 .disabled(customShortcuts.isEmpty)
             }
-            .padding(.bottom, SpacingTokens.xxs)
+            .padding(.horizontal, SpacingTokens.lg)
+            .padding(.top, SpacingTokens.sm)
 
-            ForEach(sections) { section in
-                Section(section.title) {
-                    ForEach(section.items) { item in
-                        ShortcutRowView(
-                            item: item,
-                            customBinding: customShortcuts[item.id],
-                            onRecord: { binding in
-                                var settings = projectStore.globalSettings
-                                var shortcuts = settings.customKeyboardShortcuts ?? [:]
-                                shortcuts[item.id] = binding
-                                settings.customKeyboardShortcuts = shortcuts
-                                Task { try? await projectStore.updateGlobalSettings(settings) }
-                            },
-                            onReset: {
-                                var settings = projectStore.globalSettings
-                                var shortcuts = settings.customKeyboardShortcuts ?? [:]
-                                shortcuts.removeValue(forKey: item.id)
-                                settings.customKeyboardShortcuts = shortcuts.isEmpty ? nil : shortcuts
-                                Task { try? await projectStore.updateGlobalSettings(settings) }
-                            }
-                        )
+            Form {
+                ForEach(sections) { section in
+                    Section(section.title) {
+                        ForEach(section.items) { item in
+                            ShortcutRowView(
+                                item: item,
+                                customBinding: customShortcuts[item.id],
+                                onRecord: { binding in
+                                    var settings = projectStore.globalSettings
+                                    var shortcuts = settings.customKeyboardShortcuts ?? [:]
+                                    shortcuts[item.id] = binding
+                                    settings.customKeyboardShortcuts = shortcuts
+                                    Task { try? await projectStore.updateGlobalSettings(settings) }
+                                },
+                                onReset: {
+                                    var settings = projectStore.globalSettings
+                                    var shortcuts = settings.customKeyboardShortcuts ?? [:]
+                                    shortcuts.removeValue(forKey: item.id)
+                                    settings.customKeyboardShortcuts = shortcuts.isEmpty ? nil : shortcuts
+                                    Task { try? await projectStore.updateGlobalSettings(settings) }
+                                }
+                            )
+                        }
                     }
                 }
             }
-        }
-        .formStyle(.grouped)
-        .scrollContentBackground(.hidden)
+            .formStyle(.grouped)
+            .scrollContentBackground(.hidden)
+        } // VStack
     }
 }
 
@@ -73,12 +76,16 @@ private struct ShortcutRowView: View {
         LabeledContent {
             HStack(spacing: SpacingTokens.xs) {
                 if isRecording {
-                    ShortcutRecorderField(onRecord: { binding in
-                        isRecording = false
-                        onRecord(binding)
-                    }, onCancel: {
-                        isRecording = false
-                    })
+                    ShortcutRecorderField(
+                        keys: displayKeys,
+                        onRecord: { binding in
+                            isRecording = false
+                            onRecord(binding)
+                        },
+                        onCancel: {
+                            isRecording = false
+                        }
+                    )
                 } else {
                     ShortcutKeyCaps(keys: displayKeys, isCustomized: isCustomized)
                 }
@@ -92,10 +99,6 @@ private struct ShortcutRowView: View {
                     .buttonStyle(.plain)
                 }
             }
-            .contentShape(Rectangle())
-            .onTapGesture {
-                if !isRecording { isRecording = true }
-            }
         } label: {
             VStack(alignment: .leading, spacing: 2) {
                 Text(item.title)
@@ -106,76 +109,74 @@ private struct ShortcutRowView: View {
                 }
             }
         }
+        .contentShape(Rectangle())
+        .onTapGesture {
+            if !isRecording { isRecording = true }
+        }
     }
 }
 
 // MARK: - Shortcut Recorder
 
 private struct ShortcutRecorderField: View {
+    let keys: [String]
     let onRecord: (CustomShortcutBinding) -> Void
     let onCancel: () -> Void
 
-    @State private var modifierText: String = ""
+    @State private var modifierKeys: [String] = []
 
     var body: some View {
         ShortcutRecorderRepresentable(
             onRecord: onRecord,
             onCancel: onCancel,
-            onModifiersChanged: { modifierText = $0 }
+            onModifiersChanged: { modifierKeys = $0 }
         )
         .frame(width: 0, height: 0)
         .opacity(0)
-        .overlay {
-            HStack(spacing: SpacingTokens.xxs) {
-                if modifierText.isEmpty {
-                    RecordingDots()
-                } else {
-                    Text(modifierText)
+        .overlay(alignment: .trailing) {
+            HStack(spacing: SpacingTokens.xxs2) {
+                if modifierKeys.isEmpty {
+                    // Show existing keys grayed out + subtle dots
+                    ForEach(Array(keys.enumerated()), id: \.offset) { _, key in
+                        keyCap(key, dimmed: true)
+                    }
+                    Text("…")
                         .font(TypographyTokens.caption2.weight(.medium))
-                        .foregroundStyle(.primary)
+                        .foregroundStyle(.tertiary)
+                } else {
+                    // Show pressed modifiers as key caps + dots for remaining
+                    ForEach(Array(modifierKeys.enumerated()), id: \.offset) { _, key in
+                        keyCap(key, dimmed: false)
+                    }
+                    Text("…")
+                        .font(TypographyTokens.caption2.weight(.medium))
+                        .foregroundStyle(.secondary)
                 }
             }
-            .frame(minWidth: 100)
-            .padding(.horizontal, SpacingTokens.sm)
-            .padding(.vertical, SpacingTokens.xxs)
+        }
+    }
+
+    private func keyCap(_ key: String, dimmed: Bool) -> some View {
+        Text(key)
+            .font(TypographyTokens.caption2.weight(.medium))
+            .padding(.horizontal, SpacingTokens.xs)
+            .padding(.vertical, SpacingTokens.xxs2)
             .background(
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
                     .fill(.quaternary)
             )
             .overlay(
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .strokeBorder(Color.accentColor, lineWidth: 1.5)
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .strokeBorder(dimmed ? Color.clear : Color.accentColor, lineWidth: 1)
             )
-        }
-    }
-}
-
-private struct RecordingDots: View {
-    @State private var phase = 0
-
-    var body: some View {
-        HStack(spacing: SpacingTokens.xxs2) {
-            ForEach(0..<3, id: \.self) { i in
-                Circle()
-                    .fill(Color.secondary)
-                    .frame(width: 5, height: 5)
-                    .opacity(phase == i ? 1.0 : 0.3)
-            }
-        }
-        .onAppear {
-            Timer.scheduledTimer(withTimeInterval: 0.4, repeats: true) { _ in
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    phase = (phase + 1) % 3
-                }
-            }
-        }
+            .opacity(dimmed ? 0.5 : 1.0)
     }
 }
 
 private struct ShortcutRecorderRepresentable: NSViewRepresentable {
     let onRecord: (CustomShortcutBinding) -> Void
     let onCancel: () -> Void
-    let onModifiersChanged: (String) -> Void
+    let onModifiersChanged: ([String]) -> Void
 
     func makeNSView(context: Context) -> ShortcutRecorderNSView {
         let view = ShortcutRecorderNSView()
@@ -191,7 +192,7 @@ private struct ShortcutRecorderRepresentable: NSViewRepresentable {
 final class ShortcutRecorderNSView: NSView {
     var onRecord: ((CustomShortcutBinding) -> Void)?
     var onCancel: (() -> Void)?
-    var onModifiersChanged: ((String) -> Void)?
+    var onModifiersChanged: (([String]) -> Void)?
 
     override init(frame: NSRect) {
         super.init(frame: frame)
@@ -233,7 +234,7 @@ final class ShortcutRecorderNSView: NSView {
         if mods.contains(.option) { parts.append("⌥") }
         if mods.contains(.shift) { parts.append("⇧") }
         if mods.contains(.command) { parts.append("⌘") }
-        onModifiersChanged?(parts.isEmpty ? "" : parts.joined() + " …")
+        onModifiersChanged?(parts)
     }
 
     override var intrinsicContentSize: NSSize {

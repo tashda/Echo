@@ -10,6 +10,7 @@ struct QueryResultsSettingsView: View {
     internal enum EngineTab: Hashable { case postgres, sqlserver, mysql, sqlite }
 
     var body: some View {
+        ScrollViewReader { proxy in
         Form {
             Section("Foreign Key Cells") {
                 SettingsRowWithInfo(
@@ -111,13 +112,6 @@ struct QueryResultsSettingsView: View {
                     defaultValue: ResultStreamingDefaults.fetchRampMax
                 )
 
-                Picker("Streaming mode", selection: streamingModeBinding) {
-                    ForEach(ResultStreamingExecutionMode.allCases, id: \.self) { mode in
-                        Text(mode.displayName).tag(mode)
-                    }
-                }
-                .pickerStyle(.segmented)
-
                 HStack {
                     Spacer()
                     Button("Revert to Default") {
@@ -130,7 +124,6 @@ struct QueryResultsSettingsView: View {
                         settings.resultsStreamingFetchRampMax = ResultStreamingDefaults.fetchRampMax
                         settings.resultsUseCursorStreaming = ResultStreamingDefaults.useCursor
                         settings.resultsCursorStreamingLimitThreshold = ResultStreamingDefaults.cursorLimitThreshold
-                        settings.resultsStreamingMode = .auto
                         Task { try? await projectStore.updateGlobalSettings(settings) }
                     }
                     .buttonStyle(.bordered)
@@ -154,10 +147,18 @@ struct QueryResultsSettingsView: View {
                 }
 
                 engineSpecificSettings
+                    .id("engineContent")
             }
+            .id("engineProfiles")
         }
         .formStyle(.grouped)
         .scrollContentBackground(.hidden)
+        .onChange(of: selectedEngineTab) { _, _ in
+            withAnimation {
+                proxy.scrollTo("engineProfiles", anchor: .bottom)
+            }
+        }
+        } // ScrollViewReader
     }
 
 }

@@ -142,7 +142,7 @@ struct StickyTopBarContent: View {
             .background(
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
                     .fill(
-                        projectStore.globalSettings.useServerColorAsAccent ?
+                        projectStore.globalSettings.accentColorSource == .connection ?
                         LinearGradient(
                             gradient: Gradient(colors: [
                                 ColorTokens.Background.secondary.opacity(0.85),
@@ -165,7 +165,7 @@ struct StickyTopBarContent: View {
             .overlay(
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
                     .strokeBorder(
-                        projectStore.globalSettings.useServerColorAsAccent ?
+                        projectStore.globalSettings.accentColorSource == .connection ?
                         session.connection.color.opacity(0.15) :
                         Color.primary.opacity(0.08),
                         lineWidth: 0.5

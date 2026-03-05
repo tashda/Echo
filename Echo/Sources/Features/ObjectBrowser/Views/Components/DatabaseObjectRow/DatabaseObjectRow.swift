@@ -27,7 +27,7 @@ struct DatabaseObjectRow: View, Equatable {
     }
     
     internal var accentColor: Color {
-        projectStore.globalSettings.useServerColorAsAccent ? connection.color : Color.accentColor
+        projectStore.globalSettings.accentColorSource == .connection ? connection.color : Color.accentColor
     }
     
     private var iconName: String {
