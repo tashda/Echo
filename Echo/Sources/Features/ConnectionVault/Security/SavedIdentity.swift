@@ -4,6 +4,7 @@ struct SavedIdentity: Identifiable, Codable, Hashable, Sendable {
     var id: UUID = UUID()
     var projectID: UUID?
     var name: String
+    var identityDescription: String?
     var username: String
     var keychainIdentifier: String?
     var createdAt: Date = Date()
@@ -14,6 +15,7 @@ struct SavedIdentity: Identifiable, Codable, Hashable, Sendable {
         id: UUID = UUID(),
         projectID: UUID? = nil,
         name: String,
+        identityDescription: String? = nil,
         username: String,
         keychainIdentifier: String? = nil,
         createdAt: Date = Date(),
@@ -23,6 +25,7 @@ struct SavedIdentity: Identifiable, Codable, Hashable, Sendable {
         self.id = id
         self.projectID = projectID
         self.name = name
+        self.identityDescription = identityDescription
         self.username = username
         self.keychainIdentifier = keychainIdentifier
         self.createdAt = createdAt

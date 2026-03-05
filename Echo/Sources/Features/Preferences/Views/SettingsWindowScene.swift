@@ -5,7 +5,7 @@ struct SettingsWindowScene: Scene {
     private let coordinator = AppCoordinator.shared
 
     var body: some Scene {
-        WindowGroup(id: Self.sceneID) {
+        Window("Settings", id: Self.sceneID) {
             SettingsView()
                 .environment(coordinator.projectStore)
                 .environment(coordinator.connectionStore)
@@ -18,6 +18,7 @@ struct SettingsWindowScene: Scene {
         }
         .defaultSize(width: 1000, height: 700)
         .windowToolbarStyle(.unified)
-        
+        .restorationBehavior(.disabled)
+        .defaultLaunchBehavior(.suppressed)
     }
 }

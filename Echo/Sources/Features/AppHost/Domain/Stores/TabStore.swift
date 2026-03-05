@@ -16,6 +16,10 @@ final class TabStore {
     // MARK: - State
     var tabCoordinator = TabCoordinator()
     weak var delegate: TabStoreDelegate?
+    /// Stored property that mirrors `!tabCoordinator.tabs.isEmpty`.
+    /// Needed because Swift Observation cannot track changes through
+    /// the ObservableObject-based TabCoordinator.
+    var hasTabs: Bool = false
     
     // MARK: - Initialization
     init() {
@@ -98,6 +102,7 @@ final class TabStore {
 
 extension TabStore: TabCoordinatorDelegate {
     func tabCoordinator(_ manager: TabCoordinator, didAdd tab: WorkspaceTab) {
+        hasTabs = !manager.tabs.isEmpty
         delegate?.tabStore(self, didAdd: tab)
     }
     
@@ -110,6 +115,7 @@ extension TabStore: TabCoordinatorDelegate {
     }
     
     func tabCoordinator(_ manager: TabCoordinator, didRemoveTabID tabID: UUID) {
+        hasTabs = !manager.tabs.isEmpty
         delegate?.tabStore(self, didRemoveTabID: tabID)
     }
     

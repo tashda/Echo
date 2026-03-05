@@ -5,7 +5,6 @@ struct IdentityEditorSheet: View {
     @Environment(ConnectionStore.self) private var connectionStore
     @EnvironmentObject private var environmentState: EnvironmentState
     @Environment(\.dismiss) private var dismiss
-    @EnvironmentObject private var appearanceStore: AppearanceStore
 
     let state: IdentityEditorState
     var onSave: ((SavedIdentity) -> Void)? = nil
@@ -13,6 +12,7 @@ struct IdentityEditorSheet: View {
     @State private var name: String = ""
     @State private var username: String = ""
     @State private var password: String = ""
+    @State private var passwordDirty = false
     @State private var selectedFolderID: UUID?
 
     private var editingIdentity: SavedIdentity? {
@@ -20,75 +20,116 @@ struct IdentityEditorSheet: View {
         return nil
     }
 
+    private var isEditing: Bool { editingIdentity != nil }
+
+    private var editingIdentityHasPassword: Bool {
+        guard let identity = editingIdentity else { return false }
+        return identity.keychainIdentifier != nil
+    }
+
     private var availableFolders: [SavedFolder] {
         connectionStore.folders
-            .filter { $0.kind == .identities }
+            .filter { $0.kind == .identities && $0.projectID == projectStore.selectedProject?.id }
             .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
     }
 
+    private func folderPath(for folder: SavedFolder) -> String {
+        var components: [String] = [folder.name]
+        var current = folder
+        while let parentID = current.parentFolderID,
+              let parent = connectionStore.folders.first(where: { $0.id == parentID }) {
+            components.insert(parent.name, at: 0)
+            current = parent
+        }
+        return components.joined(separator: " / ")
+    }
+
+    private var hierarchicalFolders: [(folder: SavedFolder, path: String)] {
+        availableFolders.map { folder in
+            (folder: folder, path: folderPath(for: folder))
+        }
+        .sorted { $0.path.localizedCaseInsensitiveCompare($1.path) == .orderedAscending }
+    }
+
+    private var hasDuplicateName: Bool {
+        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedName.isEmpty else { return false }
+        let projectID = projectStore.selectedProject?.id
+        let siblings = connectionStore.identities.filter {
+            $0.projectID == projectID
+            && $0.folderID == selectedFolderID
+            && $0.id != editingIdentity?.id
+        }
+        return siblings.contains {
+            $0.name.trimmingCharacters(in: .whitespacesAndNewlines)
+                .localizedCaseInsensitiveCompare(trimmedName) == .orderedSame
+        }
+    }
+
+    private var isValid: Bool {
+        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedUsername = username.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmedName.isEmpty || trimmedUsername.isEmpty { return false }
+        if hasDuplicateName { return false }
+        if !isEditing && password.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return false }
+        return true
+    }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text(editingIdentity == nil ? "New Identity" : "Edit Identity")
-                .font(.system(size: 22, weight: .semibold))
-
+        VStack(spacing: 0) {
+            formContent
             Divider()
-
-            identityForm
-
-            Divider()
-
             footerButtons
         }
-        .padding(.horizontal, SpacingTokens.md2)
-        .padding(.vertical, 18)
         .frame(width: 420)
-        .background(ColorTokens.Background.primary)
+        .fixedSize(horizontal: false, vertical: true)
         .onAppear(perform: prepareInitialValues)
     }
 
-    private var identityForm: some View {
+    // MARK: - Form
+
+    private var formContent: some View {
         Form {
             Section {
-                LabeledContent("Name") {
-                    TextField("", text: $name, prompt: Text("Production"))
-                }
-
-                LabeledContent("Username") {
-                    TextField("", text: $username, prompt: Text("db_admin"))
-                }
-
-                LabeledContent("Password") {
-                    SecureField("", text: $password, prompt: Text("••••••••"))
+                TextField("Name", text: $name, prompt: Text("Production"))
+                if hasDuplicateName {
+                    Text("An identity with this name already exists here.")
+                        .font(TypographyTokens.detail)
+                        .foregroundStyle(.red)
                 }
             } header: {
-                Text("Identity Details")
+                Text(isEditing ? "Edit Identity" : "New Identity")
             }
 
-            if !availableFolders.isEmpty {
-                Section {
-                    LabeledContent("Folder") {
-                        Picker("", selection: Binding<UUID?>(
-                            get: { selectedFolderID },
-                            set: { selectedFolderID = $0 }
-                        )) {
-                            Text("No Folder").tag(UUID?.none)
-                            ForEach(availableFolders, id: \.id) { folder in
-                                Text(folder.name).tag(UUID?.some(folder.id))
-                            }
-                        }
-                        .labelsHidden()
+            Section("Credentials") {
+                TextField("Username", text: $username, prompt: Text("db_admin"))
+                SecureField("Password", text: Binding(
+                    get: { password },
+                    set: { password = $0; passwordDirty = true }
+                ), prompt: Text("••••••••"))
+                if isEditing && editingIdentityHasPassword && !passwordDirty {
+                    Text("Existing password will be kept unless changed.")
+                        .font(TypographyTokens.detail)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            Section("Location") {
+                Picker("Folder", selection: $selectedFolderID) {
+                    Text("None").tag(UUID?.none)
+                    ForEach(hierarchicalFolders, id: \.folder.id) { item in
+                        Text(item.path).tag(UUID?.some(item.folder.id))
                     }
-                } header: {
-                    Text("Location")
                 }
             }
         }
         .formStyle(.grouped)
         .scrollContentBackground(.hidden)
-        .frame(maxHeight: 320)
+        .scrollDisabled(true)
     }
 
-    @ViewBuilder
+    // MARK: - Footer
+
     private var footerButtons: some View {
         HStack {
             if let identity = editingIdentity {
@@ -100,36 +141,37 @@ struct IdentityEditorSheet: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(.red)
-                Spacer()
-            } else {
-                Spacer()
             }
+
+            Spacer()
 
             Button("Cancel", role: .cancel) { dismiss() }
+                .keyboardShortcut(.cancelAction)
 
-            Button(editingIdentity == nil ? "Create" : "Save") {
+            Button(isEditing ? "Save" : "Create") {
                 Task { await saveIdentity() }
             }
-            .buttonStyle(.borderedProminent)
-            .tint(appearanceStore.accentColor)
+            .keyboardShortcut(.defaultAction)
             .disabled(!isValid)
         }
-        .controlSize(.regular)
+        .padding(SpacingTokens.md2)
     }
 
-    private var isValid: Bool {
-        !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
-        !username.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-    }
+    // MARK: - Logic
 
     private func prepareInitialValues() {
         if case .edit(let identity) = state {
             name = identity.name
             username = identity.username
             selectedFolderID = identity.folderID
-        } else if selectedFolderID == nil,
-                  let first = availableFolders.first {
-            selectedFolderID = first.id
+            password = ""
+            passwordDirty = false
+        } else if case .create(let parent, _) = state {
+            name = ""
+            username = ""
+            password = ""
+            passwordDirty = false
+            selectedFolderID = parent?.id
         }
     }
 
@@ -140,21 +182,25 @@ struct IdentityEditorSheet: View {
         case .create:
             identity = SavedIdentity(
                 projectID: projectStore.selectedProject?.id,
-                name: name,
-                username: username,
+                name: name.trimmingCharacters(in: .whitespacesAndNewlines),
+                username: username.trimmingCharacters(in: .whitespacesAndNewlines),
                 keychainIdentifier: "echo.identity.\(UUID().uuidString)",
                 folderID: selectedFolderID
             )
         case .edit(let existing):
             identity = existing
-            identity.name = name
-            identity.username = username
+            identity.name = name.trimmingCharacters(in: .whitespacesAndNewlines)
+            identity.username = username.trimmingCharacters(in: .whitespacesAndNewlines)
             identity.folderID = selectedFolderID
+            identity.updatedAt = Date()
         }
 
-        if !password.isEmpty {
+        if passwordDirty && !password.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            try? environmentState.identityRepository.setPassword(password, for: &identity)
+        } else if !isEditing {
             try? environmentState.identityRepository.setPassword(password, for: &identity)
         }
+
         try? await connectionStore.updateIdentity(identity)
         onSave?(identity)
         dismiss()

@@ -14,6 +14,8 @@ struct StreamingTestHarnessWindow: Scene {
                 .environmentObject(AppCoordinator.shared.appearanceStore)
         }
         .defaultSize(width: 840, height: 620)
+        .restorationBehavior(.disabled)
+        .defaultLaunchBehavior(.suppressed)
     }
 }
 

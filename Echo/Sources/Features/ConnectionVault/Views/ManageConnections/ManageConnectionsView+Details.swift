@@ -3,11 +3,77 @@ import SwiftUI
 extension ManageConnectionsView {
     @ViewBuilder
     var detailBody: some View {
-        switch activeSection {
-        case .connections:
-            connectionsDetail
-        case .identities:
-            identitiesDetail
+        if isSearching {
+            searchResultsDetail
+        } else {
+            switch activeSection {
+            case .connections:
+                connectionsDetail
+            case .identities:
+                identitiesDetail
+            }
+        }
+    }
+
+    private var isSearching: Bool {
+        normalizedQuery != nil
+    }
+
+    @ViewBuilder
+    private var searchResultsDetail: some View {
+        let connections = searchFilteredConnections
+        let identities = searchFilteredIdentities
+
+        if connections.isEmpty && identities.isEmpty {
+            VStack(spacing: 14) {
+                Image(systemName: "magnifyingglass")
+                    .font(.system(size: 40, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                Text("No Results")
+                    .font(TypographyTokens.displayLarge.weight(.semibold))
+                Text("No connections or identities match your search.")
+                    .font(TypographyTokens.standard)
+                    .foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else {
+            VStack(spacing: 0) {
+                if !connections.isEmpty {
+                    ConnectionsTableView(
+                        connections: connections,
+                        selection: $connectionSelection,
+                        sortOrder: $connectionSortOrder,
+                        folderLookup: folderLookup(for: .connections),
+                        onConnect: connectToConnection,
+                        onEdit: editConnection,
+                        onDuplicate: duplicateConnection,
+                        onDelete: { handleDeletion(.connection($0)) },
+                        identityDecorationProvider: identityDecoration(for:),
+                        onDoubleClick: connectToConnection,
+                        moveConnectionToFolder: moveConnectionToFolder,
+                        createFolderAndMoveConnection: createFolderAndMoveConnection,
+                        onNewConnection: createNewConnection,
+                        onNewFolder: { presentCreateFolder(for: .connections) }
+                    )
+                }
+                if !identities.isEmpty {
+                    if !connections.isEmpty {
+                        Divider()
+                    }
+                    IdentitiesTableView(
+                        identities: identities,
+                        selection: $identitySelection,
+                        sortOrder: $identitySortOrder,
+                        folderLookup: folderLookup(for: .identities),
+                        onEdit: editIdentity,
+                        onDelete: { handleDeletion(.identity($0)) },
+                        moveIdentityToFolder: moveIdentityToFolder,
+                        createFolderAndMoveIdentity: createFolderAndMoveIdentity,
+                        onNewIdentity: createNewIdentity,
+                        onNewFolder: { presentCreateFolder(for: .identities) }
+                    )
+                }
+            }
         }
     }
 
@@ -28,7 +94,9 @@ extension ManageConnectionsView {
                 identityDecorationProvider: identityDecoration(for:),
                 onDoubleClick: connectToConnection,
                 moveConnectionToFolder: moveConnectionToFolder,
-                createFolderAndMoveConnection: createFolderAndMoveConnection
+                createFolderAndMoveConnection: createFolderAndMoveConnection,
+                onNewConnection: createNewConnection,
+                onNewFolder: { presentCreateFolder(for: .connections) }
             )
         }
     }
@@ -46,7 +114,9 @@ extension ManageConnectionsView {
                 onEdit: editIdentity,
                 onDelete: { handleDeletion(.identity($0)) },
                 moveIdentityToFolder: moveIdentityToFolder,
-                createFolderAndMoveIdentity: createFolderAndMoveIdentity
+                createFolderAndMoveIdentity: createFolderAndMoveIdentity,
+                onNewIdentity: createNewIdentity,
+                onNewFolder: { presentCreateFolder(for: .identities) }
             )
         }
     }
@@ -76,7 +146,6 @@ extension ManageConnectionsView {
             .buttonStyle(.borderedProminent)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(ColorTokens.Background.secondary)
     }
 
     func identityDecoration(for connection: SavedConnection) -> (name: String, icon: String)? {

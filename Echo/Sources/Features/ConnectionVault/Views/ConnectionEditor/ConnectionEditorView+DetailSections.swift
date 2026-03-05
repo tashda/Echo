@@ -6,40 +6,34 @@ import UniformTypeIdentifiers
 
 extension ConnectionEditorView {
     var authenticationSection: some View {
-        Group {
-            if selectedDatabaseType != .sqlite {
-                Section {
-                    Picker("Method", selection: $credentialSource) {
-                        ForEach(availableCredentialSources, id: \.self) { source in
-                            Text(source.displayName).tag(source)
-                        }
-                    }
-                    .pickerStyle(.menu)
-                    .onChange(of: credentialSource) { _, newSource in
-                        switch newSource {
-                        case .manual:
-                            break
-                        case .identity:
-                            password = ""
-                            if identityID == nil || !connectionStore.identities.contains(where: { $0.id == identityID }) {
-                                identityID = connectionStore.identities.first?.id
-                            }
-                        case .inherit:
-                            password = ""
-                        }
-                    }
-
-                    switch credentialSource {
-                    case .manual:
-                        manualCredentialFields
-                    case .identity:
-                        identityPickerFields
-                    case .inherit:
-                        inheritedIdentityInfo
-                    }
-                } header: {
-                    Text("Authentication")
+        Section("Authentication") {
+            Picker("Method", selection: $credentialSource) {
+                ForEach(availableCredentialSources, id: \.self) { source in
+                    Text(source.displayName).tag(source)
                 }
+            }
+            .pickerStyle(.menu)
+            .onChange(of: credentialSource) { _, newSource in
+                switch newSource {
+                case .manual:
+                    break
+                case .identity:
+                    password = ""
+                    if identityID == nil || !connectionStore.identities.contains(where: { $0.id == identityID }) {
+                        identityID = connectionStore.identities.first?.id
+                    }
+                case .inherit:
+                    password = ""
+                }
+            }
+
+            switch credentialSource {
+            case .manual:
+                manualCredentialFields
+            case .identity:
+                identityPickerFields
+            case .inherit:
+                inheritedIdentityInfo
             }
         }
     }
@@ -77,16 +71,12 @@ extension ConnectionEditorView {
     var identityPickerFields: some View {
         Group {
             if sortedIdentities.isEmpty {
-                VStack(alignment: .leading, spacing: 8) {
+                VStack(alignment: .leading, spacing: SpacingTokens.xs) {
                     Text("No identities available.")
                         .foregroundStyle(.secondary)
-                        .font(.callout)
-                    HStack {
-                        Spacer()
-                        Button("Create Linked Identity...") {
-                            identityEditorState = .create(parent: nil, token: UUID())
-                        }
-                        .buttonStyle(.link)
+                        .font(TypographyTokens.detail)
+                    Button("Create Identity...") {
+                        identityEditorState = .create(parent: nil, token: UUID())
                     }
                 }
             } else {
@@ -97,12 +87,8 @@ extension ConnectionEditorView {
                 }
                 .pickerStyle(.menu)
 
-                HStack {
-                    Spacer()
-                    Button("Create Linked Identity...") {
-                        identityEditorState = .create(parent: nil, token: UUID())
-                    }
-                    .buttonStyle(.link)
+                Button("Create Identity...") {
+                    identityEditorState = .create(parent: nil, token: UUID())
                 }
             }
         }
@@ -111,29 +97,21 @@ extension ConnectionEditorView {
     var inheritedIdentityInfo: some View {
         Group {
             if let identity = inheritedIdentity {
-                Text("This connection will use the identity '\(identity.name)' inherited from the selected folder.")
+                Text("This connection will use the identity \"\(identity.name)\" inherited from the selected folder.")
                     .foregroundStyle(.secondary)
-                    .font(.callout)
+                    .font(TypographyTokens.detail)
                     .fixedSize(horizontal: false, vertical: true)
             } else {
                 Text("The selected folder does not have credentials configured.")
                     .foregroundStyle(.red)
-                    .font(.callout)
+                    .font(TypographyTokens.detail)
             }
         }
     }
 
     var securitySection: some View {
-        Group {
-            if selectedDatabaseType != .sqlite {
-                Section {
-                    Toggle("Use SSL/TLS", isOn: $useTLS)
-                } header: {
-                    Text("Security")
-                } footer: {
-                    Text("Enable encrypted connections when supported by the server.")
-                }
-            }
+        Section("Security") {
+            Toggle("Use SSL/TLS", isOn: $useTLS)
         }
     }
 }

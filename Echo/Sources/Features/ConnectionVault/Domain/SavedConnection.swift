@@ -230,13 +230,6 @@ struct SavedConnection: Identifiable, Codable, Hashable, Sendable {
         databaseType: .postgresql
     )
 
-    static func == (lhs: SavedConnection, rhs: SavedConnection) -> Bool {
-        lhs.id == rhs.id
-    }
-
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(id)
-    }
 }
 
 @MainActor

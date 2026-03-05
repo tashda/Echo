@@ -13,7 +13,8 @@ struct MySQLNIOFactory: DatabaseFactory {
         port: Int,
         database: String?,
         tls: Bool,
-        authentication: DatabaseAuthenticationConfiguration
+        authentication: DatabaseAuthenticationConfiguration,
+        connectTimeoutSeconds: Int = 10
     ) async throws -> DatabaseSession {
         guard authentication.method == .sqlPassword else {
             throw DatabaseError.authenticationFailed("Windows authentication is not supported for MySQL")

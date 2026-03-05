@@ -98,6 +98,7 @@ struct WorkspaceTabContainerView: View {
                 )
             }
         }
+        .animation(.easeInOut(duration: 0.2), value: appState.showTabOverview)
         .onAppear(perform: createInitialTabIfNeeded)
         .onChange(of: connectionStore.selectedConnectionID) { _, _ in
             createInitialTabIfNeeded()

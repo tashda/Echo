@@ -85,8 +85,13 @@ struct SettingsView: View {
                 }
             }
             .listStyle(.sidebar)
-//            .toolbar(removing: .sidebarToggle)
-            //.toolbar(.hidden, for: .windowToolbar)
+            .navigationSplitViewColumnWidth(min: 200, ideal: 220, max: 260)
+            // FIXME: macOS 26 (Tahoe) bug — .toolbar(removing: .sidebarToggle) has no effect
+            // when applied to the NavigationSplitView or detail content. Applying it to the
+            // sidebar content does remove the button, but breaks the Liquid Glass sidebar
+            // layout (sidebar no longer extends into the toolbar area). Similarly,
+            // .navigationSplitViewColumnWidth(_:) prevents expansion but still allows the
+            // sidebar to be collapsed to zero. Revisit when Apple fixes these issues.
         } detail: {
             Group {
                 if let selection {
@@ -104,12 +109,6 @@ struct SettingsView: View {
             .navigationTitle(selection?.title ?? "Settings")
             .toolbarTitleDisplayMode(.automatic)
         }
-        // Remove the standard "Hide Sidebar" toggle and pin the sidebar width.
-        .toolbar(removing: .sidebarToggle)
-        .navigationSplitViewColumnWidth(min: sidebarColumnWidth,
-                                        ideal: sidebarColumnWidth,
-                                        max: sidebarColumnWidth)
-        .toolbar(removing: .sidebarToggle)
         .preferredColorScheme(appearanceStore.effectiveColorScheme)
         .accentColor(appearanceStore.accentColor)
         .onReceive(NotificationCenter.default.publisher(for: .openSettingsSection)) { notification in

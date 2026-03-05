@@ -11,7 +11,6 @@ extension ManageConnectionsView {
     }
 
     func handleSectionChange(_ section: ManageSection) {
-        searchText = ""
         if section == .connections {
             connectionStore.selectedIdentityID = nil
         }

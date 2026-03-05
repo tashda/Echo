@@ -48,6 +48,14 @@ enum IdentityEditorState: Identifiable {
 
 enum FolderIdentityPalette {
     static let defaults: [String] = [
-        "BAF2BB", "BAF2D8", "BAD7F2", "F2BAC9", "F2E2BA"
+        "5A9CDE", "6EAE72", "E8943A", "9B72CF", "D4687A"
+    ]
+
+    static let connectionIcons: [String] = [
+        "folder", "folder.fill", "server.rack", "cylinder.split.1x2.fill", "globe"
+    ]
+
+    static let identityIcons: [String] = [
+        "folder", "folder.fill", "person.crop.circle", "person.2", "key.fill"
     ]
 }

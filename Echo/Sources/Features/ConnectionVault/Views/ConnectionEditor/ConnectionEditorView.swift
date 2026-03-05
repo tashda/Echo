@@ -1,5 +1,18 @@
 import SwiftUI
 
+struct TestLogEntry: Identifiable {
+    let id = UUID()
+    let timestamp: Date
+    let message: String
+    let kind: Kind
+
+    enum Kind {
+        case info
+        case success
+        case error
+    }
+}
+
 struct ConnectionEditorView: View {
     enum SaveAction {
         case save
@@ -7,18 +20,14 @@ struct ConnectionEditorView: View {
     }
 
     static let colorPalette: [String] = [
-        "BAF2BB",
-        "BAF2D8",
-        "BAD7F2",
-        "F2BAC9",
-        "F2E2BA"
+        "5A9CDE", "6EAE72", "E8943A", "9B72CF", "D4687A"
     ]
 
     @Environment(\.dismiss) internal var dismiss
     @Environment(ProjectStore.self) internal var projectStore
     @Environment(ConnectionStore.self) internal var connectionStore
     @Environment(NavigationStore.self) internal var navigationStore
-    
+
     @EnvironmentObject internal var environmentState: EnvironmentState
 
     @State internal var selectedDatabaseType: DatabaseType
@@ -39,8 +48,8 @@ struct ConnectionEditorView: View {
     @State internal var isTestingConnection = false
     @State internal var testResult: ConnectionTestResult?
     @State internal var testTask: Task<Void, Never>?
+    @State internal var testLogEntries: [TestLogEntry] = []
     @State internal var identityEditorState: IdentityEditorState?
-    @State internal var showingTestAlert = false
 
     internal let originalConnection: SavedConnection?
     let onSave: (SavedConnection, String?, SaveAction) -> Void
@@ -158,13 +167,11 @@ struct ConnectionEditorView: View {
     }
 
     var body: some View {
-        NavigationSplitView {
-            sidebarView
-        } detail: {
+        VStack(spacing: 0) {
             detailView
         }
-        .navigationSplitViewStyle(.balanced)
-        .frame(width: 700, height: 550)
+        .frame(width: 520)
+        .frame(minHeight: 400, idealHeight: 580, maxHeight: 720)
         .onAppear {
             if originalConnection == nil && folderID == nil {
                 folderID = connectionStore.selectedFolderID
@@ -177,17 +184,38 @@ struct ConnectionEditorView: View {
             })
             .environmentObject(environmentState)
         }
-        .alert(testResult?.success == true ? "Connection Successful" : "Connection Failed", isPresented: $showingTestAlert) {
-            Button("OK", role: .cancel) { }
-        } message: {
-            if let result = testResult {
-                if result.details.isEmpty {
-                    Text(result.message)
-                } else {
-                    Text(result.details)
-                }
+        .onChange(of: selectedDatabaseType) { oldType, newType in
+            handleDatabaseTypeChange(from: oldType, to: newType)
+        }
+        .onChange(of: authenticationMethod) { _, newMethod in
+            if newMethod == .windowsIntegrated {
+                credentialSource = .manual
             }
         }
-        .background(Color.clear)
+    }
+
+    internal func handleDatabaseTypeChange(from oldType: DatabaseType, to newType: DatabaseType) {
+        if newType == .sqlite {
+            port = 0
+            useTLS = false
+            credentialSource = .manual
+            identityID = nil
+            username = ""
+            password = ""
+            database = ""
+            authenticationMethod = .sqlPassword
+            domain = ""
+        } else {
+            if oldType == .sqlite || port == 0 || port == oldType.defaultPort {
+                port = newType.defaultPort
+            }
+            let supportedMethods = newType.supportedAuthenticationMethods
+            if !supportedMethods.contains(authenticationMethod) {
+                authenticationMethod = newType.defaultAuthenticationMethod
+            }
+            if authenticationMethod == .windowsIntegrated {
+                credentialSource = .manual
+            }
+        }
     }
 }
