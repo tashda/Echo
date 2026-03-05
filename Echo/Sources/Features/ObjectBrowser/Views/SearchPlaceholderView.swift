@@ -13,14 +13,14 @@ struct SearchPlaceholderView: View {
                 .font(.system(size: 28, weight: .semibold))
                 .foregroundStyle(.tertiary)
             Text(title)
-                .font(.system(size: 13, weight: .semibold))
+                .font(TypographyTokens.standard.weight(.semibold))
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
             Text(subtitle)
-                .font(.system(size: 11))
+                .font(TypographyTokens.detail)
                 .foregroundStyle(.tertiary)
                 .multilineTextAlignment(.center)
-                .padding(.horizontal, 16)
+                .padding(.horizontal, SpacingTokens.md)
             if let actionTitle, let action {
                 Button(actionTitle) {
                     action()
@@ -28,7 +28,7 @@ struct SearchPlaceholderView: View {
                 .buttonStyle(.bordered)
             }
         }
-        .padding(.horizontal, 16)
+        .padding(.horizontal, SpacingTokens.md)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 }

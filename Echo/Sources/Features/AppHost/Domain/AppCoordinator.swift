@@ -24,7 +24,7 @@ final class AppCoordinator: ObservableObject {
     let connectionStore: ConnectionStore
     let navigationStore: NavigationStore
     let tabStore: TabStore
-    let resultSpoolCoordinator: ResultSpoolCoordinator
+    let resultSpoolConfigCoordinator: ResultSpoolConfigCoordinator
     let diagramCoordinator: DiagramCoordinator
     let identityRepository: IdentityRepository
     let schemaDiscoveryCoordinator: MetadataDiscoveryCoordinator
@@ -33,9 +33,9 @@ final class AppCoordinator: ObservableObject {
     let environmentState: EnvironmentState
     let appState: AppState
     let clipboardHistory: ClipboardHistoryStore
-    let themeManager: ThemeManager
-    let resultSpoolManager: ResultSpoolManager
-    let diagramCacheManager: DiagramCacheManager
+    let appearanceStore: AppearanceStore
+    let resultSpoolManager: ResultSpoolCoordinator
+    let diagramCacheStore: DiagramCacheStore
     let diagramKeyStore: DiagramEncryptionKeyStore
     private var cancellables = Set<AnyCancellable>()
 #if os(macOS)
@@ -50,14 +50,14 @@ final class AppCoordinator: ObservableObject {
         self.appState = AppState()
         let clipboardHistory = ClipboardHistoryStore()
         self.clipboardHistory = clipboardHistory
-        let spoolRoot = ResultSpoolManager.defaultRootDirectory()
+        let spoolRoot = ResultSpoolCoordinator.defaultRootDirectory()
         let spoolConfig = ResultSpoolConfiguration.defaultConfiguration(rootDirectory: spoolRoot)
-        self.resultSpoolManager = ResultSpoolManager(configuration: spoolConfig)
-        let cacheRoot = DiagramCacheManager.defaultRootDirectory()
-        let diagramConfig = DiagramCacheManager.Configuration(rootDirectory: cacheRoot)
+        self.resultSpoolManager = ResultSpoolCoordinator(configuration: spoolConfig)
+        let cacheRoot = DiagramCacheStore.defaultRootDirectory()
+        let diagramConfig = DiagramCacheStore.Configuration(rootDirectory: cacheRoot)
         let keyStore = DiagramEncryptionKeyStore()
-        let cacheManager = DiagramCacheManager(configuration: diagramConfig)
-        self.diagramCacheManager = cacheManager
+        let cacheManager = DiagramCacheStore(configuration: diagramConfig)
+        self.diagramCacheStore = cacheManager
         self.diagramKeyStore = keyStore
         
         // Initialize modular stores
@@ -77,10 +77,10 @@ final class AppCoordinator: ObservableObject {
         
         self.navigationStore = NavigationStore()
         self.tabStore = TabStore()
-        self.themeManager = ThemeManager.shared
+        self.appearanceStore = AppearanceStore.shared
         
         // Initialize new domain coordinators
-        self.resultSpoolCoordinator = ResultSpoolCoordinator(spoolManager: resultSpoolManager)
+        self.resultSpoolConfigCoordinator = ResultSpoolConfigCoordinator(spoolManager: resultSpoolManager)
         self.diagramCoordinator = DiagramCoordinator(cacheManager: cacheManager, keyStore: keyStore)
         
         self.environmentState = EnvironmentState(
@@ -89,14 +89,14 @@ final class AppCoordinator: ObservableObject {
             navigationStore: navigationStore,
             tabStore: tabStore,
             clipboardHistory: clipboardHistory,
-            resultSpoolCoordinator: resultSpoolCoordinator,
+            resultSpoolConfigCoordinator: resultSpoolConfigCoordinator,
             diagramCoordinator: diagramCoordinator,
             identityRepository: identityRepository,
             schemaDiscoveryCoordinator: schemaDiscoveryCoordinator,
             bookmarkRepository: bookmarkRepository,
             historyRepository: historyRepository,
             resultSpoolManager: resultSpoolManager,
-            diagramCacheManager: cacheManager,
+            diagramCacheStore: cacheManager,
             diagramKeyStore: keyStore
         )
         
@@ -113,7 +113,7 @@ final class AppCoordinator: ObservableObject {
         }
         diagramCoordinator.sessionProvider = { @MainActor [weak self] sessionID in
             guard let self = self else { return nil }
-            return self.environmentState.sessionManager.activeSessions.first { $0.id == sessionID }
+            return self.environmentState.sessionCoordinator.activeSessions.first { $0.id == sessionID }
         }
 
         Task {
@@ -177,7 +177,7 @@ final class AppCoordinator: ObservableObject {
             }
         }
 
-        ThemeManager.shared.$effectiveColorScheme
+        AppearanceStore.shared.$effectiveColorScheme
             .receive(on: RunLoop.main)
             .sink { [weak self] _ in
                 guard let self else { return }
@@ -185,7 +185,7 @@ final class AppCoordinator: ObservableObject {
             }
             .store(in: &cancellables)
 
-        environmentState.sessionManager.$activeSessions
+        environmentState.sessionCoordinator.$activeSessions
             .receive(on: RunLoop.main)
             .sink { [weak self] sessions in
                 guard let self else { return }
@@ -201,21 +201,20 @@ final class AppCoordinator: ObservableObject {
     }
 
     private func applyEditorAppearance(project: Project?, global: GlobalSettings) {
-        ThemeManager.shared.applyAppearanceMode(global.appearanceMode)
+        AppearanceStore.shared.applyAppearanceMode(global.appearanceMode)
         appState.sqlEditorDisplay = SQLEditorThemeResolver.resolveDisplayOptions(globalSettings: global, project: project)
-        appState.themeTabs = global.themeTabs
         appState.workspaceTabBarStyle = global.workspaceTabBarStyle
         appState.keepTabsInMemory = global.keepTabsInMemory
         applyEditorTheme(project: project, global: global)
     }
 
     private func applyEditorTheme(project: Project?, global: GlobalSettings) {
-        let tone = ThemeManager.shared.activePaletteTone
+        let tone: SQLEditorPalette.Tone = AppearanceStore.shared.effectiveColorScheme == .dark ? .dark : .light
         appState.sqlEditorTheme = SQLEditorThemeResolver.resolve(globalSettings: global, project: project, tone: tone)
     }
 
     private func ensureInitialWorkspaceState() {
-        if environmentState.sessionManager.activeSessions.isEmpty {
+        if environmentState.sessionCoordinator.activeSessions.isEmpty {
 #if !os(macOS)
             presentConnectionsIfNeeded()
 #endif
@@ -224,7 +223,7 @@ final class AppCoordinator: ObservableObject {
         }
     }
 
-    private func presentConnectionsIfNeeded() {
+    internal func presentConnectionsIfNeeded() {
         guard !navigationStore.isManageConnectionsPresented else { return }
 #if os(macOS)
         ManageConnectionsWindowController.shared.present()
@@ -233,7 +232,7 @@ final class AppCoordinator: ObservableObject {
 #endif
     }
 
-    private func dismissConnectionsIfNeeded() {
+    internal func dismissConnectionsIfNeeded() {
 #if os(macOS)
         if navigationStore.isManageConnectionsPresented {
             ManageConnectionsWindowController.shared.closeWindow()
@@ -288,75 +287,4 @@ final class AppCoordinator: ObservableObject {
         windowFocusObservers.forEach { NotificationCenter.default.removeObserver($0) }
     }
 #endif
-}
-
-// MARK: - TabStoreDelegate
-
-extension AppCoordinator: TabStoreDelegate {
-    func tabStore(_ store: TabStore, didAdd tab: WorkspaceTab) {
-        if store.activeTabId == tab.id {
-            environmentState.sessionManager.setActiveSession(tab.connectionSessionID)
-        }
-    }
-
-    func tabStore(_ store: TabStore, shouldClose tab: WorkspaceTab) async -> Bool {
-        guard let context = tab.bookmarkContext, let queryState = tab.query else {
-            return true
-        }
-
-#if os(macOS)
-        let alert = NSAlert()
-        alert.messageText = "Save bookmark \"\(context.displayName)\"?"
-        alert.informativeText = "Do you want to save the current query back to this bookmark before closing the tab?"
-        alert.addButton(withTitle: "Save")
-        alert.addButton(withTitle: "Don't Save")
-        alert.addButton(withTitle: "Cancel")
-
-        let response = alert.runModal()
-
-        switch response {
-        case .alertFirstButtonReturn:
-            let currentQuery = queryState.sql
-            if let connection = connectionStore.connections.first(where: { $0.id == tab.connection.id }),
-               let projectID = connection.projectID,
-               var project = projectStore.projects.first(where: { $0.id == projectID }) {
-                environmentState.bookmarkRepository.updateBookmark(context.bookmarkID, in: &project) { b in
-                    b.query = currentQuery
-                }
-                await projectStore.saveProject(project)
-            }
-            return true
-        case .alertSecondButtonReturn:
-            return true
-        default:
-            return false
-        }
-#else
-        return true
-#endif
-    }
-
-    func tabStore(_ store: TabStore, didRemoveTabID tabID: UUID) {
-        if let activeTab = store.activeTab {
-            environmentState.sessionManager.setActiveSession(activeTab.connectionSessionID)
-        } else {
-            environmentState.sessionManager.activeSessionID = nil
-        }
-    }
-
-    func tabStore(_ store: TabStore, didSetActiveTabID tabID: UUID?) {
-        guard let tabID, let tab = store.getTab(id: tabID) else {
-            environmentState.sessionManager.activeSessionID = nil
-#if !os(macOS)
-            presentConnectionsIfNeeded()
-#endif
-            return
-        }
-
-        environmentState.sessionManager.setActiveSession(tab.connectionSessionID)
-    }
-
-    func tabStoreDidReorderTabs(_ store: TabStore) {
-        // Future hook for syncing external UI
-    }
 }

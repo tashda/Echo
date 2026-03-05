@@ -27,13 +27,13 @@ struct SearchFilterPopoverView: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Text("Filters")
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(TypographyTokens.caption2.weight(.semibold))
                 Spacer()
                 Button {
                     onSelectAll()
                 } label: {
                     Text("Select All")
-                        .font(.system(size: 11))
+                        .font(TypographyTokens.detail)
                 }
                 .buttonStyle(.plain)
                 Divider()
@@ -42,7 +42,7 @@ struct SearchFilterPopoverView: View {
                     onClearAll()
                 } label: {
                     Text("Clear All")
-                        .font(.system(size: 11))
+                        .font(TypographyTokens.detail)
                 }
                 .buttonStyle(.plain)
             }
@@ -52,10 +52,10 @@ struct SearchFilterPopoverView: View {
 #if os(macOS)
                     Toggle(category.displayName, isOn: binding(for: category))
                         .toggleStyle(.checkbox)
-                        .font(.system(size: 11))
+                        .font(TypographyTokens.detail)
 #else
                     Toggle(category.displayName, isOn: binding(for: category))
-                        .font(.system(size: 11))
+                        .font(TypographyTokens.detail)
 #endif
                 }
             }

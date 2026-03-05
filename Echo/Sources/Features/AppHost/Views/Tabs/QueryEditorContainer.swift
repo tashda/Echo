@@ -7,21 +7,21 @@ struct QueryEditorContainer: View {
     let runQuery: (String) async -> Void
     let cancelQuery: () -> Void
     let gridStateProvider: () -> QueryResultsGridState
-    
-    @Environment(ProjectStore.self) internal var projectStore
-    @Environment(ConnectionStore.self) internal var connectionStore
-    @EnvironmentObject internal var themeManager: ThemeManager
-    @EnvironmentObject internal var environmentState: EnvironmentState
-    @EnvironmentObject internal var appState: AppState
 
-    internal let minRatio: CGFloat = 0.25
-    internal let maxRatio: CGFloat = 0.8
-    @State internal var liveSplitRatioOverride: CGFloat?
+    @Environment(ProjectStore.self) var projectStore
+    @Environment(ConnectionStore.self) var connectionStore
+    @EnvironmentObject var appearanceStore: AppearanceStore
+    @EnvironmentObject var environmentState: EnvironmentState
+    @EnvironmentObject var appState: AppState
+
+    let minRatio: CGFloat = 0.25
+    let maxRatio: CGFloat = 0.8
+    @State var liveSplitRatioOverride: CGFloat?
 #if os(macOS)
-    @State internal var latestForeignKeySelection: QueryResultsTableView.ForeignKeySelection?
-    @State internal var latestJsonSelection: QueryResultsTableView.JsonSelection?
-    @State internal var foreignKeyFetchTask: Task<Void, Never>?
-    @State internal var autoOpenedInspector = false
+    @State var latestForeignKeySelection: QueryResultsTableView.ForeignKeySelection?
+    @State var latestJsonSelection: QueryResultsTableView.JsonSelection?
+    @State var foreignKeyFetchTask: Task<Void, Never>?
+    @State var autoOpenedInspector = false
 #endif
 
     var body: some View {
@@ -157,41 +157,6 @@ struct QueryEditorContainer: View {
         }
     }
 
-    internal var connectionSession: ConnectionSession? {
-        environmentState.sessionManager.activeSessions.first { $0.id == tab.connectionSessionID }
-    }
-
-    internal var connectionServerName: String? {
-        let name = (connectionSession?.connection.connectionName ?? tab.connection.connectionName)
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-        if !name.isEmpty { return name }
-        let host = (connectionSession?.connection.host ?? tab.connection.host)
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-        return host.isEmpty ? nil : host
-    }
-
-    internal var connectionDatabaseName: String? {
-        if let selected = connectionSession?.selectedDatabaseName?.trimmingCharacters(in: .whitespacesAndNewlines), !selected.isEmpty {
-            return selected
-        }
-        let database = tab.connection.database.trimmingCharacters(in: .whitespacesAndNewlines)
-        return database.isEmpty ? nil : database
-    }
-
-#if os(macOS)
-    internal var foreignKeyDisplayMode: ForeignKeyDisplayMode {
-        projectStore.globalSettings.foreignKeyDisplayMode
-    }
-
-    internal var foreignKeyInspectorBehavior: ForeignKeyInspectorBehavior {
-        projectStore.globalSettings.foreignKeyInspectorBehavior
-    }
-
-    internal var includeRelatedForeignKeys: Bool {
-        projectStore.globalSettings.foreignKeyIncludeRelated
-    }
-#endif
-
     @MainActor
     private func triggerAutoExecutionIfNeeded() async {
         guard query.shouldAutoExecuteOnAppear else { return }
@@ -200,91 +165,4 @@ struct QueryEditorContainer: View {
         await runQuery(query.sql)
     }
 
-    internal func updateClipboardContext() {
-        query.updateClipboardContext(
-            serverName: connectionServerName,
-            databaseName: connectionDatabaseName,
-            connectionColorHex: connectionColorHex
-        )
-    }
-
-    private var connectionServerVersion: String? {
-        let candidates: [String?] = [
-            connectionSession?.databaseStructure?.serverVersion,
-            connectionSession?.connection.serverVersion,
-            tab.connection.serverVersion
-        ]
-        for candidate in candidates {
-            if let value = candidate?.trimmingCharacters(in: .whitespacesAndNewlines), !value.isEmpty {
-                return value
-            }
-        }
-        return nil
-    }
-
-    internal var connectionForDisplay: SavedConnection {
-        var snapshot = connectionSession?.connection ?? tab.connection
-        snapshot.serverVersion = connectionServerVersion
-        return snapshot
-    }
-
-    internal var connectionColorHex: String? {
-        if let sessionHex = connectionSession?.connection.metadataColorHex {
-            return sessionHex
-        }
-        return tab.connection.metadataColorHex
-    }
-
-    internal var editorCompletionContext: SQLEditorCompletionContext? {
-        let session = connectionSession
-        let baseConnection = session?.connection ?? tab.connection
-        let databaseType = EchoSenseDatabaseType(baseConnection.databaseType)
-        let selectedDatabase = normalized(session?.selectedDatabaseName)
-            ?? normalized(baseConnection.database)
-        let structure = session?.databaseStructure
-            ?? session?.connection.cachedStructure
-            ?? tab.connection.cachedStructure
-        let defaultSchema = defaultSchema(for: databaseType)
-
-        return SQLEditorCompletionContext(
-            databaseType: databaseType,
-            selectedDatabase: selectedDatabase,
-            defaultSchema: defaultSchema,
-            structure: structure.flatMap { EchoSenseBridge.makeStructure(from: $0) }
-        )
-    }
-
-    private func defaultSchema(for type: EchoSenseDatabaseType) -> String? {
-        switch type {
-        case .microsoftSQL:
-            return "dbo"
-        case .postgresql:
-            return "public"
-        case .mysql, .sqlite:
-            return nil
-        }
-    }
-
-    private func normalized(_ value: String?) -> String? {
-        guard let value else { return nil }
-        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmed.isEmpty ? nil : trimmed
-    }
-
-    internal func handleBookmarkRequest(_ sql: String) {
-        Task {
-            await environmentState.addBookmark(
-                for: tab.connection,
-                databaseName: connectionDatabaseName,
-                title: tabTitleForBookmark,
-                query: sql,
-                source: .queryEditorSelection
-            )
-        }
-    }
-
-    private var tabTitleForBookmark: String? {
-        let trimmed = tab.title.trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmed.isEmpty ? nil : trimmed
-    }
 }

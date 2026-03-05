@@ -23,7 +23,7 @@ struct ExplorerCreationMenuItem: Hashable {
         switch icon {
         case .system(let name):
             Image(systemName: name)
-                .font(.system(size: 13, weight: .semibold))
+                .font(TypographyTokens.standard.weight(.semibold))
                 .foregroundStyle(accentColor)
         case .asset(let name):
             Image(name)

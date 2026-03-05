@@ -53,7 +53,7 @@ struct AutoCompletionListView: View {
         HStack(alignment: .top, spacing: Layout.containerSpacing) {
             VStack(alignment: .leading, spacing: 6) {
                 if let statusMessage {
-                    Text(statusMessage).font(.system(size: 11, weight: .semibold)).foregroundStyle(.secondary).padding(.horizontal, Layout.rowHorizontalPadding)
+                    Text(statusMessage).font(TypographyTokens.detail.weight(.semibold)).foregroundStyle(.secondary).padding(.horizontal, Layout.rowHorizontalPadding)
                 }
                 listView
             }
@@ -121,7 +121,7 @@ struct AutoCompletionRowView: View {
     var body: some View {
         Button(action: action) {
             HStack(spacing: 8) {
-                Image(systemName: suggestion.kind.iconSystemName).font(.system(size: 12, weight: .medium)).foregroundStyle(isSelected ? activeIconColor : .secondary).frame(width: 16)
+                Image(systemName: suggestion.kind.iconSystemName).font(TypographyTokens.caption2.weight(.medium)).foregroundStyle(isSelected ? activeIconColor : .secondary).frame(width: 16)
 #if os(macOS)
                 AutoScrollingText(text: suggestion.title, font: .systemFont(ofSize: 12), isActive: isSelected).foregroundStyle(isSelected ? activeTitleColor : .primary)
 #else
@@ -129,7 +129,7 @@ struct AutoCompletionRowView: View {
 #endif
                 Spacer(minLength: 0)
             }
-            .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 12).padding(.vertical, 5).contentShape(Rectangle())
+            .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, SpacingTokens.sm).padding(.vertical, 5).contentShape(Rectangle())
         }
         .buttonStyle(.plain).background(rowBackground)
     }

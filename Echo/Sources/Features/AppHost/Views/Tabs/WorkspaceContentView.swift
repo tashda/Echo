@@ -9,7 +9,7 @@ struct WorkspaceContentView: View {
     let runQuery: (String) async -> Void
     let cancelQuery: () -> Void
     let gridStateProvider: () -> QueryResultsGridState
-    @EnvironmentObject private var themeManager: ThemeManager
+    @EnvironmentObject private var appearanceStore: AppearanceStore
 
     var body: some View {
         ZStack {
@@ -23,8 +23,8 @@ struct WorkspaceContentView: View {
                 } else if let diagram = tab.diagram {
                     SchemaDiagramView(viewModel: diagram)
                         .background(ColorTokens.Background.primary)
-                } else if let jobs = tab.jobManagement {
-                    JobManagementView(viewModel: jobs)
+                } else if let jobs = tab.jobQueue {
+                    JobQueueView(viewModel: jobs)
                         .background(ColorTokens.Background.primary)
                 } else if let query = tab.query {
                     QueryEditorContainer(

@@ -8,6 +8,7 @@ public enum TypographyTokens {
         public static let bold = SwiftUI.Font.Weight.bold
     }
 
+    // Semantic styles (dynamic type)
     public static let title = SwiftUI.Font.system(.title, design: .default)
     public static let headline = SwiftUI.Font.system(.headline, design: .default)
     public static let subheadline = SwiftUI.Font.system(.subheadline, design: .default)
@@ -16,4 +17,24 @@ public enum TypographyTokens {
     public static let caption = SwiftUI.Font.system(.caption, design: .default)
     public static let footnote = SwiftUI.Font.system(.footnote, design: .default)
     public static let monospaced = SwiftUI.Font.system(.body, design: .monospaced)
+
+    // Fixed-size styles for macOS UI where precise sizing matters
+    /// 9pt — toolbar badges, compact indicators
+    public static let compact = SwiftUI.Font.system(size: 9)
+    /// 10pt — sidebar counts, small labels
+    public static let label = SwiftUI.Font.system(size: 10)
+    /// 11pt — table cells, footnotes, secondary detail
+    public static let detail = SwiftUI.Font.system(size: 11)
+    /// 12pt — secondary labels, form fields
+    public static let caption2 = SwiftUI.Font.system(size: 12)
+    /// 13pt — primary UI text, body equivalent
+    public static let standard = SwiftUI.Font.system(size: 13)
+    /// 14pt — section headers, prominent labels
+    public static let prominent = SwiftUI.Font.system(size: 14)
+    /// 16pt — large headers
+    public static let display = SwiftUI.Font.system(size: 16)
+    /// 18pt — large display headers
+    public static let displayLarge = SwiftUI.Font.system(size: 18)
+    /// 20pt+ — hero text, large icons
+    public static let hero = SwiftUI.Font.system(size: 20)
 }

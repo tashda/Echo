@@ -2,202 +2,12 @@ import SwiftUI
 import EchoSense
 
 struct QueryResultsSettingsView: View {
-    @Environment(ProjectStore.self) private var projectStore
-    @EnvironmentObject private var themeManager: ThemeManager
+    @Environment(ProjectStore.self) internal var projectStore
+    @EnvironmentObject internal var appearanceStore: AppearanceStore
 
-    private var displayModeBinding: Binding<ForeignKeyDisplayMode> {
-        Binding(
-            get: { projectStore.globalSettings.foreignKeyDisplayMode },
-            set: { newValue in
-                guard projectStore.globalSettings.foreignKeyDisplayMode != newValue else { return }
-                var settings = projectStore.globalSettings
-                settings.foreignKeyDisplayMode = newValue
-                Task { try? await projectStore.updateGlobalSettings(settings) }
-            }
-        )
-    }
+    @State internal var selectedEngineTab: EngineTab = .postgres
 
-    private var inspectorBehaviorBinding: Binding<ForeignKeyInspectorBehavior> {
-        Binding(
-            get: { projectStore.globalSettings.foreignKeyInspectorBehavior },
-            set: { newValue in
-                guard projectStore.globalSettings.foreignKeyInspectorBehavior != newValue else { return }
-                var settings = projectStore.globalSettings
-                settings.foreignKeyInspectorBehavior = newValue
-                Task { try? await projectStore.updateGlobalSettings(settings) }
-            }
-        )
-    }
-
-    private var includeRelatedBinding: Binding<Bool> {
-        Binding(
-            get: { projectStore.globalSettings.foreignKeyIncludeRelated },
-            set: { newValue in
-                guard projectStore.globalSettings.foreignKeyIncludeRelated != newValue else { return }
-                var settings = projectStore.globalSettings
-                settings.foreignKeyIncludeRelated = newValue
-                Task { try? await projectStore.updateGlobalSettings(settings) }
-            }
-        )
-    }
-
-    private var initialRowLimitBinding: Binding<Int> {
-        Binding(
-            get: { projectStore.globalSettings.resultsInitialRowLimit },
-            set: { newValue in
-                let clamped = max(100, min(newValue, 100_000))
-                guard projectStore.globalSettings.resultsInitialRowLimit != clamped else { return }
-                var settings = projectStore.globalSettings
-                settings.resultsInitialRowLimit = clamped
-                Task { try? await projectStore.updateGlobalSettings(settings) }
-            }
-        )
-    }
-
-    private var previewBatchSizeBinding: Binding<Int> {
-        Binding(
-            get: { projectStore.globalSettings.resultsPreviewBatchSize },
-            set: { newValue in
-                let clamped = max(100, min(newValue, 100_000))
-                guard projectStore.globalSettings.resultsPreviewBatchSize != clamped else { return }
-                var settings = projectStore.globalSettings
-                settings.resultsPreviewBatchSize = clamped
-                Task { try? await projectStore.updateGlobalSettings(settings) }
-            }
-        )
-    }
-
-    private var backgroundStreamingThresholdBinding: Binding<Int> {
-        Binding(
-            get: { projectStore.globalSettings.resultsBackgroundStreamingThreshold },
-            set: { newValue in
-                let clamped = max(100, min(newValue, 1_000_000))
-                guard projectStore.globalSettings.resultsBackgroundStreamingThreshold != clamped else { return }
-                var settings = projectStore.globalSettings
-                settings.resultsBackgroundStreamingThreshold = clamped
-                Task { try? await projectStore.updateGlobalSettings(settings) }
-            }
-        )
-    }
-
-    private var backgroundFetchSizeBinding: Binding<Int> {
-        Binding(
-            get: { projectStore.globalSettings.resultsStreamingFetchSize },
-            set: { newValue in
-                let clamped = max(128, min(newValue, 16_384))
-                guard projectStore.globalSettings.resultsStreamingFetchSize != clamped else { return }
-                var settings = projectStore.globalSettings
-                settings.resultsStreamingFetchSize = clamped
-                Task { try? await projectStore.updateGlobalSettings(settings) }
-            }
-        )
-    }
-
-    private var streamingModeBinding: Binding<ResultStreamingExecutionMode> {
-        Binding(
-            get: { projectStore.globalSettings.resultsStreamingMode },
-            set: { newValue in
-                guard projectStore.globalSettings.resultsStreamingMode != newValue else { return }
-                var settings = projectStore.globalSettings
-                settings.resultsStreamingMode = newValue
-                Task { try? await projectStore.updateGlobalSettings(settings) }
-            }
-        )
-    }
-
-    private var fetchRampMultiplierBinding: Binding<Int> {
-        Binding(
-            get: { projectStore.globalSettings.resultsStreamingFetchRampMultiplier },
-            set: { newValue in
-                let clamped = max(1, min(newValue, 64))
-                guard projectStore.globalSettings.resultsStreamingFetchRampMultiplier != clamped else { return }
-                var settings = projectStore.globalSettings
-                settings.resultsStreamingFetchRampMultiplier = clamped
-                Task { try? await projectStore.updateGlobalSettings(settings) }
-            }
-        )
-    }
-
-    private var fetchRampMaxBinding: Binding<Int> {
-        Binding(
-            get: { projectStore.globalSettings.resultsStreamingFetchRampMax },
-            set: { newValue in
-                let clamped = max(256, min(newValue, 1_048_576))
-                guard projectStore.globalSettings.resultsStreamingFetchRampMax != clamped else { return }
-                var settings = projectStore.globalSettings
-                settings.resultsStreamingFetchRampMax = clamped
-                Task { try? await projectStore.updateGlobalSettings(settings) }
-            }
-        )
-    }
-
-    private var mssqlModeBinding: Binding<ResultStreamingExecutionMode> {
-        Binding(
-            get: { projectStore.globalSettings.mssqlStreamingMode },
-            set: { newValue in
-                guard projectStore.globalSettings.mssqlStreamingMode != newValue else { return }
-                var settings = projectStore.globalSettings
-                settings.mssqlStreamingMode = newValue
-                Task { try? await projectStore.updateGlobalSettings(settings) }
-            }
-        )
-    }
-
-    private var mysqlModeBinding: Binding<ResultStreamingExecutionMode> {
-        Binding(
-            get: { projectStore.globalSettings.mysqlStreamingMode },
-            set: { newValue in
-                guard projectStore.globalSettings.mysqlStreamingMode != newValue else { return }
-                var settings = projectStore.globalSettings
-                settings.mysqlStreamingMode = newValue
-                Task { try? await projectStore.updateGlobalSettings(settings) }
-            }
-        )
-    }
-
-    private var sqliteModeBinding: Binding<ResultStreamingExecutionMode> {
-        Binding(
-            get: { projectStore.globalSettings.sqliteStreamingMode },
-            set: { newValue in
-                guard projectStore.globalSettings.sqliteStreamingMode != newValue else { return }
-                var settings = projectStore.globalSettings
-                settings.sqliteStreamingMode = newValue
-                Task { try? await projectStore.updateGlobalSettings(settings) }
-            }
-        )
-    }
-
-    @State private var selectedEngineTab: EngineTab = .postgres
-
-    private enum EngineTab: Hashable { case postgres, sqlserver, mysql, sqlite }
-
-    private var cursorLimitThresholdBinding: Binding<Int> {
-        Binding(
-            get: { projectStore.globalSettings.resultsCursorStreamingLimitThreshold },
-            set: { newValue in
-                let clamped = max(0, min(newValue, 100_000))
-                guard projectStore.globalSettings.resultsCursorStreamingLimitThreshold != clamped else { return }
-                var settings = projectStore.globalSettings
-                settings.resultsCursorStreamingLimitThreshold = clamped
-                Task { try? await projectStore.updateGlobalSettings(settings) }
-            }
-        )
-    }
-
-    private var selectedDisplayMode: ForeignKeyDisplayMode { displayModeBinding.wrappedValue }
-    private var selectedBehavior: ForeignKeyInspectorBehavior { inspectorBehaviorBinding.wrappedValue }
-
-    private var streamingSettingsAreDefault: Bool {
-        let settings = projectStore.globalSettings
-        return settings.resultsInitialRowLimit == ResultStreamingDefaults.initialRows &&
-        settings.resultsPreviewBatchSize == ResultStreamingDefaults.previewBatch &&
-        settings.resultsBackgroundStreamingThreshold == ResultStreamingDefaults.backgroundThreshold &&
-        settings.resultsStreamingFetchSize == ResultStreamingDefaults.fetchSize &&
-        settings.resultsStreamingFetchRampMultiplier == ResultStreamingDefaults.fetchRampMultiplier &&
-        settings.resultsStreamingFetchRampMax == ResultStreamingDefaults.fetchRampMax &&
-        settings.resultsUseCursorStreaming == ResultStreamingDefaults.useCursor &&
-        settings.resultsCursorStreamingLimitThreshold == ResultStreamingDefaults.cursorLimitThreshold
-    }
+    internal enum EngineTab: Hashable { case postgres, sqlserver, mysql, sqlite }
 
     var body: some View {
         Form {
@@ -231,7 +41,7 @@ struct QueryResultsSettingsView: View {
                     Text("When enabled, the inspector also loads rows referenced by the selected record's foreign keys.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
-                        .padding(.top, 2)
+                        .padding(.top, SpacingTokens.xxxs)
                 }
             }
 
@@ -312,9 +122,9 @@ struct QueryResultsSettingsView: View {
                     .buttonStyle(.bordered)
                     .disabled(streamingSettingsAreDefault)
                 }
-                .padding(.top, 6)
+                .padding(.top, SpacingTokens.xxs2)
             }
-            
+
             Section("Engine Profiles") {
                 HStack {
                     Spacer(minLength: 0)
@@ -336,106 +146,4 @@ struct QueryResultsSettingsView: View {
         .scrollContentBackground(.hidden)
     }
 
-    @ViewBuilder
-    private var engineSpecificSettings: some View {
-        switch selectedEngineTab {
-        case .postgres:
-            StreamingPresetPickerControl(
-                title: "Cursor threshold (LIMIT)",
-                value: cursorLimitThresholdBinding,
-                description: "LIMIT ≤ threshold → simple streaming; larger/no LIMIT → server‑side cursor.",
-                presets: streamingThresholdPresets,
-                range: 0...1_000_000,
-                formatter: formatRowCount,
-                defaultValue: ResultStreamingDefaults.cursorLimitThreshold
-            )
-            StreamingPresetPickerControl(
-                title: "Cursor fetch size (baseline)",
-                value: backgroundFetchSizeBinding,
-                description: "Recommended ≥ 4,096 for large results.",
-                presets: streamingFetchPresets,
-                range: 128...16_384,
-                formatter: formatRowCount,
-                defaultValue: ResultStreamingDefaults.fetchSize
-            )
-            Text("These options apply to PostgreSQL only.")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-
-        case .sqlserver:
-            LabeledContent("Streaming mode (SQL Server)") {
-                Picker("", selection: mssqlModeBinding) {
-                    ForEach(ResultStreamingExecutionMode.allCases, id: \.self) { mode in
-                        Text(mode.displayName).tag(mode)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .frame(maxWidth: 320)
-            }
-            Text("SQL Server uses SELECT TOP/FETCH NEXT; LIMIT threshold does not apply.")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-
-        case .mysql:
-            LabeledContent("Streaming mode (MySQL)") {
-                Picker("", selection: mysqlModeBinding) {
-                    ForEach(ResultStreamingExecutionMode.allCases, id: \.self) { mode in
-                        Text(mode.displayName).tag(mode)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .frame(maxWidth: 320)
-            }
-            Text("MySQL streams results without explicit cursors.")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-
-        case .sqlite:
-            LabeledContent("Streaming mode (SQLite)") {
-                Picker("", selection: sqliteModeBinding) {
-                    ForEach(ResultStreamingExecutionMode.allCases, id: \.self) { mode in
-                        Text(mode.displayName).tag(mode)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .frame(maxWidth: 320)
-            }
-            Text("SQLite is in‑process; streaming/cursors don't apply.")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-        }
-    }
-
-    private func displayName(for mode: ForeignKeyDisplayMode) -> String {
-        switch mode {
-        case .showInspector: return "Open in Inspector"
-        case .showIcon: return "Show Cell Icon"
-        case .disabled: return "Do Nothing"
-        }
-    }
-
-    private func displayDescription(for mode: ForeignKeyDisplayMode) -> String {
-        switch mode {
-        case .showInspector: return "Selecting a foreign key cell immediately loads the referenced record."
-        case .showIcon: return "Foreign key cells display an inline action icon."
-        case .disabled: return "Foreign key metadata is ignored."
-        }
-    }
-
-    private func behaviorDisplayName(for behavior: ForeignKeyInspectorBehavior) -> String {
-        switch behavior {
-        case .respectInspectorVisibility: return "Use Current Inspector State"
-        case .autoOpenAndClose: return "Auto Open & Close"
-        }
-    }
-
-    private func behaviorDescription(for behavior: ForeignKeyInspectorBehavior) -> String {
-        switch behavior {
-        case .respectInspectorVisibility: return "Only populate the inspector when it is already visible."
-        case .autoOpenAndClose: return "Automatically open/close the inspector based on selection."
-        }
-    }
-
-    private func formatMultiplier(_ value: Int) -> String { "\(value)x" }
-    private func formatRowCount(_ value: Int) -> String { value.formatted() }
 }

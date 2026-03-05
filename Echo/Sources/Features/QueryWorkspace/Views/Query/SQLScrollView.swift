@@ -104,6 +104,13 @@ final class SQLScrollView: NSScrollView {
         applyDisplay()
     }
 
+    func setRulerVisible(_ visible: Bool) {
+        if displayOptions.showLineNumbers != visible {
+            displayOptions.showLineNumbers = visible
+            applyDisplay()
+        }
+    }
+
     private func applyTheme() {
         backgroundColor = .clear
         contentView.backgroundColor = backgroundOverride ?? .clear

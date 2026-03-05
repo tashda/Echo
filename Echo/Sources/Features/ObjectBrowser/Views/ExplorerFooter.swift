@@ -28,7 +28,7 @@ struct ExplorerFooterSearchField: View {
                     .focused($internalFocus)
             }
         }
-        .padding(.horizontal, 10)
+        .padding(.horizontal, SpacingTokens.xs2)
         .padding(.vertical, 3)
         .frame(height: height)
         .background(
@@ -82,7 +82,7 @@ struct ExplorerFooterActionButton: View {
                 )
 
             Image(systemName: "plus")
-                .font(.system(size: 12, weight: .bold))
+                .font(TypographyTokens.caption2.weight(.bold))
                 .foregroundStyle(accentColor)
         }
         .frame(width: 26, height: 26)

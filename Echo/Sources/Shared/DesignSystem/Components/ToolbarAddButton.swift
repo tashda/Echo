@@ -15,7 +15,7 @@ public struct ToolbarAddButton: View {
                 )
             
             Image(systemName: "plus")
-                .font(.system(size: 13, weight: .semibold))
+                .font(TypographyTokens.standard.weight(.semibold))
                 .foregroundStyle(ColorTokens.Text.secondary)
         }
         .frame(width: 28, height: 28)

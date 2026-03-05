@@ -13,7 +13,7 @@ struct SettingsView: View {
     @EnvironmentObject private var environmentState: EnvironmentState
     @EnvironmentObject private var appState: AppState
     @EnvironmentObject private var clipboardHistory: ClipboardHistoryStore
-    @EnvironmentObject private var themeManager: ThemeManager
+    @EnvironmentObject private var appearanceStore: AppearanceStore
 
     enum SettingsSection: String, CaseIterable, Identifiable {
         case appearance
@@ -110,8 +110,8 @@ struct SettingsView: View {
                                         ideal: sidebarColumnWidth,
                                         max: sidebarColumnWidth)
         .toolbar(removing: .sidebarToggle)
-        .preferredColorScheme(themeManager.effectiveColorScheme)
-        .accentColor(themeManager.accentColor)
+        .preferredColorScheme(appearanceStore.effectiveColorScheme)
+        .accentColor(appearanceStore.accentColor)
         .onReceive(NotificationCenter.default.publisher(for: .openSettingsSection)) { notification in
             guard let raw = notification.object as? String,
                   let section = SettingsSection(rawValue: raw) else { return }
@@ -129,24 +129,24 @@ struct SettingsView: View {
             AppearanceSettingsView()
                 .environmentObject(environmentState)
                 .environmentObject(appState)
-                .environmentObject(themeManager)
+                .environmentObject(appearanceStore)
 
         case .queryResults:
             QueryResultsSettingsView()
                 .environmentObject(environmentState)
                 .environmentObject(appState)
-                .environmentObject(themeManager)
+                .environmentObject(appearanceStore)
 
         case .echoSense:
             EchoSenseSettingsView()
                 .environmentObject(environmentState)
                 .environmentObject(appState)
-                .environmentObject(themeManager)
+                .environmentObject(appearanceStore)
 
         case .diagrams:
             DiagramSettingsView()
                 .environmentObject(environmentState)
-                .environmentObject(themeManager)
+                .environmentObject(appearanceStore)
 
         case .applicationCache:
             ApplicationCacheSettingsView()
@@ -183,30 +183,4 @@ struct SettingsView: View {
     }
 #endif
 
-    // Simple NavigationSplitView - no manual navigation needed
-}
-
-#if os(macOS)
-private func configureSettingsWindowIdentifier() {
-    DispatchQueue.main.async {
-        guard let window = NSApp?.keyWindow else { return }
-        if window.identifier != AppWindowIdentifier.settings {
-            window.identifier = AppWindowIdentifier.settings
-        }
-    }
-}
-#endif
-
-#Preview("Settings Window") {
-    SettingsView()
-        .environmentObject(AppCoordinator.shared.environmentState)
-        .environmentObject(AppCoordinator.shared.appState)
-        .environmentObject(AppCoordinator.shared.clipboardHistory)
-        .environmentObject(ThemeManager.shared)
-}
-
-// VisualEffectView removed - using simple navigationTitle instead
-
-extension Notification.Name {
-    static let openSettingsSection = Notification.Name("com.fuzee.settings.openSection")
 }

@@ -14,27 +14,27 @@ struct SidebarStickySectionHeader: View {
 
         HStack(spacing: 6) {
             Text(title.uppercased())
-                .font(.system(size: 11, weight: .semibold))
+                .font(TypographyTokens.detail.weight(.semibold))
                 .foregroundStyle(.secondary)
 
             if let count {
                 Text("\(count)")
-                    .font(.system(size: 10, weight: .semibold))
+                    .font(TypographyTokens.label.weight(.semibold))
                     .foregroundStyle(.secondary.opacity(0.8))
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
+                    .padding(.horizontal, SpacingTokens.xxs2)
+                    .padding(.vertical, SpacingTokens.xxxs)
                     .background(Color.primary.opacity(0.06), in: Capsule())
             }
 
             Spacer()
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, 8)
-        .padding(.vertical, 6)
+        .padding(.horizontal, SpacingTokens.xs)
+        .padding(.vertical, SpacingTokens.xxs2)
         .background {
             if isPinned && isExpanded {
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .fill(Color(nsColor: .controlBackgroundColor).opacity(0.85))
+                    .fill(ColorTokens.Background.secondary.opacity(0.85))
                     .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
             } else {
                 Color.clear
@@ -49,7 +49,7 @@ struct SidebarStickySectionHeader: View {
         }
         .shadow(color: (isPinned && isExpanded) ? .black.opacity(0.15) : .clear, radius: 20, x: 0, y: 8)
         .shadow(color: (isPinned && isExpanded) ? .black.opacity(0.05) : .clear, radius: 2, x: 0, y: 1)
-        .padding(.horizontal, 4)
+        .padding(.horizontal, SpacingTokens.xxs)
         .contentShape(Rectangle())
         .onTapGesture {
             onTap?()

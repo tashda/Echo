@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// Shared UI components and helpers for table structure editor sheets.
-enum TableStructureSheetHelpers {
+enum TableStructureSheetComponents {
     
     @ViewBuilder
     static func labeledRow<Content: View>(title: String, @ViewBuilder content: () -> Content) -> some View {
@@ -34,29 +34,29 @@ enum TableStructureSheetHelpers {
         HStack(alignment: subtitle == nil ? .center : .top, spacing: 6) {
             if let systemImage {
                 Image(systemName: systemImage)
-                    .font(.system(size: 10, weight: .semibold))
+                    .font(TypographyTokens.label.weight(.semibold))
                     .foregroundStyle(foreground)
                     .padding(.top, subtitle == nil ? 0 : 1)
             }
 
             VStack(alignment: .leading, spacing: subtitle == nil ? 0 : 2) {
                 Text(text)
-                    .font(.system(size: 10, weight: .semibold))
+                    .font(TypographyTokens.label.weight(.semibold))
                     .foregroundStyle(foreground)
                     .lineLimit(1)
                     .truncationMode(.tail)
 
                 if let subtitle {
                     Text(subtitle)
-                        .font(.system(size: 9))
+                        .font(TypographyTokens.compact)
                         .foregroundStyle(foreground.opacity(0.8))
                         .lineLimit(2)
                         .truncationMode(.tail)
                 }
             }
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, subtitle == nil ? 4 : 6)
+        .padding(.horizontal, SpacingTokens.xs2)
+        .padding(.vertical, subtitle == nil ? SpacingTokens.xxs : SpacingTokens.xxs2)
         .background(
             Capsule()
                 .fill(tint)

@@ -26,14 +26,14 @@ final class WorkspaceTab: ObservableObject, Identifiable {
         case query
         case structure
         case diagram
-        case jobManagement
+        case jobQueue
     }
 
     enum Content {
         case query(QueryEditorState)
         case structure(TableStructureEditorViewModel)
         case diagram(SchemaDiagramViewModel)
-        case jobManagement(JobManagementViewModel)
+        case jobQueue(JobQueueViewModel)
     }
 
     let id = UUID()
@@ -73,7 +73,7 @@ final class WorkspaceTab: ObservableObject, Identifiable {
         case .query: return .query
         case .structure: return .structure
         case .diagram: return .diagram
-        case .jobManagement: return .jobManagement
+        case .jobQueue: return .jobQueue
         }
     }
 
@@ -92,8 +92,8 @@ final class WorkspaceTab: ObservableObject, Identifiable {
         return nil
     }
 
-    var jobManagement: JobManagementViewModel? {
-        if case .jobManagement(let vm) = content { return vm }
+    var jobQueue: JobQueueViewModel? {
+        if case .jobQueue(let vm) = content { return vm }
         return nil
     }
 
@@ -112,7 +112,7 @@ final class WorkspaceTab: ObservableObject, Identifiable {
             return baseOverhead + editor.estimatedMemoryUsageBytes()
         case .diagram(let diagram):
             return baseOverhead + diagram.estimatedMemoryUsageBytes()
-        case .jobManagement:
+        case .jobQueue:
             return baseOverhead
         }
     }
@@ -135,7 +135,7 @@ final class WorkspaceTab: ObservableObject, Identifiable {
             contentCancellable = diagram.objectWillChange
                 .receive(on: RunLoop.main)
                 .sink { [weak self] _ in self?.objectWillChange.send() }
-        case .jobManagement(let vm):
+        case .jobQueue(let vm):
             contentCancellable = vm.objectWillChange
                 .receive(on: RunLoop.main)
                 .sink { [weak self] _ in self?.objectWillChange.send() }

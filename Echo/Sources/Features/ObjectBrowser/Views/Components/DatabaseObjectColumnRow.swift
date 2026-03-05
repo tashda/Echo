@@ -27,13 +27,13 @@ struct DatabaseObjectColumnRow: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(column.name)
-                    .font(.system(size: 11))
+                    .font(TypographyTokens.detail)
                     .foregroundStyle(.primary)
                     .lineLimit(1)
 
                 if let comment = column.comment?.trimmingCharacters(in: .whitespacesAndNewlines), !comment.isEmpty {
                     Text(comment)
-                        .font(.system(size: 10))
+                        .font(TypographyTokens.label)
                         .foregroundStyle(.secondary)
                         .lineLimit(2)
                         .fixedSize(horizontal: false, vertical: true)
@@ -46,19 +46,19 @@ struct DatabaseObjectColumnRow: View {
 
             Spacer()
 
-            Text(formatDataType(column.dataType))
-                .font(.system(size: 10, weight: .medium))
+            Text(EchoFormatters.abbreviatedSQLType(column.dataType))
+                .font(TypographyTokens.label.weight(.medium))
                 .foregroundStyle(.primary)
-                .padding(.horizontal, 6)
-                .padding(.vertical, 2)
+                .padding(.horizontal, SpacingTokens.xxs2)
+                .padding(.vertical, SpacingTokens.xxxs)
                 .background(
                     RoundedRectangle(cornerRadius: 8, style: .continuous)
                         .fill(Color.primary.opacity(0.06))
                 )
         }
         .padding(.leading, ExplorerColumnMetrics.highlightExtension)
-        .padding(.vertical, 2)
-        .padding(.trailing, 12)
+        .padding(.vertical, SpacingTokens.xxxs)
+        .padding(.trailing, SpacingTokens.sm)
         .background(
             Group {
                 if isHovered {
@@ -84,14 +84,4 @@ struct DatabaseObjectColumnRow: View {
         }
     }
     
-    private func formatDataType(_ dataType: String) -> String {
-        var formatted = dataType
-        if formatted.contains("with time zone") {
-            formatted = formatted.replacingOccurrences(of: " with time zone", with: "tz")
-        }
-        if formatted.contains("without time zone") {
-            formatted = formatted.replacingOccurrences(of: " without time zone", with: "")
-        }
-        return formatted
-    }
 }

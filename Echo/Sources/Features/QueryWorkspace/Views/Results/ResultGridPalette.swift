@@ -44,68 +44,35 @@ struct ResultGridPalette {
         defaultDataStyle: ResultGridTextStyle(color: .label, isBold: false, isItalic: false)
     )
 
-    init(themeManager: ThemeManager, traitCollection: UITraitCollection) {
-        let backgroundColor = themeManager.resultsGridBackgroundUIColor.resolvedColor(with: traitCollection)
-        let accentColor = UIColor(themeManager.accentColor).resolvedColor(with: traitCollection)
+    init(appearanceStore: AppearanceStore, traitCollection: UITraitCollection) {
+        let backgroundColor = UIColor(ColorTokens.Background.tertiary).resolvedColor(with: traitCollection)
+        let accentColor = UIColor(appearanceStore.accentColor).resolvedColor(with: traitCollection)
         background = backgroundColor
 
-        if themeManager.useAppThemeForResultsGrid {
-            let surfaceBackground = UIColor(themeManager.surfaceBackground).resolvedColor(with: traitCollection)
-            let surfaceForeground = UIColor(themeManager.surfaceForeground).resolvedColor(with: traitCollection)
-            headerBackground = surfaceBackground
-            headerText = surfaceForeground
-            primaryText = surfaceForeground
-            secondaryText = surfaceForeground.withAlphaComponent(0.7)
-        } else {
-            headerBackground = UIColor.secondarySystemBackground
-            headerText = UIColor.label
-            primaryText = UIColor.label
-            secondaryText = UIColor.secondaryLabel
-        }
+        let surfaceBg = UIColor(ColorTokens.Background.secondary).resolvedColor(with: traitCollection)
+        let surfaceFg = UIColor(ColorTokens.Text.primary).resolvedColor(with: traitCollection)
+        headerBackground = surfaceBg
+        headerText = surfaceFg
+        primaryText = surfaceFg
+        secondaryText = surfaceFg.withAlphaComponent(0.7)
 
         accent = accentColor
         selectionFill = accentColor.withAlphaComponent(0.18)
         columnHighlight = accentColor.withAlphaComponent(0.1)
         rowHighlight = accentColor.withAlphaComponent(0.12)
 
-        if themeManager.resultsAlternateRowShading {
-            let alternateBase = themeManager.resultsGridAlternateRowUIColor
-            alternateRow = alternateBase.resolvedColor(with: traitCollection)
-        } else {
-            alternateRow = nil
-        }
+        alternateRow = nil
 
-        if themeManager.useAppThemeForResultsGrid {
-            func makeStyle(_ kind: ResultGridValueKind) -> ResultGridTextStyle {
-                let style = themeManager.resultGridStyle(for: kind)
-                return ResultGridTextStyle(
-                    color: UIColor(style.swiftColor).resolvedColor(with: traitCollection),
-                    isBold: style.isBold,
-                    isItalic: style.isItalic
-                )
-            }
-            dataStyles = [
-                .null: makeStyle(.null),
-                .numeric: makeStyle(.numeric),
-                .boolean: makeStyle(.boolean),
-                .temporal: makeStyle(.temporal),
-                .binary: makeStyle(.binary),
-                .identifier: makeStyle(.identifier),
-                .json: makeStyle(.json)
-            ]
-            defaultDataStyle = makeStyle(.text)
-        } else {
-            dataStyles = [
-                .null: ResultGridTextStyle(color: UIColor.secondaryLabel.withAlphaComponent(0.7), isBold: false, isItalic: true),
-                .numeric: ResultGridTextStyle(color: .systemBlue, isBold: false, isItalic: false),
-                .boolean: ResultGridTextStyle(color: .systemGreen, isBold: false, isItalic: false),
-                .temporal: ResultGridTextStyle(color: .systemOrange, isBold: false, isItalic: false),
-                .binary: ResultGridTextStyle(color: .systemPurple, isBold: false, isItalic: false),
-                .identifier: ResultGridTextStyle(color: .systemIndigo, isBold: false, isItalic: false),
-                .json: ResultGridTextStyle(color: .systemTeal, isBold: false, isItalic: false)
-            ]
-            defaultDataStyle = ResultGridTextStyle(color: .label, isBold: false, isItalic: false)
-        }
+        dataStyles = [
+            .null: ResultGridTextStyle(color: surfaceFg.withAlphaComponent(0.7), isBold: false, isItalic: true),
+            .numeric: ResultGridTextStyle(color: .systemBlue, isBold: false, isItalic: false),
+            .boolean: ResultGridTextStyle(color: .systemGreen, isBold: false, isItalic: false),
+            .temporal: ResultGridTextStyle(color: .systemOrange, isBold: false, isItalic: false),
+            .binary: ResultGridTextStyle(color: .systemPurple, isBold: false, isItalic: false),
+            .identifier: ResultGridTextStyle(color: .systemIndigo, isBold: false, isItalic: false),
+            .json: ResultGridTextStyle(color: .systemTeal, isBold: false, isItalic: false)
+        ]
+        defaultDataStyle = ResultGridTextStyle(color: surfaceFg, isBold: false, isItalic: false)
     }
 
     private init(

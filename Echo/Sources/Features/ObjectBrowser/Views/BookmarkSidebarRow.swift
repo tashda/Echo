@@ -1,0 +1,93 @@
+import SwiftUI
+
+struct BookmarkRow: View {
+    let bookmark: Bookmark
+    let connection: SavedConnection
+    @Binding var activePopoverID: UUID?
+    let isRecentlyOpened: Bool
+    let onOpen: () -> Void
+    let onCopy: () -> Void
+    let onRename: (String?) -> Void
+    let onDelete: () -> Void
+
+    @State private var isHovering = false
+    @State private var isRenaming = false
+    @State private var renameText = ""
+    @FocusState private var renameFieldFocused: Bool
+
+    private var isInfoPresented: Bool { activePopoverID == bookmark.id }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(alignment: .top, spacing: 12) {
+                icon
+                VStack(alignment: .leading, spacing: 8) {
+                    headerRow
+                    Text(bookmark.preview).font(TypographyTokens.standard.weight(.medium).monospaced()).foregroundStyle(.primary).lineLimit(3).frame(maxWidth: .infinity, alignment: .leading)
+                    metadataSection
+                }
+            }
+            .padding(.vertical, SpacingTokens.sm).padding(.horizontal, SpacingTokens.sm2)
+        }
+        .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(isHovering ? Color.primary.opacity(0.06) : Color.primary.opacity(0.02)))
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(isRecentlyOpened ? Color.accentColor.opacity(0.6) : .clear, lineWidth: 1.2))
+        .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .onTapGesture(perform: onOpen)
+        .contextMenu {
+            Button("Open in New Tab", systemImage: "arrow.up.right.square", action: onOpen)
+            Button("Copy", systemImage: "doc.on.doc", action: onCopy)
+            Button("Rename", systemImage: "pencil", action: beginRenaming)
+            Divider()
+            Button("Delete Bookmark", systemImage: "trash", role: .destructive, action: onDelete)
+        }
+        .onHover { isHovering = $0 }
+        .popover(isPresented: Binding(get: { isInfoPresented }, set: { activePopoverID = $0 ? bookmark.id : nil }), arrowEdge: .leading) { popoverContent.frame(width: 420) }
+        .onChange(of: bookmark.id) { _, _ in cancelRenaming() }
+        .onChange(of: bookmark.title) { _, _ in if !isRenaming { renameText = currentTitleSeed } }
+    }
+
+    private var icon: some View {
+        TintedIcon(systemImage: sourceIconName, tint: sourceTint, size: 18, boxSize: 32)
+    }
+
+    private var headerRow: some View {
+        HStack(alignment: .center, spacing: 8) {
+            if isRenaming {
+                TextField("Bookmark title", text: $renameText, onCommit: commitRename).textFieldStyle(.plain).font(.subheadline.weight(.semibold)).foregroundStyle(.primary).lineLimit(1).focused($renameFieldFocused).onAppear { renameText = currentTitleSeed; DispatchQueue.main.async { renameFieldFocused = true } }.onChange(of: renameFieldFocused) { _, f in if !f { commitRename() } }
+            } else { Text(bookmark.primaryLine).font(.subheadline.weight(.semibold)).foregroundStyle(.primary).lineLimit(1) }
+            Spacer(minLength: 0); Text(bookmark.createdAt.formatted(date: .abbreviated, time: .shortened)).font(.caption2).foregroundStyle(.secondary).opacity(isRenaming ? 0 : 1)
+            if !isRenaming { Button { toggleInfoPopover() } label: { Image(systemName: "info.circle").font(TypographyTokens.standard.weight(.semibold)).foregroundStyle(.secondary) }.buttonStyle(.plain) }
+        }
+    }
+
+    private var metadataSection: some View {
+        HStack(spacing: 8) {
+            metadataBadge(icon: "server.rack", text: connectionDisplayName, tint: connectionTint)
+            if let db = bookmark.databaseName?.trimmingCharacters(in: .whitespacesAndNewlines), !db.isEmpty { metadataBadge(icon: "cylinder", text: db, tint: connectionTint) }
+        }
+    }
+
+    private var popoverContent: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Bookmark Details").font(.headline)
+            ScrollView { Text(bookmark.query).font(TypographyTokens.standard.weight(.medium).monospaced()).frame(maxWidth: .infinity, alignment: .leading) }.frame(maxHeight: 260)
+            HStack(spacing: 12) {
+                Button(action: onOpen) { Label("Open in New Tab", systemImage: "arrow.up.right.square") }.buttonStyle(.borderedProminent)
+                Button(action: onCopy) { Label("Copy", systemImage: "doc.on.doc") }.buttonStyle(.bordered)
+            }
+        }.padding(SpacingTokens.md)
+    }
+
+    private var currentTitleSeed: String { bookmark.title?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false ? bookmark.title! : bookmark.primaryLine }
+    private func beginRenaming() { renameText = currentTitleSeed; isRenaming = true; activePopoverID = nil; DispatchQueue.main.async { renameFieldFocused = true } }
+    private func commitRename() { guard isRenaming else { return }; let t = renameText.trimmingCharacters(in: .whitespacesAndNewlines); let n = t.isEmpty ? nil : t; if n != bookmark.title { onRename(n) }; finishRenaming() }
+    private func cancelRenaming() { guard isRenaming else { return }; finishRenaming() }
+    private func finishRenaming() { isRenaming = false; renameFieldFocused = false }
+    private func toggleInfoPopover() { activePopoverID = isInfoPresented ? nil : bookmark.id }
+    private func metadataBadge(icon: String, text: String, tint: Color) -> some View { Label(text, systemImage: icon).font(.caption).foregroundStyle(tint).padding(.vertical, SpacingTokens.xxs).padding(.horizontal, SpacingTokens.xs).background(tint.opacity(0.18), in: Capsule()) }
+    private var connectionTint: Color { connection.metadataColorHex.flatMap { Color(hex: $0) } ?? connection.color }
+    private var connectionDisplayName: String { let n = connection.connectionName.trimmingCharacters(in: .whitespacesAndNewlines); return n.isEmpty ? connection.host : n }
+    private var sourceIconName: String { switch bookmark.source { case .queryEditorSelection: return "text.cursor"; case .savedQuery: return "bookmark"; case .tab: return "doc.text" } }
+    private var sourceTint: Color { switch bookmark.source { case .queryEditorSelection: return .accentColor; case .savedQuery: return .orange; case .tab: return .blue } }
+}

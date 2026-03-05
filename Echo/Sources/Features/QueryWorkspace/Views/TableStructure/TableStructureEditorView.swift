@@ -19,7 +19,7 @@ struct TableStructureEditorView: View {
     @State internal var selectionAnchor: TableStructureEditorViewModel.ColumnModel.ID?
     @FocusState internal var focusedCustomColumnID: TableStructureEditorViewModel.ColumnModel.ID?
     @State internal var bulkColumnEditor: BulkColumnEditorPresentation?
-    @EnvironmentObject internal var themeManager: ThemeManager
+    @EnvironmentObject internal var appearanceStore: AppearanceStore
 
     init(tab: WorkspaceTab, viewModel: TableStructureEditorViewModel) {
         _tab = ObservedObject(initialValue: tab)
@@ -53,118 +53,16 @@ struct TableStructureEditorView: View {
         }
         .background(ColorTokens.Background.primary)
         .task {
-            // Lightweight initialization
             if let requested = viewModel.requestedSection {
                 selectedSection = requested
                 viewModel.requestedSection = nil
             }
         }
         .onChange(of: viewModel.columns) { _, _ in
-            // Rebuild lookup when columns change
             rebuildColumnIndexLookup()
             pruneSelectedColumns()
         }
-        .sheet(item: $activeIndexEditor) { presentation in
-            if let binding = indexBinding(for: presentation.indexID) {
-                IndexEditorSheet(
-                    index: binding,
-                    availableColumns: viewModel.columns.filter { !$0.isDeleted }.map { $0.name },
-                    onDelete: {
-                        viewModel.removeIndex(binding.wrappedValue)
-                        activeIndexEditor = nil
-                    },
-                    onCancelNew: {
-                        if binding.wrappedValue.isNew {
-                            viewModel.removeIndex(binding.wrappedValue)
-                        }
-                        activeIndexEditor = nil
-                    }
-                )
-            }
-        }
-        .sheet(item: $activeColumnEditor) { presentation in
-            if let binding = columnBinding(for: presentation.columnID) {
-                ColumnEditorSheet(
-                    column: binding,
-                    databaseType: tab.connection.databaseType,
-                    onDelete: {
-                        viewModel.removeColumn(binding.wrappedValue)
-                        activeColumnEditor = nil
-                    },
-                    onCancelNew: {
-                        if binding.wrappedValue.isNew {
-                            viewModel.removeColumn(binding.wrappedValue)
-                        }
-                        activeColumnEditor = nil
-                    }
-                )
-            }
-        }
-        .sheet(item: $activePrimaryKeyEditor) { presentation in
-            if let binding = primaryKeyBinding {
-                PrimaryKeyEditorSheet(
-                    primaryKey: binding,
-                    availableColumns: viewModel.columns.filter { !$0.isDeleted }.map { $0.name },
-                    onDelete: {
-                        viewModel.removePrimaryKey()
-                        activePrimaryKeyEditor = nil
-                    },
-                    onCancelNew: {
-                        if presentation.isNew {
-                            viewModel.removePrimaryKey()
-                        }
-                        activePrimaryKeyEditor = nil
-                    }
-                )
-            }
-        }
-        .sheet(item: $activeUniqueConstraintEditor) { presentation in
-            if let binding = uniqueConstraintBinding(for: presentation.constraintID) {
-                UniqueConstraintEditorSheet(
-                    constraint: binding,
-                    availableColumns: viewModel.columns.filter { !$0.isDeleted }.map { $0.name },
-                    onDelete: {
-                        viewModel.removeUniqueConstraint(binding.wrappedValue)
-                        activeUniqueConstraintEditor = nil
-                    },
-                    onCancelNew: {
-                        if binding.wrappedValue.isNew {
-                            viewModel.removeUniqueConstraint(binding.wrappedValue)
-                        }
-                        activeUniqueConstraintEditor = nil
-                    }
-                )
-            }
-        }
-        .sheet(item: $activeForeignKeyEditor) { presentation in
-            if let binding = foreignKeyBinding(for: presentation.foreignKeyID) {
-                ForeignKeyEditorSheet(
-                    foreignKey: binding,
-                    availableColumns: viewModel.columns.filter { !$0.isDeleted }.map { $0.name },
-                    onDelete: {
-                        viewModel.removeForeignKey(binding.wrappedValue)
-                        activeForeignKeyEditor = nil
-                    },
-                    onCancelNew: {
-                        if binding.wrappedValue.isNew {
-                            viewModel.removeForeignKey(binding.wrappedValue)
-                        }
-                        activeForeignKeyEditor = nil
-                    }
-                )
-            }
-        }
-        .sheet(item: $bulkColumnEditor) { presentation in
-            BulkColumnEditorSheet(
-                mode: presentation.mode,
-                columnNames: presentation.columnIDs.compactMap { id in visibleColumns.first(where: { $0.id == id })?.name },
-                onApply: { value in
-                    let targets = presentation.columnIDs.compactMap { id in columnBinding(for: id) }
-                    applyBulkEdit(mode: presentation.mode, value: value, bindings: targets)
-                },
-                onCancel: { bulkColumnEditor = nil }
-            )
-        }
+        .background { sheetModifiers }
     }
 
     internal func columnBinding(for columnID: UUID) -> Binding<TableStructureEditorViewModel.ColumnModel>? {
@@ -208,7 +106,7 @@ struct TableStructureEditorView: View {
         }
     }
 
-    private func applyBulkEdit(
+    internal func applyBulkEdit(
         mode: BulkColumnEditorPresentation.Mode,
         value: BulkColumnEditValue,
         bindings: [Binding<TableStructureEditorViewModel.ColumnModel>]

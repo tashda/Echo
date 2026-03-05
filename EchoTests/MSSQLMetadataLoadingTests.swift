@@ -13,7 +13,7 @@ final class MSSQLMetadataLoadingTests: XCTestCase {
 
     private struct TimeoutError: Error {}
 
-    private func withTimeout<T>(_ seconds: TimeInterval, operation: @escaping () async throws -> T) async throws -> T {
+    private func withTimeout<T: Sendable>(_ seconds: TimeInterval, operation: @Sendable @escaping () async throws -> T) async throws -> T {
         try await withThrowingTaskGroup(of: T.self) { group in
             group.addTask {
                 try await operation()
@@ -231,10 +231,12 @@ final class MSSQLMetadataLoadingTests: XCTestCase {
             )
         )
 
+        nonisolated(unsafe) let _fetcher = fetcher
+        nonisolated(unsafe) let _credentials = credentials
         let structure = try await withTimeout(120) {
-            try await fetcher.fetchStructure(
+            try await _fetcher.fetchStructure(
                 for: saved,
-                credentials: credentials,
+                credentials: _credentials,
                 selectedDatabase: config.database,
                 reuseSession: session,
                 databaseFilter: nil,
@@ -337,10 +339,12 @@ final class MSSQLMetadataLoadingTests: XCTestCase {
             )
         )
 
+        nonisolated(unsafe) let _fetcher2 = fetcher
+        nonisolated(unsafe) let _credentials2 = credentials
         let structure = try await withTimeout(180) {
-            try await fetcher.fetchStructure(
+            try await _fetcher2.fetchStructure(
                 for: saved,
-                credentials: credentials,
+                credentials: _credentials2,
                 selectedDatabase: config.database,
                 reuseSession: session,
                 databaseFilter: nil,
@@ -377,10 +381,12 @@ final class MSSQLMetadataLoadingTests: XCTestCase {
             var sysSample: [String] = []
             var directCount: Int? = nil
 
+            nonisolated(unsafe) let _self = self
+            nonisolated(unsafe) let _session = session
             do {
                 sysCount = try await withTimeout(15) {
-                    try await self.queryColumnCount(
-                        session: session,
+                    try await _self.queryColumnCount(
+                        session: _session,
                         database: config.database,
                         schema: object.schema,
                         table: object.name
@@ -392,8 +398,8 @@ final class MSSQLMetadataLoadingTests: XCTestCase {
 
             do {
                 sysSample = try await withTimeout(15) {
-                    try await self.queryColumnSample(
-                        session: session,
+                    try await _self.queryColumnSample(
+                        session: _session,
                         database: config.database,
                         schema: object.schema,
                         table: object.name

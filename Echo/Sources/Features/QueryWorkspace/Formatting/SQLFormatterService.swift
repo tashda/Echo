@@ -1,20 +1,21 @@
 import Foundation
+import JavaScriptCore
 
 enum SQLFormatterError: LocalizedError {
-    case binaryNotFound
+    case engineNotReady
     case formattingFailed(String)
 
     var errorDescription: String? {
         switch self {
-        case .binaryNotFound:
-            return "sqruff formatter was not found. Install it with 'cargo install sqruff' or place the binary inside the app bundle."
+        case .engineNotReady:
+            return "SQL formatter engine could not be initialized. Ensure sql-formatter.min.js is included in the app bundle."
         case .formattingFailed(let message):
             return "SQL formatting failed: \(message)"
         }
     }
 }
 
-final class SQLFormatterService: Sendable {
+final class SQLFormatterService: SQLFormatterServiceProtocol, Sendable {
     static let shared = SQLFormatterService()
 
     enum Dialect: String {
@@ -22,25 +23,32 @@ final class SQLFormatterService: Sendable {
         case mysql
         case sqlite
         case duckdb
+        case microsoftSQL
 
-        var sqruffConfigValue: String {
+        var sqlFormatterLanguage: String {
             switch self {
             case .postgres:
-                return "postgres"
+                return "postgresql"
+            case .mysql:
+                return "mysql"
             case .sqlite:
                 return "sqlite"
             case .duckdb:
-                return "duckdb"
-            case .mysql:
-                // Sqruff does not yet expose a MySQL dialect; fall back to ANSI.
-                return "ansi"
+                return "sql"
+            case .microsoftSQL:
+                return "transactsql"
             }
         }
     }
 
     private let queue = DispatchQueue(label: "dk.tippr.echo.sqlformatter", qos: .userInitiated)
+    private nonisolated(unsafe) var jsContext: JSContext?
 
-    private init() {}
+    private init() {
+        queue.sync {
+            self.jsContext = Self.createContext()
+        }
+    }
 
     func format(sql: String, dialect: Dialect = .postgres) async throws -> String {
         try await withCheckedThrowingContinuation { continuation in
@@ -57,155 +65,46 @@ final class SQLFormatterService: Sendable {
 
     // MARK: - Private
 
+    private static func createContext() -> JSContext? {
+        guard let context = JSContext() else { return nil }
+
+        context.exceptionHandler = { _, exception in
+            if let message = exception?.toString() {
+                print("[SQLFormatterService] JS exception: \(message)")
+            }
+        }
+
+        guard let bundleURL = Bundle.main.url(forResource: "sql-formatter.min", withExtension: "js"),
+              let source = try? String(contentsOf: bundleURL, encoding: .utf8) else {
+            return nil
+        }
+
+        context.evaluateScript(source)
+        return context
+    }
+
     private func runFormatter(sql: String, dialect: Dialect) throws -> String {
-        guard let executable = locateBinary() else {
-            throw SQLFormatterError.binaryNotFound
+        guard let context = jsContext else {
+            throw SQLFormatterError.engineNotReady
         }
 
-        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
-
-        let tempFile = tempDir.appendingPathComponent("query.sql")
-        let configFile = tempDir.appendingPathComponent(".sqruff")
-
-        // Sqruff expects files to end with a newline for LT12; append one to avoid false positives.
-        let newlineTerminatedSQL = sql.hasSuffix("\n") ? sql : sql + "\n"
-        try newlineTerminatedSQL.write(to: tempFile, atomically: true, encoding: .utf8)
-
-        let configTemplate = loadConfigTemplate()
-        let configContents = applyDialect(dialect, to: configTemplate)
-        try configContents.write(to: configFile, atomically: true, encoding: .utf8)
-
-        let process = Process()
-        process.executableURL = executable
-        process.arguments = ["fix", "--force", tempFile.path]
-        process.currentDirectoryURL = tempDir
-
-        let errorPipe = Pipe()
-        let outputPipe = Pipe()
-        process.standardError = errorPipe
-        process.standardOutput = outputPipe
-
-        do {
-            try process.run()
-        } catch {
-            try? FileManager.default.removeItem(at: tempDir)
-            throw error
+        guard let formatFn = context.objectForKeyedSubscript("formatSQL"),
+              !formatFn.isUndefined else {
+            throw SQLFormatterError.engineNotReady
         }
 
-        process.waitUntilExit()
+        let result = formatFn.call(withArguments: [sql, dialect.sqlFormatterLanguage, 4, "upper", 50])
 
-        let stderrOutput = errorPipe.fileHandleForReading.readDataToEndOfFile()
-        let stderrMessage = String(data: stderrOutput, encoding: .utf8) ?? ""
-
-        defer { try? FileManager.default.removeItem(at: tempDir) }
-
-        guard process.terminationStatus == 0 else {
-            throw SQLFormatterError.formattingFailed(stderrMessage.trimmingCharacters(in: .whitespacesAndNewlines))
+        if let exception = context.exception {
+            let message = exception.toString() ?? "Unknown error"
+            context.exception = nil
+            throw SQLFormatterError.formattingFailed(message)
         }
 
-        _ = outputPipe.fileHandleForReading.readDataToEndOfFile()
-
-        guard let formatted = try? String(contentsOf: tempFile, encoding: .utf8) else {
+        guard let formatted = result?.toString(), !formatted.isEmpty else {
             return sql
         }
 
         return formatted
-    }
-
-    private func locateBinary() -> URL? {
-        if let bundled = Bundle.main.url(forResource: "sqruff", withExtension: nil) {
-            return bundled
-        }
-
-        if let envPath = ProcessInfo.processInfo.environment["SQRUFF_PATH"], !envPath.isEmpty {
-            return URL(fileURLWithPath: envPath)
-        }
-
-        if let whichURL = try? runWhich("sqruff") {
-            return whichURL
-        }
-
-        return nil
-    }
-
-    private func loadConfigTemplate() -> String {
-        if let bundled = Bundle.main.url(forResource: ".sqruff", withExtension: nil),
-           let contents = try? String(contentsOf: bundled, encoding: .utf8) {
-            return contents
-        }
-
-        let fallbackPath = FileManager.default.currentDirectoryPath + "/BuildTools/sqruff/.sqruff"
-        if let contents = try? String(contentsOfFile: fallbackPath, encoding: .utf8) {
-            return contents
-        }
-
-        return "[sqruff]\n"
-    }
-
-    private func applyDialect(_ dialect: Dialect, to template: String) -> String {
-        let lines = template.split(omittingEmptySubsequences: false, whereSeparator: \.isNewline)
-        var output: [String] = []
-        output.reserveCapacity(lines.count + 2)
-
-        var replaced = false
-        var insideRootSection = false
-
-        for rawLine in lines {
-            let line = String(rawLine)
-            let trimmed = line.trimmingCharacters(in: .whitespaces)
-
-            if trimmed.hasPrefix("[") && trimmed.lowercased() == "[sqruff]" {
-                insideRootSection = true
-                output.append(line)
-                continue
-            } else if trimmed.hasPrefix("[") {
-                insideRootSection = false
-            }
-
-            if insideRootSection && trimmed.lowercased().hasPrefix("dialect") {
-                output.append("dialect = \(dialect.sqruffConfigValue)")
-                replaced = true
-            } else {
-                output.append(line)
-            }
-        }
-
-        if !replaced {
-            if let index = output.firstIndex(where: { $0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == "[sqruff]" }) {
-                output.insert("dialect = \(dialect.sqruffConfigValue)", at: index + 1)
-            } else {
-                output.insert("[sqruff]", at: 0)
-                output.insert("dialect = \(dialect.sqruffConfigValue)", at: 1)
-            }
-        }
-
-        if output.last.map({ !$0.isEmpty }) ?? false {
-            output.append("")
-        }
-
-        return output.joined(separator: "\n")
-    }
-
-    private func runWhich(_ name: String) throws -> URL? {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/which")
-        process.arguments = [name]
-
-        let output = Pipe()
-        process.standardOutput = output
-
-        try process.run()
-        process.waitUntilExit()
-
-        guard process.terminationStatus == 0 else { return nil }
-
-        let data = output.fileHandleForReading.readDataToEndOfFile()
-        guard
-            let path = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines),
-            !path.isEmpty
-        else { return nil }
-
-        return URL(fileURLWithPath: path)
     }
 }

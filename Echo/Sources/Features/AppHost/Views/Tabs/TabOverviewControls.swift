@@ -12,11 +12,11 @@ extension TabOverviewView {
                     Image(systemName: "square.stack.3d.down.right.fill")
                     Text("Collapse All")
                 }
-                .font(.system(size: 13, weight: .medium))
+                .font(TypographyTokens.standard.weight(.medium))
             }
             .buttonStyle(.plain)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
+            .padding(.horizontal, SpacingTokens.sm)
+            .padding(.vertical, SpacingTokens.xxs2)
             .background(
                 Capsule(style: .continuous)
                     .fill(Color.primary.opacity(colorScheme == .dark ? 0.16 : 0.08))
@@ -31,11 +31,11 @@ extension TabOverviewView {
                     Image(systemName: "square.stack.3d.up.fill")
                     Text("Expand All")
                 }
-                .font(.system(size: 13, weight: .medium))
+                .font(TypographyTokens.standard.weight(.medium))
             }
             .buttonStyle(.plain)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
+            .padding(.horizontal, SpacingTokens.sm)
+            .padding(.vertical, SpacingTokens.xxs2)
             .background(
                 Capsule(style: .continuous)
                     .fill(Color.primary.opacity(colorScheme == .dark ? 0.16 : 0.08))
@@ -43,8 +43,8 @@ extension TabOverviewView {
 
             Spacer(minLength: 0)
         }
-        .padding(.horizontal, 40)
-        .padding(.bottom, 4)
+        .padding(.horizontal, SpacingTokens.xl2)
+        .padding(.bottom, SpacingTokens.xxs)
         .frame(maxWidth: .infinity)
     }
 

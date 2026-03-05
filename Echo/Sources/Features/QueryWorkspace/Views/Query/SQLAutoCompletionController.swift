@@ -10,20 +10,20 @@ import UIKit
 final class SQLAutoCompletionController {
     weak var textView: SQLTextView?
 
-    private let popover: NSPopover
+    let popover: NSPopover
 #if os(macOS)
-    private var hostingController: NSHostingController<AutoCompletionListView>?
+    var hostingController: NSHostingController<AutoCompletionListView>?
 #else
-    private var hostingController: UIHostingController<AutoCompletionListView>?
+    var hostingController: UIHostingController<AutoCompletionListView>?
 #endif
-    private var flatSuggestions: [SQLAutoCompletionSuggestion] = []
-    private var selectedIndex: Int = 0
-    private var lastQuery: SQLAutoCompletionQuery?
-    private var detailResetToken = UUID()
+    var flatSuggestions: [SQLAutoCompletionSuggestion] = []
+    var selectedIndex: Int = 0
+    var lastQuery: SQLAutoCompletionQuery?
+    var detailResetToken = UUID()
 
-    private let minWidth: CGFloat = 200
-    private let maxWidth: CGFloat = 420
-    private let maxHeight: CGFloat = 260
+    let minWidth: CGFloat = 200
+    let maxWidth: CGFloat = 420
+    let maxHeight: CGFloat = 260
 
     init(textView: SQLTextView) {
         self.textView = textView
@@ -98,10 +98,10 @@ final class SQLAutoCompletionController {
             detailResetToken = UUID()
         }
 
-        updateContent()
+        updatePopoverContent()
 
         guard textView.window != nil,
-              let caretRect = caretRect(for: query) else {
+              let caretRect = caretRectForQuery(query) else {
             hide()
             return
         }
@@ -166,113 +166,12 @@ final class SQLAutoCompletionController {
         accept(suggestion)
     }
 
-    private func ensureHostingController() -> NSHostingController<AutoCompletionListView> {
-        if let hostingController { return hostingController }
-#if os(macOS)
-        let controller = NSHostingController(
-            rootView: AutoCompletionListView(
-                suggestions: [],
-                selectedID: nil,
-                onSelect: { _ in },
-                detailResetID: detailResetToken,
-                statusMessage: nil
-            )
-        )
-#else
-        let controller = UIHostingController(
-            rootView: AutoCompletionListView(
-                suggestions: [],
-                selectedID: nil,
-                onSelect: { _ in },
-                detailResetID: detailResetToken,
-                statusMessage: nil
-            )
-        )
-#endif
-        controller.view.translatesAutoresizingMaskIntoConstraints = false
-        popover.contentViewController = controller
-        hostingController = controller
-        return controller
-    }
-
-    private func updateContent() {
-        let controller = ensureHostingController()
-        let statusMessage = SQLAutoCompletionController.statusMessage(isMetadataLimited: textView?.completionEngine.isMetadataLimited == true)
-        let updatedView = AutoCompletionListView(
-            suggestions: flatSuggestions,
-            selectedID: selectedSuggestion?.id,
-            onSelect: { [weak self] suggestion in
-                // Ensure the accept action runs on the main actor even if the
-                // callback is invoked from a nonisolated context.
-                Task { @MainActor in
-                    self?.accept(suggestion)
-                }
-            },
-            detailResetID: detailResetToken,
-            statusMessage: statusMessage
-        )
-        controller.rootView = updatedView
-
-        controller.view.layoutSubtreeIfNeeded()
-        var fittingSize = controller.view.fittingSize
-        fittingSize.width = ceil(fittingSize.width)
-        fittingSize.height = ceil(fittingSize.height)
-        let width = min(maxWidth, max(minWidth, fittingSize.width))
-        let height = min(maxHeight, max(72, fittingSize.height))
-        popover.contentSize = NSSize(width: width, height: height)
-    }
-
-    private func inlineKeywordCandidates(from suggestions: [SQLAutoCompletionSuggestion],
-                                         query: SQLAutoCompletionQuery) -> [SQLAutoCompletionSuggestion]? {
-        guard !suggestions.isEmpty else { return nil }
-        guard query.pathComponents.isEmpty else { return nil }
-
-        // Avoid inline keyword suggestions in object/alias positions inside
-        // FROM / JOIN target clauses. Once at least one table is in scope,
-        // inline SQL syntax (e.g. "FROM", "FULL JOIN") tends to be noisy when
-        // the user is naming an alias.
-        switch query.clause {
-        case .from, .joinTarget:
-            if !query.tablesInScope.isEmpty {
-                return nil
-            }
-        default:
-            break
-        }
-
-        var loweredPrefix = query.prefix.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        if loweredPrefix.isEmpty {
-            loweredPrefix = query.token.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        }
-
-        let keywordSuggestions = suggestions.filter { suggestion in
-            guard suggestion.kind == .keyword else { return false }
-            let keyword = suggestion.insertText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-
-            if !loweredPrefix.isEmpty {
-                return keyword.hasPrefix(loweredPrefix)
-            }
-
-            if let preceding = query.precedingCharacter {
-                return preceding.isWhitespace
-            }
-
-            return true
-        }
-
-        return keywordSuggestions.isEmpty ? nil : keywordSuggestions
-    }
-
-    static func statusMessage(isMetadataLimited: Bool) -> String? {
-        isMetadataLimited ? "Limited metadata — showing keywords and history" : nil
-    }
-
     private func moveSelection(_ delta: Int) {
         guard !flatSuggestions.isEmpty else { return }
         let count = flatSuggestions.count
         let newIndex = (selectedIndex + delta) % count
         selectedIndex = newIndex >= 0 ? newIndex : newIndex + count
-        updateContent()
+        updatePopoverContent()
     }
 
     private func pageSelection(_ direction: Int) {
@@ -281,41 +180,15 @@ final class SQLAutoCompletionController {
         moveSelection(direction > 0 ? pageSize : -pageSize)
     }
 
-    private func accept(_ suggestion: SQLAutoCompletionSuggestion) {
+    func accept(_ suggestion: SQLAutoCompletionSuggestion) {
         guard let textView else { return }
         let query = lastQuery ?? textView.currentCompletionQuery()
         guard let query else { hide(); return }
         textView.applyCompletion(suggestion, query: query)
     }
 
-    private var selectedSuggestion: SQLAutoCompletionSuggestion? {
+    var selectedSuggestion: SQLAutoCompletionSuggestion? {
         guard selectedIndex >= 0, selectedIndex < flatSuggestions.count else { return nil }
         return flatSuggestions[selectedIndex]
-    }
-
-    private func caretRect(for query: SQLAutoCompletionQuery) -> NSRect? {
-        guard let textView = textView,
-              let layoutManager = textView.layoutManager,
-              let textContainer = textView.textContainer else { return nil }
-
-        var queryRange = query.replacementRange
-        if queryRange.length == 0 && queryRange.location > 0 {
-            queryRange = NSRange(location: max(queryRange.location - 1, 0), length: 1)
-        }
-
-        var glyphRange = layoutManager.glyphRange(forCharacterRange: queryRange, actualCharacterRange: nil)
-        if glyphRange.length == 0 && glyphRange.location > 0 {
-            glyphRange = NSRange(location: max(glyphRange.location - 1, 0), length: 1)
-        }
-
-        var caretRect = layoutManager.boundingRect(forGlyphRange: glyphRange, in: textContainer)
-        caretRect.origin.x += textView.textContainerInset.width
-        caretRect.origin.y += textView.textContainerInset.height
-        caretRect.origin.y += caretRect.height
-        caretRect.origin.y += 4
-
-        caretRect.size.width = max(caretRect.width, 2)
-        caretRect.size.height = max(caretRect.height, 18)
-        return caretRect
     }
 }

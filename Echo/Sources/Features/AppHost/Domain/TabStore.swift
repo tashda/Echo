@@ -14,110 +14,110 @@ protocol TabStoreDelegate: AnyObject {
 @Observable @MainActor
 final class TabStore {
     // MARK: - State
-    var tabManager = TabManager()
+    var tabCoordinator = TabCoordinator()
     weak var delegate: TabStoreDelegate?
     
     // MARK: - Initialization
     init() {
-        tabManager.delegate = self
+        tabCoordinator.delegate = self
     }
     
     // MARK: - Public API
     
     var tabs: [WorkspaceTab] {
-        tabManager.tabs
+        tabCoordinator.tabs
     }
     
     var activeTabId: UUID? {
-        get { tabManager.activeTabId }
-        set { tabManager.activeTabId = newValue }
+        get { tabCoordinator.activeTabId }
+        set { tabCoordinator.activeTabId = newValue }
     }
     
     var activeTab: WorkspaceTab? {
-        tabManager.activeTab
+        tabCoordinator.activeTab
     }
     
     func getTab(id: UUID) -> WorkspaceTab? {
-        tabManager.getTab(id: id)
+        tabCoordinator.getTab(id: id)
     }
     
     func addTab(_ tab: WorkspaceTab) {
-        tabManager.addTab(tab)
+        tabCoordinator.addTab(tab)
     }
     
     func insertTab(_ tab: WorkspaceTab, at index: Int, activate: Bool = true) {
-        tabManager.insertTab(tab, at: index, activate: activate)
+        tabCoordinator.insertTab(tab, at: index, activate: activate)
     }
     
     func selectTab(_ tab: WorkspaceTab) {
-        tabManager.activeTabId = tab.id
+        tabCoordinator.activeTabId = tab.id
     }
     
     func closeTab(id: UUID) {
-        tabManager.closeTab(id: id)
+        tabCoordinator.closeTab(id: id)
     }
     
     func moveTab(id: UUID, to index: Int) {
-        tabManager.moveTab(id: id, to: index)
+        tabCoordinator.moveTab(id: id, to: index)
     }
     
     func togglePin(for id: UUID) {
-        tabManager.togglePin(for: id)
+        tabCoordinator.togglePin(for: id)
     }
     
     func closeOtherTabs(keeping id: UUID) {
-        tabManager.closeOtherTabs(keeping: id)
+        tabCoordinator.closeOtherTabs(keeping: id)
     }
     
     func closeTabsLeft(of id: UUID) {
-        tabManager.closeTabsLeft(of: id)
+        tabCoordinator.closeTabsLeft(of: id)
     }
     
     func closeTabsRight(of id: UUID) {
-        tabManager.closeTabsRight(of: id)
+        tabCoordinator.closeTabsRight(of: id)
     }
     
     func index(of id: UUID) -> Int? {
-        tabManager.tabs.firstIndex(where: { $0.id == id })
+        tabCoordinator.tabs.firstIndex(where: { $0.id == id })
     }
     
     func activateNextTab() {
-        tabManager.activateNextTab()
+        tabCoordinator.activateNextTab()
     }
     
     func activatePreviousTab() {
-        tabManager.activatePreviousTab()
+        tabCoordinator.activatePreviousTab()
     }
     
     func reopenLastClosedTab(activate: Bool) -> WorkspaceTab? {
-        tabManager.reopenLastClosedTab(activate: activate)
+        tabCoordinator.reopenLastClosedTab(activate: activate)
     }
 }
 
-// MARK: - TabManagerDelegate
+// MARK: - TabCoordinatorDelegate
 
-extension TabStore: TabManagerDelegate {
-    func tabManager(_ manager: TabManager, didAdd tab: WorkspaceTab) {
+extension TabStore: TabCoordinatorDelegate {
+    func tabCoordinator(_ manager: TabCoordinator, didAdd tab: WorkspaceTab) {
         delegate?.tabStore(self, didAdd: tab)
     }
     
-    func tabManager(_ manager: TabManager, shouldClose tab: WorkspaceTab) -> Bool {
-        // TabManager delegate is synchronous, but TabStoreDelegate is async.
+    func tabCoordinator(_ manager: TabCoordinator, shouldClose tab: WorkspaceTab) -> Bool {
+        // TabCoordinator delegate is synchronous, but TabStoreDelegate is async.
         // For simplicity during migration, we use a Task to bridge if needed, 
         // or just return true if the decision logic can be deferred.
-        // Actually, TabManager expects a Bool. If it's a critical guard, we may need to refine.
+        // Actually, TabCoordinator expects a Bool. If it's a critical guard, we may need to refine.
         return true 
     }
     
-    func tabManager(_ manager: TabManager, didRemoveTabID tabID: UUID) {
+    func tabCoordinator(_ manager: TabCoordinator, didRemoveTabID tabID: UUID) {
         delegate?.tabStore(self, didRemoveTabID: tabID)
     }
     
-    func tabManager(_ manager: TabManager, didSetActiveTabID tabID: UUID?) {
+    func tabCoordinator(_ manager: TabCoordinator, didSetActiveTabID tabID: UUID?) {
         delegate?.tabStore(self, didSetActiveTabID: tabID)
     }
     
-    func tabManagerDidReorderTabs(_ manager: TabManager) {
+    func tabCoordinatorDidReorderTabs(_ manager: TabCoordinator) {
         delegate?.tabStoreDidReorderTabs(self)
     }
 }

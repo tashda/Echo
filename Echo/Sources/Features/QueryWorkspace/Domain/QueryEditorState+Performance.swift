@@ -26,12 +26,12 @@ extension QueryEditorState {
         var segments: [String] = []
 
         if let dispatch = report.timings.startToDispatch {
-            segments.append("dispatch \(formattedDuration(dispatch))")
+            segments.append("dispatch \(EchoFormatters.duration(dispatch))")
         }
 
         let firstRowInterval = report.timings.dispatchToFirstUpdate ?? report.timings.startToFirstUpdate
         if let firstRowInterval {
-            var label = "first-row \(formattedDuration(firstRowInterval))"
+            var label = "first-row \(EchoFormatters.duration(firstRowInterval))"
             if let firstBatch = report.firstBatchSize, firstBatch > 0 {
                 label += " (\(firstBatch))"
             }
@@ -39,23 +39,23 @@ extension QueryEditorState {
         }
 
         if let initialBatch = report.timings.startToInitialBatch {
-            segments.append("data-ready \(formattedDuration(initialBatch))")
+            segments.append("data-ready \(EchoFormatters.duration(initialBatch))")
         }
 
         if let gridReady = report.timings.startToVisibleInitialLimit {
-            segments.append("grid-ready \(formattedDuration(gridReady))")
+            segments.append("grid-ready \(EchoFormatters.duration(gridReady))")
         }
 
         if let total = report.timings.startToFinish {
-            segments.append("finished \(formattedDuration(total))")
+            segments.append("finished \(EchoFormatters.duration(total))")
         }
 
         if let cpuTotal = report.cpuTotalSeconds {
-            segments.append("cpu \(formattedDuration(cpuTotal))")
+            segments.append("cpu \(EchoFormatters.duration(cpuTotal))")
         }
 
         if let rss = report.residentMemoryBytes {
-            segments.append("rss \(formattedBytes(rss))")
+            segments.append("rss \(EchoFormatters.bytes(rss))")
         }
 
         if let rssDelta = report.residentMemoryDeltaBytes, rssDelta != 0 {
@@ -68,7 +68,7 @@ extension QueryEditorState {
             segments.append("largest \(report.largestBatchSize)")
         }
         if let memory = report.estimatedMemoryBytes {
-            segments.append("est-mem \(formattedBytes(memory))")
+            segments.append("est-mem \(EchoFormatters.bytes(memory))")
         }
         if report.cancelled {
             segments.append("cancelled true")
@@ -78,8 +78,8 @@ extension QueryEditorState {
         if let backend = report.backendSamples.last {
             consoleSegments.append("latest-batch rows=\(backend.batchRowCount)")
             consoleSegments.append("latest-total \(backend.cumulativeRowCount)")
-            consoleSegments.append("decode \(formattedDuration(backend.decodeDuration))")
-            consoleSegments.append("wait \(formattedDuration(backend.networkWaitDuration))")
+            consoleSegments.append("decode \(EchoFormatters.duration(backend.decodeDuration))")
+            consoleSegments.append("wait \(EchoFormatters.duration(backend.networkWaitDuration))")
         }
         print("[QueryPerformance] \(consoleSegments.joined(separator: ", "))")
 
@@ -96,7 +96,7 @@ extension QueryEditorState {
         }
         if let memory = report.estimatedMemoryBytes {
             metadata["estimatedMemoryBytes"] = "\(memory)"
-            metadata["estimatedMemoryDisplay"] = formattedBytes(memory)
+            metadata["estimatedMemoryDisplay"] = EchoFormatters.bytes(memory)
         }
 
         if let cpuUser = report.cpuUserSeconds {
@@ -110,7 +110,7 @@ extension QueryEditorState {
         }
         if let resident = report.residentMemoryBytes {
             metadata["residentMemoryBytes"] = "\(resident)"
-            metadata["residentMemoryDisplay"] = formattedBytes(resident)
+            metadata["residentMemoryDisplay"] = EchoFormatters.bytes(resident)
         }
         if let residentDelta = report.residentMemoryDeltaBytes {
             metadata["residentMemoryDeltaBytes"] = "\(residentDelta)"
@@ -118,11 +118,11 @@ extension QueryEditorState {
         }
         if let maxResident = report.maxResidentMemoryBytes {
             metadata["maxResidentMemoryBytes"] = "\(maxResident)"
-            metadata["maxResidentMemoryDisplay"] = formattedBytes(maxResident)
+            metadata["maxResidentMemoryDisplay"] = EchoFormatters.bytes(maxResident)
         }
         if let virtual = report.virtualMemoryBytes {
             metadata["virtualMemoryBytes"] = "\(virtual)"
-            metadata["virtualMemoryDisplay"] = formattedBytes(virtual)
+            metadata["virtualMemoryDisplay"] = EchoFormatters.bytes(virtual)
         }
         if let value = millisecondsString(report.timings.startToDispatch) {
             metadata["startToDispatchMs"] = value
@@ -156,38 +156,15 @@ extension QueryEditorState {
         )
     }
 
-    private func formattedDuration(_ value: TimeInterval?) -> String {
-        guard let value else { return "n/a" }
-        if value >= 1.0 {
-            return String(format: "%.2f s", value)
-        }
-        return String(format: "%.0f ms", value * 1_000)
-    }
-
     private func millisecondsString(_ value: TimeInterval?) -> String? {
         guard let value else { return nil }
         return String(format: "%.2f", value * 1_000)
     }
 
-    private func formattedBytes(_ bytes: Int) -> String {
-        guard bytes > 0 else { return "0 B" }
-        let units: [String] = ["B", "KB", "MB", "GB", "TB"]
-        var value = Double(bytes)
-        var unitIndex = 0
-        while value >= 1024.0, unitIndex < units.count - 1 {
-            value /= 1024.0
-            unitIndex += 1
-        }
-        if unitIndex == 0 {
-            return "\(bytes) B"
-        }
-        return String(format: "%.1f %@", value, units[unitIndex])
-    }
-
     private func formattedSignedBytes(_ bytes: Int) -> String {
         if bytes == 0 { return "0 B" }
         let sign = bytes < 0 ? "-" : "+"
-        return "\(sign)\(formattedBytes(abs(bytes)))"
+        return "\(sign)\(EchoFormatters.bytes(abs(bytes)))"
     }
 
     func estimatedMemoryUsageBytes() -> Int {

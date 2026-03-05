@@ -14,18 +14,18 @@ extension TabOverviewView {
             } label: {
                 HStack(spacing: 10) {
                     Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
-                        .font(.system(size: 10, weight: .bold))
+                        .font(TypographyTokens.label.weight(.bold))
                         .foregroundStyle(Color.secondary)
                         .frame(width: 12)
 
                     Label(group.databaseName, systemImage: "database.outlined")
-                        .font(.system(size: 14, weight: .semibold))
+                        .font(TypographyTokens.prominent.weight(.semibold))
                         .foregroundStyle(isActiveDatabase ? Color.accentColor : Color.primary)
 
                     Spacer()
                 }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
+                .padding(.horizontal, SpacingTokens.sm)
+                .padding(.vertical, SpacingTokens.xs)
                 .background(databaseBackground(isActive: isActiveDatabase), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
                 .overlay(
                     RoundedRectangle(cornerRadius: 12, style: .continuous)
@@ -40,7 +40,7 @@ extension TabOverviewView {
                         sectionView(section, serverID: serverID, databaseIdentifier: identifier)
                     }
                 }
-                .padding(.leading, 12)
+                .padding(.leading, SpacingTokens.sm)
             }
         }
     }
@@ -49,19 +49,19 @@ extension TabOverviewView {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 8) {
                 Image(systemName: section.kind.icon)
-                    .font(.system(size: 11, weight: .semibold))
+                    .font(TypographyTokens.detail.weight(.semibold))
                 Text(section.kind.displayName.uppercased())
-                    .font(.system(size: 11, weight: .bold))
-                
+                    .font(TypographyTokens.detail.weight(.bold))
+
                 Text("\(section.tabs.count)")
-                    .font(.system(size: 10, weight: .bold))
+                    .font(TypographyTokens.label.weight(.bold))
                     .foregroundStyle(.secondary)
-                    .padding(.horizontal, 6)
+                    .padding(.horizontal, SpacingTokens.xxs2)
                     .padding(.vertical, 1)
                     .background(Color.primary.opacity(0.06), in: Capsule())
             }
             .foregroundStyle(.secondary)
-            .padding(.leading, 4)
+            .padding(.leading, SpacingTokens.xxs)
 
             LazyVGrid(columns: gridConfiguration.columns, spacing: gridConfiguration.spacing) {
                 ForEach(section.tabs) { tab in

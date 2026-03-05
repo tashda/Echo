@@ -30,7 +30,7 @@ import os.log
     let initialVisibleRowBatch: Int
     let previewRowLimit: Int
     let spoolActivationThreshold: Int
-    let spoolManager: ResultSpoolManager
+    let spoolManager: ResultSpoolCoordinator
     var spoolHandle: ResultSpoolHandle?
     var ingestionService: ResultStreamIngestionService?
     var spoolStatsTask: Task<Void, Never>?
@@ -104,7 +104,7 @@ import os.log
         sql: String = "SELECT current_timestamp;",
         initialVisibleRowBatch: Int = 500,
         previewRowLimit: Int = 512,
-        spoolManager: ResultSpoolManager,
+        spoolManager: ResultSpoolCoordinator,
         backgroundFetchSize: Int = 4_096
     ) {
         self.sql = sql
@@ -127,12 +127,10 @@ import os.log
     @MainActor deinit {
         dataPreviewFetchTask?.cancel()
         spoolStatsTask?.cancel()
+        guard let identifier = resultSpoolID else { return }
         let manager = spoolManager
-        let identifier = resultSpoolID
         Task.detached(priority: .utility) {
-            if let identifier {
-                await manager.removeSpool(for: identifier)
-            }
+            await manager.removeSpool(for: identifier)
         }
     }
 

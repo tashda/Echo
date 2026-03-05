@@ -34,7 +34,7 @@ final class ResultTableRowView: NSTableRowView {
         dirtyRect.fill()
 
         if let info = highlightProvider?(self, rowIndex) {
-            let accent = ThemeManager.shared.accentNSColor
+            let accent = AppearanceStore.shared.accentNSColor
             let fill = accent.withAlphaComponent(0.18)
             let stroke = accent.withAlphaComponent(0.65)
             let path = makeRoundedPath(in: info.rect, topRadius: info.topCornerRadius, bottomRadius: info.bottomCornerRadius)

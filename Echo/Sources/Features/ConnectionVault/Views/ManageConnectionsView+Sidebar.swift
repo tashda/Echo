@@ -25,7 +25,7 @@ extension ManageConnectionsView {
         .listStyle(.sidebar)
 #if os(macOS)
         .scrollContentBackground(.hidden)
-        .background(themeManager.surfaceBackgroundColor)
+        .background(ColorTokens.Background.secondary)
 #endif
     }
 

@@ -9,7 +9,6 @@ struct IdentitiesTableView: View {
     let onDelete: (SavedIdentity) -> Void
     let moveIdentityToFolder: (SavedIdentity, SavedFolder) -> Void
     let createFolderAndMoveIdentity: (SavedIdentity) -> Void
-    @ObservedObject private var themeManager = ThemeManager.shared
 
     var body: some View {
         ThemedTableContainer {
