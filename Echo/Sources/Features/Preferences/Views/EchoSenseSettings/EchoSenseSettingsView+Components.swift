@@ -1,9 +1,5 @@
 import SwiftUI
-#if os(macOS)
 import AppKit
-#elseif canImport(UIKit)
-import UIKit
-#endif
 
 // MARK: - Info Topic
 
@@ -156,29 +152,21 @@ struct EchoSenseInfoPopover: View {
         let maxWidth: CGFloat = 440
         let contentLimit = maxWidth - padding
 
-        let titleWidth = measuredWidth(for: topic.title, font: platformFont(size: 15, weight: PlatformFont.Weight.semibold), limit: contentLimit)
+        let titleWidth = measuredWidth(for: topic.title, font: platformFont(size: 15, weight: .semibold), limit: contentLimit)
         let messageWidth = measuredWidth(for: topic.message, font: platformFont(size: 13), limit: contentLimit)
         let contentWidth = max(titleWidth, messageWidth)
         return min(maxWidth, max(minWidth, contentWidth + padding))
     }
 
-    private func platformFont(size: CGFloat, weight: PlatformFont.Weight = PlatformFont.Weight.regular) -> PlatformFont {
-#if os(macOS)
+    private func platformFont(size: CGFloat, weight: NSFont.Weight = .regular) -> NSFont {
         NSFont.systemFont(ofSize: size, weight: weight)
-#else
-        UIFont.systemFont(ofSize: size, weight: weight)
-#endif
     }
 
-    private func measuredWidth(for text: String, font: PlatformFont, limit: CGFloat) -> CGFloat {
+    private func measuredWidth(for text: String, font: NSFont, limit: CGFloat) -> CGFloat {
         guard !text.isEmpty else { return 0 }
         let constraint = CGSize(width: limit, height: .greatestFiniteMagnitude)
-#if os(macOS)
         let rect = NSAttributedString(string: text, attributes: [.font: font])
             .boundingRect(with: constraint, options: [.usesLineFragmentOrigin, .usesFontLeading])
-#else
-        let rect = (text as NSString).boundingRect(with: constraint, options: [.usesLineFragmentOrigin, .usesFontLeading], attributes: [.font: font], context: nil)
-#endif
         return ceil(rect.width)
     }
 }

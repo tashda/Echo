@@ -1,9 +1,5 @@
 import SwiftUI
-#if os(macOS)
 import AppKit
-#elseif canImport(UIKit)
-import UIKit
-#endif
 
 struct EchoSenseSettingsView: View {
     @Environment(ProjectStore.self) internal var projectStore

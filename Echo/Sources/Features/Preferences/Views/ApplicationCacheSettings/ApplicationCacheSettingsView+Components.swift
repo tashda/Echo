@@ -1,8 +1,5 @@
 import SwiftUI
-
-#if os(macOS)
 import AppKit
-#endif
 
 extension ApplicationCacheSettingsView {
     var workspaceTabToggleRow: some View {
@@ -131,22 +128,17 @@ struct UnifiedStorageLocationRow: View {
 
     var body: some View {
         LabeledContent {
-#if os(macOS)
             Button(action: { NSWorkspace.shared.activateFileViewerSelecting([storageLocation]) }) {
                 Image(systemName: "arrow.up.right.square")
-                    .font(TypographyTokens.prominent.weight(.regular))
                     .foregroundStyle(.secondary)
             }
             .buttonStyle(.plain)
-#endif
         } label: {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Storage Location")
-                    .font(TypographyTokens.standard.weight(.medium))
-                    .foregroundStyle(.primary)
 
                 Text(displayPath(storageLocation.path))
-                    .font(TypographyTokens.detail)
+                    .font(.footnote)
                     .foregroundStyle(.secondary)
                     .textSelection(.enabled)
             }
