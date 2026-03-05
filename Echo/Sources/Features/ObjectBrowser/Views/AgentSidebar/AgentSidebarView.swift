@@ -96,7 +96,7 @@ struct AgentSidebarView: View {
         
         do {
             let agent = mssql.makeAgentClient()
-            var builder = SQLServerAgentJobBuilder(agent: agent, jobName: name, description: newJobDescription.isEmpty ? nil : newJobDescription, enabled: newJobEnabled, ownerLoginName: newJobOwner.isEmpty ? nil : newJobOwner, categoryName: newJobCategory.isEmpty ? nil : newJobCategory, autoAttachServer: true)
+            let builder = SQLServerAgentJobBuilder(agent: agent, jobName: name, description: newJobDescription.isEmpty ? nil : newJobDescription, enabled: newJobEnabled, ownerLoginName: newJobOwner.isEmpty ? nil : newJobOwner, categoryName: newJobCategory.isEmpty ? nil : newJobCategory, autoAttachServer: true)
             
             // Add steps and schedules (omitted for brevity, same logic as before but in builder)
             // ... (I'll keep the actual logic here but it's large, I'll move it if needed)

@@ -11,13 +11,13 @@ final class SearchSidebarViewModel: ObservableObject {
         didSet { performScheduleSearch() }
     }
 
-    @Published internal(set) var results: [SearchSidebarResult] = []
-    @Published internal(set) var isSearching: Bool = false
-    @Published internal(set) var errorMessage: String?
+    @Published var results: [SearchSidebarResult] = []
+    @Published var isSearching: Bool = false
+    @Published var errorMessage: String?
 
     internal var databaseSession: DatabaseSession?
     internal var databaseType: DatabaseType?
-    internal(set) var activeDatabaseName: String?
+    var activeDatabaseName: String?
     internal var searchTask: Task<Void, Never>?
     private let minimumQueryLength = 2
     private var isRestoring = false

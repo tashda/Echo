@@ -63,7 +63,7 @@ extension EnvironmentState {
                 authentication: credentials
             )
             let duration = Date().timeIntervalSince(startTime)
-            try await session.close()
+            await session.close()
             return ConnectionTestResult(isSuccessful: true, message: "Success", responseTime: duration, serverVersion: nil)
         } catch {
             return ConnectionTestResult(isSuccessful: false, message: error.localizedDescription, responseTime: nil, serverVersion: nil)

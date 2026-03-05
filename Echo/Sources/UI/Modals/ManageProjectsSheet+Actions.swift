@@ -177,18 +177,11 @@ extension ManageProjectsSheet {
         importError = nil
 
         Task {
-            do {
-                // Future coordinator implementation will handle full import
-                await MainActor.run {
-                    showImportSheet = false
-                    importPassword = ""
-                    isImporting = false
-                }
-            } catch {
-                await MainActor.run {
-                    importError = error.localizedDescription
-                    isImporting = false
-                }
+            // Future coordinator implementation will handle full import
+            await MainActor.run {
+                showImportSheet = false
+                importPassword = ""
+                isImporting = false
             }
         }
     }

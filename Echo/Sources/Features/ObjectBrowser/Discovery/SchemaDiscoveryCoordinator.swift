@@ -25,7 +25,7 @@ final class MetadataDiscoveryCoordinator: MetadataDiscoveryCoordinatorProtocol, 
             ConnectionDebug.log("[SchemaDiscovery] Starting structure load for \(session.connection.connectionName)")
             
             do {
-                let structure = try await self.loadDatabaseStructureForSession(session)
+                _ = try await self.loadDatabaseStructureForSession(session)
                 session.structureLoadingState = .ready
                 session.structureLoadingMessage = nil
                 await self.onEnqueuePrefetch?(session)

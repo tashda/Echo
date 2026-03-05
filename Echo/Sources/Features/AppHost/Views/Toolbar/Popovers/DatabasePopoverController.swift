@@ -83,7 +83,7 @@ final class DatabasePopoverController: NSViewController, NSTableViewDelegate, NS
         tableView.delegate = self
         tableView.dataSource = self
         tableView.rowHeight = 24
-        tableView.selectionHighlightStyle = .sourceList
+        tableView.style = .sourceList
         tableView.intercellSpacing = NSSize(width: 0, height: 2)
         tableView.focusRingType = .none
         tableView.allowsEmptySelection = true

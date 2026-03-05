@@ -98,10 +98,7 @@ extension SQLTextView {
         completionWorkItem?.cancel()
         completionTask?.cancel()
 
-        let generation: Int = {
-            completionGeneration += 1
-            return completionGeneration
-        }()
+        completionGeneration += 1
 
         let workItem = DispatchWorkItem { [weak self] in
             guard let self else { return }
