@@ -62,6 +62,7 @@ struct GlobalSettings: Codable, Hashable {
     var diagramVerifyBeforeRefresh: Bool = true
     var diagramRenderRelationshipsForLargeDiagrams: Bool = true
     var diagramUseThemedAppearance: Bool = true
+    var usePerTypeStorageLimits: Bool = false
     var defaultWindowWidth: Double?
     var defaultWindowHeight: Double?
 
@@ -114,6 +115,7 @@ struct GlobalSettings: Codable, Hashable {
         case inspectorWidth, keepTabsInMemory
         case diagramPrefetchMode, diagramRefreshCadence, diagramCacheMaxBytes
         case diagramVerifyBeforeRefresh, diagramRenderRelationshipsForLargeDiagrams, diagramUseThemedAppearance
+        case usePerTypeStorageLimits
     }
 
     init(from decoder: Decoder) throws {
@@ -180,6 +182,7 @@ struct GlobalSettings: Codable, Hashable {
         diagramVerifyBeforeRefresh = try container.decodeIfPresent(Bool.self, forKey: .diagramVerifyBeforeRefresh) ?? true
         diagramRenderRelationshipsForLargeDiagrams = try container.decodeIfPresent(Bool.self, forKey: .diagramRenderRelationshipsForLargeDiagrams) ?? true
         diagramUseThemedAppearance = try container.decodeIfPresent(Bool.self, forKey: .diagramUseThemedAppearance) ?? true
+        usePerTypeStorageLimits = try container.decodeIfPresent(Bool.self, forKey: .usePerTypeStorageLimits) ?? false
         mssqlStreamingMode = (try? container.decodeIfPresent(ResultStreamingExecutionMode.self, forKey: .mssqlStreamingMode)) ?? .auto
         mysqlStreamingMode = (try? container.decodeIfPresent(ResultStreamingExecutionMode.self, forKey: .mysqlStreamingMode)) ?? .auto
         sqliteStreamingMode = (try? container.decodeIfPresent(ResultStreamingExecutionMode.self, forKey: .sqliteStreamingMode)) ?? .auto
@@ -242,6 +245,7 @@ struct GlobalSettings: Codable, Hashable {
         try container.encode(diagramVerifyBeforeRefresh, forKey: .diagramVerifyBeforeRefresh)
         try container.encode(diagramRenderRelationshipsForLargeDiagrams, forKey: .diagramRenderRelationshipsForLargeDiagrams)
         try container.encode(diagramUseThemedAppearance, forKey: .diagramUseThemedAppearance)
+        try container.encode(usePerTypeStorageLimits, forKey: .usePerTypeStorageLimits)
         try container.encode(mssqlStreamingMode, forKey: .mssqlStreamingMode)
         try container.encode(mysqlStreamingMode, forKey: .mysqlStreamingMode)
         try container.encode(sqliteStreamingMode, forKey: .sqliteStreamingMode)

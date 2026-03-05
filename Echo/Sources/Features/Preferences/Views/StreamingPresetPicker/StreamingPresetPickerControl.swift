@@ -61,28 +61,18 @@ struct StreamingPresetPickerControl: View {
 
     @ViewBuilder
     private var content: some View {
-#if os(macOS)
-        macRow
-#else
-        iOSRow
-#endif
-    }
-
-#if os(macOS)
-    private var macRow: some View {
         LabeledContent {
             HStack(spacing: 6) {
-                macPicker
+                picker
                 infoButton
             }
             .frame(maxWidth: .infinity, alignment: .trailing)
         } label: {
             Text(title)
-                .font(TypographyTokens.standard)
         }
     }
 
-    private var macPicker: some View {
+    private var picker: some View {
         Picker("", selection: $selection) {
             ForEach(presets, id: \.self) { preset in
                 Text(label(for: preset))
@@ -108,47 +98,6 @@ struct StreamingPresetPickerControl: View {
             .frame(width: 240)
         }
     }
-#else
-    private var iOSRow: some View {
-        HStack(alignment: .center, spacing: 8) {
-            Text(title)
-                .font(TypographyTokens.standard)
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-            iOSPicker
-
-            infoButton
-        }
-        .frame(height: 44)
-        .padding(.vertical, 1.5)
-        .padding(.horizontal, SpacingTokens.xs2)
-        .background(rowBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-    }
-
-    private var iOSPicker: some View {
-        Picker(selection: $selection) {
-            ForEach(presets, id: \.self) { preset in
-                Text(label(for: preset)).tag(Selection.preset(preset))
-            }
-            Text("Custom...").tag(Selection.custom)
-        } label: {
-            EmptyView()
-        }
-        .pickerStyle(.menu)
-        .labelsHidden()
-        .fixedSize()
-        .popover(isPresented: $showCustomPopover, attachmentAnchor: .rect(.bounds), arrowEdge: .trailing) {
-            CustomValuePopover(
-                title: title,
-                text: $customText,
-                rangeDescription: "\(formatter(range.lowerBound)) -- \(formatter(range.upperBound))",
-                onSubmit: applyCustomValue,
-                onCancel: { showCustomPopover = false }
-            )
-        }
-    }
-#endif
 
     var infoButton: some View {
         Button(action: { showInfoPopover.toggle() }) {
@@ -169,11 +118,4 @@ struct StreamingPresetPickerControl: View {
     var displayValueLabel: String { formatter(value) }
     var defaultLabel: String { formatter(defaultValue) }
 
-    private var rowBackground: some View {
-#if os(macOS)
-        Color.clear
-#else
-        Color(uiColor: .systemBackground).opacity(0.8)
-#endif
-    }
 }

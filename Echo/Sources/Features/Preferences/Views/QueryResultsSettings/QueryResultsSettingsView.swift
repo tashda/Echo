@@ -116,7 +116,16 @@ struct QueryResultsSettingsView: View {
                 HStack {
                     Spacer()
                     Button("Revert to Default") {
-                        let settings = GlobalSettings()
+                        var settings = projectStore.globalSettings
+                        settings.resultsInitialRowLimit = ResultStreamingDefaults.initialRows
+                        settings.resultsPreviewBatchSize = ResultStreamingDefaults.previewBatch
+                        settings.resultsBackgroundStreamingThreshold = ResultStreamingDefaults.backgroundThreshold
+                        settings.resultsStreamingFetchSize = ResultStreamingDefaults.fetchSize
+                        settings.resultsStreamingFetchRampMultiplier = ResultStreamingDefaults.fetchRampMultiplier
+                        settings.resultsStreamingFetchRampMax = ResultStreamingDefaults.fetchRampMax
+                        settings.resultsUseCursorStreaming = ResultStreamingDefaults.useCursor
+                        settings.resultsCursorStreamingLimitThreshold = ResultStreamingDefaults.cursorLimitThreshold
+                        settings.resultsStreamingMode = .auto
                         Task { try? await projectStore.updateGlobalSettings(settings) }
                     }
                     .buttonStyle(.bordered)

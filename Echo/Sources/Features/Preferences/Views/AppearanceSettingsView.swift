@@ -1,8 +1,6 @@
 import SwiftUI
 import Foundation
-#if os(macOS)
 import AppKit
-#endif
 
 struct AppearanceSettingsView: View {
     @Environment(ProjectStore.self) private var projectStore
@@ -22,11 +20,12 @@ struct AppearanceSettingsView: View {
 
     private var appearanceModeSection: some View {
         Section("Appearance Mode") {
-            Picker("Appearance Mode", selection: appearanceModeBinding) {
+            Picker("", selection: appearanceModeBinding) {
                 Text("System").tag(AppearanceMode.system)
                 Text("Light").tag(AppearanceMode.light)
                 Text("Dark").tag(AppearanceMode.dark)
             }
+            .labelsHidden()
             .pickerStyle(.segmented)
 
             Text("Choose Light or Dark for a fixed appearance, or System to follow macOS automatically.")

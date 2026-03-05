@@ -16,7 +16,16 @@ struct ApplicationCacheSettingsView: View {
     @State var isRefreshingResultCache = false
     @State var autocompleteHistoryUsage: UInt64 = 0
     @State var isRefreshingAutocompleteHistory = false
-    @State var usePerTypeStorageLimits = false
+    private var usePerTypeStorageLimits: Binding<Bool> {
+        Binding(
+            get: { projectStore.globalSettings.usePerTypeStorageLimits },
+            set: { newValue in
+                var settings = projectStore.globalSettings
+                settings.usePerTypeStorageLimits = newValue
+                Task { try? await projectStore.updateGlobalSettings(settings) }
+            }
+        )
+    }
 
     var body: some View {
         Form {
@@ -67,11 +76,11 @@ struct ApplicationCacheSettingsView: View {
 
     var storageLimitsSection: some View {
         Section("Storage") {
-            if !usePerTypeStorageLimits {
+            if !usePerTypeStorageLimits.wrappedValue {
                 LabeledContent {
                     Picker("", selection: resultCacheMaxBinding) {
-                        ForEach([1, 2, 5, 10, 20], id: \.self) { gb in
-                            Text("\(gb) GB").tag(gb * 1_024 * 1_024 * 1_024)
+                        ForEach(Self.unifiedStorageOptions, id: \.bytes) { option in
+                            Text(option.label).tag(option.bytes)
                         }
                     }
                     .labelsHidden()
@@ -83,14 +92,14 @@ struct ApplicationCacheSettingsView: View {
                 }
             }
 
-            Toggle("Set storage limits per cache type", isOn: $usePerTypeStorageLimits)
+            Toggle("Set storage limits per cache type", isOn: usePerTypeStorageLimits)
                 .toggleStyle(.switch)
 
-            if usePerTypeStorageLimits {
+            if usePerTypeStorageLimits.wrappedValue {
                 LabeledContent {
                     Picker("", selection: resultCacheMaxBinding) {
-                        ForEach([0.5, 1, 2, 5, 10], id: \.self) { gb in
-                            Text("\(gb) GB").tag(Int(gb * 1_024 * 1_024 * 1_024))
+                        ForEach(Self.perTypeStorageOptions, id: \.bytes) { option in
+                            Text(option.label).tag(option.bytes)
                         }
                     }
                     .labelsHidden()
@@ -104,8 +113,8 @@ struct ApplicationCacheSettingsView: View {
                 if clipboardHistory.isEnabled {
                     LabeledContent {
                         Picker("", selection: clipboardStorageLimitBinding) {
-                            ForEach([0.5, 1, 2, 5, 10], id: \.self) { gb in
-                                Text("\(gb) GB").tag(Int(gb * 1_024 * 1_024 * 1_024))
+                            ForEach(Self.perTypeStorageOptions, id: \.bytes) { option in
+                                Text(option.label).tag(option.bytes)
                             }
                         }
                         .labelsHidden()
@@ -158,4 +167,24 @@ struct ApplicationCacheSettingsView: View {
             }
         }
     }
+
+    // MARK: - Storage Option Constants
+
+    private static let gb = 1_073_741_824 // 1 GB in bytes
+
+    private static let unifiedStorageOptions: [(label: String, bytes: Int)] = [
+        ("1 GB",  1 * gb),
+        ("2 GB",  2 * gb),
+        ("5 GB",  5 * gb),
+        ("10 GB", 10 * gb),
+        ("20 GB", 20 * gb),
+    ]
+
+    private static let perTypeStorageOptions: [(label: String, bytes: Int)] = [
+        ("512 MB", gb / 2),
+        ("1 GB",   1 * gb),
+        ("2 GB",   2 * gb),
+        ("5 GB",   5 * gb),
+        ("10 GB",  10 * gb),
+    ]
 }

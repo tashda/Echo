@@ -65,6 +65,9 @@ struct DiagramSettingsView: View {
             Toggle("Render relationships in large diagrams", isOn: renderRelationshipsBinding)
                 .toggleStyle(.switch)
 
+            Toggle("Use themed appearance", isOn: themedAppearanceBinding)
+                .toggleStyle(.switch)
+
             Text("Disable relationship rendering if diagrams with thousands of edges feel heavy; you can still re-enable it on demand.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
@@ -145,6 +148,17 @@ struct DiagramSettingsView: View {
             set: { newValue in
                 var settings = projectStore.globalSettings
                 settings.diagramRenderRelationshipsForLargeDiagrams = newValue
+                Task { try? await projectStore.updateGlobalSettings(settings) }
+            }
+        )
+    }
+
+    private var themedAppearanceBinding: Binding<Bool> {
+        Binding(
+            get: { projectStore.globalSettings.diagramUseThemedAppearance },
+            set: { newValue in
+                var settings = projectStore.globalSettings
+                settings.diagramUseThemedAppearance = newValue
                 Task { try? await projectStore.updateGlobalSettings(settings) }
             }
         )

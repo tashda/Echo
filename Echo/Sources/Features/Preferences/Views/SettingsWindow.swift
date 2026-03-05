@@ -1,8 +1,6 @@
 import SwiftUI
 import Combine
-#if os(macOS)
 import AppKit
-#endif
 
 // Simple NavigationSplitView-based settings - no complex navigation bridge needed
 
@@ -116,9 +114,7 @@ struct SettingsView: View {
                   let section = SettingsSection(rawValue: raw) else { return }
             selection = section
         }
-#if os(macOS)
         .onAppear(perform: configureSettingsWindowIdentifier)
-#endif
     }
 
     @ViewBuilder
@@ -156,7 +152,6 @@ struct SettingsView: View {
         }
     }
 
-#if os(macOS)
     @ViewBuilder
     private func iconView(for section: SettingsSection) -> some View {
         if let systemName = section.systemImage {
@@ -168,18 +163,5 @@ struct SettingsView: View {
             Image(systemName: "square")
         }
     }
-#else
-    @ViewBuilder
-    private func iconView(for section: SettingsSection) -> some View {
-        if let systemName = section.systemImage {
-            Image(systemName: systemName)
-        } else if let assetName = section.assetImageName {
-            Image(assetName)
-                .renderingMode(.template)
-        } else {
-            Image(systemName: "square")
-        }
-    }
-#endif
 
 }

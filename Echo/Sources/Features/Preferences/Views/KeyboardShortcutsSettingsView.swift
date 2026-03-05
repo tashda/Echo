@@ -5,34 +5,17 @@ struct KeyboardShortcutsSettingsView: View {
     private let sections = ShortcutSectionData.defaults
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 24) {
-                Text("Use keyboard shortcuts to stay in flow while working in Echo. These shortcuts are available wherever the related feature is active.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-
-                ForEach(sections) { section in
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text(section.title)
-                            .font(.headline)
-
-                        VStack(spacing: 8) {
-                            ForEach(section.items) { item in
-                                ShortcutRowView(item: item)
-                            }
-                        }
-                        .padding(SpacingTokens.md)
-                        .background(
-                            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                .fill(Color.primary.opacity(0.03))
-                        )
+        Form {
+            ForEach(sections) { section in
+                Section(section.title) {
+                    ForEach(section.items) { item in
+                        ShortcutRowView(item: item)
                     }
                 }
             }
-            .padding(SpacingTokens.lg)
-            .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .background(Color.clear)
+        .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
     }
 }
 
@@ -40,23 +23,18 @@ private struct ShortcutRowView: View {
     let item: ShortcutItemData
 
     var body: some View {
-        HStack(alignment: .center, spacing: 16) {
-            VStack(alignment: .leading, spacing: 4) {
+        LabeledContent {
+            ShortcutKeyCaps(keys: item.keys)
+        } label: {
+            VStack(alignment: .leading, spacing: 2) {
                 Text(item.title)
-                    .font(TypographyTokens.prominent.weight(.semibold))
-                    .foregroundStyle(.primary)
                 if let context = item.context {
                     Text(context)
-                        .font(TypographyTokens.caption2)
+                        .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
             }
-
-            Spacer(minLength: 16)
-
-            ShortcutKeyCaps(keys: item.keys)
         }
-        .padding(.vertical, SpacingTokens.xxs2)
     }
 }
 
@@ -64,15 +42,15 @@ private struct ShortcutKeyCaps: View {
     let keys: [String]
 
     var body: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: SpacingTokens.xxs2) {
             ForEach(Array(keys.enumerated()), id: \.offset) { _, key in
                 Text(key)
-                    .font(TypographyTokens.caption2.weight(.semibold))
+                    .font(TypographyTokens.caption2.weight(.medium))
                     .padding(.horizontal, SpacingTokens.xs)
-                    .padding(.vertical, SpacingTokens.xxs)
+                    .padding(.vertical, SpacingTokens.xxs2)
                     .background(
                         RoundedRectangle(cornerRadius: 6, style: .continuous)
-                            .fill(Color.primary.opacity(0.08))
+                            .fill(.quaternary)
                     )
             }
         }
