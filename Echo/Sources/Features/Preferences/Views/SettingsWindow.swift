@@ -145,6 +145,8 @@ struct SettingsView: View {
 
         case .applicationCache:
             ApplicationCacheSettingsView()
+                .environmentObject(environmentState)
+                .environmentObject(appState)
                 .environmentObject(clipboardHistory)
 
         case .keyboardShortcuts:
