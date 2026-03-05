@@ -61,7 +61,7 @@ public struct PostgresStructureFetcher: DatabaseStructureFetcher {
 
         await progressHandler(Progress(fraction: 0.0, message: "Starting PostgreSQL structure fetch"))
 
-        let _ = selectedDatabase ?? connection.database ?? "postgres"
+        let _ = selectedDatabase ?? connection.database
 
         await progressHandler(Progress(fraction: 0.1, message: "Listing databases"))
         let databases: [String]
@@ -165,7 +165,7 @@ public struct MSSQLStructureFetcher: DatabaseStructureFetcher {
 
         await progressHandler(Progress(fraction: 0.0, message: "Starting SQL Server structure fetch"))
 
-        let resolvedDatabase = selectedDatabase ?? connection.database ?? "master"
+        let resolvedDatabase = selectedDatabase ?? connection.database
 
         if let sqlSession = session as? SQLServerSessionAdapter {
             await progressHandler(Progress(fraction: 0.2, message: "Loading SQL Server metadata"))

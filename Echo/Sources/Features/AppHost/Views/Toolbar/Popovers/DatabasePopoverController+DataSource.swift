@@ -13,7 +13,7 @@ extension DatabasePopoverController {
 
     func tableView(_ tableView: NSTableView, rowViewForRow row: Int) -> NSTableRowView? {
         let rowView = NSTableRowView()
-        rowView.selectionHighlightStyle = .sourceList
+        rowView.selectionHighlightStyle = .regular
         return rowView
     }
 

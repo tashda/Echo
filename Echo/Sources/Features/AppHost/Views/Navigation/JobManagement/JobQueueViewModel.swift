@@ -12,15 +12,15 @@ final class JobQueueViewModel: ObservableObject {
     internal let session: DatabaseSession
     private let connection: SavedConnection
 
-    @Published internal(set) var jobs: [JobRow] = []
+    @Published var jobs: [JobRow] = []
     @Published var selectedJobID: String? { didSet { Task { await loadDetailsAndHistory() } } }
     @Published var properties: PropertySheet?
-    @Published internal(set) var steps: [StepRow] = []
-    @Published internal(set) var schedules: [ScheduleRow] = []
-    @Published internal(set) var history: [HistoryRow] = []
-    @Published internal(set) var isLoadingJobs = false
-    @Published internal(set) var isLoadingDetails = false
-    @Published internal(set) var errorMessage: String?
+    @Published var steps: [StepRow] = []
+    @Published var schedules: [ScheduleRow] = []
+    @Published var history: [HistoryRow] = []
+    @Published var isLoadingJobs = false
+    @Published var isLoadingDetails = false
+    @Published var errorMessage: String?
 
     init(session: DatabaseSession, connection: SavedConnection, initialSelectedJobID: String? = nil) {
         self.session = session

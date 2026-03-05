@@ -51,7 +51,7 @@ enum EchoFormatters {
 
     // MARK: - Compact Number
 
-    private nonisolated(unsafe) static let decimalFormatter: NumberFormatter = {
+    private static let decimalFormatter: NumberFormatter = {
         let f = NumberFormatter()
         f.numberStyle = .decimal
         return f

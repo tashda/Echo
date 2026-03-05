@@ -78,7 +78,7 @@ extension SQLTextView {
     private func updateSymbolHighlights(for descriptor: SelectionDescriptor) {
         let text = string as NSString
         var newSelectionMatches: [NSRange] = []
-        var newCaretMatches: [NSRange] = []
+        let newCaretMatches: [NSRange] = []
 
         if let word = descriptor.word, word.count > 1, !Self.allKeywords.contains(word.lowercased()) {
             let pattern = "\\b" + NSRegularExpression.escapedPattern(for: word) + "\\b"

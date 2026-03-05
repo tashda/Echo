@@ -88,7 +88,7 @@ private struct NativeBreadcrumbPopover: NSViewRepresentable {
     }
 
     func updateNSView(_ nsView: NSView, context: Context) {
-        guard let window = nsView.window else { return }
+        guard nsView.window != nil else { return }
 
         if isPresented, context.coordinator.popover == nil {
             let popover = NSPopover()

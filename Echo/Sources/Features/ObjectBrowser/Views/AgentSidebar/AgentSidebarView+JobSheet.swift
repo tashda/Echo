@@ -23,7 +23,7 @@ extension AgentSidebarView {
                     do {
                         let rs = try await session.session.simpleQuery("SELECT SUSER_SNAME() AS name;")
                         let val = rs.rows.first?[0] ?? ""
-                        await MainActor.run { newJobOwner = val ?? "" }
+                        await MainActor.run { newJobOwner = val }
                     } catch { }
                 }
             }
