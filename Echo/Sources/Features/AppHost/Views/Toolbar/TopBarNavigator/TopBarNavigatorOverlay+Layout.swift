@@ -4,10 +4,14 @@ import SwiftUI
 import AppKit
 
 extension TopBarNavigatorOverlay {
+    /// Coalesces multiple layout requests into a single synchronous call
+    /// at the end of the current run-loop cycle. Using
+    /// `CFRunLoopPerformBlock` on `.commonModes` ensures the update runs
+    /// within the same display frame as a live resize, avoiding lag.
     func scheduleLayoutUpdate() {
         guard !pendingLayoutUpdate else { return }
         pendingLayoutUpdate = true
-        DispatchQueue.main.async { [weak self] in
+        CFRunLoopPerformBlock(CFRunLoopGetMain(), CFRunLoopMode.commonModes.rawValue) { [weak self] in
             guard let self else { return }
             self.pendingLayoutUpdate = false
             self.updateLayout()
@@ -15,59 +19,62 @@ extension TopBarNavigatorOverlay {
     }
 
     func updateLayout() {
-        guard let toolbarView, let _ = hostingView, let window, let toolbar = window.toolbar else { return }
-        toolbarView.layoutSubtreeIfNeeded()
+        guard let toolbarView, let containerView, let _ = hostingView,
+              let window, let toolbar = window.toolbar else { return }
         updateToolbarItemObservers(toolbar: toolbar, toolbarView: toolbarView)
 
         let bounds = toolbarView.bounds
-        let navigationFrames = toolbar.items
-            .filter { $0.itemIdentifier.rawValue.hasPrefix(navigationPrefix) }
-            .flatMap { frames(for: $0, in: toolbarView) }
 
-        let primaryFrames = toolbar.items
-            .filter { $0.itemIdentifier.rawValue.hasPrefix(primaryPrefix) }
-            .flatMap { frames(for: $0, in: toolbarView) }
+        // Collect frames for ALL left-side items (including system sidebar
+        // toggle) and our primary-action items on the right.
+        let primaryIDs = Set(
+            toolbar.items
+                .filter { $0.itemIdentifier.rawValue.hasPrefix(primaryPrefix) }
+                .map(\.itemIdentifier)
+        )
 
-        let navigationMaxX = navigationFrames.map(\.maxX).max() ?? 0
-        let primaryMinX = primaryFrames.map(\.minX).min() ?? bounds.width
+        let leftFrames = toolbar.items
+            .filter { !primaryIDs.contains($0.itemIdentifier) }
+            .compactMap { frame(for: $0, in: toolbarView) }
+
+        let rightFrames = toolbar.items
+            .filter { primaryIDs.contains($0.itemIdentifier) }
+            .compactMap { frame(for: $0, in: toolbarView) }
+
+        let navigationMaxX = leftFrames.map(\.maxX).max() ?? 0
+        let primaryMinX = rightFrames.map(\.minX).min() ?? bounds.width
 
         let leftEdge = max(leadingPadding, navigationMaxX + leadingPadding)
-        let rightEdge = min(bounds.width - trailingPadding, primaryMinX - trailingPadding)
-        let regionWidth = max(0, rightEdge - leftEdge)
-        let regionCenterX = (leftEdge + rightEdge) / 2
+        var rightEdge = min(bounds.width - trailingPadding, primaryMinX - trailingPadding)
 
-        // If the sidebar/inspector are visible, shrink the available region
-        // while keeping the pill centered.
-        let contentWidth = window.contentLayoutRect.width
-        var shrink: CGFloat = 0
-        if contentWidth > 0 {
-            let scale = bounds.width / contentWidth
-            let sidebarWidth: CGFloat
-            if let appState, appState.workspaceSidebarVisibility != .detailOnly {
-                sidebarWidth = appState.workspaceSidebarWidth
-            } else {
-                sidebarWidth = 0
-            }
-
-            let inspectorWidth: CGFloat
-            if let appState, appState.showInfoSidebar, let navStore = navigationStore {
-                inspectorWidth = navStore.inspectorWidth
-            } else {
-                inspectorWidth = 0
-            }
-
-            shrink = (sidebarWidth * sidebarInfluence + inspectorWidth * inspectorInfluence) * scale
+        // Prevent the pill from extending over the inspector area.
+        if let appState, appState.showInfoSidebar {
+            let contentWidth = window.contentLayoutRect.width
+            let scale: CGFloat = contentWidth > 0 ? bounds.width / contentWidth : 1
+            let inspWidth = navigationStore?.inspectorWidth
+                ?? WorkspaceLayoutMetrics.inspectorMinWidth
+            let inspectorLeft = bounds.width - inspWidth * scale
+            rightEdge = min(rightEdge, inspectorLeft - trailingPadding)
         }
 
-        let minAllowed = min(minimumAvailableWidth, regionWidth)
-        let availableWidth = max(minAllowed, regionWidth - shrink)
-        layoutState.update(availableWidth: availableWidth, centerX: regionCenterX, toolbarWidth: bounds.width)
+        // Safety: ensure the region is never negative / inverted.
+        rightEdge = max(rightEdge, leftEdge + 200)
+
+        let regionWidth = rightEdge - leftEdge
+
+        // Guard against transient toolbar states (e.g. during SwiftUI
+        // state transitions that temporarily remove / reposition items).
+        // If the region shrank below a sane minimum, keep the previous
+        // frame instead of jumping.
+        if regionWidth < 300, let hv = hostingView, hv.frame.width > 100 {
+            return
+        }
+
+        layoutState.update(availableWidth: regionWidth, centerX: 0, toolbarWidth: bounds.width)
 
         let desiredHeight: CGFloat
         let centerOffset: CGFloat
         if let metrics = referenceMetrics(in: toolbarView, toolbar: toolbar) {
-            // Match the tallest native toolbar control so the pill aligns
-            // with the “Default”/segmented toolbar buttons.
             desiredHeight = metrics.height
             centerOffset = metrics.midY - bounds.midY + verticalInset
         } else {
@@ -75,20 +82,34 @@ extension TopBarNavigatorOverlay {
             centerOffset = verticalInset
         }
 
-        let layoutState = LayoutState(height: desiredHeight, centerOffset: centerOffset)
+        // Compute frame in toolbar-view coordinates, then convert to
+        // the container (toolbar's parent) coordinate space.
+        let yInToolbar = (bounds.height - desiredHeight) / 2 + centerOffset
+        let toolbarRect = NSRect(x: leftEdge, y: yInToolbar,
+                                 width: rightEdge - leftEdge, height: desiredHeight)
+        let newFrame = containerView.convert(toolbarRect, from: toolbarView)
 
-        if let lastLayoutState, lastLayoutState.isApproximatelyEqual(to: layoutState) { return }
-
-        NSAnimationContext.runAnimationGroup { context in
-            context.duration = 0
-            context.allowsImplicitAnimation = false
-            apply(constraint: leadingConstraint, constant: 0)
-            apply(constraint: trailingConstraint, constant: 0)
-            apply(constraint: heightConstraint, constant: layoutState.height)
-            apply(constraint: centerYConstraint, constant: layoutState.centerOffset)
+        guard let hostingView else { return }
+        // During a brief cooldown after a state change that triggers toolbar
+        // button re-evaluation, skip layout updates to avoid picking up
+        // transient item positions. The deferred update will run after settling.
+        if hasCompletedInitialLayout {
+            let elapsed = CACurrentMediaTime() - lastStateChangeTime
+            if elapsed < 0.18 {
+                return
+            }
+        } else {
+            hasCompletedInitialLayout = true
         }
-
-        self.lastLayoutState = layoutState
+        if !hostingView.frame.equalTo(newFrame) {
+            NSAnimationContext.runAnimationGroup { context in
+                context.duration = 0
+                context.allowsImplicitAnimation = false
+                hostingView.frame = newFrame
+            }
+        }
+        // Keep hit proxy in sync — its frame is in toolbar-view coordinates.
+        hitProxyView?.frame = toolbarRect
     }
 
     func referenceMetrics(in toolbarView: NSView, toolbar: NSToolbar) -> (height: CGFloat, midY: CGFloat)? {
@@ -100,20 +121,17 @@ extension TopBarNavigatorOverlay {
         return (frame.height, frame.midY)
     }
 
-    func frames(for item: NSToolbarItem, in container: NSView) -> [CGRect] {
-        guard let view = item.view else { return [] }
-        var frames: [CGRect] = [container.convert(view.bounds, from: view)]
-        if let superview = view.superview {
-            frames.append(container.convert(superview.bounds, from: superview))
-        }
-        return frames
+    /// Returns the toolbar item's view frame in toolbar-view coordinates,
+    /// or nil when the item has no backing view (flexible spaces, etc.).
+    /// Only the item's own view is used — the superview container can have
+    /// a misleading frame during SwiftUI toolbar transitions.
+    func frame(for item: NSToolbarItem, in container: NSView) -> CGRect? {
+        guard let view = item.view else { return nil }
+        let rect = container.convert(view.bounds, from: view)
+        // Ignore zero-width items (transient state during re-evaluation).
+        guard rect.width > 1 else { return nil }
+        return rect
     }
 
-    func apply(constraint: NSLayoutConstraint?, constant: CGFloat) {
-        guard let constraint else { return }
-        if abs(constraint.constant - constant) > 0.25 {
-            constraint.constant = constant
-        }
-    }
 }
 #endif

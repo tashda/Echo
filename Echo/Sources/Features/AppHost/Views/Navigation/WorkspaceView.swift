@@ -3,12 +3,27 @@ import SwiftUI
 import AppKit
 #endif
 
+/// Thin shell that owns the `.toolbar` declaration. This view has NO
+/// `@EnvironmentObject` subscriptions, so its body never re-evaluates
+/// when ObservableObject publishers fire (e.g. AppState changes).
+/// This prevents SwiftUI from re-creating ToolbarItem structs, which
+/// was causing NSToolbar to re-layout and shift the action button group.
 struct WorkspaceView: View {
+    var body: some View {
+        WorkspaceBody()
+            .toolbar {
+                WorkspaceToolbarItems()
+            }
+    }
+}
+
+/// Contains all the actual workspace content and state-dependent modifiers.
+private struct WorkspaceBody: View {
     @Environment(ProjectStore.self) private var projectStore
     @Environment(ConnectionStore.self) private var connectionStore
     @Environment(NavigationStore.self) private var navigationStore
     @Environment(TabStore.self) private var tabStore
-    
+
     @EnvironmentObject private var environmentState: EnvironmentState
     @EnvironmentObject private var appState: AppState
     @EnvironmentObject private var appearanceStore: AppearanceStore
@@ -34,9 +49,6 @@ struct WorkspaceView: View {
                 }
         }
         .navigationSplitViewStyle(.balanced)
-        .toolbar {
-            WorkspaceToolbarItems()
-        }
         .background(WorkspaceWindowConfigurator(tabBarStyle: tabBarStyle))
         .sheet(isPresented: Binding(get: { appState.activeSheet == .connectionEditor }, set: { if !$0 { appState.dismissSheet() } })) {
             connectionEditorSheet

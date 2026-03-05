@@ -1,7 +1,10 @@
 import SwiftUI
+import os.log
 
 #if os(macOS)
 import AppKit
+
+private let installLog = Logger(subsystem: "com.echo.overlay", category: "install")
 
 extension TopBarNavigatorOverlay {
     func apply(
@@ -15,10 +18,13 @@ extension TopBarNavigatorOverlay {
         tabStore: TabStore,
         isEnabled: Bool
     ) {
+        let stateInstancesChanged = self.appState !== appState || self.navigationStore !== navigationStore
         self.environmentState = environmentState
         self.appState = appState
         self.navigationStore = navigationStore
-        configureStateObservers(appState: appState, navigationStore: navigationStore)
+        if stateInstancesChanged || stateCancellables.isEmpty {
+            configureStateObservers(appState: appState, navigationStore: navigationStore)
+        }
 
         if !isEnabled {
             detach()
@@ -41,25 +47,22 @@ extension TopBarNavigatorOverlay {
     func detach() {
         removeObservers()
         removeItemObservers()
+        removeHitProxy()
         stateCancellables.removeAll()
         pendingLayoutUpdate = false
-        leadingConstraint?.isActive = false
-        trailingConstraint?.isActive = false
-        centerYConstraint?.isActive = false
-        heightConstraint?.isActive = false
-        leadingConstraint = nil
-        trailingConstraint = nil
-        centerYConstraint = nil
-        heightConstraint = nil
+        hasCompletedInitialLayout = false
 
+        if let containerView {
+            removeExistingHostingViews(from: containerView, keeping: nil)
+        }
         if let toolbarView {
             removeExistingHostingViews(from: toolbarView, keeping: nil)
         }
         hostingView?.removeFromSuperview()
         hostingView = nil
+        containerView = nil
         toolbarView = nil
         window = nil
-        lastLayoutState = nil
     }
 
     func installIfNeeded(
@@ -72,35 +75,34 @@ extension TopBarNavigatorOverlay {
         navigationStore: NavigationStore,
         tabStore: TabStore
     ) {
-        if let hostingView, let toolbarView {
-            removeExistingHostingViews(from: toolbarView, keeping: hostingView)
-            if hostingView.superview !== toolbarView {
+        if let hostingView, let toolbarView, let containerView {
+            removeExistingHostingViews(from: containerView, keeping: hostingView)
+            if hostingView.superview !== containerView {
                 hostingView.removeFromSuperview()
-                removeExistingHostingViews(from: toolbarView, keeping: nil)
-                addHostingView(
-                    hostingView,
-                    to: toolbarView,
-                    window: window
+                addHostingView(hostingView, toolbarView: toolbarView, containerView: containerView, window: window)
+                hostingView.rootView = makeRootView(
+                    environmentState: environmentState,
+                    appState: appState,
+                    appearanceStore: appearanceStore,
+                    projectStore: projectStore,
+                    connectionStore: connectionStore,
+                    navigationStore: navigationStore,
+                    tabStore: tabStore
                 )
             }
-            hostingView.rootView = makeRootView(
-                environmentState: environmentState,
-                appState: appState,
-                appearanceStore: appearanceStore,
-                projectStore: projectStore,
-                connectionStore: connectionStore,
-                navigationStore: navigationStore,
-                tabStore: tabStore
-            )
-            lastLayoutState = nil
-            toolbarView.layoutSubtreeIfNeeded()
+            installHitProxy(hostingView: hostingView, toolbarView: toolbarView)
             scheduleLayoutUpdate()
             return
         }
 
-        guard let toolbarView = findToolbarView(in: window) else { return }
+        guard let toolbarView = findToolbarView(in: window),
+              let containerView = toolbarView.superview else {
+            installLog.warning("installIfNeeded: findToolbarView returned nil")
+            return
+        }
+        installLog.warning("installIfNeeded: FRESH INSTALL")
         toolbarView.postsFrameChangedNotifications = true
-        disableImplicitFrameAnimationsRecursively(in: toolbarView)
+        removeExistingHostingViews(from: containerView, keeping: nil)
         removeExistingHostingViews(from: toolbarView, keeping: nil)
 
         let hostingView = TopBarNavigatorHostingView(
@@ -115,48 +117,66 @@ extension TopBarNavigatorOverlay {
             )
         )
 
-        addHostingView(
-            hostingView,
-            to: toolbarView,
-            window: window
-        )
-
+        addHostingView(hostingView, toolbarView: toolbarView, containerView: containerView, window: window)
         registerObservers(window: window, toolbarView: toolbarView)
-        toolbarView.layoutSubtreeIfNeeded()
+        installHitProxy(hostingView: hostingView, toolbarView: toolbarView)
     }
 
     func addHostingView(
         _ hostingView: TopBarNavigatorHostingView,
-        to toolbarView: NSView,
+        toolbarView: NSView,
+        containerView: NSView,
         window: NSWindow
     ) {
         hostingView.identifier = hostingViewIdentifier
-        toolbarView.addSubview(hostingView, positioned: .above, relativeTo: nil)
-        hostingView.translatesAutoresizingMaskIntoConstraints = false
+        hostingView.translatesAutoresizingMaskIntoConstraints = true
+        containerView.addSubview(hostingView, positioned: .above, relativeTo: toolbarView)
 
-        let leading = hostingView.leadingAnchor.constraint(equalTo: toolbarView.leadingAnchor)
-        let trailing = hostingView.trailingAnchor.constraint(equalTo: toolbarView.trailingAnchor)
-        leading.priority = .required
-        trailing.priority = .required
-        let centerY = hostingView.centerYAnchor.constraint(equalTo: toolbarView.centerYAnchor)
-        let height = hostingView.heightAnchor.constraint(equalToConstant: WorkspaceChromeMetrics.toolbarTabBarHeight)
-
-        NSLayoutConstraint.activate([leading, trailing, centerY, height])
+        let h = WorkspaceChromeMetrics.toolbarTabBarHeight
+        let toolbarFrame = toolbarView.frame
+        hostingView.frame = NSRect(
+            x: toolbarFrame.origin.x,
+            y: toolbarFrame.origin.y + (toolbarFrame.height - h) / 2,
+            width: toolbarFrame.width, height: h
+        )
 
         self.hostingView = hostingView
+        self.containerView = containerView
         self.toolbarView = toolbarView
         self.window = window
-        leadingConstraint = leading
-        trailingConstraint = trailing
-        centerYConstraint = centerY
-        heightConstraint = height
-
-        hostingView.setContentHuggingPriority(.defaultLow, for: .horizontal)
-        hostingView.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
     }
 
-    func removeExistingHostingViews(from toolbarView: NSView, keeping view: NSView?) {
-        for subview in toolbarView.subviews where subview.identifier == hostingViewIdentifier {
+    // MARK: - Hit Proxy
+    // NSTitlebarContainerView's hitTest does not traverse to our hosting
+    // view because it lives outside NSToolbarView. We place a transparent
+    // proxy view INSIDE NSToolbarView that delegates hitTest to the
+    // hosting view, enabling normal NSWindow.sendEvent event dispatch.
+
+    private static let hitProxyIdentifier = NSUserInterfaceItemIdentifier("TopBarNavigatorHitProxy")
+
+    func installHitProxy(hostingView: TopBarNavigatorHostingView, toolbarView: NSView) {
+        if let existing = hitProxyView, existing.superview === toolbarView {
+            existing.hostingView = hostingView
+            return
+        }
+        hitProxyView?.removeFromSuperview()
+
+        let proxy = TopBarNavigatorHitProxy()
+        proxy.identifier = Self.hitProxyIdentifier
+        proxy.translatesAutoresizingMaskIntoConstraints = true
+        proxy.hostingView = hostingView
+        // Place at the front of toolbar's subview list so hitTest finds it first.
+        toolbarView.addSubview(proxy, positioned: .above, relativeTo: nil)
+        hitProxyView = proxy
+    }
+
+    func removeHitProxy() {
+        hitProxyView?.removeFromSuperview()
+        hitProxyView = nil
+    }
+
+    func removeExistingHostingViews(from parentView: NSView, keeping view: NSView?) {
+        for subview in parentView.subviews where subview.identifier == hostingViewIdentifier {
             if let view, subview === view { continue }
             subview.removeFromSuperview()
         }
