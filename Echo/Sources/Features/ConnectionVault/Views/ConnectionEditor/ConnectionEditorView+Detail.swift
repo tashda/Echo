@@ -123,7 +123,7 @@ extension ConnectionEditorView {
 
             if selectedDatabaseType != .sqlite {
                 LabeledContent("Port") {
-                    TextField("", value: $port, format: .number.grouping(.never), prompt: Text("\(selectedDatabaseType.defaultPort)"))
+                    TextField("", value: $port, format: .number.grouping(.never), prompt: Text(verbatim: "\(selectedDatabaseType.defaultPort)"))
                         .multilineTextAlignment(.trailing)
                 }
 

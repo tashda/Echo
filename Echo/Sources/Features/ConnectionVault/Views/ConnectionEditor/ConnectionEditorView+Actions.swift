@@ -63,7 +63,7 @@ extension ConnectionEditorView {
         let passwordToPersist: String?
         if selectedDatabaseType == .sqlite {
             passwordToPersist = nil
-        } else if sanitizedCredentialSource == .manual && !password.isEmpty {
+        } else if sanitizedCredentialSource == .manual && passwordDirty && !password.isEmpty {
             passwordToPersist = password
         } else {
             passwordToPersist = nil

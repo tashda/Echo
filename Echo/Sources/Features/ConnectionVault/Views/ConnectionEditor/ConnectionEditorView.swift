@@ -45,6 +45,8 @@ struct ConnectionEditorView: View {
     @State internal var useTLS: Bool
     @State internal var colorHex: String
 
+    @State internal var passwordDirty = false
+    @State internal var hasSavedPassword = false
     @State internal var isTestingConnection = false
     @State internal var testResult: ConnectionTestResult?
     @State internal var testTask: Task<Void, Never>?
@@ -175,6 +177,9 @@ struct ConnectionEditorView: View {
         .onAppear {
             if originalConnection == nil && folderID == nil {
                 folderID = connectionStore.selectedFolderID
+            }
+            if let conn = originalConnection, conn.credentialSource == .manual {
+                hasSavedPassword = environmentState.identityRepository.password(for: conn) != nil
             }
         }
         .onDisappear { cancelActiveTest() }
