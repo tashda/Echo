@@ -124,7 +124,6 @@ struct ConnectionsPopoverContent: View {
             .padding(.vertical, SpacingTokens.xxs)
         }
         .frame(width: 260, height: 360)
-        .glassEffect(in: .rect(cornerRadius: 12))
     }
 
     // MARK: - Data

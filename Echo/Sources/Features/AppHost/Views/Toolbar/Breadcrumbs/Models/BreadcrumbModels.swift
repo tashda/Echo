@@ -63,24 +63,3 @@ class BreadcrumbNavigationState: ObservableObject {
     }
 }
 
-struct BreadcrumbAnchorInfo: Equatable {
-    let index: Int
-    let anchor: Anchor<CGRect>
-    static func == (lhs: BreadcrumbAnchorInfo, rhs: BreadcrumbAnchorInfo) -> Bool { lhs.index == rhs.index }
-}
-
-struct BreadcrumbAnchorKey: PreferenceKey {
-    static let defaultValue: [BreadcrumbAnchorInfo] = []
-    static func reduce(value: inout [BreadcrumbAnchorInfo], nextValue: () -> [BreadcrumbAnchorInfo]) { value.append(contentsOf: nextValue()) }
-}
-
-struct BreadcrumbAnchorsKey: EnvironmentKey {
-    static let defaultValue: [BreadcrumbAnchorInfo] = []
-}
-
-extension EnvironmentValues {
-    var breadcrumbAnchors: [BreadcrumbAnchorInfo] {
-        get { self[BreadcrumbAnchorsKey.self] }
-        set { self[BreadcrumbAnchorsKey.self] = newValue }
-    }
-}

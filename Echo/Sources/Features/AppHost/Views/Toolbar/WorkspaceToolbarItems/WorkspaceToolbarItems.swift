@@ -12,11 +12,8 @@ struct WorkspaceToolbarItems: ToolbarContent {
             projectMenu
         }
 
-        ToolbarItem(id: "workspace.principal.spacer", placement: .principal) {
-            Color.clear
-                .frame(width: 0, height: 0)
-                .allowsHitTesting(false)
-                .accessibilityHidden(true)
+        ToolbarItem(id: "workspace.principal.breadcrumb", placement: .principal) {
+            BreadcrumbToolbarContent()
         }
 
         ToolbarItem(id: "workspace.primary.refresh", placement: .primaryAction) {
