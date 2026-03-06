@@ -46,7 +46,6 @@ struct EchoApp: App {
                 .environmentObject(coordinator.appearanceStore)
                 .task { await coordinator.initialize() }
         }
-        .windowStyle(.hiddenTitleBar)
         .defaultLaunchBehavior(.presented)
         .commands {
             QueryCommands(
