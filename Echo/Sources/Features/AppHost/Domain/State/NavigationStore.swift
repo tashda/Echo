@@ -14,10 +14,6 @@ final class NavigationStore {
     var showManageProjectsSheet = false
     var inspectorWidth: CGFloat = 300
 
-    /// Popover requests from the breadcrumb toolbar — consumed by the window coordinator.
-    enum BreadcrumbPopover { case connections, database }
-    var breadcrumbPopoverRequest: BreadcrumbPopover?
-    
     // MARK: - Initialization
     init() {}
     

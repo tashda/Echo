@@ -47,6 +47,7 @@ struct EchoApp: App {
                 .task { await coordinator.initialize() }
         }
         .defaultLaunchBehavior(.presented)
+        .windowToolbarStyle(.unified(showsTitle: false))
         .commands {
             QueryCommands(
                 environmentState: coordinator.environmentState,
