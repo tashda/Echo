@@ -4,66 +4,79 @@ import SwiftUI
 import AppKit
 
 /// Native toolbar content for the breadcrumb pill, placed at `.principal`.
+///
+/// Each segment uses a native SwiftUI `.popover()` anchored to the segment view.
+/// On macOS 26, `.popover()` inside `ToolbarItem` positions correctly
+/// (fixed in rdar://147954025).
 struct BreadcrumbToolbarContent: View {
     @Environment(ConnectionStore.self) private var connectionStore
-    @Environment(NavigationStore.self) private var navigationStore
     @EnvironmentObject private var environmentState: EnvironmentState
-    @StateObject private var navigationState = BreadcrumbNavigationState()
+
+    @State private var showConnectionsPopover = false
+    @State private var showDatabasePopover = false
 
     var body: some View {
         HStack(spacing: 0) {
-            breadcrumbContent
+            connectionSegment
+            separator
+            databaseSegment
+
             Spacer(minLength: SpacingTokens.sm)
-            breadcrumbStatus
+
+            statusLabel
         }
         .padding(.leading, SpacingTokens.xxs)
-        .onAppear { updateBreadcrumbSegments() }
-        .onChange(of: connectionStore.selectedConnectionID) { _, _ in updateBreadcrumbSegments() }
-        .onChange(of: environmentState.sessionCoordinator.sessions.count) { _, _ in updateBreadcrumbSegments() }
-        .onChange(of: environmentState.sessionCoordinator.activeSession?.selectedDatabaseName) { _, _ in updateBreadcrumbSegments() }
     }
 
-    // MARK: - Breadcrumb Content
+    // MARK: - Segments
 
-    @ViewBuilder
-    private var breadcrumbContent: some View {
-        if navigationState.segments.isEmpty {
-            BreadcrumbSegmentView(
-                segment: defaultConnectionsSegment,
-                isLast: true,
-                onTap: {},
-                onMenuTap: { navigationStore.breadcrumbPopoverRequest = .connections }
+    private var connectionSegment: some View {
+        BreadcrumbSegmentLabel(
+            icon: "server.rack",
+            title: connectionsTitle
+        ) {
+            showConnectionsPopover = true
+        }
+        .popover(isPresented: $showConnectionsPopover, arrowEdge: .bottom) {
+            ConnectionsPopoverContent(
+                connectionStore: connectionStore,
+                environmentState: environmentState,
+                dismiss: { showConnectionsPopover = false }
             )
-        } else {
-            ForEach(Array(navigationState.segments.enumerated()), id: \.element.id) { index, segment in
-                segmentView(for: segment, at: index)
-            }
+            .environment(connectionStore)
+            .environmentObject(environmentState)
         }
     }
 
-    private var defaultConnectionsSegment: BreadcrumbSegment {
-        BreadcrumbSegment(title: "Connections", icon: "server.rack", hasMenu: true, isActive: true, isEnabled: true)
+    private var databaseSegment: some View {
+        BreadcrumbSegmentLabel(
+            icon: "cylinder.fill",
+            title: databaseTitle,
+            isEnabled: connectionStore.selectedConnectionID != nil
+        ) {
+            showDatabasePopover = true
+        }
+        .popover(isPresented: $showDatabasePopover, arrowEdge: .bottom) {
+            DatabaseBreadcrumbMenu()
+                .environment(connectionStore)
+                .environmentObject(environmentState)
+        }
+        .disabled(connectionStore.selectedConnectionID == nil)
     }
 
-    @ViewBuilder
-    private func segmentView(for segment: BreadcrumbSegment, at index: Int) -> some View {
-        let isLast = index == navigationState.segments.count - 1
+    // MARK: - Separator
 
-        BreadcrumbSegmentView(segment: segment, isLast: isLast, onTap: {
-            segment.action?()
-        }, onMenuTap: {
-            switch index {
-            case 0: navigationStore.breadcrumbPopoverRequest = .connections
-            case 1: navigationStore.breadcrumbPopoverRequest = .database
-            default: break
-            }
-        })
+    private var separator: some View {
+        Image(systemName: "chevron.compact.right")
+            .font(.system(size: 14, weight: .ultraLight))
+            .foregroundStyle(Color(nsColor: .tertiaryLabelColor))
+            .padding(.horizontal, 2)
     }
 
     // MARK: - Status
 
     @ViewBuilder
-    private var breadcrumbStatus: some View {
+    private var statusLabel: some View {
         if let status = statusText {
             Text(status)
                 .font(TypographyTokens.detail)
@@ -85,27 +98,89 @@ struct BreadcrumbToolbarContent: View {
         }
     }
 
-    // MARK: - Segment Updates
+    // MARK: - Titles
 
-    private func updateBreadcrumbSegments() {
-        let connTitle = connectionStore.selectedConnection.map {
+    private var connectionsTitle: String {
+        connectionStore.selectedConnection.map {
             $0.connectionName.isEmpty ? $0.host : $0.connectionName
         } ?? "Connections"
+    }
 
-        let dbTitle = (connectionStore.selectedConnectionID.flatMap {
+    private var databaseTitle: String {
+        (connectionStore.selectedConnectionID.flatMap {
             environmentState.sessionCoordinator.sessionForConnection($0)
         }?.selectedDatabaseName).map {
             $0.isEmpty ? "Databases" : $0
         } ?? "Databases"
-
-        navigationState.updateSegments([
-            BreadcrumbSegment(title: connTitle, icon: "server.rack", hasMenu: true),
-            BreadcrumbSegment(
-                title: dbTitle, icon: "cylinder.fill", hasMenu: true,
-                isActive: connectionStore.selectedConnectionID != nil,
-                isEnabled: connectionStore.selectedConnectionID != nil
-            )
-        ])
     }
 }
+
+// MARK: - Breadcrumb Segment Label
+
+/// Individual breadcrumb segment with icon, title, hover glass highlight,
+/// and dropdown chevron that appears on hover.
+private struct BreadcrumbSegmentLabel: View {
+    let icon: String
+    let title: String
+    var isEnabled: Bool = true
+    let onTap: () -> Void
+
+    @State private var isHovered = false
+    @State private var isPressed = false
+
+    private var textColor: Color {
+        if !isEnabled { return Color(nsColor: .tertiaryLabelColor) }
+        if isPressed { return .primary.opacity(0.7) }
+        return .primary
+    }
+
+    var body: some View {
+        HStack(spacing: SpacingTokens.xxxs) {
+            Image(systemName: icon)
+                .font(.system(size: 11, weight: .regular))
+                .foregroundStyle(textColor)
+
+            Text(title)
+                .font(.system(size: 12))
+                .foregroundStyle(textColor)
+
+            Image(systemName: "chevron.down")
+                .font(.system(size: 7, weight: .bold))
+                .foregroundStyle(Color(nsColor: .tertiaryLabelColor))
+                .opacity(isHovered && isEnabled ? 1 : 0)
+        }
+        .padding(.horizontal, SpacingTokens.xxs)
+        .padding(.vertical, SpacingTokens.xxxs)
+        .contentShape(Capsule())
+        .background {
+            if isHovered && isEnabled {
+                Capsule()
+                    .fill(.clear)
+                    .glassEffect(.regular.interactive(), in: .capsule)
+            }
+        }
+        .onTapGesture {
+            guard isEnabled else { return }
+            onTap()
+        }
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 0)
+                .onChanged { _ in
+                    guard isEnabled else { return }
+                    if !isPressed { withAnimation(.easeInOut(duration: 0.1)) { isPressed = true } }
+                }
+                .onEnded { _ in
+                    guard isEnabled else { return }
+                    withAnimation(.easeInOut(duration: 0.1)) { isPressed = false }
+                }
+        )
+        .onHover { hovering in
+            guard isEnabled else { return }
+            withAnimation(.easeInOut(duration: 0.15)) { isHovered = hovering }
+        }
+        .animation(.easeInOut(duration: 0.15), value: isHovered)
+        .animation(.easeInOut(duration: 0.1), value: isPressed)
+    }
+}
+
 #endif
