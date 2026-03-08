@@ -145,31 +145,46 @@ final class ConnectionsMenuCoordinator: NSObject, NSMenuDelegate {
         }
 
         let projectID = projectStore.selectedProject?.id
+        let sessions = environmentState.sessionCoordinator.activeSessions
+        let connectedIDs = Set(sessions.map { $0.connection.id })
 
-        // Folder sections
-        let folders = connectionStore.folders
-            .filter { $0.kind == .connections && $0.parentFolderID == nil && $0.projectID == projectID }
-            .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
-
-        for folder in folders {
-            let conns = connectionStore.connections
-                .filter { $0.folderID == folder.id && $0.projectID == projectID }
-                .sorted { displayName($0).localizedCaseInsensitiveCompare(displayName($1)) == .orderedAscending }
-            guard !conns.isEmpty else { continue }
-            menu.addItem(NSMenuItem.sectionHeader(title: folder.name))
-            for conn in conns { menu.addItem(connectionItem(conn)) }
+        // Connected sessions first
+        if !sessions.isEmpty {
+            menu.addItem(NSMenuItem.sectionHeader(title: "Connected"))
+            for session in sessions {
+                let conn = session.connection
+                let isActive = conn.id == connectionStore.selectedConnectionID
+                let title = displayName(conn)
+                let dbSuffix = session.selectedDatabaseName.map { " — \($0)" } ?? ""
+                let item = NSMenuItem(title: title + dbSuffix, action: #selector(switchToSession(_:)), keyEquivalent: "")
+                item.target = self
+                item.representedObject = session
+                item.state = isActive ? .on : .off
+                if let image = NSImage(named: conn.databaseType.iconName) {
+                    image.size = NSSize(width: 16, height: 16)
+                    item.image = image
+                } else {
+                    item.image = NSImage(systemSymbolName: "server.rack", accessibilityDescription: nil)
+                }
+                menu.addItem(item)
+            }
+            menu.addItem(.separator())
         }
 
-        // Unfiled connections
-        let unfiled = connectionStore.connections
-            .filter { $0.folderID == nil && $0.projectID == projectID }
+        // Saved connections (not currently connected)
+        let savedConnections = connectionStore.connections
+            .filter { $0.projectID == projectID && !connectedIDs.contains($0.id) }
             .sorted { displayName($0).localizedCaseInsensitiveCompare(displayName($1)) == .orderedAscending }
-        if !unfiled.isEmpty {
-            if !folders.isEmpty { menu.addItem(NSMenuItem.sectionHeader(title: "Other")) }
-            for conn in unfiled { menu.addItem(connectionItem(conn)) }
-        }
 
-        menu.addItem(.separator())
+        if !savedConnections.isEmpty {
+            if !sessions.isEmpty {
+                menu.addItem(NSMenuItem.sectionHeader(title: "Saved"))
+            }
+            for conn in savedConnections {
+                menu.addItem(connectionItem(conn))
+            }
+            menu.addItem(.separator())
+        }
 
         let manage = NSMenuItem(title: "Manage Connections\u{2026}", action: #selector(manageConnections(_:)), keyEquivalent: "")
         manage.target = self
@@ -182,12 +197,17 @@ final class ConnectionsMenuCoordinator: NSObject, NSMenuDelegate {
         menu.addItem(quick)
     }
 
+    @objc private func switchToSession(_ sender: NSMenuItem) {
+        guard let session = sender.representedObject as? ConnectionSession else { return }
+        connectionStore.selectedConnectionID = session.connection.id
+        environmentState.sessionCoordinator.setActiveSession(session.id)
+    }
+
     private func connectionItem(_ conn: SavedConnection) -> NSMenuItem {
-        let isSelected = conn.id == connectionStore.selectedConnectionID
         let item = NSMenuItem(title: displayName(conn), action: #selector(connectTo(_:)), keyEquivalent: "")
         item.target = self
         item.representedObject = conn
-        item.state = isSelected ? .on : .off
+        item.state = .off
         if let image = NSImage(named: conn.databaseType.iconName) {
             image.size = NSSize(width: 16, height: 16)
             item.image = image

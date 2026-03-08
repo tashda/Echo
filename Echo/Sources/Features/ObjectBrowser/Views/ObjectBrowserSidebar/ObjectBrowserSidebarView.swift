@@ -34,7 +34,7 @@ struct ObjectBrowserSidebarView: View {
         set { viewModel.expandedObjectIDs = newValue }
     }
 
-    private let showConnectedServersSection = false
+    private let showConnectedServersSection = true
 
     internal var sessions: [ConnectionSession] { environmentState.sessionCoordinator.sessions }
 
