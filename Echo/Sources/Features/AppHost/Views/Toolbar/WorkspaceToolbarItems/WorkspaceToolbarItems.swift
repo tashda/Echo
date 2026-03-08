@@ -11,7 +11,10 @@ struct WorkspaceToolbarItems: ToolbarContent {
 
     var body: some ToolbarContent {
         ToolbarItem(id: "workspace.navigation.project", placement: .navigation) {
-            projectMenu
+            ProjectMenuButton(
+                projectStore: projectStore,
+                navigationStore: navigationStore
+            )
         }
 
         ToolbarItem(id: "workspace.navigation.connections", placement: .navigation) {
@@ -31,14 +34,6 @@ struct WorkspaceToolbarItems: ToolbarContent {
                 isEnabled: connectionStore.selectedConnectionID != nil
             )
         }
-
-        ToolbarItem(id: "workspace.status", placement: .primaryAction) {
-            Text(statusText)
-                .font(TypographyTokens.detail)
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-        }
-        .sharedBackgroundVisibility(.hidden)
 
         ToolbarItem(id: "workspace.primary.refresh", placement: .primaryAction) {
             RefreshToolbarButton()
@@ -71,20 +66,6 @@ struct WorkspaceToolbarItems: ToolbarContent {
         }?.selectedDatabaseName).map {
             $0.isEmpty ? "Databases" : $0
         } ?? "Databases"
-    }
-
-    private var statusText: String {
-        guard let id = connectionStore.selectedConnectionID else { return "No Connection" }
-        switch environmentState.connectionStates[id] {
-        case .testing: return "Testing\u{2026}"
-        case .connecting: return "Connecting\u{2026}"
-        case .connected: return "Connected"
-        case .disconnected: return "Disconnected"
-        case .error: return "Error"
-        default:
-            return environmentState.sessionCoordinator.sessionForConnection(id) != nil
-                ? "Connected" : "Disconnected"
-        }
     }
 
 }
