@@ -3,78 +3,92 @@ import SwiftUI
 #if os(macOS)
 import AppKit
 
-/// Breadcrumb toolbar content using native NSPopUpButton menus.
+/// Native NSPopUpButton toolbar menus for Project, Connections, and Databases.
 ///
 /// Menus flow from the toolbar with native Liquid Glass on macOS 26.
 /// Uses NSViewRepresentable wrappers so SwiftUI manages the toolbar
 /// while the menus are pure AppKit.
-struct BreadcrumbToolbarContent: View {
-    @Environment(ConnectionStore.self) private var connectionStore
-    @Environment(ProjectStore.self) private var projectStore
-    @EnvironmentObject private var environmentState: EnvironmentState
 
-    var body: some View {
-        HStack(spacing: SpacingTokens.xxs) {
-            ConnectionsMenuButton(
-                connectionStore: connectionStore,
-                projectStore: projectStore,
-                environmentState: environmentState,
-                title: connectionsTitle
-            )
-            DatabasesMenuButton(
-                connectionStore: connectionStore,
-                environmentState: environmentState,
-                title: databaseTitle,
-                isEnabled: connectionStore.selectedConnectionID != nil
-            )
-            Spacer(minLength: SpacingTokens.sm)
-            statusLabel
-        }
-        .frame(maxWidth: .infinity)
+// MARK: - Project Menu Button
+
+struct ProjectMenuButton: NSViewRepresentable {
+    let projectStore: ProjectStore
+    let navigationStore: NavigationStore
+
+    func makeCoordinator() -> ProjectMenuCoordinator {
+        ProjectMenuCoordinator(projectStore: projectStore, navigationStore: navigationStore)
     }
 
-    // MARK: - Status
+    func makeNSView(context: Context) -> NSPopUpButton {
+        let popup = NSPopUpButton(frame: .zero, pullsDown: true)
+        popup.isBordered = false
+        popup.font = .systemFont(ofSize: 12, weight: .regular)
+        (popup.cell as? NSPopUpButtonCell)?.arrowPosition = .arrowAtBottom
+        let title = projectStore.selectedProject?.name ?? "Project"
+        popup.addItem(withTitle: title)
+        let config = NSImage.SymbolConfiguration(pointSize: 11, weight: .medium)
+        popup.item(at: 0)?.image = NSImage(systemSymbolName: "folder.badge.person.crop", accessibilityDescription: nil)?
+            .withSymbolConfiguration(config)
+        popup.menu?.delegate = context.coordinator
+        popup.setContentHuggingPriority(.defaultHigh, for: .horizontal)
+        return popup
+    }
 
-    private var statusLabel: some View {
-        Group {
-            if let text = statusText, !text.isEmpty {
-                Text(text)
-                    .font(TypographyTokens.detail)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .truncationMode(.tail)
+    func updateNSView(_ popup: NSPopUpButton, context: Context) {
+        context.coordinator.projectStore = projectStore
+        context.coordinator.navigationStore = navigationStore
+        popup.item(at: 0)?.title = projectStore.selectedProject?.name ?? "Project"
+    }
+}
+
+@MainActor
+final class ProjectMenuCoordinator: NSObject, NSMenuDelegate {
+    var projectStore: ProjectStore
+    var navigationStore: NavigationStore
+
+    init(projectStore: ProjectStore, navigationStore: NavigationStore) {
+        self.projectStore = projectStore
+        self.navigationStore = navigationStore
+        super.init()
+    }
+
+    func menuNeedsUpdate(_ menu: NSMenu) {
+        while menu.numberOfItems > 1 {
+            menu.removeItem(at: menu.numberOfItems - 1)
+        }
+
+        let projects = projectStore.projects
+        if projects.isEmpty {
+            let empty = NSMenuItem(title: "No Projects Available", action: nil, keyEquivalent: "")
+            empty.isEnabled = false
+            menu.addItem(empty)
+        } else {
+            for project in projects {
+                let item = NSMenuItem(title: project.name, action: #selector(selectProject(_:)), keyEquivalent: "")
+                item.target = self
+                item.representedObject = project
+                item.state = (project.id == projectStore.selectedProject?.id) ? .on : .off
+                item.image = NSImage(systemSymbolName: "folder.badge.person.crop", accessibilityDescription: nil)
+                menu.addItem(item)
             }
         }
+
+        menu.addItem(.separator())
+
+        let manage = NSMenuItem(title: "Manage Projects\u{2026}", action: #selector(manageProjects(_:)), keyEquivalent: "")
+        manage.target = self
+        manage.image = NSImage(systemSymbolName: "gearshape", accessibilityDescription: nil)
+        menu.addItem(manage)
     }
 
-    // MARK: - Derived State
-
-    private var connectionsTitle: String {
-        connectionStore.selectedConnection.map {
-            $0.connectionName.isEmpty ? $0.host : $0.connectionName
-        } ?? "Connections"
+    @objc private func selectProject(_ sender: NSMenuItem) {
+        guard let project = sender.representedObject as? Project else { return }
+        projectStore.selectProject(project)
+        navigationStore.selectProject(project)
     }
 
-    private var databaseTitle: String {
-        (connectionStore.selectedConnectionID.flatMap {
-            environmentState.sessionCoordinator.sessionForConnection($0)
-        }?.selectedDatabaseName).map {
-            $0.isEmpty ? "Databases" : $0
-        } ?? "Databases"
-    }
-
-    private var statusText: String? {
-        guard let id = connectionStore.selectedConnectionID else { return "No Connection" }
-        switch environmentState.connectionStates[id] {
-        case .testing: return "Testing\u{2026}"
-        case .connecting: return "Connecting\u{2026}"
-        case .connected: return "Connected"
-        case .disconnected: return "Disconnected"
-        case .error: return "Error"
-        default:
-            return environmentState.sessionCoordinator.sessionForConnection(id) != nil
-                ? "Connected" : "Disconnected"
-        }
+    @objc private func manageProjects(_ sender: NSMenuItem) {
+        ManageProjectsWindowController.shared.present()
     }
 }
 

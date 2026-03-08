@@ -61,8 +61,8 @@ struct WorkspaceWindowConfigurator: NSViewRepresentable {
             if !window.titlebarAppearsTransparent {
                 window.titlebarAppearsTransparent = true
             }
-            if window.titleVisibility != .hidden {
-                window.titleVisibility = .hidden
+            if window.titleVisibility != .visible {
+                window.titleVisibility = .visible
             }
             if window.toolbarStyle != .unified {
                 window.toolbarStyle = .unified
