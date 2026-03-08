@@ -27,6 +27,7 @@ final class EnvironmentState: ObservableObject {
     @Published var dataInspectorContent: DataInspectorContent?
     @Published private(set) var expandedConnectionFolderIDs: Set<UUID> = []
     @Published var lastError: DatabaseError?
+    let toastCoordinator = StatusToastCoordinator()
 
     // MARK: - Dependencies
     let projectStore: ProjectStore
@@ -139,6 +140,9 @@ final class EnvironmentState: ObservableObject {
         }
 
         connectionStates[connection.id] = .connecting
+        let displayName = connection.connectionName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            ? connection.host
+            : connection.connectionName.trimmingCharacters(in: .whitespacesAndNewlines)
         do {
             let factory = DatabaseFactoryProvider.makeFactory(for: connection.databaseType)
             let session = try await factory!.connect(
@@ -160,9 +164,11 @@ final class EnvironmentState: ObservableObject {
             connectionStates[connection.id] = .connected
             recordRecentConnection(for: connection, databaseName: connectionSession.selectedDatabaseName)
             startStructureLoadTask(for: connectionSession)
+            toastCoordinator.show(icon: "checkmark.circle.fill", message: "Connected to \(displayName)", style: .success)
         } catch {
             connectionStates[connection.id] = .disconnected
             lastError = DatabaseError.from(error)
+            toastCoordinator.show(icon: "exclamationmark.triangle.fill", message: "Connection failed: \(displayName)", style: .error, duration: 5.0)
         }
     }
 

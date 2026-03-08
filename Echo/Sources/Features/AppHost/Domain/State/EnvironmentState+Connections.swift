@@ -8,7 +8,15 @@ extension EnvironmentState {
     }
 
     func disconnectSession(withID id: UUID) async {
+        let displayName: String
+        if let session = sessionCoordinator.activeSessions.first(where: { $0.id == id }) {
+            let name = session.connection.connectionName.trimmingCharacters(in: .whitespacesAndNewlines)
+            displayName = name.isEmpty ? session.connection.host : name
+        } else {
+            displayName = "server"
+        }
         sessionCoordinator.removeSession(withID: id)
+        toastCoordinator.show(icon: "bolt.horizontal.circle", message: "Disconnected from \(displayName)", style: .info)
     }
 
     func reconnectSession(_ session: ConnectionSession, to databaseName: String) async {

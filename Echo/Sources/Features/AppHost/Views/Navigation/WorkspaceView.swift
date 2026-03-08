@@ -44,6 +44,13 @@ private struct WorkspaceBody: View {
                 .accessibilityIdentifier("workspace-content")
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(ColorTokens.Background.primary)
+                .overlay(alignment: .top) {
+                    if let toast = environmentState.toastCoordinator.currentToast {
+                        StatusToastView(icon: toast.icon, message: toast.message, style: toast.style)
+                            .padding(.top, SpacingTokens.sm)
+                            .transition(.move(edge: .top).combined(with: .opacity))
+                    }
+                }
                 .inspector(isPresented: $appState.showInfoSidebar) {
                     inspectorContent
                 }

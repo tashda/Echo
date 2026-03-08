@@ -55,17 +55,16 @@ struct WorkspaceToolbarItems: ToolbarContent {
     // MARK: - Derived State
 
     private var connectionsTitle: String {
-        connectionStore.selectedConnection.map {
-            $0.connectionName.isEmpty ? $0.host : $0.connectionName
-        } ?? "Connections"
+        if let session = environmentState.sessionCoordinator.activeSession {
+            let name = session.connection.connectionName.trimmingCharacters(in: .whitespacesAndNewlines)
+            return name.isEmpty ? session.connection.host : name
+        }
+        return "Connections"
     }
 
     private var databaseTitle: String {
-        (connectionStore.selectedConnectionID.flatMap {
-            environmentState.sessionCoordinator.sessionForConnection($0)
-        }?.selectedDatabaseName).map {
-            $0.isEmpty ? "Databases" : $0
-        } ?? "Databases"
+        environmentState.sessionCoordinator.activeSession?.selectedDatabaseName
+            .flatMap { $0.isEmpty ? nil : $0 } ?? "Databases"
     }
 
 }
