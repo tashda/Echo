@@ -21,16 +21,13 @@ struct ProjectMenuButton: NSViewRepresentable {
 
     func makeNSView(context: Context) -> NSPopUpButton {
         let popup = NSPopUpButton(frame: .zero, pullsDown: true)
-        popup.isBordered = false
-        popup.font = .systemFont(ofSize: 12, weight: .regular)
-        (popup.cell as? NSPopUpButtonCell)?.arrowPosition = .arrowAtBottom
+        popup.isBordered = true
         let title = projectStore.selectedProject?.name ?? "Project"
         popup.addItem(withTitle: title)
         let config = NSImage.SymbolConfiguration(pointSize: 11, weight: .medium)
         popup.item(at: 0)?.image = NSImage(systemSymbolName: "folder.badge.person.crop", accessibilityDescription: nil)?
             .withSymbolConfiguration(config)
         popup.menu?.delegate = context.coordinator
-        popup.setContentHuggingPriority(.defaultHigh, for: .horizontal)
         return popup
     }
 
@@ -106,15 +103,12 @@ struct ConnectionsMenuButton: NSViewRepresentable {
 
     func makeNSView(context: Context) -> NSPopUpButton {
         let popup = NSPopUpButton(frame: .zero, pullsDown: true)
-        popup.isBordered = false
-        popup.font = .systemFont(ofSize: 12, weight: .regular)
-        (popup.cell as? NSPopUpButtonCell)?.arrowPosition = .arrowAtBottom
+        popup.isBordered = true
         popup.addItem(withTitle: title)
         let config = NSImage.SymbolConfiguration(pointSize: 11, weight: .medium)
         popup.item(at: 0)?.image = NSImage(systemSymbolName: "server.rack", accessibilityDescription: nil)?
             .withSymbolConfiguration(config)
         popup.menu?.delegate = context.coordinator
-        popup.setContentHuggingPriority(.defaultHigh, for: .horizontal)
         return popup
     }
 
@@ -246,15 +240,12 @@ struct DatabasesMenuButton: NSViewRepresentable {
 
     func makeNSView(context: Context) -> NSPopUpButton {
         let popup = NSPopUpButton(frame: .zero, pullsDown: true)
-        popup.isBordered = false
-        popup.font = .systemFont(ofSize: 12, weight: .regular)
-        (popup.cell as? NSPopUpButtonCell)?.arrowPosition = .arrowAtBottom
+        popup.isBordered = true
         popup.addItem(withTitle: title)
         let config = NSImage.SymbolConfiguration(pointSize: 11, weight: .medium)
         popup.item(at: 0)?.image = NSImage(systemSymbolName: "cylinder.fill", accessibilityDescription: nil)?
             .withSymbolConfiguration(config)
         popup.menu?.delegate = context.coordinator
-        popup.setContentHuggingPriority(.defaultHigh, for: .horizontal)
         popup.isEnabled = isEnabled
         return popup
     }

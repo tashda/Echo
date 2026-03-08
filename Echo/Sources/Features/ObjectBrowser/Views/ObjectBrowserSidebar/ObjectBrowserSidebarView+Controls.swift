@@ -1,39 +1,6 @@
 import SwiftUI
 
 extension ObjectBrowserSidebarView {
-    @ViewBuilder
-    func stickyTopBar() -> some View {
-        if let session = selectedSession, let databaseName = session.selectedDatabaseName {
-            StickyTopBarContent(
-                session: session,
-                databaseName: databaseName,
-                onTap: {
-                    withAnimation(.easeInOut(duration: 0.3)) {
-                        let shouldOpen = !viewModel.isHoveringConnectedServers
-                        viewModel.isHoveringConnectedServers = shouldOpen
-                        if shouldOpen {
-                            viewModel.expandedConnectedServerIDs.insert(session.connection.id)
-                        }
-                    }
-                },
-                onRefresh: {
-                    withAnimation(.easeInOut(duration: 0.3)) {
-                        viewModel.isHoveringConnectedServers = true
-                        viewModel.expandedConnectedServerIDs.insert(session.connection.id)
-                    }
-                    Task {
-                        await environmentState.refreshDatabaseStructure(
-                            for: session.id,
-                            scope: .selectedDatabase,
-                            databaseOverride: session.selectedDatabaseName
-                        )
-                    }
-                }
-            )
-            .environmentObject(environmentState)
-        }
-    }
-
     var footerView: some View {
         Group {
             if let session = selectedSession,
@@ -61,17 +28,17 @@ extension ObjectBrowserSidebarView {
         let controlBackground = Color.primary.opacity(0.04)
         let borderColor = Color.primary.opacity(0.08)
         let availableSchemas = database.schemas.filter { !$0.objects.isEmpty }
-        let schemaPresentation: (displayName: String, selectedName: String?) = {
-            if let schemaName = viewModel.selectedSchemaName {
-                return (schemaName, schemaName)
+        let connID = session.connection.id
+        let currentSchemaSelection = viewModel.selectedSchemaNameBySession[connID]
+        let schemaDisplayName: String = {
+            if let schemaName = currentSchemaSelection {
+                return schemaName
             }
             if availableSchemas.count == 1, let onlySchema = availableSchemas.first?.name {
-                return (onlySchema, onlySchema)
+                return onlySchema
             }
-            return ("All Schemas", nil)
+            return "All Schemas"
         }()
-        let schemaDisplayName = schemaPresentation.displayName
-        let currentSchemaSelection = schemaPresentation.selectedName
 
         let shouldShowSchemaPicker = !availableSchemas.isEmpty && !viewModel.isSearchFieldFocused
         let creationOptions = creationOptions(for: session.connection.databaseType)
@@ -115,7 +82,7 @@ extension ObjectBrowserSidebarView {
                 Menu {
                     Button {
                         withAnimation(.easeInOut(duration: 0.2)) {
-                            viewModel.selectedSchemaName = nil
+                            _ = viewModel.selectedSchemaNameBySession.removeValue(forKey: connID)
                         }
                     } label: {
                         if currentSchemaSelection == nil {
@@ -129,7 +96,7 @@ extension ObjectBrowserSidebarView {
                         let objectCount = schema.objects.count
                         Button {
                             withAnimation(.easeInOut(duration: 0.2)) {
-                                viewModel.selectedSchemaName = schema.name
+                                viewModel.selectedSchemaNameBySession[connID] = schema.name
                             }
                         } label: {
                             if currentSchemaSelection == schema.name {
@@ -149,12 +116,12 @@ extension ObjectBrowserSidebarView {
                             .renderingMode(.template)
                             .resizable()
                             .frame(width: 12, height: 12)
-                            .foregroundStyle(viewModel.selectedSchemaName == nil ? .secondary : accentColor)
+                            .foregroundStyle(currentSchemaSelection == nil ? .secondary : accentColor)
 
                         Text(schemaDisplayName)
                             .font(TypographyTokens.caption2.weight(.medium))
                             .lineLimit(1)
-                            .foregroundStyle(viewModel.selectedSchemaName == nil ? Color.primary : accentColor)
+                            .foregroundStyle(currentSchemaSelection == nil ? Color.primary : accentColor)
                     }
                     .padding(.horizontal, SpacingTokens.xs2)
                     .padding(.vertical, SpacingTokens.xxs)

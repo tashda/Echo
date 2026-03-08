@@ -6,15 +6,14 @@ import EchoSense
 final class ObjectBrowserSidebarViewModel: ObservableObject {
     @Published var searchText = ""
     @Published var debouncedSearchText = ""
-    @Published var selectedSchemaName: String?
     @Published var isSearchFieldFocused = false
-    @Published var expandedObjectGroups: Set<SchemaObjectInfo.ObjectType> = Set(SchemaObjectInfo.ObjectType.allCases)
     @Published var expandedServerIDs: Set<UUID> = []
-    @Published var expandedObjectIDs: Set<String> = []
-    @Published var expandedConnectedServerIDs: Set<UUID> = []
-    @Published var isHoveringConnectedServers = false
-    @Published var connectedServersHeight: CGFloat = 0
     @Published var knownSessionIDs: Set<UUID> = []
+
+    // Per-session state
+    @Published var expandedObjectGroupsBySession: [UUID: Set<SchemaObjectInfo.ObjectType>] = [:]
+    @Published var expandedObjectIDsBySession: [UUID: Set<String>] = [:]
+    @Published var selectedSchemaNameBySession: [UUID: String] = [:]
     @Published var pinnedObjectIDsByDatabase: [String: Set<String>] = [:]
     @Published var pinnedSectionExpandedByDatabase: [String: Bool] = [:]
     
@@ -62,26 +61,53 @@ final class ObjectBrowserSidebarViewModel: ObservableObject {
             debouncedSearchText = ""
             searchDebounceTask?.cancel()
         }
-        if selectedSchemaName != nil {
-            selectedSchemaName = nil
-        }
-        if !expandedObjectIDs.isEmpty {
-            expandedObjectIDs.removeAll()
-        }
-        let targetSession = session ?? selectedSession
+        guard let targetSession = session ?? selectedSession else { return }
+        let connID = targetSession.connection.id
+        selectedSchemaNameBySession.removeValue(forKey: connID)
+        expandedObjectIDsBySession.removeValue(forKey: connID)
         let supportedSet = Set(supportedObjectTypes(for: targetSession))
-        if supportedSet.isEmpty {
-            if !expandedObjectGroups.isEmpty {
-                expandedObjectGroups.removeAll()
-            }
-        } else if expandedObjectGroups != supportedSet {
-            expandedObjectGroups = supportedSet
-        }
+        expandedObjectGroupsBySession[connID] = supportedSet
     }
 
     private func supportedObjectTypes(for session: ConnectionSession?) -> [SchemaObjectInfo.ObjectType] {
         guard let session else { return SchemaObjectInfo.ObjectType.allCases }
         return SchemaObjectInfo.ObjectType.supported(for: session.connection.databaseType)
+    }
+
+    func initializeSessionState(for session: ConnectionSession) {
+        let connID = session.connection.id
+        if expandedObjectGroupsBySession[connID] == nil {
+            expandedObjectGroupsBySession[connID] = Set(supportedObjectTypes(for: session))
+        }
+    }
+
+    // MARK: - Per-Session Bindings
+
+    func expandedObjectGroupsBinding(for connectionID: UUID) -> Binding<Set<SchemaObjectInfo.ObjectType>> {
+        Binding(
+            get: { [weak self] in self?.expandedObjectGroupsBySession[connectionID] ?? Set(SchemaObjectInfo.ObjectType.allCases) },
+            set: { [weak self] in self?.expandedObjectGroupsBySession[connectionID] = $0 }
+        )
+    }
+
+    func expandedObjectIDsBinding(for connectionID: UUID) -> Binding<Set<String>> {
+        Binding(
+            get: { [weak self] in self?.expandedObjectIDsBySession[connectionID] ?? [] },
+            set: { [weak self] in self?.expandedObjectIDsBySession[connectionID] = $0 }
+        )
+    }
+
+    func selectedSchemaNameBinding(for connectionID: UUID) -> Binding<String?> {
+        Binding(
+            get: { [weak self] in self?.selectedSchemaNameBySession[connectionID] },
+            set: { [weak self] newValue in
+                if let newValue {
+                    self?.selectedSchemaNameBySession[connectionID] = newValue
+                } else {
+                    self?.selectedSchemaNameBySession.removeValue(forKey: connectionID)
+                }
+            }
+        )
     }
 
     func ensureServerExpanded(for connectionID: UUID, sessions: [ConnectionSession]) {
