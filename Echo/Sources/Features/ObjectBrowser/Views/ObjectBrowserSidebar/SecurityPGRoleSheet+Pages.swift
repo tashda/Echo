@@ -42,6 +42,11 @@ extension SecurityPGRoleSheet {
             TextField("Valid until", text: $validUntil, prompt: Text("YYYY-MM-DD HH:MM:SS or empty for no expiry"))
                 .help("Account expiration timestamp. Leave empty for no expiry.")
         }
+
+        Section("Comment") {
+            TextField("Comment", text: $roleComment, prompt: Text("Optional description"), axis: .vertical)
+                .lineLimit(3...6)
+        }
     }
 
     // MARK: - Privileges Page
@@ -79,24 +84,46 @@ extension SecurityPGRoleSheet {
             }
         } else {
             Section("Member Of") {
-                if memberOfEntries.isEmpty {
-                    Text("Not a member of any role.")
-                        .foregroundStyle(.secondary)
-                        .font(TypographyTokens.detail)
-                } else {
-                    membershipTable(entries: $memberOfEntries)
-                }
+                membershipTable(
+                    entries: $memberOfEntries,
+                    availableRoles: availableRolesForMemberOf,
+                    selectedNewRole: $selectedNewMemberOfRole,
+                    onAdd: {
+                        guard !selectedNewMemberOfRole.isEmpty else { return }
+                        memberOfEntries.append(PGRoleMemberEntry(
+                            name: selectedNewMemberOfRole,
+                            adminOption: false,
+                            inheritOption: true,
+                            setOption: true
+                        ))
+                        selectedNewMemberOfRole = ""
+                    },
+                    onRemove: { indexSet in
+                        memberOfEntries.remove(atOffsets: indexSet)
+                    }
+                )
             }
 
             if isEditing {
                 Section("Members") {
-                    if memberEntries.isEmpty {
-                        Text("No roles are members of this role.")
-                            .foregroundStyle(.secondary)
-                            .font(TypographyTokens.detail)
-                    } else {
-                        membershipTable(entries: $memberEntries)
-                    }
+                    membershipTable(
+                        entries: $memberEntries,
+                        availableRoles: availableRolesForMembers,
+                        selectedNewRole: $selectedNewMemberRole,
+                        onAdd: {
+                            guard !selectedNewMemberRole.isEmpty else { return }
+                            memberEntries.append(PGRoleMemberEntry(
+                                name: selectedNewMemberRole,
+                                adminOption: false,
+                                inheritOption: true,
+                                setOption: true
+                            ))
+                            selectedNewMemberRole = ""
+                        },
+                        onRemove: { indexSet in
+                            memberEntries.remove(atOffsets: indexSet)
+                        }
+                    )
                 }
             }
         }

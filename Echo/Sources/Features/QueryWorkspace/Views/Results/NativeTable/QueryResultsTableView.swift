@@ -17,6 +17,7 @@ struct QueryResultsTableView: NSViewRepresentable {
     var onJsonEvent: (JsonCellEvent) -> Void
     var persistedState: QueryResultsGridState?
     var isResizing: Bool = false
+    var alternateRowShading: Bool = false
 
     @EnvironmentObject private var environmentState: EnvironmentState
     @EnvironmentObject private var clipboardHistory: ClipboardHistoryStore
@@ -36,7 +37,7 @@ struct QueryResultsTableView: NSViewRepresentable {
         }
 
         let tableView = ResultTableView()
-        tableView.usesAlternatingRowBackgroundColors = false
+        tableView.usesAlternatingRowBackgroundColors = alternateRowShading
         tableView.rowHeight = 24
         tableView.headerView = ResultTableHeaderView(coordinator: context.coordinator)
         tableView.gridStyleMask = []
@@ -72,7 +73,7 @@ struct QueryResultsTableView: NSViewRepresentable {
         }
         context.coordinator.updatePersistedState(persistedState)
         tableView.backgroundColor = backgroundColor
-        tableView.usesAlternatingRowBackgroundColors = false
+        tableView.usesAlternatingRowBackgroundColors = alternateRowShading
         container.updateLeadingWidth(0.0)
         container.updateBackgroundColor(backgroundColor)
         context.coordinator.update(parent: self, tableView: tableView)

@@ -23,6 +23,7 @@ struct QueryResultsSection: View {
 #endif
 
     @EnvironmentObject private var appearanceStore: AppearanceStore
+    @Environment(ProjectStore.self) internal var projectStore
 
     internal let statusBarHeight: CGFloat = 24
     internal let statusBarChipSpacing: CGFloat = 12

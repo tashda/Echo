@@ -26,7 +26,14 @@ struct SecurityPGRoleSheet: View {
     // Membership
     @State var memberOfEntries: [PGRoleMemberEntry] = []
     @State var memberEntries: [PGRoleMemberEntry] = []
+    @State var availableRolesForMemberOf: [String] = []
+    @State var availableRolesForMembers: [String] = []
+    @State var selectedNewMemberOfRole = ""
+    @State var selectedNewMemberRole = ""
     @State var loadingRoles = false
+
+    // Comment
+    @State var roleComment = ""
 
     // Parameters
     @State var roleParameters: [PostgresDatabaseParameter] = []
@@ -160,25 +167,72 @@ struct SecurityPGRoleSheet: View {
     // MARK: - Membership Table
 
     @ViewBuilder
-    func membershipTable(entries: Binding<[PGRoleMemberEntry]>) -> some View {
-        Table(entries.wrappedValue) {
-            TableColumn("Role") { entry in
-                Text(entry.name)
-                    .font(TypographyTokens.standard)
-            }
-            .width(min: 120, ideal: 200)
+    func membershipTable(entries: Binding<[PGRoleMemberEntry]>, availableRoles: [String], selectedNewRole: Binding<String>, onAdd: @escaping () -> Void, onRemove: @escaping (IndexSet) -> Void) -> some View {
+        if entries.wrappedValue.isEmpty {
+            Text("No memberships configured.")
+                .foregroundStyle(.secondary)
+                .font(TypographyTokens.detail)
+        } else {
+            Table(entries.wrappedValue) {
+                TableColumn("Role") { entry in
+                    Text(entry.name)
+                        .font(TypographyTokens.standard)
+                }
+                .width(min: 120, ideal: 180)
 
-            TableColumn("Member") { entry in
-                if let binding = entries.first(where: { $0.wrappedValue.name == entry.name }) {
-                    Toggle("", isOn: binding.isMember)
-                        .labelsHidden()
+                TableColumn("Admin") { entry in
+                    if let binding = entries.first(where: { $0.wrappedValue.name == entry.name }) {
+                        Toggle("", isOn: binding.adminOption)
+                            .labelsHidden()
+                    }
+                }
+                .width(50)
+
+                TableColumn("Inherit") { entry in
+                    if let binding = entries.first(where: { $0.wrappedValue.name == entry.name }) {
+                        Toggle("", isOn: binding.inheritOption)
+                            .labelsHidden()
+                    }
+                }
+                .width(50)
+
+                TableColumn("Set") { entry in
+                    if let binding = entries.first(where: { $0.wrappedValue.name == entry.name }) {
+                        Toggle("", isOn: binding.setOption)
+                            .labelsHidden()
+                    }
+                }
+                .width(50)
+            }
+            .tableStyle(.bordered)
+            .scrollContentBackground(.visible)
+            .frame(height: min(max(CGFloat(entries.wrappedValue.count) * 28 + 32, 80), 200))
+        }
+
+        HStack(spacing: SpacingTokens.xs) {
+            Picker("Add role", selection: selectedNewRole) {
+                Text("Select role\u{2026}").tag("")
+                ForEach(availableRoles, id: \.self) { role in
+                    Text(role).tag(role)
                 }
             }
-            .width(60)
+            .labelsHidden()
+            .frame(minWidth: 160)
+
+            Button("Add") { onAdd() }
+                .disabled(selectedNewRole.wrappedValue.isEmpty)
+
+            Spacer()
+
+            if !entries.wrappedValue.isEmpty {
+                Button("Remove Selected", role: .destructive) {
+                    // Remove last entry as fallback
+                    if let last = entries.wrappedValue.indices.last {
+                        onRemove(IndexSet(integer: last))
+                    }
+                }
+            }
         }
-        .tableStyle(.bordered)
-        .scrollContentBackground(.visible)
-        .frame(height: min(max(CGFloat(entries.wrappedValue.count) * 28 + 32, 120), 240))
     }
 
     // MARK: - Predefined Parameters
@@ -263,42 +317,41 @@ struct SecurityPGRoleSheet: View {
         do {
             let roles = try await admin.listRoles()
             let currentName = existingRoleName ?? ""
+            let allRoleNames = roles.map(\.name).filter { $0 != currentName }.sorted()
 
-            var moEntries = roles
-                .filter { $0.name != currentName }
-                .map { PGRoleMemberEntry(name: $0.name, isMember: false) }
-
-            var mEntries = roles
-                .filter { $0.name != currentName }
-                .map { PGRoleMemberEntry(name: $0.name, isMember: false) }
+            var moEntries: [PGRoleMemberEntry] = []
+            var mEntries: [PGRoleMemberEntry] = []
 
             if !currentName.isEmpty {
                 let memberOf = try await admin.listMemberOf(role: currentName)
-                for i in moEntries.indices {
-                    if memberOf.contains(where: { $0.roleName == moEntries[i].name }) {
-                        moEntries[i].isMember = true
-                    }
-                }
-                moEntries.sort { a, b in
-                    if a.isMember != b.isMember { return a.isMember }
-                    return a.name < b.name
+                moEntries = memberOf.map { m in
+                    PGRoleMemberEntry(
+                        name: m.roleName,
+                        adminOption: m.adminOption,
+                        inheritOption: m.inheritOption,
+                        setOption: m.setOption
+                    )
                 }
 
                 let members = try await admin.listMembers(of: currentName)
-                for i in mEntries.indices {
-                    if members.contains(where: { $0.memberName == mEntries[i].name }) {
-                        mEntries[i].isMember = true
-                    }
-                }
-                mEntries.sort { a, b in
-                    if a.isMember != b.isMember { return a.isMember }
-                    return a.name < b.name
+                mEntries = members.map { m in
+                    PGRoleMemberEntry(
+                        name: m.memberName,
+                        adminOption: m.adminOption,
+                        inheritOption: m.inheritOption,
+                        setOption: m.setOption
+                    )
                 }
             }
+
+            let moNames = Set(moEntries.map(\.name))
+            let mNames = Set(mEntries.map(\.name))
 
             await MainActor.run {
                 memberOfEntries = moEntries
                 memberEntries = mEntries
+                availableRolesForMemberOf = allRoleNames.filter { !moNames.contains($0) }
+                availableRolesForMembers = allRoleNames.filter { !mNames.contains($0) }
                 loadingRoles = false
             }
         } catch {
@@ -327,6 +380,9 @@ struct SecurityPGRoleSheet: View {
 
                     let labels = try await admin.fetchRoleSecurityLabels(role: existingName)
                     await MainActor.run { securityLabels = labels }
+
+                    let comment = try await admin.fetchRoleComment(role: existingName)
+                    await MainActor.run { roleComment = comment ?? "" }
                 }
             } catch { }
         }
@@ -381,34 +437,44 @@ struct SecurityPGRoleSheet: View {
             }
 
             let admin = PostgresAdmin(client: pg.client, logger: pg.logger)
+
+            // Sync "Member Of" memberships
             let currentMemberOf = try await admin.listMemberOf(role: name)
+            let desiredMemberOfNames = Set(memberOfEntries.map(\.name))
 
+            // Revoke removed memberships
+            for existing in currentMemberOf where !desiredMemberOfNames.contains(existing.roleName) {
+                try await pg.client.revokeRole(role: existing.roleName, from: name)
+            }
+
+            // Grant new or update existing memberships
             for entry in memberOfEntries {
-                let isCurrentlyMember = currentMemberOf.contains(where: {
-                    $0.roleName == entry.name && $0.memberName == name
-                })
-
-                if entry.isMember && !isCurrentlyMember {
-                    try await pg.client.grantRole(role: entry.name, to: name)
-                } else if !entry.isMember && isCurrentlyMember {
-                    try await pg.client.revokeRole(role: entry.name, from: name)
+                let existing = currentMemberOf.first(where: { $0.roleName == entry.name })
+                if existing == nil || existing?.adminOption != entry.adminOption || existing?.inheritOption != entry.inheritOption || existing?.setOption != entry.setOption {
+                    try await pg.client.grantRole(role: entry.name, to: name, admin: entry.adminOption, inherit: entry.inheritOption, set: entry.setOption)
                 }
             }
 
+            // Sync "Members" memberships (only in edit mode)
             if isEditing {
                 let currentMembers = try await admin.listMembers(of: name)
+                let desiredMemberNames = Set(memberEntries.map(\.name))
+
+                for existing in currentMembers where !desiredMemberNames.contains(existing.memberName) {
+                    try await pg.client.revokeRole(role: name, from: existing.memberName)
+                }
 
                 for entry in memberEntries {
-                    let isCurrentlyMember = currentMembers.contains(where: {
-                        $0.memberName == entry.name
-                    })
-
-                    if entry.isMember && !isCurrentlyMember {
-                        try await pg.client.grantRole(role: name, to: entry.name)
-                    } else if !entry.isMember && isCurrentlyMember {
-                        try await pg.client.revokeRole(role: name, from: entry.name)
+                    let existing = currentMembers.first(where: { $0.memberName == entry.name })
+                    if existing == nil || existing?.adminOption != entry.adminOption || existing?.inheritOption != entry.inheritOption || existing?.setOption != entry.setOption {
+                        try await pg.client.grantRole(role: name, to: entry.name, admin: entry.adminOption, inherit: entry.inheritOption, set: entry.setOption)
                     }
                 }
+            }
+
+            // Save comment
+            if isEditing {
+                try await admin.setRoleComment(role: name, comment: roleComment.isEmpty ? nil : roleComment)
             }
 
             await MainActor.run {
@@ -460,5 +526,7 @@ enum PGRolePage: String, Hashable, CaseIterable {
 struct PGRoleMemberEntry: Identifiable, Hashable {
     var id: String { name }
     let name: String
-    var isMember: Bool
+    var adminOption: Bool
+    var inheritOption: Bool
+    var setOption: Bool
 }

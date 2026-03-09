@@ -16,17 +16,23 @@ extension QueryResultsTableView.Coordinator {
         dirtyToken: UInt64,
         tableView: NSTableView
     ) {
+        // Preserve selection state during active cell drags to prevent
+        // intermittent drag failures when table updates occur mid-drag.
+        let preserveSelection = isDraggingCellSelection
+
         if columnsChanged {
-            setSelectionRegion(nil, tableView: tableView)
+            if !preserveSelection {
+                setSelectionRegion(nil, tableView: tableView)
+            }
             applyHeaderStyle(to: tableView)
             refreshVisibleRowBackgrounds(tableView)
         }
 
-        if rowOrderChanged {
+        if rowOrderChanged && !preserveSelection {
             setSelectionRegion(nil, tableView: tableView)
         }
 
-        if let region = selectionRegion {
+        if !preserveSelection, let region = selectionRegion {
             let maxRow = tableView.numberOfRows
             let maxColumn = parent.query.displayedColumns.count
             if maxRow == 0 || maxColumn == 0 || region.normalizedRowRange.upperBound >= maxRow || region.normalizedColumnRange.upperBound >= maxColumn {
@@ -34,7 +40,7 @@ extension QueryResultsTableView.Coordinator {
             }
         }
 
-        if parent.query.isExecuting && parent.query.displayedRowCount == 0 {
+        if !preserveSelection && parent.query.isExecuting && parent.query.displayedRowCount == 0 {
             setSelectionRegion(nil, tableView: tableView)
         }
 

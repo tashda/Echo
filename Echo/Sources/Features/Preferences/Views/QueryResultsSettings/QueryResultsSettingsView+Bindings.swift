@@ -140,4 +140,16 @@ extension QueryResultsSettingsView {
         )
     }
 
+    var alternateRowShadingBinding: Binding<Bool> {
+        Binding(
+            get: { projectStore.globalSettings.resultsAlternateRowShading },
+            set: { newValue in
+                guard projectStore.globalSettings.resultsAlternateRowShading != newValue else { return }
+                var settings = projectStore.globalSettings
+                settings.resultsAlternateRowShading = newValue
+                Task { try? await projectStore.updateGlobalSettings(settings) }
+            }
+        )
+    }
+
 }

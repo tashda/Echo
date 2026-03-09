@@ -63,24 +63,27 @@ extension DatabaseObjectBrowserView {
     }
 
     func sectionHeader(title: String, icon: String? = nil, count: Int, isExpanded: Bool) -> some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 8) {
             Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
                 .font(SidebarRowConstants.chevronFont)
                 .foregroundStyle(.tertiary)
                 .frame(width: SidebarRowConstants.chevronWidth)
             if let icon {
                 Image(systemName: icon)
-                    .font(.system(size: 11, weight: .medium))
+                    .font(.system(size: 12))
                     .foregroundStyle(.secondary)
-                    .frame(width: 14)
+                    .frame(width: SidebarRowConstants.iconFrame)
             }
             Text(title)
-                .font(TypographyTokens.detail.weight(.medium))
-                .foregroundStyle(.secondary)
+                .font(TypographyTokens.standard)
+                .foregroundStyle(.primary)
+                .lineLimit(1)
+
             Text("\(count)")
                 .font(TypographyTokens.label)
                 .foregroundStyle(.tertiary)
-            Spacer()
+
+            Spacer(minLength: 4)
         }
         .padding(.horizontal, SidebarRowConstants.rowHorizontalPadding)
         .padding(.vertical, SidebarRowConstants.rowVerticalPadding)
