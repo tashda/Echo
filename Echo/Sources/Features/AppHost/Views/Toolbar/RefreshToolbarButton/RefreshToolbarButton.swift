@@ -30,6 +30,7 @@ struct RefreshToolbarButton: View {
 
     private func startRefresh(for session: ConnectionSession) {
         refreshTask?.cancel()
+        session.structureLoadingState = .loading(progress: 0)
         refreshTask = Task {
             await performRefresh(for: session)
             await MainActor.run {

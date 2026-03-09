@@ -47,8 +47,6 @@ struct QueryResultsSection: View {
                 toolbar
                 Divider().opacity(0.35)
                 content
-            } else {
-                placeholder
             }
             statusBar
         }

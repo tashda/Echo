@@ -41,6 +41,10 @@ struct WorkspaceToolbarItems: ToolbarContent {
                 .accessibilityHidden(true)
         }
 
+        ToolbarItem(id: "workspace.primary.connect", placement: .primaryAction) {
+            ConnectToolbarButton()
+        }
+
         ToolbarItem(id: "workspace.primary.refresh", placement: .primaryAction) {
             RefreshToolbarButton()
         }

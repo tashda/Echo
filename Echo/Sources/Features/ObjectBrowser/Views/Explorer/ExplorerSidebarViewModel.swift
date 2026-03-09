@@ -41,10 +41,17 @@ final class ObjectBrowserSidebarViewModel: ObservableObject {
     @Published var securityLoginsExpandedBySession: [UUID: Bool] = [:]
     @Published var securityServerRolesExpandedBySession: [UUID: Bool] = [:]
     @Published var securityCredentialsExpandedBySession: [UUID: Bool] = [:]
+    @Published var securityCertLoginsExpandedBySession: [UUID: Bool] = [:]
     @Published var securityLoginsBySession: [UUID: [SecurityLoginItem]] = [:]
     @Published var securityServerRolesBySession: [UUID: [SecurityServerRoleItem]] = [:]
     @Published var securityCredentialsBySession: [UUID: [SecurityCredentialItem]] = [:]
     @Published var securityServerLoadingBySession: [UUID: Bool] = [:]
+    // PG separate folders
+    @Published var securityPGLoginRolesExpandedBySession: [UUID: Bool] = [:]
+    @Published var securityPGGroupRolesExpandedBySession: [UUID: Bool] = [:]
+    // MSSQL server role sheet
+    @Published var showSecurityServerRoleSheet = false
+    @Published var securityServerRoleSheetSessionID: UUID?
 
     // Security state — database-level (keyed by "connID#dbName")
     @Published var dbSecurityExpandedByDB: [String: Bool] = [:]

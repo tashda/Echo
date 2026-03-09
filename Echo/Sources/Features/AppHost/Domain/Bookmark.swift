@@ -88,3 +88,39 @@ struct BookmarkDatabaseGroup: Identifiable, Hashable {
     var databaseName: String?
     var bookmarks: [Bookmark]
 }
+
+struct BookmarkConnectionGroup: Identifiable, Hashable {
+    var id: UUID { connectionID }
+    var connectionID: UUID
+    var connectionName: String
+    var bookmarks: [Bookmark]
+}
+
+extension Array where Element == Bookmark {
+    func groupedByConnection(connectionNames: [UUID: String]) -> [BookmarkConnectionGroup] {
+        let groups = Dictionary(grouping: self) { $0.connectionID }
+
+        return groups
+            .map { connectionID, bookmarks in
+                BookmarkConnectionGroup(
+                    connectionID: connectionID,
+                    connectionName: connectionNames[connectionID] ?? "Unknown Server",
+                    bookmarks: bookmarks.sorted { $0.createdAt > $1.createdAt }
+                )
+            }
+            .sorted { lhs, rhs in
+                lhs.connectionName.localizedCaseInsensitiveCompare(rhs.connectionName) == .orderedAscending
+            }
+    }
+
+    func matching(searchText: String, connectionNames: [UUID: String] = [:]) -> [Bookmark] {
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !query.isEmpty else { return self }
+        return filter { bookmark in
+            bookmark.primaryLine.lowercased().contains(query) ||
+            bookmark.query.lowercased().contains(query) ||
+            (bookmark.databaseName?.lowercased().contains(query) ?? false) ||
+            (connectionNames[bookmark.connectionID]?.lowercased().contains(query) ?? false)
+        }
+    }
+}

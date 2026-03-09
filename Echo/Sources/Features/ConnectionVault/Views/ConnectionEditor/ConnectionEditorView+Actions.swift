@@ -69,7 +69,7 @@ extension ConnectionEditorView {
             passwordToPersist = nil
         }
         onSave(connection, passwordToPersist, action)
-        dismiss()
+        // Note: dismiss is handled by the caller after the save completes
     }
 
     func generateConnectionLogo(databaseType: DatabaseType, color: Color) -> Data? {

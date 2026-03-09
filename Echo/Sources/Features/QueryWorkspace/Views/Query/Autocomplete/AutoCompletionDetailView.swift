@@ -5,19 +5,19 @@ struct AutoCompletionDetailView: View {
     let suggestion: SQLAutoCompletionSuggestion
 
     private enum Layout {
-        static let cornerRadius: CGFloat = 14
-        static let columnSpacing: CGFloat = 4
+        static let cornerRadius: CGFloat = 8
+        static let columnSpacing: CGFloat = SpacingTokens.xxxs
         static let columnBadgePadding = EdgeInsets(top: 2, leading: 5, bottom: 2, trailing: 5)
         static let maxColumnListHeight: CGFloat = 180
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: SpacingTokens.xs) {
             header
             contentBody
         }
-        .padding(.horizontal, SpacingTokens.sm2)
-        .padding(.vertical, SpacingTokens.sm)
+        .padding(.horizontal, SpacingTokens.xs2)
+        .padding(.vertical, SpacingTokens.xs)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(detailBackground)
         .overlay(detailOverlay)
@@ -34,8 +34,9 @@ struct AutoCompletionDetailView: View {
 
     private var header: some View {
         Text(suggestion.displayKindTitle)
-            .font(TypographyTokens.caption2.weight(.semibold))
-            .foregroundStyle(Color.primary)
+            .font(TypographyTokens.detail.weight(.semibold))
+            .foregroundStyle(Color.secondary)
+            .textCase(.uppercase)
     }
 
     @ViewBuilder
@@ -44,7 +45,7 @@ struct AutoCompletionDetailView: View {
             if let schema = suggestion.origin?.schema, let name = suggestion.origin?.object {
                 HStack(spacing: 6) {
                     schemaChip(schema)
-                    Text(name).font(TypographyTokens.caption2.weight(.medium)).foregroundStyle(Color.primary)
+                    Text(name).font(TypographyTokens.standard.weight(.medium)).foregroundStyle(Color.primary)
                 }
             }
             if let columns = suggestion.tableColumns, !columns.isEmpty {
@@ -66,59 +67,40 @@ struct AutoCompletionDetailView: View {
     @ViewBuilder
     private var genericDetail: some View {
         if let objectPath = suggestion.displayObjectPath {
-            Text(objectPath).font(TypographyTokens.caption2.weight(.medium)).foregroundStyle(Color.primary)
+            Text(objectPath).font(TypographyTokens.standard.weight(.medium)).foregroundStyle(Color.primary)
         }
     }
 
     private func schemaChip(_ schema: String) -> some View {
-        HStack(spacing: 5) {
-            Image("schema").resizable().renderingMode(.template).scaledToFit().frame(width: 12, height: 12)
+        HStack(spacing: 4) {
+            Image("schema").resizable().renderingMode(.template).scaledToFit().frame(width: 10, height: 10)
             Text(schema).font(TypographyTokens.detail.weight(.medium))
         }
-        .foregroundStyle(Color.primary)
-        .padding(.horizontal, 9).padding(.vertical, SpacingTokens.xxs)
-        .background(Capsule(style: .continuous).fill(Color.primary.opacity(0.08)))
+        .foregroundStyle(Color.secondary)
+        .padding(.horizontal, SpacingTokens.xxs2).padding(.vertical, SpacingTokens.xxxs)
+        .background(Capsule(style: .continuous).fill(Color.primary.opacity(0.06)))
     }
 
     private struct ColumnListView: View {
         let columns: [SQLAutoCompletionSuggestion.TableColumn]
-        @State private var contentHeight: CGFloat = 0
 
         var body: some View {
-            ZStack(alignment: .bottom) {
-                ScrollView(showsIndicators: false) {
-                    VStack(alignment: .leading, spacing: Layout.columnSpacing) {
-                        ForEach(Array(columns.enumerated()), id: \.offset) { _, column in
-                            HStack(spacing: 6) {
-                                Text(column.name).font(TypographyTokens.detail).foregroundStyle(Color.primary)
-                                Spacer(minLength: 10)
-                                Text(EchoFormatters.abbreviatedSQLType(column.dataType))
-                                    .font(TypographyTokens.label.weight(.semibold))
-                                    .foregroundStyle(Color.secondary).padding(Layout.columnBadgePadding)
-                                    .background(Capsule(style: .continuous).fill(Color.primary.opacity(0.06)))
-                            }
+            ScrollView(showsIndicators: true) {
+                VStack(alignment: .leading, spacing: Layout.columnSpacing) {
+                    ForEach(Array(columns.enumerated()), id: \.offset) { _, column in
+                        HStack(spacing: SpacingTokens.xxs2) {
+                            Text(column.name).font(TypographyTokens.caption2).foregroundStyle(Color.primary)
+                            Spacer(minLength: SpacingTokens.xs2)
+                            Text(EchoFormatters.abbreviatedSQLType(column.dataType))
+                                .font(TypographyTokens.label.weight(.medium))
+                                .foregroundStyle(Color.secondary).padding(Layout.columnBadgePadding)
+                                .background(Capsule(style: .continuous).fill(Color.primary.opacity(0.06)))
                         }
                     }
-                    .background(GeometryReader { geo in Color.clear.preference(key: ColumnContentHeightKey.self, value: geo.size.height) })
-                }
-                .frame(maxHeight: Layout.maxColumnListHeight)
-
-                if contentHeight > Layout.maxColumnListHeight {
-                    LinearGradient(colors: [Color.clear, Color.primary.opacity(0.12)], startPoint: .top, endPoint: .bottom)
-                        .frame(height: 28)
-                        .overlay(Image(systemName: "chevron.down").font(TypographyTokens.label.weight(.semibold)).foregroundStyle(Color.secondary).padding(.bottom, SpacingTokens.xxs2), alignment: .bottom)
-                        .allowsHitTesting(false)
                 }
             }
             .frame(maxHeight: Layout.maxColumnListHeight)
-            .onPreferenceChange(ColumnContentHeightKey.self) { contentHeight = $0 }
         }
-
-    }
-
-    private struct ColumnContentHeightKey: PreferenceKey {
-        nonisolated(unsafe) static var defaultValue: CGFloat = 0
-        static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = max(value, nextValue()) }
     }
 
 #if os(macOS)
