@@ -91,6 +91,36 @@ final class ProjectMenuCoordinator: NSObject, NSMenuDelegate {
     }
 }
 
+// MARK: - Connect Toolbar Menu Button (bolt icon, same menu as Connections)
+
+struct ConnectToolbarMenuButton: NSViewRepresentable {
+    let connectionStore: ConnectionStore
+    let projectStore: ProjectStore
+    let environmentState: EnvironmentState
+
+    func makeCoordinator() -> ConnectionsMenuCoordinator {
+        ConnectionsMenuCoordinator(connectionStore: connectionStore, projectStore: projectStore, environmentState: environmentState)
+    }
+
+    func makeNSView(context: Context) -> NSPopUpButton {
+        let popup = NSPopUpButton(frame: .zero, pullsDown: true)
+        popup.isBordered = true
+        popup.setContentHuggingPriority(.defaultHigh, for: .horizontal)
+        popup.addItem(withTitle: "")
+        let config = NSImage.SymbolConfiguration(pointSize: 12, weight: .medium)
+        popup.item(at: 0)?.image = NSImage(systemSymbolName: "bolt.fill", accessibilityDescription: "Connect")?
+            .withSymbolConfiguration(config)
+        popup.menu?.delegate = context.coordinator
+        return popup
+    }
+
+    func updateNSView(_ popup: NSPopUpButton, context: Context) {
+        context.coordinator.connectionStore = connectionStore
+        context.coordinator.projectStore = projectStore
+        context.coordinator.environmentState = environmentState
+    }
+}
+
 // MARK: - Connections Menu Button
 
 struct ConnectionsMenuButton: NSViewRepresentable {

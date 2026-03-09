@@ -1125,7 +1125,7 @@ extension ObjectBrowserSidebarView {
     }
 
     private func reassignPGRole(name: String, session: ConnectionSession) async {
-        guard let pg = session.session as? PostgresSession else { return }
+        guard session.session is PostgresSession else { return }
         // Open a script tab with a REASSIGN OWNED template
         let sql = """
         -- Reassign all objects owned by "\(name)" to another role.

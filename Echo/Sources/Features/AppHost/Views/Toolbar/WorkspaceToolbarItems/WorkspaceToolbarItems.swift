@@ -17,21 +17,11 @@ struct WorkspaceToolbarItems: ToolbarContent {
             )
         }
 
-        ToolbarItem(id: "workspace.navigation.connections", placement: .navigation) {
-            ConnectionsMenuButton(
+        ToolbarItem(id: "workspace.navigation.connect", placement: .navigation) {
+            ConnectToolbarMenuButton(
                 connectionStore: connectionStore,
                 projectStore: projectStore,
-                environmentState: environmentState,
-                title: connectionsTitle
-            )
-        }
-
-        ToolbarItem(id: "workspace.navigation.databases", placement: .navigation) {
-            DatabasesMenuButton(
-                connectionStore: connectionStore,
-                environmentState: environmentState,
-                title: databaseTitle,
-                isEnabled: connectionStore.selectedConnectionID != nil
+                environmentState: environmentState
             )
         }
 
@@ -39,10 +29,6 @@ struct WorkspaceToolbarItems: ToolbarContent {
             Color.clear
                 .frame(width: 0, height: 0)
                 .accessibilityHidden(true)
-        }
-
-        ToolbarItem(id: "workspace.primary.connect", placement: .primaryAction) {
-            ConnectToolbarButton()
         }
 
         ToolbarItem(id: "workspace.primary.refresh", placement: .primaryAction) {
@@ -60,21 +46,6 @@ struct WorkspaceToolbarItems: ToolbarContent {
         ToolbarItem(id: "workspace.primary.toggleinspector", placement: .primaryAction) {
             InspectorToolbarButton()
         }
-    }
-
-    // MARK: - Derived State
-
-    private var connectionsTitle: String {
-        if let session = environmentState.sessionCoordinator.activeSession {
-            let name = session.connection.connectionName.trimmingCharacters(in: .whitespacesAndNewlines)
-            return name.isEmpty ? session.connection.host : name
-        }
-        return "Connections"
-    }
-
-    private var databaseTitle: String {
-        environmentState.sessionCoordinator.activeSession?.selectedDatabaseName
-            .flatMap { $0.isEmpty ? nil : $0 } ?? "Databases"
     }
 
 }

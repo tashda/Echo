@@ -6,19 +6,6 @@ import EchoSense
 // view body, preventing the @ToolbarContentBuilder from re-evaluating
 // when appState / tabStore / environmentState change.
 
-struct ConnectToolbarButton: View {
-    var body: some View {
-        Button {
-            ManageConnectionsWindowController.shared.present()
-        } label: {
-            Label("Connect", systemImage: "bolt.fill")
-        }
-        .help("Manage Connections")
-        .labelStyle(.iconOnly)
-        .accessibilityLabel("Connect")
-    }
-}
-
 struct NewTabToolbarButton: View {
     @EnvironmentObject private var environmentState: EnvironmentState
     @Environment(NavigationStore.self) private var navigationStore
