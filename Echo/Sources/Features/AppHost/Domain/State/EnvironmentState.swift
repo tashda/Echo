@@ -149,10 +149,16 @@ final class EnvironmentState: ObservableObject {
             : connection.connectionName.trimmingCharacters(in: .whitespacesAndNewlines)
         do {
             let factory = DatabaseFactoryProvider.makeFactory(for: connection.databaseType)
+            // MSSQL connects without a database — the server uses the login's default.
+            // Other engines may specify a database in the connection string.
+            let connectDatabase: String? = connection.databaseType == .microsoftSQL
+                ? nil
+                : (connection.database.isEmpty ? nil : connection.database)
+
             let session = try await factory!.connect(
                 host: connection.host,
                 port: connection.port,
-                database: connection.database.isEmpty ? nil : connection.database,
+                database: connectDatabase,
                 tls: connection.useTLS,
                 authentication: credentials,
                 connectTimeoutSeconds: 10

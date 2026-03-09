@@ -22,6 +22,8 @@ final class ObjectBrowserSidebarViewModel: ObservableObject {
     @Published var pinnedObjectIDsByDatabase: [String: Set<String>] = [:]
     @Published var pinnedSectionExpandedByDatabase: [String: Bool] = [:]
     @Published var databaseSchemaLoadingStates: [String: Bool] = [:]
+    /// Tracks databases whose schema has been fetched at least once (prevents re-fetch loops when the database has no user objects).
+    @Published var databaseSchemaLoadedOnce: Set<String> = []
 
     // Server folder groups (Databases, Management, etc.)
     @Published var databasesFolderExpandedBySession: [UUID: Bool] = [:]
@@ -34,6 +36,40 @@ final class ObjectBrowserSidebarViewModel: ObservableObject {
     @Published var showNewJobSheet = false
     @Published var newJobSessionID: UUID?
 
+    // Security state — server-level (per-connection)
+    @Published var securityFolderExpandedBySession: [UUID: Bool] = [:]
+    @Published var securityLoginsExpandedBySession: [UUID: Bool] = [:]
+    @Published var securityServerRolesExpandedBySession: [UUID: Bool] = [:]
+    @Published var securityCredentialsExpandedBySession: [UUID: Bool] = [:]
+    @Published var securityLoginsBySession: [UUID: [SecurityLoginItem]] = [:]
+    @Published var securityServerRolesBySession: [UUID: [SecurityServerRoleItem]] = [:]
+    @Published var securityCredentialsBySession: [UUID: [SecurityCredentialItem]] = [:]
+    @Published var securityServerLoadingBySession: [UUID: Bool] = [:]
+
+    // Security state — database-level (keyed by "connID#dbName")
+    @Published var dbSecurityExpandedByDB: [String: Bool] = [:]
+    @Published var dbSecurityUsersExpandedByDB: [String: Bool] = [:]
+    @Published var dbSecurityRolesExpandedByDB: [String: Bool] = [:]
+    @Published var dbSecurityAppRolesExpandedByDB: [String: Bool] = [:]
+    @Published var dbSecuritySchemasExpandedByDB: [String: Bool] = [:]
+    @Published var dbSecurityUsersByDB: [String: [SecurityUserItem]] = [:]
+    @Published var dbSecurityRolesByDB: [String: [SecurityDatabaseRoleItem]] = [:]
+    @Published var dbSecurityAppRolesByDB: [String: [SecurityAppRoleItem]] = [:]
+    @Published var dbSecuritySchemasByDB: [String: [SecuritySchemaItem]] = [:]
+    @Published var dbSecurityLoadingByDB: [String: Bool] = [:]
+
+    // Security sheets
+    @Published var showSecurityLoginSheet = false
+    @Published var securityLoginSheetEditName: String?
+    @Published var securityLoginSheetSessionID: UUID?
+    @Published var showSecurityUserSheet = false
+    @Published var securityUserSheetEditName: String?
+    @Published var securityUserSheetSessionID: UUID?
+    @Published var securityUserSheetDatabaseName: String?
+    @Published var showSecurityPGRoleSheet = false
+    @Published var securityPGRoleSheetEditName: String?
+    @Published var securityPGRoleSheetSessionID: UUID?
+
     // Database properties sheet
     @Published var showDatabaseProperties = false
     @Published var propertiesDatabaseName: String?
@@ -44,6 +80,51 @@ final class ObjectBrowserSidebarViewModel: ObservableObject {
         let name: String
         let enabled: Bool
         let lastOutcome: String?
+    }
+
+    struct SecurityLoginItem: Identifiable, Hashable {
+        let id: String
+        let name: String
+        let loginType: String
+        let isDisabled: Bool
+    }
+
+    struct SecurityServerRoleItem: Identifiable, Hashable {
+        let id: String
+        let name: String
+        let isFixed: Bool
+    }
+
+    struct SecurityCredentialItem: Identifiable, Hashable {
+        let id: String
+        let name: String
+        let identity: String
+    }
+
+    struct SecurityUserItem: Identifiable, Hashable {
+        let id: String
+        let name: String
+        let userType: String
+        let defaultSchema: String?
+    }
+
+    struct SecurityDatabaseRoleItem: Identifiable, Hashable {
+        let id: String
+        let name: String
+        let isFixed: Bool
+        let owner: String?
+    }
+
+    struct SecurityAppRoleItem: Identifiable, Hashable {
+        let id: String
+        let name: String
+        let defaultSchema: String?
+    }
+
+    struct SecuritySchemaItem: Identifiable, Hashable {
+        let id: String
+        let name: String
+        let owner: String?
     }
     
     private var searchDebounceTask: Task<Void, Never>?
@@ -119,6 +200,25 @@ final class ObjectBrowserSidebarViewModel: ObservableObject {
             databasesFolderExpandedBySession.removeValue(forKey: connID)
             managementFolderExpandedBySession.removeValue(forKey: connID)
             agentJobsExpandedBySession.removeValue(forKey: connID)
+            // Clear security state on reconnect
+            securityFolderExpandedBySession.removeValue(forKey: connID)
+            securityLoginsExpandedBySession.removeValue(forKey: connID)
+            securityServerRolesExpandedBySession.removeValue(forKey: connID)
+            securityCredentialsExpandedBySession.removeValue(forKey: connID)
+            securityLoginsBySession.removeValue(forKey: connID)
+            securityServerRolesBySession.removeValue(forKey: connID)
+            securityCredentialsBySession.removeValue(forKey: connID)
+            securityServerLoadingBySession.removeValue(forKey: connID)
+            // Clear loaded-once tracking for this connection
+            let prefix = connID.uuidString + "#"
+            databaseSchemaLoadedOnce = databaseSchemaLoadedOnce.filter { !$0.hasPrefix(prefix) }
+            // Clear database-level security state
+            for key in dbSecurityExpandedByDB.keys where key.hasPrefix(prefix) { dbSecurityExpandedByDB.removeValue(forKey: key) }
+            for key in dbSecurityUsersByDB.keys where key.hasPrefix(prefix) { dbSecurityUsersByDB.removeValue(forKey: key) }
+            for key in dbSecurityRolesByDB.keys where key.hasPrefix(prefix) { dbSecurityRolesByDB.removeValue(forKey: key) }
+            for key in dbSecurityAppRolesByDB.keys where key.hasPrefix(prefix) { dbSecurityAppRolesByDB.removeValue(forKey: key) }
+            for key in dbSecuritySchemasByDB.keys where key.hasPrefix(prefix) { dbSecuritySchemasByDB.removeValue(forKey: key) }
+            for key in dbSecurityLoadingByDB.keys where key.hasPrefix(prefix) { dbSecurityLoadingByDB.removeValue(forKey: key) }
         }
 
         if expandedObjectGroupsBySession[connID] == nil {
@@ -141,6 +241,10 @@ final class ObjectBrowserSidebarViewModel: ObservableObject {
 
         if agentJobsExpandedBySession[connID] == nil {
             agentJobsExpandedBySession[connID] = autoExpandSections.contains(.management)
+        }
+
+        if securityFolderExpandedBySession[connID] == nil {
+            securityFolderExpandedBySession[connID] = autoExpandSections.contains(.security)
         }
     }
 
@@ -165,7 +269,15 @@ final class ObjectBrowserSidebarViewModel: ObservableObject {
     }
 
     func setDatabaseLoading(connectionID: UUID, databaseName: String, loading: Bool) {
-        databaseSchemaLoadingStates[pinnedStorageKey(connectionID: connectionID, databaseName: databaseName)] = loading
+        let key = pinnedStorageKey(connectionID: connectionID, databaseName: databaseName)
+        databaseSchemaLoadingStates[key] = loading
+        if !loading {
+            databaseSchemaLoadedOnce.insert(key)
+        }
+    }
+
+    func isDatabaseSchemaLoadedOnce(connectionID: UUID, databaseName: String) -> Bool {
+        databaseSchemaLoadedOnce.contains(pinnedStorageKey(connectionID: connectionID, databaseName: databaseName))
     }
 
     // MARK: - Per-Session Bindings

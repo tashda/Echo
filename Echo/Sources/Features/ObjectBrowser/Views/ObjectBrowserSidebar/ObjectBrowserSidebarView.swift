@@ -93,6 +93,51 @@ struct ObjectBrowserSidebarView: View {
                 )
             }
         }
+        .sheet(isPresented: $viewModel.showSecurityLoginSheet) {
+            if let connID = viewModel.securityLoginSheetSessionID,
+               let session = environmentState.sessionCoordinator.sessionForConnection(connID) {
+                SecurityLoginSheet(
+                    session: session,
+                    environmentState: environmentState,
+                    existingLoginName: viewModel.securityLoginSheetEditName
+                ) {
+                    viewModel.showSecurityLoginSheet = false
+                    loadServerSecurity(session: session)
+                }
+            }
+        }
+        .sheet(isPresented: $viewModel.showSecurityUserSheet) {
+            if let connID = viewModel.securityUserSheetSessionID,
+               let session = environmentState.sessionCoordinator.sessionForConnection(connID),
+               let dbName = viewModel.securityUserSheetDatabaseName {
+                SecurityUserSheet(
+                    session: session,
+                    environmentState: environmentState,
+                    databaseName: dbName,
+                    existingUserName: viewModel.securityUserSheetEditName
+                ) {
+                    viewModel.showSecurityUserSheet = false
+                    // Reload database-level security
+                    if let structure = session.databaseStructure,
+                       let db = structure.databases.first(where: { $0.name == dbName }) {
+                        loadDatabaseSecurity(database: db, session: session)
+                    }
+                }
+            }
+        }
+        .sheet(isPresented: $viewModel.showSecurityPGRoleSheet) {
+            if let connID = viewModel.securityPGRoleSheetSessionID,
+               let session = environmentState.sessionCoordinator.sessionForConnection(connID) {
+                SecurityPGRoleSheet(
+                    session: session,
+                    environmentState: environmentState,
+                    existingRoleName: viewModel.securityPGRoleSheetEditName
+                ) {
+                    viewModel.showSecurityPGRoleSheet = false
+                    loadServerSecurity(session: session)
+                }
+            }
+        }
     }
 
     // MARK: - Per-Server Section
@@ -177,6 +222,11 @@ struct ObjectBrowserSidebarView: View {
                 VStack(alignment: .leading, spacing: 0) {
                     databasesFolderSection(session: session, structure: structure, proxy: proxy)
 
+                    // Security folder — MSSQL and PostgreSQL
+                    if session.connection.databaseType == .microsoftSQL || session.connection.databaseType == .postgresql {
+                        securityFolderSection(session: session)
+                    }
+
                     if session.connection.databaseType == .microsoftSQL {
                         managementFolderSection(session: session)
                     }
@@ -253,7 +303,7 @@ struct ObjectBrowserSidebarView: View {
 
     // MARK: - Folder Header Row
 
-    private func folderHeaderRow(title: String, icon: String, count: Int?, isExpanded: Bool, action: @escaping () -> Void) -> some View {
+    func folderHeaderRow(title: String, icon: String, count: Int?, isExpanded: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             HStack(spacing: 8) {
                 Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
@@ -312,18 +362,6 @@ struct ObjectBrowserSidebarView: View {
             withAnimation(.easeInOut(duration: 0.2)) {
                 viewModel.toggleDatabaseExpanded(connectionID: connID, databaseName: database.name)
             }
-            // After toggle, check if now expanded — if so, trigger loading if no schemas
-            let nowExpanded = viewModel.isDatabaseExpanded(connectionID: connID, databaseName: database.name)
-            if nowExpanded {
-                let hasContent = database.schemas.contains(where: { !$0.objects.isEmpty })
-                if !hasContent && !isLoading {
-                    viewModel.setDatabaseLoading(connectionID: connID, databaseName: database.name, loading: true)
-                    Task {
-                        await environmentState.loadSchemaForDatabase(database.name, connectionSession: session)
-                        viewModel.setDatabaseLoading(connectionID: connID, databaseName: database.name, loading: false)
-                    }
-                }
-            }
         } label: {
             HStack(spacing: 8) {
                 Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
@@ -369,6 +407,7 @@ struct ObjectBrowserSidebarView: View {
     private func databaseContent(database: DatabaseInfo, session: ConnectionSession, hasSchemas: Bool, proxy: ScrollViewProxy) -> some View {
         let connID = session.connection.id
         let isLoading = viewModel.isDatabaseLoading(connectionID: connID, databaseName: database.name)
+        let alreadyLoaded = viewModel.isDatabaseSchemaLoadedOnce(connectionID: connID, databaseName: database.name)
 
         if hasSchemas {
             VStack(spacing: 2) {
@@ -392,6 +431,12 @@ struct ObjectBrowserSidebarView: View {
                 )
                 .environmentObject(environmentState)
                 .padding(.horizontal, SpacingTokens.xxs)
+
+                // Database-level Security
+                if session.connection.databaseType == .microsoftSQL || session.connection.databaseType == .postgresql {
+                    databaseSecuritySection(database: database, session: session)
+                        .padding(.horizontal, SpacingTokens.xxs)
+                }
             }
         } else if isLoading {
             HStack(spacing: 6) {
@@ -403,6 +448,13 @@ struct ObjectBrowserSidebarView: View {
             }
             .padding(.horizontal, SpacingTokens.sm)
             .padding(.vertical, SpacingTokens.xxs)
+        } else if alreadyLoaded {
+            // Schema was fetched but the database has no user objects — don't re-fetch
+            Text("No objects")
+                .font(TypographyTokens.detail)
+                .foregroundStyle(.tertiary)
+                .padding(.horizontal, SpacingTokens.sm)
+                .padding(.vertical, SpacingTokens.xxs)
         } else {
             HStack(spacing: 6) {
                 ProgressView()

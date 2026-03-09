@@ -68,10 +68,14 @@ extension EnvironmentState {
         let startTime = Date()
         do {
             let factory = DatabaseFactoryProvider.makeFactory(for: connection.databaseType)
+            let connectDatabase: String? = connection.databaseType == .microsoftSQL
+                ? nil
+                : (connection.database.isEmpty ? nil : connection.database)
+
             let session = try await factory!.connect(
                 host: connection.host,
                 port: connection.port,
-                database: connection.database.isEmpty ? nil : connection.database,
+                database: connectDatabase,
                 tls: connection.useTLS,
                 authentication: credentials,
                 connectTimeoutSeconds: connectTimeoutSeconds

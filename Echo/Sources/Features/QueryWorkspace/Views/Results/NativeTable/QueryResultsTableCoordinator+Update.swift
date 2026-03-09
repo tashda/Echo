@@ -31,8 +31,8 @@ extension QueryResultsTableView.Coordinator {
         let wasResizing = lastParentIsResizing
         cachedDisplayedRows.removeAll(keepingCapacity: true)
         defer {
-            let endedResize = wasResizing && !parent.isResizing
-            lastParentIsResizing = parent.isResizing
+            let endedResize = wasResizing && !isSplitResizing
+            lastParentIsResizing = isSplitResizing
             if endedResize {
                 requestTableSizeAdjustment(rowCount: currentRowCount)
                 requestPaginationEvaluation()
@@ -58,7 +58,7 @@ extension QueryResultsTableView.Coordinator {
         let hasPendingRowReloads = pendingRowReloadIndexes?.isEmpty == false
         let foreignKeyModeChanged = lastForeignKeyDisplayMode != parent.foreignKeyDisplayMode
             || lastForeignKeyInspectorBehavior != parent.foreignKeyInspectorBehavior
-        let resizing = parent.isResizing
+        let resizing = isSplitResizing || isResizingColumn
         let viewportContribution = !resizing && viewportChanged
         let requiresUpdate = columnsChanged
             || sortChanged

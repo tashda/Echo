@@ -226,7 +226,6 @@ extension ConnectionConfiguration {
     var isValid: Bool {
         let trimmedName = connectionName.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedHost = host.trimmingCharacters(in: .whitespacesAndNewlines)
-        let trimmedDatabase = database.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedUsername = username.trimmingCharacters(in: .whitespacesAndNewlines)
 
         let credentialsValid: Bool
@@ -241,7 +240,6 @@ extension ConnectionConfiguration {
 
         return !trimmedName.isEmpty &&
         !trimmedHost.isEmpty &&
-        !trimmedDatabase.isEmpty &&
         credentialsValid &&
         port > 0 && port <= 65535
     }
@@ -255,10 +253,6 @@ extension ConnectionConfiguration {
 
         if host.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             errors.append("Host is required")
-        }
-
-        if database.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            errors.append("Database name is required")
         }
 
         if credentialSource == .manual && username.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {

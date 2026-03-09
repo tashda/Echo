@@ -17,6 +17,7 @@ struct QueryEditorContainer: View {
     let minRatio: CGFloat = 0.25
     let maxRatio: CGFloat = 0.8
     @State var liveSplitRatioOverride: CGFloat?
+    @State private var lastResizeTimestamp: CFTimeInterval = 0
 #if os(macOS)
     @State var latestForeignKeySelection: QueryResultsTableView.ForeignKeySelection?
     @State var latestJsonSelection: QueryResultsTableView.JsonSelection?
@@ -35,6 +36,8 @@ struct QueryEditorContainer: View {
                     query.splitRatio = min(max(newValue, minRatio), maxRatio)
                 }
             )
+            let handleHeight: CGFloat = query.hasExecutedAtLeastOnce ? 9 : 0
+            let splitHeight = totalHeight - handleHeight
             let baseRatio = ratioBinding.wrappedValue
             let effectiveRatio = min(max(liveSplitRatioOverride ?? baseRatio, minRatio), maxRatio)
             let isResizingResults = liveSplitRatioOverride != nil
@@ -69,6 +72,11 @@ struct QueryEditorContainer: View {
                         .transition(.opacity)
                 #endif
                 } else {
+                    let statusBarHeight: CGFloat = 24
+                    let editorHeight: CGFloat = query.hasExecutedAtLeastOnce
+                        ? splitHeight * effectiveRatio
+                        : totalHeight - statusBarHeight
+
                     QueryInputSection(
                         query: query,
                         onExecute: { sql in await runQuery(sql) },
@@ -76,7 +84,7 @@ struct QueryEditorContainer: View {
                         onAddBookmark: handleBookmarkRequest,
                         completionContext: editorCompletionContext
                     )
-                    .frame(height: query.hasExecutedAtLeastOnce ? totalHeight * effectiveRatio : totalHeight)
+                    .frame(height: editorHeight)
                     .background(backgroundColor)
 
                     if query.hasExecutedAtLeastOnce {
@@ -84,8 +92,11 @@ struct QueryEditorContainer: View {
                             ratio: effectiveRatio,
                             minRatio: minRatio,
                             maxRatio: maxRatio,
-                            availableHeight: totalHeight,
+                            availableHeight: splitHeight,
                             onLiveUpdate: { proposed in
+                                let now = CACurrentMediaTime()
+                                guard now - lastResizeTimestamp >= 0.04 else { return }
+                                lastResizeTimestamp = now
                                 liveSplitRatioOverride = proposed
                             },
                             onCommit: { proposed in
@@ -96,35 +107,35 @@ struct QueryEditorContainer: View {
                                 }
                             }
                         )
-
-                    #if os(macOS)
-                        QueryResultsSection(
-                            query: query,
-                            connection: connectionForDisplay,
-                            activeDatabaseName: connectionDatabaseName,
-                            gridState: gridStateProvider(),
-                            isResizingResults: isResizingResults,
-                            foreignKeyDisplayMode: foreignKeyDisplayMode,
-                            foreignKeyInspectorBehavior: foreignKeyInspectorBehavior,
-                            onForeignKeyEvent: handleForeignKeyEvent,
-                            onJsonEvent: handleJsonEvent
-                        )
-                            .frame(height: totalHeight * (1 - effectiveRatio))
-                            .background(backgroundColor)
-                            .transition(.opacity)
-                    #else
-                        QueryResultsSection(
-                            query: query,
-                            connection: connectionForDisplay,
-                            activeDatabaseName: connectionDatabaseName,
-                            gridState: gridStateProvider(),
-                            isResizingResults: isResizingResults
-                        )
-                            .frame(height: totalHeight * (1 - effectiveRatio))
-                            .background(backgroundColor)
-                            .transition(.opacity)
-                    #endif
                     }
+
+                #if os(macOS)
+                    QueryResultsSection(
+                        query: query,
+                        connection: connectionForDisplay,
+                        activeDatabaseName: connectionDatabaseName,
+                        gridState: gridStateProvider(),
+                        isResizingResults: isResizingResults,
+                        foreignKeyDisplayMode: foreignKeyDisplayMode,
+                        foreignKeyInspectorBehavior: foreignKeyInspectorBehavior,
+                        onForeignKeyEvent: handleForeignKeyEvent,
+                        onJsonEvent: handleJsonEvent
+                    )
+                        .frame(maxHeight: .infinity)
+                        .clipped()
+                        .background(backgroundColor)
+                #else
+                    QueryResultsSection(
+                        query: query,
+                        connection: connectionForDisplay,
+                        activeDatabaseName: connectionDatabaseName,
+                        gridState: gridStateProvider(),
+                        isResizingResults: isResizingResults
+                    )
+                        .frame(maxHeight: .infinity)
+                        .clipped()
+                        .background(backgroundColor)
+                #endif
                 }
             }
         }
