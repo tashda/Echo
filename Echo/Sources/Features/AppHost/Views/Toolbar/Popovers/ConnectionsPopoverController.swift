@@ -3,55 +3,6 @@ import SwiftUI
 #if os(macOS)
 import AppKit
 
-@MainActor
-final class ConnectionsPopoverController: NSViewController {
-    let connectionStore: ConnectionStore
-    let environmentState: EnvironmentState
-    private var hostingChild: NSHostingController<AnyView>?
-
-    init(connectionStore: ConnectionStore, environmentState: EnvironmentState) {
-        self.connectionStore = connectionStore
-        self.environmentState = environmentState
-        super.init(nibName: nil, bundle: nil)
-    }
-
-    @available(*, unavailable)
-    required init?(coder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
-    }
-
-    override func loadView() {
-        view = NSView(frame: NSRect(x: 0, y: 0, width: 260, height: 10))
-    }
-
-    override func viewDidLoad() {
-        super.viewDidLoad()
-
-        let content = ConnectionsPopoverContent(
-            connectionStore: connectionStore,
-            environmentState: environmentState,
-            dismiss: { [weak self] in
-                self?.view.window?.performClose(nil)
-            }
-        )
-        let hosting = NSHostingController(rootView: AnyView(content))
-        hosting.view.translatesAutoresizingMaskIntoConstraints = false
-        hosting.sceneBridgingOptions = []
-
-        addChild(hosting)
-        view.addSubview(hosting.view)
-        NSLayoutConstraint.activate([
-            hosting.view.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            hosting.view.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            hosting.view.topAnchor.constraint(equalTo: view.topAnchor),
-            hosting.view.bottomAnchor.constraint(equalTo: view.bottomAnchor)
-        ])
-        hostingChild = hosting
-
-        preferredContentSize = NSSize(width: 260, height: 360)
-    }
-}
-
 // MARK: - SwiftUI Content
 
 struct ConnectionsPopoverContent: View {
@@ -124,7 +75,6 @@ struct ConnectionsPopoverContent: View {
             .padding(.vertical, SpacingTokens.xxs)
         }
         .frame(width: 260, height: 360)
-        .glassEffect(in: .rect(cornerRadius: 12))
     }
 
     // MARK: - Data

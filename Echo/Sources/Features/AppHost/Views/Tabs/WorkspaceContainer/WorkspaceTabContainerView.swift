@@ -42,6 +42,7 @@ struct WorkspaceTabContainerView: View {
             let displayName = trimmedName.isEmpty ? connection.host : trimmedName
             let database = record.databaseName
 
+            let settings = projectStore.globalSettings
             return RecentConnectionItem(
                 id: record.id,
                 record: record,
@@ -49,7 +50,10 @@ struct WorkspaceTabContainerView: View {
                 server: connection.host,
                 database: database,
                 lastConnectedAt: record.lastUsedAt,
-                databaseType: connection.databaseType
+                databaseType: connection.databaseType,
+                connectionColorHex: connection.metadataColorHex,
+                accentColorSource: settings.accentColorSource,
+                customAccentColorHex: settings.customAccentColorHex
             )
         }
     }

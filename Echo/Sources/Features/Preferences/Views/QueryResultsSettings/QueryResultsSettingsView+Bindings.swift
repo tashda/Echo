@@ -128,4 +128,16 @@ extension QueryResultsSettingsView {
         )
     }
 
+    var autoOpenInspectorBinding: Binding<Bool> {
+        Binding(
+            get: { projectStore.globalSettings.autoOpenInspectorOnSelection },
+            set: { newValue in
+                guard projectStore.globalSettings.autoOpenInspectorOnSelection != newValue else { return }
+                var settings = projectStore.globalSettings
+                settings.autoOpenInspectorOnSelection = newValue
+                Task { try? await projectStore.updateGlobalSettings(settings) }
+            }
+        )
+    }
+
 }

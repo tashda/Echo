@@ -13,7 +13,6 @@ extension ObjectBrowserSidebarView {
             selectedConnectionID = session.connection.id
             viewModel.ensureServerExpanded(for: session.connection.id, sessions: sessions)
             viewModel.resetFilters(for: session, selectedSession: selectedSession)
-            withAnimation(.easeInOut(duration: 0.3)) { viewModel.isHoveringConnectedServers = false; viewModel.expandedConnectedServerIDs.removeAll() }
         }
     }
 
@@ -21,12 +20,16 @@ extension ObjectBrowserSidebarView {
         viewModel.expandedServerIDs = viewModel.expandedServerIDs.filter { id in sessions.contains { $0.connection.id == id } }
         let currentIDs = Set(sessions.map { $0.connection.id })
         if viewModel.knownSessionIDs.isEmpty && !currentIDs.isEmpty {
-            viewModel.isHoveringConnectedServers = true
-            viewModel.expandedConnectedServerIDs.formUnion(currentIDs)
+            // Auto-expand all servers on first connection
+            viewModel.expandedServerIDs.formUnion(currentIDs)
         }
         viewModel.knownSessionIDs = currentIDs
-        if selectedConnectionID == nil || !sessions.contains(where: { $0.connection.id == selectedConnectionID }) { selectedConnectionID = sessions.first?.connection.id }
-        if let id = selectedConnectionID { viewModel.ensureServerExpanded(for: id, sessions: sessions) }
+        if selectedConnectionID == nil || !sessions.contains(where: { $0.connection.id == selectedConnectionID }) {
+            selectedConnectionID = sessions.first?.connection.id
+        }
+        if let id = selectedConnectionID {
+            viewModel.ensureServerExpanded(for: id, sessions: sessions)
+        }
     }
 
     internal func refreshSelectedSessionStructure() async {

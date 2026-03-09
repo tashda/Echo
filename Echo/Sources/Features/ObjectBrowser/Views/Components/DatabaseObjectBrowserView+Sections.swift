@@ -3,7 +3,7 @@ import SwiftUI
 extension DatabaseObjectBrowserView {
     @ViewBuilder
     func pinnedSection(_ pinnedList: [SchemaObjectInfo]) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 0) {
             Button {
                 withAnimation(.easeInOut(duration: 0.25)) { isPinnedSectionExpanded.toggle() }
             } label: {
@@ -32,7 +32,7 @@ extension DatabaseObjectBrowserView {
     @ViewBuilder
     func typeSection(_ type: SchemaObjectInfo.ObjectType, _ objects: [SchemaObjectInfo]) -> some View {
         let isExpanded = expandedObjectGroups.contains(type)
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 0) {
             Button {
                 withAnimation(.easeInOut(duration: 0.25)) {
                     if isExpanded { expandedObjectGroups.remove(type) }
@@ -65,21 +65,19 @@ extension DatabaseObjectBrowserView {
     func sectionHeader(title: String, count: Int, isExpanded: Bool) -> some View {
         HStack(spacing: 6) {
             Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
-                .font(TypographyTokens.label.weight(.semibold))
-                .foregroundStyle(.secondary)
+                .font(SidebarRowConstants.chevronFont)
+                .foregroundStyle(.tertiary)
+                .frame(width: SidebarRowConstants.chevronWidth)
             Text(title)
-                .font(TypographyTokens.detail.weight(.semibold))
+                .font(TypographyTokens.detail.weight(.medium))
                 .foregroundStyle(.secondary)
             Text("\(count)")
-                .font(TypographyTokens.label.weight(.semibold))
-                .foregroundStyle(.secondary.opacity(0.8))
-                .padding(.horizontal, SpacingTokens.xxs2)
-                .padding(.vertical, SpacingTokens.xxxs)
-                .background(Color.primary.opacity(0.06), in: Capsule())
+                .font(TypographyTokens.label)
+                .foregroundStyle(.tertiary)
             Spacer()
         }
-        .padding(.horizontal, SpacingTokens.sm)
-        .padding(.vertical, SpacingTokens.xxs)
+        .padding(.horizontal, SidebarRowConstants.rowHorizontalPadding)
+        .padding(.vertical, SidebarRowConstants.rowVerticalPadding)
         .contentShape(Rectangle())
     }
 }

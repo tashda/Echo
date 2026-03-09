@@ -2,7 +2,8 @@ import SwiftUI
 
 struct JobListView: View {
     @ObservedObject var viewModel: JobQueueViewModel
-    @Binding var selection: Set<String>
+    let toastCoordinator: StatusToastCoordinator
+    @State private var tableSelection: Set<String> = []
 
     var body: some View {
         VStack(spacing: 0) {
@@ -18,15 +19,15 @@ struct JobListView: View {
             .padding(.horizontal, SpacingTokens.sm)
             .padding(.vertical, SpacingTokens.xxs2)
 
-            Table(of: JobQueueViewModel.JobRow.self, selection: Binding(get: {
-                if let id = viewModel.selectedJobID { return Set([id]) } else { return Set<String>() }
-            }, set: { newSel in
-                viewModel.selectedJobID = newSel.first
-                selection = newSel
-            })) {
+            Table(of: JobQueueViewModel.JobRow.self, selection: $tableSelection) {
                 TableColumn("Enabled") { job in
-                    Image(systemName: job.enabled ? "checkmark.circle.fill" : "slash.circle")
-                        .foregroundStyle(job.enabled ? .green : .secondary)
+                    if viewModel.runningJobNames.contains(job.name) {
+                        ProgressView()
+                            .controlSize(.mini)
+                    } else {
+                        Image(systemName: job.enabled ? "checkmark.circle.fill" : "slash.circle")
+                            .foregroundStyle(job.enabled ? .green : .secondary)
+                    }
                 }.width(28)
                 TableColumn("Name", value: \.name)
                 TableColumn("Owner") { job in Text(job.owner ?? "—").foregroundStyle(job.owner == nil ? .secondary : .primary) }
@@ -38,11 +39,50 @@ struct JobListView: View {
             }
             .contextMenu(forSelectionType: String.self) { items in
                 if let id = items.first {
-                    Button("Start Job") { Task { viewModel.selectedJobID = id; await viewModel.startSelectedJob() } }
-                    Button("Stop Job") { Task { viewModel.selectedJobID = id; await viewModel.stopSelectedJob() } }
+                    let jobIsRunning = viewModel.jobs.first(where: { $0.id == id }).map { viewModel.runningJobNames.contains($0.name) } ?? false
+
+                    if !jobIsRunning {
+                        Button("Start Job") {
+                            Task {
+                                viewModel.selectedJobID = id
+                                await viewModel.startSelectedJob()
+                                if viewModel.errorMessage == nil {
+                                    toastCoordinator.show(icon: "play.fill", message: "Job started", style: .success)
+                                }
+                            }
+                        }
+                    }
+                    if jobIsRunning {
+                        Button("Stop Job") {
+                            Task {
+                                viewModel.selectedJobID = id
+                                await viewModel.stopSelectedJob()
+                                if viewModel.errorMessage == nil {
+                                    toastCoordinator.show(icon: "stop.fill", message: "Job stopped", style: .success)
+                                }
+                            }
+                        }
+                    }
                     Divider()
                     Button("Enable") { Task { viewModel.selectedJobID = id; await viewModel.setSelectedJobEnabled(true) } }
                     Button("Disable") { Task { viewModel.selectedJobID = id; await viewModel.setSelectedJobEnabled(false) } }
+                }
+            }
+            .onChange(of: tableSelection) { _, newValue in
+                let newID = newValue.first
+                if viewModel.selectedJobID != newID {
+                    viewModel.selectedJobID = newID
+                }
+            }
+            .onChange(of: viewModel.selectedJobID) { _, newID in
+                let expected: Set<String> = newID.map { [$0] } ?? []
+                if tableSelection != expected {
+                    tableSelection = expected
+                }
+            }
+            .onAppear {
+                if let id = viewModel.selectedJobID {
+                    tableSelection = [id]
                 }
             }
         }

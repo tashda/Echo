@@ -13,7 +13,7 @@ final class NavigationStore {
     var showNewProjectSheet = false
     var showManageProjectsSheet = false
     var inspectorWidth: CGFloat = 300
-    
+
     // MARK: - Initialization
     init() {}
     

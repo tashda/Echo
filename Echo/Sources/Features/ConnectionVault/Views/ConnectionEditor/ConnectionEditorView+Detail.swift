@@ -127,10 +127,6 @@ extension ConnectionEditorView {
                         .multilineTextAlignment(.trailing)
                 }
 
-                LabeledContent("Database") {
-                    TextField("", text: $database, prompt: Text("postgres (optional)"))
-                        .multilineTextAlignment(.trailing)
-                }
             }
         } header: {
             Text(selectedDatabaseType == .sqlite ? "Database" : "Server")
