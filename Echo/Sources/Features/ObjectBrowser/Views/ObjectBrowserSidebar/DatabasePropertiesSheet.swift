@@ -12,66 +12,66 @@ struct DatabasePropertiesSheet: View {
     let environmentState: EnvironmentState
     let onDismiss: () -> Void
 
-    @State private var selectedPage: PropertiesPage = .general
-    @State private var isLoading = true
-    @State private var errorMessage: String?
-    @State private var isSaving = false
-    @State private var statusMessage: String?
+    @State var selectedPage: PropertiesPage = .general
+    @State var isLoading = true
+    @State var errorMessage: String?
+    @State var isSaving = false
+    @State var statusMessage: String?
 
     // MSSQL state
-    @State private var mssqlProps: SQLServerDatabaseProperties?
-    @State private var mssqlFiles: [SQLServerDatabaseFile] = []
-    @State private var recoveryModel: SQLServerDatabaseOption.RecoveryModel = .full
-    @State private var compatibilityLevel: Int = 160
-    @State private var isReadOnly = false
-    @State private var userAccess: SQLServerDatabaseOption.UserAccessOption = .multiUser
-    @State private var pageVerify: SQLServerDatabaseOption.PageVerifyOption = .checksum
-    @State private var targetRecoveryTime: Int = 0
-    @State private var delayedDurability: SQLServerDatabaseOption.DelayedDurabilityOption = .disabled
-    @State private var allowSnapshotIsolation = false
-    @State private var readCommittedSnapshot = false
-    @State private var isEncrypted = false
-    @State private var isBrokerEnabled = false
-    @State private var isTrustworthy = false
-    @State private var parameterization: SQLServerDatabaseOption.ParameterizationOption = .simple
-    @State private var autoClose = false
-    @State private var autoShrink = false
-    @State private var autoCreateStats = true
-    @State private var autoUpdateStats = true
-    @State private var autoUpdateStatsAsync = false
-    @State private var ansiNullDefault = false
-    @State private var ansiNulls = false
-    @State private var ansiPadding = false
-    @State private var ansiWarnings = false
-    @State private var arithAbort = false
-    @State private var concatNullYieldsNull = false
-    @State private var quotedIdentifier = false
-    @State private var recursiveTriggers = false
-    @State private var numericRoundAbort = false
-    @State private var dateCorrelation = false
+    @State var mssqlProps: SQLServerDatabaseProperties?
+    @State var mssqlFiles: [SQLServerDatabaseFile] = []
+    @State var recoveryModel: SQLServerDatabaseOption.RecoveryModel = .full
+    @State var compatibilityLevel: Int = 160
+    @State var isReadOnly = false
+    @State var userAccess: SQLServerDatabaseOption.UserAccessOption = .multiUser
+    @State var pageVerify: SQLServerDatabaseOption.PageVerifyOption = .checksum
+    @State var targetRecoveryTime: Int = 0
+    @State var delayedDurability: SQLServerDatabaseOption.DelayedDurabilityOption = .disabled
+    @State var allowSnapshotIsolation = false
+    @State var readCommittedSnapshot = false
+    @State var isEncrypted = false
+    @State var isBrokerEnabled = false
+    @State var isTrustworthy = false
+    @State var parameterization: SQLServerDatabaseOption.ParameterizationOption = .simple
+    @State var autoClose = false
+    @State var autoShrink = false
+    @State var autoCreateStats = true
+    @State var autoUpdateStats = true
+    @State var autoUpdateStatsAsync = false
+    @State var ansiNullDefault = false
+    @State var ansiNulls = false
+    @State var ansiPadding = false
+    @State var ansiWarnings = false
+    @State var arithAbort = false
+    @State var concatNullYieldsNull = false
+    @State var quotedIdentifier = false
+    @State var recursiveTriggers = false
+    @State var numericRoundAbort = false
+    @State var dateCorrelation = false
 
     // MSSQL file editing state
-    @State private var fileSizeMBValues: [Int: Int] = [:]
-    @State private var fileMaxSizeTypes: [Int: FileMaxSizeType] = [:]
-    @State private var fileMaxSizeMBValues: [Int: Int] = [:]
-    @State private var fileGrowthTypes: [Int: FileGrowthType] = [:]
-    @State private var fileGrowthValues: [Int: Int] = [:]
+    @State var fileSizeMBValues: [Int: Int] = [:]
+    @State var fileMaxSizeTypes: [Int: FileMaxSizeType] = [:]
+    @State var fileMaxSizeMBValues: [Int: Int] = [:]
+    @State var fileGrowthTypes: [Int: FileGrowthType] = [:]
+    @State var fileGrowthValues: [Int: Int] = [:]
 
     // PostgreSQL state
-    @State private var pgProps: PostgresDatabaseProperties?
-    @State private var pgParams: [PostgresDatabaseParameter] = []
-    @State private var pgRoles: [String] = []
-    @State private var pgTablespaces: [String] = []
-    @State private var pgOwner: String = ""
-    @State private var pgConnectionLimit: Int = -1
-    @State private var pgIsTemplate = false
-    @State private var pgAllowConnections = true
-    @State private var pgComment: String = ""
+    @State var pgProps: PostgresDatabaseProperties?
+    @State var pgParams: [PostgresDatabaseParameter] = []
+    @State var pgRoles: [String] = []
+    @State var pgTablespaces: [String] = []
+    @State var pgOwner: String = ""
+    @State var pgConnectionLimit: Int = -1
+    @State var pgIsTemplate = false
+    @State var pgAllowConnections = true
+    @State var pgComment: String = ""
 
-    private var isMSSQL: Bool { session.connection.databaseType == .microsoftSQL }
-    private var isPostgres: Bool { session.connection.databaseType == .postgresql }
+    var isMSSQL: Bool { session.connection.databaseType == .microsoftSQL }
+    var isPostgres: Bool { session.connection.databaseType == .postgresql }
 
-    private var pages: [PropertiesPage] {
+    var pages: [PropertiesPage] {
         if isMSSQL {
             return [.general, .options, .automatic, .ansi, .files]
         } else if isPostgres {
@@ -84,20 +84,17 @@ struct DatabasePropertiesSheet: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 0) {
-                // Sidebar
                 sidebar
-                    .frame(width: 180)
+                    .frame(width: 170)
 
                 Divider()
 
-                // Detail pane
                 detailPane
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
 
             Divider()
 
-            // Bottom bar
             HStack {
                 if let status = statusMessage {
                     Text(status)
@@ -115,8 +112,8 @@ struct DatabasePropertiesSheet: View {
             }
             .padding(SpacingTokens.md)
         }
-        .frame(minWidth: 680, minHeight: 480)
-        .frame(idealWidth: 720, idealHeight: 540)
+        .frame(minWidth: 640, minHeight: 480)
+        .frame(idealWidth: 680, idealHeight: 520)
         .task { await loadProperties() }
     }
 
@@ -198,576 +195,6 @@ struct DatabasePropertiesSheet: View {
         }
     }
 
-    // MARK: - MSSQL Pages
-
-    @ViewBuilder
-    private func mssqlGeneralPage(_ props: SQLServerDatabaseProperties) -> some View {
-        Section("Information") {
-            LabeledContent("Name", value: props.name)
-            LabeledContent("Owner", value: props.owner)
-            LabeledContent("Status", value: props.stateDescription)
-            LabeledContent("Date Created", value: props.createDate)
-            LabeledContent("Size", value: String(format: "%.2f MB", props.sizeMB))
-            LabeledContent("Active Sessions", value: "\(props.activeSessions)")
-            LabeledContent("Collation", value: props.collationName)
-        }
-
-        Section("Backup") {
-            LabeledContent("Last Database Backup", value: props.lastBackupDate ?? "Never")
-            LabeledContent("Last Log Backup", value: props.lastLogBackupDate ?? "Never")
-        }
-
-        if let version = session.databaseStructure?.serverVersion {
-            Section("Server") {
-                LabeledContent("Version", value: version)
-            }
-        }
-    }
-
-    @ViewBuilder
-    private func mssqlOptionsPage(_ props: SQLServerDatabaseProperties) -> some View {
-        Section("Recovery") {
-            Picker("Recovery Model", selection: $recoveryModel) {
-                ForEach(SQLServerDatabaseOption.RecoveryModel.allCases, id: \.self) { model in
-                    Text(model.rawValue).tag(model)
-                }
-            }
-            .onChange(of: recoveryModel) { _, v in applyMSSQLOption(.recoveryModel(v)) }
-
-            Picker("Page Verify", selection: $pageVerify) {
-                ForEach(SQLServerDatabaseOption.PageVerifyOption.allCases, id: \.self) { opt in
-                    Text(opt.rawValue).tag(opt)
-                }
-            }
-            .onChange(of: pageVerify) { _, v in applyMSSQLOption(.pageVerify(v)) }
-
-            // Target Recovery Time is an integer field in seconds
-            LabeledContent("Target Recovery Time") {
-                HStack(spacing: SpacingTokens.xs) {
-                    TextField("", value: $targetRecoveryTime, format: .number)
-                        .frame(width: 60)
-                        .onSubmit { applyMSSQLOption(.targetRecoveryTime(targetRecoveryTime)) }
-                    Text("seconds")
-                        .foregroundStyle(.secondary)
-                }
-            }
-
-            Picker("Delayed Durability", selection: $delayedDurability) {
-                ForEach(SQLServerDatabaseOption.DelayedDurabilityOption.allCases, id: \.self) { opt in
-                    Text(opt.rawValue).tag(opt)
-                }
-            }
-            .onChange(of: delayedDurability) { _, v in applyMSSQLOption(.delayedDurability(v)) }
-        }
-
-        Section("Compatibility") {
-            Picker("Compatibility Level", selection: $compatibilityLevel) {
-                ForEach(compatibilityLevels, id: \.value) { level in
-                    Text(level.label).tag(level.value)
-                }
-            }
-            .onChange(of: compatibilityLevel) { _, v in applyMSSQLOption(.compatibilityLevel(v)) }
-        }
-
-        Section("State") {
-            Toggle("Read Only", isOn: $isReadOnly)
-                .onChange(of: isReadOnly) { _, v in applyMSSQLOption(.readOnly(v)) }
-
-            Picker("User Access", selection: $userAccess) {
-                ForEach(SQLServerDatabaseOption.UserAccessOption.allCases, id: \.self) { opt in
-                    Text(opt.displayName).tag(opt)
-                }
-            }
-            .onChange(of: userAccess) { _, v in applyMSSQLOption(.userAccess(v)) }
-
-            Toggle("Encryption", isOn: $isEncrypted)
-                .onChange(of: isEncrypted) { _, v in applyMSSQLOption(.encryption(v)) }
-        }
-
-        Section("Isolation") {
-            Toggle("Allow Snapshot Isolation", isOn: $allowSnapshotIsolation)
-                .onChange(of: allowSnapshotIsolation) { _, v in applyMSSQLOption(.allowSnapshotIsolation(v)) }
-
-            Toggle("Read Committed Snapshot", isOn: $readCommittedSnapshot)
-                .onChange(of: readCommittedSnapshot) { _, v in applyMSSQLOption(.readCommittedSnapshot(v)) }
-        }
-
-        Section("Miscellaneous") {
-            Toggle("Broker Enabled", isOn: $isBrokerEnabled)
-                .onChange(of: isBrokerEnabled) { _, v in applyMSSQLOption(.brokerEnabled(v)) }
-
-            Toggle("Trustworthy", isOn: $isTrustworthy)
-                .onChange(of: isTrustworthy) { _, v in applyMSSQLOption(.trustworthy(v)) }
-
-            Picker("Parameterization", selection: $parameterization) {
-                ForEach(SQLServerDatabaseOption.ParameterizationOption.allCases, id: \.self) { opt in
-                    Text(opt.rawValue).tag(opt)
-                }
-            }
-            .onChange(of: parameterization) { _, v in applyMSSQLOption(.parameterization(v)) }
-        }
-    }
-
-    @ViewBuilder
-    private func mssqlAutomaticPage() -> some View {
-        Section("Statistics") {
-            Toggle("Auto Create Statistics", isOn: $autoCreateStats)
-                .onChange(of: autoCreateStats) { _, v in applyMSSQLOption(.autoCreateStatistics(v)) }
-
-            Toggle("Auto Update Statistics", isOn: $autoUpdateStats)
-                .onChange(of: autoUpdateStats) { _, v in applyMSSQLOption(.autoUpdateStatistics(v)) }
-
-            Toggle("Auto Update Statistics Asynchronously", isOn: $autoUpdateStatsAsync)
-                .onChange(of: autoUpdateStatsAsync) { _, v in applyMSSQLOption(.autoUpdateStatisticsAsync(v)) }
-        }
-
-        Section("Storage") {
-            Toggle("Auto Close", isOn: $autoClose)
-                .onChange(of: autoClose) { _, v in applyMSSQLOption(.autoClose(v)) }
-
-            Toggle("Auto Shrink", isOn: $autoShrink)
-                .onChange(of: autoShrink) { _, v in applyMSSQLOption(.autoShrink(v)) }
-        }
-    }
-
-    @ViewBuilder
-    private func mssqlAnsiPage() -> some View {
-        Section("ANSI Defaults") {
-            Toggle("ANSI NULL Default", isOn: $ansiNullDefault)
-                .onChange(of: ansiNullDefault) { _, v in applyMSSQLOption(.ansiNullDefault(v)) }
-
-            Toggle("ANSI NULLS Enabled", isOn: $ansiNulls)
-                .onChange(of: ansiNulls) { _, v in applyMSSQLOption(.ansiNulls(v)) }
-
-            Toggle("ANSI Padding Enabled", isOn: $ansiPadding)
-                .onChange(of: ansiPadding) { _, v in applyMSSQLOption(.ansiPadding(v)) }
-
-            Toggle("ANSI Warnings Enabled", isOn: $ansiWarnings)
-                .onChange(of: ansiWarnings) { _, v in applyMSSQLOption(.ansiWarnings(v)) }
-        }
-
-        Section("Arithmetic") {
-            Toggle("Arithmetic Abort Enabled", isOn: $arithAbort)
-                .onChange(of: arithAbort) { _, v in applyMSSQLOption(.arithAbort(v)) }
-
-            Toggle("Numeric Round-Abort", isOn: $numericRoundAbort)
-                .onChange(of: numericRoundAbort) { _, v in applyMSSQLOption(.numericRoundAbort(v)) }
-
-            Toggle("Concatenate Null Yields Null", isOn: $concatNullYieldsNull)
-                .onChange(of: concatNullYieldsNull) { _, v in applyMSSQLOption(.concatNullYieldsNull(v)) }
-        }
-
-        Section("Identifiers & Triggers") {
-            Toggle("Quoted Identifiers Enabled", isOn: $quotedIdentifier)
-                .onChange(of: quotedIdentifier) { _, v in applyMSSQLOption(.quotedIdentifier(v)) }
-
-            Toggle("Recursive Triggers Enabled", isOn: $recursiveTriggers)
-                .onChange(of: recursiveTriggers) { _, v in applyMSSQLOption(.recursiveTriggers(v)) }
-
-            Toggle("Date Correlation Optimization", isOn: $dateCorrelation)
-                .onChange(of: dateCorrelation) { _, v in applyMSSQLOption(.dateCorrelationOptimization(v)) }
-        }
-    }
-
-    @ViewBuilder
-    private func mssqlFilesPage() -> some View {
-        if mssqlFiles.isEmpty {
-            Section {
-                Text("No file information available.")
-                    .foregroundStyle(.secondary)
-            }
-        } else {
-            ForEach(Array(mssqlFiles.enumerated()), id: \.offset) { index, file in
-                Section(file.name) {
-                    LabeledContent("Type", value: file.typeDescription)
-                    if let fg = file.fileGroupName {
-                        LabeledContent("Filegroup", value: fg)
-                    }
-
-                    // Editable size (MB)
-                    LabeledContent("Size") {
-                        HStack(spacing: SpacingTokens.xs) {
-                            TextField("", value: fileSizeMBBinding(index: index), format: .number)
-                                .frame(width: 80)
-                                .onSubmit {
-                                    let newSize = fileSizeMBValues[index] ?? Int(file.sizeMB)
-                                    applyMSSQLFileOption(file: file, option: .sizeMB(newSize))
-                                }
-                            Text("MB")
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-
-                    // Editable max size
-                    LabeledContent("Max Size") {
-                        HStack(spacing: SpacingTokens.xs) {
-                            Picker("", selection: fileMaxSizeTypeBinding(index: index, file: file)) {
-                                Text("Unlimited").tag(FileMaxSizeType.unlimited)
-                                Text("MB").tag(FileMaxSizeType.mb)
-                            }
-                            .frame(width: 110)
-
-                            if currentFileMaxSizeType(index: index, file: file) == .mb {
-                                TextField("", value: fileMaxSizeMBBinding(index: index, file: file), format: .number)
-                                    .frame(width: 80)
-                                    .onSubmit {
-                                        let newMax = fileMaxSizeMBValues[index] ?? (file.maxSizeMB ?? 256)
-                                        applyMSSQLFileOption(file: file, option: .maxSizeMB(newMax))
-                                    }
-                                Text("MB")
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                    }
-
-                    // Editable growth
-                    LabeledContent("Growth") {
-                        HStack(spacing: SpacingTokens.xs) {
-                            Picker("", selection: fileGrowthTypeBinding(index: index, file: file)) {
-                                Text("MB").tag(FileGrowthType.mb)
-                                Text("Percent").tag(FileGrowthType.percent)
-                                Text("None").tag(FileGrowthType.none)
-                            }
-                            .frame(width: 110)
-
-                            if currentFileGrowthType(index: index, file: file) != .none {
-                                TextField("", value: fileGrowthValueBinding(index: index, file: file), format: .number)
-                                    .frame(width: 80)
-                                    .onSubmit {
-                                        applyFileGrowthChange(index: index, file: file)
-                                    }
-                                Text(currentFileGrowthType(index: index, file: file) == .percent ? "%" : "MB")
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                    }
-
-                    LabeledContent("Path", value: file.physicalName)
-                }
-            }
-        }
-    }
-
-    // MARK: - File Editing State Types
-
-    private enum FileMaxSizeType: Hashable {
-        case unlimited
-        case mb
-    }
-
-    private enum FileGrowthType: Hashable {
-        case mb
-        case percent
-        case none
-    }
-
-    // MARK: - File Editing Helpers
-
-    private func currentFileMaxSizeType(index: Int, file: SQLServerDatabaseFile) -> FileMaxSizeType {
-        fileMaxSizeTypes[index] ?? (file.isMaxSizeUnlimited ? .unlimited : .mb)
-    }
-
-    private func currentFileGrowthType(index: Int, file: SQLServerDatabaseFile) -> FileGrowthType {
-        if let stored = fileGrowthTypes[index] { return stored }
-        if file.growthRaw == 0 { return .none }
-        return file.isPercentGrowth ? .percent : .mb
-    }
-
-    // MARK: - File Editing Bindings
-
-    private func fileSizeMBBinding(index: Int) -> Binding<Int> {
-        Binding(
-            get: { fileSizeMBValues[index] ?? Int(mssqlFiles[index].sizeMB) },
-            set: { fileSizeMBValues[index] = $0 }
-        )
-    }
-
-    private func fileMaxSizeTypeBinding(index: Int, file: SQLServerDatabaseFile) -> Binding<FileMaxSizeType> {
-        Binding(
-            get: { fileMaxSizeTypes[index] ?? (file.isMaxSizeUnlimited ? .unlimited : .mb) },
-            set: { newType in
-                fileMaxSizeTypes[index] = newType
-                switch newType {
-                case .unlimited:
-                    applyMSSQLFileOption(file: file, option: .maxSizeUnlimited)
-                case .mb:
-                    let currentMB = fileMaxSizeMBValues[index] ?? file.maxSizeMB ?? 256
-                    fileMaxSizeMBValues[index] = currentMB
-                    applyMSSQLFileOption(file: file, option: .maxSizeMB(currentMB))
-                }
-            }
-        )
-    }
-
-    private func fileMaxSizeMBBinding(index: Int, file: SQLServerDatabaseFile) -> Binding<Int> {
-        Binding(
-            get: { fileMaxSizeMBValues[index] ?? file.maxSizeMB ?? 256 },
-            set: { fileMaxSizeMBValues[index] = $0 }
-        )
-    }
-
-    private func fileGrowthTypeBinding(index: Int, file: SQLServerDatabaseFile) -> Binding<FileGrowthType> {
-        Binding(
-            get: {
-                if let stored = fileGrowthTypes[index] { return stored }
-                if file.growthRaw == 0 { return .none }
-                return file.isPercentGrowth ? .percent : .mb
-            },
-            set: { newType in
-                fileGrowthTypes[index] = newType
-                switch newType {
-                case .none:
-                    applyMSSQLFileOption(file: file, option: .filegrowthNone)
-                case .mb:
-                    let currentMB = fileGrowthValues[index] ?? file.growthMB ?? 64
-                    fileGrowthValues[index] = currentMB
-                    applyMSSQLFileOption(file: file, option: .filegrowthMB(currentMB))
-                case .percent:
-                    let currentPct = fileGrowthValues[index] ?? file.growthPercent ?? 10
-                    fileGrowthValues[index] = currentPct
-                    applyMSSQLFileOption(file: file, option: .filegrowthPercent(currentPct))
-                }
-            }
-        )
-    }
-
-    private func fileGrowthValueBinding(index: Int, file: SQLServerDatabaseFile) -> Binding<Int> {
-        Binding(
-            get: {
-                if let stored = fileGrowthValues[index] { return stored }
-                if file.isPercentGrowth { return file.growthPercent ?? 10 }
-                return file.growthMB ?? 64
-            },
-            set: { fileGrowthValues[index] = $0 }
-        )
-    }
-
-    private func applyFileGrowthChange(index: Int, file: SQLServerDatabaseFile) {
-        let growthType = fileGrowthTypes[index] ?? (file.isPercentGrowth ? .percent : .mb)
-        let value = fileGrowthValues[index] ?? (file.isPercentGrowth ? file.growthPercent ?? 10 : file.growthMB ?? 64)
-        switch growthType {
-        case .mb:
-            applyMSSQLFileOption(file: file, option: .filegrowthMB(value))
-        case .percent:
-            applyMSSQLFileOption(file: file, option: .filegrowthPercent(value))
-        case .none:
-            applyMSSQLFileOption(file: file, option: .filegrowthNone)
-        }
-    }
-
-    // MARK: - MSSQL Apply File Option
-
-    private func applyMSSQLFileOption(file: SQLServerDatabaseFile, option: SQLServerDatabaseFileOption) {
-        guard let mssqlSession = session.session as? MSSQLSession else { return }
-        let admin = mssqlSession.makeAdministrationClient()
-        isSaving = true
-        statusMessage = nil
-
-        Task {
-            do {
-                let messages = try await admin.modifyDatabaseFile(
-                    databaseName: databaseName,
-                    logicalFileName: file.name,
-                    option: option
-                )
-                let info = messages.filter { $0.kind == .info }.map(\.message).joined(separator: " ").trimmingCharacters(in: .whitespacesAndNewlines)
-                isSaving = false
-                if !info.isEmpty { statusMessage = info }
-                // Reload files to reflect the change
-                if let updatedAdmin = session.session as? MSSQLSession {
-                    let freshAdmin = updatedAdmin.makeAdministrationClient()
-                    mssqlFiles = (try? await freshAdmin.fetchDatabaseFiles(name: databaseName)) ?? mssqlFiles
-                }
-            } catch {
-                isSaving = false
-                statusMessage = error.localizedDescription
-                environmentState.toastCoordinator.show(icon: "exclamationmark.triangle", message: error.localizedDescription, style: .error)
-            }
-        }
-    }
-
-    // MARK: - PostgreSQL Pages
-
-    @ViewBuilder
-    private func postgresGeneralPage(_ props: PostgresDatabaseProperties) -> some View {
-        Section("Information") {
-            LabeledContent("Name", value: props.name)
-            LabeledContent("OID", value: props.oid)
-
-            Picker("Owner", selection: $pgOwner) {
-                ForEach(pgRoles, id: \.self) { role in
-                    Text(role).tag(role)
-                }
-            }
-            .onChange(of: pgOwner) { _, newOwner in
-                applyPgAlter { admin in
-                    try await admin.alterDatabaseOwner(name: databaseName, newOwner: newOwner)
-                }
-            }
-
-            LabeledContent("Description") {
-                TextField("", text: $pgComment, axis: .vertical)
-                    .lineLimit(1...3)
-                    .onSubmit {
-                        applyPgAlter { admin in
-                            try await admin.commentOnDatabase(name: databaseName, comment: pgComment.isEmpty ? nil : pgComment)
-                        }
-                    }
-            }
-        }
-
-        if let version = session.databaseStructure?.serverVersion {
-            Section("Server") {
-                LabeledContent("Version", value: version)
-            }
-        }
-    }
-
-    @ViewBuilder
-    private func postgresDefinitionPage(_ props: PostgresDatabaseProperties) -> some View {
-        Section("Character Set") {
-            LabeledContent("Encoding", value: props.encoding)
-            LabeledContent("Collation", value: props.collation)
-            LabeledContent("Character Type", value: props.ctype)
-            if let icu = props.icuLocale {
-                LabeledContent("ICU Locale", value: icu)
-            }
-        }
-
-        Section("Tablespace") {
-            if pgTablespaces.count > 1 {
-                Picker("Tablespace", selection: Binding(
-                    get: { props.tablespace },
-                    set: { newValue in
-                        applyPgAlter { admin in
-                            try await admin.alterDatabaseTablespace(name: databaseName, tablespace: newValue)
-                        }
-                    }
-                )) {
-                    ForEach(pgTablespaces, id: \.self) { ts in
-                        Text(ts).tag(ts)
-                    }
-                }
-            } else {
-                LabeledContent("Tablespace", value: props.tablespace)
-            }
-        }
-
-        Section("Connection") {
-            LabeledContent("Connection Limit") {
-                HStack(spacing: SpacingTokens.xs) {
-                    TextField("", value: $pgConnectionLimit, format: .number)
-                        .frame(width: 60)
-                        .onSubmit {
-                            applyPgAlter { admin in
-                                try await admin.alterDatabaseConnectionLimit(name: databaseName, limit: pgConnectionLimit)
-                            }
-                        }
-                    Text("-1 = unlimited")
-                        .font(TypographyTokens.detail)
-                        .foregroundStyle(.tertiary)
-                }
-            }
-
-            Toggle("Is Template", isOn: $pgIsTemplate)
-                .onChange(of: pgIsTemplate) { _, v in
-                    applyPgAlter { admin in
-                        try await admin.alterDatabaseIsTemplate(name: databaseName, isTemplate: v)
-                    }
-                }
-
-            Toggle("Allow Connections", isOn: $pgAllowConnections)
-                .onChange(of: pgAllowConnections) { _, v in
-                    applyPgAlter { admin in
-                        try await admin.alterDatabaseAllowConnections(name: databaseName, allow: v)
-                    }
-                }
-        }
-    }
-
-    @ViewBuilder
-    private func postgresParametersPage() -> some View {
-        if pgParams.isEmpty {
-            Section {
-                Text("No database-level parameters configured.")
-                    .foregroundStyle(.secondary)
-                    .font(TypographyTokens.standard)
-            }
-        } else {
-            Section("Database Parameters") {
-                ForEach(Array(pgParams.enumerated()), id: \.offset) { _, param in
-                    LabeledContent(param.name, value: param.value)
-                }
-            }
-        }
-    }
-
-    @ViewBuilder
-    private func postgresStatisticsPage(_ props: PostgresDatabaseProperties) -> some View {
-        Section("Size") {
-            LabeledContent("Database Size", value: ByteCountFormatter.string(fromByteCount: props.sizeBytes, countStyle: .file))
-            LabeledContent("Size (bytes)", value: "\(props.sizeBytes)")
-        }
-
-        Section("Connections") {
-            LabeledContent("Active Connections", value: "\(props.activeConnections)")
-        }
-
-        if let acl = props.acl, !acl.isEmpty {
-            Section("Privileges") {
-                Text(acl)
-                    .font(TypographyTokens.monospaced)
-                    .textSelection(.enabled)
-            }
-        }
-    }
-
-    // MARK: - MSSQL Apply Option
-
-    private func applyMSSQLOption(_ option: SQLServerDatabaseOption) {
-        guard let mssqlSession = session.session as? MSSQLSession else { return }
-        let admin = mssqlSession.makeAdministrationClient()
-        isSaving = true
-        statusMessage = nil
-
-        Task {
-            do {
-                let messages = try await admin.alterDatabaseOption(name: databaseName, option: option)
-                let info = messages.filter { $0.kind == .info }.map(\.message).joined(separator: " ").trimmingCharacters(in: .whitespacesAndNewlines)
-                isSaving = false
-                if !info.isEmpty { statusMessage = info }
-                Task { await environmentState.refreshDatabaseStructure(for: session.id) }
-            } catch {
-                isSaving = false
-                statusMessage = error.localizedDescription
-                environmentState.toastCoordinator.show(icon: "exclamationmark.triangle", message: error.localizedDescription, style: .error)
-            }
-        }
-    }
-
-    // MARK: - PostgreSQL Apply Alter
-
-    private func applyPgAlter(_ action: @Sendable @escaping (PostgresAdmin) async throws -> Void) {
-        guard let pgSession = session.session as? PostgresSession else { return }
-        let client = pgSession.client
-        let logger = pgSession.logger
-        isSaving = true
-        statusMessage = nil
-
-        Task {
-            do {
-                let admin = PostgresAdmin(client: client, logger: logger)
-                try await action(admin)
-                isSaving = false
-                Task { await environmentState.refreshDatabaseStructure(for: session.id) }
-            } catch {
-                isSaving = false
-                statusMessage = error.localizedDescription
-                environmentState.toastCoordinator.show(icon: "exclamationmark.triangle", message: error.localizedDescription, style: .error)
-            }
-        }
-    }
-
     // MARK: - Data Loading
 
     private func loadProperties() async {
@@ -787,73 +214,9 @@ struct DatabasePropertiesSheet: View {
         }
     }
 
-    private func loadPostgresProperties() async throws {
-        guard let pgSession = session.session as? PostgresSession else { return }
-        let admin = PostgresAdmin(client: pgSession.client, logger: pgSession.logger)
-        let metadata = PostgresMetadata()
-
-        let props = try await admin.fetchDatabaseProperties(name: databaseName, using: pgSession.client)
-        pgProps = props
-        pgOwner = props.owner
-        pgConnectionLimit = props.connectionLimit
-        pgIsTemplate = props.isTemplate
-        pgAllowConnections = props.allowConnections
-        pgComment = props.description ?? ""
-
-        // Load parameters
-        pgParams = (try? await admin.fetchDatabaseParameters(databaseOid: props.oid, using: pgSession.client)) ?? []
-
-        // Load roles for owner picker
-        let roles = try await metadata.listRoles(using: pgSession.client)
-        pgRoles = roles.map(\.name).sorted()
-
-        // Load tablespaces
-        pgTablespaces = (try? await admin.listTablespaces(using: pgSession.client)) ?? ["pg_default"]
-    }
-
-    private func loadMSSQLProperties() async throws {
-        guard let mssqlSession = session.session as? MSSQLSession else { return }
-        let admin = mssqlSession.makeAdministrationClient()
-        let props = try await admin.fetchDatabaseProperties(name: databaseName)
-        mssqlProps = props
-
-        // Populate editable state
-        recoveryModel = SQLServerDatabaseOption.RecoveryModel(rawValue: props.recoveryModel) ?? .full
-        compatibilityLevel = props.compatibilityLevel
-        isReadOnly = props.isReadOnly
-        userAccess = SQLServerDatabaseOption.UserAccessOption.fromDescription(props.userAccessDescription)
-        pageVerify = SQLServerDatabaseOption.PageVerifyOption(rawValue: props.pageVerifyOption) ?? .checksum
-        targetRecoveryTime = props.targetRecoveryTimeSeconds
-        delayedDurability = SQLServerDatabaseOption.DelayedDurabilityOption(rawValue: props.delayedDurability) ?? .disabled
-        allowSnapshotIsolation = props.snapshotIsolationState.uppercased().contains("ON")
-        readCommittedSnapshot = props.isReadCommittedSnapshotOn
-        isEncrypted = props.isEncrypted
-        isBrokerEnabled = props.isBrokerEnabled
-        isTrustworthy = props.isTrustworthy
-        parameterization = props.isParameterizationForced ? .forced : .simple
-        autoClose = props.isAutoCloseOn
-        autoShrink = props.isAutoShrinkOn
-        autoCreateStats = props.isAutoCreateStatsOn
-        autoUpdateStats = props.isAutoUpdateStatsOn
-        autoUpdateStatsAsync = props.isAutoUpdateStatsAsyncOn
-        ansiNullDefault = props.isAnsiNullDefaultOn
-        ansiNulls = props.isAnsiNullsOn
-        ansiPadding = props.isAnsiPaddingOn
-        ansiWarnings = props.isAnsiWarningsOn
-        arithAbort = props.isArithAbortOn
-        concatNullYieldsNull = props.isConcatNullYieldsNullOn
-        quotedIdentifier = props.isQuotedIdentifierOn
-        recursiveTriggers = props.isRecursiveTriggersOn
-        numericRoundAbort = props.isNumericRoundAbortOn
-        dateCorrelation = props.isDateCorrelationOn
-
-        // Load files
-        mssqlFiles = (try? await admin.fetchDatabaseFiles(name: databaseName)) ?? []
-    }
-
     // MARK: - Constants
 
-    private var compatibilityLevels: [(label: String, value: Int)] {
+    var compatibilityLevels: [(label: String, value: Int)] {
         [
             ("SQL Server 2022 (160)", 160),
             ("SQL Server 2019 (150)", 150),

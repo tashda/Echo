@@ -136,28 +136,36 @@ final class ObjectBrowserSidebarViewModel: ObservableObject {
     
     private var searchDebounceTask: Task<Void, Never>?
     private var cancellables = Set<AnyCancellable>()
+    /// Tracks whether a debounce observer is already running.
+    private var isDebounceActive = false
 
     func setupSearchDebounce(proxy: ScrollViewProxy) {
+        guard !isDebounceActive else { return }
+        isDebounceActive = true
+
+        // Immediate path: clear debounced text instantly when search is cleared.
+        // Debounced path: wait 200ms after last keystroke before applying.
         $searchText
-            .dropFirst()
+            .removeDuplicates()
+            .receive(on: DispatchQueue.main)
             .sink { [weak self] newValue in
                 guard let self else { return }
                 self.searchDebounceTask?.cancel()
-                let trimmedNew = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
-                
-                if trimmedNew.isEmpty {
+                let trimmed = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
+
+                if trimmed.isEmpty {
+                    self.debouncedSearchText = ""
                     self.searchDebounceTask = Task { @MainActor in
-                        self.debouncedSearchText = ""
                         await Task.yield()
                         guard !Task.isCancelled else { return }
                         proxy.scrollTo(ExplorerSidebarConstants.objectsTopAnchor, anchor: .top)
                     }
                 } else {
-                    let pendingText = newValue
+                    let pending = newValue
                     self.searchDebounceTask = Task { @MainActor in
                         try? await Task.sleep(nanoseconds: 200_000_000)
                         guard !Task.isCancelled else { return }
-                        self.debouncedSearchText = pendingText
+                        self.debouncedSearchText = pending
                         await Task.yield()
                         guard !Task.isCancelled else { return }
                         proxy.scrollTo(ExplorerSidebarConstants.objectsTopAnchor, anchor: .top)
@@ -170,13 +178,14 @@ final class ObjectBrowserSidebarViewModel: ObservableObject {
     func stopSearchDebounce() {
         searchDebounceTask?.cancel()
         searchDebounceTask = nil
+        cancellables.removeAll()
+        isDebounceActive = false
     }
 
     func resetFilters(for session: ConnectionSession?, selectedSession: ConnectionSession?) {
         if !searchText.isEmpty {
             searchText = ""
             debouncedSearchText = ""
-            searchDebounceTask?.cancel()
         }
         guard let targetSession = session ?? selectedSession else { return }
         let connID = targetSession.connection.id

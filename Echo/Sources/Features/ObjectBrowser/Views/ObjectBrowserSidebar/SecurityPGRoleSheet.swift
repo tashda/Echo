@@ -8,51 +8,50 @@ struct SecurityPGRoleSheet: View {
     let existingRoleName: String?
     let onComplete: () -> Void
 
-    @State private var selectedPage: PGRolePage = .general
+    @State var selectedPage: PGRolePage = .general
 
-    @State private var roleName = ""
-    @State private var password = ""
-    @State private var confirmPassword = ""
-    @State private var canLogin = true
-    @State private var isSuperuser = false
-    @State private var canCreateDB = false
-    @State private var canCreateRole = false
-    @State private var inherit = true
-    @State private var isReplication = false
-    @State private var bypassRLS = false
-    @State private var connectionLimit = -1
-    @State private var validUntil = ""
+    @State var roleName = ""
+    @State var password = ""
+    @State var confirmPassword = ""
+    @State var canLogin = true
+    @State var isSuperuser = false
+    @State var canCreateDB = false
+    @State var canCreateRole = false
+    @State var inherit = true
+    @State var isReplication = false
+    @State var bypassRLS = false
+    @State var connectionLimit = -1
+    @State var validUntil = ""
 
-    // Membership: "Member Of" (roles this role belongs to)
-    @State private var memberOfEntries: [PGRoleMemberEntry] = []
-    // Membership: "Members" (roles that belong to this role)
-    @State private var memberEntries: [PGRoleMemberEntry] = []
-    @State private var loadingRoles = false
+    // Membership
+    @State var memberOfEntries: [PGRoleMemberEntry] = []
+    @State var memberEntries: [PGRoleMemberEntry] = []
+    @State var loadingRoles = false
 
-    // Parameters (editable)
-    @State private var roleParameters: [PostgresDatabaseParameter] = []
-    @State private var newParamName = ""
-    @State private var newParamValue = ""
+    // Parameters
+    @State var roleParameters: [PostgresDatabaseParameter] = []
+    @State var newParamName = ""
+    @State var newParamValue = ""
 
-    // Security labels (editable)
-    @State private var securityLabels: [PostgresSecurityLabel] = []
-    @State private var newLabelProvider = ""
-    @State private var newLabelValue = ""
+    // Security labels
+    @State var securityLabels: [PostgresSecurityLabel] = []
+    @State var newLabelProvider = ""
+    @State var newLabelValue = ""
 
-    @State private var errorMessage: String?
-    @State private var isSubmitting = false
-    @State private var isLoading = true
+    @State var errorMessage: String?
+    @State var isSubmitting = false
+    @State var isLoading = true
 
-    private var isEditing: Bool { existingRoleName != nil }
+    var isEditing: Bool { existingRoleName != nil }
 
-    private var isFormValid: Bool {
+    var isFormValid: Bool {
         let name = roleName.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !name.isEmpty, !isSubmitting else { return false }
         if !isEditing && !password.isEmpty && password != confirmPassword { return false }
         return true
     }
 
-    private var pages: [PGRolePage] {
+    var pages: [PGRolePage] {
         if isEditing {
             return [.general, .privileges, .membership, .parameters, .securityLabels, .sql]
         } else {
@@ -63,20 +62,17 @@ struct SecurityPGRoleSheet: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 0) {
-                // Sidebar
                 sidebar
                     .frame(width: 170)
 
                 Divider()
 
-                // Detail pane
                 detailPane
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
 
             Divider()
 
-            // Bottom bar
             toolbarView
         }
         .frame(minWidth: 640, minHeight: 480)
@@ -161,105 +157,10 @@ struct SecurityPGRoleSheet: View {
         .padding(SpacingTokens.md)
     }
 
-    // MARK: - General Page
+    // MARK: - Membership Table
 
     @ViewBuilder
-    private var generalPage: some View {
-        Section(isEditing ? "Role Properties" : "New Login/Group Role") {
-            if isEditing {
-                LabeledContent("Role Name", value: roleName)
-            } else {
-                TextField("Role Name", text: $roleName)
-            }
-        }
-
-        Section("Authentication") {
-            SecureField("Password", text: $password, prompt: Text(isEditing ? "Leave empty to keep current" : "Optional"))
-            if !isEditing {
-                SecureField("Confirm Password", text: $confirmPassword)
-            }
-        }
-
-        Section("Connection") {
-            Toggle("Can login", isOn: $canLogin)
-            LabeledContent("Connection limit") {
-                HStack(spacing: SpacingTokens.xs) {
-                    TextField("", value: $connectionLimit, format: .number)
-                        .frame(width: 80)
-                        .multilineTextAlignment(.trailing)
-                    Text(connectionLimit == -1 ? "(unlimited)" : "")
-                        .font(TypographyTokens.detail)
-                        .foregroundStyle(.tertiary)
-                }
-            }
-        }
-
-        Section("Account Expires") {
-            TextField("Valid until", text: $validUntil, prompt: Text("YYYY-MM-DD HH:MM:SS or empty for no expiry"))
-                .help("Account expiration timestamp. Leave empty for no expiry.")
-        }
-    }
-
-    // MARK: - Privileges Page
-
-    @ViewBuilder
-    private var privilegesPage: some View {
-        Section("Role Privileges") {
-            Toggle("Superuser", isOn: $isSuperuser)
-            Toggle("Create databases", isOn: $canCreateDB)
-            Toggle("Create roles", isOn: $canCreateRole)
-            Toggle("Inherit privileges", isOn: $inherit)
-            Toggle("Replication", isOn: $isReplication)
-            Toggle("Bypass row-level security", isOn: $bypassRLS)
-        }
-
-        Section {
-            Text("Superuser grants all privileges and bypasses all permission checks. Bypass RLS allows the role to bypass all row-level security policies.")
-                .font(TypographyTokens.detail)
-                .foregroundStyle(.secondary)
-        }
-    }
-
-    // MARK: - Membership Page
-
-    @ViewBuilder
-    private var membershipPage: some View {
-        if loadingRoles {
-            Section {
-                HStack {
-                    ProgressView().controlSize(.small)
-                    Text("Loading roles\u{2026}")
-                        .font(TypographyTokens.detail)
-                        .foregroundStyle(.secondary)
-                }
-            }
-        } else {
-            Section("Member Of") {
-                if memberOfEntries.isEmpty {
-                    Text("Not a member of any role.")
-                        .foregroundStyle(.secondary)
-                        .font(TypographyTokens.detail)
-                } else {
-                    membershipTable(entries: $memberOfEntries)
-                }
-            }
-
-            if isEditing {
-                Section("Members") {
-                    if memberEntries.isEmpty {
-                        Text("No roles are members of this role.")
-                            .foregroundStyle(.secondary)
-                            .font(TypographyTokens.detail)
-                    } else {
-                        membershipTable(entries: $memberEntries)
-                    }
-                }
-            }
-        }
-    }
-
-    @ViewBuilder
-    private func membershipTable(entries: Binding<[PGRoleMemberEntry]>) -> some View {
+    func membershipTable(entries: Binding<[PGRoleMemberEntry]>) -> some View {
         Table(entries.wrappedValue) {
             TableColumn("Role") { entry in
                 Text(entry.name)
@@ -276,12 +177,13 @@ struct SecurityPGRoleSheet: View {
             .width(60)
         }
         .tableStyle(.bordered)
-        .frame(minHeight: 120, maxHeight: 240)
+        .scrollContentBackground(.visible)
+        .frame(height: min(max(CGFloat(entries.wrappedValue.count) * 28 + 32, 120), 240))
     }
 
-    // MARK: - Parameters Page
+    // MARK: - Predefined Parameters
 
-    private static let predefinedParameters = [
+    static let predefinedParameters = [
         "search_path", "work_mem", "maintenance_work_mem", "temp_buffers",
         "statement_timeout", "lock_timeout", "idle_in_transaction_session_timeout",
         "log_statement", "log_min_duration_statement", "log_min_messages",
@@ -295,66 +197,12 @@ struct SecurityPGRoleSheet: View {
         "geqo", "geqo_threshold", "from_collapse_limit", "join_collapse_limit"
     ]
 
-    @ViewBuilder
-    private var parametersPage: some View {
-        Section("Role Parameters") {
-            if roleParameters.isEmpty && !isEditing {
-                Text("No role-level parameters configured.")
-                    .foregroundStyle(.secondary)
-                    .font(TypographyTokens.detail)
-            }
-
-            ForEach(Array(roleParameters.enumerated()), id: \.offset) { index, param in
-                HStack {
-                    Text(param.name)
-                        .font(TypographyTokens.standard)
-                        .frame(minWidth: 160, alignment: .leading)
-                    Text(param.value)
-                        .font(TypographyTokens.standard)
-                        .foregroundStyle(.secondary)
-                    Spacer()
-                    if isEditing {
-                        Button(role: .destructive) {
-                            roleParameters.remove(at: index)
-                        } label: {
-                            Image(systemName: "minus.circle.fill")
-                                .foregroundStyle(.red)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-            }
-        }
-
-        if isEditing {
-            Section("Add Parameter") {
-                HStack(spacing: SpacingTokens.xs) {
-                    Picker("Parameter", selection: $newParamName) {
-                        Text("Select\u{2026}").tag("")
-                        ForEach(availableParameters, id: \.self) { param in
-                            Text(param).tag(param)
-                        }
-                    }
-                    .frame(minWidth: 180)
-
-                    TextField("Value", text: $newParamValue)
-                        .textFieldStyle(.roundedBorder)
-
-                    Button("Add") {
-                        addParameter()
-                    }
-                    .disabled(newParamName.isEmpty || newParamValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                }
-            }
-        }
-    }
-
-    private var availableParameters: [String] {
+    var availableParameters: [String] {
         let existing = Set(roleParameters.map(\.name))
         return Self.predefinedParameters.filter { !existing.contains($0) }
     }
 
-    private func addParameter() {
+    func addParameter() {
         let value = newParamValue.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !newParamName.isEmpty, !value.isEmpty else { return }
         roleParameters.append(PostgresDatabaseParameter(name: newParamName, value: value))
@@ -362,59 +210,7 @@ struct SecurityPGRoleSheet: View {
         newParamValue = ""
     }
 
-    // MARK: - Security Labels Page
-
-    @ViewBuilder
-    private var securityLabelsPage: some View {
-        Section("Security Labels") {
-            if securityLabels.isEmpty && !isEditing {
-                Text("No security labels assigned to this role.")
-                    .foregroundStyle(.secondary)
-                    .font(TypographyTokens.detail)
-            }
-
-            ForEach(Array(securityLabels.enumerated()), id: \.offset) { index, label in
-                HStack {
-                    Text(label.provider)
-                        .font(TypographyTokens.standard)
-                        .frame(minWidth: 120, alignment: .leading)
-                    Text(label.label)
-                        .font(TypographyTokens.standard)
-                        .foregroundStyle(.secondary)
-                    Spacer()
-                    if isEditing {
-                        Button(role: .destructive) {
-                            securityLabels.remove(at: index)
-                        } label: {
-                            Image(systemName: "minus.circle.fill")
-                                .foregroundStyle(.red)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-            }
-        }
-
-        if isEditing {
-            Section("Add Security Label") {
-                HStack(spacing: SpacingTokens.xs) {
-                    TextField("Provider", text: $newLabelProvider)
-                        .textFieldStyle(.roundedBorder)
-                        .frame(minWidth: 120)
-
-                    TextField("Label", text: $newLabelValue)
-                        .textFieldStyle(.roundedBorder)
-
-                    Button("Add") {
-                        addSecurityLabel()
-                    }
-                    .disabled(newLabelProvider.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || newLabelValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                }
-            }
-        }
-    }
-
-    private func addSecurityLabel() {
+    func addSecurityLabel() {
         let provider = newLabelProvider.trimmingCharacters(in: .whitespacesAndNewlines)
         let label = newLabelValue.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !provider.isEmpty, !label.isEmpty else { return }
@@ -423,21 +219,7 @@ struct SecurityPGRoleSheet: View {
         newLabelValue = ""
     }
 
-    // MARK: - SQL Page
-
-    @ViewBuilder
-    private var sqlPage: some View {
-        Section("Generated SQL") {
-            let sql = generateSQL()
-            Text(sql)
-                .font(TypographyTokens.monospaced)
-                .textSelection(.enabled)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(SpacingTokens.xs)
-        }
-    }
-
-    private func generateSQL() -> String {
+    func generateSQL() -> String {
         let name = roleName.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !name.isEmpty else { return "-- Enter a role name first" }
 
@@ -477,23 +259,19 @@ struct SecurityPGRoleSheet: View {
 
         let admin = PostgresAdmin(client: pg.client, logger: pg.logger)
 
-        // Load available roles for membership
         loadingRoles = true
         do {
             let roles = try await admin.listRoles()
             let currentName = existingRoleName ?? ""
 
-            // "Member Of" entries: other roles this role can be a member of
             var moEntries = roles
                 .filter { $0.name != currentName }
                 .map { PGRoleMemberEntry(name: $0.name, isMember: false) }
 
-            // "Members" entries: other roles that are members of this role
             var mEntries = roles
                 .filter { $0.name != currentName }
                 .map { PGRoleMemberEntry(name: $0.name, isMember: false) }
 
-            // Check current memberships if editing
             if !currentName.isEmpty {
                 let memberOf = try await admin.listMemberOf(role: currentName)
                 for i in moEntries.indices {
@@ -527,7 +305,6 @@ struct SecurityPGRoleSheet: View {
             await MainActor.run { loadingRoles = false }
         }
 
-        // If editing, load existing role properties
         if let existingName = existingRoleName {
             do {
                 let roles = try await admin.listRoles()
@@ -545,11 +322,9 @@ struct SecurityPGRoleSheet: View {
                         validUntil = role.validUntil ?? ""
                     }
 
-                    // Load parameters
                     let params = try await admin.fetchRoleParameters(roleOid: role.oid)
                     await MainActor.run { roleParameters = params }
 
-                    // Load security labels
                     let labels = try await admin.fetchRoleSecurityLabels(role: existingName)
                     await MainActor.run { securityLabels = labels }
                 }
@@ -605,7 +380,6 @@ struct SecurityPGRoleSheet: View {
                 )
             }
 
-            // Sync "Member Of" role memberships
             let admin = PostgresAdmin(client: pg.client, logger: pg.logger)
             let currentMemberOf = try await admin.listMemberOf(role: name)
 
@@ -621,7 +395,6 @@ struct SecurityPGRoleSheet: View {
                 }
             }
 
-            // Sync "Members" role memberships (roles that are members of this role)
             if isEditing {
                 let currentMembers = try await admin.listMembers(of: name)
 
@@ -653,7 +426,7 @@ struct SecurityPGRoleSheet: View {
 
 // MARK: - Supporting Types
 
-private enum PGRolePage: String, Hashable, CaseIterable {
+enum PGRolePage: String, Hashable, CaseIterable {
     case general
     case privileges
     case membership
@@ -684,7 +457,7 @@ private enum PGRolePage: String, Hashable, CaseIterable {
     }
 }
 
-private struct PGRoleMemberEntry: Identifiable, Hashable {
+struct PGRoleMemberEntry: Identifiable, Hashable {
     var id: String { name }
     let name: String
     var isMember: Bool
