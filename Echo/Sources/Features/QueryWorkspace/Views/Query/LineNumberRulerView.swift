@@ -75,8 +75,10 @@ final class LineNumberRulerView: NSRulerView {
               let layoutManager = textView.layoutManager,
               let textContainer = textView.textContainer else { return }
 
+        let rulerFont = NSFont.monospacedDigitSystemFont(ofSize: 11, weight: .regular)
+
         let attributes: [NSAttributedString.Key: Any] = [
-            .font: NSFont.monospacedDigitSystemFont(ofSize: 11, weight: .regular),
+            .font: rulerFont,
             .foregroundColor: theme.surfaces.gutterText.nsColor,
             .paragraphStyle: paragraphStyle
         ]
@@ -85,7 +87,7 @@ final class LineNumberRulerView: NSRulerView {
         let nsString = textView.string as NSString
 
         if glyphCount == 0 || nsString.length == 0 {
-            drawFallbackLine(with: attributes, in: gutterRect)
+            drawFallbackLine(with: attributes, rulerFont: rulerFont, in: gutterRect)
             return
         }
 
@@ -99,36 +101,47 @@ final class LineNumberRulerView: NSRulerView {
         let initialGlyph = min(visibleGlyphRange.location, max(glyphCount - 1, 0))
         let maxGlyphIndex = min(NSMaxRange(visibleGlyphRange), glyphCount)
         if maxGlyphIndex <= initialGlyph {
-            drawFallbackLine(with: attributes, in: gutterRect)
+            drawFallbackLine(with: attributes, rulerFont: rulerFont, in: gutterRect)
             return
         }
 
-        let rulerFont = NSFont.monospacedDigitSystemFont(ofSize: 11, weight: .regular)
+        let containerOriginY = textView.textContainerOrigin.y
+        let scrollOffsetY = textView.visibleRect.origin.y
+
+        // Consistent label height from ruler font metrics.
+        let rulerLabelHeight = ceil(rulerFont.ascender - rulerFont.descender + rulerFont.leading)
+
+        // Baseline-align: offset so ruler font baseline matches text font baseline
+        // within each line fragment rect.
+        let textFont = textView.font ?? NSFont.systemFont(ofSize: 13)
+        let baselineDelta = textFont.ascender - rulerFont.ascender
 
         var glyphIndex = initialGlyph
         while glyphIndex < maxGlyphIndex {
             var lineRange = NSRange(location: 0, length: 0)
             let lineRect = layoutManager.lineFragmentRect(forGlyphAt: glyphIndex, effectiveRange: &lineRange, withoutAdditionalLayout: true)
-            let yPosition = lineRect.minY + textView.textContainerOrigin.y - textView.visibleRect.origin.y
 
-            // Use actual glyph baseline position for precise alignment
-            let glyphLocation = layoutManager.location(forGlyphAt: glyphIndex)
-            let textBaseline = yPosition + glyphLocation.y
-            let rulerLabelY = textBaseline - rulerFont.ascender
+            // Convert from text-container coordinates to ruler-view coordinates.
+            let lineY = lineRect.minY + containerOriginY - scrollOffsetY
+
+            // Position label so ruler baseline matches text baseline.
+            let labelY = lineY + baselineDelta
 
             let lineNumber = nsString.lineNumber(at: lineRange.location)
-            let labelRect = NSRect(x: 0, y: rulerLabelY, width: gutterRect.width - 8, height: lineRect.height + rulerFont.ascender)
+            let labelRect = NSRect(x: 0, y: labelY, width: gutterRect.width - 8, height: rulerLabelHeight)
             ("\(lineNumber)" as NSString).draw(in: labelRect, withAttributes: attributes)
 
-            glyphIndex = min(NSMaxRange(lineRange), maxGlyphIndex)
+            let next = NSMaxRange(lineRange)
+            if next <= glyphIndex { break } // safety: avoid infinite loop
+            glyphIndex = next
         }
 
         if layoutManager.extraLineFragmentTextContainer != nil {
             let extraRect = layoutManager.extraLineFragmentRect
             if extraRect.height > 0 {
-                let yPosition = extraRect.minY + textView.textContainerOrigin.y - textView.visibleRect.origin.y
-                let baselineOffset = baselineAlignmentOffset(for: textView)
-                let labelRect = NSRect(x: 0, y: yPosition + baselineOffset, width: gutterRect.width - 8, height: extraRect.height)
+                let lineY = extraRect.minY + containerOriginY - scrollOffsetY
+                let labelY = lineY + baselineDelta
+                let labelRect = NSRect(x: 0, y: labelY, width: gutterRect.width - 8, height: rulerLabelHeight)
                 let lastLineNumber = nsString.lineNumber(at: nsString.length)
                 ("\(lastLineNumber)" as NSString).draw(in: labelRect, withAttributes: attributes)
             }
@@ -137,34 +150,28 @@ final class LineNumberRulerView: NSRulerView {
         // No divider – match Tahoe preview
     }
 
-    private func drawFallbackLine(with attributes: [NSAttributedString.Key: Any], in rect: NSRect) {
+    private func drawFallbackLine(with attributes: [NSAttributedString.Key: Any], rulerFont: NSFont, in rect: NSRect) {
+        let rulerLabelHeight = ceil(rulerFont.ascender - rulerFont.descender + rulerFont.leading)
+
         guard let textView = sqlTextView else {
-            let labelRect = NSRect(x: 0, y: rect.minY + 4, width: rect.width - 8, height: rect.height)
+            let labelRect = NSRect(x: 0, y: rect.minY + 4, width: rect.width - 8, height: rulerLabelHeight)
             ("1" as NSString).draw(in: labelRect, withAttributes: attributes)
             return
         }
 
-        let font = textView.theme.nsFont
-        let lineHeight = max(CGFloat(16), font.ascender - font.descender + font.leading)
-        let insetOrigin = textView.textContainerOrigin
-        let visibleOffset = textView.visibleRect.origin.y
-        let baseY = insetOrigin.y - visibleOffset
-        let baselineOffset = baselineAlignmentOffset(for: textView)
-        let yPosition = max(rect.minY, baseY + baselineOffset)
+        let textFont = textView.font ?? textView.theme.nsFont
+        let baselineDelta = textFont.ascender - rulerFont.ascender
+        let containerOriginY = textView.textContainerOrigin.y
+        let scrollOffsetY = textView.visibleRect.origin.y
+        let labelY = max(rect.minY, containerOriginY - scrollOffsetY + baselineDelta)
 
         let labelRect = NSRect(
             x: 0,
-            y: yPosition,
+            y: labelY,
             width: rect.width - 8,
-            height: lineHeight
+            height: rulerLabelHeight
         )
         ("1" as NSString).draw(in: labelRect, withAttributes: attributes)
-    }
-
-    private func baselineAlignmentOffset(for textView: SQLTextView) -> CGFloat {
-        let textFont = textView.font ?? NSFont.systemFont(ofSize: 13)
-        let rulerFont = NSFont.monospacedDigitSystemFont(ofSize: 11, weight: .regular)
-        return textFont.ascender - rulerFont.ascender
     }
 
     override func hitTest(_ point: NSPoint) -> NSView? {
