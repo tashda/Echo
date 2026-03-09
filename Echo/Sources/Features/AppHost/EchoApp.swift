@@ -60,6 +60,7 @@ struct EchoApp: App {
             AutocompleteInspectorCommands()
             PerformanceMonitorCommands()
             StreamingTestHarnessCommands()
+            SparkleCommands()
 #if os(macOS)
             ConnectMenuCommands(
                 environmentState: coordinator.environmentState,
@@ -205,6 +206,19 @@ struct AppSettingsCommands: Commands {
                 openWindow(id: SettingsWindowScene.sceneID)
             }
             .keyboardShortcut(",", modifiers: [.command])
+        }
+    }
+}
+
+struct SparkleCommands: Commands {
+    @StateObject private var updater = SparkleUpdater.shared
+
+    var body: some Commands {
+        CommandGroup(after: .appInfo) {
+            Button("Check for Updates…") {
+                updater.checkForUpdates()
+            }
+            .disabled(!updater.canCheckForUpdates)
         }
     }
 }
