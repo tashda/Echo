@@ -16,11 +16,20 @@ public struct DatabaseInfo: Sendable, Identifiable, Codable, Hashable {
     public let name: String
     public var schemas: [SchemaInfo]
     public var schemaCount: Int
+    /// Database state (e.g. "ONLINE", "OFFLINE"). Nil for engines that don't report state.
+    public var stateDescription: String?
 
-    public nonisolated init(name: String, schemas: [SchemaInfo] = [], schemaCount: Int? = nil) {
+    public nonisolated init(name: String, schemas: [SchemaInfo] = [], schemaCount: Int? = nil, stateDescription: String? = nil) {
         self.name = name
         self.schemas = schemas
         self.schemaCount = schemaCount ?? schemas.count
+        self.stateDescription = stateDescription
+    }
+
+    /// Whether the database is online (or assumed online when state is unknown).
+    public var isOnline: Bool {
+        guard let state = stateDescription else { return true }
+        return state.uppercased() == "ONLINE"
     }
 }
 

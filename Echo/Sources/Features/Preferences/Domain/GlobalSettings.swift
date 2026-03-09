@@ -16,6 +16,69 @@ enum AccentColorSource: String, Codable, Hashable, CaseIterable {
     }
 }
 
+enum SidebarAutoExpandSection: String, Codable, Hashable, CaseIterable, Identifiable {
+    case databases
+    case tables
+    case views
+    case materializedViews
+    case functions
+    case procedures
+    case triggers
+    case management
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .databases: return "Databases"
+        case .tables: return "Tables"
+        case .views: return "Views"
+        case .materializedViews: return "Materialized Views"
+        case .functions: return "Functions"
+        case .procedures: return "Procedures"
+        case .triggers: return "Triggers"
+        case .management: return "Management"
+        }
+    }
+
+    var objectType: SchemaObjectInfo.ObjectType? {
+        switch self {
+        case .tables: return .table
+        case .views: return .view
+        case .materializedViews: return .materializedView
+        case .functions: return .function
+        case .procedures: return .procedure
+        case .triggers: return .trigger
+        case .databases, .management: return nil
+        }
+    }
+
+    /// Sections common to all database types.
+    static let generalSections: [SidebarAutoExpandSection] = [
+        .databases, .tables, .views, .functions, .triggers
+    ]
+
+    /// Sections unique to a specific database type (not in generalSections).
+    static func uniqueSections(for databaseType: DatabaseType) -> [SidebarAutoExpandSection] {
+        switch databaseType {
+        case .postgresql: return [.materializedViews]
+        case .microsoftSQL: return [.procedures, .management]
+        case .mysql: return [.procedures]
+        case .sqlite: return []
+        }
+    }
+
+    /// All sections relevant for a given database type.
+    static func allSections(for databaseType: DatabaseType) -> [SidebarAutoExpandSection] {
+        let supported = Set(SchemaObjectInfo.ObjectType.supported(for: databaseType))
+        let general = generalSections.filter { section in
+            guard let objectType = section.objectType else { return true } // .databases
+            return supported.contains(objectType)
+        }
+        return general + uniqueSections(for: databaseType)
+    }
+}
+
 struct GlobalSettings: Codable, Hashable {
     var appearanceMode: AppearanceMode
     var defaultEditorFontSize: Double
@@ -69,6 +132,7 @@ struct GlobalSettings: Codable, Hashable {
     var resultSpoolMaxBytes: Int = 5 * 1_024 * 1_024 * 1_024
     var resultSpoolRetentionHours: Int = 72
     var resultSpoolCustomLocation: String?
+    var autoOpenInspectorOnSelection: Bool = true
     var inspectorWidth: Double?
     var keepTabsInMemory: Bool = false
     var diagramPrefetchMode: DiagramPrefetchMode = .off
@@ -82,6 +146,26 @@ struct GlobalSettings: Codable, Hashable {
     var customKeyboardShortcuts: [String: CustomShortcutBinding]?
     var defaultWindowWidth: Double?
     var defaultWindowHeight: Double?
+    var sidebarAutoExpandSections: Set<SidebarAutoExpandSection> = [.databases]
+    var sidebarCustomizePerDatabaseType: Bool = false
+    var sidebarAutoExpandPostgresql: Set<SidebarAutoExpandSection>?
+    var sidebarAutoExpandSQLServer: Set<SidebarAutoExpandSection>?
+    var sidebarAutoExpandMySQL: Set<SidebarAutoExpandSection>?
+
+    /// Returns the effective auto-expand sections for a given database type.
+    func sidebarExpandSections(for databaseType: DatabaseType) -> Set<SidebarAutoExpandSection> {
+        if sidebarCustomizePerDatabaseType {
+            switch databaseType {
+            case .postgresql: if let override = sidebarAutoExpandPostgresql { return override }
+            case .microsoftSQL: if let override = sidebarAutoExpandSQLServer { return override }
+            case .mysql: if let override = sidebarAutoExpandMySQL { return override }
+            case .sqlite: break
+            }
+        }
+        // Fall back to general, filtered to sections relevant for this type
+        let relevant = Set(SidebarAutoExpandSection.allSections(for: databaseType))
+        return sidebarAutoExpandSections.intersection(relevant)
+    }
 
     init(
         appearanceMode: AppearanceMode = .system,
@@ -129,10 +213,12 @@ struct GlobalSettings: Codable, Hashable {
         case resultsUseCursorStreaming, resultsCursorStreamingLimitThreshold
         case mssqlStreamingMode, mysqlStreamingMode, sqliteStreamingMode
         case resultSpoolMaxBytes, resultSpoolRetentionHours, resultSpoolCustomLocation
-        case inspectorWidth, keepTabsInMemory
+        case autoOpenInspectorOnSelection, inspectorWidth, keepTabsInMemory
         case diagramPrefetchMode, diagramRefreshCadence, diagramCacheMaxBytes
         case diagramVerifyBeforeRefresh, diagramRenderRelationshipsForLargeDiagrams, diagramUseThemedAppearance
         case usePerTypeStorageLimits, echoSenseStorageMaxBytes, customKeyboardShortcuts
+        case sidebarAutoExpandSections, sidebarCustomizePerDatabaseType
+        case sidebarAutoExpandPostgresql, sidebarAutoExpandSQLServer, sidebarAutoExpandMySQL
     }
 
     init(from decoder: Decoder) throws {
@@ -197,6 +283,7 @@ struct GlobalSettings: Codable, Hashable {
         resultSpoolMaxBytes = try container.decodeIfPresent(Int.self, forKey: .resultSpoolMaxBytes) ?? 5 * 1_024 * 1_024 * 1_024
         resultSpoolRetentionHours = try container.decodeIfPresent(Int.self, forKey: .resultSpoolRetentionHours) ?? 72
         resultSpoolCustomLocation = try container.decodeIfPresent(String.self, forKey: .resultSpoolCustomLocation)
+        autoOpenInspectorOnSelection = try container.decodeIfPresent(Bool.self, forKey: .autoOpenInspectorOnSelection) ?? true
         inspectorWidth = try container.decodeIfPresent(Double.self, forKey: .inspectorWidth)
         keepTabsInMemory = try container.decodeIfPresent(Bool.self, forKey: .keepTabsInMemory) ?? false
         diagramPrefetchMode = try container.decodeIfPresent(DiagramPrefetchMode.self, forKey: .diagramPrefetchMode) ?? .off
@@ -211,6 +298,11 @@ struct GlobalSettings: Codable, Hashable {
         mssqlStreamingMode = (try? container.decodeIfPresent(ResultStreamingExecutionMode.self, forKey: .mssqlStreamingMode)) ?? .auto
         mysqlStreamingMode = (try? container.decodeIfPresent(ResultStreamingExecutionMode.self, forKey: .mysqlStreamingMode)) ?? .auto
         sqliteStreamingMode = (try? container.decodeIfPresent(ResultStreamingExecutionMode.self, forKey: .sqliteStreamingMode)) ?? .auto
+        sidebarAutoExpandSections = try container.decodeIfPresent(Set<SidebarAutoExpandSection>.self, forKey: .sidebarAutoExpandSections) ?? [.databases]
+        sidebarCustomizePerDatabaseType = try container.decodeIfPresent(Bool.self, forKey: .sidebarCustomizePerDatabaseType) ?? false
+        sidebarAutoExpandPostgresql = try container.decodeIfPresent(Set<SidebarAutoExpandSection>.self, forKey: .sidebarAutoExpandPostgresql)
+        sidebarAutoExpandSQLServer = try container.decodeIfPresent(Set<SidebarAutoExpandSection>.self, forKey: .sidebarAutoExpandSQLServer)
+        sidebarAutoExpandMySQL = try container.decodeIfPresent(Set<SidebarAutoExpandSection>.self, forKey: .sidebarAutoExpandMySQL)
     }
 
     func encode(to encoder: Encoder) throws {
@@ -263,6 +355,7 @@ struct GlobalSettings: Codable, Hashable {
         try container.encode(resultSpoolMaxBytes, forKey: .resultSpoolMaxBytes)
         try container.encode(resultSpoolRetentionHours, forKey: .resultSpoolRetentionHours)
         try container.encodeIfPresent(resultSpoolCustomLocation, forKey: .resultSpoolCustomLocation)
+        try container.encode(autoOpenInspectorOnSelection, forKey: .autoOpenInspectorOnSelection)
         try container.encodeIfPresent(inspectorWidth, forKey: .inspectorWidth)
         try container.encode(keepTabsInMemory, forKey: .keepTabsInMemory)
         try container.encode(diagramPrefetchMode, forKey: .diagramPrefetchMode)
@@ -280,6 +373,11 @@ struct GlobalSettings: Codable, Hashable {
         try container.encode(defaultEditorPaletteIDLight, forKey: .defaultEditorPaletteIDLight)
         try container.encode(defaultEditorPaletteIDDark, forKey: .defaultEditorPaletteIDDark)
         try container.encode(defaultEditorPaletteIDLight, forKey: .defaultEditorPaletteID)
+        try container.encode(sidebarAutoExpandSections, forKey: .sidebarAutoExpandSections)
+        try container.encode(sidebarCustomizePerDatabaseType, forKey: .sidebarCustomizePerDatabaseType)
+        try container.encodeIfPresent(sidebarAutoExpandPostgresql, forKey: .sidebarAutoExpandPostgresql)
+        try container.encodeIfPresent(sidebarAutoExpandSQLServer, forKey: .sidebarAutoExpandSQLServer)
+        try container.encodeIfPresent(sidebarAutoExpandMySQL, forKey: .sidebarAutoExpandMySQL)
     }
 
     func ligaturesEnabled(for fontName: String) -> Bool {

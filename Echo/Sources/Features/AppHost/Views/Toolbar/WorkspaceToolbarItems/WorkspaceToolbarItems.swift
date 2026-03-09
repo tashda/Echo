@@ -35,6 +35,12 @@ struct WorkspaceToolbarItems: ToolbarContent {
             )
         }
 
+        ToolbarItem(id: "workspace.principal.spacer", placement: .principal) {
+            Color.clear
+                .frame(width: 0, height: 0)
+                .accessibilityHidden(true)
+        }
+
         ToolbarItem(id: "workspace.primary.refresh", placement: .primaryAction) {
             RefreshToolbarButton()
         }

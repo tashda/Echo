@@ -27,6 +27,12 @@ extension SQLServerSessionAdapter: DatabaseMetadataSession {
         return databases.map(\.name)
     }
 
+    /// List databases with state information for the sidebar.
+    func listDatabasesWithState() async throws -> [(name: String, stateDescription: String?)] {
+        let databases = try await client.listDatabases()
+        return databases.map { (name: $0.name, stateDescription: $0.stateDescription) }
+    }
+
     func listSchemas() async throws -> [String] {
         let schemas = try await client.listSchemas(in: database)
         return schemas.map(\.name)
@@ -60,7 +66,13 @@ extension SQLServerSessionAdapter: DatabaseMetadataSession {
             return SchemaInfo(name: schema.name, objects: objects)
         }
 
-        return DatabaseInfo(name: databaseName, schemas: schemaInfos, schemaCount: schemaInfos.count)
+        // Fetch database state from sys.databases
+        var stateDesc: String?
+        if let meta = try? await client.databaseState(name: databaseName) {
+            stateDesc = meta.stateDescription
+        }
+
+        return DatabaseInfo(name: databaseName, schemas: schemaInfos, schemaCount: schemaInfos.count, stateDescription: stateDesc)
     }
 
     func getTableSchema(_ tableName: String, schemaName: String?) async throws -> [ColumnInfo] {

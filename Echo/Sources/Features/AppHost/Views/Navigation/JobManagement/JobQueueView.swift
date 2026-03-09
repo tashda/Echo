@@ -2,70 +2,118 @@ import SwiftUI
 
 struct JobQueueView: View {
     @ObservedObject var viewModel: JobQueueViewModel
-    @State private var verticalRatio: CGFloat = 0.6
-    @State private var horizontalRatio: CGFloat = 0.45
-    @State private var selection: Set<String> = []
-    
-    // Properties editing
-    @State private var editingProps: JobQueueViewModel.PropertySheet? = nil
-    
-    // Step editing
-    @State private var newStepName: String = ""
-    @State private var newStepDatabase: String = ""
-    @State private var newStepCommand: String = ""
-    @State private var selectedStepID: Int? = nil
-    @State private var editStepName: String = ""
-    @State private var editStepDatabase: String = ""
-    @State private var editStepCommand: String = ""
-    
-    // Schedule editing
-    @State private var newScheduleName: String = ""
-    @State private var newScheduleEnabled: Bool = true
-    @State private var newScheduleFreqType: Int = 4
-    @State private var newScheduleFreqInterval: Int = 1
+    @EnvironmentObject private var environmentState: EnvironmentState
+    @EnvironmentObject private var appState: AppState
+    @Environment(ProjectStore.self) private var projectStore
+
+    @State private var inspectorAutoOpened = false
+    @State private var verticalFraction: CGFloat = 0.70
+    @State private var horizontalFraction: CGFloat = 0.50
 
     var body: some View {
-        GeometryReader { geo in
-            let totalHeight = geo.size.height
-            VStack(spacing: 0) {
-                HStack(spacing: 0) {
-                    JobListView(viewModel: viewModel, selection: $selection)
-                        .frame(width: geo.size.width * horizontalRatio)
-                    
-                    Divider()
-                    
-                    JobDetailsView(
-                        viewModel: viewModel,
-                        editingProps: $editingProps,
-                        newStepName: $newStepName,
-                        newStepDatabase: $newStepDatabase,
-                        newStepCommand: $newStepCommand,
-                        selectedStepID: $selectedStepID,
-                        editStepName: $editStepName,
-                        editStepDatabase: $editStepDatabase,
-                        editStepCommand: $editStepCommand,
-                        newScheduleName: $newScheduleName,
-                        newScheduleEnabled: $newScheduleEnabled,
-                        newScheduleFreqType: $newScheduleFreqType,
-                        newScheduleFreqInterval: $newScheduleFreqInterval
-                    )
-                    .frame(width: geo.size.width * (1 - horizontalRatio))
-                }
-                .frame(height: totalHeight * verticalRatio)
-
-                ResizeHandle(
-                    ratio: verticalRatio,
-                    minRatio: 0.3,
-                    maxRatio: 0.85,
-                    availableHeight: totalHeight,
-                    onLiveUpdate: { proposed in verticalRatio = proposed },
-                    onCommit: { proposed in verticalRatio = proposed }
+        NativeSplitView(
+            isVertical: false,
+            firstMinFraction: 0.30,
+            secondMinFraction: 0.15,
+            fraction: $verticalFraction
+        ) {
+            NativeSplitView(
+                isVertical: true,
+                firstMinFraction: 0.25,
+                secondMinFraction: 0.25,
+                fraction: $horizontalFraction
+            ) {
+                JobListView(viewModel: viewModel, toastCoordinator: environmentState.toastCoordinator)
+            } second: {
+                JobDetailsView(
+                    viewModel: viewModel,
+                    toastCoordinator: environmentState.toastCoordinator
                 )
-
-                JobHistoryView(viewModel: viewModel)
-                    .frame(height: totalHeight * (1 - verticalRatio))
             }
+        } second: {
+            JobHistoryView(viewModel: viewModel)
         }
         .task { await viewModel.loadInitial() }
+        .onChange(of: viewModel.selectedHistoryRowID) { _, _ in
+            updateInspectorForHistorySelection()
+        }
+        .onChange(of: viewModel.selectedJobID) { _, _ in
+            // Clear history selection when switching jobs
+            if viewModel.selectedHistoryRowID != nil {
+                viewModel.selectedHistoryRowID = nil
+            }
+        }
+    }
+
+    private func updateInspectorForHistorySelection() {
+        guard let row = viewModel.selectedHistoryRow else {
+            environmentState.dataInspectorContent = nil
+            // Auto-close if we auto-opened it
+            if inspectorAutoOpened && appState.showInfoSidebar {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    appState.showInfoSidebar = false
+                }
+                inspectorAutoOpened = false
+            }
+            return
+        }
+
+        let dateStr = formatAgentDate(row.runDate, row.runTime)
+        let durationStr = formatDuration(row.runDuration)
+        let statusStr: String = {
+            switch row.status {
+            case 0: return "Failed"
+            case 1: return "Succeeded"
+            case 2: return "Retry"
+            case 3: return "Canceled"
+            case 4: return "In Progress"
+            default: return "Unknown"
+            }
+        }()
+
+        environmentState.dataInspectorContent = .jobHistory(
+            JobHistoryInspectorContent(
+                jobName: row.jobName,
+                stepId: row.stepId,
+                stepName: row.stepName,
+                status: statusStr,
+                runDate: dateStr,
+                duration: durationStr,
+                message: row.message
+            )
+        )
+
+        // Auto-open inspector if the setting is enabled and it wasn't already open
+        if projectStore.globalSettings.autoOpenInspectorOnSelection && !appState.showInfoSidebar {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                appState.showInfoSidebar = true
+            }
+            inspectorAutoOpened = true
+        }
+    }
+
+    private func formatAgentDate(_ dateInt: Int, _ timeInt: Int) -> String {
+        guard dateInt > 0 else { return "—" }
+        let yyyy = dateInt / 10000
+        let mm = (dateInt / 100) % 100
+        let dd = dateInt % 100
+        let hh = timeInt / 10000
+        let mi = (timeInt / 100) % 100
+        let ss = timeInt % 100
+        let comps = DateComponents(year: yyyy, month: mm, day: dd, hour: hh, minute: mi, second: ss)
+        if let date = Calendar(identifier: .gregorian).date(from: comps) {
+            let fmt = DateFormatter()
+            fmt.dateStyle = .medium
+            fmt.timeStyle = .medium
+            return fmt.string(from: date)
+        }
+        return "—"
+    }
+
+    private func formatDuration(_ runDuration: Int) -> String {
+        let hours = runDuration / 10000
+        let minutes = (runDuration / 100) % 100
+        let seconds = runDuration % 100
+        return String(format: "%02d:%02d:%02d", hours, minutes, seconds)
     }
 }

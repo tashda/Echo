@@ -14,13 +14,8 @@ struct DatabaseObjectRow: View, Equatable {
     @Environment(ConnectionStore.self) internal var connectionStore
     @EnvironmentObject internal var environmentState: EnvironmentState
     
-    @Environment(\.hoveredExplorerRowID) private var hoveredExplorerRowID
-    @Environment(\.setHoveredExplorerRowID) private var setHoveredExplorerRowID
+    @State private var isHovered = false
     @State internal var hoveredColumnID: String?
-
-    private var isHovered: Bool {
-        hoveredExplorerRowID == object.id
-    }
 
     private var canExpand: Bool {
         showColumns && !object.columns.isEmpty
@@ -32,18 +27,20 @@ struct DatabaseObjectRow: View, Equatable {
     
     private var iconName: String {
         switch object.type {
-        case .table:
-            return "tablecells"
-        case .view:
-            return "eye"
-        case .materializedView:
-            return "eye.fill"
-        case .function:
-            return "function"
-        case .trigger:
-            return "bolt"
-        case .procedure:
-            return "gearshape"
+        case .table: return "tablecells"
+        case .view: return "eye"
+        case .materializedView: return "eye.fill"
+        case .function: return "function"
+        case .trigger: return "bolt"
+        case .procedure: return "gearshape"
+        }
+    }
+
+    private var iconColor: Color {
+        switch object.type {
+        case .table, .view, .materializedView: return .secondary
+        case .function, .procedure: return .purple
+        case .trigger: return .orange
         }
     }
     
@@ -66,63 +63,62 @@ struct DatabaseObjectRow: View, Equatable {
     }
     
     private var rowContent: some View {
-        VStack(alignment: .leading, spacing: object.type == .trigger ? 6 : 0) {
-            HStack(alignment: .center, spacing: 8) {
-                if canExpand {
-                    Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
-                        .font(TypographyTokens.label.weight(.medium))
-                        .foregroundStyle(.secondary)
-                        .frame(width: 12)
-                } else {
-                    Spacer().frame(width: 12)
-                }
+        HStack(alignment: .center, spacing: 8) {
+            if canExpand {
+                Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
+                    .font(SidebarRowConstants.chevronFont)
+                    .foregroundStyle(.tertiary)
+                    .frame(width: SidebarRowConstants.chevronWidth)
+            } else {
+                Spacer().frame(width: SidebarRowConstants.chevronWidth)
+            }
 
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack(spacing: 8) {
-                        Image(systemName: iconName)
-                            .font(TypographyTokens.caption2.weight(.medium))
-                            .foregroundStyle(accentColor)
+            Image(systemName: iconName)
+                .font(.system(size: 12))
+                .foregroundStyle(iconColor)
+                .frame(width: SidebarRowConstants.iconFrame)
 
-                        Text(displayName)
-                            .font(TypographyTokens.standard)
-                            .foregroundStyle(.primary)
-                            .lineLimit(1)
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 6) {
+                    Text(displayName)
+                        .font(TypographyTokens.standard)
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
 
-                        Spacer(minLength: 0)
-
-                        if showColumns && !object.columns.isEmpty {
-                            Text("\(object.columns.count)")
-                                .font(TypographyTokens.detail.weight(.medium))
-                                .foregroundStyle(accentColor)
-                                .padding(.horizontal, SpacingTokens.xxs2)
-                                .padding(.vertical, SpacingTokens.xxxs)
-                                .background(accentColor.opacity(0.12), in: Capsule())
-                        }
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-
-                    if let comment = object.comment?.trimmingCharacters(in: .whitespacesAndNewlines), !comment.isEmpty {
-                        Text(comment)
+                    if object.type == .trigger, let table = object.triggerTable, !table.isEmpty {
+                        Text("on")
                             .font(TypographyTokens.detail)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(3)
-                            .multilineTextAlignment(.leading)
-                            .fixedSize(horizontal: false, vertical: true)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-#if os(macOS)
-                            .help(comment)
-#endif
+                            .foregroundStyle(.tertiary)
+                        Button {
+                            onTriggerTableTap?(table)
+                        } label: {
+                            Text(table)
+                                .font(TypographyTokens.detail)
+                                .foregroundStyle(.secondary)
+                        }
+                        .buttonStyle(.plain)
                     }
+
+                    Spacer(minLength: 0)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
+
+                if let comment = object.comment?.trimmingCharacters(in: .whitespacesAndNewlines), !comment.isEmpty {
+                    Text(comment)
+                        .font(TypographyTokens.detail)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(3)
+                        .multilineTextAlignment(.leading)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+#if os(macOS)
+                        .help(comment)
+#endif
+                }
             }
-            
-            if object.type == .trigger {
-                triggerMetadata
-            }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .padding(.horizontal, SpacingTokens.sm)
-        .padding(.vertical, SpacingTokens.xxs)
+        .padding(.horizontal, SidebarRowConstants.rowHorizontalPadding)
+        .padding(.vertical, SidebarRowConstants.rowVerticalPadding)
         .background(highlightBackground)
         .contentShape(Rectangle())
         .onTapGesture {
@@ -131,59 +127,16 @@ struct DatabaseObjectRow: View, Equatable {
                 isExpanded.toggle()
             }
         }
-        .onHover { hovering in
-            if hovering {
-                if hoveredExplorerRowID != object.id {
-                    setHoveredExplorerRowID(object.id)
-                }
-            } else if isHovered {
-                setHoveredExplorerRowID(nil)
-            }
-        }
+        .onHover { isHovered = $0 }
         .contextMenu { contextMenuContent }
-        .onDisappear {
-            if isHovered {
-                setHoveredExplorerRowID(nil)
-            }
-        }
-    }
-    
-    @ViewBuilder
-    private var triggerMetadata: some View {
-        HStack(spacing: 6) {
-            if let action = object.triggerAction, !action.isEmpty {
-                Text(action)
-                    .font(TypographyTokens.label.weight(.semibold))
-                    .foregroundStyle(accentColor)
-                    .padding(.horizontal, SpacingTokens.xs)
-                    .padding(.vertical, 3)
-                    .background(accentColor.opacity(0.12), in: Capsule())
-            }
-            if let table = object.triggerTable, !table.isEmpty {
-                Button {
-                    onTriggerTableTap?(table)
-                } label: {
-                    Text(table)
-                        .font(TypographyTokens.label.weight(.semibold))
-                        .foregroundStyle(accentColor)
-                        .padding(.horizontal, SpacingTokens.xs)
-                        .padding(.vertical, 3)
-                        .background(accentColor.opacity(0.12), in: Capsule())
-                }
-                .buttonStyle(.plain)
-            }
-            Spacer()
-        }
-        .padding(.leading, SpacingTokens.lg)
     }
     
     private var highlightBackground: some View {
-        RoundedRectangle(cornerRadius: 8, style: .continuous)
-            .fill(accentColor.opacity(0.12))
-            .opacity(isHovered || isExpanded ? 1 : 0)
+        RoundedRectangle(cornerRadius: SidebarRowConstants.hoverCornerRadius, style: .continuous)
+            .fill(Color.primary.opacity(0.05))
+            .opacity(isHovered ? 1 : 0)
             .allowsHitTesting(false)
             .animation(.easeOut(duration: 0.08), value: isHovered)
-            .animation(.easeOut(duration: 0.18), value: isExpanded)
     }
     
 }

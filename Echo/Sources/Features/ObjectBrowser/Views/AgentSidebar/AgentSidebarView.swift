@@ -105,7 +105,7 @@ struct AgentSidebarView: View {
             if startAfterCreate { _ = try? await agent.startJob(named: name) }
             await MainActor.run {
                 showNewJobSheet = false; resetWizardState()
-                environmentState.openJobQueueTab(for: session, selectJobID: jobId ?? "")
+                environmentState.openJobQueueTab(for: session, selectJobID: jobId)
             }
             await viewModel.reload(for: selectedSession)
         } catch { await MainActor.run { newJobError = error.localizedDescription } }

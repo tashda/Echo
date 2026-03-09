@@ -69,6 +69,8 @@ struct InfoSidebarView: View {
                     }
                 case .json(let jsonContent):
                     JsonInspectorPanelView(content: jsonContent)
+                case .jobHistory(let historyContent):
+                    JobHistoryInspectorPanel(content: historyContent)
                 }
             }
         } else {

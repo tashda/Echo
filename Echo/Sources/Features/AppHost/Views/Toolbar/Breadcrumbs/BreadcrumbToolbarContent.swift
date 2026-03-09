@@ -22,6 +22,7 @@ struct ProjectMenuButton: NSViewRepresentable {
     func makeNSView(context: Context) -> NSPopUpButton {
         let popup = NSPopUpButton(frame: .zero, pullsDown: true)
         popup.isBordered = true
+        popup.setContentHuggingPriority(.defaultHigh, for: .horizontal)
         let title = projectStore.selectedProject?.name ?? "Project"
         popup.addItem(withTitle: title)
         let config = NSImage.SymbolConfiguration(pointSize: 11, weight: .medium)
@@ -35,6 +36,7 @@ struct ProjectMenuButton: NSViewRepresentable {
         context.coordinator.projectStore = projectStore
         context.coordinator.navigationStore = navigationStore
         popup.item(at: 0)?.title = projectStore.selectedProject?.name ?? "Project"
+        popup.sizeToFit()
     }
 }
 
@@ -104,6 +106,7 @@ struct ConnectionsMenuButton: NSViewRepresentable {
     func makeNSView(context: Context) -> NSPopUpButton {
         let popup = NSPopUpButton(frame: .zero, pullsDown: true)
         popup.isBordered = true
+        popup.setContentHuggingPriority(.defaultHigh, for: .horizontal)
         popup.addItem(withTitle: title)
         let config = NSImage.SymbolConfiguration(pointSize: 11, weight: .medium)
         popup.item(at: 0)?.image = NSImage(systemSymbolName: "server.rack", accessibilityDescription: nil)?
@@ -117,6 +120,7 @@ struct ConnectionsMenuButton: NSViewRepresentable {
         context.coordinator.projectStore = projectStore
         context.coordinator.environmentState = environmentState
         popup.item(at: 0)?.title = title
+        popup.sizeToFit()
     }
 }
 
@@ -241,6 +245,7 @@ struct DatabasesMenuButton: NSViewRepresentable {
     func makeNSView(context: Context) -> NSPopUpButton {
         let popup = NSPopUpButton(frame: .zero, pullsDown: true)
         popup.isBordered = true
+        popup.setContentHuggingPriority(.defaultHigh, for: .horizontal)
         popup.addItem(withTitle: title)
         let config = NSImage.SymbolConfiguration(pointSize: 11, weight: .medium)
         popup.item(at: 0)?.image = NSImage(systemSymbolName: "cylinder.fill", accessibilityDescription: nil)?
@@ -256,6 +261,7 @@ struct DatabasesMenuButton: NSViewRepresentable {
         popup.item(at: 0)?.title = title
         popup.isEnabled = isEnabled
         popup.alphaValue = isEnabled ? 1.0 : 0.5
+        popup.sizeToFit()
     }
 }
 

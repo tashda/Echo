@@ -88,6 +88,10 @@ final class EnvironmentState: ObservableObject {
     }
 
     private func setupBindings() {
+        toastCoordinator.objectWillChange
+            .sink { [weak self] _ in self?.objectWillChange.send() }
+            .store(in: &cancellables)
+
         sessionCoordinator.$activeSessionID
             .sink { [weak self] id in
                 guard let self else { return }

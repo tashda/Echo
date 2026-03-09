@@ -40,7 +40,18 @@ struct JsonInspectorContent: Sendable, Equatable {
     let outline: JsonOutlineNode
 }
 
+struct JobHistoryInspectorContent: Sendable, Equatable {
+    let jobName: String
+    let stepId: Int
+    let stepName: String
+    let status: String
+    let runDate: String
+    let duration: String
+    let message: String
+}
+
 enum DataInspectorContent: Sendable, Equatable {
     case foreignKey(ForeignKeyInspectorContent)
     case json(JsonInspectorContent)
+    case jobHistory(JobHistoryInspectorContent)
 }
