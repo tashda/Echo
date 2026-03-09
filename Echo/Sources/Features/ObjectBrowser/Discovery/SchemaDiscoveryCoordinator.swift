@@ -47,11 +47,6 @@ final class MetadataDiscoveryCoordinator: MetadataDiscoveryCoordinatorProtocol, 
             connectionSession.databaseStructure = DatabaseStructure(serverVersion: nil, databases: [])
         }
 
-        if connectionSession.selectedDatabaseName == nil,
-           !connectionSession.connection.database.isEmpty {
-            connectionSession.selectedDatabaseName = connectionSession.connection.database
-        }
-
         guard let credentials = identityRepository.resolveAuthenticationConfiguration(for: connectionSession.connection, overridePassword: nil) else {
             connectionSession.structureLoadingState = .failed(message: "Missing credentials")
             throw DatabaseError.connectionFailed("Missing credentials")
@@ -60,8 +55,6 @@ final class MetadataDiscoveryCoordinator: MetadataDiscoveryCoordinatorProtocol, 
         let selectedDatabase: String?
         if let selected = connectionSession.selectedDatabaseName, !selected.isEmpty {
             selectedDatabase = selected
-        } else if !connectionSession.connection.database.isEmpty {
-            selectedDatabase = connectionSession.connection.database
         } else {
             selectedDatabase = nil
         }
@@ -112,11 +105,11 @@ final class MetadataDiscoveryCoordinator: MetadataDiscoveryCoordinatorProtocol, 
                             databases.append(merged)
                             databases.sort { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
                         }
-                        
+
                         let resolvedServerVersion = interimServerVersion
                             ?? connectionSession.databaseStructure?.serverVersion
                             ?? connectionSession.connection.cachedStructure?.serverVersion
-                        
+
                         let updatedStructure = DatabaseStructure(serverVersion: resolvedServerVersion, databases: databases)
                         self.applyStructureUpdateIfNeeded(updatedStructure, to: connectionSession, cacheResult: true)
                         self.ensureSelectedDatabaseIfNeeded(for: connectionSession, availableDatabases: databases)
@@ -128,12 +121,51 @@ final class MetadataDiscoveryCoordinator: MetadataDiscoveryCoordinatorProtocol, 
                 interimServerVersion = serverVersion
             }
 
-            let finalStructure = DatabaseStructure(serverVersion: interimServerVersion, databases: structure.databases)
+            // Merge fetcher results into existing structure instead of replacing,
+            // so previously loaded databases are preserved
+            var mergedDatabases = connectionSession.databaseStructure?.databases ?? []
+            for db in structure.databases {
+                if let index = mergedDatabases.firstIndex(where: { $0.name == db.name }) {
+                    mergedDatabases[index] = Self.mergeDatabaseInfo(partial: db, existing: mergedDatabases[index])
+                } else {
+                    mergedDatabases.append(db)
+                }
+            }
+
+            // List ALL databases on the server and add empty entries for unlisted ones
+            do {
+                if let sqlAdapter = connectionSession.session as? SQLServerSessionAdapter {
+                    // Fetch databases with state info for MSSQL
+                    let allDbs = try await sqlAdapter.listDatabasesWithState()
+                    let existingNames = Set(mergedDatabases.map(\.name))
+                    for db in allDbs {
+                        if existingNames.contains(db.name) {
+                            // Update state on existing entries
+                            if let index = mergedDatabases.firstIndex(where: { $0.name == db.name }) {
+                                mergedDatabases[index].stateDescription = db.stateDescription
+                            }
+                        } else {
+                            mergedDatabases.append(DatabaseInfo(name: db.name, schemas: [], schemaCount: 0, stateDescription: db.stateDescription))
+                        }
+                    }
+                } else {
+                    let allDatabaseNames = try await connectionSession.session.listDatabases()
+                    let existingNames = Set(mergedDatabases.map(\.name))
+                    for dbName in allDatabaseNames where !existingNames.contains(dbName) {
+                        mergedDatabases.append(DatabaseInfo(name: dbName, schemas: [], schemaCount: 0))
+                    }
+                }
+            } catch {
+                ConnectionDebug.log("[SchemaDiscovery] listDatabases failed (non-fatal): \(error.localizedDescription)")
+            }
+
+            mergedDatabases.sort { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+            let finalStructure = DatabaseStructure(serverVersion: interimServerVersion, databases: mergedDatabases)
             self.applyStructureUpdateIfNeeded(finalStructure, to: connectionSession, cacheResult: true)
-            
+
             connectionSession.structureLoadingState = .ready
             connectionSession.structureLoadingMessage = nil
-            
+
             ensureSelectedDatabaseIfNeeded(for: connectionSession, availableDatabases: finalStructure.databases)
             return connectionSession.databaseStructure ?? finalStructure
         } catch {
@@ -148,6 +180,64 @@ final class MetadataDiscoveryCoordinator: MetadataDiscoveryCoordinatorProtocol, 
 
     func refreshStructure(for session: ConnectionSession, scope: EnvironmentState.StructureRefreshScope) async {
         startStructureLoadTask(for: session)
+    }
+
+    /// Loads schema for a single database without cancelling any existing structure load task.
+    /// This allows multiple databases to load in parallel (critical for PostgreSQL where each
+    /// database requires a separate connection).
+    func loadDatabaseSchemaOnly(_ databaseName: String, for session: ConnectionSession) async {
+        guard let credentials = identityRepository.resolveAuthenticationConfiguration(
+            for: session.connection, overridePassword: nil
+        ) else { return }
+
+        guard let fetcher = makeStructureFetcher(for: session) else { return }
+
+        // Ensure we have a base structure to merge into
+        if session.databaseStructure == nil {
+            session.databaseStructure = DatabaseStructure(serverVersion: nil, databases: [])
+        }
+
+        do {
+            let structure = try await fetcher.fetchStructure(
+                for: session.connection,
+                credentials: ConnectionCredentials(authentication: credentials),
+                selectedDatabase: databaseName,
+                reuseSession: session.session,
+                databaseFilter: nil,
+                cachedStructure: session.databaseStructure,
+                progressHandler: { _ in },
+                databaseHandler: { [weak self, weak session] database, _, _ in
+                    guard let self, let session else { return }
+                    Task { @MainActor in
+                        self.mergeSingleDatabase(database, into: session)
+                    }
+                }
+            )
+
+            // Final merge of fetcher results
+            for db in structure.databases {
+                mergeSingleDatabase(db, into: session)
+            }
+        } catch {
+            ConnectionDebug.log("[SchemaDiscovery] loadDatabaseSchemaOnly failed for '\(databaseName)': \(error.localizedDescription)")
+        }
+    }
+
+    private func mergeSingleDatabase(_ database: DatabaseInfo, into session: ConnectionSession) {
+        var databases = session.databaseStructure?.databases ?? []
+        if let index = databases.firstIndex(where: { $0.name == database.name }) {
+            let merged = Self.mergeDatabaseInfo(partial: database, existing: databases[index])
+            if databases[index] == merged { return }
+            databases[index] = merged
+        } else {
+            databases.append(database)
+            databases.sort { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+        }
+        let updated = DatabaseStructure(
+            serverVersion: session.databaseStructure?.serverVersion,
+            databases: databases
+        )
+        applyStructureUpdateIfNeeded(updated, to: session, cacheResult: true)
     }
 
     func preloadStructure(for connection: SavedConnection, overridePassword: String?) async {
@@ -166,10 +256,10 @@ final class MetadataDiscoveryCoordinator: MetadataDiscoveryCoordinatorProtocol, 
     }
 
     private func ensureSelectedDatabaseIfNeeded(for session: ConnectionSession, availableDatabases: [DatabaseInfo]) {
-        if session.selectedDatabaseName == nil || !availableDatabases.contains(where: { $0.name == session.selectedDatabaseName }) {
-            if let first = availableDatabases.first?.name {
-                session.selectedDatabaseName = first
-            }
+        // Only fix invalid selections (database no longer exists); never auto-select when nil
+        if let selected = session.selectedDatabaseName,
+           !availableDatabases.contains(where: { $0.name == selected }) {
+            session.selectedDatabaseName = nil
         }
     }
 
@@ -199,11 +289,12 @@ final class MetadataDiscoveryCoordinator: MetadataDiscoveryCoordinatorProtocol, 
     static func mergeDatabaseInfo(partial: DatabaseInfo, existing: DatabaseInfo?) -> DatabaseInfo {
         guard let existing else {
             let sortedSchemas = partial.schemas.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
-            return DatabaseInfo(name: partial.name, schemas: sortedSchemas, schemaCount: max(partial.schemaCount, sortedSchemas.count))
+            return DatabaseInfo(name: partial.name, schemas: sortedSchemas, schemaCount: max(partial.schemaCount, sortedSchemas.count), stateDescription: partial.stateDescription)
         }
         var mergedSchemas = mergeSchemas(partialSchemas: partial.schemas, existingSchemas: existing.schemas)
         mergedSchemas.sort { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
-        return DatabaseInfo(name: existing.name, schemas: mergedSchemas, schemaCount: max(existing.schemaCount, partial.schemaCount, mergedSchemas.count))
+        let state = partial.stateDescription ?? existing.stateDescription
+        return DatabaseInfo(name: existing.name, schemas: mergedSchemas, schemaCount: max(existing.schemaCount, partial.schemaCount, mergedSchemas.count), stateDescription: state)
     }
 
     static func mergeSchemas(partialSchemas: [SchemaInfo], existingSchemas: [SchemaInfo]) -> [SchemaInfo] {

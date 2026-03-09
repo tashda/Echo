@@ -13,11 +13,11 @@ struct RecentConnectionItem: Identifiable {
     let database: String?
     let lastConnectedAt: Date
     let databaseType: DatabaseType
+    let connectionColorHex: String?
+    let accentColorSource: AccentColorSource
+    let customAccentColorHex: String?
 
     var subtitle: String {
-        if let database, !database.isEmpty {
-            return "\(database) @ \(server)"
-        }
         return server
     }
 }
@@ -103,16 +103,33 @@ private struct RecentConnectionRow: View {
         .onHover { isHovered = $0 }
     }
 
+    private var iconColor: Color {
+        switch connection.accentColorSource {
+        case .system:
+            return .accentColor
+        case .connection:
+            if let hex = connection.connectionColorHex, !hex.isEmpty, hex != "default" {
+                return Color(hex: hex) ?? .accentColor
+            }
+            return .accentColor
+        case .custom:
+            if let hex = connection.customAccentColorHex, !hex.isEmpty {
+                return Color(hex: hex) ?? .accentColor
+            }
+            return .accentColor
+        }
+    }
+
     private var icon: some View {
         ZStack {
             RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .fill(Color.accentColor.opacity(0.12))
+                .fill(iconColor.opacity(0.12))
                 .frame(width: 32, height: 32)
             Image(connection.databaseType.iconName)
                 .resizable()
                 .aspectRatio(contentMode: .fit)
                 .frame(width: 16, height: 16)
-                .foregroundStyle(Color.accentColor)
+                .foregroundStyle(iconColor)
         }
     }
 }

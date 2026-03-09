@@ -51,6 +51,17 @@ struct QueryResultsSettingsView: View {
                 }
             }
 
+            Section("Inspector") {
+                SettingsRowWithInfo(
+                    title: "Auto-open on selection",
+                    description: "Automatically opens the inspector panel when selecting items like job history rows."
+                ) {
+                    Toggle("", isOn: autoOpenInspectorBinding)
+                        .labelsHidden()
+                        .toggleStyle(.switch)
+                }
+            }
+
             Section("Result Streaming") {
                 StreamingPresetPickerControl(
                     title: "Initial rows to display",

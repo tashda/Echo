@@ -44,11 +44,14 @@ private struct WorkspaceBody: View {
                 .accessibilityIdentifier("workspace-content")
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(ColorTokens.Background.primary)
-                .overlay(alignment: .top) {
+                .overlay(alignment: .topTrailing) {
                     if let toast = environmentState.toastCoordinator.currentToast {
                         StatusToastView(icon: toast.icon, message: toast.message, style: toast.style)
-                            .padding(.top, SpacingTokens.sm)
+                            .onTapGesture { environmentState.toastCoordinator.dismiss() }
+                            .padding(.top, 44)
+                            .padding(.trailing, SpacingTokens.lg)
                             .transition(.move(edge: .top).combined(with: .opacity))
+                            .animation(.easeInOut(duration: 0.25), value: environmentState.toastCoordinator.currentToast)
                     }
                 }
                 .inspector(isPresented: $appState.showInfoSidebar) {

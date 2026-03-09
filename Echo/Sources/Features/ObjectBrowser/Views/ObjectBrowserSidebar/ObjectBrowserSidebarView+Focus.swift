@@ -23,6 +23,7 @@ extension ObjectBrowserSidebarView {
             }
             environmentState.sessionCoordinator.setActiveSession(session.id)
             viewModel.ensureServerExpanded(for: focus.connectionID, sessions: sessions)
+            viewModel.ensureDatabaseExpanded(connectionID: focus.connectionID, databaseName: focus.databaseName)
         }
 
         if session.selectedDatabaseName?.localizedCaseInsensitiveCompare(focus.databaseName) != .orderedSame {

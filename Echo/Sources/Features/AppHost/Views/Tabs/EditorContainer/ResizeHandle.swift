@@ -7,30 +7,29 @@ struct ResizeHandle: View {
     let availableHeight: CGFloat
     let onLiveUpdate: (CGFloat) -> Void
     let onCommit: (CGFloat) -> Void
+    var axis: Axis = .vertical
 
     @State private var dragStartRatio: CGFloat = 0
     @State private var isDragging = false
 
     var body: some View {
-        ZStack {
-            Rectangle()
-                .fill(Color.secondary.opacity(0.15))
-                .frame(height: 2)
-            Capsule()
-                .fill(Color.secondary.opacity(0.35))
-                .frame(width: 60, height: 3)
+        Group {
+            if axis == .vertical {
+                verticalHandle
+            } else {
+                horizontalHandle
+            }
         }
-        .frame(height: 8)
-        .background(Color.clear)
+        .contentShape(Rectangle())
         .gesture(
-            DragGesture(minimumDistance: 0)
+            DragGesture(minimumDistance: 1)
                 .onChanged { value in
                     if !isDragging {
                         dragStartRatio = ratio
                         isDragging = true
                     }
-
-                    let delta = value.translation.height / max(availableHeight, 1)
+                    let translation = axis == .vertical ? value.translation.height : value.translation.width
+                    let delta = translation / max(availableHeight, 1)
                     let proposed = min(max(dragStartRatio + delta, minRatio), maxRatio)
                     var transaction = Transaction()
                     transaction.disablesAnimations = true
@@ -39,7 +38,8 @@ struct ResizeHandle: View {
                     }
                 }
                 .onEnded { value in
-                    let delta = value.translation.height / max(availableHeight, 1)
+                    let translation = axis == .vertical ? value.translation.height : value.translation.width
+                    let delta = translation / max(availableHeight, 1)
                     let proposed = min(max(dragStartRatio + delta, minRatio), maxRatio)
                     isDragging = false
                     var transaction = Transaction()
@@ -49,14 +49,42 @@ struct ResizeHandle: View {
                     }
                 }
         )
-#if os(macOS)
         .onHover { hovering in
             if hovering {
-                NSCursor.resizeUpDown.set()
+                if axis == .vertical {
+                    NSCursor.resizeUpDown.push()
+                } else {
+                    NSCursor.resizeLeftRight.push()
+                }
             } else {
-                NSCursor.arrow.set()
+                NSCursor.pop()
             }
         }
-#endif
+    }
+
+    private var verticalHandle: some View {
+        ZStack {
+            Rectangle()
+                .fill(Color.secondary.opacity(isDragging ? 0.25 : 0.12))
+                .frame(height: 1)
+            Capsule()
+                .fill(Color.secondary.opacity(isDragging ? 0.5 : 0.3))
+                .frame(width: 36, height: 3)
+        }
+        .frame(height: 9)
+        .frame(maxWidth: .infinity)
+    }
+
+    private var horizontalHandle: some View {
+        ZStack {
+            Rectangle()
+                .fill(Color.secondary.opacity(isDragging ? 0.25 : 0.12))
+                .frame(width: 1)
+            Capsule()
+                .fill(Color.secondary.opacity(isDragging ? 0.5 : 0.3))
+                .frame(width: 3, height: 36)
+        }
+        .frame(width: 9)
+        .frame(maxHeight: .infinity)
     }
 }

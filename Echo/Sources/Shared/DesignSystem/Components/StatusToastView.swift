@@ -2,8 +2,8 @@ import SwiftUI
 
 /// A transient toast notification displayed at the top of the content area.
 ///
-/// Used for brief status events like connection changes, index updates, etc.
-/// Appears, stays for a few seconds, then fades out automatically.
+/// Uses Liquid Glass for native macOS 26 appearance. Appears briefly
+/// for status events like connection changes, then fades out automatically.
 struct StatusToastView: View {
     let icon: String
     let message: String
@@ -37,7 +37,6 @@ struct StatusToastView: View {
         }
         .padding(.horizontal, SpacingTokens.md)
         .padding(.vertical, SpacingTokens.xs)
-        .background(.ultraThinMaterial, in: Capsule())
-        .shadow(color: .black.opacity(0.1), radius: 8, y: 4)
+        .glassEffect(.regular.interactive(), in: .capsule)
     }
 }

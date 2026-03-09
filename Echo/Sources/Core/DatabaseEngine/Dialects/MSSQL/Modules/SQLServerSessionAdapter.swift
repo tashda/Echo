@@ -3,7 +3,7 @@ import SQLServerKit
 import Logging
 
 /// Adapter to make SQLServerClient conform to Echo's DatabaseSession protocol
-final class SQLServerSessionAdapter: DatabaseSession {
+final class SQLServerSessionAdapter: DatabaseSession, MSSQLSession {
     let client: SQLServerClient
     let database: String?
     let logger = Logger(label: "dk.tippr.echo.mssql.metadata")
@@ -60,5 +60,27 @@ final class SQLServerSessionAdapter: DatabaseSession {
         let elapsed = String(format: "%.3f", Date().timeIntervalSince(started))
         metadataTrace("[MSSQLMetadataTrace] step \(label) \(elapsed)s")
         return result
+    }
+
+    // MARK: - MSSQLSession
+
+    func serverVersion() async throws -> String {
+        try await client.serverVersion()
+    }
+
+    func makeAgentClient() -> SQLServerAgentClient {
+        SQLServerAgentClient(client: client)
+    }
+
+    func makeDatabaseSecurityClient() -> SQLServerDatabaseSecurityClient {
+        SQLServerDatabaseSecurityClient(client: client)
+    }
+
+    func makeServerSecurityClient() -> SQLServerServerSecurityClient {
+        SQLServerServerSecurityClient(client: client)
+    }
+
+    func makeAdministrationClient() -> SQLServerAdministrationClient {
+        SQLServerAdministrationClient(client: client)
     }
 }

@@ -15,6 +15,7 @@ struct SettingsView: View {
 
     enum SettingsSection: String, CaseIterable, Identifiable {
         case appearance
+        case sidebar
         case queryResults
         case echoSense
         case diagrams
@@ -26,6 +27,7 @@ struct SettingsView: View {
         var title: String {
             switch self {
             case .appearance: return "Appearance"
+            case .sidebar: return "Sidebar"
             case .queryResults: return "Query Results"
             case .echoSense: return "EchoSense"
             case .diagrams: return "Diagrams"
@@ -37,6 +39,7 @@ struct SettingsView: View {
         var systemImage: String? {
             switch self {
             case .appearance: return "paintbrush"
+            case .sidebar: return "sidebar.left"
             case .queryResults: return "tablecells"
             case .diagrams: return "rectangle.connected.to.line.below"
             case .applicationCache: return "internaldrive"
@@ -134,6 +137,9 @@ struct SettingsView: View {
                 .environmentObject(environmentState)
                 .environmentObject(appState)
                 .environmentObject(appearanceStore)
+
+        case .sidebar:
+            SidebarSettingsView()
 
         case .queryResults:
             QueryResultsSettingsView()

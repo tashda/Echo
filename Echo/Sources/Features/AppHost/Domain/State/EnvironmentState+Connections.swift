@@ -20,7 +20,8 @@ extension EnvironmentState {
     }
 
     func reconnectSession(_ session: ConnectionSession, to databaseName: String) async {
-        // Implementation for database switching
+        session.selectedDatabaseName = databaseName
+        await schemaDiscoveryCoordinator.refreshStructure(for: session, scope: .selectedDatabase)
     }
 
     // MARK: - Database Metadata
@@ -31,11 +32,15 @@ extension EnvironmentState {
 
     func refreshDatabaseStructure(for sessionID: UUID, scope: StructureRefreshScope = .selectedDatabase, databaseOverride: String? = nil) async {
         guard let session = sessionCoordinator.activeSessions.first(where: { $0.id == sessionID }) else { return }
+        if let databaseOverride {
+            session.selectedDatabaseName = databaseOverride
+        }
         await schemaDiscoveryCoordinator.refreshStructure(for: session, scope: scope)
     }
 
     func loadSchemaForDatabase(_ databaseName: String, connectionSession: ConnectionSession) async {
-        await reconnectSession(connectionSession, to: databaseName)
+        connectionSession.selectedDatabaseName = databaseName
+        await schemaDiscoveryCoordinator.loadDatabaseSchemaOnly(databaseName, for: connectionSession)
     }
 
     // MARK: - Connection Management
@@ -99,6 +104,14 @@ extension EnvironmentState {
     }
 
     func openJobQueueTab(for session: ConnectionSession, selectJobID: String? = nil) {
+        // Reuse existing Jobs tab for this session if one exists
+        if let existingTab = tabStore.tabs.first(where: { $0.kind == .jobQueue && $0.connectionSessionID == session.id }) {
+            tabStore.selectTab(existingTab)
+            if let jobID = selectJobID, let vm = existingTab.jobQueue {
+                vm.resolveAndSelect(jobIdentifier: jobID)
+            }
+            return
+        }
         let tab = session.addJobQueueTab(selectJobID: selectJobID)
         registerTab(tab)
     }
