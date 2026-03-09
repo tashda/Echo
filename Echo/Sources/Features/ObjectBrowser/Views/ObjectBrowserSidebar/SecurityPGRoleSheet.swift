@@ -29,11 +29,15 @@ struct SecurityPGRoleSheet: View {
     @State private var memberEntries: [PGRoleMemberEntry] = []
     @State private var loadingRoles = false
 
-    // Parameters
+    // Parameters (editable)
     @State private var roleParameters: [PostgresDatabaseParameter] = []
+    @State private var newParamName = ""
+    @State private var newParamValue = ""
 
-    // Security labels
+    // Security labels (editable)
     @State private var securityLabels: [PostgresSecurityLabel] = []
+    @State private var newLabelProvider = ""
+    @State private var newLabelValue = ""
 
     @State private var errorMessage: String?
     @State private var isSubmitting = false
@@ -230,19 +234,13 @@ struct SecurityPGRoleSheet: View {
                 }
             }
         } else {
-            if !memberOfEntries.isEmpty || !isEditing {
-                Section("Member Of") {
-                    if memberOfEntries.isEmpty {
-                        Text("No other roles available.")
-                            .foregroundStyle(.secondary)
-                            .font(TypographyTokens.detail)
-                    } else {
-                        ForEach($memberOfEntries) { $entry in
-                            Toggle(isOn: $entry.isMember) {
-                                Text(entry.name)
-                            }
-                        }
-                    }
+            Section("Member Of") {
+                if memberOfEntries.isEmpty {
+                    Text("Not a member of any role.")
+                        .foregroundStyle(.secondary)
+                        .font(TypographyTokens.detail)
+                } else {
+                    membershipTable(entries: $memberOfEntries)
                 }
             }
 
@@ -253,53 +251,176 @@ struct SecurityPGRoleSheet: View {
                             .foregroundStyle(.secondary)
                             .font(TypographyTokens.detail)
                     } else {
-                        ForEach($memberEntries) { $entry in
-                            Toggle(isOn: $entry.isMember) {
-                                Text(entry.name)
-                            }
-                        }
+                        membershipTable(entries: $memberEntries)
                     }
                 }
             }
         }
     }
 
+    @ViewBuilder
+    private func membershipTable(entries: Binding<[PGRoleMemberEntry]>) -> some View {
+        Table(entries.wrappedValue) {
+            TableColumn("Role") { entry in
+                Text(entry.name)
+                    .font(TypographyTokens.standard)
+            }
+            .width(min: 120, ideal: 200)
+
+            TableColumn("Member") { entry in
+                if let binding = entries.first(where: { $0.wrappedValue.name == entry.name }) {
+                    Toggle("", isOn: binding.isMember)
+                        .labelsHidden()
+                }
+            }
+            .width(60)
+        }
+        .tableStyle(.bordered)
+        .frame(minHeight: 120, maxHeight: 240)
+    }
+
     // MARK: - Parameters Page
+
+    private static let predefinedParameters = [
+        "search_path", "work_mem", "maintenance_work_mem", "temp_buffers",
+        "statement_timeout", "lock_timeout", "idle_in_transaction_session_timeout",
+        "log_statement", "log_min_duration_statement", "log_min_messages",
+        "client_min_messages", "default_transaction_isolation", "default_transaction_read_only",
+        "timezone", "DateStyle", "IntervalStyle", "client_encoding",
+        "lc_messages", "lc_monetary", "lc_numeric", "lc_time",
+        "temp_file_limit", "effective_cache_size", "random_page_cost", "seq_page_cost",
+        "cpu_tuple_cost", "cpu_index_tuple_cost", "cpu_operator_cost",
+        "enable_hashjoin", "enable_mergejoin", "enable_nestloop", "enable_seqscan",
+        "enable_indexscan", "enable_indexonlyscan", "enable_bitmapscan",
+        "geqo", "geqo_threshold", "from_collapse_limit", "join_collapse_limit"
+    ]
 
     @ViewBuilder
     private var parametersPage: some View {
-        if roleParameters.isEmpty {
-            Section {
+        Section("Role Parameters") {
+            if roleParameters.isEmpty && !isEditing {
                 Text("No role-level parameters configured.")
                     .foregroundStyle(.secondary)
-                    .font(TypographyTokens.standard)
+                    .font(TypographyTokens.detail)
             }
-        } else {
-            Section("Role Parameters") {
-                ForEach(Array(roleParameters.enumerated()), id: \.offset) { _, param in
-                    LabeledContent(param.name, value: param.value)
+
+            ForEach(Array(roleParameters.enumerated()), id: \.offset) { index, param in
+                HStack {
+                    Text(param.name)
+                        .font(TypographyTokens.standard)
+                        .frame(minWidth: 160, alignment: .leading)
+                    Text(param.value)
+                        .font(TypographyTokens.standard)
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    if isEditing {
+                        Button(role: .destructive) {
+                            roleParameters.remove(at: index)
+                        } label: {
+                            Image(systemName: "minus.circle.fill")
+                                .foregroundStyle(.red)
+                        }
+                        .buttonStyle(.plain)
+                    }
                 }
             }
         }
+
+        if isEditing {
+            Section("Add Parameter") {
+                HStack(spacing: SpacingTokens.xs) {
+                    Picker("Parameter", selection: $newParamName) {
+                        Text("Select\u{2026}").tag("")
+                        ForEach(availableParameters, id: \.self) { param in
+                            Text(param).tag(param)
+                        }
+                    }
+                    .frame(minWidth: 180)
+
+                    TextField("Value", text: $newParamValue)
+                        .textFieldStyle(.roundedBorder)
+
+                    Button("Add") {
+                        addParameter()
+                    }
+                    .disabled(newParamName.isEmpty || newParamValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+            }
+        }
+    }
+
+    private var availableParameters: [String] {
+        let existing = Set(roleParameters.map(\.name))
+        return Self.predefinedParameters.filter { !existing.contains($0) }
+    }
+
+    private func addParameter() {
+        let value = newParamValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !newParamName.isEmpty, !value.isEmpty else { return }
+        roleParameters.append(PostgresDatabaseParameter(name: newParamName, value: value))
+        newParamName = ""
+        newParamValue = ""
     }
 
     // MARK: - Security Labels Page
 
     @ViewBuilder
     private var securityLabelsPage: some View {
-        if securityLabels.isEmpty {
-            Section {
+        Section("Security Labels") {
+            if securityLabels.isEmpty && !isEditing {
                 Text("No security labels assigned to this role.")
                     .foregroundStyle(.secondary)
-                    .font(TypographyTokens.standard)
+                    .font(TypographyTokens.detail)
             }
-        } else {
-            Section("Security Labels") {
-                ForEach(Array(securityLabels.enumerated()), id: \.offset) { _, label in
-                    LabeledContent(label.provider, value: label.label)
+
+            ForEach(Array(securityLabels.enumerated()), id: \.offset) { index, label in
+                HStack {
+                    Text(label.provider)
+                        .font(TypographyTokens.standard)
+                        .frame(minWidth: 120, alignment: .leading)
+                    Text(label.label)
+                        .font(TypographyTokens.standard)
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    if isEditing {
+                        Button(role: .destructive) {
+                            securityLabels.remove(at: index)
+                        } label: {
+                            Image(systemName: "minus.circle.fill")
+                                .foregroundStyle(.red)
+                        }
+                        .buttonStyle(.plain)
+                    }
                 }
             }
         }
+
+        if isEditing {
+            Section("Add Security Label") {
+                HStack(spacing: SpacingTokens.xs) {
+                    TextField("Provider", text: $newLabelProvider)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(minWidth: 120)
+
+                    TextField("Label", text: $newLabelValue)
+                        .textFieldStyle(.roundedBorder)
+
+                    Button("Add") {
+                        addSecurityLabel()
+                    }
+                    .disabled(newLabelProvider.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || newLabelValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+            }
+        }
+    }
+
+    private func addSecurityLabel() {
+        let provider = newLabelProvider.trimmingCharacters(in: .whitespacesAndNewlines)
+        let label = newLabelValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !provider.isEmpty, !label.isEmpty else { return }
+        securityLabels.append(PostgresSecurityLabel(provider: provider, label: label))
+        newLabelProvider = ""
+        newLabelValue = ""
     }
 
     // MARK: - SQL Page
