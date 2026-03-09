@@ -167,12 +167,13 @@ struct SecurityLoginSheet: View {
 
         if authType == .sql {
             Section("Credentials") {
-                SecureField("Password", text: $password)
+                SecureField("Password", text: $password, prompt: Text(isEditing ? "Leave empty to keep current" : ""))
                 if !isEditing {
                     SecureField("Confirm Password", text: $confirmPassword)
                 }
                 Toggle("Enforce password policy", isOn: $enforcePasswordPolicy)
                 Toggle("Enforce password expiration", isOn: $enforcePasswordExpiration)
+                    .disabled(!enforcePasswordPolicy)
             }
         }
 
@@ -182,6 +183,8 @@ struct SecurityLoginSheet: View {
                     Text(db).tag(db)
                 }
             }
+            TextField("Default Language", text: $defaultLanguage, prompt: Text("Server default"))
+                .help("Leave empty to use the server default language.")
         }
 
         Section("Status") {
@@ -338,6 +341,9 @@ struct SecurityLoginSheet: View {
                         loginName = login.name
                         loginEnabled = !login.isDisabled
                         defaultDatabase = login.defaultDatabase ?? "master"
+                        defaultLanguage = login.defaultLanguage ?? ""
+                        enforcePasswordPolicy = login.isPolicyChecked ?? true
+                        enforcePasswordExpiration = login.isExpirationChecked ?? false
                         switch login.type {
                         case .sql: authType = .sql
                         default: authType = .windows
@@ -420,13 +426,17 @@ struct SecurityLoginSheet: View {
                 }
                 try await ssec.enableLogin(name: name, enabled: loginEnabled)
                 try await ssec.alterLogin(name: name, options: .init(
-                    defaultDatabase: defaultDatabase
+                    defaultDatabase: defaultDatabase,
+                    defaultLanguage: defaultLanguage.isEmpty ? nil : defaultLanguage,
+                    checkPolicy: authType == .sql ? enforcePasswordPolicy : nil,
+                    checkExpiration: authType == .sql ? enforcePasswordExpiration : nil
                 ))
             } else {
                 // Create new login
                 if authType == .sql {
                     try await ssec.createSqlLogin(name: name, password: password, options: .init(
                         defaultDatabase: defaultDatabase,
+                        defaultLanguage: defaultLanguage.isEmpty ? nil : defaultLanguage,
                         checkPolicy: enforcePasswordPolicy,
                         checkExpiration: enforcePasswordExpiration
                     ))

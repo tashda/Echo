@@ -90,7 +90,7 @@ struct DatabaseObjectBrowserView: View {
             supportedTypes: supportedObjectTypes
         )
         let snapshot = snapshotCache.data
-        
+
         return Group {
             if isSearching && snapshot.filteredCount == 0 {
                 SearchEmptyStateView(query: searchText)
@@ -107,7 +107,26 @@ struct DatabaseObjectBrowserView: View {
             }
         }
         .onAppear { snapshotCache.update(with: input) }
-        .onChange(of: input) { _, newValue in snapshotCache.update(with: newValue) }
+        .onChange(of: input) { _, newValue in
+            snapshotCache.update(with: newValue)
+            autoExpandForSearch()
+        }
+    }
+
+    /// When searching, auto-expand all type groups with results and objects with matching children.
+    private func autoExpandForSearch() {
+        guard isSearching else { return }
+        let snapshot = snapshotCache.data
+
+        // Expand all type groups that have matches
+        for (type, objects) in snapshot.grouped where !objects.isEmpty {
+            expandedObjectGroups.insert(type)
+        }
+
+        // Expand objects where a child column/parameter matched
+        if !snapshot.matchingChildObjectIDs.isEmpty {
+            expandedObjectIDs.formUnion(snapshot.matchingChildObjectIDs)
+        }
     }
 
 }

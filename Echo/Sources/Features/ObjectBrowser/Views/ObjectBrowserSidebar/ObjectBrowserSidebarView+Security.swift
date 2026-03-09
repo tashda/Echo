@@ -176,12 +176,6 @@ extension ObjectBrowserSidebarView {
         .padding(.vertical, SidebarRowConstants.rowVerticalPadding)
         .contentShape(Rectangle())
         .contextMenu {
-            Button("Properties\u{2026}") {
-                viewModel.securityLoginSheetSessionID = session.connection.id
-                viewModel.securityLoginSheetEditName = login.name
-                viewModel.showSecurityLoginSheet = true
-            }
-            Divider()
             Button("Script as CREATE") {
                 let sql: String
                 if login.loginType == "SQL" {
@@ -207,6 +201,12 @@ extension ObjectBrowserSidebarView {
             Divider()
             Button("Drop Login", role: .destructive) {
                 Task { await dropMSSQLLogin(name: login.name, session: session) }
+            }
+            Divider()
+            Button("Properties\u{2026}") {
+                viewModel.securityLoginSheetSessionID = session.connection.id
+                viewModel.securityLoginSheetEditName = login.name
+                viewModel.showSecurityLoginSheet = true
             }
         }
     }
@@ -506,12 +506,6 @@ extension ObjectBrowserSidebarView {
         .padding(.vertical, SidebarRowConstants.rowVerticalPadding)
         .contentShape(Rectangle())
         .contextMenu {
-            Button("Properties\u{2026}") {
-                viewModel.securityPGRoleSheetSessionID = session.connection.id
-                viewModel.securityPGRoleSheetEditName = role.name
-                viewModel.showSecurityPGRoleSheet = true
-            }
-            Divider()
             Button("Script as CREATE") {
                 let loginAttr = role.loginType.contains("Login") || role.loginType.contains("Superuser") ? " LOGIN" : ""
                 openScriptTab(sql: "CREATE ROLE \"\(role.name)\"\(loginAttr);", session: session)
@@ -525,6 +519,12 @@ extension ObjectBrowserSidebarView {
             }
             Button("Drop Role", role: .destructive) {
                 Task { await dropPGRole(name: role.name, session: session) }
+            }
+            Divider()
+            Button("Properties\u{2026}") {
+                viewModel.securityPGRoleSheetSessionID = session.connection.id
+                viewModel.securityPGRoleSheetEditName = role.name
+                viewModel.showSecurityPGRoleSheet = true
             }
         }
     }
@@ -650,13 +650,6 @@ extension ObjectBrowserSidebarView {
         .padding(.vertical, SidebarRowConstants.rowVerticalPadding)
         .contentShape(Rectangle())
         .contextMenu {
-            Button("Properties\u{2026}") {
-                viewModel.securityUserSheetSessionID = session.connection.id
-                viewModel.securityUserSheetDatabaseName = databaseName
-                viewModel.securityUserSheetEditName = user.name
-                viewModel.showSecurityUserSheet = true
-            }
-            Divider()
             Button("Script as CREATE") {
                 openScriptTab(
                     sql: "CREATE USER [\(user.name)] FOR LOGIN [\(user.name)]\(user.defaultSchema.map { " WITH DEFAULT_SCHEMA = [\($0)]" } ?? "");",
@@ -665,10 +658,6 @@ extension ObjectBrowserSidebarView {
             }
             Button("Script as DROP") {
                 openScriptTab(sql: "DROP USER [\(user.name)];", session: session)
-            }
-            Divider()
-            Button("Drop User", role: .destructive) {
-                Task { await dropMSSQLUser(name: user.name, database: databaseName, session: session) }
             }
             Divider()
             Button("List Role Memberships") {
@@ -697,6 +686,17 @@ extension ObjectBrowserSidebarView {
                     """,
                     session: session
                 )
+            }
+            Divider()
+            Button("Drop User", role: .destructive) {
+                Task { await dropMSSQLUser(name: user.name, database: databaseName, session: session) }
+            }
+            Divider()
+            Button("Properties\u{2026}") {
+                viewModel.securityUserSheetSessionID = session.connection.id
+                viewModel.securityUserSheetDatabaseName = databaseName
+                viewModel.securityUserSheetEditName = user.name
+                viewModel.showSecurityUserSheet = true
             }
         }
     }

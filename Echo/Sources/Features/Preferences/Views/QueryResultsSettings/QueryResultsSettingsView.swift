@@ -12,6 +12,17 @@ struct QueryResultsSettingsView: View {
     var body: some View {
         ScrollViewReader { proxy in
         Form {
+            Section("Appearance") {
+                SettingsRowWithInfo(
+                    title: "Alternate row shading",
+                    description: "Applies alternating background colors to result table rows for easier reading."
+                ) {
+                    Toggle("", isOn: alternateRowShadingBinding)
+                        .labelsHidden()
+                        .toggleStyle(.switch)
+                }
+            }
+
             Section("Foreign Key Cells") {
                 SettingsRowWithInfo(
                     title: "Cell Behaviour",

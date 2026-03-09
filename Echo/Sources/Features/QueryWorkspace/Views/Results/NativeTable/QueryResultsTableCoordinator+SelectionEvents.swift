@@ -111,6 +111,17 @@ extension QueryResultsTableView.Coordinator {
 
     func handleMouseUp(_ event: NSEvent, in tableView: NSTableView) {
         endSelectionDrag()
+
+        // Validate selection after drag ends — data may have changed mid-drag.
+        if let region = selectionRegion {
+            let maxRow = tableView.numberOfRows
+            let maxColumn = parent.query.displayedColumns.count
+            if maxRow == 0 || maxColumn == 0
+                || region.normalizedRowRange.upperBound >= maxRow
+                || region.normalizedColumnRange.upperBound >= maxColumn {
+                setSelectionRegion(nil, tableView: tableView)
+            }
+        }
     }
 
     func handleKeyDown(_ event: NSEvent, in tableView: NSTableView) -> Bool {

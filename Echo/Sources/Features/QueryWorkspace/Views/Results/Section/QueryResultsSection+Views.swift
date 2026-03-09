@@ -80,7 +80,8 @@ extension QueryResultsSection {
                         onJsonEvent(event)
                     },
                     persistedState: gridState,
-                    isResizing: isResizingResults
+                    isResizing: isResizingResults,
+                    alternateRowShading: projectStore.globalSettings.resultsAlternateRowShading
                 )
 #else
                 QueryResultsGridView(
