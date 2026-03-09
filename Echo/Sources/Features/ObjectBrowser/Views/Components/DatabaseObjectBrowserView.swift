@@ -18,7 +18,6 @@ struct DatabaseObjectBrowserView: View {
     @EnvironmentObject private var environmentState: EnvironmentState
     
     @State private var snapshotCache = ExplorerSnapshotCache()
-    @State private var hoveredRowID: String?
 
     private var supportedObjectTypes: [SchemaObjectInfo.ObjectType] {
         SchemaObjectInfo.ObjectType.supported(for: connection.databaseType)
@@ -96,24 +95,13 @@ struct DatabaseObjectBrowserView: View {
             if isSearching && snapshot.filteredCount == 0 {
                 SearchEmptyStateView(query: searchText)
             } else {
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: 0) {
                     if !snapshot.pinned.isEmpty {
                         pinnedSection(snapshot.pinned)
                     }
-                    
+
                     ForEach(supportedObjectTypes, id: \.self) { type in
                         typeSection(type, snapshot.grouped[type] ?? [])
-                    }
-                }
-                .environment(\.hoveredExplorerRowID, hoveredRowID)
-                .environment(\.setHoveredExplorerRowID, { value in
-                    Task { @MainActor in
-                        if hoveredRowID != value { hoveredRowID = value }
-                    }
-                })
-                .onHover { hovering in
-                    Task { @MainActor in
-                        if !hovering { hoveredRowID = nil }
                     }
                 }
             }

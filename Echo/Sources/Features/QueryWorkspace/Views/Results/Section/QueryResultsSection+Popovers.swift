@@ -2,29 +2,6 @@ import SwiftUI
 
 extension QueryResultsSection {
     
-    var connectionInfoPopover: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Connection")
-                .font(.headline)
-            Text(connectionDisplayName)
-        }
-        .padding()
-    }
-
-    var rowInfoPopover: some View {
-        VStack {
-            Text("\(query.rowProgress.displayCount) rows")
-        }
-        .padding()
-    }
-
-    var timeInfoPopover: some View {
-        VStack {
-            Text("Duration")
-        }
-        .padding()
-    }
-
     var connectionChipText: String {
         let serverName = connectionDisplayName
         guard let database = effectiveDatabaseName else { return serverName }

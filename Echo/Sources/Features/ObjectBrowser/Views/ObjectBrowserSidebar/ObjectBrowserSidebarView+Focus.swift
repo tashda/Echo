@@ -22,6 +22,8 @@ extension ObjectBrowserSidebarView {
                 selectedConnectionID = focus.connectionID
             }
             environmentState.sessionCoordinator.setActiveSession(session.id)
+            viewModel.ensureServerExpanded(for: focus.connectionID, sessions: sessions)
+            viewModel.ensureDatabaseExpanded(connectionID: focus.connectionID, databaseName: focus.databaseName)
         }
 
         if session.selectedDatabaseName?.localizedCaseInsensitiveCompare(focus.databaseName) != .orderedSame {
@@ -44,11 +46,16 @@ extension ObjectBrowserSidebarView {
     }
 
     private func applyExplorerFocus(_ focus: ExplorerFocus, session: ConnectionSession, proxy: ScrollViewProxy) {
-        if viewModel.selectedSchemaName?.caseInsensitiveCompare(focus.schemaName) != .orderedSame {
-            viewModel.selectedSchemaName = focus.schemaName
+        let connID = focus.connectionID
+        var groups = viewModel.expandedObjectGroupsBySession[connID] ?? Set(SchemaObjectInfo.ObjectType.allCases)
+        if !groups.contains(focus.objectType) {
+            groups.insert(focus.objectType)
+            viewModel.expandedObjectGroupsBySession[connID] = groups
         }
-        if !viewModel.expandedObjectGroups.contains(focus.objectType) {
-            viewModel.expandedObjectGroups.insert(focus.objectType)
+
+        let currentSchema = viewModel.selectedSchemaNameBySession[connID]
+        if currentSchema?.caseInsensitiveCompare(focus.schemaName) != .orderedSame {
+            viewModel.selectedSchemaNameBySession[connID] = focus.schemaName
         }
 
         guard let structure = session.databaseStructure,
@@ -58,11 +65,14 @@ extension ObjectBrowserSidebarView {
         }
 
         if let object = schema.objects.first(where: { $0.type == focus.objectType && $0.name.localizedCaseInsensitiveCompare(focus.objectName) == .orderedSame }) {
-            viewModel.expandedObjectGroups.insert(object.type)
-            let wasExpanded = viewModel.expandedObjectIDs.contains(object.id)
-            if !wasExpanded {
+            groups.insert(object.type)
+            viewModel.expandedObjectGroupsBySession[connID] = groups
+
+            var ids = viewModel.expandedObjectIDsBySession[connID] ?? []
+            if !ids.contains(object.id) {
                 DispatchQueue.main.async {
-                    self.viewModel.expandedObjectIDs.insert(object.id)
+                    ids.insert(object.id)
+                    self.viewModel.expandedObjectIDsBySession[connID] = ids
                 }
             }
 

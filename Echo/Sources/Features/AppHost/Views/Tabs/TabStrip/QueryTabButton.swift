@@ -51,6 +51,8 @@ struct QueryTabButton: View {
         HStack(spacing: 3) {
             leadingControl
 
+            connectionIndicator
+
             Text(displayedTitle)
                 .font(tabTitleFont)
                 .lineLimit(1)
@@ -141,5 +143,12 @@ struct QueryTabButton: View {
             return TypographyTokens.detail.weight(.semibold)
         }
         return TypographyTokens.detail
+    }
+
+    @ViewBuilder
+    var connectionIndicator: some View {
+        Circle()
+            .fill(tab.connection.color)
+            .frame(width: 6, height: 6)
     }
 }

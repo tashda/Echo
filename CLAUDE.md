@@ -14,6 +14,8 @@ Use **XcodeBuildMCP** for all build, run, and test operations. Do not use `xcode
 
 **This is a macOS app — use macOS workflow tools only.** Use `build_macos`, `build_run_macos`, `test_macos`, etc. Never use simulator tools (`build_sim`, `build_run_sim`, `test_sim`) — Echo has no iOS target and no simulator. Do not pass `SUPPORTED_PLATFORMS=macosx` or `SDKROOT=macosx` overrides to simulator tools as a workaround.
 
+**Stopping the app:** Use `stop_mac_app` from XcodeBuildMCP to stop Echo. Never use `pkill` or shell commands to kill the application.
+
 ## Self-Verification Workflow
 
 After every code change (feature, fix, or refactor), you MUST verify your work using XcodeBuildMCP. Do not consider a task complete until you have confirmed it works. Follow this loop:

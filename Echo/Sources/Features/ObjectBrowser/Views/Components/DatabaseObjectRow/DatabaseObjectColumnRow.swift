@@ -2,7 +2,6 @@ import SwiftUI
 
 struct DatabaseObjectColumnRow: View {
     let column: ColumnInfo
-    let accentColor: Color
     let isHovered: Bool
     let onCopyName: () -> Void
     let onRename: () -> Void
@@ -10,18 +9,18 @@ struct DatabaseObjectColumnRow: View {
     
     var body: some View {
         HStack(alignment: .center, spacing: ExplorerColumnMetrics.spacing) {
-            let (iconName, iconColor): (String, Color) = {
+            let (iconName, iconColor, iconSize): (String, Color, CGFloat) = {
                 if column.isPrimaryKey {
-                    return ("key.fill", accentColor)
+                    return ("key.fill", Color.orange, 10)
                 }
                 if column.foreignKey != nil {
-                    return ("arrow.turn.down.right", accentColor)
+                    return ("arrow.turn.down.right", Color.blue, 10)
                 }
-                return ("circle.fill", Color.secondary)
+                return ("circle.fill", Color(nsColor: .quaternaryLabelColor), 5)
             }()
-            
+
             Image(systemName: iconName)
-                .font(.system(size: iconName == "circle.fill" ? 8 : 10))
+                .font(.system(size: iconSize))
                 .foregroundStyle(iconColor)
                 .frame(width: ExplorerColumnMetrics.iconSize, height: ExplorerColumnMetrics.iconSize, alignment: .center)
 
@@ -47,27 +46,16 @@ struct DatabaseObjectColumnRow: View {
             Spacer()
 
             Text(EchoFormatters.abbreviatedSQLType(column.dataType))
-                .font(TypographyTokens.label.weight(.medium))
-                .foregroundStyle(.primary)
-                .padding(.horizontal, SpacingTokens.xxs2)
-                .padding(.vertical, SpacingTokens.xxxs)
-                .background(
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .fill(Color.primary.opacity(0.06))
-                )
+                .font(TypographyTokens.label)
+                .foregroundStyle(.tertiary)
         }
         .padding(.leading, ExplorerColumnMetrics.highlightExtension)
         .padding(.vertical, SpacingTokens.xxxs)
         .padding(.trailing, SpacingTokens.sm)
         .background(
-            Group {
-                if isHovered {
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .fill(accentColor.opacity(0.08))
-                } else {
-                    Color.clear
-                }
-            }
+            RoundedRectangle(cornerRadius: SidebarRowConstants.hoverCornerRadius, style: .continuous)
+                .fill(Color.primary.opacity(0.04))
+                .opacity(isHovered ? 1 : 0)
         )
         .padding(.leading, max(ExplorerColumnMetrics.contentLeading - ExplorerColumnMetrics.highlightExtension, 0))
         .contentShape(Rectangle())

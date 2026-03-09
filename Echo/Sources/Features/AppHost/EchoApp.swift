@@ -46,8 +46,8 @@ struct EchoApp: App {
                 .environmentObject(coordinator.appearanceStore)
                 .task { await coordinator.initialize() }
         }
-        .windowStyle(.hiddenTitleBar)
         .defaultLaunchBehavior(.presented)
+        .windowToolbarStyle(.unified(showsTitle: false))
         .commands {
             QueryCommands(
                 environmentState: coordinator.environmentState,

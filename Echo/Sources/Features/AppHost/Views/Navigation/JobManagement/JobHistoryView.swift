@@ -12,9 +12,45 @@ struct JobHistoryView: View {
             .padding(.horizontal, SpacingTokens.sm)
             .padding(.vertical, SpacingTokens.xxs2)
 
-            Table(of: JobQueueViewModel.HistoryRow.self) {
+            // Active step indicator while job is running
+            if let info = viewModel.activeStepInfo {
+                HStack(spacing: SpacingTokens.xs) {
+                    ProgressView()
+                        .controlSize(.small)
+                    Text(info.jobName)
+                        .font(TypographyTokens.standard.weight(.medium))
+                    Text("·")
+                        .foregroundStyle(.quaternary)
+                    Text("Step \(info.stepID): \(info.stepName)")
+                        .font(TypographyTokens.standard)
+                        .foregroundStyle(.secondary)
+                    Text("·")
+                        .foregroundStyle(.quaternary)
+                    Text("Started \(info.startTime, style: .relative) ago")
+                        .font(TypographyTokens.detail)
+                        .foregroundStyle(.tertiary)
+                    Spacer()
+                }
+                .padding(.horizontal, SpacingTokens.sm)
+                .padding(.vertical, SpacingTokens.xxs)
+                .background(Color.orange.opacity(0.08))
+
+                Divider()
+            }
+
+            Table(of: JobQueueViewModel.HistoryRow.self, selection: Binding(
+                get: { viewModel.selectedHistoryRowID.flatMap { Set([$0]) } ?? [] },
+                set: { viewModel.selectedHistoryRowID = $0.first }
+            )) {
                 TableColumn("Job") { h in Text(h.jobName) }
-                TableColumn("Step") { h in Text("\(h.stepId)") }.width(44)
+                TableColumn("Step ID") { h in
+                    Text("\(h.stepId)")
+                        .monospacedDigit()
+                }.width(52)
+                TableColumn("Step Name") { h in
+                    Text(h.stepName)
+                        .foregroundStyle(h.stepId == 0 ? .secondary : .primary)
+                }
                 TableColumn("Status") { h in Text(jobStatusLabel(h.status)).foregroundStyle(colorForStatus(h.status)) }
                 TableColumn("Run Date") { h in Text(formatAgentDate(h.runDate, h.runTime)) }
                 TableColumn("Duration") { h in Text(formatDuration(h.runDuration)) }

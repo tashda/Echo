@@ -18,31 +18,16 @@ struct QueryResultsSection: View {
     @State internal var highlightedColumnIndex: Int?
     @State internal var rowOrder: [Int] = []
     @State internal var lastObservedColumnIDs: [String] = []
-    @State internal var showConnectionInfoPopover = false
-    @State internal var showRowInfoPopover = false
-    @State internal var showTimeInfoPopover = false
 #if os(macOS)
     @State internal var jsonInspectorContext: JsonInspectorContext?
 #endif
 
     @EnvironmentObject private var appearanceStore: AppearanceStore
 
-    internal let statusChipMinWidth: CGFloat = 52
-    internal let statusChipHeight: CGFloat = 28
-    internal let statusBarHeight: CGFloat = 36
-    internal let statusBarHorizontalPadding: CGFloat = 12
-    internal let statusBarChipSpacing: CGFloat = 4
+    internal let statusBarHeight: CGFloat = 24
+    internal let statusBarChipSpacing: CGFloat = 12
 
-#if os(macOS)
-    internal let rowCountChipWidth: CGFloat = 130
-    internal let timeChipWidth: CGFloat = 110
-    internal let statusChipWidth: CGFloat = 100
-    internal let modeChipWidth: CGFloat = 64
-    internal let statusBarContentYOffset: CGFloat = -2
-    internal var statusBarVerticalPadding: CGFloat {
-        max(0, (statusBarHeight - statusChipHeight) / 2 - 3)
-    }
-#else
+#if !os(macOS)
     internal let connectionChipMinWidth: CGFloat = 180
     internal let metricChipMinWidth: CGFloat = 82
     internal let timeChipMinWidth: CGFloat = 112

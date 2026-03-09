@@ -51,12 +51,7 @@ final class ConnectionSession: ObservableObject, Identifiable {
         self.defaultBackgroundFetchSize = max(128, min(defaultBackgroundFetchSize, 16_384))
         self.spoolManager = spoolManager
 
-        // Auto-select database if one is saved in the connection
-        if !connection.database.isEmpty {
-            self.selectedDatabaseName = connection.database
-        } else {
-            self.selectedDatabaseName = nil
-        }
+        self.selectedDatabaseName = nil
     }
 
     var activeQueryTab: WorkspaceTab? {

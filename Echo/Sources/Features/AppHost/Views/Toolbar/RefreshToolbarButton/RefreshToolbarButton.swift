@@ -8,14 +8,23 @@ struct RefreshToolbarButton: View {
 
     @State private var refreshTask: Task<Void, Never>?
 
+    private var activeSession: ConnectionSession? {
+        environmentState.sessionCoordinator.activeSession ?? environmentState.sessionCoordinator.activeSessions.first
+    }
+
     var body: some View {
-        if let session = environmentState.sessionCoordinator.activeSession ?? environmentState.sessionCoordinator.activeSessions.first {
+        if let session = activeSession {
             RefreshButtonContent(session: session,
                                  accent: appearanceStore.accentColor,
                                  onRefresh: { startRefresh(for: session) },
                                  onCancel: { cancelRefresh(for: session) })
         } else {
-            RefreshButtonPlaceholder()
+            Button(action: {}) {
+                Label("Refresh", systemImage: "arrow.clockwise")
+                    .labelStyle(.iconOnly)
+            }
+            .disabled(true)
+            .help("Refresh (No connection)")
         }
     }
 

@@ -6,7 +6,6 @@ extension DatabaseObjectRow {
             ForEach(object.columns, id: \.name) { (column: ColumnInfo) in
                 DatabaseObjectColumnRow(
                     column: column,
-                    accentColor: accentColor,
                     isHovered: hoveredColumnID == column.name,
                     onCopyName: { copyColumnName(column) },
                     onRename: { openStructureEditor(for: column) },

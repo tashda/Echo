@@ -23,8 +23,26 @@ extension EnvironmentValues {
 enum ExplorerColumnMetrics {
     static let contentLeading: CGFloat = 24
     static let highlightExtension: CGFloat = 10
-    static let iconSize: CGFloat = 14
+    static let iconSize: CGFloat = 16
     static let spacing: CGFloat = 8
+}
+
+/// Shared constants for sidebar row consistency (Xcode navigator aesthetic).
+enum SidebarRowConstants {
+    /// Chevron font — uniform across all disclosure triangles.
+    static let chevronFont = Font.system(size: 10, weight: .medium)
+    /// Chevron frame width.
+    static let chevronWidth: CGFloat = 10
+    /// Icon frame size (all sidebar icons).
+    static let iconFrame: CGFloat = 16
+    /// Per-level indentation step.
+    static let indentStep: CGFloat = 12  // SpacingTokens.sm
+    /// Horizontal padding inside rows.
+    static let rowHorizontalPadding: CGFloat = 8  // SpacingTokens.xs
+    /// Vertical padding for structural rows.
+    static let rowVerticalPadding: CGFloat = 4  // SpacingTokens.xxs
+    /// Hover highlight corner radius.
+    static let hoverCornerRadius: CGFloat = 4
 }
 
 func makeSelectStatement(

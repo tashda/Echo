@@ -37,10 +37,6 @@ struct ConnectionsTableView: View {
             }
             .width(ideal: 50, max: 70)
 
-            TableColumn("Database", value: \.database) { connection in
-                Text(connection.database.isEmpty ? "—" : connection.database)
-            }
-
             TableColumn("Credentials") { connection in
                 if let decoration = identityDecorationProvider(connection) {
                     Label {

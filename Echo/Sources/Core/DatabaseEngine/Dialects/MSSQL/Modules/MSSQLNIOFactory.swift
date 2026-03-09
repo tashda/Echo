@@ -15,7 +15,9 @@ struct MSSQLNIOFactory: DatabaseFactory {
         connectTimeoutSeconds: Int = 10
     ) async throws -> DatabaseSession {
         let resolvedDatabase = database?.trimmingCharacters(in: .whitespacesAndNewlines)
-        let loginDatabase = resolvedDatabase?.isEmpty == false ? resolvedDatabase! : "master"
+        // Always login to master to avoid failures when the target database is offline.
+        // The selected database is tracked separately in the session.
+        let loginDatabase = "master"
         let metadataTimeout: TimeInterval = 30
         let metadataConfiguration = SQLServerMetadataClient.Configuration(
             includeSystemSchemas: false,
