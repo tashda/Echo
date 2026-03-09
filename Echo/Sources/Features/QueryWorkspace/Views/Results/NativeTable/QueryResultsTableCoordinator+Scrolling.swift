@@ -25,10 +25,13 @@ extension QueryResultsTableView.Coordinator {
         observedContentView = contentView; requestPaginationEvaluation()
     }
 
-    @objc func handleContentViewBoundsChange(_ notification: Notification) { requestPaginationEvaluation() }
+    @objc func handleContentViewBoundsChange(_ notification: Notification) {
+        guard !isResizingColumn else { return }
+        requestPaginationEvaluation()
+    }
 
     func requestPaginationEvaluation() {
-        guard !parent.isResizing, !pendingPaginationEvaluation else { return }
+        guard !isSplitResizing, !pendingPaginationEvaluation else { return }
         pendingPaginationEvaluation = true
         DispatchQueue.main.async { [weak self] in guard let self else { return }; self.pendingPaginationEvaluation = false; self.evaluatePaginationForVisibleRows() }
     }
@@ -47,9 +50,26 @@ extension QueryResultsTableView.Coordinator {
     }
 
     func requestTableSizeAdjustment(rowCount: Int? = nil) {
-        guard !parent.isResizing, !pendingTableSizeAdjustment else { return }
+        guard !isSplitResizing, !pendingTableSizeAdjustment else { return }
         pendingTableSizeAdjustment = true; let captured = rowCount
         DispatchQueue.main.async { [weak self] in guard let self else { return }; self.pendingTableSizeAdjustment = false; self.adjustTableSize(rowCount: captured) }
+    }
+
+    func registerColumnResizeObservation(for tableView: NSTableView) {
+        if let obs = columnResizeObserver { NotificationCenter.default.removeObserver(obs); columnResizeObserver = nil }
+        columnResizeObserver = NotificationCenter.default.addObserver(forName: NSTableView.columnDidResizeNotification, object: tableView, queue: .main) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                if !self.isResizingColumn {
+                    self.isResizingColumn = true
+                    // Reset the flag after a brief delay — column resize generates a burst of notifications.
+                    // Once they stop, the flag resets so normal updates resume.
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self] in
+                        self?.isResizingColumn = false
+                    }
+                }
+            }
+        }
     }
 
     func installRowCountObserver(for state: QueryResultsGridState?) {

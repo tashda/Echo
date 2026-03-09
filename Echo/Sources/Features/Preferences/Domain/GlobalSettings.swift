@@ -25,6 +25,7 @@ enum SidebarAutoExpandSection: String, Codable, Hashable, CaseIterable, Identifi
     case procedures
     case triggers
     case management
+    case security
 
     var id: String { rawValue }
 
@@ -38,6 +39,7 @@ enum SidebarAutoExpandSection: String, Codable, Hashable, CaseIterable, Identifi
         case .procedures: return "Procedures"
         case .triggers: return "Triggers"
         case .management: return "Management"
+        case .security: return "Security"
         }
     }
 
@@ -49,7 +51,7 @@ enum SidebarAutoExpandSection: String, Codable, Hashable, CaseIterable, Identifi
         case .functions: return .function
         case .procedures: return .procedure
         case .triggers: return .trigger
-        case .databases, .management: return nil
+        case .databases, .management, .security: return nil
         }
     }
 
@@ -61,8 +63,8 @@ enum SidebarAutoExpandSection: String, Codable, Hashable, CaseIterable, Identifi
     /// Sections unique to a specific database type (not in generalSections).
     static func uniqueSections(for databaseType: DatabaseType) -> [SidebarAutoExpandSection] {
         switch databaseType {
-        case .postgresql: return [.materializedViews]
-        case .microsoftSQL: return [.procedures, .management]
+        case .postgresql: return [.materializedViews, .security]
+        case .microsoftSQL: return [.procedures, .management, .security]
         case .mysql: return [.procedures]
         case .sqlite: return []
         }

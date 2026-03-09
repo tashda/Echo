@@ -47,14 +47,20 @@ extension QueryResultsTableView.Coordinator: NSTableViewDelegate, NSTableViewDat
         let clickedColumn = tableView.clickedColumn
         if clickedColumn >= 0 {
             let cell = QueryResultsTableView.SelectedCell(row: row, column: clickedColumn)
-            setSelectionRegion(SelectedRegion(start: cell, end: cell), tableView: tableView)
-            isDraggingCellSelection = true; return false
+            if !isDraggingCellSelection {
+                setSelectionRegion(SelectedRegion(start: cell, end: cell), tableView: tableView)
+                isDraggingCellSelection = true
+            }
+            return false
         }
         if let event = NSApp.currentEvent {
             let location = tableView.convert(event.locationInWindow, from: nil); let column = tableView.column(at: location)
             if column >= 0 {
                 let cell = QueryResultsTableView.SelectedCell(row: row, column: column)
-                setSelectionRegion(SelectedRegion(start: cell, end: cell), tableView: tableView); endSelectionDrag(); return false
+                if !isDraggingCellSelection {
+                    setSelectionRegion(SelectedRegion(start: cell, end: cell), tableView: tableView)
+                }
+                return false
             }
         }
         return true

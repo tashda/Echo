@@ -53,6 +53,9 @@ extension QueryResultsTableView {
         var autoscrollTimerInterval: TimeInterval = 1.0 / 60.0
         var pendingReloadWorkItems: [DispatchWorkItem] = []
         var pendingRowCountCorrection = false
+        var isSplitResizing = false
+        var isResizingColumn = false
+        nonisolated(unsafe) var columnResizeObserver: NSObjectProtocol?
         nonisolated(unsafe) var rowCountObserver: NSObjectProtocol?
         var isPerformingUpdatePass = false
         nonisolated(unsafe) var rowCountUpdateWorkItem: DispatchWorkItem?
@@ -80,6 +83,9 @@ extension QueryResultsTableView {
             if let observer = rowCountObserver {
                 NotificationCenter.default.removeObserver(observer)
             }
+            if let observer = columnResizeObserver {
+                NotificationCenter.default.removeObserver(observer)
+            }
             NotificationCenter.default.removeObserver(self)
             rowCountUpdateWorkItem?.cancel()
         }
@@ -88,6 +94,7 @@ extension QueryResultsTableView {
             self.tableView = tableView
             self.scrollView = scrollView
             registerScrollObservation(for: scrollView)
+            registerColumnResizeObservation(for: tableView)
             tableView.delegate = self
             tableView.dataSource = self
             tableView.menu = cellMenu

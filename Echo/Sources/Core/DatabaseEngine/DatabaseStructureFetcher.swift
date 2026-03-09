@@ -217,12 +217,28 @@ public struct MSSQLStructureFetcher: DatabaseStructureFetcher {
 
         await progressHandler(Progress(fraction: 0.0, message: "Starting SQL Server structure fetch"))
 
-        let resolvedDatabase = selectedDatabase ?? connection.database
-
         if let sqlSession = session as? SQLServerSessionAdapter {
             await progressHandler(Progress(fraction: 0.2, message: "Loading SQL Server metadata"))
-            let databaseInfo = try await sqlSession.loadDatabaseInfo(databaseName: resolvedDatabase)
-            await databaseHandler(databaseInfo, resolvedDatabase, "Microsoft SQL Server")
+
+            var databases: [DatabaseInfo] = []
+
+            // Only load structure for a specific database when explicitly selected
+            if let selectedDatabase, !selectedDatabase.isEmpty {
+                do {
+                    let databaseInfo = try await sqlSession.loadDatabaseInfo(databaseName: selectedDatabase)
+                    databases.append(databaseInfo)
+                    await databaseHandler(databaseInfo, selectedDatabase, "Microsoft SQL Server")
+                } catch {
+                    structureLogger.warning("SQL Server: failed to load database '\(selectedDatabase)': \(error.localizedDescription)")
+                    var stateDesc: String? = error.localizedDescription
+                    if let meta = try? await sqlSession.client.databaseState(name: selectedDatabase) {
+                        stateDesc = meta.stateDescription
+                    }
+                    let fallback = DatabaseInfo(name: selectedDatabase, schemas: [], schemaCount: 0, stateDescription: stateDesc)
+                    databases.append(fallback)
+                    await databaseHandler(fallback, selectedDatabase, "Microsoft SQL Server")
+                }
+            }
 
             // Fetch actual server version
             var versionString = "SQL Server"
@@ -236,7 +252,7 @@ public struct MSSQLStructureFetcher: DatabaseStructureFetcher {
             await progressHandler(Progress(fraction: 1.0, message: "SQL Server structure fetch completed"))
             return DatabaseStructure(
                 serverVersion: versionString,
-                databases: [databaseInfo]
+                databases: databases
             )
         }
 

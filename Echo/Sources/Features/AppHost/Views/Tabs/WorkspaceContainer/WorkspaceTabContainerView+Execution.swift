@@ -14,6 +14,13 @@ extension WorkspaceTabContainerView {
         if effectiveSQL.isEmpty {
             effectiveSQL = trimmedSQL.isEmpty ? sql : trimmedSQL
         }
+
+        // For MSSQL, prepend USE [database] to set the correct database context
+        if tab.connection.databaseType == .microsoftSQL,
+           let session = environmentState.sessionCoordinator.activeSessions.first(where: { $0.id == tab.connectionSessionID }),
+           let selectedDB = session.selectedDatabaseName, !selectedDB.isEmpty {
+            effectiveSQL = "USE [\(selectedDB)];\n\(effectiveSQL)"
+        }
         let inferredObject = inferPrimaryObjectName(from: effectiveSQL)
         await MainActor.run {
             queryState.updateClipboardObjectName(inferredObject)

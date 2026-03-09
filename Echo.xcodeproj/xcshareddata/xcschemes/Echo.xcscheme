@@ -6,6 +6,25 @@
       parallelizeBuildables = "YES"
       buildImplicitDependencies = "YES"
       buildArchitectures = "Automatic">
+      <PreActions>
+         <ExecutionAction
+            ActionType = "Xcode.IDEStandardExecutionActionsCore.ExecutionActionType.ShellScriptAction">
+            <ActionContent
+               title = "Update SPM Packages"
+               scriptText = "export SRCROOT=&quot;${SRCROOT}&quot;&#10;&quot;${SRCROOT}/scripts/update-packages.sh&quot; 2&gt;&amp;1 || true"
+               shellToInvoke = "/bin/bash">
+               <EnvironmentBuildable>
+                  <BuildableReference
+                     BuildableIdentifier = "primary"
+                     BlueprintIdentifier = "0ADF94942E78B95200E993F8"
+                     BuildableName = "Echo.app"
+                     BlueprintName = "Echo"
+                     ReferencedContainer = "container:Echo.xcodeproj">
+                  </BuildableReference>
+               </EnvironmentBuildable>
+            </ActionContent>
+         </ExecutionAction>
+      </PreActions>
       <BuildActionEntries>
          <BuildActionEntry
             buildForTesting = "YES"

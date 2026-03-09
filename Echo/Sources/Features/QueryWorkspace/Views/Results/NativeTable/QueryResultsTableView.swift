@@ -63,6 +63,13 @@ struct QueryResultsTableView: NSViewRepresentable {
 
     func updateNSView(_ container: ResultTableContainerView, context: Context) {
         guard let tableView = container.tableView else { return }
+        // Update the resize flag on coordinator directly — skip expensive work during resize
+        context.coordinator.isSplitResizing = isResizing
+        if isResizing {
+            // During split-pane resize, only update the parent reference — skip all table work
+            context.coordinator.parent = self
+            return
+        }
         context.coordinator.updatePersistedState(persistedState)
         tableView.backgroundColor = backgroundColor
         tableView.usesAlternatingRowBackgroundColors = false

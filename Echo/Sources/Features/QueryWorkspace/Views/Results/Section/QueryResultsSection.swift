@@ -86,7 +86,7 @@ struct QueryResultsSection: View {
     }
 
     internal var shouldShowStatusBar: Bool {
-        query.isExecuting || query.hasExecutedAtLeastOnce || query.errorMessage != nil
+        true
     }
 
 #if !os(macOS)

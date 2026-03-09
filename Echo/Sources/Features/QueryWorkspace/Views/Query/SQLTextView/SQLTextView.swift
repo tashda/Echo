@@ -106,7 +106,7 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
         maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: .greatestFiniteMagnitude); minSize = NSSize(width: 0, height: 320)
         isHorizontallyResizable = false; isVerticallyResizable = true; autoresizingMask = [.width]; wantsLayer = true; layer?.isOpaque = true
         if super.undoManager == nil { self.setValue(fallbackResponder.undoManagerInstance, forKey: "undoManager") }
-        textContainer.widthTracksTextView = false; textContainer.lineFragmentPadding = 14
+        textContainer.widthTracksTextView = false; textContainer.lineFragmentPadding = 10
         configureDelegates(); applyTheme(); applyDisplayOptions(); scheduleHighlighting(after: 0)
         if let ruleTraceConfig { isRuleTracingEnabled = ruleTraceConfig.isEnabled; onRuleTrace = ruleTraceConfig.onTrace }
     }

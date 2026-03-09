@@ -75,7 +75,7 @@ extension QueryResultsTableView.Coordinator {
         let padding = ResultsGridMetrics.horizontalPadding * 2
         let columnInfo = column < parent.query.displayedColumns.count ? parent.query.displayedColumns[column] : nil
         var maxWidth = CGFloat.zero
-        let sampleCount = parent.isResizing ? min(tableView.numberOfRows, 32) : min(tableView.numberOfRows, ResultsGridMetrics.maxAutoWidthSampleCount)
+        let sampleCount = isSplitResizing ? min(tableView.numberOfRows, 32) : min(tableView.numberOfRows, ResultsGridMetrics.maxAutoWidthSampleCount)
         if sampleCount == 0 { return ceil(maxWidth) + padding + 6 }
         let sampledRows = makeSampledRows(total: tableView.numberOfRows, count: sampleCount)
         for row in sampledRows {
