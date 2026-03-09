@@ -1,0 +1,23 @@
+import SwiftUI
+
+struct AutocompleteInspectorWindow: Scene {
+    static let sceneID = "autocomplete-management"
+    private let coordinator = AppCoordinator.shared
+
+    var body: some Scene {
+        Window("Autocomplete Management", id: Self.sceneID) {
+            AutocompleteInspectorRootView()
+                .environment(coordinator.projectStore)
+                .environment(coordinator.connectionStore)
+                .environment(coordinator.navigationStore)
+                .environment(coordinator.tabStore)
+                .environmentObject(coordinator.environmentState)
+                .environmentObject(coordinator.appState)
+                .environmentObject(coordinator.clipboardHistory)
+                .environmentObject(AppearanceStore.shared)
+        }
+        .defaultSize(width: 1040, height: 680)
+        .restorationBehavior(.disabled)
+        .defaultLaunchBehavior(.suppressed)
+    }
+}

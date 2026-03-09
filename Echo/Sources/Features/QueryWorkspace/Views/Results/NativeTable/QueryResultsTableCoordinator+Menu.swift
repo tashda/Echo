@@ -1,0 +1,173 @@
+#if os(macOS)
+import AppKit
+import SwiftUI
+
+extension QueryResultsTableView.Coordinator: NSMenuDelegate {
+
+    func menuNeedsUpdate(_ menu: NSMenu) {
+        guard let tableView else { return }
+        menu.removeAllItems()
+
+        if menu === headerMenu {
+            let clickedColumn = menuColumnIndex ?? tableView.clickedColumn
+            guard clickedColumn >= 0 else {
+                menuColumnIndex = nil
+                return
+            }
+            menuColumnIndex = clickedColumn
+
+            guard let dataIndex = menuColumnIndex,
+                  dataIndex < parent.query.displayedColumns.count else { return }
+
+            selectColumn(at: dataIndex, in: tableView)
+
+            let ascendingItem = NSMenuItem(title: "Sort Ascending", action: #selector(sortAscending), keyEquivalent: "")
+            ascendingItem.target = self
+            if let sort = parent.activeSort,
+               sort.column == parent.query.displayedColumns[dataIndex].name,
+               sort.ascending {
+                ascendingItem.state = .on
+            }
+            menu.addItem(ascendingItem)
+
+            let descendingItem = NSMenuItem(title: "Sort Descending", action: #selector(sortDescending), keyEquivalent: "")
+            descendingItem.target = self
+            if let sort = parent.activeSort,
+               sort.column == parent.query.displayedColumns[dataIndex].name,
+               !sort.ascending {
+                descendingItem.state = .on
+            }
+            menu.addItem(descendingItem)
+
+            menu.addItem(.separator())
+
+            let copyColumnItem = NSMenuItem(title: "Copy Column", action: #selector(copyColumnPlain), keyEquivalent: "c")
+            copyColumnItem.target = self
+            copyColumnItem.isEnabled = hasCopyableSelection()
+            copyColumnItem.keyEquivalentModifierMask = [.command]
+            if #available(macOS 11.0, *) {
+                copyColumnItem.image = NSImage(systemSymbolName: "doc.on.doc", accessibilityDescription: nil)
+            }
+            menu.addItem(copyColumnItem)
+
+            let copyColumnWithHeadersItem = NSMenuItem(title: "Copy Column with Headers", action: #selector(copyColumnWithHeaders), keyEquivalent: "c")
+            copyColumnWithHeadersItem.target = self
+            copyColumnWithHeadersItem.isEnabled = hasCopyableSelection()
+            copyColumnWithHeadersItem.keyEquivalentModifierMask = [.command, .shift]
+            if #available(macOS 11.0, *) {
+                copyColumnWithHeadersItem.image = NSImage(systemSymbolName: "tablecells", accessibilityDescription: nil)
+            }
+            menu.addItem(copyColumnWithHeadersItem)
+        } else if menu === cellMenu {
+            updateCellMenu(menu, tableView: tableView)
+        }
+    }
+
+    @objc func sortAscending() {
+        guard let dataIndex = menuColumnIndex else { return }
+        parent.onSort(dataIndex, .ascending)
+    }
+
+    @objc func sortDescending() {
+        guard let dataIndex = menuColumnIndex else { return }
+        parent.onSort(dataIndex, .descending)
+    }
+
+    @objc func copyColumnPlain() {
+        copySelection(includeHeaders: false)
+    }
+
+    @objc func copyColumnWithHeaders() {
+        copySelection(includeHeaders: true)
+    }
+
+    func updateCellMenu(_ menu: NSMenu, tableView: NSTableView) {
+        menuColumnIndex = nil
+        ensureSelectionForContextMenu(tableView: tableView)
+
+        let hasSelection = hasCopyableSelection()
+
+        let copyItem = NSMenuItem(title: "Copy", action: #selector(copySelectionPlain), keyEquivalent: "c")
+        copyItem.target = self
+        if #available(macOS 11.0, *) {
+            copyItem.image = NSImage(systemSymbolName: "doc.on.doc", accessibilityDescription: nil)
+        }
+        copyItem.isEnabled = hasSelection
+        copyItem.keyEquivalentModifierMask = [.command]
+        menu.addItem(copyItem)
+
+        let copyHeadersItem = NSMenuItem(title: "Copy with Headers", action: #selector(copySelectionWithHeaders), keyEquivalent: "c")
+        copyHeadersItem.target = self
+        if #available(macOS 11.0, *) {
+            copyHeadersItem.image = NSImage(systemSymbolName: "tablecells", accessibilityDescription: nil)
+        }
+        copyHeadersItem.isEnabled = hasSelection
+        copyHeadersItem.keyEquivalentModifierMask = [.command, .shift]
+        menu.addItem(copyHeadersItem)
+    }
+
+    func prepareHeaderContextMenu(at column: Int?) {
+        if let column, column >= 0 {
+            menuColumnIndex = column
+        } else {
+            menuColumnIndex = nil
+        }
+    }
+
+    func ensureSelectionForContextMenu(tableView: NSTableView) {
+        let cell = consumeContextMenuCell()
+            ?? resolvedCell(forRow: tableView.clickedRow, column: tableView.clickedColumn, tableView: tableView)
+        guard let cell else { return }
+
+        if let region = selectionRegion, region.contains(cell) {
+            tableView.deselectAll(nil)
+            tableView.selectionHighlightStyle = .none
+            return
+        }
+
+        setSelectionRegion(SelectedRegion(start: cell, end: cell), tableView: tableView)
+        parent.onClearColumnHighlight()
+    }
+
+    func hasCopyableSelection() -> Bool {
+        guard let tableView else { return false }
+
+        if let selectionRegion {
+            let columnCount = parent.query.displayedColumns.count
+            let rowCount = tableView.numberOfRows
+            guard columnCount > 0, rowCount > 0 else { return false }
+
+            let lowerRow = max(selectionRegion.normalizedRowRange.lowerBound, 0)
+            let upperRow = min(selectionRegion.normalizedRowRange.upperBound, rowCount - 1)
+            guard upperRow >= lowerRow else { return false }
+
+            let lowerColumn = max(selectionRegion.normalizedColumnRange.lowerBound, 0)
+            let upperColumn = min(selectionRegion.normalizedColumnRange.upperBound, columnCount - 1)
+            guard upperColumn >= lowerColumn else { return false }
+
+            return true
+        }
+
+        return !tableView.selectedRowIndexes.isEmpty
+    }
+
+    @objc func copySelectionPlain() {
+        copySelection(includeHeaders: false)
+    }
+
+    @objc func copySelectionWithHeaders() {
+        copySelection(includeHeaders: true)
+    }
+
+    func performMenuCopy(in tableView: NSTableView) -> Bool {
+        guard self.tableView === tableView else { return false }
+        copySelection(includeHeaders: false)
+        return true
+    }
+
+    func consumeContextMenuCell() -> QueryResultsTableView.SelectedCell? {
+        defer { contextMenuCell = nil }
+        return contextMenuCell
+    }
+}
+#endif
