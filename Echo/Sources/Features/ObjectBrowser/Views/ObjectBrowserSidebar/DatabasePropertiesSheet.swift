@@ -50,6 +50,13 @@ struct DatabasePropertiesSheet: View {
     @State private var numericRoundAbort = false
     @State private var dateCorrelation = false
 
+    // MSSQL file editing state
+    @State private var fileSizeMBValues: [Int: Int] = [:]
+    @State private var fileMaxSizeTypes: [Int: FileMaxSizeType] = [:]
+    @State private var fileMaxSizeMBValues: [Int: Int] = [:]
+    @State private var fileGrowthTypes: [Int: FileGrowthType] = [:]
+    @State private var fileGrowthValues: [Int: Int] = [:]
+
     // PostgreSQL state
     @State private var pgProps: PostgresDatabaseProperties?
     @State private var pgParams: [PostgresDatabaseParameter] = []
@@ -370,17 +377,211 @@ struct DatabasePropertiesSheet: View {
                     .foregroundStyle(.secondary)
             }
         } else {
-            ForEach(Array(mssqlFiles.enumerated()), id: \.offset) { _, file in
+            ForEach(Array(mssqlFiles.enumerated()), id: \.offset) { index, file in
                 Section(file.name) {
                     LabeledContent("Type", value: file.typeDescription)
                     if let fg = file.fileGroupName {
                         LabeledContent("Filegroup", value: fg)
                     }
-                    LabeledContent("Size", value: String(format: "%.2f MB", file.sizeMB))
-                    LabeledContent("Max Size", value: file.maxSizeDescription)
-                    LabeledContent("Growth", value: file.growthDescription)
+
+                    // Editable size (MB)
+                    LabeledContent("Size") {
+                        HStack(spacing: SpacingTokens.xs) {
+                            TextField("", value: fileSizeMBBinding(index: index), format: .number)
+                                .frame(width: 80)
+                                .onSubmit {
+                                    let newSize = fileSizeMBValues[index] ?? Int(file.sizeMB)
+                                    applyMSSQLFileOption(file: file, option: .sizeMB(newSize))
+                                }
+                            Text("MB")
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+
+                    // Editable max size
+                    LabeledContent("Max Size") {
+                        HStack(spacing: SpacingTokens.xs) {
+                            Picker("", selection: fileMaxSizeTypeBinding(index: index, file: file)) {
+                                Text("Unlimited").tag(FileMaxSizeType.unlimited)
+                                Text("MB").tag(FileMaxSizeType.mb)
+                            }
+                            .frame(width: 110)
+
+                            if currentFileMaxSizeType(index: index, file: file) == .mb {
+                                TextField("", value: fileMaxSizeMBBinding(index: index, file: file), format: .number)
+                                    .frame(width: 80)
+                                    .onSubmit {
+                                        let newMax = fileMaxSizeMBValues[index] ?? (file.maxSizeMB ?? 256)
+                                        applyMSSQLFileOption(file: file, option: .maxSizeMB(newMax))
+                                    }
+                                Text("MB")
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+
+                    // Editable growth
+                    LabeledContent("Growth") {
+                        HStack(spacing: SpacingTokens.xs) {
+                            Picker("", selection: fileGrowthTypeBinding(index: index, file: file)) {
+                                Text("MB").tag(FileGrowthType.mb)
+                                Text("Percent").tag(FileGrowthType.percent)
+                                Text("None").tag(FileGrowthType.none)
+                            }
+                            .frame(width: 110)
+
+                            if currentFileGrowthType(index: index, file: file) != .none {
+                                TextField("", value: fileGrowthValueBinding(index: index, file: file), format: .number)
+                                    .frame(width: 80)
+                                    .onSubmit {
+                                        applyFileGrowthChange(index: index, file: file)
+                                    }
+                                Text(currentFileGrowthType(index: index, file: file) == .percent ? "%" : "MB")
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+
                     LabeledContent("Path", value: file.physicalName)
                 }
+            }
+        }
+    }
+
+    // MARK: - File Editing State Types
+
+    private enum FileMaxSizeType: Hashable {
+        case unlimited
+        case mb
+    }
+
+    private enum FileGrowthType: Hashable {
+        case mb
+        case percent
+        case none
+    }
+
+    // MARK: - File Editing Helpers
+
+    private func currentFileMaxSizeType(index: Int, file: SQLServerDatabaseFile) -> FileMaxSizeType {
+        fileMaxSizeTypes[index] ?? (file.isMaxSizeUnlimited ? .unlimited : .mb)
+    }
+
+    private func currentFileGrowthType(index: Int, file: SQLServerDatabaseFile) -> FileGrowthType {
+        if let stored = fileGrowthTypes[index] { return stored }
+        if file.growthRaw == 0 { return .none }
+        return file.isPercentGrowth ? .percent : .mb
+    }
+
+    // MARK: - File Editing Bindings
+
+    private func fileSizeMBBinding(index: Int) -> Binding<Int> {
+        Binding(
+            get: { fileSizeMBValues[index] ?? Int(mssqlFiles[index].sizeMB) },
+            set: { fileSizeMBValues[index] = $0 }
+        )
+    }
+
+    private func fileMaxSizeTypeBinding(index: Int, file: SQLServerDatabaseFile) -> Binding<FileMaxSizeType> {
+        Binding(
+            get: { fileMaxSizeTypes[index] ?? (file.isMaxSizeUnlimited ? .unlimited : .mb) },
+            set: { newType in
+                fileMaxSizeTypes[index] = newType
+                switch newType {
+                case .unlimited:
+                    applyMSSQLFileOption(file: file, option: .maxSizeUnlimited)
+                case .mb:
+                    let currentMB = fileMaxSizeMBValues[index] ?? file.maxSizeMB ?? 256
+                    fileMaxSizeMBValues[index] = currentMB
+                    applyMSSQLFileOption(file: file, option: .maxSizeMB(currentMB))
+                }
+            }
+        )
+    }
+
+    private func fileMaxSizeMBBinding(index: Int, file: SQLServerDatabaseFile) -> Binding<Int> {
+        Binding(
+            get: { fileMaxSizeMBValues[index] ?? file.maxSizeMB ?? 256 },
+            set: { fileMaxSizeMBValues[index] = $0 }
+        )
+    }
+
+    private func fileGrowthTypeBinding(index: Int, file: SQLServerDatabaseFile) -> Binding<FileGrowthType> {
+        Binding(
+            get: {
+                if let stored = fileGrowthTypes[index] { return stored }
+                if file.growthRaw == 0 { return .none }
+                return file.isPercentGrowth ? .percent : .mb
+            },
+            set: { newType in
+                fileGrowthTypes[index] = newType
+                switch newType {
+                case .none:
+                    applyMSSQLFileOption(file: file, option: .filegrowthNone)
+                case .mb:
+                    let currentMB = fileGrowthValues[index] ?? file.growthMB ?? 64
+                    fileGrowthValues[index] = currentMB
+                    applyMSSQLFileOption(file: file, option: .filegrowthMB(currentMB))
+                case .percent:
+                    let currentPct = fileGrowthValues[index] ?? file.growthPercent ?? 10
+                    fileGrowthValues[index] = currentPct
+                    applyMSSQLFileOption(file: file, option: .filegrowthPercent(currentPct))
+                }
+            }
+        )
+    }
+
+    private func fileGrowthValueBinding(index: Int, file: SQLServerDatabaseFile) -> Binding<Int> {
+        Binding(
+            get: {
+                if let stored = fileGrowthValues[index] { return stored }
+                if file.isPercentGrowth { return file.growthPercent ?? 10 }
+                return file.growthMB ?? 64
+            },
+            set: { fileGrowthValues[index] = $0 }
+        )
+    }
+
+    private func applyFileGrowthChange(index: Int, file: SQLServerDatabaseFile) {
+        let growthType = fileGrowthTypes[index] ?? (file.isPercentGrowth ? .percent : .mb)
+        let value = fileGrowthValues[index] ?? (file.isPercentGrowth ? file.growthPercent ?? 10 : file.growthMB ?? 64)
+        switch growthType {
+        case .mb:
+            applyMSSQLFileOption(file: file, option: .filegrowthMB(value))
+        case .percent:
+            applyMSSQLFileOption(file: file, option: .filegrowthPercent(value))
+        case .none:
+            applyMSSQLFileOption(file: file, option: .filegrowthNone)
+        }
+    }
+
+    // MARK: - MSSQL Apply File Option
+
+    private func applyMSSQLFileOption(file: SQLServerDatabaseFile, option: SQLServerDatabaseFileOption) {
+        guard let mssqlSession = session.session as? MSSQLSession else { return }
+        let admin = mssqlSession.makeAdministrationClient()
+        isSaving = true
+        statusMessage = nil
+
+        Task {
+            do {
+                let messages = try await admin.modifyDatabaseFile(
+                    databaseName: databaseName,
+                    logicalFileName: file.name,
+                    option: option
+                )
+                let info = messages.filter { $0.kind == .info }.map(\.message).joined(separator: " ").trimmingCharacters(in: .whitespacesAndNewlines)
+                isSaving = false
+                if !info.isEmpty { statusMessage = info }
+                // Reload files to reflect the change
+                if let updatedAdmin = session.session as? MSSQLSession {
+                    let freshAdmin = updatedAdmin.makeAdministrationClient()
+                    mssqlFiles = (try? await freshAdmin.fetchDatabaseFiles(name: databaseName)) ?? mssqlFiles
+                }
+            } catch {
+                isSaving = false
+                statusMessage = error.localizedDescription
+                environmentState.toastCoordinator.show(icon: "exclamationmark.triangle", message: error.localizedDescription, style: .error)
             }
         }
     }

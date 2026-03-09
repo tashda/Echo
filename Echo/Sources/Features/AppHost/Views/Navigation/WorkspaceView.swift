@@ -116,10 +116,10 @@ private struct WorkspaceBody: View {
         ConnectionEditorView(
             connection: connectionStore.selectedConnection,
             onSave: { connection, password, action in
+                appState.dismissSheet()
                 Task {
                     await environmentState.upsertConnection(connection, password: password)
                     if action == .saveAndConnect { await environmentState.connect(to: connection) }
-                    await MainActor.run { appState.dismissSheet() }
                 }
             }
         )

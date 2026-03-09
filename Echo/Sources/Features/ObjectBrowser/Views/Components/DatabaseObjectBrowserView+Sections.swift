@@ -7,7 +7,7 @@ extension DatabaseObjectBrowserView {
             Button {
                 withAnimation(.easeInOut(duration: 0.25)) { isPinnedSectionExpanded.toggle() }
             } label: {
-                sectionHeader(title: "PINNED", count: pinnedList.count, isExpanded: isPinnedSectionExpanded)
+                sectionHeader(title: "Pinned", icon: "pin.fill", count: pinnedList.count, isExpanded: isPinnedSectionExpanded)
             }
             .buttonStyle(.plain)
 
@@ -39,7 +39,7 @@ extension DatabaseObjectBrowserView {
                     else { expandedObjectGroups.insert(type) }
                 }
             } label: {
-                sectionHeader(title: type.pluralDisplayName.uppercased(), count: objects.count, isExpanded: isExpanded)
+                sectionHeader(title: type.pluralDisplayName, icon: type.systemImage, count: objects.count, isExpanded: isExpanded)
             }
             .buttonStyle(.plain)
 
@@ -62,12 +62,18 @@ extension DatabaseObjectBrowserView {
         }
     }
 
-    func sectionHeader(title: String, count: Int, isExpanded: Bool) -> some View {
+    func sectionHeader(title: String, icon: String? = nil, count: Int, isExpanded: Bool) -> some View {
         HStack(spacing: 6) {
             Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
                 .font(SidebarRowConstants.chevronFont)
                 .foregroundStyle(.tertiary)
                 .frame(width: SidebarRowConstants.chevronWidth)
+            if let icon {
+                Image(systemName: icon)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 14)
+            }
             Text(title)
                 .font(TypographyTokens.detail.weight(.medium))
                 .foregroundStyle(.secondary)

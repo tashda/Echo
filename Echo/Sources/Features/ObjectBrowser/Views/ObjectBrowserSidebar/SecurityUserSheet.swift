@@ -9,6 +9,8 @@ struct SecurityUserSheet: View {
     let existingUserName: String?
     let onComplete: () -> Void
 
+    @State private var selectedPage: UserPage = .general
+
     @State private var userName = ""
     @State private var loginName = ""
     @State private var defaultSchema = "dbo"
@@ -23,7 +25,7 @@ struct SecurityUserSheet: View {
 
     @State private var errorMessage: String?
     @State private var isSubmitting = false
-    @State private var selectedTab = 0
+    @State private var isLoading = true
 
     private var isEditing: Bool { existingUserName != nil }
 
@@ -34,23 +36,69 @@ struct SecurityUserSheet: View {
         return true
     }
 
+    private var pages: [UserPage] {
+        [.general, .membership]
+    }
+
     var body: some View {
         VStack(spacing: 0) {
-            TabView(selection: $selectedTab) {
-                generalTab
-                    .tabItem { Label("General", systemImage: "person.fill") }
-                    .tag(0)
-                membershipTab
-                    .tabItem { Label("Membership", systemImage: "person.2") }
-                    .tag(1)
+            HStack(spacing: 0) {
+                sidebar
+                    .frame(width: 170)
+
+                Divider()
+
+                detailPane
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
 
             Divider()
 
             toolbarView
         }
-        .frame(minWidth: 480, minHeight: 400)
-        .onAppear { loadInitialData() }
+        .frame(minWidth: 640, minHeight: 460)
+        .frame(idealWidth: 680, idealHeight: 500)
+        .task { await loadInitialData() }
+    }
+
+    // MARK: - Sidebar
+
+    private var sidebar: some View {
+        List(pages, id: \.self, selection: $selectedPage) { page in
+            Label(page.title, systemImage: page.icon)
+                .tag(page)
+        }
+        .listStyle(.sidebar)
+        .scrollContentBackground(.hidden)
+    }
+
+    // MARK: - Detail Pane
+
+    @ViewBuilder
+    private var detailPane: some View {
+        if isLoading {
+            VStack {
+                Spacer()
+                ProgressView("Loading user properties\u{2026}")
+                Spacer()
+            }
+        } else {
+            Form {
+                pageContent
+            }
+            .formStyle(.grouped)
+            .scrollContentBackground(.hidden)
+        }
+    }
+
+    @ViewBuilder
+    private var pageContent: some View {
+        switch selectedPage {
+        case .general:
+            generalPage
+        case .membership:
+            membershipPage
+        }
     }
 
     // MARK: - Toolbar
@@ -79,154 +127,151 @@ struct SecurityUserSheet: View {
             .keyboardShortcut(.defaultAction)
             .disabled(!isFormValid)
         }
-        .padding(SpacingTokens.md2)
+        .padding(SpacingTokens.md)
     }
 
-    // MARK: - General Tab
+    // MARK: - General Page
 
-    private var generalTab: some View {
-        Form {
-            Section(isEditing ? "User Properties" : "New Database User") {
-                if isEditing {
-                    LabeledContent("User Name", value: userName)
-                } else {
-                    TextField("User Name", text: $userName)
-                }
-
-                if !isEditing {
-                    Picker("User Type", selection: $userType) {
-                        Text("Mapped to Login").tag(UserTypeChoice.mappedToLogin)
-                        Text("Without Login").tag(UserTypeChoice.withoutLogin)
-                    }
-                }
-            }
-
-            if userType == .mappedToLogin {
-                Section("Login Mapping") {
-                    if availableLogins.isEmpty {
-                        TextField("Login Name", text: $loginName)
-                    } else {
-                        Picker("Login Name", selection: $loginName) {
-                            Text("Select a login\u{2026}").tag("")
-                            ForEach(availableLogins, id: \.self) { login in
-                                Text(login).tag(login)
-                            }
-                        }
-                    }
-                }
-            }
-
-            Section("Schema") {
-                TextField("Default Schema", text: $defaultSchema, prompt: Text("dbo"))
-            }
-
-            Section {
-                LabeledContent("Database", value: databaseName)
-            }
-        }
-        .formStyle(.grouped)
-        .scrollContentBackground(.hidden)
-    }
-
-    // MARK: - Membership Tab
-
-    private var membershipTab: some View {
-        Form {
-            if loadingRoles {
-                Section {
-                    HStack {
-                        ProgressView().controlSize(.small)
-                        Text("Loading database roles\u{2026}")
-                            .font(TypographyTokens.detail)
-                            .foregroundStyle(.secondary)
-                    }
-                }
+    @ViewBuilder
+    private var generalPage: some View {
+        Section(isEditing ? "User Properties" : "New Database User") {
+            if isEditing {
+                LabeledContent("User Name", value: userName)
             } else {
-                Section("Database Role Membership") {
-                    ForEach($availableRoles) { $role in
-                        Toggle(isOn: $role.isMember) {
-                            HStack {
-                                Text(role.name)
-                                if role.isFixed {
-                                    Text("(fixed)")
-                                        .font(TypographyTokens.label)
-                                        .foregroundStyle(.tertiary)
-                                }
-                            }
+                TextField("User Name", text: $userName)
+            }
+
+            if !isEditing {
+                Picker("User Type", selection: $userType) {
+                    Text("Mapped to Login").tag(UserTypeChoice.mappedToLogin)
+                    Text("Without Login").tag(UserTypeChoice.withoutLogin)
+                }
+            }
+        }
+
+        if userType == .mappedToLogin {
+            Section("Login Mapping") {
+                if availableLogins.isEmpty {
+                    TextField("Login Name", text: $loginName)
+                } else {
+                    Picker("Login Name", selection: $loginName) {
+                        Text("Select a login\u{2026}").tag("")
+                        ForEach(availableLogins, id: \.self) { login in
+                            Text(login).tag(login)
                         }
-                        .disabled(role.name == "public")
                     }
                 }
             }
         }
-        .formStyle(.grouped)
-        .scrollContentBackground(.hidden)
+
+        Section("Schema") {
+            TextField("Default Schema", text: $defaultSchema, prompt: Text("dbo"))
+        }
+
+        Section {
+            LabeledContent("Database", value: databaseName)
+        }
+    }
+
+    // MARK: - Membership Page
+
+    @ViewBuilder
+    private var membershipPage: some View {
+        if loadingRoles {
+            Section {
+                HStack {
+                    ProgressView().controlSize(.small)
+                    Text("Loading database roles\u{2026}")
+                        .font(TypographyTokens.detail)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        } else {
+            Section("Database Role Membership") {
+                ForEach($availableRoles) { $role in
+                    Toggle(isOn: $role.isMember) {
+                        HStack {
+                            Text(role.name)
+                            if role.isFixed {
+                                Text("(fixed)")
+                                    .font(TypographyTokens.label)
+                                    .foregroundStyle(.tertiary)
+                            }
+                        }
+                    }
+                    .disabled(role.name == "public")
+                }
+            }
+        }
     }
 
     // MARK: - Data Loading
 
-    private func loadInitialData() {
-        guard let mssql = session.session as? MSSQLSession else { return }
+    private func loadInitialData() async {
+        guard let mssql = session.session as? MSSQLSession else {
+            isLoading = false
+            return
+        }
 
-        Task {
-            // Load available logins
-            do {
-                let ssec = mssql.makeServerSecurityClient()
-                let logins = try await ssec.listLogins()
-                await MainActor.run {
-                    availableLogins = logins.filter { !$0.isDisabled }.map(\.name).sorted()
+        // Load available logins
+        do {
+            let ssec = mssql.makeServerSecurityClient()
+            let logins = try await ssec.listLogins()
+            await MainActor.run {
+                availableLogins = logins.filter { !$0.isDisabled }.map(\.name).sorted()
+            }
+        } catch { }
+
+        // Load database roles
+        loadingRoles = true
+        do {
+            let sec = mssql.makeDatabaseSecurityClient()
+            // Switch to target database
+            _ = try? await session.session.simpleQuery("USE [\(databaseName)]")
+
+            let roles = try await sec.listRoles()
+            var entries = roles.map { role in
+                RoleMemberEntry(name: role.name, isFixed: role.isFixedRole, isMember: false)
+            }
+
+            // If editing, check current memberships
+            if let existingName = existingUserName {
+                let userRoles = try await sec.listUserRoles(user: existingName)
+                for i in entries.indices {
+                    if userRoles.contains(where: { $0.caseInsensitiveCompare(entries[i].name) == .orderedSame }) {
+                        entries[i].isMember = true
+                    }
                 }
-            } catch { }
+            }
 
-            // Load database roles
-            loadingRoles = true
+            entries.sort { a, b in
+                if a.isMember != b.isMember { return a.isMember }
+                return a.name < b.name
+            }
+
+            await MainActor.run {
+                availableRoles = entries
+                loadingRoles = false
+            }
+        } catch {
+            await MainActor.run { loadingRoles = false }
+        }
+
+        // If editing, load existing user properties
+        if let existingName = existingUserName {
             do {
                 let sec = mssql.makeDatabaseSecurityClient()
-                // Switch to target database
-                _ = try? await session.session.simpleQuery("USE [\(databaseName)]")
-
-                let roles = try await sec.listRoles()
-                var entries = roles.map { role in
-                    RoleMemberEntry(name: role.name, isFixed: role.isFixedRole, isMember: false)
-                }
-
-                // If editing, check current memberships
-                if let existingName = existingUserName {
-                    let userRoles = try await sec.listUserRoles(user: existingName)
-                    for i in entries.indices {
-                        if userRoles.contains(where: { $0.caseInsensitiveCompare(entries[i].name) == .orderedSame }) {
-                            entries[i].isMember = true
-                        }
+                let users = try await sec.listUsers()
+                if let user = users.first(where: { $0.name.caseInsensitiveCompare(existingName) == .orderedSame }) {
+                    await MainActor.run {
+                        userName = user.name
+                        defaultSchema = user.defaultSchema ?? "dbo"
                     }
                 }
-
-                entries.sort { a, b in
-                    if a.isMember != b.isMember { return a.isMember }
-                    return a.name < b.name
-                }
-
-                await MainActor.run {
-                    availableRoles = entries
-                    loadingRoles = false
-                }
-            } catch {
-                await MainActor.run { loadingRoles = false }
-            }
-
-            // If editing, load existing user properties
-            if let existingName = existingUserName {
-                do {
-                    let sec = mssql.makeDatabaseSecurityClient()
-                    let users = try await sec.listUsers()
-                    if let user = users.first(where: { $0.name.caseInsensitiveCompare(existingName) == .orderedSame }) {
-                        await MainActor.run {
-                            userName = user.name
-                            defaultSchema = user.defaultSchema ?? "dbo"
-                        }
-                    }
-                } catch { }
-            }
+            } catch { }
         }
+
+        await MainActor.run { isLoading = false }
     }
 
     // MARK: - Submit
@@ -291,6 +336,25 @@ struct SecurityUserSheet: View {
 }
 
 // MARK: - Supporting Types
+
+private enum UserPage: String, Hashable {
+    case general
+    case membership
+
+    var title: String {
+        switch self {
+        case .general: "General"
+        case .membership: "Membership"
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .general: "person.fill"
+        case .membership: "person.2"
+        }
+    }
+}
 
 private enum UserTypeChoice: Hashable {
     case mappedToLogin

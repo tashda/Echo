@@ -52,7 +52,8 @@ extension ObjectBrowserSidebarView {
             serverRolesSection(session: session)
             credentialsSection(session: session)
         case .postgresql:
-            pgRolesSection(session: session)
+            pgLoginRolesSection(session: session)
+            pgGroupRolesSection(session: session)
         default:
             EmptyView()
         }
@@ -75,11 +76,22 @@ extension ObjectBrowserSidebarView {
             securitySectionHeader(
                 title: "Logins",
                 icon: "person.2",
-                count: allLogins.count,
+                count: standardLogins.count,
                 isExpanded: isExpanded
             ) {
                 withAnimation(.easeInOut(duration: 0.2)) {
                     viewModel.securityLoginsExpandedBySession[connID] = !isExpanded
+                }
+            }
+            .contextMenu {
+                Button("New Login\u{2026}") {
+                    viewModel.securityLoginSheetSessionID = connID
+                    viewModel.securityLoginSheetEditName = nil
+                    viewModel.showSecurityLoginSheet = true
+                }
+                Divider()
+                Button("Refresh") {
+                    loadServerSecurity(session: session)
                 }
             }
 
@@ -109,7 +121,7 @@ extension ObjectBrowserSidebarView {
     @ViewBuilder
     private func certificateLoginsSubfolder(certLogins: [ObjectBrowserSidebarViewModel.SecurityLoginItem], session: ConnectionSession) -> some View {
         let connID = session.connection.id
-        let isExpanded = viewModel.securityCredentialsExpandedBySession[connID] ?? false
+        let isExpanded = viewModel.securityCertLoginsExpandedBySession[connID] ?? false
 
         VStack(alignment: .leading, spacing: 0) {
             securitySectionHeader(
@@ -119,7 +131,7 @@ extension ObjectBrowserSidebarView {
                 isExpanded: isExpanded
             ) {
                 withAnimation(.easeInOut(duration: 0.2)) {
-                    viewModel.securityCredentialsExpandedBySession[connID] = !isExpanded
+                    viewModel.securityCertLoginsExpandedBySession[connID] = !isExpanded
                 }
             }
 
@@ -218,6 +230,15 @@ extension ObjectBrowserSidebarView {
                     viewModel.securityServerRolesExpandedBySession[connID] = !isExpanded
                 }
             }
+            .contextMenu {
+                Button("New Server Role\u{2026}") {
+                    Task { await createMSSQLServerRole(session: session) }
+                }
+                Divider()
+                Button("Refresh") {
+                    loadServerSecurity(session: session)
+                }
+            }
 
             if isExpanded {
                 VStack(alignment: .leading, spacing: 0) {
@@ -263,6 +284,11 @@ extension ObjectBrowserSidebarView {
                 Button("Script as DROP") {
                     openScriptTab(sql: "DROP SERVER ROLE [\(role.name)];", session: session)
                 }
+                Divider()
+                Button("Drop Server Role", role: .destructive) {
+                    Task { await dropMSSQLServerRole(name: role.name, session: session) }
+                }
+                Divider()
             }
             Button("List Members") {
                 openScriptTab(
@@ -301,8 +327,19 @@ extension ObjectBrowserSidebarView {
 
             if isExpanded {
                 VStack(alignment: .leading, spacing: 0) {
-                    ForEach(credentials) { credential in
-                        credentialRow(credential: credential, session: session)
+                    if credentials.isEmpty {
+                        HStack(spacing: 8) {
+                            Spacer().frame(width: SidebarRowConstants.chevronWidth)
+                            Text("No credentials found")
+                                .font(TypographyTokens.detail)
+                                .foregroundStyle(.tertiary)
+                        }
+                        .padding(.horizontal, SidebarRowConstants.rowHorizontalPadding)
+                        .padding(.vertical, SidebarRowConstants.rowVerticalPadding)
+                    } else {
+                        ForEach(credentials) { credential in
+                            credentialRow(credential: credential, session: session)
+                        }
                     }
                 }
                 .padding(.leading, SidebarRowConstants.indentStep)
@@ -347,33 +384,94 @@ extension ObjectBrowserSidebarView {
         }
     }
 
-    // MARK: - PostgreSQL: Login/Group Roles
+    // MARK: - PostgreSQL: Login Roles (separate folder)
 
     @ViewBuilder
-    private func pgRolesSection(session: ConnectionSession) -> some View {
+    private func pgLoginRolesSection(session: ConnectionSession) -> some View {
         let connID = session.connection.id
-        let roles = viewModel.securityLoginsBySession[connID] ?? []
-        let isExpanded = viewModel.securityLoginsExpandedBySession[connID] ?? false
+        let allRoles = viewModel.securityLoginsBySession[connID] ?? []
+        let loginRoles = allRoles.filter { $0.loginType.contains("Login") || $0.loginType.contains("Superuser") }
+        let isExpanded = viewModel.securityPGLoginRolesExpandedBySession[connID] ?? false
 
         VStack(alignment: .leading, spacing: 0) {
             securitySectionHeader(
-                title: "Login/Group Roles",
-                icon: "person.2",
-                count: roles.count,
+                title: "Login Roles",
+                icon: "person.crop.circle",
+                count: loginRoles.count,
                 isExpanded: isExpanded
             ) {
                 withAnimation(.easeInOut(duration: 0.2)) {
-                    viewModel.securityLoginsExpandedBySession[connID] = !isExpanded
+                    viewModel.securityPGLoginRolesExpandedBySession[connID] = !isExpanded
+                }
+            }
+            .contextMenu {
+                Button("New Login Role\u{2026}") {
+                    viewModel.securityPGRoleSheetSessionID = connID
+                    viewModel.securityPGRoleSheetEditName = nil
+                    viewModel.showSecurityPGRoleSheet = true
+                }
+                Divider()
+                Button("Refresh") {
+                    loadServerSecurity(session: session)
                 }
             }
 
             if isExpanded {
                 VStack(alignment: .leading, spacing: 0) {
-                    ForEach(roles) { role in
+                    ForEach(loginRoles) { role in
                         pgRoleRow(role: role, session: session)
                     }
 
-                    newItemButton(title: "New Role\u{2026}") {
+                    newItemButton(title: "New Login Role\u{2026}") {
+                        viewModel.securityPGRoleSheetSessionID = connID
+                        viewModel.securityPGRoleSheetEditName = nil
+                        viewModel.showSecurityPGRoleSheet = true
+                    }
+                }
+                .padding(.leading, SidebarRowConstants.indentStep)
+            }
+        }
+    }
+
+    // MARK: - PostgreSQL: Group Roles (separate folder)
+
+    @ViewBuilder
+    private func pgGroupRolesSection(session: ConnectionSession) -> some View {
+        let connID = session.connection.id
+        let allRoles = viewModel.securityLoginsBySession[connID] ?? []
+        let groupRoles = allRoles.filter { $0.loginType == "Group Role" }
+        let isExpanded = viewModel.securityPGGroupRolesExpandedBySession[connID] ?? false
+
+        VStack(alignment: .leading, spacing: 0) {
+            securitySectionHeader(
+                title: "Group Roles",
+                icon: "person.2.circle",
+                count: groupRoles.count,
+                isExpanded: isExpanded
+            ) {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    viewModel.securityPGGroupRolesExpandedBySession[connID] = !isExpanded
+                }
+            }
+            .contextMenu {
+                Button("New Group Role\u{2026}") {
+                    viewModel.securityPGRoleSheetSessionID = connID
+                    viewModel.securityPGRoleSheetEditName = nil
+                    viewModel.showSecurityPGRoleSheet = true
+                }
+                Divider()
+                Button("Refresh") {
+                    loadServerSecurity(session: session)
+                }
+            }
+
+            if isExpanded {
+                VStack(alignment: .leading, spacing: 0) {
+                    ForEach(groupRoles) { role in
+                        pgRoleRow(role: role, session: session)
+                    }
+
+                    newItemButton(title: "New Group Role\u{2026}") {
                         viewModel.securityPGRoleSheetSessionID = connID
                         viewModel.securityPGRoleSheetEditName = nil
                         viewModel.showSecurityPGRoleSheet = true
@@ -388,7 +486,7 @@ extension ObjectBrowserSidebarView {
         HStack(spacing: 8) {
             Spacer().frame(width: SidebarRowConstants.chevronWidth)
 
-            Image(systemName: role.loginType.contains("Login") ? "person.crop.circle" : "person.2.circle")
+            Image(systemName: role.loginType.contains("Login") || role.loginType.contains("Superuser") ? "person.crop.circle" : "person.2.circle")
                 .font(.system(size: 12))
                 .foregroundStyle(.secondary)
                 .frame(width: SidebarRowConstants.iconFrame)
@@ -415,13 +513,16 @@ extension ObjectBrowserSidebarView {
             }
             Divider()
             Button("Script as CREATE") {
-                let loginAttr = role.loginType.contains("Login") ? " LOGIN" : ""
+                let loginAttr = role.loginType.contains("Login") || role.loginType.contains("Superuser") ? " LOGIN" : ""
                 openScriptTab(sql: "CREATE ROLE \"\(role.name)\"\(loginAttr);", session: session)
             }
             Button("Script as DROP") {
                 openScriptTab(sql: "DROP ROLE \"\(role.name)\";", session: session)
             }
             Divider()
+            Button("Reassign Owned Objects\u{2026}") {
+                Task { await reassignPGRole(name: role.name, session: session) }
+            }
             Button("Drop Role", role: .destructive) {
                 Task { await dropPGRole(name: role.name, session: session) }
             }
@@ -985,6 +1086,27 @@ extension ObjectBrowserSidebarView {
         }
     }
 
+    private func createMSSQLServerRole(session: ConnectionSession) async {
+        // Open a script tab with a CREATE SERVER ROLE template
+        openScriptTab(sql: "CREATE SERVER ROLE [NewServerRole];", session: session)
+    }
+
+    private func dropMSSQLServerRole(name: String, session: ConnectionSession) async {
+        guard let mssql = session.session as? MSSQLSession else { return }
+        do {
+            let ssec = mssql.makeServerSecurityClient()
+            try await ssec.dropServerRole(name: name)
+            loadServerSecurity(session: session)
+            await MainActor.run {
+                environmentState.toastCoordinator.show(icon: "checkmark.circle", message: "Server role '\(name)' dropped", style: .success)
+            }
+        } catch {
+            await MainActor.run {
+                environmentState.toastCoordinator.show(icon: "exclamationmark.triangle", message: "Drop failed: \(error.localizedDescription)", style: .error)
+            }
+        }
+    }
+
     // MARK: - PostgreSQL Actions
 
     private func dropPGRole(name: String, session: ConnectionSession) async {
@@ -1000,6 +1122,17 @@ extension ObjectBrowserSidebarView {
                 environmentState.toastCoordinator.show(icon: "exclamationmark.triangle", message: "Drop failed: \(error.localizedDescription)", style: .error)
             }
         }
+    }
+
+    private func reassignPGRole(name: String, session: ConnectionSession) async {
+        guard let pg = session.session as? PostgresSession else { return }
+        // Open a script tab with a REASSIGN OWNED template
+        let sql = """
+        -- Reassign all objects owned by "\(name)" to another role.
+        -- Replace "target_role" with the role to receive the objects.
+        REASSIGN OWNED BY "\(name)" TO "target_role";
+        """
+        openScriptTab(sql: sql, session: session)
     }
 
     // MARK: - MSSQL Login Enable/Disable
@@ -1068,10 +1201,10 @@ extension ObjectBrowserSidebarView {
     private func loadMSSQLServerSecurity(session: ConnectionSession, connID: UUID) async {
         guard let mssql = session.session as? MSSQLSession else { return }
 
-        // Load logins
+        // Load logins (filter system logins by default)
         do {
             let ssec = mssql.makeServerSecurityClient()
-            let logins = try await ssec.listLogins()
+            let logins = try await ssec.listLogins(includeSystemLogins: false)
             let items = logins.map { login in
                 ObjectBrowserSidebarViewModel.SecurityLoginItem(
                     id: login.name,

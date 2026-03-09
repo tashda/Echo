@@ -7,7 +7,7 @@
       "location": "https://github.com/tashda/EchoSense",
       "state": {
         "branch": "dev",
-        "revision": "1af387d2fd12941a6bf392117d7472a9f74ad42c"
+        "revision": "e95560d46e79085afceef25816a6dbe895e88af7"
       }
     },
     {
@@ -34,7 +34,7 @@
       "location": "https://github.com/tashda/postgres-wire",
       "state": {
         "branch": "dev",
-        "revision": "ae89235b979ae1960dca9aa22700fe1c1aa43929"
+        "revision": "d23779abdbca17f061bf50916ec2ec88e790386c"
       }
     },
     {
@@ -52,7 +52,7 @@
       "location": "https://github.com/tashda/sqlserver-nio",
       "state": {
         "branch": "dev",
-        "revision": "48443909da31ba07b3d0ff27ebb21d2142c1569c"
+        "revision": "7408e421b2b81362013b5c8efca9861abd1b1db0"
       }
     },
     {

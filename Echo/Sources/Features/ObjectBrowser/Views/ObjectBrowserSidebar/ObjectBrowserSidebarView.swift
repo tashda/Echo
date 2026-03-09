@@ -35,9 +35,14 @@ struct ObjectBrowserSidebarView: View {
                     ScrollView {
                         LazyVStack(alignment: .leading, spacing: 0) {
                             if sessions.isEmpty {
-                                emptyStateView
-                                    .padding(.horizontal, SpacingTokens.md)
-                                    .padding(.top, SpacingTokens.xl)
+                                if projectStore.globalSettings.showSavedConnectionsInExplorer && !savedConnectionsForExplorer.isEmpty {
+                                    savedConnectionsListView
+                                        .padding(.top, SpacingTokens.sm)
+                                } else {
+                                    emptyStateView
+                                        .padding(.horizontal, SpacingTokens.md)
+                                        .padding(.top, SpacingTokens.xl)
+                                }
                             } else {
                                 ForEach(sessions, id: \.connection.id) { session in
                                     serverSection(session: session, proxy: proxy)
@@ -51,10 +56,10 @@ struct ObjectBrowserSidebarView: View {
                     .contentShape(Rectangle())
                     .coordinateSpace(name: ExplorerSidebarConstants.scrollCoordinateSpace)
                     .task {
-                        syncSelectionWithSessions()
+                        syncSelectionWithSessions(proxy: proxy)
                         viewModel.setupSearchDebounce(proxy: proxy)
                     }
-                    .onChange(of: sessions.map { $0.connection.id }) { _, _ in syncSelectionWithSessions() }
+                    .onChange(of: sessions.map { $0.connection.id }) { _, _ in syncSelectionWithSessions(proxy: proxy) }
                     .onChange(of: selectedConnectionID) { _, newValue in
                         guard let id = newValue, let session = environmentState.sessionCoordinator.sessionForConnection(id) else { return }
                         environmentState.sessionCoordinator.setActiveSession(session.id)
@@ -183,7 +188,7 @@ struct ObjectBrowserSidebarView: View {
                     .frame(width: SidebarRowConstants.iconFrame, height: SidebarRowConstants.iconFrame)
 
                 Text(serverDisplayName(session))
-                    .font(TypographyTokens.standard.weight(.semibold))
+                    .font(TypographyTokens.standard.weight(.medium))
                     .foregroundStyle(.primary)
                     .lineLimit(1)
 
@@ -541,6 +546,44 @@ struct ObjectBrowserSidebarView: View {
         await MainActor.run {
             viewModel.expandedServerIDs.insert(connection.id)
             selectedConnectionID = connection.id
+        }
+    }
+
+    // MARK: - Saved Connections in Explorer
+
+    internal var savedConnectionsForExplorer: [SavedConnection] {
+        guard let projectID = projectStore.selectedProject?.id else { return [] }
+        return connectionStore.connections
+            .filter { $0.projectID == projectID }
+            .sorted { $0.connectionName.localizedCaseInsensitiveCompare($1.connectionName) == .orderedAscending }
+    }
+
+    @ViewBuilder
+    internal var savedConnectionsListView: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 6) {
+                Image(systemName: "externaldrive")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                Text("Saved Connections")
+                    .font(TypographyTokens.detail.weight(.medium))
+                    .foregroundStyle(.secondary)
+                Spacer()
+            }
+            .padding(.horizontal, SidebarRowConstants.rowHorizontalPadding)
+            .padding(.vertical, SidebarRowConstants.rowVerticalPadding)
+
+            ForEach(savedConnectionsForExplorer, id: \.id) { connection in
+                SavedConnectionExplorerRow(
+                    connection: connection,
+                    isConnecting: environmentState.connectionStates[connection.id]?.isLoading == true,
+                    onConnect: {
+                        Task {
+                            await connectToSavedConnection(connection)
+                        }
+                    }
+                )
+            }
         }
     }
 

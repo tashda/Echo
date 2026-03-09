@@ -148,6 +148,7 @@ struct GlobalSettings: Codable, Hashable {
     var customKeyboardShortcuts: [String: CustomShortcutBinding]?
     var defaultWindowWidth: Double?
     var defaultWindowHeight: Double?
+    var showSavedConnectionsInExplorer: Bool = false
     var sidebarAutoExpandSections: Set<SidebarAutoExpandSection> = [.databases]
     var sidebarCustomizePerDatabaseType: Bool = false
     var sidebarAutoExpandPostgresql: Set<SidebarAutoExpandSection>?
@@ -219,6 +220,7 @@ struct GlobalSettings: Codable, Hashable {
         case diagramPrefetchMode, diagramRefreshCadence, diagramCacheMaxBytes
         case diagramVerifyBeforeRefresh, diagramRenderRelationshipsForLargeDiagrams, diagramUseThemedAppearance
         case usePerTypeStorageLimits, echoSenseStorageMaxBytes, customKeyboardShortcuts
+        case showSavedConnectionsInExplorer
         case sidebarAutoExpandSections, sidebarCustomizePerDatabaseType
         case sidebarAutoExpandPostgresql, sidebarAutoExpandSQLServer, sidebarAutoExpandMySQL
     }
@@ -300,6 +302,7 @@ struct GlobalSettings: Codable, Hashable {
         mssqlStreamingMode = (try? container.decodeIfPresent(ResultStreamingExecutionMode.self, forKey: .mssqlStreamingMode)) ?? .auto
         mysqlStreamingMode = (try? container.decodeIfPresent(ResultStreamingExecutionMode.self, forKey: .mysqlStreamingMode)) ?? .auto
         sqliteStreamingMode = (try? container.decodeIfPresent(ResultStreamingExecutionMode.self, forKey: .sqliteStreamingMode)) ?? .auto
+        showSavedConnectionsInExplorer = try container.decodeIfPresent(Bool.self, forKey: .showSavedConnectionsInExplorer) ?? false
         sidebarAutoExpandSections = try container.decodeIfPresent(Set<SidebarAutoExpandSection>.self, forKey: .sidebarAutoExpandSections) ?? [.databases]
         sidebarCustomizePerDatabaseType = try container.decodeIfPresent(Bool.self, forKey: .sidebarCustomizePerDatabaseType) ?? false
         sidebarAutoExpandPostgresql = try container.decodeIfPresent(Set<SidebarAutoExpandSection>.self, forKey: .sidebarAutoExpandPostgresql)
@@ -375,6 +378,7 @@ struct GlobalSettings: Codable, Hashable {
         try container.encode(defaultEditorPaletteIDLight, forKey: .defaultEditorPaletteIDLight)
         try container.encode(defaultEditorPaletteIDDark, forKey: .defaultEditorPaletteIDDark)
         try container.encode(defaultEditorPaletteIDLight, forKey: .defaultEditorPaletteID)
+        try container.encode(showSavedConnectionsInExplorer, forKey: .showSavedConnectionsInExplorer)
         try container.encode(sidebarAutoExpandSections, forKey: .sidebarAutoExpandSections)
         try container.encode(sidebarCustomizePerDatabaseType, forKey: .sidebarCustomizePerDatabaseType)
         try container.encodeIfPresent(sidebarAutoExpandPostgresql, forKey: .sidebarAutoExpandPostgresql)

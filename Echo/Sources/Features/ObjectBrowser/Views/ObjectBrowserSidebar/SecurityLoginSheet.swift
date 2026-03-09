@@ -8,6 +8,8 @@ struct SecurityLoginSheet: View {
     let existingLoginName: String?
     let onComplete: () -> Void
 
+    @State private var selectedPage: LoginPage = .general
+
     @State private var loginName = ""
     @State private var authType: AuthType = .sql
     @State private var password = ""
@@ -18,16 +20,20 @@ struct SecurityLoginSheet: View {
     @State private var enforcePasswordExpiration = false
     @State private var loginEnabled = true
 
-    // Server Roles tab
+    // Server Roles
     @State private var availableServerRoles: [RoleEntry] = []
     @State private var loadingRoles = false
 
-    // Databases for picker
+    // Database Mapping
+    @State private var databaseMappings: [LoginDatabaseMapping] = []
+    @State private var loadingMappings = false
     @State private var availableDatabases: [String] = ["master"]
+    @State private var newMappingDatabase = ""
+    @State private var newMappingUser = ""
 
     @State private var errorMessage: String?
     @State private var isSubmitting = false
-    @State private var selectedTab = 0
+    @State private var isLoading = true
 
     private var isEditing: Bool { existingLoginName != nil }
 
@@ -40,24 +46,76 @@ struct SecurityLoginSheet: View {
         return true
     }
 
+    private var pages: [LoginPage] {
+        if isEditing {
+            return [.general, .serverRoles, .databaseMapping]
+        } else {
+            return [.general, .serverRoles]
+        }
+    }
+
     var body: some View {
         VStack(spacing: 0) {
-            TabView(selection: $selectedTab) {
-                generalTab
-                    .tabItem { Label("General", systemImage: "person.circle") }
-                    .tag(0)
-                serverRolesTab
-                    .tabItem { Label("Server Roles", systemImage: "shield") }
-                    .tag(1)
+            HStack(spacing: 0) {
+                // Sidebar
+                sidebar
+                    .frame(width: 170)
+
+                Divider()
+
+                // Detail pane
+                detailPane
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
 
             Divider()
 
             toolbarView
         }
-        .frame(minWidth: 480, minHeight: 420)
-        .onAppear {
-            loadInitialData()
+        .frame(minWidth: 640, minHeight: 480)
+        .frame(idealWidth: 680, idealHeight: 520)
+        .task { await loadInitialData() }
+    }
+
+    // MARK: - Sidebar
+
+    private var sidebar: some View {
+        List(pages, id: \.self, selection: $selectedPage) { page in
+            Label(page.title, systemImage: page.icon)
+                .tag(page)
+        }
+        .listStyle(.sidebar)
+        .scrollContentBackground(.hidden)
+    }
+
+    // MARK: - Detail Pane
+
+    @ViewBuilder
+    private var detailPane: some View {
+        if isLoading {
+            VStack {
+                Spacer()
+                ProgressView("Loading login properties\u{2026}")
+                Spacer()
+            }
+        } else {
+            Form {
+                pageContent
+            }
+            .formStyle(.grouped)
+            .scrollContentBackground(.hidden)
+        }
+    }
+
+    @ViewBuilder
+    private var pageContent: some View {
+        switch selectedPage {
+        case .general:
+            generalPage
+        case .serverRoles:
+            serverRolesPage
+        case .databaseMapping:
+            databaseMappingPage
         }
     }
 
@@ -87,148 +145,250 @@ struct SecurityLoginSheet: View {
             .keyboardShortcut(.defaultAction)
             .disabled(!isFormValid)
         }
-        .padding(SpacingTokens.md2)
+        .padding(SpacingTokens.md)
     }
 
-    // MARK: - General Tab
+    // MARK: - General Page
 
-    private var generalTab: some View {
-        Form {
-            Section(isEditing ? "Login Properties" : "New Login") {
-                if isEditing {
-                    LabeledContent("Login Name", value: loginName)
-                } else {
-                    TextField("Login Name", text: $loginName)
-                }
-
-                Picker("Authentication", selection: $authType) {
-                    Text("SQL Server Authentication").tag(AuthType.sql)
-                    Text("Windows Authentication").tag(AuthType.windows)
-                }
+    @ViewBuilder
+    private var generalPage: some View {
+        Section(isEditing ? "Login Properties" : "New Login") {
+            if isEditing {
+                LabeledContent("Login Name", value: loginName)
+            } else {
+                TextField("Login Name", text: $loginName)
             }
 
-            if authType == .sql {
-                Section("Credentials") {
-                    SecureField("Password", text: $password)
-                    if !isEditing {
-                        SecureField("Confirm Password", text: $confirmPassword)
+            Picker("Authentication", selection: $authType) {
+                Text("SQL Server Authentication").tag(AuthType.sql)
+                Text("Windows Authentication").tag(AuthType.windows)
+            }
+        }
+
+        if authType == .sql {
+            Section("Credentials") {
+                SecureField("Password", text: $password)
+                if !isEditing {
+                    SecureField("Confirm Password", text: $confirmPassword)
+                }
+                Toggle("Enforce password policy", isOn: $enforcePasswordPolicy)
+                Toggle("Enforce password expiration", isOn: $enforcePasswordExpiration)
+            }
+        }
+
+        Section("Defaults") {
+            Picker("Default Database", selection: $defaultDatabase) {
+                ForEach(availableDatabases, id: \.self) { db in
+                    Text(db).tag(db)
+                }
+            }
+        }
+
+        Section("Status") {
+            Toggle("Login enabled", isOn: $loginEnabled)
+        }
+    }
+
+    // MARK: - Server Roles Page
+
+    @ViewBuilder
+    private var serverRolesPage: some View {
+        if loadingRoles {
+            Section {
+                HStack {
+                    ProgressView().controlSize(.small)
+                    Text("Loading server roles\u{2026}")
+                        .font(TypographyTokens.detail)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        } else {
+            Section("Server Role Membership") {
+                ForEach($availableServerRoles) { $role in
+                    Toggle(isOn: $role.isMember) {
+                        HStack {
+                            Text(role.name)
+                            if role.isFixed {
+                                Text("(fixed)")
+                                    .font(TypographyTokens.label)
+                                    .foregroundStyle(.tertiary)
+                            }
+                        }
                     }
-                    Toggle("Enforce password policy", isOn: $enforcePasswordPolicy)
-                    Toggle("Enforce password expiration", isOn: $enforcePasswordExpiration)
+                    .disabled(role.name == "public")
+                }
+            }
+        }
+    }
+
+    // MARK: - Database Mapping Page
+
+    @ViewBuilder
+    private var databaseMappingPage: some View {
+        if loadingMappings {
+            Section {
+                HStack {
+                    ProgressView().controlSize(.small)
+                    Text("Loading database mappings\u{2026}")
+                        .font(TypographyTokens.detail)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        } else {
+            Section("User Mappings") {
+                if databaseMappings.isEmpty {
+                    Text("This login is not mapped to any database.")
+                        .foregroundStyle(.secondary)
+                        .font(TypographyTokens.detail)
+                } else {
+                    ForEach(Array(databaseMappings.enumerated()), id: \.offset) { _, mapping in
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(mapping.databaseName)
+                                    .font(TypographyTokens.standard)
+                                Text("User: \(mapping.userName)")
+                                    .font(TypographyTokens.detail)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            if let schema = mapping.defaultSchema, !schema.isEmpty {
+                                Text(schema)
+                                    .font(TypographyTokens.label)
+                                    .foregroundStyle(.tertiary)
+                            }
+                        }
+                    }
                 }
             }
 
-            Section("Defaults") {
-                Picker("Default Database", selection: $defaultDatabase) {
-                    ForEach(availableDatabases, id: \.self) { db in
+            Section("Map to Database") {
+                Picker("Database", selection: $newMappingDatabase) {
+                    Text("Select a database\u{2026}").tag("")
+                    ForEach(unmappedDatabases, id: \.self) { db in
                         Text(db).tag(db)
                     }
                 }
-            }
+                TextField("User name (defaults to login name)", text: $newMappingUser)
 
-            Section("Status") {
-                Toggle("Login enabled", isOn: $loginEnabled)
+                Button("Map Login to Database") {
+                    Task { await mapToDatabase() }
+                }
+                .disabled(newMappingDatabase.isEmpty)
             }
         }
-        .formStyle(.grouped)
-        .scrollContentBackground(.hidden)
     }
 
-    // MARK: - Server Roles Tab
-
-    private var serverRolesTab: some View {
-        Form {
-            if loadingRoles {
-                Section {
-                    HStack {
-                        ProgressView().controlSize(.small)
-                        Text("Loading server roles\u{2026}")
-                            .font(TypographyTokens.detail)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-            } else {
-                Section("Server Role Membership") {
-                    ForEach($availableServerRoles) { $role in
-                        Toggle(isOn: $role.isMember) {
-                            HStack {
-                                Text(role.name)
-                                if role.isFixed {
-                                    Text("(fixed)")
-                                        .font(TypographyTokens.label)
-                                        .foregroundStyle(.tertiary)
-                                }
-                            }
-                        }
-                        .disabled(role.name == "public")
-                    }
-                }
-            }
-        }
-        .formStyle(.grouped)
-        .scrollContentBackground(.hidden)
+    private var unmappedDatabases: [String] {
+        let mapped = Set(databaseMappings.map(\.databaseName))
+        return availableDatabases.filter { !mapped.contains($0) }
     }
 
     // MARK: - Data Loading
 
-    private func loadInitialData() {
-        guard let mssql = session.session as? MSSQLSession else { return }
+    private func loadInitialData() async {
+        guard let mssql = session.session as? MSSQLSession else {
+            isLoading = false
+            return
+        }
 
-        Task {
-            // Load databases
-            do {
-                let dbs = try await session.session.listDatabases()
-                await MainActor.run { availableDatabases = dbs.sorted() }
-            } catch { }
+        // Load databases
+        do {
+            let dbs = try await session.session.listDatabases()
+            await MainActor.run { availableDatabases = dbs.sorted() }
+        } catch { }
 
-            // Load server roles
-            loadingRoles = true
-            do {
-                let ssec = mssql.makeServerSecurityClient()
-                let roles = try await ssec.listServerRoles()
-                var entries = roles.map { role in
-                    RoleEntry(name: role.name, isFixed: role.isFixed, isMember: false)
-                }
-
-                // If editing, check which roles this login is a member of
-                if let loginName = existingLoginName {
-                    for i in entries.indices {
-                        let members = try await ssec.listServerRoleMembers(role: entries[i].name)
-                        if members.contains(where: { $0.caseInsensitiveCompare(loginName) == .orderedSame }) {
-                            entries[i].isMember = true
-                        }
-                    }
-                    entries.sort { a, b in
-                        if a.isMember != b.isMember { return a.isMember }
-                        return a.name < b.name
-                    }
-                }
-
-                await MainActor.run {
-                    availableServerRoles = entries
-                    loadingRoles = false
-                }
-            } catch {
-                await MainActor.run { loadingRoles = false }
+        // Load server roles
+        loadingRoles = true
+        do {
+            let ssec = mssql.makeServerSecurityClient()
+            let roles = try await ssec.listServerRoles()
+            var entries = roles.map { role in
+                RoleEntry(name: role.name, isFixed: role.isFixed, isMember: false)
             }
 
-            // If editing, load existing login properties
-            if let existingName = existingLoginName {
-                do {
-                    let ssec = mssql.makeServerSecurityClient()
-                    let logins = try await ssec.listLogins()
-                    if let login = logins.first(where: { $0.name.caseInsensitiveCompare(existingName) == .orderedSame }) {
-                        await MainActor.run {
-                            loginName = login.name
-                            loginEnabled = !login.isDisabled
-                            defaultDatabase = login.defaultDatabase ?? "master"
-                            switch login.type {
-                            case .sql: authType = .sql
-                            default: authType = .windows
-                            }
+            // If editing, check which roles this login is a member of
+            if let loginName = existingLoginName {
+                for i in entries.indices {
+                    let members = try await ssec.listServerRoleMembers(role: entries[i].name)
+                    if members.contains(where: { $0.caseInsensitiveCompare(loginName) == .orderedSame }) {
+                        entries[i].isMember = true
+                    }
+                }
+                entries.sort { a, b in
+                    if a.isMember != b.isMember { return a.isMember }
+                    return a.name < b.name
+                }
+            }
+
+            await MainActor.run {
+                availableServerRoles = entries
+                loadingRoles = false
+            }
+        } catch {
+            await MainActor.run { loadingRoles = false }
+        }
+
+        // If editing, load existing login properties and database mappings
+        if let existingName = existingLoginName {
+            do {
+                let ssec = mssql.makeServerSecurityClient()
+                let logins = try await ssec.listLogins(includeSystemLogins: true)
+                if let login = logins.first(where: { $0.name.caseInsensitiveCompare(existingName) == .orderedSame }) {
+                    await MainActor.run {
+                        loginName = login.name
+                        loginEnabled = !login.isDisabled
+                        defaultDatabase = login.defaultDatabase ?? "master"
+                        switch login.type {
+                        case .sql: authType = .sql
+                        default: authType = .windows
                         }
                     }
-                } catch { }
+                }
+            } catch { }
+
+            // Load database mappings
+            loadingMappings = true
+            do {
+                let ssec = mssql.makeServerSecurityClient()
+                let mappings = try await ssec.listLoginDatabaseMappings(login: existingName)
+                await MainActor.run {
+                    databaseMappings = mappings
+                    loadingMappings = false
+                }
+            } catch {
+                await MainActor.run { loadingMappings = false }
+            }
+        }
+
+        await MainActor.run { isLoading = false }
+    }
+
+    // MARK: - Map to Database
+
+    private func mapToDatabase() async {
+        guard let mssql = session.session as? MSSQLSession else { return }
+        let name = existingLoginName ?? loginName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty, !newMappingDatabase.isEmpty else { return }
+
+        do {
+            let ssec = mssql.makeServerSecurityClient()
+            let userName = newMappingUser.trimmingCharacters(in: .whitespacesAndNewlines)
+            try await ssec.mapLoginToDatabase(
+                login: name,
+                database: newMappingDatabase,
+                userName: userName.isEmpty ? nil : userName
+            )
+
+            // Reload mappings
+            let mappings = try await ssec.listLoginDatabaseMappings(login: name)
+            await MainActor.run {
+                databaseMappings = mappings
+                newMappingDatabase = ""
+                newMappingUser = ""
+            }
+        } catch {
+            await MainActor.run {
+                errorMessage = error.localizedDescription
             }
         }
     }
@@ -305,6 +465,28 @@ struct SecurityLoginSheet: View {
 }
 
 // MARK: - Supporting Types
+
+private enum LoginPage: String, Hashable {
+    case general
+    case serverRoles
+    case databaseMapping
+
+    var title: String {
+        switch self {
+        case .general: "General"
+        case .serverRoles: "Server Roles"
+        case .databaseMapping: "User Mapping"
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .general: "person.circle"
+        case .serverRoles: "shield"
+        case .databaseMapping: "externaldrive.connected.to.line.below"
+        }
+    }
+}
 
 private enum AuthType: Hashable {
     case sql

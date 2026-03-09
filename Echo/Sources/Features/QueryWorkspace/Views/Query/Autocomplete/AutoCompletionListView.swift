@@ -14,16 +14,16 @@ struct AutoCompletionListView: View {
     @State private var detailUnlocked = false
 
     private enum Layout {
-        static let rowCornerRadius: CGFloat = 12
+        static let rowCornerRadius: CGFloat = 5
         static let detailWidth: CGFloat = 240
-        static let containerCornerRadius: CGFloat = 18
-        static let horizontalPadding: CGFloat = 12
-        static let verticalPadding: CGFloat = 10
-        static let containerSpacing: CGFloat = 12
+        static let containerCornerRadius: CGFloat = 8
+        static let horizontalPadding: CGFloat = SpacingTokens.xxs2
+        static let verticalPadding: CGFloat = SpacingTokens.xxs2
+        static let containerSpacing: CGFloat = 0
         static let detailRevealDelay: TimeInterval = 1.0
-        static let rowHorizontalPadding: CGFloat = 12
-        static let rowIconSpacing: CGFloat = 8
-        static let rowIconSize: CGFloat = 16
+        static let rowHorizontalPadding: CGFloat = SpacingTokens.xs
+        static let rowIconSpacing: CGFloat = SpacingTokens.xxs2
+        static let rowIconSize: CGFloat = 14
         static let minListWidth: CGFloat = 220
     }
 
@@ -41,7 +41,7 @@ struct AutoCompletionListView: View {
 
     private var listWidth: CGFloat {
 #if os(macOS)
-        let font = NSFont.systemFont(ofSize: 12)
+        let font = NSFont.systemFont(ofSize: 13)
         let titleWidth = suggestions.map { ($0.title as NSString).size(withAttributes: [.font: font]).width }.max() ?? 0
         return max(Layout.minListWidth, Layout.rowHorizontalPadding * 2 + Layout.rowIconSize + Layout.rowIconSpacing + titleWidth)
 #else
@@ -50,18 +50,20 @@ struct AutoCompletionListView: View {
     }
 
     var body: some View {
-        HStack(alignment: .top, spacing: Layout.containerSpacing) {
-            VStack(alignment: .leading, spacing: 6) {
+        HStack(alignment: .top, spacing: 0) {
+            VStack(alignment: .leading, spacing: SpacingTokens.xxs) {
                 if let statusMessage {
-                    Text(statusMessage).font(TypographyTokens.detail.weight(.semibold)).foregroundStyle(.secondary).padding(.horizontal, Layout.rowHorizontalPadding)
+                    Text(statusMessage).font(TypographyTokens.detail.weight(.medium)).foregroundStyle(.secondary).padding(.horizontal, Layout.rowHorizontalPadding)
                 }
                 listView
             }
+            .padding(.horizontal, Layout.horizontalPadding)
+            .padding(.vertical, Layout.verticalPadding)
             if shouldDisplayDetail, let suggestion = selectedSuggestion {
+                Divider()
                 AutoCompletionDetailView(suggestion: suggestion).frame(width: Layout.detailWidth, alignment: .leading).transition(.move(edge: .trailing).combined(with: .opacity)).id(suggestion.id)
             }
         }
-        .padding(.horizontal, Layout.horizontalPadding).padding(.vertical, Layout.verticalPadding)
         .background(backgroundMaterial).overlay(borderOverlay).id(detailResetID)
         .onAppear { scheduleDetailReveal(forceReset: true) }
         .onChange(of: selectedID) { _, _ in scheduleDetailReveal(forceReset: false) }
@@ -120,16 +122,16 @@ struct AutoCompletionRowView: View {
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 8) {
-                Image(systemName: suggestion.kind.iconSystemName).font(TypographyTokens.caption2.weight(.medium)).foregroundStyle(isSelected ? activeIconColor : .secondary).frame(width: 16)
+            HStack(spacing: SpacingTokens.xxs2) {
+                Image(systemName: suggestion.kind.iconSystemName).font(TypographyTokens.detail.weight(.medium)).foregroundStyle(isSelected ? activeIconColor : .secondary).frame(width: 14)
 #if os(macOS)
-                AutoScrollingText(text: suggestion.title, font: .systemFont(ofSize: 12), isActive: isSelected).foregroundStyle(isSelected ? activeTitleColor : .primary)
+                AutoScrollingText(text: suggestion.title, font: .systemFont(ofSize: 13), isActive: isSelected).foregroundStyle(isSelected ? activeTitleColor : .primary)
 #else
-                AutoScrollingText(text: suggestion.title, font: .system(size: 12), isActive: isSelected).foregroundStyle(isSelected ? activeTitleColor : .primary)
+                AutoScrollingText(text: suggestion.title, font: .system(size: 13), isActive: isSelected).foregroundStyle(isSelected ? activeTitleColor : .primary)
 #endif
                 Spacer(minLength: 0)
             }
-            .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, SpacingTokens.sm).padding(.vertical, 5).contentShape(Rectangle())
+            .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, SpacingTokens.xs).padding(.vertical, SpacingTokens.xxs).contentShape(Rectangle())
         }
         .buttonStyle(.plain).background(rowBackground)
     }
@@ -153,9 +155,9 @@ struct AutoCompletionRowView: View {
     private var rowBackground: some View {
         guard isSelected else { return AnyView(EmptyView()) }
 #if os(macOS)
-        return AnyView(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Color(nsColor: .controlAccentColor)))
+        return AnyView(RoundedRectangle(cornerRadius: 5, style: .continuous).fill(Color(nsColor: .controlAccentColor)))
 #else
-        return AnyView(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Color.accentColor.opacity(colorScheme == .dark ? 0.32 : 0.22)))
+        return AnyView(RoundedRectangle(cornerRadius: 5, style: .continuous).fill(Color.accentColor.opacity(colorScheme == .dark ? 0.32 : 0.22)))
 #endif
     }
 }
