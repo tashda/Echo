@@ -14,6 +14,7 @@
 		0A6970CA2F5EEFA40027641E /* SQLServerKit in Frameworks */ = {isa = PBXBuildFile; productRef = 0A6970C92F5EEFA40027641E /* SQLServerKit */; };
 		0A6970CC2F5EEFA40027641E /* SQLServerTDS in Frameworks */ = {isa = PBXBuildFile; productRef = 0A6970CB2F5EEFA40027641E /* SQLServerTDS */; };
 		0A697AEE2F5EF8220027641E /* EchoSense in Frameworks */ = {isa = PBXBuildFile; productRef = 0A697AED2F5EF8220027641E /* EchoSense */; };
+		0A698A422F5F88AA0027641E /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 0A698A412F5F88AA0027641E /* Sparkle */; };
 		0A79557E2E8F10A9002279AE /* MySQLNIO in Frameworks */ = {isa = PBXBuildFile; productRef = 0A79557D2E8F10A9002279AE /* MySQLNIO */; };
 		0A8E31A12EAB923F00C86FF3 /* SQLServerKit in Frameworks */ = {isa = PBXBuildFile; productRef = 0A8E31A02EAB923F00C86FF3 /* SQLServerKit */; };
 		0AAD2B062EB0049400D16113 /* PostgresKit in Frameworks */ = {isa = PBXBuildFile; productRef = 0AAD2B052EB0049400D16113 /* PostgresKit */; };
@@ -122,6 +123,7 @@
 				0A79557E2E8F10A9002279AE /* MySQLNIO in Frameworks */,
 				0A697AEE2F5EF8220027641E /* EchoSense in Frameworks */,
 				0A6970CA2F5EEFA40027641E /* SQLServerKit in Frameworks */,
+				0A698A422F5F88AA0027641E /* Sparkle in Frameworks */,
 				0A6970C22F5EEF090027641E /* SQLiteNIO in Frameworks */,
 				0A6738322EB80FAC0048CFCB /* PostgresKit in Frameworks */,
 				0A8E31A12EAB923F00C86FF3 /* SQLServerKit in Frameworks */,
@@ -226,6 +228,7 @@
 				0A6970C92F5EEFA40027641E /* SQLServerKit */,
 				0A6970CB2F5EEFA40027641E /* SQLServerTDS */,
 				0A697AED2F5EF8220027641E /* EchoSense */,
+				0A698A412F5F88AA0027641E /* Sparkle */,
 			);
 			productName = Echo;
 			productReference = 0ADF94952E78B95200E993F8 /* Echo.app */;
@@ -311,6 +314,7 @@
 				0A6970C32F5EEF5E0027641E /* XCRemoteSwiftPackageReference "postgres-wire" */,
 				0A6970C82F5EEFA40027641E /* XCRemoteSwiftPackageReference "sqlserver-nio" */,
 				0A697AEC2F5EF8220027641E /* XCRemoteSwiftPackageReference "EchoSense" */,
+				0A698A402F5F88AA0027641E /* XCRemoteSwiftPackageReference "Sparkle" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 0ADF94962E78B95200E993F8 /* Products */;
@@ -532,6 +536,9 @@
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_SUEnableInstallerLauncherService = YES;
+				INFOPLIST_KEY_SUFeedURL = "https://raw.githubusercontent.com/tashda/fuzee/master/appcast.xml";
+				INFOPLIST_KEY_SUPublicEDKey = "hf49zQ5XeqfHyc6k9tMUci3nWSJGrBmkKMeXQ1F2vqk=";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
@@ -572,6 +579,9 @@
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_SUEnableInstallerLauncherService = YES;
+				INFOPLIST_KEY_SUFeedURL = "https://raw.githubusercontent.com/tashda/fuzee/master/appcast.xml";
+				INFOPLIST_KEY_SUPublicEDKey = "hf49zQ5XeqfHyc6k9tMUci3nWSJGrBmkKMeXQ1F2vqk=";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
@@ -762,6 +772,14 @@
 				kind = branch;
 			};
 		};
+		0A698A402F5F88AA0027641E /* XCRemoteSwiftPackageReference "Sparkle" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sparkle-project/Sparkle";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.9.0;
+			};
+		};
 		0A79557C2E8F10A9002279AE /* XCRemoteSwiftPackageReference "mysql-nio" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/vapor/mysql-nio.git";
@@ -806,6 +824,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 0A697AEC2F5EF8220027641E /* XCRemoteSwiftPackageReference "EchoSense" */;
 			productName = EchoSense;
+		};
+		0A698A412F5F88AA0027641E /* Sparkle */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 0A698A402F5F88AA0027641E /* XCRemoteSwiftPackageReference "Sparkle" */;
+			productName = Sparkle;
 		};
 		0A79557D2E8F10A9002279AE /* MySQLNIO */ = {
 			isa = XCSwiftPackageProductDependency;

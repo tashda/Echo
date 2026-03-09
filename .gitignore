@@ -10,6 +10,7 @@ Echo.xcodeproj/xcuserdata/
 build/
 DerivedData/
 .deriveddata-mssql/
+.deriveddata-agent-*/
 
 # IDE and editor configs
 .idea/

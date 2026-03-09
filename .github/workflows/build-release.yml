@@ -1,0 +1,80 @@
+name: Build and Release
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+    types: [ closed ]
+
+jobs:
+  build:
+    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.merged == true)
+    runs-on: macos-15
+    permissions:
+      contents: write
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Select Xcode
+      run: sudo xcode-select -s /Applications/Xcode_16.app
+
+    - name: Build App
+      run: |
+        xcodebuild -project Echo.xcodeproj \
+          -scheme Echo \
+          -configuration Release \
+          -derivedDataPath build \
+          CODE_SIGN_IDENTITY="" \
+          CODE_SIGNING_REQUIRED=NO \
+          CODE_SIGN_ENTITLEMENTS="" \
+          CODE_SIGNING_ALLOWED=NO
+
+    - name: Package App
+      run: |
+        mkdir -p release
+        cp -R build/Build/Products/Release/Echo.app release/
+        cd release
+        zip -r ../Echo.zip Echo.app
+
+    - name: Get Version
+      id: get_version
+      run: |
+        VERSION=$(defaults read $(pwd)/release/Echo.app/Contents/Info.plist CFBundleShortVersionString)
+        BUILD=$(defaults read $(pwd)/release/Echo.app/Contents/Info.plist CFBundleVersion)
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        echo "build=$BUILD" >> $GITHUB_OUTPUT
+        echo "tag=v$VERSION-$BUILD" >> $GITHUB_OUTPUT
+
+    - name: Setup Sparkle CLI
+      run: |
+        curl -L https://github.com/sparkle-project/Sparkle/releases/download/2.6.4/Sparkle-2.6.4.tar.xz -o sparkle.tar.xz
+        tar -xf sparkle.tar.xz
+        # The bin directory contains generate_appcast
+        cp bin/generate_appcast .
+
+    - name: Generate Appcast
+      env:
+        SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+      run: |
+        if [ -z "$SPARKLE_PRIVATE_KEY" ]; then
+          echo "Warning: SPARKLE_PRIVATE_KEY not set. Appcast will be generated without signature."
+          ./generate_appcast release/
+        else
+          echo "$SPARKLE_PRIVATE_KEY" > sparkle_priv.key
+          ./generate_appcast --ed-key-file sparkle_priv.key release/
+          rm sparkle_priv.key
+        fi
+        mv release/appcast.xml .
+
+    - name: Create Release
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: ${{ steps.get_version.outputs.tag }}
+        files: |
+          Echo.zip
+          appcast.xml
+        generate_release_notes: true
