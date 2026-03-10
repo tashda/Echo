@@ -2,9 +2,9 @@ name: Build and Release
 
 on:
   push:
-    branches: [ master, dev ]
+    branches: [ main, dev ]
   pull_request:
-    branches: [ master ]
+    branches: [ main ]
 
 jobs:
   build:
@@ -34,7 +34,7 @@ jobs:
           CODE_SIGNING_ALLOWED=NO
 
     - name: Package App
-      if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+      if: github.ref == 'refs/heads/main' && github.event_name == 'push'
       run: |
         mkdir -p release
         cp -R build/Build/Products/Release/Echo.app release/
@@ -42,7 +42,7 @@ jobs:
         zip -r ../Echo.zip Echo.app
 
     - name: Get Version
-      if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+      if: github.ref == 'refs/heads/main' && github.event_name == 'push'
       id: get_version
       run: |
         VERSION=$(defaults read $(pwd)/release/Echo.app/Contents/Info.plist CFBundleShortVersionString)
@@ -52,7 +52,7 @@ jobs:
         echo "tag=v$VERSION-$BUILD" >> $GITHUB_OUTPUT
 
     - name: Setup Sparkle CLI
-      if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+      if: github.ref == 'refs/heads/main' && github.event_name == 'push'
       run: |
         curl -L https://github.com/sparkle-project/Sparkle/releases/download/2.6.4/Sparkle-2.6.4.tar.xz -o sparkle.tar.xz
         tar -xf sparkle.tar.xz
@@ -60,7 +60,7 @@ jobs:
         cp bin/generate_appcast .
 
     - name: Generate Appcast
-      if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+      if: github.ref == 'refs/heads/main' && github.event_name == 'push'
       env:
         SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
       run: |
@@ -73,7 +73,7 @@ jobs:
         mv release/appcast.xml .
 
     - name: Create Release
-      if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+      if: github.ref == 'refs/heads/main' && github.event_name == 'push'
       uses: softprops/action-gh-release@v2
       with:
         tag_name: ${{ steps.get_version.outputs.tag }}
