@@ -22,6 +22,8 @@ struct SecurityPGRoleSheet: View {
     @State var bypassRLS = false
     @State var connectionLimit = -1
     @State var validUntil = ""
+    @State var validUntilDate: Date = Date()
+    @State var hasExpiry = false
 
     // Membership
     @State var memberOfEntries: [PGRoleMemberEntry] = []
@@ -39,6 +41,7 @@ struct SecurityPGRoleSheet: View {
     @State var roleParameters: [PostgresDatabaseParameter] = []
     @State var newParamName = ""
     @State var newParamValue = ""
+    @State var settingDefinitions: [PostgresSettingDefinition] = []
 
     // Security labels
     @State var securityLabels: [PostgresSecurityLabel] = []
@@ -62,7 +65,9 @@ struct SecurityPGRoleSheet: View {
         if isEditing {
             return [.general, .privileges, .membership, .parameters, .securityLabels, .sql]
         } else {
-            return [.general, .privileges, .membership]
+            var p: [PGRolePage] = [.general, .privileges, .membership]
+            if showParametersInCreateMode { p.append(.parameters) }
+            return p
         }
     }
 
@@ -237,23 +242,39 @@ struct SecurityPGRoleSheet: View {
 
     // MARK: - Predefined Parameters
 
-    static let predefinedParameters = [
-        "search_path", "work_mem", "maintenance_work_mem", "temp_buffers",
-        "statement_timeout", "lock_timeout", "idle_in_transaction_session_timeout",
-        "log_statement", "log_min_duration_statement", "log_min_messages",
-        "client_min_messages", "default_transaction_isolation", "default_transaction_read_only",
-        "timezone", "DateStyle", "IntervalStyle", "client_encoding",
-        "lc_messages", "lc_monetary", "lc_numeric", "lc_time",
-        "temp_file_limit", "effective_cache_size", "random_page_cost", "seq_page_cost",
-        "cpu_tuple_cost", "cpu_index_tuple_cost", "cpu_operator_cost",
-        "enable_hashjoin", "enable_mergejoin", "enable_nestloop", "enable_seqscan",
-        "enable_indexscan", "enable_indexonlyscan", "enable_bitmapscan",
-        "geqo", "geqo_threshold", "from_collapse_limit", "join_collapse_limit"
-    ]
+    /// Formats a Date as a PostgreSQL-compatible timestamp string (e.g. "2026-03-10 14:30:00+00").
+    static let pgTimestampFormatter: DateFormatter = {
+        let fmt = DateFormatter()
+        fmt.dateFormat = "yyyy-MM-dd HH:mm:ssxx"
+        fmt.timeZone = TimeZone(identifier: "UTC")
+        return fmt
+    }()
 
-    var availableParameters: [String] {
+    /// Parses a PostgreSQL timestamp string back to a Date.
+    static func parsePGTimestamp(_ string: String) -> Date? {
+        let formats = [
+            "yyyy-MM-dd HH:mm:ssxx",
+            "yyyy-MM-dd HH:mm:ss",
+            "yyyy-MM-dd'T'HH:mm:ss",
+            "yyyy-MM-dd"
+        ]
+        for format in formats {
+            let fmt = DateFormatter()
+            fmt.dateFormat = format
+            fmt.timeZone = TimeZone(identifier: "UTC")
+            if let date = fmt.date(from: string) { return date }
+        }
+        return nil
+    }
+
+    var availableParameters: [PostgresSettingDefinition] {
         let existing = Set(roleParameters.map(\.name))
-        return Self.predefinedParameters.filter { !existing.contains($0) }
+        return settingDefinitions.filter { !existing.contains($0.name) }
+    }
+
+    /// Look up the setting definition for a given parameter name.
+    func settingDefinition(for name: String) -> PostgresSettingDefinition? {
+        settingDefinitions.first(where: { $0.name == name })
     }
 
     func addParameter() {
@@ -263,6 +284,9 @@ struct SecurityPGRoleSheet: View {
         newParamName = ""
         newParamValue = ""
     }
+
+    /// Makes parameters page available in create mode too (not just edit).
+    var showParametersInCreateMode: Bool { !settingDefinitions.isEmpty }
 
     func addSecurityLabel() {
         let provider = newLabelProvider.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -312,6 +336,12 @@ struct SecurityPGRoleSheet: View {
         }
 
         let admin = PostgresAdmin(client: pg.client, logger: pg.logger)
+
+        // Fetch configurable settings definitions for the parameters page
+        do {
+            let defs = try await admin.fetchRoleConfigurableSettings()
+            await MainActor.run { settingDefinitions = defs }
+        } catch { }
 
         loadingRoles = true
         do {
@@ -373,6 +403,12 @@ struct SecurityPGRoleSheet: View {
                         bypassRLS = role.bypassRLS
                         connectionLimit = role.connectionLimit
                         validUntil = role.validUntil ?? ""
+                        if let vu = role.validUntil, !vu.isEmpty, let parsed = Self.parsePGTimestamp(vu) {
+                            hasExpiry = true
+                            validUntilDate = parsed
+                        } else {
+                            hasExpiry = false
+                        }
                     }
 
                     let params = try await admin.fetchRoleParameters(roleOid: role.oid)

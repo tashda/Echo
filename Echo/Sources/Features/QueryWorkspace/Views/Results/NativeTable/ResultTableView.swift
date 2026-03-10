@@ -20,24 +20,19 @@ final class ResultTableView: NSTableView {
     }
 
     override func mouseDown(with event: NSEvent) {
+        // Never call super.mouseDown — NSTableView (via NSControl) runs an
+        // internal mouse-tracking loop that consumes all subsequent mouseDragged
+        // and mouseUp events, preventing our overrides from being called.
+        // Instead, handle selection programmatically via the coordinator.
         selectionDelegate?.handleMouseDown(event, in: self)
-        if selectionDelegate?.hasActiveCellSelection == true {
-            return
-        }
-        super.mouseDown(with: event)
     }
 
     override func mouseDragged(with event: NSEvent) {
         selectionDelegate?.handleMouseDragged(event, in: self)
-        if selectionDelegate?.hasActiveCellSelection == true {
-            return
-        }
-        super.mouseDragged(with: event)
     }
 
     override func mouseUp(with event: NSEvent) {
         selectionDelegate?.handleMouseUp(event, in: self)
-        super.mouseUp(with: event)
     }
 
     override func rightMouseDown(with event: NSEvent) {

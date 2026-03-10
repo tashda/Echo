@@ -17,6 +17,10 @@ struct WorkspaceToolbarItems: ToolbarContent {
             )
         }
 
+        ToolbarItem(id: "workspace.navigation.spacer", placement: .navigation) {
+            Spacer().frame(width: 2)
+        }
+
         ToolbarItem(id: "workspace.navigation.connect", placement: .navigation) {
             ConnectToolbarMenuButton(
                 connectionStore: connectionStore,
