@@ -1,4 +1,6 @@
-# Echo
+# <img src=".github/assets/app_icon.png" width="64" align="left" style="margin-right: 15px;"> Echo
+
+<br>
 
 A native macOS database client for PostgreSQL, MySQL, SQLite, and Microsoft SQL Server.
 
