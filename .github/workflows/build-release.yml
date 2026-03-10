@@ -39,7 +39,7 @@ jobs:
         mkdir -p release
         cp -R build/Build/Products/Release/Echo.app release/
         cd release
-        zip -r ../Echo.zip Echo.app
+        zip -r Echo.zip Echo.app
 
     - name: Get Version
       if: github.ref == 'refs/heads/main' && github.event_name == 'push'
@@ -71,6 +71,7 @@ jobs:
           echo "$SPARKLE_PRIVATE_KEY" | ./generate_appcast --ed-key-file - release/
         fi
         mv release/appcast.xml .
+        mv release/Echo.zip .
 
     - name: Create Release
       if: github.ref == 'refs/heads/main' && github.event_name == 'push'
