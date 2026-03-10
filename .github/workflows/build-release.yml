@@ -66,9 +66,7 @@ jobs:
           echo "Warning: SPARKLE_PRIVATE_KEY not set. Appcast will be generated without signature."
           ./generate_appcast release/
         else
-          echo "$SPARKLE_PRIVATE_KEY" > sparkle_priv.key
-          ./generate_appcast --ed-key-file sparkle_priv.key release/
-          rm sparkle_priv.key
+          echo "$SPARKLE_PRIVATE_KEY" | ./generate_appcast --ed-key-file - release/
         fi
         mv release/appcast.xml .
 
