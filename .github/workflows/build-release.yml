@@ -5,6 +5,7 @@ on:
     branches: [ main, dev ]
   pull_request:
     branches: [ main ]
+  workflow_dispatch:
 
 jobs:
   build:
@@ -66,9 +67,9 @@ jobs:
       run: |
         if [ -z "$SPARKLE_PRIVATE_KEY" ]; then
           echo "Warning: SPARKLE_PRIVATE_KEY not set. Appcast will be generated without signature."
-          ./generate_appcast release/
+          ./generate_appcast --ignore-code-signing-check release/
         else
-          echo "$SPARKLE_PRIVATE_KEY" | ./generate_appcast --ed-key-file - release/
+          echo "$SPARKLE_PRIVATE_KEY" | ./generate_appcast --ignore-code-signing-check --ed-key-file - release/
         fi
         mv release/appcast.xml .
         mv release/Echo.zip .
@@ -82,4 +83,3 @@ jobs:
           Echo.zip
           appcast.xml
         generate_release_notes: true
-
