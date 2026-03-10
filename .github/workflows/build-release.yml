@@ -5,6 +5,7 @@ on:
     branches: [ main, dev ]
   pull_request:
     branches: [ main ]
+  workflow_dispatch:
 
 jobs:
   build:
@@ -34,7 +35,7 @@ jobs:
           CODE_SIGNING_ALLOWED=NO
 
     - name: Package App
-      if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+      if: (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev') && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
       run: |
         mkdir -p release
         cp -R build/Build/Products/Release/Echo.app release/
@@ -42,7 +43,7 @@ jobs:
         zip -r Echo.zip Echo.app
 
     - name: Get Version
-      if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+      if: (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev') && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
       id: get_version
       run: |
         VERSION=$(defaults read $(pwd)/release/Echo.app/Contents/Info.plist CFBundleShortVersionString)
@@ -52,7 +53,7 @@ jobs:
         echo "tag=v$VERSION-$BUILD" >> $GITHUB_OUTPUT
 
     - name: Setup Sparkle CLI
-      if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+      if: (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev') && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
       run: |
         curl -L https://github.com/sparkle-project/Sparkle/releases/download/2.6.4/Sparkle-2.6.4.tar.xz -o sparkle.tar.xz
         tar -xf sparkle.tar.xz
@@ -60,21 +61,21 @@ jobs:
         cp bin/generate_appcast .
 
     - name: Generate Appcast
-      if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+      if: (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev') && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
       env:
         SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
       run: |
         if [ -z "$SPARKLE_PRIVATE_KEY" ]; then
           echo "Warning: SPARKLE_PRIVATE_KEY not set. Appcast will be generated without signature."
-          ./generate_appcast release/
+          ./generate_appcast --disable-nested-code-check release/
         else
-          echo "$SPARKLE_PRIVATE_KEY" | ./generate_appcast --ed-key-file - release/
+          echo "$SPARKLE_PRIVATE_KEY" | ./generate_appcast --disable-nested-code-check --ed-key-file - release/
         fi
         mv release/appcast.xml .
         mv release/Echo.zip .
 
     - name: Create Release
-      if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+      if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
       uses: softprops/action-gh-release@v2
       with:
         tag_name: ${{ steps.get_version.outputs.tag }}
@@ -82,4 +83,3 @@ jobs:
           Echo.zip
           appcast.xml
         generate_release_notes: true
-
