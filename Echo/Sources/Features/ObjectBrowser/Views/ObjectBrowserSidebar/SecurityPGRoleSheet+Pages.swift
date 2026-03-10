@@ -39,8 +39,26 @@ extension SecurityPGRoleSheet {
         }
 
         Section("Account Expires") {
-            TextField("Valid until", text: $validUntil, prompt: Text("YYYY-MM-DD HH:MM:SS or empty for no expiry"))
-                .help("Account expiration timestamp. Leave empty for no expiry.")
+            Toggle("Set expiration date", isOn: $hasExpiry)
+                .onChange(of: hasExpiry) { _, enabled in
+                    if enabled {
+                        validUntil = Self.pgTimestampFormatter.string(from: validUntilDate)
+                    } else {
+                        validUntil = ""
+                    }
+                }
+
+            if hasExpiry {
+                DatePicker(
+                    "Expires on",
+                    selection: $validUntilDate,
+                    displayedComponents: [.date, .hourAndMinute]
+                )
+                .datePickerStyle(.stepperField)
+                .onChange(of: validUntilDate) { _, newDate in
+                    validUntil = Self.pgTimestampFormatter.string(from: newDate)
+                }
+            }
         }
 
         Section("Comment") {
@@ -133,53 +151,196 @@ extension SecurityPGRoleSheet {
 
     @ViewBuilder
     var parametersPage: some View {
-        Section("Role Parameters") {
-            if roleParameters.isEmpty && !isEditing {
-                Text("No role-level parameters configured.")
-                    .foregroundStyle(.secondary)
-                    .font(TypographyTokens.detail)
+        if settingDefinitions.isEmpty {
+            Section {
+                HStack {
+                    ProgressView().controlSize(.small)
+                    Text("Loading parameter definitions\u{2026}")
+                        .font(TypographyTokens.detail)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        } else {
+            Section("Role Parameters") {
+                if roleParameters.isEmpty && !isEditing {
+                    Text("No role-level parameters configured.")
+                        .foregroundStyle(.secondary)
+                        .font(TypographyTokens.detail)
+                }
+
+                ForEach(Array(roleParameters.enumerated()), id: \.offset) { index, param in
+                    parameterRow(index: index, param: param)
+                }
             }
 
-            ForEach(Array(roleParameters.enumerated()), id: \.offset) { index, param in
-                HStack {
-                    Text(param.name)
-                        .font(TypographyTokens.standard)
-                        .frame(minWidth: 160, alignment: .leading)
-                    Text(param.value)
-                        .font(TypographyTokens.standard)
-                        .foregroundStyle(.secondary)
-                    Spacer()
-                    if isEditing {
-                        Button(role: .destructive) {
-                            roleParameters.remove(at: index)
-                        } label: {
-                            Image(systemName: "minus.circle.fill")
-                                .foregroundStyle(.red)
-                        }
-                        .buttonStyle(.plain)
+            if isEditing {
+                Section("Add Parameter") {
+                    parameterAddControls
+                }
+            }
+
+            Section {
+                Text("\(settingDefinitions.count) configurable parameters available from this server.")
+                    .font(TypographyTokens.detail)
+                    .foregroundStyle(.tertiary)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func parameterRow(index: Int, param: PostgresDatabaseParameter) -> some View {
+        let def = settingDefinition(for: param.name)
+        HStack {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(param.name)
+                    .font(TypographyTokens.standard)
+                if let def, !def.shortDesc.isEmpty {
+                    Text(def.shortDesc)
+                        .font(TypographyTokens.detail)
+                        .foregroundStyle(.tertiary)
+                        .lineLimit(1)
+                }
+            }
+            .frame(minWidth: 200, alignment: .leading)
+
+            Spacer()
+
+            if isEditing, let def {
+                parameterValueEditor(index: index, def: def)
+            } else {
+                Text(param.value)
+                    .font(TypographyTokens.standard)
+                    .foregroundStyle(.secondary)
+                if let def, !def.unit.isEmpty {
+                    Text(def.unit)
+                        .font(TypographyTokens.detail)
+                        .foregroundStyle(.tertiary)
+                }
+            }
+
+            if isEditing {
+                Button(role: .destructive) {
+                    roleParameters.remove(at: index)
+                } label: {
+                    Image(systemName: "minus.circle.fill")
+                        .foregroundStyle(.red)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func parameterValueEditor(index: Int, def: PostgresSettingDefinition) -> some View {
+        switch def.vartype {
+        case "bool":
+            let isOn = Binding<Bool>(
+                get: { roleParameters[safe: index]?.value == "on" },
+                set: { roleParameters[safe: index] != nil ? roleParameters[index] = PostgresDatabaseParameter(name: def.name, value: $0 ? "on" : "off") : () }
+            )
+            Toggle("", isOn: isOn)
+                .labelsHidden()
+
+        case "enum":
+            let selection = Binding<String>(
+                get: { roleParameters[safe: index]?.value ?? "" },
+                set: { roleParameters[safe: index] != nil ? roleParameters[index] = PostgresDatabaseParameter(name: def.name, value: $0) : () }
+            )
+            Picker("", selection: selection) {
+                ForEach(def.enumVals, id: \.self) { val in
+                    Text(val).tag(val)
+                }
+            }
+            .labelsHidden()
+            .frame(minWidth: 120)
+
+        case "integer", "real":
+            let text = Binding<String>(
+                get: { roleParameters[safe: index]?.value ?? "" },
+                set: { roleParameters[safe: index] != nil ? roleParameters[index] = PostgresDatabaseParameter(name: def.name, value: $0) : () }
+            )
+            HStack(spacing: 4) {
+                TextField("", text: text)
+                    .frame(width: 100)
+                    .multilineTextAlignment(.trailing)
+                if !def.unit.isEmpty {
+                    Text(def.unit)
+                        .font(TypographyTokens.detail)
+                        .foregroundStyle(.tertiary)
+                }
+            }
+
+        default: // string
+            let text = Binding<String>(
+                get: { roleParameters[safe: index]?.value ?? "" },
+                set: { roleParameters[safe: index] != nil ? roleParameters[index] = PostgresDatabaseParameter(name: def.name, value: $0) : () }
+            )
+            TextField("", text: text)
+                .frame(minWidth: 120)
+        }
+    }
+
+    @ViewBuilder
+    private var parameterAddControls: some View {
+        let groupedParams = Dictionary(grouping: availableParameters, by: \.category)
+        let sortedCategories = groupedParams.keys.sorted()
+
+        Picker("Parameter", selection: $newParamName) {
+            Text("Select parameter\u{2026}").tag("")
+            ForEach(sortedCategories, id: \.self) { category in
+                Section(category) {
+                    ForEach(groupedParams[category] ?? [], id: \.name) { def in
+                        Text(def.name).tag(def.name)
                     }
                 }
             }
         }
+        .frame(minWidth: 200)
 
-        if isEditing {
-            Section("Add Parameter") {
-                HStack(spacing: SpacingTokens.xs) {
-                    Picker("Parameter", selection: $newParamName) {
+        if !newParamName.isEmpty, let def = settingDefinition(for: newParamName) {
+            HStack(spacing: SpacingTokens.xs) {
+                switch def.vartype {
+                case "bool":
+                    Picker("Value", selection: $newParamValue) {
+                        Text("on").tag("on")
+                        Text("off").tag("off")
+                    }
+                    .frame(width: 100)
+                    .onAppear { if newParamValue.isEmpty { newParamValue = def.bootVal == "on" ? "on" : "off" } }
+
+                case "enum":
+                    Picker("Value", selection: $newParamValue) {
                         Text("Select\u{2026}").tag("")
-                        ForEach(availableParameters, id: \.self) { param in
-                            Text(param).tag(param)
+                        ForEach(def.enumVals, id: \.self) { val in
+                            Text(val).tag(val)
                         }
                     }
-                    .frame(minWidth: 180)
+                    .frame(minWidth: 120)
 
+                case "integer", "real":
                     TextField("Value", text: $newParamValue)
-
-                    Button("Add") {
-                        addParameter()
+                        .frame(width: 100)
+                    if !def.unit.isEmpty {
+                        Text(def.unit)
+                            .font(TypographyTokens.detail)
+                            .foregroundStyle(.tertiary)
                     }
-                    .disabled(newParamName.isEmpty || newParamValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+
+                default:
+                    TextField("Value", text: $newParamValue)
+                        .frame(minWidth: 120)
                 }
+
+                Button("Add") {
+                    addParameter()
+                }
+                .disabled(newParamValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
+
+            if !def.shortDesc.isEmpty {
+                Text(def.shortDesc)
+                    .font(TypographyTokens.detail)
+                    .foregroundStyle(.secondary)
             }
         }
     }
@@ -246,5 +407,11 @@ extension SecurityPGRoleSheet {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(SpacingTokens.xs)
         }
+    }
+}
+
+private extension Array {
+    subscript(safe index: Index) -> Element? {
+        indices.contains(index) ? self[index] : nil
     }
 }

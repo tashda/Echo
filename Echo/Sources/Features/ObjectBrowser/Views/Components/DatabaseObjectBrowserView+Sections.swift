@@ -12,19 +12,22 @@ extension DatabaseObjectBrowserView {
             .buttonStyle(.plain)
 
             if isPinnedSectionExpanded {
-                ForEach(pinnedList, id: \.id) { object in
-                    DatabaseObjectRow(
-                        object: object,
-                        displayName: displayName(for: object),
-                        connection: connection,
-                        showColumns: shouldShowColumns(for: object),
-                        isExpanded: expansionBinding(for: object.id),
-                        isPinned: true,
-                        onTogglePin: { togglePin(for: object) },
-                        onTriggerTableTap: object.type == .trigger ? { revealTable(fullName: $0) } : nil
-                    )
-                    .id("pinned-\(object.id)")
+                VStack(alignment: .leading, spacing: 0) {
+                    ForEach(pinnedList, id: \.id) { object in
+                        DatabaseObjectRow(
+                            object: object,
+                            displayName: displayName(for: object),
+                            connection: connection,
+                            showColumns: shouldShowColumns(for: object),
+                            isExpanded: expansionBinding(for: object.id),
+                            isPinned: true,
+                            onTogglePin: { togglePin(for: object) },
+                            onTriggerTableTap: object.type == .trigger ? { revealTable(fullName: $0) } : nil
+                        )
+                        .id("pinned-\(object.id)")
+                    }
                 }
+                .padding(.leading, SidebarRowConstants.indentStep)
             }
         }
     }
@@ -44,20 +47,23 @@ extension DatabaseObjectBrowserView {
             .buttonStyle(.plain)
 
             if isExpanded {
-                ForEach(objects, id: \.id) { object in
-                    DatabaseObjectRow(
-                        object: object,
-                        displayName: displayName(for: object),
-                        connection: connection,
-                        showColumns: shouldShowColumns(for: object),
-                        isExpanded: expansionBinding(for: object.id),
-                        isPinned: pinnedObjectIDs.contains(object.id),
-                        onTogglePin: { togglePin(for: object) },
-                        onTriggerTableTap: object.type == .trigger ? { revealTable(fullName: $0) } : nil
-                    )
-                    .equatable()
-                    .id(object.id)
+                VStack(alignment: .leading, spacing: 0) {
+                    ForEach(objects, id: \.id) { object in
+                        DatabaseObjectRow(
+                            object: object,
+                            displayName: displayName(for: object),
+                            connection: connection,
+                            showColumns: shouldShowColumns(for: object),
+                            isExpanded: expansionBinding(for: object.id),
+                            isPinned: pinnedObjectIDs.contains(object.id),
+                            onTogglePin: { togglePin(for: object) },
+                            onTriggerTableTap: object.type == .trigger ? { revealTable(fullName: $0) } : nil
+                        )
+                        .equatable()
+                        .id(object.id)
+                    }
                 }
+                .padding(.leading, SidebarRowConstants.indentStep)
             }
         }
     }
@@ -76,7 +82,7 @@ extension DatabaseObjectBrowserView {
             }
             Text(title)
                 .font(TypographyTokens.standard)
-                .foregroundStyle(.primary)
+                .foregroundStyle(.secondary)
                 .lineLimit(1)
 
             Text("\(count)")

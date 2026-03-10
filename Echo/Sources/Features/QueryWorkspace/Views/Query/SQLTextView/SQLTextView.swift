@@ -95,14 +95,17 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
 
     init(theme: SQLEditorTheme, displayOptions: SQLEditorDisplayOptions, backgroundOverride: NSColor?, completionContext: SQLEditorCompletionContext? = nil, ruleTraceConfig: SQLAutocompleteRuleTraceConfiguration? = nil) {
         self.theme = theme; self.displayOptions = displayOptions; self.backgroundOverride = backgroundOverride; self.completionContext = completionContext
-        let textStorage = NSTextStorage(); let layoutManager = NSLayoutManager(); let textContainer = NSTextContainer(size: NSSize(width: 800, height: CGFloat.greatestFiniteMagnitude))
+        let textStorage = NSTextStorage(); let layoutManager = SQLLayoutManager(); let textContainer = NSTextContainer(size: NSSize(width: 800, height: CGFloat.greatestFiniteMagnitude))
+        layoutManager.textFont = theme.nsFont
+        layoutManager.lineHeightMultiple = theme.lineHeightMultiplier
+        layoutManager.extraLineSpacing = theme.lineSpacing
         textStorage.addLayoutManager(layoutManager); layoutManager.addTextContainer(textContainer)
         super.init(frame: NSRect(x: 0, y: 0, width: 800, height: 360), textContainer: textContainer)
         completionEngine.updateContext(completionContext); completionController = SQLAutoCompletionController(textView: self)
         self.nextResponder = fallbackResponder
         isEditable = true; isSelectable = true; isRichText = false; isAutomaticQuoteSubstitutionEnabled = false; isAutomaticDashSubstitutionEnabled = false
         isAutomaticTextReplacementEnabled = false; isAutomaticSpellingCorrectionEnabled = false; isGrammarCheckingEnabled = false
-        usesAdaptiveColorMappingForDarkAppearance = false; textContainerInset = NSSize(width: 10, height: 16); allowsUndo = true
+        usesAdaptiveColorMappingForDarkAppearance = false; textContainerInset = NSSize(width: 10, height: 4); allowsUndo = true
         maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: .greatestFiniteMagnitude); minSize = NSSize(width: 0, height: 320)
         isHorizontallyResizable = false; isVerticallyResizable = true; autoresizingMask = [.width]; wantsLayer = true; layer?.isOpaque = true
         if super.undoManager == nil { self.setValue(fallbackResponder.undoManagerInstance, forKey: "undoManager") }

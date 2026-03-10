@@ -106,12 +106,6 @@ extension ObjectBrowserSidebarView {
                         certificateLoginsSubfolder(certLogins: certLogins, session: session)
                     }
 
-                    // New Login button
-                    newItemButton(title: "New Login\u{2026}") {
-                        viewModel.securityLoginSheetSessionID = connID
-                        viewModel.securityLoginSheetEditName = nil
-                        viewModel.showSecurityLoginSheet = true
-                    }
                 }
                 .padding(.leading, SidebarRowConstants.indentStep)
             }
@@ -152,7 +146,7 @@ extension ObjectBrowserSidebarView {
 
             Image(systemName: login.isDisabled ? "person.crop.circle.badge.xmark" : "person.crop.circle")
                 .font(.system(size: 12))
-                .foregroundStyle(login.isDisabled ? .tertiary : .secondary)
+                .foregroundStyle(login.isDisabled ? Color(nsColor: .quaternaryLabelColor) : Color(nsColor: .tertiaryLabelColor))
                 .frame(width: SidebarRowConstants.iconFrame)
 
             Text(login.name)
@@ -168,8 +162,14 @@ extension ObjectBrowserSidebarView {
 
             if login.isDisabled {
                 Text("Disabled")
-                    .font(TypographyTokens.label)
-                    .foregroundStyle(.tertiary)
+                    .font(TypographyTokens.compact)
+                    .foregroundStyle(.quaternary)
+                    .padding(.horizontal, 5)
+                    .padding(.vertical, 1)
+                    .background(
+                        RoundedRectangle(cornerRadius: 3, style: .continuous)
+                            .fill(Color.primary.opacity(0.04))
+                    )
             }
         }
         .padding(.horizontal, SidebarRowConstants.rowHorizontalPadding)
@@ -257,7 +257,7 @@ extension ObjectBrowserSidebarView {
 
             Image(systemName: role.isFixed ? "shield.lefthalf.filled" : "shield")
                 .font(.system(size: 12))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color(nsColor: .tertiaryLabelColor))
                 .frame(width: SidebarRowConstants.iconFrame)
 
             Text(role.name)
@@ -269,8 +269,14 @@ extension ObjectBrowserSidebarView {
 
             if role.isFixed {
                 Text("Fixed")
-                    .font(TypographyTokens.label)
-                    .foregroundStyle(.tertiary)
+                    .font(TypographyTokens.compact)
+                    .foregroundStyle(.quaternary)
+                    .padding(.horizontal, 5)
+                    .padding(.vertical, 1)
+                    .background(
+                        RoundedRectangle(cornerRadius: 3, style: .continuous)
+                            .fill(Color.primary.opacity(0.04))
+                    )
             }
         }
         .padding(.horizontal, SidebarRowConstants.rowHorizontalPadding)
@@ -353,7 +359,7 @@ extension ObjectBrowserSidebarView {
 
             Image(systemName: "key")
                 .font(.system(size: 12))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color(nsColor: .tertiaryLabelColor))
                 .frame(width: SidebarRowConstants.iconFrame)
 
             Text(credential.name)
@@ -422,11 +428,6 @@ extension ObjectBrowserSidebarView {
                         pgRoleRow(role: role, session: session)
                     }
 
-                    newItemButton(title: "New Login Role\u{2026}") {
-                        viewModel.securityPGRoleSheetSessionID = connID
-                        viewModel.securityPGRoleSheetEditName = nil
-                        viewModel.showSecurityPGRoleSheet = true
-                    }
                 }
                 .padding(.leading, SidebarRowConstants.indentStep)
             }
@@ -470,12 +471,6 @@ extension ObjectBrowserSidebarView {
                     ForEach(groupRoles) { role in
                         pgRoleRow(role: role, session: session)
                     }
-
-                    newItemButton(title: "New Group Role\u{2026}") {
-                        viewModel.securityPGRoleSheetSessionID = connID
-                        viewModel.securityPGRoleSheetEditName = nil
-                        viewModel.showSecurityPGRoleSheet = true
-                    }
                 }
                 .padding(.leading, SidebarRowConstants.indentStep)
             }
@@ -488,7 +483,7 @@ extension ObjectBrowserSidebarView {
 
             Image(systemName: role.loginType.contains("Login") || role.loginType.contains("Superuser") ? "person.crop.circle" : "person.2.circle")
                 .font(.system(size: 12))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color(nsColor: .tertiaryLabelColor))
                 .frame(width: SidebarRowConstants.iconFrame)
 
             Text(role.name)
@@ -629,7 +624,7 @@ extension ObjectBrowserSidebarView {
 
             Image(systemName: "person.fill")
                 .font(.system(size: 12))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color(nsColor: .tertiaryLabelColor))
                 .frame(width: SidebarRowConstants.iconFrame)
 
             Text(user.name)
@@ -737,7 +732,7 @@ extension ObjectBrowserSidebarView {
 
             Image(systemName: role.isFixed ? "shield.lefthalf.filled" : "shield")
                 .font(.system(size: 12))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color(nsColor: .tertiaryLabelColor))
                 .frame(width: SidebarRowConstants.iconFrame)
 
             Text(role.name)
@@ -749,8 +744,14 @@ extension ObjectBrowserSidebarView {
 
             if role.isFixed {
                 Text("Fixed")
-                    .font(TypographyTokens.label)
-                    .foregroundStyle(.tertiary)
+                    .font(TypographyTokens.compact)
+                    .foregroundStyle(.quaternary)
+                    .padding(.horizontal, 5)
+                    .padding(.vertical, 1)
+                    .background(
+                        RoundedRectangle(cornerRadius: 3, style: .continuous)
+                            .fill(Color.primary.opacity(0.04))
+                    )
             }
         }
         .padding(.horizontal, SidebarRowConstants.rowHorizontalPadding)
@@ -817,7 +818,7 @@ extension ObjectBrowserSidebarView {
 
             Image(systemName: "app.badge")
                 .font(.system(size: 12))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color(nsColor: .tertiaryLabelColor))
                 .frame(width: SidebarRowConstants.iconFrame)
 
             Text(appRole.name)
@@ -886,7 +887,7 @@ extension ObjectBrowserSidebarView {
 
             Image(systemName: "folder")
                 .font(.system(size: 12))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color(nsColor: .tertiaryLabelColor))
                 .frame(width: SidebarRowConstants.iconFrame)
 
             Text(schema.name)
@@ -974,7 +975,7 @@ extension ObjectBrowserSidebarView {
 
                 Text(title)
                     .font(TypographyTokens.standard)
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(.secondary)
                     .lineLimit(1)
 
                 if let count, count > 0 {

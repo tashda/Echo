@@ -45,7 +45,9 @@ struct ObjectBrowserSidebarView: View {
                                 }
                             } else {
                                 ForEach(sessions, id: \.connection.id) { session in
-                                    serverSection(session: session, proxy: proxy)
+                                    if sidebarSearchQuery == nil || serverMatchesSearch(session) {
+                                        serverSection(session: session, proxy: proxy)
+                                    }
                                 }
                             }
                         }
@@ -65,7 +67,9 @@ struct ObjectBrowserSidebarView: View {
                         environmentState.sessionCoordinator.setActiveSession(session.id)
                         viewModel.ensureServerExpanded(for: id, sessions: sessions)
                     }
-                    footerView
+                    if !sessions.isEmpty {
+                        globalFooterView
+                    }
                 }
             }
             .onAppear {
@@ -153,10 +157,11 @@ struct ObjectBrowserSidebarView: View {
         let isExpanded = viewModel.expandedServerIDs.contains(connID)
         let isSelected = connID == selectedConnectionID
 
+        let isSearching = sidebarSearchQuery != nil
         VStack(alignment: .leading, spacing: 0) {
-            serverHeaderRow(session: session, isExpanded: isExpanded, isSelected: isSelected)
+            serverHeaderRow(session: session, isExpanded: isExpanded || isSearching, isSelected: isSelected)
 
-            if isExpanded {
+            if isExpanded || isSearching {
                 serverContent(session: session, proxy: proxy)
                     .padding(.leading, SidebarRowConstants.indentStep)
             }
@@ -188,13 +193,13 @@ struct ObjectBrowserSidebarView: View {
                     .frame(width: SidebarRowConstants.iconFrame, height: SidebarRowConstants.iconFrame)
 
                 Text(serverDisplayName(session))
-                    .font(TypographyTokens.standard.weight(.medium))
+                    .font(TypographyTokens.standard)
                     .foregroundStyle(.primary)
                     .lineLimit(1)
 
                 if let version = serverVersionLabel(session) {
-                    Text("(\(version))")
-                        .font(TypographyTokens.detail)
+                    Text(version)
+                        .font(TypographyTokens.label)
                         .foregroundStyle(.tertiary)
                         .lineLimit(1)
                 }
@@ -203,7 +208,7 @@ struct ObjectBrowserSidebarView: View {
 
                 Circle()
                     .fill(session.isConnected ? ColorTokens.Status.success : ColorTokens.Status.error)
-                    .frame(width: 5, height: 5)
+                    .frame(width: 6, height: 6)
             }
             .padding(.horizontal, SidebarRowConstants.rowHorizontalPadding)
             .padding(.vertical, SidebarRowConstants.rowVerticalPadding)
@@ -254,23 +259,26 @@ struct ObjectBrowserSidebarView: View {
     private func databasesFolderSection(session: ConnectionSession, structure: DatabaseStructure, proxy: ScrollViewProxy) -> some View {
         let connID = session.connection.id
         let isExpanded = viewModel.databasesFolderExpandedBySession[connID] ?? true
+        let isSearching = sidebarSearchQuery != nil
 
         VStack(alignment: .leading, spacing: 0) {
             folderHeaderRow(
                 title: "Databases",
                 icon: "square.stack.3d.up",
                 count: structure.databases.count,
-                isExpanded: isExpanded
+                isExpanded: isExpanded || isSearching
             ) {
                 withAnimation(.easeInOut(duration: 0.2)) {
                     viewModel.databasesFolderExpandedBySession[connID] = !isExpanded
                 }
             }
 
-            if isExpanded {
+            if isExpanded || isSearching {
                 VStack(alignment: .leading, spacing: 0) {
                     ForEach(structure.databases, id: \.name) { database in
-                        databaseSection(database: database, session: session, proxy: proxy)
+                        if databaseMatchesSearch(database, session: session) {
+                            databaseSection(database: database, session: session, proxy: proxy)
+                        }
                     }
                 }
                 .padding(.leading, SidebarRowConstants.indentStep)
@@ -288,7 +296,7 @@ struct ObjectBrowserSidebarView: View {
         VStack(alignment: .leading, spacing: 0) {
             folderHeaderRow(
                 title: "Management",
-                icon: "wrench.and.screwdriver",
+                icon: "gearshape.2",
                 count: nil,
                 isExpanded: isExpanded
             ) {
@@ -323,8 +331,14 @@ struct ObjectBrowserSidebarView: View {
 
                 Text(title)
                     .font(TypographyTokens.standard)
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(.secondary)
                     .lineLimit(1)
+
+                if let count {
+                    Text("\(count)")
+                        .font(TypographyTokens.label)
+                        .foregroundStyle(.tertiary)
+                }
 
                 Spacer(minLength: 4)
             }
@@ -362,6 +376,7 @@ struct ObjectBrowserSidebarView: View {
     private func databaseHeaderRow(database: DatabaseInfo, session: ConnectionSession, isExpanded: Bool, isSelected: Bool) -> some View {
         let connID = session.connection.id
         let isLoading = viewModel.isDatabaseLoading(connectionID: connID, databaseName: database.name)
+        let accentColor = projectStore.globalSettings.accentColorSource == .connection ? session.connection.color : Color.accentColor
 
         return Button {
             withAnimation(.easeInOut(duration: 0.2)) {
@@ -374,20 +389,20 @@ struct ObjectBrowserSidebarView: View {
                     .foregroundStyle(.tertiary)
                     .frame(width: SidebarRowConstants.chevronWidth)
 
-                Image(systemName: isSelected ? "cylinder.fill" : "cylinder")
+                Image(systemName: isSelected ? "internaldrive.fill" : "internaldrive")
                     .font(.system(size: 12))
-                    .foregroundStyle(database.isOnline ? (isSelected ? Color.orange : Color.secondary) : Color.secondary.opacity(0.5))
+                    .foregroundStyle(database.isOnline ? (isSelected ? accentColor : Color.secondary) : Color(nsColor: .quaternaryLabelColor))
                     .frame(width: SidebarRowConstants.iconFrame)
 
                 Text(database.name)
                     .font(TypographyTokens.standard)
-                    .foregroundStyle(database.isOnline ? Color.primary : Color.secondary.opacity(0.5))
+                    .foregroundStyle(database.isOnline ? Color.primary : Color.secondary)
                     .lineLimit(1)
 
                 if !database.isOnline, let state = database.stateDescription {
-                    Text("(\(state))")
-                        .font(TypographyTokens.detail)
-                        .foregroundStyle(.tertiary)
+                    Text(state.uppercased())
+                        .font(TypographyTokens.label)
+                        .foregroundStyle(.quaternary)
                         .lineLimit(1)
                 }
 
@@ -398,6 +413,7 @@ struct ObjectBrowserSidebarView: View {
 
                 Spacer(minLength: 4)
             }
+            .opacity(database.isOnline ? 1 : 0.5)
             .padding(.horizontal, SidebarRowConstants.rowHorizontalPadding)
             .padding(.vertical, SidebarRowConstants.rowVerticalPadding)
             .contentShape(Rectangle())
@@ -510,6 +526,52 @@ struct ObjectBrowserSidebarView: View {
         }
         .padding(.horizontal, SpacingTokens.md)
         .padding(.vertical, SpacingTokens.xs)
+    }
+
+    // MARK: - Global Search Filtering
+
+    /// Normalized sidebar search query, nil when empty.
+    var sidebarSearchQuery: String? {
+        let trimmed = viewModel.debouncedSearchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed.lowercased()
+    }
+
+    /// Returns true if a server or any of its children match the search.
+    func serverMatchesSearch(_ session: ConnectionSession) -> Bool {
+        guard let query = sidebarSearchQuery else { return true }
+        // Server name match
+        if serverDisplayName(session).lowercased().contains(query) { return true }
+        // Check databases
+        if let structure = session.databaseStructure {
+            for db in structure.databases {
+                if db.name.lowercased().contains(query) { return true }
+                // Check objects in schemas
+                for schema in db.schemas {
+                    for obj in schema.objects {
+                        if obj.name.lowercased().contains(query) || obj.fullName.lowercased().contains(query) { return true }
+                    }
+                }
+            }
+        }
+        // Check security items
+        let connID = session.connection.id
+        if let logins = viewModel.securityLoginsBySession[connID] {
+            if logins.contains(where: { $0.name.lowercased().contains(query) }) { return true }
+        }
+        return false
+    }
+
+    /// Returns true if a database or its objects match the search.
+    func databaseMatchesSearch(_ database: DatabaseInfo, session: ConnectionSession) -> Bool {
+        guard let query = sidebarSearchQuery else { return true }
+        if database.name.lowercased().contains(query) { return true }
+        for schema in database.schemas {
+            for obj in schema.objects {
+                if obj.name.lowercased().contains(query) || obj.fullName.lowercased().contains(query) { return true }
+                if obj.columns.contains(where: { $0.name.lowercased().contains(query) }) { return true }
+            }
+        }
+        return false
     }
 
     // MARK: - Helpers

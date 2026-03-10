@@ -50,6 +50,8 @@ final class SQLScrollView: NSScrollView {
         documentView = sqlTextView
         scrollerStyle = .overlay
         verticalScrollElasticity = .automatic
+        automaticallyAdjustsContentInsets = false
+        contentInsets = NSEdgeInsets(top: 0, left: 0, bottom: 0, right: 0)
 
         sqlTextView.minSize = NSSize(width: 0, height: 320)
         sqlTextView.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
