@@ -298,7 +298,7 @@ final class PostgresStreamingBenchmarkTests: XCTestCase {
         let root = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent() // PostgresStreamingBenchmarkTests.swift
             .deletingLastPathComponent() // EchoTests
-        let candidate = root.appendingPathComponent("postgres_benchmark.env").path
+        let candidate = root.appendingPathComponent(".env").path
         return FileManager.default.fileExists(atPath: candidate) ? candidate : nil
     }
 

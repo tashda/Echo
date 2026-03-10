@@ -12,7 +12,7 @@ brew install --cask --no-quarantine tashda/tap/echo
 ```
 
 ### Manual Download
-You can also download the latest `.zip` from the [Releases](https://github.com/tashda/fuzee/releases) page. 
+You can also download the latest `.zip` from the [Releases](https://github.com/tashda/Echo/releases) page. 
 
 *Note: If you install manually, you may need to Right-Click the app and select **Open** the first time to bypass the "unverified developer" warning.*
 
@@ -22,7 +22,7 @@ Echo uses the [Sparkle](https://sparkle-project.org) framework for secure automa
 ## CI/CD & Automated Releases
 This repository is configured with a GitHub Actions pipeline (`.github/workflows/build-release.yml`) that automates the entire distribution process.
 
-- **Trigger:** Any push or pull-request merge to the `master` branch.
+- **Trigger:** Any push or pull-request merge to the `main` branch.
 - **Process:** The workflow builds the app using Xcode 16 (macOS 15), packages it as a ZIP, signs the update with Sparkle keys, and publishes a new GitHub Release.
 - **Appcast:** The Sparkle update feed (`appcast.xml`) is automatically updated and hosted within each release.
 
