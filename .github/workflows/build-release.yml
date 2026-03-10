@@ -25,7 +25,6 @@ jobs:
 
     - name: Build App
       run: |
-        # Build with all code signing disabled
         xcodebuild -project Echo.xcodeproj \
           -scheme Echo \
           -configuration Release \
@@ -42,21 +41,21 @@ jobs:
         mkdir -p release
         cp -R build/Build/Products/Release/Echo.app release/
         
-        # Thoroughly clean and unsign the app to satisfy Sparkle's strict checks
-        echo "Cleaning bundle attributes and signatures..."
+        echo "Cleaning and Unsigning bundle..."
         chmod -R u+w release/Echo.app
-        xattr -rc release/Echo.app
+        # Remove all signature metadata recursively
         find release/Echo.app -name "_CodeSignature" -exec rm -rf {} +
+        find release/Echo.app -name "CodeResources" -exec rm -rf {} +
+        xattr -rc release/Echo.app
+        # Explicitly remove signature from all binaries
+        find release/Echo.app -type f -perm +111 -exec codesign --remove-signature {} + || true
+        codesign --remove-signature release/Echo.app || true
         
-        # Verify state
-        echo "Checking code signing state (expecting unsigned):"
-        codesign -vvvv release/Echo.app || echo "Bundle is unsigned (as expected)"
+        echo "Verifying unsigned state:"
+        codesign -vvvv release/Echo.app || echo "Successfully stripped signature"
         
-        # Package using ditto (macOS native way to preserve metadata)
         cd release
         ditto -c -k --sequesterRsrc --keepParent Echo.app Echo.zip
-        
-        # Remove the .app folder so generate_appcast only sees the .zip
         rm -rf Echo.app
 
     - name: Get Version
@@ -82,9 +81,10 @@ jobs:
       env:
         SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
       run: |
-        # Use --disable-nested-code-check to be safe, though removal of _CodeSignature is the key fix
+        # Clear Sparkle's internal cache to ensure a fresh unarchive
+        rm -rf ~/Library/Caches/Sparkle_generate_appcast
+        
         if [ -z "$SPARKLE_PRIVATE_KEY" ]; then
-          echo "Warning: SPARKLE_PRIVATE_KEY not set. Appcast will be generated without signature."
           ./generate_appcast --disable-nested-code-check release/
         else
           echo "$SPARKLE_PRIVATE_KEY" | ./generate_appcast --disable-nested-code-check --ed-key-file - release/
