@@ -2,14 +2,12 @@ name: Build and Release
 
 on:
   push:
-    branches: [ master ]
+    branches: [ master, dev ]
   pull_request:
     branches: [ master ]
-    types: [ closed ]
 
 jobs:
   build:
-    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.merged == true)
     runs-on: macos-15
     permissions:
       contents: write
@@ -36,6 +34,7 @@ jobs:
           CODE_SIGNING_ALLOWED=NO
 
     - name: Package App
+      if: github.ref == 'refs/heads/master' && github.event_name == 'push'
       run: |
         mkdir -p release
         cp -R build/Build/Products/Release/Echo.app release/
@@ -43,6 +42,7 @@ jobs:
         zip -r ../Echo.zip Echo.app
 
     - name: Get Version
+      if: github.ref == 'refs/heads/master' && github.event_name == 'push'
       id: get_version
       run: |
         VERSION=$(defaults read $(pwd)/release/Echo.app/Contents/Info.plist CFBundleShortVersionString)
@@ -52,6 +52,7 @@ jobs:
         echo "tag=v$VERSION-$BUILD" >> $GITHUB_OUTPUT
 
     - name: Setup Sparkle CLI
+      if: github.ref == 'refs/heads/master' && github.event_name == 'push'
       run: |
         curl -L https://github.com/sparkle-project/Sparkle/releases/download/2.6.4/Sparkle-2.6.4.tar.xz -o sparkle.tar.xz
         tar -xf sparkle.tar.xz
@@ -59,6 +60,7 @@ jobs:
         cp bin/generate_appcast .
 
     - name: Generate Appcast
+      if: github.ref == 'refs/heads/master' && github.event_name == 'push'
       env:
         SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
       run: |
@@ -71,6 +73,7 @@ jobs:
         mv release/appcast.xml .
 
     - name: Create Release
+      if: github.ref == 'refs/heads/master' && github.event_name == 'push'
       uses: softprops/action-gh-release@v2
       with:
         tag_name: ${{ steps.get_version.outputs.tag }}
@@ -78,3 +81,4 @@ jobs:
           Echo.zip
           appcast.xml
         generate_release_notes: true
+
