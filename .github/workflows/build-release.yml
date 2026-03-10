@@ -39,15 +39,22 @@ jobs:
       run: |
         mkdir -p release
         cp -R build/Build/Products/Release/Echo.app release/
+        # Remove any partial/ad-hoc signature that might confuse Sparkle's generate_appcast
+        codesign --remove-signature release/Echo.app || true
         cd release
         zip -r Echo.zip Echo.app
+        # Remove the .app folder so generate_appcast only sees the .zip
+        rm -rf Echo.app
 
     - name: Get Version
       if: (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev') && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
       id: get_version
       run: |
-        VERSION=$(defaults read $(pwd)/release/Echo.app/Contents/Info.plist CFBundleShortVersionString)
-        BUILD=$(defaults read $(pwd)/release/Echo.app/Contents/Info.plist CFBundleVersion)
+        # We need the Info.plist to get the version, but we removed the .app above.
+        # Let's get it from the build directory instead.
+        APP_PATH="build/Build/Products/Release/Echo.app"
+        VERSION=$(defaults read "$(pwd)/$APP_PATH/Contents/Info.plist" CFBundleShortVersionString)
+        BUILD=$(defaults read "$(pwd)/$APP_PATH/Contents/Info.plist" CFBundleVersion)
         echo "version=$VERSION" >> $GITHUB_OUTPUT
         echo "build=$BUILD" >> $GITHUB_OUTPUT
         echo "tag=v$VERSION-$BUILD" >> $GITHUB_OUTPUT
@@ -57,7 +64,6 @@ jobs:
       run: |
         curl -L https://github.com/sparkle-project/Sparkle/releases/download/2.6.4/Sparkle-2.6.4.tar.xz -o sparkle.tar.xz
         tar -xf sparkle.tar.xz
-        # The bin directory contains generate_appcast
         cp bin/generate_appcast .
 
     - name: Generate Appcast
