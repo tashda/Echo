@@ -41,18 +41,17 @@ jobs:
         mkdir -p release
         cp -R build/Build/Products/Release/Echo.app release/
         
-        echo "Cleaning and Unsigning bundle..."
+        echo "Preparing bundle for distribution..."
         chmod -R u+w release/Echo.app
-        # Remove all signature metadata recursively
-        find release/Echo.app -name "_CodeSignature" -exec rm -rf {} +
-        find release/Echo.app -name "CodeResources" -exec rm -rf {} +
         xattr -rc release/Echo.app
-        # Explicitly remove signature from all binaries
-        find release/Echo.app -type f -perm +111 -exec codesign --remove-signature {} + || true
-        codesign --remove-signature release/Echo.app || true
         
-        echo "Verifying unsigned state:"
-        codesign -vvvv release/Echo.app || echo "Successfully stripped signature"
+        # Apple Silicon REQUIRES at least an ad-hoc signature to run.
+        # We apply an ad-hoc signature so macOS doesn't say "can't be opened".
+        echo "Applying ad-hoc signature..."
+        codesign --force --deep -s - release/Echo.app
+        
+        echo "Verifying signature state:"
+        codesign -vvvv release/Echo.app
         
         cd release
         ditto -c -k --sequesterRsrc --keepParent Echo.app Echo.zip
@@ -81,9 +80,10 @@ jobs:
       env:
         SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
       run: |
-        # Clear Sparkle's internal cache to ensure a fresh unarchive
         rm -rf ~/Library/Caches/Sparkle_generate_appcast
         
+        # Use --disable-nested-code-check to ignore the fact that we used an ad-hoc signature
+        # instead of a proper Developer ID signature.
         if [ -z "$SPARKLE_PRIVATE_KEY" ]; then
           ./generate_appcast --disable-nested-code-check release/
         else
