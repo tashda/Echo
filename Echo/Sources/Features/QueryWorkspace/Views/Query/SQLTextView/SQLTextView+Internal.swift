@@ -68,11 +68,18 @@ extension SQLTextView {
 
     func updateParagraphStyle() {
         let style = NSMutableParagraphStyle()
-        style.lineSpacing = theme.lineSpacing
-        style.minimumLineHeight = theme.fontSize * theme.lineHeightMultiplier
-        style.maximumLineHeight = theme.fontSize * theme.lineHeightMultiplier
+        // Line height is enforced by SQLLayoutManager's delegate — paragraph style
+        // lineSpacing must be 0 to avoid double-spacing.
+        style.lineSpacing = 0
         paragraphStyle = style
-        
+
+        // Update the layout manager's font metrics when theme changes.
+        if let sqlLayout = layoutManager as? SQLLayoutManager {
+            sqlLayout.textFont = theme.nsFont
+            sqlLayout.lineHeightMultiple = theme.lineHeightMultiplier
+            sqlLayout.extraLineSpacing = theme.lineSpacing
+        }
+
         let nsString = string as NSString
         if nsString.length > 0 {
             textStorage?.addAttribute(.paragraphStyle, value: style, range: NSRange(location: 0, length: nsString.length))

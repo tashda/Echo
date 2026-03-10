@@ -73,7 +73,10 @@ struct QueryResultsTableView: NSViewRepresentable {
         }
         context.coordinator.updatePersistedState(persistedState)
         tableView.backgroundColor = backgroundColor
-        tableView.usesAlternatingRowBackgroundColors = alternateRowShading
+        if tableView.usesAlternatingRowBackgroundColors != alternateRowShading {
+            tableView.usesAlternatingRowBackgroundColors = alternateRowShading
+            tableView.needsDisplay = true
+        }
         container.updateLeadingWidth(0.0)
         container.updateBackgroundColor(backgroundColor)
         context.coordinator.update(parent: self, tableView: tableView)

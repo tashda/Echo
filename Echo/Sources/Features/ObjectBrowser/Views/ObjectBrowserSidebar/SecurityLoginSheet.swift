@@ -31,6 +31,12 @@ struct SecurityLoginSheet: View {
     @State private var newMappingDatabase = ""
     @State private var newMappingUser = ""
 
+    // Database mapping SSMS-style
+    @State private var databaseMappingEntries: [DatabaseMappingEntry] = []
+    @State private var selectedMappingDatabase: String?
+    @State private var databaseRoleMemberships: [DatabaseRoleMembershipEntry] = []
+    @State private var loadingDatabaseRoles = false
+
     @State private var errorMessage: String?
     @State private var isSubmitting = false
     @State private var isLoading = true
@@ -238,52 +244,91 @@ struct SecurityLoginSheet: View {
                 }
             }
         } else {
-            Section("User Mappings") {
-                if databaseMappings.isEmpty {
-                    Text("This login is not mapped to any database.")
-                        .foregroundStyle(.secondary)
-                        .font(TypographyTokens.detail)
-                } else {
-                    ForEach(Array(databaseMappings.enumerated()), id: \.offset) { _, mapping in
-                        HStack {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(mapping.databaseName)
-                                    .font(TypographyTokens.standard)
-                                Text("User: \(mapping.userName)")
-                                    .font(TypographyTokens.detail)
-                                    .foregroundStyle(.secondary)
-                            }
-                            Spacer()
-                            if let schema = mapping.defaultSchema, !schema.isEmpty {
-                                Text(schema)
-                                    .font(TypographyTokens.label)
-                                    .foregroundStyle(.tertiary)
-                            }
-                        }
+            Section("Users mapped to this login") {
+                Table(databaseMappingEntries, selection: $selectedMappingDatabase) {
+                    TableColumn("Map") { entry in
+                        Toggle("", isOn: mappingToggleBinding(for: entry.databaseName))
+                            .labelsHidden()
+                    }
+                    .width(40)
+
+                    TableColumn("Database") { entry in
+                        Text(entry.databaseName)
+                            .font(TypographyTokens.standard)
+                    }
+                    .width(min: 120, ideal: 160)
+
+                    TableColumn("User") { entry in
+                        Text(entry.userName ?? "")
+                            .font(TypographyTokens.standard)
+                            .foregroundStyle(entry.isMapped ? .primary : .tertiary)
+                    }
+                    .width(min: 100, ideal: 140)
+
+                    TableColumn("Default Schema") { entry in
+                        Text(entry.defaultSchema ?? "dbo")
+                            .font(TypographyTokens.standard)
+                            .foregroundStyle(.secondary)
+                    }
+                    .width(min: 80, ideal: 100)
+                }
+                .tableStyle(.bordered)
+                .scrollContentBackground(.visible)
+                .frame(height: min(max(CGFloat(databaseMappingEntries.count) * 28 + 32, 120), 240))
+                .onChange(of: selectedMappingDatabase) { _, newDB in
+                    if let db = newDB {
+                        Task { await loadDatabaseRoles(for: db) }
                     }
                 }
             }
 
-            Section("Map to Database") {
-                Picker("Database", selection: $newMappingDatabase) {
-                    Text("Select a database\u{2026}").tag("")
-                    ForEach(unmappedDatabases, id: \.self) { db in
-                        Text(db).tag(db)
+            if let selectedDB = selectedMappingDatabase,
+               let entry = databaseMappingEntries.first(where: { $0.databaseName == selectedDB }),
+               entry.isMapped {
+                Section("Database role membership for: \(selectedDB)") {
+                    if loadingDatabaseRoles {
+                        HStack {
+                            ProgressView().controlSize(.small)
+                            Text("Loading roles\u{2026}")
+                                .font(TypographyTokens.detail)
+                                .foregroundStyle(.secondary)
+                        }
+                    } else if databaseRoleMemberships.isEmpty {
+                        Text("No fixed database roles available.")
+                            .font(TypographyTokens.detail)
+                            .foregroundStyle(.secondary)
+                    } else {
+                        ForEach($databaseRoleMemberships) { $role in
+                            Toggle(role.roleName, isOn: $role.isMember)
+                                .onChange(of: role.isMember) { _, newValue in
+                                    Task { await toggleDatabaseRole(database: selectedDB, role: role.roleName, isMember: newValue) }
+                                }
+                        }
                     }
                 }
-                TextField("User name (defaults to login name)", text: $newMappingUser)
-
-                Button("Map Login to Database") {
-                    Task { await mapToDatabase() }
+            } else if selectedMappingDatabase != nil {
+                Section("Database role membership") {
+                    Text("Map the login to this database first to manage role membership.")
+                        .font(TypographyTokens.detail)
+                        .foregroundStyle(.secondary)
                 }
-                .disabled(newMappingDatabase.isEmpty)
             }
         }
     }
 
-    private var unmappedDatabases: [String] {
-        let mapped = Set(databaseMappings.map(\.databaseName))
-        return availableDatabases.filter { !mapped.contains($0) }
+    private func mappingToggleBinding(for database: String) -> Binding<Bool> {
+        Binding(
+            get: { databaseMappingEntries.first(where: { $0.databaseName == database })?.isMapped ?? false },
+            set: { newValue in
+                Task {
+                    if newValue {
+                        await mapToDatabase(database: database)
+                    } else {
+                        await unmapFromDatabase(database: database)
+                    }
+                }
+            }
+        )
     }
 
     // MARK: - Data Loading
@@ -357,8 +402,18 @@ struct SecurityLoginSheet: View {
             do {
                 let ssec = mssql.makeServerSecurityClient()
                 let mappings = try await ssec.listLoginDatabaseMappings(login: existingName)
+                let mappedSet = Dictionary(uniqueKeysWithValues: mappings.map { ($0.databaseName, $0) })
+                let allDbs = availableDatabases
+
                 await MainActor.run {
                     databaseMappings = mappings
+                    databaseMappingEntries = allDbs.map { db in
+                        if let mapping = mappedSet[db] {
+                            return DatabaseMappingEntry(databaseName: db, isMapped: true, userName: mapping.userName, defaultSchema: mapping.defaultSchema)
+                        } else {
+                            return DatabaseMappingEntry(databaseName: db, isMapped: false, userName: nil, defaultSchema: nil)
+                        }
+                    }
                     loadingMappings = false
                 }
             } catch {
@@ -369,33 +424,100 @@ struct SecurityLoginSheet: View {
         await MainActor.run { isLoading = false }
     }
 
-    // MARK: - Map to Database
+    // MARK: - Database Mapping Actions
 
-    private func mapToDatabase() async {
+    private func mapToDatabase(database: String) async {
         guard let mssql = session.session as? MSSQLSession else { return }
         let name = existingLoginName ?? loginName.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !name.isEmpty, !newMappingDatabase.isEmpty else { return }
+        guard !name.isEmpty else { return }
 
         do {
             let ssec = mssql.makeServerSecurityClient()
-            let userName = newMappingUser.trimmingCharacters(in: .whitespacesAndNewlines)
-            try await ssec.mapLoginToDatabase(
-                login: name,
-                database: newMappingDatabase,
-                userName: userName.isEmpty ? nil : userName
-            )
+            try await ssec.mapLoginToDatabase(login: name, database: database)
+            await reloadMappingEntries()
+        } catch {
+            await MainActor.run { errorMessage = error.localizedDescription }
+        }
+    }
 
-            // Reload mappings
-            let mappings = try await ssec.listLoginDatabaseMappings(login: name)
-            await MainActor.run {
-                databaseMappings = mappings
-                newMappingDatabase = ""
-                newMappingUser = ""
+    private func unmapFromDatabase(database: String) async {
+        guard let mssql = session.session as? MSSQLSession else { return }
+        let name = existingLoginName ?? loginName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty else { return }
+
+        let entry = databaseMappingEntries.first(where: { $0.databaseName == database })
+        do {
+            let ssec = mssql.makeServerSecurityClient()
+            try await ssec.unmapLoginFromDatabase(login: name, database: database, userName: entry?.userName)
+            await reloadMappingEntries()
+            if selectedMappingDatabase == database {
+                await MainActor.run { databaseRoleMemberships = [] }
             }
         } catch {
+            await MainActor.run { errorMessage = error.localizedDescription }
+        }
+    }
+
+    private func reloadMappingEntries() async {
+        guard let mssql = session.session as? MSSQLSession else { return }
+        let name = existingLoginName ?? loginName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty else { return }
+
+        do {
+            let ssec = mssql.makeServerSecurityClient()
+            let mappings = try await ssec.listLoginDatabaseMappings(login: name)
+            let mappedSet = Dictionary(uniqueKeysWithValues: mappings.map { ($0.databaseName, $0) })
+
             await MainActor.run {
-                errorMessage = error.localizedDescription
+                databaseMappings = mappings
+                databaseMappingEntries = availableDatabases.map { db in
+                    if let mapping = mappedSet[db] {
+                        return DatabaseMappingEntry(databaseName: db, isMapped: true, userName: mapping.userName, defaultSchema: mapping.defaultSchema)
+                    } else {
+                        return DatabaseMappingEntry(databaseName: db, isMapped: false, userName: nil, defaultSchema: nil)
+                    }
+                }
             }
+        } catch { }
+    }
+
+    private func loadDatabaseRoles(for database: String) async {
+        guard let mssql = session.session as? MSSQLSession else { return }
+        let entry = databaseMappingEntries.first(where: { $0.databaseName == database })
+        guard let userName = entry?.userName, entry?.isMapped == true else {
+            await MainActor.run { databaseRoleMemberships = [] }
+            return
+        }
+
+        await MainActor.run { loadingDatabaseRoles = true }
+        do {
+            let ssec = mssql.makeServerSecurityClient()
+            let roles = try await ssec.listDatabaseRolesForUser(database: database, userName: userName)
+            await MainActor.run {
+                databaseRoleMemberships = roles.map { DatabaseRoleMembershipEntry(roleName: $0.roleName, isMember: $0.isMember) }
+                loadingDatabaseRoles = false
+            }
+        } catch {
+            await MainActor.run { loadingDatabaseRoles = false }
+        }
+    }
+
+    private func toggleDatabaseRole(database: String, role: String, isMember: Bool) async {
+        guard let mssql = session.session as? MSSQLSession else { return }
+        let entry = databaseMappingEntries.first(where: { $0.databaseName == database })
+        guard let userName = entry?.userName else { return }
+
+        do {
+            let ssec = mssql.makeServerSecurityClient()
+            if isMember {
+                try await ssec.addUserToDatabaseRole(database: database, userName: userName, role: role)
+            } else {
+                try await ssec.removeUserFromDatabaseRole(database: database, userName: userName, role: role)
+            }
+        } catch {
+            await MainActor.run { errorMessage = error.localizedDescription }
+            // Reload to get accurate state
+            await loadDatabaseRoles(for: database)
         }
     }
 
@@ -507,5 +629,19 @@ private struct RoleEntry: Identifiable, Hashable {
     var id: String { name }
     let name: String
     let isFixed: Bool
+    var isMember: Bool
+}
+
+private struct DatabaseMappingEntry: Identifiable, Hashable {
+    var id: String { databaseName }
+    let databaseName: String
+    var isMapped: Bool
+    var userName: String?
+    var defaultSchema: String?
+}
+
+private struct DatabaseRoleMembershipEntry: Identifiable, Hashable {
+    var id: String { roleName }
+    let roleName: String
     var isMember: Bool
 }

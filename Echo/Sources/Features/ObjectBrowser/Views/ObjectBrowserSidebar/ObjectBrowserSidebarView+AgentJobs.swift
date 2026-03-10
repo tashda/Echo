@@ -28,14 +28,14 @@ extension ObjectBrowserSidebarView {
                         .foregroundStyle(.tertiary)
                         .frame(width: SidebarRowConstants.chevronWidth)
 
-                    Image(systemName: "gearshape.2")
+                    Image(systemName: "clock.badge.checkmark")
                         .font(.system(size: 12))
                         .foregroundStyle(.secondary)
                         .frame(width: SidebarRowConstants.iconFrame)
 
                     Text("SQL Server Agent")
                         .font(TypographyTokens.standard)
-                        .foregroundStyle(.primary)
+                        .foregroundStyle(.secondary)
                         .lineLimit(1)
 
                     if !jobs.isEmpty {
@@ -139,22 +139,29 @@ extension ObjectBrowserSidebarView {
             HStack(spacing: 8) {
                 Spacer().frame(width: SidebarRowConstants.chevronWidth)
 
-                Image(systemName: job.enabled ? "checkmark.circle.fill" : "slash.circle")
+                Image(systemName: "clock")
                     .font(.system(size: 12))
-                    .foregroundStyle(job.enabled ? agentJobStatusColor(job.lastOutcome, enabled: true) : .secondary)
+                    .foregroundStyle(job.enabled ? agentJobStatusColor(job.lastOutcome, enabled: true) : Color(nsColor: .quaternaryLabelColor))
                     .frame(width: SidebarRowConstants.iconFrame)
 
                 Text(job.name)
                     .font(TypographyTokens.standard)
                     .foregroundStyle(job.enabled ? .primary : .secondary)
                     .lineLimit(1)
+                    .truncationMode(.middle)
 
                 Spacer(minLength: 4)
 
                 if !job.enabled {
                     Text("Disabled")
-                        .font(TypographyTokens.label)
-                        .foregroundStyle(.tertiary)
+                        .font(TypographyTokens.compact)
+                        .foregroundStyle(.quaternary)
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 1)
+                        .background(
+                            RoundedRectangle(cornerRadius: 3, style: .continuous)
+                                .fill(Color.primary.opacity(0.04))
+                        )
                 }
             }
             .padding(.horizontal, SidebarRowConstants.rowHorizontalPadding)

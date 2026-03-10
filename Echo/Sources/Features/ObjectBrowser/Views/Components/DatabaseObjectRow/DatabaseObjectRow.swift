@@ -31,16 +31,16 @@ struct DatabaseObjectRow: View, Equatable {
         case .view: return "eye"
         case .materializedView: return "eye.fill"
         case .function: return "function"
-        case .trigger: return "bolt"
-        case .procedure: return "gearshape"
+        case .trigger: return "bolt.fill"
+        case .procedure: return "terminal"
         }
     }
 
     private var iconColor: Color {
         switch object.type {
-        case .table, .view, .materializedView: return .secondary
-        case .function, .procedure: return .purple
-        case .trigger: return .orange
+        case .table, .view, .materializedView: return Color(nsColor: .tertiaryLabelColor)
+        case .function, .procedure: return .purple.opacity(0.7)
+        case .trigger: return .orange.opacity(0.7)
         }
     }
     
@@ -133,7 +133,7 @@ struct DatabaseObjectRow: View, Equatable {
     
     private var highlightBackground: some View {
         RoundedRectangle(cornerRadius: SidebarRowConstants.hoverCornerRadius, style: .continuous)
-            .fill(Color.primary.opacity(0.05))
+            .fill(Color.primary.opacity(0.08))
             .opacity(isHovered ? 1 : 0)
             .allowsHitTesting(false)
             .animation(.easeOut(duration: 0.08), value: isHovered)

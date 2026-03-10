@@ -22,12 +22,12 @@ public struct SchemaObjectInfo: Sendable, Identifiable, Codable, Hashable {
 
         public nonisolated var systemImage: String {
             switch self {
-            case .table: return "table"
+            case .table: return "tablecells"
             case .view: return "eye"
             case .materializedView: return "eye.fill"
             case .function: return "function"
-            case .procedure: return "gearshape"
-            case .trigger: return "bolt"
+            case .procedure: return "terminal"
+            case .trigger: return "bolt.fill"
             }
         }
     }
