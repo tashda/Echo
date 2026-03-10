@@ -98,7 +98,7 @@ final class MSSQLMetadataLoadingTests: XCTestCase {
         let root = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent() // MSSQLMetadataLoadingTests.swift
             .deletingLastPathComponent() // EchoTests
-        let candidate = root.appendingPathComponent("mssql.env").path
+        let candidate = root.appendingPathComponent(".env").path
         return FileManager.default.fileExists(atPath: candidate) ? candidate : nil
     }
 
@@ -201,7 +201,7 @@ final class MSSQLMetadataLoadingTests: XCTestCase {
     @available(macOS 12.0, *)
     func testEchoMSSQLStructureLoadIncludesColumnsAndRoutines() async throws {
         guard let config = loadMSSQLConfig() else {
-            throw XCTSkip("MSSQL env not configured; set MSSQL_HOST/MSSQL_PORT/MSSQL_USERNAME/MSSQL_PASSWORD or create mssql.env")
+            throw XCTSkip("MSSQL env not configured; set MSSQL_HOST/MSSQL_PORT/MSSQL_USERNAME/MSSQL_PASSWORD or create .env")
         }
 
         let session = try await withTimeout(30) {
@@ -265,7 +265,7 @@ final class MSSQLMetadataLoadingTests: XCTestCase {
     @available(macOS 12.0, *)
     func testEchoMSSQLSessionMetadataQueries() async throws {
         guard let config = loadMSSQLConfig() else {
-            throw XCTSkip("MSSQL env not configured; set MSSQL_HOST/MSSQL_PORT/MSSQL_USERNAME/MSSQL_PASSWORD or create mssql.env")
+            throw XCTSkip("MSSQL env not configured; set MSSQL_HOST/MSSQL_PORT/MSSQL_USERNAME/MSSQL_PASSWORD or create .env")
         }
 
         let session = try await withTimeout(30) {
@@ -309,7 +309,7 @@ final class MSSQLMetadataLoadingTests: XCTestCase {
     @available(macOS 12.0, *)
     func testEchoMSSQLMetadataDebugFullLoad() async throws {
         guard let config = loadMSSQLConfig() else {
-            throw XCTSkip("MSSQL env not configured; set MSSQL_HOST/MSSQL_PORT/MSSQL_USERNAME/MSSQL_PASSWORD or create mssql.env")
+            throw XCTSkip("MSSQL env not configured; set MSSQL_HOST/MSSQL_PORT/MSSQL_USERNAME/MSSQL_PASSWORD or create .env")
         }
 
         let session = try await withTimeout(30) {

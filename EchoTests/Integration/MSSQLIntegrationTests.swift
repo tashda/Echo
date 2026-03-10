@@ -19,7 +19,7 @@ final class MSSQLIntegrationTests: XCTestCase {
             let projectRoot = URL(fileURLWithPath: #filePath)
                 .deletingLastPathComponent()
                 .deletingLastPathComponent()
-            let envFilePath = projectRoot.appendingPathComponent("mssql.env").path
+            let envFilePath = projectRoot.appendingPathComponent(".env").path
             if let contents = try? String(contentsOfFile: envFilePath) {
                 for line in contents.components(separatedBy: .newlines) {
                     let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
