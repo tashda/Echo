@@ -36,13 +36,13 @@ enum SidebarRowConstants {
     /// Icon frame size (all sidebar icons).
     static let iconFrame: CGFloat = 16
     /// Per-level indentation step.
-    static let indentStep: CGFloat = 12  // SpacingTokens.sm
+    static let indentStep: CGFloat = 16  // SpacingTokens.md
     /// Horizontal padding inside rows.
     static let rowHorizontalPadding: CGFloat = 8  // SpacingTokens.xs
     /// Vertical padding for structural rows.
     static let rowVerticalPadding: CGFloat = 4  // SpacingTokens.xxs
     /// Hover highlight corner radius.
-    static let hoverCornerRadius: CGFloat = 4
+    static let hoverCornerRadius: CGFloat = 6
 }
 
 func makeSelectStatement(

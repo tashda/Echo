@@ -1,5 +1,5 @@
 {
-  "originHash": "2e6ee7a081c57fd983af3136b066c951535e981373fdd18a1dade64fb3be0baa",
+  "originHash": "0112b99e74002e5d0b87d2dec1fb751378333313cb2ed0ff4a0b020d5594f85b",
   "pins": [
     {
       "identity": "echosense",
@@ -34,7 +34,16 @@
       "location": "https://github.com/tashda/postgres-wire",
       "state": {
         "branch": "dev",
-        "revision": "80afc05dfd9857f9fb4595564827d23e31739fec"
+        "revision": "fea0ca66d1e18c7dd2b3abe48d34dc6760142259"
+      }
+    },
+    {
+      "identity": "sparkle",
+      "kind": "remoteSourceControl",
+      "location": "https://github.com/sparkle-project/Sparkle",
+      "state": {
+        "revision": "21d8df80440b1ca3b65fa82e40782f1e5a9e6ba2",
+        "version": "2.9.0"
       }
     },
     {
@@ -52,7 +61,7 @@
       "location": "https://github.com/tashda/sqlserver-nio",
       "state": {
         "branch": "dev",
-        "revision": "c96884d5ba0805edad75d2d574e82f3b1b7ed454"
+        "revision": "f3adc23a9851ec74752d6f1a372f9b19ab8210de"
       }
     },
     {

@@ -49,7 +49,7 @@ struct QueryInputSection: View {
 
     private let leadingPadding: CGFloat = 8
     private let trailingPadding: CGFloat = 18
-    private let topPadding: CGFloat = 14
+    private let topPadding: CGFloat = 0
     private let bottomPadding: CGFloat = 20
 
     var body: some View {
