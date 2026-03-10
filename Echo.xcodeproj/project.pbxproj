@@ -537,7 +537,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				INFOPLIST_KEY_SUEnableInstallerLauncherService = YES;
-				INFOPLIST_KEY_SUFeedURL = "https://raw.githubusercontent.com/tashda/fuzee/master/appcast.xml";
+				INFOPLIST_KEY_SUFeedURL = "https://raw.githubusercontent.com/tashda/Echo/main/appcast.xml";
 				INFOPLIST_KEY_SUPublicEDKey = "hf49zQ5XeqfHyc6k9tMUci3nWSJGrBmkKMeXQ1F2vqk=";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -580,7 +580,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				INFOPLIST_KEY_SUEnableInstallerLauncherService = YES;
-				INFOPLIST_KEY_SUFeedURL = "https://raw.githubusercontent.com/tashda/fuzee/master/appcast.xml";
+				INFOPLIST_KEY_SUFeedURL = "https://raw.githubusercontent.com/tashda/Echo/main/appcast.xml";
 				INFOPLIST_KEY_SUPublicEDKey = "hf49zQ5XeqfHyc6k9tMUci3nWSJGrBmkKMeXQ1F2vqk=";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
