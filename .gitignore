@@ -1,8 +1,10 @@
 # Credentials and secrets
-postgres_benchmark.env
-mssql.env
 *.env
 !*.env.example
+*.p12
+*.cer
+*.cert
+sparkle_priv.key
 
 # Xcode
 Echo.xcodeproj/xcuserdata/
@@ -21,6 +23,8 @@ DerivedData/
 .claude/
 .codex_cache/
 GEMINI.md
+CLAUDE.md
+agent.md
 
 # OS-specific
 .DS_Store
@@ -37,3 +41,13 @@ Scripts/
 
 # Swift Package Manager
 .build/
+.swiftpm/xcode/
+
+# Test Plans & Coverage
+*.xcresult
+*.profdata
+*.profraw
+
+# Crash Logs
+*.crash
+*.ips
