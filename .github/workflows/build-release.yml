@@ -25,6 +25,7 @@ jobs:
 
     - name: Build App
       run: |
+        # Build with all code signing disabled
         xcodebuild -project Echo.xcodeproj \
           -scheme Echo \
           -configuration Release \
@@ -32,17 +33,29 @@ jobs:
           CODE_SIGN_IDENTITY="" \
           CODE_SIGNING_REQUIRED=NO \
           CODE_SIGN_ENTITLEMENTS="" \
-          CODE_SIGNING_ALLOWED=NO
+          CODE_SIGNING_ALLOWED=NO \
+          AD_HOC_CODE_SIGNING_ALLOWED=NO
 
     - name: Package App
       if: (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev') && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
       run: |
         mkdir -p release
         cp -R build/Build/Products/Release/Echo.app release/
-        # Remove any partial/ad-hoc signature that might confuse Sparkle's generate_appcast
-        codesign --remove-signature release/Echo.app || true
+        
+        # Thoroughly clean and unsign the app to satisfy Sparkle's strict checks
+        echo "Cleaning bundle attributes and signatures..."
+        chmod -R u+w release/Echo.app
+        xattr -rc release/Echo.app
+        find release/Echo.app -name "_CodeSignature" -exec rm -rf {} +
+        
+        # Verify state
+        echo "Checking code signing state (expecting unsigned):"
+        codesign -vvvv release/Echo.app || echo "Bundle is unsigned (as expected)"
+        
+        # Package using ditto (macOS native way to preserve metadata)
         cd release
-        zip -r Echo.zip Echo.app
+        ditto -c -k --sequesterRsrc --keepParent Echo.app Echo.zip
+        
         # Remove the .app folder so generate_appcast only sees the .zip
         rm -rf Echo.app
 
@@ -50,8 +63,6 @@ jobs:
       if: (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev') && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
       id: get_version
       run: |
-        # We need the Info.plist to get the version, but we removed the .app above.
-        # Let's get it from the build directory instead.
         APP_PATH="build/Build/Products/Release/Echo.app"
         VERSION=$(defaults read "$(pwd)/$APP_PATH/Contents/Info.plist" CFBundleShortVersionString)
         BUILD=$(defaults read "$(pwd)/$APP_PATH/Contents/Info.plist" CFBundleVersion)
@@ -71,6 +82,7 @@ jobs:
       env:
         SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
       run: |
+        # Use --disable-nested-code-check to be safe, though removal of _CodeSignature is the key fix
         if [ -z "$SPARKLE_PRIVATE_KEY" ]; then
           echo "Warning: SPARKLE_PRIVATE_KEY not set. Appcast will be generated without signature."
           ./generate_appcast --disable-nested-code-check release/
