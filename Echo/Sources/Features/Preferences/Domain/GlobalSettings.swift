@@ -16,6 +16,18 @@ enum AccentColorSource: String, Codable, Hashable, CaseIterable {
     }
 }
 
+enum NativePsqlRuntimePreference: String, Codable, Hashable, CaseIterable {
+    case bundled
+    case system
+
+    var displayName: String {
+        switch self {
+        case .bundled: return "Bundled Binary"
+        case .system: return "System Binary"
+        }
+    }
+}
+
 enum SidebarAutoExpandSection: String, Codable, Hashable, CaseIterable, Identifiable {
     case databases
     case tables
@@ -154,6 +166,12 @@ struct GlobalSettings: Codable, Hashable {
     var sidebarAutoExpandPostgresql: Set<SidebarAutoExpandSection>?
     var sidebarAutoExpandSQLServer: Set<SidebarAutoExpandSection>?
     var sidebarAutoExpandMySQL: Set<SidebarAutoExpandSection>?
+    var managedPostgresConsoleEnabled: Bool = true
+    var nativePsqlEnabled: Bool = false
+    var nativePsqlRuntimePreference: NativePsqlRuntimePreference = .bundled
+    var nativePsqlAllowSystemBinaryFallback: Bool = false
+    var nativePsqlAllowShellEscape: Bool = true
+    var nativePsqlAllowFileCommands: Bool = true
 
     /// Returns the effective auto-expand sections for a given database type.
     func sidebarExpandSections(for databaseType: DatabaseType) -> Set<SidebarAutoExpandSection> {
@@ -223,6 +241,12 @@ struct GlobalSettings: Codable, Hashable {
         case showSavedConnectionsInExplorer
         case sidebarAutoExpandSections, sidebarCustomizePerDatabaseType
         case sidebarAutoExpandPostgresql, sidebarAutoExpandSQLServer, sidebarAutoExpandMySQL
+        case managedPostgresConsoleEnabled
+        case nativePsqlEnabled
+        case nativePsqlRuntimePreference
+        case nativePsqlAllowSystemBinaryFallback
+        case nativePsqlAllowShellEscape
+        case nativePsqlAllowFileCommands
     }
 
     init(from decoder: Decoder) throws {
@@ -308,6 +332,12 @@ struct GlobalSettings: Codable, Hashable {
         sidebarAutoExpandPostgresql = try container.decodeIfPresent(Set<SidebarAutoExpandSection>.self, forKey: .sidebarAutoExpandPostgresql)
         sidebarAutoExpandSQLServer = try container.decodeIfPresent(Set<SidebarAutoExpandSection>.self, forKey: .sidebarAutoExpandSQLServer)
         sidebarAutoExpandMySQL = try container.decodeIfPresent(Set<SidebarAutoExpandSection>.self, forKey: .sidebarAutoExpandMySQL)
+        managedPostgresConsoleEnabled = try container.decodeIfPresent(Bool.self, forKey: .managedPostgresConsoleEnabled) ?? true
+        nativePsqlEnabled = try container.decodeIfPresent(Bool.self, forKey: .nativePsqlEnabled) ?? false
+        nativePsqlRuntimePreference = try container.decodeIfPresent(NativePsqlRuntimePreference.self, forKey: .nativePsqlRuntimePreference) ?? .bundled
+        nativePsqlAllowSystemBinaryFallback = try container.decodeIfPresent(Bool.self, forKey: .nativePsqlAllowSystemBinaryFallback) ?? false
+        nativePsqlAllowShellEscape = try container.decodeIfPresent(Bool.self, forKey: .nativePsqlAllowShellEscape) ?? true
+        nativePsqlAllowFileCommands = try container.decodeIfPresent(Bool.self, forKey: .nativePsqlAllowFileCommands) ?? true
     }
 
     func encode(to encoder: Encoder) throws {
@@ -384,6 +414,12 @@ struct GlobalSettings: Codable, Hashable {
         try container.encodeIfPresent(sidebarAutoExpandPostgresql, forKey: .sidebarAutoExpandPostgresql)
         try container.encodeIfPresent(sidebarAutoExpandSQLServer, forKey: .sidebarAutoExpandSQLServer)
         try container.encodeIfPresent(sidebarAutoExpandMySQL, forKey: .sidebarAutoExpandMySQL)
+        try container.encode(managedPostgresConsoleEnabled, forKey: .managedPostgresConsoleEnabled)
+        try container.encode(nativePsqlEnabled, forKey: .nativePsqlEnabled)
+        try container.encode(nativePsqlRuntimePreference, forKey: .nativePsqlRuntimePreference)
+        try container.encode(nativePsqlAllowSystemBinaryFallback, forKey: .nativePsqlAllowSystemBinaryFallback)
+        try container.encode(nativePsqlAllowShellEscape, forKey: .nativePsqlAllowShellEscape)
+        try container.encode(nativePsqlAllowFileCommands, forKey: .nativePsqlAllowFileCommands)
     }
 
     func ligaturesEnabled(for fontName: String) -> Bool {

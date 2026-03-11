@@ -14,7 +14,9 @@ struct SettingsView: View {
     @EnvironmentObject private var appearanceStore: AppearanceStore
 
     enum SettingsSection: String, CaseIterable, Identifiable {
+        case general
         case appearance
+        case databases
         case sidebar
         case queryResults
         case echoSense
@@ -26,9 +28,11 @@ struct SettingsView: View {
 
         var title: String {
             switch self {
+            case .general: return "General"
             case .appearance: return "Appearance"
+            case .databases: return "Databases"
             case .sidebar: return "Sidebar"
-            case .queryResults: return "Query Results"
+            case .queryResults: return "Results"
             case .echoSense: return "EchoSense"
             case .diagrams: return "Diagrams"
             case .applicationCache: return "Application Cache"
@@ -38,7 +42,9 @@ struct SettingsView: View {
 
         var systemImage: String? {
             switch self {
+            case .general: return "gear"
             case .appearance: return "paintbrush"
+            case .databases: return "externaldrive.connected.to.line.below"
             case .sidebar: return "sidebar.left"
             case .queryResults: return "tablecells"
             case .diagrams: return "rectangle.connected.to.line.below"
@@ -132,11 +138,17 @@ struct SettingsView: View {
     @ViewBuilder
     private func sectionView(for section: SettingsSection) -> some View {
         switch section {
+        case .general:
+            GeneralSettingsView()
+
         case .appearance:
             AppearanceSettingsView()
                 .environmentObject(environmentState)
                 .environmentObject(appState)
                 .environmentObject(appearanceStore)
+
+        case .databases:
+            DatabasesSettingsView()
 
         case .sidebar:
             SidebarSettingsView()

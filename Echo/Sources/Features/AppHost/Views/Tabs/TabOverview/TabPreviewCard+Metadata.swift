@@ -51,6 +51,14 @@ func tabOverviewStatus(for tab: WorkspaceTab, appearanceStore: AppearanceStore) 
             return ("wrench.and.screwdriver", "Ready", Color.secondary)
         }
         return ("circle", "Unavailable", Color.secondary.opacity(0.4))
+    case .psql:
+        if let psql = tab.psql {
+            if psql.isExecuting {
+                return ("progress.indicator", "Executing", .orange)
+            }
+            return ("terminal", "Ready", Color.secondary)
+        }
+        return ("circle", "Unavailable", Color.secondary.opacity(0.4))
     }
 }
 
@@ -70,6 +78,8 @@ extension TabPreviewCard {
         case .structure:
             return structureMetrics
         case .jobQueue:
+            return []
+        case .psql:
             return []
         }
     }
@@ -134,6 +144,8 @@ extension TabPreviewCard {
             return "Table Structure"
         case .jobQueue:
             return "Jobs"
+        case .psql:
+            return "Postgres Console"
         }
     }
 }

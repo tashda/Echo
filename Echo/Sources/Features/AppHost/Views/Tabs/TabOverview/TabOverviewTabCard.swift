@@ -183,6 +183,8 @@ struct TabPreviewCard: View {
             }
         case .jobQueue:
             EmptyPreviewPlaceholder(message: "Jobs")
+        case .psql:
+            EmptyPreviewPlaceholder(message: "Terminal")
         }
     }
 }

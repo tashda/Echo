@@ -22,6 +22,8 @@ extension CompactTabPreviewCard {
             return [("tablecells", "\(editor.columns.count)", Color.secondary)]
         case .jobQueue:
             return []
+        case .psql:
+            return []
         }
     }
 
@@ -40,6 +42,8 @@ extension CompactTabPreviewCard {
             return "Structure"
         case .jobQueue:
             return "Jobs"
+        case .psql:
+            return "Postgres Console"
         }
     }
 
@@ -58,6 +62,8 @@ extension CompactTabPreviewCard {
             }
             return nil
         case .jobQueue:
+            return nil
+        case .psql:
             return nil
         }
     }

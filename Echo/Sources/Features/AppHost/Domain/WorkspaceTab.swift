@@ -27,6 +27,7 @@ final class WorkspaceTab: ObservableObject, Identifiable {
         case structure
         case diagram
         case jobQueue
+        case psql
     }
 
     enum Content {
@@ -34,6 +35,7 @@ final class WorkspaceTab: ObservableObject, Identifiable {
         case structure(TableStructureEditorViewModel)
         case diagram(SchemaDiagramViewModel)
         case jobQueue(JobQueueViewModel)
+        case psql(PSQLTabViewModel)
     }
 
     let id = UUID()
@@ -74,6 +76,7 @@ final class WorkspaceTab: ObservableObject, Identifiable {
         case .structure: return .structure
         case .diagram: return .diagram
         case .jobQueue: return .jobQueue
+        case .psql: return .psql
         }
     }
 
@@ -97,6 +100,11 @@ final class WorkspaceTab: ObservableObject, Identifiable {
         return nil
     }
 
+    var psql: PSQLTabViewModel? {
+        if case .psql(let vm) = content { return vm }
+        return nil
+    }
+
     func setContent(_ newContent: Content) {
         content = newContent
         subscribeToContent()
@@ -114,6 +122,8 @@ final class WorkspaceTab: ObservableObject, Identifiable {
             return baseOverhead + diagram.estimatedMemoryUsageBytes()
         case .jobQueue:
             return baseOverhead
+        case .psql(let vm):
+            return baseOverhead + vm.estimatedMemoryUsageBytes()
         }
     }
 
@@ -136,6 +146,10 @@ final class WorkspaceTab: ObservableObject, Identifiable {
                 .receive(on: RunLoop.main)
                 .sink { [weak self] _ in self?.objectWillChange.send() }
         case .jobQueue(let vm):
+            contentCancellable = vm.objectWillChange
+                .receive(on: RunLoop.main)
+                .sink { [weak self] _ in self?.objectWillChange.send() }
+        case .psql(let vm):
             contentCancellable = vm.objectWillChange
                 .receive(on: RunLoop.main)
                 .sink { [weak self] _ in self?.objectWillChange.send() }

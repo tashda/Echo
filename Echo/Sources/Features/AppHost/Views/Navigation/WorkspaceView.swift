@@ -28,6 +28,8 @@ private struct WorkspaceBody: View {
     @EnvironmentObject private var appState: AppState
     @EnvironmentObject private var appearanceStore: AppearanceStore
     @EnvironmentObject private var clipboardHistory: ClipboardHistoryStore
+    
+    @StateObject private var sparkleUpdater = SparkleUpdater.shared
 
     var body: some View {
         let tabBarStyle = appState.workspaceTabBarStyle
@@ -80,6 +82,15 @@ private struct WorkspaceBody: View {
         }
         .preferredColorScheme(appearanceStore.effectiveColorScheme)
         .accentColor(appearanceStore.accentColor)
+        .alert("Update Error", isPresented: $sparkleUpdater.showErrorAlert) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            if let error = sparkleUpdater.lastError {
+                Text(error.localizedDescription)
+            } else {
+                Text("An unknown error occurred while checking for updates.")
+            }
+        }
     }
 
     @ViewBuilder

@@ -6,6 +6,29 @@ Echo is a **macOS-only** application. It targets **macOS 26+** exclusively — t
 
 Before writing or modifying any SwiftUI/AppKit code, use the `sosumi` MCP (`searchAppleDocumentation`, `fetchAppleDocumentation`) to verify the correct API usage, available modifiers, and recommended patterns. Use the `ref` MCP (`ref_search_documentation`, `ref_read_url`) to look up library, framework, or third-party API documentation. This applies both when reading existing code (to check correctness) and when writing new code (to ensure compliance with current documentation).
 
+## Design Reference Workflow
+
+Figma may be used as a manual design reference, but Echo must not depend on Figma Dev Mode or Figma MCP. The project assumes the free Figma plan, so agents should not require `figma-desktop`, `figma-remote`, or any MCP-based Figma inspection workflow.
+
+The canonical visual reference remains the macOS 26 Tahoe Figma kit at `https://www.figma.com/community/file/1543337041090580818/macos-26`. Use it manually as a reference for macOS 26 patterns, materials, spacing, toolbar structure, sidebars, tables, inspectors, and window organization. Echo-specific screens may also be drafted in a separate Figma file, but that file is a human reference, not an MCP-integrated source of truth.
+
+For every UI task, follow this sequence:
+1. Gather the available design context manually. This may include a Figma link, screenshots, annotated images, or written UI requirements from the user.
+2. Verify the intended pattern against official Apple guidance using `sosumi`, including Human Interface Guidelines, Liquid Glass guidance where relevant, and the specific SwiftUI/AppKit APIs that implement the pattern.
+3. Map the design intent to native macOS controls and layouts. Do not reproduce non-native Figma details if they conflict with Apple platform behavior.
+4. Map all visual values to Echo design tokens and shared design-system components. Never copy raw design values directly into SwiftUI/AppKit code.
+5. After implementation, compare the running app against the reference material and confirm the result still feels native on macOS 26.
+
+When working from manual design references, the agent must still explicitly reason about:
+- view hierarchy and grouping
+- control types and interaction intent
+- spacing, alignment, and density
+- typography roles rather than absolute font sizes
+- color/material intent rather than literal fill values
+- states such as selection, hover, focus, disabled, empty, and loading
+
+Figma or screenshots are design inputs, not the final authority. If the reference material and Apple guidance differ, prefer the official Apple behavior and update the implementation accordingly. The goal is not pixel-matching a mockup at all costs; the goal is a native macOS 26 result that preserves the design intent.
+
 ## Swift & Build
 
 All code must be Swift 6 compatible — strict concurrency checking enabled, no data races, proper `Sendable` conformance, structured concurrency where appropriate.
@@ -70,6 +93,7 @@ Every time you open or modify a file that uses Apple frameworks (SwiftUI, AppKit
 1. The API is not deprecated for macOS 26.
 2. The usage matches Apple's recommended patterns.
 3. Newer, better alternatives haven't been introduced.
+4. The implementation remains consistent with the corresponding Figma design and the official macOS Human Interface Guidelines.
 
 This is not optional — treat it as a pre-flight check before any code change.
 
