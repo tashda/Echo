@@ -111,8 +111,72 @@ extension EnvironmentState {
         guard projectStore.globalSettings.managedPostgresConsoleEnabled else { return }
         let targetSession = session ?? sessionCoordinator.activeSession ?? sessionCoordinator.activeSessions.first
         guard let targetSession else { return }
-        let tab = targetSession.addPSQLTab(database: database)
-        registerTab(tab)
+        let requestedDatabase = (database ?? targetSession.selectedDatabaseName ?? targetSession.connection.database)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let effectiveDatabase = requestedDatabase.isEmpty ? "postgres" : requestedDatabase
+        let connection = targetSession.connection
+
+        Task {
+            do {
+                let dedicatedSession = try await makeDedicatedPostgresConsoleSession(
+                    for: connection,
+                    database: effectiveDatabase
+                )
+
+                let sessionFactory: @Sendable (String) async throws -> DatabaseSession = { [weak self] databaseName in
+                    guard let self else {
+                        throw DatabaseError.connectionFailed("The environment is no longer available.")
+                    }
+                    return try await self.makeDedicatedPostgresConsoleSession(
+                        for: connection,
+                        database: databaseName
+                    )
+                }
+
+                await MainActor.run {
+                    let tab = targetSession.addPSQLTab(
+                        session: dedicatedSession,
+                        database: effectiveDatabase,
+                        sessionFactory: sessionFactory
+                    )
+                    registerTab(tab)
+                }
+            } catch {
+                await MainActor.run {
+                    toastCoordinator.show(
+                        icon: "exclamationmark.triangle.fill",
+                        message: "Postgres Console failed: \(error.localizedDescription)",
+                        style: .error,
+                        duration: 5.0
+                    )
+                }
+            }
+        }
+    }
+
+    private func makeDedicatedPostgresConsoleSession(
+        for connection: SavedConnection,
+        database: String
+    ) async throws -> DatabaseSession {
+        guard let credentials = identityRepository.resolveAuthenticationConfiguration(
+            for: connection,
+            overridePassword: nil
+        ) else {
+            throw DatabaseError.connectionFailed("Missing credentials")
+        }
+
+        guard let factory = DatabaseFactoryProvider.makeFactory(for: connection.databaseType) else {
+            throw DatabaseError.connectionFailed("No database factory is available for PostgreSQL.")
+        }
+
+        return try await factory.connect(
+            host: connection.host,
+            port: connection.port,
+            database: database,
+            tls: connection.useTLS,
+            authentication: credentials,
+            connectTimeoutSeconds: 10
+        )
     }
 
     func openJobQueueTab(for session: ConnectionSession, selectJobID: String? = nil) {
