@@ -68,6 +68,7 @@ struct EchoApp: App {
                 connectionStore: coordinator.connectionStore,
                 navigationStore: coordinator.navigationStore
             )
+            SidebarToggleCommands()
 #endif
         }
         AutocompleteInspectorWindow()
@@ -221,6 +222,24 @@ struct SparkleCommands: Commands {
                 Label("Check for Updates…", systemImage: "arrow.clockwise.circle")
             }
             .disabled(!updater.canCheckForUpdates)
+        }
+    }
+}
+
+struct SidebarToggleCommands: Commands {
+    var body: some Commands {
+        CommandGroup(after: .sidebar) {
+            Button("Toggle Sidebar") {
+                // If the key window is the Manage Connections window, toggle its sidebar.
+                // Otherwise, use the system's default sidebar toggle responder.
+                if let keyWindow = NSApplication.shared.keyWindow,
+                   keyWindow.title.contains("Connection") || keyWindow.title.contains("Identit") {
+                    NotificationCenter.default.post(name: .toggleManageConnectionsSidebar, object: nil)
+                } else {
+                    NSApp?.sendAction(#selector(NSSplitViewController.toggleSidebar(_:)), to: nil, from: nil)
+                }
+            }
+            .keyboardShortcut("s", modifiers: [.command, .control])
         }
     }
 }

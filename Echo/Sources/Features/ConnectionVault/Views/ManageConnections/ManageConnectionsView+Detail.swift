@@ -7,6 +7,7 @@ extension ManageConnectionsView {
             .accentColor(appearanceStore.accentColor)
             .navigationTitle(navigationTitleText)
             .navigationSubtitle(navigationSubtitleText)
+            .navigationHistoryToolbar($sidebarSelection, history: navHistory)
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
                     addToolbarMenu

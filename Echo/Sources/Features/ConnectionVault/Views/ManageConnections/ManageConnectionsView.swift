@@ -29,6 +29,8 @@ struct ManageConnectionsView: View {
     @State internal var identitySortOrder: [KeyPathComparator<SavedIdentity>] = []
 
     @State internal var expandedSections: Set<ManageSection> = [.connections, .identities]
+    @State internal var navHistory = NavigationHistory<SidebarSelection>()
+    @State internal var sidebarVisibility: NavigationSplitViewVisibility = .automatic
 
     init(onClose: (() -> Void)? = nil) {
         self.onClose = onClose
@@ -108,19 +110,25 @@ struct ManageConnectionsView: View {
 
     private var configuredSplitView: some View {
         splitView
-            .frame(minWidth: 1000, minHeight: 600)
+            .frame(minWidth: 1100, minHeight: 600)
     }
 
     private var splitView: some View {
-        NavigationSplitView {
+        NavigationSplitView(columnVisibility: $sidebarVisibility) {
             sidebar
-                .frame(minWidth: 180, idealWidth: 200, maxWidth: 260)
+                .frame(minWidth: 240)
+                .navigationSplitViewColumnWidth(min: 240, ideal: 260, max: 400)
                 .toolbar(removing: .sidebarToggle)
         } detail: {
             detailContent
         }
         .navigationSplitViewStyle(.balanced)
         .searchable(text: $searchText, placement: .toolbar, prompt: "Search")
+        .onReceive(NotificationCenter.default.publisher(for: .toggleManageConnectionsSidebar)) { _ in
+            withAnimation {
+                sidebarVisibility = sidebarVisibility == .detailOnly ? .automatic : .detailOnly
+            }
+        }
     }
 
     var deletionAlertBinding: Binding<Bool> {
