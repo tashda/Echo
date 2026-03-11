@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// Top-level settings page for all database engine configuration.
-/// Uses a segmented tab to switch between Shared defaults and per-engine profiles.
+/// Top-level settings page for all database configuration.
+/// Uses a grouped tab view (Calendar-style) to switch between database profiles.
 struct DatabasesSettingsView: View {
     @Environment(ProjectStore.self) var projectStore
 
@@ -30,35 +30,51 @@ struct DatabasesSettingsView: View {
     }
 
     var body: some View {
-        Form {
-            Section("Engine Scope") {
-                Picker("", selection: $selectedTab) {
-                    ForEach(DatabaseSettingsTab.allCases, id: \.self) { tab in
-                        Text(tab.title).tag(tab)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .labelsHidden()
+        TabView(selection: $selectedTab) {
+            Tab(value: .shared) {
+                Form { sharedSettings }
+                    .formStyle(.grouped)
+                    .scrollContentBackground(.hidden)
+            } label: {
+                Text("Shared")
             }
 
-            switch selectedTab {
-            case .shared:
-                sharedSettings
-            case .postgres:
-                postgresSettings
-            case .sqlserver:
-                sqlServerSettings
-            case .mysql:
-                mySQLSettings
-            case .sqlite:
-                sqliteSettings
+            Tab(value: .postgres) {
+                Form { postgresSettings }
+                    .formStyle(.grouped)
+                    .scrollContentBackground(.hidden)
+            } label: {
+                Text("PostgreSQL")
+            }
+
+            Tab(value: .sqlserver) {
+                Form { sqlServerSettings }
+                    .formStyle(.grouped)
+                    .scrollContentBackground(.hidden)
+            } label: {
+                Text("SQL Server")
+            }
+
+            Tab(value: .mysql) {
+                Form { mySQLSettings }
+                    .formStyle(.grouped)
+                    .scrollContentBackground(.hidden)
+            } label: {
+                Text("MySQL")
+            }
+
+            Tab(value: .sqlite) {
+                Form { sqliteSettings }
+                    .formStyle(.grouped)
+                    .scrollContentBackground(.hidden)
+            } label: {
+                Text("SQLite")
             }
         }
-        .formStyle(.grouped)
-        .scrollContentBackground(.hidden)
+        .tabViewStyle(.grouped)
     }
 
-    // MARK: - Simple Engine Tabs
+    // MARK: - Simple Database Tabs
 
     @ViewBuilder
     var sqlServerSettings: some View {
@@ -74,7 +90,7 @@ struct DatabasesSettingsView: View {
     @ViewBuilder
     var mySQLSettings: some View {
         Section("Execution Profile") {
-            Text("MySQL streams results directly without explicit cursors or engine profile controls.")
+            Text("MySQL streams results directly without explicit cursors or profile controls.")
                 .font(TypographyTokens.detail)
                 .foregroundStyle(.secondary)
         }
