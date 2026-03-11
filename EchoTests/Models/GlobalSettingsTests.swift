@@ -94,6 +94,6 @@ final class GlobalSettingsTests: XCTestCase {
         XCTAssertEqual(settings.diagramPrefetchMode, .off)
         XCTAssertEqual(settings.diagramRefreshCadence, .never)
         XCTAssertEqual(settings.keepTabsInMemory, false)
-        XCTAssertEqual(settings.useServerColorAsAccent, true)
+        XCTAssertEqual(settings.accentColorSource, .connection)
     }
 }

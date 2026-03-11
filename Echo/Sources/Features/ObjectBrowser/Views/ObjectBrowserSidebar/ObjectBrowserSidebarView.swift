@@ -219,6 +219,24 @@ struct ObjectBrowserSidebarView: View {
             Button("Disconnect") {
                 Task { await environmentState.disconnectSession(withID: session.id) }
             }
+            
+            if session.connection.databaseType == .postgresql {
+                Divider()
+                if projectStore.globalSettings.managedPostgresConsoleEnabled {
+                    Button {
+                        environmentState.openPSQLTab(for: session)
+                    } label: {
+                        Label("Postgres Console", systemImage: "terminal")
+                    }
+                }
+                if projectStore.globalSettings.nativePsqlEnabled {
+                    Button {
+                    } label: {
+                        Label("Native psql (Coming Soon)", systemImage: "chevron.left.forwardslash.chevron.right")
+                    }
+                    .disabled(true)
+                }
+            }
         }
     }
 
@@ -669,6 +687,23 @@ struct ObjectBrowserSidebarView: View {
         // New Query in this database
         Button("New Query") {
             environmentState.openQueryTab(for: session)
+        }
+
+        if session.connection.databaseType == .postgresql {
+            if projectStore.globalSettings.managedPostgresConsoleEnabled {
+                Button {
+                    environmentState.openPSQLTab(for: session, database: database.name)
+                } label: {
+                    Label("Postgres Console", systemImage: "terminal")
+                }
+            }
+            if projectStore.globalSettings.nativePsqlEnabled {
+                Button {
+                } label: {
+                    Label("Native psql (Coming Soon)", systemImage: "chevron.left.forwardslash.chevron.right")
+                }
+                .disabled(true)
+            }
         }
 
         Divider()

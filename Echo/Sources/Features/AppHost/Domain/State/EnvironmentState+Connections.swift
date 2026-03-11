@@ -107,6 +107,14 @@ extension EnvironmentState {
         registerTab(tab)
     }
 
+    func openPSQLTab(for session: ConnectionSession? = nil, database: String? = nil) {
+        guard projectStore.globalSettings.managedPostgresConsoleEnabled else { return }
+        let targetSession = session ?? sessionCoordinator.activeSession ?? sessionCoordinator.activeSessions.first
+        guard let targetSession else { return }
+        let tab = targetSession.addPSQLTab(database: database)
+        registerTab(tab)
+    }
+
     func openJobQueueTab(for session: ConnectionSession, selectJobID: String? = nil) {
         // Reuse existing Jobs tab for this session if one exists
         if let existingTab = tabStore.tabs.first(where: { $0.kind == .jobQueue && $0.connectionSessionID == session.id }) {

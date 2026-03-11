@@ -211,12 +211,14 @@ struct AppSettingsCommands: Commands {
 }
 
 struct SparkleCommands: Commands {
-    @StateObject private var updater = SparkleUpdater.shared
+    @ObservedObject private var updater = SparkleUpdater.shared
 
     var body: some Commands {
         CommandGroup(after: .appInfo) {
-            Button("Check for Updates…") {
+            Button {
                 updater.checkForUpdates()
+            } label: {
+                Label("Check for Updates…", systemImage: "arrow.clockwise.circle")
             }
             .disabled(!updater.canCheckForUpdates)
         }
@@ -268,6 +270,15 @@ struct ConnectMenuCommands: Commands {
 #endif
             }
             .keyboardShortcut("m", modifiers: [.command, .shift])
+            
+            Divider()
+            
+            Button {
+                SparkleUpdater.shared.checkForUpdates()
+            } label: {
+                Label("Check for Updates…", systemImage: "arrow.clockwise.circle")
+            }
+            .disabled(!SparkleUpdater.shared.canCheckForUpdates)
         }
     }
 

@@ -139,6 +139,23 @@ final class ConnectionSession: ObservableObject, Identifiable {
     }
 
     @discardableResult
+    func addPSQLTab(database: String? = nil) -> WorkspaceTab {
+        let targetDatabase = database ?? selectedDatabaseName ?? connection.database
+        let viewModel = PSQLTabViewModel(connection: connection, session: session, database: targetDatabase)
+        let tab = WorkspaceTab(
+            connection: connection,
+            session: session,
+            connectionSessionID: id,
+            title: "Postgres Console (\(targetDatabase))",
+            content: .psql(viewModel)
+        )
+        queryTabs.append(tab)
+        activeQueryTabID = tab.id
+        lastActivity = Date()
+        return tab
+    }
+
+    @discardableResult
     func addStructureTab(for object: SchemaObjectInfo, focus: TableStructureSection? = nil) -> WorkspaceTab {
         let viewModel = TableStructureEditorViewModel(
             schemaName: object.schema,

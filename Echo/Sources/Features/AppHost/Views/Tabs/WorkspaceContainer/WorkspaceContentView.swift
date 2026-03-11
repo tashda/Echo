@@ -26,6 +26,9 @@ struct WorkspaceContentView: View {
                 } else if let jobs = tab.jobQueue {
                     JobQueueView(viewModel: jobs)
                         .background(ColorTokens.Background.primary)
+                } else if let psql = tab.psql {
+                    PSQLTabView(viewModel: psql)
+                        .background(ColorTokens.Background.primary)
                 } else if let query = tab.query {
                     QueryEditorContainer(
                         tab: tab,
