@@ -1,7 +1,26 @@
 import SwiftUI
-import EchoSense
 
 extension QueryResultsSettingsView {
+
+    // MARK: - Computed State
+
+    var selectedDisplayMode: ForeignKeyDisplayMode { displayModeBinding.wrappedValue }
+    var selectedBehavior: ForeignKeyInspectorBehavior { inspectorBehaviorBinding.wrappedValue }
+
+    // MARK: - Bindings
+
+    var alternateRowShadingBinding: Binding<Bool> {
+        Binding(
+            get: { projectStore.globalSettings.resultsAlternateRowShading },
+            set: { newValue in
+                guard projectStore.globalSettings.resultsAlternateRowShading != newValue else { return }
+                var settings = projectStore.globalSettings
+                settings.resultsAlternateRowShading = newValue
+                Task { try? await projectStore.updateGlobalSettings(settings) }
+            }
+        )
+    }
+
     var displayModeBinding: Binding<ForeignKeyDisplayMode> {
         Binding(
             get: { projectStore.globalSettings.foreignKeyDisplayMode },
@@ -38,96 +57,6 @@ extension QueryResultsSettingsView {
         )
     }
 
-    var initialRowLimitBinding: Binding<Int> {
-        Binding(
-            get: { projectStore.globalSettings.resultsInitialRowLimit },
-            set: { newValue in
-                let clamped = max(100, min(newValue, 100_000))
-                guard projectStore.globalSettings.resultsInitialRowLimit != clamped else { return }
-                var settings = projectStore.globalSettings
-                settings.resultsInitialRowLimit = clamped
-                Task { try? await projectStore.updateGlobalSettings(settings) }
-            }
-        )
-    }
-
-    var previewBatchSizeBinding: Binding<Int> {
-        Binding(
-            get: { projectStore.globalSettings.resultsPreviewBatchSize },
-            set: { newValue in
-                let clamped = max(100, min(newValue, 100_000))
-                guard projectStore.globalSettings.resultsPreviewBatchSize != clamped else { return }
-                var settings = projectStore.globalSettings
-                settings.resultsPreviewBatchSize = clamped
-                Task { try? await projectStore.updateGlobalSettings(settings) }
-            }
-        )
-    }
-
-    var backgroundStreamingThresholdBinding: Binding<Int> {
-        Binding(
-            get: { projectStore.globalSettings.resultsBackgroundStreamingThreshold },
-            set: { newValue in
-                let clamped = max(100, min(newValue, 1_000_000))
-                guard projectStore.globalSettings.resultsBackgroundStreamingThreshold != clamped else { return }
-                var settings = projectStore.globalSettings
-                settings.resultsBackgroundStreamingThreshold = clamped
-                Task { try? await projectStore.updateGlobalSettings(settings) }
-            }
-        )
-    }
-
-    var backgroundFetchSizeBinding: Binding<Int> {
-        Binding(
-            get: { projectStore.globalSettings.resultsStreamingFetchSize },
-            set: { newValue in
-                let clamped = max(128, min(newValue, 16_384))
-                guard projectStore.globalSettings.resultsStreamingFetchSize != clamped else { return }
-                var settings = projectStore.globalSettings
-                settings.resultsStreamingFetchSize = clamped
-                Task { try? await projectStore.updateGlobalSettings(settings) }
-            }
-        )
-    }
-
-    var streamingModeBinding: Binding<ResultStreamingExecutionMode> {
-        Binding(
-            get: { projectStore.globalSettings.resultsStreamingMode },
-            set: { newValue in
-                guard projectStore.globalSettings.resultsStreamingMode != newValue else { return }
-                var settings = projectStore.globalSettings
-                settings.resultsStreamingMode = newValue
-                Task { try? await projectStore.updateGlobalSettings(settings) }
-            }
-        )
-    }
-
-    var fetchRampMultiplierBinding: Binding<Int> {
-        Binding(
-            get: { projectStore.globalSettings.resultsStreamingFetchRampMultiplier },
-            set: { newValue in
-                let clamped = max(1, min(newValue, 64))
-                guard projectStore.globalSettings.resultsStreamingFetchRampMultiplier != clamped else { return }
-                var settings = projectStore.globalSettings
-                settings.resultsStreamingFetchRampMultiplier = clamped
-                Task { try? await projectStore.updateGlobalSettings(settings) }
-            }
-        )
-    }
-
-    var fetchRampMaxBinding: Binding<Int> {
-        Binding(
-            get: { projectStore.globalSettings.resultsStreamingFetchRampMax },
-            set: { newValue in
-                let clamped = max(256, min(newValue, 1_048_576))
-                guard projectStore.globalSettings.resultsStreamingFetchRampMax != clamped else { return }
-                var settings = projectStore.globalSettings
-                settings.resultsStreamingFetchRampMax = clamped
-                Task { try? await projectStore.updateGlobalSettings(settings) }
-            }
-        )
-    }
-
     var autoOpenInspectorBinding: Binding<Bool> {
         Binding(
             get: { projectStore.globalSettings.autoOpenInspectorOnSelection },
@@ -140,16 +69,35 @@ extension QueryResultsSettingsView {
         )
     }
 
-    var alternateRowShadingBinding: Binding<Bool> {
-        Binding(
-            get: { projectStore.globalSettings.resultsAlternateRowShading },
-            set: { newValue in
-                guard projectStore.globalSettings.resultsAlternateRowShading != newValue else { return }
-                var settings = projectStore.globalSettings
-                settings.resultsAlternateRowShading = newValue
-                Task { try? await projectStore.updateGlobalSettings(settings) }
-            }
-        )
+    // MARK: - Display Helpers
+
+    func displayName(for mode: ForeignKeyDisplayMode) -> String {
+        switch mode {
+        case .showInspector: return "Open in Inspector"
+        case .showIcon: return "Show Cell Icon"
+        case .disabled: return "Do Nothing"
+        }
     }
 
+    func displayDescription(for mode: ForeignKeyDisplayMode) -> String {
+        switch mode {
+        case .showInspector: return "Selecting a foreign key cell immediately loads the referenced record."
+        case .showIcon: return "Foreign key cells display an inline action icon."
+        case .disabled: return "Foreign key metadata is ignored."
+        }
+    }
+
+    func behaviorDisplayName(for behavior: ForeignKeyInspectorBehavior) -> String {
+        switch behavior {
+        case .respectInspectorVisibility: return "Use Current Inspector State"
+        case .autoOpenAndClose: return "Auto Open & Close"
+        }
+    }
+
+    func behaviorDescription(for behavior: ForeignKeyInspectorBehavior) -> String {
+        switch behavior {
+        case .respectInspectorVisibility: return "Only populate the inspector when it is already visible."
+        case .autoOpenAndClose: return "Automatically open/close the inspector based on selection."
+        }
+    }
 }

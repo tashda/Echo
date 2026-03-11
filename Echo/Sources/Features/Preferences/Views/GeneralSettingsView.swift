@@ -6,22 +6,22 @@ struct GeneralSettingsView: View {
     var body: some View {
         Form {
             Section("Software Updates") {
-                HStack(alignment: .top, spacing: 16) {
+                HStack(alignment: .top, spacing: SpacingTokens.md) {
                     Image(systemName: "arrow.clockwise.circle.fill")
                         .symbolRenderingMode(.hierarchical)
                         .foregroundStyle(Color.accentColor)
                         .font(.system(size: 32))
                         .frame(width: 40)
-                    
-                    VStack(alignment: .leading, spacing: 4) {
+
+                    VStack(alignment: .leading, spacing: SpacingTokens.xxs2) {
                         Text("Echo Updates")
-                            .font(.headline)
+                            .font(TypographyTokens.headline)
                         Text("Stay up to date with the latest improvements and bug fixes.")
-                            .font(.subheadline)
+                            .font(TypographyTokens.standard)
                             .foregroundStyle(.secondary)
-                        
-                        Spacer().frame(height: 8)
-                        
+
+                        Spacer().frame(height: SpacingTokens.xs)
+
                         Button {
                             updater.checkForUpdates()
                         } label: {
@@ -30,7 +30,7 @@ struct GeneralSettingsView: View {
                         .disabled(!updater.canCheckForUpdates)
                     }
                 }
-                .padding(.vertical, 8)
+                .padding(.vertical, SpacingTokens.xs)
             }
         }
         .formStyle(.grouped)
