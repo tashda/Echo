@@ -10,6 +10,7 @@ import Sparkle
 @MainActor
 final class SparkleUpdater: NSObject, ObservableObject {
     @Published var canCheckForUpdates = false
+    @Published var automaticallyChecksForUpdates = false
     @Published var lastError: Error?
     @Published var showErrorAlert = false
 
@@ -37,7 +38,16 @@ final class SparkleUpdater: NSObject, ObservableObject {
                 self?.canCheckForUpdates = canCheck
             }
             .store(in: &cancellables)
-        
+
+        // Sync automaticallyChecksForUpdates
+        self.automaticallyChecksForUpdates = controller.updater.automaticallyChecksForUpdates
+        controller.updater.publisher(for: \.automaticallyChecksForUpdates)
+            .receive(on: RunLoop.main)
+            .sink { [weak self] value in
+                self?.automaticallyChecksForUpdates = value
+            }
+            .store(in: &cancellables)
+
         // Start the updater
         controller.startUpdater()
         #endif
@@ -50,6 +60,14 @@ final class SparkleUpdater: NSObject, ObservableObject {
         #if canImport(Sparkle)
         updaterController?.checkForUpdates(nil)
         #endif
+    }
+
+    @MainActor
+    func setAutomaticallyChecksForUpdates(_ enabled: Bool) {
+        #if canImport(Sparkle)
+        updaterController?.updater.automaticallyChecksForUpdates = enabled
+        #endif
+        automaticallyChecksForUpdates = enabled
     }
 }
 

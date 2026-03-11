@@ -64,7 +64,7 @@ struct SettingsView: View {
         }
     }
 
-    @State private var selection: SettingsSection? = .appearance
+    @State private var selection: SettingsSection? = .general
 
     /// Fixed sidebar width based on the longest section title.
     /// We approximate character width to keep the list comfortably sized.

@@ -3,34 +3,46 @@ import SwiftUI
 struct GeneralSettingsView: View {
     @StateObject private var updater = SparkleUpdater.shared
 
+    private var appVersion: String {
+        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "Unknown"
+    }
+
+    private var buildNumber: String {
+        Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? ""
+    }
+
+    private var automaticUpdatesBinding: Binding<Bool> {
+        Binding(
+            get: { updater.automaticallyChecksForUpdates },
+            set: { updater.setAutomaticallyChecksForUpdates($0) }
+        )
+    }
+
     var body: some View {
         Form {
-            Section("Software Updates") {
-                HStack(alignment: .top, spacing: SpacingTokens.md) {
-                    Image(systemName: "arrow.clockwise.circle.fill")
-                        .symbolRenderingMode(.hierarchical)
-                        .foregroundStyle(Color.accentColor)
-                        .font(.system(size: 32))
-                        .frame(width: 40)
-
-                    VStack(alignment: .leading, spacing: SpacingTokens.xxs2) {
-                        Text("Echo Updates")
-                            .font(TypographyTokens.headline)
-                        Text("Stay up to date with the latest improvements and bug fixes.")
-                            .font(TypographyTokens.standard)
-                            .foregroundStyle(.secondary)
-
-                        Spacer().frame(height: SpacingTokens.xs)
-
-                        Button {
-                            updater.checkForUpdates()
-                        } label: {
-                            Text("Check for Updates…")
-                        }
-                        .disabled(!updater.canCheckForUpdates)
-                    }
+            Section("Software Update") {
+                LabeledContent("Installed") {
+                    Text("Echo \(appVersion) (\(buildNumber))")
+                        .foregroundStyle(.secondary)
                 }
-                .padding(.vertical, SpacingTokens.xs)
+
+                Button {
+                    updater.checkForUpdates()
+                } label: {
+                    Text("Check for Updates…")
+                }
+                .disabled(!updater.canCheckForUpdates)
+            }
+
+            Section {
+                SettingsRowWithInfo(
+                    title: "Automatic Updates",
+                    description: "When enabled, Echo periodically checks for new versions in the background and notifies you when an update is available."
+                ) {
+                    Toggle("", isOn: automaticUpdatesBinding)
+                        .labelsHidden()
+                        .toggleStyle(.switch)
+                }
             }
         }
         .formStyle(.grouped)
