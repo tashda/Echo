@@ -7,7 +7,7 @@ final class ManageConnectionsWindowController: NSWindowController, NSWindowDeleg
     static let shared = ManageConnectionsWindowController()
     private static let toolbarIdentifier = NSToolbar.Identifier("ManageConnectionsToolbar")
 
-    private var hostingController: NSHostingController<ManageConnectionsWindowRootView>?
+    private var hostingController: PocketSeparatorHidingHostingController<ManageConnectionsWindowRootView>?
     private var isWindowLoadedOnce = false
     private var themeCancellables = Set<AnyCancellable>()
 
@@ -52,10 +52,10 @@ final class ManageConnectionsWindowController: NSWindowController, NSWindowDeleg
         let rootView = ManageConnectionsWindowRootView(onClose: { [weak self] in
             self?.closeWindow()
         })
-        let hosting = NSHostingController(rootView: rootView)
+        let hosting = PocketSeparatorHidingHostingController(rootView: rootView)
 
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 1100, height: 660),
+            contentRect: NSRect(x: 0, y: 0, width: 1200, height: 700),
             styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
             backing: .buffered,
             defer: false
@@ -64,6 +64,7 @@ final class ManageConnectionsWindowController: NSWindowController, NSWindowDeleg
         window.title = "Manage Connections"
         window.isReleasedWhenClosed = false
         window.toolbarStyle = .unified
+        window.titlebarSeparatorStyle = .none
         let toolbar = NSToolbar(identifier: Self.toolbarIdentifier)
         toolbar.allowsUserCustomization = false
         toolbar.autosavesConfiguration = false
@@ -98,6 +99,29 @@ final class ManageConnectionsWindowController: NSWindowController, NSWindowDeleg
         let manager = AppearanceStore.shared
         let isDark = manager.effectiveColorScheme == .dark
         window.appearance = NSAppearance(named: isDark ? .darkAqua : .aqua)
+    }
+}
+
+// MARK: - Pocket Separator Hiding
+
+/// NSHostingController subclass that hides the 1px `_NSLayerBasedFillColorView`
+/// separator that `NavigationSplitView` inserts inside `NSHardPocketView`
+/// between the toolbar and detail content.
+final class PocketSeparatorHidingHostingController<Content: View>: NSHostingController<Content> {
+    override func viewDidLayout() {
+        super.viewDidLayout()
+        hidePocketSeparators(in: view)
+    }
+
+    private func hidePocketSeparators(in root: NSView) {
+        for subview in root.subviews {
+            let typeName = String(describing: type(of: subview))
+            if typeName.contains("NSLayerBasedFillColorView"),
+               subview.frame.height <= 1 {
+                subview.isHidden = true
+            }
+            hidePocketSeparators(in: subview)
+        }
     }
 }
 

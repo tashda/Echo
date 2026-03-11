@@ -5,7 +5,7 @@ import SwiftUI
 struct DatabasesSettingsView: View {
     @Environment(ProjectStore.self) var projectStore
 
-    @State private var selectedTab: DatabaseSettingsTab = .shared
+    @Binding var selectedTab: DatabaseSettingsTab
 
     enum DatabaseSettingsTab: Hashable, CaseIterable {
         case shared
@@ -30,48 +30,41 @@ struct DatabasesSettingsView: View {
     }
 
     var body: some View {
-        TabView(selection: $selectedTab) {
-            Tab(value: .shared) {
-                Form { sharedSettings }
-                    .formStyle(.grouped)
-                    .scrollContentBackground(.hidden)
-            } label: {
-                Text("Shared")
+        VStack(spacing: 0) {
+            Picker("Database", selection: $selectedTab) {
+                ForEach(DatabaseSettingsTab.allCases, id: \.self) { tab in
+                    Text(tab.title).tag(tab)
+                }
             }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .fixedSize()
+            .padding(.top, SpacingTokens.sm)
+            .padding(.bottom, SpacingTokens.xs)
 
-            Tab(value: .postgres) {
-                Form { postgresSettings }
-                    .formStyle(.grouped)
-                    .scrollContentBackground(.hidden)
-            } label: {
-                Text("PostgreSQL")
-            }
-
-            Tab(value: .sqlserver) {
-                Form { sqlServerSettings }
-                    .formStyle(.grouped)
-                    .scrollContentBackground(.hidden)
-            } label: {
-                Text("SQL Server")
-            }
-
-            Tab(value: .mysql) {
-                Form { mySQLSettings }
-                    .formStyle(.grouped)
-                    .scrollContentBackground(.hidden)
-            } label: {
-                Text("MySQL")
-            }
-
-            Tab(value: .sqlite) {
-                Form { sqliteSettings }
-                    .formStyle(.grouped)
-                    .scrollContentBackground(.hidden)
-            } label: {
-                Text("SQLite")
+            switch selectedTab {
+            case .mysql:
+                mySQLSettings
+            case .sqlite:
+                sqliteSettings
+            default:
+                Form {
+                    switch selectedTab {
+                    case .shared:
+                        sharedSettings
+                    case .postgres:
+                        postgresSettings
+                    case .sqlserver:
+                        sqlServerSettings
+                    default:
+                        EmptyView()
+                    }
+                }
+                .formStyle(.grouped)
+                .scrollContentBackground(.hidden)
             }
         }
-        .tabViewStyle(.grouped)
+        .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
     }
 
     // MARK: - Simple Database Tabs
@@ -89,19 +82,21 @@ struct DatabasesSettingsView: View {
 
     @ViewBuilder
     var mySQLSettings: some View {
-        Section("Execution Profile") {
-            Text("MySQL streams results directly without explicit cursors or profile controls.")
-                .font(TypographyTokens.detail)
-                .foregroundStyle(.secondary)
+        ContentUnavailableView {
+            Label("No Settings", systemImage: "slider.horizontal.3")
+        } description: {
+            Text("There are no MySQL-specific settings at this time.")
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     @ViewBuilder
     var sqliteSettings: some View {
-        Section("Execution Profile") {
-            Text("SQLite runs in-process, so network streaming and cursor profile controls do not apply.")
-                .font(TypographyTokens.detail)
-                .foregroundStyle(.secondary)
+        ContentUnavailableView {
+            Label("No Settings", systemImage: "slider.horizontal.3")
+        } description: {
+            Text("There are no SQLite-specific settings at this time.")
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }

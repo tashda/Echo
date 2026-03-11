@@ -17,6 +17,7 @@ struct SettingsWindowScene: Scene {
                 .environmentObject(coordinator.appearanceStore)
         }
         .defaultSize(width: 1000, height: 700)
+        .windowResizability(.contentMinSize)
         .windowToolbarStyle(.unified)
         .restorationBehavior(.disabled)
         .defaultLaunchBehavior(.suppressed)
