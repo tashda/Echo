@@ -139,16 +139,28 @@ final class ConnectionSession: ObservableObject, Identifiable {
     }
 
     @discardableResult
-    func addPSQLTab(database: String? = nil) -> WorkspaceTab {
+    func addPSQLTab(
+        session dedicatedSession: DatabaseSession,
+        database: String? = nil,
+        sessionFactory: @escaping @Sendable (String) async throws -> DatabaseSession
+    ) -> WorkspaceTab {
         let targetDatabase = database ?? selectedDatabaseName ?? connection.database
-        let viewModel = PSQLTabViewModel(connection: connection, session: session, database: targetDatabase)
+        let viewModel = PSQLTabViewModel(
+            connection: connection,
+            session: dedicatedSession,
+            database: targetDatabase,
+            sessionFactory: sessionFactory
+        )
         let tab = WorkspaceTab(
             connection: connection,
-            session: session,
+            session: dedicatedSession,
             connectionSessionID: id,
             title: "Postgres Console (\(targetDatabase))",
             content: .psql(viewModel)
         )
+        viewModel.onActiveDatabaseChanged = { [weak tab] databaseName in
+            tab?.title = "Postgres Console (\(databaseName))"
+        }
         queryTabs.append(tab)
         activeQueryTabID = tab.id
         lastActivity = Date()

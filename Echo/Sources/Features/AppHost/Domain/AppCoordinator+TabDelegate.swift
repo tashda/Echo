@@ -13,6 +13,11 @@ extension AppCoordinator: TabStoreDelegate {
     }
 
     func tabStore(_ store: TabStore, shouldClose tab: WorkspaceTab) async -> Bool {
+        if let psql = tab.psql {
+            await psql.close()
+            return true
+        }
+
         guard let context = tab.bookmarkContext, let queryState = tab.query else {
             return true
         }
