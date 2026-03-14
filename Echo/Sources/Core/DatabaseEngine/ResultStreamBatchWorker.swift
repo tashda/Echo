@@ -31,6 +31,11 @@ final class ResultStreamBatchWorker: @unchecked Sendable {
     private let maxFlushLatency: TimeInterval
     private let operationStart: CFAbsoluteTime
 
+    /// Direct spool writer — when set, binary-only batches are written directly to disk
+    /// on the worker's serial queue, bypassing the MainActor → ingestion actor pipeline.
+    private var spoolWriter: SynchronousSpoolWriter?
+    private var spoolHeaderWritten = false
+
     private var pendingPreviewRows: [[String?]] = []
     private var pendingRows: [BinaryRowStorage] = []
     private var lastFlushTimestamp: CFAbsoluteTime
@@ -52,7 +57,8 @@ final class ResultStreamBatchWorker: @unchecked Sendable {
         streamingPreviewLimit: Int,
         maxFlushLatency: TimeInterval,
         operationStart: CFAbsoluteTime,
-        progressHandler: @escaping QueryProgressHandler
+        progressHandler: @escaping QueryProgressHandler,
+        spoolWriter: SynchronousSpoolWriter? = nil
     ) {
         self.queue = DispatchQueue(label: label, qos: .userInitiated)
         self.columns = columns
@@ -60,12 +66,22 @@ final class ResultStreamBatchWorker: @unchecked Sendable {
         self.maxFlushLatency = maxFlushLatency
         self.operationStart = operationStart
         self.progressHandler = progressHandler
+        self.spoolWriter = spoolWriter
         self.lastFlushTimestamp = operationStart
     }
 
     nonisolated func enqueue(_ payload: Payload) {
         queue.async {
             self.processPayload(payload)
+        }
+    }
+
+    nonisolated func enqueueBatch(_ payloads: [Payload]) {
+        guard !payloads.isEmpty else { return }
+        queue.async {
+            for payload in payloads {
+                self.processPayload(payload)
+            }
         }
     }
 
@@ -89,9 +105,10 @@ final class ResultStreamBatchWorker: @unchecked Sendable {
         }
     }
 
-    nonisolated func finish(totalRowCount: Int) {
+    nonisolated func finish(totalRowCount: Int, completion: (@Sendable () -> Void)? = nil) {
         queue.async {
             self.flush(totalRowCount: totalRowCount)
+            completion?()
         }
     }
 
@@ -127,6 +144,7 @@ final class ResultStreamBatchWorker: @unchecked Sendable {
         let previewBatch = pendingPreviewRows
         let storageBatch = pendingRows
         let batchCount = storageBatch.count
+        let hasPreviewRows = !previewBatch.isEmpty
         let shouldParallelize = batchCount >= 1_024
         let encodedBatch: [ResultBinaryRow] = {
             if !shouldParallelize {
@@ -174,7 +192,6 @@ final class ResultStreamBatchWorker: @unchecked Sendable {
 
         pendingRows.removeAll(keepingCapacity: true)
         pendingPreviewRows.removeAll(keepingCapacity: true)
-        let finalBatch = encodedBatch
 
         let now = CFAbsoluteTimeGetCurrent()
         let metrics = QueryStreamMetrics(
@@ -197,10 +214,33 @@ final class ResultStreamBatchWorker: @unchecked Sendable {
 
         let batchStartIndex = max(totalRowCount - batchCount, 0)
 
+        // Direct spool write path: write binary rows directly to disk on this queue,
+        // then send a count-only update to the progress handler (no row data).
+        if let writer = spoolWriter, !hasPreviewRows {
+            if !spoolHeaderWritten {
+                try? writer.writeHeader(columns: columns)
+                spoolHeaderWritten = true
+            }
+            writer.appendEncodedRows(encodedBatch, startRow: batchStartIndex)
+
+            // Send lightweight count-only update (empty row arrays)
+            let update = QueryStreamUpdate(
+                columns: columns,
+                appendedRows: [],
+                encodedRows: [],
+                totalRowCount: totalRowCount,
+                metrics: metrics,
+                rowRange: batchCount > 0 ? (batchStartIndex..<totalRowCount) : nil
+            )
+            progressHandler(update)
+            return
+        }
+
+        // Standard path: send rows through the progress handler for MainActor processing
         let update = QueryStreamUpdate(
             columns: columns,
             appendedRows: previewBatch,
-            encodedRows: finalBatch,
+            encodedRows: encodedBatch,
             totalRowCount: totalRowCount,
             metrics: metrics,
             rowRange: batchCount > 0 ? (batchStartIndex..<totalRowCount) : nil
@@ -225,13 +265,12 @@ final class ResultStreamBatchWorker: @unchecked Sendable {
                 fallbackBatch: fallbackBatch
             )
         } else {
-            let baseline = max(streamingPreviewLimit, 512)
-            let threshold = min(max(baseline, 512), 4_096)
+            let threshold = 8_192
             let minimumBatch = threshold
-            let latencyBatch = threshold
-            let fallbackBatch = max(threshold / 4, 128)
-            let latencyBudget = min(maxFlushLatency, 0.35)
-            let fallbackLatency = max(0.70, maxFlushLatency * 0.90)
+            let latencyBatch = 2_048
+            let fallbackBatch = 256
+            let latencyBudget: TimeInterval = 0.10
+            let fallbackLatency: TimeInterval = 0.15
             return FlushPolicy(
                 threshold: threshold,
                 minimumBatch: minimumBatch,

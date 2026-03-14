@@ -67,29 +67,4 @@ extension PostgresSession {
         }
         return value
     }
-
-    @Sendable
-    nonisolated static func cheapStringValue(for cell: PostgresCell) -> String? {
-        if cell.format == .text, let buffer = cell.bytes {
-            let readable = buffer.readableBytes
-            guard readable > 0 else { return "" }
-            return buffer.getString(at: buffer.readerIndex, length: readable)
-        }
-        if let decoded = try? cell.decode(String.self, context: .default) {
-            return decoded
-        }
-        if var buffer = cell.bytes {
-            let readable = buffer.readableBytes
-            guard readable > 0 else { return "" }
-            if let string = buffer.getString(at: buffer.readerIndex, length: readable) {
-                return string
-            }
-            if let bytes = buffer.readBytes(length: readable) {
-                return bytes.reduce(into: "0x") { result, byte in
-                    result.append(String(format: "%02X", byte))
-                }
-            }
-        }
-        return nil
-    }
 }

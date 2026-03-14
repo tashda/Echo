@@ -4,7 +4,7 @@ import SQLServerKit
 extension SQLServerSessionAdapter {
     func simpleQuery(_ sql: String) async throws -> QueryResultSet {
         // Use SQLServerKit's query functionality
-        let rows: [TDSRow] = try await client.query(sql)
+        let rows: [SQLServerRow] = try await client.query(sql)
 
         // Convert SQLServerKit result to Echo's QueryResultSet
         return try await convertSQLServerRowsToEcho(rows)
@@ -19,15 +19,8 @@ extension SQLServerSessionAdapter {
     }
 
     func queryWithPaging(_ sql: String, limit: Int, offset: Int) async throws -> QueryResultSet {
-        // Add ORDER BY and OFFSET/FETCH to the SQL for pagination
-        let pagedSQL = """
-        SELECT * FROM (
-            SELECT *, ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) as row_num
-            FROM (\(sql)) as subquery
-        ) as paged
-        WHERE row_num > \(offset) AND row_num <= \(offset + limit)
-        """
-        return try await simpleQuery(pagedSQL)
+        let rows = try await client.queryPaged(sql, limit: limit, offset: offset)
+        return try await convertSQLServerRowsToEcho(rows)
     }
 
     func executeUpdate(_ sql: String) async throws -> Int {
@@ -36,29 +29,48 @@ extension SQLServerSessionAdapter {
         return Int(result.rowCount ?? 0)
     }
 
-    private func convertSQLServerRowsToEcho(_ rows: [TDSRow]) async throws -> QueryResultSet {
-        // Convert SQLServerKit's TDSRow array to Echo's QueryResultSet
-        var echoRows: [[String?]] = []
-        var echoColumns: [ColumnInfo] = []
+    func renameTable(schema: String?, oldName: String, newName: String) async throws {
+        try await client.admin.renameTable(
+            name: oldName,
+            newName: newName,
+            schema: schema ?? "dbo",
+            database: database
+        )
+    }
 
-        // Extract column information from the first row
+    func dropTable(schema: String?, name: String, ifExists: Bool) async throws {
+        try await client.admin.dropTable(
+            name: name,
+            schema: schema ?? "dbo",
+            database: database
+        )
+    }
+
+    func truncateTable(schema: String?, name: String) async throws {
+        try await client.admin.truncateTable(
+            name: name,
+            schema: schema ?? "dbo",
+            database: database
+        )
+    }
+
+    private func convertSQLServerRowsToEcho(_ rows: [SQLServerRow]) async throws -> QueryResultSet {
+        var echoColumns: [ColumnInfo] = []
+        var echoRows: [[String?]] = []
+
         if let firstRow = rows.first {
             echoColumns = firstRow.columnMetadata.map { column in
                 ColumnInfo(
                     name: column.colName,
-                    dataType: column.displayName,
+                    dataType: column.typeName,
                     isPrimaryKey: false,
                     isNullable: true,
                     maxLength: column.normalizedLength
                 )
             }
 
-            // Convert rows
             echoRows = rows.map { row in
-                row.data.map { tdsData in
-                    // Convert TDSData to String?
-                    convertTDSDataToString(tdsData)
-                }
+                row.values.map { $0.isNull ? nil : $0.description }
             }
         }
 
@@ -68,18 +80,5 @@ extension SQLServerSessionAdapter {
             totalRowCount: echoRows.count,
             commandTag: nil
         )
-    }
-
-    private func convertTDSDataToString(_ data: TDSData?) -> String? {
-        // Convert TDSData types to String?
-        guard let data = data else {
-            return nil
-        }
-
-        guard data.value != nil else {
-            return nil
-        }
-
-        return data.description
     }
 }
