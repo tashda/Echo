@@ -176,6 +176,7 @@ extension TableStructureEditorViewModel {
         let original: Snapshot?
         var name: String
         var columns: [String]
+        var isNew: Bool { original == nil }
         var isDirty: Bool {
             guard let original else { return true }
             return original.name != name || original.columns != columns

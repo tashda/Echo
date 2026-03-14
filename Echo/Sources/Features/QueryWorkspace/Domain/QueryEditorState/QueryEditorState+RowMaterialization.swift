@@ -102,15 +102,11 @@ extension QueryEditorState {
         let gridPipelineLog = OSLog(subsystem: "dk.tippr.echo", category: .pointsOfInterest)
         os_log("IntegrateFormattedRows begin rows=%{public}d", log: gridPipelineLog, type: .info, rows.count)
         print("[Signpost] IntegrateFormattedRows begin rows=\(rows.count)")
-        if #available(macOS 10.14, *) {
-            os_signpost(.begin, log: gridPipelineLog, name: "IntegrateFormattedRows", "%{public}d rows", rows.count)
-        }
+        os_signpost(.begin, log: gridPipelineLog, name: "IntegrateFormattedRows", "%{public}d rows", rows.count)
         defer {
             os_log("IntegrateFormattedRows end", log: gridPipelineLog, type: .info)
             print("[Signpost] IntegrateFormattedRows end")
-            if #available(macOS 10.14, *) {
-                os_signpost(.end, log: gridPipelineLog, name: "IntegrateFormattedRows")
-            }
+            os_signpost(.end, log: gridPipelineLog, name: "IntegrateFormattedRows")
         }
         if rowDiagnosticsEnabled {
             if totalRowCount >= 0 && range.upperBound > totalRowCount {
@@ -246,6 +242,39 @@ extension QueryEditorState {
                 materialized: materializedHighWaterMark
             )
             markResultDataChanged()
+        }
+    }
+
+    func beginProgressiveMaterialization() {
+        guard let handle = spoolHandle else { return }
+        let total = results?.totalRowCount ?? rowProgress.totalReported
+        guard total > materializedHighWaterMark else { return }
+        progressiveMaterializationTask?.cancel()
+        let capturedHandle = handle
+        progressiveMaterializationTask = Task { @MainActor [weak self] in
+            let batchSize = 5_000
+            while !Task.isCancelled {
+                guard let self else { break }
+                let cursor = self.materializedHighWaterMark
+                guard cursor < total else { break }
+                let limit = min(batchSize, total - cursor)
+
+                let rows: [[String?]]
+                do {
+                    rows = try await capturedHandle.loadRows(offset: cursor, limit: limit)
+                } catch { break }
+                guard !rows.isEmpty else { break }
+
+                self.rowCache.ingest(rows: rows, startingAt: cursor)
+                self.materializedHighWaterMark = cursor + rows.count
+                self.rowProgress = RowProgress(
+                    totalReceived: self.rowProgress.totalReceived,
+                    totalReported: self.rowProgress.totalReported,
+                    materialized: self.materializedHighWaterMark
+                )
+                self.markResultDataChanged(force: true)
+                try? await Task.sleep(for: .milliseconds(2))
+            }
         }
     }
 

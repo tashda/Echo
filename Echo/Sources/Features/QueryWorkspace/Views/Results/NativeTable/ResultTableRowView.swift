@@ -29,9 +29,13 @@ final class ResultTableRowView: NSTableRowView {
     }
 
     override func drawBackground(in dirtyRect: NSRect) {
-        let color = colorProvider?(rowIndex) ?? NSColor.clear
-        color.setFill()
-        dirtyRect.fill()
+        if let tableView = superview as? NSTableView, tableView.usesAlternatingRowBackgroundColors {
+            super.drawBackground(in: dirtyRect)
+        } else {
+            let color = colorProvider?(rowIndex) ?? NSColor.clear
+            color.setFill()
+            dirtyRect.fill()
+        }
 
         if let info = highlightProvider?(self, rowIndex) {
             let accent = AppearanceStore.shared.accentNSColor

@@ -34,7 +34,9 @@ extension QueryResultsTableView.Coordinator {
     }
 
     func addDataColumns(to tableView: NSTableView) {
-        for column in parent.query.displayedColumns {
+        let hidden = persistedState?.hiddenColumnIndices ?? []
+        for (index, column) in parent.query.displayedColumns.enumerated() {
+            guard !hidden.contains(index) else { continue }
             let tableColumn = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("data-\(column.id)"))
             tableColumn.title = column.name
             tableColumn.minWidth = defaultWidth(for: column)
@@ -101,8 +103,14 @@ extension QueryResultsTableView.Coordinator {
 
     func applyHeaderStyle(to tableView: NSTableView) {
         for column in tableView.tableColumns {
-            column.headerCell = NSTableHeaderCell(textCell: column.title)
-            column.headerCell.controlSize = .regular; column.headerCell.alignment = .left; column.headerCell.title = column.title; column.headerCell.isHighlighted = false
+            if !(column.headerCell is ResultTableHeaderCell) {
+                column.headerCell = ResultTableHeaderCell(textCell: column.title)
+            }
+            column.headerCell.controlSize = .regular
+            column.headerCell.alignment = .left
+            column.headerCell.title = column.title
+            column.headerCell.font = NSFont.systemFont(ofSize: 12, weight: .semibold)
+            column.headerCell.isHighlighted = false
         }
         tableView.headerView?.needsDisplay = true
     }

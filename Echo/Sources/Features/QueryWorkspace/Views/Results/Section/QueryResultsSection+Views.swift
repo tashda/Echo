@@ -1,28 +1,6 @@
 import SwiftUI
 
 extension QueryResultsSection {
-    var toolbar: some View {
-        HStack(spacing: 16) {
-            Picker("", selection: $selectedTab) {
-                Text("Results").tag(ResultTab.results)
-                Text("Messages").tag(ResultTab.messages)
-#if os(macOS)
-                if jsonInspectorContext != nil {
-                    Text("JSON").tag(ResultTab.jsonInspector)
-                }
-#endif
-            }
-            .pickerStyle(.segmented)
-            .frame(maxWidth: 220)
-            .labelsHidden()
-
-            Spacer()
-        }
-        .padding(.horizontal, SpacingTokens.md2)
-        .padding(.vertical, SpacingTokens.xs2)
-        .background(ColorTokens.Background.primary)
-    }
-
     @ViewBuilder
     var content: some View {
         Group {
@@ -70,18 +48,16 @@ extension QueryResultsSection {
                     },
                     onClearColumnHighlight: { highlightedColumnIndex = nil },
                     backgroundColor: NSColor(ColorTokens.Background.primary),
-                    foreignKeyDisplayMode: foreignKeyDisplayMode,
-                    foreignKeyInspectorBehavior: foreignKeyInspectorBehavior,
                     onForeignKeyEvent: onForeignKeyEvent,
                     onJsonEvent: { event in
-                        if case .activate(let selection) = event {
-                            openJsonInspector(with: selection)
-                        }
                         onJsonEvent(event)
                     },
+                    onCellInspect: onCellInspect,
                     persistedState: gridState,
                     isResizing: isResizingResults,
-                    alternateRowShading: projectStore.globalSettings.resultsAlternateRowShading
+                    alternateRowShading: projectStore.globalSettings.resultsAlternateRowShading,
+                    showRowNumbers: projectStore.globalSettings.resultsShowRowNumbers,
+                    colorOverrides: projectStore.globalSettings.resultGridColorOverrides
                 )
 #else
                 QueryResultsGridView(
@@ -105,43 +81,43 @@ extension QueryResultsSection {
     }
 
     var placeholder: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: SpacingTokens.sm) {
             Image(systemName: "tablecells")
-                .font(.system(size: 40))
-                .foregroundStyle(.secondary)
+                .font(TypographyTokens.hero)
+                .foregroundStyle(ColorTokens.Text.secondary)
             Text("No Results Yet")
-                .font(.headline)
+                .font(TypographyTokens.headline)
             Text("Run a query to see data appear here.")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .font(TypographyTokens.subheadline)
+                .foregroundStyle(ColorTokens.Text.secondary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     var executingView: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: SpacingTokens.md) {
             ProgressView()
                 .controlSize(.large)
             Text("Executing query...")
-                .font(.headline)
+                .font(TypographyTokens.headline)
             Text("Please wait while we fetch your data.")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .font(TypographyTokens.subheadline)
+                .foregroundStyle(ColorTokens.Text.secondary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     func errorView(_ message: String) -> some View {
-        VStack(spacing: 16) {
+        VStack(spacing: SpacingTokens.md) {
             Image(systemName: "exclamationmark.triangle.fill")
-                .font(.system(size: 42))
-                .foregroundStyle(.orange)
+                .font(TypographyTokens.hero)
+                .foregroundStyle(ColorTokens.Status.warning)
             Text("Query Failed")
-                .font(.headline)
+                .font(TypographyTokens.headline)
             Text(message)
-                .font(.body)
+                .font(TypographyTokens.body)
                 .multilineTextAlignment(.center)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(ColorTokens.Text.secondary)
                 .textSelection(.enabled)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -149,15 +125,15 @@ extension QueryResultsSection {
     }
 
     var noRowsReturnedView: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: SpacingTokens.sm) {
             Image(systemName: "tablecells.badge.ellipsis")
-                .font(.system(size: 36))
-                .foregroundStyle(.secondary)
+                .font(TypographyTokens.hero)
+                .foregroundStyle(ColorTokens.Text.secondary)
             Text("No Rows Returned")
-                .font(.headline)
+                .font(TypographyTokens.headline)
             Text("The query executed successfully but returned no data.")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .font(TypographyTokens.subheadline)
+                .foregroundStyle(ColorTokens.Text.secondary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }

@@ -9,10 +9,15 @@ extension QueryResultsTableView.Coordinator: NSTableViewDelegate, NSTableViewDat
     }
 
     func tableView(_ tableView: NSTableView, rowViewForRow row: Int) -> NSTableRowView? {
-        let rowView = ResultTableRowView()
+        let identifier = NSUserInterfaceItemIdentifier("result-row")
+        let rowView = (tableView.makeView(withIdentifier: identifier, owner: self) as? ResultTableRowView) ?? {
+            let view = ResultTableRowView()
+            view.identifier = identifier
+            return view
+        }()
         rowView.configure(
             row: row,
-            colorProvider: { [weak self] index in self?.rowBackgroundColor(for: index) ?? NSColor(ColorTokens.Background.tertiary) },
+            colorProvider: { [weak self] index in self?.rowBackgroundColor(for: index) ?? .clear },
             highlightProvider: { [weak self, weak tableView] view, index in guard let self, let tableView else { return nil }; return self.selectionRenderInfo(forRow: index, rowView: view, tableView: tableView) }
         )
         return rowView
@@ -27,7 +32,7 @@ extension QueryResultsTableView.Coordinator: NSTableViewDelegate, NSTableViewDat
         return cellView
     }
 
-    func tableView(_ tableView: NSTableView, shouldReorderColumn columnIndex: Int, toColumn newColumnIndex: Int) -> Bool { false }
+    func tableView(_ tableView: NSTableView, shouldReorderColumn columnIndex: Int, toColumn newColumnIndex: Int) -> Bool { true }
 
     func tableView(_ tableView: NSTableView, sizeToFitWidthOfColumn column: Int) -> CGFloat {
         guard column >= 0, column < tableView.tableColumns.count else { return 0 }
@@ -74,10 +79,13 @@ extension QueryResultsTableView.Coordinator: NSTableViewDelegate, NSTableViewDat
 
     // MARK: - Row and Cell Configuration
 
-    func rowBackgroundColor(for row: Int) -> NSColor { NSColor(ColorTokens.Background.tertiary) }
+    func rowBackgroundColor(for row: Int) -> NSColor { cachedRowBackgroundColor }
 
     func dataColumnIndex(for tableColumn: NSTableColumn) -> Int? {
-        guard let tableView else { return nil }; return tableView.tableColumns.firstIndex(of: tableColumn)
+        guard let tableView else { return nil }
+        let tableIndex = tableView.column(withIdentifier: tableColumn.identifier)
+        guard tableIndex >= 0 else { return nil }
+        return visibleDataIndex(for: tableIndex)
     }
 
     func makeDataCellView(identifier: NSUserInterfaceItemIdentifier) -> ResultTableDataCellView {
@@ -91,7 +99,7 @@ extension QueryResultsTableView.Coordinator: NSTableViewDelegate, NSTableViewDat
         let sourceIndex = resolvedRowIndex(for: row)
         guard sourceIndex >= 0 else {
             let style = fallbackResultGridStyle(for: .text)
-            cellView.apply(text: "", font: resolvedFont(for: style), baseTextColor: style.nsColor, selectionTextColor: NSColor(ColorTokens.Text.primary), isSelected: false)
+            cellView.apply(text: "", font: resolvedFont(for: style), textColor: style.nsColor)
             cellView.configureIcon(nil); return
         }
         let rawValue = displayedRowValues(for: sourceIndex)?[safe: dataIndex] ?? parent.query.valueForDisplay(row: sourceIndex, column: dataIndex)
@@ -99,30 +107,43 @@ extension QueryResultsTableView.Coordinator: NSTableViewDelegate, NSTableViewDat
         let kind = (rawValue == nil) ? .null : (dataIndex < cachedColumnKinds.count ? cachedColumnKinds[dataIndex] : ResultGridValueClassifier.kind(for: columnInfo, value: rawValue))
         let style = cachedResultGridStyles[kind] ?? { let s = fallbackResultGridStyle(for: kind); cachedResultGridStyles[kind] = s; return s }()
         let font = resolvedFont(for: style); let displayText = rawValue ?? (kind == .null ? "NULL" : "")
-        let cellSelection = QueryResultsTableView.SelectedCell(row: row, column: dataIndex); let isSelectedCell = selectionRegion?.contains(cellSelection) ?? false
         let baseTextColor = cachedTextColors[kind] ?? { let c = style.nsColor; cachedTextColors[kind] = c; return c }()
-        cellView.apply(text: displayText, font: font, baseTextColor: baseTextColor, selectionTextColor: NSColor(ColorTokens.Text.primary), isSelected: isSelectedCell)
-        if shouldShowForeignKeyIcon(forColumnInfo: columnInfo, value: rawValue) { cellView.configureIcon { [weak self] in self?.activateForeignKey(at: cellSelection) } }
-        else { cellView.configureIcon(nil) }
+        cellView.apply(text: displayText, font: font, textColor: baseTextColor)
+        let cellPosition = QueryResultsTableView.SelectedCell(row: row, column: dataIndex)
+        if shouldShowForeignKeyIcon(forColumnInfo: columnInfo, value: rawValue) {
+            cellView.configureIcon(symbolName: "arrow.up.right.square") { [weak self] in self?.activateForeignKey(at: cellPosition) }
+        } else if shouldShowJsonIcon(forKind: kind, value: rawValue) {
+            cellView.configureIcon(symbolName: "curlybraces") { [weak self] in self?.activateJson(at: cellPosition) }
+        } else {
+            cellView.configureIcon(nil)
+        }
     }
 
     private func displayedRowValues(for sourceIndex: Int) -> [String?]? {
-        if let cached = cachedDisplayedRows[sourceIndex] { return cached }
+        if let cached = cachedDisplayedRows.get(sourceIndex) { return cached }
         guard let rowValues = parent.query.displayedRow(at: sourceIndex) else { return nil }
-        cachedDisplayedRows[sourceIndex] = rowValues
-        if cachedDisplayedRows.count > 512 { cachedDisplayedRows.removeAll(keepingCapacity: true) }
+        cachedDisplayedRows.put(sourceIndex, value: rowValues)
         return rowValues
     }
 
     private func shouldShowForeignKeyIcon(forColumnInfo column: ColumnInfo?, value: String?) -> Bool {
-        guard parent.foreignKeyDisplayMode == .showIcon, let column, column.foreignKey != nil, let v = value?.trimmingCharacters(in: .whitespacesAndNewlines), !v.isEmpty else { return false }
+        guard let column, column.foreignKey != nil, let v = value?.trimmingCharacters(in: .whitespacesAndNewlines), !v.isEmpty else { return false }
+        return true
+    }
+
+    private func shouldShowJsonIcon(forKind kind: ResultGridValueKind, value: String?) -> Bool {
+        guard kind == .json, let v = value?.trimmingCharacters(in: .whitespacesAndNewlines), !v.isEmpty else { return false }
         return true
     }
 
     private func activateForeignKey(at cell: QueryResultsTableView.SelectedCell) {
-        guard parent.foreignKeyDisplayMode != .disabled else { return }
         if let tableView { setSelectionRegion(SelectedRegion(start: cell, end: cell), tableView: tableView) }
         if let selection = makeForeignKeySelection(for: cell) { parent.onForeignKeyEvent(.activate(selection)) }
+    }
+
+    private func activateJson(at cell: QueryResultsTableView.SelectedCell) {
+        if let tableView { setSelectionRegion(SelectedRegion(start: cell, end: cell), tableView: tableView) }
+        if let selection = makeJsonSelection(for: cell) { parent.onJsonEvent(.activate(selection)) }
     }
 
     func refreshVisibleRowBackgrounds(_ tableView: NSTableView) {
@@ -131,7 +152,7 @@ extension QueryResultsTableView.Coordinator: NSTableViewDelegate, NSTableViewDat
         let lower = max(0, visibleRange.location); let upper = min(tableView.numberOfRows, lower + visibleRange.length)
         for row in lower..<upper {
             guard let rowView = tableView.rowView(atRow: row, makeIfNecessary: false) as? ResultTableRowView else { continue }
-            rowView.configure(row: row, colorProvider: { [weak self] index in self?.rowBackgroundColor(for: index) ?? NSColor(ColorTokens.Background.tertiary) }, highlightProvider: { [weak self, weak tableView] view, index in guard let self, let tableView else { return nil }; return self.selectionRenderInfo(forRow: index, rowView: view, tableView: tableView) })
+            rowView.configure(row: row, colorProvider: { [weak self] index in self?.rowBackgroundColor(for: index) ?? .clear }, highlightProvider: { [weak self, weak tableView] view, index in guard let self, let tableView else { return nil }; return self.selectionRenderInfo(forRow: index, rowView: view, tableView: tableView) })
         }
     }
 

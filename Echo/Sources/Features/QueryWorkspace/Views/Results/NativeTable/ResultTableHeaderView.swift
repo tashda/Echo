@@ -6,85 +6,26 @@ import QuartzCore
 final class ResultTableHeaderView: NSTableHeaderView {
     weak var coordinator: QueryResultsTableView.Coordinator?
     private var isDraggingColumns = false
-    private let backgroundLayer = CAGradientLayer()
-    private let sheenLayer = CAGradientLayer()
-    private let topHighlightLayer = CALayer()
-    private let bottomBorderLayer = CALayer()
     private var separatorLayers: [CALayer] = []
-    private var separatorColor: CGColor?
     private let resizeEdgeTolerance: CGFloat = 5
 
     init(coordinator: QueryResultsTableView.Coordinator?) {
         self.coordinator = coordinator
         super.init(frame: .zero)
-        configureLayers()
-        updateAppearance(with: AppearanceStore.shared)
+        wantsLayer = true
     }
 
     required init?(coder: NSCoder) {
         super.init(coder: coder)
-        configureLayers()
-        updateAppearance(with: AppearanceStore.shared)
-    }
-
-    private func configureLayers() {
         wantsLayer = true
-        layer?.masksToBounds = false
-
-        backgroundLayer.startPoint = CGPoint(x: 0, y: 0)
-        backgroundLayer.endPoint = CGPoint(x: 0, y: 1)
-        backgroundLayer.locations = [0, 1]
-        backgroundLayer.zPosition = -10
-
-        sheenLayer.startPoint = CGPoint(x: 0, y: 0)
-        sheenLayer.endPoint = CGPoint(x: 0, y: 1)
-        sheenLayer.locations = [0, 0.4, 1]
-        sheenLayer.zPosition = -5
-
-        topHighlightLayer.masksToBounds = true
-        topHighlightLayer.zPosition = 2
-        bottomBorderLayer.masksToBounds = true
-        bottomBorderLayer.zPosition = 2
-
-        layer?.addSublayer(backgroundLayer)
-        layer?.addSublayer(sheenLayer)
-        layer?.addSublayer(topHighlightLayer)
-        layer?.addSublayer(bottomBorderLayer)
-    }
-
-    func updateAppearance(with theme: AppearanceStore) {
-        let style = ResultTableHeaderStyle.make(for: theme)
-
-        backgroundLayer.colors = [
-            style.topColor.cgColor,
-            style.bottomColor.cgColor
-        ]
-
-        sheenLayer.colors = [
-            NSColor.white.withAlphaComponent(style.sheenTopAlpha).cgColor,
-            NSColor.white.withAlphaComponent(style.sheenMidAlpha).cgColor,
-            NSColor.clear.cgColor
-        ]
-
-        topHighlightLayer.backgroundColor = NSColor.white.withAlphaComponent(style.highlightAlpha).cgColor
-        bottomBorderLayer.backgroundColor = style.borderColor.cgColor
-        separatorColor = style.separatorColor
-        separatorLayers.forEach { $0.backgroundColor = separatorColor }
-
-        needsLayout = true
-        needsDisplay = true
     }
 
     override func layout() {
         super.layout()
         CATransaction.begin()
         CATransaction.setDisableActions(true)
-        backgroundLayer.frame = bounds
-        sheenLayer.frame = bounds
         let scale = window?.backingScaleFactor ?? NSScreen.main?.backingScaleFactor ?? 1
         let lineWidth = 1 / max(scale, 1)
-        topHighlightLayer.frame = CGRect(x: 0, y: bounds.height - lineWidth, width: bounds.width, height: lineWidth)
-        bottomBorderLayer.frame = CGRect(x: 0, y: 0, width: bounds.width, height: lineWidth)
         updateSeparatorFrames(lineWidth: lineWidth)
         CATransaction.commit()
     }
@@ -165,6 +106,7 @@ final class ResultTableHeaderView: NSTableHeaderView {
 
         let columnCount = tableView.numberOfColumns
         let required = max(columnCount - 1, 0)
+        let separatorColor = NSColor.separatorColor.cgColor
 
         if separatorLayers.count != required {
             separatorLayers.forEach { $0.removeFromSuperlayer() }

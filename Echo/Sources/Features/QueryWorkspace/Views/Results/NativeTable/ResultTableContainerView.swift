@@ -3,22 +3,24 @@ import AppKit
 
 final class ResultTableContainerView: NSView {
     private let scrollView: NSScrollView
-    private let leadingView: NSView
-    private var leadingWidth: CGFloat
+    private let rowNumberView: ResultTableRowNumberView
+    private var leadingWidthConstraint: NSLayoutConstraint?
     private var backgroundColor: NSColor
+    private var showRowNumbers: Bool
 
-    init(scrollView: NSScrollView, leadingWidth: CGFloat) {
+    init(scrollView: NSScrollView, showRowNumbers: Bool) {
         self.scrollView = scrollView
-        self.leadingWidth = leadingWidth
+        self.showRowNumbers = showRowNumbers
         self.backgroundColor = .clear
-        self.leadingView = NSView()
+        self.rowNumberView = ResultTableRowNumberView()
         super.init(frame: .zero)
-        
-        leadingView.wantsLayer = true
-        addSubview(leadingView)
+
+        rowNumberView.wantsLayer = true
+        addSubview(rowNumberView)
         addSubview(scrollView)
-        
+
         setupConstraints()
+        rowNumberView.attach(to: scrollView)
     }
 
     required init?(coder: NSCoder) {
@@ -27,31 +29,52 @@ final class ResultTableContainerView: NSView {
 
     private func setupConstraints() {
         scrollView.translatesAutoresizingMaskIntoConstraints = false
-        leadingView.translatesAutoresizingMaskIntoConstraints = false
-        
+        rowNumberView.translatesAutoresizingMaskIntoConstraints = false
+
+        let widthConstraint = rowNumberView.widthAnchor.constraint(equalToConstant: 0)
+        leadingWidthConstraint = widthConstraint
+
         NSLayoutConstraint.activate([
-            leadingView.leadingAnchor.constraint(equalTo: leadingAnchor),
-            leadingView.topAnchor.constraint(equalTo: topAnchor),
-            leadingView.bottomAnchor.constraint(equalTo: bottomAnchor),
-            leadingView.widthAnchor.constraint(equalToConstant: leadingWidth),
-            
-            scrollView.leadingAnchor.constraint(equalTo: leadingView.trailingAnchor),
+            rowNumberView.leadingAnchor.constraint(equalTo: leadingAnchor),
+            rowNumberView.topAnchor.constraint(equalTo: topAnchor),
+            rowNumberView.bottomAnchor.constraint(equalTo: bottomAnchor),
+            widthConstraint,
+
+            scrollView.leadingAnchor.constraint(equalTo: rowNumberView.trailingAnchor),
             scrollView.trailingAnchor.constraint(equalTo: trailingAnchor),
             scrollView.topAnchor.constraint(equalTo: topAnchor),
             scrollView.bottomAnchor.constraint(equalTo: bottomAnchor)
         ])
     }
 
-    func updateLeadingWidth(_ width: CGFloat) {
-        guard leadingWidth != width else { return }
-        leadingWidth = width
-        leadingView.widthAnchor.constraint(equalToConstant: width).isActive = true
+    func updateRowNumbers(count: Int) {
+        rowNumberView.update(rowCount: count)
+        let width = showRowNumbers ? rowNumberView.requiredWidth : 0
+        updateLeadingWidth(width)
+    }
+
+    func updateShowRowNumbers(_ show: Bool) {
+        guard showRowNumbers != show else { return }
+        showRowNumbers = show
+        let width = show ? rowNumberView.requiredWidth : 0
+        updateLeadingWidth(width)
+    }
+
+    private func updateLeadingWidth(_ width: CGFloat) {
+        guard leadingWidthConstraint?.constant != width else { return }
+        leadingWidthConstraint?.constant = width
+        rowNumberView.isHidden = width == 0
         needsLayout = true
     }
 
     func updateBackgroundColor(_ color: NSColor) {
         backgroundColor = color
-        leadingView.layer?.backgroundColor = color.cgColor
+        rowNumberView.layer?.backgroundColor = color.cgColor
+    }
+
+    func setRowNumberCallbacks(onSelect: @escaping (Int) -> Void, onExtendSelect: @escaping (Int) -> Void) {
+        rowNumberView.onRowSelect = onSelect
+        rowNumberView.onRowExtendSelect = onExtendSelect
     }
 
     var tableView: NSTableView? {

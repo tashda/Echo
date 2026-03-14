@@ -17,10 +17,16 @@ extension QueryEditorState {
 
     var totalAvailableRowCount: Int {
         let materialized = max(materializedHighWaterMark, streamingRows.count, rowProgress.materialized)
+        if spoolHandle != nil {
+            // Only report materialized rows — the grid expands as rows are
+            // decoded from the spool. This prevents null placeholders from
+            // appearing while background formatting catches up.
+            return materialized
+        }
+        let received = max(streamedRowCount, rowProgress.totalReceived)
         if rowProgress.totalReported > 0 {
             return min(rowProgress.totalReported, materialized)
         }
-        let received = max(streamedRowCount, rowProgress.totalReceived)
         return max(materialized, received)
     }
 

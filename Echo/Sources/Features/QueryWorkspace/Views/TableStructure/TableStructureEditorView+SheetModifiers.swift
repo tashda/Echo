@@ -98,6 +98,7 @@ extension TableStructureEditorView {
                 BulkColumnEditorSheet(
                     mode: presentation.mode,
                     columnNames: presentation.columnIDs.compactMap { id in visibleColumns.first(where: { $0.id == id })?.name },
+                    databaseType: tab.connection.databaseType,
                     onApply: { value in
                         let targets = presentation.columnIDs.compactMap { id in columnBinding(for: id) }
                         applyBulkEdit(mode: presentation.mode, value: value, bindings: targets)

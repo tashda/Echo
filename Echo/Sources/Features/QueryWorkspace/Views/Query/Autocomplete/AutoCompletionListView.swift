@@ -53,7 +53,10 @@ struct AutoCompletionListView: View {
         HStack(alignment: .top, spacing: 0) {
             VStack(alignment: .leading, spacing: SpacingTokens.xxs) {
                 if let statusMessage {
-                    Text(statusMessage).font(TypographyTokens.detail.weight(.medium)).foregroundStyle(.secondary).padding(.horizontal, Layout.rowHorizontalPadding)
+                    Text(statusMessage)
+                        .font(TypographyTokens.detail.weight(.medium))
+                        .foregroundStyle(ColorTokens.Text.secondary)
+                        .padding(.horizontal, Layout.rowHorizontalPadding)
                 }
                 listView
             }
@@ -157,7 +160,7 @@ struct AutoCompletionRowView: View {
 #if os(macOS)
         return AnyView(RoundedRectangle(cornerRadius: 5, style: .continuous).fill(Color(nsColor: .controlAccentColor)))
 #else
-        return AnyView(RoundedRectangle(cornerRadius: 5, style: .continuous).fill(Color.accentColor.opacity(colorScheme == .dark ? 0.32 : 0.22)))
+        return AnyView(RoundedRectangle(cornerRadius: 5, style: .continuous).fill(ColorTokens.accent.opacity(colorScheme == .dark ? 0.32 : 0.22)))
 #endif
     }
 }

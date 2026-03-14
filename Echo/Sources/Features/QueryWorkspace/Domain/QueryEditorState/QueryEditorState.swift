@@ -36,7 +36,7 @@ import os.log
     var spoolStatsTask: Task<Void, Never>?
     @Published var resultSpoolID: UUID?
     var didReceiveStreamingUpdate = false
-    let rowCache = ResultSpoolRowCache(pageSize: 512, maxPages: 32)
+    let rowCache = ResultSpoolRowCache(pageSize: 512, maxPages: 256)
     let gridViewportForwardPrefetchRows: Int
     let gridViewportBackfillRows: Int
     var lastVisibleDisplayRange: Range<Int> = 0..<0
@@ -99,6 +99,7 @@ import os.log
     var hasLoadedForeignKeyMapping = false
     var isLoadingForeignKeyMapping = false
     var shouldPersistResults = false
+    var progressiveMaterializationTask: Task<Void, Never>?
 
     init(
         sql: String = "SELECT current_timestamp;",
@@ -127,6 +128,7 @@ import os.log
     @MainActor deinit {
         dataPreviewFetchTask?.cancel()
         spoolStatsTask?.cancel()
+        progressiveMaterializationTask?.cancel()
         guard let identifier = resultSpoolID else { return }
         let manager = spoolManager
         Task.detached(priority: .utility) {

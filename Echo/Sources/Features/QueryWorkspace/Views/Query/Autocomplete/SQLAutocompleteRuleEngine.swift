@@ -99,6 +99,7 @@ extension EchoSenseSchemaObjectInfo.ObjectType {
         case .function: self = .function
         case .trigger: self = .trigger
         case .procedure: self = .procedure
+        case .extension: self = .function
         }
     }
 }

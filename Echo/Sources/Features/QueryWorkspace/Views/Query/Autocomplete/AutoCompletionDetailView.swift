@@ -35,23 +35,27 @@ struct AutoCompletionDetailView: View {
     private var header: some View {
         Text(suggestion.displayKindTitle)
             .font(TypographyTokens.detail.weight(.semibold))
-            .foregroundStyle(Color.secondary)
+            .foregroundStyle(ColorTokens.Text.secondary)
             .textCase(.uppercase)
     }
 
     @ViewBuilder
     private var tableDetail: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: SpacingTokens.xxs) {
             if let schema = suggestion.origin?.schema, let name = suggestion.origin?.object {
-                HStack(spacing: 6) {
+                HStack(spacing: SpacingTokens.xxs2) {
                     schemaChip(schema)
-                    Text(name).font(TypographyTokens.standard.weight(.medium)).foregroundStyle(Color.primary)
+                    Text(name)
+                        .font(TypographyTokens.standard.weight(.medium))
+                        .foregroundStyle(ColorTokens.Text.primary)
                 }
             }
             if let columns = suggestion.tableColumns, !columns.isEmpty {
                 ColumnListView(columns: columns)
             } else {
-                Text("No columns available").font(TypographyTokens.detail).foregroundStyle(Color.secondary)
+                Text("No columns available")
+                    .font(TypographyTokens.detail)
+                    .foregroundStyle(ColorTokens.Text.secondary)
             }
         }
     }
@@ -61,24 +65,32 @@ struct AutoCompletionDetailView: View {
         Text(suggestion.dataType ?? "Column")
             .font(TypographyTokens.detail)
             .italic(suggestion.dataType != nil)
-            .foregroundStyle(Color.secondary)
+            .foregroundStyle(ColorTokens.Text.secondary)
     }
 
     @ViewBuilder
     private var genericDetail: some View {
         if let objectPath = suggestion.displayObjectPath {
-            Text(objectPath).font(TypographyTokens.standard.weight(.medium)).foregroundStyle(Color.primary)
+            Text(objectPath)
+                .font(TypographyTokens.standard.weight(.medium))
+                .foregroundStyle(ColorTokens.Text.primary)
         }
     }
 
     private func schemaChip(_ schema: String) -> some View {
-        HStack(spacing: 4) {
-            Image("schema").resizable().renderingMode(.template).scaledToFit().frame(width: 10, height: 10)
-            Text(schema).font(TypographyTokens.detail.weight(.medium))
+        HStack(spacing: SpacingTokens.xxs) {
+            Image("schema")
+                .resizable()
+                .renderingMode(.template)
+                .scaledToFit()
+                .frame(width: 10, height: 10)
+            Text(schema)
+                .font(TypographyTokens.detail.weight(.medium))
         }
-        .foregroundStyle(Color.secondary)
-        .padding(.horizontal, SpacingTokens.xxs2).padding(.vertical, SpacingTokens.xxxs)
-        .background(Capsule(style: .continuous).fill(Color.primary.opacity(0.06)))
+        .foregroundStyle(ColorTokens.Text.secondary)
+        .padding(.horizontal, SpacingTokens.xxs2)
+        .padding(.vertical, SpacingTokens.xxxs)
+        .background(Capsule(style: .continuous).fill(ColorTokens.Text.primary.opacity(0.06)))
     }
 
     private struct ColumnListView: View {
@@ -89,12 +101,15 @@ struct AutoCompletionDetailView: View {
                 VStack(alignment: .leading, spacing: Layout.columnSpacing) {
                     ForEach(Array(columns.enumerated()), id: \.offset) { _, column in
                         HStack(spacing: SpacingTokens.xxs2) {
-                            Text(column.name).font(TypographyTokens.caption2).foregroundStyle(Color.primary)
+                            Text(column.name)
+                                .font(TypographyTokens.caption2)
+                                .foregroundStyle(ColorTokens.Text.primary)
                             Spacer(minLength: SpacingTokens.xs2)
                             Text(EchoFormatters.abbreviatedSQLType(column.dataType))
                                 .font(TypographyTokens.label.weight(.medium))
-                                .foregroundStyle(Color.secondary).padding(Layout.columnBadgePadding)
-                                .background(Capsule(style: .continuous).fill(Color.primary.opacity(0.06)))
+                                .foregroundStyle(ColorTokens.Text.secondary)
+                                .padding(Layout.columnBadgePadding)
+                                .background(Capsule(style: .continuous).fill(ColorTokens.Text.primary.opacity(0.06)))
                         }
                     }
                 }

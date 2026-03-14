@@ -10,11 +10,11 @@ extension ForeignKeyEditorSheet {
         foreignKey.referencedTable = draft.referencedTable.trimmingCharacters(in: .whitespacesAndNewlines)
         foreignKey.referencedColumns = draft.referencedColumns
 
-        let updateTrimmed = draft.onUpdate.trimmingCharacters(in: .whitespacesAndNewlines)
-        foreignKey.onUpdate = updateTrimmed.isEmpty ? nil : updateTrimmed
+        let updateValue = draft.onUpdate.trimmingCharacters(in: .whitespacesAndNewlines)
+        foreignKey.onUpdate = updateValue.isEmpty || updateValue == ForeignKeyAction.noAction.rawValue ? nil : updateValue
 
-        let deleteTrimmed = draft.onDelete.trimmingCharacters(in: .whitespacesAndNewlines)
-        foreignKey.onDelete = deleteTrimmed.isEmpty ? nil : deleteTrimmed
+        let deleteValue = draft.onDelete.trimmingCharacters(in: .whitespacesAndNewlines)
+        foreignKey.onDelete = deleteValue.isEmpty || deleteValue == ForeignKeyAction.noAction.rawValue ? nil : deleteValue
     }
 
     func draftBinding(for columnID: UUID) -> Binding<Draft.Column> {
@@ -81,8 +81,8 @@ extension ForeignKeyEditorSheet {
             self.referencedTable = model.referencedTable
             self.columns = model.columns.map { Column(name: $0) }
             self.referencedColumnsInput = model.referencedColumns.joined(separator: ", ")
-            self.onUpdate = model.onUpdate ?? ""
-            self.onDelete = model.onDelete ?? ""
+            self.onUpdate = model.onUpdate ?? ForeignKeyAction.noAction.rawValue
+            self.onDelete = model.onDelete ?? ForeignKeyAction.noAction.rawValue
             self.isEditingExisting = model.original != nil
 
             if columns.isEmpty, let first = availableColumns.first {

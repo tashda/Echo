@@ -1,8 +1,4 @@
 import SwiftUI
-import Foundation
-#if os(macOS)
-import AppKit
-#endif
 
 struct UniqueConstraintEditorSheet: View {
     @Binding var constraint: TableStructureEditorViewModel.UniqueConstraintModel
@@ -12,6 +8,7 @@ struct UniqueConstraintEditorSheet: View {
 
     @Environment(\.dismiss) private var dismiss
     @State var draft: Draft
+    @State private var hoveredColumnID: UUID?
 
     init(
         constraint: Binding<TableStructureEditorViewModel.UniqueConstraintModel>,
@@ -29,8 +26,32 @@ struct UniqueConstraintEditorSheet: View {
     var body: some View {
         VStack(spacing: 0) {
             Form {
-                generalSection
-                columnsSection
+                Section {
+                    LabeledContent("Constraint Name") {
+                        TextField("", text: $draft.name)
+                    }
+                }
+
+                Section("Columns") {
+                    ForEach(Array(draft.columns.enumerated()), id: \.element.id) { _, column in
+                        constraintColumnRow(for: bindingForColumn(column.id))
+                    }
+                    .onMove { from, to in
+                        draft.columns.move(fromOffsets: from, toOffset: to)
+                    }
+
+                    Menu {
+                        ForEach(computedAddableColumns, id: \.self) { name in
+                            Button(name) {
+                                addDraftColumn(named: name)
+                            }
+                        }
+                    } label: {
+                        Label("Add Column", systemImage: "plus")
+                    }
+                    .menuStyle(.borderlessButton)
+                    .disabled(computedAddableColumns.isEmpty)
+                }
             }
             .formStyle(.grouped)
             .scrollContentBackground(.hidden)
@@ -39,109 +60,45 @@ struct UniqueConstraintEditorSheet: View {
 
             toolbar
         }
-        .frame(minWidth: 460, idealWidth: 500, minHeight: 400)
+        .frame(minWidth: 420, idealWidth: 460, minHeight: 340)
         .navigationTitle(draft.isEditingExisting ? "Edit Unique Constraint" : "New Unique Constraint")
     }
 
-    private var generalSection: some View {
-        Section {
-            TextField("Constraint Name", text: $draft.name)
-        } header: {
-            Text("General")
-        } footer: {
-            if draft.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                Text("Name is required.")
-                    .foregroundStyle(.red)
-            }
-        }
-    }
+    private func constraintColumnRow(for column: Binding<Draft.Column>) -> some View {
+        HStack(spacing: SpacingTokens.xs) {
+            Image(systemName: "line.3.horizontal")
+                .font(TypographyTokens.detail)
+                .foregroundStyle(ColorTokens.Text.tertiary)
 
-    private var columnsSection: some View {
-        Section {
-            ForEach(Array(draft.columns.enumerated()), id: \.element.id) { index, column in
-                columnRow(for: bindingForColumn(column.id), index: index)
-            }
-
-            HStack {
-                Menu {
-                    ForEach(computedAddableColumns, id: \.self) { name in
-                        Button(name) {
-                            addDraftColumn(named: name)
-                        }
-                    }
-                } label: {
-                    Label("Add Column", systemImage: "plus")
-                }
-                .menuStyle(.borderlessButton)
-                .disabled(computedAddableColumns.isEmpty)
-
-                Spacer()
-            }
-        } header: {
-            Text("Columns")
-        } footer: {
-            if draft.columns.isEmpty {
-                Text("At least one column is required.")
-                    .foregroundStyle(.red)
-            } else if computedAddableColumns.isEmpty {
-                Text("All available columns are already included.")
-            } else {
-                Text("Order of columns can be important for some databases.")
-            }
-        }
-    }
-
-    private func columnRow(for column: Binding<Draft.Column>, index: Int) -> some View {
-        let columnID = column.wrappedValue.id
-        return HStack(spacing: 12) {
-            VStack(spacing: 2) {
-                Button {
-                    moveDraftColumn(at: index, by: -1)
-                } label: {
-                    Image(systemName: "chevron.up")
-                        .font(TypographyTokens.label.weight(.bold))
-                }
-                .buttonStyle(.borderless)
-                .disabled(index == 0)
-
-                Button {
-                    moveDraftColumn(at: index, by: 1)
-                } label: {
-                    Image(systemName: "chevron.down")
-                        .font(TypographyTokens.label.weight(.bold))
-                }
-                .buttonStyle(.borderless)
-                .disabled(index == draft.columns.count - 1)
-            }
-            .frame(width: 24)
-
-            Picker("", selection: column.name) {
-                ForEach(columnOptionsForColumn(columnID), id: \.self) { option in
-                    Text(option).tag(option)
-                }
-            }
-            .labelsHidden()
-            .pickerStyle(.menu)
-            .frame(maxWidth: .infinity)
+            Text(column.wrappedValue.name)
+                .font(TypographyTokens.standard)
+                .frame(maxWidth: .infinity, alignment: .leading)
 
             Button(role: .destructive) {
-                removeDraftColumn(withID: columnID)
+                removeDraftColumn(withID: column.wrappedValue.id)
             } label: {
-                Image(systemName: "minus.circle.fill")
+                Image(systemName: "xmark.circle.fill")
+                    .symbolRenderingMode(.hierarchical)
+                    .foregroundStyle(hoveredColumnID == column.wrappedValue.id ? ColorTokens.Status.error : ColorTokens.Text.secondary)
             }
             .buttonStyle(.borderless)
+            .help("Remove column")
             .disabled(draft.columns.count <= 1)
+            .onHover { isHovered in
+                hoveredColumnID = isHovered ? column.wrappedValue.id : nil
+            }
         }
     }
 
     private var toolbar: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: SpacingTokens.sm) {
             if draft.isEditingExisting {
                 Button("Delete Constraint", role: .destructive) {
                     dismiss()
                     onDelete()
                 }
                 .buttonStyle(.bordered)
+                .tint(ColorTokens.Status.error)
             }
 
             Spacer()
@@ -162,7 +119,7 @@ struct UniqueConstraintEditorSheet: View {
         }
         .padding(.horizontal, SpacingTokens.md2)
         .padding(.vertical, SpacingTokens.sm2)
-        .background(Color(nsColor: .windowBackgroundColor))
+        .background(.bar)
     }
 
     struct Draft {

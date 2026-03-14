@@ -1,6 +1,5 @@
 #if os(macOS)
 import AppKit
-import SwiftUI
 
 final class ResultTableHeaderCell: NSTableHeaderCell {
     override init(textCell: String) {
@@ -27,16 +26,6 @@ final class ResultTableHeaderCell: NSTableHeaderCell {
         }
         adjusted.origin.y = floor(adjusted.origin.y)
         return adjusted
-    }
-
-    override func draw(withFrame cellFrame: NSRect, in controlView: NSView) {
-        if isHighlighted {
-            let base = NSColor(ColorTokens.Background.secondary)
-            let pressed = base.shadow(withLevel: 0.18) ?? base
-            pressed.setFill()
-            cellFrame.fill()
-        }
-        drawInterior(withFrame: cellFrame, in: controlView)
     }
 
     override func drawInterior(withFrame cellFrame: NSRect, in controlView: NSView) {

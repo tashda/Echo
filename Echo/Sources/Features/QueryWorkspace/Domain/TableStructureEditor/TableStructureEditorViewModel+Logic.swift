@@ -98,137 +98,122 @@ extension TableStructureEditorViewModel {
     }
 
     internal func generateStatements() -> [String] {
+        let dialect = dialectGenerator
+        let qualifiedTable = dialect.qualifiedTable(schema: schemaName, table: tableName)
         var statements: [String] = []
-        let qualifiedTable = "\(quoteIdentifier(schemaName)).\(quoteIdentifier(tableName))"
 
-        // Columns: drops first
+        // Column drops
         for column in columns where column.isDeleted && !column.isNew {
-            statements.append("ALTER TABLE \(qualifiedTable) DROP COLUMN \(quoteIdentifier(column.referenceName)) CASCADE;")
+            statements.append(dialect.dropColumn(table: qualifiedTable, column: column.referenceName))
         }
 
         // Column renames
         for column in columns where !column.isDeleted && column.hasRename {
             if let original = column.original {
-                statements.append("ALTER TABLE \(qualifiedTable) RENAME COLUMN \(quoteIdentifier(original.name)) TO \(quoteIdentifier(column.name));")
+                statements.append(dialect.renameColumn(table: qualifiedTable, from: original.name, to: column.name))
             }
         }
 
-        // Column type/nullability/default adjustments
+        // New columns and column modifications
         for column in columns where !column.isDeleted {
             if column.isNew {
-                var clause = "ALTER TABLE \(qualifiedTable) ADD COLUMN \(quoteIdentifier(column.name)) \(column.dataType)"
-                if !column.isNullable { clause += " NOT NULL" }
-                if let expression = column.generatedExpression, !expression.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                    clause += " GENERATED ALWAYS AS (\(expression)) STORED"
-                } else if let defaultValue = column.defaultValue, !defaultValue.isEmpty {
-                    clause += " DEFAULT \(defaultValue)"
-                }
-                clause += ";"
-                statements.append(clause)
+                statements.append(dialect.addColumn(
+                    table: qualifiedTable, name: column.name, dataType: column.dataType,
+                    isNullable: column.isNullable, defaultValue: column.defaultValue,
+                    generatedExpression: column.generatedExpression
+                ))
                 continue
             }
 
-            let targetName = quoteIdentifier(column.name)
             if column.hasTypeChange {
-                statements.append("ALTER TABLE \(qualifiedTable) ALTER COLUMN \(targetName) TYPE \(column.dataType);")
+                statements.append(dialect.alterColumnType(
+                    table: qualifiedTable, column: column.name,
+                    newType: column.dataType, isNullable: column.isNullable
+                ))
             }
-            if column.hasNullabilityChange {
-                let clause = column.isNullable ? "DROP NOT NULL" : "SET NOT NULL"
-                statements.append("ALTER TABLE \(qualifiedTable) ALTER COLUMN \(targetName) \(clause);")
+            if column.hasNullabilityChange && !column.hasTypeChange {
+                statements.append(dialect.alterColumnNullability(
+                    table: qualifiedTable, column: column.name,
+                    isNullable: column.isNullable, currentType: column.dataType
+                ))
             }
             if column.hasDefaultChange {
                 if let value = column.defaultValue, !value.isEmpty {
-                    statements.append("ALTER TABLE \(qualifiedTable) ALTER COLUMN \(targetName) SET DEFAULT \(value);")
+                    statements.append(dialect.alterColumnSetDefault(table: qualifiedTable, column: column.name, defaultValue: value))
                 } else {
-                    statements.append("ALTER TABLE \(qualifiedTable) ALTER COLUMN \(targetName) DROP DEFAULT;")
+                    statements.append(dialect.alterColumnDropDefault(table: qualifiedTable, column: column.name))
                 }
             }
         }
 
-        // Primary key updates
+        // Primary key
         if let pk = primaryKey {
             if let original = pk.original {
                 if pk.isDirty {
-                    statements.append("ALTER TABLE \(qualifiedTable) DROP CONSTRAINT \(quoteIdentifier(original.name));")
+                    statements.append(dialect.dropConstraint(table: qualifiedTable, name: original.name))
                     if !pk.columns.isEmpty {
-                        let cols = pk.columns.map(quoteIdentifier).joined(separator: ", ")
-                        statements.append("ALTER TABLE \(qualifiedTable) ADD CONSTRAINT \(quoteIdentifier(pk.name)) PRIMARY KEY (\(cols));")
+                        statements.append(dialect.addPrimaryKey(table: qualifiedTable, name: pk.name, columns: pk.columns))
                     }
                 }
             } else if !pk.columns.isEmpty {
-                let cols = pk.columns.map(quoteIdentifier).joined(separator: ", ")
-                statements.append("ALTER TABLE \(qualifiedTable) ADD CONSTRAINT \(quoteIdentifier(pk.name)) PRIMARY KEY (\(cols));")
+                statements.append(dialect.addPrimaryKey(table: qualifiedTable, name: pk.name, columns: pk.columns))
             }
         } else if let removedName = removedPrimaryKeyName {
-            statements.append("ALTER TABLE \(qualifiedTable) DROP CONSTRAINT \(quoteIdentifier(removedName));")
+            statements.append(dialect.dropConstraint(table: qualifiedTable, name: removedName))
         }
 
         // Indexes
         for index in indexes where index.isDeleted && !index.isNew {
             if let original = index.original {
-                statements.append("DROP INDEX IF EXISTS \(quoteIdentifier(schemaName)).\(quoteIdentifier(original.name));")
+                statements.append(dialect.dropIndex(schema: schemaName, name: original.name, table: qualifiedTable))
             }
         }
         for index in indexes where !index.isDeleted {
             guard !index.columns.isEmpty else { continue }
-            let columnsClause = index.columns
-                .map { "\(quoteIdentifier($0.name)) \($0.sortOrder.sqlKeyword)" }
-                .joined(separator: ", ")
-
-            var creation = "CREATE \(index.isUnique ? "UNIQUE " : "")INDEX \(quoteIdentifier(index.name)) ON \(qualifiedTable) (\(columnsClause))"
-            if let filter = index.effectiveFilterCondition { creation += " WHERE \(filter)" }
-            creation += ";"
+            let cols = index.columns.map { (name: $0.name, sort: $0.sortOrder.sqlKeyword) }
 
             if index.isNew {
-                statements.append(creation)
+                statements.append(dialect.createIndex(table: qualifiedTable, name: index.name, columns: cols, isUnique: index.isUnique, filter: index.effectiveFilterCondition))
             } else if index.isDirty {
                 if let original = index.original {
-                    statements.append("DROP INDEX IF EXISTS \(quoteIdentifier(schemaName)).\(quoteIdentifier(original.name));")
+                    statements.append(dialect.dropIndex(schema: schemaName, name: original.name, table: qualifiedTable))
                 }
-                statements.append(creation)
+                statements.append(dialect.createIndex(table: qualifiedTable, name: index.name, columns: cols, isUnique: index.isUnique, filter: index.effectiveFilterCondition))
             }
         }
 
         // Unique constraints
         for constraint in uniqueConstraints where constraint.isDeleted && !constraint.isNew {
             if let original = constraint.original {
-                statements.append("ALTER TABLE \(qualifiedTable) DROP CONSTRAINT \(quoteIdentifier(original.name));")
+                statements.append(dialect.dropConstraint(table: qualifiedTable, name: original.name))
             }
         }
         for constraint in uniqueConstraints where !constraint.isDeleted {
             guard !constraint.columns.isEmpty else { continue }
-            let cols = constraint.columns.map(quoteIdentifier).joined(separator: ", ")
             if constraint.isNew {
-                statements.append("ALTER TABLE \(qualifiedTable) ADD CONSTRAINT \(quoteIdentifier(constraint.name)) UNIQUE (\(cols));")
+                statements.append(dialect.addUniqueConstraint(table: qualifiedTable, name: constraint.name, columns: constraint.columns))
             } else if constraint.isDirty, let original = constraint.original {
-                statements.append("ALTER TABLE \(qualifiedTable) DROP CONSTRAINT \(quoteIdentifier(original.name));")
-                statements.append("ALTER TABLE \(qualifiedTable) ADD CONSTRAINT \(quoteIdentifier(constraint.name)) UNIQUE (\(cols));")
+                statements.append(dialect.dropConstraint(table: qualifiedTable, name: original.name))
+                statements.append(dialect.addUniqueConstraint(table: qualifiedTable, name: constraint.name, columns: constraint.columns))
             }
         }
 
         // Foreign keys
         for fk in foreignKeys where fk.isDeleted && !fk.isNew {
             if let original = fk.original {
-                statements.append("ALTER TABLE \(qualifiedTable) DROP CONSTRAINT \(quoteIdentifier(original.name));")
+                statements.append(dialect.dropConstraint(table: qualifiedTable, name: original.name))
             }
         }
         for fk in foreignKeys where !fk.isDeleted {
             guard !fk.columns.isEmpty, !fk.referencedColumns.isEmpty else { continue }
-            let columnsList = fk.columns.map(quoteIdentifier).joined(separator: ", ")
-            let referencedTableQualified = "\(quoteIdentifier(fk.referencedSchema)).\(quoteIdentifier(fk.referencedTable))"
-            let referencedColumns = fk.referencedColumns.map(quoteIdentifier).joined(separator: ", ")
-            var clause = "ALTER TABLE \(qualifiedTable) ADD CONSTRAINT \(quoteIdentifier(fk.name)) FOREIGN KEY (\(columnsList)) REFERENCES \(referencedTableQualified) (\(referencedColumns))"
-            if let onUpdate = fk.onUpdate, !onUpdate.isEmpty { clause += " ON UPDATE \(onUpdate)" }
-            if let onDelete = fk.onDelete, !onDelete.isEmpty { clause += " ON DELETE \(onDelete)" }
-            clause += ";"
 
             if fk.isNew {
-                statements.append(clause)
+                statements.append(dialect.addForeignKey(table: qualifiedTable, name: fk.name, columns: fk.columns, referencedSchema: fk.referencedSchema, referencedTable: fk.referencedTable, referencedColumns: fk.referencedColumns, onUpdate: fk.onUpdate, onDelete: fk.onDelete))
             } else if fk.isDirty {
                 if let original = fk.original {
-                    statements.append("ALTER TABLE \(qualifiedTable) DROP CONSTRAINT \(quoteIdentifier(original.name));")
+                    statements.append(dialect.dropConstraint(table: qualifiedTable, name: original.name))
                 }
-                statements.append(clause)
+                statements.append(dialect.addForeignKey(table: qualifiedTable, name: fk.name, columns: fk.columns, referencedSchema: fk.referencedSchema, referencedTable: fk.referencedTable, referencedColumns: fk.referencedColumns, onUpdate: fk.onUpdate, onDelete: fk.onDelete))
             }
         }
 
@@ -237,13 +222,13 @@ extension TableStructureEditorViewModel {
 
     func estimatedMemoryUsageBytes() -> Int {
         let baseOverhead = 48 * 1024
-        
+
         var columnBytes = 0
         for col in columns {
             let stringSum = col.name.utf8.count + col.dataType.utf8.count + (col.defaultValue?.utf8.count ?? 0) + (col.generatedExpression?.utf8.count ?? 0)
             columnBytes += 256 + (stringSum * 2)
         }
-        
+
         var indexBytes = 0
         for idx in indexes {
             let filterLen = idx.filterCondition.utf8.count
@@ -253,7 +238,7 @@ extension TableStructureEditorViewModel {
             }
             indexBytes += 320 + (idx.name.utf8.count + filterLen) * 2 + colLenSum
         }
-        
+
         var uniqueBytes = 0
         for uq in uniqueConstraints {
             var colLenSum = 0
@@ -262,7 +247,7 @@ extension TableStructureEditorViewModel {
             }
             uniqueBytes += 240 + uq.name.utf8.count * 2 + colLenSum
         }
-        
+
         var foreignKeyBytes = 0
         for fk in foreignKeys {
             let nameSum = fk.name.utf8.count + fk.referencedSchema.utf8.count + fk.referencedTable.utf8.count + (fk.onUpdate?.utf8.count ?? 0) + (fk.onDelete?.utf8.count ?? 0)
@@ -271,11 +256,7 @@ extension TableStructureEditorViewModel {
             for c in fk.referencedColumns { colLenSum += c.utf8.count * 2 + 32 }
             foreignKeyBytes += 360 + (nameSum * 2) + colLenSum
         }
-        
-        return baseOverhead + columnBytes + indexBytes + uniqueBytes + foreignKeyBytes
-    }
 
-    private func quoteIdentifier(_ value: String) -> String {
-        "\"\(value.replacingOccurrences(of: "\"", with: "\"\""))\""
+        return baseOverhead + columnBytes + indexBytes + uniqueBytes + foreignKeyBytes
     }
 }

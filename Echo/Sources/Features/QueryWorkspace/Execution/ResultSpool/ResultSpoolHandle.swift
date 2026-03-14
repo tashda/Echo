@@ -15,6 +15,7 @@ actor ResultSpoolHandle {
     var chunkRecords: [ChunkRecord] = []
     var inMemoryRows: [[String?]] = []
     var statContinuations: [UUID: AsyncStream<ResultSpoolStats>.Continuation] = [:]
+    var chunksAreSorted = false
     var totalBytesWritten: UInt64 = 0
     var headerLength: UInt64 = 0
     var transientDispatchTask: Task<Void, Never>?

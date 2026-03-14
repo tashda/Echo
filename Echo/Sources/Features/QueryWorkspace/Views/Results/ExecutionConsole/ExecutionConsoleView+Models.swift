@@ -18,7 +18,7 @@ extension ExecutionConsoleView {
                     case .normal:
                         return ColorTokens.Text.primary
                     case .emphasis:
-                        return Color.accentColor
+                        return ColorTokens.accent
                     case .warning:
                         return Color.orange
                     }
@@ -45,7 +45,7 @@ extension ExecutionConsoleView {
                 case .warning:
                     return Color.orange
                 case .error:
-                    return Color.red
+                    return ColorTokens.Status.error
                 case .debug:
                     return ColorTokens.Text.secondary
                 }

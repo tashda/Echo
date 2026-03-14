@@ -5,11 +5,11 @@ extension ExecutionConsoleView {
         let isExpanded = expandedRows.contains(message.id)
         return HStack(spacing: 0) {
             Text("\(message.sequence)")
-                .font(.system(.callout, design: .monospaced))
+                .font(TypographyTokens.callout.monospaced())
                 .foregroundStyle(ColorTokens.Text.secondary)
                 .frame(width: columnWidths[0], alignment: .leading)
 
-            HStack(spacing: 8) {
+            HStack(spacing: SpacingTokens.xs) {
                 Image(systemName: message.severity.iconName)
                     .font(TypographyTokens.caption2.weight(.medium))
                     .foregroundStyle(message.severity.tint(using: appearanceStore.accentColor))
@@ -21,27 +21,27 @@ extension ExecutionConsoleView {
             .frame(width: columnWidths[1], alignment: .leading)
 
             Text(formattedTime(message.timestamp))
-                .font(.system(.footnote, design: .monospaced))
+                .font(TypographyTokens.footnote.monospaced())
                 .foregroundStyle(ColorTokens.Text.secondary)
                 .frame(width: columnWidths[2], alignment: .leading)
 
             Text(EchoFormatters.duration(message.delta))
-                .font(.system(.footnote, design: .monospaced))
+                .font(TypographyTokens.footnote.monospaced())
                 .foregroundStyle(ColorTokens.Text.secondary)
                 .frame(width: columnWidths[3], alignment: .leading)
 
             Text(message.duration.map(EchoFormatters.duration) ?? "\u{2014}")
-                .font(.system(.footnote, design: .monospaced))
+                .font(TypographyTokens.footnote.monospaced())
                 .foregroundStyle(ColorTokens.Text.secondary)
                 .frame(width: columnWidths[4], alignment: .leading)
 
             Text(message.procedure ?? "")
-                .font(.system(.footnote, design: .monospaced))
+                .font(TypographyTokens.footnote.monospaced())
                 .foregroundStyle(ColorTokens.Text.secondary)
                 .frame(width: columnWidths[5], alignment: .leading)
 
             Text(message.line ?? "")
-                .font(.system(.footnote, design: .monospaced))
+                .font(TypographyTokens.footnote.monospaced())
                 .foregroundStyle(ColorTokens.Text.secondary)
                 .frame(width: columnWidths[6], alignment: .leading)
 
@@ -73,27 +73,27 @@ extension ExecutionConsoleView {
         return HStack(spacing: 0) {
             Color.clear.frame(width: indent)
 
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: SpacingTokens.xxs) {
                 Text("Object {")
-                    .font(.system(.footnote, design: .monospaced))
+                    .font(TypographyTokens.footnote.monospaced())
                     .foregroundStyle(ColorTokens.Text.secondary)
 
                 ForEach(message.details) { detail in
-                    HStack(alignment: .top, spacing: 6) {
+                    HStack(alignment: .top, spacing: SpacingTokens.xxs2) {
                         Text(detail.key + ":")
-                            .font(.system(.footnote, design: .monospaced))
+                            .font(TypographyTokens.footnote.monospaced())
                             .foregroundStyle(ColorTokens.Text.secondary)
                             .frame(width: 90, alignment: .leading)
 
                         Text(detail.value)
-                            .font(.system(.footnote, design: .monospaced))
+                            .font(TypographyTokens.footnote.monospaced())
                             .foregroundStyle(detail.highlight.valueColor)
                             .textSelection(.enabled)
                     }
                 }
 
                 Text("}")
-                    .font(.system(.footnote, design: .monospaced))
+                    .font(TypographyTokens.footnote.monospaced())
                     .foregroundStyle(ColorTokens.Text.secondary)
             }
             .padding(.vertical, SpacingTokens.xs)

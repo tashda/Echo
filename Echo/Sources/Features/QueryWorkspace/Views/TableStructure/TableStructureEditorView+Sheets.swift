@@ -5,7 +5,7 @@ enum TableStructureSheetComponents {
     
     @ViewBuilder
     static func labeledRow<Content: View>(title: String, @ViewBuilder content: () -> Content) -> some View {
-        HStack(alignment: .center, spacing: 12) {
+        HStack(alignment: .center, spacing: SpacingTokens.sm) {
             Text(title)
                 .frame(minWidth: 120, alignment: .leading)
             Spacer(minLength: 0)
@@ -27,11 +27,11 @@ enum TableStructureSheetComponents {
     static func bubbleLabel(
         _ text: String,
         systemImage: String? = nil,
-        tint: Color = Color(nsColor: .unemphasizedSelectedTextBackgroundColor),
-        foreground: Color = .secondary,
+        tint: Color = ColorTokens.Background.tertiary,
+        foreground: Color = ColorTokens.Text.secondary,
         subtitle: String? = nil
     ) -> some View {
-        HStack(alignment: subtitle == nil ? .center : .top, spacing: 6) {
+        HStack(alignment: subtitle == nil ? .center : .top, spacing: SpacingTokens.xxs2) {
             if let systemImage {
                 Image(systemName: systemImage)
                     .font(TypographyTokens.label.weight(.semibold))
@@ -39,7 +39,7 @@ enum TableStructureSheetComponents {
                     .padding(.top, subtitle == nil ? 0 : 1)
             }
 
-            VStack(alignment: .leading, spacing: subtitle == nil ? 0 : 2) {
+            VStack(alignment: .leading, spacing: subtitle == nil ? 0 : SpacingTokens.xxxs) {
                 Text(text)
                     .font(TypographyTokens.label.weight(.semibold))
                     .foregroundStyle(foreground)

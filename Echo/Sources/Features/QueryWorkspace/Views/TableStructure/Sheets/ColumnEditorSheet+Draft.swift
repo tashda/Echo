@@ -18,8 +18,9 @@ extension ColumnEditorSheet {
             self.defaultValue = model.defaultValue ?? ""
             self.generatedExpression = model.generatedExpression ?? ""
             self.isEditingExisting = !model.isNew
-            if databaseType == .postgresql,
-               let match = postgresDataTypeOptions.first(where: { $0.caseInsensitiveCompare(model.dataType) == .orderedSame }) {
+            let options = dataTypeOptions(for: databaseType)
+            if !options.isEmpty,
+               let match = options.first(where: { $0.caseInsensitiveCompare(model.dataType) == .orderedSame }) {
                 self.selectedDataType = match
             } else {
                 self.selectedDataType = nil
@@ -32,7 +33,7 @@ extension ColumnEditorSheet {
         }
     }
 
-    var postgresTypeSelectionBinding: Binding<String> {
+    var typeSelectionBinding: Binding<String> {
         Binding<String>(
             get: { draft.selectedDataType ?? "" },
             set: { newValue in
@@ -55,8 +56,9 @@ extension ColumnEditorSheet {
     }
 
     func updateSelectedPreset(for value: String) {
-        guard isPostgres else { return }
-        if let match = postgresDataTypeOptions.first(where: { $0.caseInsensitiveCompare(value) == .orderedSame }) {
+        let options = dataTypeOptions(for: databaseType)
+        guard !options.isEmpty else { return }
+        if let match = options.first(where: { $0.caseInsensitiveCompare(value) == .orderedSame }) {
             draft.selectedDataType = match
         } else {
             draft.selectedDataType = nil

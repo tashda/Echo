@@ -4,6 +4,7 @@ import AppKit
 
 final class ResultTableView: NSTableView {
     weak var selectionDelegate: QueryResultsTableView.Coordinator?
+    private let cachedBackgroundColor = NSColor(ColorTokens.Background.tertiary)
 
     override var acceptsFirstResponder: Bool { true }
 
@@ -15,8 +16,12 @@ final class ResultTableView: NSTableView {
     }
 
     override func drawBackground(inClipRect clipRect: NSRect) {
-        NSColor(ColorTokens.Background.tertiary).setFill()
-        clipRect.fill()
+        if usesAlternatingRowBackgroundColors {
+            super.drawBackground(inClipRect: clipRect)
+        } else {
+            cachedBackgroundColor.setFill()
+            clipRect.fill()
+        }
     }
 
     override func mouseDown(with event: NSEvent) {

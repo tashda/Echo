@@ -32,8 +32,6 @@ extension QueryResultsTableView {
         var cachedFontStyles: [SQLEditorTokenPalette.ResultGridStyle: NSFont] = [:]
         let cellBaseFont = NSFont.systemFont(ofSize: 12)
         var lastForeignKeySelection: QueryResultsTableView.ForeignKeySelection?
-        var lastForeignKeyDisplayMode: ForeignKeyDisplayMode?
-        var lastForeignKeyInspectorBehavior: ForeignKeyInspectorBehavior?
         var lastJsonSelection: QueryResultsTableView.JsonSelection?
         var cachedViewportSize: CGSize = .zero
         var pendingPaginationEvaluation = false
@@ -41,9 +39,10 @@ extension QueryResultsTableView {
         var lastParentIsResizing = false
         var requestedForeignKeyColumns: Set<Int> = []
         var lastSelectionHighlightStyle: NSTableView.SelectionHighlightStyle?
-        var cachedDisplayedRows: [Int: [String?]] = [:]
+        var cachedDisplayedRows = ResultTableRowCache()
         var cachedResultGridStyles: [ResultGridValueKind: SQLEditorTokenPalette.ResultGridStyle] = [:]
         var cachedTextColors: [ResultGridValueKind: NSColor] = [:]
+        lazy var cachedRowBackgroundColor: NSColor = NSColor(ColorTokens.Background.tertiary)
         var autoscrollTimer: Timer?
         var autoscrollVelocity: CGPoint = .zero
         var lastDragLocationInWindow: NSPoint = .zero
@@ -53,6 +52,9 @@ extension QueryResultsTableView {
         var autoscrollTimerInterval: TimeInterval = 1.0 / 60.0
         var pendingReloadWorkItems: [DispatchWorkItem] = []
         var pendingRowCountCorrection = false
+        var pendingPaletteRefresh: Task<Void, Never>?
+        var scrollPaginationWorkItem: DispatchWorkItem?
+        var lastPaginationVisibleRange: NSRange = NSRange(location: NSNotFound, length: 0)
         var isSplitResizing = false
         var isResizingColumn = false
         nonisolated(unsafe) var columnResizeObserver: NSObjectProtocol?
@@ -109,8 +111,7 @@ extension QueryResultsTableView {
             cachedPaletteSignature = paletteSignature()
 
             adjustTableSize()
-            lastForeignKeyDisplayMode = parent.foreignKeyDisplayMode
-            lastForeignKeyInspectorBehavior = parent.foreignKeyInspectorBehavior
+            requestedForeignKeyColumns.removeAll()
         }
 
         func updatePersistedState(_ state: QueryResultsGridState?) {
@@ -145,14 +146,19 @@ extension QueryResultsTableView {
         }
 
         func paletteSignature() -> String {
+            let overrides = parent.colorOverrides
+            // Use override hex values and appearance as signature — avoid creating NSColor objects every call
+            let appearance = AppearanceStore.shared.effectiveColorScheme == .dark ? "dark" : "light"
             return [
-                "true",
-                "false",
-                colorSignature(NSColor(ColorTokens.Background.tertiary)),
-                colorSignature(NSColor(ColorTokens.Background.tertiary)),
-                colorSignature(NSColor(ColorTokens.Text.primary)),
-                colorSignature(NSColor(ColorTokens.Background.secondary)),
-                colorSignature(NSColor(ColorTokens.Text.primary))
+                appearance,
+                overrides.nullHex ?? "",
+                overrides.numericHex ?? "",
+                overrides.booleanHex ?? "",
+                overrides.temporalHex ?? "",
+                overrides.binaryHex ?? "",
+                overrides.identifierHex ?? "",
+                overrides.jsonHex ?? "",
+                overrides.textHex ?? ""
             ].joined(separator: "|")
         }
 
