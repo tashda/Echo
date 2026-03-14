@@ -81,7 +81,7 @@ extension SQLiteSession {
         case .table: typeString = "table"
         case .view: typeString = "view"
         case .trigger: typeString = "trigger"
-        case .materializedView, .function, .procedure:
+        case .materializedView, .function, .procedure, .extension:
             throw DatabaseError.queryError("SQLite does not support definitions for \(objectType.rawValue)")
         }
 

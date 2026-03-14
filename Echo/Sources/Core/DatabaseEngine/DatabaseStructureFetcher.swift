@@ -62,122 +62,101 @@ public struct PostgresStructureFetcher: DatabaseStructureFetcher {
 
         await progressHandler(Progress(fraction: 0.0, message: "Starting PostgreSQL structure fetch"))
 
-        let connectedDatabase = connection.database.isEmpty ? "postgres" : connection.database
-
-        await progressHandler(Progress(fraction: 0.1, message: "Listing databases"))
-        let databases: [String]
-        if let selectedDb = selectedDatabase, !selectedDb.isEmpty {
-            databases = [selectedDb]
+        // Determine the actual connected database name by querying the server.
+        // Falling back to the connection config or "postgres" only if the query fails.
+        let connectedDatabase: String
+        if !connection.database.isEmpty {
+            connectedDatabase = connection.database
         } else {
             do {
-                databases = try await session.listDatabases()
+                let result = try await session.simpleQuery("SELECT current_database()")
+                if let row = result.rows.first, let value = row.first, let dbName = value, !dbName.isEmpty {
+                    connectedDatabase = dbName
+                } else {
+                    connectedDatabase = "postgres"
+                }
             } catch {
-                structureLogger.warning("PostgreSQL listDatabases failed; falling back to connected db: \(error)")
-                databases = [connectedDatabase]
+                structureLogger.warning("PostgreSQL: could not determine current database, assuming 'postgres': \(error)")
+                connectedDatabase = "postgres"
             }
         }
+
+        // Determine which single database to load structure for.
+        // Only load the selected or connected database — remaining databases
+        // are added as empty entries by the coordinator (matching MSSQL behavior).
+        let targetDatabase = (selectedDatabase?.isEmpty == false ? selectedDatabase : nil) ?? connectedDatabase
+
+        await progressHandler(Progress(fraction: 0.2, message: "Loading database: \(targetDatabase)"))
 
         var echoDatabases: [DatabaseInfo] = []
 
-        for (index, dbName) in databases.enumerated() {
-            if let filter = databaseFilter, !dbName.contains(filter) {
-                continue
-            }
-            if let selectedDb = selectedDatabase, dbName != selectedDb {
-                continue
-            }
-
-            let progressFraction = 0.1 + (Double(index + 1) / Double(databases.count)) * 0.8
-            await progressHandler(Progress(fraction: progressFraction, message: "Loading database: \(dbName)"))
-
-            // PostgreSQL requires a separate connection per database.
-            // If the target database differs from the connected one, open a temporary connection.
-            let needsTempConnection = dbName.caseInsensitiveCompare(connectedDatabase) != .orderedSame
-            let targetSession: DatabaseSession
-            var tempSession: DatabaseSession?
-
-            if needsTempConnection {
-                do {
-                    guard let auth = credentials.authentication as? DatabaseAuthenticationConfiguration else {
-                        structureLogger.warning("PostgreSQL: cannot create temp connection — missing auth config")
-                        continue
-                    }
-                    let factory = PostgresNIOFactory()
-                    let tmp = try await factory.connect(
-                        host: connection.host,
-                        port: connection.port,
-                        database: dbName,
-                        tls: connection.useTLS,
-                        authentication: auth,
-                        connectTimeoutSeconds: 10
-                    )
-                    tempSession = tmp
-                    targetSession = tmp
-                } catch {
-                    structureLogger.warning("PostgreSQL: failed to connect to database '\(dbName)': \(error.localizedDescription)")
-                    // Return an empty database entry so the user sees it in the sidebar
-                    let emptyDb = DatabaseInfo(name: dbName, schemas: [], schemaCount: 0)
-                    echoDatabases.append(emptyDb)
-                    await databaseHandler(emptyDb, dbName, "PostgreSQL")
-                    continue
-                }
-            } else {
-                targetSession = session
-            }
-
-            defer {
-                if let tmp = tempSession {
-                    Task { await tmp.close() }
-                }
-            }
-
-            // Fetch schemas and objects using the correct session
-            let schemas: [String]
-            do {
-                schemas = try await targetSession.listSchemas()
-            } catch {
-                structureLogger.warning("PostgreSQL listSchemas failed for '\(dbName)': \(error)")
-                schemas = ["public"]
-            }
-
-            var schemaInfos: [SchemaInfo] = []
-
-            for schema in schemas {
-                if schema.hasPrefix("pg_") || schema == "information_schema" {
-                    continue
-                }
-
-                do {
-                    let objects = try await targetSession.listTablesAndViews(schema: schema)
-                    let filteredObjects = objects.filter { obj in
-                        obj.type == .table || obj.type == .view || obj.type == .materializedView ||
-                        obj.type == .function || obj.type == .trigger || obj.type == .procedure
-                    }
-                    if !filteredObjects.isEmpty {
-                        schemaInfos.append(SchemaInfo(name: schema, objects: filteredObjects))
-                    }
-                } catch {
-                    structureLogger.warning("PostgreSQL: failed to load schema '\(schema)' in '\(dbName)': \(error)")
-                }
-            }
-
-            let databaseInfo = DatabaseInfo(
-                name: dbName,
-                schemas: schemaInfos,
-                schemaCount: schemaInfos.count
-            )
-
-            echoDatabases.append(databaseInfo)
-            await databaseHandler(databaseInfo, dbName, "PostgreSQL")
+        // PostgreSQL requires a separate connection per database.
+        // `sessionForDatabase` uses PostgresServerConnection to vend a cached client.
+        let targetSession: DatabaseSession
+        do {
+            targetSession = try await session.sessionForDatabase(targetDatabase)
+        } catch {
+            structureLogger.warning("PostgreSQL: failed to connect to database '\(targetDatabase)': \(error.localizedDescription)")
+            let emptyDb = DatabaseInfo(name: targetDatabase, schemas: [], schemaCount: 0)
+            echoDatabases.append(emptyDb)
+            await databaseHandler(emptyDb, targetDatabase, "PostgreSQL")
+            return DatabaseStructure(serverVersion: "PostgreSQL", databases: echoDatabases)
         }
+
+        // Fetch schemas and objects for the single target database
+        let schemas: [String]
+        do {
+            schemas = try await targetSession.listSchemas()
+        } catch {
+            structureLogger.warning("PostgreSQL listSchemas failed for '\(targetDatabase)': \(error)")
+            schemas = ["public"]
+        }
+
+        var schemaInfos: [SchemaInfo] = []
+
+        for schema in schemas {
+            if schema.hasPrefix("pg_") || schema == "information_schema" {
+                continue
+            }
+
+            do {
+                let objects = try await targetSession.listTablesAndViews(schema: schema)
+                let filteredObjects = objects.filter { obj in
+                    obj.type == .table || obj.type == .view || obj.type == .materializedView ||
+                    obj.type == .function || obj.type == .trigger || obj.type == .procedure
+                }
+                if !filteredObjects.isEmpty {
+                    schemaInfos.append(SchemaInfo(name: schema, objects: filteredObjects))
+                }
+            } catch {
+                structureLogger.warning("PostgreSQL: failed to load schema '\(schema)' in '\(targetDatabase)': \(error)")
+            }
+        }
+
+        // Fetch extensions
+        var extensions: [SchemaObjectInfo] = []
+        do {
+            extensions = try await targetSession.listExtensions()
+        } catch {
+            structureLogger.warning("PostgreSQL: failed to load extensions in '\(targetDatabase)': \(error)")
+        }
+
+        let databaseInfo = DatabaseInfo(
+            name: targetDatabase,
+            schemas: schemaInfos,
+            extensions: extensions,
+            schemaCount: schemaInfos.count
+        )
+
+        echoDatabases.append(databaseInfo)
+        await databaseHandler(databaseInfo, targetDatabase, "PostgreSQL")
 
         await progressHandler(Progress(fraction: 0.95, message: "Fetching server version"))
 
         var versionString = "PostgreSQL"
         if let pgSession = session as? PostgresSession {
             do {
-                let admin = PostgresAdmin(client: pgSession.client, logger: pgSession.logger)
-                if let rawVersion = try await admin.show("server_version") {
+                if let rawVersion = try await pgSession.client.admin.show("server_version") {
                     // Extract just the version number (e.g. "16.2" from "16.2 (Debian 16.2-1.pgdg120+2)")
                     let components = rawVersion.split(separator: " ", maxSplits: 1)
                     versionString = "PostgreSQL \(components.first ?? Substring(rawVersion))"
@@ -218,35 +197,50 @@ public struct MSSQLStructureFetcher: DatabaseStructureFetcher {
         await progressHandler(Progress(fraction: 0.0, message: "Starting SQL Server structure fetch"))
 
         if let sqlSession = session as? SQLServerSessionAdapter {
-            await progressHandler(Progress(fraction: 0.2, message: "Loading SQL Server metadata"))
-
-            var databases: [DatabaseInfo] = []
-
-            // Only load structure for a specific database when explicitly selected
+            // When a specific database is selected, load its full schema (lazy expand).
+            // Otherwise, lightweight initial load: only database list + server version.
             if let selectedDatabase, !selectedDatabase.isEmpty {
+                await progressHandler(Progress(fraction: 0.2, message: "Loading \(selectedDatabase)"))
+
+                var databases: [DatabaseInfo] = []
                 do {
                     let databaseInfo = try await sqlSession.loadDatabaseInfo(databaseName: selectedDatabase)
                     databases.append(databaseInfo)
                     await databaseHandler(databaseInfo, selectedDatabase, "Microsoft SQL Server")
                 } catch {
                     structureLogger.warning("SQL Server: failed to load database '\(selectedDatabase)': \(error.localizedDescription)")
-                    var stateDesc: String? = error.localizedDescription
-                    if let meta = try? await sqlSession.client.databaseState(name: selectedDatabase) {
-                        stateDesc = meta.stateDescription
-                    }
-                    let fallback = DatabaseInfo(name: selectedDatabase, schemas: [], schemaCount: 0, stateDescription: stateDesc)
+                    let fallback = DatabaseInfo(name: selectedDatabase, schemas: [], schemaCount: 0)
                     databases.append(fallback)
                     await databaseHandler(fallback, selectedDatabase, "Microsoft SQL Server")
                 }
+
+                await progressHandler(Progress(fraction: 1.0, message: "Done"))
+                return DatabaseStructure(serverVersion: cachedStructure?.serverVersion, databases: databases)
             }
 
-            // Fetch actual server version
+            await progressHandler(Progress(fraction: 0.2, message: "Loading SQL Server metadata"))
+
+            var databases: [DatabaseInfo] = []
+            do {
+                let allDbs = try await sqlSession.listDatabasesWithState()
+                databases = allDbs.map { DatabaseInfo(name: $0.name, schemas: [], schemaCount: 0, stateDescription: $0.stateDescription) }
+                databases.sort { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+            } catch {
+                structureLogger.warning("SQL Server: failed to list databases: \(error.localizedDescription)")
+            }
+
+            await progressHandler(Progress(fraction: 0.6, message: "Fetching server version"))
+
             var versionString = "SQL Server"
             do {
                 let version = try await sqlSession.serverVersion()
                 versionString = "SQL Server \(version)"
             } catch {
                 structureLogger.warning("SQL Server: failed to fetch server version: \(error)")
+            }
+
+            for db in databases {
+                await databaseHandler(db, db.name, versionString)
             }
 
             await progressHandler(Progress(fraction: 1.0, message: "SQL Server structure fetch completed"))

@@ -100,6 +100,8 @@ extension MySQLSession {
             sql = "SHOW CREATE PROCEDURE `\(objectName.replacingOccurrences(of: "`", with: "``"))`"
         case .trigger:
             sql = "SHOW CREATE TRIGGER `\(objectName.replacingOccurrences(of: "`", with: "``"))`"
+        case .extension:
+            throw DatabaseError.queryError("MySQL does not support extensions")
         }
 
         let rows = try await connection.simpleQuery(sql).get()
@@ -268,6 +270,14 @@ extension MySQLSession: DatabaseMetadataSession {
             let table = makeString(row, index: 2)
             return SchemaObjectInfo(name: name, schema: schemaName, type: .trigger, columns: [], triggerAction: action, triggerTable: table)
         }
+    }
+
+    func listAvailableExtensions() async throws -> [AvailableExtensionInfo] {
+        []
+    }
+
+    func installExtension(name: String, schema: String?, version: String?, cascade: Bool) async throws {
+        throw DatabaseError.queryError("Extensions are not supported for MySQL")
     }
 
     private struct SchemaObjectAccumulator {

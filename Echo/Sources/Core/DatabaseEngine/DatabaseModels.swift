@@ -8,6 +8,7 @@ public struct SchemaObjectInfo: Sendable, Identifiable, Codable, Hashable {
         case function = "FUNCTION"
         case trigger = "TRIGGER"
         case procedure = "PROCEDURE"
+        case `extension` = "EXTENSION"
 
         public nonisolated var pluralDisplayName: String {
             switch self {
@@ -17,6 +18,7 @@ public struct SchemaObjectInfo: Sendable, Identifiable, Codable, Hashable {
             case .function: return "Functions"
             case .procedure: return "Procedures"
             case .trigger: return "Triggers"
+            case .extension: return "Extensions"
             }
         }
 
@@ -28,6 +30,7 @@ public struct SchemaObjectInfo: Sendable, Identifiable, Codable, Hashable {
             case .function: return "function"
             case .procedure: return "terminal"
             case .trigger: return "bolt.fill"
+            case .extension: return "puzzlepiece.fill"
             }
         }
     }
