@@ -8,6 +8,147 @@ on:
   workflow_dispatch:
 
 jobs:
+  test:
+    runs-on: macos-15
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Select Xcode
+      uses: maxim-lobanov/setup-xcode@v1
+      with:
+        xcode-version: latest-stable
+
+    - name: Run Unit Tests
+      run: |
+        xcodebuild test -project Echo.xcodeproj \
+          -scheme Echo \
+          -destination 'platform=macOS' \
+          -resultBundlePath TestResults \
+          -skip-testing:EchoTests/Integration \
+          CODE_SIGN_IDENTITY="" \
+          CODE_SIGNING_REQUIRED=NO \
+          CODE_SIGNING_ALLOWED=NO
+
+  integration-tests:
+    runs-on: macos-15
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/main')
+    strategy:
+      matrix:
+        include:
+          # SQL Server versions (compat levels on 2017 for pre-2017)
+          - db: mssql-2008r2
+            ECHO_MSSQL_VERSION: "2017-latest"
+            ECHO_MSSQL_COMPAT: "100"
+          - db: mssql-2012
+            ECHO_MSSQL_VERSION: "2017-latest"
+            ECHO_MSSQL_COMPAT: "110"
+          - db: mssql-2014
+            ECHO_MSSQL_VERSION: "2017-latest"
+            ECHO_MSSQL_COMPAT: "120"
+          - db: mssql-2016
+            ECHO_MSSQL_VERSION: "2017-latest"
+            ECHO_MSSQL_COMPAT: "130"
+          - db: mssql-2017
+            ECHO_MSSQL_VERSION: "2017-latest"
+            ECHO_MSSQL_COMPAT: ""
+          - db: mssql-2019
+            ECHO_MSSQL_VERSION: "2019-latest"
+            ECHO_MSSQL_COMPAT: ""
+          - db: mssql-2022
+            ECHO_MSSQL_VERSION: "2022-latest"
+            ECHO_MSSQL_COMPAT: ""
+          - db: mssql-2025
+            ECHO_MSSQL_VERSION: "2025-latest"
+            ECHO_MSSQL_COMPAT: ""
+          # PostgreSQL versions
+          - db: postgres-14
+            ECHO_PG_VERSION: "14"
+          - db: postgres-15
+            ECHO_PG_VERSION: "15"
+          - db: postgres-16
+            ECHO_PG_VERSION: "16"
+          - db: postgres-17
+            ECHO_PG_VERSION: "17"
+          - db: postgres-18
+            ECHO_PG_VERSION: "18"
+          - db: postgres-latest
+            ECHO_PG_VERSION: "latest"
+      fail-fast: false
+    env:
+      USE_DOCKER: "1"
+      ECHO_MSSQL_PORT: "14332"
+      ECHO_PG_PORT: "54322"
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Select Xcode
+      uses: maxim-lobanov/setup-xcode@v1
+      with:
+        xcode-version: latest-stable
+
+    - name: Install Docker via Colima
+      run: |
+        brew install docker colima
+        colima start --cpu 4 --memory 4 --disk 20
+
+    - name: Run Integration Tests (MSSQL)
+      if: startsWith(matrix.db, 'mssql')
+      env:
+        ECHO_MSSQL_VERSION: ${{ matrix.ECHO_MSSQL_VERSION }}
+        ECHO_MSSQL_COMPAT: ${{ matrix.ECHO_MSSQL_COMPAT }}
+      run: |
+        xcodebuild test -project Echo.xcodeproj \
+          -scheme Echo \
+          -destination 'platform=macOS' \
+          -resultBundlePath "TestResults-${{ matrix.db }}" \
+          -only-testing:EchoTests/Integration/MSSQL \
+          CODE_SIGN_IDENTITY="" \
+          CODE_SIGNING_REQUIRED=NO \
+          CODE_SIGNING_ALLOWED=NO
+
+    - name: Run Integration Tests (Postgres)
+      if: startsWith(matrix.db, 'postgres')
+      env:
+        ECHO_PG_VERSION: ${{ matrix.ECHO_PG_VERSION }}
+      run: |
+        xcodebuild test -project Echo.xcodeproj \
+          -scheme Echo \
+          -destination 'platform=macOS' \
+          -resultBundlePath "TestResults-${{ matrix.db }}" \
+          -only-testing:EchoTests/Integration/Postgres \
+          CODE_SIGN_IDENTITY="" \
+          CODE_SIGNING_REQUIRED=NO \
+          CODE_SIGNING_ALLOWED=NO
+
+    - name: Upload Test Results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-results-${{ matrix.db }}
+        path: TestResults-${{ matrix.db }}.xcresult
+
+  sqlite-integration:
+    runs-on: macos-15
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/main')
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Select Xcode
+      uses: maxim-lobanov/setup-xcode@v1
+      with:
+        xcode-version: latest-stable
+
+    - name: Run SQLite Integration Tests
+      run: |
+        xcodebuild test -project Echo.xcodeproj \
+          -scheme Echo \
+          -destination 'platform=macOS' \
+          -resultBundlePath TestResults-sqlite \
+          -only-testing:EchoTests/Integration/SQLite \
+          CODE_SIGN_IDENTITY="" \
+          CODE_SIGNING_REQUIRED=NO \
+          CODE_SIGNING_ALLOWED=NO
+
   build:
     runs-on: macos-15
     permissions:
