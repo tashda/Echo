@@ -14,7 +14,7 @@ struct BookmarksSidebarView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             header.padding(.horizontal, SpacingTokens.md).padding(.top, SpacingTokens.sm)
-            Divider().opacity(availableConnections.isEmpty ? 0 : 1).padding(.vertical, availableConnections.isEmpty ? 0 : 8)
+            Divider().opacity(availableConnections.isEmpty ? 0 : 1).padding(.vertical, availableConnections.isEmpty ? 0 : SpacingTokens.xs)
             content
         }
         .onAppear(perform: initializeSelection)
@@ -31,12 +31,12 @@ struct BookmarksSidebarView: View {
             if bookmarks.isEmpty { emptyBookmarksPlaceholder(for: conn).frame(maxWidth: .infinity, maxHeight: .infinity).padding(SpacingTokens.xl) }
             else {
                 ScrollView {
-                    LazyVStack(alignment: .leading, spacing: 16) {
+                    LazyVStack(alignment: .leading, spacing: SpacingTokens.md) {
                         if groupByDatabase {
                             ForEach(bookmarks.groupedByDatabase()) { group in
-                                VStack(alignment: .leading, spacing: 12) {
-                                    Text(group.databaseName ?? "No Database").font(.caption).fontWeight(.semibold).textCase(.uppercase).foregroundStyle(.secondary).padding(.horizontal, SpacingTokens.sm)
-                                    LazyVStack(spacing: 12) { ForEach(group.bookmarks) { b in BookmarkRow(bookmark: b, connection: conn, activePopoverID: $activePopoverBookmarkID, isRecentlyOpened: recentlyOpenedBookmarkID == b.id, onOpen: { open(bookmark: b) }, onCopy: { copy(bookmark: b) }, onRename: { rename(bookmark: b, title: $0) }, onDelete: { delete(bookmark: b) }).id(b.id) } }
+                                VStack(alignment: .leading, spacing: SpacingTokens.sm) {
+                                    Text(group.databaseName ?? "No Database").font(TypographyTokens.caption).fontWeight(.semibold).textCase(.uppercase).foregroundStyle(ColorTokens.Text.secondary).padding(.horizontal, SpacingTokens.sm)
+                                    LazyVStack(spacing: SpacingTokens.sm) { ForEach(group.bookmarks) { b in BookmarkRow(bookmark: b, connection: conn, activePopoverID: $activePopoverBookmarkID, isRecentlyOpened: recentlyOpenedBookmarkID == b.id, onOpen: { open(bookmark: b) }, onCopy: { copy(bookmark: b) }, onRename: { rename(bookmark: b, title: $0) }, onDelete: { delete(bookmark: b) }).id(b.id) } }
                                 }
                             }.padding(.horizontal, SpacingTokens.sm).padding(.top, SpacingTokens.xxs)
                         } else {
@@ -49,8 +49,8 @@ struct BookmarksSidebarView: View {
     }
 
     private var header: some View {
-        HStack(alignment: .center, spacing: 12) {
-            VStack(alignment: .leading, spacing: 4) { Text("Bookmarks").font(.headline); Text(headerSubtitle).font(.footnote).foregroundStyle(.secondary).lineLimit(2) }
+        HStack(alignment: .center, spacing: SpacingTokens.sm) {
+            VStack(alignment: .leading, spacing: SpacingTokens.xxs) { Text("Bookmarks").font(TypographyTokens.headline); Text(headerSubtitle).font(TypographyTokens.footnote).foregroundStyle(ColorTokens.Text.secondary).lineLimit(2) }
             Spacer(minLength: 0); if !availableConnections.isEmpty { connectionPicker }; groupingMenu
         }
     }
@@ -61,7 +61,7 @@ struct BookmarksSidebarView: View {
                 Button { selectedConnectionID = conn.id } label: { if conn.id == currentConnection?.id { Label(connectionDisplayName(conn), systemImage: "checkmark") } else { Text(connectionDisplayName(conn)) } }
             }
         } label: {
-            HStack(spacing: 6) { Image(systemName: "server.rack"); Text(connectionDisplayName(currentConnection)) }.font(.footnote).foregroundStyle(.secondary).padding(.horizontal, SpacingTokens.xs2).padding(.vertical, SpacingTokens.xxs2).background(Capsule().fill(Color.primary.opacity(0.05)))
+            HStack(spacing: SpacingTokens.xxs2) { Image(systemName: "server.rack"); Text(connectionDisplayName(currentConnection)) }.font(TypographyTokens.footnote).foregroundStyle(ColorTokens.Text.secondary).padding(.horizontal, SpacingTokens.xs2).padding(.vertical, SpacingTokens.xxs2).background(Capsule().fill(ColorTokens.Text.primary.opacity(0.05)))
         }.menuIndicator(.hidden)
     }
 
@@ -70,7 +70,7 @@ struct BookmarksSidebarView: View {
             Button { groupByDatabase = true } label: { if groupByDatabase { Label("Group by Database", systemImage: "checkmark") } else { Text("Group by Database") } }
             Button { groupByDatabase = false } label: { if !groupByDatabase { Label("Show All", systemImage: "checkmark") } else { Text("Show All") } }
         } label: {
-            Label(groupByDatabase ? "Grouped" : "All", systemImage: groupByDatabase ? "square.grid.2x2" : "list.bullet").font(.footnote).padding(.horizontal, SpacingTokens.xs2).padding(.vertical, SpacingTokens.xxs2).background(Capsule().fill(Color.primary.opacity(0.05)))
+            Label(groupByDatabase ? "Grouped" : "All", systemImage: groupByDatabase ? "square.grid.2x2" : "list.bullet").font(TypographyTokens.footnote).padding(.horizontal, SpacingTokens.xs2).padding(.vertical, SpacingTokens.xxs2).background(Capsule().fill(ColorTokens.Text.primary.opacity(0.05)))
         }.menuIndicator(.hidden)
     }
 

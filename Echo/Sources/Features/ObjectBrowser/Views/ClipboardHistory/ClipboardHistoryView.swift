@@ -14,7 +14,7 @@ struct ClipboardHistoryView: View {
     @State private var filter: HistoryFilter = .all
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
+        VStack(alignment: .leading, spacing: SpacingTokens.none) {
             header
                 .padding(.horizontal, SpacingTokens.md)
                 .padding(.top, SpacingTokens.sm)
@@ -29,7 +29,7 @@ struct ClipboardHistoryView: View {
                     .padding()
             } else {
                 ScrollView {
-                    LazyVStack(spacing: 12) {
+                    LazyVStack(spacing: SpacingTokens.sm) {
                         ForEach(filteredEntries) { entry in
                             ClipboardHistoryRow(
                                 entry: entry,
@@ -62,12 +62,12 @@ struct ClipboardHistoryView: View {
 
     private var header: some View {
         HStack(alignment: .center) {
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: SpacingTokens.xxs) {
                 Text("Clipboard History")
-                    .font(.headline)
+                    .font(TypographyTokens.headline)
                 Text(clipboardHistory.isEnabled ? "Recent items copied from the editor and grid" : "History capture is turned off")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
+                    .font(TypographyTokens.footnote)
+                    .foregroundStyle(ColorTokens.Text.secondary)
             }
 
             Spacer()
@@ -96,11 +96,11 @@ struct ClipboardHistoryView: View {
         } label: {
             Label(filter.title, systemImage: "line.3.horizontal.decrease.circle")
                 .labelStyle(.titleAndIcon)
-                .font(.footnote)
+                .font(TypographyTokens.footnote)
                 .padding(SpacingTokens.xs)
                 .background(
                     RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .fill(Color.primary.opacity(0.05))
+                        .fill(ColorTokens.Text.primary.opacity(0.05))
                 )
         }
         .menuIndicator(.hidden)

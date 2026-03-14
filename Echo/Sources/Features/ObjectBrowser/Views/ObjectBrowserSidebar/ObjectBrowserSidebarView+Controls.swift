@@ -4,12 +4,11 @@ extension ObjectBrowserSidebarView {
 
     /// Always-visible footer with search field; schema picker shown only when a database is selected.
     var globalFooterView: some View {
-        let controlBackground = Color.primary.opacity(0.04)
-        let borderColor = Color.primary.opacity(0.08)
+        let controlBackground = ColorTokens.Text.primary.opacity(0.018)
+        let borderColor = Color.clear
 
         return VStack(spacing: 0) {
-            Divider()
-            HStack(spacing: 6) {
+            HStack(spacing: SpacingTokens.xxs2) {
                 ExplorerFooterSearchField(
                     text: $viewModel.searchText,
                     isFocused: $viewModel.isSearchFieldFocused,
@@ -25,11 +24,11 @@ extension ObjectBrowserSidebarView {
                    let database = selectedDatabase(in: structure, for: session),
                    !viewModel.isSearchFieldFocused {
                     let connID = session.connection.id
-                    let accentColor = projectStore.globalSettings.accentColorSource == .connection ? session.connection.color : Color.accentColor
+                    let accentColor = projectStore.globalSettings.accentColorSource == .connection ? session.connection.color : ColorTokens.accent
                     let creationOptions = creationOptions(for: session.connection.databaseType)
 
                     if !creationOptions.isEmpty {
-                        addButton(options: creationOptions, accentColor: accentColor)
+                        addButton(options: creationOptions, accentColor: accentColor, session: session, database: database)
                     }
 
                     schemaPicker(database: database, connID: connID, accentColor: accentColor, controlBackground: controlBackground, borderColor: borderColor)
@@ -42,10 +41,12 @@ extension ObjectBrowserSidebarView {
     }
 
     @ViewBuilder
-    private func addButton(options: [ExplorerCreationMenuItem], accentColor: Color) -> some View {
+    private func addButton(options: [ExplorerCreationMenuItem], accentColor: Color, session: ConnectionSession, database: DatabaseInfo) -> some View {
         Menu {
             ForEach(options, id: \.title) { item in
-                Button(action: {}) {
+                Button {
+                    handleCreationAction(item, session: session, database: database)
+                } label: {
                     Label {
                         Text(item.title)
                     } icon: {
@@ -65,10 +66,37 @@ extension ObjectBrowserSidebarView {
         )
     }
 
+    func handleCreationAction(_ item: ExplorerCreationMenuItem, session: ConnectionSession, database: DatabaseInfo) {
+        switch item.title {
+        case "New Extension":
+            environmentState.openExtensionsManagerTab(connectionID: session.connection.id, databaseName: database.name)
+        case "New Schema":
+            let sql = creationTemplateSQL(for: item.title, databaseType: session.connection.databaseType, schemaName: nil)
+            environmentState.openQueryTab(for: session, presetQuery: sql, database: database.name)
+        default:
+            let schemaName = resolvedSchemaName(for: session, database: database)
+            let sql = creationTemplateSQL(for: item.title, databaseType: session.connection.databaseType, schemaName: schemaName)
+            environmentState.openQueryTab(for: session, presetQuery: sql, database: database.name)
+        }
+    }
+
+    private func resolvedSchemaName(for session: ConnectionSession, database: DatabaseInfo) -> String {
+        let schemaKey = "\(session.connection.id.uuidString)#\(database.name)"
+        if let selected = viewModel.selectedSchemaNameBySession[schemaKey] {
+            return selected
+        }
+        switch session.connection.databaseType {
+        case .postgresql: return "public"
+        case .microsoftSQL: return "dbo"
+        case .mysql, .sqlite: return ""
+        }
+    }
+
     @ViewBuilder
     private func schemaPicker(database: DatabaseInfo, connID: UUID, accentColor: Color, controlBackground: Color, borderColor: Color) -> some View {
         let availableSchemas = database.schemas.filter { !$0.objects.isEmpty }
-        let currentSchemaSelection = viewModel.selectedSchemaNameBySession[connID]
+        let schemaKey = "\(connID.uuidString)#\(database.name)"
+        let currentSchemaSelection = viewModel.selectedSchemaNameBySession[schemaKey]
 
         if !availableSchemas.isEmpty {
             let schemaDisplayName: String = {
@@ -80,7 +108,7 @@ extension ObjectBrowserSidebarView {
             Menu {
                 Button {
                     withAnimation(.easeInOut(duration: 0.2)) {
-                        _ = viewModel.selectedSchemaNameBySession.removeValue(forKey: connID)
+                        _ = viewModel.selectedSchemaNameBySession.removeValue(forKey: schemaKey)
                     }
                 } label: {
                     if currentSchemaSelection == nil {
@@ -94,7 +122,7 @@ extension ObjectBrowserSidebarView {
                     let objectCount = schema.objects.count
                     Button {
                         withAnimation(.easeInOut(duration: 0.2)) {
-                            viewModel.selectedSchemaNameBySession[connID] = schema.name
+                            viewModel.selectedSchemaNameBySession[schemaKey] = schema.name
                         }
                     } label: {
                         if currentSchemaSelection == schema.name {
@@ -105,17 +133,17 @@ extension ObjectBrowserSidebarView {
                     }
                 }
             } label: {
-                HStack(spacing: 8) {
+                HStack(spacing: SpacingTokens.xs) {
                     Image("schema")
                         .renderingMode(.template)
                         .resizable()
                         .frame(width: 12, height: 12)
-                        .foregroundStyle(currentSchemaSelection == nil ? .secondary : accentColor)
+                        .foregroundStyle(currentSchemaSelection == nil ? ColorTokens.Text.secondary : accentColor)
 
                     Text(schemaDisplayName)
-                        .font(TypographyTokens.caption2.weight(.medium))
+                        .font(TypographyTokens.caption2)
                         .lineLimit(1)
-                        .foregroundStyle(currentSchemaSelection == nil ? Color.primary : accentColor)
+                        .foregroundStyle(currentSchemaSelection == nil ? ColorTokens.Text.primary : accentColor)
                 }
                 .padding(.horizontal, SpacingTokens.xs2)
                 .padding(.vertical, SpacingTokens.xxs)

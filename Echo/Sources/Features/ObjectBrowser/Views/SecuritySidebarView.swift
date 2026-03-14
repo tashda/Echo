@@ -37,15 +37,15 @@ struct SecuritySidebarView: View {
             .padding(.vertical, SpacingTokens.xxs2)
 
             ScrollView {
-                VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: SpacingTokens.sm) {
                     sectionHeader("Database Users (") { Text("\(viewModel.dbUsers.count)") } suffix: { Text(")") }
                     ForEach(filteredDbUsers) { user in
                         HStack {
                             Image(systemName: "person.fill")
-                            Text(user.name).font(.body)
+                            Text(user.name).font(TypographyTokens.standard)
                             Spacer()
                             if let schema = user.defaultSchema, !schema.isEmpty {
-                                Text(schema).foregroundColor(.secondary)
+                                Text(schema).foregroundStyle(ColorTokens.Text.secondary)
                             }
                         }
                         .padding(.horizontal, SpacingTokens.xs)
@@ -60,7 +60,7 @@ struct SecuritySidebarView: View {
                             Image(systemName: role.isFixed ? "shield.lefthalf.filled" : "shield")
                             Text(role.name)
                             Spacer()
-                            if role.isFixed { Text("fixed").foregroundColor(.secondary) }
+                            if role.isFixed { Text("fixed").foregroundStyle(ColorTokens.Text.secondary) }
                         }
                         .padding(.horizontal, SpacingTokens.xs)
                         .padding(.vertical, SpacingTokens.xxs)
@@ -74,7 +74,7 @@ struct SecuritySidebarView: View {
                             Image(systemName: login.disabled ? "person.crop.circle.badge.xmark" : "person.crop.circle")
                             Text(login.name)
                             Spacer()
-                            Text(login.type).foregroundColor(.secondary)
+                            Text(login.type).foregroundStyle(ColorTokens.Text.secondary)
                         }
                         .padding(.horizontal, SpacingTokens.xs)
                         .padding(.vertical, SpacingTokens.xxs)
@@ -88,7 +88,7 @@ struct SecuritySidebarView: View {
                             Image(systemName: role.isFixed ? "shield.lefthalf.filled" : "shield")
                             Text(role.name)
                             Spacer()
-                            if role.isFixed { Text("fixed").foregroundColor(.secondary) }
+                            if role.isFixed { Text("fixed").foregroundStyle(ColorTokens.Text.secondary) }
                         }
                         .padding(.horizontal, SpacingTokens.xs)
                         .padding(.vertical, SpacingTokens.xxs)
@@ -98,7 +98,7 @@ struct SecuritySidebarView: View {
             }
 
             if let message = viewModel.errorMessage {
-                Text(message).foregroundColor(.secondary).padding([.horizontal, .bottom], 8)
+                Text(message).foregroundStyle(ColorTokens.Text.secondary).padding([.horizontal, .bottom], SpacingTokens.xs)
             }
         }
         .onAppear { Task { await viewModel.reload(for: activeSession) } }
@@ -114,8 +114,8 @@ struct SecuritySidebarView: View {
 
     @ViewBuilder
     private func sectionHeader(_ title: String, @ViewBuilder count: () -> some View, @ViewBuilder suffix: () -> some View) -> some View {
-        HStack(spacing: 4) {
-            Text(title).font(.headline)
+        HStack(spacing: SpacingTokens.xxs) {
+            Text(title).font(TypographyTokens.headline)
             count()
             suffix()
             Spacer()

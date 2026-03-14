@@ -17,8 +17,8 @@ extension DatabasePropertiesSheet {
                 }
             }
             .onChange(of: pgOwner) { _, newOwner in
-                applyPgAlter { admin in
-                    try await admin.alterDatabaseOwner(name: databaseName, newOwner: newOwner)
+                applyPgAlter { client in
+                    try await client.admin.alterDatabaseOwner(name: databaseName, newOwner: newOwner)
                 }
             }
 
@@ -26,8 +26,8 @@ extension DatabasePropertiesSheet {
                 TextField("", text: $pgComment, axis: .vertical)
                     .lineLimit(1...3)
                     .onSubmit {
-                        applyPgAlter { admin in
-                            try await admin.commentOnDatabase(name: databaseName, comment: pgComment.isEmpty ? nil : pgComment)
+                        applyPgAlter { client in
+                            try await client.admin.addDatabaseComment(name: databaseName, comment: pgComment.isEmpty ? nil : pgComment)
                         }
                     }
             }
@@ -56,8 +56,8 @@ extension DatabasePropertiesSheet {
                 Picker("Tablespace", selection: Binding(
                     get: { props.tablespace },
                     set: { newValue in
-                        applyPgAlter { admin in
-                            try await admin.alterDatabaseTablespace(name: databaseName, tablespace: newValue)
+                        applyPgAlter { client in
+                            try await client.admin.alterDatabaseTablespace(name: databaseName, tablespace: newValue)
                         }
                     }
                 )) {
@@ -76,27 +76,27 @@ extension DatabasePropertiesSheet {
                     TextField("", value: $pgConnectionLimit, format: .number)
                         .frame(width: 60)
                         .onSubmit {
-                            applyPgAlter { admin in
-                                try await admin.alterDatabaseConnectionLimit(name: databaseName, limit: pgConnectionLimit)
+                            applyPgAlter { client in
+                                try await client.admin.alterDatabaseConnectionLimit(name: databaseName, limit: pgConnectionLimit)
                             }
                         }
                     Text("-1 = unlimited")
                         .font(TypographyTokens.detail)
-                        .foregroundStyle(.tertiary)
+                        .foregroundStyle(ColorTokens.Text.tertiary)
                 }
             }
 
             Toggle("Is Template", isOn: $pgIsTemplate)
                 .onChange(of: pgIsTemplate) { _, v in
-                    applyPgAlter { admin in
-                        try await admin.alterDatabaseIsTemplate(name: databaseName, isTemplate: v)
+                    applyPgAlter { client in
+                        try await client.admin.alterDatabaseIsTemplate(name: databaseName, isTemplate: v)
                     }
                 }
 
             Toggle("Allow Connections", isOn: $pgAllowConnections)
                 .onChange(of: pgAllowConnections) { _, v in
-                    applyPgAlter { admin in
-                        try await admin.alterDatabaseAllowConnections(name: databaseName, allow: v)
+                    applyPgAlter { client in
+                        try await client.admin.alterDatabaseAllowConnections(name: databaseName, allow: v)
                     }
                 }
         }
@@ -107,7 +107,7 @@ extension DatabasePropertiesSheet {
         if pgParams.isEmpty {
             Section {
                 Text("No database-level parameters configured.")
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(ColorTokens.Text.secondary)
                     .font(TypographyTokens.standard)
             }
         } else {
@@ -141,23 +141,21 @@ extension DatabasePropertiesSheet {
 
     // MARK: - PostgreSQL Apply Alter
 
-    func applyPgAlter(_ action: @Sendable @escaping (PostgresAdmin) async throws -> Void) {
+    func applyPgAlter(_ action: @Sendable @escaping (PostgresKit.PostgresClient) async throws -> Void) {
         guard let pgSession = session.session as? PostgresSession else { return }
         let client = pgSession.client
-        let logger = pgSession.logger
         isSaving = true
         statusMessage = nil
 
         Task {
             do {
-                let admin = PostgresAdmin(client: client, logger: logger)
-                try await action(admin)
+                try await action(client)
                 isSaving = false
                 Task { await environmentState.refreshDatabaseStructure(for: session.id) }
             } catch {
                 isSaving = false
                 statusMessage = error.localizedDescription
-                environmentState.toastCoordinator.show(icon: "exclamationmark.triangle", message: error.localizedDescription, style: .error)
+                environmentState.notificationEngine?.post(category: .databasePropertiesError, message: error.localizedDescription)
             }
         }
     }
@@ -166,10 +164,9 @@ extension DatabasePropertiesSheet {
 
     func loadPostgresProperties() async throws {
         guard let pgSession = session.session as? PostgresSession else { return }
-        let admin = PostgresAdmin(client: pgSession.client, logger: pgSession.logger)
-        let metadata = PostgresMetadata()
+        let client = pgSession.client
 
-        let props = try await admin.fetchDatabaseProperties(name: databaseName, using: pgSession.client)
+        let props = try await client.introspection.fetchDatabaseProperties(name: databaseName)
         pgProps = props
         pgOwner = props.owner
         pgConnectionLimit = props.connectionLimit
@@ -177,11 +174,11 @@ extension DatabasePropertiesSheet {
         pgAllowConnections = props.allowConnections
         pgComment = props.description ?? ""
 
-        pgParams = (try? await admin.fetchDatabaseParameters(databaseOid: props.oid, using: pgSession.client)) ?? []
+        pgParams = (try? await client.introspection.fetchDatabaseParameters(databaseOid: props.oid)) ?? []
 
-        let roles = try await metadata.listRoles(using: pgSession.client)
+        let roles = (try? await client.security.listRoles()) ?? []
         pgRoles = roles.map(\.name).sorted()
 
-        pgTablespaces = (try? await admin.listTablespaces(using: pgSession.client)) ?? ["pg_default"]
+        pgTablespaces = (try? await client.introspection.listTablespaces()) ?? ["pg_default"]
     }
 }

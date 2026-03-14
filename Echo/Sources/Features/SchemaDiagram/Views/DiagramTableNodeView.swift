@@ -31,7 +31,7 @@ struct SchemaDiagramNodeView: View {
     }
 
     private var header: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: SpacingTokens.xxs) {
             Text(node.name)
                 .font(TypographyTokens.prominent.weight(.semibold))
                 .foregroundStyle(palette.headerTitle)
@@ -53,7 +53,7 @@ struct SchemaDiagramNodeView: View {
     }
 
     private var columnsList: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: SpacingTokens.xxs) {
             ForEach(node.columns) { column in
                 ColumnRow(nodeID: node.id, column: column, palette: palette)
             }
@@ -115,7 +115,7 @@ private struct ColumnRow: View {
     let palette: DiagramPalette
 
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: SpacingTokens.xs) {
             Image(systemName: columnIconName)
                 .font(TypographyTokens.label.weight(.medium))
                 .foregroundStyle(iconColor)
@@ -124,7 +124,7 @@ private struct ColumnRow: View {
                 .layoutPriority(1)
                 .font(TypographyTokens.caption2.weight(column.isPrimaryKey ? .semibold : .regular))
                 .foregroundStyle(palette.columnText)
-            Spacer(minLength: 12)
+            Spacer(minLength: SpacingTokens.sm)
             Text(column.dataType)
                 .lineLimit(1)
                 .font(TypographyTokens.detail)

@@ -2,23 +2,23 @@ import SwiftUI
 
 extension ClipboardHistoryRow {
     var infoPopover: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .center, spacing: 10) {
+        VStack(alignment: .leading, spacing: SpacingTokens.sm) {
+            HStack(alignment: .center, spacing: SpacingTokens.xs2) {
                 Image(systemName: entry.source.iconName)
                     .font(TypographyTokens.displayLarge.weight(.semibold))
                     .foregroundStyle(entry.source.tint)
 
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: SpacingTokens.xxxs) {
                     Text(entry.source.caption)
-                        .font(.headline)
+                        .font(TypographyTokens.headline)
                     Text(entry.timestampDisplay)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .font(TypographyTokens.caption)
+                        .foregroundStyle(ColorTokens.Text.secondary)
                 }
                 Spacer()
                 Text(entry.formattedSize)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .font(TypographyTokens.caption)
+                    .foregroundStyle(ColorTokens.Text.secondary)
                     .monospacedDigit()
             }
 
@@ -34,7 +34,7 @@ extension ClipboardHistoryRow {
             } else {
                 ScrollView {
                     Text(entry.content)
-                        .font(.system(.body, design: .monospaced))
+                        .font(TypographyTokens.monospaced)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .textSelection(.enabled)
                 }
@@ -55,37 +55,37 @@ extension ClipboardHistoryRow {
 
     func gridPreview(_ grid: ParsedGrid) -> some View {
         ScrollView([.vertical, .horizontal]) {
-            VStack(spacing: 0) {
-                HStack(spacing: 1) {
+            VStack(spacing: SpacingTokens.none) {
+                HStack(spacing: SpacingTokens.xxxs) {
                     ForEach(grid.headers.indices, id: \.self) { index in
                         gridCell(text: grid.headers[index], isHeader: true)
                     }
                 }
-                .background(Color.primary.opacity(0.08))
+                .background(ColorTokens.Text.primary.opacity(0.08))
 
                 ForEach(Array(grid.rows.enumerated()), id: \.offset) { rowIndex, row in
-                    HStack(spacing: 1) {
+                    HStack(spacing: SpacingTokens.xxxs) {
                         ForEach(0..<grid.headers.count, id: \.self) { columnIndex in
                             let value = columnIndex < row.count ? row[columnIndex] : ""
                             gridCell(text: value, isHeader: false)
                         }
                     }
-                    .background(rowIndex.isMultiple(of: 2) ? Color.primary.opacity(0.03) : Color.clear)
+                    .background(rowIndex.isMultiple(of: 2) ? ColorTokens.Text.primary.opacity(0.03) : Color.clear)
                 }
             }
-            .padding(1)
+            .padding(SpacingTokens.xxxs)
         }
         .frame(minHeight: 180)
     }
 
     func gridCell(text: String, isHeader: Bool) -> some View {
         Text(text.isEmpty ? "--" : text)
-            .font(isHeader ? .subheadline.weight(.semibold) : .system(.body, design: .monospaced))
-            .foregroundStyle(isHeader ? Color.primary : Color.primary)
+            .font(isHeader ? TypographyTokens.subheadline.weight(.semibold) : TypographyTokens.monospaced)
+            .foregroundStyle(ColorTokens.Text.primary)
             .padding(.vertical, SpacingTokens.xxs2)
             .padding(.horizontal, SpacingTokens.xs2)
             .frame(minWidth: 80, alignment: .leading)
-            .background(Color.primary.opacity(isHeader ? 0.08 : 0.02))
+            .background(ColorTokens.Text.primary.opacity(isHeader ? 0.08 : 0.02))
     }
 
     var parsedGrid: ParsedGrid? {

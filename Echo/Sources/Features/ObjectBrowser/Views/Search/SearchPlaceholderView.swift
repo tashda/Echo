@@ -8,17 +8,17 @@ struct SearchPlaceholderView: View {
     var action: (() -> Void)?
 
     var body: some View {
-        VStack(spacing: 10) {
+        VStack(spacing: SpacingTokens.xs2) {
             Image(systemName: systemImage)
                 .font(.system(size: 28, weight: .semibold))
-                .foregroundStyle(.tertiary)
+                .foregroundStyle(ColorTokens.Text.tertiary)
             Text(title)
                 .font(TypographyTokens.standard.weight(.semibold))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(ColorTokens.Text.secondary)
                 .multilineTextAlignment(.center)
             Text(subtitle)
                 .font(TypographyTokens.detail)
-                .foregroundStyle(.tertiary)
+                .foregroundStyle(ColorTokens.Text.tertiary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, SpacingTokens.md)
             if let actionTitle, let action {

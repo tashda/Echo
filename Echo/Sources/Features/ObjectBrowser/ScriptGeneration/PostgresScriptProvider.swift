@@ -20,7 +20,7 @@ struct PostgresScriptProvider: DatabaseScriptProvider {
         case .function, .procedure:
             actions.append(.select)
             actions.append(.execute)
-        case .trigger:
+        case .trigger, .extension:
             break
         }
         return actions
@@ -61,6 +61,8 @@ struct PostgresScriptProvider: DatabaseScriptProvider {
         case .trigger:
             let target = triggerTargetName(for: object)
             return "ALTER TRIGGER \(quoteIdentifier(object.name)) ON \(target) RENAME TO \(quotedNewName);"
+        case .extension:
+            return nil
         }
     }
 

@@ -20,10 +20,16 @@ extension ObjectBrowserSidebarView {
         viewModel.expandedServerIDs = viewModel.expandedServerIDs.filter { id in sessions.contains { $0.connection.id == id } }
         let currentIDs = Set(sessions.map { $0.connection.id })
         let newIDs = currentIDs.subtracting(viewModel.knownSessionIDs)
+        let autoExpandableConnectionIDs = Set(
+            sessions.compactMap { session in
+                projectStore.globalSettings.sidebarExpandSections(for: session.connection.databaseType).isEmpty
+                    ? nil
+                    : session.connection.id
+            }
+        )
 
         if !newIDs.isEmpty {
-            // Auto-expand and select newly connected servers
-            viewModel.expandedServerIDs.formUnion(newIDs)
+            viewModel.expandedServerIDs.formUnion(newIDs.intersection(autoExpandableConnectionIDs))
             if let newID = newIDs.first {
                 selectedConnectionID = newID
                 if let proxy {
@@ -35,17 +41,13 @@ extension ObjectBrowserSidebarView {
                 }
             }
         } else if viewModel.knownSessionIDs.isEmpty && !currentIDs.isEmpty {
-            // First appearance with existing sessions — expand all
-            viewModel.expandedServerIDs.formUnion(currentIDs)
+            viewModel.expandedServerIDs.formUnion(currentIDs.intersection(autoExpandableConnectionIDs))
         }
 
         viewModel.knownSessionIDs = currentIDs
 
         if selectedConnectionID == nil || !sessions.contains(where: { $0.connection.id == selectedConnectionID }) {
             selectedConnectionID = sessions.first?.connection.id
-        }
-        if let id = selectedConnectionID {
-            viewModel.ensureServerExpanded(for: id, sessions: sessions)
         }
     }
 

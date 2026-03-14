@@ -101,6 +101,7 @@ struct SecurityPGRoleSheet: View {
         }
         .listStyle(.sidebar)
         .scrollContentBackground(.hidden)
+        .background(ColorTokens.Background.secondary.opacity(0.3))
     }
 
     // MARK: - Detail Pane
@@ -146,10 +147,10 @@ struct SecurityPGRoleSheet: View {
         HStack {
             if let error = errorMessage {
                 Image(systemName: "exclamationmark.triangle.fill")
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(ColorTokens.Status.warning)
                 Text(error)
                     .font(TypographyTokens.detail)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(ColorTokens.Text.secondary)
                     .lineLimit(2)
             }
 
@@ -175,7 +176,7 @@ struct SecurityPGRoleSheet: View {
     func membershipTable(entries: Binding<[PGRoleMemberEntry]>, availableRoles: [String], selectedNewRole: Binding<String>, onAdd: @escaping () -> Void, onRemove: @escaping (IndexSet) -> Void) -> some View {
         if entries.wrappedValue.isEmpty {
             Text("No memberships configured.")
-                .foregroundStyle(.secondary)
+                .foregroundStyle(ColorTokens.Text.secondary)
                 .font(TypographyTokens.detail)
         } else {
             Table(entries.wrappedValue) {
@@ -335,17 +336,17 @@ struct SecurityPGRoleSheet: View {
             return
         }
 
-        let admin = PostgresAdmin(client: pg.client, logger: pg.logger)
+        let client = pg.client
 
         // Fetch configurable settings definitions for the parameters page
         do {
-            let defs = try await admin.fetchRoleConfigurableSettings()
+            let defs = try await client.security.fetchRoleConfigurableSettings()
             await MainActor.run { settingDefinitions = defs }
         } catch { }
 
         loadingRoles = true
         do {
-            let roles = try await admin.listRoles()
+            let roles = try await client.security.listRoles()
             let currentName = existingRoleName ?? ""
             let allRoleNames = roles.map(\.name).filter { $0 != currentName }.sorted()
 
@@ -353,7 +354,7 @@ struct SecurityPGRoleSheet: View {
             var mEntries: [PGRoleMemberEntry] = []
 
             if !currentName.isEmpty {
-                let memberOf = try await admin.listMemberOf(role: currentName)
+                let memberOf = try await client.security.listMemberOf(role: currentName)
                 moEntries = memberOf.map { m in
                     PGRoleMemberEntry(
                         name: m.roleName,
@@ -363,7 +364,7 @@ struct SecurityPGRoleSheet: View {
                     )
                 }
 
-                let members = try await admin.listMembers(of: currentName)
+                let members = try await client.security.listMembers(of: currentName)
                 mEntries = members.map { m in
                     PGRoleMemberEntry(
                         name: m.memberName,
@@ -390,7 +391,7 @@ struct SecurityPGRoleSheet: View {
 
         if let existingName = existingRoleName {
             do {
-                let roles = try await admin.listRoles()
+                let roles = try await client.security.listRoles()
                 if let role = roles.first(where: { $0.name == existingName }) {
                     await MainActor.run {
                         roleName = role.name
@@ -411,13 +412,13 @@ struct SecurityPGRoleSheet: View {
                         }
                     }
 
-                    let params = try await admin.fetchRoleParameters(roleOid: role.oid)
+                    let params = try await client.security.fetchRoleParameters(roleOid: role.oid)
                     await MainActor.run { roleParameters = params }
 
-                    let labels = try await admin.fetchRoleSecurityLabels(role: existingName)
+                    let labels = try await client.security.fetchRoleSecurityLabels(role: existingName)
                     await MainActor.run { securityLabels = labels }
 
-                    let comment = try await admin.fetchRoleComment(role: existingName)
+                    let comment = try await client.security.fetchRoleComment(role: existingName)
                     await MainActor.run { roleComment = comment ?? "" }
                 }
             } catch { }
@@ -445,7 +446,7 @@ struct SecurityPGRoleSheet: View {
 
         do {
             if isEditing {
-                try await pg.client.alterUser(
+                try await pg.client.security.alterUser(
                     name: name,
                     password: password.isEmpty ? nil : password,
                     superuser: isSuperuser,
@@ -458,7 +459,7 @@ struct SecurityPGRoleSheet: View {
                     validUntil: validUntil.isEmpty ? nil : validUntil
                 )
             } else {
-                try await pg.client.createUser(
+                try await pg.client.security.createUser(
                     name: name,
                     password: password.isEmpty ? nil : password,
                     superuser: isSuperuser,
@@ -472,45 +473,43 @@ struct SecurityPGRoleSheet: View {
                 )
             }
 
-            let admin = PostgresAdmin(client: pg.client, logger: pg.logger)
-
             // Sync "Member Of" memberships
-            let currentMemberOf = try await admin.listMemberOf(role: name)
+            let currentMemberOf = try await pg.client.security.listMemberOf(role: name)
             let desiredMemberOfNames = Set(memberOfEntries.map(\.name))
 
             // Revoke removed memberships
             for existing in currentMemberOf where !desiredMemberOfNames.contains(existing.roleName) {
-                try await pg.client.revokeRole(role: existing.roleName, from: name)
+                try await pg.client.security.revokeRole(role: existing.roleName, from: name)
             }
 
             // Grant new or update existing memberships
             for entry in memberOfEntries {
                 let existing = currentMemberOf.first(where: { $0.roleName == entry.name })
                 if existing == nil || existing?.adminOption != entry.adminOption || existing?.inheritOption != entry.inheritOption || existing?.setOption != entry.setOption {
-                    try await pg.client.grantRole(role: entry.name, to: name, admin: entry.adminOption, inherit: entry.inheritOption, set: entry.setOption)
+                    try await pg.client.security.grantRole(role: entry.name, to: name, admin: entry.adminOption, inherit: entry.inheritOption, set: entry.setOption)
                 }
             }
 
             // Sync "Members" memberships (only in edit mode)
             if isEditing {
-                let currentMembers = try await admin.listMembers(of: name)
+                let currentMembers = try await pg.client.security.listMembers(of: name)
                 let desiredMemberNames = Set(memberEntries.map(\.name))
 
                 for existing in currentMembers where !desiredMemberNames.contains(existing.memberName) {
-                    try await pg.client.revokeRole(role: name, from: existing.memberName)
+                    try await pg.client.security.revokeRole(role: name, from: existing.memberName)
                 }
 
                 for entry in memberEntries {
                     let existing = currentMembers.first(where: { $0.memberName == entry.name })
                     if existing == nil || existing?.adminOption != entry.adminOption || existing?.inheritOption != entry.inheritOption || existing?.setOption != entry.setOption {
-                        try await pg.client.grantRole(role: name, to: entry.name, admin: entry.adminOption, inherit: entry.inheritOption, set: entry.setOption)
+                        try await pg.client.security.grantRole(role: name, to: entry.name, admin: entry.adminOption, inherit: entry.inheritOption, set: entry.setOption)
                     }
                 }
             }
 
             // Save comment
             if isEditing {
-                try await admin.setRoleComment(role: name, comment: roleComment.isEmpty ? nil : roleComment)
+                try await pg.client.security.setRoleComment(role: name, comment: roleComment.isEmpty ? nil : roleComment)
             }
 
             await MainActor.run {

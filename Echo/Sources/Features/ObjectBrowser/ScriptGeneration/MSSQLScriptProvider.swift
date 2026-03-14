@@ -14,7 +14,7 @@ struct MSSQLScriptProvider: DatabaseScriptProvider {
             actions.append(.execute)
         case .table, .view, .materializedView:
             actions.append(contentsOf: [.select, .selectLimited(1000)])
-        case .trigger:
+        case .trigger, .extension:
             break
         }
         return actions

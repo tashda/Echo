@@ -40,7 +40,7 @@ final class SecuritySidebarViewModel: ObservableObject {
         do {
             let users = try await withCheckedThrowingContinuation { continuation in
                 Task { @MainActor in
-                    let sec = mssql.makeDatabaseSecurityClient()
+                    let sec = mssql.security
                     do {
                         let result = try await sec.listUsers()
                         continuation.resume(returning: result)
@@ -52,7 +52,7 @@ final class SecuritySidebarViewModel: ObservableObject {
 
             let roles = try await withCheckedThrowingContinuation { continuation in
                 Task { @MainActor in
-                    let sec = mssql.makeDatabaseSecurityClient()
+                    let sec = mssql.security
                     do {
                         let result = try await sec.listRoles()
                         continuation.resume(returning: result)
@@ -84,7 +84,7 @@ final class SecuritySidebarViewModel: ObservableObject {
         do {
             let logins = try await withCheckedThrowingContinuation { continuation in
                 Task { @MainActor in
-                    let ssec = mssql.makeServerSecurityClient()
+                    let ssec = mssql.serverSecurity
                     do {
                         let result = try await ssec.listLogins()
                         continuation.resume(returning: result)
@@ -96,7 +96,7 @@ final class SecuritySidebarViewModel: ObservableObject {
 
             let roles = try await withCheckedThrowingContinuation { continuation in
                 Task { @MainActor in
-                    let ssec = mssql.makeServerSecurityClient()
+                    let ssec = mssql.serverSecurity
                     do {
                         let result = try await ssec.listServerRoles()
                         continuation.resume(returning: result)

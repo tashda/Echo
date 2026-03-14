@@ -76,6 +76,8 @@ extension DatabaseObjectRow {
             : nil
         case .trigger:
             return "ALTER TRIGGER \(quoteIdentifier(object.name)) ON \(triggerTargetName()) RENAME TO \(quotedNewName);"
+        case .extension:
+            return nil
         }
     }
 
@@ -102,6 +104,8 @@ extension DatabaseObjectRow {
             : nil
         case .materializedView:
             return "-- Materialized views are not supported in MySQL."
+        case .extension:
+            return nil
         }
     }
 
@@ -114,7 +118,7 @@ extension DatabaseObjectRow {
         -- SQLite cannot rename views directly.
         -- Drop and recreate the view with the desired name.
         """
-        case .trigger, .function, .procedure, .materializedView:
+        case .trigger, .function, .procedure, .materializedView, .extension:
             return "-- Renaming is not supported for this object in SQLite."
         }
     }

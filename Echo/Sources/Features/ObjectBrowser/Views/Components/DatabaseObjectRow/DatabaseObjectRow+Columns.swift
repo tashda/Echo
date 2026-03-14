@@ -2,7 +2,7 @@ import SwiftUI
 
 extension DatabaseObjectRow {
     var columnsList: some View {
-        VStack(alignment: .leading, spacing: 2) {
+        VStack(alignment: .leading, spacing: SpacingTokens.xxxs) {
             ForEach(object.columns, id: \.name) { (column: ColumnInfo) in
                 DatabaseObjectColumnRow(
                     column: column,
@@ -26,12 +26,9 @@ extension DatabaseObjectRow {
 #endif
             }
         }
-        .padding(.top, SpacingTokens.xxs2)
-        .padding(.bottom, SpacingTokens.xxs)
         .onDisappear {
             hoveredColumnID = nil
         }
-        .transition(.opacity.combined(with: .scale(scale: 0.95, anchor: .top)))
     }
 
     internal func copyColumnName(_ column: ColumnInfo) {

@@ -4,9 +4,9 @@ import SQLServerKit
 extension AgentSidebarView {
     @ViewBuilder
     var newJobSheetContent: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("New SQL Server Agent Job").font(.headline)
-            if let err = newJobError, !err.isEmpty { Text(err).font(.footnote).foregroundStyle(.red) }
+        VStack(alignment: .leading, spacing: SpacingTokens.sm) {
+            Text("New SQL Server Agent Job").font(TypographyTokens.headline)
+            if let err = newJobError, !err.isEmpty { Text(err).font(TypographyTokens.footnote).foregroundStyle(ColorTokens.Status.error) }
             TabView {
                 generalTab
                 stepsTab
@@ -31,13 +31,13 @@ extension AgentSidebarView {
     }
 
     var generalTab: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: SpacingTokens.xs2) {
             TextField("Name", text: $newJobName)
             TextField("Description (optional)", text: $newJobDescription)
             Toggle("Enabled", isOn: $newJobEnabled)
             Toggle("Start job after creation", isOn: $startAfterCreate)
             Divider()
-            Text("Owner and Category").font(.subheadline)
+            Text("Owner and Category").font(TypographyTokens.subheadline)
             TextField("Owner (default current login)", text: $newJobOwner)
             TextField("Category (optional)", text: $newJobCategory)
         }
@@ -45,11 +45,11 @@ extension AgentSidebarView {
     }
 
     var stepsTab: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: SpacingTokens.xs2) {
             ScrollView {
-                VStack(alignment: .leading, spacing: 10) {
+                VStack(alignment: .leading, spacing: SpacingTokens.xs2) {
                     ForEach(Array(wizardSteps.enumerated()), id: \.element.id) { index, step in
-                        VStack(alignment: .leading, spacing: 6) {
+                        VStack(alignment: .leading, spacing: SpacingTokens.xxs2) {
                             HStack { TextField("Step name", text: $wizardSteps[index].name); Picker("Subsystem", selection: $wizardSteps[index].subsystem) { ForEach(SubsystemChoice.allCases) { Text($0.rawValue).tag($0) } }.frame(width: 180) }
                             if step.subsystem == .tsql { TextField("Database", text: $wizardSteps[index].database) }
                             TextField("Command", text: $wizardSteps[index].command, axis: .vertical).lineLimit(2...5)
@@ -66,7 +66,7 @@ extension AgentSidebarView {
                             HStack { Button("Remove", role: .destructive) { wizardSteps.remove(at: index); if let sid = startStepId, sid > wizardSteps.count { startStepId = wizardSteps.count } } ; Spacer() }
                         }
                         .padding(SpacingTokens.xs)
-                        .background(Color.primary.opacity(0.03))
+                        .background(ColorTokens.Text.primary.opacity(0.03))
                         .cornerRadius(8)
                     }
                 }
@@ -78,11 +78,11 @@ extension AgentSidebarView {
     }
 
     var schedulesTab: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: SpacingTokens.xs2) {
             ScrollView {
-                VStack(alignment: .leading, spacing: 10) {
+                VStack(alignment: .leading, spacing: SpacingTokens.xs2) {
                     ForEach(Array(wizardSchedules.enumerated()), id: \.element.id) { index, _ in
-                        VStack(alignment: .leading, spacing: 6) {
+                        VStack(alignment: .leading, spacing: SpacingTokens.xxs2) {
                             HStack { TextField("Name", text: $wizardSchedules[index].name); Toggle("Enabled", isOn: $wizardSchedules[index].enabled) }
                             Picker("Mode", selection: $wizardSchedules[index].mode) { ForEach(ScheduleMode.allCases) { Text($0.rawValue).tag($0) } }
                             HStack { TextField("Start time (HHMMSS)", text: $wizardSchedules[index].startHHMMSS).frame(width: 120); TextField("End time (HHMMSS)", text: $wizardSchedules[index].endHHMMSS).frame(width: 120) }
@@ -96,12 +96,12 @@ extension AgentSidebarView {
                                 HStack { Text("Day"); TextField("", value: $wizardSchedules[index].everyDays, formatter: NumberFormatter()).frame(width: 60); Text("of every"); TextField("", value: $wizardSchedules[index].weeklyEveryWeeks, formatter: NumberFormatter()).frame(width: 60); Text("month(s)") }
                             }
                             Divider()
-                            Text("Subday frequency").font(.subheadline)
+                            Text("Subday frequency").font(TypographyTokens.subheadline)
                             HStack { Text("Occurs every"); TextField("", value: $wizardSchedules[index].subdayInterval, formatter: NumberFormatter()).frame(width: 80); Picker("", selection: $wizardSchedules[index].subdayUnit) { Text("(none)").tag(0); Text("Minutes").tag(4); Text("Hours").tag(8) }.pickerStyle(.segmented).frame(width: 240) }
                             HStack { Button("Remove", role: .destructive) { wizardSchedules.remove(at: index) } ; Spacer() }
                         }
                         .padding(SpacingTokens.xs)
-                        .background(Color.primary.opacity(0.03))
+                        .background(ColorTokens.Text.primary.opacity(0.03))
                         .cornerRadius(8)
                     }
                 }
@@ -112,7 +112,7 @@ extension AgentSidebarView {
     }
 
     var notificationsTab: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: SpacingTokens.xs2) {
             TextField("Operator name", text: $notifyOperatorName)
             Picker("Notify", selection: $notifyLevel) { ForEach(NotifyLevel.allCases) { Text($0.rawValue).tag($0) } }
         }

@@ -16,7 +16,7 @@ struct SQLiteScriptProvider: DatabaseScriptProvider {
         switch objectType {
         case .table, .view, .materializedView:
             actions.append(contentsOf: [.select, .selectLimited(1000)])
-        case .function, .procedure, .trigger:
+        case .function, .procedure, .trigger, .extension:
             break
         }
         return actions
@@ -43,7 +43,7 @@ struct SQLiteScriptProvider: DatabaseScriptProvider {
         -- SQLite cannot rename views directly.
         -- Drop and recreate the view with the desired name.
         """
-        case .trigger, .function, .procedure, .materializedView:
+        case .trigger, .function, .procedure, .materializedView, .extension:
             return "-- Renaming is not supported for this object in SQLite."
         }
     }

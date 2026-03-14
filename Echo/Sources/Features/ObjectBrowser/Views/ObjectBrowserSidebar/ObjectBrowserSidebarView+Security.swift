@@ -11,7 +11,7 @@ extension ObjectBrowserSidebarView {
         let connID = session.connection.id
         let isExpanded = viewModel.securityFolderExpandedBySession[connID] ?? false
 
-        VStack(alignment: .leading, spacing: 0) {
+        VStack(alignment: .leading, spacing: SpacingTokens.xxxs) {
             folderHeaderRow(
                 title: "Security",
                 icon: "lock.shield",
@@ -27,7 +27,7 @@ extension ObjectBrowserSidebarView {
             }
 
             if isExpanded {
-                VStack(alignment: .leading, spacing: 0) {
+                VStack(alignment: .leading, spacing: SpacingTokens.xxxs) {
                     serverSecurityContent(session: session)
                 }
                 .padding(.leading, SidebarRowConstants.indentStep)
@@ -181,7 +181,7 @@ extension ObjectBrowserSidebarView {
         sidebarListRow(leading: baseIndent) {
             securitySectionHeader(
                 title: "Server Roles",
-                icon: "shield.lefthalf.filled",
+                icon: "shield.fill",
                 count: roles.count,
                 isExpanded: isExpanded
             ) {
@@ -237,13 +237,14 @@ extension ObjectBrowserSidebarView {
         if isExpanded {
             if credentials.isEmpty {
                 sidebarListRow(leading: baseIndent + SidebarRowConstants.indentStep) {
-                    HStack(spacing: 8) {
+                    HStack(spacing: SpacingTokens.xs) {
                         Spacer().frame(width: SidebarRowConstants.chevronWidth)
                         Text("No credentials found")
                             .font(TypographyTokens.detail)
-                            .foregroundStyle(.tertiary)
+                            .foregroundStyle(ColorTokens.Text.tertiary)
                     }
-                    .padding(.horizontal, SidebarRowConstants.rowHorizontalPadding)
+                    .padding(.leading, SidebarRowConstants.rowHorizontalPadding)
+                .padding(.trailing, SidebarRowConstants.rowTrailingPadding)
                     .padding(.vertical, SidebarRowConstants.rowVerticalPadding)
                 }
             } else {
@@ -458,11 +459,11 @@ extension ObjectBrowserSidebarView {
     }
 
     private func loginRow(login: ObjectBrowserSidebarViewModel.SecurityLoginItem, session: ConnectionSession) -> some View {
-        HStack(spacing: 8) {
+        HStack(spacing: SidebarRowConstants.iconTextSpacing) {
             Spacer().frame(width: SidebarRowConstants.chevronWidth)
 
             Image(systemName: login.isDisabled ? "person.crop.circle.badge.xmark" : "person.crop.circle")
-                .font(.system(size: 11, weight: .regular))
+                .font(SidebarRowConstants.iconFont)
                 .foregroundStyle(login.isDisabled ? Color(nsColor: .quaternaryLabelColor) : ExplorerSidebarPalette.security)
                 .frame(width: SidebarRowConstants.iconFrame)
 
@@ -471,19 +472,20 @@ extension ObjectBrowserSidebarView {
                 .foregroundStyle(login.isDisabled ? .secondary : .primary)
                 .lineLimit(1)
 
-            Spacer(minLength: 4)
+            Spacer(minLength: SpacingTokens.xxxs)
 
             Text(login.loginType)
                 .font(TypographyTokens.caption2)
-                .foregroundStyle(.tertiary)
+                .foregroundStyle(ColorTokens.Text.tertiary)
 
             if login.isDisabled {
                 Text("Disabled")
                     .font(TypographyTokens.label)
-                    .foregroundStyle(.quaternary)
+                    .foregroundStyle(ColorTokens.Text.quaternary)
             }
         }
-        .padding(.horizontal, SidebarRowConstants.rowHorizontalPadding)
+        .padding(.leading, SidebarRowConstants.rowHorizontalPadding)
+                .padding(.trailing, SidebarRowConstants.rowTrailingPadding)
         .padding(.vertical, SidebarRowConstants.rowVerticalPadding)
         .contentShape(Rectangle())
         .contextMenu {
@@ -552,7 +554,7 @@ extension ObjectBrowserSidebarView {
         VStack(alignment: .leading, spacing: 0) {
             securitySectionHeader(
                 title: "Server Roles",
-                icon: "shield.lefthalf.filled",
+                icon: "shield.fill",
                 count: roles.count,
                 isExpanded: isExpanded
             ) {
@@ -586,28 +588,29 @@ extension ObjectBrowserSidebarView {
     }
 
     private func serverRoleRow(role: ObjectBrowserSidebarViewModel.SecurityServerRoleItem, session: ConnectionSession) -> some View {
-        HStack(spacing: 8) {
+        HStack(spacing: SidebarRowConstants.iconTextSpacing) {
             Spacer().frame(width: SidebarRowConstants.chevronWidth)
 
             Image(systemName: role.isFixed ? "shield.lefthalf.filled" : "shield")
-                .font(.system(size: 11, weight: .regular))
+                .font(SidebarRowConstants.iconFont)
                 .foregroundStyle(ExplorerSidebarPalette.security)
                 .frame(width: SidebarRowConstants.iconFrame)
 
             Text(role.name)
                 .font(TypographyTokens.standard)
-                .foregroundStyle(.primary)
+                .foregroundStyle(ColorTokens.Text.primary)
                 .lineLimit(1)
 
-            Spacer(minLength: 4)
+            Spacer(minLength: SpacingTokens.xxxs)
 
             if role.isFixed {
                 Text("Fixed")
                     .font(TypographyTokens.label)
-                    .foregroundStyle(.quaternary)
+                    .foregroundStyle(ColorTokens.Text.quaternary)
             }
         }
-        .padding(.horizontal, SidebarRowConstants.rowHorizontalPadding)
+        .padding(.leading, SidebarRowConstants.rowHorizontalPadding)
+                .padding(.trailing, SidebarRowConstants.rowTrailingPadding)
         .padding(.vertical, SidebarRowConstants.rowVerticalPadding)
         .contentShape(Rectangle())
         .contextMenu {
@@ -677,13 +680,14 @@ extension ObjectBrowserSidebarView {
             if isExpanded {
                 VStack(alignment: .leading, spacing: 0) {
                     if credentials.isEmpty {
-                        HStack(spacing: 8) {
+                        HStack(spacing: SpacingTokens.xs) {
                             Spacer().frame(width: SidebarRowConstants.chevronWidth)
                             Text("No credentials found")
                                 .font(TypographyTokens.detail)
-                                .foregroundStyle(.tertiary)
+                                .foregroundStyle(ColorTokens.Text.tertiary)
                         }
-                        .padding(.horizontal, SidebarRowConstants.rowHorizontalPadding)
+                        .padding(.leading, SidebarRowConstants.rowHorizontalPadding)
+                .padding(.trailing, SidebarRowConstants.rowTrailingPadding)
                         .padding(.vertical, SidebarRowConstants.rowVerticalPadding)
                     } else {
                         ForEach(credentials) { credential in
@@ -697,27 +701,28 @@ extension ObjectBrowserSidebarView {
     }
 
     private func credentialRow(credential: ObjectBrowserSidebarViewModel.SecurityCredentialItem, session: ConnectionSession) -> some View {
-        HStack(spacing: 8) {
+        HStack(spacing: SidebarRowConstants.iconTextSpacing) {
             Spacer().frame(width: SidebarRowConstants.chevronWidth)
 
             Image(systemName: "key")
-                .font(.system(size: 11, weight: .regular))
+                .font(SidebarRowConstants.iconFont)
                 .foregroundStyle(ExplorerSidebarPalette.security)
                 .frame(width: SidebarRowConstants.iconFrame)
 
             Text(credential.name)
                 .font(TypographyTokens.standard)
-                .foregroundStyle(.primary)
+                .foregroundStyle(ColorTokens.Text.primary)
                 .lineLimit(1)
 
-            Spacer(minLength: 4)
+            Spacer(minLength: SpacingTokens.xxxs)
 
             Text(credential.identity)
                 .font(TypographyTokens.caption2)
-                .foregroundStyle(.tertiary)
+                .foregroundStyle(ColorTokens.Text.tertiary)
                 .lineLimit(1)
         }
-        .padding(.horizontal, SidebarRowConstants.rowHorizontalPadding)
+        .padding(.leading, SidebarRowConstants.rowHorizontalPadding)
+                .padding(.trailing, SidebarRowConstants.rowTrailingPadding)
         .padding(.vertical, SidebarRowConstants.rowVerticalPadding)
         .contentShape(Rectangle())
         .contextMenu {
@@ -833,26 +838,27 @@ extension ObjectBrowserSidebarView {
     }
 
     private func pgRoleRow(role: ObjectBrowserSidebarViewModel.SecurityLoginItem, session: ConnectionSession) -> some View {
-        HStack(spacing: 8) {
+        HStack(spacing: SidebarRowConstants.iconTextSpacing) {
             Spacer().frame(width: SidebarRowConstants.chevronWidth)
 
             Image(systemName: role.loginType.contains("Login") || role.loginType.contains("Superuser") ? "person.crop.circle" : "person.2.circle")
-                .font(.system(size: 11, weight: .regular))
+                .font(SidebarRowConstants.iconFont)
                 .foregroundStyle(ExplorerSidebarPalette.security)
                 .frame(width: SidebarRowConstants.iconFrame)
 
             Text(role.name)
                 .font(TypographyTokens.standard)
-                .foregroundStyle(.primary)
+                .foregroundStyle(ColorTokens.Text.primary)
                 .lineLimit(1)
 
-            Spacer(minLength: 4)
+            Spacer(minLength: SpacingTokens.xxxs)
 
             Text(role.loginType)
                 .font(TypographyTokens.caption2)
-                .foregroundStyle(.tertiary)
+                .foregroundStyle(ColorTokens.Text.tertiary)
         }
-        .padding(.horizontal, SidebarRowConstants.rowHorizontalPadding)
+        .padding(.leading, SidebarRowConstants.rowHorizontalPadding)
+                .padding(.trailing, SidebarRowConstants.rowTrailingPadding)
         .padding(.vertical, SidebarRowConstants.rowVerticalPadding)
         .contentShape(Rectangle())
         .contextMenu {
@@ -905,9 +911,9 @@ extension ObjectBrowserSidebarView {
         let isExpanded = viewModel.dbSecurityExpandedByDB[dbKey] ?? false
 
         VStack(alignment: .leading, spacing: 0) {
-            securitySectionHeader(
+            folderHeaderRow(
                 title: "Security",
-                icon: "lock.shield",
+                icon: "shield.fill",
                 count: nil,
                 isExpanded: isExpanded
             ) {
@@ -991,29 +997,30 @@ extension ObjectBrowserSidebarView {
     }
 
     private func dbUserRow(user: ObjectBrowserSidebarViewModel.SecurityUserItem, session: ConnectionSession, databaseName: String) -> some View {
-        HStack(spacing: 8) {
+        HStack(spacing: SidebarRowConstants.iconTextSpacing) {
             Spacer().frame(width: SidebarRowConstants.chevronWidth)
 
             Image(systemName: "person.fill")
-                .font(.system(size: 11, weight: .regular))
+                .font(SidebarRowConstants.iconFont)
                 .foregroundStyle(ExplorerSidebarPalette.security)
                 .frame(width: SidebarRowConstants.iconFrame)
 
             Text(user.name)
                 .font(TypographyTokens.standard)
-                .foregroundStyle(.primary)
+                .foregroundStyle(ColorTokens.Text.primary)
                 .lineLimit(1)
 
-            Spacer(minLength: 4)
+            Spacer(minLength: SpacingTokens.xxxs)
 
             if let schema = user.defaultSchema, !schema.isEmpty {
                 Text(schema)
                     .font(TypographyTokens.caption2)
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(ColorTokens.Text.tertiary)
                     .lineLimit(1)
             }
         }
-        .padding(.horizontal, SidebarRowConstants.rowHorizontalPadding)
+        .padding(.leading, SidebarRowConstants.rowHorizontalPadding)
+                .padding(.trailing, SidebarRowConstants.rowTrailingPadding)
         .padding(.vertical, SidebarRowConstants.rowVerticalPadding)
         .contentShape(Rectangle())
         .contextMenu {
@@ -1097,7 +1104,7 @@ extension ObjectBrowserSidebarView {
         VStack(alignment: .leading, spacing: 0) {
             securitySectionHeader(
                 title: "Database Roles",
-                icon: "shield.lefthalf.filled",
+                icon: "shield.fill",
                 count: roles.count,
                 isExpanded: isExpanded
             ) {
@@ -1118,28 +1125,29 @@ extension ObjectBrowserSidebarView {
     }
 
     private func dbRoleRow(role: ObjectBrowserSidebarViewModel.SecurityDatabaseRoleItem, session: ConnectionSession) -> some View {
-        HStack(spacing: 8) {
+        HStack(spacing: SidebarRowConstants.iconTextSpacing) {
             Spacer().frame(width: SidebarRowConstants.chevronWidth)
 
             Image(systemName: role.isFixed ? "shield.lefthalf.filled" : "shield")
-                .font(.system(size: 11, weight: .regular))
+                .font(SidebarRowConstants.iconFont)
                 .foregroundStyle(ExplorerSidebarPalette.security)
                 .frame(width: SidebarRowConstants.iconFrame)
 
             Text(role.name)
                 .font(TypographyTokens.standard)
-                .foregroundStyle(.primary)
+                .foregroundStyle(ColorTokens.Text.primary)
                 .lineLimit(1)
 
-            Spacer(minLength: 4)
+            Spacer(minLength: SpacingTokens.xxxs)
 
             if role.isFixed {
                 Text("Fixed")
                     .font(TypographyTokens.label)
-                    .foregroundStyle(.quaternary)
+                    .foregroundStyle(ColorTokens.Text.quaternary)
             }
         }
-        .padding(.horizontal, SidebarRowConstants.rowHorizontalPadding)
+        .padding(.leading, SidebarRowConstants.rowHorizontalPadding)
+                .padding(.trailing, SidebarRowConstants.rowTrailingPadding)
         .padding(.vertical, SidebarRowConstants.rowVerticalPadding)
         .contentShape(Rectangle())
         .contextMenu {
@@ -1204,29 +1212,30 @@ extension ObjectBrowserSidebarView {
     }
 
     private func dbAppRoleRow(appRole: ObjectBrowserSidebarViewModel.SecurityAppRoleItem, session: ConnectionSession) -> some View {
-        HStack(spacing: 8) {
+        HStack(spacing: SidebarRowConstants.iconTextSpacing) {
             Spacer().frame(width: SidebarRowConstants.chevronWidth)
 
             Image(systemName: "app.badge")
-                .font(.system(size: 11, weight: .regular))
+                .font(SidebarRowConstants.iconFont)
                 .foregroundStyle(ExplorerSidebarPalette.security)
                 .frame(width: SidebarRowConstants.iconFrame)
 
             Text(appRole.name)
                 .font(TypographyTokens.standard)
-                .foregroundStyle(.primary)
+                .foregroundStyle(ColorTokens.Text.primary)
                 .lineLimit(1)
 
-            Spacer(minLength: 4)
+            Spacer(minLength: SpacingTokens.xxxs)
 
             if let schema = appRole.defaultSchema, !schema.isEmpty {
                 Text(schema)
                     .font(TypographyTokens.caption2)
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(ColorTokens.Text.tertiary)
                     .lineLimit(1)
             }
         }
-        .padding(.horizontal, SidebarRowConstants.rowHorizontalPadding)
+        .padding(.leading, SidebarRowConstants.rowHorizontalPadding)
+                .padding(.trailing, SidebarRowConstants.rowTrailingPadding)
         .padding(.vertical, SidebarRowConstants.rowVerticalPadding)
         .contentShape(Rectangle())
         .contextMenu {
@@ -1277,29 +1286,30 @@ extension ObjectBrowserSidebarView {
     }
 
     private func dbSchemaRow(schema: ObjectBrowserSidebarViewModel.SecuritySchemaItem, session: ConnectionSession) -> some View {
-        HStack(spacing: 8) {
+        HStack(spacing: SidebarRowConstants.iconTextSpacing) {
             Spacer().frame(width: SidebarRowConstants.chevronWidth)
 
             Image(systemName: "folder")
-                .font(.system(size: 11, weight: .regular))
+                .font(SidebarRowConstants.iconFont)
                 .foregroundStyle(ExplorerSidebarPalette.security)
                 .frame(width: SidebarRowConstants.iconFrame)
 
             Text(schema.name)
                 .font(TypographyTokens.standard)
-                .foregroundStyle(.primary)
+                .foregroundStyle(ColorTokens.Text.primary)
                 .lineLimit(1)
 
-            Spacer(minLength: 4)
+            Spacer(minLength: SpacingTokens.xxxs)
 
             if let owner = schema.owner, !owner.isEmpty {
                 Text(owner)
                     .font(TypographyTokens.caption2)
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(ColorTokens.Text.tertiary)
                     .lineLimit(1)
             }
         }
-        .padding(.horizontal, SidebarRowConstants.rowHorizontalPadding)
+        .padding(.leading, SidebarRowConstants.rowHorizontalPadding)
+                .padding(.trailing, SidebarRowConstants.rowTrailingPadding)
         .padding(.vertical, SidebarRowConstants.rowVerticalPadding)
         .contentShape(Rectangle())
         .contextMenu {
@@ -1404,52 +1414,20 @@ extension ObjectBrowserSidebarView {
     // MARK: - Shared UI Helpers
 
     func securitySectionHeader(title: String, icon: String, count: Int?, isExpanded: Bool, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            ExplorerSidebarRowChrome(isSelected: false, accentColor: .accentColor, style: .plain) {
-                HStack(spacing: 8) {
-                    Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
-                        .font(SidebarRowConstants.chevronFont)
-                        .foregroundStyle(.tertiary)
-                        .frame(width: SidebarRowConstants.chevronWidth)
-
-                    Image(systemName: icon)
-                        .font(.system(size: 11, weight: .regular))
-                        .foregroundStyle(ExplorerSidebarPalette.security)
-                        .frame(width: SidebarRowConstants.iconFrame)
-
-                    Text(title)
-                        .font(TypographyTokens.standard)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-
-                    Spacer(minLength: 4)
-
-                    if let count, count > 0 {
-                        Text("\(count)")
-                            .font(TypographyTokens.caption2)
-                            .foregroundStyle(.tertiary)
-                    }
-                }
-                .padding(.horizontal, SidebarRowConstants.rowHorizontalPadding)
-                .padding(.vertical, SidebarRowConstants.rowVerticalPadding)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .contentShape(Rectangle())
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .buttonStyle(.plain)
+        folderHeaderRow(title: title, icon: icon, count: count, isExpanded: isExpanded, action: action)
     }
 
     func securityLoadingRow(_ text: String) -> some View {
-        HStack(spacing: 8) {
+        HStack(spacing: SpacingTokens.xs) {
             Spacer().frame(width: SidebarRowConstants.chevronWidth)
             ProgressView()
                 .controlSize(.mini)
             Text(text)
                 .font(TypographyTokens.detail)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(ColorTokens.Text.secondary)
         }
-        .padding(.horizontal, SidebarRowConstants.rowHorizontalPadding)
+        .padding(.leading, SidebarRowConstants.rowHorizontalPadding)
+                .padding(.trailing, SidebarRowConstants.rowTrailingPadding)
         .padding(.vertical, SidebarRowConstants.rowVerticalPadding)
     }
 
@@ -1457,22 +1435,23 @@ extension ObjectBrowserSidebarView {
 
     func newItemButton(title: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            HStack(spacing: 8) {
+            HStack(spacing: SpacingTokens.xs) {
                 Spacer().frame(width: SidebarRowConstants.chevronWidth)
 
                 Image(systemName: "plus.circle")
-                    .font(.system(size: 12))
-                    .foregroundStyle(.tertiary)
+                    .font(TypographyTokens.standard)
+                    .foregroundStyle(ColorTokens.Text.tertiary)
                     .frame(width: SidebarRowConstants.iconFrame)
 
                 Text(title)
                     .font(TypographyTokens.standard)
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(ColorTokens.Text.tertiary)
                     .lineLimit(1)
 
-                Spacer(minLength: 4)
+                Spacer(minLength: SpacingTokens.xxxs)
             }
-            .padding(.horizontal, SidebarRowConstants.rowHorizontalPadding)
+            .padding(.leading, SidebarRowConstants.rowHorizontalPadding)
+                .padding(.trailing, SidebarRowConstants.rowTrailingPadding)
             .padding(.vertical, SidebarRowConstants.rowVerticalPadding)
             .contentShape(Rectangle())
         }
@@ -1589,7 +1568,7 @@ extension ObjectBrowserSidebarView {
     private func dropPGRole(name: String, session: ConnectionSession) async {
         guard let pg = session.session as? PostgresSession else { return }
         do {
-            try await pg.client.dropUser(name: name)
+            try await pg.client.security.dropUser(name: name)
             loadServerSecurity(session: session)
             await MainActor.run {
                 environmentState.notificationEngine?.post(category: .securityDropped, message: "Role '\(name)' dropped")
@@ -1727,7 +1706,7 @@ extension ObjectBrowserSidebarView {
     private func loadPostgresServerSecurity(session: ConnectionSession, connID: UUID) async {
         guard let pg = session.session as? PostgresSession else { return }
         do {
-            let roles = try await pg.client.listRoles()
+            let roles = try await pg.client.security.listRoles()
 
             let items: [ObjectBrowserSidebarViewModel.SecurityLoginItem] = roles.map { role in
                 let typeDesc: String
@@ -1859,7 +1838,7 @@ extension ObjectBrowserSidebarView {
     private func loadPostgresDatabaseSecurity(database: DatabaseInfo, session: ConnectionSession, dbKey: String) async {
         guard let pg = session.session as? PostgresSession else { return }
         do {
-            let schemas = try await pg.client.listSchemas()
+            let schemas = try await pg.client.introspection.listSchemas()
 
             let items = schemas.map { schema in
                 ObjectBrowserSidebarViewModel.SecuritySchemaItem(
