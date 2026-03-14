@@ -36,6 +36,7 @@ protocol DatabaseFactory: Sendable {
         sslCertPath: String?,
         sslKeyPath: String?,
         mssqlEncryptionMode: MSSQLEncryptionMode,
+        readOnlyIntent: Bool,
         authentication: DatabaseAuthenticationConfiguration,
         connectTimeoutSeconds: Int
     ) async throws -> DatabaseSession
