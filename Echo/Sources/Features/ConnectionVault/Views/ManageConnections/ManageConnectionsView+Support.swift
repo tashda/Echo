@@ -11,7 +11,7 @@ struct ConnectionIconCell: View {
 
     var body: some View {
         iconView
-            .frame(width: 16, height: 16)
+            .frame(width: SpacingTokens.md, height: SpacingTokens.md)
             .frame(maxWidth: .infinity, alignment: .center)
             .accessibilityHidden(true)
     }
@@ -24,7 +24,7 @@ struct ConnectionIconCell: View {
                     .renderingMode(.template)
                     .resizable()
                     .aspectRatio(contentMode: .fit)
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(ColorTokens.Text.primary)
             } else {
                 image
                     .renderingMode(.original)
@@ -41,7 +41,7 @@ struct ConnectionIconCell: View {
             .renderingMode(.template)
             .resizable()
             .aspectRatio(contentMode: .fit)
-            .foregroundStyle(.primary)
+            .foregroundStyle(ColorTokens.Text.primary)
     }
 
     private var iconInfo: (Image, Bool)? {
@@ -60,8 +60,8 @@ struct IdentityIconCell: View {
             .resizable()
             .aspectRatio(contentMode: .fit)
             .symbolRenderingMode(.hierarchical)
-            .foregroundStyle(Color.primary)
-            .frame(width: 16, height: 16)
+            .foregroundStyle(ColorTokens.Text.primary)
+            .frame(width: SpacingTokens.md, height: SpacingTokens.md)
             .frame(maxWidth: .infinity, alignment: .center)
             .accessibilityHidden(true)
     }
@@ -75,7 +75,7 @@ struct LeadingTableCell<Content: View>: View {
     }
 
     var body: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: SpacingTokens.xxs2) {
             content()
             Spacer(minLength: 0)
         }

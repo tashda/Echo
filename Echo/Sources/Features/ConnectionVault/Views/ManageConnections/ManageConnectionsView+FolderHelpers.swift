@@ -44,6 +44,8 @@ extension ManageConnectionsView {
                let folder = folder(withID: folderID) {
                 return folder
             }
+        case .projects:
+            return nil
         }
         return nil
     }

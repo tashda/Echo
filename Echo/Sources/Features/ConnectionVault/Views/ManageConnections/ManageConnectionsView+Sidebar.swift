@@ -19,6 +19,8 @@ extension ManageConnectionsView {
                     sidebarSectionContent(section)
                 } header: {
                     Text(section.title)
+                        .font(TypographyTokens.caption.weight(.bold))
+                        .foregroundStyle(ColorTokens.Text.secondary)
                         .contextMenu {
                             sectionContextMenu(for: section)
                         }
@@ -32,19 +34,74 @@ extension ManageConnectionsView {
     private func sidebarSectionContent(
         _ section: ManageSection
     ) -> some View {
-        Label {
-            Text("All \(section.title)")
-        } icon: {
-            Image(systemName: section.icon)
-        }
-        .tag(SidebarSelection.section(section))
-        .contextMenu {
-            sectionContextMenu(for: section)
-        }
+        Group {
+            if section == .projects {
+                ForEach(projectStore.projects) { project in
+                    sidebarProjectLink(project: project)
+                }
+            } else {
+                Label {
+                    Text("All \(section.title)")
+                } icon: {
+                    Image(systemName: section.icon)
+                }
+                .tag(SidebarSelection.section(section))
+                .contextMenu {
+                    sectionContextMenu(for: section)
+                }
 
-        let nodes = section == .connections ? connectionFolderNodes : identityFolderNodes
-        OutlineGroup(nodes, children: \.childNodes) { node in
-            sidebarFolderLink(node: node, section: section)
+                let nodes = section == .connections ? connectionFolderNodes : identityFolderNodes
+                OutlineGroup(nodes, children: \.childNodes) { node in
+                    sidebarFolderLink(node: node, section: section)
+                }
+            }
+        }
+        .transition(.asymmetric(insertion: .opacity.combined(with: .move(edge: .top)), removal: .opacity))
+    }
+
+    @ViewBuilder
+    func sidebarProjectLink(project: Project) -> some View {
+        let isSelected = projectStore.selectedProject?.id == project.id
+
+        HStack {
+            Label {
+                Text(project.name)
+            } icon: {
+                Image(systemName: project.iconName ?? "folder.fill")
+            }
+
+            Spacer()
+
+            if isSelected {
+                Image(systemName: "checkmark")
+                    .font(TypographyTokens.compact.weight(.bold))
+                    .foregroundStyle(ColorTokens.Text.secondary)
+            }
+        }
+        .tag(SidebarSelection.project(project.id))
+        .contextMenu {
+            Button {
+                projectStore.selectProject(project)
+                navigationStore.selectProject(project)
+            } label: {
+                Label("Select Project", systemImage: isSelected ? "checkmark" : "circle")
+            }
+
+            Divider()
+
+            if !project.isDefault {
+                Button("Delete", role: .destructive) {
+                    projectToDelete = project
+                    showDeleteConfirmation = true
+                }
+            }
+
+            Button {
+                exportProjectID = project.id
+                showExportSheet = true
+            } label: {
+                Text("Export…")
+            }
         }
     }
 
@@ -105,6 +162,18 @@ extension ManageConnectionsView {
             } label: {
                 Label("New Folder", systemImage: "folder.badge.plus")
             }
+        case .projects:
+            Button {
+                isPresentingNewProjectSheet = true
+            } label: {
+                Label("New Project", systemImage: "plus")
+            }
+            Divider()
+            Button {
+                showImportSheet = true
+            } label: {
+                Label("Import Project from file…", systemImage: "square.and.arrow.down")
+            }
         }
     }
 
@@ -112,6 +181,7 @@ extension ManageConnectionsView {
         switch section {
         case .connections: return projectConnections.count
         case .identities: return projectIdentities.count
+        case .projects: return projectStore.projects.count
         }
     }
 
@@ -119,7 +189,7 @@ extension ManageConnectionsView {
         Binding(
             get: { expandedSections.contains(section) },
             set: { isExpanded in
-                withAnimation {
+                withAnimation(.snappy(duration: 0.2, extraBounce: 0)) {
                     if isExpanded {
                         expandedSections.insert(section)
                     } else {

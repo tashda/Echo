@@ -18,8 +18,13 @@ struct ConnectionConfiguration: Codable, Hashable {
 
     // Security settings
     var useTLS: Bool = true
+    var trustServerCertificate: Bool = false
     var tlsMode: TLSMode = .prefer
+    var sslRootCertPath: String?
+    var sslCertPath: String?
+    var sslKeyPath: String?
     var verifySSLCertificate: Bool = true
+    var mssqlEncryptionMode: MSSQLEncryptionMode = .optional
 
     // Connection behavior
     var connectionTimeout: TimeInterval = 30
@@ -51,8 +56,13 @@ struct ConnectionConfiguration: Codable, Hashable {
         identityID: UUID? = nil,
         folderID: UUID? = nil,
         useTLS: Bool = true,
+        trustServerCertificate: Bool = false,
         tlsMode: TLSMode = .prefer,
+        sslRootCertPath: String? = nil,
+        sslCertPath: String? = nil,
+        sslKeyPath: String? = nil,
         verifySSLCertificate: Bool = true,
+        mssqlEncryptionMode: MSSQLEncryptionMode = .optional,
         connectionTimeout: TimeInterval = 30,
         queryTimeout: TimeInterval = 60,
         maxRetries: Int = 3,
@@ -76,8 +86,13 @@ struct ConnectionConfiguration: Codable, Hashable {
         self.identityID = identityID
         self.folderID = folderID
         self.useTLS = useTLS
+        self.trustServerCertificate = trustServerCertificate
         self.tlsMode = tlsMode
+        self.sslRootCertPath = sslRootCertPath
+        self.sslCertPath = sslCertPath
+        self.sslKeyPath = sslKeyPath
         self.verifySSLCertificate = verifySSLCertificate
+        self.mssqlEncryptionMode = mssqlEncryptionMode
         self.connectionTimeout = connectionTimeout
         self.queryTimeout = queryTimeout
         self.maxRetries = maxRetries
@@ -105,7 +120,13 @@ struct ConnectionConfiguration: Codable, Hashable {
             identityID: identityID,
             keychainIdentifier: keychainIdentifier,
             folderID: folderID,
-            useTLS: useTLS
+            useTLS: useTLS,
+            trustServerCertificate: trustServerCertificate,
+            tlsMode: tlsMode,
+            sslRootCertPath: sslRootCertPath,
+            sslCertPath: sslCertPath,
+            sslKeyPath: sslKeyPath,
+            mssqlEncryptionMode: mssqlEncryptionMode
         )
     }
 
@@ -125,6 +146,12 @@ struct ConnectionConfiguration: Codable, Hashable {
             identityID: savedConnection.identityID,
             folderID: savedConnection.folderID,
             useTLS: savedConnection.useTLS,
+            trustServerCertificate: savedConnection.trustServerCertificate,
+            tlsMode: savedConnection.tlsMode,
+            sslRootCertPath: savedConnection.sslRootCertPath,
+            sslCertPath: savedConnection.sslCertPath,
+            sslKeyPath: savedConnection.sslKeyPath,
+            mssqlEncryptionMode: savedConnection.mssqlEncryptionMode,
             id: savedConnection.id
         )
     }
@@ -164,6 +191,21 @@ enum TLSMode: String, CaseIterable, Codable {
         }
     }
 }
+
+enum MSSQLEncryptionMode: String, CaseIterable, Codable, Sendable {
+    case optional
+    case mandatory
+    case strict
+
+    var description: String {
+        switch self {
+        case .optional: return "Optional - Use encryption if available"
+        case .mandatory: return "Mandatory - Require encryption"
+        case .strict: return "Strict - TDS 8.0 strict mode"
+        }
+    }
+}
+
 
 // Connection templates for common scenarios
 
@@ -241,7 +283,8 @@ extension ConnectionConfiguration {
         return !trimmedName.isEmpty &&
         !trimmedHost.isEmpty &&
         credentialsValid &&
-        port > 0 && port <= 65535
+        port > 0 && port <= 65535 &&
+        !database.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     var validationErrors: [String] {
@@ -253,6 +296,10 @@ extension ConnectionConfiguration {
 
         if host.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             errors.append("Host is required")
+        }
+
+        if database.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            errors.append("Database is required")
         }
 
         if credentialSource == .manual && username.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {

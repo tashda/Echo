@@ -4,6 +4,7 @@ import Foundation
 public enum DatabaseAuthenticationMethod: String, CaseIterable, Codable, Hashable, Sendable {
     case sqlPassword
     case windowsIntegrated
+    case accessToken
 
     public var displayName: String {
         switch self {
@@ -11,13 +12,15 @@ public enum DatabaseAuthenticationMethod: String, CaseIterable, Codable, Hashabl
             return "SQL authentication"
         case .windowsIntegrated:
             return "Windows integrated"
+        case .accessToken:
+            return "Access token (Entra ID)"
         }
     }
 
     /// Whether the UI should prompt for a Windows domain in addition to username/password.
     public var requiresDomain: Bool {
         switch self {
-        case .sqlPassword:
+        case .sqlPassword, .accessToken:
             return false
         case .windowsIntegrated:
             return true
@@ -29,8 +32,13 @@ public enum DatabaseAuthenticationMethod: String, CaseIterable, Codable, Hashabl
         switch self {
         case .sqlPassword:
             return true
-        case .windowsIntegrated:
+        case .windowsIntegrated, .accessToken:
             return false
         }
+    }
+
+    /// Whether this method uses an access token instead of username/password.
+    public var usesAccessToken: Bool {
+        self == .accessToken
     }
 }

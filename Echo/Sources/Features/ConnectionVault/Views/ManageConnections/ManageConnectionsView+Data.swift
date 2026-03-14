@@ -114,22 +114,31 @@ extension ManageConnectionsView {
     }
 
     func folderLookup(for section: ManageSection) -> [UUID: SavedFolder] {
-        let folders = section == .connections ? connectionFolders : identityFolders
+        let folders: [SavedFolder]
+        switch section {
+        case .connections: folders = connectionFolders
+        case .identities: folders = identityFolders
+        case .projects: folders = []
+        }
         return Dictionary(uniqueKeysWithValues: folders.map { ($0.id, $0) })
     }
 
-    func buildFolderNodes<Item>(
+    func buildFolderNodes<Item: Hashable>(
         from folders: [SavedFolder],
         itemMap: [UUID?: [Item]]
     ) -> [FolderNode] {
         let grouped = Dictionary(grouping: folders, by: { $0.parentFolderID })
 
         func makeNodes(parent: UUID?) -> [FolderNode] {
-            guard let items = grouped[parent] else { return [] }
+            guard let folderList = grouped[parent] else { return [] }
 
-            return items.map { folder in
+            return folderList.map { folder in
                 let children = makeNodes(parent: folder.id)
-                return FolderNode(folder: folder, childNodes: children.isEmpty ? nil : children)
+                return FolderNode(
+                    folder: folder,
+                    childNodes: children.isEmpty ? nil : children,
+                    items: itemMap[folder.id] ?? []
+                )
             }
         }
 
@@ -143,12 +152,19 @@ extension ManageConnectionsView {
             return nil
         case .folder(let folderID, let targetSection):
             return targetSection == section ? folderID : nil
+        case .project:
+            return nil
         }
     }
 
     func folderScope(for folderID: UUID, in section: ManageSection) -> Set<UUID> {
         var scope: Set<UUID> = [folderID]
-        let folders = section == .connections ? connectionFolders : identityFolders
+        let folders: [SavedFolder]
+        switch section {
+        case .connections: folders = connectionFolders
+        case .identities: folders = identityFolders
+        case .projects: folders = []
+        }
         var stack: [UUID] = [folderID]
 
         while let current = stack.popLast() {

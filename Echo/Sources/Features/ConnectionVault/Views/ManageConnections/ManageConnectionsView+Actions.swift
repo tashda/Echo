@@ -7,6 +7,8 @@ extension ManageConnectionsView {
             createNewConnection()
         case .identities:
             createNewIdentity()
+        case .projects:
+            isPresentingNewProjectSheet = true
         }
     }
 
@@ -24,6 +26,10 @@ extension ManageConnectionsView {
     func handleSidebarSelectionChange(_ selection: SidebarSelection?) {
         guard let selection else { return }
 
+        if sidebarSelection != selection {
+            sidebarSelection = selection
+        }
+
         if selectedSection != selection.section {
             selectedSection = selection.section
         }
@@ -37,12 +43,22 @@ extension ManageConnectionsView {
             if connectionStore.selectedFolderID != folderID {
                 connectionStore.selectedFolderID = folderID
             }
+        case .project:
+            if connectionStore.selectedFolderID != nil {
+                connectionStore.selectedFolderID = nil
+            }
         }
     }
 
     func syncSidebarSelection(withFolderID folderID: UUID?) {
         guard let folderID,
               let folder = folder(withID: folderID) else {
+            // If we're currently selecting a project, don't reset to the section level
+            // just because the folder selection was cleared.
+            if case .project = sidebarSelection {
+                return
+            }
+
             let section = selectedSection ?? .connections
             let target: SidebarSelection = .section(section)
             if sidebarSelection != target {
@@ -84,8 +100,18 @@ extension ManageConnectionsView {
         identityEditorState = nil
         connectionSelection.removeAll()
         identitySelection.removeAll()
-        selectedSection = .connections
-        sidebarSelection = .section(.connections)
+
+        // Preserve current selection if it's a project
+        if case .project(let projectID) = sidebarSelection {
+            if !projectStore.projects.contains(where: { $0.id == projectID }) {
+                selectedSection = .connections
+                sidebarSelection = .section(.connections)
+            }
+        } else {
+            selectedSection = .connections
+            sidebarSelection = .section(.connections)
+        }
+
         pruneNavigationStacks()
         ensureSectionSelection()
     }
@@ -146,6 +172,26 @@ extension ManageConnectionsView {
            let id = connectionStore.selectedIdentityID,
            filteredIdentitiesForTable.contains(where: { $0.id == id }) {
             identitySelection = [id]
+        }
+    }
+
+    func importSettingsFromProject(_ source: Project, into targetID: UUID) {
+        isImportingSettings = true
+        lastImportedFrom = nil
+        Task {
+            try? await projectStore.importProjectResources(
+                from: source,
+                into: targetID,
+                connectionStore: connectionStore,
+                merge: true,
+                includeSettings: true,
+                connectionIDs: Set(connectionStore.connections.filter { $0.projectID == source.id }.map(\.id)),
+                identityIDs: Set(connectionStore.identities.filter { $0.projectID == source.id }.map(\.id))
+            )
+            await MainActor.run {
+                isImportingSettings = false
+                lastImportedFrom = (name: source.name, date: Date())
+            }
         }
     }
 

@@ -25,7 +25,6 @@ struct ChangeHandlers: ViewModifier {
             .onChange(of: selectedSection) { _, newValue in
                 if let section = newValue { onSectionChange(section) }
             }
-            .onChange(of: sidebarSelection) { _, newValue in onSidebarSelectionChange(newValue) }
             .onChange(of: connectionStore.selectedFolderID) { _, newValue in onFolderIDChange(newValue) }
             .onChange(of: connectionStore.connections) { _, newValue in onConnectionsChange(newValue.map(\.id)) }
             .onChange(of: connectionStore.identities) { _, newValue in onIdentitiesChange(newValue.map(\.id)) }

@@ -11,6 +11,8 @@ extension ManageConnectionsView {
                 connectionsDetail
             case .identities:
                 identitiesDetail
+            case .projects:
+                projectsDetail
             }
         }
     }
@@ -25,15 +27,15 @@ extension ManageConnectionsView {
         let identities = searchFilteredIdentities
 
         if connections.isEmpty && identities.isEmpty {
-            VStack(spacing: 14) {
+            VStack(spacing: SpacingTokens.sm2) {
                 Image(systemName: "magnifyingglass")
-                    .font(.system(size: 40, weight: .semibold))
-                    .foregroundStyle(.secondary)
+                    .font(TypographyTokens.hero.weight(.semibold))
+                    .foregroundStyle(ColorTokens.Text.secondary)
                 Text("No Results")
                     .font(TypographyTokens.displayLarge.weight(.semibold))
                 Text("No connections or identities match your search.")
                     .font(TypographyTokens.standard)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(ColorTokens.Text.secondary)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
@@ -230,6 +232,12 @@ extension ManageConnectionsView {
                         Label("New Identity", systemImage: "plus")
                     }
                 }
+            }
+        case .projects:
+            Button {
+                isPresentingNewProjectSheet = true
+            } label: {
+                Text("New Project")
             }
         }
     }

@@ -37,7 +37,7 @@ enum DatabaseType: String, Sendable, Codable, CaseIterable {
     nonisolated var supportedAuthenticationMethods: [DatabaseAuthenticationMethod] {
         switch self {
         case .microsoftSQL:
-            return [.sqlPassword, .windowsIntegrated]
+            return [.sqlPassword, .windowsIntegrated, .accessToken]
         default:
             return [.sqlPassword]
         }
@@ -92,12 +92,26 @@ struct SavedConnection: Identifiable, Codable, Hashable, Sendable {
     var keychainIdentifier: String?
     var folderID: UUID?
     var useTLS: Bool
+    var trustServerCertificate: Bool
+    var tlsMode: TLSMode
+    var sslRootCertPath: String?
+    var sslCertPath: String?
+    var sslKeyPath: String?
+    var mssqlEncryptionMode: MSSQLEncryptionMode
     var databaseType: DatabaseType
     var serverVersion: String?
     var colorHex: String
     var logo: Data?
     var cachedStructure: DatabaseStructure?
     var cachedStructureUpdatedAt: Date?
+
+    static func == (lhs: SavedConnection, rhs: SavedConnection) -> Bool {
+        lhs.id == rhs.id
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
+    }
 
     var usesInheritedCredentials: Bool { credentialSource == .inherit }
     var usesIdentity: Bool { credentialSource == .identity && identityID != nil }
@@ -117,6 +131,12 @@ struct SavedConnection: Identifiable, Codable, Hashable, Sendable {
         case keychainIdentifier
         case folderID
         case useTLS
+        case trustServerCertificate
+        case tlsMode
+        case sslRootCertPath
+        case sslCertPath
+        case sslKeyPath
+        case mssqlEncryptionMode
         case databaseType
         case serverVersion
         case colorHex
@@ -140,6 +160,12 @@ struct SavedConnection: Identifiable, Codable, Hashable, Sendable {
         keychainIdentifier: String? = nil,
         folderID: UUID? = nil,
         useTLS: Bool = true,
+        trustServerCertificate: Bool = false,
+        tlsMode: TLSMode = .prefer,
+        sslRootCertPath: String? = nil,
+        sslCertPath: String? = nil,
+        sslKeyPath: String? = nil,
+        mssqlEncryptionMode: MSSQLEncryptionMode = .optional,
         databaseType: DatabaseType = .postgresql,
         serverVersion: String? = nil,
         colorHex: String = "",
@@ -161,6 +187,12 @@ struct SavedConnection: Identifiable, Codable, Hashable, Sendable {
         self.keychainIdentifier = keychainIdentifier
         self.folderID = folderID
         self.useTLS = useTLS
+        self.trustServerCertificate = trustServerCertificate
+        self.tlsMode = tlsMode
+        self.sslRootCertPath = sslRootCertPath
+        self.sslCertPath = sslCertPath
+        self.sslKeyPath = sslKeyPath
+        self.mssqlEncryptionMode = mssqlEncryptionMode
         self.databaseType = databaseType
         self.serverVersion = serverVersion
         self.colorHex = colorHex
@@ -185,6 +217,12 @@ struct SavedConnection: Identifiable, Codable, Hashable, Sendable {
         keychainIdentifier = try container.decodeIfPresent(String.self, forKey: .keychainIdentifier)
         folderID = try container.decodeIfPresent(UUID.self, forKey: .folderID)
         useTLS = try container.decodeIfPresent(Bool.self, forKey: .useTLS) ?? true
+        trustServerCertificate = try container.decodeIfPresent(Bool.self, forKey: .trustServerCertificate) ?? false
+        tlsMode = try container.decodeIfPresent(TLSMode.self, forKey: .tlsMode) ?? .prefer
+        sslRootCertPath = try container.decodeIfPresent(String.self, forKey: .sslRootCertPath)
+        sslCertPath = try container.decodeIfPresent(String.self, forKey: .sslCertPath)
+        sslKeyPath = try container.decodeIfPresent(String.self, forKey: .sslKeyPath)
+        mssqlEncryptionMode = try container.decodeIfPresent(MSSQLEncryptionMode.self, forKey: .mssqlEncryptionMode) ?? .optional
         databaseType = try container.decodeIfPresent(DatabaseType.self, forKey: .databaseType) ?? .postgresql
         serverVersion = try container.decodeIfPresent(String.self, forKey: .serverVersion)
         colorHex = try container.decodeIfPresent(String.self, forKey: .colorHex) ?? ""
@@ -209,6 +247,12 @@ struct SavedConnection: Identifiable, Codable, Hashable, Sendable {
         try container.encodeIfPresent(keychainIdentifier, forKey: .keychainIdentifier)
         try container.encodeIfPresent(folderID, forKey: .folderID)
         try container.encode(useTLS, forKey: .useTLS)
+        try container.encode(trustServerCertificate, forKey: .trustServerCertificate)
+        try container.encode(tlsMode, forKey: .tlsMode)
+        try container.encodeIfPresent(sslRootCertPath, forKey: .sslRootCertPath)
+        try container.encodeIfPresent(sslCertPath, forKey: .sslCertPath)
+        try container.encodeIfPresent(sslKeyPath, forKey: .sslKeyPath)
+        try container.encode(mssqlEncryptionMode, forKey: .mssqlEncryptionMode)
         try container.encode(databaseType, forKey: .databaseType)
         try container.encodeIfPresent(serverVersion, forKey: .serverVersion)
         try container.encode(colorHex, forKey: .colorHex)

@@ -17,6 +17,7 @@ struct ConnectionEditorView: View {
     enum SaveAction {
         case save
         case saveAndConnect
+        case connect
     }
 
     static let colorPalette: [String] = [
@@ -43,6 +44,12 @@ struct ConnectionEditorView: View {
     @State internal var identityID: UUID?
     @State internal var folderID: UUID?
     @State internal var useTLS: Bool
+    @State internal var trustServerCertificate: Bool
+    @State internal var tlsMode: TLSMode
+    @State internal var sslRootCertPath: String?
+    @State internal var sslCertPath: String?
+    @State internal var sslKeyPath: String?
+    @State internal var mssqlEncryptionMode: MSSQLEncryptionMode
     @State internal var colorHex: String
 
     @State internal var passwordDirty = false
@@ -54,10 +61,12 @@ struct ConnectionEditorView: View {
     @State internal var identityEditorState: IdentityEditorState?
 
     internal let originalConnection: SavedConnection?
+    internal let isQuickConnect: Bool
     let onSave: (SavedConnection, String?, SaveAction) -> Void
 
-    init(connection: SavedConnection?, onSave: @escaping (SavedConnection, String?, SaveAction) -> Void) {
+    init(connection: SavedConnection?, isQuickConnect: Bool = false, onSave: @escaping (SavedConnection, String?, SaveAction) -> Void) {
         self.originalConnection = connection
+        self.isQuickConnect = isQuickConnect
         self.onSave = onSave
 
         let model = connection ?? SavedConnection(
@@ -94,6 +103,12 @@ struct ConnectionEditorView: View {
         _identityID = State(initialValue: model.identityID)
         _folderID = State(initialValue: model.folderID)
         _useTLS = State(initialValue: model.useTLS)
+        _trustServerCertificate = State(initialValue: model.trustServerCertificate)
+        _tlsMode = State(initialValue: model.tlsMode)
+        _sslRootCertPath = State(initialValue: model.sslRootCertPath)
+        _sslCertPath = State(initialValue: model.sslCertPath)
+        _sslKeyPath = State(initialValue: model.sslKeyPath)
+        _mssqlEncryptionMode = State(initialValue: model.mssqlEncryptionMode)
         _colorHex = State(initialValue: model.colorHex.isEmpty ? (ConnectionEditorView.colorPalette.first ?? "") : model.colorHex)
     }
 
@@ -163,6 +178,11 @@ struct ConnectionEditorView: View {
             let trimmedUsername = username.trimmingCharacters(in: .whitespacesAndNewlines)
             let trimmedPassword = password.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !trimmedDomain.isEmpty, !trimmedUsername.isEmpty, !trimmedPassword.isEmpty else { return false }
+        }
+
+        if authenticationMethod == .accessToken {
+            let trimmedToken = password.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmedToken.isEmpty || (hasSavedPassword && !passwordDirty) else { return false }
         }
 
         return credentialsValid
