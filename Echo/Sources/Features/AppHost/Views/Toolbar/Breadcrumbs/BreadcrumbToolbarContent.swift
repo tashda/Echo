@@ -19,26 +19,120 @@ struct ProjectMenuButton: NSViewRepresentable {
         ProjectMenuCoordinator(projectStore: projectStore, navigationStore: navigationStore)
     }
 
-    func makeNSView(context: Context) -> NSButton {
-        let button = NSButton(frame: .zero)
-        button.bezelStyle = .toolbar
-        button.setContentHuggingPriority(.defaultHigh, for: .horizontal)
-        let title = projectStore.selectedProject?.name ?? "Project"
-        button.title = title
-        let config = NSImage.SymbolConfiguration(pointSize: 11, weight: .medium)
-        button.image = NSImage(systemSymbolName: "folder.badge.person.crop", accessibilityDescription: nil)?
-            .withSymbolConfiguration(config)
-        button.imagePosition = .imageLeading
-        button.target = context.coordinator
-        button.action = #selector(ProjectMenuCoordinator.showMenu(_:))
-        return button
+    func makeNSView(context: Context) -> ProjectButtonContentView {
+        let view = ProjectButtonContentView(
+            projectName: projectStore.selectedProject?.name ?? "Project",
+            subtitle: "Local",
+            target: context.coordinator,
+            action: #selector(ProjectMenuCoordinator.showMenu(_:))
+        )
+        return view
     }
 
-    func updateNSView(_ button: NSButton, context: Context) {
+    func updateNSView(_ view: ProjectButtonContentView, context: Context) {
         context.coordinator.projectStore = projectStore
         context.coordinator.navigationStore = navigationStore
-        button.title = projectStore.selectedProject?.name ?? "Project"
-        button.sizeToFit()
+        view.update(
+            projectName: projectStore.selectedProject?.name ?? "Project",
+            subtitle: "Local"
+        )
+        // Remove Liquid Glass bezel from the hosting toolbar item
+        view.configureToolbarItemPlain()
+    }
+}
+
+final class ProjectButtonContentView: NSView {
+    private let nameLabel = NSTextField(labelWithString: "")
+    private let subtitleLabel = NSTextField(labelWithString: "")
+
+    init(projectName: String, subtitle: String, target: AnyObject?, action: Selector?) {
+        super.init(frame: .zero)
+        setupViews()
+        update(projectName: projectName, subtitle: subtitle)
+
+        let click = NSClickGestureRecognizer(target: target, action: action)
+        addGestureRecognizer(click)
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) { fatalError() }
+
+    private func setupViews() {
+        nameLabel.font = .systemFont(ofSize: 13, weight: .semibold)
+        nameLabel.textColor = .labelColor
+        nameLabel.lineBreakMode = .byTruncatingTail
+        nameLabel.maximumNumberOfLines = 1
+        nameLabel.isEditable = false
+        nameLabel.isBordered = false
+        nameLabel.drawsBackground = false
+        nameLabel.translatesAutoresizingMaskIntoConstraints = false
+
+        subtitleLabel.font = .systemFont(ofSize: 11, weight: .regular)
+        subtitleLabel.textColor = .secondaryLabelColor
+        subtitleLabel.lineBreakMode = .byTruncatingTail
+        subtitleLabel.maximumNumberOfLines = 1
+        subtitleLabel.isEditable = false
+        subtitleLabel.isBordered = false
+        subtitleLabel.drawsBackground = false
+        subtitleLabel.translatesAutoresizingMaskIntoConstraints = false
+
+        addSubview(nameLabel)
+        addSubview(subtitleLabel)
+
+        NSLayoutConstraint.activate([
+            nameLabel.leadingAnchor.constraint(equalTo: leadingAnchor),
+            nameLabel.trailingAnchor.constraint(lessThanOrEqualTo: trailingAnchor),
+            nameLabel.topAnchor.constraint(equalTo: topAnchor),
+
+            subtitleLabel.leadingAnchor.constraint(equalTo: leadingAnchor),
+            subtitleLabel.trailingAnchor.constraint(lessThanOrEqualTo: trailingAnchor),
+            subtitleLabel.topAnchor.constraint(equalTo: nameLabel.bottomAnchor, constant: -1),
+            subtitleLabel.bottomAnchor.constraint(equalTo: bottomAnchor),
+        ])
+    }
+
+    func update(projectName: String, subtitle: String) {
+        nameLabel.stringValue = projectName
+        subtitleLabel.stringValue = subtitle
+        invalidateIntrinsicContentSize()
+    }
+
+    override var intrinsicContentSize: NSSize {
+        let width = max(nameLabel.intrinsicContentSize.width, subtitleLabel.intrinsicContentSize.width)
+        let height = nameLabel.intrinsicContentSize.height + subtitleLabel.intrinsicContentSize.height - 1
+        return NSSize(width: width, height: height)
+    }
+
+    override func mouseDown(with event: NSEvent) {
+        // Forward to gesture recognizer
+        super.mouseDown(with: event)
+    }
+
+    /// Find the hosting NSToolbarItem and set its style to `.plain`
+    /// to remove the Liquid Glass bezel.
+    func configureToolbarItemPlain() {
+        guard !didConfigureToolbarItem else { return }
+        guard let toolbar = window?.toolbar else { return }
+        for item in toolbar.items {
+            if item.itemIdentifier.rawValue.contains("project") {
+                item.isBordered = false
+                if #available(macOS 26.0, *) {
+                    item.style = .plain
+                }
+                didConfigureToolbarItem = true
+                return
+            }
+        }
+    }
+
+    private var didConfigureToolbarItem = false
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        // Defer to allow toolbar item to fully install
+        DispatchQueue.main.async { [weak self] in
+            self?.configureToolbarItemPlain()
+        }
     }
 }
 
@@ -53,7 +147,16 @@ final class ProjectMenuCoordinator: NSObject {
         super.init()
     }
 
-    @objc func showMenu(_ sender: NSButton) {
+    @objc func showMenu(_ sender: Any?) {
+        let sourceView: NSView?
+        if let gesture = sender as? NSGestureRecognizer {
+            sourceView = gesture.view
+        } else if let view = sender as? NSView {
+            sourceView = view
+        } else {
+            sourceView = nil
+        }
+
         let menu = NSMenu()
 
         let projects = projectStore.projects
@@ -67,7 +170,7 @@ final class ProjectMenuCoordinator: NSObject {
                 item.target = self
                 item.representedObject = project
                 item.state = (project.id == projectStore.selectedProject?.id) ? .on : .off
-                item.image = NSImage(systemSymbolName: "folder.badge.person.crop", accessibilityDescription: nil)
+                item.image = NSImage(systemSymbolName: "folder.fill", accessibilityDescription: nil)
                 menu.addItem(item)
             }
         }
@@ -79,8 +182,10 @@ final class ProjectMenuCoordinator: NSObject {
         manage.image = NSImage(systemSymbolName: "gearshape", accessibilityDescription: nil)
         menu.addItem(manage)
 
-        let point = NSPoint(x: 0, y: sender.bounds.maxY + 4)
-        menu.popUp(positioning: nil, at: point, in: sender)
+        if let sourceView {
+            let point = NSPoint(x: 0, y: sourceView.bounds.maxY + 4)
+            menu.popUp(positioning: nil, at: point, in: sourceView)
+        }
     }
 
     @objc private func selectProject(_ sender: NSMenuItem) {
@@ -90,7 +195,7 @@ final class ProjectMenuCoordinator: NSObject {
     }
 
     @objc private func manageProjects(_ sender: NSMenuItem) {
-        ManageProjectsWindowController.shared.present()
+        ManageConnectionsWindowController.shared.present(initialSection: .projects)
     }
 }
 
@@ -196,13 +301,17 @@ final class ConnectToolbarMenuCoordinator: NSObject {
         manage.image = NSImage(systemSymbolName: "gearshape", accessibilityDescription: nil)
         menu.addItem(manage)
 
-        let quick = NSMenuItem(title: "Quick Connect\u{2026}", action: #selector(manageConnections(_:)), keyEquivalent: "")
+        let quick = NSMenuItem(title: "Quick Connect\u{2026}", action: #selector(quickConnect(_:)), keyEquivalent: "")
         quick.target = self
         quick.image = NSImage(systemSymbolName: "bolt", accessibilityDescription: nil)
         menu.addItem(quick)
 
         let point = NSPoint(x: 0, y: sender.bounds.maxY + 4)
         menu.popUp(positioning: nil, at: point, in: sender)
+    }
+
+    @objc private func quickConnect(_ sender: NSMenuItem) {
+        AppCoordinator.shared.appState.showSheet(.quickConnect)
     }
 
     @objc private func switchToSession(_ sender: NSMenuItem) {
@@ -324,10 +433,14 @@ final class ConnectionsMenuCoordinator: NSObject, NSMenuDelegate {
         manage.image = NSImage(systemSymbolName: "gearshape", accessibilityDescription: nil)
         menu.addItem(manage)
 
-        let quick = NSMenuItem(title: "Quick Connect\u{2026}", action: #selector(manageConnections(_:)), keyEquivalent: "")
+        let quick = NSMenuItem(title: "Quick Connect\u{2026}", action: #selector(quickConnect(_:)), keyEquivalent: "")
         quick.target = self
         quick.image = NSImage(systemSymbolName: "bolt", accessibilityDescription: nil)
         menu.addItem(quick)
+    }
+
+    @objc private func quickConnect(_ sender: NSMenuItem) {
+        AppCoordinator.shared.appState.showSheet(.quickConnect)
     }
 
     @objc private func switchToSession(_ sender: NSMenuItem) {

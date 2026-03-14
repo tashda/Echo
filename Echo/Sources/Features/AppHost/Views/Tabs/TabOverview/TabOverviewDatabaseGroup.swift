@@ -6,30 +6,30 @@ extension TabOverviewView {
         let isExpanded = !collapsedDatabases.contains(identifier)
         let isActiveDatabase = group.databaseName == activeDatabaseName && serverID == activeConnectionID
 
-        return VStack(alignment: .leading, spacing: 14) {
+        return VStack(alignment: .leading, spacing: SpacingTokens.sm2) {
             Button {
                 withAnimation(.easeInOut(duration: 0.25)) {
                     toggleDatabaseExpansion(identifier: identifier)
                 }
             } label: {
-                HStack(spacing: 10) {
+                HStack(spacing: SpacingTokens.xs2) {
                     Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
                         .font(TypographyTokens.label.weight(.bold))
-                        .foregroundStyle(Color.secondary)
+                        .foregroundStyle(ColorTokens.Text.secondary)
                         .frame(width: 12)
 
                     Label(group.databaseName, systemImage: "database.outlined")
                         .font(TypographyTokens.prominent.weight(.semibold))
-                        .foregroundStyle(isActiveDatabase ? Color.accentColor : Color.primary)
+                        .foregroundStyle(isActiveDatabase ? ColorTokens.accent : ColorTokens.Text.primary)
 
                     Spacer()
                 }
                 .padding(.horizontal, SpacingTokens.sm)
                 .padding(.vertical, SpacingTokens.xs)
-                .background(databaseBackground(isActive: isActiveDatabase), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .background(databaseBackground(isActive: isActiveDatabase), in: RoundedRectangle(cornerRadius: SpacingTokens.sm, style: .continuous))
                 .overlay(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .stroke(Color.primary.opacity(isActiveDatabase ? 0.15 : 0.06), lineWidth: 0.8)
+                    RoundedRectangle(cornerRadius: SpacingTokens.sm, style: .continuous)
+                        .stroke(ColorTokens.Text.primary.opacity(isActiveDatabase ? 0.15 : 0.06), lineWidth: 0.8)
                 )
             }
             .buttonStyle(.plain)
@@ -46,8 +46,8 @@ extension TabOverviewView {
     }
 
     private func sectionView(_ section: SectionGroup, serverID: UUID, databaseIdentifier: String) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 8) {
+        VStack(alignment: .leading, spacing: SpacingTokens.sm) {
+            HStack(spacing: SpacingTokens.xs) {
                 Image(systemName: section.kind.icon)
                     .font(TypographyTokens.detail.weight(.semibold))
                 Text(section.kind.displayName.uppercased())
@@ -55,12 +55,12 @@ extension TabOverviewView {
 
                 Text("\(section.tabs.count)")
                     .font(TypographyTokens.label.weight(.bold))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(ColorTokens.Text.secondary)
                     .padding(.horizontal, SpacingTokens.xxs2)
                     .padding(.vertical, 1)
-                    .background(Color.primary.opacity(0.06), in: Capsule())
+                    .background(ColorTokens.Text.primary.opacity(0.06), in: Capsule())
             }
-            .foregroundStyle(.secondary)
+            .foregroundStyle(ColorTokens.Text.secondary)
             .padding(.leading, SpacingTokens.xxs)
 
             LazyVGrid(columns: gridConfiguration.columns, spacing: gridConfiguration.spacing) {

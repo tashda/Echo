@@ -29,6 +29,15 @@ struct WorkspaceContentView: View {
                 } else if let psql = tab.psql {
                     PSQLTabView(viewModel: psql)
                         .background(ColorTokens.Background.primary)
+                } else if let extStructure = tab.extensionStructure {
+                    PostgresExtensionStructureView(tab: tab, viewModel: extStructure)
+                        .background(ColorTokens.Background.primary)
+                } else if let extensionsManager = tab.extensionsManager {
+                    PostgresExtensionsManagerView(tab: tab, viewModel: extensionsManager)
+                        .background(ColorTokens.Background.primary)
+                } else if let activityMonitor = tab.activityMonitor {
+                    ActivityMonitorView(viewModel: activityMonitor)
+                        .background(ColorTokens.Background.primary)
                 } else if let query = tab.query {
                     QueryEditorContainer(
                         tab: tab,

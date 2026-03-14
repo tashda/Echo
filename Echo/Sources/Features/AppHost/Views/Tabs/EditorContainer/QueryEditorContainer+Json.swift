@@ -5,23 +5,43 @@ extension QueryEditorContainer {
         switch event {
         case .selectionChanged(let selection):
             latestJsonSelection = selection
+            guard showJsonInInspector else { return }
             if let selection {
+                latestForeignKeySelection = nil
                 let content = makeJsonInspectorContent(for: selection)
                 environmentState.dataInspectorContent = .json(content)
-            } else if case .json = environmentState.dataInspectorContent {
-                environmentState.dataInspectorContent = nil
+                if autoOpenInspector, !appState.showInfoSidebar {
+                    appState.showInfoSidebar = true
+                    inspectorAutoOpened = true
+                }
+            } else {
+                // JSON cell deselected — clear JSON content if we still own it
+                if case .json = environmentState.dataInspectorContent {
+                    environmentState.dataInspectorContent = nil
+                }
+                // Defer close check to let other handlers (FK) set content first
+                deferredInspectorAutoClose()
             }
         case .activate(let selection):
             latestJsonSelection = selection
+            guard showJsonInInspector else { return }
+            latestForeignKeySelection = nil
             let content = makeJsonInspectorContent(for: selection)
             environmentState.dataInspectorContent = .json(content)
+            if !appState.showInfoSidebar {
+                appState.showInfoSidebar = true
+                inspectorAutoOpened = true
+            }
         }
     }
 
     private func makeJsonInspectorContent(for selection: QueryResultsTableView.JsonSelection) -> JsonInspectorContent {
-        let outline = selection.jsonValue.toOutlineNode()
         let subtitle = jsonRowSummary(for: selection)
-        return JsonInspectorContent(title: selection.columnName, subtitle: subtitle, outline: outline)
+        return JsonInspectorContent(
+            title: selection.columnName,
+            subtitle: subtitle,
+            rawJSON: selection.rawValue
+        )
     }
 
     private func jsonRowSummary(for selection: QueryResultsTableView.JsonSelection) -> String {

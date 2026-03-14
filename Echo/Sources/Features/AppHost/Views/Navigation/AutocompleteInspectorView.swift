@@ -94,8 +94,8 @@ struct AutocompleteInspectorRootView: View {
 
     var body: some View {
         let context = completionContext
-        HStack(spacing: 0) {
-            VStack(alignment: .leading, spacing: 16) {
+        HStack(spacing: SpacingTokens.none) {
+            VStack(alignment: .leading, spacing: SpacingTokens.md) {
                 header
                 SQLEditorView(
                     text: $sqlText,
@@ -112,13 +112,13 @@ struct AutocompleteInspectorRootView: View {
                 .frame(minHeight: 320)
                 if context == nil {
                     Text("Connect to a database in the main workspace to populate autocomplete data. This editor mirrors the active connection's schema.")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
+                        .font(TypographyTokens.footnote)
+                        .foregroundStyle(ColorTokens.Text.secondary)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 } else if let status = structureStatusMessage {
                     Text(status)
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
+                        .font(TypographyTokens.footnote)
+                        .foregroundStyle(ColorTokens.Text.secondary)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
@@ -129,7 +129,7 @@ struct AutocompleteInspectorRootView: View {
             Divider()
 
             ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
+                VStack(alignment: .leading, spacing: SpacingTokens.md2) {
                     tracePanel
                     Divider()
                     definitionsPanel

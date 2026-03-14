@@ -47,6 +47,7 @@ enum WorkspaceLayoutMetrics {
     static let sidebarIdealWidth: CGFloat = 320
 
     static let inspectorMinWidth: CGFloat = 300
-    static let inspectorIdealWidth: CGFloat = 400
+    static let inspectorIdealWidth: CGFloat = 300
     static let inspectorMaxWidth: CGFloat = 1600
+    static let jsonInspectorWidth: CGFloat = 600
 }

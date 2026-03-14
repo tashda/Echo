@@ -70,6 +70,9 @@ struct WorkspaceWindowConfigurator: NSViewRepresentable {
             if window.titlebarSeparatorStyle != .none {
                 window.titlebarSeparatorStyle = .none
             }
+            if window.tabbingMode != .disallowed {
+                window.tabbingMode = .disallowed
+            }
             if window.toolbar?.allowsUserCustomization != false {
                 window.toolbar?.allowsUserCustomization = false
             }
@@ -84,6 +87,46 @@ struct WorkspaceWindowConfigurator: NSViewRepresentable {
         }
 
         // MARK: - NSWindowDelegate
+
+        func windowDidEnterFullScreen(_ notification: Notification) {
+            guard let window = notification.object as? NSWindow else { return }
+            window.titlebarSeparatorStyle = .none
+            // In fullscreen, the toolbar moves to a separate NSToolbarFullScreenWindow.
+            // Delay to let the fullscreen layout settle, then hide separators in
+            // both the main window and the toolbar fullscreen window.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                self.hideFullScreenSeparators(for: window)
+            }
+        }
+
+        func windowDidExitFullScreen(_ notification: Notification) {
+            guard let window = notification.object as? NSWindow else { return }
+            window.titlebarSeparatorStyle = .none
+        }
+
+        /// In fullscreen, the toolbar lives in a separate `NSToolbarFullScreenWindow`.
+        /// Find it and hide all pocket separators and titlebar separator views.
+        private func hideFullScreenSeparators(for mainWindow: NSWindow) {
+            for window in NSApp.windows {
+                let className = String(describing: type(of: window))
+                if className.contains("ToolbarFullScreen") {
+                    if let themeFrame = window.contentView?.superview {
+                        hideSeparatorViews(in: themeFrame)
+                    }
+                }
+            }
+        }
+
+        private func hideSeparatorViews(in view: NSView) {
+            let typeName = String(describing: type(of: view))
+            if (typeName.contains("NSLayerBasedFillColorView") && view.frame.height <= 1) ||
+               (typeName.contains("NSTitlebarSeparatorView") && view.frame.height <= 1) {
+                view.isHidden = true
+            }
+            for subview in view.subviews {
+                hideSeparatorViews(in: subview)
+            }
+        }
 
         func windowWillResize(_ sender: NSWindow, to frameSize: NSSize) -> NSSize {
             let minFrameWidth: CGFloat = 980 + (sender.frame.width - sender.contentLayoutRect.width)

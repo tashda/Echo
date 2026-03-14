@@ -2,13 +2,13 @@ import SwiftUI
 
 struct JobListView: View {
     @ObservedObject var viewModel: JobQueueViewModel
-    let toastCoordinator: StatusToastCoordinator
+    let notificationEngine: NotificationEngine?
     @State private var tableSelection: Set<String> = []
 
     var body: some View {
         VStack(spacing: 0) {
             HStack {
-                Text("Jobs").font(.headline)
+                Text("Jobs").font(TypographyTokens.headline)
                 Spacer()
                 if viewModel.isLoadingJobs { ProgressView().controlSize(.small) }
                 Button {
@@ -26,14 +26,14 @@ struct JobListView: View {
                             .controlSize(.mini)
                     } else {
                         Image(systemName: job.enabled ? "checkmark.circle.fill" : "slash.circle")
-                            .foregroundStyle(job.enabled ? .green : .secondary)
+                            .foregroundStyle(job.enabled ? ColorTokens.Status.success : ColorTokens.Text.secondary)
                     }
                 }.width(28)
                 TableColumn("Name", value: \.name)
-                TableColumn("Owner") { job in Text(job.owner ?? "—").foregroundStyle(job.owner == nil ? .secondary : .primary) }
-                TableColumn("Category") { job in Text(job.category ?? "—").foregroundStyle(job.category == nil ? .secondary : .primary) }
-                TableColumn("Last Outcome") { job in Text(job.lastOutcome ?? "—").foregroundStyle(job.lastOutcome == nil ? .secondary : .primary) }
-                TableColumn("Next Run") { job in Text(job.nextRun ?? "—").foregroundStyle(job.nextRun == nil ? .secondary : .primary) }
+                TableColumn("Owner") { job in Text(job.owner ?? "—").foregroundStyle(job.owner == nil ? ColorTokens.Text.secondary : ColorTokens.Text.primary) }
+                TableColumn("Category") { job in Text(job.category ?? "—").foregroundStyle(job.category == nil ? ColorTokens.Text.secondary : ColorTokens.Text.primary) }
+                TableColumn("Last Outcome") { job in Text(job.lastOutcome ?? "—").foregroundStyle(job.lastOutcome == nil ? ColorTokens.Text.secondary : ColorTokens.Text.primary) }
+                TableColumn("Next Run") { job in Text(job.nextRun ?? "—").foregroundStyle(job.nextRun == nil ? ColorTokens.Text.secondary : ColorTokens.Text.primary) }
             } rows: {
                 ForEach(viewModel.jobs) { job in TableRow(job) }
             }
@@ -47,7 +47,7 @@ struct JobListView: View {
                                 viewModel.selectedJobID = id
                                 await viewModel.startSelectedJob()
                                 if viewModel.errorMessage == nil {
-                                    toastCoordinator.show(icon: "play.fill", message: "Job started", style: .success)
+                                    notificationEngine?.post(category: .jobStarted, message: "Job started")
                                 }
                             }
                         }
@@ -58,7 +58,7 @@ struct JobListView: View {
                                 viewModel.selectedJobID = id
                                 await viewModel.stopSelectedJob()
                                 if viewModel.errorMessage == nil {
-                                    toastCoordinator.show(icon: "stop.fill", message: "Job stopped", style: .success)
+                                    notificationEngine?.post(category: .jobStopped, message: "Job stopped")
                                 }
                             }
                         }

@@ -16,7 +16,7 @@ extension EnvironmentState {
             displayName = "server"
         }
         sessionCoordinator.removeSession(withID: id)
-        toastCoordinator.show(icon: "bolt.horizontal.circle", message: "Disconnected from \(displayName)", style: .info)
+        notificationEngine?.post(category: .connectionDisconnected, message: "Disconnected from \(displayName)")
     }
 
     func reconnectSession(_ session: ConnectionSession, to databaseName: String) async {
@@ -77,6 +77,12 @@ extension EnvironmentState {
                 port: connection.port,
                 database: connectDatabase,
                 tls: connection.useTLS,
+                trustServerCertificate: connection.trustServerCertificate,
+                tlsMode: connection.tlsMode,
+                sslRootCertPath: connection.sslRootCertPath,
+                sslCertPath: connection.sslCertPath,
+                sslKeyPath: connection.sslKeyPath,
+                mssqlEncryptionMode: connection.mssqlEncryptionMode,
                 authentication: credentials,
                 connectTimeoutSeconds: connectTimeoutSeconds
             )
@@ -100,10 +106,28 @@ extension EnvironmentState {
         tabStore.addTab(tab)
     }
 
-    func openQueryTab(for session: ConnectionSession? = nil, presetQuery: String? = nil, autoExecute: Bool = false) {
+    func openQueryTab(for session: ConnectionSession? = nil, presetQuery: String? = nil, autoExecute: Bool = false, database: String? = nil) {
         let targetSession = session ?? sessionCoordinator.activeSession ?? sessionCoordinator.activeSessions.first
         guard let targetSession else { return }
-        let tab = targetSession.addQueryTab(withQuery: presetQuery ?? "")
+        let tab = targetSession.addQueryTab(withQuery: presetQuery ?? "", database: database)
+        registerTab(tab)
+    }
+
+    func openActivityMonitorTab(connectionID: UUID) {
+        guard let session = sessionCoordinator.sessionForConnection(connectionID) else { return }
+        do {
+            let tab = try session.addActivityMonitorTab()
+            registerTab(tab)
+        } catch let error as DatabaseError {
+            self.lastError = error
+        } catch {
+            self.lastError = .queryError(error.localizedDescription)
+        }
+    }
+
+    func openExtensionsManagerTab(connectionID: UUID, databaseName: String) {
+        guard let session = sessionCoordinator.sessionForConnection(connectionID) else { return }
+        let tab = session.addExtensionsManagerTab(databaseName: databaseName)
         registerTab(tab)
     }
 
@@ -143,12 +167,7 @@ extension EnvironmentState {
                 }
             } catch {
                 await MainActor.run {
-                    toastCoordinator.show(
-                        icon: "exclamationmark.triangle.fill",
-                        message: "Postgres Console failed: \(error.localizedDescription)",
-                        style: .error,
-                        duration: 5.0
-                    )
+                    notificationEngine?.post(category: .connectionFailed, message: "Postgres Console failed: \(error.localizedDescription)", duration: 5.0)
                 }
             }
         }
@@ -174,6 +193,12 @@ extension EnvironmentState {
             port: connection.port,
             database: database,
             tls: connection.useTLS,
+            trustServerCertificate: connection.trustServerCertificate,
+            tlsMode: connection.tlsMode,
+            sslRootCertPath: connection.sslRootCertPath,
+            sslCertPath: connection.sslCertPath,
+            sslKeyPath: connection.sslKeyPath,
+            mssqlEncryptionMode: connection.mssqlEncryptionMode,
             authentication: credentials,
             connectTimeoutSeconds: 10
         )
@@ -192,8 +217,8 @@ extension EnvironmentState {
         registerTab(tab)
     }
 
-    func openStructureTab(for session: ConnectionSession, object: SchemaObjectInfo, focus: TableStructureSection? = nil) {
-        let tab = session.addStructureTab(for: object, focus: focus)
+    func openStructureTab(for session: ConnectionSession, object: SchemaObjectInfo, focus: TableStructureSection? = nil, databaseName: String? = nil) {
+        let tab = session.addStructureTab(for: object, focus: focus, databaseName: databaseName)
         registerTab(tab)
     }
 

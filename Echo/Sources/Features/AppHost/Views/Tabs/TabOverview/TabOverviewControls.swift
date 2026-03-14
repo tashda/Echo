@@ -2,13 +2,13 @@ import SwiftUI
 
 extension TabOverviewView {
     var overviewControls: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: SpacingTokens.sm) {
             Button {
                 withAnimation(.easeInOut(duration: 0.22)) {
                     collapseAll()
                 }
             } label: {
-                HStack(spacing: 6) {
+                HStack(spacing: SpacingTokens.xxs2) {
                     Image(systemName: "square.stack.3d.down.right.fill")
                     Text("Collapse All")
                 }
@@ -19,7 +19,7 @@ extension TabOverviewView {
             .padding(.vertical, SpacingTokens.xxs2)
             .background(
                 Capsule(style: .continuous)
-                    .fill(Color.primary.opacity(colorScheme == .dark ? 0.16 : 0.08))
+                    .fill(ColorTokens.Text.primary.opacity(colorScheme == .dark ? 0.16 : 0.08))
             )
 
             Button {
@@ -27,7 +27,7 @@ extension TabOverviewView {
                     expandAll()
                 }
             } label: {
-                HStack(spacing: 6) {
+                HStack(spacing: SpacingTokens.xxs2) {
                     Image(systemName: "square.stack.3d.up.fill")
                     Text("Expand All")
                 }
@@ -38,7 +38,7 @@ extension TabOverviewView {
             .padding(.vertical, SpacingTokens.xxs2)
             .background(
                 Capsule(style: .continuous)
-                    .fill(Color.primary.opacity(colorScheme == .dark ? 0.16 : 0.08))
+                    .fill(ColorTokens.Text.primary.opacity(colorScheme == .dark ? 0.16 : 0.08))
             )
 
             Spacer(minLength: 0)

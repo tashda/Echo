@@ -61,7 +61,7 @@ struct DatabasePopoverView: View {
                 ContentUnavailableView {
                     Text("No matches found")
                         .font(TypographyTokens.detail)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(ColorTokens.Text.secondary)
                 }
                 .frame(maxWidth: .infinity, minHeight: 60)
             } else {
@@ -83,8 +83,8 @@ struct DatabasePopoverView: View {
         } label: {
             HStack(spacing: SpacingTokens.xs) {
                 Image(systemName: "cylinder")
-                    .font(.system(size: 12))
-                    .foregroundStyle(.secondary)
+                    .font(TypographyTokens.caption2)
+                    .foregroundStyle(ColorTokens.Text.secondary)
                     .frame(width: 14)
 
                 Text(db.name)
@@ -96,14 +96,14 @@ struct DatabasePopoverView: View {
 
                 if isSelected {
                     Image(systemName: "checkmark")
-                        .font(.system(size: 10, weight: .semibold))
-                        .foregroundStyle(Color.accentColor)
+                        .font(TypographyTokens.label.weight(.semibold))
+                        .foregroundStyle(ColorTokens.accent)
                 }
             }
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .listRowBackground(isSelected ? Color.accentColor.opacity(0.1) : Color.clear)
+        .listRowBackground(isSelected ? ColorTokens.accent.opacity(0.1) : Color.clear)
     }
 
     // MARK: - Footer

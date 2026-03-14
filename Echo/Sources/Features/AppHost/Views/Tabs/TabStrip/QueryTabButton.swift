@@ -22,6 +22,8 @@ struct QueryTabButton: View {
     let isBeingDragged: Bool
     let appearance: TabChromePalette?
     let onHoverChanged: (Bool) -> Void
+    var availableDatabases: [String] = []
+    var onSwitchDatabase: ((String) -> Void)?
 
     @State var isHovering = false
     @State var isHoveringClose = false
@@ -48,19 +50,17 @@ struct QueryTabButton: View {
     var hairlineWidth: CGFloat { tabHairlineWidth() }
 
     var body: some View {
-        HStack(spacing: 3) {
+        HStack(spacing: SpacingTokens.xxxs) {
             leadingControl
 
-            Text(displayedTitle)
-                .font(tabTitleFont)
-                .lineLimit(1)
-                .foregroundStyle(tabTitleColor)
+            tabTitleContent
                 .frame(maxWidth: .infinity, alignment: .center)
 
             closeButtonPlaceholder
         }
-        .padding(.horizontal, tab.isPinned ? 13 : 12)
-        .padding(.vertical, 3)
+        .padding(.leading, tab.isPinned ? 13 : SpacingTokens.xs)
+        .padding(.trailing, tab.isPinned ? 13 : SpacingTokens.sm)
+        .padding(.vertical, SpacingTokens.xxxs)
         .frame(minHeight: 24)
         .background(tabBackground)
         .overlay(tabStroke)
@@ -95,6 +95,23 @@ struct QueryTabButton: View {
             Button("Duplicate Tab", action: onDuplicate)
                 .disabled(!canDuplicate)
 
+            if !availableDatabases.isEmpty, let onSwitchDatabase {
+                Divider()
+                Menu("Switch Database") {
+                    ForEach(availableDatabases, id: \.self) { dbName in
+                        Button {
+                            onSwitchDatabase(dbName)
+                        } label: {
+                            if dbName == tab.activeDatabaseName {
+                                Label(dbName, systemImage: "checkmark")
+                            } else {
+                                Text(dbName)
+                            }
+                        }
+                    }
+                }
+            }
+
             Divider()
 
             Button("Close Tab", action: onClose)
@@ -122,6 +139,33 @@ struct QueryTabButton: View {
             } else {
                 closeButtonArea
             }
+        }
+    }
+
+    @ViewBuilder
+    private var tabTitleContent: some View {
+        if tab.isPinned {
+            Text(displayedTitle)
+                .font(tabTitleFont)
+                .lineLimit(1)
+                .foregroundStyle(tabTitleColor)
+        } else if let dbName = tab.activeDatabaseName, !dbName.isEmpty {
+            HStack(spacing: SpacingTokens.xxxs) {
+                Text(displayedTitle)
+                    .font(tabTitleFont)
+                    .lineLimit(1)
+                    .foregroundStyle(tabTitleColor)
+
+                Text(dbName)
+                    .font(TypographyTokens.detail.weight(.medium))
+                    .lineLimit(1)
+                    .foregroundStyle(tabTitleColor.opacity(0.55))
+            }
+        } else {
+            Text(displayedTitle)
+                .font(tabTitleFont)
+                .lineLimit(1)
+                .foregroundStyle(tabTitleColor)
         }
     }
 

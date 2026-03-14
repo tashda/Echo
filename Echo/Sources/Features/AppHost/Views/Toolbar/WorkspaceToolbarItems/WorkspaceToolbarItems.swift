@@ -15,10 +15,11 @@ struct WorkspaceToolbarItems: ToolbarContent {
                 projectStore: projectStore,
                 navigationStore: navigationStore
             )
+            .padding(.leading, SpacingTokens.xxs)
         }
 
         ToolbarItem(id: "workspace.navigation.spacer", placement: .navigation) {
-            Spacer().frame(width: 2)
+            Spacer().frame(width: SpacingTokens.xs)
         }
 
         ToolbarItem(id: "workspace.navigation.connect", placement: .navigation) {
@@ -27,6 +28,7 @@ struct WorkspaceToolbarItems: ToolbarContent {
                 projectStore: projectStore,
                 environmentState: environmentState
             )
+            .padding(.horizontal, SpacingTokens.xxxs)
         }
 
         ToolbarItem(id: "workspace.principal.spacer", placement: .principal) {

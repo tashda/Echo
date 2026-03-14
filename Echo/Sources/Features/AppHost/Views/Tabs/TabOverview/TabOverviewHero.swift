@@ -3,16 +3,16 @@ import SwiftUI
 extension TabOverviewView {
     var overviewHero: some View {
         ZStack(alignment: .bottomTrailing) {
-            VStack(alignment: .leading, spacing: 24) {
-                VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: SpacingTokens.lg) {
+                VStack(alignment: .leading, spacing: SpacingTokens.xxs2) {
                     Text("Tab Overview")
-                        .font(.system(size: 32, weight: .bold, design: .rounded))
+                        .font(TypographyTokens.hero.weight(.bold))
                     Text(heroSubtitle)
                         .font(TypographyTokens.prominent.weight(.regular))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(ColorTokens.Text.secondary)
                 }
 
-                HStack(alignment: .center, spacing: 16) {
+                HStack(alignment: .center, spacing: SpacingTokens.md) {
                     heroStat(icon: "rectangle.grid.2x2.fill", title: EchoFormatters.compactNumber(totalTabs), subtitle: "Open Tabs")
                     heroStat(icon: "bolt.fill", title: EchoFormatters.compactNumber(runningQueriesCount), subtitle: "Running")
                     heroStat(icon: "tablecells", title: EchoFormatters.compactNumber(totalRowCount), subtitle: "Rows Fetched")
@@ -35,7 +35,7 @@ extension TabOverviewView {
     }
 
     private func heroStat(icon: String, title: String, subtitle: String) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: SpacingTokens.xxs2) {
             Image(systemName: icon)
                 .font(TypographyTokens.prominent.weight(.semibold))
                 .foregroundStyle(heroAccentColor)
@@ -43,10 +43,10 @@ extension TabOverviewView {
                 .font(TypographyTokens.hero.weight(.semibold))
             Text(subtitle)
                 .font(TypographyTokens.caption2.weight(.medium))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(ColorTokens.Text.secondary)
         }
         .padding(.vertical, SpacingTokens.md)
-        .padding(.horizontal, 18)
+        .padding(.horizontal, SpacingTokens.md2)
         .frame(minWidth: 120, alignment: .leading)
         .background(
             RoundedRectangle(cornerRadius: 18, style: .continuous)
@@ -54,16 +54,16 @@ extension TabOverviewView {
         )
         .overlay(
             RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .stroke(Color.primary.opacity(colorScheme == .dark ? 0.15 : 0.06), lineWidth: 0.6)
+                .stroke(ColorTokens.Text.primary.opacity(colorScheme == .dark ? 0.15 : 0.06), lineWidth: 0.6)
         )
     }
 
     @ViewBuilder
     private var heroUpdateChip: some View {
         if let last = latestActivityDate {
-            heroChip(text: "Updated " + EchoFormatters.relativeDate(last), icon: "clock.arrow.circlepath", tint: .secondary)
+            heroChip(text: "Updated " + EchoFormatters.relativeDate(last), icon: "clock.arrow.circlepath", tint: ColorTokens.Text.secondary)
         } else {
-            heroChip(text: "No activity yet", icon: "clock.arrow.circlepath", tint: Color.secondary.opacity(0.6))
+            heroChip(text: "No activity yet", icon: "clock.arrow.circlepath", tint: ColorTokens.Text.secondary.opacity(0.6))
         }
     }
 
@@ -79,7 +79,7 @@ extension TabOverviewView {
         .padding(.vertical, SpacingTokens.xs)
         .background(
             Capsule(style: .continuous)
-                .fill(Color.primary.opacity(colorScheme == .dark ? 0.18 : 0.08))
+                .fill(ColorTokens.Text.primary.opacity(colorScheme == .dark ? 0.18 : 0.08))
         )
         .foregroundStyle(tint)
     }
