@@ -30,47 +30,51 @@ struct ObjectBrowserSidebarView: View {
 
     var body: some View {
         ScrollViewReader { proxy in
-            VStack(spacing: 0) {
-                VStack(spacing: 0) {
-                    ScrollView {
-                        LazyVStack(alignment: .leading, spacing: 0) {
-                            if sessions.isEmpty {
-                                if projectStore.globalSettings.showSavedConnectionsInExplorer && !savedConnectionsForExplorer.isEmpty {
-                                    savedConnectionsListView
-                                        .padding(.top, SpacingTokens.sm)
-                                } else {
-                                    emptyStateView
-                                        .padding(.horizontal, SpacingTokens.md)
-                                        .padding(.top, SpacingTokens.xl)
-                                }
-                            } else {
-                                ForEach(sessions, id: \.connection.id) { session in
-                                    if sidebarSearchQuery == nil || serverMatchesSearch(session) {
-                                        serverSection(session: session, proxy: proxy)
-                                    }
-                                }
+            ScrollView {
+                LazyVStack(spacing: 0) {
+                    Color.clear
+                        .frame(height: SpacingTokens.xxs2)
+                        .id(ExplorerSidebarConstants.objectsTopAnchor)
+
+                    if sessions.isEmpty {
+                        emptyStateView
+                            .padding(.horizontal, SpacingTokens.md)
+                            .padding(.top, SpacingTokens.xl)
+                    } else {
+                        ForEach(sessions, id: \.connection.id) { session in
+                            if sidebarSearchQuery == nil || serverMatchesSearch(session) {
+                                serverSection(session: session, proxy: proxy)
                             }
                         }
-                        .padding(.top, SpacingTokens.xs)
-                        .padding(.bottom, ExplorerSidebarConstants.scrollBottomPadding)
-                    }
-                    .scrollIndicators(.hidden)
-                    .contentShape(Rectangle())
-                    .coordinateSpace(name: ExplorerSidebarConstants.scrollCoordinateSpace)
-                    .task {
-                        syncSelectionWithSessions(proxy: proxy)
-                        viewModel.setupSearchDebounce(proxy: proxy)
-                    }
-                    .onChange(of: sessions.map { $0.connection.id }) { _, _ in syncSelectionWithSessions(proxy: proxy) }
-                    .onChange(of: selectedConnectionID) { _, newValue in
-                        guard let id = newValue, let session = environmentState.sessionCoordinator.sessionForConnection(id) else { return }
-                        environmentState.sessionCoordinator.setActiveSession(session.id)
-                        viewModel.ensureServerExpanded(for: id, sessions: sessions)
-                    }
-                    if !sessions.isEmpty {
-                        globalFooterView
+
+                        Color.clear
+                            .frame(height: ExplorerSidebarConstants.bottomControlHeight + ExplorerSidebarConstants.scrollBottomPadding + SpacingTokens.md2)
                     }
                 }
+            }
+            .buttonStyle(.plain)
+            .focusable(false)
+            .scrollContentBackground(.hidden)
+            .scrollIndicators(.hidden)
+            .contentMargins(.zero, for: .scrollContent)
+            .contentShape(Rectangle())
+            .coordinateSpace(name: ExplorerSidebarConstants.scrollCoordinateSpace)
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                if !sessions.isEmpty {
+                    globalFooterView
+                        .padding(.top, SpacingTokens.xxs2)
+                        .padding(.bottom, SpacingTokens.xxs2)
+                        .background(ColorTokens.Background.primary)
+                }
+            }
+            .task {
+                syncSelectionWithSessions(proxy: proxy)
+                viewModel.setupSearchDebounce(proxy: proxy)
+            }
+            .onChange(of: sessions.map { $0.connection.id }) { _, _ in syncSelectionWithSessions(proxy: proxy) }
+            .onChange(of: selectedConnectionID) { _, newValue in
+                guard let id = newValue, let session = environmentState.sessionCoordinator.sessionForConnection(id) else { return }
+                environmentState.sessionCoordinator.setActiveSession(session.id)
             }
             .onAppear {
                 viewModel.debouncedSearchText = viewModel.searchText
@@ -79,6 +83,7 @@ struct ObjectBrowserSidebarView: View {
             .onChange(of: navigationStore.pendingExplorerFocus) { _, focus in if let focus { handleExplorerFocus(focus, proxy: proxy) } }
             .onDisappear { viewModel.stopSearchDebounce() }
         }
+        .environmentObject(viewModel)
         .accessibilityIdentifier("object-browser-sidebar")
         .background(ExplorerSidebarFocusResetter(isSearchFieldFocused: $viewModel.isSearchFieldFocused).allowsHitTesting(false))
         .sheet(isPresented: $viewModel.showNewJobSheet) {
@@ -147,9 +152,78 @@ struct ObjectBrowserSidebarView: View {
                 }
             }
         }
+        .alert(
+            "Drop \"\(viewModel.dropDatabaseTarget?.databaseName ?? "")\"?",
+            isPresented: $viewModel.showDropDatabaseAlert
+        ) {
+            Button("Cancel", role: .cancel) {
+                viewModel.dropDatabaseTarget = nil
+            }
+            Button("Drop", role: .destructive) {
+                guard let target = viewModel.dropDatabaseTarget else { return }
+                viewModel.dropDatabaseTarget = nil
+                guard let session = environmentState.sessionCoordinator.sessionForConnection(target.connectionID) else { return }
+                Task {
+                    switch target.databaseType {
+                    case .postgresql:
+                        await dropPostgresDatabase(
+                            session: session,
+                            name: target.databaseName,
+                            cascade: target.variant == .cascade,
+                            force: target.variant == .force
+                        )
+                    default:
+                        await runMSSQLTask(session: session, database: target.databaseName, task: .drop)
+                    }
+                }
+            }
+        } message: {
+            if let target = viewModel.dropDatabaseTarget {
+                switch target.variant {
+                case .cascade:
+                    Text("This will drop the database and all dependent objects. This action cannot be undone.")
+                case .force:
+                    Text("This will forcefully terminate all connections and drop the database. This action cannot be undone.")
+                case .standard:
+                    Text("This will permanently delete the database \"\(target.databaseName)\". This action cannot be undone.")
+                }
+            }
+        }
+        .alert(
+            "Drop \(viewModel.dropSecurityPrincipalTarget?.kind.rawValue ?? "") \"\(viewModel.dropSecurityPrincipalTarget?.name ?? "")\"?",
+            isPresented: $viewModel.showDropSecurityPrincipalAlert
+        ) {
+            Button("Cancel", role: .cancel) {
+                viewModel.dropSecurityPrincipalTarget = nil
+            }
+            Button("Drop", role: .destructive) {
+                guard let target = viewModel.dropSecurityPrincipalTarget else { return }
+                viewModel.dropSecurityPrincipalTarget = nil
+                guard let session = environmentState.sessionCoordinator.sessionForConnection(target.connectionID) else { return }
+                Task {
+                    await executeDropSecurityPrincipal(target, session: session)
+                }
+            }
+        } message: {
+            if let target = viewModel.dropSecurityPrincipalTarget {
+                Text("This will permanently drop the \(target.kind.rawValue.lowercased()) \"\(target.name)\". This action cannot be undone.")
+            }
+        }
     }
 
-    // MARK: - Per-Server Section
+    // MARK: - Sidebar Row Wrapper
+
+    func sidebarListRow<Content: View>(id: AnyHashable? = nil, leading: CGFloat = 0, @ViewBuilder content: () -> Content) -> some View {
+        let row = content()
+            .padding(.leading, leading)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .focusEffectDisabled()
+
+        if let id {
+            return AnyView(row.id(id))
+        }
+        return AnyView(row)
+    }
 
     @ViewBuilder
     private func serverSection(session: ConnectionSession, proxy: ScrollViewProxy) -> some View {
@@ -158,20 +232,24 @@ struct ObjectBrowserSidebarView: View {
         let isSelected = connID == selectedConnectionID
 
         let isSearching = sidebarSearchQuery != nil
-        VStack(alignment: .leading, spacing: 0) {
+        VStack(alignment: .leading, spacing: SpacingTokens.xxxs) {
             serverHeaderRow(session: session, isExpanded: isExpanded || isSearching, isSelected: isSelected)
 
             if isExpanded || isSearching {
                 serverContent(session: session, proxy: proxy)
                     .padding(.leading, SidebarRowConstants.indentStep)
+                    .transition(.opacity)
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .task { viewModel.initializeSessionState(for: session, autoExpandSections: projectStore.globalSettings.sidebarExpandSections(for: session.connection.databaseType)) }
     }
 
     private func serverHeaderRow(session: ConnectionSession, isExpanded: Bool, isSelected: Bool) -> some View {
-        Button {
-            withAnimation(.easeInOut(duration: 0.2)) {
+        let accentColor = projectStore.globalSettings.accentColorSource == .connection ? session.connection.color : ColorTokens.accent
+
+        return Button {
+            withAnimation(.snappy(duration: 0.2, extraBounce: 0)) {
                 if isExpanded {
                     viewModel.expandedServerIDs.remove(session.connection.id)
                 } else {
@@ -181,62 +259,50 @@ struct ObjectBrowserSidebarView: View {
             selectedConnectionID = session.connection.id
             environmentState.sessionCoordinator.setActiveSession(session.id)
         } label: {
-            HStack(spacing: 8) {
-                Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
-                    .font(SidebarRowConstants.chevronFont)
-                    .foregroundStyle(.tertiary)
-                    .frame(width: SidebarRowConstants.chevronWidth)
+            ExplorerSidebarRowChrome(isSelected: false, accentColor: accentColor, style: .plain) {
+                HStack(spacing: SidebarRowConstants.iconTextSpacing) {
+                    Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
+                        .font(SidebarRowConstants.chevronFont)
+                        .foregroundStyle(ColorTokens.Text.tertiary)
+                        .frame(width: SidebarRowConstants.chevronWidth)
 
-                Image(session.connection.databaseType.iconName)
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: SidebarRowConstants.iconFrame, height: SidebarRowConstants.iconFrame)
+                    Image(session.connection.databaseType.iconName)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: SidebarRowConstants.iconFrame, height: SidebarRowConstants.iconFrame)
 
-                Text(serverDisplayName(session))
-                    .font(TypographyTokens.standard)
-                    .foregroundStyle(.primary)
-                    .lineLimit(1)
-
-                if let version = serverVersionLabel(session) {
-                    Text(version)
-                        .font(TypographyTokens.label)
-                        .foregroundStyle(.tertiary)
+                    Text(serverDisplayName(session))
+                        .font(isSelected ? TypographyTokens.standard.weight(.semibold) : TypographyTokens.standard)
+                        .foregroundStyle(session.isConnected ? ColorTokens.Text.primary : ColorTokens.Text.tertiary)
                         .lineLimit(1)
+
+                    if let version = serverVersionLabel(session) {
+                        Text(version)
+                            .font(TypographyTokens.compact)
+                            .foregroundStyle(ColorTokens.Text.tertiary)
+                            .padding(.horizontal, SpacingTokens.xxs)
+                            .padding(.vertical, SpacingTokens.xxs2)
+                            .background(
+                                RoundedRectangle(cornerRadius: 5, style: .continuous)
+                                    .fill(ColorTokens.Text.primary.opacity(0.06))
+                            )
+                            .lineLimit(1)
+                    }
+
+                    Spacer(minLength: SpacingTokens.xxxs)
                 }
-
-                Spacer(minLength: 4)
-
-                Circle()
-                    .fill(session.isConnected ? ColorTokens.Status.success : ColorTokens.Status.error)
-                    .frame(width: 6, height: 6)
+                .padding(.leading, SidebarRowConstants.rowHorizontalPadding)
+                .padding(.trailing, SidebarRowConstants.rowTrailingPadding)
+                .padding(.vertical, SidebarRowConstants.rowVerticalPadding)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
             }
-            .padding(.horizontal, SidebarRowConstants.rowHorizontalPadding)
-            .padding(.vertical, SidebarRowConstants.rowVerticalPadding)
-            .contentShape(Rectangle())
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .buttonStyle(.plain)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .contextMenu {
-            Button("Disconnect") {
-                Task { await environmentState.disconnectSession(withID: session.id) }
-            }
-            
-            if session.connection.databaseType == .postgresql {
-                Divider()
-                if projectStore.globalSettings.managedPostgresConsoleEnabled {
-                    Button {
-                        environmentState.openPSQLTab(for: session)
-                    } label: {
-                        Label("Postgres Console", systemImage: "terminal")
-                    }
-                }
-                if projectStore.globalSettings.nativePsqlEnabled {
-                    Button {
-                    } label: {
-                        Label("Native psql (Coming Soon)", systemImage: "chevron.left.forwardslash.chevron.right")
-                    }
-                    .disabled(true)
-                }
-            }
+            serverContextMenu(session: session)
         }
     }
 
@@ -247,7 +313,7 @@ struct ObjectBrowserSidebarView: View {
         switch session.structureLoadingState {
         case .ready, .loading:
             if let structure = session.databaseStructure, !structure.databases.isEmpty {
-                VStack(alignment: .leading, spacing: 0) {
+                VStack(alignment: .leading, spacing: SpacingTokens.xs) {
                     databasesFolderSection(session: session, structure: structure, proxy: proxy)
 
                     // Security folder — MSSQL and PostgreSQL
@@ -256,7 +322,7 @@ struct ObjectBrowserSidebarView: View {
                     }
 
                     if session.connection.databaseType == .microsoftSQL {
-                        managementFolderSection(session: session)
+                        agentJobsSection(session: session)
                     }
                 }
             } else if session.databaseStructure != nil {
@@ -279,20 +345,20 @@ struct ObjectBrowserSidebarView: View {
         let isExpanded = viewModel.databasesFolderExpandedBySession[connID] ?? true
         let isSearching = sidebarSearchQuery != nil
 
-        VStack(alignment: .leading, spacing: 0) {
+        VStack(alignment: .leading, spacing: SpacingTokens.xxxs) {
             folderHeaderRow(
                 title: "Databases",
-                icon: "square.stack.3d.up",
+                icon: "cylinder",
                 count: structure.databases.count,
                 isExpanded: isExpanded || isSearching
             ) {
-                withAnimation(.easeInOut(duration: 0.2)) {
+                withAnimation(.snappy(duration: 0.2, extraBounce: 0)) {
                     viewModel.databasesFolderExpandedBySession[connID] = !isExpanded
                 }
             }
 
             if isExpanded || isSearching {
-                VStack(alignment: .leading, spacing: 0) {
+                VStack(alignment: .leading, spacing: SpacingTokens.xxxs) {
                     ForEach(structure.databases, id: \.name) { database in
                         if databaseMatchesSearch(database, session: session) {
                             databaseSection(database: database, session: session, proxy: proxy)
@@ -300,70 +366,49 @@ struct ObjectBrowserSidebarView: View {
                     }
                 }
                 .padding(.leading, SidebarRowConstants.indentStep)
+                .transition(.opacity)
             }
         }
-    }
-
-    // MARK: - Management Folder (MSSQL)
-
-    @ViewBuilder
-    private func managementFolderSection(session: ConnectionSession) -> some View {
-        let connID = session.connection.id
-        let isExpanded = viewModel.managementFolderExpandedBySession[connID] ?? false
-
-        VStack(alignment: .leading, spacing: 0) {
-            folderHeaderRow(
-                title: "Management",
-                icon: "gearshape.2",
-                count: nil,
-                isExpanded: isExpanded
-            ) {
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    viewModel.managementFolderExpandedBySession[connID] = !isExpanded
-                }
-            }
-
-            if isExpanded {
-                VStack(alignment: .leading, spacing: 0) {
-                    agentJobsSection(session: session)
-                }
-                .padding(.leading, SidebarRowConstants.indentStep)
-            }
-        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     // MARK: - Folder Header Row
 
     func folderHeaderRow(title: String, icon: String, count: Int?, isExpanded: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            HStack(spacing: 8) {
-                Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
-                    .font(SidebarRowConstants.chevronFont)
-                    .foregroundStyle(.tertiary)
-                    .frame(width: SidebarRowConstants.chevronWidth)
+            ExplorerSidebarRowChrome(isSelected: false, accentColor: ColorTokens.accent, style: .plain) {
+                HStack(spacing: SidebarRowConstants.iconTextSpacing) {
+                    Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
+                        .font(SidebarRowConstants.chevronFont)
+                        .foregroundStyle(ColorTokens.Text.tertiary)
+                        .frame(width: SidebarRowConstants.chevronWidth)
 
-                Image(systemName: icon)
-                    .font(.system(size: 12))
-                    .foregroundStyle(.secondary)
-                    .frame(width: SidebarRowConstants.iconFrame)
+                    Image(systemName: icon)
+                        .font(SidebarRowConstants.iconFont)
+                        .foregroundStyle(ExplorerSidebarPalette.folderIconColor(title: title, colored: projectStore.globalSettings.sidebarColoredIcons))
+                        .frame(width: SidebarRowConstants.iconFrame)
 
-                Text(title)
-                    .font(TypographyTokens.standard)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
+                    Text(title)
+                        .font(TypographyTokens.standard)
+                        .foregroundStyle(ColorTokens.Text.primary)
+                        .lineLimit(1)
 
-                if let count {
-                    Text("\(count)")
-                        .font(TypographyTokens.label)
-                        .foregroundStyle(.tertiary)
+                    Spacer(minLength: SpacingTokens.xxxs)
+
+                    if let count {
+                        Text("\(count)")
+                            .font(TypographyTokens.detail)
+                            .foregroundStyle(ColorTokens.Text.tertiary)
+                    }
                 }
-
-                Spacer(minLength: 4)
+                .padding(.leading, SidebarRowConstants.rowHorizontalPadding)
+                .padding(.trailing, SidebarRowConstants.rowTrailingPadding)
+                .padding(.vertical, SidebarRowConstants.rowVerticalPadding)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
             }
-            .padding(.horizontal, SidebarRowConstants.rowHorizontalPadding)
-            .padding(.vertical, SidebarRowConstants.rowVerticalPadding)
-            .contentShape(Rectangle())
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .buttonStyle(.plain)
     }
 
@@ -376,7 +421,7 @@ struct ObjectBrowserSidebarView: View {
         let isSelected = database.name == session.selectedDatabaseName
         let hasSchemas = !database.schemas.isEmpty && database.schemas.contains(where: { !$0.objects.isEmpty })
 
-        VStack(alignment: .leading, spacing: 0) {
+        VStack(alignment: .leading, spacing: SpacingTokens.xxxs) {
             databaseHeaderRow(
                 database: database,
                 session: session,
@@ -387,55 +432,66 @@ struct ObjectBrowserSidebarView: View {
             if isExpanded {
                 databaseContent(database: database, session: session, hasSchemas: hasSchemas, proxy: proxy)
                     .padding(.leading, SidebarRowConstants.indentStep)
+                    .transition(.opacity)
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func databaseHeaderRow(database: DatabaseInfo, session: ConnectionSession, isExpanded: Bool, isSelected: Bool) -> some View {
         let connID = session.connection.id
         let isLoading = viewModel.isDatabaseLoading(connectionID: connID, databaseName: database.name)
-        let accentColor = projectStore.globalSettings.accentColorSource == .connection ? session.connection.color : Color.accentColor
+        let accentColor = projectStore.globalSettings.accentColorSource == .connection ? session.connection.color : ColorTokens.accent
 
         return Button {
-            withAnimation(.easeInOut(duration: 0.2)) {
+            withAnimation(.snappy(duration: 0.2, extraBounce: 0)) {
                 viewModel.toggleDatabaseExpanded(connectionID: connID, databaseName: database.name)
             }
-        } label: {
-            HStack(spacing: 8) {
-                Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
-                    .font(SidebarRowConstants.chevronFont)
-                    .foregroundStyle(.tertiary)
-                    .frame(width: SidebarRowConstants.chevronWidth)
-
-                Image(systemName: isSelected ? "internaldrive.fill" : "internaldrive")
-                    .font(.system(size: 12))
-                    .foregroundStyle(database.isOnline ? (isSelected ? accentColor : Color.secondary) : Color(nsColor: .quaternaryLabelColor))
-                    .frame(width: SidebarRowConstants.iconFrame)
-
-                Text(database.name)
-                    .font(TypographyTokens.standard)
-                    .foregroundStyle(database.isOnline ? Color.primary : Color.secondary)
-                    .lineLimit(1)
-
-                if !database.isOnline, let state = database.stateDescription {
-                    Text(state.uppercased())
-                        .font(TypographyTokens.label)
-                        .foregroundStyle(.quaternary)
-                        .lineLimit(1)
-                }
-
-                if isLoading {
-                    ProgressView()
-                        .controlSize(.mini)
-                }
-
-                Spacer(minLength: 4)
+            // Update the session's selected database when expanding
+            if viewModel.isDatabaseExpanded(connectionID: connID, databaseName: database.name) {
+                session.selectedDatabaseName = database.name
             }
-            .opacity(database.isOnline ? 1 : 0.5)
-            .padding(.horizontal, SidebarRowConstants.rowHorizontalPadding)
-            .padding(.vertical, SidebarRowConstants.rowVerticalPadding)
-            .contentShape(Rectangle())
+        } label: {
+            ExplorerSidebarRowChrome(isSelected: isSelected, accentColor: accentColor, style: .plain) {
+                HStack(spacing: SidebarRowConstants.iconTextSpacing) {
+                    Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
+                        .font(SidebarRowConstants.chevronFont)
+                        .foregroundStyle(ColorTokens.Text.tertiary)
+                        .frame(width: SidebarRowConstants.chevronWidth)
+
+                    Image(systemName: isSelected ? "internaldrive.fill" : "internaldrive")
+                        .font(SidebarRowConstants.iconFont)
+                        .foregroundStyle(database.isOnline ? (isSelected ? accentColor : ExplorerSidebarPalette.database) : Color(nsColor: .quaternaryLabelColor))
+                        .frame(width: SidebarRowConstants.iconFrame)
+
+                    Text(database.name)
+                        .font(TypographyTokens.standard)
+                        .foregroundStyle(database.isOnline ? ColorTokens.Text.primary : ColorTokens.Text.secondary)
+                        .lineLimit(1)
+
+                    Spacer(minLength: SpacingTokens.xxxs)
+
+                    if !database.isOnline, let state = database.stateDescription {
+                        Text(state.uppercased())
+                            .font(TypographyTokens.compact)
+                            .foregroundStyle(ColorTokens.Text.quaternary)
+                            .lineLimit(1)
+                    }
+
+                    if isLoading {
+                        ProgressView()
+                            .controlSize(.mini)
+                    }
+                }
+                .opacity(database.isOnline ? 1 : 0.5)
+                .padding(.leading, SidebarRowConstants.rowHorizontalPadding)
+                .padding(.trailing, SidebarRowConstants.rowTrailingPadding)
+                .padding(.vertical, SidebarRowConstants.rowVerticalPadding)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
+            }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .buttonStyle(.plain)
         .contextMenu {
             databaseContextMenu(database: database, session: session)
@@ -447,64 +503,67 @@ struct ObjectBrowserSidebarView: View {
         let connID = session.connection.id
         let isLoading = viewModel.isDatabaseLoading(connectionID: connID, databaseName: database.name)
         let alreadyLoaded = viewModel.isDatabaseSchemaLoadedOnce(connectionID: connID, databaseName: database.name)
+        let needsLoad = !hasSchemas && !isLoading && !alreadyLoaded
 
-        if hasSchemas {
-            VStack(spacing: 2) {
-                Color.clear.frame(height: 0)
-                    .id("\(connID)-\(database.name)-objects-top")
+        Group {
+            if hasSchemas {
+                VStack(spacing: SpacingTokens.xxxs) {
+                    Color.clear.frame(height: 0)
+                        .id("\(connID)-\(database.name)-objects-top")
 
-                DatabaseObjectBrowserView(
-                    database: database,
-                    connection: session.connection,
-                    searchText: $viewModel.debouncedSearchText,
-                    selectedSchemaName: viewModel.selectedSchemaNameBinding(for: connID),
-                    expandedObjectGroups: viewModel.expandedObjectGroupsBinding(for: connID),
-                    expandedObjectIDs: viewModel.expandedObjectIDsBinding(for: connID),
-                    pinnedObjectIDs: viewModel.pinnedObjectsBinding(for: database, connectionID: connID),
-                    isPinnedSectionExpanded: viewModel.pinnedSectionExpandedBinding(for: database, connectionID: connID),
-                    scrollTo: { id, anchor in
-                        withAnimation(.easeInOut(duration: 0.3)) {
-                            proxy.scrollTo(id, anchor: anchor)
+                    DatabaseObjectBrowserView(
+                        database: database,
+                        connection: session.connection,
+                        searchText: $viewModel.debouncedSearchText,
+                        selectedSchemaName: viewModel.selectedSchemaNameBinding(for: connID, database: database.name),
+                        expandedObjectGroups: viewModel.expandedObjectGroupsBinding(for: connID, database: database.name),
+                        expandedObjectIDs: viewModel.expandedObjectIDsBinding(for: connID, database: database.name),
+                        pinnedObjectIDs: viewModel.pinnedObjectsBinding(for: database, connectionID: connID),
+                        isPinnedSectionExpanded: viewModel.pinnedSectionExpandedBinding(for: database, connectionID: connID),
+                        scrollTo: { id, anchor in
+                            withAnimation(.easeInOut(duration: 0.3)) {
+                                proxy.scrollTo(id, anchor: anchor)
+                            }
+                        },
+                        onNewExtension: {
+                            environmentState.openExtensionsManagerTab(connectionID: connID, databaseName: database.name)
                         }
-                    }
-                )
-                .environmentObject(environmentState)
-                .padding(.horizontal, SpacingTokens.xxs)
+                    )
+                    .environmentObject(environmentState)
+                    .environmentObject(viewModel)
+                    .padding(.horizontal, SpacingTokens.xxs)
 
-                // Database-level Security
-                if session.connection.databaseType == .microsoftSQL || session.connection.databaseType == .postgresql {
-                    databaseSecuritySection(database: database, session: session)
-                        .padding(.horizontal, SpacingTokens.xxs)
+                    // Database-level Security
+                    if session.connection.databaseType == .microsoftSQL || session.connection.databaseType == .postgresql {
+                        databaseSecuritySection(database: database, session: session)
+                            .environmentObject(viewModel)
+                            .padding(.horizontal, SpacingTokens.xxs)
+                    }
                 }
-            }
-        } else if isLoading {
-            HStack(spacing: 6) {
-                ProgressView()
-                    .controlSize(.small)
-                Text("Loading…")
+            } else if alreadyLoaded {
+                // Schema was fetched but the database has no user objects — don't re-fetch
+                Text("No objects")
                     .font(TypographyTokens.detail)
-                    .foregroundStyle(.secondary)
-            }
-            .padding(.horizontal, SpacingTokens.sm)
-            .padding(.vertical, SpacingTokens.xxs)
-        } else if alreadyLoaded {
-            // Schema was fetched but the database has no user objects — don't re-fetch
-            Text("No objects")
-                .font(TypographyTokens.detail)
-                .foregroundStyle(.tertiary)
+                    .foregroundStyle(ColorTokens.Text.tertiary)
+                    .padding(.horizontal, SpacingTokens.sm)
+                    .padding(.vertical, SpacingTokens.xxs)
+            } else {
+                HStack(spacing: SpacingTokens.xxs2) {
+                    ProgressView()
+                        .controlSize(.small)
+                    Text("Loading\u{2026}")
+                        .font(TypographyTokens.detail)
+                        .foregroundStyle(ColorTokens.Text.secondary)
+                }
                 .padding(.horizontal, SpacingTokens.sm)
                 .padding(.vertical, SpacingTokens.xxs)
-        } else {
-            HStack(spacing: 6) {
-                ProgressView()
-                    .controlSize(.small)
-                Text("Loading objects\u{2026}")
-                    .font(TypographyTokens.detail)
-                    .foregroundStyle(.secondary)
             }
-            .padding(.horizontal, SpacingTokens.sm)
-            .padding(.vertical, SpacingTokens.xxs)
-            .task {
+        }
+        .onAppear {
+            guard needsLoad else { return }
+            // Use an unstructured Task so SwiftUI view re-renders (caused by
+            // setDatabaseLoading) cannot cancel the in-flight connection.
+            Task { @MainActor in
                 viewModel.setDatabaseLoading(connectionID: connID, databaseName: database.name, loading: true)
                 await environmentState.loadSchemaForDatabase(database.name, connectionSession: session)
                 viewModel.setDatabaseLoading(connectionID: connID, databaseName: database.name, loading: false)
@@ -515,32 +574,32 @@ struct ObjectBrowserSidebarView: View {
     // MARK: - Compact Inline States
 
     private func loadingHint() -> some View {
-        HStack(spacing: 6) {
+        HStack(spacing: SpacingTokens.xxs2) {
             ProgressView()
                 .controlSize(.small)
             Text("Loading…")
                 .font(TypographyTokens.detail)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(ColorTokens.Text.secondary)
         }
         .padding(.horizontal, SpacingTokens.md)
         .padding(.vertical, SpacingTokens.xs)
     }
 
     private func failureHint(message: String?, session: ConnectionSession) -> some View {
-        HStack(spacing: 6) {
+        HStack(spacing: SpacingTokens.xxs2) {
             Image(systemName: "exclamationmark.triangle.fill")
                 .font(TypographyTokens.label)
-                .foregroundStyle(.orange)
+                .foregroundStyle(ColorTokens.Status.warning)
             Text(message ?? "Failed to load")
                 .font(TypographyTokens.detail)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(ColorTokens.Text.secondary)
                 .lineLimit(2)
             Button("Retry") {
                 Task { await environmentState.refreshDatabaseStructure(for: session.id) }
             }
             .buttonStyle(.plain)
-            .font(TypographyTokens.detail.weight(.medium))
-            .foregroundStyle(Color.accentColor)
+            .font(TypographyTokens.detail)
+            .foregroundStyle(ColorTokens.accent)
         }
         .padding(.horizontal, SpacingTokens.md)
         .padding(.vertical, SpacingTokens.xs)
@@ -629,41 +688,126 @@ struct ObjectBrowserSidebarView: View {
         }
     }
 
-    // MARK: - Saved Connections in Explorer
-
-    internal var savedConnectionsForExplorer: [SavedConnection] {
-        guard let projectID = projectStore.selectedProject?.id else { return [] }
-        return connectionStore.connections
-            .filter { $0.projectID == projectID }
-            .sorted { $0.connectionName.localizedCaseInsensitiveCompare($1.connectionName) == .orderedAscending }
-    }
+    // MARK: - Object Group Context Menu
 
     @ViewBuilder
-    internal var savedConnectionsListView: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            HStack(spacing: 6) {
-                Image(systemName: "externaldrive")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(.secondary)
-                Text("Saved Connections")
-                    .font(TypographyTokens.detail.weight(.medium))
-                    .foregroundStyle(.secondary)
-                Spacer()
+    private func objectGroupContextMenu(type: SchemaObjectInfo.ObjectType, database: DatabaseInfo, session: ConnectionSession) -> some View {
+        let connID = session.connection.id
+        let creationTitle = objectGroupCreationTitle(for: type)
+        if let title = creationTitle {
+            let item = creationOptions(for: session.connection.databaseType).first { $0.title == title }
+            if let item {
+                Button {
+                    handleCreationAction(item, session: session, database: database)
+                } label: {
+                    Label(title, systemImage: "plus")
+                }
+            } else {
+                Button {} label: {
+                    Label(title, systemImage: "plus")
+                }
+                .disabled(true)
             }
-            .padding(.horizontal, SidebarRowConstants.rowHorizontalPadding)
-            .padding(.vertical, SidebarRowConstants.rowVerticalPadding)
+            Divider()
+        }
 
-            ForEach(savedConnectionsForExplorer, id: \.id) { connection in
-                SavedConnectionExplorerRow(
-                    connection: connection,
-                    isConnecting: environmentState.connectionStates[connection.id]?.isLoading == true,
-                    onConnect: {
-                        Task {
-                            await connectToSavedConnection(connection)
-                        }
-                    }
-                )
+        Button {
+            viewModel.setDatabaseLoading(connectionID: connID, databaseName: database.name, loading: true)
+            Task {
+                await environmentState.loadSchemaForDatabase(database.name, connectionSession: session)
+                viewModel.setDatabaseLoading(connectionID: connID, databaseName: database.name, loading: false)
             }
+        } label: {
+            Label("Refresh", systemImage: "arrow.clockwise")
+        }
+    }
+
+    private func objectGroupCreationTitle(for type: SchemaObjectInfo.ObjectType) -> String? {
+        switch type {
+        case .table: "New Table"
+        case .view: "New View"
+        case .materializedView: "New Materialized View"
+        case .function: "New Function"
+        case .procedure: "New Procedure"
+        case .trigger: "New Trigger"
+        case .extension: "New Extension"
+        }
+    }
+
+    // MARK: - Databases Folder Context Menu
+
+    @ViewBuilder
+    private func databasesFolderContextMenu(session: ConnectionSession) -> some View {
+        Button {
+            let sql: String
+            switch session.connection.databaseType {
+            case .postgresql:
+                sql = """
+                CREATE DATABASE new_database
+                    OWNER = current_user
+                    ENCODING = 'UTF8'
+                    LC_COLLATE = 'en_US.UTF-8'
+                    LC_CTYPE = 'en_US.UTF-8'
+                    TEMPLATE = template0;
+                """
+            case .microsoftSQL:
+                sql = """
+                CREATE DATABASE [NewDatabase]
+                GO
+                """
+            default:
+                sql = "CREATE DATABASE new_database;"
+            }
+            environmentState.openQueryTab(for: session, presetQuery: sql)
+        } label: {
+            Label("New Database\u{2026}", systemImage: "plus")
+        }
+
+        Divider()
+
+        Button {
+            Task {
+                await environmentState.refreshDatabaseStructure(for: session.id, scope: .full)
+            }
+        } label: {
+            Label("Refresh", systemImage: "arrow.clockwise")
+        }
+    }
+
+    // MARK: - Server Context Menu
+
+    @ViewBuilder
+    private func serverContextMenu(session: ConnectionSession) -> some View {
+        Button {
+            environmentState.openActivityMonitorTab(connectionID: session.connection.id)
+        } label: {
+            Label("Activity Monitor", systemImage: "gauge.with.dots.needle.33percent")
+        }
+
+        Divider()
+
+        Button {
+            environmentState.openQueryTab(for: session)
+        } label: {
+            Label("New Query", systemImage: "doc.badge.plus")
+        }
+
+        Divider()
+
+        Button {
+            Task {
+                await environmentState.refreshDatabaseStructure(for: session.id, scope: .full)
+            }
+        } label: {
+            Label("Refresh All", systemImage: "arrow.clockwise")
+        }
+
+        Button {
+            Task {
+                await environmentState.disconnectSession(withID: session.id)
+            }
+        } label: {
+            Label("Disconnect", systemImage: "xmark.circle")
         }
     }
 
@@ -673,20 +817,24 @@ struct ObjectBrowserSidebarView: View {
     private func databaseContextMenu(database: DatabaseInfo, session: ConnectionSession) -> some View {
         let connID = session.connection.id
 
-        Button("Refresh Schema") {
+        Button {
             viewModel.ensureDatabaseExpanded(connectionID: connID, databaseName: database.name)
             viewModel.setDatabaseLoading(connectionID: connID, databaseName: database.name, loading: true)
             Task {
                 await environmentState.loadSchemaForDatabase(database.name, connectionSession: session)
                 viewModel.setDatabaseLoading(connectionID: connID, databaseName: database.name, loading: false)
             }
+        } label: {
+            Label("Refresh Schema", systemImage: "arrow.clockwise")
         }
 
         Divider()
 
         // New Query in this database
-        Button("New Query") {
+        Button {
             environmentState.openQueryTab(for: session)
+        } label: {
+            Label("New Query", systemImage: "doc.badge.plus")
         }
 
         if session.connection.databaseType == .postgresql {
@@ -710,7 +858,7 @@ struct ObjectBrowserSidebarView: View {
 
         // PostgreSQL-specific operations
         if session.connection.databaseType == .postgresql {
-            Menu("Maintenance") {
+            Menu {
                 Button("VACUUM") {
                     Task { await runPostgresMaintenance(session: session, database: database.name, operation: .vacuum) }
                 }
@@ -726,6 +874,8 @@ struct ObjectBrowserSidebarView: View {
                 Button("REINDEX") {
                     Task { await runPostgresMaintenance(session: session, database: database.name, operation: .reindex) }
                 }
+            } label: {
+                Label("Maintenance", systemImage: "wrench.and.screwdriver")
             }
 
             Divider()
@@ -733,7 +883,7 @@ struct ObjectBrowserSidebarView: View {
 
         // MSSQL-specific operations
         if session.connection.databaseType == .microsoftSQL {
-            Menu("Tasks") {
+            Menu {
                 if database.isOnline {
                     Button("Shrink Database") {
                         Task { await runMSSQLTask(session: session, database: database.name, task: .shrink) }
@@ -749,6 +899,8 @@ struct ObjectBrowserSidebarView: View {
                         Task { await runMSSQLTask(session: session, database: database.name, task: .bringOnline) }
                     }
                 }
+            } label: {
+                Label("Tasks", systemImage: "gearshape")
             }
 
             Divider()
@@ -756,27 +908,41 @@ struct ObjectBrowserSidebarView: View {
 
         // Drop / Delete
         if session.connection.databaseType == .postgresql {
-            Button("Drop Database", role: .destructive) {
-                Task { await dropPostgresDatabase(session: session, name: database.name, cascade: false, force: false) }
+            Button(role: .destructive) {
+                viewModel.dropDatabaseTarget = .init(sessionID: session.id, connectionID: connID, databaseName: database.name, databaseType: .postgresql, variant: .standard)
+                viewModel.showDropDatabaseAlert = true
+            } label: {
+                Label("Drop Database", systemImage: "trash")
             }
-            Button("Drop Database (Cascade)", role: .destructive) {
-                Task { await dropPostgresDatabase(session: session, name: database.name, cascade: true, force: false) }
+            Button(role: .destructive) {
+                viewModel.dropDatabaseTarget = .init(sessionID: session.id, connectionID: connID, databaseName: database.name, databaseType: .postgresql, variant: .cascade)
+                viewModel.showDropDatabaseAlert = true
+            } label: {
+                Label("Drop Database (Cascade)", systemImage: "trash")
             }
-            Button("Drop Database (Force)", role: .destructive) {
-                Task { await dropPostgresDatabase(session: session, name: database.name, cascade: false, force: true) }
+            Button(role: .destructive) {
+                viewModel.dropDatabaseTarget = .init(sessionID: session.id, connectionID: connID, databaseName: database.name, databaseType: .postgresql, variant: .force)
+                viewModel.showDropDatabaseAlert = true
+            } label: {
+                Label("Drop Database (Force)", systemImage: "trash")
             }
         } else {
-            Button("Drop Database", role: .destructive) {
-                Task { await runMSSQLTask(session: session, database: database.name, task: .drop) }
+            Button(role: .destructive) {
+                viewModel.dropDatabaseTarget = .init(sessionID: session.id, connectionID: connID, databaseName: database.name, databaseType: session.connection.databaseType, variant: .standard)
+                viewModel.showDropDatabaseAlert = true
+            } label: {
+                Label("Drop Database", systemImage: "trash")
             }
         }
 
         Divider()
 
-        Button("Properties\u{2026}") {
+        Button {
             viewModel.propertiesDatabaseName = database.name
             viewModel.propertiesConnectionID = connID
             viewModel.showDatabaseProperties = true
+        } label: {
+            Label("Properties\u{2026}", systemImage: "info.circle")
         }
     }
 
@@ -789,7 +955,7 @@ struct ObjectBrowserSidebarView: View {
     private func runPostgresMaintenance(session: ConnectionSession, database: String, operation: PostgresMaintenanceOp) async {
         guard let pgSession = session.session as? PostgresSession else { return }
 
-        let admin = PostgresAdmin(client: pgSession.client, logger: pgSession.logger)
+        let admin = pgSession.client.admin
         do {
             switch operation {
             case .vacuum:
@@ -805,7 +971,7 @@ struct ObjectBrowserSidebarView: View {
             }
         } catch {
             await MainActor.run {
-                environmentState.toastCoordinator.show(icon: "exclamationmark.triangle", message: "Maintenance failed: \(error.localizedDescription)", style: .error)
+                environmentState.notificationEngine?.post(category: .maintenanceFailed, message: "Maintenance failed: \(error.localizedDescription)")
             }
         }
     }
@@ -816,13 +982,13 @@ struct ObjectBrowserSidebarView: View {
         guard let pgSession = session.session as? PostgresSession else { return }
 
         do {
-            _ = try await pgSession.client.dropDatabase(name: name, ifExists: true, withForce: force)
+            _ = try await pgSession.client.admin.dropDatabase(name: name, ifExists: true, withForce: force)
             Task { @MainActor in
                 await environmentState.refreshDatabaseStructure(for: session.id)
             }
         } catch {
             await MainActor.run {
-                environmentState.toastCoordinator.show(icon: "exclamationmark.triangle", message: "Drop failed: \(error.localizedDescription)", style: .error)
+                environmentState.notificationEngine?.post(category: .generalError, message: "Drop failed: \(error.localizedDescription)")
             }
         }
     }
@@ -835,7 +1001,7 @@ struct ObjectBrowserSidebarView: View {
 
     private func runMSSQLTask(session: ConnectionSession, database: String, task: MSSQLDatabaseTask) async {
         guard let mssqlSession = session.session as? MSSQLSession else { return }
-        let admin = mssqlSession.makeAdministrationClient()
+        let admin = mssqlSession.admin
 
         do {
             let messages: [SQLServerStreamMessage]
@@ -855,7 +1021,7 @@ struct ObjectBrowserSidebarView: View {
             let toastMessage = infoMessages.map(\.message).joined(separator: " ").trimmingCharacters(in: .whitespacesAndNewlines)
             await MainActor.run {
                 if !toastMessage.isEmpty {
-                    environmentState.toastCoordinator.show(icon: "checkmark.circle", message: toastMessage, style: .success)
+                    environmentState.notificationEngine?.post(category: .maintenanceCompleted, message: toastMessage)
                 }
                 // Refresh structure to update database states in the sidebar
                 Task {
@@ -864,7 +1030,7 @@ struct ObjectBrowserSidebarView: View {
             }
         } catch {
             await MainActor.run {
-                environmentState.toastCoordinator.show(icon: "exclamationmark.triangle", message: "Task failed: \(error.localizedDescription)", style: .error)
+                environmentState.notificationEngine?.post(category: .maintenanceFailed, message: "Task failed: \(error.localizedDescription)")
             }
         }
     }

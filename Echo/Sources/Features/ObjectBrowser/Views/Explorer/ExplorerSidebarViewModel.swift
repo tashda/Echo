@@ -8,6 +8,7 @@ final class ObjectBrowserSidebarViewModel: ObservableObject {
     @Published var debouncedSearchText = ""
     @Published var isSearchFieldFocused = false
     @Published var expandedServerIDs: Set<UUID> = []
+    @Published var selectedObjectID: String?
     @Published var knownSessionIDs: Set<UUID> = []
 
     /// Maps connection ID → session ID for the last initialized session.
@@ -16,9 +17,11 @@ final class ObjectBrowserSidebarViewModel: ObservableObject {
 
     // Per-session state
     @Published var expandedDatabasesBySession: [UUID: Set<String>] = [:]
-    @Published var expandedObjectGroupsBySession: [UUID: Set<SchemaObjectInfo.ObjectType>] = [:]
-    @Published var expandedObjectIDsBySession: [UUID: Set<String>] = [:]
-    @Published var selectedSchemaNameBySession: [UUID: String] = [:]
+    @Published var expandedObjectGroupsBySession: [String: Set<SchemaObjectInfo.ObjectType>] = [:]
+    @Published var expandedObjectIDsBySession: [String: Set<String>] = [:]
+    @Published var selectedSchemaNameBySession: [String: String] = [:]
+    /// Stores the auto-expand object types per connection, derived from sidebar settings at init time.
+    private var defaultExpandedObjectTypes: [UUID: Set<SchemaObjectInfo.ObjectType>] = [:]
     @Published var pinnedObjectIDsByDatabase: [String: Set<String>] = [:]
     @Published var pinnedSectionExpandedByDatabase: [String: Bool] = [:]
     @Published var databaseSchemaLoadingStates: [String: Bool] = [:]
@@ -82,6 +85,44 @@ final class ObjectBrowserSidebarViewModel: ObservableObject {
     @Published var propertiesDatabaseName: String?
     @Published var propertiesConnectionID: UUID?
 
+    // Drop database confirmation
+    @Published var showDropDatabaseAlert = false
+    @Published var dropDatabaseTarget: DropDatabaseTarget?
+
+    struct DropDatabaseTarget {
+        let sessionID: UUID
+        let connectionID: UUID
+        let databaseName: String
+        let databaseType: DatabaseType
+        let variant: DropVariant
+    }
+
+    enum DropVariant {
+        case standard
+        case cascade
+        case force
+    }
+
+    // Drop security principal confirmation
+    @Published var showDropSecurityPrincipalAlert = false
+    @Published var dropSecurityPrincipalTarget: DropSecurityPrincipalTarget?
+
+    struct DropSecurityPrincipalTarget {
+        let sessionID: UUID
+        let connectionID: UUID
+        let name: String
+        let kind: SecurityPrincipalKind
+        /// Database name, only for database-scoped principals (e.g. MSSQL users).
+        let databaseName: String?
+    }
+
+    enum SecurityPrincipalKind: String {
+        case pgRole = "Role"
+        case mssqlLogin = "Login"
+        case mssqlUser = "User"
+        case mssqlServerRole = "Server Role"
+    }
+
     struct AgentJobItem: Identifiable, Hashable {
         let id: String
         let name: String
@@ -133,7 +174,7 @@ final class ObjectBrowserSidebarViewModel: ObservableObject {
         let name: String
         let owner: String?
     }
-    
+
     private var searchDebounceTask: Task<Void, Never>?
     private var cancellables = Set<AnyCancellable>()
     /// Tracks whether a debounce observer is already running.
@@ -189,10 +230,11 @@ final class ObjectBrowserSidebarViewModel: ObservableObject {
         }
         guard let targetSession = session ?? selectedSession else { return }
         let connID = targetSession.connection.id
-        selectedSchemaNameBySession.removeValue(forKey: connID)
-        expandedObjectIDsBySession.removeValue(forKey: connID)
-        let supportedSet = Set(supportedObjectTypes(for: targetSession))
-        expandedObjectGroupsBySession[connID] = supportedSet
+        let prefix = connID.uuidString + "#"
+        for key in selectedSchemaNameBySession.keys where key.hasPrefix(prefix) { selectedSchemaNameBySession.removeValue(forKey: key) }
+        for key in expandedObjectIDsBySession.keys where key.hasPrefix(prefix) { expandedObjectIDsBySession.removeValue(forKey: key) }
+        let defaults = defaultExpandedObjectTypes[connID] ?? Set(SchemaObjectInfo.ObjectType.allCases)
+        for key in expandedObjectGroupsBySession.keys where key.hasPrefix(prefix) { expandedObjectGroupsBySession[key] = defaults }
     }
 
     private func supportedObjectTypes(for session: ConnectionSession?) -> [SchemaObjectInfo.ObjectType] {
@@ -203,16 +245,15 @@ final class ObjectBrowserSidebarViewModel: ObservableObject {
     func initializeSessionState(for session: ConnectionSession, autoExpandSections: Set<SidebarAutoExpandSection> = [.databases]) {
         let connID = session.connection.id
         let sessionID = session.id
-        let supported = Set(supportedObjectTypes(for: session))
-
         // Detect reconnect: same connection ID but different session ID
         let isNewSession = lastInitializedSessionID[connID] != sessionID
+        let prefix = connID.uuidString + "#"
         if isNewSession {
             lastInitializedSessionID[connID] = sessionID
             // Clear stale expansion state so settings are re-applied
-            expandedObjectGroupsBySession.removeValue(forKey: connID)
+            for key in expandedObjectGroupsBySession.keys where key.hasPrefix(prefix) { expandedObjectGroupsBySession.removeValue(forKey: key) }
             expandedDatabasesBySession.removeValue(forKey: connID)
-            expandedObjectIDsBySession.removeValue(forKey: connID)
+            for key in expandedObjectIDsBySession.keys where key.hasPrefix(prefix) { expandedObjectIDsBySession.removeValue(forKey: key) }
             databasesFolderExpandedBySession.removeValue(forKey: connID)
             managementFolderExpandedBySession.removeValue(forKey: connID)
             agentJobsExpandedBySession.removeValue(forKey: connID)
@@ -237,31 +278,26 @@ final class ObjectBrowserSidebarViewModel: ObservableObject {
             for key in dbSecurityLoadingByDB.keys where key.hasPrefix(prefix) { dbSecurityLoadingByDB.removeValue(forKey: key) }
         }
 
-        if expandedObjectGroupsBySession[connID] == nil {
-            var groups = Set<SchemaObjectInfo.ObjectType>()
-            for section in autoExpandSections {
-                if let objectType = section.objectType, supported.contains(objectType) {
-                    groups.insert(objectType)
-                }
+        // Compute and cache the default expanded object types from sidebar settings.
+        var defaultGroups = Set<SchemaObjectInfo.ObjectType>()
+        for section in autoExpandSections {
+            if let objectType = section.objectType {
+                defaultGroups.insert(objectType)
             }
-            expandedObjectGroupsBySession[connID] = groups
+        }
+        let previousDefaultGroups = defaultExpandedObjectTypes[connID]
+        defaultExpandedObjectTypes[connID] = defaultGroups
+
+        if previousDefaultGroups != nil, previousDefaultGroups != defaultGroups {
+            for key in expandedObjectGroupsBySession.keys where key.hasPrefix(prefix) {
+                expandedObjectGroupsBySession.removeValue(forKey: key)
+            }
         }
 
-        if databasesFolderExpandedBySession[connID] == nil {
-            databasesFolderExpandedBySession[connID] = autoExpandSections.contains(.databases)
-        }
-
-        if managementFolderExpandedBySession[connID] == nil {
-            managementFolderExpandedBySession[connID] = autoExpandSections.contains(.management)
-        }
-
-        if agentJobsExpandedBySession[connID] == nil {
-            agentJobsExpandedBySession[connID] = autoExpandSections.contains(.management)
-        }
-
-        if securityFolderExpandedBySession[connID] == nil {
-            securityFolderExpandedBySession[connID] = autoExpandSections.contains(.security)
-        }
+        databasesFolderExpandedBySession[connID] = autoExpandSections.contains(.databases)
+        managementFolderExpandedBySession[connID] = autoExpandSections.contains(.management)
+        agentJobsExpandedBySession[connID] = autoExpandSections.contains(.management)
+        securityFolderExpandedBySession[connID] = autoExpandSections.contains(.security)
     }
 
     // MARK: - Database Expansion
@@ -298,28 +334,38 @@ final class ObjectBrowserSidebarViewModel: ObservableObject {
 
     // MARK: - Per-Session Bindings
 
-    func expandedObjectGroupsBinding(for connectionID: UUID) -> Binding<Set<SchemaObjectInfo.ObjectType>> {
-        Binding(
-            get: { [weak self] in self?.expandedObjectGroupsBySession[connectionID] ?? Set(SchemaObjectInfo.ObjectType.allCases) },
-            set: { [weak self] in self?.expandedObjectGroupsBySession[connectionID] = $0 }
+    func expandedObjectGroupsBinding(for connectionID: UUID, database: String) -> Binding<Set<SchemaObjectInfo.ObjectType>> {
+        let key = "\(connectionID.uuidString)#\(database)"
+        return Binding(
+            get: { [weak self] in
+                guard let self else { return Set(SchemaObjectInfo.ObjectType.allCases) }
+                return self.expandedObjectGroupsBySession[key] ?? self.defaultExpandedObjectTypes[connectionID] ?? Set(SchemaObjectInfo.ObjectType.allCases)
+            },
+            set: { [weak self] in self?.expandedObjectGroupsBySession[key] = $0 }
         )
     }
 
-    func expandedObjectIDsBinding(for connectionID: UUID) -> Binding<Set<String>> {
-        Binding(
-            get: { [weak self] in self?.expandedObjectIDsBySession[connectionID] ?? [] },
-            set: { [weak self] in self?.expandedObjectIDsBySession[connectionID] = $0 }
+    func defaultExpandedObjectGroups(for connectionID: UUID) -> Set<SchemaObjectInfo.ObjectType> {
+        defaultExpandedObjectTypes[connectionID] ?? []
+    }
+
+    func expandedObjectIDsBinding(for connectionID: UUID, database: String) -> Binding<Set<String>> {
+        let key = "\(connectionID.uuidString)#\(database)"
+        return Binding(
+            get: { [weak self] in self?.expandedObjectIDsBySession[key] ?? [] },
+            set: { [weak self] in self?.expandedObjectIDsBySession[key] = $0 }
         )
     }
 
-    func selectedSchemaNameBinding(for connectionID: UUID) -> Binding<String?> {
-        Binding(
-            get: { [weak self] in self?.selectedSchemaNameBySession[connectionID] },
+    func selectedSchemaNameBinding(for connectionID: UUID, database: String) -> Binding<String?> {
+        let key = "\(connectionID.uuidString)#\(database)"
+        return Binding(
+            get: { [weak self] in self?.selectedSchemaNameBySession[key] },
             set: { [weak self] newValue in
                 if let newValue {
-                    self?.selectedSchemaNameBySession[connectionID] = newValue
+                    self?.selectedSchemaNameBySession[key] = newValue
                 } else {
-                    self?.selectedSchemaNameBySession.removeValue(forKey: connectionID)
+                    self?.selectedSchemaNameBySession.removeValue(forKey: key)
                 }
             }
         )

@@ -131,10 +131,10 @@ struct SecurityLoginSheet: View {
         HStack {
             if let error = errorMessage {
                 Image(systemName: "exclamationmark.triangle.fill")
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(ColorTokens.Status.warning)
                 Text(error)
                     .font(TypographyTokens.detail)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(ColorTokens.Text.secondary)
                     .lineLimit(2)
             }
 
@@ -208,7 +208,7 @@ struct SecurityLoginSheet: View {
                     ProgressView().controlSize(.small)
                     Text("Loading server roles\u{2026}")
                         .font(TypographyTokens.detail)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(ColorTokens.Text.secondary)
                 }
             }
         } else {
@@ -220,7 +220,7 @@ struct SecurityLoginSheet: View {
                             if role.isFixed {
                                 Text("(fixed)")
                                     .font(TypographyTokens.label)
-                                    .foregroundStyle(.tertiary)
+                                    .foregroundStyle(ColorTokens.Text.tertiary)
                             }
                         }
                     }
@@ -240,7 +240,7 @@ struct SecurityLoginSheet: View {
                     ProgressView().controlSize(.small)
                     Text("Loading database mappings\u{2026}")
                         .font(TypographyTokens.detail)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(ColorTokens.Text.secondary)
                 }
             }
         } else {
@@ -261,14 +261,14 @@ struct SecurityLoginSheet: View {
                     TableColumn("User") { entry in
                         Text(entry.userName ?? "")
                             .font(TypographyTokens.standard)
-                            .foregroundStyle(entry.isMapped ? .primary : .tertiary)
+                            .foregroundStyle(entry.isMapped ? ColorTokens.Text.primary : ColorTokens.Text.tertiary)
                     }
                     .width(min: 100, ideal: 140)
 
                     TableColumn("Default Schema") { entry in
                         Text(entry.defaultSchema ?? "dbo")
                             .font(TypographyTokens.standard)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(ColorTokens.Text.secondary)
                     }
                     .width(min: 80, ideal: 100)
                 }
@@ -291,12 +291,12 @@ struct SecurityLoginSheet: View {
                             ProgressView().controlSize(.small)
                             Text("Loading roles\u{2026}")
                                 .font(TypographyTokens.detail)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(ColorTokens.Text.secondary)
                         }
                     } else if databaseRoleMemberships.isEmpty {
                         Text("No fixed database roles available.")
                             .font(TypographyTokens.detail)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(ColorTokens.Text.secondary)
                     } else {
                         ForEach($databaseRoleMemberships) { $role in
                             Toggle(role.roleName, isOn: $role.isMember)
@@ -310,7 +310,7 @@ struct SecurityLoginSheet: View {
                 Section("Database role membership") {
                     Text("Map the login to this database first to manage role membership.")
                         .font(TypographyTokens.detail)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(ColorTokens.Text.secondary)
                 }
             }
         }
@@ -348,7 +348,7 @@ struct SecurityLoginSheet: View {
         // Load server roles
         loadingRoles = true
         do {
-            let ssec = mssql.makeServerSecurityClient()
+            let ssec = mssql.serverSecurity
             let roles = try await ssec.listServerRoles()
             var entries = roles.map { role in
                 RoleEntry(name: role.name, isFixed: role.isFixed, isMember: false)
@@ -379,7 +379,7 @@ struct SecurityLoginSheet: View {
         // If editing, load existing login properties and database mappings
         if let existingName = existingLoginName {
             do {
-                let ssec = mssql.makeServerSecurityClient()
+                let ssec = mssql.serverSecurity
                 let logins = try await ssec.listLogins(includeSystemLogins: true)
                 if let login = logins.first(where: { $0.name.caseInsensitiveCompare(existingName) == .orderedSame }) {
                     await MainActor.run {
@@ -400,7 +400,7 @@ struct SecurityLoginSheet: View {
             // Load database mappings
             loadingMappings = true
             do {
-                let ssec = mssql.makeServerSecurityClient()
+                let ssec = mssql.serverSecurity
                 let mappings = try await ssec.listLoginDatabaseMappings(login: existingName)
                 let mappedSet = Dictionary(uniqueKeysWithValues: mappings.map { ($0.databaseName, $0) })
                 let allDbs = availableDatabases
@@ -432,7 +432,7 @@ struct SecurityLoginSheet: View {
         guard !name.isEmpty else { return }
 
         do {
-            let ssec = mssql.makeServerSecurityClient()
+            let ssec = mssql.serverSecurity
             try await ssec.mapLoginToDatabase(login: name, database: database)
             await reloadMappingEntries()
         } catch {
@@ -447,7 +447,7 @@ struct SecurityLoginSheet: View {
 
         let entry = databaseMappingEntries.first(where: { $0.databaseName == database })
         do {
-            let ssec = mssql.makeServerSecurityClient()
+            let ssec = mssql.serverSecurity
             try await ssec.unmapLoginFromDatabase(login: name, database: database, userName: entry?.userName)
             await reloadMappingEntries()
             if selectedMappingDatabase == database {
@@ -464,7 +464,7 @@ struct SecurityLoginSheet: View {
         guard !name.isEmpty else { return }
 
         do {
-            let ssec = mssql.makeServerSecurityClient()
+            let ssec = mssql.serverSecurity
             let mappings = try await ssec.listLoginDatabaseMappings(login: name)
             let mappedSet = Dictionary(uniqueKeysWithValues: mappings.map { ($0.databaseName, $0) })
 
@@ -491,7 +491,7 @@ struct SecurityLoginSheet: View {
 
         await MainActor.run { loadingDatabaseRoles = true }
         do {
-            let ssec = mssql.makeServerSecurityClient()
+            let ssec = mssql.serverSecurity
             let roles = try await ssec.listDatabaseRolesForUser(database: database, userName: userName)
             await MainActor.run {
                 databaseRoleMemberships = roles.map { DatabaseRoleMembershipEntry(roleName: $0.roleName, isMember: $0.isMember) }
@@ -508,7 +508,7 @@ struct SecurityLoginSheet: View {
         guard let userName = entry?.userName else { return }
 
         do {
-            let ssec = mssql.makeServerSecurityClient()
+            let ssec = mssql.serverSecurity
             if isMember {
                 try await ssec.addUserToDatabaseRole(database: database, userName: userName, role: role)
             } else {
@@ -539,7 +539,7 @@ struct SecurityLoginSheet: View {
         errorMessage = nil
 
         do {
-            let ssec = mssql.makeServerSecurityClient()
+            let ssec = mssql.serverSecurity
 
             if isEditing {
                 // Update login properties

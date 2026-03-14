@@ -10,13 +10,13 @@ extension AgentSidebarView {
                 placeholder("No jobs found")
             } else {
                 ForEach(jobs) { job in
-                    HStack(spacing: 8) {
+                    HStack(spacing: SpacingTokens.xs) {
                         Image(systemName: job.enabled ? "checkmark.circle.fill" : "slash.circle")
-                            .foregroundStyle(job.enabled ? .green : .secondary)
-                        VStack(alignment: .leading, spacing: 2) {
+                            .foregroundStyle(job.enabled ? ColorTokens.Status.success : ColorTokens.Text.secondary)
+                        VStack(alignment: .leading, spacing: SpacingTokens.xxxs) {
                             Text(job.name).lineLimit(1)
                             if let outcome = job.lastOutcome {
-                                Text(outcome).font(.caption2).foregroundStyle(.secondary)
+                                Text(outcome).font(TypographyTokens.caption2).foregroundStyle(ColorTokens.Text.secondary)
                             }
                         }
                     }
@@ -31,9 +31,9 @@ extension AgentSidebarView {
                 placeholder("No alerts found")
             } else {
                 ForEach(viewModel.alerts) { alert in
-                    HStack(spacing: 8) {
+                    HStack(spacing: SpacingTokens.xs) {
                         Image(systemName: alert.enabled ? "exclamationmark.triangle.fill" : "exclamationmark.triangle")
-                            .foregroundStyle(alert.enabled ? .yellow : .secondary)
+                            .foregroundStyle(alert.enabled ? ColorTokens.Status.warning : ColorTokens.Text.secondary)
                         Text(alert.name).lineLimit(1)
                     }
                     .padding(.horizontal, SpacingTokens.md)
@@ -47,11 +47,11 @@ extension AgentSidebarView {
                 placeholder("No operators found")
             } else {
                 ForEach(viewModel.operators) { op in
-                    HStack(spacing: 8) {
+                    HStack(spacing: SpacingTokens.xs) {
                         Image(systemName: op.enabled ? "person.fill" : "person")
-                        VStack(alignment: .leading, spacing: 2) {
+                        VStack(alignment: .leading, spacing: SpacingTokens.xxxs) {
                             Text(op.name).lineLimit(1)
-                            if let email = op.email, !email.isEmpty { Text(email).font(.caption2).foregroundStyle(.secondary).lineLimit(1) }
+                            if let email = op.email, !email.isEmpty { Text(email).font(TypographyTokens.caption2).foregroundStyle(ColorTokens.Text.secondary).lineLimit(1) }
                         }
                     }
                     .padding(.horizontal, SpacingTokens.md)
@@ -65,11 +65,11 @@ extension AgentSidebarView {
                 placeholder("No proxies found")
             } else {
                 ForEach(viewModel.proxies) { px in
-                    HStack(spacing: 8) {
+                    HStack(spacing: SpacingTokens.xs) {
                         Image(systemName: px.enabled ? "shield.fill" : "shield")
-                        VStack(alignment: .leading, spacing: 2) {
+                        VStack(alignment: .leading, spacing: SpacingTokens.xxxs) {
                             Text(px.name).lineLimit(1)
-                            if let cred = px.credentialName { Text(cred).font(.caption2).foregroundStyle(.secondary).lineLimit(1) }
+                            if let cred = px.credentialName { Text(cred).font(TypographyTokens.caption2).foregroundStyle(ColorTokens.Text.secondary).lineLimit(1) }
                         }
                     }
                     .padding(.horizontal, SpacingTokens.md)
@@ -83,11 +83,11 @@ extension AgentSidebarView {
                 placeholder("No error logs visible")
             } else {
                 ForEach(viewModel.errorLogs) { log in
-                    HStack(spacing: 8) {
+                    HStack(spacing: SpacingTokens.xs) {
                         Image(systemName: "doc.text.magnifyingglass")
-                        VStack(alignment: .leading, spacing: 2) {
+                        VStack(alignment: .leading, spacing: SpacingTokens.xxxs) {
                             Text("Archive #\(log.archiveNumber)")
-                            Text(log.date).font(.caption2).foregroundStyle(.secondary)
+                            Text(log.date).font(TypographyTokens.caption2).foregroundStyle(ColorTokens.Text.secondary)
                         }
                     }
                     .padding(.horizontal, SpacingTokens.md)
@@ -98,17 +98,17 @@ extension AgentSidebarView {
     }
 
     func group(_ title: String, isExpanded: Binding<Bool>, @ViewBuilder content: @escaping () -> some View) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: SpacingTokens.xxs2) {
             Button {
                 withAnimation(.easeInOut(duration: 0.2)) { isExpanded.wrappedValue.toggle() }
             } label: {
-                HStack(spacing: 6) {
+                HStack(spacing: SpacingTokens.xxs2) {
                     Image(systemName: isExpanded.wrappedValue ? "chevron.down" : "chevron.right")
                         .font(TypographyTokens.label.weight(.semibold))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(ColorTokens.Text.secondary)
                     Text(title.uppercased())
                         .font(TypographyTokens.detail.weight(.semibold))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(ColorTokens.Text.secondary)
                 }
                 .padding(.horizontal, SpacingTokens.md)
             }
@@ -122,8 +122,8 @@ extension AgentSidebarView {
     @ViewBuilder
     func placeholder(_ text: String) -> some View {
         Text(text)
-            .font(.caption)
-            .foregroundStyle(.secondary)
+            .font(TypographyTokens.caption)
+            .foregroundStyle(ColorTokens.Text.secondary)
             .padding(.horizontal, SpacingTokens.md)
             .padding(.vertical, SpacingTokens.xxxs)
     }

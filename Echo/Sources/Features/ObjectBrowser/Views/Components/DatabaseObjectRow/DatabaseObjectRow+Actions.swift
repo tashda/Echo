@@ -34,10 +34,10 @@ extension DatabaseObjectRow {
         let qualified = qualifiedName(schema: object.schema, name: object.name)
         let sql = "-- Query for \(qualified)\n"
         Task { @MainActor in
-            environmentState.openQueryTab(for: session, presetQuery: sql)
+            environmentState.openQueryTab(for: session, presetQuery: sql, database: databaseName)
         }
     }
-    
+
     internal func openDataPreview() {
         guard let session = environmentState.sessionCoordinator.sessionForConnection(connection.id) else { return }
         let qualified = qualifiedName(schema: object.schema, name: object.name)
@@ -52,15 +52,26 @@ extension DatabaseObjectRow {
             offset: 0
         )
         Task { @MainActor in
-            environmentState.openQueryTab(for: session, presetQuery: sql)
+            environmentState.openQueryTab(for: session, presetQuery: sql, database: databaseName)
         }
     }
     
     internal func openStructureTab() {
+        if object.type == .extension {
+            openExtensionStructure()
+            return
+        }
         Task { @MainActor in
             guard let session = environmentState.sessionCoordinator.sessionForConnection(connection.id) else { return }
-            environmentState.openStructureTab(for: session, object: object)
+            environmentState.openStructureTab(for: session, object: object, databaseName: databaseName)
         }
+    }
+
+    internal func openExtensionStructure() {
+        guard object.type == .extension else { return }
+        guard let session = environmentState.sessionCoordinator.sessionForConnection(connection.id) else { return }
+        let dbName = databaseName ?? connection.database
+        session.addExtensionStructureTab(extensionName: object.name, databaseName: dbName)
     }
     
     internal func openRelationsDiagram() {
@@ -72,33 +83,25 @@ extension DatabaseObjectRow {
     }
 
     internal func initiateTruncate() {
-#if os(macOS)
         if object.type == .table {
-            Task { await presentTruncatePrompt() }
+            showTruncateAlert = true
             return
         }
-#endif
         let statement = truncateStatement()
         openScriptTab(with: statement)
     }
-    
+
     internal func initiateRename() {
-#if os(macOS)
-        Task { await presentRenamePrompt() }
-#else
-        if let template = renameStatement() {
-            openScriptTab(with: template)
-        }
-#endif
+        renameText = object.name
+        showRenameAlert = true
     }
 
     internal func initiateDrop(includeIfExists: Bool) {
-#if os(macOS)
         if object.type == .table {
-            Task { await presentDropPrompt(includeIfExists: includeIfExists) }
+            pendingDropIncludeIfExists = includeIfExists
+            showDropAlert = true
             return
         }
-#endif
         let statement = dropStatement(includeIfExists: includeIfExists)
         openScriptTab(with: statement)
     }

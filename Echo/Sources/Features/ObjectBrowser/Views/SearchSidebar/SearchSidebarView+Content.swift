@@ -39,11 +39,11 @@ extension SearchSidebarView {
                 subtitle: "Enter at least \(viewModel.minimumSearchLength) characters to see results."
             )
         } else if viewModel.isSearching {
-            VStack(spacing: 12) {
+            VStack(spacing: SpacingTokens.sm) {
                 ProgressView()
                 Text("Searching...")
                     .font(TypographyTokens.caption2.weight(.medium))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(ColorTokens.Text.secondary)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         } else if let error = viewModel.errorMessage {
@@ -67,10 +67,10 @@ extension SearchSidebarView {
 
     var resultsList: some View {
         ScrollView {
-            LazyVStack(alignment: .leading, spacing: 12, pinnedViews: .sectionHeaders) {
+            LazyVStack(alignment: .leading, spacing: SpacingTokens.sm, pinnedViews: .sectionHeaders) {
                 ForEach(groupedResults, id: \.category) { group in
                     Section {
-                        VStack(spacing: 8) {
+                        VStack(spacing: SpacingTokens.xs) {
                             ForEach(group.results) { result in
                                 SearchResultRow(
                                     result: result,

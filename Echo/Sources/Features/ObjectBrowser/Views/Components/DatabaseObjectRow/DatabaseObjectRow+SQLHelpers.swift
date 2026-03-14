@@ -16,6 +16,8 @@ extension DatabaseObjectRow {
             return "PROCEDURE"
         case .trigger:
             return "TRIGGER"
+        case .extension:
+            return "EXTENSION"
         }
     }
 
@@ -33,6 +35,8 @@ extension DatabaseObjectRow {
             return "Procedure"
         case .trigger:
             return "Trigger"
+        case .extension:
+            return "Extension"
         }
     }
 

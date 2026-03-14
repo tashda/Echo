@@ -64,10 +64,10 @@ struct NewAgentJobSheet: View {
         HStack {
             if let error = errorMessage {
                 Image(systemName: "exclamationmark.triangle.fill")
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(ColorTokens.Status.warning)
                 Text(error)
                     .font(TypographyTokens.detail)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(ColorTokens.Text.secondary)
                     .lineLimit(2)
             }
 
@@ -114,7 +114,7 @@ struct NewAgentJobSheet: View {
             if steps.isEmpty {
                 Section {
                     Text("No steps added yet. Add a step to define what this job does.")
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(ColorTokens.Text.secondary)
                 }
             }
 
@@ -131,7 +131,7 @@ struct NewAgentJobSheet: View {
                     }
                     TextField("Command", text: $steps[index].command, axis: .vertical)
                         .lineLimit(2...6)
-                        .font(.system(.body, design: .monospaced))
+                        .font(TypographyTokens.monospaced)
 
                     Button("Remove Step", role: .destructive) {
                         steps.remove(at: index)
@@ -172,7 +172,7 @@ struct NewAgentJobSheet: View {
             if schedules.isEmpty {
                 Section {
                     Text("No schedules added yet. Add a schedule to run this job automatically.")
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(ColorTokens.Text.secondary)
                 }
             }
 
@@ -285,7 +285,7 @@ struct NewAgentJobSheet: View {
 
         return Text(summary)
             .font(TypographyTokens.detail)
-            .foregroundStyle(.secondary)
+            .foregroundStyle(ColorTokens.Text.secondary)
     }
 
     private func ordinal(_ n: Int) -> String {
@@ -344,7 +344,7 @@ struct NewAgentJobSheet: View {
         errorMessage = nil
 
         do {
-            let agent = mssql.makeAgentClient()
+            let agent = mssql.agent
             let builder = SQLServerAgentJobBuilder(
                 agent: agent,
                 jobName: name,

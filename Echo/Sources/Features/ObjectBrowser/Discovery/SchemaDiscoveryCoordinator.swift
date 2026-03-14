@@ -132,31 +132,18 @@ final class MetadataDiscoveryCoordinator: MetadataDiscoveryCoordinatorProtocol, 
                 }
             }
 
-            // List ALL databases on the server and add empty entries for unlisted ones
-            do {
-                if let sqlAdapter = connectionSession.session as? SQLServerSessionAdapter {
-                    // Fetch databases with state info for MSSQL
-                    let allDbs = try await sqlAdapter.listDatabasesWithState()
-                    let existingNames = Set(mergedDatabases.map(\.name))
-                    for db in allDbs {
-                        if existingNames.contains(db.name) {
-                            // Update state on existing entries
-                            if let index = mergedDatabases.firstIndex(where: { $0.name == db.name }) {
-                                mergedDatabases[index].stateDescription = db.stateDescription
-                            }
-                        } else {
-                            mergedDatabases.append(DatabaseInfo(name: db.name, schemas: [], schemaCount: 0, stateDescription: db.stateDescription))
-                        }
-                    }
-                } else {
+            // For non-MSSQL, list all databases and add empty entries for unlisted ones.
+            // MSSQL already fetches the full database list with state in its fetcher.
+            if !(connectionSession.session is SQLServerSessionAdapter) {
+                do {
                     let allDatabaseNames = try await connectionSession.session.listDatabases()
                     let existingNames = Set(mergedDatabases.map(\.name))
                     for dbName in allDatabaseNames where !existingNames.contains(dbName) {
                         mergedDatabases.append(DatabaseInfo(name: dbName, schemas: [], schemaCount: 0))
                     }
+                } catch {
+                    ConnectionDebug.log("[SchemaDiscovery] listDatabases failed (non-fatal): \(error.localizedDescription)")
                 }
-            } catch {
-                ConnectionDebug.log("[SchemaDiscovery] listDatabases failed (non-fatal): \(error.localizedDescription)")
             }
 
             mergedDatabases.sort { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
@@ -294,7 +281,21 @@ final class MetadataDiscoveryCoordinator: MetadataDiscoveryCoordinatorProtocol, 
         var mergedSchemas = mergeSchemas(partialSchemas: partial.schemas, existingSchemas: existing.schemas)
         mergedSchemas.sort { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
         let state = partial.stateDescription ?? existing.stateDescription
-        return DatabaseInfo(name: existing.name, schemas: mergedSchemas, schemaCount: max(existing.schemaCount, partial.schemaCount, mergedSchemas.count), stateDescription: state)
+        
+        // Merge extensions
+        var extensionMap = Dictionary(uniqueKeysWithValues: existing.extensions.map { ($0.id, $0) })
+        for ext in partial.extensions {
+            extensionMap[ext.id] = ext
+        }
+        let mergedExtensions = Array(extensionMap.values).sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+
+        return DatabaseInfo(
+            name: existing.name,
+            schemas: mergedSchemas,
+            extensions: mergedExtensions,
+            schemaCount: max(existing.schemaCount, partial.schemaCount, mergedSchemas.count),
+            stateDescription: state
+        )
     }
 
     static func mergeSchemas(partialSchemas: [SchemaInfo], existingSchemas: [SchemaInfo]) -> [SchemaInfo] {
@@ -310,11 +311,23 @@ final class MetadataDiscoveryCoordinator: MetadataDiscoveryCoordinatorProtocol, 
     }
 
     static func mergeSchemaInfo(partial: SchemaInfo, existing: SchemaInfo) -> SchemaInfo {
-        var objectMap = Dictionary(uniqueKeysWithValues: existing.objects.map { ($0.id, $0) })
-        for object in partial.objects {
-            objectMap[object.id] = object
+        // When partial has objects, treat it as authoritative for this schema.
+        // Objects not present in the partial result have been renamed/dropped on the server.
+        // Enrich partial objects with column details from existing when partial lacks them.
+        guard !partial.objects.isEmpty else { return existing }
+        let existingMap = Dictionary(existing.objects.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        let enriched = partial.objects.map { obj -> SchemaObjectInfo in
+            if obj.columns.isEmpty, let prev = existingMap[obj.id], !prev.columns.isEmpty {
+                return SchemaObjectInfo(
+                    name: obj.name, schema: obj.schema, type: obj.type,
+                    columns: prev.columns, parameters: obj.parameters,
+                    triggerAction: obj.triggerAction, triggerTable: obj.triggerTable,
+                    comment: obj.comment
+                )
+            }
+            return obj
         }
-        let sortedObjects = objectMap.values.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+        let sortedObjects = enriched.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
         return SchemaInfo(name: existing.name, objects: sortedObjects)
     }
 }

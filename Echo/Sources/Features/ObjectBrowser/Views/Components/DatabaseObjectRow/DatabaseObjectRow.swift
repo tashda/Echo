@@ -4,27 +4,33 @@ struct DatabaseObjectRow: View, Equatable {
     let object: SchemaObjectInfo
     let displayName: String
     let connection: SavedConnection
+    let databaseName: String?
     let showColumns: Bool
     @Binding var isExpanded: Bool
     let isPinned: Bool
     let onTogglePin: () -> Void
     let onTriggerTableTap: ((String) -> Void)?
-    
+
     @Environment(ProjectStore.self) internal var projectStore
     @Environment(ConnectionStore.self) internal var connectionStore
     @EnvironmentObject internal var environmentState: EnvironmentState
-    
-    @State private var isHovered = false
+    @EnvironmentObject internal var viewModel: ObjectBrowserSidebarViewModel
+
     @State internal var hoveredColumnID: String?
+    @State internal var showDropAlert = false
+    @State internal var showTruncateAlert = false
+    @State internal var showRenameAlert = false
+    @State internal var renameText = ""
+    @State internal var pendingDropIncludeIfExists = false
 
     private var canExpand: Bool {
         showColumns && !object.columns.isEmpty
     }
-    
+
     internal var accentColor: Color {
-        projectStore.globalSettings.accentColorSource == .connection ? connection.color : Color.accentColor
+        projectStore.globalSettings.accentColorSource == .connection ? connection.color : ColorTokens.accent
     }
-    
+
     private var iconName: String {
         switch object.type {
         case .table: return "tablecells"
@@ -33,17 +39,14 @@ struct DatabaseObjectRow: View, Equatable {
         case .function: return "function"
         case .trigger: return "bolt.fill"
         case .procedure: return "terminal"
+        case .extension: return "puzzlepiece.fill"
         }
     }
 
     private var iconColor: Color {
-        switch object.type {
-        case .table, .view, .materializedView: return Color(nsColor: .tertiaryLabelColor)
-        case .function, .procedure: return .purple.opacity(0.7)
-        case .trigger: return .orange.opacity(0.7)
-        }
+        ExplorerSidebarPalette.objectGroupIconColor(for: object.type, colored: projectStore.globalSettings.sidebarColoredIcons)
     }
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             rowContent
@@ -52,91 +55,106 @@ struct DatabaseObjectRow: View, Equatable {
                 columnsList
             }
         }
+        .buttonStyle(.plain)
+        .focusable(false)
+        .alert("Drop \(objectTypeDisplayName())?", isPresented: $showDropAlert) {
+            Button("Cancel", role: .cancel) {}
+            Button("Drop", role: .destructive) { performDrop(includeIfExists: pendingDropIncludeIfExists) }
+        } message: {
+            Text("Are you sure you want to drop the \(objectTypeDisplayName().lowercased()) \(object.fullName)? This action cannot be undone.")
+        }
+        .alert("Truncate \(objectTypeDisplayName())?", isPresented: $showTruncateAlert) {
+            Button("Cancel", role: .cancel) {}
+            Button("Truncate", role: .destructive) { performTruncate() }
+        } message: {
+            Text("Are you sure you want to truncate the \(objectTypeDisplayName().lowercased()) \(object.fullName)? This action cannot be undone.")
+        }
+        .alert("Rename \(objectTypeDisplayName())", isPresented: $showRenameAlert) {
+            TextField("Name", text: $renameText)
+            Button("Cancel", role: .cancel) {}
+            Button("Rename") { performRename() }
+        } message: {
+            Text("Enter a new name for the \(objectTypeDisplayName().lowercased()) \(object.fullName).")
+        }
     }
 
     static func == (lhs: DatabaseObjectRow, rhs: DatabaseObjectRow) -> Bool {
         lhs.object.id == rhs.object.id
             && lhs.displayName == rhs.displayName
+            && lhs.databaseName == rhs.databaseName
             && lhs.showColumns == rhs.showColumns
             && lhs.isExpanded == rhs.isExpanded
             && lhs.isPinned == rhs.isPinned
     }
-    
+
+    private var isSelected: Bool {
+        viewModel.selectedObjectID == object.id
+    }
+
     private var rowContent: some View {
-        HStack(alignment: .center, spacing: 8) {
-            if canExpand {
-                Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
-                    .font(SidebarRowConstants.chevronFont)
-                    .foregroundStyle(.tertiary)
-                    .frame(width: SidebarRowConstants.chevronWidth)
-            } else {
-                Spacer().frame(width: SidebarRowConstants.chevronWidth)
-            }
+        ExplorerSidebarRowChrome(isSelected: isSelected, accentColor: accentColor, style: .plain) {
+            HStack(alignment: .center, spacing: SidebarRowConstants.iconTextSpacing) {
+                if canExpand {
+                    Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
+                        .font(SidebarRowConstants.chevronFont)
+                        .foregroundStyle(ColorTokens.Text.tertiary)
+                        .frame(width: SidebarRowConstants.chevronWidth)
+                } else {
+                    Spacer().frame(width: SidebarRowConstants.chevronWidth)
+                }
 
-            Image(systemName: iconName)
-                .font(.system(size: 12))
-                .foregroundStyle(iconColor)
-                .frame(width: SidebarRowConstants.iconFrame)
+                Image(systemName: iconName)
+                    .font(SidebarRowConstants.iconFont)
+                    .foregroundStyle(iconColor)
+                    .frame(width: SidebarRowConstants.iconFrame)
 
-            VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: 6) {
+                VStack(alignment: .leading, spacing: SpacingTokens.xxxs) {
                     Text(displayName)
                         .font(TypographyTokens.standard)
-                        .foregroundStyle(.primary)
+                        .foregroundStyle(ColorTokens.Text.primary)
                         .lineLimit(1)
+                        .frame(maxWidth: .infinity, alignment: .leading)
 
                     if object.type == .trigger, let table = object.triggerTable, !table.isEmpty {
-                        Text("on")
-                            .font(TypographyTokens.detail)
-                            .foregroundStyle(.tertiary)
                         Button {
                             onTriggerTableTap?(table)
                         } label: {
-                            Text(table)
-                                .font(TypographyTokens.detail)
-                                .foregroundStyle(.secondary)
+                            HStack(spacing: SpacingTokens.xxxs) {
+                                Text("on")
+                                    .font(TypographyTokens.label)
+                                    .foregroundStyle(ColorTokens.Text.tertiary)
+                                Text(table)
+                                    .font(TypographyTokens.label)
+                                    .foregroundStyle(ColorTokens.Text.secondary)
+                                    .lineLimit(1)
+                            }
                         }
                         .buttonStyle(.plain)
                     }
 
-                    Spacer(minLength: 0)
+                    if let comment = object.comment?.trimmingCharacters(in: .whitespacesAndNewlines), !comment.isEmpty {
+                        Text(comment)
+                            .font(TypographyTokens.detail)
+                            .foregroundStyle(ColorTokens.Text.secondary)
+                            .lineLimit(3)
+                            .multilineTextAlignment(.leading)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .help(comment)
+                    }
                 }
-
-                if let comment = object.comment?.trimmingCharacters(in: .whitespacesAndNewlines), !comment.isEmpty {
-                    Text(comment)
-                        .font(TypographyTokens.detail)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(3)
-                        .multilineTextAlignment(.leading)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-#if os(macOS)
-                        .help(comment)
-#endif
-                }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.leading, SidebarRowConstants.rowHorizontalPadding)
+            .padding(.trailing, SidebarRowConstants.rowTrailingPadding)
+            .padding(.vertical, SidebarRowConstants.rowVerticalPadding)
+            .contentShape(Rectangle())
         }
-        .padding(.horizontal, SidebarRowConstants.rowHorizontalPadding)
-        .padding(.vertical, SidebarRowConstants.rowVerticalPadding)
-        .background(highlightBackground)
-        .contentShape(Rectangle())
         .onTapGesture {
+            viewModel.selectedObjectID = object.id
             guard canExpand else { return }
-            withAnimation(.easeInOut(duration: 0.2)) {
-                isExpanded.toggle()
-            }
+            isExpanded.toggle()
         }
-        .onHover { isHovered = $0 }
         .contextMenu { contextMenuContent }
     }
-    
-    private var highlightBackground: some View {
-        RoundedRectangle(cornerRadius: SidebarRowConstants.hoverCornerRadius, style: .continuous)
-            .fill(Color.primary.opacity(0.08))
-            .opacity(isHovered ? 1 : 0)
-            .allowsHitTesting(false)
-            .animation(.easeOut(duration: 0.08), value: isHovered)
-    }
-    
 }

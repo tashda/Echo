@@ -88,7 +88,7 @@ extension DatabaseObjectRow {
         switch object.type {
         case .table, .view, .materializedView:
             return true
-        case .function, .trigger, .procedure:
+        case .function, .trigger, .procedure, .extension:
             return false
         }
     }

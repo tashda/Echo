@@ -21,28 +21,70 @@ extension EnvironmentValues {
 }
 
 enum ExplorerColumnMetrics {
-    static let contentLeading: CGFloat = 24
-    static let highlightExtension: CGFloat = 10
-    static let iconSize: CGFloat = 16
-    static let spacing: CGFloat = 8
+    static let contentLeading: CGFloat = SpacingTokens.lg
+    static let highlightExtension: CGFloat = SpacingTokens.xs2
+    static let iconSize: CGFloat = SpacingTokens.md
+    static let spacing: CGFloat = SpacingTokens.xs
 }
 
-/// Shared constants for sidebar row consistency (Xcode navigator aesthetic).
+/// Shared constants for sidebar row consistency (macOS 26 Tahoe sidebar aesthetic).
 enum SidebarRowConstants {
     /// Chevron font — uniform across all disclosure triangles.
-    static let chevronFont = Font.system(size: 10, weight: .medium)
+    static let chevronFont = TypographyTokens.compact.weight(.medium)
     /// Chevron frame width.
-    static let chevronWidth: CGFloat = 10
+    static let chevronWidth: CGFloat = SpacingTokens.xs2
+    /// Icon font for sidebar row icons.
+    static let iconFont = TypographyTokens.prominent
     /// Icon frame size (all sidebar icons).
-    static let iconFrame: CGFloat = 16
+    static let iconFrame: CGFloat = SpacingTokens.md2
+    /// Spacing between icon and text label.
+    static let iconTextSpacing: CGFloat = SpacingTokens.xs
     /// Per-level indentation step.
-    static let indentStep: CGFloat = 16  // SpacingTokens.md
-    /// Horizontal padding inside rows.
-    static let rowHorizontalPadding: CGFloat = 8  // SpacingTokens.xs
+    static let indentStep: CGFloat = SpacingTokens.xs
+    /// Horizontal padding inside rows (leading).
+    static let rowHorizontalPadding: CGFloat = SpacingTokens.xxxs
+    /// Trailing padding inside rows (accounts for scrollbar overlap).
+    static let rowTrailingPadding: CGFloat = SpacingTokens.xs
     /// Vertical padding for structural rows.
-    static let rowVerticalPadding: CGFloat = 4  // SpacingTokens.xxs
+    static let rowVerticalPadding: CGFloat = SpacingTokens.xxs2
     /// Hover highlight corner radius.
-    static let hoverCornerRadius: CGFloat = 6
+    static let hoverCornerRadius: CGFloat = SpacingTokens.xs
+    /// Spacing between major sidebar sections for visual grouping.
+    static let sectionGroupSpacing: CGFloat = SpacingTokens.xs
+}
+
+enum ExplorerSidebarPalette {
+    static let monochrome = ColorTokens.Text.secondary
+
+    static let database = ColorTokens.Explorer.database
+    static let tables = ColorTokens.Explorer.tables
+    static let views = ColorTokens.Explorer.views
+    static let functions = ColorTokens.Explorer.functions
+    static let jobs = ColorTokens.Explorer.jobs
+    static let security = ColorTokens.Explorer.security
+    static let extensions = ColorTokens.Explorer.extensions
+
+    static func folderIconColor(title: String, colored: Bool = true) -> Color {
+        guard colored else { return monochrome }
+        switch title {
+        case "Databases": return database
+        case "Agent Jobs": return jobs
+        case "Security": return security
+        case "Extensions": return extensions
+        default: return monochrome
+        }
+    }
+
+    static func objectGroupIconColor(for type: SchemaObjectInfo.ObjectType, colored: Bool = true) -> Color {
+        guard colored else { return monochrome }
+        switch type {
+        case .table: return tables
+        case .view, .materializedView: return views
+        case .function, .procedure: return functions
+        case .trigger: return functions
+        case .extension: return extensions
+        }
+    }
 }
 
 func makeSelectStatement(

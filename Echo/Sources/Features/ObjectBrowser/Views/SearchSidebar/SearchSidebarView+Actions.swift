@@ -18,7 +18,7 @@ extension SearchSidebarView {
                 } else {
                     focusExplorer(on: session, database: databaseName, schema: schema, objectName: name, columnName: nil, objectType: .table)
                 }
-            case .view, .materializedView, .function, .procedure, .trigger:
+            case .view, .materializedView, .function, .procedure, .trigger, .extension:
                 if openInNewTab {
                     openDefinition(for: name, schema: schema, type: type, in: session)
                 } else {

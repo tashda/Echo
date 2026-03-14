@@ -18,6 +18,7 @@ extension DatabaseObjectBrowserView {
                             object: object,
                             displayName: displayName(for: object),
                             connection: connection,
+                            databaseName: database.name,
                             showColumns: shouldShowColumns(for: object),
                             isExpanded: expansionBinding(for: object.id),
                             isPinned: true,
@@ -30,6 +31,7 @@ extension DatabaseObjectBrowserView {
                 .padding(.leading, SidebarRowConstants.indentStep)
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     @ViewBuilder
@@ -53,6 +55,7 @@ extension DatabaseObjectBrowserView {
                             object: object,
                             displayName: displayName(for: object),
                             connection: connection,
+                            databaseName: database.name,
                             showColumns: shouldShowColumns(for: object),
                             isExpanded: expansionBinding(for: object.id),
                             isPinned: pinnedObjectIDs.contains(object.id),
@@ -66,33 +69,60 @@ extension DatabaseObjectBrowserView {
                 .padding(.leading, SidebarRowConstants.indentStep)
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     func sectionHeader(title: String, icon: String? = nil, count: Int, isExpanded: Bool) -> some View {
-        HStack(spacing: 8) {
-            Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
-                .font(SidebarRowConstants.chevronFont)
-                .foregroundStyle(.tertiary)
-                .frame(width: SidebarRowConstants.chevronWidth)
-            if let icon {
-                Image(systemName: icon)
-                    .font(.system(size: 12))
-                    .foregroundStyle(.secondary)
-                    .frame(width: SidebarRowConstants.iconFrame)
+        let rowAccentColor = projectStore.globalSettings.accentColorSource == .connection ? connection.color : ColorTokens.accent
+        return ExplorerSidebarRowChrome(isSelected: false, accentColor: rowAccentColor, style: .plain) {
+            HStack(spacing: SidebarRowConstants.iconTextSpacing) {
+                Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
+                    .font(SidebarRowConstants.chevronFont)
+                    .foregroundStyle(ColorTokens.Text.tertiary)
+                    .frame(width: SidebarRowConstants.chevronWidth)
+
+                if let icon {
+                    Image(systemName: icon)
+                        .font(SidebarRowConstants.iconFont)
+                        .foregroundStyle(iconColor(for: title))
+                        .frame(width: SidebarRowConstants.iconFrame)
+                }
+
+                Text(title)
+                    .font(TypographyTokens.standard)
+                    .foregroundStyle(ColorTokens.Text.primary)
+                    .lineLimit(1)
+
+                Spacer(minLength: SpacingTokens.xxxs)
+
+                Text("\(count)")
+                    .font(TypographyTokens.detail)
+                    .foregroundStyle(ColorTokens.Text.tertiary)
             }
-            Text(title)
-                .font(TypographyTokens.standard)
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-
-            Text("\(count)")
-                .font(TypographyTokens.label)
-                .foregroundStyle(.tertiary)
-
-            Spacer(minLength: 4)
+            .padding(.leading, SidebarRowConstants.rowHorizontalPadding)
+            .padding(.trailing, SidebarRowConstants.rowTrailingPadding)
+            .padding(.vertical, SidebarRowConstants.rowVerticalPadding)
         }
-        .padding(.horizontal, SidebarRowConstants.rowHorizontalPadding)
-        .padding(.vertical, SidebarRowConstants.rowVerticalPadding)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .contentShape(Rectangle())
+    }
+
+    private func iconColor(for title: String) -> Color {
+        let colored = projectStore.globalSettings.sidebarColoredIcons
+        switch title {
+        case SchemaObjectInfo.ObjectType.table.pluralDisplayName:
+            return ExplorerSidebarPalette.objectGroupIconColor(for: .table, colored: colored)
+        case SchemaObjectInfo.ObjectType.view.pluralDisplayName,
+             SchemaObjectInfo.ObjectType.materializedView.pluralDisplayName:
+            return ExplorerSidebarPalette.objectGroupIconColor(for: .view, colored: colored)
+        case SchemaObjectInfo.ObjectType.function.pluralDisplayName,
+             SchemaObjectInfo.ObjectType.procedure.pluralDisplayName,
+             SchemaObjectInfo.ObjectType.trigger.pluralDisplayName:
+            return ExplorerSidebarPalette.objectGroupIconColor(for: .function, colored: colored)
+        case SchemaObjectInfo.ObjectType.extension.pluralDisplayName:
+            return ExplorerSidebarPalette.objectGroupIconColor(for: .extension, colored: colored)
+        default:
+            return ExplorerSidebarPalette.monochrome
+        }
     }
 }

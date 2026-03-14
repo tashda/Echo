@@ -135,7 +135,7 @@ extension DatabaseObjectRow {
     internal func openScriptTab(with sql: String) {
         guard let session = environmentState.sessionCoordinator.sessionForConnection(connection.id) else { return }
         Task { @MainActor in
-            environmentState.openQueryTab(for: session, presetQuery: sql)
+            environmentState.openQueryTab(for: session, presetQuery: sql, database: databaseName)
         }
     }
 }

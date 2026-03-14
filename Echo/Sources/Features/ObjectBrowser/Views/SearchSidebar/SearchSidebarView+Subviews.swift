@@ -33,13 +33,13 @@ extension SearchSidebarView {
                 .font(TypographyTokens.display.weight(.semibold))
                 .foregroundStyle(
                     isFilterActive
-                        ? Color.accentColor
-                        : Color.secondary.opacity(0.6)
+                        ? ColorTokens.accent
+                        : ColorTokens.Text.secondary.opacity(0.6)
                 )
                 .padding(SpacingTokens.xxxs)
                 .background(
                     Circle()
-                        .fill(Color.accentColor.opacity(isFilterActive ? 0.18 : 0))
+                        .fill(ColorTokens.accent.opacity(isFilterActive ? 0.18 : 0))
                 )
         }
         .buttonStyle(.plain)

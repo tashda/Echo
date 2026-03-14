@@ -32,9 +32,9 @@ struct SidebarSearchBar<Accessory: View>: View {
 
     var body: some View {
         HStack {
-            HStack(spacing: 8) {
+            HStack(spacing: SpacingTokens.xs) {
                 Image(systemName: "magnifyingglass")
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(ColorTokens.Text.secondary)
 
                 searchField
 
@@ -43,7 +43,7 @@ struct SidebarSearchBar<Accessory: View>: View {
                 }
 
                 Rectangle()
-                    .fill(Color.primary.opacity(0.08))
+                    .fill(ColorTokens.Text.primary.opacity(0.08))
                     .frame(width: 1, height: 18)
                     .opacity(isDisabled ? 0.35 : 1)
 
@@ -53,7 +53,7 @@ struct SidebarSearchBar<Accessory: View>: View {
             .padding(.vertical, SpacingTokens.xs)
             .background(
                 RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .fill(Color.primary.opacity(0.05))
+                    .fill(ColorTokens.Text.primary.opacity(0.05))
             )
         }
         .padding(SpacingTokens.sm)
@@ -76,7 +76,7 @@ struct SidebarSearchBar<Accessory: View>: View {
     private func clearButton(onClear: @escaping () -> Void) -> some View {
         let button = Button(action: onClear) {
             Image(systemName: "xmark.circle.fill")
-                .foregroundStyle(.tertiary)
+                .foregroundStyle(ColorTokens.Text.tertiary)
         }
         .buttonStyle(.plain)
 
