@@ -60,8 +60,9 @@ final class ConnectionSession: ObservableObject, Identifiable {
     }
 
     var displayName: String {
-        if let dbName = selectedDatabaseName {
-            return "\(connection.connectionName) • \(dbName)"
+        let db = (selectedDatabaseName ?? connection.database).trimmingCharacters(in: .whitespacesAndNewlines)
+        if !db.isEmpty {
+            return "\(connection.connectionName) • \(db)"
         } else {
             return connection.connectionName
         }
@@ -114,7 +115,8 @@ final class ConnectionSession: ObservableObject, Identifiable {
             session: session,
             connectionSessionID: id,
             title: "Query \(queryTabs.count + 1)",
-            content: .query(queryState)
+            content: .query(queryState),
+            activeDatabaseName: databaseName
         )
         queryTabs.append(tab)
         activeQueryTabID = tab.id
@@ -168,16 +170,31 @@ final class ConnectionSession: ObservableObject, Identifiable {
     }
 
     @discardableResult
-    func addStructureTab(for object: SchemaObjectInfo, focus: TableStructureSection? = nil) -> WorkspaceTab {
+    func addStructureTab(for object: SchemaObjectInfo, focus: TableStructureSection? = nil, databaseName: String? = nil) -> WorkspaceTab {
         let viewModel = TableStructureEditorViewModel(
             schemaName: object.schema,
             tableName: object.name,
             details: TableStructureDetails(), // Placeholder, reload() will fetch real data
-            session: session
+            session: session,
+            databaseType: connection.databaseType
         )
         if let focus {
             viewModel.focusSection(focus)
         }
+
+        // For PostgreSQL, resolve a database-specific session if needed
+        if let databaseName {
+            Task { @MainActor [weak viewModel, session = self.session] in
+                guard let viewModel else { return }
+                do {
+                    let dbSession = try await session.sessionForDatabase(databaseName)
+                    viewModel.updateSession(dbSession)
+                } catch {
+                    // Fall back to the primary session — better than showing nothing
+                }
+            }
+        }
+
         let tab = WorkspaceTab(
             connection: connection,
             session: session,
@@ -191,13 +208,79 @@ final class ConnectionSession: ObservableObject, Identifiable {
         return tab
     }
 
+    @discardableResult
+    func addExtensionStructureTab(extensionName: String, databaseName: String) -> WorkspaceTab {
+        let viewModel = PostgresExtensionStructureViewModel(
+            extensionName: extensionName,
+            databaseName: databaseName,
+            session: self
+        )
+        
+        let tab = WorkspaceTab(
+            connection: connection,
+            session: session,
+            connectionSessionID: id,
+            title: "\(extensionName) (Extension)",
+            content: .extensionStructure(viewModel)
+        )
+        queryTabs.append(tab)
+        activeQueryTabID = tab.id
+        lastActivity = Date()
+        return tab
+    }
+
+    @discardableResult
+    func addExtensionsManagerTab(databaseName: String) -> WorkspaceTab {
+        let viewModel = PostgresExtensionsManagerViewModel(
+            databaseName: databaseName,
+            session: self
+        )
+        
+        let tab = WorkspaceTab(
+            connection: connection,
+            session: session,
+            connectionSessionID: id,
+            title: "Extensions (\(databaseName))",
+            content: .extensionsManager(viewModel)
+        )
+        queryTabs.append(tab)
+        activeQueryTabID = tab.id
+        lastActivity = Date()
+        return tab
+    }
+
+    @discardableResult
+    func addActivityMonitorTab() throws -> WorkspaceTab {
+        let monitor = try session.makeActivityMonitor()
+        let viewModel = ActivityMonitorViewModel(monitor: monitor, connectionSessionID: self.id)
+        
+        let tab = WorkspaceTab(
+            connection: connection,
+            session: session,
+            connectionSessionID: id,
+            title: "Activity Monitor",
+            content: .activityMonitor(viewModel)
+        )
+        queryTabs.append(tab)
+        activeQueryTabID = tab.id
+        lastActivity = Date()
+        return tab
+    }
+
     func closeQueryTab(withID tabID: UUID) {
         guard let index = queryTabs.firstIndex(where: { $0.id == tabID }) else { return }
+        let tab = queryTabs[index]
 
         // Proactively cancel any executing query task for this tab before removal
-        if let state = queryTabs[index].query {
+        if let state = tab.query {
             state.cancelExecution()
         }
+        
+        // Stop activity monitor streaming if this is an activity monitor tab
+        if let activityVM = tab.activityMonitor {
+            activityVM.stopStreaming()
+        }
+
         queryTabs.remove(at: index)
 
         // Adjust active tab
@@ -275,7 +358,13 @@ final class ActiveSessionCoordinator: ObservableObject {
 
     func addSession(_ session: ConnectionSession) {
         // Remove any existing session for the same connection
-        activeSessions.removeAll { $0.connection.id == session.connection.id }
+        if let existing = activeSessions.first(where: { $0.connection.id == session.connection.id }) {
+            let sessionID = existing.id
+            Task {
+                await existing.session.close()
+            }
+            activeSessions.removeAll { $0.id == sessionID }
+        }
 
         // Add the new session
         activeSessions.append(session)
@@ -292,6 +381,11 @@ final class ActiveSessionCoordinator: ObservableObject {
             if let state = tab.query {
                 state.cancelExecution()
             }
+        }
+
+        // Close the database session properly to avoid driver crashes on deinit
+        Task {
+            await session.session.close()
         }
 
         activeSessions.remove(at: index)

@@ -19,7 +19,7 @@ final class ManageConnectionsWindowController: NSWindowController, NSWindowDeleg
         fatalError("init(coder:) has not been implemented")
     }
 
-    func present() {
+    func present(initialSection: ManageSection? = nil) {
         if window == nil {
             configureWindow()
         }
@@ -29,7 +29,7 @@ final class ManageConnectionsWindowController: NSWindowController, NSWindowDeleg
 
         hostingController?.rootView = ManageConnectionsWindowRootView(onClose: { [weak self] in
             self?.closeWindow()
-        })
+        }, initialSection: initialSection)
 
         applyTheme(to: window)
 
@@ -65,6 +65,7 @@ final class ManageConnectionsWindowController: NSWindowController, NSWindowDeleg
         window.isReleasedWhenClosed = false
         window.toolbarStyle = .unified
         window.titlebarSeparatorStyle = .none
+        window.tabbingMode = .disallowed
         let toolbar = NSToolbar(identifier: Self.toolbarIdentifier)
         toolbar.allowsUserCustomization = false
         toolbar.autosavesConfiguration = false
@@ -129,10 +130,11 @@ final class PocketSeparatorHidingHostingController<Content: View>: NSHostingCont
 
 private struct ManageConnectionsWindowRootView: View {
     let onClose: () -> Void
+    var initialSection: ManageSection? = nil
 
     var body: some View {
         let coordinator = AppCoordinator.shared
-        ManageConnectionsView(onClose: onClose)
+        ManageConnectionsView(onClose: onClose, initialSection: initialSection)
             .environment(coordinator.projectStore)
             .environment(coordinator.connectionStore)
             .environment(coordinator.navigationStore)

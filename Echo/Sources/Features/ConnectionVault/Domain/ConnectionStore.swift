@@ -68,8 +68,11 @@ final class ConnectionStore {
     }
     
     func updateConnection(_ connection: SavedConnection) async throws {
-        guard let index = connections.firstIndex(where: { $0.id == connection.id }) else { return }
-        connections[index] = connection
+        if let index = connections.firstIndex(where: { $0.id == connection.id }) {
+            connections[index] = connection
+        } else {
+            connections.append(connection)
+        }
         try await saveConnections()
     }
     
