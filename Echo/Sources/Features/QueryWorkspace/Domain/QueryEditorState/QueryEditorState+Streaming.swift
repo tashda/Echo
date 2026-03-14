@@ -198,7 +198,9 @@ extension QueryEditorState {
         // Clamp streamedRowCount to the authoritative total from the database
         streamedRowCount = total
         if streamingRows.count < truncated.count { streamingRows = truncated } else { for i in 0..<truncated.count { streamingRows[i] = truncated[i] } }
-        results = QueryResultSet(columns: result.columns, rows: truncated, totalRowCount: total, commandTag: result.commandTag)
+        results = QueryResultSet(columns: result.columns, rows: truncated, totalRowCount: total, commandTag: result.commandTag, additionalResults: result.additionalResults)
+        additionalResults = result.additionalResults
+        selectedResultSetIndex = 0
         // Use the authoritative total — don't preserve inflated streaming estimates
         rowProgress = RowProgress(materialized: max(rowProgress.materialized, truncated.count), reported: total, received: total)
         materializedHighWaterMark = max(materializedHighWaterMark, rowProgress.materialized)

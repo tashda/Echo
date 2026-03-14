@@ -26,6 +26,7 @@ struct MSSQLNIOFactory: DatabaseFactory {
         sslCertPath: String? = nil,
         sslKeyPath: String? = nil,
         mssqlEncryptionMode: MSSQLEncryptionMode = .optional,
+        readOnlyIntent: Bool = false,
         authentication: DatabaseAuthenticationConfiguration,
         connectTimeoutSeconds: Int = 10
     ) async throws -> DatabaseSession {
@@ -61,7 +62,7 @@ struct MSSQLNIOFactory: DatabaseFactory {
 
         logger.info("Connecting to SQL Server at \(host):\(port)/\(loginDatabase)")
 
-        let client = try await SQLServerClient.connect(
+        var config = SQLServerClient.Configuration(
             hostname: host,
             port: port,
             database: loginDatabase,
@@ -79,6 +80,11 @@ struct MSSQLNIOFactory: DatabaseFactory {
                 extractParameterDefaults: false,
                 preferStoredProcedureColumns: false
             )
+        )
+        config.connection.readOnlyIntent = readOnlyIntent
+
+        let client = try await SQLServerClient.connect(
+            configuration: config
         )
 
         // Wrap the SQLServerClient in an adapter that conforms to DatabaseSession

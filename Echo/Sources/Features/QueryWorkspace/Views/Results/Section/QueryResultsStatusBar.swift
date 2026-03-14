@@ -27,23 +27,10 @@ extension QueryResultsSection {
                             HStack(spacing: SpacingTokens.sm) {
                                 // Row count
                                 HStack(spacing: SpacingTokens.xxxs) {
-                                    let total = query.rowProgress.totalReported
-                                    let showOfTotal = query.isExecuting && total > 0 && query.rowProgress.totalReceived < total
-                                    AnimatedCounter(
-                                        targetValue: showOfTotal ? query.rowProgress.totalReceived : query.rowProgress.displayCount,
-                                        isActive: query.isExecuting,
-                                        formatter: { formatCompact($0) }
-                                    )
-                                    .font(TypographyTokens.detail.monospaced().weight(.medium))
-                                    .foregroundStyle(ColorTokens.Text.secondary)
-                                    if showOfTotal {
-                                        Text("of \(formatCompact(total)) rows")
-                                            .font(TypographyTokens.detail)
-                                            .foregroundStyle(ColorTokens.Text.tertiary)
+                                    if !query.additionalResults.isEmpty {
+                                        multiResultSetRowCount
                                     } else {
-                                        Text(query.rowProgress.displayCount == 1 ? "row" : "rows")
-                                            .font(TypographyTokens.detail)
-                                            .foregroundStyle(ColorTokens.Text.tertiary)
+                                        singleResultSetRowCount
                                     }
                                 }
 
@@ -78,6 +65,55 @@ extension QueryResultsSection {
         .transaction { transaction in
             transaction.animation = nil
         }
+    }
+
+    @ViewBuilder
+    private var singleResultSetRowCount: some View {
+        let total = query.rowProgress.totalReported
+        let showOfTotal = query.isExecuting && total > 0 && query.rowProgress.totalReceived < total
+        AnimatedCounter(
+            targetValue: showOfTotal ? query.rowProgress.totalReceived : query.rowProgress.displayCount,
+            isActive: query.isExecuting,
+            formatter: { formatCompact($0) }
+        )
+        .font(TypographyTokens.detail.monospaced().weight(.medium))
+        .foregroundStyle(ColorTokens.Text.secondary)
+        if showOfTotal {
+            Text("of \(formatCompact(total)) rows")
+                .font(TypographyTokens.detail)
+                .foregroundStyle(ColorTokens.Text.tertiary)
+        } else {
+            Text(query.rowProgress.displayCount == 1 ? "row" : "rows")
+                .font(TypographyTokens.detail)
+                .foregroundStyle(ColorTokens.Text.tertiary)
+        }
+    }
+
+    @ViewBuilder
+    private var multiResultSetRowCount: some View {
+        let selectedIndex = query.selectedResultSetIndex
+        let selectedRowCount: Int = {
+            if selectedIndex == 0 {
+                return query.rowProgress.displayCount
+            }
+            let additionalIndex = selectedIndex - 1
+            guard additionalIndex < query.additionalResults.count else { return 0 }
+            return query.additionalResults[additionalIndex].totalRowCount ?? query.additionalResults[additionalIndex].rows.count
+        }()
+        let totalSets = 1 + query.additionalResults.count
+
+        Text(formatCompact(selectedRowCount))
+            .font(TypographyTokens.detail.monospaced().weight(.medium))
+            .foregroundStyle(ColorTokens.Text.secondary)
+        Text(selectedRowCount == 1 ? "row" : "rows")
+            .font(TypographyTokens.detail)
+            .foregroundStyle(ColorTokens.Text.tertiary)
+        Text("·")
+            .font(TypographyTokens.detail)
+            .foregroundStyle(ColorTokens.Text.quaternary)
+        Text("Result \(selectedIndex + 1) of \(totalSets)")
+            .font(TypographyTokens.detail)
+            .foregroundStyle(ColorTokens.Text.tertiary)
     }
 
     private var messagesToggleButton: some View {

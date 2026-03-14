@@ -83,6 +83,7 @@ extension EnvironmentState {
                 sslCertPath: connection.sslCertPath,
                 sslKeyPath: connection.sslKeyPath,
                 mssqlEncryptionMode: connection.mssqlEncryptionMode,
+                readOnlyIntent: connection.readOnlyIntent,
                 authentication: credentials,
                 connectTimeoutSeconds: connectTimeoutSeconds
             )
@@ -199,6 +200,7 @@ extension EnvironmentState {
             sslCertPath: connection.sslCertPath,
             sslKeyPath: connection.sslKeyPath,
             mssqlEncryptionMode: connection.mssqlEncryptionMode,
+            readOnlyIntent: connection.readOnlyIntent,
             authentication: credentials,
             connectTimeoutSeconds: 10
         )

@@ -100,6 +100,8 @@ import os.log
     var isLoadingForeignKeyMapping = false
     var shouldPersistResults = false
     var progressiveMaterializationTask: Task<Void, Never>?
+    @Published var additionalResults: [QueryResultSet] = []
+    @Published var selectedResultSetIndex: Int = 0
 
     init(
         sql: String = "SELECT current_timestamp;",

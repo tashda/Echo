@@ -11,6 +11,7 @@ final class ResultStreamBatchWorker: @unchecked Sendable {
     enum BinaryRowStorage: @unchecked Sendable {
         case encoded(ResultBinaryRow)
         case raw(RawRow)
+        case stringValues([String?])
     }
 
     private struct SendableBufferPointer<Element>: @unchecked Sendable {
@@ -158,6 +159,8 @@ final class ResultStreamBatchWorker: @unchecked Sendable {
                             buffers: raw.buffers,
                             lengths: raw.lengths
                         )
+                    case .stringValues(let values):
+                        return ResultBinaryRowCodec.encode(row: values)
                     }
                 }
             }
@@ -181,6 +184,8 @@ final class ResultStreamBatchWorker: @unchecked Sendable {
                                 buffers: raw.buffers,
                                 lengths: raw.lengths
                             )
+                        case .stringValues(let values):
+                            encodedRow = ResultBinaryRowCodec.encode(row: values)
                         }
                         pointer[index] = encodedRow
                         index &+= concurrency

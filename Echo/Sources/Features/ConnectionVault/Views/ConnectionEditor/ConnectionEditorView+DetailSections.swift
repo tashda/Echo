@@ -178,6 +178,9 @@ extension ConnectionEditorView {
                     }
                     .help("Controls how encryption is negotiated with SQL Server.")
 
+                    Toggle("Read-Only Intent", isOn: $readOnlyIntent)
+                        .help("Signal read-only application intent for AlwaysOn Availability Group secondary replica routing.")
+
                     if !trustServerCertificate {
                         caCertificatePathPicker
                     }

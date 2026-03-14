@@ -216,4 +216,48 @@ final class ConnectionConfigurationTests: XCTestCase {
 
         XCTAssertFalse(config.trustServerCertificate, "Default trustServerCertificate should be false")
     }
+
+    // MARK: - readOnlyIntent
+
+    func testReadOnlyIntentDefaultsToFalse() {
+        let config = ConnectionConfiguration(
+            connectionName: "Default",
+            host: "localhost",
+            port: 1433,
+            database: "mydb",
+            username: "sa"
+        )
+        XCTAssertFalse(config.readOnlyIntent)
+    }
+
+    func testAsSavedConnectionPreservesReadOnlyIntentTrue() {
+        let config = ConnectionConfiguration(
+            connectionName: "MSSQL AG",
+            host: "sql.example.com",
+            port: 1433,
+            database: "mydb",
+            username: "sa",
+            readOnlyIntent: true
+        )
+
+        let saved = config.asSavedConnection
+        XCTAssertTrue(saved.readOnlyIntent)
+    }
+
+    func testFromSavedConnectionPreservesReadOnlyIntent() {
+        let saved = TestFixtures.savedConnection(
+            connectionName: "MSSQL AG",
+            host: "sql.example.com",
+            port: 1433,
+            database: "mydb",
+            username: "sa",
+            databaseType: .microsoftSQL
+        )
+
+        var mutableSaved = saved
+        mutableSaved.readOnlyIntent = true
+
+        let config = ConnectionConfiguration.from(mutableSaved)
+        XCTAssertTrue(config.readOnlyIntent)
+    }
 }

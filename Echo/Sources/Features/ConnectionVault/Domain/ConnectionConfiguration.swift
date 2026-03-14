@@ -156,6 +156,7 @@ struct ConnectionConfiguration: Codable, Hashable {
             sslCertPath: savedConnection.sslCertPath,
             sslKeyPath: savedConnection.sslKeyPath,
             mssqlEncryptionMode: savedConnection.mssqlEncryptionMode,
+            readOnlyIntent: savedConnection.readOnlyIntent,
             id: savedConnection.id
         )
     }

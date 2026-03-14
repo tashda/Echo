@@ -27,38 +27,13 @@ extension QueryResultsSection {
 
     var resultsView: some View {
         Group {
-            if hasRows {
+            if hasRows || !query.additionalResults.isEmpty {
 #if os(macOS)
-                QueryResultsTableView(
-                    query: query,
-                    highlightedColumnIndex: highlightedColumnIndex,
-                    activeSort: activeSort,
-                    rowOrder: rowOrder,
-                    onColumnTap: toggleHighlightedColumn,
-                    onSort: { index, action in
-                        let column = tableColumns[index]
-                        switch action {
-                        case .ascending: applySort(column: column, ascending: true)
-                        case .descending: applySort(column: column, ascending: false)
-                        case .clear:
-                            sortCriteria = nil
-                            highlightedColumnIndex = nil
-                            rebuildRowOrder()
-                        }
-                    },
-                    onClearColumnHighlight: { highlightedColumnIndex = nil },
-                    backgroundColor: NSColor(ColorTokens.Background.primary),
-                    onForeignKeyEvent: onForeignKeyEvent,
-                    onJsonEvent: { event in
-                        onJsonEvent(event)
-                    },
-                    onCellInspect: onCellInspect,
-                    persistedState: gridState,
-                    isResizing: isResizingResults,
-                    alternateRowShading: projectStore.globalSettings.resultsAlternateRowShading,
-                    showRowNumbers: projectStore.globalSettings.resultsShowRowNumbers,
-                    colorOverrides: projectStore.globalSettings.resultGridColorOverrides
-                )
+                if query.additionalResults.isEmpty {
+                    primaryResultsTable
+                } else {
+                    multiResultSetView
+                }
 #else
                 QueryResultsGridView(
                     query: query,
@@ -75,6 +50,103 @@ extension QueryResultsSection {
             }
         }
     }
+
+#if os(macOS)
+    private var primaryResultsTable: some View {
+        QueryResultsTableView(
+            query: query,
+            highlightedColumnIndex: highlightedColumnIndex,
+            activeSort: activeSort,
+            rowOrder: rowOrder,
+            onColumnTap: toggleHighlightedColumn,
+            onSort: { index, action in
+                let column = tableColumns[index]
+                switch action {
+                case .ascending: applySort(column: column, ascending: true)
+                case .descending: applySort(column: column, ascending: false)
+                case .clear:
+                    sortCriteria = nil
+                    highlightedColumnIndex = nil
+                    rebuildRowOrder()
+                }
+            },
+            onClearColumnHighlight: { highlightedColumnIndex = nil },
+            backgroundColor: NSColor(ColorTokens.Background.primary),
+            onForeignKeyEvent: onForeignKeyEvent,
+            onJsonEvent: { event in
+                onJsonEvent(event)
+            },
+            onCellInspect: onCellInspect,
+            persistedState: gridState,
+            isResizing: isResizingResults,
+            alternateRowShading: projectStore.globalSettings.resultsAlternateRowShading,
+            showRowNumbers: projectStore.globalSettings.resultsShowRowNumbers,
+            colorOverrides: projectStore.globalSettings.resultGridColorOverrides
+        )
+    }
+
+    private var multiResultSetView: some View {
+        let allSets = query.allResultSetsForDisplay
+        return VStack(spacing: 0) {
+            resultSetTabBar(count: allSets.count)
+
+            if query.selectedResultSetIndex == 0 && hasRows {
+                primaryResultsTable
+            } else if query.selectedResultSetIndex > 0,
+                      query.selectedResultSetIndex - 1 < query.additionalResults.count {
+                AdditionalResultSetTableView(
+                    resultSet: query.additionalResults[query.selectedResultSetIndex - 1],
+                    backgroundColor: NSColor(ColorTokens.Background.primary),
+                    alternateRowShading: projectStore.globalSettings.resultsAlternateRowShading,
+                    showRowNumbers: projectStore.globalSettings.resultsShowRowNumbers
+                )
+            } else {
+                noRowsReturnedView
+            }
+        }
+    }
+
+    private func resultSetTabBar(count: Int) -> some View {
+        HStack(spacing: SpacingTokens.xxs) {
+            ForEach(0..<count, id: \.self) { index in
+                let rowCount = resultSetRowCount(at: index)
+                Button {
+                    query.selectedResultSetIndex = index
+                } label: {
+                    HStack(spacing: SpacingTokens.xxs) {
+                        Text("Result \(index + 1)")
+                            .font(TypographyTokens.detail)
+                        Text("(\(rowCount))")
+                            .font(TypographyTokens.compact)
+                            .foregroundStyle(ColorTokens.Text.tertiary)
+                    }
+                    .padding(.horizontal, SpacingTokens.xs)
+                    .padding(.vertical, SpacingTokens.xxs)
+                    .background(
+                        query.selectedResultSetIndex == index
+                            ? ColorTokens.Text.primary.opacity(0.08)
+                            : Color.clear,
+                        in: RoundedRectangle(cornerRadius: 5)
+                    )
+                }
+                .buttonStyle(.plain)
+            }
+            Spacer()
+        }
+        .padding(.horizontal, SpacingTokens.xs)
+        .padding(.vertical, SpacingTokens.xxs2)
+        .background(ColorTokens.Background.secondary)
+    }
+
+    private func resultSetRowCount(at index: Int) -> Int {
+        if index == 0 {
+            return query.rowProgress.displayCount
+        }
+        let additionalIndex = index - 1
+        guard additionalIndex < query.additionalResults.count else { return 0 }
+        return query.additionalResults[additionalIndex].totalRowCount ?? query.additionalResults[additionalIndex].rows.count
+    }
+#endif
 
     var messagesView: some View {
         ExecutionConsoleView(results: query.results ?? QueryResultSet(columns: [], rows: []))

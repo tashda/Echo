@@ -142,10 +142,10 @@ jobs:
       with:
         xcode-version: '26'
 
-    - name: Install Docker via Colima
-      run: |
-        brew install docker colima
-        colima start --cpu 4 --memory 4 --disk 20
+    - name: Set up Docker
+      uses: docker/setup-docker-action@v4
+      env:
+        LIMA_START_ARGS: "--cpus 4 --memory 4"
 
     - name: Run Integration Tests (MSSQL)
       if: startsWith(matrix.db, 'mssql')
