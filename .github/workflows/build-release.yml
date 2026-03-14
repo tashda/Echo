@@ -86,8 +86,12 @@ jobs:
           CODE_SIGNING_ALLOWED=NO
 
   integration-tests:
+    # Docker-based integration tests require nested virtualization which GitHub-hosted
+    # macOS runners do not support. These tests run locally with USE_DOCKER=1 or on
+    # self-hosted runners with Docker. Enable by setting `runs-on: self-hosted` and
+    # removing the `if: false` condition.
+    if: false
     runs-on: macos-26
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/main')
     strategy:
       matrix:
         include:
