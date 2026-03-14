@@ -69,7 +69,7 @@ final class MSSQLIntegrationTests: XCTestCase {
     func testSimpleQuerySelect1() async throws {
         let config = try loadConfig()
         let session = try await connect(config: config)
-        defer { Task { await session.close() } }
+        defer { Task { @MainActor in await session.close() } }
 
         let result = try await session.simpleQuery("SELECT 1 AS value")
         XCTAssertEqual(result.columns.count, 1)
@@ -82,7 +82,7 @@ final class MSSQLIntegrationTests: XCTestCase {
     func testListDatabases() async throws {
         let config = try loadConfig()
         let session = try await connect(config: config)
-        defer { Task { await session.close() } }
+        defer { Task { @MainActor in await session.close() } }
 
         let databases = try await session.listDatabases()
         XCTAssertFalse(databases.isEmpty)
@@ -92,7 +92,7 @@ final class MSSQLIntegrationTests: XCTestCase {
     func testListSchemas() async throws {
         let config = try loadConfig()
         let session = try await connect(config: config)
-        defer { Task { await session.close() } }
+        defer { Task { @MainActor in await session.close() } }
 
         let schemas = try await session.listSchemas()
         XCTAssertTrue(schemas.contains("dbo"))
@@ -101,7 +101,7 @@ final class MSSQLIntegrationTests: XCTestCase {
     func testListTablesAndViews() async throws {
         let config = try loadConfig()
         let session = try await connect(config: config)
-        defer { Task { await session.close() } }
+        defer { Task { @MainActor in await session.close() } }
 
         let objects = try await session.listTablesAndViews(schema: "dbo")
         XCTAssertNotNil(objects)
@@ -112,12 +112,12 @@ final class MSSQLIntegrationTests: XCTestCase {
     func testGetTableStructureDetails() async throws {
         let config = try loadConfig()
         let session = try await connect(config: config)
-        defer { Task { await session.close() } }
+        defer { Task { @MainActor in await session.close() } }
 
         // Create a temp table to test
         let tableName = "##echo_test_\(UUID().uuidString.prefix(8).lowercased())"
         _ = try await session.executeUpdate("CREATE TABLE \(tableName) (id INT PRIMARY KEY, name NVARCHAR(100))")
-        defer { Task { try? await session.executeUpdate("DROP TABLE \(tableName)") } }
+        defer { Task { @MainActor in try? await session.executeUpdate("DROP TABLE \(tableName)") } }
 
         let details = try await session.getTableStructureDetails(schema: "dbo", table: tableName)
         XCTAssertGreaterThanOrEqual(details.columns.count, 2)

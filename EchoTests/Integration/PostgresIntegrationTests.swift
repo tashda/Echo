@@ -43,7 +43,7 @@ final class PostgresIntegrationTests: XCTestCase {
     func testSimpleQuerySelect1() async throws {
         let config = try loadConfig()
         let session = try await connect(config: config)
-        defer { Task { await session.close() } }
+        defer { Task { @MainActor in await session.close() } }
 
         let result = try await session.simpleQuery("SELECT 1 AS value")
         XCTAssertEqual(result.columns.count, 1)
@@ -57,7 +57,7 @@ final class PostgresIntegrationTests: XCTestCase {
     func testListDatabases() async throws {
         let config = try loadConfig()
         let session = try await connect(config: config)
-        defer { Task { await session.close() } }
+        defer { Task { @MainActor in await session.close() } }
 
         let databases = try await session.listDatabases()
         XCTAssertFalse(databases.isEmpty, "Should list at least one database")
@@ -66,7 +66,7 @@ final class PostgresIntegrationTests: XCTestCase {
     func testListSchemas() async throws {
         let config = try loadConfig()
         let session = try await connect(config: config)
-        defer { Task { await session.close() } }
+        defer { Task { @MainActor in await session.close() } }
 
         let schemas = try await session.listSchemas()
         XCTAssertTrue(schemas.contains("public"), "Should contain 'public' schema")
@@ -75,7 +75,7 @@ final class PostgresIntegrationTests: XCTestCase {
     func testListTablesAndViews() async throws {
         let config = try loadConfig()
         let session = try await connect(config: config)
-        defer { Task { await session.close() } }
+        defer { Task { @MainActor in await session.close() } }
 
         let objects = try await session.listTablesAndViews(schema: "public")
         // May be empty in a fresh database, but should not throw
@@ -87,7 +87,7 @@ final class PostgresIntegrationTests: XCTestCase {
     func testQueryWithPaging() async throws {
         let config = try loadConfig()
         let session = try await connect(config: config)
-        defer { Task { await session.close() } }
+        defer { Task { @MainActor in await session.close() } }
 
         let result = try await session.queryWithPaging(
             "SELECT generate_series(1, 100) AS n",
@@ -102,7 +102,7 @@ final class PostgresIntegrationTests: XCTestCase {
     func testExecuteUpdateDDL() async throws {
         let config = try loadConfig()
         let session = try await connect(config: config)
-        defer { Task { await session.close() } }
+        defer { Task { @MainActor in await session.close() } }
 
         let tableName = "echo_test_\(UUID().uuidString.prefix(8).lowercased())"
         _ = try await session.executeUpdate("CREATE TEMP TABLE \(tableName) (id serial PRIMARY KEY, name text)")

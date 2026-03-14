@@ -18,7 +18,7 @@ final class SQLiteIntegrationTests: XCTestCase {
 
     func testSimpleQuerySelect1() async throws {
         let session = try await makeInMemorySession()
-        defer { Task { await session.close() } }
+        defer { Task { @MainActor in await session.close() } }
 
         let result = try await session.simpleQuery("SELECT 1 AS value")
         XCTAssertEqual(result.columns.count, 1)
@@ -31,7 +31,7 @@ final class SQLiteIntegrationTests: XCTestCase {
 
     func testCreateTableAndInsert() async throws {
         let session = try await makeInMemorySession()
-        defer { Task { await session.close() } }
+        defer { Task { @MainActor in await session.close() } }
 
         _ = try await session.executeUpdate("""
             CREATE TABLE users (
@@ -59,7 +59,7 @@ final class SQLiteIntegrationTests: XCTestCase {
 
     func testListTablesAndViews() async throws {
         let session = try await makeInMemorySession()
-        defer { Task { await session.close() } }
+        defer { Task { @MainActor in await session.close() } }
 
         _ = try await session.executeUpdate("CREATE TABLE orders (id INTEGER PRIMARY KEY, product TEXT)")
         _ = try await session.executeUpdate("CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT)")
@@ -75,7 +75,7 @@ final class SQLiteIntegrationTests: XCTestCase {
 
     func testGetTableSchema() async throws {
         let session = try await makeInMemorySession()
-        defer { Task { await session.close() } }
+        defer { Task { @MainActor in await session.close() } }
 
         _ = try await session.executeUpdate("""
             CREATE TABLE products (
@@ -100,7 +100,7 @@ final class SQLiteIntegrationTests: XCTestCase {
 
     func testQueryWithPaging() async throws {
         let session = try await makeInMemorySession()
-        defer { Task { await session.close() } }
+        defer { Task { @MainActor in await session.close() } }
 
         _ = try await session.executeUpdate("CREATE TABLE nums (n INTEGER)")
         for i in 1...20 {
@@ -120,7 +120,7 @@ final class SQLiteIntegrationTests: XCTestCase {
 
     func testDataTypeRoundTrips() async throws {
         let session = try await makeInMemorySession()
-        defer { Task { await session.close() } }
+        defer { Task { @MainActor in await session.close() } }
 
         _ = try await session.executeUpdate("""
             CREATE TABLE types_test (
