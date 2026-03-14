@@ -15,7 +15,7 @@ struct NewProjectSheet: View {
     ]
 
     var body: some View {
-        VStack(spacing: 0) {
+        VStack(spacing: SpacingTokens.xxxs) {
             formContent
             Divider()
             footerButtons
@@ -39,7 +39,7 @@ struct NewProjectSheet: View {
     }
 
     private var iconPaletteView: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: SpacingTokens.xxs2) {
             ForEach(icons, id: \.self) { iconName in
                 iconSwatch(name: iconName, isSelected: selectedIconName == iconName)
                     .onTapGesture {
@@ -54,10 +54,10 @@ struct NewProjectSheet: View {
 
     private func iconSwatch(name: String, isSelected: Bool) -> some View {
         Image(systemName: name)
-            .font(.system(size: 14))
+            .font(TypographyTokens.prominent)
             .frame(width: 26, height: 26)
-            .foregroundStyle(isSelected ? Color.white : .secondary)
-            .background(isSelected ? Color.accentColor : Color.clear, in: RoundedRectangle(cornerRadius: 6))
+            .foregroundStyle(isSelected ? Color.white : ColorTokens.Text.secondary)
+            .background(isSelected ? ColorTokens.accent : Color.clear, in: RoundedRectangle(cornerRadius: 6))
             .contentShape(Rectangle())
     }
 

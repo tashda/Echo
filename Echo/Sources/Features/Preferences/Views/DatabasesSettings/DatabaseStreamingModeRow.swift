@@ -28,7 +28,7 @@ struct DatabaseStreamingModeRow: View {
                         .imageScale(.medium)
                 }
                 .buttonStyle(.plain)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(ColorTokens.Text.secondary)
                 .popover(
                     isPresented: $isPopoverPresented,
                     attachmentAnchor: .rect(.bounds),
@@ -42,7 +42,7 @@ struct DatabaseStreamingModeRow: View {
                                     .frame(width: 56, alignment: .leading)
                                 Text(item.summary)
                                     .font(TypographyTokens.standard)
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(ColorTokens.Text.secondary)
                             }
                         }
                     }

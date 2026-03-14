@@ -31,7 +31,7 @@ struct MonospacedFontPicker: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: SpacingTokens.xs) {
             LabeledContent("Font Family") {
                 Picker("", selection: $selectedFamily) {
                     ForEach(monospacedFamilies, id: \.self) { family in
@@ -56,12 +56,12 @@ struct MonospacedFontPicker: View {
         }()
         return Text("SELECT * FROM users WHERE id = 42;")
             .font(previewFont)
-            .foregroundStyle(.secondary)
+            .foregroundStyle(ColorTokens.Text.secondary)
             .lineLimit(1)
             .truncationMode(.tail)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(8)
-            .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 6))
+            .padding(SpacingTokens.xs)
+            .background(ColorTokens.Text.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 6))
     }
 
     private func displayName(for family: String) -> String {

@@ -106,7 +106,7 @@ struct StreamingPresetPickerControl: View {
                 .font(TypographyTokens.standard.weight(.regular))
         }
         .buttonStyle(.plain)
-        .foregroundStyle(.secondary)
+        .foregroundStyle(ColorTokens.Text.secondary)
         .popover(isPresented: $showInfoPopover,
                  attachmentAnchor: .rect(.bounds),
                  arrowEdge: .trailing) {

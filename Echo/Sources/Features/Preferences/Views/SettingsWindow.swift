@@ -11,6 +11,7 @@ struct SettingsView: View {
 
     enum SettingsSection: String, CaseIterable, Identifiable {
         case general
+        case notifications
         case appearance
         case databases
         case sidebar
@@ -25,6 +26,7 @@ struct SettingsView: View {
         var title: String {
             switch self {
             case .general: return "General"
+            case .notifications: return "Notifications"
             case .appearance: return "Appearance"
             case .databases: return "Databases"
             case .sidebar: return "Sidebar"
@@ -39,6 +41,7 @@ struct SettingsView: View {
         var systemImage: String? {
             switch self {
             case .general: return "gear"
+            case .notifications: return "bell.badge"
             case .appearance: return "paintbrush"
             case .databases: return "externaldrive.connected.to.line.below"
             case .sidebar: return "sidebar.left"
@@ -157,7 +160,7 @@ struct SettingsView: View {
                 }
             }
         }
-        .onAppear(perform: configureSettingsWindowIdentifier)
+        .onAppear(perform: configureSettingsWindow)
     }
 
     @ViewBuilder
@@ -165,6 +168,9 @@ struct SettingsView: View {
         switch section {
         case .general:
             GeneralSettingsView()
+
+        case .notifications:
+            NotificationSettingsView()
 
         case .appearance:
             AppearanceSettingsView()

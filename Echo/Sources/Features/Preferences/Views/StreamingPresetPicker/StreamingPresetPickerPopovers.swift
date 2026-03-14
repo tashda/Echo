@@ -17,9 +17,9 @@ extension StreamingPresetPickerControl {
         @FocusState private var fieldFocused: Bool
 
         var body: some View {
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: SpacingTokens.sm) {
                 Text("Custom \(title)")
-                    .font(.headline)
+                    .font(TypographyTokens.headline)
 
                 TextField("Value", text: $text)
                     .textFieldStyle(.roundedBorder)
@@ -29,8 +29,8 @@ extension StreamingPresetPickerControl {
                     .focused($fieldFocused)
 
                 Text("Allowed range: \(rangeDescription)")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .font(TypographyTokens.caption)
+                    .foregroundStyle(ColorTokens.Text.secondary)
 
                 HStack {
                     Spacer()
@@ -54,10 +54,10 @@ extension StreamingPresetPickerControl {
         let defaultLabel: String
 
         var body: some View {
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: SpacingTokens.sm) {
                 Text(description)
                     .font(TypographyTokens.standard)
-                    .foregroundStyle(Color.primary)
+                    .foregroundStyle(ColorTokens.Text.primary)
                     .multilineTextAlignment(.leading)
                     .fixedSize(horizontal: false, vertical: true)
 
@@ -65,7 +65,7 @@ extension StreamingPresetPickerControl {
 
                 Text("Default: \(defaultLabel)")
                     .font(TypographyTokens.caption2)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(ColorTokens.Text.secondary)
                     .multilineTextAlignment(.leading)
                     .fixedSize(horizontal: false, vertical: true)
             }

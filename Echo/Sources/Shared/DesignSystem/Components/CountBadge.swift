@@ -11,6 +11,6 @@ struct CountBadge: View {
             .foregroundStyle(tint.opacity(0.8))
             .padding(.horizontal, SpacingTokens.xxs2)
             .padding(.vertical, SpacingTokens.xxxs)
-            .background(Color.primary.opacity(opacity), in: Capsule())
+            .background(ColorTokens.Text.primary.opacity(opacity), in: Capsule())
     }
 }

@@ -82,7 +82,7 @@ struct EchoSenseToggleRow: View {
                         .imageScale(.medium)
                 }
                 .buttonStyle(.plain)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(ColorTokens.Text.secondary)
                 .popover(isPresented: $isPopoverPresented, attachmentAnchor: .rect(.bounds), arrowEdge: .trailing) {
                     EchoSenseInfoPopover(topic: topic)
                 }
@@ -119,7 +119,7 @@ struct EchoSenseAggressivenessRow: View {
                         .imageScale(.medium)
                 }
                 .buttonStyle(.plain)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(ColorTokens.Text.secondary)
                 .popover(isPresented: $isPopoverPresented,
                          attachmentAnchor: .rect(.bounds),
                          arrowEdge: .trailing) {
@@ -131,7 +131,7 @@ struct EchoSenseAggressivenessRow: View {
                                     .frame(width: 72, alignment: .leading)
                                 Text(item.summary)
                                     .font(TypographyTokens.standard)
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(ColorTokens.Text.secondary)
                             }
                         }
                     }
@@ -151,7 +151,7 @@ struct EchoSenseInfoPopover: View {
     var body: some View {
         Text(topic.message)
             .font(TypographyTokens.standard)
-            .foregroundStyle(.primary)
+            .foregroundStyle(ColorTokens.Text.primary)
             .multilineTextAlignment(.leading)
             .fixedSize(horizontal: false, vertical: true)
             .padding(SpacingTokens.md)

@@ -10,6 +10,7 @@ struct AppearanceSettingsView: View {
         Form {
             appearanceModeSection
             accentColorSection
+            sidebarSection
             editorFontSection
         }
         .formStyle(.grouped)
@@ -34,6 +35,19 @@ struct AppearanceSettingsView: View {
                     AccentColorPalette(selection: customAccentColorHexBinding)
                 }
             }
+        }
+    }
+
+    private var sidebarSection: some View {
+        Section("Sidebar") {
+            Toggle("Colored sidebar icons", isOn: Binding(
+                get: { projectStore.globalSettings.sidebarColoredIcons },
+                set: { newValue in
+                    var settings = projectStore.globalSettings
+                    settings.sidebarColoredIcons = newValue
+                    Task { try? await projectStore.updateGlobalSettings(settings) }
+                }
+            ))
         }
     }
 
@@ -98,8 +112,10 @@ struct AppearanceSettingsView: View {
             set: { newValue in
                 var settings = projectStore.globalSettings
                 settings.appearanceMode = newValue
-                Task { try? await projectStore.updateGlobalSettings(settings) }
-                appearanceStore.applyAppearanceMode(newValue)
+                Task {
+                    try? await projectStore.updateGlobalSettings(settings)
+                    appearanceStore.applyAppearanceMode(newValue)
+                }
             }
         )
     }
@@ -110,15 +126,16 @@ struct AppearanceSettingsView: View {
             set: { newValue in
                 var settings = projectStore.globalSettings
                 settings.accentColorSource = newValue
-                Task { try? await projectStore.updateGlobalSettings(settings) }
-                switch newValue {
-                case .system:
-                    appearanceStore.setAccentColor(nil)
-                case .connection:
-                    appearanceStore.setAccentColor(nil)
-                case .custom:
-                    if let hex = settings.customAccentColorHex, let color = Color(hex: hex) {
-                        appearanceStore.setAccentColor(color)
+                let hex = settings.customAccentColorHex
+                Task {
+                    try? await projectStore.updateGlobalSettings(settings)
+                    switch newValue {
+                    case .system, .connection:
+                        appearanceStore.setAccentColor(nil)
+                    case .custom:
+                        if let hex, let color = Color(hex: hex) {
+                            appearanceStore.setAccentColor(color)
+                        }
                     }
                 }
             }
@@ -131,9 +148,11 @@ struct AppearanceSettingsView: View {
             set: { newHex in
                 var settings = projectStore.globalSettings
                 settings.customAccentColorHex = newHex.isEmpty ? nil : newHex
-                Task { try? await projectStore.updateGlobalSettings(settings) }
-                if let color = Color(hex: newHex) {
-                    appearanceStore.setAccentColor(color)
+                Task {
+                    try? await projectStore.updateGlobalSettings(settings)
+                    if let color = Color(hex: newHex) {
+                        appearanceStore.setAccentColor(color)
+                    }
                 }
             }
         )
@@ -177,13 +196,13 @@ private struct AppearanceModeCard: View {
                 .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                 .overlay(
                     RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .strokeBorder(isSelected ? Color.accentColor : .clear, lineWidth: 2.5)
+                        .strokeBorder(isSelected ? ColorTokens.accent : .clear, lineWidth: 2.5)
                 )
                 .shadow(color: .black.opacity(0.08), radius: 2, y: 1)
 
             Text(mode.displayName)
                 .font(TypographyTokens.caption2.weight(isSelected ? .semibold : .regular))
-                .foregroundStyle(isSelected ? .primary : .secondary)
+                .foregroundStyle(isSelected ? ColorTokens.Text.primary : ColorTokens.Text.secondary)
         }
         .frame(maxWidth: .infinity)
         .contentShape(Rectangle())
@@ -218,13 +237,13 @@ private struct AppearanceModeCard: View {
                 }
             }
             // Traffic lights
-            HStack(spacing: 2.5) {
-                Circle().fill(Color.red.opacity(0.8)).frame(width: 5, height: 5)
-                Circle().fill(Color.orange.opacity(0.8)).frame(width: 5, height: 5)
-                Circle().fill(Color.green.opacity(0.8)).frame(width: 5, height: 5)
+            HStack(spacing: SpacingTokens.xxxs) {
+                Circle().fill(ColorTokens.Status.error.opacity(0.8)).frame(width: 5, height: 5)
+                Circle().fill(ColorTokens.Status.warning.opacity(0.8)).frame(width: 5, height: 5)
+                Circle().fill(ColorTokens.Status.success.opacity(0.8)).frame(width: 5, height: 5)
             }
-            .padding(.top, 4)
-            .padding(.leading, 5)
+            .padding(.top, SpacingTokens.xxs)
+            .padding(.leading, SpacingTokens.xxs)
         }
     }
 }
@@ -257,7 +276,7 @@ private struct AccentColorSourceRow: View {
                         .imageScale(.medium)
                 }
                 .buttonStyle(.plain)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(ColorTokens.Text.secondary)
                 .popover(isPresented: $isPopoverPresented,
                          attachmentAnchor: .rect(.bounds),
                          arrowEdge: .trailing) {
@@ -269,7 +288,7 @@ private struct AccentColorSourceRow: View {
                                     .frame(width: 80, alignment: .leading)
                                 Text(item.summary)
                                     .font(TypographyTokens.standard)
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(ColorTokens.Text.secondary)
                             }
                         }
                     }
@@ -298,7 +317,7 @@ private struct AccentColorPalette: View {
 
     private var colorBinding: Binding<Color> {
         Binding(
-            get: { Color(hex: selection) ?? .accentColor },
+            get: { Color(hex: selection) ?? ColorTokens.accent },
             set: { color in
                 if let hex = color.toHex() {
                     selection = hex.replacingOccurrences(of: "#", with: "")
@@ -312,16 +331,16 @@ private struct AccentColorPalette: View {
             ForEach(Self.presets, id: \.hex) { preset in
                 let isSelected = selection.uppercased() == preset.hex.uppercased()
                 Circle()
-                    .fill(Color(hex: preset.hex) ?? .accentColor)
+                    .fill(Color(hex: preset.hex) ?? ColorTokens.accent)
                     .frame(width: 22, height: 22)
                     .overlay {
                         if isSelected {
                             Image(systemName: "checkmark")
-                                .font(.system(size: 10, weight: .bold))
+                                .font(TypographyTokens.compact.weight(.bold))
                                 .foregroundStyle(.white)
                         }
                     }
-                    .overlay(Circle().strokeBorder(.primary.opacity(0.15), lineWidth: 0.5))
+                    .overlay(Circle().strokeBorder(ColorTokens.Text.primary.opacity(0.15), lineWidth: 0.5))
                     .contentShape(Circle())
                     .onTapGesture {
                         withAnimation(.easeInOut(duration: 0.15)) { selection = preset.hex }

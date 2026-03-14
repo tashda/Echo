@@ -6,13 +6,13 @@ struct PerformanceMonitorQueryContent: View {
     @EnvironmentObject private var appearanceStore: AppearanceStore
 
     private let columns: [GridItem] = [
-        GridItem(.flexible(minimum: 120), spacing: 18, alignment: .leading),
-        GridItem(.flexible(minimum: 120), spacing: 18, alignment: .leading),
-        GridItem(.flexible(minimum: 120), spacing: 18, alignment: .leading)
+        GridItem(.flexible(minimum: 120), spacing: SpacingTokens.md, alignment: .leading),
+        GridItem(.flexible(minimum: 120), spacing: SpacingTokens.md, alignment: .leading),
+        GridItem(.flexible(minimum: 120), spacing: SpacingTokens.md, alignment: .leading)
     ]
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: SpacingTokens.md) {
             header
 
             if let report = report {
@@ -20,8 +20,8 @@ struct PerformanceMonitorQueryContent: View {
                 backendSection(for: report)
             } else {
                 Text("Waiting for performance samples...")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
+                    .font(TypographyTokens.footnote)
+                    .foregroundStyle(ColorTokens.Text.secondary)
             }
         }
         .padding(SpacingTokens.md2)
@@ -32,32 +32,32 @@ struct PerformanceMonitorQueryContent: View {
     }
 
     private var header: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .center, spacing: 12) {
+        VStack(alignment: .leading, spacing: SpacingTokens.xs) {
+            HStack(alignment: .center, spacing: SpacingTokens.sm) {
                 Text(tab.title.isEmpty ? "Untitled Query" : tab.title)
-                    .font(.headline)
+                    .font(TypographyTokens.headline)
                 Spacer()
                 statusBadge
             }
 
-            HStack(spacing: 16) {
+            HStack(spacing: SpacingTokens.md) {
                 if let connectionName = tab.connection.connectionName.nonEmpty {
                     Label(connectionName, systemImage: "server.rack")
                         .labelStyle(.titleAndIcon)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .font(TypographyTokens.caption)
+                        .foregroundStyle(ColorTokens.Text.secondary)
                 }
                 if let database = tab.connection.database.nonEmpty {
                     Label(database, systemImage: "database")
                         .labelStyle(.titleAndIcon)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .font(TypographyTokens.caption)
+                        .foregroundStyle(ColorTokens.Text.secondary)
                 }
                 let rowSummary = "\(max(query.rowProgress.reported, query.rowProgress.materialized)) rows"
                 Label(rowSummary, systemImage: "tablecells")
                     .labelStyle(.titleAndIcon)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .font(TypographyTokens.caption)
+                    .foregroundStyle(ColorTokens.Text.secondary)
             }
         }
     }
@@ -65,7 +65,7 @@ struct PerformanceMonitorQueryContent: View {
     private var statusBadge: some View {
         let status = statusDescription
         return Text(status.label)
-            .font(.caption.bold())
+            .font(TypographyTokens.caption.weight(.bold))
             .padding(.vertical, SpacingTokens.xxs)
             .padding(.horizontal, SpacingTokens.xs)
             .background(
@@ -77,14 +77,14 @@ struct PerformanceMonitorQueryContent: View {
 
     private func metricsSection(for report: QueryPerformanceTracker.Report) -> some View {
         let items = primaryMetrics(for: report)
-        return LazyVGrid(columns: columns, alignment: .leading, spacing: 12) {
+        return LazyVGrid(columns: columns, alignment: .leading, spacing: SpacingTokens.sm) {
             ForEach(Array(items.enumerated()), id: \.offset) { _, metric in
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: SpacingTokens.xxs) {
                     Text(metric.label)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .font(TypographyTokens.caption)
+                        .foregroundStyle(ColorTokens.Text.secondary)
                     Text(metric.value)
-                        .font(.body.monospacedDigit())
+                        .font(TypographyTokens.body.monospacedDigit())
                 }
             }
         }
@@ -95,35 +95,35 @@ struct PerformanceMonitorQueryContent: View {
         if let sample = report.backendSamples.last {
             Divider()
             Text("Latest Batch")
-                .font(.subheadline.bold())
-            HStack(spacing: 32) {
-                VStack(alignment: .leading, spacing: 4) {
+                .font(TypographyTokens.subheadline.weight(.bold))
+            HStack(spacing: SpacingTokens.xl) {
+                VStack(alignment: .leading, spacing: SpacingTokens.xxs) {
                     Text("Rows in batch")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .font(TypographyTokens.caption)
+                        .foregroundStyle(ColorTokens.Text.secondary)
                     Text("\(sample.batchRowCount)")
-                        .font(.body.monospacedDigit())
+                        .font(TypographyTokens.body.monospacedDigit())
                 }
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: SpacingTokens.xxs) {
                     Text("Total rows")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .font(TypographyTokens.caption)
+                        .foregroundStyle(ColorTokens.Text.secondary)
                     Text("\(sample.cumulativeRowCount)")
-                        .font(.body.monospacedDigit())
+                        .font(TypographyTokens.body.monospacedDigit())
                 }
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: SpacingTokens.xxs) {
                     Text("Decode time")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .font(TypographyTokens.caption)
+                        .foregroundStyle(ColorTokens.Text.secondary)
                     Text(EchoFormatters.duration(sample.decodeDuration))
-                        .font(.body.monospacedDigit())
+                        .font(TypographyTokens.body.monospacedDigit())
                 }
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: SpacingTokens.xxs) {
                     Text("Network wait")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .font(TypographyTokens.caption)
+                        .foregroundStyle(ColorTokens.Text.secondary)
                     Text(EchoFormatters.duration(sample.networkWaitDuration))
-                        .font(.body.monospacedDigit())
+                        .font(TypographyTokens.body.monospacedDigit())
                 }
             }
         }
@@ -168,15 +168,15 @@ struct PerformanceMonitorQueryContent: View {
 
     private var statusDescription: (label: String, color: Color) {
         if query.isExecuting {
-            return ("Executing", .orange)
+            return ("Executing", ColorTokens.Status.warning)
         }
         if query.wasCancelled {
-            return ("Cancelled", .gray)
+            return ("Cancelled", ColorTokens.Text.secondary)
         }
         if query.errorMessage != nil {
-            return ("Error", .red)
+            return ("Error", ColorTokens.Status.error)
         }
-        return ("Idle", .green)
+        return ("Idle", ColorTokens.Status.success)
     }
 
     struct Metric {

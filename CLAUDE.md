@@ -29,15 +29,88 @@ When working from manual design references, the agent must still explicitly reas
 
 Figma or screenshots are design inputs, not the final authority. If the reference material and Apple guidance differ, prefer the official Apple behavior and update the implementation accordingly. The goal is not pixel-matching a mockup at all costs; the goal is a native macOS 26 result that preserves the design intent.
 
-## Swift & Build
+## Swift 6.2 & Build
 
-All code must be Swift 6 compatible — strict concurrency checking enabled, no data races, proper `Sendable` conformance, structured concurrency where appropriate.
+Echo uses **Swift 6.2** with the **Swift 6 language mode**. All code must be data-race safe at compile time.
 
-Use **XcodeBuildMCP** for all build, run, and test operations. Do not use `xcodebuild` shell commands directly. Call `session_show_defaults` at the start of each session and set defaults as needed.
+### Build Settings (Required)
+
+These Xcode build settings MUST be enabled:
+
+- **Swift Language Version** → Swift 6
+- **Approachable Concurrency** → Yes (enables `NonisolatedNonsendingByDefault`, isolated conformances, and other Swift 6.2 features as a suite)
+- **Default Actor Isolation** → `MainActor` (for the main Echo app module — all declarations are `@MainActor` unless explicitly opted out)
+- **Strict Concurrency Checking** → Complete
+
+### Concurrency Model
+
+Swift 6.2 introduces a fundamentally simpler concurrency model. Understand and follow these principles:
+
+**1. MainActor by default for the app module.**
+With `Default Actor Isolation = MainActor`, every declaration in Echo's main module is implicitly `@MainActor`. You do NOT need to write `@MainActor` on views, view models, or app-level types — it is inferred. This means all code runs on the main thread unless you explicitly opt out.
+
+**2. Async functions stay on the caller's actor (SE-0461).**
+In Swift 6.2, nonisolated async functions run on whatever actor called them — they do NOT hop to the concurrent thread pool. This eliminates a major class of Sendable errors. If you call an async function from the main actor, it stays on the main actor. You only leave the actor when you explicitly choose to.
+
+**3. Use `@concurrent` to explicitly offload work.**
+When a function performs CPU-intensive work (image processing, large data formatting, file I/O), mark it `@concurrent async` to guarantee it runs on the concurrent thread pool. This is the ONLY way work moves to a background thread in 6.2. Use it surgically — only where profiling shows the main thread is blocked.
+
+```swift
+// GOOD: Explicitly offloads expensive work
+@concurrent
+func decodeImage(_ data: Data) async -> NSImage { ... }
+
+// GOOD: Stays on caller's actor (main actor if called from UI)
+func fetchMetadata() async throws -> DatabaseStructure { ... }
+```
+
+**4. Use `nonisolated` to decouple types from MainActor.**
+Types that have no UI dependency (database adapters, formatters, pure data processors) should be marked `nonisolated` at the type level (Swift 6.1+). This removes the implicit MainActor isolation from all their members.
+
+```swift
+// GOOD: Entire type is decoupled from MainActor
+nonisolated struct ResultRowFormatter { ... }
+
+// GOOD: Package types are naturally nonisolated (no MainActor default in packages)
+public actor PostgresClient { ... }
+```
+
+**5. Libraries should be `nonisolated`, not `@concurrent`.**
+Package code (`postgres-wire`, `sqlserver-nio`, `EchoSense`) does NOT use MainActor-by-default. Functions in packages should be `nonisolated` — callers in the app decide whether to offload. Only use `@concurrent` in packages when the function is always expensive regardless of input size.
+
+**6. Isolated conformances for MainActor types.**
+When a MainActor type conforms to a protocol with nonisolated requirements, Swift 6.2 supports isolated conformances. The compiler ensures the conformance is only used from the correct actor. You no longer need `nonisolated` workarounds or `@preconcurrency` for these cases.
+
+**7. Non-Sendable classes stay on one actor.**
+Model classes should generally be `@MainActor` (inferred by default) or explicitly `nonisolated`. Do NOT make model classes `Sendable` — that requires locking and is error-prone. Instead, keep them on one actor and `await` across actor boundaries when needed.
+
+**8. Avoid `@unchecked Sendable` in new code.**
+Existing `@unchecked Sendable` on adapter types wrapping package clients is acceptable legacy. For new code, find a safe alternative: use actors, value types, or `sending` parameters.
+
+### Concurrency Anti-Patterns (Do NOT)
+
+- Do NOT write `@MainActor` explicitly on types in the Echo app module — it is inferred by default.
+- Do NOT use `DispatchQueue` for new code. Use `@concurrent async` for background work and `TaskGroup`/`async let` for parallelism.
+- Do NOT use `DispatchQueue.main.async` — use `Task { @MainActor in ... }` or just call the function directly (it's already on MainActor).
+- Do NOT use `Task.detached` unless you specifically need to escape actor isolation AND have verified it's necessary.
+- Do NOT add `@Sendable` to closures unless the closure genuinely crosses an actor boundary. SwiftUI modifiers like `visualEffect` that are `@Sendable` require captured values to be copied — use capture lists.
+- Do NOT pass `nonisolated(unsafe)` to suppress errors — fix the underlying isolation issue.
+
+### Build Tools
+
+Use **XcodeBuildMCP** for all build, run, and test operations. Do not use `xcodebuild` shell commands directly. At the start of each session, call `session_show_defaults` — if the project and scheme are not set, call `session_set_defaults` with `projectPath: "/Users/k/Development/Echo/Echo.xcodeproj"` and `scheme: "Echo"`. Do not call `discover_projs` — the project path and scheme are always the same.
 
 **This is a macOS app — use macOS workflow tools only.** Use `build_macos`, `build_run_macos`, `test_macos`, etc. Never use simulator tools (`build_sim`, `build_run_sim`, `test_sim`) — Echo has no iOS target and no simulator. Do not pass `SUPPORTED_PLATFORMS=macosx` or `SDKROOT=macosx` overrides to simulator tools as a workaround.
 
 **Stopping the app:** Use `stop_mac_app` from XcodeBuildMCP to stop Echo. Never use `pkill` or shell commands to kill the application.
+
+### Debugging Async Code
+
+Swift 6.2 + Xcode 26 significantly improve async debugging:
+- LLDB follows execution across `await` boundaries and thread switches automatically.
+- Use `Task(name: "descriptive-name")` for tasks that are long-lived or hard to identify — task names appear in LLDB and Instruments.
+- Use `swift task info` in LLDB to inspect the current task's priority, parent, and children.
+- Use the Swift Concurrency Instruments template to profile actor contention and task scheduling.
 
 ## Self-Verification Workflow
 
@@ -54,34 +127,102 @@ This is not optional. Never submit a change you haven't built and run successful
 
 ## Packages — Ownership & Boundaries
 
-Echo connects to databases through first-party packages. We maintain all of these. Never add raw database driver code or database protocol logic to Echo itself. If Echo needs functionality that doesn't exist yet, implement it in the appropriate package first, then consume it from Echo.
+Echo connects to databases through first-party packages. We maintain all of these. The fundamental rule: **Echo is a consumer, packages are providers.** Echo calls typed APIs from packages — it never implements database protocol logic or driver behavior itself.
 
-**Commit and push rule:** Every time you modify a package, commit and push to the `dev` branch before moving on. Do not leave uncommitted package changes — Echo's SPM resolution depends on the remote state.
+### The Boundary Rule
+
+Ask: "Is this database behavior or app behavior?"
+- **Database behavior** → implement in the package (`postgres-wire`, `sqlserver-nio`), expose a typed async API, then call it from Echo.
+- **App behavior** → implement in Echo, consuming package APIs.
+
+**Examples:**
+
+```swift
+// WRONG — Echo should not know how to list tables via SQL
+let result = try await session.simpleQuery("SELECT tablename FROM pg_tables WHERE schemaname = '\(schema)'")
+
+// RIGHT — Package exposes typed API, Echo calls it
+let tables = try await client.metadata.listTables(schema: schema)
+```
+
+```swift
+// WRONG — Echo constructs DDL
+try await session.executeUpdate("ALTER TABLE \(table) ADD COLUMN \(name) \(type)")
+
+// RIGHT — Package provides typed operation
+try await client.admin.addColumn(name: name, type: .text, toTable: table, schema: schema)
+```
+
+**The only acceptable raw SQL in Echo** is user-authored queries typed into the query editor and executed via `session.simpleQuery()`.
+
+### Package Concurrency Guidelines
+
+Packages do NOT have MainActor-by-default. Their concurrency rules differ from the app:
+
+- Package types are `nonisolated` by default — no `@MainActor` inference.
+- Public async APIs should be `nonisolated` (the default in packages) so callers decide the isolation context.
+- Use `@concurrent` only for functions that are *always* expensive regardless of input.
+- Expose `Sendable` types for data that crosses actor boundaries (result sets, column metadata, connection configs).
+- Use `actor` for types that manage mutable shared state (connection pools, caches).
+- Prefer `async`/`await` and `AsyncSequence` over NIO `EventLoopFuture` in new APIs. Existing ELF APIs can remain for backward compatibility but new public API should be async-only.
+
+### Commit and Push Rule
+
+Every time you modify a package, commit and push to the `dev` branch before moving on. Do not leave uncommitted package changes — Echo's SPM resolution depends on the remote state.
 
 ### EchoSense (Shared Library)
 - Package: `EchoSense` at `/Users/k/Development/EchoSense`
-- Shared types, protocols, and utilities used across Echo and packages.
+- Database-agnostic types shared across Echo and packages: `EchoSenseDatabaseType`, `EchoSenseDatabaseStructure`, `EchoSenseSchemaObjectInfo`, `EchoSenseColumnInfo`, SQL autocomplete types.
+- All types here must be `Sendable` value types (structs/enums).
 - We maintain this package. Changes go here, not in Echo.
 
 ### PostgreSQL
 - Package: `postgres-wire` at `/Users/k/Development/postgres-wire`
+- Exposes `PostgresClient` with namespaced APIs: `.metadata`, `.security`, etc.
 - We maintain this package. Fix bugs and add features there, not in Echo.
 - Use the **pgEdge MCP** (`pgedge`) for interacting with Postgres instances (queries, schema inspection, etc.).
 
 ### Microsoft SQL Server
 - Package: `sqlserver-nio` at `/Users/k/Development/sqlserver-nio`
+- Exposes `SQLServerClient` with namespaced APIs: `.metadata`, `.admin`, `.security`, `.agent`, `.indexes`, `.constraints`, `.transactions`.
 - We maintain this package. Fix bugs and add features there, not in Echo.
 - Protocol reference: `tds-mcp` at `/Users/k/Development/tds-mcp` — we also maintain this.
 - Use the **mcpql MCP** for interacting with SQL Server instances.
 - Use the **tds-mcp** for TDS protocol details, token definitions, data type encoding, and packet structure.
 - When something isn't working with SQL Server communication, use **wiremcp** to capture and analyze packets. Update both `tds-mcp` (with protocol findings) and `sqlserver-nio` (with the fix).
 
-### Workflow for database issues
+### Workflow for Database Issues
 1. Reproduce the problem in Echo.
 2. Narrow down whether the issue is in the package or in Echo's usage of it.
 3. If it's a package issue, switch to the package directory, fix it there, and verify.
 4. Commit and push the package fix to `dev`.
-5. Update Echo to consume the fix.
+5. Update Echo's `Package.resolved` to consume the fix.
+
+## Query Execution Architecture
+
+Understanding how queries flow through the system helps agents make correct changes:
+
+```
+User types SQL in editor
+    → QueryEditorContainer receives onExecute
+    → WorkspaceTabContainerView.runQuery()
+        → Resolves execution session (database context, schema)
+        → session.simpleQuery(sql, executionMode:, progressHandler:)
+            → DatabaseSession adapter (PostgresSession / SQLServerSessionAdapter / ...)
+                → Package client (PostgresClient / SQLServerClient)
+                    → Wire protocol to database server
+        → progressHandler receives QueryStreamUpdate events → state.applyStreamUpdate()
+    → Final QueryResultSet → state.consumeFinalResult()
+```
+
+**Key types in the pipeline:**
+- `DatabaseSession` (protocol) — the abstraction Echo uses for all database operations
+- `QueryResultSet` — rows + columns + metadata returned from a query
+- `QueryStreamUpdate` — progressive result events during streaming
+- `QueryEditorState` — `@Observable` state managing the editor, results, execution status
+- `ResultStreamBatchWorker` — handles parallel row formatting for large result sets
+
+When modifying query execution, change the correct layer. UI state → `QueryEditorState`. Query dispatch → `WorkspaceTabContainerView+Execution`. Result processing → `ResultStreamBatchWorker`. Database communication → package.
 
 ## GitHub
 
@@ -103,6 +244,8 @@ Everything must be testable — in Echo, EchoSense, sqlserver-nio, and postgres-
 
 When adding or modifying functionality, write or update the corresponding tests. Do not consider a feature complete without test coverage.
 
+Use **Swift Testing** (`@Test`, `#expect`, `#require`) for new tests. Use `@Test` attribute for test functions, not XCTest's `test` prefix convention. Use `#expect(throws:)` for error-case tests. Use `Attachment.record` when tests need diagnostic context. XCTest is acceptable for existing tests but all new tests should use Swift Testing.
+
 ## Design Tokens
 
 Never hardcode colors, spacing, or fonts. Every visual value must reference a design token from `Echo/Sources/Shared/DesignSystem/`.
@@ -119,7 +262,7 @@ Never hardcode colors, spacing, or fonts. Every visual value must reference a de
 - **ViewModels:** 300 lines max.
 - **All other files:** 500 lines max.
 
-If a file exceeds these limits, split it. Extract logical sections into focused extensions or separate files.
+If a file exceeds these limits, split it. Extract logical sections into focused extensions or separate files. Use the established pattern: `TypeName.swift` (core) + `TypeName+Concern.swift` (extensions).
 
 ### One File = One Responsibility
 Each file must have a single, clear purpose. Do not combine unrelated logic in one file. If a file does two things, split it into two files.
@@ -133,10 +276,66 @@ Every UI component must be reusable and modular. If you build a control, list ro
 ### Match Existing Patterns
 Follow the patterns already established in the codebase. Do not invent new architectural patterns, naming conventions, or structural approaches. When in doubt, find a similar existing implementation and follow its structure.
 
+### Type Isolation Patterns
+
+The codebase follows these isolation conventions:
+
+| Type category | Isolation | Rationale |
+|---|---|---|
+| SwiftUI Views | `@MainActor` (inferred) | Views are UI — always main thread |
+| ViewModels / `@Observable` classes | `@MainActor` (inferred) | Drive UI state — always main thread |
+| State stores (`ProjectStore`, `ConnectionStore`) | `@MainActor` (inferred) | App state — always main thread |
+| Database adapters (`PostgresSession`, `SQLServerSessionAdapter`) | `nonisolated` + `Sendable` | Cross-actor boundary, no UI dependency |
+| Data models (structs in `DatabaseModels`) | `nonisolated` + `Sendable` | Value types — safe to share |
+| Package client types | `actor` or `nonisolated` | Package decides own isolation |
+| Formatters / processors | `nonisolated` | Pure logic, no UI dependency |
+| Expensive computation | `@concurrent async` | Explicitly offloaded |
+
+## SSMS Feature Parity
+
+Echo's goal is to match and exceed SQL Server Management Studio. The ongoing gap analysis lives at:
+
+- **Gap document:** `/Users/k/Development/Echo/SSMS_FEATURE_GAP.md` — lists every SSMS feature, its status in Echo and sqlserver-nio, and the relevant sql-docs reference path.
+- **sql-docs:** `/Users/k/Tools/docs/sql-docs` — local clone of the full Microsoft SQL Server documentation (~14,500 markdown files). Use `grep -r "topic" /Users/k/Tools/docs/sql-docs --include="*.md" -l` to find relevant docs before implementing any SQL Server feature.
+
+When implementing a new SQL Server feature:
+1. Check `SSMS_FEATURE_GAP.md` to understand scope and find the sql-docs reference.
+2. Read the relevant sql-docs pages to understand the full specification.
+3. Check `tds-mcp` for any protocol-level implications.
+4. Implement the driver API in `sqlserver-nio` first, then wire up Echo UI.
+5. Update `SSMS_FEATURE_GAP.md` — move the row to **Already Built** when done.
+
+## Enterprise Connection Properties (In Progress)
+
+Echo is being upgraded with enterprise-grade connection configuration. The full execution plan is tracked in agent memory (`enterprise_connection_plan.md`). The implementation follows this order:
+
+1. **Trust Server Certificate** (MSSQL) — `sqlserver-nio` + Echo
+2. **PostgreSQL sslmode spectrum** — `postgres-wire` + Echo
+3. **Persist all TLS settings** + connection editor UI overhaul
+4. **Custom CA certificate paths** — both packages
+5. **mTLS for PostgreSQL** — client cert/key support
+6. **MSSQL encryption modes** — optional/mandatory/strict
+7. **Kerberos** — both packages (macOS GSS.framework)
+8. **Entra ID** — MSSQL OAuth2 flows
+9. **HA routing** — multi-host, read-only intent, failover
+
+**Key files involved:**
+- `ConnectionConfiguration.swift` — has `useTLS`, `tlsMode`, `verifySSLCertificate` (most not yet wired)
+- `SavedConnection.swift` — only persists `useTLS` currently; needs all TLS/auth fields
+- `ConnectionEditorView+DetailSections.swift` — Security section UI (currently just a toggle)
+- `MSSQLNIOFactory.swift` — creates MSSQL connections (passes boolean TLS)
+- `PostgresDatabase.swift` — creates Postgres connections (passes boolean TLS)
+- `DatabaseAuthenticationMethod.swift` — auth method enum (`sqlPassword`, `windowsIntegrated`)
+
+**Rule:** All TLS/auth features must be implemented in the package first (`sqlserver-nio` or `postgres-wire`), then consumed by Echo. Echo never implements protocol-level logic directly.
+
 ## Code Style
 
 - Follow Swift API Design Guidelines.
 - Prefer SwiftUI over AppKit unless AppKit is required for the specific functionality.
-- Use structured concurrency (`async`/`await`, `TaskGroup`, actors) over GCD or callbacks.
-- Mark types as `Sendable` where appropriate; use `@MainActor` for UI code.
+- Use structured concurrency (`async`/`await`, `TaskGroup`, `async let`, actors) over GCD or callbacks.
 - No force-unwraps in production code.
+- Prefer value types (`struct`, `enum`) for data models. Use `class` only when reference semantics or `@Observable` is required.
+- Use `@Observable` (Observation framework) for new observable types, not `ObservableObject` + `@Published`.
+- Use `Observations` (Swift 6.2) to stream state changes from `@Observable` types via `AsyncSequence` when appropriate.
+- Mark long-lived or diagnostic `Task` instances with `Task(name:)` for debuggability.

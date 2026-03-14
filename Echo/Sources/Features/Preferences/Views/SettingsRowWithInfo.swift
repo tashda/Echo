@@ -26,11 +26,11 @@ struct SettingsRowWithInfo<Control: View>: View {
                 .imageScale(.medium)
         }
         .buttonStyle(.plain)
-        .foregroundStyle(.secondary)
+        .foregroundStyle(ColorTokens.Text.secondary)
         .popover(isPresented: $showPopover, attachmentAnchor: .rect(.bounds), arrowEdge: .trailing) {
             Text(description)
                 .font(TypographyTokens.standard)
-                .foregroundStyle(.primary)
+                .foregroundStyle(ColorTokens.Text.primary)
                 .multilineTextAlignment(.leading)
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(SpacingTokens.md)

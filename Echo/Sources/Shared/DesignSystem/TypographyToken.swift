@@ -10,6 +10,8 @@ public enum TypographyTokens {
 
     // Semantic styles (dynamic type)
     public static let title = SwiftUI.Font.system(.title, design: .default)
+    public static let title2 = SwiftUI.Font.system(.title2, design: .default)
+    public static let title3 = SwiftUI.Font.system(.title3, design: .default)
     public static let headline = SwiftUI.Font.system(.headline, design: .default)
     public static let subheadline = SwiftUI.Font.system(.subheadline, design: .default)
     public static let body = SwiftUI.Font.system(.body, design: .default)

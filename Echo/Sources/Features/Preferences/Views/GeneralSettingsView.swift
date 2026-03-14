@@ -23,7 +23,7 @@ struct GeneralSettingsView: View {
             Section("Software Update") {
                 LabeledContent("Installed") {
                     Text("Echo \(appVersion) (\(buildNumber))")
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(ColorTokens.Text.secondary)
                 }
 
                 Button {

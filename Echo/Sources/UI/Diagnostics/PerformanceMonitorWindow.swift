@@ -34,17 +34,17 @@ private struct PerformanceMonitorView: View {
     var body: some View {
         Group {
             if !coordinator.isInitialized {
-                VStack(spacing: 16) {
+                VStack(spacing: SpacingTokens.md) {
                     ProgressView()
                     Text("Preparing live metrics...")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
+                        .font(TypographyTokens.footnote)
+                        .foregroundStyle(ColorTokens.Text.secondary)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(ColorTokens.Background.primary)
             } else {
                 ScrollView {
-                    VStack(alignment: .leading, spacing: 16) {
+                    VStack(alignment: .leading, spacing: SpacingTokens.md) {
                         header
 
                         if queryTabs.isEmpty {
@@ -70,12 +70,12 @@ private struct PerformanceMonitorView: View {
     }
 
     private var header: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: SpacingTokens.xs) {
             Text("Live Query Performance")
-                .font(.largeTitle.bold())
+                .font(TypographyTokens.hero.weight(.bold))
             Text("Monitor execution timelines, batch flow, and resource usage across open query tabs.")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .font(TypographyTokens.subheadline)
+                .foregroundStyle(ColorTokens.Text.secondary)
         }
     }
 }
@@ -86,15 +86,15 @@ struct PerformanceMonitorEmptyState: View {
     let systemImage: String
 
     var body: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: SpacingTokens.sm) {
             Image(systemName: systemImage)
-                .font(.system(size: 32, weight: .light))
-                .foregroundStyle(.secondary)
+                .font(TypographyTokens.hero.weight(.light))
+                .foregroundStyle(ColorTokens.Text.secondary)
             Text(title)
-                .font(.headline)
+                .font(TypographyTokens.headline)
             Text(message)
-                .font(.footnote)
-                .foregroundStyle(.secondary)
+                .font(TypographyTokens.footnote)
+                .foregroundStyle(ColorTokens.Text.secondary)
                 .multilineTextAlignment(.center)
         }
         .padding(SpacingTokens.xl2)
@@ -110,12 +110,12 @@ private struct PerformanceMonitorRow: View {
             if let query = tab.query {
                 PerformanceMonitorQueryContent(tab: tab, query: query)
             } else {
-                VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: SpacingTokens.sm) {
                     Text(tab.title)
-                        .font(.headline)
+                        .font(TypographyTokens.headline)
                     Text("Performance metrics are only available for query tabs.")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
+                        .font(TypographyTokens.footnote)
+                        .foregroundStyle(ColorTokens.Text.secondary)
                 }
                 .padding(SpacingTokens.md2)
             }

@@ -2,20 +2,20 @@ import SwiftUI
 
 extension StreamingTestHarnessView {
     var header: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: SpacingTokens.xs) {
             Text("Streaming Test Harness")
-                .font(.title2.bold())
+                .font(TypographyTokens.title.weight(.bold))
             Text("Execute diagnostic queries without the results grid to inspect streaming performance, batching, and driver throughput.")
-                .font(.callout)
-                .foregroundStyle(.secondary)
+                .font(TypographyTokens.callout)
+                .foregroundStyle(ColorTokens.Text.secondary)
         }
         .padding(.horizontal, SpacingTokens.lg)
         .padding(.vertical, SpacingTokens.md2)
     }
 
     var content: some View {
-        HStack(spacing: 24) {
-            VStack(alignment: .leading, spacing: 16) {
+        HStack(spacing: SpacingTokens.lg) {
+            VStack(alignment: .leading, spacing: SpacingTokens.md) {
                 sessionPicker
                 sqlEditor
                 controlButtons
@@ -26,7 +26,7 @@ extension StreamingTestHarnessView {
 
             Divider()
 
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: SpacingTokens.sm) {
                 reportSection
                 Divider()
                 logSection
@@ -37,14 +37,14 @@ extension StreamingTestHarnessView {
     }
 
     var sessionPicker: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: SpacingTokens.xxs2) {
             Text("Connection")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                .font(TypographyTokens.caption)
+                .foregroundStyle(ColorTokens.Text.secondary)
             if availableSessions.isEmpty {
                 Text("No active connections.\nOpen a connection first.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
+                    .font(TypographyTokens.footnote)
+                    .foregroundStyle(ColorTokens.Text.secondary)
             } else {
                 Picker("Connection", selection: Binding(
                     get: { selectedSessionID ?? availableSessions.first?.id ?? UUID() },
@@ -61,25 +61,25 @@ extension StreamingTestHarnessView {
     }
 
     var sqlEditor: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: SpacingTokens.xxs2) {
             Text("SQL")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                .font(TypographyTokens.caption)
+                .foregroundStyle(ColorTokens.Text.secondary)
             TextEditor(text: $sqlInput)
-                .font(.system(.body, design: .monospaced))
+                .font(TypographyTokens.monospaced)
                 .lineSpacing(4)
                 .disableAutocorrection(true)
                 .frame(minHeight: 140, maxHeight: 180)
                 .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                 .overlay(
                     RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .strokeBorder(Color.secondary.opacity(0.12), lineWidth: 1)
+                        .strokeBorder(ColorTokens.Text.secondary.opacity(0.12), lineWidth: 1)
                 )
         }
     }
 
     var controlButtons: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: SpacingTokens.sm) {
             Button {
                 runStreamingTest()
             } label: {
@@ -97,32 +97,32 @@ extension StreamingTestHarnessView {
                 Label("Cancel", systemImage: "stop.fill")
             }
             .buttonStyle(.bordered)
-            .tint(.orange)
+            .tint(ColorTokens.Status.warning)
             .disabled(!isRunning)
         }
     }
 
     var statusIndicators: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: SpacingTokens.xxs) {
             if isRunning {
-                HStack(spacing: 8) {
+                HStack(spacing: SpacingTokens.xs) {
                     ProgressView()
                     Text("Running query…")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
+                        .font(TypographyTokens.footnote)
+                        .foregroundStyle(ColorTokens.Text.secondary)
                 }
             }
 
             if let message = statusMessage {
                 Label(message, systemImage: "checkmark.circle.fill")
-                    .foregroundStyle(.green)
-                    .font(.footnote)
+                    .foregroundStyle(ColorTokens.Status.success)
+                    .font(TypographyTokens.footnote)
             }
 
             if let error = errorMessage {
                 Label(error, systemImage: "exclamationmark.triangle.fill")
-                    .foregroundStyle(.red)
-                    .font(.footnote)
+                    .foregroundStyle(ColorTokens.Status.error)
+                    .font(TypographyTokens.footnote)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
@@ -133,22 +133,22 @@ extension StreamingTestHarnessView {
             if let report {
                 StreamingReportSummary(report: report)
             } else {
-                VStack(alignment: .leading, spacing: 8) {
+                VStack(alignment: .leading, spacing: SpacingTokens.xs) {
                     Text("Results")
-                        .font(.headline)
+                        .font(TypographyTokens.headline)
                     Text("Run a test to view timings and batch metrics.")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
+                        .font(TypographyTokens.footnote)
+                        .foregroundStyle(ColorTokens.Text.secondary)
                 }
             }
         }
     }
 
     var logSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: SpacingTokens.xs) {
             HStack {
                 Text("Stream Log")
-                    .font(.headline)
+                    .font(TypographyTokens.headline)
                 Spacer()
                 Picker("", selection: $logFilter) {
                     ForEach(LogVisibility.allCases) { visibility in
@@ -168,14 +168,14 @@ extension StreamingTestHarnessView {
             }
 
             ScrollView {
-                LazyVStack(alignment: .leading, spacing: 6) {
+                LazyVStack(alignment: .leading, spacing: SpacingTokens.xxs2) {
                     ForEach(filteredLogs) { entry in
-                        HStack(alignment: .top, spacing: 12) {
+                        HStack(alignment: .top, spacing: SpacingTokens.sm) {
                             Text(entry.timestamp.formatted(.dateTime.hour().minute().second()))
-                                .font(.caption2.monospacedDigit())
-                                .foregroundStyle(.secondary)
+                                .font(TypographyTokens.caption2.monospacedDigit())
+                                .foregroundStyle(ColorTokens.Text.secondary)
                             Text(entry.message)
-                                .font(.caption.monospaced())
+                                .font(TypographyTokens.caption.monospaced())
                                 .textSelection(.enabled)
                         }
                     }
@@ -189,7 +189,7 @@ extension StreamingTestHarnessView {
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .strokeBorder(Color.secondary.opacity(0.15), lineWidth: 1)
+                    .strokeBorder(ColorTokens.Text.secondary.opacity(0.15), lineWidth: 1)
             )
         }
     }
