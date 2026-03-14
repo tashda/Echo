@@ -2,12 +2,19 @@ import SwiftUI
 
 extension QueryResultsSettingsView {
 
-    // MARK: - Computed State
-
-    var selectedDisplayMode: ForeignKeyDisplayMode { displayModeBinding.wrappedValue }
-    var selectedBehavior: ForeignKeyInspectorBehavior { inspectorBehaviorBinding.wrappedValue }
-
     // MARK: - Bindings
+
+    var showRowNumbersBinding: Binding<Bool> {
+        Binding(
+            get: { projectStore.globalSettings.resultsShowRowNumbers },
+            set: { newValue in
+                guard projectStore.globalSettings.resultsShowRowNumbers != newValue else { return }
+                var settings = projectStore.globalSettings
+                settings.resultsShowRowNumbers = newValue
+                Task { try? await projectStore.updateGlobalSettings(settings) }
+            }
+        )
+    }
 
     var alternateRowShadingBinding: Binding<Bool> {
         Binding(
@@ -21,37 +28,25 @@ extension QueryResultsSettingsView {
         )
     }
 
-    var displayModeBinding: Binding<ForeignKeyDisplayMode> {
+    var showForeignKeysInInspectorBinding: Binding<Bool> {
         Binding(
-            get: { projectStore.globalSettings.foreignKeyDisplayMode },
+            get: { projectStore.globalSettings.showForeignKeysInInspector },
             set: { newValue in
-                guard projectStore.globalSettings.foreignKeyDisplayMode != newValue else { return }
+                guard projectStore.globalSettings.showForeignKeysInInspector != newValue else { return }
                 var settings = projectStore.globalSettings
-                settings.foreignKeyDisplayMode = newValue
+                settings.showForeignKeysInInspector = newValue
                 Task { try? await projectStore.updateGlobalSettings(settings) }
             }
         )
     }
 
-    var inspectorBehaviorBinding: Binding<ForeignKeyInspectorBehavior> {
+    var showJsonInInspectorBinding: Binding<Bool> {
         Binding(
-            get: { projectStore.globalSettings.foreignKeyInspectorBehavior },
+            get: { projectStore.globalSettings.showJsonInInspector },
             set: { newValue in
-                guard projectStore.globalSettings.foreignKeyInspectorBehavior != newValue else { return }
+                guard projectStore.globalSettings.showJsonInInspector != newValue else { return }
                 var settings = projectStore.globalSettings
-                settings.foreignKeyInspectorBehavior = newValue
-                Task { try? await projectStore.updateGlobalSettings(settings) }
-            }
-        )
-    }
-
-    var includeRelatedBinding: Binding<Bool> {
-        Binding(
-            get: { projectStore.globalSettings.foreignKeyIncludeRelated },
-            set: { newValue in
-                guard projectStore.globalSettings.foreignKeyIncludeRelated != newValue else { return }
-                var settings = projectStore.globalSettings
-                settings.foreignKeyIncludeRelated = newValue
+                settings.showJsonInInspector = newValue
                 Task { try? await projectStore.updateGlobalSettings(settings) }
             }
         )
@@ -67,37 +62,5 @@ extension QueryResultsSettingsView {
                 Task { try? await projectStore.updateGlobalSettings(settings) }
             }
         )
-    }
-
-    // MARK: - Display Helpers
-
-    func displayName(for mode: ForeignKeyDisplayMode) -> String {
-        switch mode {
-        case .showInspector: return "Open in Inspector"
-        case .showIcon: return "Show Cell Icon"
-        case .disabled: return "Do Nothing"
-        }
-    }
-
-    func displayDescription(for mode: ForeignKeyDisplayMode) -> String {
-        switch mode {
-        case .showInspector: return "Selecting a foreign key cell immediately loads the referenced record."
-        case .showIcon: return "Foreign key cells display an inline action icon."
-        case .disabled: return "Foreign key metadata is ignored."
-        }
-    }
-
-    func behaviorDisplayName(for behavior: ForeignKeyInspectorBehavior) -> String {
-        switch behavior {
-        case .respectInspectorVisibility: return "Use Current Inspector State"
-        case .autoOpenAndClose: return "Auto Open & Close"
-        }
-    }
-
-    func behaviorDescription(for behavior: ForeignKeyInspectorBehavior) -> String {
-        switch behavior {
-        case .respectInspectorVisibility: return "Only populate the inspector when it is already visible."
-        case .autoOpenAndClose: return "Automatically open/close the inspector based on selection."
-        }
     }
 }

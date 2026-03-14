@@ -34,7 +34,7 @@
       "location": "https://github.com/tashda/postgres-wire",
       "state": {
         "branch": "dev",
-        "revision": "fea0ca66d1e18c7dd2b3abe48d34dc6760142259"
+        "revision": "8b955ab"
       }
     },
     {
@@ -51,8 +51,8 @@
       "kind": "remoteSourceControl",
       "location": "https://github.com/vapor/sqlite-nio",
       "state": {
-        "revision": "2152bfcecad9da55d870b342f89a78392188f430",
-        "version": "1.12.4"
+        "revision": "f768ac53297df50c5a012eadc879cf8e7b7a2cf5",
+        "version": "1.12.6"
       }
     },
     {
@@ -61,7 +61,7 @@
       "location": "https://github.com/tashda/sqlserver-nio",
       "state": {
         "branch": "dev",
-        "revision": "f3adc23a9851ec74752d6f1a372f9b19ab8210de"
+        "revision": "e49caae"
       }
     },
     {
@@ -141,8 +141,8 @@
       "kind": "remoteSourceControl",
       "location": "https://github.com/apple/swift-nio.git",
       "state": {
-        "revision": "e932d3c4d8f77433c8f7093b5ebcbf91463948a0",
-        "version": "2.95.0"
+        "revision": "b31565862a8f39866af50bc6676160d8dda7de35",
+        "version": "2.96.0"
       }
     },
     {

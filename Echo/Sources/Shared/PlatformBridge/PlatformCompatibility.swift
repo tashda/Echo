@@ -23,7 +23,7 @@ struct PlatformCompatibility {
         #if os(macOS)
         return Color(NSColor.controlBackgroundColor)
         #else
-        return Color(UIColor.secondarySystemBackground)
+        return Color(UIColorTokens.Text.secondarySystemBackground)
         #endif
     }
 
@@ -31,7 +31,7 @@ struct PlatformCompatibility {
         #if os(macOS)
         return Color(NSColor.unemphasizedSelectedContentBackgroundColor)
         #else
-        return Color(UIColor.tertiarySystemBackground)
+        return Color(UIColorTokens.Text.tertiarySystemBackground)
         #endif
     }
 
@@ -208,7 +208,7 @@ struct PlatformButtonStyle: ButtonStyle {
             .padding(.vertical, PlatformCompatibility.smallPadding)
             .background(
                 RoundedRectangle(cornerRadius: PlatformCompatibility.defaultCornerRadius)
-                    .fill(prominent ? Color.accentColor : PlatformCompatibility.secondarySystemBackground)
+                    .fill(prominent ? ColorTokens.accent : PlatformCompatibility.secondarySystemBackground)
                     .opacity(configuration.isPressed ? 0.8 : 1.0)
             )
             .foregroundStyle(prominent ? .white : .primary)
@@ -281,7 +281,7 @@ struct PlatformNavigationView<Content: View>: View {
             content
         } detail: {
             Text("Select an item")
-                .foregroundStyle(.secondary)
+                .foregroundStyle(ColorTokens.Text.secondary)
         }
         #else
         NavigationStack {

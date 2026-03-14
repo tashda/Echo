@@ -1,11 +1,14 @@
 import SwiftUI
 import AppKit
 
-func configureSettingsWindowIdentifier() {
+func configureSettingsWindow() {
     DispatchQueue.main.async {
         guard let window = NSApp?.keyWindow else { return }
         if window.identifier != AppWindowIdentifier.settings {
             window.identifier = AppWindowIdentifier.settings
+        }
+        if window.tabbingMode != .disallowed {
+            window.tabbingMode = .disallowed
         }
     }
 }

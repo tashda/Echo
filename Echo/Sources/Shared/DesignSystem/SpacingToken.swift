@@ -1,6 +1,8 @@
 import SwiftUI
 
 public enum SpacingTokens {
+    /// 0pt
+    public static let none: CGFloat = 0
     /// 2pt
     public static let xxxs: CGFloat = 2
     /// 4pt
@@ -17,6 +19,8 @@ public enum SpacingTokens {
     public static let sm2: CGFloat = 14
     /// 16pt
     public static let md: CGFloat = 16
+    /// 18pt
+    public static let md1: CGFloat = 18
     /// 20pt
     public static let md2: CGFloat = 20
     /// 24pt

@@ -26,58 +26,12 @@ extension DatabasesSettingsView {
                 defaultValue: ResultStreamingDefaults.previewBatch
             )
 
-            StreamingPresetPickerControl(
-                title: "Background Streaming Threshold",
-                value: backgroundStreamingThresholdBinding,
-                description: "After this many rows, Echo moves ingestion work to a background path.",
-                presets: streamingThresholdPresets,
-                range: 100...1_000_000,
-                formatter: formatRowCount,
-                defaultValue: ResultStreamingDefaults.backgroundThreshold
-            )
-
-            StreamingPresetPickerControl(
-                title: "Background Fetch Batch Size",
-                value: backgroundFetchSizeBinding,
-                description: "Controls how many rows Echo requests in each background fetch.",
-                presets: streamingFetchPresets,
-                range: 128...16_384,
-                formatter: formatRowCount,
-                defaultValue: ResultStreamingDefaults.fetchSize
-            )
-
-            StreamingPresetPickerControl(
-                title: "Fetch Ramp Multiplier",
-                value: fetchRampMultiplierBinding,
-                description: "Determines how aggressively Echo expands fetch sizes after initial batches.",
-                presets: streamingFetchRampMultiplierPresets,
-                range: 1...64,
-                formatter: formatMultiplier,
-                defaultValue: ResultStreamingDefaults.fetchRampMultiplier
-            )
-
-            StreamingPresetPickerControl(
-                title: "Fetch Ramp Maximum",
-                value: fetchRampMaxBinding,
-                description: "Caps the largest background fetch Echo will request.",
-                presets: streamingFetchRampMaxPresets,
-                range: 256...1_048_576,
-                formatter: formatRowCount,
-                defaultValue: ResultStreamingDefaults.fetchRampMax
-            )
-
             HStack {
                 Spacer()
                 Button("Revert to Default") {
                     var updated = settings
                     updated.resultsInitialRowLimit = ResultStreamingDefaults.initialRows
                     updated.resultsPreviewBatchSize = ResultStreamingDefaults.previewBatch
-                    updated.resultsBackgroundStreamingThreshold = ResultStreamingDefaults.backgroundThreshold
-                    updated.resultsStreamingFetchSize = ResultStreamingDefaults.fetchSize
-                    updated.resultsStreamingFetchRampMultiplier = ResultStreamingDefaults.fetchRampMultiplier
-                    updated.resultsStreamingFetchRampMax = ResultStreamingDefaults.fetchRampMax
-                    updated.resultsUseCursorStreaming = ResultStreamingDefaults.useCursor
-                    updated.resultsCursorStreamingLimitThreshold = ResultStreamingDefaults.cursorLimitThreshold
                     Task { try? await projectStore.updateGlobalSettings(updated) }
                 }
                 .buttonStyle(.bordered)
@@ -93,12 +47,6 @@ extension DatabasesSettingsView {
 
     var sharedExecutionSettingsAreDefault: Bool {
         settings.resultsInitialRowLimit == ResultStreamingDefaults.initialRows &&
-        settings.resultsPreviewBatchSize == ResultStreamingDefaults.previewBatch &&
-        settings.resultsBackgroundStreamingThreshold == ResultStreamingDefaults.backgroundThreshold &&
-        settings.resultsStreamingFetchSize == ResultStreamingDefaults.fetchSize &&
-        settings.resultsStreamingFetchRampMultiplier == ResultStreamingDefaults.fetchRampMultiplier &&
-        settings.resultsStreamingFetchRampMax == ResultStreamingDefaults.fetchRampMax &&
-        settings.resultsUseCursorStreaming == ResultStreamingDefaults.useCursor &&
-        settings.resultsCursorStreamingLimitThreshold == ResultStreamingDefaults.cursorLimitThreshold
+        settings.resultsPreviewBatchSize == ResultStreamingDefaults.previewBatch
     }
 }

@@ -14,19 +14,6 @@ struct KeyboardShortcutsSettingsView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack {
-                Spacer()
-                Button("Reset All to Default") {
-                    var settings = projectStore.globalSettings
-                    settings.customKeyboardShortcuts = nil
-                    Task { try? await projectStore.updateGlobalSettings(settings) }
-                }
-                .buttonStyle(.bordered)
-                .disabled(customShortcuts.isEmpty)
-            }
-            .padding(.horizontal, SpacingTokens.lg)
-            .padding(.top, SpacingTokens.sm)
-
             ScrollViewReader { proxy in
                 Form {
                     ForEach(sections) { section in
@@ -57,7 +44,7 @@ struct KeyboardShortcutsSettingsView: View {
                             Group {
                                 if highlightedSectionID == section.id {
                                     RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                        .fill(Color.accentColor.opacity(highlightOpacity))
+                                        .fill(ColorTokens.accent.opacity(highlightOpacity))
                                         .padding(-SpacingTokens.xxs2)
                                 }
                             }
@@ -84,7 +71,18 @@ struct KeyboardShortcutsSettingsView: View {
                     }
                 }
             }
-        } // VStack
+        }
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button("Reset All") {
+                    var settings = projectStore.globalSettings
+                    settings.customKeyboardShortcuts = nil
+                    Task { try? await projectStore.updateGlobalSettings(settings) }
+                }
+                .disabled(customShortcuts.isEmpty)
+                .help("Reset all keyboard shortcuts to their default values.")
+            }
+        }
     }
 }
 
@@ -174,11 +172,11 @@ private struct ShortcutRecorderField: View {
         .padding(.vertical, SpacingTokens.xxs2)
         .background(
             RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .fill(Color.accentColor.opacity(0.08))
+                .fill(ColorTokens.accent.opacity(0.08))
         )
         .overlay(
             RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .strokeBorder(Color.accentColor.opacity(0.4), lineWidth: 1)
+                .strokeBorder(ColorTokens.accent.opacity(0.4), lineWidth: 1)
         )
         .background {
             ShortcutRecorderRepresentable(
@@ -302,7 +300,7 @@ private struct ShortcutKeyCap: View {
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 6, style: .continuous)
-                    .strokeBorder(isActive ? Color.accentColor.opacity(0.6) : Color.clear, lineWidth: 1)
+                    .strokeBorder(isActive ? ColorTokens.accent.opacity(0.6) : Color.clear, lineWidth: 1)
             )
             .opacity(isDimmed ? 0.5 : 1.0)
     }
@@ -422,7 +420,7 @@ private struct ShortcutSectionData: Identifiable {
                 .init(title: "New Query Tab", context: "Open a new SQL editing tab.", keys: ["⌘", "T"]),
                 .init(title: "Next Tab", context: "Switch to the next workspace tab.", keys: ["⌃", "⇥"]),
                 .init(title: "Previous Tab", context: "Switch to the previous workspace tab.", keys: ["⌃", "⇧", "⇥"]),
-                .init(title: "Show Tab Overview", context: "Toggle the tab overview switcher.", keys: ["⌘", "O"]),
+                .init(title: "Show Tab Overview", context: "Toggle the tab overview switcher.", keys: ["⌘", "⇧", "O"]),
                 .init(title: "Close Query Tab", context: "Close the active tab.", keys: ["⌘", "W"]),
                 .init(title: "Reopen Closed Tab", context: "Restore the most recently closed tab.", keys: ["⌘", "⇧", "T"])
             ]

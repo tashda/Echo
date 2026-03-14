@@ -2,33 +2,9 @@ import SwiftUI
 
 extension DatabasesSettingsView {
 
-    /// PostgreSQL-specific settings: managed console, native psql policy, execution profile, restrictions.
+    /// PostgreSQL-specific settings: managed console, native psql policy, restrictions.
     @ViewBuilder
     var postgresSettings: some View {
-        Section("Execution Profile") {
-            DatabaseStreamingModeRow(selection: postgresModeBinding)
-
-            StreamingPresetPickerControl(
-                title: "Cursor Threshold",
-                value: cursorLimitThresholdBinding,
-                description: "LIMIT at or below this threshold uses the simple path. Larger or unbounded results switch to a server-side cursor.",
-                presets: streamingThresholdPresets,
-                range: 0...1_000_000,
-                formatter: formatRowCount,
-                defaultValue: ResultStreamingDefaults.cursorLimitThreshold
-            )
-
-            StreamingPresetPickerControl(
-                title: "Cursor Fetch Size",
-                value: backgroundFetchSizeBinding,
-                description: "Recommended at 4,096 or higher for large PostgreSQL result sets.",
-                presets: streamingFetchPresets,
-                range: 128...16_384,
-                formatter: formatRowCount,
-                defaultValue: ResultStreamingDefaults.fetchSize
-            )
-        }
-
         Section("Managed Console") {
             SettingsRowWithInfo(
                 title: "Enable Postgres Console",

@@ -101,4 +101,47 @@ final class SavedConnectionTests: XCTestCase {
         let b = TestFixtures.savedConnection(connectionName: "Same Name")
         XCTAssertNotEqual(a, b, "Connections with different IDs should not be equal")
     }
+
+    // MARK: - trustServerCertificate
+
+    func testCodableRoundTripPreservesTrustServerCertificateTrue() throws {
+        let connection = TestFixtures.savedConnection(
+            connectionName: "MSSQL Dev",
+            host: "sql.example.com",
+            port: 1433,
+            database: "devdb",
+            username: "sa",
+            useTLS: true,
+            trustServerCertificate: true,
+            databaseType: .microsoftSQL
+        )
+
+        let data = try JSONEncoder().encode(connection)
+        let decoded = try JSONDecoder().decode(SavedConnection.self, from: data)
+
+        XCTAssertEqual(decoded.trustServerCertificate, true)
+    }
+
+    func testDecodingMissingTrustServerCertificateDefaultsToFalse() throws {
+        let json: [String: Any] = [
+            "connectionName": "Legacy MSSQL",
+            "host": "oldserver",
+            "port": 1433,
+            "database": "legacydb"
+        ]
+        let data = try JSONSerialization.data(withJSONObject: json)
+        let decoded = try JSONDecoder().decode(SavedConnection.self, from: data)
+
+        XCTAssertFalse(decoded.trustServerCertificate, "Missing trustServerCertificate should default to false")
+    }
+
+    func testEncodingIncludesTrustServerCertificateKey() throws {
+        let connection = TestFixtures.savedConnection(trustServerCertificate: true)
+
+        let data = try JSONEncoder().encode(connection)
+        let jsonObject = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+
+        XCTAssertNotNil(jsonObject?["trustServerCertificate"], "Encoded JSON should contain trustServerCertificate key")
+        XCTAssertEqual(jsonObject?["trustServerCertificate"] as? Bool, true)
+    }
 }

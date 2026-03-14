@@ -17,10 +17,10 @@ struct StatusToastView: View {
 
         var iconColor: Color {
             switch self {
-            case .success: .green
-            case .info: .secondary
-            case .warning: .orange
-            case .error: .red
+            case .success: ColorTokens.Status.success
+            case .info: ColorTokens.Text.secondary
+            case .warning: ColorTokens.Status.warning
+            case .error: ColorTokens.Status.error
             }
         }
     }
@@ -28,11 +28,11 @@ struct StatusToastView: View {
     var body: some View {
         HStack(spacing: SpacingTokens.xs) {
             Image(systemName: icon)
-                .font(.system(size: 12, weight: .semibold))
+                .font(TypographyTokens.standard.weight(.semibold))
                 .foregroundStyle(style.iconColor)
             Text(message)
                 .font(TypographyTokens.detail.weight(.medium))
-                .foregroundStyle(.primary)
+                .foregroundStyle(ColorTokens.Text.primary)
                 .lineLimit(1)
         }
         .padding(.horizontal, SpacingTokens.md)

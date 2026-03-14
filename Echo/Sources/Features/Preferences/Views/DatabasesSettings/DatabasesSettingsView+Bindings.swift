@@ -12,31 +12,7 @@ extension DatabasesSettingsView {
         intBinding(for: \.resultsPreviewBatchSize, min: 100, max: 100_000)
     }
 
-    var backgroundStreamingThresholdBinding: Binding<Int> {
-        intBinding(for: \.resultsBackgroundStreamingThreshold, min: 100, max: 1_000_000)
-    }
-
-    var backgroundFetchSizeBinding: Binding<Int> {
-        intBinding(for: \.resultsStreamingFetchSize, min: 128, max: 16_384)
-    }
-
-    var fetchRampMultiplierBinding: Binding<Int> {
-        intBinding(for: \.resultsStreamingFetchRampMultiplier, min: 1, max: 64)
-    }
-
-    var fetchRampMaxBinding: Binding<Int> {
-        intBinding(for: \.resultsStreamingFetchRampMax, min: 256, max: 1_048_576)
-    }
-
-    var cursorLimitThresholdBinding: Binding<Int> {
-        intBinding(for: \.resultsCursorStreamingLimitThreshold, min: 0, max: 1_000_000)
-    }
-
     // MARK: - Engine Mode Bindings
-
-    var postgresModeBinding: Binding<ResultStreamingExecutionMode> {
-        binding(for: \.resultsStreamingMode)
-    }
 
     var mssqlModeBinding: Binding<ResultStreamingExecutionMode> {
         binding(for: \.mssqlStreamingMode)
@@ -69,10 +45,6 @@ extension DatabasesSettingsView {
     }
 
     // MARK: - Formatters
-
-    func formatMultiplier(_ value: Int) -> String {
-        "\(value)x"
-    }
 
     func formatRowCount(_ value: Int) -> String {
         value.formatted()

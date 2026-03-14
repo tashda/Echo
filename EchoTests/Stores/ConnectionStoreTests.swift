@@ -51,6 +51,14 @@ final class ConnectionStoreTests: XCTestCase {
         XCTAssertEqual(mockRepo.saveConnectionsCallCount, 2) // add + update
     }
 
+    func testUpdateConnectionInsertsIfNew() async throws {
+        let conn = TestFixtures.savedConnection(connectionName: "New Connection")
+        try await store.updateConnection(conn)
+
+        XCTAssertEqual(store.connections.count, 1)
+        XCTAssertEqual(store.connections[0].connectionName, "New Connection")
+    }
+
     func testDeleteConnection() async throws {
         let conn = TestFixtures.savedConnection()
         try await store.addConnection(conn)
