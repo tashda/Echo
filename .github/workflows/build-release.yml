@@ -9,14 +9,14 @@ on:
 
 jobs:
   test:
-    runs-on: macos-15
+    runs-on: macos-26
     steps:
     - uses: actions/checkout@v4
 
     - name: Select Xcode
       uses: maxim-lobanov/setup-xcode@v1
       with:
-        xcode-version: latest-stable
+        xcode-version: '26'
 
     - name: Run Unit Tests
       run: |
@@ -24,13 +24,69 @@ jobs:
           -scheme Echo \
           -destination 'platform=macOS' \
           -resultBundlePath TestResults \
-          -skip-testing:EchoTests/Integration \
+          -skip-testing:EchoTests/MSSQLIntegrationTests \
+          -skip-testing:EchoTests/PostgresIntegrationTests \
+          -skip-testing:EchoTests/MySQLIntegrationTests \
+          -skip-testing:EchoTests/SQLiteIntegrationTests \
+          -skip-testing:EchoTests/EchoSenseIntegrationTests \
+          -skip-testing:EchoTests/MSSQLConnectionTests \
+          -skip-testing:EchoTests/MSSQLQueryTests \
+          -skip-testing:EchoTests/MSSQLSchemaDiscoveryTests \
+          -skip-testing:EchoTests/MSSQLMetadataTests \
+          -skip-testing:EchoTests/MSSQLTableOperationsTests \
+          -skip-testing:EchoTests/MSSQLColumnTests \
+          -skip-testing:EchoTests/MSSQLConstraintTests \
+          -skip-testing:EchoTests/MSSQLIndexTests \
+          -skip-testing:EchoTests/MSSQLViewTests \
+          -skip-testing:EchoTests/MSSQLProcedureTests \
+          -skip-testing:EchoTests/MSSQLFunctionTests \
+          -skip-testing:EchoTests/MSSQLTriggerTests \
+          -skip-testing:EchoTests/MSSQLTransactionTests \
+          -skip-testing:EchoTests/MSSQLSecurityTests \
+          -skip-testing:EchoTests/MSSQLAgentTests \
+          -skip-testing:EchoTests/MSSQLActivityMonitorTests \
+          -skip-testing:EchoTests/MSSQLDatabaseAdminTests \
+          -skip-testing:EchoTests/MSSQLDataTypeNumericTests \
+          -skip-testing:EchoTests/MSSQLDataTypeStringTests \
+          -skip-testing:EchoTests/MSSQLDataTypeDateTimeTests \
+          -skip-testing:EchoTests/MSSQLDataTypeBinaryTests \
+          -skip-testing:EchoTests/MSSQLStreamingTests \
+          -skip-testing:EchoTests/MSSQLStreamingSpoolTests \
+          -skip-testing:EchoTests/PGConnectionTests \
+          -skip-testing:EchoTests/PGQueryTests \
+          -skip-testing:EchoTests/PGSchemaDiscoveryTests \
+          -skip-testing:EchoTests/PGMetadataTests \
+          -skip-testing:EchoTests/PGTableOperationsTests \
+          -skip-testing:EchoTests/PGColumnTests \
+          -skip-testing:EchoTests/PGConstraintTests \
+          -skip-testing:EchoTests/PGIndexTests \
+          -skip-testing:EchoTests/PGViewTests \
+          -skip-testing:EchoTests/PGFunctionTests \
+          -skip-testing:EchoTests/PGTriggerTests \
+          -skip-testing:EchoTests/PGTransactionTests \
+          -skip-testing:EchoTests/PGSecurityTests \
+          -skip-testing:EchoTests/PGExtensionTests \
+          -skip-testing:EchoTests/PGActivityMonitorTests \
+          -skip-testing:EchoTests/PGSequenceTests \
+          -skip-testing:EchoTests/PGDataTypeNumericTests \
+          -skip-testing:EchoTests/PGDataTypeStringTests \
+          -skip-testing:EchoTests/PGDataTypeDateTimeTests \
+          -skip-testing:EchoTests/PGDataTypeSpecialTests \
+          -skip-testing:EchoTests/PGStreamingTests \
+          -skip-testing:EchoTests/PGStreamingSpoolTests \
+          -skip-testing:EchoTests/SQLiteConnectionTests \
+          -skip-testing:EchoTests/SQLiteQueryTests \
+          -skip-testing:EchoTests/SQLiteSchemaTests \
+          -skip-testing:EchoTests/SQLiteTableOperationsTests \
+          -skip-testing:EchoTests/SQLiteDataTypeTests \
+          -skip-testing:EchoTests/SessionProtocolComplianceTests \
+          -skip-testing:EchoTests/FactoryConnectionTests \
           CODE_SIGN_IDENTITY="" \
           CODE_SIGNING_REQUIRED=NO \
           CODE_SIGNING_ALLOWED=NO
 
   integration-tests:
-    runs-on: macos-15
+    runs-on: macos-26
     if: github.event_name == 'push' && (github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/main')
     strategy:
       matrix:
@@ -84,7 +140,7 @@ jobs:
     - name: Select Xcode
       uses: maxim-lobanov/setup-xcode@v1
       with:
-        xcode-version: latest-stable
+        xcode-version: '26'
 
     - name: Install Docker via Colima
       run: |
@@ -101,7 +157,29 @@ jobs:
           -scheme Echo \
           -destination 'platform=macOS' \
           -resultBundlePath "TestResults-${{ matrix.db }}" \
-          -only-testing:EchoTests/Integration/MSSQL \
+          -only-testing:EchoTests/MSSQLConnectionTests \
+          -only-testing:EchoTests/MSSQLQueryTests \
+          -only-testing:EchoTests/MSSQLSchemaDiscoveryTests \
+          -only-testing:EchoTests/MSSQLMetadataTests \
+          -only-testing:EchoTests/MSSQLTableOperationsTests \
+          -only-testing:EchoTests/MSSQLColumnTests \
+          -only-testing:EchoTests/MSSQLConstraintTests \
+          -only-testing:EchoTests/MSSQLIndexTests \
+          -only-testing:EchoTests/MSSQLViewTests \
+          -only-testing:EchoTests/MSSQLProcedureTests \
+          -only-testing:EchoTests/MSSQLFunctionTests \
+          -only-testing:EchoTests/MSSQLTriggerTests \
+          -only-testing:EchoTests/MSSQLTransactionTests \
+          -only-testing:EchoTests/MSSQLSecurityTests \
+          -only-testing:EchoTests/MSSQLAgentTests \
+          -only-testing:EchoTests/MSSQLActivityMonitorTests \
+          -only-testing:EchoTests/MSSQLDatabaseAdminTests \
+          -only-testing:EchoTests/MSSQLDataTypeNumericTests \
+          -only-testing:EchoTests/MSSQLDataTypeStringTests \
+          -only-testing:EchoTests/MSSQLDataTypeDateTimeTests \
+          -only-testing:EchoTests/MSSQLDataTypeBinaryTests \
+          -only-testing:EchoTests/MSSQLStreamingTests \
+          -only-testing:EchoTests/MSSQLStreamingSpoolTests \
           CODE_SIGN_IDENTITY="" \
           CODE_SIGNING_REQUIRED=NO \
           CODE_SIGNING_ALLOWED=NO
@@ -115,7 +193,28 @@ jobs:
           -scheme Echo \
           -destination 'platform=macOS' \
           -resultBundlePath "TestResults-${{ matrix.db }}" \
-          -only-testing:EchoTests/Integration/Postgres \
+          -only-testing:EchoTests/PGConnectionTests \
+          -only-testing:EchoTests/PGQueryTests \
+          -only-testing:EchoTests/PGSchemaDiscoveryTests \
+          -only-testing:EchoTests/PGMetadataTests \
+          -only-testing:EchoTests/PGTableOperationsTests \
+          -only-testing:EchoTests/PGColumnTests \
+          -only-testing:EchoTests/PGConstraintTests \
+          -only-testing:EchoTests/PGIndexTests \
+          -only-testing:EchoTests/PGViewTests \
+          -only-testing:EchoTests/PGFunctionTests \
+          -only-testing:EchoTests/PGTriggerTests \
+          -only-testing:EchoTests/PGTransactionTests \
+          -only-testing:EchoTests/PGSecurityTests \
+          -only-testing:EchoTests/PGExtensionTests \
+          -only-testing:EchoTests/PGActivityMonitorTests \
+          -only-testing:EchoTests/PGSequenceTests \
+          -only-testing:EchoTests/PGDataTypeNumericTests \
+          -only-testing:EchoTests/PGDataTypeStringTests \
+          -only-testing:EchoTests/PGDataTypeDateTimeTests \
+          -only-testing:EchoTests/PGDataTypeSpecialTests \
+          -only-testing:EchoTests/PGStreamingTests \
+          -only-testing:EchoTests/PGStreamingSpoolTests \
           CODE_SIGN_IDENTITY="" \
           CODE_SIGNING_REQUIRED=NO \
           CODE_SIGNING_ALLOWED=NO
@@ -128,7 +227,7 @@ jobs:
         path: TestResults-${{ matrix.db }}.xcresult
 
   sqlite-integration:
-    runs-on: macos-15
+    runs-on: macos-26
     if: github.event_name == 'push' && (github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/main')
     steps:
     - uses: actions/checkout@v4
@@ -136,21 +235,27 @@ jobs:
     - name: Select Xcode
       uses: maxim-lobanov/setup-xcode@v1
       with:
-        xcode-version: latest-stable
+        xcode-version: '26'
 
-    - name: Run SQLite Integration Tests
+    - name: Run SQLite & Cross-Dialect Integration Tests
       run: |
         xcodebuild test -project Echo.xcodeproj \
           -scheme Echo \
           -destination 'platform=macOS' \
           -resultBundlePath TestResults-sqlite \
-          -only-testing:EchoTests/Integration/SQLite \
+          -only-testing:EchoTests/SQLiteConnectionTests \
+          -only-testing:EchoTests/SQLiteQueryTests \
+          -only-testing:EchoTests/SQLiteSchemaTests \
+          -only-testing:EchoTests/SQLiteTableOperationsTests \
+          -only-testing:EchoTests/SQLiteDataTypeTests \
+          -only-testing:EchoTests/SessionProtocolComplianceTests \
+          -only-testing:EchoTests/FactoryConnectionTests \
           CODE_SIGN_IDENTITY="" \
           CODE_SIGNING_REQUIRED=NO \
           CODE_SIGNING_ALLOWED=NO
 
   build:
-    runs-on: macos-15
+    runs-on: macos-26
     permissions:
       contents: write
 
@@ -162,7 +267,7 @@ jobs:
     - name: Select Xcode
       uses: maxim-lobanov/setup-xcode@v1
       with:
-        xcode-version: latest-stable
+        xcode-version: '26'
 
     - name: Build App
       run: |
@@ -181,19 +286,19 @@ jobs:
       run: |
         mkdir -p release
         cp -R build/Build/Products/Release/Echo.app release/
-        
+
         echo "Preparing bundle for distribution..."
         chmod -R u+w release/Echo.app
         xattr -rc release/Echo.app
-        
+
         # Apple Silicon REQUIRES at least an ad-hoc signature to run.
         # We apply an ad-hoc signature so macOS doesn't say "can't be opened".
         echo "Applying ad-hoc signature..."
         codesign --force --deep -s - release/Echo.app
-        
+
         echo "Verifying signature state:"
         codesign -vvvv release/Echo.app
-        
+
         cd release
         ditto -c -k --sequesterRsrc --keepParent Echo.app Echo.zip
         rm -rf Echo.app
@@ -222,7 +327,7 @@ jobs:
         SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
       run: |
         rm -rf ~/Library/Caches/Sparkle_generate_appcast
-        
+
         # Use --disable-nested-code-check to ignore the fact that we used an ad-hoc signature
         # instead of a proper Developer ID signature.
         if [ -z "$SPARKLE_PRIVATE_KEY" ]; then
