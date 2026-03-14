@@ -32,6 +32,14 @@ struct AnimatedCounter: View {
             }
             let now = Date.now
             let currentPos = interpolatedValue(at: now)
+
+            // Snap instantly when target decreases (new query starting)
+            if newEnd < currentPos {
+                startValue = newEnd
+                endValue = newEnd
+                return
+            }
+
             startValue = currentPos
             endValue = newEnd
             let delta = abs(newEnd - currentPos)

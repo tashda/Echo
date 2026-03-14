@@ -7,13 +7,6 @@ extension WorkspaceTabContainerView {
 
         let trimmedSQL = sql.trimmingCharacters(in: .whitespacesAndNewlines)
         var effectiveSQL = trimmedSQL.isEmpty ? sql : trimmedSQL
-        while effectiveSQL.last == ";" {
-            effectiveSQL.removeLast()
-        }
-        effectiveSQL = effectiveSQL.trimmingCharacters(in: .whitespacesAndNewlines)
-        if effectiveSQL.isEmpty {
-            effectiveSQL = trimmedSQL.isEmpty ? sql : trimmedSQL
-        }
 
         // For MSSQL, prepend USE [database] to set the correct database context
         if tab.connection.databaseType == .microsoftSQL,

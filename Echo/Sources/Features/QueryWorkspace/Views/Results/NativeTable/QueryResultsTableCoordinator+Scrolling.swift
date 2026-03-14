@@ -26,7 +26,7 @@ extension QueryResultsTableView.Coordinator {
     }
 
     @objc func handleContentViewBoundsChange(_ notification: Notification) {
-        guard !isResizingColumn else { return }
+        guard !isResizingColumn, !isSplitResizing else { return }
         // Quick check: if visible rows haven't changed, skip entirely
         guard let tableView else { return }
         let visibleRange = tableView.rows(in: tableView.visibleRect)

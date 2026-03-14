@@ -96,7 +96,7 @@ struct QueryEditorContainer: View {
                             availableHeight: splitHeight,
                             onLiveUpdate: { proposed in
                                 let now = CACurrentMediaTime()
-                                guard now - lastResizeTimestamp >= 0.04 else { return }
+                                guard now - lastResizeTimestamp >= 0.016 else { return }
                                 lastResizeTimestamp = now
                                 liveSplitRatioOverride = proposed
                             },
@@ -138,6 +138,7 @@ struct QueryEditorContainer: View {
                 #endif
                 }
             }
+            .transaction { $0.disablesAnimations = true }
         }
         .background(ColorTokens.Background.primary)
         .onAppear {

@@ -58,6 +58,7 @@ extension ConnectionEditorView {
             sslCertPath: selectedDatabaseType == .postgresql ? sslCertPath : nil,
             sslKeyPath: selectedDatabaseType == .postgresql ? sslKeyPath : nil,
             mssqlEncryptionMode: selectedDatabaseType == .microsoftSQL ? mssqlEncryptionMode : .optional,
+            readOnlyIntent: selectedDatabaseType == .microsoftSQL ? readOnlyIntent : false,
             databaseType: selectedDatabaseType,
             serverVersion: originalConnection?.serverVersion,
             colorHex: colorHex,

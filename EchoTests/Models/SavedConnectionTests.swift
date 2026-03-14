@@ -144,4 +144,36 @@ final class SavedConnectionTests: XCTestCase {
         XCTAssertNotNil(jsonObject?["trustServerCertificate"], "Encoded JSON should contain trustServerCertificate key")
         XCTAssertEqual(jsonObject?["trustServerCertificate"] as? Bool, true)
     }
+
+    // MARK: - readOnlyIntent
+
+    func testCodableRoundTripPreservesReadOnlyIntent() throws {
+        var connection = TestFixtures.savedConnection(
+            connectionName: "MSSQL AG",
+            host: "sql.example.com",
+            port: 1433,
+            database: "agdb",
+            username: "sa",
+            databaseType: .microsoftSQL
+        )
+        connection.readOnlyIntent = true
+
+        let data = try JSONEncoder().encode(connection)
+        let decoded = try JSONDecoder().decode(SavedConnection.self, from: data)
+
+        XCTAssertTrue(decoded.readOnlyIntent)
+    }
+
+    func testDecodingMissingReadOnlyIntentDefaultsToFalse() throws {
+        let json: [String: Any] = [
+            "connectionName": "Legacy MSSQL",
+            "host": "oldserver",
+            "port": 1433,
+            "database": "legacydb"
+        ]
+        let data = try JSONSerialization.data(withJSONObject: json)
+        let decoded = try JSONDecoder().decode(SavedConnection.self, from: data)
+
+        XCTAssertFalse(decoded.readOnlyIntent)
+    }
 }

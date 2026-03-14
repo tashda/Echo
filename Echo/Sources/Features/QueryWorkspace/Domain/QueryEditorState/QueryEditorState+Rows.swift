@@ -2,6 +2,17 @@ import Foundation
 
 extension QueryEditorState {
 
+    var allResultSetsForDisplay: [QueryResultSet] {
+        var sets: [QueryResultSet] = []
+        if let primary = results {
+            sets.append(primary)
+        } else if !streamingColumns.isEmpty {
+            sets.append(QueryResultSet(columns: streamingColumns, rows: streamingRows, totalRowCount: streamedRowCount))
+        }
+        sets.append(contentsOf: additionalResults)
+        return sets
+    }
+
     var displayedColumns: [ColumnInfo] {
         if !streamingColumns.isEmpty { return streamingColumns }
         return results?.columns ?? []

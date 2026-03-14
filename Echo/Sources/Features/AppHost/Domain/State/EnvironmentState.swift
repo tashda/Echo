@@ -167,6 +167,7 @@ final class EnvironmentState: ObservableObject {
                 sslCertPath: connection.sslCertPath,
                 sslKeyPath: connection.sslKeyPath,
                 mssqlEncryptionMode: connection.mssqlEncryptionMode,
+                readOnlyIntent: connection.readOnlyIntent,
                 authentication: credentials,
                 connectTimeoutSeconds: 10
             )

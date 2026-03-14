@@ -128,11 +128,25 @@ extension SQLTextView {
         hideCompletions()
         didChangeText()
         completionEngine.recordSelection(suggestion, query: query)
+
+        // After accepting certain suggestion types, trigger an immediate refresh
+        // so the user sees continuation suggestions (e.g., WHERE after FROM table).
+        if snippetPlaceholders.isEmpty && Self.continuationKinds.contains(suggestion.kind) {
+            DispatchQueue.main.async { [weak self] in
+                self?.refreshCompletions(immediate: true)
+            }
+        }
+
         return CompletionInsertionResult(appliedRange: appliedRange, originalText: originalText)
     }
 
     private func isStarExpansionSuggestion(_ suggestion: SQLAutoCompletionSuggestion) -> Bool {
         suggestion.kind == .snippet && suggestion.id.hasPrefix("star|")
     }
+
+    /// Suggestion kinds that typically have useful follow-up completions.
+    private static let continuationKinds: Set<SQLAutoCompletionKind> = [
+        .table, .view, .materializedView, .schema
+    ]
 }
 #endif
