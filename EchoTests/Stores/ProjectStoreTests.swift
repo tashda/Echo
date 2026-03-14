@@ -115,6 +115,9 @@ final class ProjectStoreTests: XCTestCase {
         try await store.saveGlobalSettings(settings)
 
         XCTAssertEqual(store.globalSettings.editorShowLineNumbers, false)
+
+        // saveGlobalSettings persists via Task.detached; yield to let it complete.
+        try await Task.sleep(for: .milliseconds(100))
         XCTAssertEqual(mockRepo.globalSettings.editorShowLineNumbers, false)
     }
 }

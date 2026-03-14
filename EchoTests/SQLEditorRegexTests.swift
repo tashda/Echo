@@ -193,6 +193,9 @@ final class SQLAutoCompletionEngineTests: XCTestCase {
     }
 
     func testTableSuggestionsFilterByTypedPrefix() {
+        // Engine uses fuzzy matching, so "fi" matches "fixture" and any table
+        // containing "fi" (e.g., "cache_config" via "con*fi*g"). Use a table name
+        // that cannot fuzzy-match "fi" to verify filtering works.
         let suggestions = [
             SQLCompletionSuggestion(id: "object:table:testdb.public.fixture",
                                     title: "fixture",
@@ -201,11 +204,11 @@ final class SQLAutoCompletionEngineTests: XCTestCase {
                                     insertText: "public.fixture",
                                     kind: .table,
                                     priority: 1300),
-            SQLCompletionSuggestion(id: "object:table:testdb.public.cache_config",
-                                    title: "cache_config",
+            SQLCompletionSuggestion(id: "object:table:testdb.public.orders",
+                                    title: "orders",
                                     subtitle: "public",
-                                    detail: "public.cache_config",
-                                    insertText: "public.cache_config",
+                                    detail: "public.orders",
+                                    insertText: "public.orders",
                                     kind: .table,
                                     priority: 1290)
         ]

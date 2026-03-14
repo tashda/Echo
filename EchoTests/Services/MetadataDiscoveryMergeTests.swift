@@ -108,6 +108,7 @@ final class MetadataDiscoveryMergeTests: XCTestCase {
     }
 
     func testMergeSchemasUpdatesExistingSchema() {
+        // Partial is authoritative: objects not in partial are considered dropped.
         let partial = [
             SchemaInfo(name: "public", objects: [
                 makeObject(name: "new_table"),
@@ -126,7 +127,7 @@ final class MetadataDiscoveryMergeTests: XCTestCase {
         XCTAssertEqual(result.count, 1)
         let publicSchema = result.first { $0.name == "public" }!
         let objectNames = Set(publicSchema.objects.map(\.name))
-        XCTAssertTrue(objectNames.contains("old_table"), "Existing objects should be preserved")
+        XCTAssertFalse(objectNames.contains("old_table"), "Objects not in partial are considered dropped")
         XCTAssertTrue(objectNames.contains("new_table"), "New objects should be added")
         XCTAssertTrue(objectNames.contains("updated_table"), "Updated objects should be present")
     }
@@ -170,7 +171,8 @@ final class MetadataDiscoveryMergeTests: XCTestCase {
         XCTAssertEqual(users.columns.count, 3, "Partial object should overwrite existing by ID")
     }
 
-    func testMergeSchemaInfoPreservesExistingObjectsNotInPartial() {
+    func testMergeSchemaInfoDropsExistingObjectsNotInPartial() {
+        // Partial is authoritative: objects not in partial are considered dropped from the server.
         let partial = SchemaInfo(name: "public", objects: [
             makeObject(name: "new_table")
         ])
@@ -181,11 +183,12 @@ final class MetadataDiscoveryMergeTests: XCTestCase {
         let result = MetadataDiscoveryCoordinator.mergeSchemaInfo(partial: partial, existing: existing)
 
         let names = Set(result.objects.map(\.name))
-        XCTAssertTrue(names.contains("old_table"))
+        XCTAssertFalse(names.contains("old_table"), "Objects not in partial are dropped")
         XCTAssertTrue(names.contains("new_table"))
     }
 
     func testMergeSchemaInfoResultIsSortedAlphabetically() {
+        // Partial is authoritative, so only partial objects survive (mango is dropped).
         let partial = SchemaInfo(name: "public", objects: [
             makeObject(name: "zebra"),
             makeObject(name: "apple")
@@ -196,7 +199,7 @@ final class MetadataDiscoveryMergeTests: XCTestCase {
 
         let result = MetadataDiscoveryCoordinator.mergeSchemaInfo(partial: partial, existing: existing)
 
-        XCTAssertEqual(result.objects.map(\.name), ["apple", "mango", "zebra"])
+        XCTAssertEqual(result.objects.map(\.name), ["apple", "zebra"])
     }
 
     func testMergeSchemaInfoPreservesExistingSchemaName() {
