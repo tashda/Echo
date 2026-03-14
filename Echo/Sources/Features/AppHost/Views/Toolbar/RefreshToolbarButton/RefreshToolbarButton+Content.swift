@@ -7,8 +7,6 @@ struct RefreshButtonContent: View {
     let onRefresh: () -> Void
     let onCancel: () -> Void
 
-    @Environment(\.colorScheme) private var colorScheme
-
     @State private var phase: Phase = .idle
     @State private var spinning = false
     @State private var isHovering = false
@@ -17,9 +15,6 @@ struct RefreshButtonContent: View {
     @State private var hoverEnabled = true
     @State private var hoverEnableTask: Task<Void, Never>?
     @State private var hoverIntent = false
-
-    private let circleSize: CGFloat = 32
-    private let glowPadding: CGFloat = 12
 
     enum Phase: Equatable {
         case idle
@@ -40,49 +35,22 @@ struct RefreshButtonContent: View {
     }
 
     var body: some View {
-        Group {
-            if phase == .idle {
-                idleButton
-            } else {
-                animatedButton
-            }
-        }
-        .animation(.easeInOut(duration: 0.24), value: phase)
-    }
-
-    private var idleButton: some View {
         Button {
-            transition(to: .refreshing)
-            onRefresh()
+            handleTap()
         } label: {
-            Label("Refresh", systemImage: "arrow.clockwise")
+            Label("Refresh", systemImage: phase == .idle ? "arrow.clockwise" : "circle")
                 .labelStyle(.iconOnly)
-        }
-        .buttonStyle(.automatic)
-        .help("Refresh")
-    }
-
-    private var animatedButton: some View {
-        Button {
-            if phase == .refreshing {
-                cancelRefresh()
-            } else {
-                startHoverDelay()
-                transition(to: .refreshing)
-                onRefresh()
-            }
-        } label: {
-            Label("Refresh", systemImage: "circle")
-                .labelStyle(.iconOnly)
-                .foregroundStyle(.clear)
+                .foregroundStyle(phase == .idle ? ColorTokens.Text.secondary : .clear)
                 .overlay {
-                    RefreshAnimatedOverlay(
-                        phase: phase,
-                        showCancel: showCancel,
-                        spinning: spinning,
-                        circleSize: circleSize,
-                        glowPadding: glowPadding
-                    )
+                    if phase != .idle {
+                        RefreshAnimatedOverlay(
+                            phase: phase,
+                            showCancel: showCancel,
+                            spinning: spinning,
+                            circleSize: 0,
+                            glowPadding: 0
+                        )
+                    }
                 }
         }
         .buttonStyle(.automatic)
@@ -110,10 +78,26 @@ struct RefreshButtonContent: View {
         }
     }
 
+    // MARK: - Actions
+
+    private func handleTap() {
+        switch phase {
+        case .idle:
+            transition(to: .refreshing)
+            onRefresh()
+        case .refreshing:
+            cancelRefresh()
+        case .completed:
+            startHoverDelay()
+            transition(to: .refreshing)
+            onRefresh()
+        }
+    }
+
     // MARK: - State Management
 
     private func transition(to newPhase: Phase) {
-        withAnimation(.easeInOut(duration: 0.24)) {
+        withAnimation(.easeInOut(duration: 0.2)) {
             phase = newPhase
         }
         spinning = (newPhase == .refreshing)
@@ -144,7 +128,7 @@ struct RefreshButtonContent: View {
         stopHoverDelay(resetIntent: true)
         transition(to: .completed)
         completionTask = Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 1_000_000_000)
+            try? await Task.sleep(nanoseconds: 1_200_000_000)
             guard !Task.isCancelled else { return }
             resetToIdle()
         }

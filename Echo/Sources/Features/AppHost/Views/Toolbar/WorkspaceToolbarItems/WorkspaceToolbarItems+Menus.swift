@@ -8,7 +8,7 @@ extension WorkspaceToolbarItems {
     internal var projectMenu: some View {
         Menu {
             if projectStore.projects.isEmpty {
-                Text("No Projects Available").foregroundStyle(.secondary)
+                Text("No Projects Available").foregroundStyle(ColorTokens.Text.secondary)
             } else {
                 ForEach(projectStore.projects) { project in
                     Button {
@@ -27,7 +27,7 @@ extension WorkspaceToolbarItems {
             Divider()
 
             Button("Manage Projects…") {
-                ManageProjectsWindowController.shared.present()
+                ManageConnectionsWindowController.shared.present(initialSection: .projects)
             }
         } label: {
             toolbarButtonLabel(

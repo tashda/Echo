@@ -1,115 +1,201 @@
+#if os(macOS)
 import SwiftUI
 
 struct JsonInspectorPanelView: View {
     let content: JsonInspectorContent
+    @State private var viewModel: JsonViewerViewModel?
+    @State private var isLoading = false
+    @State private var selectedTab: JsonInspectorTab = .raw
+    @State private var buildTask: Task<Void, Never>?
+    @State private var showFullRaw = false
+
+    enum JsonInspectorTab: String, Hashable {
+        case raw
+        case tree
+    }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(content.title)
-                    .font(.system(.title3, design: .default).weight(.semibold))
-                if let subtitle = content.subtitle, !subtitle.isEmpty {
-                    Text(subtitle)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
-            }
+        VStack(alignment: .leading, spacing: SpacingTokens.sm) {
+            header
+            tabControls
 
-            if content.outline.children.isEmpty {
-                JsonInspectorLeafRow(node: content.outline)
+            if isLoading {
+                loadingContent
             } else {
-                VStack(alignment: .leading, spacing: 12) {
-                    ForEach(content.outline.children) { child in
-                        JsonInspectorNodeRow(node: child, depth: 0)
-                    }
+                switch selectedTab {
+                case .raw:
+                    rawContent
+                case .tree:
+                    treeContent
                 }
             }
         }
         .padding(.top, SpacingTokens.xxs)
         .padding(.bottom, SpacingTokens.xxs)
+        .onAppear { buildViewModelAsync() }
+        .onChange(of: content) { _, _ in buildViewModelAsync() }
+        .onDisappear { buildTask?.cancel() }
     }
-}
 
-struct JsonInspectorNodeRow: View {
-    let node: JsonOutlineNode
-    let depth: Int
-    @State private var isExpanded: Bool = true
+    // MARK: - Header
 
-    var body: some View {
-        if node.hasChildren {
-            DisclosureGroup(isExpanded: $isExpanded) {
-                VStack(alignment: .leading, spacing: 10) {
-                    ForEach(node.children) { child in
-                        JsonInspectorNodeRow(node: child, depth: depth + 1)
-                    }
+    private var header: some View {
+        HStack(alignment: .top) {
+            VStack(alignment: .leading, spacing: SpacingTokens.xxs) {
+                Text(content.title)
+                    .font(TypographyTokens.prominent.weight(.semibold))
+                if let subtitle = content.subtitle, !subtitle.isEmpty {
+                    Text(subtitle)
+                        .font(TypographyTokens.detail)
+                        .foregroundStyle(ColorTokens.Text.secondary)
                 }
-                .padding(.top, SpacingTokens.xs)
+            }
+            Spacer()
+            Button {
+                PlatformClipboard.copy(viewModel?.formattedJSON ?? content.rawJSON)
             } label: {
-                JsonInspectorRowHeader(title: node.title, subtitle: node.subtitle, depth: depth)
+                Image(systemName: "doc.on.doc")
             }
-        } else {
-            JsonInspectorLeafRow(node: node, depth: depth)
+            .buttonStyle(.borderless)
+            .controlSize(.small)
+            .help("Copy JSON")
         }
     }
-}
 
-struct JsonInspectorRowHeader: View {
-    let title: String
-    let subtitle: String
-    let depth: Int
+    // MARK: - Tab Controls
 
-    var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(title)
-                .font(TypographyTokens.standard.weight(.semibold))
-            Text(subtitle)
+    private var tabControls: some View {
+        HStack(spacing: SpacingTokens.xs) {
+            Picker("", selection: $selectedTab) {
+                Text("Raw").tag(JsonInspectorTab.raw)
+                Text("Tree").tag(JsonInspectorTab.tree)
+            }
+            .pickerStyle(.segmented)
+            .frame(maxWidth: 120)
+            .labelsHidden()
+            .controlSize(.small)
+
+            if selectedTab == .tree, let vm = viewModel, !isLoading {
+                Spacer()
+                Button("Expand") { vm.expandAll() }
+                    .buttonStyle(.borderless)
+                    .controlSize(.mini)
+                Button("Collapse") { vm.collapseAll() }
+                    .buttonStyle(.borderless)
+                    .controlSize(.mini)
+            }
+        }
+    }
+
+    // MARK: - Loading
+
+    private var loadingContent: some View {
+        VStack(spacing: SpacingTokens.sm) {
+            ProgressView()
+                .controlSize(.small)
+            Text("Parsing JSON\u{2026}")
                 .font(TypographyTokens.detail)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(ColorTokens.Text.secondary)
         }
-        .padding(.leading, CGFloat(depth) * 4)
+        .frame(maxWidth: .infinity, alignment: .center)
+        .padding(.vertical, SpacingTokens.lg)
     }
-}
 
-struct JsonInspectorLeafRow: View {
-    let node: JsonOutlineNode
-    var depth: Int = 0
-    @Environment(\.colorScheme) private var colorScheme
+    // MARK: - Raw Content
 
-    var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            if let title = node.key.displayTitle {
-                Text(title.uppercased())
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-            } else {
-                Text(node.value.kind.displayName.uppercased())
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-            }
+    private static let rawDisplayLimit = 8_000
 
-            Text(node.subtitle.isEmpty ? "—" : node.subtitle)
-                .font(.callout.weight(.medium))
-                .foregroundStyle(ColorTokens.Text.primary)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.vertical, SpacingTokens.xs)
-                .padding(.horizontal, SpacingTokens.xs2)
-                .background(
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .fill(Color.secondary.opacity(colorScheme == .dark ? 0.18 : 0.12))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                .stroke(Color.white.opacity(colorScheme == .dark ? 0.08 : 0.18), lineWidth: 0.6)
-                        )
-                )
-                .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                .contextMenu {
-                    Button {
-                        copyToGeneralPasteboard(node.subtitle)
-                    } label: {
-                        Label("Copy", systemImage: "doc.on.doc")
+    @ViewBuilder
+    private var rawContent: some View {
+        let formatted = viewModel?.formattedJSON ?? content.rawJSON
+        let isTruncated = formatted.count > Self.rawDisplayLimit
+        let displayText = isTruncated && !showFullRaw
+            ? String(formatted.prefix(Self.rawDisplayLimit)) + "\n\u{2026}"
+            : formatted
+        ScrollView {
+            VStack(alignment: .leading, spacing: SpacingTokens.xs) {
+                Text(displayText)
+                    .font(.system(size: 11, design: .monospaced))
+                    .textSelection(.enabled)
+                    .lineSpacing(2)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                if isTruncated && !showFullRaw {
+                    Button("Show all (\(ByteCountFormatter.string(fromByteCount: Int64(formatted.utf8.count), countStyle: .file)))") {
+                        showFullRaw = true
                     }
+                    .buttonStyle(.borderless)
+                    .controlSize(.small)
+                    .foregroundStyle(ColorTokens.Text.secondary)
                 }
+            }
+            .padding(SpacingTokens.xs)
         }
-        .padding(.leading, CGFloat(depth) * 6)
+        .background(
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .fill(ColorTokens.Background.secondary)
+        )
+        .onAppear { viewModel?.prepareFormattedJSON() }
+        .onChange(of: content) { _, _ in showFullRaw = false }
+    }
+
+    // MARK: - Tree Content
+
+    @ViewBuilder
+    private var treeContent: some View {
+        if let vm = viewModel {
+            VStack(alignment: .leading, spacing: 0) {
+                ForEach(vm.flatRows) { row in
+                    JsonViewerNodeRow(
+                        node: row.node,
+                        parentPath: row.parentPath,
+                        depth: row.depth,
+                        isExpanded: vm.isExpanded(row.node.id),
+                        onToggle: { vm.toggle(row.node.id) }
+                    )
+                }
+            }
+        }
+    }
+
+    // MARK: - Async ViewModel Construction
+
+    private func buildViewModelAsync() {
+        buildTask?.cancel()
+        let rawJSON = content.rawJSON
+        let title = content.title
+
+        // For small JSON (<4KB), build synchronously to avoid flicker
+        if rawJSON.utf8.count < 4_096 {
+            let outline = Self.parseOutline(rawJSON: rawJSON)
+            let vm = JsonViewerViewModel(rootNode: outline, rawJSON: rawJSON, columnName: title)
+            vm.prepareFormattedJSON()
+            viewModel = vm
+            isLoading = false
+            return
+        }
+
+        isLoading = true
+        viewModel = nil
+
+        buildTask = Task {
+            let outline = await Task.detached(priority: .userInitiated) {
+                Self.parseOutline(rawJSON: rawJSON)
+            }.value
+
+            guard !Task.isCancelled else { return }
+            let vm = JsonViewerViewModel(rootNode: outline, rawJSON: rawJSON, columnName: title)
+            vm.prepareFormattedJSON()
+            viewModel = vm
+            isLoading = false
+        }
+    }
+
+    private nonisolated static func parseOutline(rawJSON: String) -> JsonOutlineNode {
+        if let parsed = try? JsonValue.parse(from: rawJSON) {
+            return parsed.toOutlineNode()
+        }
+        return JsonOutlineNode(id: UUID(), key: .root, value: .string(rawJSON), children: [])
     }
 }
+#endif

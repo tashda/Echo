@@ -44,6 +44,7 @@ struct EchoApp: App {
                 .environmentObject(coordinator.appState)
                 .environmentObject(coordinator.clipboardHistory)
                 .environmentObject(coordinator.appearanceStore)
+                .environmentObject(coordinator.notificationEngine)
                 .task { await coordinator.initialize() }
         }
         .defaultLaunchBehavior(.presented)
@@ -68,7 +69,11 @@ struct EchoApp: App {
                 connectionStore: coordinator.connectionStore,
                 navigationStore: coordinator.navigationStore
             )
-            SidebarToggleCommands()
+            ViewMenuCommands(
+                appState: coordinator.appState,
+                navigationStore: coordinator.navigationStore,
+                tabStore: coordinator.tabStore
+            )
 #endif
         }
         AutocompleteInspectorWindow()
@@ -100,7 +105,7 @@ struct QueryCommands: Commands {
     }
 
     var body: some Commands {
-        CommandGroup(after: .newItem) {
+        CommandGroup(replacing: .newItem) {
             Button("New Query Tab") {
                 environmentState.openQueryTab()
             }
@@ -139,11 +144,6 @@ struct QueryCommands: Commands {
                 Text("Reopen Closed Tab")
             }
             .keyboardShortcut(key(for: "Reopen Closed Tab", default: "t"), modifiers: mods(for: "Reopen Closed Tab", default: [.command, .shift]))
-
-            Button(appState.showTabOverview ? "Hide Tab Overview" : "Show Tab Overview") {
-                appState.showTabOverview.toggle()
-            }
-            .keyboardShortcut(key(for: "Show Tab Overview", default: "o"), modifiers: mods(for: "Show Tab Overview", default: [.command]))
 
             Button("Close Query Tab") {
                 if navigationStore.isWorkspaceWindowKey {
@@ -226,20 +226,48 @@ struct SparkleCommands: Commands {
     }
 }
 
-struct SidebarToggleCommands: Commands {
+struct ViewMenuCommands: Commands {
+    @ObservedObject var appState: AppState
+    let navigationStore: NavigationStore
+    let tabStore: TabStore
+
     var body: some Commands {
         CommandGroup(after: .sidebar) {
-            Button("Toggle Sidebar") {
-                // If the key window is the Manage Connections window, toggle its sidebar.
-                // Otherwise, use the system's default sidebar toggle responder.
+            Button {
                 if let keyWindow = NSApplication.shared.keyWindow,
-                   keyWindow.title.contains("Connection") || keyWindow.title.contains("Identit") {
+                   keyWindow.identifier == AppWindowIdentifier.manageConnections {
                     NotificationCenter.default.post(name: .toggleManageConnectionsSidebar, object: nil)
                 } else {
                     NSApp?.sendAction(#selector(NSSplitViewController.toggleSidebar(_:)), to: nil, from: nil)
                 }
+            } label: {
+                Label("Toggle Sidebar", systemImage: "sidebar.left")
             }
             .keyboardShortcut("s", modifiers: [.command, .control])
+
+            Button {
+                appState.showInfoSidebar.toggle()
+            } label: {
+                Label(
+                    appState.showInfoSidebar ? "Hide Inspector" : "Show Inspector",
+                    systemImage: "sidebar.trailing"
+                )
+            }
+            .keyboardShortcut("i", modifiers: [.command, .option])
+            .disabled(!navigationStore.isWorkspaceWindowKey)
+
+            Divider()
+
+            Button {
+                appState.showTabOverview.toggle()
+            } label: {
+                Label(
+                    appState.showTabOverview ? "Hide Tab Overview" : "Show Tab Overview",
+                    systemImage: "square.grid.2x2"
+                )
+            }
+            .keyboardShortcut("o", modifiers: [.command, .shift])
+            .disabled(!navigationStore.isWorkspaceWindowKey || !tabStore.hasTabs)
         }
     }
 }
@@ -274,7 +302,7 @@ struct ConnectMenuCommands: Commands {
                 connectionMenuItems(parentID: nil, projectID: projectID)
             } else if !hasActiveSessions {
                 Text("No Connections Available")
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(ColorTokens.Text.secondary)
             }
 
             if hasActiveSessions || hasConnections {
@@ -336,7 +364,7 @@ struct ConnectMenuCommands: Commands {
             let databases = availableDatabases(for: session)
             if databases.isEmpty {
                 Text("No Databases Available")
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(ColorTokens.Text.secondary)
             } else {
                 ForEach(databases, id: \.name) { database in
                     let isSelected = databaseNamesEqual(database.name, session.selectedDatabaseName)
@@ -370,7 +398,7 @@ struct ConnectMenuCommands: Commands {
     @ViewBuilder
     private func databaseMenuLabel(name: String, isSelected: Bool) -> some View {
         let contentWidth: CGFloat = 260
-        HStack(spacing: 8) {
+        HStack(spacing: SpacingTokens.xs) {
             if isSelected {
                 Image(systemName: "checkmark")
                     .frame(width: 12)

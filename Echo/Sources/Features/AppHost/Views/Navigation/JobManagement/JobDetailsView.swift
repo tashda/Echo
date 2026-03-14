@@ -2,7 +2,7 @@ import SwiftUI
 
 struct JobDetailsView: View {
     @ObservedObject var viewModel: JobQueueViewModel
-    let toastCoordinator: StatusToastCoordinator
+    let notificationEngine: NotificationEngine?
 
     // Properties editing
     @State private var editingProps: JobQueueViewModel.PropertySheet?
@@ -63,15 +63,15 @@ struct JobDetailsView: View {
             } else if viewModel.selectedJobID != nil {
                 VStack {
                     ProgressView()
-                    Text("Loading details...")
+                    Text(viewModel.errorMessage == nil ? "Loading details..." : viewModel.errorMessage!)
                         .font(TypographyTokens.detail)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(ColorTokens.Text.secondary)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 Text("Select a job to view details.")
                     .font(TypographyTokens.detail)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(ColorTokens.Text.secondary)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
@@ -85,12 +85,7 @@ struct JobDetailsView: View {
         }
         .onChange(of: viewModel.errorMessage) { _, error in
             if let error {
-                toastCoordinator.show(
-                    icon: "exclamationmark.triangle.fill",
-                    message: error,
-                    style: .error,
-                    duration: 5.0
-                )
+                notificationEngine?.post(category: .jobError, message: error, duration: 5.0)
                 viewModel.errorMessage = nil
             }
         }
@@ -156,7 +151,7 @@ struct JobDetailsView: View {
                 if viewModel.steps.isEmpty {
                     LabeledContent("Start Step") {
                         Text("No steps defined")
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(ColorTokens.Text.secondary)
                     }
                 } else {
                     Picker("Start Step", selection: Binding(
@@ -176,11 +171,7 @@ struct JobDetailsView: View {
                             Task {
                                 await viewModel.startSelectedJob()
                                 if viewModel.errorMessage == nil {
-                                    toastCoordinator.show(
-                                        icon: "play.fill",
-                                        message: "Job started",
-                                        style: .success
-                                    )
+                                    notificationEngine?.post(category: .jobStarted, message: "Job started")
                                 }
                             }
                         }
@@ -191,7 +182,7 @@ struct JobDetailsView: View {
                                 Task {
                                     await viewModel.stopSelectedJob()
                                     if viewModel.errorMessage == nil {
-                                        toastCoordinator.show(icon: "stop.fill", message: "Job stopped", style: .success)
+                                        notificationEngine?.post(category: .jobStopped, message: "Job stopped")
                                     }
                                 }
                             }
@@ -212,7 +203,7 @@ struct JobDetailsView: View {
                                 await viewModel.updateProperties(boundProps.wrappedValue)
                                 if viewModel.errorMessage == nil {
                                     editingProps = nil
-                                    toastCoordinator.show(icon: "checkmark.circle.fill", message: "Properties saved", style: .success)
+                                    notificationEngine?.post(category: .jobPropertiesSaved, message: "Properties saved")
                                 }
                             }
                         }
@@ -263,7 +254,7 @@ struct JobDetailsView: View {
         HStack(spacing: SpacingTokens.sm) {
             Text("\(step.id)")
                 .font(TypographyTokens.detail.weight(.semibold))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(ColorTokens.Text.secondary)
                 .monospacedDigit()
                 .frame(width: 20, alignment: .trailing)
 
@@ -274,22 +265,22 @@ struct JobDetailsView: View {
 
                     Text(step.subsystem)
                         .font(TypographyTokens.caption2)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(ColorTokens.Text.secondary)
                         .padding(.horizontal, SpacingTokens.xxs2)
                         .padding(.vertical, 1)
-                        .background(Color.primary.opacity(0.06), in: Capsule())
+                        .background(ColorTokens.Text.primary.opacity(0.06), in: Capsule())
 
                     if let db = step.database, !db.isEmpty {
                         Text(db)
                             .font(TypographyTokens.detail)
-                            .foregroundStyle(.tertiary)
+                            .foregroundStyle(ColorTokens.Text.tertiary)
                     }
                 }
 
                 if let cmd = step.command, !cmd.isEmpty {
                     Text(cmd.prefix(80).description)
-                        .font(.system(size: 11, design: .monospaced))
-                        .foregroundStyle(.tertiary)
+                        .font(TypographyTokens.detail.monospaced())
+                        .foregroundStyle(ColorTokens.Text.tertiary)
                         .lineLimit(1)
                 }
             }
@@ -301,10 +292,10 @@ struct JobDetailsView: View {
                     openCommandEditor(text: step.command ?? "", stepName: step.name)
                 } label: {
                     Image(systemName: "arrow.up.left.and.arrow.down.right")
-                        .font(.system(size: 9))
+                        .font(TypographyTokens.compact)
                 }
                 .buttonStyle(.plain)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(ColorTokens.Text.secondary)
                 .help("Open in editor")
             }
         }
@@ -324,7 +315,7 @@ struct JobDetailsView: View {
         VStack(alignment: .leading, spacing: SpacingTokens.xs) {
             Text("Add Step")
                 .font(TypographyTokens.detail.weight(.semibold))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(ColorTokens.Text.secondary)
                 .padding(.horizontal, SpacingTokens.md)
                 .padding(.top, SpacingTokens.sm)
 
@@ -351,7 +342,7 @@ struct JobDetailsView: View {
             HStack(spacing: SpacingTokens.xs) {
                 TextField("Command", text: $newStepCommand, axis: .vertical)
                     .lineLimit(1...3)
-                    .font(.system(.body, design: .monospaced))
+                    .font(TypographyTokens.body.monospaced())
                 Button {
                     openCommandEditor(text: newStepCommand, stepName: nil)
                 } label: {
@@ -409,7 +400,7 @@ struct JobDetailsView: View {
                     if let next = sch.next {
                         Text(next)
                     } else {
-                        Text("—").foregroundStyle(.secondary)
+                        Text("—").foregroundStyle(ColorTokens.Text.secondary)
                     }
                 }
             } rows: {
@@ -436,7 +427,7 @@ struct JobDetailsView: View {
             VStack(alignment: .leading, spacing: SpacingTokens.sm) {
                 Text("New Schedule")
                     .font(TypographyTokens.detail.weight(.semibold))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(ColorTokens.Text.secondary)
 
                 TextField("Schedule Name", text: $newScheduleName)
                     .textFieldStyle(.roundedBorder)
@@ -451,7 +442,7 @@ struct JobDetailsView: View {
 
                 Text(scheduleRecurrenceHeader)
                     .font(TypographyTokens.detail.weight(.semibold))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(ColorTokens.Text.secondary)
 
                 scheduleRecurrenceContent
 
@@ -459,7 +450,7 @@ struct JobDetailsView: View {
 
                 Text("Start Time")
                     .font(TypographyTokens.detail.weight(.semibold))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(ColorTokens.Text.secondary)
 
                 HStack {
                     Text("Time")
@@ -565,7 +556,7 @@ struct JobDetailsView: View {
     }
 
     private var scheduleWeekdayPicker: some View {
-        HStack(spacing: 2) {
+        HStack(spacing: SpacingTokens.xxxs) {
             ForEach([(1, "S"), (2, "M"), (4, "T"), (8, "W"), (16, "T"), (32, "F"), (64, "S")], id: \.0) { value, label in
                 Toggle(isOn: Binding(
                     get: { newScheduleWeekdays.contains(value) },
@@ -610,10 +601,10 @@ struct JobDetailsView: View {
 
         return HStack(spacing: SpacingTokens.xs) {
             Image(systemName: "calendar.badge.clock")
-                .foregroundStyle(.secondary)
+                .foregroundStyle(ColorTokens.Text.secondary)
             Text(summary)
                 .font(TypographyTokens.standard)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(ColorTokens.Text.secondary)
         }
     }
 
@@ -661,7 +652,7 @@ struct JobDetailsView: View {
                 activeStartDate: activeStartDate
             )
             if viewModel.errorMessage == nil {
-                toastCoordinator.show(icon: "calendar.badge.plus", message: "Schedule created", style: .success)
+                notificationEngine?.post(category: .jobScheduleCreated, message: "Schedule created")
             }
             newScheduleName = ""
             newScheduleEnabled = true
@@ -731,7 +722,7 @@ struct JobDetailsView: View {
             VStack(alignment: .leading, spacing: SpacingTokens.sm) {
                 Text("Email Notification")
                     .font(TypographyTokens.detail.weight(.semibold))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(ColorTokens.Text.secondary)
 
                 if viewModel.operators.isEmpty {
                     TextField("Operator", text: $notifyOperator, prompt: Text("e.g. DBA Team"))
@@ -744,7 +735,7 @@ struct JobDetailsView: View {
                                 Text(op.name)
                                 if let email = op.emailAddress, !email.isEmpty {
                                     Text("(\(email))")
-                                        .foregroundStyle(.secondary)
+                                        .foregroundStyle(ColorTokens.Text.secondary)
                                 }
                             }
                             .tag(op.name)
@@ -763,7 +754,7 @@ struct JobDetailsView: View {
 
                 Text("Windows Event Log")
                     .font(TypographyTokens.detail.weight(.semibold))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(ColorTokens.Text.secondary)
 
                 Picker("Write to event log", selection: $notifyEventLogLevel) {
                     Text("Never").tag(0)
@@ -784,7 +775,7 @@ struct JobDetailsView: View {
                                 eventLogLevel: notifyEventLogLevel
                             )
                             if viewModel.errorMessage == nil {
-                                toastCoordinator.show(icon: "bell.fill", message: "Notification saved", style: .success)
+                                notificationEngine?.post(category: .jobNotificationSaved, message: "Notification saved")
                                 await viewModel.loadDetails()
                                 if let props = viewModel.properties {
                                     notifyLevel = props.notifyLevelEmail
@@ -901,7 +892,7 @@ private struct CommandEditorView: View {
             Divider()
 
             TextEditor(text: $text)
-                .font(.system(.body, design: .monospaced))
+                .font(TypographyTokens.body.monospaced())
                 .scrollContentBackground(.hidden)
                 .padding(SpacingTokens.sm)
         }

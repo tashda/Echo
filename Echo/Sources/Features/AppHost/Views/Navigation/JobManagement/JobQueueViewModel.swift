@@ -128,7 +128,7 @@ final class JobQueueViewModel: ObservableObject {
     private func loadCategories() async {
         guard let mssql = session as? MSSQLSession else { return }
         do {
-            let agent = mssql.makeAgentClient()
+            let agent = mssql.agent
             let cats = try await agent.listCategories()
             categories = cats.filter { $0.classId == 1 }.map(\.name).sorted()
         } catch {
@@ -139,7 +139,7 @@ final class JobQueueViewModel: ObservableObject {
     private func loadOperators() async {
         guard let mssql = session as? MSSQLSession else { return }
         do {
-            let agent = mssql.makeAgentClient()
+            let agent = mssql.agent
             let ops = try await agent.listOperators()
             self.operators = ops.map { OperatorInfo(id: $0.name, name: $0.name, emailAddress: $0.emailAddress, enabled: $0.enabled) }
         } catch {
@@ -372,7 +372,7 @@ final class JobQueueViewModel: ObservableObject {
         guard let mssql = session as? MSSQLSession else { return }
         let jobName = jobs.first(where: { $0.id == selectedJobID })?.name
         do {
-            let agent = mssql.makeAgentClient()
+            let agent = mssql.agent
             let running = try await agent.listRunningJobs()
             let wasRunning = isJobRunning
 

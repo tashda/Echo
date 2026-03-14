@@ -148,7 +148,7 @@ final class ConnectionsMenuActions: NSObject {
     }
 
     @objc func quickConnect(_ sender: NSMenuItem) {
-        ManageConnectionsWindowController.shared.present()
+        AppCoordinator.shared.appState.showSheet(.quickConnect)
     }
 }
 

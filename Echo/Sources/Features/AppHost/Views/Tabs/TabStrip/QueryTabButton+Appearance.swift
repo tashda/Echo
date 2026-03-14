@@ -126,7 +126,7 @@ extension QueryTabButton {
             return LinearGradient(colors: [Color(white: 0.90), Color(white: 0.86)], startPoint: .top, endPoint: .bottom)
         }
 #else
-        LinearGradient(colors: [Color.accentColor.opacity(0.4), Color.accentColor.opacity(0.28)], startPoint: .top, endPoint: .bottom)
+        LinearGradient(colors: [ColorTokens.accent.opacity(0.4), ColorTokens.accent.opacity(0.28)], startPoint: .top, endPoint: .bottom)
 #endif
     }
 
@@ -149,7 +149,7 @@ extension QueryTabButton {
             return Color.black.opacity(0.05)
         }
 #else
-        return Color.accentColor.opacity(0.6)
+        return ColorTokens.accent.opacity(0.6)
 #endif
     }
 

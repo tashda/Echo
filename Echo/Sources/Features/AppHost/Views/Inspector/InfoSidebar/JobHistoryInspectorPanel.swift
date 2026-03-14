@@ -25,7 +25,7 @@ struct JobHistoryInspectorPanel: View {
 
             Text("Execution Message")
                 .font(TypographyTokens.detail.weight(.semibold))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(ColorTokens.Text.secondary)
 
             Text(content.message)
                 .font(.system(.body, design: .monospaced))

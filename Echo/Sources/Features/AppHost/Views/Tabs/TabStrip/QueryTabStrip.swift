@@ -56,7 +56,7 @@ struct QueryTabStrip: View {
         }
     }
 
-    let tabReorderAnimation = Animation.interactiveSpring(response: 0.72, dampingFraction: 0.86, blendDuration: 0.30)
+    let tabReorderAnimation = Animation.interactiveSpring(response: 0.2, dampingFraction: 0.9, blendDuration: 0)
     private let tabStripHeight: CGFloat = WorkspaceChromeMetrics.tabStripTotalHeight
     private let baseHorizontalInset: CGFloat = 4
     private let basePlateExtension: CGFloat = 0
@@ -153,7 +153,7 @@ struct QueryTabStrip: View {
                                 .opacity(separatorOpacity(between: tab, and: nextTab, separatorIndex: index))
                         }
                     }
-                    .highPriorityGesture(
+                    .simultaneousGesture(
                         dragGesture(
                             for: tab,
                             tabWidth: tabWidth,

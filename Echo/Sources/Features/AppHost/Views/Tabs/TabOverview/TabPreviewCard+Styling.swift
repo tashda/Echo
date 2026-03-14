@@ -5,7 +5,7 @@ extension TabPreviewCard {
         LinearGradient(
             colors: [
                 appearanceStore.accentColor.opacity(colorScheme == .dark ? 0.28 : 0.18),
-                Color.primary.opacity(colorScheme == .dark ? 0.12 : 0.04)
+                ColorTokens.Text.primary.opacity(colorScheme == .dark ? 0.12 : 0.04)
             ],
             startPoint: .topLeading,
             endPoint: .bottomTrailing
@@ -13,7 +13,7 @@ extension TabPreviewCard {
     }
 
     var cardBackground: some View {
-        RoundedRectangle(cornerRadius: 24, style: .continuous)
+        RoundedRectangle(cornerRadius: SpacingTokens.lg, style: .continuous)
             .fill(
                 LinearGradient(
                     colors: [
@@ -27,7 +27,7 @@ extension TabPreviewCard {
     }
 
     var cardBorder: some View {
-        RoundedRectangle(cornerRadius: 24, style: .continuous)
+        RoundedRectangle(cornerRadius: SpacingTokens.lg, style: .continuous)
             .stroke(borderColor, lineWidth: isDropTarget ? 2.8 : (isFocused ? 1.4 : 0.9))
     }
 
@@ -38,11 +38,11 @@ extension TabPreviewCard {
         if isFocused {
             return appearanceStore.accentColor.opacity(colorScheme == .dark ? 0.55 : 0.4)
         }
-        return Color.primary.opacity(colorScheme == .dark ? 0.16 : 0.08)
+        return ColorTokens.Text.primary.opacity(colorScheme == .dark ? 0.16 : 0.08)
     }
 
     var focusRing: some View {
-        RoundedRectangle(cornerRadius: 24, style: .continuous)
+        RoundedRectangle(cornerRadius: SpacingTokens.lg, style: .continuous)
             .stroke(appearanceStore.accentColor.opacity(isFocused ? 0.38 : 0), lineWidth: 2.8)
     }
 

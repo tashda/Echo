@@ -11,8 +11,8 @@ struct TabStripBackground: View {
     }
 
     var style: Style
-    var height: CGFloat = 24
-    var cornerRadius: CGFloat = 15
+    var height: CGFloat = SpacingTokens.lg
+    var cornerRadius: CGFloat = 15 // Design specific radius for tabs
 
     private var shape: RoundedRectangle {
         RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)

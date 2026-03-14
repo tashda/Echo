@@ -72,6 +72,11 @@ final class TabCoordinator: ObservableObject {
 
     func removeTab(withID id: UUID) {
         guard let index = tabs.firstIndex(where: { $0.id == id }) else { return }
+        let tab = tabs[index]
+
+        // Proactively clean up tab resources to stop background tasks/streaming
+        tab.query?.cancelExecution()
+        tab.activityMonitor?.stopStreaming()
 
         let removedTabIsActive = (activeTabId == id)
         let fallbackTabId: UUID? = {

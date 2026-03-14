@@ -68,7 +68,7 @@ struct ConnectionsPopoverContent: View {
                     dismiss()
                 }
                 PopoverActionRow(title: "Quick Connect\u{2026}") {
-                    ManageConnectionsWindowController.shared.present()
+                    AppCoordinator.shared.appState.showSheet(.quickConnect)
                     dismiss()
                 }
             }
@@ -115,7 +115,7 @@ struct ConnectionsPopoverContent: View {
     private func sectionHeader(_ title: String) -> some View {
         Text(title)
             .font(TypographyTokens.detail.weight(.medium))
-            .foregroundStyle(.secondary)
+            .foregroundStyle(ColorTokens.Text.secondary)
             .padding(.horizontal, 14)
             .padding(.top, SpacingTokens.xxs)
             .padding(.bottom, 2)
@@ -152,7 +152,7 @@ private struct PopoverConnectionRow: View {
         Button(action: action) {
             HStack(spacing: SpacingTokens.xxs2) {
                 Image(systemName: "checkmark")
-                    .font(.system(size: 9, weight: .bold))
+                    .font(TypographyTokens.compact.weight(.bold))
                     .frame(width: 14)
                     .opacity(isSelected ? 1 : 0)
 
@@ -163,8 +163,8 @@ private struct PopoverConnectionRow: View {
                         .frame(width: 16, height: 16)
                 } else {
                     Image(systemName: "server.rack")
-                        .font(.system(size: 12))
-                        .foregroundStyle(.secondary)
+                        .font(TypographyTokens.caption2)
+                        .foregroundStyle(ColorTokens.Text.secondary)
                         .frame(width: 16, height: 16)
                 }
 
@@ -179,7 +179,7 @@ private struct PopoverConnectionRow: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(
                 RoundedRectangle(cornerRadius: 4, style: .continuous)
-                    .fill(isHovered ? Color.accentColor : .clear)
+                    .fill(isHovered ? ColorTokens.accent : .clear)
                     .padding(.horizontal, SpacingTokens.xxs2)
             )
             .foregroundStyle(isHovered ? .white : .primary)
@@ -208,7 +208,7 @@ private struct PopoverActionRow: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(
                 RoundedRectangle(cornerRadius: 4, style: .continuous)
-                    .fill(isHovered ? Color.accentColor : .clear)
+                    .fill(isHovered ? ColorTokens.accent : .clear)
                     .padding(.horizontal, SpacingTokens.xxs2)
             )
             .foregroundStyle(isHovered ? .white : .primary)

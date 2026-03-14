@@ -65,10 +65,10 @@ struct ResizeHandle: View {
     private var verticalHandle: some View {
         ZStack {
             Rectangle()
-                .fill(Color.secondary.opacity(isDragging ? 0.25 : 0.12))
+                .fill(ColorTokens.Text.secondary.opacity(isDragging ? 0.25 : 0.12))
                 .frame(height: 1)
             Capsule()
-                .fill(Color.secondary.opacity(isDragging ? 0.5 : 0.3))
+                .fill(ColorTokens.Text.secondary.opacity(isDragging ? 0.5 : 0.3))
                 .frame(width: 36, height: 3)
         }
         .frame(height: 9)
@@ -78,10 +78,10 @@ struct ResizeHandle: View {
     private var horizontalHandle: some View {
         ZStack {
             Rectangle()
-                .fill(Color.secondary.opacity(isDragging ? 0.25 : 0.12))
+                .fill(ColorTokens.Text.secondary.opacity(isDragging ? 0.25 : 0.12))
                 .frame(width: 1)
             Capsule()
-                .fill(Color.secondary.opacity(isDragging ? 0.5 : 0.3))
+                .fill(ColorTokens.Text.secondary.opacity(isDragging ? 0.5 : 0.3))
                 .frame(width: 3, height: 36)
         }
         .frame(width: 9)

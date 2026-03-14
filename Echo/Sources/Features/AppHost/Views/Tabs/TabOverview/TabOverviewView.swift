@@ -29,7 +29,7 @@ struct TabOverviewView: View {
     var animation: Animation { .spring(response: 0.45, dampingFraction: 0.82, blendDuration: 0.2) }
 
     var body: some View {
-        VStack(spacing: 24) {
+        VStack(spacing: SpacingTokens.lg) {
             overviewHero
 
             if !groupedTabs.isEmpty {
@@ -43,7 +43,7 @@ struct TabOverviewView: View {
                         .padding(.top, 120)
                         .padding(.horizontal, SpacingTokens.xl)
                 } else {
-                    LazyVStack(alignment: .leading, spacing: 24) {
+                    LazyVStack(alignment: .leading, spacing: SpacingTokens.lg) {
                         ForEach(groupedTabs) { serverGroup in
                             serverGroupView(serverGroup)
                                 .transition(.move(edge: .top).combined(with: .opacity))
@@ -164,15 +164,15 @@ struct TabOverviewView: View {
     }
 
     private var emptyState: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: SpacingTokens.sm) {
             Image(systemName: "square.grid.2x2")
-                .font(.system(size: 42))
-                .foregroundStyle(.secondary)
+                .font(TypographyTokens.hero)
+                .foregroundStyle(ColorTokens.Text.secondary)
             Text("No tabs open")
-                .font(.title3.weight(.semibold))
+                .font(TypographyTokens.prominent.weight(.semibold))
             Text("Create a new tab to see it appear here.")
-                .font(.callout)
-                .foregroundStyle(.secondary)
+                .font(TypographyTokens.callout)
+                .foregroundStyle(ColorTokens.Text.secondary)
         }
         .frame(maxWidth: .infinity)
     }

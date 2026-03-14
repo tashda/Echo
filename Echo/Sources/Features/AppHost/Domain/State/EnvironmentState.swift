@@ -28,6 +28,7 @@ final class EnvironmentState: ObservableObject {
     @Published private(set) var expandedConnectionFolderIDs: Set<UUID> = []
     @Published var lastError: DatabaseError?
     let toastCoordinator = StatusToastCoordinator()
+    var notificationEngine: NotificationEngine?
 
     // MARK: - Dependencies
     let projectStore: ProjectStore
@@ -160,6 +161,12 @@ final class EnvironmentState: ObservableObject {
                 port: connection.port,
                 database: connectDatabase,
                 tls: connection.useTLS,
+                trustServerCertificate: connection.trustServerCertificate,
+                tlsMode: connection.tlsMode,
+                sslRootCertPath: connection.sslRootCertPath,
+                sslCertPath: connection.sslCertPath,
+                sslKeyPath: connection.sslKeyPath,
+                mssqlEncryptionMode: connection.mssqlEncryptionMode,
                 authentication: credentials,
                 connectTimeoutSeconds: 10
             )
@@ -174,11 +181,11 @@ final class EnvironmentState: ObservableObject {
             connectionStates[connection.id] = .connected
             recordRecentConnection(for: connection, databaseName: connectionSession.selectedDatabaseName)
             startStructureLoadTask(for: connectionSession)
-            toastCoordinator.show(icon: "checkmark.circle.fill", message: "Connected to \(displayName)", style: .success)
+            notificationEngine?.post(category: .connectionConnected, message: "Connected to \(displayName)")
         } catch {
             connectionStates[connection.id] = .disconnected
             lastError = DatabaseError.from(error)
-            toastCoordinator.show(icon: "exclamationmark.triangle.fill", message: "Connection failed: \(displayName)", style: .error, duration: 5.0)
+            notificationEngine?.post(category: .connectionFailed, message: "Connection failed: \(displayName)", duration: 5.0)
         }
     }
 

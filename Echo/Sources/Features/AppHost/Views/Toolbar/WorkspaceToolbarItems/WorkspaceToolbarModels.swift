@@ -50,12 +50,12 @@ extension ToolbarIcon {
 internal func toolbarIdleFill(for scheme: ColorScheme) -> Color {
 #if os(macOS)
     if let active = NSApplication.shared.windows.first?.isKeyWindow, !active {
-        return Color.secondary.opacity(scheme == .dark ? 0.55 : 0.45)
+        return ColorTokens.Text.secondary.opacity(scheme == .dark ? 0.55 : 0.45)
     }
-    return Color.secondary.opacity(scheme == .dark ? 0.65 : 0.55)
+    return ColorTokens.Text.secondary.opacity(scheme == .dark ? 0.65 : 0.55)
 #elseif canImport(UIKit)
     return Color(uiColor: .secondarySystemBackground)
 #else
-    return Color.primary.opacity(scheme == .dark ? 0.28 : 0.08)
+    return ColorTokens.Text.primary.opacity(scheme == .dark ? 0.28 : 0.08)
 #endif
 }

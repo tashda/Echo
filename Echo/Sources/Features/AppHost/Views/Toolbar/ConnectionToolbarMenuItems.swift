@@ -25,7 +25,7 @@ struct ConnectionToolbarMenuItems: View {
                     onConnect: onConnect
                 )
             } label: {
-                HStack(spacing: 8) {
+                HStack(spacing: SpacingTokens.xs) {
                     Image(systemName: "folder")
                         .resizable()
                         .aspectRatio(contentMode: .fit)
@@ -42,7 +42,7 @@ struct ConnectionToolbarMenuItems: View {
                     await onConnect(connection)
                 }
             } label: {
-                HStack(spacing: 8) {
+                HStack(spacing: SpacingTokens.xs) {
                     let icon = connectionIcon(for: connection)
                     icon.image
                         .renderingMode(icon.isTemplate ? .template : .original)

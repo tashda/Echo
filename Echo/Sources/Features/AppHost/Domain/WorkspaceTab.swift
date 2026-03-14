@@ -28,6 +28,9 @@ final class WorkspaceTab: ObservableObject, Identifiable {
         case diagram
         case jobQueue
         case psql
+        case extensionStructure
+        case extensionsManager
+        case activityMonitor
     }
 
     enum Content {
@@ -36,6 +39,9 @@ final class WorkspaceTab: ObservableObject, Identifiable {
         case diagram(SchemaDiagramViewModel)
         case jobQueue(JobQueueViewModel)
         case psql(PSQLTabViewModel)
+        case extensionStructure(PostgresExtensionStructureViewModel)
+        case extensionsManager(PostgresExtensionsManagerViewModel)
+        case activityMonitor(ActivityMonitorViewModel)
     }
 
     let id = UUID()
@@ -46,6 +52,7 @@ final class WorkspaceTab: ObservableObject, Identifiable {
     @Published var title: String
     @Published private(set) var content: Content
     @Published var isPinned: Bool
+    @Published var activeDatabaseName: String?
     let bookmarkContext: BookmarkTabContext?
 
     private var contentCancellable: AnyCancellable?
@@ -58,6 +65,7 @@ final class WorkspaceTab: ObservableObject, Identifiable {
         title: String,
         content: Content,
         isPinned: Bool = false,
+        activeDatabaseName: String? = nil,
         bookmarkContext: BookmarkTabContext? = nil
     ) {
         self.connection = connection
@@ -66,6 +74,7 @@ final class WorkspaceTab: ObservableObject, Identifiable {
         self.title = title
         self.content = content
         self.isPinned = isPinned
+        self.activeDatabaseName = activeDatabaseName
         self.bookmarkContext = bookmarkContext
         subscribeToContent()
     }
@@ -77,6 +86,9 @@ final class WorkspaceTab: ObservableObject, Identifiable {
         case .diagram: return .diagram
         case .jobQueue: return .jobQueue
         case .psql: return .psql
+        case .extensionStructure: return .extensionStructure
+        case .extensionsManager: return .extensionsManager
+        case .activityMonitor: return .activityMonitor
         }
     }
 
@@ -87,6 +99,16 @@ final class WorkspaceTab: ObservableObject, Identifiable {
 
     var structureEditor: TableStructureEditorViewModel? {
         if case .structure(let editor) = content { return editor }
+        return nil
+    }
+
+    var extensionStructure: PostgresExtensionStructureViewModel? {
+        if case .extensionStructure(let vm) = content { return vm }
+        return nil
+    }
+
+    var extensionsManager: PostgresExtensionsManagerViewModel? {
+        if case .extensionsManager(let vm) = content { return vm }
         return nil
     }
 
@@ -102,6 +124,11 @@ final class WorkspaceTab: ObservableObject, Identifiable {
 
     var psql: PSQLTabViewModel? {
         if case .psql(let vm) = content { return vm }
+        return nil
+    }
+
+    var activityMonitor: ActivityMonitorViewModel? {
+        if case .activityMonitor(let vm) = content { return vm }
         return nil
     }
 
@@ -124,6 +151,12 @@ final class WorkspaceTab: ObservableObject, Identifiable {
             return baseOverhead
         case .psql(let vm):
             return baseOverhead + vm.estimatedMemoryUsageBytes()
+        case .extensionStructure(let vm):
+            return baseOverhead + vm.estimatedMemoryUsageBytes()
+        case .extensionsManager(let vm):
+            return baseOverhead + vm.estimatedMemoryUsageBytes()
+        case .activityMonitor:
+            return baseOverhead + 1024 * 1024
         }
     }
 
@@ -141,6 +174,14 @@ final class WorkspaceTab: ObservableObject, Identifiable {
             contentCancellable = editor.objectWillChange
                 .receive(on: RunLoop.main)
                 .sink { [weak self] _ in self?.objectWillChange.send() }
+        case .extensionStructure(let vm):
+            contentCancellable = vm.objectWillChange
+                .receive(on: RunLoop.main)
+                .sink { [weak self] _ in self?.objectWillChange.send() }
+        case .extensionsManager(let vm):
+            contentCancellable = vm.objectWillChange
+                .receive(on: RunLoop.main)
+                .sink { [weak self] _ in self?.objectWillChange.send() }
         case .diagram(let diagram):
             contentCancellable = diagram.objectWillChange
                 .receive(on: RunLoop.main)
@@ -150,6 +191,10 @@ final class WorkspaceTab: ObservableObject, Identifiable {
                 .receive(on: RunLoop.main)
                 .sink { [weak self] _ in self?.objectWillChange.send() }
         case .psql(let vm):
+            contentCancellable = vm.objectWillChange
+                .receive(on: RunLoop.main)
+                .sink { [weak self] _ in self?.objectWillChange.send() }
+        case .activityMonitor(let vm):
             contentCancellable = vm.objectWillChange
                 .receive(on: RunLoop.main)
                 .sink { [weak self] _ in self?.objectWillChange.send() }

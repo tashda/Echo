@@ -10,88 +10,66 @@ struct RefreshAnimatedOverlay: View {
 
     @Environment(\.colorScheme) private var colorScheme
 
+    @State private var rotation: Double = 0
+    @State private var completionScale: CGFloat = 0.6
+
     private var shouldSpin: Bool {
         phase == .refreshing && !showCancel && spinning
     }
 
     private var currentSymbol: String {
-        shouldSpin ? "arrow.clockwise" : spinnerSymbol
-    }
-
-    private var spinnerSymbol: String {
         if showCancel { return "xmark" }
         switch phase {
+        case .idle: return "arrow.clockwise"
+        case .refreshing: return "arrow.clockwise"
         case .completed: return "checkmark"
-        default: return "arrow.clockwise"
         }
     }
 
     private var iconColor: Color {
         if showCancel {
-            return Color.primary.opacity(colorScheme == .dark ? 0.95 : 0.9)
+            return ColorTokens.Text.primary.opacity(0.65)
         }
         switch phase {
         case .idle:
-            return Color.secondary.opacity(colorScheme == .dark ? 0.85 : 0.65)
+            return ColorTokens.Text.secondary
         case .refreshing:
-            return Color.primary.opacity(colorScheme == .dark ? 0.15 : 0.85)
+            return ColorTokens.accent
         case .completed:
-            return Color.white
-        }
-    }
-
-    private var circleFill: Color {
-        switch phase {
-        case .idle:
-            return toolbarIdleFill(for: colorScheme)
-        case .refreshing:
-            return Color.yellow.opacity(colorScheme == .dark ? 0.35 : 0.18)
-        case .completed:
-            return Color.green.opacity(colorScheme == .dark ? 0.45 : 0.22)
-        }
-    }
-
-    private var glowColor: Color {
-        switch phase {
-        case .refreshing: return Color.yellow
-        case .completed: return Color.green
-        case .idle: return .clear
-        }
-    }
-
-    private var glowOpacity: Double {
-        switch phase {
-        case .refreshing: return showCancel ? 0.65 : 0.55
-        case .completed: return 0.5
-        case .idle: return 0
+            return ColorTokens.Status.success
         }
     }
 
     var body: some View {
-        ZStack {
-            if glowOpacity > 0 {
-                GlowBorder(cornerRadius: circleSize / 2, color: glowColor)
-                    .frame(width: circleSize + glowPadding, height: circleSize + glowPadding)
-                    .opacity(glowOpacity)
-                    .allowsHitTesting(false)
+        Image(systemName: currentSymbol)
+            .font(.system(size: 13, weight: .semibold))
+            .foregroundStyle(iconColor)
+            .rotationEffect(.degrees(shouldSpin ? rotation : 0))
+            .scaleEffect(phase == .completed ? completionScale : 1.0)
+            .contentTransition(.symbolEffect(.replace))
+            .onChange(of: shouldSpin) { _, newValue in
+                if newValue {
+                    startSpinning()
+                }
             }
+            .onChange(of: phase) { _, newPhase in
+                if newPhase == .completed {
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.6)) {
+                        completionScale = 1.0
+                    }
+                } else {
+                    completionScale = 0.6
+                }
+            }
+            .onAppear {
+                if shouldSpin { startSpinning() }
+            }
+    }
 
-            Circle()
-                .fill(circleFill)
-                .frame(width: circleSize, height: circleSize)
-
-            Image(systemName: currentSymbol)
-                .rotationEffect(shouldSpin ? .degrees(360) : .degrees(0))
-                .animation(
-                    shouldSpin
-                        ? .linear(duration: 0.9).repeatForever(autoreverses: false)
-                        : .easeInOut(duration: 0.2),
-                    value: shouldSpin
-                )
-                .transition(.asymmetric(insertion: .scale.combined(with: .opacity),
-                                        removal: .opacity))
-                .font(TypographyTokens.display.weight(.medium))
-                .foregroundStyle(iconColor)
+    private func startSpinning() {
+        rotation = 0
+        withAnimation(.linear(duration: 0.8).repeatForever(autoreverses: false)) {
+            rotation = 360
         }
     }
 }
