@@ -1,33 +1,172 @@
 import SwiftUI
 
 extension TableStructureEditorView {
-    
-    internal var primaryKeySection: some View {
-        sectionCard(
-            title: "Primary Key",
-            subtitle: "Ensure row uniqueness",
-            systemImage: "key",
-            action: primaryKeySectionAction
-        ) {
-            if let primaryKey = viewModel.primaryKey {
-                primaryKeyCard(primaryKey)
-            } else {
-                placeholderText("No primary key")
-            }
+
+    internal var constraintsPanel: some View {
+        HStack(alignment: .top, spacing: SpacingTokens.sm) {
+            primaryKeyCard
+            uniqueConstraintsCard
         }
+        .padding(.horizontal, SpacingTokens.lg)
+        .padding(.vertical, SpacingTokens.sm)
     }
 
-    private var primaryKeySectionAction: SectionAction? {
-        if viewModel.primaryKey == nil {
-            return SectionAction(title: "Add Primary Key", systemImage: "plus", style: .accent) {
-                presentPrimaryKeyEditor(isNew: true)
+    // MARK: - Primary Key Card
+
+    private var primaryKeyCard: some View {
+        VStack(alignment: .leading, spacing: SpacingTokens.xs) {
+            HStack(spacing: SpacingTokens.xxs) {
+                Image(systemName: "key.fill")
+                    .font(TypographyTokens.detail)
+                    .foregroundStyle(accentColor)
+                Text("Primary Key")
+                    .font(TypographyTokens.detail.weight(.semibold))
+                    .foregroundStyle(ColorTokens.Text.primary)
             }
-        } else {
-            return SectionAction(title: "Remove", systemImage: "trash") {
-                viewModel.removePrimaryKey()
+
+            if let pk = viewModel.primaryKey {
+                VStack(alignment: .leading, spacing: SpacingTokens.xxxs) {
+                    HStack(spacing: SpacingTokens.xxs) {
+                        if pk.isNew || pk.isDirty {
+                            Circle()
+                                .fill(accentColor)
+                                .frame(width: SpacingTokens.xxs2, height: SpacingTokens.xxs2)
+                        }
+                        Text(pk.name)
+                            .font(TypographyTokens.standard.weight(.medium))
+                            .lineLimit(1)
+                    }
+                    Text(pk.columns.joined(separator: ", "))
+                        .font(TypographyTokens.detail.monospaced())
+                        .foregroundStyle(ColorTokens.Text.secondary)
+                        .lineLimit(2)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
+                .contextMenu {
+                    Button("Edit Primary Key\u{2026}") {
+                        presentPrimaryKeyEditor(isNew: false)
+                    }
+                    Divider()
+                    Button("Delete Primary Key", role: .destructive) {
+                        viewModel.removePrimaryKey()
+                    }
+                }
+                .onTapGesture(count: 2) {
+                    presentPrimaryKeyEditor(isNew: false)
+                }
+            } else {
+                Button {
+                    presentPrimaryKeyEditor(isNew: true)
+                } label: {
+                    Label("Add Primary Key", systemImage: "plus")
+                        .font(TypographyTokens.detail)
+                }
+                .buttonStyle(.borderless)
             }
         }
+        .padding(SpacingTokens.sm)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: SpacingTokens.xs, style: .continuous)
+                .fill(ColorTokens.Text.primary.opacity(0.04))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: SpacingTokens.xs, style: .continuous)
+                .stroke(ColorTokens.Text.primary.opacity(0.08), lineWidth: 1)
+        )
     }
+
+    // MARK: - Unique Constraints Card
+
+    private var uniqueConstraintsCard: some View {
+        let active = activeUniqueConstraints
+
+        return VStack(alignment: .leading, spacing: SpacingTokens.xs) {
+            HStack(spacing: SpacingTokens.xxs) {
+                Image(systemName: "shield.lefthalf.filled")
+                    .font(TypographyTokens.detail)
+                    .foregroundStyle(accentColor)
+                Text("Unique Constraints")
+                    .font(TypographyTokens.detail.weight(.semibold))
+                    .foregroundStyle(ColorTokens.Text.primary)
+
+                if !active.isEmpty {
+                    Text("\(active.count)")
+                        .font(TypographyTokens.label.weight(.medium))
+                        .foregroundStyle(ColorTokens.Text.tertiary)
+                        .padding(.horizontal, SpacingTokens.xxs2)
+                        .background(ColorTokens.Text.primary.opacity(0.06), in: Capsule())
+                }
+
+                Spacer()
+
+                Button {
+                    presentNewUniqueConstraint()
+                } label: {
+                    Image(systemName: "plus")
+                        .font(TypographyTokens.detail)
+                }
+                .buttonStyle(.borderless)
+            }
+
+            if active.isEmpty {
+                Text("None defined")
+                    .font(TypographyTokens.detail)
+                    .foregroundStyle(ColorTokens.Text.tertiary)
+            } else {
+                VStack(alignment: .leading, spacing: SpacingTokens.xxs) {
+                    ForEach(active) { constraint in
+                        HStack(spacing: SpacingTokens.xxs) {
+                            if constraint.isNew || constraint.isDirty {
+                                Circle()
+                                    .fill(accentColor)
+                                    .frame(width: SpacingTokens.xxs2, height: SpacingTokens.xxs2)
+                            }
+                            Text(constraint.name)
+                                .font(TypographyTokens.standard.weight(.medium))
+                                .lineLimit(1)
+                            Text(constraint.columns.joined(separator: ", "))
+                                .font(TypographyTokens.detail.monospaced())
+                                .foregroundStyle(ColorTokens.Text.secondary)
+                                .lineLimit(1)
+                                .truncationMode(.tail)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .contentShape(Rectangle())
+                        .contextMenu {
+                            Button("Edit Constraint\u{2026}") {
+                                presentUniqueConstraintEditor(for: constraint)
+                            }
+                            Divider()
+                            Button("Delete Constraint", role: .destructive) {
+                                viewModel.removeUniqueConstraint(constraint)
+                            }
+                        }
+                        .onTapGesture(count: 2) {
+                            presentUniqueConstraintEditor(for: constraint)
+                        }
+                    }
+                }
+            }
+        }
+        .padding(SpacingTokens.sm)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: SpacingTokens.xs, style: .continuous)
+                .fill(ColorTokens.Text.primary.opacity(0.04))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: SpacingTokens.xs, style: .continuous)
+                .stroke(ColorTokens.Text.primary.opacity(0.08), lineWidth: 1)
+        )
+    }
+
+    private var activeUniqueConstraints: [TableStructureEditorViewModel.UniqueConstraintModel] {
+        viewModel.uniqueConstraints.filter { !$0.isDeleted }
+    }
+
+    // MARK: - Presentation
 
     private func presentPrimaryKeyEditor(isNew: Bool) {
         if isNew {
@@ -43,60 +182,6 @@ extension TableStructureEditorView {
         activePrimaryKeyEditor = PrimaryKeyEditorPresentation(isNew: isNew)
     }
 
-    private func primaryKeyCard(_ primaryKey: TableStructureEditorViewModel.PrimaryKeyModel) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .firstTextBaseline, spacing: 10) {
-                Text(primaryKey.name)
-                    .font(TypographyTokens.prominent.weight(.semibold))
-
-                Spacer(minLength: 12)
-
-                bubbleLabel("Columns: \(primaryKey.columns.count)", systemImage: "number", tint: Color.accentColor.opacity(0.1), foreground: Color.accentColor)
-                    .alignmentGuide(.firstTextBaseline) { dims in
-                        dims[VerticalAlignment.center]
-                    }
-
-                Button {
-                    presentPrimaryKeyEditor(isNew: false)
-                } label: {
-                    Image(systemName: "slider.horizontal.3")
-                }
-                .buttonStyle(.borderless)
-                .help("Edit primary key")
-            }
-
-            FlowLayout(alignment: .leading, spacing: 6) {
-                ForEach(primaryKey.columns, id: \.self) { column in
-                    bubbleLabel(column, systemImage: "circle.fill")
-                }
-            }
-        }
-        .padding(.horizontal, SpacingTokens.md)
-        .padding(.vertical, SpacingTokens.sm)
-        .background(cardRowBackground(isNew: false))
-    }
-
-    internal var uniqueConstraintsSection: some View {
-        sectionCard(
-            title: "Unique Constraints",
-            subtitle: "Prevent duplicate values",
-            systemImage: "shield.lefthalf.filled",
-            action: SectionAction(title: "Add Constraint", systemImage: "plus", style: .accent) {
-                presentNewUniqueConstraint()
-            }
-        ) {
-            if viewModel.uniqueConstraints.contains(where: { !$0.isDeleted }) {
-                VStack(alignment: .leading, spacing: 8) {
-                    ForEach(viewModel.uniqueConstraints.filter { !$0.isDeleted }) { model in
-                        uniqueConstraintCard(model)
-                    }
-                }
-            } else {
-                placeholderText("No unique constraints")
-            }
-        }
-    }
-
     private func presentNewUniqueConstraint() {
         let model = viewModel.addUniqueConstraint()
         activeUniqueConstraintEditor = UniqueConstraintEditorPresentation(constraintID: model.id, isNew: true)
@@ -105,63 +190,4 @@ extension TableStructureEditorView {
     private func presentUniqueConstraintEditor(for constraint: TableStructureEditorViewModel.UniqueConstraintModel) {
         activeUniqueConstraintEditor = UniqueConstraintEditorPresentation(constraintID: constraint.id, isNew: constraint.isNew)
     }
-
-    private func uniqueConstraintCard(_ constraint: TableStructureEditorViewModel.UniqueConstraintModel) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .firstTextBaseline, spacing: 10) {
-                Text(constraint.name)
-                    .font(TypographyTokens.prominent.weight(.semibold))
-
-                Spacer(minLength: 12)
-
-                if constraint.isNew {
-                    bubbleLabel("New", systemImage: "sparkles", tint: Color.accentColor.opacity(0.16), foreground: Color.accentColor)
-                        .alignmentGuide(.firstTextBaseline) { dims in
-                            dims[VerticalAlignment.center]
-                        }
-                } else {
-                    Capsule()
-                        .fill(constraint.isDirty ? Color.accentColor.opacity(0.12) : Color.secondary.opacity(0.12))
-                        .frame(width: 68, height: 22)
-                        .overlay(
-                            Text(constraint.isDirty ? "Modified" : "Synced")
-                                .font(TypographyTokens.detail.weight(.semibold))
-                                .foregroundStyle(constraint.isDirty ? Color.accentColor : .secondary)
-                        )
-                        .alignmentGuide(.firstTextBaseline) { dims in
-                            dims[VerticalAlignment.center]
-                        }
-                }
-
-                Button {
-                    presentUniqueConstraintEditor(for: constraint)
-                } label: {
-                    Image(systemName: "slider.horizontal.3")
-                }
-                .buttonStyle(.borderless)
-
-                Button(role: .destructive) {
-                    viewModel.removeUniqueConstraint(constraint)
-                } label: {
-                    Image(systemName: "trash")
-                }
-                .buttonStyle(.borderless)
-                .help("Remove constraint")
-            }
-
-            if constraint.columns.isEmpty {
-                bubbleLabel("No columns assigned", systemImage: "exclamationmark.triangle.fill", tint: Color.red.opacity(0.12), foreground: .red)
-            } else {
-                FlowLayout(alignment: .leading, spacing: 6) {
-                    ForEach(constraint.columns, id: \.self) { column in
-                        bubbleLabel(column, systemImage: "circle.fill")
-                    }
-                }
-            }
-        }
-        .padding(.horizontal, SpacingTokens.md)
-        .padding(.vertical, SpacingTokens.sm)
-        .background(cardRowBackground(isNew: constraint.isNew))
-    }
-
 }

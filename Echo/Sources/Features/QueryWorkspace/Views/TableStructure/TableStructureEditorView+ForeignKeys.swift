@@ -2,25 +2,202 @@ import SwiftUI
 
 extension TableStructureEditorView {
 
-    internal var foreignKeysSection: some View {
-        sectionCard(
-            title: "Foreign Keys",
-            subtitle: "Maintain relational integrity",
-            systemImage: "link",
-            action: SectionAction(title: "Add Foreign Key", systemImage: "plus", style: .accent) {
+    internal var relationsContent: some View {
+        VStack(spacing: 0) {
+            sectionToolbar(title: "Foreign Keys", count: activeForeignKeys.count) {
                 presentNewForeignKey()
             }
-        ) {
-            if viewModel.foreignKeys.contains(where: { !$0.isDeleted }) {
-                VStack(alignment: .leading, spacing: 8) {
-                    ForEach(viewModel.foreignKeys.filter { !$0.isDeleted }) { model in
-                        foreignKeyCard(model)
-                    }
+
+            Divider()
+
+            if activeForeignKeys.isEmpty && viewModel.dependencies.isEmpty {
+                EmptyStatePlaceholder(
+                    icon: "link",
+                    title: "No Relations",
+                    subtitle: "Foreign keys define referential relationships between tables.",
+                    actionTitle: "Add Foreign Key"
+                ) {
+                    presentNewForeignKey()
                 }
             } else {
-                placeholderText("No foreign keys defined")
+                VStack(spacing: 0) {
+                    if !activeForeignKeys.isEmpty {
+                        foreignKeysTable
+                    }
+
+                    if !viewModel.dependencies.isEmpty {
+                        if !activeForeignKeys.isEmpty {
+                            Divider()
+                        }
+                        dependenciesSection
+                    }
+                }
             }
         }
+    }
+
+    internal var activeForeignKeys: [TableStructureEditorViewModel.ForeignKeyModel] {
+        viewModel.foreignKeys.filter { !$0.isDeleted }
+    }
+
+    private var foreignKeysTable: some View {
+        Table(of: TableStructureEditorViewModel.ForeignKeyModel.self, selection: $selectedForeignKeyIDs) {
+            TableColumn("Name") { fk in
+                HStack(spacing: SpacingTokens.xxs) {
+                    if fk.isNew || fk.isDirty {
+                        Circle()
+                            .fill(accentColor)
+                            .frame(width: SpacingTokens.xxs2, height: SpacingTokens.xxs2)
+                    }
+                    Text(fk.name)
+                        .font(TypographyTokens.standard.weight(.medium))
+                        .help(fk.name)
+                }
+            }
+            .width(min: 120, ideal: 200)
+
+            TableColumn("Columns") { fk in
+                Text(fk.columns.joined(separator: ", "))
+                    .font(TypographyTokens.detail.monospaced())
+                    .foregroundStyle(ColorTokens.Text.secondary)
+                    .lineLimit(1)
+                    .help(fk.columns.joined(separator: ", "))
+            }
+            .width(min: 80, ideal: 140)
+
+            TableColumn("References") { fk in
+                Text("\(fk.referencedSchema).\(fk.referencedTable)(\(fk.referencedColumns.joined(separator: ", ")))")
+                    .font(TypographyTokens.detail.monospaced())
+                    .foregroundStyle(ColorTokens.Text.secondary)
+                    .lineLimit(1)
+                    .help("\(fk.referencedSchema).\(fk.referencedTable)(\(fk.referencedColumns.joined(separator: ", ")))")
+            }
+            .width(min: 120, ideal: 260)
+
+            TableColumn("Actions") { fk in
+                HStack(spacing: SpacingTokens.sm) {
+                    if let onUpdate = fk.onUpdate, !onUpdate.isEmpty {
+                        Text("UPD: \(onUpdate)")
+                            .font(TypographyTokens.label.monospaced())
+                            .foregroundStyle(ColorTokens.Text.tertiary)
+                    }
+                    if let onDelete = fk.onDelete, !onDelete.isEmpty {
+                        Text("DEL: \(onDelete)")
+                            .font(TypographyTokens.label.monospaced())
+                            .foregroundStyle(ColorTokens.Text.tertiary)
+                    }
+                    if fk.onUpdate == nil && fk.onDelete == nil {
+                        Text("\u{2014}")
+                            .foregroundStyle(ColorTokens.Text.tertiary)
+                    }
+                }
+            }
+            .width(min: 80, ideal: 160)
+        } rows: {
+            ForEach(activeForeignKeys) { fk in
+                TableRow(fk)
+            }
+        }
+        .contextMenu(forSelectionType: TableStructureEditorViewModel.ForeignKeyModel.ID.self) { selection in
+            foreignKeyContextMenu(for: selection)
+        } primaryAction: { selection in
+            if let fkID = selection.first,
+               let fk = activeForeignKeys.first(where: { $0.id == fkID }) {
+                presentForeignKeyEditor(for: fk)
+            }
+        }
+        .tableStyle(.bordered(alternatesRowBackgrounds: true))
+        .environment(\.defaultMinListRowHeight, 28)
+    }
+
+    @ViewBuilder
+    private func foreignKeyContextMenu(for selection: Set<TableStructureEditorViewModel.ForeignKeyModel.ID>) -> some View {
+        if let fkID = selection.first,
+           let fk = activeForeignKeys.first(where: { $0.id == fkID }) {
+            Button("Edit Foreign Key\u{2026}") {
+                presentForeignKeyEditor(for: fk)
+            }
+            Divider()
+            Button("Delete Foreign Key", role: .destructive) {
+                viewModel.removeForeignKey(fk)
+            }
+        }
+    }
+
+    // MARK: - Dependencies (Read-Only)
+
+    private var dependenciesSection: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: SpacingTokens.xs) {
+                Text("Dependencies")
+                    .font(TypographyTokens.standard.weight(.medium))
+                    .foregroundStyle(ColorTokens.Text.primary)
+
+                Text("\(viewModel.dependencies.count)")
+                    .font(TypographyTokens.label.weight(.medium))
+                    .foregroundStyle(ColorTokens.Text.tertiary)
+                    .padding(.horizontal, SpacingTokens.xxs2)
+                    .padding(.vertical, SpacingTokens.xxxs)
+                    .background(ColorTokens.Text.primary.opacity(0.06), in: Capsule())
+
+                Spacer()
+            }
+            .padding(.horizontal, SpacingTokens.lg)
+            .padding(.vertical, SpacingTokens.xs)
+
+            Divider()
+
+            dependenciesTable
+        }
+    }
+
+    private var dependenciesTable: some View {
+        Table(viewModel.dependencies) {
+            TableColumn("Name") { dep in
+                Text(dep.name)
+                    .font(TypographyTokens.standard.weight(.medium))
+                    .help(dep.name)
+            }
+            .width(min: 120, ideal: 200)
+
+            TableColumn("Columns") { dep in
+                Text(dep.baseColumns.joined(separator: ", "))
+                    .font(TypographyTokens.detail.monospaced())
+                    .foregroundStyle(ColorTokens.Text.secondary)
+                    .lineLimit(1)
+            }
+            .width(min: 80, ideal: 140)
+
+            TableColumn("Referenced Table") { dep in
+                Text("\(dep.referencedTable)(\(dep.referencedColumns.joined(separator: ", ")))")
+                    .font(TypographyTokens.detail.monospaced())
+                    .foregroundStyle(ColorTokens.Text.secondary)
+                    .lineLimit(1)
+            }
+            .width(min: 120, ideal: 260)
+
+            TableColumn("Actions") { dep in
+                HStack(spacing: SpacingTokens.sm) {
+                    if let onUpdate = dep.onUpdate, !onUpdate.isEmpty {
+                        Text("UPD: \(onUpdate)")
+                            .font(TypographyTokens.label.monospaced())
+                            .foregroundStyle(ColorTokens.Text.tertiary)
+                    }
+                    if let onDelete = dep.onDelete, !onDelete.isEmpty {
+                        Text("DEL: \(onDelete)")
+                            .font(TypographyTokens.label.monospaced())
+                            .foregroundStyle(ColorTokens.Text.tertiary)
+                    }
+                    if dep.onUpdate == nil && dep.onDelete == nil {
+                        Text("\u{2014}")
+                            .foregroundStyle(ColorTokens.Text.tertiary)
+                    }
+                }
+            }
+            .width(min: 80, ideal: 160)
+        }
+        .tableStyle(.bordered(alternatesRowBackgrounds: true))
+        .environment(\.defaultMinListRowHeight, 28)
     }
 
     private func presentNewForeignKey() {
@@ -30,116 +207,5 @@ extension TableStructureEditorView {
 
     private func presentForeignKeyEditor(for foreignKey: TableStructureEditorViewModel.ForeignKeyModel) {
         activeForeignKeyEditor = ForeignKeyEditorPresentation(foreignKeyID: foreignKey.id, isNew: foreignKey.isNew)
-    }
-
-    private func foreignKeyCard(_ foreignKey: TableStructureEditorViewModel.ForeignKeyModel) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .firstTextBaseline, spacing: 10) {
-                Text(foreignKey.name)
-                    .font(TypographyTokens.prominent.weight(.semibold))
-
-                Spacer(minLength: 12)
-
-                if foreignKey.isNew {
-                    bubbleLabel("New", systemImage: "sparkles", tint: Color.accentColor.opacity(0.16), foreground: Color.accentColor)
-                        .alignmentGuide(.firstTextBaseline) { dims in
-                            dims[VerticalAlignment.center]
-                        }
-                } else {
-                    Capsule()
-                        .fill(foreignKey.isDirty ? Color.accentColor.opacity(0.12) : Color.secondary.opacity(0.12))
-                        .frame(width: 68, height: 22)
-                        .overlay(
-                            Text(foreignKey.isDirty ? "Modified" : "Synced")
-                                .font(TypographyTokens.detail.weight(.semibold))
-                                .foregroundStyle(foreignKey.isDirty ? Color.accentColor : .secondary)
-                        )
-                        .alignmentGuide(.firstTextBaseline) { dims in
-                            dims[VerticalAlignment.center]
-                        }
-                }
-
-                Button {
-                    presentForeignKeyEditor(for: foreignKey)
-                } label: {
-                    Image(systemName: "slider.horizontal.3")
-                }
-                .buttonStyle(.borderless)
-
-                Button(role: .destructive) {
-                    viewModel.removeForeignKey(foreignKey)
-                } label: {
-                    Image(systemName: "trash")
-                }
-                .buttonStyle(.borderless)
-                .help("Remove foreign key")
-            }
-
-            FlowLayout(alignment: .leading, spacing: 6) {
-                let referenceTarget = "\(foreignKey.referencedSchema).\(foreignKey.referencedTable)"
-                bubbleLabel(referenceTarget, systemImage: "building.columns")
-
-                if foreignKey.columns.isEmpty {
-                    bubbleLabel("No local columns", systemImage: "exclamationmark.triangle.fill", tint: Color.red.opacity(0.12), foreground: .red)
-                } else {
-                    bubbleLabel("Local", systemImage: "circle.grid.2x2", subtitle: foreignKey.columns.joined(separator: ", "))
-                }
-
-                if foreignKey.referencedColumns.isEmpty {
-                    bubbleLabel("No reference columns", systemImage: "questionmark.circle", tint: Color.red.opacity(0.12), foreground: .red)
-                } else {
-                    bubbleLabel("References", systemImage: "arrowshape.turn.up.right", subtitle: foreignKey.referencedColumns.joined(separator: ", "))
-                }
-
-                if let onUpdate = foreignKey.onUpdate, !onUpdate.isEmpty {
-                    bubbleLabel("ON UPDATE", systemImage: "arrow.triangle.2.circlepath", subtitle: onUpdate)
-                }
-
-                if let onDelete = foreignKey.onDelete, !onDelete.isEmpty {
-                    bubbleLabel("ON DELETE", systemImage: "trash.circle", subtitle: onDelete)
-                }
-            }
-        }
-        .padding(.horizontal, SpacingTokens.md)
-        .padding(.vertical, SpacingTokens.sm)
-        .background(cardRowBackground(isNew: foreignKey.isNew))
-    }
-
-    internal var dependenciesSection: some View {
-        sectionCard(
-            title: "Dependencies",
-            subtitle: "Other database objects referencing this table",
-            systemImage: "rectangle.connected.to.line.below"
-        ) {
-            if viewModel.dependencies.isEmpty {
-                placeholderText("No dependencies found")
-            } else {
-                VStack(alignment: .leading, spacing: 8) {
-                    ForEach(viewModel.dependencies) { dependency in
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text(dependency.name)
-                                .font(TypographyTokens.standard.weight(.semibold))
-
-                            FlowLayout(alignment: .leading, spacing: 6) {
-                                bubbleLabel("Table", systemImage: "tablecells", subtitle: dependency.referencedTable)
-                                if dependency.baseColumns.isEmpty {
-                                    bubbleLabel("No local columns", systemImage: "questionmark.circle", tint: Color.red.opacity(0.12), foreground: .red)
-                                } else {
-                                    bubbleLabel("Local", systemImage: "circle.grid.2x2", subtitle: dependency.baseColumns.joined(separator: ", "))
-                                }
-                                if dependency.referencedColumns.isEmpty {
-                                    bubbleLabel("No reference columns", systemImage: "questionmark.circle", tint: Color.red.opacity(0.12), foreground: .red)
-                                } else {
-                                    bubbleLabel("References", systemImage: "arrowshape.turn.up.right", subtitle: dependency.referencedColumns.joined(separator: ", "))
-                                }
-                            }
-                        }
-                        .padding(.horizontal, SpacingTokens.md)
-                        .padding(.vertical, SpacingTokens.sm)
-                        .background(cardRowBackground(isNew: false))
-                    }
-                }
-            }
-        }
     }
 }

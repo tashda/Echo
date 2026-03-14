@@ -72,6 +72,7 @@ extension ResultSpoolHandle {
             rowLengths: rowLengths
         )
         chunkRecords.append(chunkRecord)
+        chunksAreSorted = false
 
         if rowRange == nil {
             metadata.totalRowCount += payloads.count

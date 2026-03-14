@@ -70,8 +70,18 @@ extension ResultSpoolHandle {
         inMemoryRows.removeSubrange(limit..<inMemoryRows.count)
     }
 
+    func sortChunksIfNeeded() {
+        guard !chunksAreSorted, chunkRecords.count > 1 else {
+            chunksAreSorted = true
+            return
+        }
+        chunkRecords.sort { $0.startRow < $1.startRow }
+        chunksAreSorted = true
+    }
+
     func chunkIndex(forRow row: Int) -> Int? {
         guard !chunkRecords.isEmpty else { return nil }
+        sortChunksIfNeeded()
         var lower = 0
         var upper = chunkRecords.count - 1
 

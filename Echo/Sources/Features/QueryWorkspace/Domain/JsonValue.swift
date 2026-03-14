@@ -253,4 +253,18 @@ struct JsonOutlineNode: Identifiable, Equatable, Sendable {
     }
 
     var hasChildren: Bool { !children.isEmpty }
+
+    func jsonPath(parentPath: String = "$") -> String {
+        switch key {
+        case .root:
+            return parentPath
+        case .property(let name, _):
+            if name.contains(".") || name.contains(" ") || name.contains("-") {
+                return "\(parentPath)['\(name)']"
+            }
+            return "\(parentPath).\(name)"
+        case .index(let idx):
+            return "\(parentPath)[\(idx)]"
+        }
+    }
 }

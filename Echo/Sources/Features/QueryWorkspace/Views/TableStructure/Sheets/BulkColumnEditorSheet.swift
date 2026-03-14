@@ -13,6 +13,7 @@ enum BulkColumnEditValue {
 struct BulkColumnEditorSheet: View {
     let mode: BulkColumnEditorPresentation.Mode
     let columnNames: [String]
+    let databaseType: DatabaseType
     let onApply: (BulkColumnEditValue) -> Void
     let onCancel: () -> Void
 
@@ -77,14 +78,14 @@ struct BulkColumnEditorSheet: View {
     @ViewBuilder
     var dataTypePicker: some View {
         Picker("", selection: presetTypeBinding) {
-            ForEach(postgresDataTypeOptions, id: \.self) { option in
+            ForEach(dataTypeOptions(for: databaseType), id: \.self) { option in
                 Text(option).tag(Optional(option))
             }
             Text("Custom...").tag(Optional<String>.none)
         }
         .labelsHidden()
         .pickerStyle(.menu)
-        .frame(width: 180, alignment: .trailing)
+        .frame(maxWidth: 180, alignment: .trailing)
     }
 
     var presetTypeBinding: Binding<String?> {

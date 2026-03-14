@@ -15,11 +15,10 @@ struct TableStructureEditorView: View {
     @State internal var activeForeignKeyEditor: ForeignKeyEditorPresentation?
     @State internal var selectedSection: TableStructureSection
     @State internal var selectedColumnIDs: Set<TableStructureEditorViewModel.ColumnModel.ID> = []
+    @State internal var selectedIndexIDs: Set<TableStructureEditorViewModel.IndexModel.ID> = []
+    @State internal var selectedForeignKeyIDs: Set<TableStructureEditorViewModel.ForeignKeyModel.ID> = []
     @State internal var columnIndexLookup: [UUID: Int] = [:]
-    @State internal var selectionAnchor: TableStructureEditorViewModel.ColumnModel.ID?
-    @FocusState internal var focusedCustomColumnID: TableStructureEditorViewModel.ColumnModel.ID?
     @State internal var bulkColumnEditor: BulkColumnEditorPresentation?
-    @EnvironmentObject internal var appearanceStore: AppearanceStore
 
     init(tab: WorkspaceTab, viewModel: TableStructureEditorViewModel) {
         _tab = ObservedObject(initialValue: tab)
@@ -37,12 +36,7 @@ struct TableStructureEditorView: View {
         )
     }
 
-    // Direct access to visible columns - no caching
     internal var visibleColumns: [TableStructureEditorViewModel.ColumnModel] {
-        viewModel.columns.filter { !$0.isDeleted }
-    }
-    
-    internal var cachedVisibleColumns: [TableStructureEditorViewModel.ColumnModel] {
         viewModel.columns.filter { !$0.isDeleted }
     }
 
@@ -52,10 +46,13 @@ struct TableStructureEditorView: View {
             content
         }
         .background(ColorTokens.Background.primary)
-        .task {
+        .onAppear {
             if let requested = viewModel.requestedSection {
                 selectedSection = requested
                 viewModel.requestedSection = nil
+            }
+            if viewModel.columns.isEmpty {
+                Task { await viewModel.reload() }
             }
         }
         .onChange(of: viewModel.columns) { _, _ in

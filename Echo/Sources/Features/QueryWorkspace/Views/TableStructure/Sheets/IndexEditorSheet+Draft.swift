@@ -38,6 +38,13 @@ extension IndexEditorSheet {
         }
     }
 
+    func draftColumnBinding(for columnID: UUID) -> Binding<Draft.Column> {
+        guard let index = draft.columns.firstIndex(where: { $0.id == columnID }) else {
+            fatalError("Column not found")
+        }
+        return $draft.columns[index]
+    }
+
     func applyDraft() {
         index.name = draft.name.trimmingCharacters(in: .whitespacesAndNewlines)
         index.isUnique = draft.isUnique
@@ -56,12 +63,6 @@ extension IndexEditorSheet {
         }
     }
 
-    var columnOptions: [String] {
-        let current = draft.columns.map(\.name)
-        let combined = Set(availableColumns + current)
-        return combined.sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
-    }
-
     var addableColumns: [String] {
         availableColumns.filter { name in
             !draft.columns.contains { $0.name == name }
@@ -74,13 +75,5 @@ extension IndexEditorSheet {
 
     func removeColumn(withID id: UUID) {
         draft.columns.removeAll { $0.id == id }
-    }
-
-    func moveColumn(at index: Int, by offset: Int) {
-        let newIndex = index + offset
-        guard newIndex >= 0 && newIndex < draft.columns.count else { return }
-        withAnimation {
-            draft.columns.move(fromOffsets: IndexSet(integer: index), toOffset: newIndex > index ? newIndex + 1 : newIndex)
-        }
     }
 }

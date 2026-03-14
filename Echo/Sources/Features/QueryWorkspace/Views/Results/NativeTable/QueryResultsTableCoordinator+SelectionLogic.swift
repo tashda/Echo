@@ -45,7 +45,7 @@ extension QueryResultsTableView.Coordinator {
         }
 
         if region != nil {
-            tableView.deselectAll(nil)
+            if !tableView.selectedRowIndexes.isEmpty { tableView.deselectAll(nil) }
         } else {
             endSelectionDrag()
             deactivateActiveSelectableField(in: tableView)
@@ -69,19 +69,33 @@ extension QueryResultsTableView.Coordinator {
     }
 
     func refreshSelectionTransition(from old: SelectedRegion?, to new: SelectedRegion?, tableView: NSTableView) {
-        guard let oldRows = old?.normalizedRowRange, let newRows = new?.normalizedRowRange else {
-            tableView.reloadData()
+        // Determine the rows that need visual updates (union of old and new regions).
+        let oldRows = old?.normalizedRowRange
+        let newRows = new?.normalizedRowRange
+
+        let minRow: Int
+        let maxRow: Int
+        if let o = oldRows, let n = newRows {
+            minRow = min(o.lowerBound, n.lowerBound)
+            maxRow = max(o.upperBound, n.upperBound)
+        } else if let o = oldRows {
+            minRow = o.lowerBound; maxRow = o.upperBound
+        } else if let n = newRows {
+            minRow = n.lowerBound; maxRow = n.upperBound
+        } else {
             return
         }
 
-        let combined = min(oldRows.lowerBound, newRows.lowerBound)...max(oldRows.upperBound, newRows.upperBound)
-        let diff = rangeDifference(combined, rangeIntersection(oldRows, newRows))
-        for range in diff {
-            tableView.noteHeightOfRows(withIndexesChanged: IndexSet(integersIn: range))
-        }
+        // Only touch visible rows to keep drag smooth.
+        let visible = tableView.rows(in: tableView.visibleRect)
+        let visLower = visible.location
+        let visUpper = visible.location + visible.length - 1
+        let lower = max(minRow, visLower)
+        let upper = min(maxRow, visUpper)
+        guard lower <= upper else { return }
 
-        if old?.normalizedColumnRange != new?.normalizedColumnRange {
-            tableView.reloadData()
+        for row in lower...upper {
+            tableView.rowView(atRow: row, makeIfNecessary: false)?.needsDisplay = true
         }
     }
 
@@ -152,5 +166,37 @@ extension QueryResultsTableView.Coordinator {
     }
 
     var hasActiveCellSelection: Bool { selectionRegion != nil }
+
+    /// Selects the entire row (all columns) when the user clicks a row number.
+    func selectFullRow(_ row: Int) {
+        guard let tableView else { return }
+        let columnCount = parent.query.displayedColumns.count
+        guard columnCount > 0, row >= 0, row < tableView.numberOfRows else { return }
+        let start = QueryResultsTableView.SelectedCell(row: row, column: 0)
+        let end = QueryResultsTableView.SelectedCell(row: row, column: columnCount - 1)
+        setSelectionRegion(SelectedRegion(start: start, end: end), tableView: tableView)
+    }
+
+    /// Extends the current row selection to include the given row (for drag on row numbers).
+    func extendRowSelection(to row: Int) {
+        guard let tableView else { return }
+        let columnCount = parent.query.displayedColumns.count
+        guard columnCount > 0, row >= 0, row < tableView.numberOfRows else { return }
+        let anchorRow = selectionAnchor?.row ?? row
+        let startRow = min(anchorRow, row)
+        let endRow = max(anchorRow, row)
+        let start = QueryResultsTableView.SelectedCell(row: startRow, column: 0)
+        let end = QueryResultsTableView.SelectedCell(row: endRow, column: columnCount - 1)
+        let region = SelectedRegion(start: start, end: end)
+        let previous = selectionRegion
+        selectionRegion = region
+        selectionFocus = end
+        // Keep anchor from original click
+        if selectionAnchor == nil {
+            selectionAnchor = start
+        }
+        refreshSelectionTransition(from: previous, to: region, tableView: tableView)
+        refreshVisibleRowBackgrounds(tableView)
+    }
 }
 #endif

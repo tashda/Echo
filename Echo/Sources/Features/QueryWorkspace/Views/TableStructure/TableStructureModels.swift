@@ -48,3 +48,21 @@ let postgresDataTypeOptions: [String] = [
     "time with time zone", "timestamp without time zone", "timestamp with time zone",
     "tsquery", "tsvector", "txid_snapshot", "uuid", "xml"
 ].sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+
+let sqlServerDataTypeOptions: [String] = [
+    "bigint", "binary", "bit", "char", "date", "datetime", "datetime2",
+    "datetimeoffset", "decimal", "float", "geography", "geometry",
+    "hierarchyid", "image", "int", "money", "nchar", "ntext",
+    "numeric", "nvarchar", "nvarchar(max)", "real", "smalldatetime",
+    "smallint", "smallmoney", "sql_variant", "text", "time",
+    "tinyint", "uniqueidentifier", "varbinary", "varbinary(max)",
+    "varchar", "varchar(max)", "xml"
+].sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+
+func dataTypeOptions(for databaseType: DatabaseType) -> [String] {
+    switch databaseType {
+    case .postgresql: return postgresDataTypeOptions
+    case .microsoftSQL: return sqlServerDataTypeOptions
+    default: return []
+    }
+}
