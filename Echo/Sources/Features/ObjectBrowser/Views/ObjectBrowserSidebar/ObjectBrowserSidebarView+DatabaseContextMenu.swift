@@ -74,6 +74,13 @@ extension ObjectBrowserSidebarView {
 
         // MSSQL-specific operations
         if session.connection.databaseType == .microsoftSQL {
+            Button {
+                environmentState.openQueryStoreTab(connectionID: connID, databaseName: database.name)
+            } label: {
+                Label("Query Store", systemImage: "chart.bar.xaxis")
+            }
+            .disabled(!database.isOnline)
+
             Menu {
                 if database.isOnline {
                     Button("Shrink Database") {

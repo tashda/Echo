@@ -203,3 +203,15 @@ public struct TableStructureDetails: Sendable, Codable, Hashable {
         self.columns = columns; self.primaryKey = primaryKey; self.indexes = indexes; self.uniqueConstraints = uniqueConstraints; self.foreignKeys = foreignKeys; self.dependencies = dependencies
     }
 }
+
+/// A name-value pair of metadata attached to a SQL Server database object.
+public struct ExtendedPropertyInfo: Sendable, Identifiable, Hashable {
+    public var id: String { name }
+    public var name: String
+    public var value: String
+
+    public nonisolated init(name: String, value: String) {
+        self.name = name
+        self.value = value
+    }
+}

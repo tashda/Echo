@@ -70,6 +70,8 @@ func tabOverviewStatus(for tab: WorkspaceTab, appearanceStore: AppearanceStore) 
             return (vm.isRunning ? "bolt.fill" : "pause.fill", vm.isRunning ? "Monitoring" : "Paused", vm.isRunning ? .green : .secondary)
         }
         return ("chart.bar.doc.horizontal", "Ready", ColorTokens.Text.secondary)
+    case .queryStore:
+        return ("chart.bar.xaxis", "Ready", ColorTokens.Text.secondary)
     }
 }
 
@@ -98,6 +100,8 @@ extension TabPreviewCard {
             return []
         case .activityMonitor:
             return activityMonitorMetrics
+        case .queryStore:
+            return []
         }
     }
 
@@ -189,6 +193,8 @@ extension TabPreviewCard {
             return "Extensions"
         case .activityMonitor:
             return "Activity Monitor"
+        case .queryStore:
+            return "Query Store"
         }
     }
 }

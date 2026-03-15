@@ -2,13 +2,14 @@ import Foundation
 import SwiftUI
 
 enum TableStructureSection: String, CaseIterable, Identifiable {
-    case columns, indexes, relations
+    case columns, indexes, relations, extendedProperties
     var id: String { rawValue }
     var displayName: String {
         switch self {
         case .columns: return "Columns"
         case .indexes: return "Indexes"
         case .relations: return "Relations"
+        case .extendedProperties: return "Properties"
         }
     }
     var displayTitle: String { displayName }
@@ -17,6 +18,17 @@ enum TableStructureSection: String, CaseIterable, Identifiable {
         case .columns: return "tablecells"
         case .indexes: return "bolt.horizontal"
         case .relations: return "arrow.triangle.merge"
+        case .extendedProperties: return "tag"
+        }
+    }
+
+    /// Returns the sections available for the given database type.
+    static func cases(for databaseType: DatabaseType) -> [TableStructureSection] {
+        switch databaseType {
+        case .microsoftSQL:
+            return allCases
+        default:
+            return [.columns, .indexes, .relations]
         }
     }
 }

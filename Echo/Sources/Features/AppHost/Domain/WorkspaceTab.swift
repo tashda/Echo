@@ -31,6 +31,7 @@ final class WorkspaceTab: Identifiable {
         case extensionStructure
         case extensionsManager
         case activityMonitor
+        case queryStore
     }
 
     enum Content {
@@ -42,6 +43,7 @@ final class WorkspaceTab: Identifiable {
         case extensionStructure(PostgresExtensionStructureViewModel)
         case extensionsManager(PostgresExtensionsViewModel)
         case activityMonitor(ActivityMonitorViewModel)
+        case queryStore(QueryStoreViewModel)
     }
 
     let id = UUID()
@@ -88,6 +90,7 @@ final class WorkspaceTab: Identifiable {
         case .extensionStructure: return .extensionStructure
         case .extensionsManager: return .extensionsManager
         case .activityMonitor: return .activityMonitor
+        case .queryStore: return .queryStore
         }
     }
 
@@ -131,6 +134,11 @@ final class WorkspaceTab: Identifiable {
         return nil
     }
 
+    var queryStoreVM: QueryStoreViewModel? {
+        if case .queryStore(let vm) = content { return vm }
+        return nil
+    }
+
     func setContent(_ newContent: Content) {
         content = newContent
         setupRowCountRefreshHandler()
@@ -155,6 +163,8 @@ final class WorkspaceTab: Identifiable {
             return baseOverhead + vm.estimatedMemoryUsageBytes()
         case .activityMonitor:
             return baseOverhead + 1024 * 1024
+        case .queryStore(let vm):
+            return baseOverhead + vm.estimatedMemoryUsageBytes()
         }
     }
 

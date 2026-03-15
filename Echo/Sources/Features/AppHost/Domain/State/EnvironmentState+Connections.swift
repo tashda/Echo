@@ -132,6 +132,13 @@ extension EnvironmentState {
         registerTab(tab)
     }
 
+    func openQueryStoreTab(connectionID: UUID, databaseName: String) {
+        guard let session = sessionGroup.sessionForConnection(connectionID) else { return }
+        if let tab = session.addQueryStoreTab(databaseName: databaseName) {
+            registerTab(tab)
+        }
+    }
+
     func openPSQLTab(for session: ConnectionSession? = nil, database: String? = nil) {
         guard projectStore.globalSettings.managedPostgresConsoleEnabled else { return }
         let targetSession = session ?? sessionGroup.activeSession ?? sessionGroup.activeSessions.first
