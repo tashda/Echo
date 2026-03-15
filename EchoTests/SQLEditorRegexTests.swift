@@ -1410,7 +1410,7 @@ SELECT
                                           structure: EchoSenseBridge.makeStructure(from: structure))
     }
 
-    private final class StubCompletionEngine: SQLCompletionEngineProtocol {
+    private final class StubCompletionEngine: SQLCompletionProviding {
         var result: SQLCompletionResult
 
         init(result: SQLCompletionResult) {

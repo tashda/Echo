@@ -57,6 +57,7 @@ extension QueryResultsTableView.Coordinator: NSMenuDelegate {
 
             menu.addItem(.separator())
             menu.addItem(buildCopyAsSubmenuItem())
+            menu.addItem(buildSaveAsSubmenuItem())
 
             menu.addItem(.separator())
 
@@ -120,6 +121,7 @@ extension QueryResultsTableView.Coordinator: NSMenuDelegate {
 
         menu.addItem(.separator())
         menu.addItem(buildCopyAsSubmenuItem())
+        menu.addItem(buildSaveAsSubmenuItem())
     }
 
     func prepareHeaderContextMenu(at column: Int?) {
@@ -225,5 +227,54 @@ extension QueryResultsTableView.Coordinator: NSMenuDelegate {
     @objc func copyAsJSON() { copySelectionAs(format: .json) }
     @objc func copyAsSQLInsert() { copySelectionAs(format: .sqlInsert) }
     @objc func copyAsMarkdown() { copySelectionAs(format: .markdown) }
+
+    // MARK: - Save As Submenu
+
+    private func buildSaveAsSubmenuItem() -> NSMenuItem {
+        let submenuItem = NSMenuItem(title: "Save As", action: nil, keyEquivalent: "")
+        submenuItem.image = NSImage(systemSymbolName: "square.and.arrow.down", accessibilityDescription: nil)
+        let submenu = NSMenu(title: "Save As")
+        let hasSelection = hasCopyableSelection()
+        for format in ResultExportFormat.allCases {
+            let action: Selector
+            switch format {
+            case .tsv: action = #selector(saveAsTSV)
+            case .csv: action = #selector(saveAsCSV)
+            case .json: action = #selector(saveAsJSON)
+            case .sqlInsert: action = #selector(saveAsSQLInsert)
+            case .markdown: action = #selector(saveAsMarkdown)
+            }
+            let item = NSMenuItem(title: format.menuTitle, action: action, keyEquivalent: "")
+            item.target = self
+            item.isEnabled = hasSelection
+            submenu.addItem(item)
+        }
+        submenuItem.submenu = submenu
+        return submenuItem
+    }
+
+    @objc func saveAsTSV() { saveSelectionAs(format: .tsv) }
+    @objc func saveAsCSV() { saveSelectionAs(format: .csv) }
+    @objc func saveAsJSON() { saveSelectionAs(format: .json) }
+    @objc func saveAsSQLInsert() { saveSelectionAs(format: .sqlInsert) }
+    @objc func saveAsMarkdown() { saveSelectionAs(format: .markdown) }
+
+    func saveSelectionAs(format: ResultExportFormat) {
+        guard let data = gatherSelectionData() else { return }
+        let content = ResultTableExportFormatter.format(format, headers: data.headers, rows: data.rows)
+
+        let panel = NSSavePanel()
+        panel.nameFieldStringValue = "results.\(format.fileExtension)"
+        panel.allowedContentTypes = format.contentTypes
+        panel.canCreateDirectories = true
+
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+
+        do {
+            try content.write(to: url, atomically: true, encoding: .utf8)
+        } catch {
+            NSAlert(error: error).runModal()
+        }
+    }
 }
 #endif

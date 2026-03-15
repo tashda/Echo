@@ -12,6 +12,7 @@ struct QueryInputSection: View {
     let onExecute: (String) async -> Void
     let onCancel: () -> Void
     let onAddBookmark: (String) -> Void
+    let onRequestEstimatedPlan: ((String) async -> Void)?
     let completionContext: SQLEditorCompletionContext?
 
     @Environment(AppState.self) var appState

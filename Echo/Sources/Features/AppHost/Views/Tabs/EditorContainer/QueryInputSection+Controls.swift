@@ -65,8 +65,30 @@ extension QueryInputSection {
         .shadow(color: Color.black.opacity(0.08), radius: 6, y: 3)
     }
 
+    var estimatedPlanButton: some View {
+        Button(action: triggerEstimatedPlan) {
+            Image(systemName: "chart.bar.doc.horizontal")
+                .font(TypographyTokens.caption2.weight(.semibold))
+                .padding(SpacingTokens.xs)
+                .background(.ultraThinMaterial, in: Circle())
+        }
+        .buttonStyle(.plain)
+        .disabled(isRunDisabled || query.isExecuting || query.isLoadingExecutionPlan || onRequestEstimatedPlan == nil)
+        .opacity(onRequestEstimatedPlan == nil ? 0 : 1)
+        .help("Display Estimated Execution Plan (Ctrl+Cmd+E)")
+        .accessibilityIdentifier("estimated-plan-button")
+        .shadow(color: Color.black.opacity(0.08), radius: 6, y: 3)
+    }
+
+    func triggerEstimatedPlan() {
+        guard let handler = onRequestEstimatedPlan, !isRunDisabled else { return }
+        let sqlToRun: String = hasExecutableSelection ? currentSelection.selectedText : query.sql
+        Task { await handler(sqlToRun) }
+    }
+
     var floatingControls: some View {
         HStack(spacing: SpacingTokens.sm2) {
+            estimatedPlanButton
             formatButton
             runButton
         }

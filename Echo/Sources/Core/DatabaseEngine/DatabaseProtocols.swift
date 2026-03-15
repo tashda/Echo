@@ -118,4 +118,10 @@ public extension DatabaseSession {
     func makeActivityMonitor() throws -> any DatabaseActivityMonitoring {
         throw DatabaseError.queryError("Activity monitor is not supported for this database type")
     }
+
+}
+
+protocol ExecutionPlanProviding: DatabaseSession {
+    func getEstimatedExecutionPlan(_ sql: String) async throws -> ExecutionPlanData
+    func getActualExecutionPlan(_ sql: String) async throws -> (result: QueryResultSet, plan: ExecutionPlanData)
 }

@@ -122,6 +122,50 @@ extension WorkspaceTabContainerView {
         queryState.cancelExecution()
     }
 
+    func supportsExecutionPlan(_ tab: WorkspaceTab) -> Bool {
+        tab.session is ExecutionPlanProviding
+    }
+
+    func requestEstimatedPlan(tabId: UUID, sql: String) async {
+        guard let tab = tabStore.tabs.first(where: { $0.id == tabId }),
+              let queryState = tab.query,
+              let planProvider = tab.session as? ExecutionPlanProviding else { return }
+
+        let trimmedSQL = sql.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedSQL.isEmpty else { return }
+
+        var effectiveSQL = trimmedSQL
+        if tab.connection.databaseType == .microsoftSQL,
+           let selectedDB = tab.activeDatabaseName, !selectedDB.isEmpty {
+            effectiveSQL = "USE [\(selectedDB)];\n\(effectiveSQL)"
+        }
+
+        await MainActor.run {
+            queryState.isLoadingExecutionPlan = true
+            queryState.executionPlan = nil
+        }
+
+        do {
+            let plan = try await planProvider.getEstimatedExecutionPlan(effectiveSQL)
+            await MainActor.run {
+                queryState.executionPlan = plan
+                queryState.isLoadingExecutionPlan = false
+                queryState.appendMessage(
+                    message: "Estimated execution plan generated",
+                    severity: .info
+                )
+            }
+        } catch {
+            await MainActor.run {
+                queryState.isLoadingExecutionPlan = false
+                queryState.appendMessage(
+                    message: "Failed to generate execution plan: \(error.localizedDescription)",
+                    severity: .error
+                )
+            }
+        }
+    }
+
     private func loadForeignKeyMapping(session: DatabaseSession, schema: String, table: String) async -> ForeignKeyMapping {
         do {
             let details = try await session.getTableStructureDetails(schema: schema, table: table)

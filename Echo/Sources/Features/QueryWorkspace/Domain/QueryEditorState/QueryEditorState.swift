@@ -102,6 +102,8 @@ import os.log
     @ObservationIgnored var progressiveMaterializationTask: Task<Void, Never>?
     var additionalResults: [QueryResultSet] = []
     var selectedResultSetIndex: Int = 0
+    var executionPlan: ExecutionPlanData?
+    var isLoadingExecutionPlan: Bool = false
 
     init(
         sql: String = "SELECT current_timestamp;",
