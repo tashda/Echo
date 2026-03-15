@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import UniformTypeIdentifiers
 
 extension QueryResultsTableView {
     struct SelectedCell: Equatable {
@@ -59,6 +60,28 @@ enum ResultExportFormat: String, CaseIterable {
         case .markdown: return "Markdown"
         }
     }
+
+    var fileExtension: String {
+        switch self {
+        case .tsv: return "tsv"
+        case .csv: return "csv"
+        case .json: return "json"
+        case .sqlInsert: return "sql"
+        case .markdown: return "md"
+        }
+    }
+
+#if os(macOS)
+    var contentTypes: [UTType] {
+        switch self {
+        case .tsv: return [.tabSeparatedText]
+        case .csv: return [.commaSeparatedText]
+        case .json: return [.json]
+        case .sqlInsert: return [UTType(filenameExtension: "sql") ?? .plainText]
+        case .markdown: return [UTType(filenameExtension: "md") ?? .plainText]
+        }
+    }
+#endif
 }
 
 struct SelectedRegion: Equatable {

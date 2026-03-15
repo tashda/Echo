@@ -58,6 +58,13 @@ struct WorkspaceTabContainerView: View {
         }
     }
 
+    private func estimatedPlanHandler(for tab: WorkspaceTab) -> ((String) async -> Void)? {
+        guard supportsExecutionPlan(tab) else { return nil }
+        return { sql in
+            await self.requestEstimatedPlan(tabId: tab.id, sql: sql)
+        }
+    }
+
     private var currentWorkspaceTab: WorkspaceTab? {
         if let hostedWorkspaceTabID,
            let hostedTab = tabStore.tabs.first(where: { $0.id == hostedWorkspaceTabID }) {
@@ -93,6 +100,7 @@ struct WorkspaceTabContainerView: View {
                     tab: currentTab,
                     runQuery: { sql in await runQuery(tabId: currentTab.id, sql: sql) },
                     cancelQuery: { cancelQuery(tabId: currentTab.id) },
+                    requestEstimatedPlan: estimatedPlanHandler(for: currentTab),
                     gridStateProvider: { currentTab.resultsGridState }
                 )
             } else if let activeSession = environmentState.sessionGroup.activeSession {

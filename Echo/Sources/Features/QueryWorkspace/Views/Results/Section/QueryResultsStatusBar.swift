@@ -18,6 +18,10 @@ extension QueryResultsSection {
                         if query.hasExecutedAtLeastOnce || query.isExecuting || query.errorMessage != nil {
                             messagesToggleButton
                                 .padding(.leading, SpacingTokens.xs)
+                            if query.executionPlan != nil || query.isLoadingExecutionPlan {
+                                executionPlanToggleButton
+                                    .padding(.leading, SpacingTokens.xxs)
+                            }
                         }
 
                         Spacer(minLength: SpacingTokens.sm)
@@ -128,5 +132,19 @@ extension QueryResultsSection {
         .buttonStyle(.borderless)
         .help(isActive ? "Show Results" : "Show Messages")
     }
+
+    private var executionPlanToggleButton: some View {
+        let isActive = selectedTab == .executionPlan
+        return Button {
+            selectedTab = isActive ? .results : .executionPlan
+        } label: {
+            Image(systemName: "chart.bar.doc.horizontal")
+                .font(TypographyTokens.detail)
+                .foregroundStyle(isActive ? ColorTokens.accent : ColorTokens.Text.secondary)
+        }
+        .buttonStyle(.borderless)
+        .help(isActive ? "Show Results" : "Show Execution Plan")
+    }
 }
+
 #endif

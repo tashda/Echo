@@ -38,6 +38,7 @@ struct QueryResultsSection: View {
         case messages
 #if os(macOS)
         case jsonInspector
+        case executionPlan
 #endif
     }
 

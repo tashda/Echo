@@ -17,6 +17,8 @@ extension QueryResultsSection {
 #if os(macOS)
                 case .jsonInspector:
                     jsonInspectorView()
+                case .executionPlan:
+                    executionPlanView
 #endif
                 }
             }
@@ -209,6 +211,36 @@ extension QueryResultsSection {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
+
+#if os(macOS)
+    var executionPlanView: some View {
+        Group {
+            if query.isLoadingExecutionPlan {
+                VStack(spacing: SpacingTokens.md) {
+                    ProgressView()
+                        .controlSize(.large)
+                    Text("Generating execution plan\u{2026}")
+                        .font(TypographyTokens.headline)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if let plan = query.executionPlan {
+                ExecutionPlanView(plan: plan)
+            } else {
+                VStack(spacing: SpacingTokens.sm) {
+                    Image(systemName: "chart.bar.doc.horizontal")
+                        .font(TypographyTokens.hero)
+                        .foregroundStyle(ColorTokens.Text.secondary)
+                    Text("No Execution Plan")
+                        .font(TypographyTokens.headline)
+                    Text("Use the execution plan button to generate a plan for your query.")
+                        .font(TypographyTokens.subheadline)
+                        .foregroundStyle(ColorTokens.Text.secondary)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        }
+    }
+#endif
 
     var platformBackground: Color { ColorTokens.Background.primary }
 
