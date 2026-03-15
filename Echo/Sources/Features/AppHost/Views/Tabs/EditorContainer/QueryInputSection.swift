@@ -97,7 +97,7 @@ struct QueryInputSection: View {
         }
     }
 
-    var formatterDialect: SQLFormatterService.Dialect {
+    var formatterDialect: SQLFormatter.Dialect {
         switch completionContext?.databaseType {
         case .mysql: return .mysql
         case .microsoftSQL: return .microsoftSQL

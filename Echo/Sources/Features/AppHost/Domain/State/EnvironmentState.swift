@@ -20,14 +20,14 @@ final class EnvironmentState: ObservableObject {
 
     // MARK: - Published State
     @Published var connectionStates: [UUID: ConnectionState] = [:]
-    @Published var sessionCoordinator = ActiveSessionCoordinator()
+    @Published var sessionGroup = ActiveSessionGroup()
     @Published var pinnedObjectIDs: [String] = []
     @Published var recentConnections: [RecentConnectionRecord] = []
     @Published var searchSidebarCaches: [SearchSidebarContextKey: SearchSidebarCache] = [:]
     @Published var dataInspectorContent: DataInspectorContent?
     @Published private(set) var expandedConnectionFolderIDs: Set<UUID> = []
     @Published var lastError: DatabaseError?
-    let toastCoordinator = StatusToastCoordinator()
+    let toastPresenter = StatusToastPresenter()
     var notificationEngine: NotificationEngine?
 
     // MARK: - Dependencies
@@ -35,14 +35,14 @@ final class EnvironmentState: ObservableObject {
     let connectionStore: ConnectionStore
     let navigationStore: NavigationStore
     let tabStore: TabStore
-    let resultSpoolConfigCoordinator: ResultSpoolConfigCoordinator
-    let diagramCoordinator: DiagramCoordinator
+    let resultSpoolConfigCoordinator: ResultSpoolConfig
+    let diagramBuilder: DiagramBuilder
     let identityRepository: IdentityRepository
-    let schemaDiscoveryCoordinator: MetadataDiscoveryCoordinator
+    let schemaDiscoveryEngine: MetadataDiscoveryEngine
     let bookmarkRepository: BookmarkRepository
     let historyRepository: HistoryRepository
     private let clipboardHistory: ClipboardHistoryStore
-    let resultSpoolManager: ResultSpoolCoordinator
+    let resultSpoolManager: ResultSpooler
     let diagramCacheStore: DiagramCacheStore
     let diagramKeyStore: DiagramEncryptionKeyStore
 
@@ -58,13 +58,13 @@ final class EnvironmentState: ObservableObject {
         navigationStore: NavigationStore,
         tabStore: TabStore,
         clipboardHistory: ClipboardHistoryStore,
-        resultSpoolConfigCoordinator: ResultSpoolConfigCoordinator,
-        diagramCoordinator: DiagramCoordinator,
+        resultSpoolConfigCoordinator: ResultSpoolConfig,
+        diagramBuilder: DiagramBuilder,
         identityRepository: IdentityRepository,
-        schemaDiscoveryCoordinator: MetadataDiscoveryCoordinator,
+        schemaDiscoveryEngine: MetadataDiscoveryEngine,
         bookmarkRepository: BookmarkRepository,
         historyRepository: HistoryRepository,
-        resultSpoolManager: ResultSpoolCoordinator,
+        resultSpoolManager: ResultSpooler,
         diagramCacheStore: DiagramCacheStore,
         diagramKeyStore: DiagramEncryptionKeyStore
     ) {
@@ -74,9 +74,9 @@ final class EnvironmentState: ObservableObject {
         self.tabStore = tabStore
         self.clipboardHistory = clipboardHistory
         self.resultSpoolConfigCoordinator = resultSpoolConfigCoordinator
-        self.diagramCoordinator = diagramCoordinator
+        self.diagramBuilder = diagramBuilder
         self.identityRepository = identityRepository
-        self.schemaDiscoveryCoordinator = schemaDiscoveryCoordinator
+        self.schemaDiscoveryEngine = schemaDiscoveryEngine
         self.bookmarkRepository = bookmarkRepository
         self.historyRepository = historyRepository
         self.resultSpoolManager = resultSpoolManager
@@ -89,14 +89,14 @@ final class EnvironmentState: ObservableObject {
     }
 
     private func setupBindings() {
-        toastCoordinator.objectWillChange
+        toastPresenter.objectWillChange
             .sink { [weak self] _ in self?.objectWillChange.send() }
             .store(in: &cancellables)
 
-        sessionCoordinator.$activeSessionID
+        sessionGroup.$activeSessionID
             .sink { [weak self] id in
                 guard let self else { return }
-                if let id, let session = self.sessionCoordinator.activeSessions.first(where: { $0.id == id }) {
+                if let id, let session = self.sessionGroup.activeSessions.first(where: { $0.id == id }) {
                     self.updateNavigation(for: session)
                 } else {
                     self.updateNavigation(for: nil)
@@ -104,7 +104,7 @@ final class EnvironmentState: ObservableObject {
             }
             .store(in: &cancellables)
 
-        sessionCoordinator.$activeSessions
+        sessionGroup.$activeSessions
             .sink { [weak self] sessions in
                 guard let self else { return }
                 let validIDs = sessions.map { $0.id }
@@ -178,7 +178,7 @@ final class EnvironmentState: ObservableObject {
                 spoolManager: resultSpoolManager
             )
 
-            sessionCoordinator.addSession(connectionSession)
+            sessionGroup.addSession(connectionSession)
             connectionStates[connection.id] = .connected
             recordRecentConnection(for: connection, databaseName: connectionSession.selectedDatabaseName)
             startStructureLoadTask(for: connectionSession)
@@ -263,7 +263,7 @@ final class EnvironmentState: ObservableObject {
 // MARK: - TabStoreDelegate
 extension EnvironmentState: TabStoreDelegate {
     func tabStore(_ store: TabStore, didAdd tab: WorkspaceTab) {
-        if let session = sessionCoordinator.activeSessions.first(where: { $0.id == tab.connectionSessionID }) {
+        if let session = sessionGroup.activeSessions.first(where: { $0.id == tab.connectionSessionID }) {
             if !session.queryTabs.contains(where: { $0.id == tab.id }) {
                 session.queryTabs.append(tab)
             }
@@ -275,7 +275,7 @@ extension EnvironmentState: TabStoreDelegate {
     }
 
     func tabStore(_ store: TabStore, didRemoveTabID tabID: UUID) {
-        for session in sessionCoordinator.activeSessions {
+        for session in sessionGroup.activeSessions {
             if let index = session.queryTabs.firstIndex(where: { $0.id == tabID }) {
                 session.queryTabs.remove(at: index)
             }
@@ -284,8 +284,8 @@ extension EnvironmentState: TabStoreDelegate {
 
     func tabStore(_ store: TabStore, didSetActiveTabID tabID: UUID?) {
         guard let tabID, let tab = store.getTab(id: tabID) else { return }
-        if sessionCoordinator.activeSessionID != tab.connectionSessionID {
-            sessionCoordinator.setActiveSession(tab.connectionSessionID)
+        if sessionGroup.activeSessionID != tab.connectionSessionID {
+            sessionGroup.setActiveSession(tab.connectionSessionID)
         }
     }
 

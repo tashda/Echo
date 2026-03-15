@@ -9,38 +9,38 @@ extension EnvironmentState {
 
     func disconnectSession(withID id: UUID) async {
         let displayName: String
-        if let session = sessionCoordinator.activeSessions.first(where: { $0.id == id }) {
+        if let session = sessionGroup.activeSessions.first(where: { $0.id == id }) {
             let name = session.connection.connectionName.trimmingCharacters(in: .whitespacesAndNewlines)
             displayName = name.isEmpty ? session.connection.host : name
         } else {
             displayName = "server"
         }
-        sessionCoordinator.removeSession(withID: id)
+        sessionGroup.removeSession(withID: id)
         notificationEngine?.post(category: .connectionDisconnected, message: "Disconnected from \(displayName)")
     }
 
     func reconnectSession(_ session: ConnectionSession, to databaseName: String) async {
         session.selectedDatabaseName = databaseName
-        await schemaDiscoveryCoordinator.refreshStructure(for: session, scope: .selectedDatabase)
+        await schemaDiscoveryEngine.refreshStructure(for: session, scope: .selectedDatabase)
     }
 
     // MARK: - Database Metadata
 
     func startStructureLoadTask(for session: ConnectionSession) {
-        schemaDiscoveryCoordinator.startStructureLoadTask(for: session)
+        schemaDiscoveryEngine.startStructureLoadTask(for: session)
     }
 
     func refreshDatabaseStructure(for sessionID: UUID, scope: StructureRefreshScope = .selectedDatabase, databaseOverride: String? = nil) async {
-        guard let session = sessionCoordinator.activeSessions.first(where: { $0.id == sessionID }) else { return }
+        guard let session = sessionGroup.activeSessions.first(where: { $0.id == sessionID }) else { return }
         if let databaseOverride {
             session.selectedDatabaseName = databaseOverride
         }
-        await schemaDiscoveryCoordinator.refreshStructure(for: session, scope: scope)
+        await schemaDiscoveryEngine.refreshStructure(for: session, scope: scope)
     }
 
     func loadSchemaForDatabase(_ databaseName: String, connectionSession: ConnectionSession) async {
         connectionSession.selectedDatabaseName = databaseName
-        await schemaDiscoveryCoordinator.loadDatabaseSchemaOnly(databaseName, for: connectionSession)
+        await schemaDiscoveryEngine.loadDatabaseSchemaOnly(databaseName, for: connectionSession)
     }
 
     // MARK: - Connection Management
@@ -98,7 +98,7 @@ extension EnvironmentState {
     }
 
     func preloadStructure(for connection: SavedConnection, overridePassword: String? = nil) async {
-        await schemaDiscoveryCoordinator.preloadStructure(for: connection, overridePassword: overridePassword)
+        await schemaDiscoveryEngine.preloadStructure(for: connection, overridePassword: overridePassword)
     }
 
     // MARK: - Tab Management
@@ -108,14 +108,14 @@ extension EnvironmentState {
     }
 
     func openQueryTab(for session: ConnectionSession? = nil, presetQuery: String? = nil, autoExecute: Bool = false, database: String? = nil) {
-        let targetSession = session ?? sessionCoordinator.activeSession ?? sessionCoordinator.activeSessions.first
+        let targetSession = session ?? sessionGroup.activeSession ?? sessionGroup.activeSessions.first
         guard let targetSession else { return }
         let tab = targetSession.addQueryTab(withQuery: presetQuery ?? "", database: database)
         registerTab(tab)
     }
 
     func openActivityMonitorTab(connectionID: UUID) {
-        guard let session = sessionCoordinator.sessionForConnection(connectionID) else { return }
+        guard let session = sessionGroup.sessionForConnection(connectionID) else { return }
         do {
             let tab = try session.addActivityMonitorTab()
             registerTab(tab)
@@ -127,14 +127,14 @@ extension EnvironmentState {
     }
 
     func openExtensionsManagerTab(connectionID: UUID, databaseName: String) {
-        guard let session = sessionCoordinator.sessionForConnection(connectionID) else { return }
+        guard let session = sessionGroup.sessionForConnection(connectionID) else { return }
         let tab = session.addExtensionsManagerTab(databaseName: databaseName)
         registerTab(tab)
     }
 
     func openPSQLTab(for session: ConnectionSession? = nil, database: String? = nil) {
         guard projectStore.globalSettings.managedPostgresConsoleEnabled else { return }
-        let targetSession = session ?? sessionCoordinator.activeSession ?? sessionCoordinator.activeSessions.first
+        let targetSession = session ?? sessionGroup.activeSession ?? sessionGroup.activeSessions.first
         guard let targetSession else { return }
         let requestedDatabase = (database ?? targetSession.selectedDatabaseName ?? targetSession.connection.database)
             .trimmingCharacters(in: .whitespacesAndNewlines)
@@ -280,7 +280,7 @@ extension EnvironmentState {
     }
 
     func enqueuePrefetchForSessionIfNeeded(_ session: ConnectionSession) async {
-        await diagramCoordinator.scheduleRelatedPrefetch(
+        await diagramBuilder.scheduleRelatedPrefetch(
             session: session,
             baseKey: DiagramTableKey(schema: session.connection.database, name: ""),
             relatedKeys: [],

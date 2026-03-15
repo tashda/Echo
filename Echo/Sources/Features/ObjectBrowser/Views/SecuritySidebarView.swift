@@ -109,7 +109,7 @@ struct SecuritySidebarView: View {
 
     private var activeSession: ConnectionSession? {
         guard let id = selectedConnectionID else { return nil }
-        return environmentState.sessionCoordinator.sessionForConnection(id)
+        return environmentState.sessionGroup.sessionForConnection(id)
     }
 
     @ViewBuilder

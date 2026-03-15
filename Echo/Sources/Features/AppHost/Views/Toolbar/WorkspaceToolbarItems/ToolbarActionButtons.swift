@@ -25,11 +25,11 @@ struct NewTabToolbarButton: View {
 
     private var canOpenNewTab: Bool {
         if let connection = navigationStore.navigationState.selectedConnection,
-           let _ = environmentState.sessionCoordinator.sessionForConnection(connection.id) {
+           let _ = environmentState.sessionGroup.sessionForConnection(connection.id) {
             return true
         }
-        return environmentState.sessionCoordinator.activeSession != nil
-            || environmentState.sessionCoordinator.activeSessions.first != nil
+        return environmentState.sessionGroup.activeSession != nil
+            || environmentState.sessionGroup.activeSessions.first != nil
     }
 }
 

@@ -3,7 +3,7 @@ import XCTest
 
 @MainActor
 final class QueryEditorStateTests: XCTestCase {
-    private var spoolManager: ResultSpoolCoordinator!
+    private var spoolManager: ResultSpooler!
     private var retainedStates: [QueryEditorState] = []
 
     override func setUp() async throws {
@@ -12,7 +12,7 @@ final class QueryEditorStateTests: XCTestCase {
             .appendingPathComponent("QueryEditorStateTests-\(UUID().uuidString)", isDirectory: true)
         try? FileManager.default.createDirectory(at: tempRoot, withIntermediateDirectories: true)
         let config = ResultSpoolConfiguration.defaultConfiguration(rootDirectory: tempRoot)
-        spoolManager = ResultSpoolCoordinator(configuration: config)
+        spoolManager = ResultSpooler(configuration: config)
         retainedStates = []
     }
 

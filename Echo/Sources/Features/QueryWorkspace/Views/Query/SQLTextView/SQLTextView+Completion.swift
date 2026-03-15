@@ -55,7 +55,6 @@ extension SQLTextView {
         let originalText: String
     }
 
-    @MainActor
     @discardableResult
     private func performCompletionInsertion(suggestion: SQLAutoCompletionSuggestion,
                                             query: SQLAutoCompletionQuery,

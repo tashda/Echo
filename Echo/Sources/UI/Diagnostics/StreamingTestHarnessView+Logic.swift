@@ -87,7 +87,6 @@ extension StreamingTestHarnessView {
         flushPendingDebugLogs(immediate: true)
     }
 
-    @MainActor
     func handleStreamUpdate(_ update: QueryStreamUpdate) {
         let appendedCount = update.metrics?.batchRowCount
             ?? (!update.appendedRows.isEmpty ? update.appendedRows.count : update.encodedRows.count)
@@ -103,7 +102,6 @@ extension StreamingTestHarnessView {
         }
     }
 
-    @MainActor
     func emitDebugSummaries(for metrics: QueryStreamMetrics) {
         if let summaries = debugAggregator.record(metrics: metrics), logFilter == .debug {
             for summary in summaries {
@@ -112,7 +110,6 @@ extension StreamingTestHarnessView {
         }
     }
 
-    @MainActor
     func flushDebugSummaries() {
         if let summaries = logFilter == .debug ? debugAggregator.flushRemaining() : nil {
             for summary in summaries {

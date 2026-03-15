@@ -76,7 +76,6 @@ final class MySQLSession: DatabaseSession {
     internal let defaultDatabase: String?
     internal nonisolated(unsafe) let formatter = MySQLCellFormatter()
 
-    private let shutdownQueue = DispatchQueue(label: "dk.tippr.echo.mysql.shutdown")
     private nonisolated(unsafe) var isClosed = false
 
     init(
@@ -97,7 +96,6 @@ final class MySQLSession: DatabaseSession {
 
         let connection = self.connection
         let eventLoopGroup = self.eventLoopGroup
-        let shutdownQueue = self.shutdownQueue
         let logger = self.logger
 
         connection.close().whenComplete { result in
@@ -105,7 +103,7 @@ final class MySQLSession: DatabaseSession {
                 logger.warning("Failed to close MySQL connection during deinit: \(error.localizedDescription)")
             }
 
-            eventLoopGroup.shutdownGracefully(queue: shutdownQueue) { shutdownError in
+            eventLoopGroup.shutdownGracefully { shutdownError in
                 if let shutdownError {
                     logger.warning("Failed to shut down MySQL event loop group during deinit: \(shutdownError.localizedDescription)")
                 }
@@ -124,7 +122,7 @@ final class MySQLSession: DatabaseSession {
         }
 
         await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
-            eventLoopGroup.shutdownGracefully(queue: shutdownQueue) { _ in
+            eventLoopGroup.shutdownGracefully { _ in
                 continuation.resume()
             }
         }

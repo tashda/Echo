@@ -80,7 +80,6 @@ final class TableStructureEditorViewModel: ObservableObject {
         requestedSection = section
     }
 
-    @MainActor
     func reload() async {
         isLoading = true
         defer { isLoading = false }
@@ -92,7 +91,6 @@ final class TableStructureEditorViewModel: ObservableObject {
         }
     }
 
-    @MainActor
     func applyChanges() async {
         lastError = nil
         lastSuccessMessage = nil
@@ -163,7 +161,6 @@ final class TableStructureEditorViewModel: ObservableObject {
         }
     }
 
-    @MainActor
     func rebuildIndex(_ index: IndexModel) async {
         guard !index.isNew else { return }
         lastError = nil

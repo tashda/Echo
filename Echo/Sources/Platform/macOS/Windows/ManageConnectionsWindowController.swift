@@ -25,7 +25,7 @@ final class ManageConnectionsWindowController: NSWindowController, NSWindowDeleg
         }
 
         guard let window else { return }
-        AppCoordinator.shared.connectionStore.selectedFolderID = nil
+        AppDirector.shared.connectionStore.selectedFolderID = nil
 
         hostingController?.rootView = ManageConnectionsWindowRootView(onClose: { [weak self] in
             self?.closeWindow()
@@ -40,7 +40,7 @@ final class ManageConnectionsWindowController: NSWindowController, NSWindowDeleg
 
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
-        AppCoordinator.shared.navigationStore.isManageConnectionsPresented = true
+        AppDirector.shared.navigationStore.isManageConnectionsPresented = true
     }
 
     func closeWindow() {
@@ -81,7 +81,7 @@ final class ManageConnectionsWindowController: NSWindowController, NSWindowDeleg
     }
 
     func windowWillClose(_ notification: Notification) {
-        AppCoordinator.shared.navigationStore.isManageConnectionsPresented = false
+        AppDirector.shared.navigationStore.isManageConnectionsPresented = false
     }
 
     private func bindThemeUpdates(for window: NSWindow) {
@@ -133,7 +133,7 @@ private struct ManageConnectionsWindowRootView: View {
     var initialSection: ManageSection? = nil
 
     var body: some View {
-        let coordinator = AppCoordinator.shared
+        let coordinator = AppDirector.shared
         ManageConnectionsView(onClose: onClose, initialSection: initialSection)
             .environment(coordinator.projectStore)
             .environment(coordinator.connectionStore)

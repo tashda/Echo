@@ -3,7 +3,6 @@ import AppKit
 import EchoSense
 
 extension SQLTextView {
-    @MainActor
     func hideCompletions() {
         completionGeneration += 1
         completionWorkItem?.cancel()
@@ -33,7 +32,6 @@ extension SQLTextView {
     }
 
     @discardableResult
-    @MainActor
     func ensureCompletionController() -> SQLAutoCompletionController? {
         if completionController == nil {
             completionController = SQLAutoCompletionController(textView: self)

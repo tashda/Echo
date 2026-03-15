@@ -31,7 +31,7 @@ extension SQLTextView {
         return true
     }
 
-    internal func formatterDialect(for databaseType: EchoSenseDatabaseType) -> SQLFormatterService.Dialect? {
+    internal func formatterDialect(for databaseType: EchoSenseDatabaseType) -> SQLFormatter.Dialect? {
         switch databaseType {
         case .postgresql:
             return .postgres
@@ -109,7 +109,7 @@ extension SQLTextView {
         let stub = "SELECT \(rawColumns)\nFROM formatter_placeholder;"
 
         do {
-            let formatted = try await SQLFormatterService.shared.format(sql: stub, dialect: dialect)
+            let formatted = try await SQLFormatter.shared.format(sql: stub, dialect: dialect)
             if let extracted = extractFormattedColumns(from: formatted) {
                 return extracted
             }

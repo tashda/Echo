@@ -37,12 +37,12 @@ public enum ColorTokens {
 
     // Explorer / Object Browser
     public enum Explorer {
-        public static let database = Color(red: 0.18, green: 0.66, blue: 0.30)
-        public static let tables = Color(red: 0.22, green: 0.56, blue: 0.73)
-        public static let views = Color(red: 0.36, green: 0.38, blue: 0.92)
-        public static let functions = Color(red: 0.83, green: 0.53, blue: 0.05)
-        public static let jobs = Color(red: 0.06, green: 0.48, blue: 0.98)
-        public static let security = Color(red: 0.38, green: 0.45, blue: 0.65)
-        public static let extensions = Color(red: 0.84, green: 0.52, blue: 0.00)
+        public static let database = Color.green
+        public static let tables = Color.teal
+        public static let views = Color.indigo
+        public static let functions = Color.orange
+        public static let jobs = Color.blue
+        public static let security = Color.gray
+        public static let extensions = Color.orange
     }
 }

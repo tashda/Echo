@@ -40,7 +40,7 @@ final class WorkspaceTab: ObservableObject, Identifiable {
         case jobQueue(JobQueueViewModel)
         case psql(PSQLTabViewModel)
         case extensionStructure(PostgresExtensionStructureViewModel)
-        case extensionsManager(PostgresExtensionsManagerViewModel)
+        case extensionsManager(PostgresExtensionsViewModel)
         case activityMonitor(ActivityMonitorViewModel)
     }
 
@@ -107,7 +107,7 @@ final class WorkspaceTab: ObservableObject, Identifiable {
         return nil
     }
 
-    var extensionsManager: PostgresExtensionsManagerViewModel? {
+    var extensionsManager: PostgresExtensionsViewModel? {
         if case .extensionsManager(let vm) = content { return vm }
         return nil
     }

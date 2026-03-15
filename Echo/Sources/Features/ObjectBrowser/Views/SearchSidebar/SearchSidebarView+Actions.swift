@@ -56,7 +56,7 @@ extension SearchSidebarView {
             openDefinition(for: name, schema: schema, type: .trigger, in: session)
 
         case .queryTab(let tabID, let connectionSessionID):
-            environmentState.sessionCoordinator.setActiveSession(connectionSessionID)
+            environmentState.sessionGroup.setActiveSession(connectionSessionID)
             tabStore.activeTabId = tabID
         }
     }

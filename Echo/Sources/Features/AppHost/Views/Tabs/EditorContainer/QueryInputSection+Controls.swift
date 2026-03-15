@@ -119,7 +119,7 @@ extension QueryInputSection {
         let dialect = formatterDialect
         Task {
             do {
-                let formatted = try await SQLFormatterService.shared.format(sql: currentSQL, dialect: dialect)
+                let formatted = try await SQLFormatter.shared.format(sql: currentSQL, dialect: dialect)
                 await MainActor.run { query.sql = formatted }
             } catch {
                 await MainActor.run {

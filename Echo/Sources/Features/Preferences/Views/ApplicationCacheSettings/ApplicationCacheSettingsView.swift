@@ -19,7 +19,7 @@ struct ApplicationCacheSettingsView: View {
     @State var diagramCacheUsage: UInt64 = 0
     @State var isRefreshingDiagramCache = false
 
-    private var usePerTypeStorageLimits: Binding<Bool> {
+    var usePerTypeStorageLimits: Binding<Bool> {
         Binding(
             get: { projectStore.globalSettings.usePerTypeStorageLimits },
             set: { newValue in
@@ -90,74 +90,6 @@ struct ApplicationCacheSettingsView: View {
         }
     }
 
-    var storageLimitsSection: some View {
-        Section("Storage") {
-            if !usePerTypeStorageLimits.wrappedValue {
-                LabeledContent("Maximum storage") {
-                    Picker("", selection: resultCacheMaxBinding) {
-                        ForEach(Self.unifiedStorageOptions, id: \.bytes) { option in
-                            Text(option.label).tag(option.bytes)
-                        }
-                    }
-                    .labelsHidden()
-                    .pickerStyle(.menu)
-                    .frame(minWidth: 120, idealWidth: 160, maxWidth: 200, alignment: .trailing)
-                }
-            }
-
-            Toggle("Set storage limits per cache type", isOn: usePerTypeStorageLimits)
-                .toggleStyle(.switch)
-
-            if usePerTypeStorageLimits.wrappedValue {
-                LabeledContent("Result cache") {
-                    Picker("", selection: resultCacheMaxBinding) {
-                        ForEach(Self.perTypeStorageOptions, id: \.bytes) { option in
-                            Text(option.label).tag(option.bytes)
-                        }
-                    }
-                    .labelsHidden()
-                    .pickerStyle(.menu)
-                    .frame(minWidth: 120, idealWidth: 160, maxWidth: 200, alignment: .trailing)
-                }
-
-                LabeledContent("Diagram cache") {
-                    Picker("", selection: diagramCacheLimitBinding) {
-                        ForEach(Self.perTypeStorageOptions, id: \.bytes) { option in
-                            Text(option.label).tag(option.bytes)
-                        }
-                    }
-                    .labelsHidden()
-                    .pickerStyle(.menu)
-                    .frame(minWidth: 120, idealWidth: 160, maxWidth: 200, alignment: .trailing)
-                }
-
-                LabeledContent("EchoSense history") {
-                    Picker("", selection: echoSenseStorageLimitBinding) {
-                        ForEach(Self.perTypeStorageOptions, id: \.bytes) { option in
-                            Text(option.label).tag(option.bytes)
-                        }
-                    }
-                    .labelsHidden()
-                    .pickerStyle(.menu)
-                    .frame(minWidth: 120, idealWidth: 160, maxWidth: 200, alignment: .trailing)
-                }
-
-                if clipboardHistory.isEnabled {
-                    LabeledContent("Clipboard history") {
-                        Picker("", selection: clipboardStorageLimitBinding) {
-                            ForEach(Self.perTypeStorageOptions, id: \.bytes) { option in
-                                Text(option.label).tag(option.bytes)
-                            }
-                        }
-                        .labelsHidden()
-                        .pickerStyle(.menu)
-                        .frame(minWidth: 120, idealWidth: 160, maxWidth: 200, alignment: .trailing)
-                    }
-                }
-            }
-        }
-    }
-
     private var storageUsageSection: some View {
         Section("Cache Usage") {
             storageUsageRow(
@@ -204,9 +136,9 @@ struct ApplicationCacheSettingsView: View {
 
     // MARK: - Constants
 
-    private static let gb = 1_073_741_824
+    static let gb = 1_073_741_824
 
-    private static let retentionOptions: [(label: String, hours: Int)] = [
+    static let retentionOptions: [(label: String, hours: Int)] = [
         ("Never", 0),
         ("1 hour", 1),
         ("6 hours", 6),
@@ -218,7 +150,7 @@ struct ApplicationCacheSettingsView: View {
         ("Forever", -1),
     ]
 
-    private static let unifiedStorageOptions: [(label: String, bytes: Int)] = [
+    static let unifiedStorageOptions: [(label: String, bytes: Int)] = [
         ("1 GB",  1 * gb),
         ("2 GB",  2 * gb),
         ("5 GB",  5 * gb),
@@ -226,7 +158,7 @@ struct ApplicationCacheSettingsView: View {
         ("20 GB", 20 * gb),
     ]
 
-    private static let perTypeStorageOptions: [(label: String, bytes: Int)] = [
+    static let perTypeStorageOptions: [(label: String, bytes: Int)] = [
         ("512 MB", gb / 2),
         ("1 GB",   1 * gb),
         ("2 GB",   2 * gb),

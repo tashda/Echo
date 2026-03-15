@@ -44,8 +44,8 @@ extension MySQLSession {
         ORDER BY k.ordinal_position;
         """
         let (rows, _) = try await performQuery(sql, binds: [MySQLData(string: schema), MySQLData(string: table)])
-        guard !rows.isEmpty else { return nil }
-        let name = makeString(rows.first!, index: 0) ?? "PRIMARY"
+        guard let firstRow = rows.first else { return nil }
+        let name = makeString(firstRow, index: 0) ?? "PRIMARY"
         let columns = rows.compactMap { makeString($0, index: 1) }
         return TableStructureDetails.PrimaryKey(name: name, columns: columns)
     }

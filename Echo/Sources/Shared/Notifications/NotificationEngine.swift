@@ -6,15 +6,15 @@ import Combine
 /// and/or native macOS notifications based on user preferences.
 @MainActor
 final class NotificationEngine: NSObject, ObservableObject, UNUserNotificationCenterDelegate {
-    private let toastCoordinator: StatusToastCoordinator
+    private let toastPresenter: StatusToastPresenter
     private let preferencesProvider: () -> NotificationPreferences
     private var hasRequestedAuthorization = false
 
     init(
-        toastCoordinator: StatusToastCoordinator,
+        toastPresenter: StatusToastPresenter,
         preferencesProvider: @escaping () -> NotificationPreferences
     ) {
-        self.toastCoordinator = toastCoordinator
+        self.toastPresenter = toastPresenter
         self.preferencesProvider = preferencesProvider
         super.init()
         UNUserNotificationCenter.current().delegate = self
@@ -50,7 +50,7 @@ final class NotificationEngine: NSObject, ObservableObject, UNUserNotificationCe
     // MARK: - In-App
 
     private func showToast(icon: String, message: String, style: StatusToastView.StatusToastStyle, duration: TimeInterval) {
-        toastCoordinator.show(icon: icon, message: message, style: style, duration: duration)
+        toastPresenter.show(icon: icon, message: message, style: style, duration: duration)
     }
 
     // MARK: - Native macOS

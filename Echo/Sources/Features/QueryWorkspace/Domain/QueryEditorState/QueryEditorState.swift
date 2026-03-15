@@ -30,9 +30,9 @@ import os.log
     let initialVisibleRowBatch: Int
     let previewRowLimit: Int
     let spoolActivationThreshold: Int
-    let spoolManager: ResultSpoolCoordinator
+    let spoolManager: ResultSpooler
     var spoolHandle: ResultSpoolHandle?
-    var ingestionService: ResultStreamIngestionService?
+    var ingestionService: ResultStreamIngestor?
     var spoolStatsTask: Task<Void, Never>?
     @Published var resultSpoolID: UUID?
     var didReceiveStreamingUpdate = false
@@ -107,7 +107,7 @@ import os.log
         sql: String = "SELECT current_timestamp;",
         initialVisibleRowBatch: Int = 500,
         previewRowLimit: Int = 512,
-        spoolManager: ResultSpoolCoordinator,
+        spoolManager: ResultSpooler,
         backgroundFetchSize: Int = 4_096
     ) {
         self.sql = sql

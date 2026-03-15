@@ -60,7 +60,7 @@ struct AgentSidebarView: View {
 
     internal var selectedSession: ConnectionSession? {
         guard let id = selectedConnectionID else { return nil }
-        return environmentState.sessionCoordinator.sessionForConnection(id)
+        return environmentState.sessionGroup.sessionForConnection(id)
     }
 
     var body: some View {

@@ -149,8 +149,8 @@ struct ExtensionStructureTabPreview: View {
     }
 }
 
-struct ExtensionsManagerTabPreview: View {
-    @ObservedObject var viewModel: PostgresExtensionsManagerViewModel
+struct ExtensionsTabPreview: View {
+    @ObservedObject var viewModel: PostgresExtensionsViewModel
 
     private var status: (icon: String, text: String, color: Color) {
         if viewModel.isLoading {

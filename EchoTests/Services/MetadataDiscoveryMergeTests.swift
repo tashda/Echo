@@ -28,7 +28,7 @@ final class MetadataDiscoveryMergeTests: XCTestCase {
             SchemaInfo(name: "alpha", objects: [makeObject(name: "t2", schema: "alpha")])
         ], schemaCount: 2)
 
-        let result = MetadataDiscoveryCoordinator.mergeDatabaseInfo(partial: partial, existing: nil)
+        let result = MetadataDiscoveryEngine.mergeDatabaseInfo(partial: partial, existing: nil)
 
         XCTAssertEqual(result.name, "mydb")
         XCTAssertEqual(result.schemas.count, 2)
@@ -45,7 +45,7 @@ final class MetadataDiscoveryMergeTests: XCTestCase {
             SchemaInfo(name: "public", objects: [makeObject(name: "old_table")])
         ], schemaCount: 1)
 
-        let result = MetadataDiscoveryCoordinator.mergeDatabaseInfo(partial: partial, existing: existing)
+        let result = MetadataDiscoveryEngine.mergeDatabaseInfo(partial: partial, existing: existing)
 
         XCTAssertEqual(result.name, "original", "Should preserve existing database name")
     }
@@ -58,7 +58,7 @@ final class MetadataDiscoveryMergeTests: XCTestCase {
             SchemaInfo(name: "old_schema", objects: [makeObject(name: "t2", schema: "old_schema")])
         ], schemaCount: 1)
 
-        let result = MetadataDiscoveryCoordinator.mergeDatabaseInfo(partial: partial, existing: existing)
+        let result = MetadataDiscoveryEngine.mergeDatabaseInfo(partial: partial, existing: existing)
 
         XCTAssertEqual(result.schemas.count, 2)
         let names = result.schemas.map(\.name)
@@ -70,7 +70,7 @@ final class MetadataDiscoveryMergeTests: XCTestCase {
         let partial = DatabaseInfo(name: "db", schemas: [], schemaCount: 5)
         let existing = DatabaseInfo(name: "db", schemas: [], schemaCount: 10)
 
-        let result = MetadataDiscoveryCoordinator.mergeDatabaseInfo(partial: partial, existing: existing)
+        let result = MetadataDiscoveryEngine.mergeDatabaseInfo(partial: partial, existing: existing)
 
         XCTAssertEqual(result.schemaCount, 10, "Should use the max of existing and partial schema counts")
     }
@@ -84,7 +84,7 @@ final class MetadataDiscoveryMergeTests: XCTestCase {
             SchemaInfo(name: "bravo", objects: [])
         ])
 
-        let result = MetadataDiscoveryCoordinator.mergeDatabaseInfo(partial: partial, existing: existing)
+        let result = MetadataDiscoveryEngine.mergeDatabaseInfo(partial: partial, existing: existing)
 
         XCTAssertEqual(result.schemas.map(\.name), ["alpha", "bravo", "charlie"])
     }
@@ -99,7 +99,7 @@ final class MetadataDiscoveryMergeTests: XCTestCase {
             SchemaInfo(name: "existing_schema", objects: [makeObject(name: "t2", schema: "existing_schema")])
         ]
 
-        let result = MetadataDiscoveryCoordinator.mergeSchemas(partialSchemas: partial, existingSchemas: existing)
+        let result = MetadataDiscoveryEngine.mergeSchemas(partialSchemas: partial, existingSchemas: existing)
 
         XCTAssertEqual(result.count, 2)
         let names = Set(result.map(\.name))
@@ -122,7 +122,7 @@ final class MetadataDiscoveryMergeTests: XCTestCase {
             ])
         ]
 
-        let result = MetadataDiscoveryCoordinator.mergeSchemas(partialSchemas: partial, existingSchemas: existing)
+        let result = MetadataDiscoveryEngine.mergeSchemas(partialSchemas: partial, existingSchemas: existing)
 
         XCTAssertEqual(result.count, 1)
         let publicSchema = result.first { $0.name == "public" }!
@@ -137,7 +137,7 @@ final class MetadataDiscoveryMergeTests: XCTestCase {
             SchemaInfo(name: "public", objects: [makeObject(name: "users")])
         ]
 
-        let result = MetadataDiscoveryCoordinator.mergeSchemas(partialSchemas: [], existingSchemas: existing)
+        let result = MetadataDiscoveryEngine.mergeSchemas(partialSchemas: [], existingSchemas: existing)
 
         XCTAssertEqual(result.count, 1)
         XCTAssertEqual(result[0].objects.count, 1)
@@ -148,7 +148,7 @@ final class MetadataDiscoveryMergeTests: XCTestCase {
             SchemaInfo(name: "public", objects: [makeObject(name: "users")])
         ]
 
-        let result = MetadataDiscoveryCoordinator.mergeSchemas(partialSchemas: partial, existingSchemas: [])
+        let result = MetadataDiscoveryEngine.mergeSchemas(partialSchemas: partial, existingSchemas: [])
 
         XCTAssertEqual(result.count, 1)
         XCTAssertEqual(result[0].name, "public")
@@ -164,7 +164,7 @@ final class MetadataDiscoveryMergeTests: XCTestCase {
             makeObject(name: "users", columns: [makeColumn("id"), makeColumn("name")])
         ])
 
-        let result = MetadataDiscoveryCoordinator.mergeSchemaInfo(partial: partial, existing: existing)
+        let result = MetadataDiscoveryEngine.mergeSchemaInfo(partial: partial, existing: existing)
 
         XCTAssertEqual(result.name, "public")
         let users = result.objects.first { $0.name == "users" }!
@@ -180,7 +180,7 @@ final class MetadataDiscoveryMergeTests: XCTestCase {
             makeObject(name: "old_table")
         ])
 
-        let result = MetadataDiscoveryCoordinator.mergeSchemaInfo(partial: partial, existing: existing)
+        let result = MetadataDiscoveryEngine.mergeSchemaInfo(partial: partial, existing: existing)
 
         let names = Set(result.objects.map(\.name))
         XCTAssertFalse(names.contains("old_table"), "Objects not in partial are dropped")
@@ -197,7 +197,7 @@ final class MetadataDiscoveryMergeTests: XCTestCase {
             makeObject(name: "mango")
         ])
 
-        let result = MetadataDiscoveryCoordinator.mergeSchemaInfo(partial: partial, existing: existing)
+        let result = MetadataDiscoveryEngine.mergeSchemaInfo(partial: partial, existing: existing)
 
         XCTAssertEqual(result.objects.map(\.name), ["apple", "zebra"])
     }
@@ -206,7 +206,7 @@ final class MetadataDiscoveryMergeTests: XCTestCase {
         let partial = SchemaInfo(name: "ignored", objects: [])
         let existing = SchemaInfo(name: "public", objects: [])
 
-        let result = MetadataDiscoveryCoordinator.mergeSchemaInfo(partial: partial, existing: existing)
+        let result = MetadataDiscoveryEngine.mergeSchemaInfo(partial: partial, existing: existing)
 
         XCTAssertEqual(result.name, "public")
     }
@@ -217,7 +217,7 @@ final class MetadataDiscoveryMergeTests: XCTestCase {
             makeObject(name: "posts")
         ])
 
-        let result = MetadataDiscoveryCoordinator.mergeSchemaInfo(
+        let result = MetadataDiscoveryEngine.mergeSchemaInfo(
             partial: SchemaInfo(name: "public", objects: []),
             existing: existing
         )
@@ -236,7 +236,7 @@ final class MetadataDiscoveryMergeTests: XCTestCase {
             makeObject(name: "users", type: .table)
         ])
 
-        let result = MetadataDiscoveryCoordinator.mergeSchemaInfo(partial: partial, existing: existing)
+        let result = MetadataDiscoveryEngine.mergeSchemaInfo(partial: partial, existing: existing)
 
         XCTAssertEqual(result.objects.count, 1, "Table and view with same schema.name share the same ID, so partial overwrites existing")
         XCTAssertEqual(result.objects.first?.type, .view, "Partial object should overwrite existing")

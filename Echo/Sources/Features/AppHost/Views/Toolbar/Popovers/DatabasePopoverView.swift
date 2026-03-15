@@ -131,12 +131,12 @@ struct DatabasePopoverView: View {
 
     private var selectedDatabaseName: String? {
         guard let id = connectionStore.selectedConnectionID else { return nil }
-        return environmentState.sessionCoordinator.sessionForConnection(id)?.selectedDatabaseName
+        return environmentState.sessionGroup.sessionForConnection(id)?.selectedDatabaseName
     }
 
     private func loadDatabases() async {
         guard let connectionID = connectionStore.selectedConnectionID,
-              let session = environmentState.sessionCoordinator.sessionForConnection(connectionID) else {
+              let session = environmentState.sessionGroup.sessionForConnection(connectionID) else {
             return
         }
 
@@ -156,7 +156,7 @@ struct DatabasePopoverView: View {
         guard let connectionID = connectionStore.selectedConnectionID else { return }
         isLoading = true
         await environmentState.refreshDatabaseStructure(for: connectionID, scope: .full)
-        if let session = environmentState.sessionCoordinator.sessionForConnection(connectionID),
+        if let session = environmentState.sessionGroup.sessionForConnection(connectionID),
            let structure = session.databaseStructure {
             databases = structure.databases
         }
@@ -165,7 +165,7 @@ struct DatabasePopoverView: View {
 
     private func selectDatabase(_ db: DatabaseInfo) {
         guard let connectionID = connectionStore.selectedConnectionID,
-              let session = environmentState.sessionCoordinator.sessionForConnection(connectionID) else { return }
+              let session = environmentState.sessionGroup.sessionForConnection(connectionID) else { return }
         Task {
             await environmentState.loadSchemaForDatabase(db.name, connectionSession: session)
         }

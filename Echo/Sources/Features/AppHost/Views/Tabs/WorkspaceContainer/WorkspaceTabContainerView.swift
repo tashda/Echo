@@ -95,7 +95,7 @@ struct WorkspaceTabContainerView: View {
                     cancelQuery: { cancelQuery(tabId: currentTab.id) },
                     gridStateProvider: { currentTab.resultsGridState }
                 )
-            } else if let activeSession = environmentState.sessionCoordinator.activeSession {
+            } else if let activeSession = environmentState.sessionGroup.activeSession {
                 ConnectionDashboardView(
                     session: activeSession,
                     onNewQuery: {

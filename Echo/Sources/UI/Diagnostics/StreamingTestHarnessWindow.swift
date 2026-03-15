@@ -7,11 +7,11 @@ struct StreamingTestHarnessWindow: Scene {
     var body: some Scene {
         Window("Streaming Test Harness", id: Self.sceneID) {
             StreamingTestHarnessView()
-                .environment(AppCoordinator.shared.projectStore)
-                .environment(AppCoordinator.shared.connectionStore)
-                .environment(AppCoordinator.shared.navigationStore)
-                .environmentObject(AppCoordinator.shared.environmentState)
-                .environmentObject(AppCoordinator.shared.appearanceStore)
+                .environment(AppDirector.shared.projectStore)
+                .environment(AppDirector.shared.connectionStore)
+                .environment(AppDirector.shared.navigationStore)
+                .environmentObject(AppDirector.shared.environmentState)
+                .environmentObject(AppDirector.shared.appearanceStore)
         }
         .defaultSize(width: 840, height: 620)
         .restorationBehavior(.disabled)
@@ -26,7 +26,7 @@ struct StreamingTestHarnessView: View {
     
     @EnvironmentObject internal var environmentState: EnvironmentState
     @EnvironmentObject internal var appearanceStore: AppearanceStore
-    @ObservedObject private var coordinator = AppCoordinator.shared
+    @ObservedObject private var coordinator = AppDirector.shared
 
     @State internal var selectedSessionID: UUID?
     @State internal var sqlInput: String = "SELECT current_timestamp;"
@@ -44,7 +44,7 @@ struct StreamingTestHarnessView: View {
 
     internal var availableSessions: [ConnectionSession] {
         guard coordinator.isInitialized else { return [] }
-        return environmentState.sessionCoordinator.sortedSessions
+        return environmentState.sessionGroup.sortedSessions
     }
 
     internal var selectedSession: ConnectionSession? {

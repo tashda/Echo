@@ -3,7 +3,7 @@ import XCTest
 
 @MainActor
 final class ConnectionSessionTests: XCTestCase {
-    private var spoolManager: ResultSpoolCoordinator!
+    private var spoolManager: ResultSpooler!
     private var mockSession: MockDatabaseSession!
     private var connection: SavedConnection!
     private var retainedSessions: [ConnectionSession] = []
@@ -14,7 +14,7 @@ final class ConnectionSessionTests: XCTestCase {
             .appendingPathComponent("ConnectionSessionTests-\(UUID().uuidString)", isDirectory: true)
         try? FileManager.default.createDirectory(at: tempRoot, withIntermediateDirectories: true)
         let config = ResultSpoolConfiguration.defaultConfiguration(rootDirectory: tempRoot)
-        spoolManager = ResultSpoolCoordinator(configuration: config)
+        spoolManager = ResultSpooler(configuration: config)
         mockSession = MockDatabaseSession()
         connection = TestFixtures.savedConnection(connectionName: "Test Server", database: "mydb")
         retainedSessions = []

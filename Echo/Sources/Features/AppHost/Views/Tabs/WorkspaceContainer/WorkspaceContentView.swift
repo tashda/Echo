@@ -33,7 +33,7 @@ struct WorkspaceContentView: View {
                     PostgresExtensionStructureView(tab: tab, viewModel: extStructure)
                         .background(ColorTokens.Background.primary)
                 } else if let extensionsManager = tab.extensionsManager {
-                    PostgresExtensionsManagerView(tab: tab, viewModel: extensionsManager)
+                    PostgresExtensionsView(tab: tab, viewModel: extensionsManager)
                         .background(ColorTokens.Background.primary)
                 } else if let activityMonitor = tab.activityMonitor {
                     ActivityMonitorView(viewModel: activityMonitor)

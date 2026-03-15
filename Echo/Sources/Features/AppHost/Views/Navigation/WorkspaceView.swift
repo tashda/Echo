@@ -29,7 +29,7 @@ private struct WorkspaceBody: View {
     @EnvironmentObject private var appearanceStore: AppearanceStore
     @EnvironmentObject private var clipboardHistory: ClipboardHistoryStore
     
-    @StateObject private var sparkleUpdater = SparkleUpdater.shared
+    @Bindable private var sparkleUpdater = SparkleUpdater.shared
 
     var body: some View {
         let tabBarStyle = appState.workspaceTabBarStyle
@@ -47,13 +47,13 @@ private struct WorkspaceBody: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(ColorTokens.Background.primary)
                 .overlay(alignment: .topTrailing) {
-                    if let toast = environmentState.toastCoordinator.currentToast {
+                    if let toast = environmentState.toastPresenter.currentToast {
                         StatusToastView(icon: toast.icon, message: toast.message, style: toast.style)
-                            .onTapGesture { environmentState.toastCoordinator.dismiss() }
+                            .onTapGesture { environmentState.toastPresenter.dismiss() }
                             .padding(.top, 44)
                             .padding(.trailing, SpacingTokens.lg)
                             .transition(.move(edge: .top).combined(with: .opacity))
-                            .animation(.easeInOut(duration: 0.25), value: environmentState.toastCoordinator.currentToast)
+                            .animation(.easeInOut(duration: 0.25), value: environmentState.toastPresenter.currentToast)
                     }
                 }
                 .inspector(isPresented: $appState.showInfoSidebar) {
@@ -89,7 +89,7 @@ private struct WorkspaceBody: View {
                 .environmentObject(environmentState)
         }
         .task {
-            if !AppCoordinator.shared.isInitialized { await AppCoordinator.shared.initialize() }
+            if !AppDirector.shared.isInitialized { await AppDirector.shared.initialize() }
         }
         .preferredColorScheme(appearanceStore.effectiveColorScheme)
         .accentColor(appearanceStore.accentColor)

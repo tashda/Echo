@@ -54,10 +54,10 @@ struct SearchSidebarView: View {
 
     var activeSession: ConnectionSession? {
         if let selectedID = connectionStore.selectedConnectionID,
-           let session = environmentState.sessionCoordinator.sessionForConnection(selectedID) {
+           let session = environmentState.sessionGroup.sessionForConnection(selectedID) {
             return session
         }
-        return environmentState.sessionCoordinator.activeSession
+        return environmentState.sessionGroup.activeSession
     }
 }
 

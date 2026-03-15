@@ -13,7 +13,7 @@ final class ObjectBrowserSidebarViewModel: ObservableObject {
 
     /// Maps connection ID → session ID for the last initialized session.
     /// Used to detect reconnects (same connection ID, new session ID).
-    private var lastInitializedSessionID: [UUID: UUID] = [:]
+    internal var lastInitializedSessionID: [UUID: UUID] = [:]
 
     // Per-session state
     @Published var expandedDatabasesBySession: [UUID: Set<String>] = [:]
@@ -21,7 +21,7 @@ final class ObjectBrowserSidebarViewModel: ObservableObject {
     @Published var expandedObjectIDsBySession: [String: Set<String>] = [:]
     @Published var selectedSchemaNameBySession: [String: String] = [:]
     /// Stores the auto-expand object types per connection, derived from sidebar settings at init time.
-    private var defaultExpandedObjectTypes: [UUID: Set<SchemaObjectInfo.ObjectType>] = [:]
+    internal var defaultExpandedObjectTypes: [UUID: Set<SchemaObjectInfo.ObjectType>] = [:]
     @Published var pinnedObjectIDsByDatabase: [String: Set<String>] = [:]
     @Published var pinnedSectionExpandedByDatabase: [String: Bool] = [:]
     @Published var databaseSchemaLoadingStates: [String: Bool] = [:]
@@ -242,64 +242,6 @@ final class ObjectBrowserSidebarViewModel: ObservableObject {
         return SchemaObjectInfo.ObjectType.supported(for: session.connection.databaseType)
     }
 
-    func initializeSessionState(for session: ConnectionSession, autoExpandSections: Set<SidebarAutoExpandSection> = [.databases]) {
-        let connID = session.connection.id
-        let sessionID = session.id
-        // Detect reconnect: same connection ID but different session ID
-        let isNewSession = lastInitializedSessionID[connID] != sessionID
-        let prefix = connID.uuidString + "#"
-        if isNewSession {
-            lastInitializedSessionID[connID] = sessionID
-            // Clear stale expansion state so settings are re-applied
-            for key in expandedObjectGroupsBySession.keys where key.hasPrefix(prefix) { expandedObjectGroupsBySession.removeValue(forKey: key) }
-            expandedDatabasesBySession.removeValue(forKey: connID)
-            for key in expandedObjectIDsBySession.keys where key.hasPrefix(prefix) { expandedObjectIDsBySession.removeValue(forKey: key) }
-            databasesFolderExpandedBySession.removeValue(forKey: connID)
-            managementFolderExpandedBySession.removeValue(forKey: connID)
-            agentJobsExpandedBySession.removeValue(forKey: connID)
-            // Clear security state on reconnect
-            securityFolderExpandedBySession.removeValue(forKey: connID)
-            securityLoginsExpandedBySession.removeValue(forKey: connID)
-            securityServerRolesExpandedBySession.removeValue(forKey: connID)
-            securityCredentialsExpandedBySession.removeValue(forKey: connID)
-            securityLoginsBySession.removeValue(forKey: connID)
-            securityServerRolesBySession.removeValue(forKey: connID)
-            securityCredentialsBySession.removeValue(forKey: connID)
-            securityServerLoadingBySession.removeValue(forKey: connID)
-            // Clear loaded-once tracking for this connection
-            let prefix = connID.uuidString + "#"
-            databaseSchemaLoadedOnce = databaseSchemaLoadedOnce.filter { !$0.hasPrefix(prefix) }
-            // Clear database-level security state
-            for key in dbSecurityExpandedByDB.keys where key.hasPrefix(prefix) { dbSecurityExpandedByDB.removeValue(forKey: key) }
-            for key in dbSecurityUsersByDB.keys where key.hasPrefix(prefix) { dbSecurityUsersByDB.removeValue(forKey: key) }
-            for key in dbSecurityRolesByDB.keys where key.hasPrefix(prefix) { dbSecurityRolesByDB.removeValue(forKey: key) }
-            for key in dbSecurityAppRolesByDB.keys where key.hasPrefix(prefix) { dbSecurityAppRolesByDB.removeValue(forKey: key) }
-            for key in dbSecuritySchemasByDB.keys where key.hasPrefix(prefix) { dbSecuritySchemasByDB.removeValue(forKey: key) }
-            for key in dbSecurityLoadingByDB.keys where key.hasPrefix(prefix) { dbSecurityLoadingByDB.removeValue(forKey: key) }
-        }
-
-        // Compute and cache the default expanded object types from sidebar settings.
-        var defaultGroups = Set<SchemaObjectInfo.ObjectType>()
-        for section in autoExpandSections {
-            if let objectType = section.objectType {
-                defaultGroups.insert(objectType)
-            }
-        }
-        let previousDefaultGroups = defaultExpandedObjectTypes[connID]
-        defaultExpandedObjectTypes[connID] = defaultGroups
-
-        if previousDefaultGroups != nil, previousDefaultGroups != defaultGroups {
-            for key in expandedObjectGroupsBySession.keys where key.hasPrefix(prefix) {
-                expandedObjectGroupsBySession.removeValue(forKey: key)
-            }
-        }
-
-        databasesFolderExpandedBySession[connID] = autoExpandSections.contains(.databases)
-        managementFolderExpandedBySession[connID] = autoExpandSections.contains(.management)
-        agentJobsExpandedBySession[connID] = autoExpandSections.contains(.management)
-        securityFolderExpandedBySession[connID] = autoExpandSections.contains(.security)
-    }
-
     // MARK: - Database Expansion
 
     func isDatabaseExpanded(connectionID: UUID, databaseName: String) -> Bool {
@@ -332,83 +274,4 @@ final class ObjectBrowserSidebarViewModel: ObservableObject {
         databaseSchemaLoadedOnce.contains(pinnedStorageKey(connectionID: connectionID, databaseName: databaseName))
     }
 
-    // MARK: - Per-Session Bindings
-
-    func expandedObjectGroupsBinding(for connectionID: UUID, database: String) -> Binding<Set<SchemaObjectInfo.ObjectType>> {
-        let key = "\(connectionID.uuidString)#\(database)"
-        return Binding(
-            get: { [weak self] in
-                guard let self else { return Set(SchemaObjectInfo.ObjectType.allCases) }
-                return self.expandedObjectGroupsBySession[key] ?? self.defaultExpandedObjectTypes[connectionID] ?? Set(SchemaObjectInfo.ObjectType.allCases)
-            },
-            set: { [weak self] in self?.expandedObjectGroupsBySession[key] = $0 }
-        )
-    }
-
-    func defaultExpandedObjectGroups(for connectionID: UUID) -> Set<SchemaObjectInfo.ObjectType> {
-        defaultExpandedObjectTypes[connectionID] ?? []
-    }
-
-    func expandedObjectIDsBinding(for connectionID: UUID, database: String) -> Binding<Set<String>> {
-        let key = "\(connectionID.uuidString)#\(database)"
-        return Binding(
-            get: { [weak self] in self?.expandedObjectIDsBySession[key] ?? [] },
-            set: { [weak self] in self?.expandedObjectIDsBySession[key] = $0 }
-        )
-    }
-
-    func selectedSchemaNameBinding(for connectionID: UUID, database: String) -> Binding<String?> {
-        let key = "\(connectionID.uuidString)#\(database)"
-        return Binding(
-            get: { [weak self] in self?.selectedSchemaNameBySession[key] },
-            set: { [weak self] newValue in
-                if let newValue {
-                    self?.selectedSchemaNameBySession[key] = newValue
-                } else {
-                    self?.selectedSchemaNameBySession.removeValue(forKey: key)
-                }
-            }
-        )
-    }
-
-    func ensureServerExpanded(for connectionID: UUID, sessions: [ConnectionSession]) {
-        expandedServerIDs = expandedServerIDs.filter { id in
-            sessions.contains { $0.connection.id == id }
-        }
-        expandedServerIDs.insert(connectionID)
-    }
-
-    func ensureDatabaseExpanded(connectionID: UUID, databaseName: String) {
-        var expanded = expandedDatabasesBySession[connectionID] ?? []
-        expanded.insert(databaseName)
-        expandedDatabasesBySession[connectionID] = expanded
-    }
-
-    func pinnedStorageKey(connectionID: UUID, databaseName: String) -> String {
-        "\(connectionID.uuidString)#\(databaseName)"
-    }
-
-    func pinnedObjectsBinding(for database: DatabaseInfo, connectionID: UUID) -> Binding<Set<String>> {
-        let key = pinnedStorageKey(connectionID: connectionID, databaseName: database.name)
-        return Binding(
-            get: { [weak self] in self?.pinnedObjectIDsByDatabase[key] ?? [] },
-            set: { [weak self] newValue in
-                if newValue.isEmpty {
-                    self?.pinnedObjectIDsByDatabase.removeValue(forKey: key)
-                } else {
-                    self?.pinnedObjectIDsByDatabase[key] = newValue
-                }
-            }
-        )
-    }
-
-    func pinnedSectionExpandedBinding(for database: DatabaseInfo, connectionID: UUID) -> Binding<Bool> {
-        let key = pinnedStorageKey(connectionID: connectionID, databaseName: database.name)
-        return Binding(
-            get: { [weak self] in self?.pinnedSectionExpandedByDatabase[key] ?? true },
-            set: { [weak self] newValue in
-                self?.pinnedSectionExpandedByDatabase[key] = newValue
-            }
-        )
-    }
 }

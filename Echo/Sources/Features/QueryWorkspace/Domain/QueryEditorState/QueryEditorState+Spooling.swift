@@ -19,7 +19,7 @@ extension QueryEditorState {
         let manager = spoolManager
         let cache = rowCache
         
-        ingestionService = ResultStreamIngestionService(
+        ingestionService = ResultStreamIngestor(
             spoolManager: manager,
             rowCache: cache
         ) { [weak self] handle in

@@ -30,7 +30,7 @@ extension DatabaseObjectRow {
     }
     
     internal func openNewQueryTab() {
-        guard let session = environmentState.sessionCoordinator.sessionForConnection(connection.id) else { return }
+        guard let session = environmentState.sessionGroup.sessionForConnection(connection.id) else { return }
         let qualified = qualifiedName(schema: object.schema, name: object.name)
         let sql = "-- Query for \(qualified)\n"
         Task { @MainActor in
@@ -39,7 +39,7 @@ extension DatabaseObjectRow {
     }
 
     internal func openDataPreview() {
-        guard let session = environmentState.sessionCoordinator.sessionForConnection(connection.id) else { return }
+        guard let session = environmentState.sessionGroup.sessionForConnection(connection.id) else { return }
         let qualified = qualifiedName(schema: object.schema, name: object.name)
         let columns = object.columns.isEmpty ? ["*"] : object.columns.map { quoteIdentifier($0.name) }
         let columnLines = columns.joined(separator: ",\n    ")
@@ -62,14 +62,14 @@ extension DatabaseObjectRow {
             return
         }
         Task { @MainActor in
-            guard let session = environmentState.sessionCoordinator.sessionForConnection(connection.id) else { return }
+            guard let session = environmentState.sessionGroup.sessionForConnection(connection.id) else { return }
             environmentState.openStructureTab(for: session, object: object, databaseName: databaseName)
         }
     }
 
     internal func openExtensionStructure() {
         guard object.type == .extension else { return }
-        guard let session = environmentState.sessionCoordinator.sessionForConnection(connection.id) else { return }
+        guard let session = environmentState.sessionGroup.sessionForConnection(connection.id) else { return }
         let dbName = databaseName ?? connection.database
         session.addExtensionStructureTab(extensionName: object.name, databaseName: dbName)
     }
@@ -77,7 +77,7 @@ extension DatabaseObjectRow {
     internal func openRelationsDiagram() {
         guard supportsDiagram else { return }
         Task { @MainActor in
-            guard let session = environmentState.sessionCoordinator.sessionForConnection(connection.id) else { return }
+            guard let session = environmentState.sessionGroup.sessionForConnection(connection.id) else { return }
             environmentState.openDiagramTab(for: session, object: object)
         }
     }
