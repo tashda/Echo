@@ -63,6 +63,7 @@ enum ExplorerSidebarPalette {
     static let jobs = ColorTokens.Explorer.jobs
     static let security = ColorTokens.Explorer.security
     static let extensions = ColorTokens.Explorer.extensions
+    static let linkedServers = ColorTokens.Explorer.linkedServers
 
     static func folderIconColor(title: String, colored: Bool = true) -> Color {
         guard colored else { return monochrome }
@@ -71,6 +72,7 @@ enum ExplorerSidebarPalette {
         case "Agent Jobs": return jobs
         case "Security": return security
         case "Extensions": return extensions
+        case "Linked Servers": return linkedServers
         default: return monochrome
         }
     }

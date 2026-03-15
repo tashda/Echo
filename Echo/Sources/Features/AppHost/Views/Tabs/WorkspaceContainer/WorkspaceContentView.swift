@@ -42,6 +42,9 @@ struct WorkspaceContentView: View {
                 } else if let queryStoreVM = tab.queryStoreVM {
                     QueryStoreView(viewModel: queryStoreVM)
                         .background(ColorTokens.Background.primary)
+                } else if let xeVM = tab.extendedEventsVM {
+                    ExtendedEventsView(viewModel: xeVM)
+                        .background(ColorTokens.Background.primary)
                 } else if let query = tab.query {
                     QueryEditorContainer(
                         tab: tab,

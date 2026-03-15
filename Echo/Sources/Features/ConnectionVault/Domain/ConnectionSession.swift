@@ -289,6 +289,26 @@ final class ConnectionSession: Identifiable {
         return tab
     }
 
+    @discardableResult
+    func addExtendedEventsTab() -> WorkspaceTab? {
+        guard let mssql = session as? MSSQLSession else { return nil }
+        let viewModel = ExtendedEventsViewModel(
+            xeClient: mssql.extendedEvents,
+            connectionSessionID: id
+        )
+        let tab = WorkspaceTab(
+            connection: connection,
+            session: session,
+            connectionSessionID: id,
+            title: "Extended Events",
+            content: .extendedEvents(viewModel)
+        )
+        queryTabs.append(tab)
+        activeQueryTabID = tab.id
+        lastActivity = Date()
+        return tab
+    }
+
     func closeQueryTab(withID tabID: UUID) {
         guard let index = queryTabs.firstIndex(where: { $0.id == tabID }) else { return }
         let tab = queryTabs[index]

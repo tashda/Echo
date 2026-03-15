@@ -31,6 +31,7 @@ extension WorkspaceTab.Kind {
         case .extensionsManager: return "Extensions"
         case .activityMonitor: return "Activity"
         case .queryStore: return "Query Store"
+        case .extendedEvents: return "Extended Events"
         }
     }
 
@@ -45,6 +46,7 @@ extension WorkspaceTab.Kind {
         case .extensionsManager: return "puzzlepiece"
         case .activityMonitor: return "chart.bar.doc.horizontal"
         case .queryStore: return "chart.bar.xaxis"
+        case .extendedEvents: return "bolt.horizontal"
         }
     }
 }

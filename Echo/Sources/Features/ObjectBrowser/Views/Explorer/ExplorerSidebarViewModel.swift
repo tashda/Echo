@@ -38,6 +38,20 @@ final class ObjectBrowserSidebarViewModel {
     var showNewJobSheet = false
     var newJobSessionID: UUID?
 
+    // Linked Servers state (per-connection, MSSQL only)
+    var linkedServersExpandedBySession: [UUID: Bool] = [:]
+    var linkedServersBySession: [UUID: [LinkedServerItem]] = [:]
+    var linkedServersLoadingBySession: [UUID: Bool] = [:]
+    var showNewLinkedServerSheet = false
+    var newLinkedServerSessionID: UUID?
+    var showDropLinkedServerAlert = false
+    var dropLinkedServerTarget: DropLinkedServerTarget?
+
+    struct DropLinkedServerTarget {
+        let connectionID: UUID
+        let serverName: String
+    }
+
     // Security state — server-level (per-connection)
     var securityFolderExpandedBySession: [UUID: Bool] = [:]
     var securityLoginsExpandedBySession: [UUID: Bool] = [:]
@@ -84,6 +98,14 @@ final class ObjectBrowserSidebarViewModel {
     var propertiesDatabaseName: String?
     var propertiesConnectionID: UUID?
 
+    // Backup/Restore sheets
+    var showBackupSheet = false
+    var backupDatabaseName: String?
+    var backupConnectionID: UUID?
+    var showRestoreSheet = false
+    var restoreDatabaseName: String?
+    var restoreConnectionID: UUID?
+
     // Drop database confirmation
     var showDropDatabaseAlert = false
     var dropDatabaseTarget: DropDatabaseTarget?
@@ -120,6 +142,15 @@ final class ObjectBrowserSidebarViewModel {
         case mssqlLogin = "Login"
         case mssqlUser = "User"
         case mssqlServerRole = "Server Role"
+    }
+
+    struct LinkedServerItem: Identifiable, Hashable {
+        let id: String
+        let name: String
+        let provider: String
+        let dataSource: String
+        let product: String
+        let isDataAccessEnabled: Bool
     }
 
     struct AgentJobItem: Identifiable, Hashable {

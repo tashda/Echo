@@ -72,6 +72,8 @@ func tabOverviewStatus(for tab: WorkspaceTab, appearanceStore: AppearanceStore) 
         return ("chart.bar.doc.horizontal", "Ready", ColorTokens.Text.secondary)
     case .queryStore:
         return ("chart.bar.xaxis", "Ready", ColorTokens.Text.secondary)
+    case .extendedEvents:
+        return ("waveform.path.ecg", "Ready", ColorTokens.Text.secondary)
     }
 }
 
@@ -101,6 +103,8 @@ extension TabPreviewCard {
         case .activityMonitor:
             return activityMonitorMetrics
         case .queryStore:
+            return []
+        case .extendedEvents:
             return []
         }
     }
@@ -195,6 +199,8 @@ extension TabPreviewCard {
             return "Activity Monitor"
         case .queryStore:
             return "Query Store"
+        case .extendedEvents:
+            return "Extended Events"
         }
     }
 }

@@ -32,6 +32,7 @@ final class WorkspaceTab: Identifiable {
         case extensionsManager
         case activityMonitor
         case queryStore
+        case extendedEvents
     }
 
     enum Content {
@@ -44,6 +45,7 @@ final class WorkspaceTab: Identifiable {
         case extensionsManager(PostgresExtensionsViewModel)
         case activityMonitor(ActivityMonitorViewModel)
         case queryStore(QueryStoreViewModel)
+        case extendedEvents(ExtendedEventsViewModel)
     }
 
     let id = UUID()
@@ -91,6 +93,7 @@ final class WorkspaceTab: Identifiable {
         case .extensionsManager: return .extensionsManager
         case .activityMonitor: return .activityMonitor
         case .queryStore: return .queryStore
+        case .extendedEvents: return .extendedEvents
         }
     }
 
@@ -139,6 +142,11 @@ final class WorkspaceTab: Identifiable {
         return nil
     }
 
+    var extendedEventsVM: ExtendedEventsViewModel? {
+        if case .extendedEvents(let vm) = content { return vm }
+        return nil
+    }
+
     func setContent(_ newContent: Content) {
         content = newContent
         setupRowCountRefreshHandler()
@@ -164,6 +172,8 @@ final class WorkspaceTab: Identifiable {
         case .activityMonitor:
             return baseOverhead + 1024 * 1024
         case .queryStore(let vm):
+            return baseOverhead + vm.estimatedMemoryUsageBytes()
+        case .extendedEvents(let vm):
             return baseOverhead + vm.estimatedMemoryUsageBytes()
         }
     }

@@ -82,6 +82,9 @@ final class SQLServerSessionAdapter: DatabaseSession, MSSQLSession {
     var serverSecurity: SQLServerServerSecurityClient { client.serverSecurity }
     var extendedProperties: SQLServerExtendedPropertiesClient { client.extendedProperties }
     var queryStore: SQLServerQueryStoreClient { client.queryStore }
+    var backupRestore: SQLServerBackupRestoreClient { client.backupRestore }
+    var linkedServers: SQLServerLinkedServersClient { client.linkedServers }
+    var extendedEvents: SQLServerExtendedEventsClient { client.extendedEvents }
 
     func rebuildIndex(schema: String, table: String, index: String) async throws {
         try await client.indexes.rebuildIndex(name: index, table: table, schema: schema)

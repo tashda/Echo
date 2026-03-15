@@ -32,6 +32,8 @@ extension CompactTabPreviewCard {
             return []
         case .queryStore:
             return []
+        case .extendedEvents:
+            return []
         }
         }
 
@@ -60,6 +62,8 @@ extension CompactTabPreviewCard {
             return "Activity"
         case .queryStore:
             return "Query Store"
+        case .extendedEvents:
+            return "Extended Events"
         }
         }
 
@@ -89,6 +93,8 @@ extension CompactTabPreviewCard {
             return "Live system performance monitoring"
         case .queryStore:
             return "Query Store analysis and plan management"
+        case .extendedEvents:
+            return "Extended Events session monitoring"
         }
         }
 

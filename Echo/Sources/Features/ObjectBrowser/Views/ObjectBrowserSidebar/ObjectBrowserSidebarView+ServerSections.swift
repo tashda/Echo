@@ -102,6 +102,7 @@ extension ObjectBrowserSidebarView {
 
                     if session.connection.databaseType == .microsoftSQL {
                         agentJobsSection(session: session)
+                        linkedServersSection(session: session)
                     }
                 }
             } else if session.databaseStructure != nil {
