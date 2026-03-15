@@ -44,7 +44,7 @@ extension DatabaseObjectRow {
 
     internal func openStructureEditor(for column: ColumnInfo, preferDrop: Bool = false) {
         Task { @MainActor in
-            guard let session = environmentState.sessionCoordinator.sessionForConnection(connection.id) else { return }
+            guard let session = environmentState.sessionGroup.sessionForConnection(connection.id) else { return }
             environmentState.openStructureTab(for: session, object: object, focus: .columns)
         }
     }

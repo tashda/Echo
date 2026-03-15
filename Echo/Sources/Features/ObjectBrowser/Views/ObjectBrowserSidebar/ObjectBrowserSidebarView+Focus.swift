@@ -10,7 +10,7 @@ extension ObjectBrowserSidebarView {
 
     private func processExplorerFocus(_ focus: ExplorerFocus, proxy: ScrollViewProxy) async {
         guard let session = await MainActor.run(body: {
-            environmentState.sessionCoordinator.sessionForConnection(focus.connectionID)
+            environmentState.sessionGroup.sessionForConnection(focus.connectionID)
         }) else {
             await MainActor.run { navigationStore.pendingExplorerFocus = nil }
             return
@@ -21,7 +21,7 @@ extension ObjectBrowserSidebarView {
             if selectedConnectionID != focus.connectionID {
                 selectedConnectionID = focus.connectionID
             }
-            environmentState.sessionCoordinator.setActiveSession(session.id)
+            environmentState.sessionGroup.setActiveSession(session.id)
             viewModel.ensureServerExpanded(for: focus.connectionID, sessions: sessions)
             viewModel.ensureDatabaseExpanded(connectionID: focus.connectionID, databaseName: focus.databaseName)
         }
@@ -33,7 +33,7 @@ extension ObjectBrowserSidebarView {
         await environmentState.refreshDatabaseStructure(for: session.id, scope: .selectedDatabase, databaseOverride: focus.databaseName)
 
         guard let refreshedSession = await MainActor.run(body: {
-            environmentState.sessionCoordinator.sessionForConnection(focus.connectionID)
+            environmentState.sessionGroup.sessionForConnection(focus.connectionID)
         }) else {
             await MainActor.run { navigationStore.pendingExplorerFocus = nil }
             return

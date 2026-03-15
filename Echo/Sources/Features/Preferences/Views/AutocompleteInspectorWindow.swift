@@ -2,7 +2,7 @@ import SwiftUI
 
 struct AutocompleteInspectorWindow: Scene {
     static let sceneID = "autocomplete-management"
-    private let coordinator = AppCoordinator.shared
+    private let coordinator = AppDirector.shared
 
     var body: some Scene {
         Window("Autocomplete Management", id: Self.sceneID) {

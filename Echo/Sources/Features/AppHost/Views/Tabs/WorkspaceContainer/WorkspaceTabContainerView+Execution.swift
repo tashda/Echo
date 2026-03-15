@@ -231,7 +231,7 @@ extension WorkspaceTabContainerView {
         }
 
         // Update the parent connection session's selected database
-        if let session = environmentState.sessionCoordinator.activeSessions.first(where: { $0.id == tab.connectionSessionID }) {
+        if let session = environmentState.sessionGroup.activeSessions.first(where: { $0.id == tab.connectionSessionID }) {
             session.selectedDatabaseName = targetDatabase
         }
 

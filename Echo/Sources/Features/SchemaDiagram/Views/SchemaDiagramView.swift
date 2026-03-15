@@ -12,7 +12,7 @@ struct SchemaDiagramView: View {
     @Environment(ProjectStore.self) var projectStore
     @Environment(ConnectionStore.self) private var connectionStore
     @Environment(NavigationStore.self) private var navigationStore
-    @Environment(DiagramCoordinator.self) private var diagramCoordinator
+    @Environment(DiagramBuilder.self) private var diagramBuilder
 
     @EnvironmentObject var appearanceStore: AppearanceStore
 
@@ -92,7 +92,7 @@ struct SchemaDiagramView: View {
     private func persistLayout() {
         persistTask?.cancel()
         persistTask = Task { @MainActor [viewModel] in
-            await diagramCoordinator.persistDiagramLayout(for: viewModel)
+            await diagramBuilder.persistDiagramLayout(for: viewModel)
             persistTask = nil
         }
     }
@@ -108,7 +108,7 @@ struct SchemaDiagramView: View {
                 guard !isRefreshing else { return }
                 isRefreshing = true
                 Task {
-                    await diagramCoordinator.refreshDiagram(for: viewModel)
+                    await diagramBuilder.refreshDiagram(for: viewModel)
                     await MainActor.run {
                         isRefreshing = false
                     }

@@ -7,18 +7,21 @@ import Sparkle
 #endif
 
 /// A simple wrapper around Sparkle's SPUUpdater to provide auto-update functionality.
+@Observable
 @MainActor
-final class SparkleUpdater: NSObject, ObservableObject {
-    @Published var canCheckForUpdates = false
-    @Published var automaticallyChecksForUpdates = false
-    @Published var lastError: Error?
-    @Published var showErrorAlert = false
+final class SparkleUpdater: NSObject {
+    var canCheckForUpdates = false
+    var automaticallyChecksForUpdates = false
+    var lastError: Error?
+    var showErrorAlert = false
 
     #if canImport(Sparkle)
-    private var updaterController: SPUStandardUpdaterController?
+    @ObservationIgnored private var updaterController: SPUStandardUpdaterController?
     #endif
 
     static let shared = SparkleUpdater()
+
+    @ObservationIgnored private var cancellables = Set<AnyCancellable>()
 
     override private init() {
         super.init()
@@ -30,7 +33,7 @@ final class SparkleUpdater: NSObject, ObservableObject {
             userDriverDelegate: nil
         )
         self.updaterController = controller
-        
+
         // Listen for changes to canCheckForUpdates
         controller.updater.publisher(for: \.canCheckForUpdates)
             .receive(on: RunLoop.main)
@@ -52,17 +55,13 @@ final class SparkleUpdater: NSObject, ObservableObject {
         controller.startUpdater()
         #endif
     }
-    
-    private var cancellables = Set<AnyCancellable>()
 
-    @MainActor
     func checkForUpdates() {
         #if canImport(Sparkle)
         updaterController?.checkForUpdates(nil)
         #endif
     }
 
-    @MainActor
     func setAutomaticallyChecksForUpdates(_ enabled: Bool) {
         #if canImport(Sparkle)
         updaterController?.updater.automaticallyChecksForUpdates = enabled

@@ -42,7 +42,7 @@ struct AutocompleteInspectorRootView: View {
     }
 
     private var completionContext: SQLEditorCompletionContext? {
-        guard let session = environmentState.sessionCoordinator.activeSession else { return nil }
+        guard let session = environmentState.sessionGroup.activeSession else { return nil }
         let connection = session.connection
         let databaseType = EchoSenseDatabaseType(connection.databaseType)
         let selectedDatabase = normalize(session.selectedDatabaseName)
@@ -58,7 +58,7 @@ struct AutocompleteInspectorRootView: View {
     }
 
     var activeConnectionSummary: String? {
-        guard let session = environmentState.sessionCoordinator.activeSession else { return nil }
+        guard let session = environmentState.sessionGroup.activeSession else { return nil }
         let connection = session.connection
         let databasePart = normalize(session.selectedDatabaseName) ?? normalize(connection.database)
         if let databasePart, !databasePart.isEmpty {
@@ -68,7 +68,7 @@ struct AutocompleteInspectorRootView: View {
     }
 
     private var structureStatusMessage: String? {
-        guard let session = environmentState.sessionCoordinator.activeSession else { return nil }
+        guard let session = environmentState.sessionGroup.activeSession else { return nil }
         switch session.structureLoadingState {
         case .idle:
             return session.databaseStructure == nil ? "Database structure not loaded yet. Trigger a refresh if suggestions remain limited." : nil

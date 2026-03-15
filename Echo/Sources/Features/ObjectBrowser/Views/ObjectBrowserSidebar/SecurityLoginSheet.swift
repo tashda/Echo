@@ -8,40 +8,40 @@ struct SecurityLoginSheet: View {
     let existingLoginName: String?
     let onComplete: () -> Void
 
-    @State private var selectedPage: LoginPage = .general
+    @State var selectedPage: LoginPage = .general
 
-    @State private var loginName = ""
-    @State private var authType: AuthType = .sql
-    @State private var password = ""
-    @State private var confirmPassword = ""
-    @State private var defaultDatabase = "master"
-    @State private var defaultLanguage = ""
-    @State private var enforcePasswordPolicy = true
-    @State private var enforcePasswordExpiration = false
-    @State private var loginEnabled = true
+    @State var loginName = ""
+    @State var authType: AuthType = .sql
+    @State var password = ""
+    @State var confirmPassword = ""
+    @State var defaultDatabase = "master"
+    @State var defaultLanguage = ""
+    @State var enforcePasswordPolicy = true
+    @State var enforcePasswordExpiration = false
+    @State var loginEnabled = true
 
     // Server Roles
-    @State private var availableServerRoles: [RoleEntry] = []
-    @State private var loadingRoles = false
+    @State var availableServerRoles: [RoleEntry] = []
+    @State var loadingRoles = false
 
     // Database Mapping
-    @State private var databaseMappings: [LoginDatabaseMapping] = []
-    @State private var loadingMappings = false
-    @State private var availableDatabases: [String] = ["master"]
-    @State private var newMappingDatabase = ""
-    @State private var newMappingUser = ""
+    @State var databaseMappings: [LoginDatabaseMapping] = []
+    @State var loadingMappings = false
+    @State var availableDatabases: [String] = ["master"]
+    @State var newMappingDatabase = ""
+    @State var newMappingUser = ""
 
     // Database mapping SSMS-style
-    @State private var databaseMappingEntries: [DatabaseMappingEntry] = []
-    @State private var selectedMappingDatabase: String?
-    @State private var databaseRoleMemberships: [DatabaseRoleMembershipEntry] = []
-    @State private var loadingDatabaseRoles = false
+    @State var databaseMappingEntries: [DatabaseMappingEntry] = []
+    @State var selectedMappingDatabase: String?
+    @State var databaseRoleMemberships: [DatabaseRoleMembershipEntry] = []
+    @State var loadingDatabaseRoles = false
 
-    @State private var errorMessage: String?
-    @State private var isSubmitting = false
-    @State private var isLoading = true
+    @State var errorMessage: String?
+    @State var isSubmitting = false
+    @State var isLoading = true
 
-    private var isEditing: Bool { existingLoginName != nil }
+    var isEditing: Bool { existingLoginName != nil }
 
     private var isFormValid: Bool {
         let name = loginName.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -316,7 +316,7 @@ struct SecurityLoginSheet: View {
         }
     }
 
-    private func mappingToggleBinding(for database: String) -> Binding<Bool> {
+    func mappingToggleBinding(for database: String) -> Binding<Bool> {
         Binding(
             get: { databaseMappingEntries.first(where: { $0.databaseName == database })?.isMapped ?? false },
             set: { newValue in
@@ -330,275 +330,11 @@ struct SecurityLoginSheet: View {
             }
         )
     }
-
-    // MARK: - Data Loading
-
-    private func loadInitialData() async {
-        guard let mssql = session.session as? MSSQLSession else {
-            isLoading = false
-            return
-        }
-
-        // Load databases
-        do {
-            let dbs = try await session.session.listDatabases()
-            await MainActor.run { availableDatabases = dbs.sorted() }
-        } catch { }
-
-        // Load server roles
-        loadingRoles = true
-        do {
-            let ssec = mssql.serverSecurity
-            let roles = try await ssec.listServerRoles()
-            var entries = roles.map { role in
-                RoleEntry(name: role.name, isFixed: role.isFixed, isMember: false)
-            }
-
-            // If editing, check which roles this login is a member of
-            if let loginName = existingLoginName {
-                for i in entries.indices {
-                    let members = try await ssec.listServerRoleMembers(role: entries[i].name)
-                    if members.contains(where: { $0.caseInsensitiveCompare(loginName) == .orderedSame }) {
-                        entries[i].isMember = true
-                    }
-                }
-                entries.sort { a, b in
-                    if a.isMember != b.isMember { return a.isMember }
-                    return a.name < b.name
-                }
-            }
-
-            await MainActor.run {
-                availableServerRoles = entries
-                loadingRoles = false
-            }
-        } catch {
-            await MainActor.run { loadingRoles = false }
-        }
-
-        // If editing, load existing login properties and database mappings
-        if let existingName = existingLoginName {
-            do {
-                let ssec = mssql.serverSecurity
-                let logins = try await ssec.listLogins(includeSystemLogins: true)
-                if let login = logins.first(where: { $0.name.caseInsensitiveCompare(existingName) == .orderedSame }) {
-                    await MainActor.run {
-                        loginName = login.name
-                        loginEnabled = !login.isDisabled
-                        defaultDatabase = login.defaultDatabase ?? "master"
-                        defaultLanguage = login.defaultLanguage ?? ""
-                        enforcePasswordPolicy = login.isPolicyChecked ?? true
-                        enforcePasswordExpiration = login.isExpirationChecked ?? false
-                        switch login.type {
-                        case .sql: authType = .sql
-                        default: authType = .windows
-                        }
-                    }
-                }
-            } catch { }
-
-            // Load database mappings
-            loadingMappings = true
-            do {
-                let ssec = mssql.serverSecurity
-                let mappings = try await ssec.listLoginDatabaseMappings(login: existingName)
-                let mappedSet = Dictionary(uniqueKeysWithValues: mappings.map { ($0.databaseName, $0) })
-                let allDbs = availableDatabases
-
-                await MainActor.run {
-                    databaseMappings = mappings
-                    databaseMappingEntries = allDbs.map { db in
-                        if let mapping = mappedSet[db] {
-                            return DatabaseMappingEntry(databaseName: db, isMapped: true, userName: mapping.userName, defaultSchema: mapping.defaultSchema)
-                        } else {
-                            return DatabaseMappingEntry(databaseName: db, isMapped: false, userName: nil, defaultSchema: nil)
-                        }
-                    }
-                    loadingMappings = false
-                }
-            } catch {
-                await MainActor.run { loadingMappings = false }
-            }
-        }
-
-        await MainActor.run { isLoading = false }
-    }
-
-    // MARK: - Database Mapping Actions
-
-    private func mapToDatabase(database: String) async {
-        guard let mssql = session.session as? MSSQLSession else { return }
-        let name = existingLoginName ?? loginName.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !name.isEmpty else { return }
-
-        do {
-            let ssec = mssql.serverSecurity
-            try await ssec.mapLoginToDatabase(login: name, database: database)
-            await reloadMappingEntries()
-        } catch {
-            await MainActor.run { errorMessage = error.localizedDescription }
-        }
-    }
-
-    private func unmapFromDatabase(database: String) async {
-        guard let mssql = session.session as? MSSQLSession else { return }
-        let name = existingLoginName ?? loginName.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !name.isEmpty else { return }
-
-        let entry = databaseMappingEntries.first(where: { $0.databaseName == database })
-        do {
-            let ssec = mssql.serverSecurity
-            try await ssec.unmapLoginFromDatabase(login: name, database: database, userName: entry?.userName)
-            await reloadMappingEntries()
-            if selectedMappingDatabase == database {
-                await MainActor.run { databaseRoleMemberships = [] }
-            }
-        } catch {
-            await MainActor.run { errorMessage = error.localizedDescription }
-        }
-    }
-
-    private func reloadMappingEntries() async {
-        guard let mssql = session.session as? MSSQLSession else { return }
-        let name = existingLoginName ?? loginName.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !name.isEmpty else { return }
-
-        do {
-            let ssec = mssql.serverSecurity
-            let mappings = try await ssec.listLoginDatabaseMappings(login: name)
-            let mappedSet = Dictionary(uniqueKeysWithValues: mappings.map { ($0.databaseName, $0) })
-
-            await MainActor.run {
-                databaseMappings = mappings
-                databaseMappingEntries = availableDatabases.map { db in
-                    if let mapping = mappedSet[db] {
-                        return DatabaseMappingEntry(databaseName: db, isMapped: true, userName: mapping.userName, defaultSchema: mapping.defaultSchema)
-                    } else {
-                        return DatabaseMappingEntry(databaseName: db, isMapped: false, userName: nil, defaultSchema: nil)
-                    }
-                }
-            }
-        } catch { }
-    }
-
-    private func loadDatabaseRoles(for database: String) async {
-        guard let mssql = session.session as? MSSQLSession else { return }
-        let entry = databaseMappingEntries.first(where: { $0.databaseName == database })
-        guard let userName = entry?.userName, entry?.isMapped == true else {
-            await MainActor.run { databaseRoleMemberships = [] }
-            return
-        }
-
-        await MainActor.run { loadingDatabaseRoles = true }
-        do {
-            let ssec = mssql.serverSecurity
-            let roles = try await ssec.listDatabaseRolesForUser(database: database, userName: userName)
-            await MainActor.run {
-                databaseRoleMemberships = roles.map { DatabaseRoleMembershipEntry(roleName: $0.roleName, isMember: $0.isMember) }
-                loadingDatabaseRoles = false
-            }
-        } catch {
-            await MainActor.run { loadingDatabaseRoles = false }
-        }
-    }
-
-    private func toggleDatabaseRole(database: String, role: String, isMember: Bool) async {
-        guard let mssql = session.session as? MSSQLSession else { return }
-        let entry = databaseMappingEntries.first(where: { $0.databaseName == database })
-        guard let userName = entry?.userName else { return }
-
-        do {
-            let ssec = mssql.serverSecurity
-            if isMember {
-                try await ssec.addUserToDatabaseRole(database: database, userName: userName, role: role)
-            } else {
-                try await ssec.removeUserFromDatabaseRole(database: database, userName: userName, role: role)
-            }
-        } catch {
-            await MainActor.run { errorMessage = error.localizedDescription }
-            // Reload to get accurate state
-            await loadDatabaseRoles(for: database)
-        }
-    }
-
-    // MARK: - Submit
-
-    private func submit() async {
-        guard let mssql = session.session as? MSSQLSession else {
-            errorMessage = "Not connected to a SQL Server instance"
-            return
-        }
-
-        let name = loginName.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !name.isEmpty else {
-            errorMessage = "Login name is required"
-            return
-        }
-
-        isSubmitting = true
-        errorMessage = nil
-
-        do {
-            let ssec = mssql.serverSecurity
-
-            if isEditing {
-                // Update login properties
-                if authType == .sql && !password.isEmpty {
-                    try await ssec.setLoginPassword(name: name, newPassword: password)
-                }
-                try await ssec.enableLogin(name: name, enabled: loginEnabled)
-                try await ssec.alterLogin(name: name, options: .init(
-                    defaultDatabase: defaultDatabase,
-                    defaultLanguage: defaultLanguage.isEmpty ? nil : defaultLanguage,
-                    checkPolicy: authType == .sql ? enforcePasswordPolicy : nil,
-                    checkExpiration: authType == .sql ? enforcePasswordExpiration : nil
-                ))
-            } else {
-                // Create new login
-                if authType == .sql {
-                    try await ssec.createSqlLogin(name: name, password: password, options: .init(
-                        defaultDatabase: defaultDatabase,
-                        defaultLanguage: defaultLanguage.isEmpty ? nil : defaultLanguage,
-                        checkPolicy: enforcePasswordPolicy,
-                        checkExpiration: enforcePasswordExpiration
-                    ))
-                } else {
-                    try await ssec.createWindowsLogin(name: name)
-                }
-
-                if !loginEnabled {
-                    try await ssec.enableLogin(name: name, enabled: false)
-                }
-            }
-
-            // Sync server role memberships
-            for role in availableServerRoles where role.name != "public" {
-                let currentMembers = try await ssec.listServerRoleMembers(role: role.name)
-                let isCurrentlyMember = currentMembers.contains(where: { $0.caseInsensitiveCompare(name) == .orderedSame })
-
-                if role.isMember && !isCurrentlyMember {
-                    try await ssec.addMemberToServerRole(role: role.name, principal: name)
-                } else if !role.isMember && isCurrentlyMember {
-                    try await ssec.removeMemberFromServerRole(role: role.name, principal: name)
-                }
-            }
-
-            await MainActor.run {
-                isSubmitting = false
-                onComplete()
-            }
-        } catch {
-            await MainActor.run {
-                isSubmitting = false
-                errorMessage = error.localizedDescription
-            }
-        }
-    }
 }
 
 // MARK: - Supporting Types
 
-private enum LoginPage: String, Hashable {
+enum LoginPage: String, Hashable {
     case general
     case serverRoles
     case databaseMapping
@@ -620,19 +356,19 @@ private enum LoginPage: String, Hashable {
     }
 }
 
-private enum AuthType: Hashable {
+enum AuthType: Hashable {
     case sql
     case windows
 }
 
-private struct RoleEntry: Identifiable, Hashable {
+struct RoleEntry: Identifiable, Hashable {
     var id: String { name }
     let name: String
     let isFixed: Bool
     var isMember: Bool
 }
 
-private struct DatabaseMappingEntry: Identifiable, Hashable {
+struct DatabaseMappingEntry: Identifiable, Hashable {
     var id: String { databaseName }
     let databaseName: String
     var isMapped: Bool
@@ -640,7 +376,7 @@ private struct DatabaseMappingEntry: Identifiable, Hashable {
     var defaultSchema: String?
 }
 
-private struct DatabaseRoleMembershipEntry: Identifiable, Hashable {
+struct DatabaseRoleMembershipEntry: Identifiable, Hashable {
     var id: String { roleName }
     let roleName: String
     var isMember: Bool

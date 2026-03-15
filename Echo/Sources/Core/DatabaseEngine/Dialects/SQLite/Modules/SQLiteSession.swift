@@ -34,7 +34,8 @@ actor SQLiteSession: DatabaseSession {
 
     func normalizedDatabaseName(_ name: String?) -> String {
         let trimmed = name?.trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmed?.isEmpty ?? true ? "main" : trimmed!
+        guard let trimmed, !trimmed.isEmpty else { return "main" }
+        return trimmed
     }
 
     func quoteIdentifier(_ identifier: String) -> String {

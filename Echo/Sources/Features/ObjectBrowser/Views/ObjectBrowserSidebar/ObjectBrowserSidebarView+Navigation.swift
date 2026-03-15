@@ -3,7 +3,7 @@ import SwiftUI
 extension ObjectBrowserSidebarView {
     internal func selectSession(_ session: ConnectionSession) {
         selectedConnectionID = session.connection.id
-        environmentState.sessionCoordinator.setActiveSession(session.id)
+        environmentState.sessionGroup.setActiveSession(session.id)
         viewModel.ensureServerExpanded(for: session.connection.id, sessions: sessions)
     }
 

@@ -17,7 +17,7 @@ final class ConnectionSession: ObservableObject, Identifiable {
     let id: UUID
     let connection: SavedConnection
     let session: DatabaseSession
-    private let spoolManager: ResultSpoolCoordinator
+    private let spoolManager: ResultSpooler
 
     @Published var selectedDatabaseName: String?
     @Published var databaseStructure: DatabaseStructure?
@@ -41,7 +41,7 @@ final class ConnectionSession: ObservableObject, Identifiable {
         defaultInitialBatchSize: Int = 500,
         defaultBackgroundStreamingThreshold: Int = 512,
         defaultBackgroundFetchSize: Int = 4_096,
-        spoolManager: ResultSpoolCoordinator
+        spoolManager: ResultSpooler
     ) {
         self.id = id
         self.connection = connection
@@ -231,7 +231,7 @@ final class ConnectionSession: ObservableObject, Identifiable {
 
     @discardableResult
     func addExtensionsManagerTab(databaseName: String) -> WorkspaceTab {
-        let viewModel = PostgresExtensionsManagerViewModel(
+        let viewModel = PostgresExtensionsViewModel(
             databaseName: databaseName,
             session: self
         )
@@ -326,7 +326,7 @@ final class ConnectionSession: ObservableObject, Identifiable {
 
 /// Manages multiple active database connections and provides server switching functionality
 @MainActor
-final class ActiveSessionCoordinator: ObservableObject {
+final class ActiveSessionGroup: ObservableObject {
     @Published var activeSessions: [ConnectionSession] = []
     @Published var activeSessionID: UUID?
     @Published var isServerSwitcherVisible = false

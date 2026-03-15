@@ -41,7 +41,7 @@ final class PostgresExtensionStructureViewModel: ObservableObject {
                 objs: dbSession.listExtensionObjects(extensionName: extensionName),
                 installed: dbSession.listExtensions(),
                 available: metaSession.listAvailableExtensions(),
-                marketplace: PostgresMarketplaceService.shared.searchExtensions(query: extensionName)
+                marketplace: PostgresMarketplace.shared.searchExtensions(query: extensionName)
             )
             
             let (objs, installed, available, marketplace) = try await (fetches.objs, fetches.installed, fetches.available, fetches.marketplace)

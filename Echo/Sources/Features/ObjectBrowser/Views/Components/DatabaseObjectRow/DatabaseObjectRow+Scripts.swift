@@ -3,7 +3,7 @@ import EchoSense
 
 extension DatabaseObjectRow {
     internal func openCreateDefinition(insertOrReplace: Bool) {
-        guard let session = environmentState.sessionCoordinator.sessionForConnection(connection.id) else { return }
+        guard let session = environmentState.sessionGroup.sessionForConnection(connection.id) else { return }
         Task {
             do {
                 let definition = try await session.session.getObjectDefinition(
@@ -24,7 +24,7 @@ extension DatabaseObjectRow {
     }
     
     internal func openCreateTableScript() {
-        guard let session = environmentState.sessionCoordinator.sessionForConnection(connection.id) else { return }
+        guard let session = environmentState.sessionGroup.sessionForConnection(connection.id) else { return }
         Task {
             do {
                 let details = try await session.session.getTableStructureDetails(
@@ -133,7 +133,7 @@ extension DatabaseObjectRow {
     }
 
     internal func openScriptTab(with sql: String) {
-        guard let session = environmentState.sessionCoordinator.sessionForConnection(connection.id) else { return }
+        guard let session = environmentState.sessionGroup.sessionForConnection(connection.id) else { return }
         Task { @MainActor in
             environmentState.openQueryTab(for: session, presetQuery: sql, database: databaseName)
         }

@@ -14,7 +14,7 @@ struct SavedConnectionExplorerRow: View {
     }
 
     private var isAlreadyConnected: Bool {
-        environmentState.sessionCoordinator.sessionForConnection(connection.id) != nil
+        environmentState.sessionGroup.sessionForConnection(connection.id) != nil
     }
 
     private var accentColor: Color {

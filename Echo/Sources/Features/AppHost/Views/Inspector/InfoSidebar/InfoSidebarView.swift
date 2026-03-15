@@ -100,7 +100,7 @@ struct InfoSidebarView: View {
                 )
             }
 
-            if let session = environmentState.sessionCoordinator.activeSession {
+            if let session = environmentState.sessionGroup.activeSession {
                 let sessionFields: [ForeignKeyInspectorContent.Field] = [
                     .init(label: "Active Database", value: session.selectedDatabaseName ?? "None"),
                     .init(

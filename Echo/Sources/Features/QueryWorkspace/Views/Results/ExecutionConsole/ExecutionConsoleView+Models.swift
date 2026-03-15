@@ -38,7 +38,7 @@ extension ExecutionConsoleView {
                 }
             }
 
-            @MainActor func tint(using accent: Color) -> Color {
+            func tint(using accent: Color) -> Color {
                 switch self {
                 case .info:
                     return accent

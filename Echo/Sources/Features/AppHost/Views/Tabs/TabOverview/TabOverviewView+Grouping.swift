@@ -38,11 +38,11 @@ extension TabOverviewView {
     }
 
     var activeConnectionID: UUID? {
-        environmentState.sessionCoordinator.activeConnectionID
+        environmentState.sessionGroup.activeConnectionID
     }
 
     var activeDatabaseName: String? {
-        environmentState.sessionCoordinator.activeDatabaseName
+        environmentState.sessionGroup.activeDatabaseName
     }
 
     var heroAccentColor: Color {

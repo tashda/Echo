@@ -9,7 +9,7 @@ struct RefreshToolbarButton: View {
     @State private var refreshTask: Task<Void, Never>?
 
     private var activeSession: ConnectionSession? {
-        environmentState.sessionCoordinator.activeSession ?? environmentState.sessionCoordinator.activeSessions.first
+        environmentState.sessionGroup.activeSession ?? environmentState.sessionGroup.activeSessions.first
     }
 
     var body: some View {

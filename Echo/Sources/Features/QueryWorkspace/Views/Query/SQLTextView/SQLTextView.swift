@@ -3,7 +3,6 @@ import AppKit
 import Combine
 import EchoSense
 
-@MainActor
 final class SQLTextView: NSTextView, NSTextViewDelegate {
     weak var sqlDelegate: SQLTextViewDelegate?
     weak var clipboardHistory: ClipboardHistoryStore?

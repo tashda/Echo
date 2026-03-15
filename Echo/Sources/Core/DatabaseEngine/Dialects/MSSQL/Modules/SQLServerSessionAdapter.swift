@@ -2,6 +2,22 @@ import Foundation
 import SQLServerKit
 import Logging
 
+/// Serializes metadata trace file writes to avoid data races
+private actor MetadataTraceWriter {
+    func append(_ data: Data, to path: String) {
+        let url = URL(fileURLWithPath: path)
+        if FileManager.default.fileExists(atPath: path) {
+            if let handle = try? FileHandle(forWritingTo: url) {
+                defer { try? handle.close() }
+                handle.seekToEndOfFile()
+                try? handle.write(contentsOf: data)
+            }
+        } else {
+            try? data.write(to: url, options: .atomic)
+        }
+    }
+}
+
 /// Adapter to make SQLServerClient conform to Echo's DatabaseSession protocol
 final class SQLServerSessionAdapter: DatabaseSession, MSSQLSession {
     let client: SQLServerClient
@@ -9,7 +25,7 @@ final class SQLServerSessionAdapter: DatabaseSession, MSSQLSession {
     let logger = Logger(label: "dk.tippr.echo.mssql.metadata")
     let metadataTraceEnabled = ProcessInfo.processInfo.environment["MSSQL_METADATA_TRACE"] == "1"
     let metadataTracePath: String?
-    static let metadataTraceQueue = DispatchQueue(label: "dk.tippr.echo.mssql.metadata.trace")
+    private static let traceWriter = MetadataTraceWriter()
 
     init(client: SQLServerClient, database: String?) {
         self.client = client
@@ -37,17 +53,8 @@ final class SQLServerSessionAdapter: DatabaseSession, MSSQLSession {
         guard let path = metadataTracePath else { return }
         let payload = line + "\n"
         guard let data = payload.data(using: .utf8) else { return }
-        Self.metadataTraceQueue.async {
-            let url = URL(fileURLWithPath: path)
-            if FileManager.default.fileExists(atPath: path) {
-                if let handle = try? FileHandle(forWritingTo: url) {
-                    defer { try? handle.close() }
-                    handle.seekToEndOfFile()
-                    try? handle.write(contentsOf: data)
-                }
-            } else {
-                try? data.write(to: url, options: .atomic)
-            }
+        Task {
+            await Self.traceWriter.append(data, to: path)
         }
     }
 

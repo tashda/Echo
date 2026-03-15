@@ -193,7 +193,7 @@ struct TabPreviewCard: View {
             }
         case .extensionsManager:
             if let vm = tab.extensionsManager {
-                ExtensionsManagerTabPreview(viewModel: vm)
+                ExtensionsTabPreview(viewModel: vm)
             } else {
                 EmptyPreviewPlaceholder(message: "Manager unavailable")
             }

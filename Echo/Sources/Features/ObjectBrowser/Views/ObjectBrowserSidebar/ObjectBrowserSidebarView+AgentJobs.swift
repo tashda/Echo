@@ -233,7 +233,7 @@ extension ObjectBrowserSidebarView {
 
                 Image(systemName: "clock")
                     .font(TypographyTokens.detail)
-                    .foregroundStyle(job.enabled ? agentJobStatusColor(job.lastOutcome, enabled: true) : Color(nsColor: .quaternaryLabelColor))
+                    .foregroundStyle(job.enabled ? agentJobStatusColor(job.lastOutcome, enabled: true) : ColorTokens.Text.quaternary)
                     .frame(width: SidebarRowConstants.iconFrame)
 
                 Text(job.name)

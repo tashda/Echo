@@ -2,7 +2,7 @@ import SwiftUI
 
 struct SettingsWindowScene: Scene {
     static let sceneID = "settings-window"
-    private let coordinator = AppCoordinator.shared
+    private let coordinator = AppDirector.shared
 
     var body: some Scene {
         Window("Settings", id: Self.sceneID) {
