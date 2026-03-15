@@ -1,4 +1,5 @@
 import XCTest
+import SQLServerKit
 @testable import Echo
 
 /// Tests SQL Server table DDL operations through Echo's DatabaseSession layer.
@@ -8,13 +9,11 @@ final class MSSQLTableOperationsTests: MSSQLDockerTestCase {
 
     func testCreateTable() async throws {
         let tableName = uniqueTableName()
-        try await execute("""
-            CREATE TABLE dbo.[\(tableName)] (
-                id INT IDENTITY(1,1) PRIMARY KEY,
-                name NVARCHAR(100) NOT NULL,
-                created_at DATETIME2 DEFAULT GETDATE()
-            )
-        """)
+        try await sqlserverClient.admin.createTable(name: tableName, columns: [
+            SQLServerColumnDefinition(name: "id", definition: .standard(.init(dataType: .int, isPrimaryKey: true, identity: (seed: 1, increment: 1)))),
+            SQLServerColumnDefinition(name: "name", definition: .standard(.init(dataType: .nvarchar(length: .length(100))))),
+            SQLServerColumnDefinition(name: "created_at", definition: .standard(.init(dataType: .datetime2(precision: 7), defaultValue: "GETDATE()"))),
+        ])
         cleanupSQL("DROP TABLE dbo.[\(tableName)]")
 
         let objects = try await session.listTablesAndViews(schema: "dbo")
@@ -25,20 +24,28 @@ final class MSSQLTableOperationsTests: MSSQLDockerTestCase {
         let parentTable = uniqueTableName(prefix: "parent")
         let childTable = uniqueTableName(prefix: "child")
 
-        try await execute("""
-            CREATE TABLE dbo.[\(parentTable)] (
-                id INT PRIMARY KEY,
-                code NVARCHAR(10) UNIQUE NOT NULL
-            )
-        """)
-        try await execute("""
-            CREATE TABLE dbo.[\(childTable)] (
-                id INT PRIMARY KEY,
-                parent_id INT NOT NULL REFERENCES dbo.[\(parentTable)](id),
-                value INT CHECK (value >= 0),
-                status NVARCHAR(20) DEFAULT 'active'
-            )
-        """)
+        try await sqlserverClient.admin.createTable(name: parentTable, columns: [
+            SQLServerColumnDefinition(name: "id", definition: .standard(.init(dataType: .int, isPrimaryKey: true))),
+            SQLServerColumnDefinition(name: "code", definition: .standard(.init(dataType: .nvarchar(length: .length(10)), isUnique: true))),
+        ])
+        try await sqlserverClient.admin.createTable(name: childTable, columns: [
+            SQLServerColumnDefinition(name: "id", definition: .standard(.init(dataType: .int, isPrimaryKey: true))),
+            SQLServerColumnDefinition(name: "parent_id", definition: .standard(.init(dataType: .int))),
+            SQLServerColumnDefinition(name: "value", definition: .standard(.init(dataType: .int))),
+            SQLServerColumnDefinition(name: "status", definition: .standard(.init(dataType: .nvarchar(length: .length(20)), defaultValue: "N'active'"))),
+        ])
+        try await sqlserverClient.constraints.addForeignKey(
+            name: "FK_\(childTable)_parent",
+            table: childTable,
+            columns: ["parent_id"],
+            referencedTable: parentTable,
+            referencedColumns: ["id"]
+        )
+        try await sqlserverClient.constraints.addCheckConstraint(
+            name: "CK_\(childTable)_value",
+            table: childTable,
+            expression: "[value] >= 0"
+        )
         cleanupSQL(
             "DROP TABLE dbo.[\(childTable)]",
             "DROP TABLE dbo.[\(parentTable)]"
@@ -55,7 +62,9 @@ final class MSSQLTableOperationsTests: MSSQLDockerTestCase {
     func testRenameTable() async throws {
         let oldName = uniqueTableName(prefix: "old")
         let newName = uniqueTableName(prefix: "new")
-        try await execute("CREATE TABLE dbo.[\(oldName)] (id INT PRIMARY KEY)")
+        try await sqlserverClient.admin.createTable(name: oldName, columns: [
+            SQLServerColumnDefinition(name: "id", definition: .standard(.init(dataType: .int, isPrimaryKey: true))),
+        ])
         cleanupSQL(
             "DROP TABLE IF EXISTS dbo.[\(newName)]",
             "DROP TABLE IF EXISTS dbo.[\(oldName)]"
@@ -73,7 +82,9 @@ final class MSSQLTableOperationsTests: MSSQLDockerTestCase {
 
     func testDropTable() async throws {
         let tableName = uniqueTableName()
-        try await execute("CREATE TABLE dbo.[\(tableName)] (id INT)")
+        try await sqlserverClient.admin.createTable(name: tableName, columns: [
+            SQLServerColumnDefinition(name: "id", definition: .standard(.init(dataType: .int))),
+        ])
 
         try await session.dropTable(schema: "dbo", name: tableName, ifExists: false)
 
@@ -91,8 +102,19 @@ final class MSSQLTableOperationsTests: MSSQLDockerTestCase {
 
     func testTruncateTable() async throws {
         let tableName = uniqueTableName()
-        try await execute("CREATE TABLE dbo.[\(tableName)] (id INT, name NVARCHAR(50))")
-        try await execute("INSERT INTO dbo.[\(tableName)] VALUES (1, 'a'), (2, 'b'), (3, 'c')")
+        try await sqlserverClient.admin.createTable(name: tableName, columns: [
+            SQLServerColumnDefinition(name: "id", definition: .standard(.init(dataType: .int))),
+            SQLServerColumnDefinition(name: "name", definition: .standard(.init(dataType: .nvarchar(length: .length(50))))),
+        ])
+        try await sqlserverClient.admin.insertRows(
+            into: tableName,
+            columns: ["id", "name"],
+            values: [
+                [.int(1), .nString("a")],
+                [.int(2), .nString("b")],
+                [.int(3), .nString("c")],
+            ]
+        )
         cleanupSQL("DROP TABLE dbo.[\(tableName)]")
 
         // Verify data exists
@@ -109,17 +131,21 @@ final class MSSQLTableOperationsTests: MSSQLDockerTestCase {
 
     func testCreateInsertSelectDrop() async throws {
         let tableName = uniqueTableName()
-        try await execute("""
-            CREATE TABLE dbo.[\(tableName)] (
-                id INT PRIMARY KEY,
-                name NVARCHAR(50) NOT NULL,
-                score DECIMAL(5,2)
-            )
-        """)
+        try await sqlserverClient.admin.createTable(name: tableName, columns: [
+            SQLServerColumnDefinition(name: "id", definition: .standard(.init(dataType: .int, isPrimaryKey: true))),
+            SQLServerColumnDefinition(name: "name", definition: .standard(.init(dataType: .nvarchar(length: .length(50))))),
+            SQLServerColumnDefinition(name: "score", definition: .standard(.init(dataType: .decimal(precision: 5, scale: 2)))),
+        ])
         cleanupSQL("DROP TABLE dbo.[\(tableName)]")
 
-        try await execute("INSERT INTO dbo.[\(tableName)] VALUES (1, 'Alice', 95.5)")
-        try await execute("INSERT INTO dbo.[\(tableName)] VALUES (2, 'Bob', 87.3)")
+        try await sqlserverClient.admin.insertRow(
+            into: tableName,
+            values: ["id": .int(1), "name": .nString("Alice"), "score": .decimal("95.5")]
+        )
+        try await sqlserverClient.admin.insertRow(
+            into: tableName,
+            values: ["id": .int(2), "name": .nString("Bob"), "score": .decimal("87.3")]
+        )
 
         let result = try await query("SELECT * FROM dbo.[\(tableName)] ORDER BY id")
         IntegrationTestHelpers.assertRowCount(result, expected: 2)

@@ -1,4 +1,5 @@
 import XCTest
+import SQLServerKit
 @testable import Echo
 
 /// Tests SQL Server stored procedure operations through Echo's DatabaseSession layer.
@@ -8,14 +9,13 @@ final class MSSQLProcedureTests: MSSQLDockerTestCase {
 
     func testCreateAndExecuteProcedure() async throws {
         let procName = uniqueTableName(prefix: "usp")
-        try await execute("""
-            CREATE PROCEDURE [\(procName)]
-                @value INT
-            AS
-            BEGIN
-                SELECT @value * 2 AS doubled;
-            END
-        """)
+        try await sqlserverClient.routines.createStoredProcedure(
+            name: procName,
+            parameters: [
+                ProcedureParameter(name: "@value", dataType: .int)
+            ],
+            body: "SELECT @value * 2 AS doubled;"
+        )
         cleanupSQL("DROP PROCEDURE [\(procName)]")
 
         let result = try await query("EXEC [\(procName)] @value = 21")
@@ -24,15 +24,14 @@ final class MSSQLProcedureTests: MSSQLDockerTestCase {
 
     func testProcedureWithMultipleParameters() async throws {
         let procName = uniqueTableName(prefix: "usp")
-        try await execute("""
-            CREATE PROCEDURE [\(procName)]
-                @first NVARCHAR(50),
-                @last NVARCHAR(50)
-            AS
-            BEGIN
-                SELECT @first + ' ' + @last AS full_name;
-            END
-        """)
+        try await sqlserverClient.routines.createStoredProcedure(
+            name: procName,
+            parameters: [
+                ProcedureParameter(name: "@first", dataType: .nvarchar(length: .length(50))),
+                ProcedureParameter(name: "@last", dataType: .nvarchar(length: .length(50))),
+            ],
+            body: "SELECT @first + ' ' + @last AS full_name;"
+        )
         cleanupSQL("DROP PROCEDURE [\(procName)]")
 
         let result = try await query("EXEC [\(procName)] @first = 'John', @last = 'Doe'")
@@ -42,16 +41,21 @@ final class MSSQLProcedureTests: MSSQLDockerTestCase {
     func testProcedureWithTableOperations() async throws {
         let tableName = uniqueTableName()
         let procName = uniqueTableName(prefix: "usp")
-        try await execute("CREATE TABLE [\(tableName)] (id INT PRIMARY KEY, name NVARCHAR(100))")
-        try await execute("""
-            CREATE PROCEDURE [\(procName)]
-                @id INT, @name NVARCHAR(100)
-            AS
-            BEGIN
+        try await sqlserverClient.admin.createTable(name: tableName, columns: [
+            SQLServerColumnDefinition(name: "id", definition: .standard(.init(dataType: .int, isPrimaryKey: true))),
+            SQLServerColumnDefinition(name: "name", definition: .standard(.init(dataType: .nvarchar(length: .length(100))))),
+        ])
+        try await sqlserverClient.routines.createStoredProcedure(
+            name: procName,
+            parameters: [
+                ProcedureParameter(name: "@id", dataType: .int),
+                ProcedureParameter(name: "@name", dataType: .nvarchar(length: .length(100))),
+            ],
+            body: """
                 INSERT INTO [\(tableName)] (id, name) VALUES (@id, @name);
                 SELECT * FROM [\(tableName)] WHERE id = @id;
-            END
-        """)
+            """
+        )
         cleanupSQL(
             "DROP PROCEDURE [\(procName)]",
             "DROP TABLE [\(tableName)]"
@@ -65,14 +69,14 @@ final class MSSQLProcedureTests: MSSQLDockerTestCase {
 
     func testAlterProcedure() async throws {
         let procName = uniqueTableName(prefix: "usp")
-        try await execute("""
-            CREATE PROCEDURE [\(procName)] AS SELECT 1 AS original;
-        """)
+        try await sqlserverClient.routines.createStoredProcedure(
+            name: procName,
+            body: "SELECT 1 AS original;"
+        )
         cleanupSQL("DROP PROCEDURE [\(procName)]")
 
-        try await execute("""
-            ALTER PROCEDURE [\(procName)] AS SELECT 2 AS modified;
-        """)
+        // ALTER PROCEDURE — no typed API, use raw SQL
+        try await execute("ALTER PROCEDURE [\(procName)] AS SELECT 2 AS modified;")
 
         let result = try await query("EXEC [\(procName)]")
         XCTAssertEqual(result.rows[0][0], "2")
@@ -82,9 +86,12 @@ final class MSSQLProcedureTests: MSSQLDockerTestCase {
 
     func testDropProcedure() async throws {
         let procName = uniqueTableName(prefix: "usp")
-        try await execute("CREATE PROCEDURE [\(procName)] AS SELECT 1;")
+        try await sqlserverClient.routines.createStoredProcedure(
+            name: procName,
+            body: "SELECT 1;"
+        )
 
-        try await execute("DROP PROCEDURE [\(procName)]")
+        try await sqlserverClient.routines.dropStoredProcedure(name: procName)
 
         // Verify it's gone
         do {
@@ -99,14 +106,13 @@ final class MSSQLProcedureTests: MSSQLDockerTestCase {
 
     func testGetProcedureDefinition() async throws {
         let procName = uniqueTableName(prefix: "usp")
-        try await execute("""
-            CREATE PROCEDURE dbo.[\(procName)]
-                @id INT
-            AS
-            BEGIN
-                SELECT @id AS result_id;
-            END
-        """)
+        try await sqlserverClient.routines.createStoredProcedure(
+            name: procName,
+            parameters: [
+                ProcedureParameter(name: "@id", dataType: .int)
+            ],
+            body: "SELECT @id AS result_id;"
+        )
         cleanupSQL("DROP PROCEDURE dbo.[\(procName)]")
 
         let definition = try await session.getObjectDefinition(
@@ -119,14 +125,13 @@ final class MSSQLProcedureTests: MSSQLDockerTestCase {
 
     func testProcedureReturnsMultipleResultSets() async throws {
         let procName = uniqueTableName(prefix: "usp")
-        try await execute("""
-            CREATE PROCEDURE [\(procName)]
-            AS
-            BEGIN
+        try await sqlserverClient.routines.createStoredProcedure(
+            name: procName,
+            body: """
                 SELECT 1 AS first_set;
                 SELECT 'a' AS col_a, 'b' AS col_b;
-            END
-        """)
+            """
+        )
         cleanupSQL("DROP PROCEDURE [\(procName)]")
 
         let result = try await query("EXEC [\(procName)]")

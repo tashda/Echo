@@ -82,18 +82,6 @@ extension ObjectBrowserSidebarView {
             .disabled(!database.isOnline)
 
             Button {
-                environmentState.openExtendedEventsTab(connectionID: connID)
-            } label: {
-                Label("Extended Events", systemImage: "waveform.path.ecg")
-            }
-
-            Button {
-                environmentState.openAvailabilityGroupsTab(connectionID: connID)
-            } label: {
-                Label("Availability Groups", systemImage: "server.rack")
-            }
-
-            Button {
                 viewModel.changeTrackingDatabaseName = database.name
                 viewModel.changeTrackingConnectionID = connID
                 viewModel.showChangeTrackingSheet = true

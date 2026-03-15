@@ -17,10 +17,12 @@ struct QueryStoreToolbar: View {
     }
 
     private var sectionPicker: some View {
-        Picker("Section", selection: $viewModel.selectedSection) {
+        Picker(selection: $viewModel.selectedSection) {
             ForEach(QueryStoreViewModel.SelectedSection.allCases, id: \.self) { section in
                 Text(section.rawValue).tag(section)
             }
+        } label: {
+            EmptyView()
         }
         .pickerStyle(.segmented)
         .frame(maxWidth: 280)

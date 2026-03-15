@@ -1,4 +1,5 @@
 import XCTest
+import PostgresKit
 @testable import Echo
 
 /// Tests PostgreSQL query streaming through Echo's DatabaseSession layer.
@@ -162,28 +163,44 @@ final class PGStreamingTests: PostgresDockerTestCase {
     // MARK: - Empty Result with Progress Handler
 
     func testEmptyResultWithProgressHandler() async throws {
-        try await withTempTable(columns: "id SERIAL PRIMARY KEY, name TEXT, value INTEGER") { tableName in
-            let progressCalled = LockIsolated(false)
-            let result = try await session.simpleQuery(
-                "SELECT * FROM \(tableName)",
-                progressHandler: { _ in
-                    progressCalled.setValue(true)
-                }
-            )
-            XCTAssertEqual(result.rows.count, 0)
-        }
+        let tableName = uniqueName()
+        try await postgresClient.admin.createTable(name: tableName, columns: [
+            .serial(name: "id", primaryKey: true),
+            .text(name: "name"),
+            .integer(name: "value")
+        ])
+        cleanupSQL("DROP TABLE IF EXISTS \(tableName)")
+
+        let progressCalled = LockIsolated(false)
+        let result = try await session.simpleQuery(
+            "SELECT * FROM \(tableName)",
+            progressHandler: { _ in
+                progressCalled.setValue(true)
+            }
+        )
+        XCTAssertEqual(result.rows.count, 0)
     }
 
     func testEmptyResultFromWhereClause() async throws {
-        try await withTempTable(columns: "id SERIAL PRIMARY KEY, name TEXT, value INTEGER") { tableName in
-            try await execute("INSERT INTO \(tableName) (name, value) VALUES ('test', 1)")
+        let tableName = uniqueName()
+        try await postgresClient.admin.createTable(name: tableName, columns: [
+            .serial(name: "id", primaryKey: true),
+            .text(name: "name"),
+            .integer(name: "value")
+        ])
+        cleanupSQL("DROP TABLE IF EXISTS \(tableName)")
 
-            let result = try await session.simpleQuery(
-                "SELECT * FROM \(tableName) WHERE name = 'nonexistent'",
-                progressHandler: { _ in }
-            )
-            XCTAssertEqual(result.rows.count, 0)
-        }
+        try await postgresClient.connection.insert(
+            into: tableName,
+            columns: ["name", "value"],
+            values: [["test", 1] as [Any]]
+        )
+
+        let result = try await session.simpleQuery(
+            "SELECT * FROM \(tableName) WHERE name = 'nonexistent'",
+            progressHandler: { _ in }
+        )
+        XCTAssertEqual(result.rows.count, 0)
     }
 
     // MARK: - Mixed Data Types in Stream
@@ -313,17 +330,30 @@ final class PGStreamingTests: PostgresDockerTestCase {
     // MARK: - Column Metadata Preservation
 
     func testColumnMetadataForTypedQuery() async throws {
-        try await withTempTable(
-            columns: "id SERIAL PRIMARY KEY, name VARCHAR(100), score NUMERIC(5,2), active BOOLEAN"
-        ) { tableName in
-            try await execute("INSERT INTO \(tableName) (name, score, active) VALUES ('Test', 95.50, TRUE)")
+        let tableName = uniqueName()
+        try await postgresClient.admin.createTable(name: tableName, columns: [
+            .serial(name: "id", primaryKey: true),
+            .varchar(name: "name", length: 100),
+            .decimal(name: "score", precision: 5, scale: 2),
+            .boolean(name: "active")
+        ])
+        cleanupSQL("DROP TABLE IF EXISTS \(tableName)")
 
-            let result = try await query("SELECT * FROM \(tableName)")
-            XCTAssertEqual(result.columns.count, 4)
-            IntegrationTestHelpers.assertHasColumn(result, named: "id")
-            IntegrationTestHelpers.assertHasColumn(result, named: "name")
-            IntegrationTestHelpers.assertHasColumn(result, named: "score")
-            IntegrationTestHelpers.assertHasColumn(result, named: "active")
-        }
+        try await postgresClient.connection.insert(
+            into: tableName,
+            columns: ["name", "score", "active"],
+            values: [[
+                PostgresInsertValue.bind("Test"),
+                PostgresInsertValue.sql("95.50"),
+                PostgresInsertValue.sql("TRUE")
+            ]]
+        )
+
+        let result = try await query("SELECT * FROM \(tableName)")
+        XCTAssertEqual(result.columns.count, 4)
+        IntegrationTestHelpers.assertHasColumn(result, named: "id")
+        IntegrationTestHelpers.assertHasColumn(result, named: "name")
+        IntegrationTestHelpers.assertHasColumn(result, named: "score")
+        IntegrationTestHelpers.assertHasColumn(result, named: "active")
     }
 }

@@ -1,4 +1,5 @@
 import XCTest
+import PostgresKit
 @testable import Echo
 
 /// Tests PostgreSQL trigger operations through Echo's DatabaseSession layer.
@@ -11,33 +12,37 @@ final class PGTriggerTests: PostgresDockerTestCase {
         let triggerName = uniqueName(prefix: "trg_bi")
         let funcName = uniqueName(prefix: "fn_bi")
 
-        try await execute("""
-            CREATE TABLE \(tableName) (
-                id SERIAL PRIMARY KEY,
-                name TEXT,
-                created_at TIMESTAMP
-            )
-        """)
+        try await postgresClient.admin.createTable(name: tableName, columns: [
+            .serial(name: "id", primaryKey: true),
+            .text(name: "name"),
+            .timestamp(name: "created_at", defaultValue: nil)
+        ])
         cleanupSQL("DROP TABLE IF EXISTS \(tableName) CASCADE")
 
-        try await execute("""
-            CREATE OR REPLACE FUNCTION \(funcName)()
-            RETURNS TRIGGER AS $$
-            BEGIN
-                NEW.created_at := NOW();
-                RETURN NEW;
-            END;
-            $$ LANGUAGE plpgsql
-        """)
+        try await postgresClient.admin.createFunction(
+            name: funcName,
+            parameters: [],
+            returnType: "TRIGGER",
+            body: """
+                BEGIN
+                    NEW.created_at := NOW();
+                    RETURN NEW;
+                END;
+                """,
+            language: .plpgsql,
+            orReplace: true
+        )
         cleanupSQL("DROP FUNCTION IF EXISTS \(funcName)() CASCADE")
 
-        try await execute("""
-            CREATE TRIGGER \(triggerName)
-            BEFORE INSERT ON \(tableName)
-            FOR EACH ROW EXECUTE FUNCTION \(funcName)()
-        """)
+        try await postgresClient.admin.createTrigger(
+            name: triggerName,
+            table: tableName,
+            event: .before,
+            operations: [.insert],
+            procedure: "\(funcName)()"
+        )
 
-        try await execute("INSERT INTO \(tableName) (name) VALUES ('Alice')")
+        try await postgresClient.connection.insert(into: tableName, columns: ["name"], values: [["Alice"]])
 
         let result = try await query("SELECT name, created_at FROM \(tableName)")
         IntegrationTestHelpers.assertRowCount(result, expected: 1)
@@ -53,33 +58,46 @@ final class PGTriggerTests: PostgresDockerTestCase {
         let triggerName = uniqueName(prefix: "trg_au")
         let funcName = uniqueName(prefix: "fn_au")
 
-        try await execute("CREATE TABLE \(tableName) (id SERIAL PRIMARY KEY, name TEXT)")
-        try await execute("CREATE TABLE \(logTable) (op TEXT, old_name TEXT, new_name TEXT)")
+        try await postgresClient.admin.createTable(name: tableName, columns: [
+            .serial(name: "id", primaryKey: true),
+            .text(name: "name")
+        ])
+        try await postgresClient.admin.createTable(name: logTable, columns: [
+            .text(name: "op"),
+            .text(name: "old_name"),
+            .text(name: "new_name")
+        ])
         cleanupSQL(
             "DROP TABLE IF EXISTS \(tableName) CASCADE",
             "DROP TABLE IF EXISTS \(logTable) CASCADE"
         )
 
-        try await execute("""
-            CREATE OR REPLACE FUNCTION \(funcName)()
-            RETURNS TRIGGER AS $$
-            BEGIN
-                INSERT INTO \(logTable) (op, old_name, new_name)
-                VALUES ('UPDATE', OLD.name, NEW.name);
-                RETURN NEW;
-            END;
-            $$ LANGUAGE plpgsql
-        """)
+        try await postgresClient.admin.createFunction(
+            name: funcName,
+            parameters: [],
+            returnType: "TRIGGER",
+            body: """
+                BEGIN
+                    INSERT INTO \(logTable) (op, old_name, new_name)
+                    VALUES ('UPDATE', OLD.name, NEW.name);
+                    RETURN NEW;
+                END;
+                """,
+            language: .plpgsql,
+            orReplace: true
+        )
         cleanupSQL("DROP FUNCTION IF EXISTS \(funcName)() CASCADE")
 
-        try await execute("""
-            CREATE TRIGGER \(triggerName)
-            AFTER UPDATE ON \(tableName)
-            FOR EACH ROW EXECUTE FUNCTION \(funcName)()
-        """)
+        try await postgresClient.admin.createTrigger(
+            name: triggerName,
+            table: tableName,
+            event: .after,
+            operations: [.update],
+            procedure: "\(funcName)()"
+        )
 
-        try await execute("INSERT INTO \(tableName) (name) VALUES ('Old')")
-        try await execute("UPDATE \(tableName) SET name = 'New' WHERE name = 'Old'")
+        try await postgresClient.connection.insert(into: tableName, columns: ["name"], values: [["Old"]])
+        try await postgresClient.connection.update(table: tableName, set: ["name": "New"], whereClause: "name = 'Old'")
 
         let result = try await query("SELECT op, old_name, new_name FROM \(logTable)")
         IntegrationTestHelpers.assertRowCount(result, expected: 1)
@@ -96,33 +114,45 @@ final class PGTriggerTests: PostgresDockerTestCase {
         let triggerName = uniqueName(prefix: "trg_ad")
         let funcName = uniqueName(prefix: "fn_ad")
 
-        try await execute("CREATE TABLE \(tableName) (id SERIAL PRIMARY KEY, name TEXT)")
-        try await execute("CREATE TABLE \(logTable) (op TEXT, deleted_name TEXT)")
+        try await postgresClient.admin.createTable(name: tableName, columns: [
+            .serial(name: "id", primaryKey: true),
+            .text(name: "name")
+        ])
+        try await postgresClient.admin.createTable(name: logTable, columns: [
+            .text(name: "op"),
+            .text(name: "deleted_name")
+        ])
         cleanupSQL(
             "DROP TABLE IF EXISTS \(tableName) CASCADE",
             "DROP TABLE IF EXISTS \(logTable) CASCADE"
         )
 
-        try await execute("""
-            CREATE OR REPLACE FUNCTION \(funcName)()
-            RETURNS TRIGGER AS $$
-            BEGIN
-                INSERT INTO \(logTable) (op, deleted_name)
-                VALUES ('DELETE', OLD.name);
-                RETURN OLD;
-            END;
-            $$ LANGUAGE plpgsql
-        """)
+        try await postgresClient.admin.createFunction(
+            name: funcName,
+            parameters: [],
+            returnType: "TRIGGER",
+            body: """
+                BEGIN
+                    INSERT INTO \(logTable) (op, deleted_name)
+                    VALUES ('DELETE', OLD.name);
+                    RETURN OLD;
+                END;
+                """,
+            language: .plpgsql,
+            orReplace: true
+        )
         cleanupSQL("DROP FUNCTION IF EXISTS \(funcName)() CASCADE")
 
-        try await execute("""
-            CREATE TRIGGER \(triggerName)
-            AFTER DELETE ON \(tableName)
-            FOR EACH ROW EXECUTE FUNCTION \(funcName)()
-        """)
+        try await postgresClient.admin.createTrigger(
+            name: triggerName,
+            table: tableName,
+            event: .after,
+            operations: [.delete],
+            procedure: "\(funcName)()"
+        )
 
-        try await execute("INSERT INTO \(tableName) (name) VALUES ('ToDelete')")
-        try await execute("DELETE FROM \(tableName) WHERE name = 'ToDelete'")
+        try await postgresClient.connection.insert(into: tableName, columns: ["name"], values: [["ToDelete"]])
+        try await postgresClient.connection.delete(from: tableName, whereClause: "name = 'ToDelete'")
 
         let result = try await query("SELECT op, deleted_name FROM \(logTable)")
         IntegrationTestHelpers.assertRowCount(result, expected: 1)
@@ -138,39 +168,50 @@ final class PGTriggerTests: PostgresDockerTestCase {
         let triggerName = uniqueName(prefix: "trg_ed")
         let funcName = uniqueName(prefix: "fn_ed")
 
-        try await execute("CREATE TABLE \(tableName) (id SERIAL PRIMARY KEY, name TEXT)")
-        try await execute("CREATE TABLE \(logTable) (op TEXT)")
+        try await postgresClient.admin.createTable(name: tableName, columns: [
+            .serial(name: "id", primaryKey: true),
+            .text(name: "name")
+        ])
+        try await postgresClient.admin.createTable(name: logTable, columns: [
+            .text(name: "op")
+        ])
         cleanupSQL(
             "DROP TABLE IF EXISTS \(tableName) CASCADE",
             "DROP TABLE IF EXISTS \(logTable) CASCADE"
         )
 
-        try await execute("""
-            CREATE OR REPLACE FUNCTION \(funcName)()
-            RETURNS TRIGGER AS $$
-            BEGIN
-                INSERT INTO \(logTable) (op) VALUES ('INSERT');
-                RETURN NEW;
-            END;
-            $$ LANGUAGE plpgsql
-        """)
+        try await postgresClient.admin.createFunction(
+            name: funcName,
+            parameters: [],
+            returnType: "TRIGGER",
+            body: """
+                BEGIN
+                    INSERT INTO \(logTable) (op) VALUES ('INSERT');
+                    RETURN NEW;
+                END;
+                """,
+            language: .plpgsql,
+            orReplace: true
+        )
         cleanupSQL("DROP FUNCTION IF EXISTS \(funcName)() CASCADE")
 
-        try await execute("""
-            CREATE TRIGGER \(triggerName)
-            AFTER INSERT ON \(tableName)
-            FOR EACH ROW EXECUTE FUNCTION \(funcName)()
-        """)
+        try await postgresClient.admin.createTrigger(
+            name: triggerName,
+            table: tableName,
+            event: .after,
+            operations: [.insert],
+            procedure: "\(funcName)()"
+        )
 
         // Disable trigger
-        try await execute("ALTER TABLE \(tableName) DISABLE TRIGGER \(triggerName)")
-        try await execute("INSERT INTO \(tableName) (name) VALUES ('Disabled')")
+        try await postgresClient.admin.alterTrigger(name: triggerName, table: tableName, enabled: false)
+        try await postgresClient.connection.insert(into: tableName, columns: ["name"], values: [["Disabled"]])
         let afterDisable = try await query("SELECT COUNT(*) FROM \(logTable)")
         XCTAssertEqual(afterDisable.rows[0][0], "0", "Trigger should not fire when disabled")
 
         // Re-enable trigger
-        try await execute("ALTER TABLE \(tableName) ENABLE TRIGGER \(triggerName)")
-        try await execute("INSERT INTO \(tableName) (name) VALUES ('Enabled')")
+        try await postgresClient.admin.alterTrigger(name: triggerName, table: tableName, enabled: true)
+        try await postgresClient.connection.insert(into: tableName, columns: ["name"], values: [["Enabled"]])
         let afterEnable = try await query("SELECT COUNT(*) FROM \(logTable)")
         XCTAssertEqual(afterEnable.rows[0][0], "1", "Trigger should fire when re-enabled")
     }
@@ -182,22 +223,30 @@ final class PGTriggerTests: PostgresDockerTestCase {
         let triggerName = uniqueName(prefix: "trg_drop")
         let funcName = uniqueName(prefix: "fn_drop")
 
-        try await execute("CREATE TABLE \(tableName) (id SERIAL PRIMARY KEY)")
+        try await postgresClient.admin.createTable(name: tableName, columns: [
+            .serial(name: "id", primaryKey: true)
+        ])
         cleanupSQL("DROP TABLE IF EXISTS \(tableName) CASCADE")
 
-        try await execute("""
-            CREATE OR REPLACE FUNCTION \(funcName)()
-            RETURNS TRIGGER AS $$ BEGIN RETURN NEW; END; $$ LANGUAGE plpgsql
-        """)
+        try await postgresClient.admin.createFunction(
+            name: funcName,
+            parameters: [],
+            returnType: "TRIGGER",
+            body: "BEGIN RETURN NEW; END;",
+            language: .plpgsql,
+            orReplace: true
+        )
         cleanupSQL("DROP FUNCTION IF EXISTS \(funcName)() CASCADE")
 
-        try await execute("""
-            CREATE TRIGGER \(triggerName)
-            BEFORE INSERT ON \(tableName)
-            FOR EACH ROW EXECUTE FUNCTION \(funcName)()
-        """)
+        try await postgresClient.admin.createTrigger(
+            name: triggerName,
+            table: tableName,
+            event: .before,
+            operations: [.insert],
+            procedure: "\(funcName)()"
+        )
 
-        try await execute("DROP TRIGGER \(triggerName) ON \(tableName)")
+        try await postgresClient.admin.dropTrigger(name: triggerName, table: tableName)
 
         // Verify trigger is gone
         let result = try await query("""
@@ -214,59 +263,68 @@ final class PGTriggerTests: PostgresDockerTestCase {
         let auditTable = uniqueName(prefix: "trg_audit")
         let funcName = uniqueName(prefix: "fn_audit")
 
-        try await execute("""
-            CREATE TABLE \(tableName) (
-                id SERIAL PRIMARY KEY,
-                name TEXT,
-                value INTEGER
-            )
-        """)
-        try await execute("""
-            CREATE TABLE \(auditTable) (
-                audit_id SERIAL PRIMARY KEY,
-                table_name TEXT,
-                operation TEXT,
-                old_data TEXT,
-                new_data TEXT,
-                changed_at TIMESTAMP DEFAULT NOW()
-            )
-        """)
+        try await postgresClient.admin.createTable(name: tableName, columns: [
+            .serial(name: "id", primaryKey: true),
+            .text(name: "name"),
+            .integer(name: "value")
+        ])
+        try await postgresClient.admin.createTable(name: auditTable, columns: [
+            .serial(name: "audit_id", primaryKey: true),
+            .text(name: "table_name"),
+            .text(name: "operation"),
+            .text(name: "old_data"),
+            .text(name: "new_data"),
+            .timestamp(name: "changed_at", defaultValue: "NOW()")
+        ])
         cleanupSQL(
             "DROP TABLE IF EXISTS \(tableName) CASCADE",
             "DROP TABLE IF EXISTS \(auditTable) CASCADE"
         )
 
-        try await execute("""
-            CREATE OR REPLACE FUNCTION \(funcName)()
-            RETURNS TRIGGER AS $$
-            BEGIN
-                IF TG_OP = 'INSERT' THEN
-                    INSERT INTO \(auditTable) (table_name, operation, new_data)
-                    VALUES (TG_TABLE_NAME, 'INSERT', NEW.name);
-                ELSIF TG_OP = 'UPDATE' THEN
-                    INSERT INTO \(auditTable) (table_name, operation, old_data, new_data)
-                    VALUES (TG_TABLE_NAME, 'UPDATE', OLD.name, NEW.name);
-                ELSIF TG_OP = 'DELETE' THEN
-                    INSERT INTO \(auditTable) (table_name, operation, old_data)
-                    VALUES (TG_TABLE_NAME, 'DELETE', OLD.name);
-                END IF;
-                RETURN COALESCE(NEW, OLD);
-            END;
-            $$ LANGUAGE plpgsql
-        """)
+        try await postgresClient.admin.createFunction(
+            name: funcName,
+            parameters: [],
+            returnType: "TRIGGER",
+            body: """
+                BEGIN
+                    IF TG_OP = 'INSERT' THEN
+                        INSERT INTO \(auditTable) (table_name, operation, new_data)
+                        VALUES (TG_TABLE_NAME, 'INSERT', NEW.name);
+                    ELSIF TG_OP = 'UPDATE' THEN
+                        INSERT INTO \(auditTable) (table_name, operation, old_data, new_data)
+                        VALUES (TG_TABLE_NAME, 'UPDATE', OLD.name, NEW.name);
+                    ELSIF TG_OP = 'DELETE' THEN
+                        INSERT INTO \(auditTable) (table_name, operation, old_data)
+                        VALUES (TG_TABLE_NAME, 'DELETE', OLD.name);
+                    END IF;
+                    RETURN COALESCE(NEW, OLD);
+                END;
+                """,
+            language: .plpgsql,
+            orReplace: true
+        )
         cleanupSQL("DROP FUNCTION IF EXISTS \(funcName)() CASCADE")
 
         for op in ["INSERT", "UPDATE", "DELETE"] {
-            try await execute("""
-                CREATE TRIGGER \(uniqueName(prefix: "trg"))_\(op.lowercased())
-                AFTER \(op) ON \(tableName)
-                FOR EACH ROW EXECUTE FUNCTION \(funcName)()
-            """)
+            let trgName = uniqueName(prefix: "trg") + "_\(op.lowercased())"
+            let operation: PostgresTriggerOperation = switch op {
+            case "INSERT": .insert
+            case "UPDATE": .update
+            case "DELETE": .delete
+            default: .insert
+            }
+            try await postgresClient.admin.createTrigger(
+                name: trgName,
+                table: tableName,
+                event: .after,
+                operations: [operation],
+                procedure: "\(funcName)()"
+            )
         }
 
-        try await execute("INSERT INTO \(tableName) (name, value) VALUES ('Item1', 10)")
-        try await execute("UPDATE \(tableName) SET name = 'Item1Updated' WHERE name = 'Item1'")
-        try await execute("DELETE FROM \(tableName) WHERE name = 'Item1Updated'")
+        try await postgresClient.connection.insert(into: tableName, columns: ["name", "value"], values: [["Item1", 10]])
+        try await postgresClient.connection.update(table: tableName, set: ["name": "Item1Updated"], whereClause: "name = 'Item1'")
+        try await postgresClient.connection.delete(from: tableName, whereClause: "name = 'Item1Updated'")
 
         let result = try await query("SELECT operation FROM \(auditTable) ORDER BY audit_id")
         IntegrationTestHelpers.assertRowCount(result, expected: 3)

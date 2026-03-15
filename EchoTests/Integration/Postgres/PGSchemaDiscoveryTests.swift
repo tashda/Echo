@@ -1,4 +1,5 @@
 import XCTest
+import PostgresKit
 @testable import Echo
 
 /// Tests PostgreSQL schema discovery through Echo's DatabaseSession layer.
@@ -14,7 +15,7 @@ final class PGSchemaDiscoveryTests: PostgresDockerTestCase {
 
     func testListDatabasesIncludesUserDatabase() async throws {
         let dbName = uniqueName(prefix: "echo_db")
-        try await execute("CREATE DATABASE \(dbName)")
+        try await postgresClient.admin.createDatabase(name: dbName)
         cleanupSQL("DROP DATABASE IF EXISTS \(dbName)")
 
         let databases = try await session.listDatabases()
@@ -36,7 +37,7 @@ final class PGSchemaDiscoveryTests: PostgresDockerTestCase {
 
     func testListSchemasIncludesCustomSchema() async throws {
         let schemaName = uniqueName(prefix: "schema")
-        try await execute("CREATE SCHEMA \(schemaName)")
+        try await postgresClient.admin.createSchema(name: schemaName)
         cleanupSQL("DROP SCHEMA IF EXISTS \(schemaName) CASCADE")
 
         let schemas = try await session.listSchemas()
@@ -51,16 +52,23 @@ final class PGSchemaDiscoveryTests: PostgresDockerTestCase {
     // MARK: - List Tables and Views
 
     func testListTablesAndViews() async throws {
-        try await withTempTable(columns: "id SERIAL PRIMARY KEY, name TEXT") { tableName in
-            let objects = try await session.listTablesAndViews(schema: "public")
-            XCTAssertFalse(objects.isEmpty)
-            IntegrationTestHelpers.assertContainsObject(objects, name: tableName)
-        }
+        let tableName = uniqueName()
+        try await postgresClient.admin.createTable(name: tableName, columns: [
+            .serial(name: "id", primaryKey: true),
+            .text(name: "name")
+        ])
+        cleanupSQL("DROP TABLE IF EXISTS public.\(tableName)")
+
+        let objects = try await session.listTablesAndViews(schema: "public")
+        XCTAssertFalse(objects.isEmpty)
+        IntegrationTestHelpers.assertContainsObject(objects, name: tableName)
     }
 
     func testListTablesReturnsTableType() async throws {
         let tableName = uniqueName()
-        try await execute("CREATE TABLE public.\(tableName) (id SERIAL PRIMARY KEY)")
+        try await postgresClient.admin.createTable(name: tableName, columns: [
+            .serial(name: "id", primaryKey: true)
+        ])
         cleanupSQL("DROP TABLE IF EXISTS public.\(tableName)")
 
         let objects = try await session.listTablesAndViews(schema: "public")
@@ -70,9 +78,12 @@ final class PGSchemaDiscoveryTests: PostgresDockerTestCase {
     func testListViewsReturnsViewType() async throws {
         let tableName = uniqueName()
         let viewName = uniqueName(prefix: "v")
-        try await execute("CREATE TABLE public.\(tableName) (id SERIAL PRIMARY KEY)")
-        try await execute(
-            "CREATE VIEW public.\(viewName) AS SELECT id FROM public.\(tableName)"
+        try await postgresClient.admin.createTable(name: tableName, columns: [
+            .serial(name: "id", primaryKey: true)
+        ])
+        try await postgresClient.admin.createView(
+            name: viewName,
+            query: "SELECT id FROM \(tableName)"
         )
         cleanupSQL(
             "DROP VIEW IF EXISTS public.\(viewName)",
@@ -86,7 +97,7 @@ final class PGSchemaDiscoveryTests: PostgresDockerTestCase {
     func testListTablesInCustomSchema() async throws {
         let schemaName = uniqueName(prefix: "s")
         let tableName = uniqueName()
-        try await execute("CREATE SCHEMA \(schemaName)")
+        try await postgresClient.admin.createSchema(name: schemaName)
         try await execute("CREATE TABLE \(schemaName).\(tableName) (id SERIAL PRIMARY KEY)")
         cleanupSQL(
             "DROP TABLE IF EXISTS \(schemaName).\(tableName)",
@@ -102,8 +113,8 @@ final class PGSchemaDiscoveryTests: PostgresDockerTestCase {
         let schema2 = uniqueName(prefix: "s2")
         let table1 = uniqueName(prefix: "t1")
         let table2 = uniqueName(prefix: "t2")
-        try await execute("CREATE SCHEMA \(schema1)")
-        try await execute("CREATE SCHEMA \(schema2)")
+        try await postgresClient.admin.createSchema(name: schema1)
+        try await postgresClient.admin.createSchema(name: schema2)
         try await execute("CREATE TABLE \(schema1).\(table1) (id INT)")
         try await execute("CREATE TABLE \(schema2).\(table2) (id INT)")
         cleanupSQL(

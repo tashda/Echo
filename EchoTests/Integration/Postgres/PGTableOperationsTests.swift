@@ -1,4 +1,5 @@
 import XCTest
+import PostgresKit
 @testable import Echo
 
 /// Tests PostgreSQL table DDL operations through Echo's DatabaseSession layer.
@@ -8,13 +9,11 @@ final class PGTableOperationsTests: PostgresDockerTestCase {
 
     func testCreateTable() async throws {
         let tableName = uniqueName()
-        try await execute("""
-            CREATE TABLE public.\(tableName) (
-                id SERIAL PRIMARY KEY,
-                name TEXT NOT NULL,
-                created_at TIMESTAMPTZ DEFAULT NOW()
-            )
-        """)
+        try await postgresClient.admin.createTable(name: tableName, columns: [
+            .serial(name: "id", primaryKey: true),
+            .text(name: "name", nullable: false),
+            PostgresColumnDefinition(name: "created_at", dataType: "TIMESTAMPTZ", defaultValue: "NOW()")
+        ])
         cleanupSQL("DROP TABLE IF EXISTS public.\(tableName)")
 
         let objects = try await session.listTablesAndViews(schema: "public")
@@ -25,12 +24,12 @@ final class PGTableOperationsTests: PostgresDockerTestCase {
         let parentTable = uniqueName(prefix: "parent")
         let childTable = uniqueName(prefix: "child")
 
-        try await execute("""
-            CREATE TABLE public.\(parentTable) (
-                id SERIAL PRIMARY KEY,
-                code VARCHAR(10) UNIQUE NOT NULL
-            )
-        """)
+        try await postgresClient.admin.createTable(name: parentTable, columns: [
+            .serial(name: "id", primaryKey: true),
+            PostgresColumnDefinition(name: "code", dataType: "VARCHAR(10)", nullable: false, unique: true)
+        ])
+        // Child table has a foreign key and CHECK constraint — use raw SQL for those
+        // since createTable doesn't support REFERENCES or CHECK constraints
         try await execute("""
             CREATE TABLE public.\(childTable) (
                 id SERIAL PRIMARY KEY,
@@ -55,7 +54,9 @@ final class PGTableOperationsTests: PostgresDockerTestCase {
     func testRenameTable() async throws {
         let oldName = uniqueName(prefix: "old")
         let newName = uniqueName(prefix: "new")
-        try await execute("CREATE TABLE public.\(oldName) (id SERIAL PRIMARY KEY)")
+        try await postgresClient.admin.createTable(name: oldName, columns: [
+            .serial(name: "id", primaryKey: true)
+        ])
         cleanupSQL(
             "DROP TABLE IF EXISTS public.\(newName)",
             "DROP TABLE IF EXISTS public.\(oldName)"
@@ -73,7 +74,9 @@ final class PGTableOperationsTests: PostgresDockerTestCase {
 
     func testDropTable() async throws {
         let tableName = uniqueName()
-        try await execute("CREATE TABLE public.\(tableName) (id INT)")
+        try await postgresClient.admin.createTable(name: tableName, columns: [
+            .integer(name: "id")
+        ])
 
         try await session.dropTable(schema: "public", name: tableName, ifExists: false)
 
@@ -91,8 +94,15 @@ final class PGTableOperationsTests: PostgresDockerTestCase {
 
     func testTruncateTable() async throws {
         let tableName = uniqueName()
-        try await execute("CREATE TABLE public.\(tableName) (id INT, name TEXT)")
-        try await execute("INSERT INTO public.\(tableName) VALUES (1, 'a'), (2, 'b'), (3, 'c')")
+        try await postgresClient.admin.createTable(name: tableName, columns: [
+            .integer(name: "id"),
+            .text(name: "name")
+        ])
+        try await postgresClient.connection.insert(
+            into: tableName,
+            columns: ["id", "name"],
+            values: [[1, "a"], [2, "b"], [3, "c"]]
+        )
         cleanupSQL("DROP TABLE IF EXISTS public.\(tableName)")
 
         // Verify data exists
@@ -109,17 +119,23 @@ final class PGTableOperationsTests: PostgresDockerTestCase {
 
     func testCreateInsertSelectDrop() async throws {
         let tableName = uniqueName()
-        try await execute("""
-            CREATE TABLE public.\(tableName) (
-                id SERIAL PRIMARY KEY,
-                name TEXT NOT NULL,
-                score NUMERIC(5,2)
-            )
-        """)
+        try await postgresClient.admin.createTable(name: tableName, columns: [
+            .serial(name: "id", primaryKey: true),
+            .text(name: "name", nullable: false),
+            PostgresColumnDefinition(name: "score", dataType: "NUMERIC(5,2)")
+        ])
         cleanupSQL("DROP TABLE IF EXISTS public.\(tableName)")
 
-        try await execute("INSERT INTO public.\(tableName) (name, score) VALUES ('Alice', 95.5)")
-        try await execute("INSERT INTO public.\(tableName) (name, score) VALUES ('Bob', 87.3)")
+        try await postgresClient.connection.insert(
+            into: tableName,
+            columns: ["name", "score"],
+            values: [["Alice", 95.5]]
+        )
+        try await postgresClient.connection.insert(
+            into: tableName,
+            columns: ["name", "score"],
+            values: [["Bob", 87.3]]
+        )
 
         let result = try await query("SELECT name, score FROM public.\(tableName) ORDER BY name")
         IntegrationTestHelpers.assertRowCount(result, expected: 2)

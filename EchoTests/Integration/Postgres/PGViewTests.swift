@@ -1,4 +1,5 @@
 import XCTest
+import PostgresKit
 @testable import Echo
 
 /// Tests PostgreSQL view operations through Echo's DatabaseSession layer.
@@ -9,8 +10,15 @@ final class PGViewTests: PostgresDockerTestCase {
     func testCreateView() async throws {
         let tableName = uniqueName()
         let viewName = uniqueName(prefix: "v")
-        try await execute("CREATE TABLE public.\(tableName) (id SERIAL PRIMARY KEY, name TEXT, active BOOLEAN DEFAULT TRUE)")
-        try await execute("CREATE VIEW public.\(viewName) AS SELECT id, name FROM public.\(tableName) WHERE active = TRUE")
+        try await postgresClient.admin.createTable(name: tableName, columns: [
+            .serial(name: "id", primaryKey: true),
+            .text(name: "name"),
+            .boolean(name: "active", defaultValue: true)
+        ])
+        try await postgresClient.admin.createView(
+            name: viewName,
+            query: "SELECT id, name FROM \(tableName) WHERE active = TRUE"
+        )
         cleanupSQL(
             "DROP VIEW IF EXISTS public.\(viewName)",
             "DROP TABLE IF EXISTS public.\(tableName)"
@@ -23,9 +31,20 @@ final class PGViewTests: PostgresDockerTestCase {
     func testQueryThroughView() async throws {
         let tableName = uniqueName()
         let viewName = uniqueName(prefix: "v")
-        try await execute("CREATE TABLE public.\(tableName) (id SERIAL PRIMARY KEY, name TEXT, active BOOLEAN)")
-        try await execute("INSERT INTO public.\(tableName) (name, active) VALUES ('Alice', TRUE), ('Bob', FALSE), ('Carol', TRUE)")
-        try await execute("CREATE VIEW public.\(viewName) AS SELECT id, name FROM public.\(tableName) WHERE active = TRUE")
+        try await postgresClient.admin.createTable(name: tableName, columns: [
+            .serial(name: "id", primaryKey: true),
+            .text(name: "name"),
+            .boolean(name: "active")
+        ])
+        try await postgresClient.connection.insert(
+            into: tableName,
+            columns: ["name", "active"],
+            values: [["Alice", true], ["Bob", false], ["Carol", true]]
+        )
+        try await postgresClient.admin.createView(
+            name: viewName,
+            query: "SELECT id, name FROM \(tableName) WHERE active = TRUE"
+        )
         cleanupSQL(
             "DROP VIEW IF EXISTS public.\(viewName)",
             "DROP TABLE IF EXISTS public.\(tableName)"
@@ -42,15 +61,26 @@ final class PGViewTests: PostgresDockerTestCase {
     func testAlterView() async throws {
         let tableName = uniqueName()
         let viewName = uniqueName(prefix: "v")
-        try await execute("CREATE TABLE public.\(tableName) (id SERIAL PRIMARY KEY, name TEXT, email TEXT)")
-        try await execute("CREATE VIEW public.\(viewName) AS SELECT id, name FROM public.\(tableName)")
+        try await postgresClient.admin.createTable(name: tableName, columns: [
+            .serial(name: "id", primaryKey: true),
+            .text(name: "name"),
+            .text(name: "email")
+        ])
+        try await postgresClient.admin.createView(
+            name: viewName,
+            query: "SELECT id, name FROM \(tableName)"
+        )
         cleanupSQL(
             "DROP VIEW IF EXISTS public.\(viewName)",
             "DROP TABLE IF EXISTS public.\(tableName)"
         )
 
         // PostgreSQL uses CREATE OR REPLACE VIEW to alter
-        try await execute("CREATE OR REPLACE VIEW public.\(viewName) AS SELECT id, name, email FROM public.\(tableName)")
+        try await postgresClient.admin.createView(
+            name: viewName,
+            query: "SELECT id, name, email FROM \(tableName)",
+            orReplace: true
+        )
 
         let definition = try await session.getObjectDefinition(
             objectName: viewName, schemaName: "public", objectType: .view
@@ -63,11 +93,16 @@ final class PGViewTests: PostgresDockerTestCase {
     func testDropView() async throws {
         let tableName = uniqueName()
         let viewName = uniqueName(prefix: "v")
-        try await execute("CREATE TABLE public.\(tableName) (id SERIAL PRIMARY KEY)")
-        try await execute("CREATE VIEW public.\(viewName) AS SELECT id FROM public.\(tableName)")
+        try await postgresClient.admin.createTable(name: tableName, columns: [
+            .serial(name: "id", primaryKey: true)
+        ])
+        try await postgresClient.admin.createView(
+            name: viewName,
+            query: "SELECT id FROM \(tableName)"
+        )
         cleanupSQL("DROP TABLE IF EXISTS public.\(tableName)")
 
-        try await execute("DROP VIEW public.\(viewName)")
+        try await postgresClient.admin.dropView(name: viewName)
 
         let objects = try await session.listTablesAndViews(schema: "public")
         let exists = objects.contains { $0.name.caseInsensitiveCompare(viewName) == .orderedSame }
@@ -79,8 +114,14 @@ final class PGViewTests: PostgresDockerTestCase {
     func testGetViewDefinition() async throws {
         let tableName = uniqueName()
         let viewName = uniqueName(prefix: "v")
-        try await execute("CREATE TABLE public.\(tableName) (id SERIAL PRIMARY KEY, name TEXT)")
-        try await execute("CREATE VIEW public.\(viewName) AS SELECT id, name FROM public.\(tableName) WHERE id > 0")
+        try await postgresClient.admin.createTable(name: tableName, columns: [
+            .serial(name: "id", primaryKey: true),
+            .text(name: "name")
+        ])
+        try await postgresClient.admin.createView(
+            name: viewName,
+            query: "SELECT id, name FROM \(tableName) WHERE id > 0"
+        )
         cleanupSQL(
             "DROP VIEW IF EXISTS public.\(viewName)",
             "DROP TABLE IF EXISTS public.\(tableName)"
@@ -99,15 +140,24 @@ final class PGViewTests: PostgresDockerTestCase {
         let t1 = uniqueName(prefix: "dept")
         let t2 = uniqueName(prefix: "emp")
         let viewName = uniqueName(prefix: "v")
-        try await execute("CREATE TABLE public.\(t1) (id SERIAL PRIMARY KEY, name TEXT)")
-        try await execute("CREATE TABLE public.\(t2) (id SERIAL PRIMARY KEY, dept_id INT, name TEXT)")
-        try await execute("INSERT INTO public.\(t1) (id, name) VALUES (1, 'Engineering')")
-        try await execute("INSERT INTO public.\(t2) (dept_id, name) VALUES (1, 'Alice'), (1, 'Bob')")
-        try await execute("""
-            CREATE VIEW public.\(viewName) AS
-            SELECT e.name AS employee, d.name AS department
-            FROM public.\(t2) e JOIN public.\(t1) d ON e.dept_id = d.id
-        """)
+        try await postgresClient.admin.createTable(name: t1, columns: [
+            .serial(name: "id", primaryKey: true),
+            .text(name: "name")
+        ])
+        try await postgresClient.admin.createTable(name: t2, columns: [
+            .serial(name: "id", primaryKey: true),
+            .integer(name: "dept_id"),
+            .text(name: "name")
+        ])
+        try await postgresClient.connection.insert(into: t1, columns: ["id", "name"], values: [[1, "Engineering"]])
+        try await postgresClient.connection.insert(into: t2, columns: ["dept_id", "name"], values: [[1, "Alice"], [1, "Bob"]])
+        try await postgresClient.admin.createView(
+            name: viewName,
+            query: """
+                SELECT e.name AS employee, d.name AS department
+                FROM \(t2) e JOIN \(t1) d ON e.dept_id = d.id
+            """
+        )
         cleanupSQL(
             "DROP VIEW IF EXISTS public.\(viewName)",
             "DROP TABLE IF EXISTS public.\(t2)",
@@ -123,12 +173,20 @@ final class PGViewTests: PostgresDockerTestCase {
     func testCreateMaterializedView() async throws {
         let tableName = uniqueName()
         let matViewName = uniqueName(prefix: "mv")
-        try await execute("CREATE TABLE public.\(tableName) (id SERIAL PRIMARY KEY, category TEXT, amount NUMERIC)")
-        try await execute("INSERT INTO public.\(tableName) (category, amount) VALUES ('A', 100), ('A', 200), ('B', 50)")
-        try await execute("""
-            CREATE MATERIALIZED VIEW public.\(matViewName) AS
-            SELECT category, SUM(amount) AS total FROM public.\(tableName) GROUP BY category
-        """)
+        try await postgresClient.admin.createTable(name: tableName, columns: [
+            .serial(name: "id", primaryKey: true),
+            .text(name: "category"),
+            PostgresColumnDefinition(name: "amount", dataType: "NUMERIC")
+        ])
+        try await postgresClient.connection.insert(
+            into: tableName,
+            columns: ["category", "amount"],
+            values: [["A", 100], ["A", 200], ["B", 50]]
+        )
+        try await postgresClient.admin.createMaterializedView(
+            name: matViewName,
+            query: "SELECT category, SUM(amount) AS total FROM \(tableName) GROUP BY category"
+        )
         cleanupSQL(
             "DROP MATERIALIZED VIEW IF EXISTS public.\(matViewName)",
             "DROP TABLE IF EXISTS public.\(tableName)"
@@ -141,9 +199,15 @@ final class PGViewTests: PostgresDockerTestCase {
     func testRefreshMaterializedView() async throws {
         let tableName = uniqueName()
         let matViewName = uniqueName(prefix: "mv")
-        try await execute("CREATE TABLE public.\(tableName) (id SERIAL PRIMARY KEY, value INT)")
-        try await execute("INSERT INTO public.\(tableName) (value) VALUES (1), (2)")
-        try await execute("CREATE MATERIALIZED VIEW public.\(matViewName) AS SELECT COUNT(*) AS cnt FROM public.\(tableName)")
+        try await postgresClient.admin.createTable(name: tableName, columns: [
+            .serial(name: "id", primaryKey: true),
+            .integer(name: "value")
+        ])
+        try await postgresClient.connection.insert(into: tableName, columns: ["value"], values: [[1], [2]])
+        try await postgresClient.admin.createMaterializedView(
+            name: matViewName,
+            query: "SELECT COUNT(*) AS cnt FROM \(tableName)"
+        )
         cleanupSQL(
             "DROP MATERIALIZED VIEW IF EXISTS public.\(matViewName)",
             "DROP TABLE IF EXISTS public.\(tableName)"
@@ -154,8 +218,8 @@ final class PGViewTests: PostgresDockerTestCase {
         XCTAssertEqual(before.rows[0][0], "2")
 
         // Insert more data and refresh
-        try await execute("INSERT INTO public.\(tableName) (value) VALUES (3), (4), (5)")
-        try await execute("REFRESH MATERIALIZED VIEW public.\(matViewName)")
+        try await postgresClient.connection.insert(into: tableName, columns: ["value"], values: [[3], [4], [5]])
+        try await postgresClient.admin.refreshMaterializedView(name: matViewName)
 
         let after = try await query("SELECT cnt FROM public.\(matViewName)")
         XCTAssertEqual(after.rows[0][0], "5")

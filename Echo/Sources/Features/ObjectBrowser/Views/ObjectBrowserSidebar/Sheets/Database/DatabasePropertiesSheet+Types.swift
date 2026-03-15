@@ -52,10 +52,14 @@ enum PropertiesPage: String, Hashable, CaseIterable {
     case automatic
     case ansi
     case files
+    case queryStore
     // PostgreSQL
     case definition
     case parameters
+    case security
+    case defaultPrivileges
     case statistics
+    case sql
 
     var title: String {
         switch self {
@@ -64,9 +68,13 @@ enum PropertiesPage: String, Hashable, CaseIterable {
         case .automatic: "Automatic"
         case .ansi: "ANSI"
         case .files: "Files"
+        case .queryStore: "Query Store"
         case .definition: "Definition"
         case .parameters: "Parameters"
+        case .security: "Security"
+        case .defaultPrivileges: "Default Privileges"
         case .statistics: "Statistics"
+        case .sql: "SQL"
         }
     }
 
@@ -77,9 +85,13 @@ enum PropertiesPage: String, Hashable, CaseIterable {
         case .automatic: "arrow.triangle.2.circlepath"
         case .ansi: "textformat"
         case .files: "doc"
+        case .queryStore: "chart.bar.xaxis"
         case .definition: "text.book.closed"
         case .parameters: "slider.horizontal.3"
+        case .security: "lock.shield"
+        case .defaultPrivileges: "person.badge.key"
         case .statistics: "chart.bar"
+        case .sql: "chevron.left.forwardslash.chevron.right"
         }
     }
 }

@@ -1,4 +1,5 @@
 import XCTest
+import SQLServerKit
 @testable import Echo
 
 /// Tests SQL Server date/time data type round-trips through Echo's DatabaseSession layer.
@@ -158,74 +159,89 @@ final class MSSQLDataTypeDateTimeTests: MSSQLDockerTestCase {
     }
 
     func testNullDateInTable() async throws {
-        try await withTempTable(
-            columns: "id INT PRIMARY KEY, dt DATE NULL, dt2 DATETIME2 NULL, dto DATETIMEOFFSET NULL"
-        ) { tableName in
-            try await execute("INSERT INTO [\(tableName)] (id) VALUES (1)")
+        let tableName = uniqueTableName()
+        try await sqlserverClient.admin.createTable(name: tableName, columns: [
+            SQLServerColumnDefinition(name: "id", definition: .standard(.init(dataType: .int, isPrimaryKey: true))),
+            SQLServerColumnDefinition(name: "dt", definition: .standard(.init(dataType: .date))),
+            SQLServerColumnDefinition(name: "dt2", definition: .standard(.init(dataType: .datetime2(precision: 7)))),
+            SQLServerColumnDefinition(name: "dto", definition: .standard(.init(dataType: .datetimeoffset(precision: 7))))
+        ])
+        cleanupSQL("DROP TABLE [\(tableName)]")
 
-            let result = try await query("SELECT * FROM [\(tableName)]")
-            IntegrationTestHelpers.assertRowCount(result, expected: 1)
-            XCTAssertNil(result.rows[0][1], "dt should be NULL")
-            XCTAssertNil(result.rows[0][2], "dt2 should be NULL")
-            XCTAssertNil(result.rows[0][3], "dto should be NULL")
-        }
+        _ = try await sqlserverClient.admin.insertRow(into: tableName, values: [
+            "id": .int(1),
+            "dt": .null,
+            "dt2": .null,
+            "dto": .null
+        ])
+
+        let result = try await query("SELECT * FROM [\(tableName)]")
+        IntegrationTestHelpers.assertRowCount(result, expected: 1)
+        XCTAssertNil(result.rows[0][1], "dt should be NULL")
+        XCTAssertNil(result.rows[0][2], "dt2 should be NULL")
+        XCTAssertNil(result.rows[0][3], "dto should be NULL")
     }
 
     // MARK: - Table Round-Trip
 
     func testDateTimeRoundTripThroughTable() async throws {
-        try await withTempTable(
-            columns: """
-                id INT PRIMARY KEY,
-                date_col DATE,
-                time_col TIME(7),
-                dt_col DATETIME,
-                dt2_col DATETIME2(7),
-                dto_col DATETIMEOFFSET(7),
-                sdt_col SMALLDATETIME
-            """
-        ) { tableName in
-            try await execute("""
-                INSERT INTO [\(tableName)] VALUES (
-                    1,
-                    '2024-06-15',
-                    '14:30:45.1234567',
-                    '2024-06-15 14:30:45.123',
-                    '2024-06-15 14:30:45.1234567',
-                    '2024-06-15 14:30:45.1234567 +05:30',
-                    '2024-06-15 14:30:00'
-                )
-            """)
+        let tableName = uniqueTableName()
+        try await sqlserverClient.admin.createTable(name: tableName, columns: [
+            SQLServerColumnDefinition(name: "id", definition: .standard(.init(dataType: .int, isPrimaryKey: true))),
+            SQLServerColumnDefinition(name: "date_col", definition: .standard(.init(dataType: .date))),
+            SQLServerColumnDefinition(name: "time_col", definition: .standard(.init(dataType: .time(precision: 7)))),
+            SQLServerColumnDefinition(name: "dt_col", definition: .standard(.init(dataType: .datetime))),
+            SQLServerColumnDefinition(name: "dt2_col", definition: .standard(.init(dataType: .datetime2(precision: 7)))),
+            SQLServerColumnDefinition(name: "dto_col", definition: .standard(.init(dataType: .datetimeoffset(precision: 7)))),
+            SQLServerColumnDefinition(name: "sdt_col", definition: .standard(.init(dataType: .smalldatetime)))
+        ])
+        cleanupSQL("DROP TABLE [\(tableName)]")
 
-            let result = try await query("SELECT * FROM [\(tableName)]")
-            IntegrationTestHelpers.assertRowCount(result, expected: 1)
-            XCTAssertEqual(result.columns.count, 7)
+        _ = try await sqlserverClient.admin.insertRow(into: tableName, values: [
+            "id": .int(1),
+            "date_col": .raw("'2024-06-15'"),
+            "time_col": .raw("'14:30:45.1234567'"),
+            "dt_col": .raw("'2024-06-15 14:30:45.123'"),
+            "dt2_col": .raw("'2024-06-15 14:30:45.1234567'"),
+            "dto_col": .raw("'2024-06-15 14:30:45.1234567 +05:30'"),
+            "sdt_col": .raw("'2024-06-15 14:30:00'")
+        ])
 
-            // Every column should have a non-null value
-            for (i, col) in result.columns.enumerated() {
-                XCTAssertNotNil(result.rows[0][i], "Column \(col.name) should have a value")
-            }
+        let result = try await query("SELECT * FROM [\(tableName)]")
+        IntegrationTestHelpers.assertRowCount(result, expected: 1)
+        XCTAssertEqual(result.columns.count, 7)
+
+        // Every column should have a non-null value
+        for (i, col) in result.columns.enumerated() {
+            XCTAssertNotNil(result.rows[0][i], "Column \(col.name) should have a value")
         }
     }
 
     func testMultipleDateRowsRoundTrip() async throws {
-        try await withTempTable(
-            columns: "id INT PRIMARY KEY, created_at DATETIME2, expires_at DATETIME2 NULL"
-        ) { tableName in
-            try await execute("""
-                INSERT INTO [\(tableName)] VALUES
-                    (1, '2024-01-01 00:00:00', '2024-12-31 23:59:59'),
-                    (2, '2024-06-15 12:30:00', NULL),
-                    (3, '2024-03-20 08:15:30', '2025-03-20 08:15:30')
-            """)
+        let tableName = uniqueTableName()
+        try await sqlserverClient.admin.createTable(name: tableName, columns: [
+            SQLServerColumnDefinition(name: "id", definition: .standard(.init(dataType: .int, isPrimaryKey: true))),
+            SQLServerColumnDefinition(name: "created_at", definition: .standard(.init(dataType: .datetime2(precision: 7)))),
+            SQLServerColumnDefinition(name: "expires_at", definition: .standard(.init(dataType: .datetime2(precision: 7))))
+        ])
+        cleanupSQL("DROP TABLE [\(tableName)]")
 
-            let result = try await query("SELECT * FROM [\(tableName)] ORDER BY id")
-            IntegrationTestHelpers.assertRowCount(result, expected: 3)
+        _ = try await sqlserverClient.admin.insertRows(
+            into: tableName,
+            columns: ["id", "created_at", "expires_at"],
+            values: [
+                [.int(1), .raw("'2024-01-01 00:00:00'"), .raw("'2024-12-31 23:59:59'")],
+                [.int(2), .raw("'2024-06-15 12:30:00'"), .null],
+                [.int(3), .raw("'2024-03-20 08:15:30'"), .raw("'2025-03-20 08:15:30'")]
+            ]
+        )
 
-            // Row 2 should have NULL expires_at
-            XCTAssertNotNil(result.rows[1][1], "created_at should not be null")
-            XCTAssertNil(result.rows[1][2], "expires_at should be null for row 2")
-        }
+        let result = try await query("SELECT * FROM [\(tableName)] ORDER BY id")
+        IntegrationTestHelpers.assertRowCount(result, expected: 3)
+
+        // Row 2 should have NULL expires_at
+        XCTAssertNotNil(result.rows[1][1], "created_at should not be null")
+        XCTAssertNil(result.rows[1][2], "expires_at should be null for row 2")
     }
 
     // MARK: - Date Arithmetic

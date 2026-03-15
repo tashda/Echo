@@ -1,4 +1,5 @@
 import XCTest
+import PostgresKit
 @testable import Echo
 
 /// Tests PostgreSQL numeric data type round-trips through Echo's DatabaseSession layer.
@@ -152,39 +153,54 @@ final class PGDataTypeNumericTests: PostgresDockerTestCase {
     // MARK: - Serial Types
 
     func testSerialColumn() async throws {
-        try await withTempTable(columns: "id SERIAL PRIMARY KEY, name TEXT") { tableName in
-            try await execute("INSERT INTO \(tableName) (name) VALUES ('A')")
-            try await execute("INSERT INTO \(tableName) (name) VALUES ('B')")
-            try await execute("INSERT INTO \(tableName) (name) VALUES ('C')")
+        let tableName = uniqueName()
+        try await postgresClient.admin.createTable(name: tableName, columns: [
+            .serial(name: "id", primaryKey: true),
+            .text(name: "name")
+        ])
+        cleanupSQL("DROP TABLE IF EXISTS \(tableName)")
 
-            let result = try await query("SELECT id FROM \(tableName) ORDER BY id")
-            IntegrationTestHelpers.assertRowCount(result, expected: 3)
-            XCTAssertEqual(result.rows[0][0], "1")
-            XCTAssertEqual(result.rows[1][0], "2")
-            XCTAssertEqual(result.rows[2][0], "3")
-        }
+        try await postgresClient.connection.insert(into: tableName, columns: ["name"], values: [["A"] as [Any]])
+        try await postgresClient.connection.insert(into: tableName, columns: ["name"], values: [["B"] as [Any]])
+        try await postgresClient.connection.insert(into: tableName, columns: ["name"], values: [["C"] as [Any]])
+
+        let result = try await query("SELECT id FROM \(tableName) ORDER BY id")
+        IntegrationTestHelpers.assertRowCount(result, expected: 3)
+        XCTAssertEqual(result.rows[0][0], "1")
+        XCTAssertEqual(result.rows[1][0], "2")
+        XCTAssertEqual(result.rows[2][0], "3")
     }
 
     func testBigserialColumn() async throws {
-        try await withTempTable(columns: "id BIGSERIAL PRIMARY KEY, name TEXT") { tableName in
-            try await execute("INSERT INTO \(tableName) (name) VALUES ('first')")
-            try await execute("INSERT INTO \(tableName) (name) VALUES ('second')")
+        let tableName = uniqueName()
+        try await postgresClient.admin.createTable(name: tableName, columns: [
+            .bigSerial(name: "id", primaryKey: true),
+            .text(name: "name")
+        ])
+        cleanupSQL("DROP TABLE IF EXISTS \(tableName)")
 
-            let result = try await query("SELECT id FROM \(tableName) ORDER BY id")
-            IntegrationTestHelpers.assertRowCount(result, expected: 2)
-            XCTAssertEqual(result.rows[0][0], "1")
-            XCTAssertEqual(result.rows[1][0], "2")
-        }
+        try await postgresClient.connection.insert(into: tableName, columns: ["name"], values: [["first"] as [Any]])
+        try await postgresClient.connection.insert(into: tableName, columns: ["name"], values: [["second"] as [Any]])
+
+        let result = try await query("SELECT id FROM \(tableName) ORDER BY id")
+        IntegrationTestHelpers.assertRowCount(result, expected: 2)
+        XCTAssertEqual(result.rows[0][0], "1")
+        XCTAssertEqual(result.rows[1][0], "2")
     }
 
     func testSmallserialColumn() async throws {
-        try await withTempTable(columns: "id SMALLSERIAL PRIMARY KEY, name TEXT") { tableName in
-            try await execute("INSERT INTO \(tableName) (name) VALUES ('one')")
+        let tableName = uniqueName()
+        try await postgresClient.admin.createTable(name: tableName, columns: [
+            PostgresColumnDefinition(name: "id", dataType: "SMALLSERIAL", nullable: false, primaryKey: true),
+            .text(name: "name")
+        ])
+        cleanupSQL("DROP TABLE IF EXISTS \(tableName)")
 
-            let result = try await query("SELECT id FROM \(tableName)")
-            IntegrationTestHelpers.assertRowCount(result, expected: 1)
-            XCTAssertEqual(result.rows[0][0], "1")
-        }
+        try await postgresClient.connection.insert(into: tableName, columns: ["name"], values: [["one"] as [Any]])
+
+        let result = try await query("SELECT id FROM \(tableName)")
+        IntegrationTestHelpers.assertRowCount(result, expected: 1)
+        XCTAssertEqual(result.rows[0][0], "1")
     }
 
     // MARK: - NULL Handling
@@ -232,47 +248,55 @@ final class PGDataTypeNumericTests: PostgresDockerTestCase {
     // MARK: - Table Round-Trip
 
     func testNumericRoundTripAllTypes() async throws {
-        let columns = """
-            id SERIAL PRIMARY KEY,
-            small_val SMALLINT,
-            int_val INTEGER,
-            big_val BIGINT,
-            dec_val DECIMAL(10,2),
-            num_val NUMERIC(15,4),
-            real_val REAL,
-            double_val DOUBLE PRECISION
-        """
-        try await withTempTable(columns: columns) { tableName in
-            try await execute("""
-                INSERT INTO \(tableName)
-                (small_val, int_val, big_val, dec_val, num_val, real_val, double_val)
-                VALUES (42, 100000, 9876543210, 12345.67, 98765.4321, 3.14, 2.71828)
-            """)
+        let tableName = uniqueName()
+        try await postgresClient.admin.createTable(name: tableName, columns: [
+            .serial(name: "id", primaryKey: true),
+            PostgresColumnDefinition(name: "small_val", dataType: "SMALLINT"),
+            .integer(name: "int_val"),
+            .bigInt(name: "big_val"),
+            .decimal(name: "dec_val", precision: 10, scale: 2),
+            PostgresColumnDefinition(name: "num_val", dataType: "NUMERIC(15,4)"),
+            .real(name: "real_val"),
+            .double(name: "double_val")
+        ])
+        cleanupSQL("DROP TABLE IF EXISTS \(tableName)")
 
-            let result = try await query("SELECT * FROM \(tableName)")
-            IntegrationTestHelpers.assertRowCount(result, expected: 1)
-            XCTAssertEqual(result.columns.count, 8)
+        try await postgresClient.connection.insert(
+            into: tableName,
+            columns: ["small_val", "int_val", "big_val", "dec_val", "num_val", "real_val", "double_val"],
+            values: [[42, 100000, 9876543210, 12345.67, 98765.4321, 3.14, 2.71828] as [Any]]
+        )
 
-            XCTAssertEqual(result.rows[0][1], "42")
-            XCTAssertEqual(result.rows[0][2], "100000")
-            XCTAssertEqual(result.rows[0][3], "9876543210")
-            XCTAssertEqual(result.rows[0][4], "12345.67")
-            XCTAssertEqual(result.rows[0][5], "98765.4321")
-            XCTAssertNotNil(result.rows[0][6]) // REAL precision varies
-            XCTAssertNotNil(result.rows[0][7]) // DOUBLE precision varies
-        }
+        let result = try await query("SELECT * FROM \(tableName)")
+        IntegrationTestHelpers.assertRowCount(result, expected: 1)
+        XCTAssertEqual(result.columns.count, 8)
+
+        XCTAssertEqual(result.rows[0][1], "42")
+        XCTAssertEqual(result.rows[0][2], "100000")
+        XCTAssertEqual(result.rows[0][3], "9876543210")
+        XCTAssertEqual(result.rows[0][4], "12345.67")
+        XCTAssertEqual(result.rows[0][5], "98765.4321")
+        XCTAssertNotNil(result.rows[0][6]) // REAL precision varies
+        XCTAssertNotNil(result.rows[0][7]) // DOUBLE precision varies
     }
 
     func testNullRoundTripThroughTable() async throws {
-        try await withTempTable(
-            columns: "id SERIAL PRIMARY KEY, val INTEGER"
-        ) { tableName in
-            try await execute("INSERT INTO \(tableName) (val) VALUES (NULL)")
+        let tableName = uniqueName()
+        try await postgresClient.admin.createTable(name: tableName, columns: [
+            .serial(name: "id", primaryKey: true),
+            .integer(name: "val")
+        ])
+        cleanupSQL("DROP TABLE IF EXISTS \(tableName)")
 
-            let result = try await query("SELECT val FROM \(tableName)")
-            IntegrationTestHelpers.assertRowCount(result, expected: 1)
-            XCTAssertNil(result.rows[0][0], "NULL value should round-trip as nil")
-        }
+        try await postgresClient.connection.insert(
+            into: tableName,
+            columns: ["val"],
+            values: [[PostgresInsertValue.null]]
+        )
+
+        let result = try await query("SELECT val FROM \(tableName)")
+        IntegrationTestHelpers.assertRowCount(result, expected: 1)
+        XCTAssertNil(result.rows[0][0], "NULL value should round-trip as nil")
     }
 
     func testNumericRoundTripWithZeros() async throws {

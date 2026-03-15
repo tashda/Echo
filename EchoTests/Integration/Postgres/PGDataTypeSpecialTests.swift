@@ -1,4 +1,5 @@
 import XCTest
+import PostgresKit
 @testable import Echo
 
 /// Tests PostgreSQL special data type round-trips through Echo's DatabaseSession layer.
@@ -344,67 +345,75 @@ final class PGDataTypeSpecialTests: PostgresDockerTestCase {
     // MARK: - Table Round-Trip
 
     func testSpecialTypesRoundTrip() async throws {
-        let columns = """
-            id SERIAL PRIMARY KEY,
-            bool_val BOOLEAN,
-            uuid_val UUID,
-            json_val JSON,
-            jsonb_val JSONB,
-            inet_val INET,
-            macaddr_val MACADDR,
-            point_val POINT,
-            int_arr INT[],
-            text_arr TEXT[]
-        """
-        try await withTempTable(columns: columns) { tableName in
-            try await execute("""
-                INSERT INTO \(tableName)
-                (bool_val, uuid_val, json_val, jsonb_val, inet_val, macaddr_val, point_val, int_arr, text_arr)
-                VALUES (
-                    TRUE,
-                    '12345678-1234-1234-1234-123456789012',
-                    '{"test": true}',
-                    '{"test": true}',
-                    '192.168.1.1',
-                    '08:00:2b:01:02:03',
-                    '(1.5, 2.5)',
-                    ARRAY[1, 2, 3],
-                    ARRAY['a', 'b', 'c']
-                )
-            """)
+        let tableName = uniqueName()
+        try await postgresClient.admin.createTable(name: tableName, columns: [
+            .serial(name: "id", primaryKey: true),
+            .boolean(name: "bool_val"),
+            .uuid(name: "uuid_val"),
+            .json(name: "json_val"),
+            .jsonb(name: "jsonb_val"),
+            .inet(name: "inet_val"),
+            .macaddr(name: "macaddr_val"),
+            PostgresColumnDefinition(name: "point_val", dataType: "POINT"),
+            .array(name: "int_arr", elementType: "INT"),
+            .array(name: "text_arr", elementType: "TEXT")
+        ])
+        cleanupSQL("DROP TABLE IF EXISTS \(tableName)")
 
-            let result = try await query("SELECT * FROM \(tableName)")
-            IntegrationTestHelpers.assertRowCount(result, expected: 1)
-            XCTAssertEqual(result.columns.count, 10)
+        try await postgresClient.connection.insert(
+            into: tableName,
+            columns: ["bool_val", "uuid_val", "json_val", "jsonb_val", "inet_val", "macaddr_val", "point_val", "int_arr", "text_arr"],
+            values: [[
+                PostgresInsertValue.sql("TRUE"),
+                PostgresInsertValue.sql("'12345678-1234-1234-1234-123456789012'"),
+                PostgresInsertValue.sql("'{\"test\": true}'"),
+                PostgresInsertValue.sql("'{\"test\": true}'"),
+                PostgresInsertValue.sql("'192.168.1.1'"),
+                PostgresInsertValue.sql("'08:00:2b:01:02:03'"),
+                PostgresInsertValue.sql("'(1.5, 2.5)'"),
+                PostgresInsertValue.sql("ARRAY[1, 2, 3]"),
+                PostgresInsertValue.sql("ARRAY['a', 'b', 'c']")
+            ]]
+        )
 
-            // All non-id columns should be non-null
-            for i in 1..<result.columns.count {
-                XCTAssertNotNil(result.rows[0][i], "Column \(result.columns[i].name) should have a value")
-            }
+        let result = try await query("SELECT * FROM \(tableName)")
+        IntegrationTestHelpers.assertRowCount(result, expected: 1)
+        XCTAssertEqual(result.columns.count, 10)
+
+        // All non-id columns should be non-null
+        for i in 1..<result.columns.count {
+            XCTAssertNotNil(result.rows[0][i], "Column \(result.columns[i].name) should have a value")
         }
     }
 
     func testSpecialTypesRoundTripWithNulls() async throws {
-        let columns = """
-            id SERIAL PRIMARY KEY,
-            bool_val BOOLEAN,
-            uuid_val UUID,
-            jsonb_val JSONB,
-            inet_val INET
-        """
-        try await withTempTable(columns: columns) { tableName in
-            try await execute("""
-                INSERT INTO \(tableName) (bool_val, uuid_val, jsonb_val, inet_val)
-                VALUES (NULL, NULL, NULL, NULL)
-            """)
+        let tableName = uniqueName()
+        try await postgresClient.admin.createTable(name: tableName, columns: [
+            .serial(name: "id", primaryKey: true),
+            .boolean(name: "bool_val"),
+            .uuid(name: "uuid_val"),
+            .jsonb(name: "jsonb_val"),
+            .inet(name: "inet_val")
+        ])
+        cleanupSQL("DROP TABLE IF EXISTS \(tableName)")
 
-            let result = try await query("""
-                SELECT bool_val, uuid_val, jsonb_val, inet_val FROM \(tableName)
-            """)
-            IntegrationTestHelpers.assertRowCount(result, expected: 1)
-            for i in 0..<4 {
-                XCTAssertNil(result.rows[0][i], "Column \(i) should be NULL")
-            }
+        try await postgresClient.connection.insert(
+            into: tableName,
+            columns: ["bool_val", "uuid_val", "jsonb_val", "inet_val"],
+            values: [[
+                PostgresInsertValue.null,
+                PostgresInsertValue.null,
+                PostgresInsertValue.null,
+                PostgresInsertValue.null
+            ]]
+        )
+
+        let result = try await query("""
+            SELECT bool_val, uuid_val, jsonb_val, inet_val FROM \(tableName)
+        """)
+        IntegrationTestHelpers.assertRowCount(result, expected: 1)
+        for i in 0..<4 {
+            XCTAssertNil(result.rows[0][i], "Column \(i) should be NULL")
         }
     }
 

@@ -1,4 +1,5 @@
 import XCTest
+import PostgresKit
 @testable import Echo
 
 /// Tests PostgreSQL index operations through Echo's DatabaseSession layer.
@@ -9,10 +10,14 @@ final class PGIndexTests: PostgresDockerTestCase {
     func testCreateBTreeIndex() async throws {
         let tableName = uniqueName()
         let indexName = "ix_\(tableName)_name"
-        try await execute("CREATE TABLE public.\(tableName) (id SERIAL PRIMARY KEY, name TEXT, email TEXT)")
+        try await postgresClient.admin.createTable(name: tableName, columns: [
+            .serial(name: "id", primaryKey: true),
+            .text(name: "name"),
+            .text(name: "email")
+        ])
         cleanupSQL("DROP TABLE IF EXISTS public.\(tableName)")
 
-        try await execute("CREATE INDEX \(indexName) ON public.\(tableName)(name)")
+        try await postgresClient.admin.createIndex(name: indexName, table: tableName, columns: ["name"])
 
         let details = try await session.getTableStructureDetails(schema: "public", table: tableName)
         let hasIndex = details.indexes.contains { $0.name.caseInsensitiveCompare(indexName) == .orderedSame }
@@ -24,10 +29,13 @@ final class PGIndexTests: PostgresDockerTestCase {
     func testCreateUniqueIndex() async throws {
         let tableName = uniqueName()
         let indexName = "ux_\(tableName)_email"
-        try await execute("CREATE TABLE public.\(tableName) (id SERIAL PRIMARY KEY, email TEXT)")
+        try await postgresClient.admin.createTable(name: tableName, columns: [
+            .serial(name: "id", primaryKey: true),
+            .text(name: "email")
+        ])
         cleanupSQL("DROP TABLE IF EXISTS public.\(tableName)")
 
-        try await execute("CREATE UNIQUE INDEX \(indexName) ON public.\(tableName)(email)")
+        try await postgresClient.admin.createIndex(name: indexName, table: tableName, columns: ["email"], unique: true)
 
         let details = try await session.getTableStructureDetails(schema: "public", table: tableName)
         let uniqueIdx = details.indexes.first { $0.name.caseInsensitiveCompare(indexName) == .orderedSame }
@@ -40,10 +48,14 @@ final class PGIndexTests: PostgresDockerTestCase {
     func testCreateCompositeIndex() async throws {
         let tableName = uniqueName()
         let indexName = "ix_\(tableName)_composite"
-        try await execute("CREATE TABLE public.\(tableName) (id SERIAL PRIMARY KEY, last_name TEXT, first_name TEXT)")
+        try await postgresClient.admin.createTable(name: tableName, columns: [
+            .serial(name: "id", primaryKey: true),
+            .text(name: "last_name"),
+            .text(name: "first_name")
+        ])
         cleanupSQL("DROP TABLE IF EXISTS public.\(tableName)")
 
-        try await execute("CREATE INDEX \(indexName) ON public.\(tableName)(last_name, first_name)")
+        try await postgresClient.admin.createIndex(name: indexName, table: tableName, columns: ["last_name", "first_name"])
 
         let details = try await session.getTableStructureDetails(schema: "public", table: tableName)
         let idx = details.indexes.first { $0.name.caseInsensitiveCompare(indexName) == .orderedSame }
@@ -56,9 +68,14 @@ final class PGIndexTests: PostgresDockerTestCase {
     func testCreateGINIndex() async throws {
         let tableName = uniqueName()
         let indexName = "ix_\(tableName)_data_gin"
-        try await execute("CREATE TABLE public.\(tableName) (id SERIAL PRIMARY KEY, data JSONB)")
+        try await postgresClient.admin.createTable(name: tableName, columns: [
+            .serial(name: "id", primaryKey: true),
+            .jsonb(name: "data")
+        ])
         cleanupSQL("DROP TABLE IF EXISTS public.\(tableName)")
 
+        // GIN index requires raw SQL — createAdvancedIndex uses USING but quoteIdentifier on column
+        // which doesn't work for GIN operator class expressions
         try await execute("CREATE INDEX \(indexName) ON public.\(tableName) USING GIN (data)")
 
         // Verify the index exists via pg_indexes
@@ -74,10 +91,19 @@ final class PGIndexTests: PostgresDockerTestCase {
     func testCreatePartialIndex() async throws {
         let tableName = uniqueName()
         let indexName = "ix_\(tableName)_active"
-        try await execute("CREATE TABLE public.\(tableName) (id SERIAL PRIMARY KEY, status TEXT, name TEXT)")
+        try await postgresClient.admin.createTable(name: tableName, columns: [
+            .serial(name: "id", primaryKey: true),
+            .text(name: "status"),
+            .text(name: "name")
+        ])
         cleanupSQL("DROP TABLE IF EXISTS public.\(tableName)")
 
-        try await execute("CREATE INDEX \(indexName) ON public.\(tableName)(name) WHERE status = 'active'")
+        try await postgresClient.admin.createAdvancedIndex(
+            name: indexName,
+            table: tableName,
+            columns: [PostgresIndexColumn(name: "name")],
+            whereClause: "status = 'active'"
+        )
 
         let details = try await session.getTableStructureDetails(schema: "public", table: tableName)
         let idx = details.indexes.first { $0.name.caseInsensitiveCompare(indexName) == .orderedSame }
@@ -89,13 +115,16 @@ final class PGIndexTests: PostgresDockerTestCase {
     func testRebuildIndex() async throws {
         let tableName = uniqueName()
         let indexName = "ix_\(tableName)_rebuild"
-        try await execute("CREATE TABLE public.\(tableName) (id SERIAL PRIMARY KEY, name TEXT)")
-        try await execute("CREATE INDEX \(indexName) ON public.\(tableName)(name)")
+        try await postgresClient.admin.createTable(name: tableName, columns: [
+            .serial(name: "id", primaryKey: true),
+            .text(name: "name")
+        ])
+        try await postgresClient.admin.createIndex(name: indexName, table: tableName, columns: ["name"])
         cleanupSQL("DROP TABLE IF EXISTS public.\(tableName)")
 
         // Insert some data
         for i in 1...50 {
-            try await execute("INSERT INTO public.\(tableName) (name) VALUES ('name_\(i)')")
+            try await postgresClient.connection.insert(into: tableName, columns: ["name"], values: [["name_\(i)"]])
         }
 
         // REINDEX should not throw
@@ -111,11 +140,14 @@ final class PGIndexTests: PostgresDockerTestCase {
     func testDropIndex() async throws {
         let tableName = uniqueName()
         let indexName = "ix_\(tableName)_drop"
-        try await execute("CREATE TABLE public.\(tableName) (id SERIAL PRIMARY KEY, name TEXT)")
-        try await execute("CREATE INDEX \(indexName) ON public.\(tableName)(name)")
+        try await postgresClient.admin.createTable(name: tableName, columns: [
+            .serial(name: "id", primaryKey: true),
+            .text(name: "name")
+        ])
+        try await postgresClient.admin.createIndex(name: indexName, table: tableName, columns: ["name"])
         cleanupSQL("DROP TABLE IF EXISTS public.\(tableName)")
 
-        try await execute("DROP INDEX \(indexName)")
+        try await postgresClient.admin.dropIndex(name: indexName)
 
         let details = try await session.getTableStructureDetails(schema: "public", table: tableName)
         let hasIndex = details.indexes.contains { $0.name.caseInsensitiveCompare(indexName) == .orderedSame }

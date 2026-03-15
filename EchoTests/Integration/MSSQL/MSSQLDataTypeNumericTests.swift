@@ -1,4 +1,5 @@
 import XCTest
+import SQLServerKit
 @testable import Echo
 
 /// Tests SQL Server numeric data type round-trips through Echo's DatabaseSession layer.
@@ -82,28 +83,39 @@ final class MSSQLDataTypeNumericTests: MSSQLDockerTestCase {
     // MARK: - Round-Trip Through Table
 
     func testNumericRoundTripThroughTable() async throws {
-        try await withTempTable(
-            columns: """
-                id INT PRIMARY KEY,
-                tiny_val TINYINT, small_val SMALLINT, int_val INT, big_val BIGINT,
-                dec_val DECIMAL(10,2), float_val FLOAT, money_val MONEY, bit_val BIT
-            """
-        ) { tableName in
-            try await execute("""
-                INSERT INTO [\(tableName)] VALUES (
-                    1, 42, 1000, 100000, 9876543210,
-                    12345.67, 3.14, 99.99, 1
-                )
-            """)
+        let tableName = uniqueTableName()
+        try await sqlserverClient.admin.createTable(name: tableName, columns: [
+            SQLServerColumnDefinition(name: "id", definition: .standard(.init(dataType: .int, isPrimaryKey: true))),
+            SQLServerColumnDefinition(name: "tiny_val", definition: .standard(.init(dataType: .tinyint))),
+            SQLServerColumnDefinition(name: "small_val", definition: .standard(.init(dataType: .smallint))),
+            SQLServerColumnDefinition(name: "int_val", definition: .standard(.init(dataType: .int))),
+            SQLServerColumnDefinition(name: "big_val", definition: .standard(.init(dataType: .bigint))),
+            SQLServerColumnDefinition(name: "dec_val", definition: .standard(.init(dataType: .decimal(precision: 10, scale: 2)))),
+            SQLServerColumnDefinition(name: "float_val", definition: .standard(.init(dataType: .float(mantissa: 53)))),
+            SQLServerColumnDefinition(name: "money_val", definition: .standard(.init(dataType: .money))),
+            SQLServerColumnDefinition(name: "bit_val", definition: .standard(.init(dataType: .bit)))
+        ])
+        cleanupSQL("DROP TABLE [\(tableName)]")
 
-            let result = try await query("SELECT * FROM [\(tableName)]")
-            XCTAssertEqual(result.rows.count, 1)
-            XCTAssertEqual(result.columns.count, 9)
+        _ = try await sqlserverClient.admin.insertRow(into: tableName, values: [
+            "id": .int(1),
+            "tiny_val": .int(42),
+            "small_val": .int(1000),
+            "int_val": .int(100000),
+            "big_val": .int64(9876543210),
+            "dec_val": .decimal("12345.67"),
+            "float_val": .double(3.14),
+            "money_val": .decimal("99.99"),
+            "bit_val": .bool(true)
+        ])
 
-            // Verify each value can be read back
-            for (i, col) in result.columns.enumerated() {
-                XCTAssertNotNil(result.rows[0][i], "Column \(col.name) should have a value")
-            }
+        let result = try await query("SELECT * FROM [\(tableName)]")
+        XCTAssertEqual(result.rows.count, 1)
+        XCTAssertEqual(result.columns.count, 9)
+
+        // Verify each value can be read back
+        for (i, col) in result.columns.enumerated() {
+            XCTAssertNotNil(result.rows[0][i], "Column \(col.name) should have a value")
         }
     }
 

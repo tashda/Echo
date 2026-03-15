@@ -1,4 +1,5 @@
 import XCTest
+import PostgresKit
 @testable import Echo
 
 /// Tests PostgreSQL column operations through Echo's DatabaseSession layer.
@@ -8,7 +9,10 @@ final class PGColumnTests: PostgresDockerTestCase {
 
     func testAddColumn() async throws {
         try await withTempTable(columns: "id SERIAL PRIMARY KEY") { tableName in
-            try await execute("ALTER TABLE public.\(tableName) ADD COLUMN email TEXT")
+            try await postgresClient.admin.addColumn(
+                table: tableName,
+                column: .text(name: "email")
+            )
 
             let details = try await session.getTableStructureDetails(schema: "public", table: tableName)
             IntegrationTestHelpers.assertHasStructureColumn(details, named: "email")
@@ -17,7 +21,10 @@ final class PGColumnTests: PostgresDockerTestCase {
 
     func testAddColumnWithDefault() async throws {
         try await withTempTable(columns: "id SERIAL PRIMARY KEY") { tableName in
-            try await execute("ALTER TABLE public.\(tableName) ADD COLUMN status TEXT DEFAULT 'active'")
+            try await postgresClient.admin.addColumn(
+                table: tableName,
+                column: .text(name: "status", defaultValue: "'active'")
+            )
 
             let details = try await session.getTableStructureDetails(schema: "public", table: tableName)
             IntegrationTestHelpers.assertHasStructureColumn(details, named: "status")
@@ -31,7 +38,10 @@ final class PGColumnTests: PostgresDockerTestCase {
 
     func testAddColumnNotNull() async throws {
         try await withTempTable(columns: "id SERIAL PRIMARY KEY") { tableName in
-            try await execute("ALTER TABLE public.\(tableName) ADD COLUMN name TEXT NOT NULL DEFAULT ''")
+            try await postgresClient.admin.addColumn(
+                table: tableName,
+                column: PostgresColumnDefinition(name: "name", dataType: "TEXT", nullable: false, defaultValue: "''")
+            )
 
             let details = try await session.getTableStructureDetails(schema: "public", table: tableName)
             let nameCol = details.columns.first { $0.name.caseInsensitiveCompare("name") == .orderedSame }
@@ -44,7 +54,7 @@ final class PGColumnTests: PostgresDockerTestCase {
 
     func testAlterColumnType() async throws {
         try await withTempTable(columns: "id SERIAL PRIMARY KEY, name VARCHAR(50)") { tableName in
-            try await execute("ALTER TABLE public.\(tableName) ALTER COLUMN name TYPE VARCHAR(200)")
+            try await postgresClient.admin.alterColumnType(table: tableName, column: "name", newType: "VARCHAR(200)")
 
             let details = try await session.getTableStructureDetails(schema: "public", table: tableName)
             let nameCol = details.columns.first { $0.name.caseInsensitiveCompare("name") == .orderedSame }
@@ -55,7 +65,7 @@ final class PGColumnTests: PostgresDockerTestCase {
 
     func testAlterColumnNullability() async throws {
         try await withTempTable(columns: "id SERIAL PRIMARY KEY, value INT NOT NULL") { tableName in
-            try await execute("ALTER TABLE public.\(tableName) ALTER COLUMN value DROP NOT NULL")
+            try await postgresClient.admin.alterColumnNullability(table: tableName, column: "value", nullable: true)
 
             let details = try await session.getTableStructureDetails(schema: "public", table: tableName)
             let valueCol = details.columns.first { $0.name.caseInsensitiveCompare("value") == .orderedSame }
@@ -67,7 +77,7 @@ final class PGColumnTests: PostgresDockerTestCase {
 
     func testDropColumn() async throws {
         try await withTempTable(columns: "id SERIAL PRIMARY KEY, name TEXT, temp_col INT") { tableName in
-            try await execute("ALTER TABLE public.\(tableName) DROP COLUMN temp_col")
+            try await postgresClient.admin.dropColumn(table: tableName, column: "temp_col")
 
             let details = try await session.getTableStructureDetails(schema: "public", table: tableName)
             let hasTempCol = details.columns.contains { $0.name.caseInsensitiveCompare("temp_col") == .orderedSame }
@@ -79,7 +89,7 @@ final class PGColumnTests: PostgresDockerTestCase {
 
     func testRenameColumn() async throws {
         try await withTempTable(columns: "id SERIAL PRIMARY KEY, old_name TEXT") { tableName in
-            try await execute("ALTER TABLE public.\(tableName) RENAME COLUMN old_name TO new_name")
+            try await postgresClient.admin.renameColumn(table: tableName, oldName: "old_name", newName: "new_name")
 
             let details = try await session.getTableStructureDetails(schema: "public", table: tableName)
             IntegrationTestHelpers.assertHasStructureColumn(details, named: "new_name")
@@ -92,10 +102,13 @@ final class PGColumnTests: PostgresDockerTestCase {
 
     func testAddMultipleColumns() async throws {
         try await withTempTable(columns: "id SERIAL PRIMARY KEY") { tableName in
-            try await execute("ALTER TABLE public.\(tableName) ADD COLUMN first_name TEXT")
-            try await execute("ALTER TABLE public.\(tableName) ADD COLUMN last_name TEXT")
-            try await execute("ALTER TABLE public.\(tableName) ADD COLUMN age INT")
-            try await execute("ALTER TABLE public.\(tableName) ADD COLUMN salary NUMERIC(10,2)")
+            try await postgresClient.admin.addColumn(table: tableName, column: .text(name: "first_name"))
+            try await postgresClient.admin.addColumn(table: tableName, column: .text(name: "last_name"))
+            try await postgresClient.admin.addColumn(table: tableName, column: .integer(name: "age"))
+            try await postgresClient.admin.addColumn(
+                table: tableName,
+                column: PostgresColumnDefinition(name: "salary", dataType: "NUMERIC(10,2)")
+            )
 
             let details = try await session.getTableStructureDetails(schema: "public", table: tableName)
             XCTAssertEqual(details.columns.count, 5)

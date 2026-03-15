@@ -1,4 +1,5 @@
 import XCTest
+import PostgresKit
 @testable import Echo
 
 /// Tests PostgreSQL sequence operations through Echo's DatabaseSession layer.
@@ -8,7 +9,7 @@ final class PGSequenceTests: PostgresDockerTestCase {
 
     func testCreateSequence() async throws {
         let seqName = uniqueName(prefix: "seq")
-        try await execute("CREATE SEQUENCE \(seqName)")
+        try await postgresClient.admin.createSequence(name: seqName)
         cleanupSQL("DROP SEQUENCE IF EXISTS \(seqName)")
 
         let result = try await query("""
@@ -20,10 +21,14 @@ final class PGSequenceTests: PostgresDockerTestCase {
 
     func testCreateSequenceWithAllOptions() async throws {
         let seqName = uniqueName(prefix: "seq")
-        try await execute("""
-            CREATE SEQUENCE \(seqName)
-            START 10 INCREMENT BY 5 MINVALUE 1 MAXVALUE 1000 CACHE 10
-        """)
+        try await postgresClient.admin.createSequence(
+            name: seqName,
+            startWith: 10,
+            incrementBy: 5,
+            minValue: 1,
+            maxValue: 1000,
+            cache: 10
+        )
         cleanupSQL("DROP SEQUENCE IF EXISTS \(seqName)")
 
         let result = try await query("""
@@ -40,119 +45,122 @@ final class PGSequenceTests: PostgresDockerTestCase {
 
     func testCreateDescendingSequence() async throws {
         let seqName = uniqueName(prefix: "seq")
-        try await execute("""
-            CREATE SEQUENCE \(seqName)
-            START 100 INCREMENT BY -1 MINVALUE 1 MAXVALUE 100
-        """)
+        try await postgresClient.admin.createSequence(
+            name: seqName,
+            startWith: 100,
+            incrementBy: -1,
+            minValue: 1,
+            maxValue: 100
+        )
         cleanupSQL("DROP SEQUENCE IF EXISTS \(seqName)")
 
-        let r1 = try await query("SELECT nextval('\(seqName)')")
-        XCTAssertEqual(r1.rows[0][0], "100")
+        let v1 = try await postgresClient.admin.nextval(seqName)
+        XCTAssertEqual(v1, 100)
 
-        let r2 = try await query("SELECT nextval('\(seqName)')")
-        XCTAssertEqual(r2.rows[0][0], "99")
+        let v2 = try await postgresClient.admin.nextval(seqName)
+        XCTAssertEqual(v2, 99)
     }
 
     // MARK: - Nextval / Currval
 
     func testNextval() async throws {
         let seqName = uniqueName(prefix: "seq")
-        try await execute("CREATE SEQUENCE \(seqName) START 1")
+        try await postgresClient.admin.createSequence(name: seqName, startWith: 1)
         cleanupSQL("DROP SEQUENCE IF EXISTS \(seqName)")
 
-        let r1 = try await query("SELECT nextval('\(seqName)')")
-        XCTAssertEqual(r1.rows[0][0], "1")
+        let v1 = try await postgresClient.admin.nextval(seqName)
+        XCTAssertEqual(v1, 1)
 
-        let r2 = try await query("SELECT nextval('\(seqName)')")
-        XCTAssertEqual(r2.rows[0][0], "2")
+        let v2 = try await postgresClient.admin.nextval(seqName)
+        XCTAssertEqual(v2, 2)
 
-        let r3 = try await query("SELECT nextval('\(seqName)')")
-        XCTAssertEqual(r3.rows[0][0], "3")
+        let v3 = try await postgresClient.admin.nextval(seqName)
+        XCTAssertEqual(v3, 3)
     }
 
     func testCurrval() async throws {
         let seqName = uniqueName(prefix: "seq")
-        try await execute("CREATE SEQUENCE \(seqName) START 10")
+        try await postgresClient.admin.createSequence(name: seqName, startWith: 10)
         cleanupSQL("DROP SEQUENCE IF EXISTS \(seqName)")
 
         // Must call nextval before currval
-        _ = try await query("SELECT nextval('\(seqName)')")
+        _ = try await postgresClient.admin.nextval(seqName)
 
-        let result = try await query("SELECT currval('\(seqName)')")
-        XCTAssertEqual(result.rows[0][0], "10")
+        let current = try await postgresClient.admin.currval(seqName)
+        XCTAssertEqual(current, 10)
     }
 
     func testCurrvalReflectsLatestNextval() async throws {
         let seqName = uniqueName(prefix: "seq")
-        try await execute("CREATE SEQUENCE \(seqName) START 1")
+        try await postgresClient.admin.createSequence(name: seqName, startWith: 1)
         cleanupSQL("DROP SEQUENCE IF EXISTS \(seqName)")
 
-        _ = try await query("SELECT nextval('\(seqName)')")
-        _ = try await query("SELECT nextval('\(seqName)')")
-        _ = try await query("SELECT nextval('\(seqName)')")
+        _ = try await postgresClient.admin.nextval(seqName)
+        _ = try await postgresClient.admin.nextval(seqName)
+        _ = try await postgresClient.admin.nextval(seqName)
 
-        let result = try await query("SELECT currval('\(seqName)')")
-        XCTAssertEqual(result.rows[0][0], "3")
+        let current = try await postgresClient.admin.currval(seqName)
+        XCTAssertEqual(current, 3)
     }
 
     func testSetval() async throws {
         let seqName = uniqueName(prefix: "seq")
-        try await execute("CREATE SEQUENCE \(seqName) START 1")
+        try await postgresClient.admin.createSequence(name: seqName, startWith: 1)
         cleanupSQL("DROP SEQUENCE IF EXISTS \(seqName)")
 
-        _ = try await query("SELECT setval('\(seqName)', 50)")
+        try await postgresClient.admin.setval(seqName, value: 50)
 
-        let result = try await query("SELECT nextval('\(seqName)')")
-        XCTAssertEqual(result.rows[0][0], "51", "nextval after setval(50) should return 51")
+        let next = try await postgresClient.admin.nextval(seqName)
+        XCTAssertEqual(next, 51, "nextval after setval(50) should return 51")
     }
 
     func testSetvalWithIsCalled() async throws {
         let seqName = uniqueName(prefix: "seq")
-        try await execute("CREATE SEQUENCE \(seqName) START 1")
+        try await postgresClient.admin.createSequence(name: seqName, startWith: 1)
         cleanupSQL("DROP SEQUENCE IF EXISTS \(seqName)")
 
         // setval with is_called = false means nextval returns the set value
-        _ = try await query("SELECT setval('\(seqName)', 50, false)")
+        try await postgresClient.admin.setval(seqName, value: 50, isCalled: false)
 
-        let result = try await query("SELECT nextval('\(seqName)')")
-        XCTAssertEqual(result.rows[0][0], "50")
+        let next = try await postgresClient.admin.nextval(seqName)
+        XCTAssertEqual(next, 50)
     }
 
     // MARK: - Alter Sequence
 
     func testAlterSequenceIncrementBy() async throws {
         let seqName = uniqueName(prefix: "seq")
-        try await execute("CREATE SEQUENCE \(seqName) START 1")
+        try await postgresClient.admin.createSequence(name: seqName, startWith: 1)
         cleanupSQL("DROP SEQUENCE IF EXISTS \(seqName)")
 
-        _ = try await query("SELECT nextval('\(seqName)')") // 1
+        _ = try await postgresClient.admin.nextval(seqName) // 1
 
         try await execute("ALTER SEQUENCE \(seqName) INCREMENT BY 5")
 
-        let r1 = try await query("SELECT nextval('\(seqName)')")
-        XCTAssertEqual(r1.rows[0][0], "6", "After INCREMENT BY 5, next value should be 1+5=6")
+        let v1 = try await postgresClient.admin.nextval(seqName)
+        XCTAssertEqual(v1, 6, "After INCREMENT BY 5, next value should be 1+5=6")
 
-        let r2 = try await query("SELECT nextval('\(seqName)')")
-        XCTAssertEqual(r2.rows[0][0], "11", "Next value should be 6+5=11")
+        let v2 = try await postgresClient.admin.nextval(seqName)
+        XCTAssertEqual(v2, 11, "Next value should be 6+5=11")
     }
 
     func testAlterSequenceRestart() async throws {
         let seqName = uniqueName(prefix: "seq")
-        try await execute("CREATE SEQUENCE \(seqName) START 1")
+        try await postgresClient.admin.createSequence(name: seqName, startWith: 1)
         cleanupSQL("DROP SEQUENCE IF EXISTS \(seqName)")
 
-        _ = try await query("SELECT nextval('\(seqName)')") // 1
-        _ = try await query("SELECT nextval('\(seqName)')") // 2
+        _ = try await postgresClient.admin.nextval(seqName) // 1
+        _ = try await postgresClient.admin.nextval(seqName) // 2
 
         try await execute("ALTER SEQUENCE \(seqName) RESTART WITH 100")
 
-        let result = try await query("SELECT nextval('\(seqName)')")
-        XCTAssertEqual(result.rows[0][0], "100")
+        let next = try await postgresClient.admin.nextval(seqName)
+        XCTAssertEqual(next, 100)
     }
 
     func testAlterSequenceMinMax() async throws {
         let seqName = uniqueName(prefix: "seq")
-        try await execute("CREATE SEQUENCE \(seqName) START 1")
+        try await postgresClient.admin.createSequence(name: seqName, startWith: 1)
         cleanupSQL("DROP SEQUENCE IF EXISTS \(seqName)")
 
         try await execute("ALTER SEQUENCE \(seqName) MINVALUE 0 MAXVALUE 500")
@@ -168,9 +176,9 @@ final class PGSequenceTests: PostgresDockerTestCase {
 
     func testDropSequence() async throws {
         let seqName = uniqueName(prefix: "seq")
-        try await execute("CREATE SEQUENCE \(seqName)")
+        try await postgresClient.admin.createSequence(name: seqName)
 
-        try await execute("DROP SEQUENCE \(seqName)")
+        try await postgresClient.admin.dropSequence(name: seqName)
 
         let result = try await query("""
             SELECT sequencename FROM pg_sequences WHERE sequencename = '\(seqName)'
@@ -181,61 +189,69 @@ final class PGSequenceTests: PostgresDockerTestCase {
     func testDropSequenceIfExists() async throws {
         let seqName = uniqueName(prefix: "seq")
         // Should not throw even if sequence does not exist
-        try await execute("DROP SEQUENCE IF EXISTS \(seqName)")
+        try await postgresClient.admin.dropSequence(name: seqName, ifExists: true)
     }
 
     func testDropSequenceCascade() async throws {
         let tableName = uniqueName(prefix: "seq_tbl")
         let seqName = uniqueName(prefix: "seq")
 
-        try await execute("CREATE TABLE \(tableName) (id INTEGER PRIMARY KEY, name TEXT)")
-        try await execute("CREATE SEQUENCE \(seqName) OWNED BY \(tableName).id")
+        try await postgresClient.admin.createTable(name: tableName, columns: [
+            PostgresColumnDefinition(name: "id", dataType: "INTEGER", nullable: false, primaryKey: true),
+            .text(name: "name")
+        ])
+        try await postgresClient.admin.createSequence(name: seqName)
+        try await execute("ALTER SEQUENCE \(seqName) OWNED BY \(tableName).id")
         try await execute("ALTER TABLE \(tableName) ALTER COLUMN id SET DEFAULT nextval('\(seqName)')")
 
         // Drop with cascade should work
-        try await execute("DROP SEQUENCE \(seqName) CASCADE")
+        try await postgresClient.admin.dropSequence(name: seqName, cascade: true)
 
         let result = try await query("""
             SELECT sequencename FROM pg_sequences WHERE sequencename = '\(seqName)'
         """)
         XCTAssertEqual(result.rows.count, 0)
 
-        try? await execute("DROP TABLE IF EXISTS \(tableName)")
+        try? await postgresClient.admin.dropTable(name: tableName, ifExists: true)
     }
 
     // MARK: - Sequence with Cycle
 
     func testSequenceWithMinMaxValue() async throws {
         let seqName = uniqueName(prefix: "seq")
-        try await execute("""
-            CREATE SEQUENCE \(seqName)
-            START 1 INCREMENT BY 1 MINVALUE 1 MAXVALUE 5 CYCLE
-        """)
+        try await postgresClient.admin.createSequence(
+            name: seqName,
+            startWith: 1,
+            incrementBy: 1,
+            minValue: 1,
+            maxValue: 5,
+            cycle: true
+        )
         cleanupSQL("DROP SEQUENCE IF EXISTS \(seqName)")
 
         for expected in 1...5 {
-            let result = try await query("SELECT nextval('\(seqName)')")
-            XCTAssertEqual(result.rows[0][0], "\(expected)")
+            let val = try await postgresClient.admin.nextval(seqName)
+            XCTAssertEqual(val, expected)
         }
 
         // Should cycle back to MINVALUE
-        let cycled = try await query("SELECT nextval('\(seqName)')")
-        XCTAssertEqual(cycled.rows[0][0], "1", "Sequence should cycle back to 1")
+        let cycled = try await postgresClient.admin.nextval(seqName)
+        XCTAssertEqual(cycled, 1, "Sequence should cycle back to 1")
     }
 
     func testSequenceWithCustomStartAndIncrement() async throws {
         let seqName = uniqueName(prefix: "seq")
-        try await execute("CREATE SEQUENCE \(seqName) START 100 INCREMENT BY 10")
+        try await postgresClient.admin.createSequence(name: seqName, startWith: 100, incrementBy: 10)
         cleanupSQL("DROP SEQUENCE IF EXISTS \(seqName)")
 
-        let r1 = try await query("SELECT nextval('\(seqName)')")
-        XCTAssertEqual(r1.rows[0][0], "100")
+        let v1 = try await postgresClient.admin.nextval(seqName)
+        XCTAssertEqual(v1, 100)
 
-        let r2 = try await query("SELECT nextval('\(seqName)')")
-        XCTAssertEqual(r2.rows[0][0], "110")
+        let v2 = try await postgresClient.admin.nextval(seqName)
+        XCTAssertEqual(v2, 110)
 
-        let r3 = try await query("SELECT nextval('\(seqName)')")
-        XCTAssertEqual(r3.rows[0][0], "120")
+        let v3 = try await postgresClient.admin.nextval(seqName)
+        XCTAssertEqual(v3, 120)
     }
 
     // MARK: - Sequence Owned By Column
@@ -244,15 +260,17 @@ final class PGSequenceTests: PostgresDockerTestCase {
         let tableName = uniqueName(prefix: "seq_tbl")
         let seqName = uniqueName(prefix: "seq")
 
-        try await execute("CREATE TABLE \(tableName) (id INTEGER PRIMARY KEY, name TEXT)")
-        try await execute("CREATE SEQUENCE \(seqName) OWNED BY \(tableName).id")
+        try await postgresClient.admin.createTable(name: tableName, columns: [
+            PostgresColumnDefinition(name: "id", dataType: "INTEGER", nullable: false, primaryKey: true),
+            .text(name: "name")
+        ])
+        try await postgresClient.admin.createSequence(name: seqName)
+        try await execute("ALTER SEQUENCE \(seqName) OWNED BY \(tableName).id")
         cleanupSQL("DROP TABLE IF EXISTS \(tableName) CASCADE")
 
-        try await execute("""
-            ALTER TABLE \(tableName) ALTER COLUMN id SET DEFAULT nextval('\(seqName)')
-        """)
+        try await execute("ALTER TABLE \(tableName) ALTER COLUMN id SET DEFAULT nextval('\(seqName)')")
 
-        try await execute("INSERT INTO \(tableName) (name) VALUES ('auto-id')")
+        try await postgresClient.connection.insert(into: tableName, columns: ["name"], values: [["auto-id"]])
         let result = try await query("SELECT id, name FROM \(tableName)")
         IntegrationTestHelpers.assertRowCount(result, expected: 1)
         XCTAssertNotNil(result.rows[0][0], "id should be auto-generated from sequence")
@@ -262,11 +280,15 @@ final class PGSequenceTests: PostgresDockerTestCase {
         let tableName = uniqueName(prefix: "seq_tbl")
         let seqName = uniqueName(prefix: "seq")
 
-        try await execute("CREATE TABLE \(tableName) (id INTEGER PRIMARY KEY, name TEXT)")
-        try await execute("CREATE SEQUENCE \(seqName) OWNED BY \(tableName).id")
+        try await postgresClient.admin.createTable(name: tableName, columns: [
+            PostgresColumnDefinition(name: "id", dataType: "INTEGER", nullable: false, primaryKey: true),
+            .text(name: "name")
+        ])
+        try await postgresClient.admin.createSequence(name: seqName)
+        try await execute("ALTER SEQUENCE \(seqName) OWNED BY \(tableName).id")
 
         // Dropping the table should also drop the owned sequence
-        try await execute("DROP TABLE \(tableName) CASCADE")
+        try await postgresClient.admin.dropTable(name: tableName, cascade: true)
 
         let result = try await query("""
             SELECT sequencename FROM pg_sequences WHERE sequencename = '\(seqName)'
@@ -280,10 +302,10 @@ final class PGSequenceTests: PostgresDockerTestCase {
         let schemaName = uniqueName(prefix: "sch")
         let seqName = uniqueName(prefix: "seq")
 
-        try await execute("CREATE SCHEMA \(schemaName)")
+        try await postgresClient.admin.createSchema(name: schemaName)
         cleanupSQL("DROP SCHEMA IF EXISTS \(schemaName) CASCADE")
 
-        try await execute("CREATE SEQUENCE \(schemaName).\(seqName) START 42")
+        try await postgresClient.admin.createSequence(name: "\(schemaName).\(seqName)", startWith: 42)
 
         let result = try await query("SELECT nextval('\(schemaName).\(seqName)')")
         XCTAssertEqual(result.rows[0][0], "42")

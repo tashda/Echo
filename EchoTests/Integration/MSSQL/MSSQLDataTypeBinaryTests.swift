@@ -1,4 +1,5 @@
 import XCTest
+import SQLServerKit
 @testable import Echo
 
 /// Tests SQL Server binary and special data type round-trips through Echo's DatabaseSession layer.
@@ -49,17 +50,21 @@ final class MSSQLDataTypeBinaryTests: MSSQLDockerTestCase {
     // MARK: - IMAGE (Legacy)
 
     func testImageType() async throws {
-        try await withTempTable(
-            columns: "id INT PRIMARY KEY, img IMAGE"
-        ) { tableName in
-            try await execute("""
-                INSERT INTO [\(tableName)] VALUES (1, 0x89504E470D0A1A0A)
-            """)
+        let tableName = uniqueTableName()
+        try await sqlserverClient.admin.createTable(name: tableName, columns: [
+            SQLServerColumnDefinition(name: "id", definition: .standard(.init(dataType: .int, isPrimaryKey: true))),
+            SQLServerColumnDefinition(name: "img", definition: .standard(.init(dataType: .image)))
+        ])
+        cleanupSQL("DROP TABLE [\(tableName)]")
 
-            let result = try await query("SELECT * FROM [\(tableName)]")
-            IntegrationTestHelpers.assertRowCount(result, expected: 1)
-            XCTAssertNotNil(result.rows[0][1], "Image column should have a value")
-        }
+        _ = try await sqlserverClient.admin.insertRow(into: tableName, values: [
+            "id": .int(1),
+            "img": .raw("0x89504E470D0A1A0A")
+        ])
+
+        let result = try await query("SELECT * FROM [\(tableName)]")
+        IntegrationTestHelpers.assertRowCount(result, expected: 1)
+        XCTAssertNotNil(result.rows[0][1], "Image column should have a value")
     }
 
     // MARK: - UNIQUEIDENTIFIER
@@ -87,19 +92,30 @@ final class MSSQLDataTypeBinaryTests: MSSQLDockerTestCase {
     }
 
     func testUniqueidentifierRoundTrip() async throws {
-        try await withTempTable(
-            columns: "id INT PRIMARY KEY, guid UNIQUEIDENTIFIER DEFAULT NEWID()"
-        ) { tableName in
-            try await execute("INSERT INTO [\(tableName)] (id) VALUES (1), (2), (3)")
+        let tableName = uniqueTableName()
+        try await sqlserverClient.admin.createTable(name: tableName, columns: [
+            SQLServerColumnDefinition(name: "id", definition: .standard(.init(dataType: .int, isPrimaryKey: true))),
+            SQLServerColumnDefinition(name: "guid", definition: .standard(.init(dataType: .uniqueidentifier)))
+        ])
+        cleanupSQL("DROP TABLE [\(tableName)]")
 
-            let result = try await query("SELECT * FROM [\(tableName)] ORDER BY id")
-            IntegrationTestHelpers.assertRowCount(result, expected: 3)
+        _ = try await sqlserverClient.admin.insertRows(
+            into: tableName,
+            columns: ["id", "guid"],
+            values: [
+                [.int(1), .uuid(UUID())],
+                [.int(2), .uuid(UUID())],
+                [.int(3), .uuid(UUID())]
+            ]
+        )
 
-            // All GUIDs should be unique
-            let guids = result.rows.compactMap { $0[1] }
-            XCTAssertEqual(guids.count, 3, "All GUIDs should be non-null")
-            XCTAssertEqual(Set(guids).count, 3, "All GUIDs should be unique")
-        }
+        let result = try await query("SELECT * FROM [\(tableName)] ORDER BY id")
+        IntegrationTestHelpers.assertRowCount(result, expected: 3)
+
+        // All GUIDs should be unique
+        let guids = result.rows.compactMap { $0[1] }
+        XCTAssertEqual(guids.count, 3, "All GUIDs should be non-null")
+        XCTAssertEqual(Set(guids).count, 3, "All GUIDs should be unique")
     }
 
     // MARK: - XML
@@ -124,20 +140,26 @@ final class MSSQLDataTypeBinaryTests: MSSQLDockerTestCase {
     }
 
     func testXmlRoundTrip() async throws {
-        try await withTempTable(
-            columns: "id INT PRIMARY KEY, data XML"
-        ) { tableName in
-            try await execute("""
-                INSERT INTO [\(tableName)] VALUES
-                    (1, '<doc><title>Test</title><body>Content</body></doc>'),
-                    (2, '<config><setting name="debug" value="true"/></config>')
-            """)
+        let tableName = uniqueTableName()
+        try await sqlserverClient.admin.createTable(name: tableName, columns: [
+            SQLServerColumnDefinition(name: "id", definition: .standard(.init(dataType: .int, isPrimaryKey: true))),
+            SQLServerColumnDefinition(name: "data", definition: .standard(.init(dataType: .xml)))
+        ])
+        cleanupSQL("DROP TABLE [\(tableName)]")
 
-            let result = try await query("SELECT * FROM [\(tableName)] ORDER BY id")
-            IntegrationTestHelpers.assertRowCount(result, expected: 2)
-            XCTAssertTrue(result.rows[0][1]?.contains("Test") ?? false)
-            XCTAssertTrue(result.rows[1][1]?.contains("debug") ?? false)
-        }
+        _ = try await sqlserverClient.admin.insertRows(
+            into: tableName,
+            columns: ["id", "data"],
+            values: [
+                [.int(1), .raw("'<doc><title>Test</title><body>Content</body></doc>'")],
+                [.int(2), .raw("'<config><setting name=\"debug\" value=\"true\"/></config>'")]
+            ]
+        )
+
+        let result = try await query("SELECT * FROM [\(tableName)] ORDER BY id")
+        IntegrationTestHelpers.assertRowCount(result, expected: 2)
+        XCTAssertTrue(result.rows[0][1]?.contains("Test") ?? false)
+        XCTAssertTrue(result.rows[1][1]?.contains("debug") ?? false)
     }
 
     // MARK: - SQL_VARIANT
@@ -155,21 +177,28 @@ final class MSSQLDataTypeBinaryTests: MSSQLDockerTestCase {
     }
 
     func testSqlVariantInTable() async throws {
-        try await withTempTable(
-            columns: "id INT PRIMARY KEY, val SQL_VARIANT"
-        ) { tableName in
-            try await execute("""
-                INSERT INTO [\(tableName)] VALUES
-                    (1, CAST(100 AS INT)),
-                    (2, CAST('text value' AS NVARCHAR(50))),
-                    (3, CAST(3.14159 AS FLOAT))
-            """)
+        let tableName = uniqueTableName()
+        try await sqlserverClient.admin.createTable(name: tableName, columns: [
+            SQLServerColumnDefinition(name: "id", definition: .standard(.init(dataType: .int, isPrimaryKey: true))),
+            SQLServerColumnDefinition(name: "val", definition: .standard(.init(dataType: .sql_variant)))
+        ])
+        cleanupSQL("DROP TABLE [\(tableName)]")
 
-            let result = try await query("SELECT * FROM [\(tableName)] ORDER BY id")
-            IntegrationTestHelpers.assertRowCount(result, expected: 3)
-            for i in 0..<3 {
-                XCTAssertNotNil(result.rows[i][1], "Row \(i) variant should not be null")
-            }
+        // sql_variant requires CAST in the INSERT, so use raw SQL values
+        _ = try await sqlserverClient.admin.insertRows(
+            into: tableName,
+            columns: ["id", "val"],
+            values: [
+                [.int(1), .raw("CAST(100 AS INT)")],
+                [.int(2), .raw("CAST('text value' AS NVARCHAR(50))")],
+                [.int(3), .raw("CAST(3.14159 AS FLOAT)")]
+            ]
+        )
+
+        let result = try await query("SELECT * FROM [\(tableName)] ORDER BY id")
+        IntegrationTestHelpers.assertRowCount(result, expected: 3)
+        for i in 0..<3 {
+            XCTAssertNotNil(result.rows[i][1], "Row \(i) variant should not be null")
         }
     }
 
@@ -193,25 +222,26 @@ final class MSSQLDataTypeBinaryTests: MSSQLDockerTestCase {
 
     func testHierarchyIdRoundTrip() async throws {
         do {
-            try await withTempTable(
-                columns: "id INT PRIMARY KEY, node HIERARCHYID"
-            ) { tableName in
-                try await execute("""
-                    INSERT INTO [\(tableName)] VALUES
-                        (1, hierarchyid::GetRoot()),
-                        (2, hierarchyid::Parse('/1/')),
-                        (3, hierarchyid::Parse('/1/2/')),
-                        (4, hierarchyid::Parse('/2/'))
-                """)
+            // HIERARCHYID is not in the typed API, use raw SQL for table setup
+            let tableName = uniqueTableName()
+            try await execute("CREATE TABLE [\(tableName)] (id INT PRIMARY KEY, node HIERARCHYID)")
+            cleanupSQL("DROP TABLE [\(tableName)]")
 
-                let result = try await query("""
-                    SELECT id, node.ToString() AS node_path
-                    FROM [\(tableName)]
-                    ORDER BY node
-                """)
-                IntegrationTestHelpers.assertRowCount(result, expected: 4)
-                XCTAssertEqual(result.rows[0][1], "/")
-            }
+            try await execute("""
+                INSERT INTO [\(tableName)] VALUES
+                    (1, hierarchyid::GetRoot()),
+                    (2, hierarchyid::Parse('/1/')),
+                    (3, hierarchyid::Parse('/1/2/')),
+                    (4, hierarchyid::Parse('/2/'))
+            """)
+
+            let result = try await query("""
+                SELECT id, node.ToString() AS node_path
+                FROM [\(tableName)]
+                ORDER BY node
+            """)
+            IntegrationTestHelpers.assertRowCount(result, expected: 4)
+            XCTAssertEqual(result.rows[0][1], "/")
         } catch {
             throw XCTSkip("HierarchyId not supported: \(error.localizedDescription)")
         }
@@ -247,26 +277,27 @@ final class MSSQLDataTypeBinaryTests: MSSQLDockerTestCase {
 
     func testGeographyRoundTrip() async throws {
         do {
-            try await withTempTable(
-                columns: "id INT PRIMARY KEY, location GEOGRAPHY"
-            ) { tableName in
-                try await execute("""
-                    INSERT INTO [\(tableName)] VALUES
-                        (1, geography::Point(47.651, -122.349, 4326)),
-                        (2, geography::Point(40.7128, -74.0060, 4326))
-                """)
+            // GEOGRAPHY is not in the typed API, use raw SQL for table setup
+            let tableName = uniqueTableName()
+            try await execute("CREATE TABLE [\(tableName)] (id INT PRIMARY KEY, location GEOGRAPHY)")
+            cleanupSQL("DROP TABLE [\(tableName)]")
 
-                let result = try await query("""
-                    SELECT id, location.ToString() AS wkt,
-                           location.Lat AS latitude,
-                           location.Long AS longitude
-                    FROM [\(tableName)]
-                    ORDER BY id
-                """)
-                IntegrationTestHelpers.assertRowCount(result, expected: 2)
-                IntegrationTestHelpers.assertHasColumn(result, named: "latitude")
-                IntegrationTestHelpers.assertHasColumn(result, named: "longitude")
-            }
+            try await execute("""
+                INSERT INTO [\(tableName)] VALUES
+                    (1, geography::Point(47.651, -122.349, 4326)),
+                    (2, geography::Point(40.7128, -74.0060, 4326))
+            """)
+
+            let result = try await query("""
+                SELECT id, location.ToString() AS wkt,
+                       location.Lat AS latitude,
+                       location.Long AS longitude
+                FROM [\(tableName)]
+                ORDER BY id
+            """)
+            IntegrationTestHelpers.assertRowCount(result, expected: 2)
+            IntegrationTestHelpers.assertHasColumn(result, named: "latitude")
+            IntegrationTestHelpers.assertHasColumn(result, named: "longitude")
         } catch {
             throw XCTSkip("Geography type not supported: \(error.localizedDescription)")
         }
@@ -297,59 +328,63 @@ final class MSSQLDataTypeBinaryTests: MSSQLDockerTestCase {
     // MARK: - Table Round-Trip
 
     func testBinaryRoundTripThroughTable() async throws {
-        try await withTempTable(
-            columns: """
-                id INT PRIMARY KEY,
-                bin_col BINARY(8),
-                varbin_col VARBINARY(100),
-                varbin_max_col VARBINARY(MAX),
-                guid_col UNIQUEIDENTIFIER,
-                xml_col XML
-            """
-        ) { tableName in
-            try await execute("""
-                INSERT INTO [\(tableName)] VALUES (
-                    1,
-                    0x0102030405060708,
-                    0xDEADBEEF,
-                    0xCAFEBABE00112233,
-                    NEWID(),
-                    '<data><value>42</value></data>'
-                )
-            """)
+        let tableName = uniqueTableName()
+        try await sqlserverClient.admin.createTable(name: tableName, columns: [
+            SQLServerColumnDefinition(name: "id", definition: .standard(.init(dataType: .int, isPrimaryKey: true))),
+            SQLServerColumnDefinition(name: "bin_col", definition: .standard(.init(dataType: .binary(length: 8)))),
+            SQLServerColumnDefinition(name: "varbin_col", definition: .standard(.init(dataType: .varbinary(length: .length(100))))),
+            SQLServerColumnDefinition(name: "varbin_max_col", definition: .standard(.init(dataType: .varbinary(length: .max)))),
+            SQLServerColumnDefinition(name: "guid_col", definition: .standard(.init(dataType: .uniqueidentifier))),
+            SQLServerColumnDefinition(name: "xml_col", definition: .standard(.init(dataType: .xml)))
+        ])
+        cleanupSQL("DROP TABLE [\(tableName)]")
 
-            let result = try await query("SELECT * FROM [\(tableName)]")
-            IntegrationTestHelpers.assertRowCount(result, expected: 1)
-            XCTAssertEqual(result.columns.count, 6)
+        _ = try await sqlserverClient.admin.insertRow(into: tableName, values: [
+            "id": .int(1),
+            "bin_col": .raw("0x0102030405060708"),
+            "varbin_col": .raw("0xDEADBEEF"),
+            "varbin_max_col": .raw("0xCAFEBABE00112233"),
+            "guid_col": .uuid(UUID()),
+            "xml_col": .raw("'<data><value>42</value></data>'")
+        ])
 
-            for (i, col) in result.columns.enumerated() {
-                XCTAssertNotNil(result.rows[0][i], "Column \(col.name) should have a value")
-            }
+        let result = try await query("SELECT * FROM [\(tableName)]")
+        IntegrationTestHelpers.assertRowCount(result, expected: 1)
+        XCTAssertEqual(result.columns.count, 6)
+
+        for (i, col) in result.columns.enumerated() {
+            XCTAssertNotNil(result.rows[0][i], "Column \(col.name) should have a value")
         }
     }
 
     // MARK: - Binary Comparison
 
     func testBinaryComparison() async throws {
-        try await withTempTable(
-            columns: "id INT PRIMARY KEY, data VARBINARY(100)"
-        ) { tableName in
-            try await execute("""
-                INSERT INTO [\(tableName)] VALUES
-                    (1, 0x0001),
-                    (2, 0x00FF),
-                    (3, 0xFF00),
-                    (4, 0xFFFF)
-            """)
+        let tableName = uniqueTableName()
+        try await sqlserverClient.admin.createTable(name: tableName, columns: [
+            SQLServerColumnDefinition(name: "id", definition: .standard(.init(dataType: .int, isPrimaryKey: true))),
+            SQLServerColumnDefinition(name: "data", definition: .standard(.init(dataType: .varbinary(length: .length(100)))))
+        ])
+        cleanupSQL("DROP TABLE [\(tableName)]")
 
-            let result = try await query("""
-                SELECT id, data FROM [\(tableName)]
-                WHERE data > 0x00FF
-                ORDER BY data
-            """)
-            // 0xFF00 and 0xFFFF are > 0x00FF
-            IntegrationTestHelpers.assertRowCount(result, expected: 2)
-        }
+        _ = try await sqlserverClient.admin.insertRows(
+            into: tableName,
+            columns: ["id", "data"],
+            values: [
+                [.int(1), .raw("0x0001")],
+                [.int(2), .raw("0x00FF")],
+                [.int(3), .raw("0xFF00")],
+                [.int(4), .raw("0xFFFF")]
+            ]
+        )
+
+        let result = try await query("""
+            SELECT id, data FROM [\(tableName)]
+            WHERE data > 0x00FF
+            ORDER BY data
+        """)
+        // 0xFF00 and 0xFFFF are > 0x00FF
+        IntegrationTestHelpers.assertRowCount(result, expected: 2)
     }
 
     // MARK: - HASHBYTES
