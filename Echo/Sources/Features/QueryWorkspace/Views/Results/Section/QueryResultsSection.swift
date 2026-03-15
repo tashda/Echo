@@ -2,7 +2,7 @@ import SwiftUI
 import Combine
 
 struct QueryResultsSection: View {
-    @ObservedObject var query: QueryEditorState
+    @Bindable var query: QueryEditorState
     let connection: SavedConnection
     let activeDatabaseName: String?
     let gridState: QueryResultsGridState
@@ -21,7 +21,7 @@ struct QueryResultsSection: View {
     @State internal var jsonInspectorContext: JsonInspectorContext?
 #endif
 
-    @EnvironmentObject private var appearanceStore: AppearanceStore
+    @Environment(AppearanceStore.self) private var appearanceStore
     @Environment(ProjectStore.self) internal var projectStore
 
     internal let statusBarHeight: CGFloat = 24

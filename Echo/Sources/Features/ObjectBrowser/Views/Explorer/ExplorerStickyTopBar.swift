@@ -3,13 +3,13 @@ import AppKit
 import EchoSense
 
 struct StickyTopBarContent: View {
-    @ObservedObject var session: ConnectionSession
+    @Bindable var session: ConnectionSession
     let databaseName: String
     let onTap: () -> Void
     let onRefresh: () -> Void
 
     @Environment(ProjectStore.self) private var projectStore
-    @EnvironmentObject private var environmentState: EnvironmentState
+    @Environment(EnvironmentState.self) private var environmentState
     @State private var isHovered = false
 
     private var progressValue: Double? {

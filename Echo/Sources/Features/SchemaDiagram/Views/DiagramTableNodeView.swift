@@ -2,7 +2,7 @@ import SwiftUI
 import EchoSense
 
 struct SchemaDiagramNodeView: View {
-    @ObservedObject var node: SchemaDiagramNodeModel
+    @Bindable var node: SchemaDiagramNodeModel
     let zoom: CGFloat
     let palette: DiagramPalette
     @Binding var isDraggingNode: Bool

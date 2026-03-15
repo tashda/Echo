@@ -13,8 +13,8 @@ struct DatabaseObjectRow: View, Equatable {
 
     @Environment(ProjectStore.self) internal var projectStore
     @Environment(ConnectionStore.self) internal var connectionStore
-    @EnvironmentObject internal var environmentState: EnvironmentState
-    @EnvironmentObject internal var viewModel: ObjectBrowserSidebarViewModel
+    @Environment(EnvironmentState.self) internal var environmentState
+    @Environment(ObjectBrowserSidebarViewModel.self) internal var viewModel
 
     @State internal var hoveredColumnID: String?
     @State internal var showDropAlert = false

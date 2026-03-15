@@ -7,49 +7,48 @@
 
 import Foundation
 import SwiftUI
-import Combine
+import Observation
 import SQLServerKit
 
-@MainActor
-final class EnvironmentState: ObservableObject {
+@Observable @MainActor
+final class EnvironmentState {
 
     enum StructureRefreshScope {
         case selectedDatabase
         case full
     }
 
-    // MARK: - Published State
-    @Published var connectionStates: [UUID: ConnectionState] = [:]
-    @Published var sessionGroup = ActiveSessionGroup()
-    @Published var pinnedObjectIDs: [String] = []
-    @Published var recentConnections: [RecentConnectionRecord] = []
-    @Published var searchSidebarCaches: [SearchSidebarContextKey: SearchSidebarCache] = [:]
-    @Published var dataInspectorContent: DataInspectorContent?
-    @Published private(set) var expandedConnectionFolderIDs: Set<UUID> = []
-    @Published var lastError: DatabaseError?
-    let toastPresenter = StatusToastPresenter()
-    var notificationEngine: NotificationEngine?
+    // MARK: - State
+    var connectionStates: [UUID: ConnectionState] = [:]
+    var sessionGroup = ActiveSessionGroup()
+    var pinnedObjectIDs: [String] = []
+    var recentConnections: [RecentConnectionRecord] = []
+    var searchSidebarCaches: [SearchSidebarContextKey: SearchSidebarCache] = [:]
+    var dataInspectorContent: DataInspectorContent?
+    private(set) var expandedConnectionFolderIDs: Set<UUID> = []
+    var lastError: DatabaseError?
+    @ObservationIgnored let toastPresenter = StatusToastPresenter()
+    @ObservationIgnored var notificationEngine: NotificationEngine?
 
     // MARK: - Dependencies
-    let projectStore: ProjectStore
-    let connectionStore: ConnectionStore
-    let navigationStore: NavigationStore
-    let tabStore: TabStore
-    let resultSpoolConfigCoordinator: ResultSpoolConfig
-    let diagramBuilder: DiagramBuilder
-    let identityRepository: IdentityRepository
-    let schemaDiscoveryEngine: MetadataDiscoveryEngine
-    let bookmarkRepository: BookmarkRepository
-    let historyRepository: HistoryRepository
-    private let clipboardHistory: ClipboardHistoryStore
-    let resultSpoolManager: ResultSpooler
-    let diagramCacheStore: DiagramCacheStore
-    let diagramKeyStore: DiagramEncryptionKeyStore
+    @ObservationIgnored let projectStore: ProjectStore
+    @ObservationIgnored let connectionStore: ConnectionStore
+    @ObservationIgnored let navigationStore: NavigationStore
+    @ObservationIgnored let tabStore: TabStore
+    @ObservationIgnored let resultSpoolConfigCoordinator: ResultSpoolConfig
+    @ObservationIgnored let diagramBuilder: DiagramBuilder
+    @ObservationIgnored let identityRepository: IdentityRepository
+    @ObservationIgnored let schemaDiscoveryEngine: MetadataDiscoveryEngine
+    @ObservationIgnored let bookmarkRepository: BookmarkRepository
+    @ObservationIgnored let historyRepository: HistoryRepository
+    @ObservationIgnored private let clipboardHistory: ClipboardHistoryStore
+    @ObservationIgnored let resultSpoolManager: ResultSpooler
+    @ObservationIgnored let diagramCacheStore: DiagramCacheStore
+    @ObservationIgnored let diagramKeyStore: DiagramEncryptionKeyStore
 
-    private var diagramRefreshTask: Task<Void, Never>?
-    private var cancellables: Set<AnyCancellable> = []
-    private var sessionDatabaseCancellables: [UUID: AnyCancellable] = [:]
-    private static let expandedConnectionFoldersKey = "expandedConnectionFoldersByProject"
+    @ObservationIgnored private var diagramRefreshTask: Task<Void, Never>?
+    @ObservationIgnored private var observedSessionIDs: Set<UUID> = []
+    @ObservationIgnored private static let expandedConnectionFoldersKey = "expandedConnectionFoldersByProject"
 
     // MARK: - Initialization
     init(
@@ -89,39 +88,55 @@ final class EnvironmentState: ObservableObject {
     }
 
     private func setupBindings() {
-        toastPresenter.objectWillChange
-            .sink { [weak self] _ in self?.objectWillChange.send() }
-            .store(in: &cancellables)
+        observeActiveSessionID()
+        observeActiveSessions()
+        observeSelectedProject()
+    }
 
-        sessionGroup.$activeSessionID
-            .sink { [weak self] id in
+    private func observeActiveSessionID() {
+        _ = withObservationTracking {
+            sessionGroup.activeSessionID
+        } onChange: { [weak self] in
+            Task { @MainActor in
                 guard let self else { return }
-                if let id, let session = self.sessionGroup.activeSessions.first(where: { $0.id == id }) {
+                if let id = self.sessionGroup.activeSessionID,
+                   let session = self.sessionGroup.activeSessions.first(where: { $0.id == id }) {
                     self.updateNavigation(for: session)
                 } else {
                     self.updateNavigation(for: nil)
                 }
+                self.observeActiveSessionID()
             }
-            .store(in: &cancellables)
+        }
+    }
 
-        sessionGroup.$activeSessions
-            .sink { [weak self] sessions in
+    private func observeActiveSessions() {
+        _ = withObservationTracking {
+            sessionGroup.activeSessions
+        } onChange: { [weak self] in
+            Task { @MainActor in
                 guard let self else { return }
-                let validIDs = sessions.map { $0.id }
-                self.pruneSessionCancellables(validIDs: validIDs)
+                let sessions = self.sessionGroup.activeSessions
+                let validIDs = Set(sessions.map { $0.id })
 
-                for session in sessions where self.sessionDatabaseCancellables[session.id] == nil {
-                    self.observeSession(session)
+                // Prune tracked IDs for removed sessions
+                self.observedSessionIDs = self.observedSessionIDs.intersection(validIDs)
+
+                for session in sessions where !self.observedSessionIDs.contains(session.id) {
+                    self.observedSessionIDs.insert(session.id)
                     Task { await self.enqueuePrefetchForSessionIfNeeded(session) }
                 }
-            }
-            .store(in: &cancellables)
 
+                self.observeActiveSessions()
+            }
+        }
+    }
+
+    private func observeSelectedProject() {
         _ = withObservationTracking {
             projectStore.selectedProject
         } onChange: { [weak self] in
             Task { @MainActor in
-                self?.objectWillChange.send()
                 self?.loadExpandedConnectionFolders(for: self?.projectStore.selectedProject?.id)
                 self?.setupBindings()
             }
@@ -227,20 +242,6 @@ final class EnvironmentState: ObservableObject {
     }
 
     // MARK: - Private Helpers
-
-    private func pruneSessionCancellables(validIDs: [UUID]) {
-        for (id, cancellable) in sessionDatabaseCancellables where !validIDs.contains(id) {
-            cancellable.cancel()
-            sessionDatabaseCancellables.removeValue(forKey: id)
-        }
-    }
-
-    private func observeSession(_ session: ConnectionSession) {
-        let cancellable = session.objectWillChange.sink { [weak self] _ in
-            self?.objectWillChange.send()
-        }
-        sessionDatabaseCancellables[session.id] = cancellable
-    }
 
     private func ensureDefaultProjectExists() async {
         if projectStore.projects.isEmpty {

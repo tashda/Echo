@@ -71,7 +71,7 @@ extension ObjectBrowserSidebarView {
 
             var ids = viewModel.expandedObjectIDsBySession[dbKey] ?? []
             if !ids.contains(object.id) {
-                DispatchQueue.main.async {
+                Task {
                     ids.insert(object.id)
                     self.viewModel.expandedObjectIDsBySession[dbKey] = ids
                 }

@@ -7,7 +7,7 @@ import EchoSense
 // when appState / tabStore / environmentState change.
 
 struct NewTabToolbarButton: View {
-    @EnvironmentObject private var environmentState: EnvironmentState
+    @Environment(EnvironmentState.self) private var environmentState
     @Environment(NavigationStore.self) private var navigationStore
     @Environment(ConnectionStore.self) private var connectionStore
 
@@ -34,7 +34,7 @@ struct NewTabToolbarButton: View {
 }
 
 struct TabOverviewToolbarButton: View {
-    @EnvironmentObject private var appState: AppState
+    @Environment(AppState.self) private var appState
     @Environment(TabStore.self) private var tabStore
 
     var body: some View {
@@ -55,7 +55,7 @@ struct TabOverviewToolbarButton: View {
 }
 
 struct InspectorToolbarButton: View {
-    @EnvironmentObject private var appState: AppState
+    @Environment(AppState.self) private var appState
 
     var body: some View {
         Button {

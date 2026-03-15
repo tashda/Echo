@@ -1,53 +1,53 @@
 import Foundation
 import SwiftUI
-import Combine
+import Observation
 import os.signpost
 import os.log
 
-@MainActor final class QueryEditorState: ObservableObject {
-    @Published var sql: String
-    @Published var results: QueryResultSet?
-    @Published var errorMessage: String?
-    @Published var isExecuting: Bool = false
-    @Published var lastExecutionTime: TimeInterval?
-    @Published var currentExecutionTime: TimeInterval = 0
-    @Published var rowProgress: RowProgress = RowProgress()
-    @Published var messages: [QueryExecutionMessage] = []
-    @Published var hasExecutedAtLeastOnce: Bool = false
-    @Published var splitRatio: CGFloat = 0.5
-    @Published var wasCancelled: Bool = false
-    @Published var visibleRowLimit: Int?
-    @Published var clipboardMetadata: ClipboardHistoryStore.Entry.Metadata = .empty
-    @Published var isResultsOnly: Bool = false
-    @Published var shouldAutoExecuteOnAppear: Bool = false
-    @Published var lastPerformanceReport: QueryPerformanceTracker.Report?
-    @Published var livePerformanceReport: QueryPerformanceTracker.Report?
-    @Published var streamingModeOverride: ResultStreamingExecutionMode = .auto
-    var rowCountRefreshHandler: (() -> Void)?
+@Observable @MainActor final class QueryEditorState {
+    var sql: String
+    var results: QueryResultSet?
+    var errorMessage: String?
+    var isExecuting: Bool = false
+    var lastExecutionTime: TimeInterval?
+    var currentExecutionTime: TimeInterval = 0
+    var rowProgress: RowProgress = RowProgress()
+    var messages: [QueryExecutionMessage] = []
+    var hasExecutedAtLeastOnce: Bool = false
+    var splitRatio: CGFloat = 0.5
+    var wasCancelled: Bool = false
+    var visibleRowLimit: Int?
+    var clipboardMetadata: ClipboardHistoryStore.Entry.Metadata = .empty
+    var isResultsOnly: Bool = false
+    var shouldAutoExecuteOnAppear: Bool = false
+    var lastPerformanceReport: QueryPerformanceTracker.Report?
+    var livePerformanceReport: QueryPerformanceTracker.Report?
+    var streamingModeOverride: ResultStreamingExecutionMode = .auto
+    @ObservationIgnored var rowCountRefreshHandler: (() -> Void)?
 
-    @Published var streamingMode: StreamingMode = .idle
+    var streamingMode: StreamingMode = .idle
 
-    let initialVisibleRowBatch: Int
-    let previewRowLimit: Int
-    let spoolActivationThreshold: Int
-    let spoolManager: ResultSpooler
-    var spoolHandle: ResultSpoolHandle?
-    var ingestionService: ResultStreamIngestor?
-    var spoolStatsTask: Task<Void, Never>?
-    @Published var resultSpoolID: UUID?
-    var didReceiveStreamingUpdate = false
-    let rowCache = ResultSpoolRowCache(pageSize: 512, maxPages: 256)
-    let gridViewportForwardPrefetchRows: Int
-    let gridViewportBackfillRows: Int
-    var lastVisibleDisplayRange: Range<Int> = 0..<0
-    var lastPrefetchedSourceRange: Range<Int> = 0..<0
-    var pendingVisibleRowReloadIndexes: IndexSet?
+    @ObservationIgnored let initialVisibleRowBatch: Int
+    @ObservationIgnored let previewRowLimit: Int
+    @ObservationIgnored let spoolActivationThreshold: Int
+    @ObservationIgnored let spoolManager: ResultSpooler
+    @ObservationIgnored var spoolHandle: ResultSpoolHandle?
+    @ObservationIgnored var ingestionService: ResultStreamIngestor?
+    @ObservationIgnored var spoolStatsTask: Task<Void, Never>?
+    var resultSpoolID: UUID?
+    @ObservationIgnored var didReceiveStreamingUpdate = false
+    @ObservationIgnored let rowCache = ResultSpoolRowCache(pageSize: 512, maxPages: 256)
+    @ObservationIgnored let gridViewportForwardPrefetchRows: Int
+    @ObservationIgnored let gridViewportBackfillRows: Int
+    @ObservationIgnored var lastVisibleDisplayRange: Range<Int> = 0..<0
+    @ObservationIgnored var lastPrefetchedSourceRange: Range<Int> = 0..<0
+    @ObservationIgnored var pendingVisibleRowReloadIndexes: IndexSet?
 
-    var lastSpoolStatsRowCount: Int = 0
-    var hasAppliedFinalSpoolStats: Bool = false
+    @ObservationIgnored var lastSpoolStatsRowCount: Int = 0
+    @ObservationIgnored var hasAppliedFinalSpoolStats: Bool = false
 
-    var lastBroadcastSnapshot: BroadcastSnapshot?
-    let payloadFormatter = PostgresPayloadFormatter()
+    @ObservationIgnored var lastBroadcastSnapshot: BroadcastSnapshot?
+    @ObservationIgnored let payloadFormatter = PostgresPayloadFormatter()
 
     var gridViewportPadding: Int {
         gridViewportForwardPrefetchRows + gridViewportBackfillRows
@@ -59,49 +59,49 @@ import os.log
         return min(max(total, 128), 256)
     }
 
-    var streamedRowCount: Int = 0
-    let frontBufferLimit: Int
-    var deferredSpoolUpdates: [BufferedSpoolUpdate] = []
-    var isSpoolActivationDeferred: Bool = true
-    var isResultChangeCoalesced: Bool = false
+    @ObservationIgnored var streamedRowCount: Int = 0
+    @ObservationIgnored let frontBufferLimit: Int
+    @ObservationIgnored var deferredSpoolUpdates: [BufferedSpoolUpdate] = []
+    @ObservationIgnored var isSpoolActivationDeferred: Bool = true
+    @ObservationIgnored var isResultChangeCoalesced: Bool = false
 
-    var executionStartTime: Date?
-    var executionTimer: Timer?
-    var lastMessageTimestamp: Date?
-    var executingTask: Task<Void, Never>?
-    @Published var streamingColumns: [ColumnInfo] = []
-    @Published var streamingRows: [[String?]] = []
-    @Published var resultChangeToken: UInt64 = 0
-    @Published private(set) var resultsFormattingMode: ResultsFormattingMode = .immediate
-    @Published private(set) var resultsTypeFormattingEnabled: Bool = true
+    @ObservationIgnored var executionStartTime: Date?
+    @ObservationIgnored var executionTimer: Timer?
+    @ObservationIgnored var lastMessageTimestamp: Date?
+    @ObservationIgnored var executingTask: Task<Void, Never>?
+    var streamingColumns: [ColumnInfo] = []
+    var streamingRows: [[String?]] = []
+    var resultChangeToken: UInt64 = 0
+    private(set) var resultsFormattingMode: ResultsFormattingMode = .immediate
+    private(set) var resultsTypeFormattingEnabled: Bool = true
 
     typealias DataPreviewFetcher = @Sendable (_ offset: Int, _ limit: Int) async throws -> QueryResultSet
 
-    var dataPreviewState: DataPreviewState?
-    var dataPreviewFetchTask: Task<Void, Never>?
-    var performanceTracker: QueryPerformanceTracker
-    lazy var formattingCoordinator: ResultRowFormattingCoordinator = {
+    @ObservationIgnored var dataPreviewState: DataPreviewState?
+    @ObservationIgnored var dataPreviewFetchTask: Task<Void, Never>?
+    @ObservationIgnored var performanceTracker: QueryPerformanceTracker
+    @ObservationIgnored lazy var formattingCoordinator: ResultRowFormattingCoordinator = {
         ResultRowFormattingCoordinator(
             formatter: PostgresPayloadFormatter()
         ) { [weak self] batch in
             self?.handleFormattedBatch(batch)
         }
     }()
-    var formattingGeneration: Int = 0
-    var formattingResetTask: Task<Void, Never>?
-    var materializedHighWaterMark: Int = 0
-    let rowDiagnosticsEnabled = ProcessInfo.processInfo.environment["ECHO_ROW_DEBUG"] == "1"
-    var hasAnnouncedRowDiagnostics = false
-    
+    @ObservationIgnored var formattingGeneration: Int = 0
+    @ObservationIgnored var formattingResetTask: Task<Void, Never>?
+    @ObservationIgnored var materializedHighWaterMark: Int = 0
+    @ObservationIgnored let rowDiagnosticsEnabled = ProcessInfo.processInfo.environment["ECHO_ROW_DEBUG"] == "1"
+    @ObservationIgnored var hasAnnouncedRowDiagnostics = false
+
     typealias ForeignKeyMapping = [String: ColumnInfo.ForeignKeyReference]
-    var foreignKeyContext: ForeignKeyResolutionContext?
-    var cachedForeignKeyMapping: ForeignKeyMapping = [:]
-    var hasLoadedForeignKeyMapping = false
-    var isLoadingForeignKeyMapping = false
-    var shouldPersistResults = false
-    var progressiveMaterializationTask: Task<Void, Never>?
-    @Published var additionalResults: [QueryResultSet] = []
-    @Published var selectedResultSetIndex: Int = 0
+    @ObservationIgnored var foreignKeyContext: ForeignKeyResolutionContext?
+    @ObservationIgnored var cachedForeignKeyMapping: ForeignKeyMapping = [:]
+    @ObservationIgnored var hasLoadedForeignKeyMapping = false
+    @ObservationIgnored var isLoadingForeignKeyMapping = false
+    @ObservationIgnored var shouldPersistResults = false
+    @ObservationIgnored var progressiveMaterializationTask: Task<Void, Never>?
+    var additionalResults: [QueryResultSet] = []
+    var selectedResultSetIndex: Int = 0
 
     init(
         sql: String = "SELECT current_timestamp;",

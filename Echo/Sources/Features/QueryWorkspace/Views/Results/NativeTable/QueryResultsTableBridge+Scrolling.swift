@@ -37,7 +37,7 @@ extension QueryResultsTableView.Coordinator {
     func requestPaginationEvaluation() {
         guard !isSplitResizing, !pendingPaginationEvaluation else { return }
         pendingPaginationEvaluation = true
-        DispatchQueue.main.async { [weak self] in
+        Task { @MainActor [weak self] in
             guard let self else { return }
             self.pendingPaginationEvaluation = false
             self.evaluatePaginationForVisibleRows()
@@ -65,7 +65,7 @@ extension QueryResultsTableView.Coordinator {
     func requestTableSizeAdjustment(rowCount: Int? = nil) {
         guard !isSplitResizing, !pendingTableSizeAdjustment else { return }
         pendingTableSizeAdjustment = true; let captured = rowCount
-        DispatchQueue.main.async { [weak self] in guard let self else { return }; self.pendingTableSizeAdjustment = false; self.adjustTableSize(rowCount: captured) }
+        Task { @MainActor [weak self] in guard let self else { return }; self.pendingTableSizeAdjustment = false; self.adjustTableSize(rowCount: captured) }
     }
 
     func registerColumnResizeObservation(for tableView: NSTableView) {
@@ -77,7 +77,8 @@ extension QueryResultsTableView.Coordinator {
                     self.isResizingColumn = true
                     // Reset the flag after a brief delay — column resize generates a burst of notifications.
                     // Once they stop, the flag resets so normal updates resume.
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self] in
+                    Task { @MainActor [weak self] in
+                        try? await Task.sleep(for: .seconds(0.15))
                         self?.isResizingColumn = false
                     }
                 }
@@ -100,7 +101,8 @@ extension QueryResultsTableView.Coordinator {
             guard let self = self, let tableView = tableView else { return }
             self.rowCountUpdateWorkItem = nil; self.pendingRowCountCorrection = false; tableView.noteNumberOfRowsChanged()
         }
-        rowCountUpdateWorkItem = workItem; DispatchQueue.main.async(execute: workItem)
+        rowCountUpdateWorkItem = workItem
+        Task { @MainActor in workItem.perform() }
     }
 
     func scheduleRowCountCorrection() {

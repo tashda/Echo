@@ -1,14 +1,13 @@
 import SwiftUI
 import UserNotifications
-import Combine
 
 /// Central notification router that dispatches to in-app toasts
 /// and/or native macOS notifications based on user preferences.
-@MainActor
-final class NotificationEngine: NSObject, ObservableObject, UNUserNotificationCenterDelegate {
-    private let toastPresenter: StatusToastPresenter
-    private let preferencesProvider: () -> NotificationPreferences
-    private var hasRequestedAuthorization = false
+@Observable
+final class NotificationEngine: NSObject, UNUserNotificationCenterDelegate {
+    @ObservationIgnored private let toastPresenter: StatusToastPresenter
+    @ObservationIgnored private let preferencesProvider: () -> NotificationPreferences
+    @ObservationIgnored private var hasRequestedAuthorization = false
 
     init(
         toastPresenter: StatusToastPresenter,

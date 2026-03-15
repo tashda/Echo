@@ -1,21 +1,20 @@
 import SwiftUI
-import Combine
 import SQLServerKit
 
-@MainActor
-final class AgentSidebarViewModel: ObservableObject {
+@MainActor @Observable
+final class AgentSidebarViewModel {
     struct AgentJob: Identifiable, Hashable { let id: String; let name: String; let enabled: Bool; let lastOutcome: String? }
     struct AgentAlert: Identifiable, Hashable { let id: String; let name: String; let severity: String?; let messageId: String?; let enabled: Bool }
     struct AgentOperator: Identifiable, Hashable { let id: String; let name: String; let email: String?; let enabled: Bool }
     struct AgentProxy: Identifiable, Hashable { let id: String; let name: String; let enabled: Bool; let credentialName: String? }
     struct AgentErrorLog: Identifiable, Hashable { let id: String; let archiveNumber: Int; let date: String; let size: String? }
 
-    @Published private(set) var jobs: [AgentJob] = []
-    @Published private(set) var alerts: [AgentAlert] = []
-    @Published private(set) var operators: [AgentOperator] = []
-    @Published private(set) var proxies: [AgentProxy] = []
-    @Published private(set) var errorLogs: [AgentErrorLog] = []
-    @Published private(set) var errorMessage: String?
+    private(set) var jobs: [AgentJob] = []
+    private(set) var alerts: [AgentAlert] = []
+    private(set) var operators: [AgentOperator] = []
+    private(set) var proxies: [AgentProxy] = []
+    private(set) var errorLogs: [AgentErrorLog] = []
+    private(set) var errorMessage: String?
 
     func reload(for session: ConnectionSession?) async {
         guard let session, session.connection.databaseType == .microsoftSQL else {

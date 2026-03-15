@@ -6,7 +6,7 @@ import AppKit
 import EchoSense
 
 struct SchemaDiagramView: View {
-    @ObservedObject var viewModel: SchemaDiagramViewModel
+    @Bindable var viewModel: SchemaDiagramViewModel
     @Environment(\.colorScheme) var colorScheme
 
     @Environment(ProjectStore.self) var projectStore
@@ -14,7 +14,7 @@ struct SchemaDiagramView: View {
     @Environment(NavigationStore.self) private var navigationStore
     @Environment(DiagramBuilder.self) private var diagramBuilder
 
-    @EnvironmentObject var appearanceStore: AppearanceStore
+    @Environment(AppearanceStore.self) var appearanceStore
 
     @State internal var zoom: CGFloat = 1.0
     @State internal var contentOffset: CGSize = .zero

@@ -2,7 +2,7 @@ import SwiftUI
 
 struct QueryResultsSettingsView: View {
     @Environment(ProjectStore.self) internal var projectStore
-    @EnvironmentObject internal var appearanceStore: AppearanceStore
+    @Environment(AppearanceStore.self) internal var appearanceStore
 
     var body: some View {
         Form {

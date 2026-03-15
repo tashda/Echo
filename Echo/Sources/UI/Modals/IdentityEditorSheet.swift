@@ -3,7 +3,7 @@ import SwiftUI
 struct IdentityEditorSheet: View {
     @Environment(ProjectStore.self) private var projectStore
     @Environment(ConnectionStore.self) private var connectionStore
-    @EnvironmentObject private var environmentState: EnvironmentState
+    @Environment(EnvironmentState.self) private var environmentState
     @Environment(\.dismiss) private var dismiss
 
     let state: IdentityEditorState

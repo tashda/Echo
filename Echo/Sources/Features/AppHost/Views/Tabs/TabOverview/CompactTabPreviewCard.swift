@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct CompactTabPreviewCard: View {
-    @ObservedObject var tab: WorkspaceTab
+    @Bindable var tab: WorkspaceTab
     let isActive: Bool
     let isDropTarget: Bool
     let onSelect: () -> Void
@@ -9,7 +9,7 @@ struct CompactTabPreviewCard: View {
 
     @State internal var isHovering = false
     @State internal var isHoveringClose = false
-    @EnvironmentObject internal var appearanceStore: AppearanceStore
+    @Environment(AppearanceStore.self) internal var appearanceStore
     @Environment(\.colorScheme) internal var colorScheme
 var body: some View {
     let container = RoundedRectangle(cornerRadius: 18, style: .continuous)

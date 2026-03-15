@@ -2,7 +2,7 @@ import SwiftUI
 
 struct SidebarColumn: View {
     @Environment(ConnectionStore.self) private var connectionStore
-    @EnvironmentObject private var appState: AppState
+    @Environment(AppState.self) private var appState
 
     var body: some View {
         SidebarView(
@@ -19,14 +19,14 @@ struct SidebarColumn: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         #if os(macOS)
         .background(
-            SidebarSplitViewObserver(width: $appState.workspaceSidebarWidth)
+            SidebarSplitViewObserver(width: Bindable(appState).workspaceSidebarWidth)
         )
         #endif
     }
 }
 
 struct WorkspaceMainContent: View {
-    @EnvironmentObject private var appState: AppState
+    @Environment(AppState.self) private var appState
 
     var body: some View {
         let tabBarStyle = appState.workspaceTabBarStyle

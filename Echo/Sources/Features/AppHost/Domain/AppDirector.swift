@@ -7,44 +7,43 @@
 
 import Foundation
 import SwiftUI
-import Combine
+import Observation
 #if os(macOS)
 import AppKit
 #endif
 
 /// Central director that manages the app's main dependencies and initialization
-@MainActor
-final class AppDirector: ObservableObject {
-    
+@Observable @MainActor
+final class AppDirector {
+
     // MARK: - Singleton
     static let shared = AppDirector()
-    
+
     // MARK: - Dependencies
-    let projectStore: ProjectStore
-    let connectionStore: ConnectionStore
-    let navigationStore: NavigationStore
-    let tabStore: TabStore
-    let resultSpoolConfigCoordinator: ResultSpoolConfig
-    let diagramBuilder: DiagramBuilder
-    let identityRepository: IdentityRepository
-    let schemaDiscoveryEngine: MetadataDiscoveryEngine
-    let bookmarkRepository: BookmarkRepository
-    let historyRepository: HistoryRepository
-    let environmentState: EnvironmentState
-    let appState: AppState
-    let clipboardHistory: ClipboardHistoryStore
-    let appearanceStore: AppearanceStore
-    let notificationEngine: NotificationEngine
-    let resultSpoolManager: ResultSpooler
-    let diagramCacheStore: DiagramCacheStore
-    let diagramKeyStore: DiagramEncryptionKeyStore
-    private var cancellables = Set<AnyCancellable>()
+    @ObservationIgnored let projectStore: ProjectStore
+    @ObservationIgnored let connectionStore: ConnectionStore
+    @ObservationIgnored let navigationStore: NavigationStore
+    @ObservationIgnored let tabStore: TabStore
+    @ObservationIgnored let resultSpoolConfigCoordinator: ResultSpoolConfig
+    @ObservationIgnored let diagramBuilder: DiagramBuilder
+    @ObservationIgnored let identityRepository: IdentityRepository
+    @ObservationIgnored let schemaDiscoveryEngine: MetadataDiscoveryEngine
+    @ObservationIgnored let bookmarkRepository: BookmarkRepository
+    @ObservationIgnored let historyRepository: HistoryRepository
+    @ObservationIgnored let environmentState: EnvironmentState
+    @ObservationIgnored let appState: AppState
+    @ObservationIgnored let clipboardHistory: ClipboardHistoryStore
+    @ObservationIgnored let appearanceStore: AppearanceStore
+    @ObservationIgnored let notificationEngine: NotificationEngine
+    @ObservationIgnored let resultSpoolManager: ResultSpooler
+    @ObservationIgnored let diagramCacheStore: DiagramCacheStore
+    @ObservationIgnored let diagramKeyStore: DiagramEncryptionKeyStore
 #if os(macOS)
-    private nonisolated(unsafe) var windowFocusObservers: [NSObjectProtocol] = []
+    @ObservationIgnored private nonisolated(unsafe) var windowFocusObservers: [NSObjectProtocol] = []
 #endif
 
     // MARK: - Initialization State
-    @Published private(set) var isInitialized = false
+    private(set) var isInitialized = false
 
     // MARK: - Private Init (Singleton)
     private init() {
@@ -60,11 +59,11 @@ final class AppDirector: ObservableObject {
         let cacheManager = DiagramCacheStore(configuration: diagramConfig)
         self.diagramCacheStore = cacheManager
         self.diagramKeyStore = keyStore
-        
+
         // Initialize modular stores
         let projectRepository = ProjectRepository(diskStore: ProjectDiskStore())
         self.projectStore = ProjectStore(repository: projectRepository)
-        
+
         let connectionRepository = ConnectionRepository(
             connectionStore: ConnectionDiskStore(),
             folderStore: FolderDiskStore(),
@@ -75,15 +74,15 @@ final class AppDirector: ObservableObject {
         self.schemaDiscoveryEngine = MetadataDiscoveryEngine(identityRepository: identityRepository, connectionStore: connectionStore)
         self.bookmarkRepository = BookmarkRepository()
         self.historyRepository = HistoryRepository()
-        
+
         self.navigationStore = NavigationStore()
         self.tabStore = TabStore()
         self.appearanceStore = AppearanceStore.shared
-        
+
         // Initialize new domain coordinators
         self.resultSpoolConfigCoordinator = ResultSpoolConfig(spoolManager: resultSpoolManager)
         self.diagramBuilder = DiagramBuilder(cacheManager: cacheManager, keyStore: keyStore)
-        
+
         self.environmentState = EnvironmentState(
             projectStore: projectStore,
             connectionStore: connectionStore,
@@ -100,7 +99,7 @@ final class AppDirector: ObservableObject {
             diagramCacheStore: cacheManager,
             diagramKeyStore: keyStore
         )
-        
+
         let projectStoreRef = self.projectStore
         self.notificationEngine = NotificationEngine(
             toastPresenter: environmentState.toastPresenter,
@@ -116,7 +115,7 @@ final class AppDirector: ObservableObject {
         schemaDiscoveryEngine.onEnqueuePrefetch = { @MainActor [weak self] session in
             await self?.environmentState.enqueuePrefetchForSessionIfNeeded(session)
         }
-        
+
         // Setup cross-domain providers for DiagramBuilder after EnvironmentState is initialized
         diagramBuilder.globalSettingsProvider = { @MainActor [weak self] in
             self?.projectStore.globalSettings ?? GlobalSettings()
@@ -161,44 +160,43 @@ final class AppDirector: ObservableObject {
 
     // MARK: - Theme Binding
     private func setupBindings() {
-        // Observe ProjectStore state for appearance changes
-        // Using withObservationTracking is an alternative for @Observable,
-        // but since we are in a Coordinator with Combine/Task logic, 
-        // we'll bridge manually or use the Store's published-like behavior.
-        // For now, we still need to sync EnvironmentState's legacy references until they are fully removed.
+        observeSelectedProject()
+        observeGlobalSettings()
+        observeAppearanceChanges()
+        observeActiveSessionsForConnections()
+    }
 
+    private func observeSelectedProject() {
         _ = withObservationTracking {
             projectStore.selectedProject
         } onChange: { [weak self] in
             Task { @MainActor in
                 guard let self else { return }
                 self.applyEditorAppearance(project: self.projectStore.selectedProject, global: self.projectStore.globalSettings)
-                self.setupBindings() // Re-track
+                self.observeSelectedProject()
             }
         }
+    }
 
+    private func observeGlobalSettings() {
         _ = withObservationTracking {
             projectStore.globalSettings
         } onChange: { [weak self] in
             Task { @MainActor in
                 guard let self else { return }
                 self.applyEditorAppearance(project: self.projectStore.selectedProject, global: self.projectStore.globalSettings)
-                self.setupBindings() // Re-track
+                self.observeGlobalSettings()
             }
         }
+    }
 
-        AppearanceStore.shared.$effectiveColorScheme
-            .receive(on: RunLoop.main)
-            .sink { [weak self] _ in
+    private func observeActiveSessionsForConnections() {
+        _ = withObservationTracking {
+            environmentState.sessionGroup.activeSessions
+        } onChange: { [weak self] in
+            Task { @MainActor in
                 guard let self else { return }
-                self.applyEditorTheme(project: self.projectStore.selectedProject, global: self.projectStore.globalSettings)
-            }
-            .store(in: &cancellables)
-
-        environmentState.sessionGroup.$activeSessions
-            .receive(on: RunLoop.main)
-            .sink { [weak self] sessions in
-                guard let self else { return }
+                let sessions = self.environmentState.sessionGroup.activeSessions
                 if sessions.isEmpty {
 #if !os(macOS)
                     self.presentConnectionsIfNeeded()
@@ -206,8 +204,9 @@ final class AppDirector: ObservableObject {
                 } else {
                     self.dismissConnectionsIfNeeded()
                 }
+                self.observeActiveSessionsForConnections()
             }
-            .store(in: &cancellables)
+        }
     }
 
     private func applyEditorAppearance(project: Project?, global: GlobalSettings) {
@@ -221,6 +220,18 @@ final class AppDirector: ObservableObject {
     private func applyEditorTheme(project: Project?, global: GlobalSettings) {
         let tone: SQLEditorPalette.Tone = AppearanceStore.shared.effectiveColorScheme == .dark ? .dark : .light
         appState.sqlEditorTheme = SQLEditorThemeResolver.resolve(globalSettings: global, project: project, tone: tone)
+    }
+
+    private func observeAppearanceChanges() {
+        _ = withObservationTracking {
+            AppearanceStore.shared.effectiveColorScheme
+        } onChange: { [weak self] in
+            Task { @MainActor in
+                guard let self else { return }
+                self.applyEditorTheme(project: self.projectStore.selectedProject, global: self.projectStore.globalSettings)
+                self.observeAppearanceChanges() // Re-track
+            }
+        }
     }
 
     private func ensureInitialWorkspaceState() {

@@ -302,7 +302,7 @@ extension QueryEditorState {
         }
         isResultChangeCoalesced = true
         rowCountRefreshHandler?()
-        DispatchQueue.main.async { [weak self] in
+        Task { [weak self] in
             guard let self else { return }
             self.resultChangeToken &+= 1
             self.isResultChangeCoalesced = false

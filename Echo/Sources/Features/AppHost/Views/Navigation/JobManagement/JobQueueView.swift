@@ -1,9 +1,9 @@
 import SwiftUI
 
 struct JobQueueView: View {
-    @ObservedObject var viewModel: JobQueueViewModel
-    @EnvironmentObject private var environmentState: EnvironmentState
-    @EnvironmentObject private var appState: AppState
+    var viewModel: JobQueueViewModel
+    @Environment(EnvironmentState.self) private var environmentState
+    @Environment(AppState.self) private var appState
     @Environment(ProjectStore.self) private var projectStore
 
     @State private var inspectorAutoOpened = false

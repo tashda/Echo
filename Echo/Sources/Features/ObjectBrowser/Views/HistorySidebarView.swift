@@ -9,7 +9,7 @@ struct HistorySidebarView: View {
         VStack(spacing: SpacingTokens.lg) {
             // Clean icon design
             Image(systemName: icon)
-                .font(.system(size: 40))
+                .font(TypographyTokens.title)
                 .foregroundStyle(ColorTokens.Text.tertiary)
             
             VStack(spacing: SpacingTokens.sm) {

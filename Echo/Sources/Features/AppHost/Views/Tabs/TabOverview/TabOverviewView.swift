@@ -15,7 +15,7 @@ struct TabOverviewView: View {
     @Environment(ConnectionStore.self) var connectionStore
     @Environment(TabStore.self) var tabStore
 
-    @EnvironmentObject var environmentState: EnvironmentState
+    @Environment(EnvironmentState.self) var environmentState
     @Environment(\.colorScheme) var colorScheme
 
     @State var animateIn = false
@@ -69,7 +69,7 @@ struct TabOverviewView: View {
         .padding(.bottom, SpacingTokens.xl2)
         .background(overviewBackground)
         .onAppear {
-            DispatchQueue.main.async {
+            Task {
                 triggerAnimation()
                 initializeFocus()
             }
@@ -92,12 +92,12 @@ struct TabOverviewView: View {
         ))
 #endif
         .onChange(of: tabs.map(\.id)) { _, ids in
-            DispatchQueue.main.async {
+            Task {
                 updateFocusForTabChanges(ids: ids)
             }
         }
         .onChange(of: focusedTabId) { _, _ in
-            DispatchQueue.main.async {
+            Task {
                 ensureFocusedTabVisible()
             }
         }

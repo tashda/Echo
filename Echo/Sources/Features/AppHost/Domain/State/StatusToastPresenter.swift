@@ -1,13 +1,12 @@
 import SwiftUI
-import Combine
 
 /// Manages transient status toast notifications.
 ///
 /// Connection events, index updates, and other brief status changes
 /// are shown as floating toasts that auto-dismiss after a delay.
-@MainActor
-final class StatusToastPresenter: ObservableObject {
-    struct Toast: Identifiable, Equatable {
+@Observable
+final class StatusToastPresenter: @unchecked Sendable {
+    struct Toast: Identifiable, Equatable, Sendable {
         let id = UUID()
         let icon: String
         let message: String
@@ -16,22 +15,20 @@ final class StatusToastPresenter: ObservableObject {
         static func == (lhs: Toast, rhs: Toast) -> Bool { lhs.id == rhs.id }
     }
 
-    @Published var currentToast: Toast?
+    var currentToast: Toast?
 
-    private var dismissTask: Task<Void, Never>?
+    @ObservationIgnored private var dismissTask: Task<Void, Never>?
 
     func show(icon: String, message: String, style: StatusToastView.StatusToastStyle = .info, duration: TimeInterval = 3.0) {
         dismissTask?.cancel()
         withAnimation(.easeInOut(duration: 0.25)) {
             currentToast = Toast(icon: icon, message: message, style: style)
         }
-        dismissTask = Task { [weak self] in
+        dismissTask = Task {
             try? await Task.sleep(for: .seconds(duration))
             guard !Task.isCancelled else { return }
-            await MainActor.run {
-                withAnimation(.easeInOut(duration: 0.3)) {
-                    self?.currentToast = nil
-                }
+            withAnimation(.easeInOut(duration: 0.3)) {
+                self.currentToast = nil
             }
         }
     }

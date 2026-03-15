@@ -16,7 +16,7 @@ struct ConnectedServerCard: View {
     let onSelectServer: () -> Void
     let onPickDatabase: (String) -> Void
 
-    @EnvironmentObject private var environmentState: EnvironmentState
+    @Environment(EnvironmentState.self) private var environmentState
     @State private var isHovered = false
 
     private var availableDatabases: [DatabaseInfo] {

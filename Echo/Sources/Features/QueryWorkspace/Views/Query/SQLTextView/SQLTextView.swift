@@ -133,7 +133,7 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
         if let ruler = enclosingScrollView?.verticalRulerView as? LineNumberRulerView { configure(ruler: ruler); ruler.sqlTextView = self }
-        DispatchQueue.main.async { [weak self] in guard let self else { return }; self.window?.makeFirstResponder(self); self.primeInlineSuggestionsIfNeeded() }
+        Task { @MainActor [weak self] in guard let self else { return }; self.window?.makeFirstResponder(self); self.primeInlineSuggestionsIfNeeded() }
     }
 
     override func keyDown(with event: NSEvent) {

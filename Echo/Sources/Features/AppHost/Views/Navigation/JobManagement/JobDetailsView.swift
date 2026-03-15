@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct JobDetailsView: View {
-    @ObservedObject var viewModel: JobQueueViewModel
+    var viewModel: JobQueueViewModel
     let notificationEngine: NotificationEngine?
 
     // Properties editing

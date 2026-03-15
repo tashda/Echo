@@ -33,7 +33,8 @@ extension ObjectBrowserSidebarView {
             if let newID = newIDs.first {
                 selectedConnectionID = newID
                 if let proxy {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    Task {
+                        try? await Task.sleep(for: .seconds(0.3))
                         withAnimation(.easeInOut(duration: 0.3)) {
                             proxy.scrollTo(newID, anchor: .top)
                         }

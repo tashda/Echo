@@ -16,7 +16,7 @@ struct ConnectionEditorView: View {
     @Environment(ConnectionStore.self) internal var connectionStore
     @Environment(NavigationStore.self) internal var navigationStore
 
-    @EnvironmentObject internal var environmentState: EnvironmentState
+    @Environment(EnvironmentState.self) internal var environmentState
 
     @State internal var selectedDatabaseType: DatabaseType
     @State internal var connectionName: String
@@ -156,7 +156,7 @@ struct ConnectionEditorView: View {
             IdentityEditorSheet(state: state, onSave: { newIdentity in
                 identityID = newIdentity.id
             })
-            .environmentObject(environmentState)
+            .environment(environmentState)
         }
         .onChange(of: selectedDatabaseType) { oldType, newType in
             handleDatabaseTypeChange(from: oldType, to: newType)

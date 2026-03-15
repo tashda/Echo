@@ -2,7 +2,7 @@ import SwiftUI
 import EchoSense
 
 struct DiagramCanvas: View {
-    @ObservedObject var viewModel: SchemaDiagramViewModel
+    @Bindable var viewModel: SchemaDiagramViewModel
     let zoom: CGFloat
     let offset: CGSize
     let palette: DiagramPalette

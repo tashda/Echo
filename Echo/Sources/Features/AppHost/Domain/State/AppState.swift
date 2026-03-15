@@ -1,37 +1,35 @@
 import Foundation
 import SwiftUI
-import Combine
 
 /// Centralized application state management
 
-@MainActor final class AppState: ObservableObject {
+@Observable final class AppState: @unchecked Sendable {
     // MARK: - UI State
-    @Published var isLoading = false
-    @Published var currentError: DatabaseError?
-    @Published var showingError = false
-    @Published var activeSheet: ActiveSheet?
-    @Published var showTabOverview = false
-    @Published var showInfoSidebar = false
-    @Published var workspaceSidebarVisibility: NavigationSplitViewVisibility = .automatic
-    @Published var workspaceSidebarWidth: CGFloat = 320
-    @Published var workspaceTabBarStyle: WorkspaceTabBarStyle = .floating
-    @Published var keepTabsInMemory = false
+    var isLoading = false
+    var currentError: DatabaseError?
+    var showingError = false
+    var activeSheet: ActiveSheet?
+    var showTabOverview = false
+    var showInfoSidebar = false
+    var workspaceSidebarVisibility: NavigationSplitViewVisibility = .automatic
+    var workspaceSidebarWidth: CGFloat = 320
+    var workspaceTabBarStyle: WorkspaceTabBarStyle = .floating
+    var keepTabsInMemory = false
 
     // MARK: - Query State
-    @Published var isQueryRunning = false
-    @Published var queryHistory: [QueryHistoryItem] = []
-    @Published var currentQuery = "SELECT NOW();"
-    @Published var sqlEditorTheme = SQLEditorTheme.fallback()
-    @Published var sqlEditorDisplay = SQLEditorDisplayOptions()
+    var isQueryRunning = false
+    var queryHistory: [QueryHistoryItem] = []
+    var currentQuery = "SELECT NOW();"
+    var sqlEditorTheme = SQLEditorTheme.fallback()
+    var sqlEditorDisplay = SQLEditorDisplayOptions()
 
     // MARK: - Connection State
-    @Published var isConnecting = false
-    @Published var lastConnectionAttempt: Date?
+    var isConnecting = false
+    var lastConnectionAttempt: Date?
 
-    private var cancellables = Set<AnyCancellable>()
+    @ObservationIgnored private var errorDismissTask: Task<Void, Never>?
 
     init() {
-        setupErrorHandling()
         loadQueryHistory()
     }
 
@@ -43,6 +41,7 @@ import Combine
         isLoading = false
         isConnecting = false
         isQueryRunning = false
+        scheduleErrorDismiss()
     }
 
     func clearError() {
@@ -96,14 +95,13 @@ import Combine
 
     // MARK: - Private Methods
 
-    private func setupErrorHandling() {
-        // Auto-dismiss errors after 5 seconds
-        $currentError.compactMap {
-            $0
-        }.debounce(for: .seconds(5), scheduler: RunLoop.main).sink {
-            [weak self] _ in
-            self?.clearError()
-        }.store(in: &cancellables)
+    private func scheduleErrorDismiss() {
+        errorDismissTask?.cancel()
+        errorDismissTask = Task {
+            try? await Task.sleep(for: .seconds(5))
+            guard !Task.isCancelled else { return }
+            clearError()
+        }
     }
 
     private func loadQueryHistory() {

@@ -2,7 +2,7 @@ import SwiftUI
 import EchoSense
 
 struct RefreshButtonContent: View {
-    @ObservedObject var session: ConnectionSession
+    @Bindable var session: ConnectionSession
     var accent: Color
     let onRefresh: () -> Void
     let onCancel: () -> Void

@@ -13,7 +13,6 @@ actor ResultSpooler {
 
     private var configuration: ResultSpoolConfiguration
     private var handles: [UUID: ResultSpoolHandle] = [:]
-    private let maintenanceQueue = DispatchQueue(label: "com.fuzee.resultSpool.maintenance", qos: .utility)
     private var maintenanceTask: Task<Void, Never>?
 
     init(configuration: ResultSpoolConfiguration) {
@@ -119,8 +118,8 @@ actor ResultSpooler {
     }
 
     private func enforceSizeLimitAsync() {
-        maintenanceQueue.async { [weak self] in
-            Task { await self?.enforceSizeLimit() }
+        Task { [weak self] in
+            await self?.enforceSizeLimit()
         }
     }
 

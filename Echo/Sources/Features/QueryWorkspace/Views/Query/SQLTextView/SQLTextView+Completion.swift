@@ -43,7 +43,7 @@ extension SQLTextView {
                                                          insertion: insertionText)
 
         if insertionResult != nil, suggestion.kind == .schema {
-            DispatchQueue.main.async { [weak self] in
+            Task { @MainActor [weak self] in
                 guard let self else { return }
                 _ = self.forcePresentImmediateCompletions()
             }
@@ -131,7 +131,7 @@ extension SQLTextView {
         // After accepting certain suggestion types, trigger an immediate refresh
         // so the user sees continuation suggestions (e.g., WHERE after FROM table).
         if snippetPlaceholders.isEmpty && Self.continuationKinds.contains(suggestion.kind) {
-            DispatchQueue.main.async { [weak self] in
+            Task { @MainActor [weak self] in
                 self?.refreshCompletions(immediate: true)
             }
         }

@@ -1,10 +1,10 @@
 import SwiftUI
 
 struct PostgresExtensionsView: View {
-    @ObservedObject var tab: WorkspaceTab
-    @ObservedObject var viewModel: PostgresExtensionsViewModel
-    
-    @EnvironmentObject var environmentState: EnvironmentState
+    @Bindable var tab: WorkspaceTab
+    @Bindable var viewModel: PostgresExtensionsViewModel
+
+    @Environment(EnvironmentState.self) var environmentState
     
     var body: some View {
         VStack(spacing: 0) {

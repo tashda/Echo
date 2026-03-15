@@ -1,6 +1,6 @@
 import Foundation
 import SwiftUI
-import Combine
+import Observation
 
 // MARK: - Connection Session Management
 
@@ -12,27 +12,27 @@ enum StructureLoadingState: Equatable {
 }
 
 /// Represents an active connection session to a database server
-@MainActor
-final class ConnectionSession: ObservableObject, Identifiable {
+@Observable @MainActor
+final class ConnectionSession: Identifiable {
     let id: UUID
-    let connection: SavedConnection
-    let session: DatabaseSession
-    private let spoolManager: ResultSpooler
+    @ObservationIgnored let connection: SavedConnection
+    @ObservationIgnored let session: DatabaseSession
+    @ObservationIgnored private let spoolManager: ResultSpooler
 
-    @Published var selectedDatabaseName: String?
-    @Published var databaseStructure: DatabaseStructure?
-    @Published var connectionState: ConnectionState = .connected
-    @Published var lastActivity: Date = Date()
-    @Published var structureLoadingState: StructureLoadingState = .idle
-    @Published var structureLoadingMessage: String?
-    private var defaultInitialBatchSize: Int
-    private var defaultBackgroundStreamingThreshold: Int
-    private var defaultBackgroundFetchSize: Int
+    var selectedDatabaseName: String?
+    var databaseStructure: DatabaseStructure?
+    var connectionState: ConnectionState = .connected
+    var lastActivity: Date = Date()
+    var structureLoadingState: StructureLoadingState = .idle
+    var structureLoadingMessage: String?
+    @ObservationIgnored private var defaultInitialBatchSize: Int
+    @ObservationIgnored private var defaultBackgroundStreamingThreshold: Int
+    @ObservationIgnored private var defaultBackgroundFetchSize: Int
 
     // Query tabs specific to this connection
-    @Published var queryTabs: [WorkspaceTab] = []
-    @Published var activeQueryTabID: UUID?
-    var structureLoadTask: Task<Void, Never>?
+    var queryTabs: [WorkspaceTab] = []
+    var activeQueryTabID: UUID?
+    @ObservationIgnored var structureLoadTask: Task<Void, Never>?
 
     init(
         id: UUID = UUID(),
@@ -215,7 +215,7 @@ final class ConnectionSession: ObservableObject, Identifiable {
             databaseName: databaseName,
             session: self
         )
-        
+
         let tab = WorkspaceTab(
             connection: connection,
             session: session,
@@ -235,7 +235,7 @@ final class ConnectionSession: ObservableObject, Identifiable {
             databaseName: databaseName,
             session: self
         )
-        
+
         let tab = WorkspaceTab(
             connection: connection,
             session: session,
@@ -253,7 +253,7 @@ final class ConnectionSession: ObservableObject, Identifiable {
     func addActivityMonitorTab() throws -> WorkspaceTab {
         let monitor = try session.makeActivityMonitor()
         let viewModel = ActivityMonitorViewModel(monitor: monitor, connectionSessionID: self.id)
-        
+
         let tab = WorkspaceTab(
             connection: connection,
             session: session,
@@ -275,7 +275,7 @@ final class ConnectionSession: ObservableObject, Identifiable {
         if let state = tab.query {
             state.cancelExecution()
         }
-        
+
         // Stop activity monitor streaming if this is an activity monitor tab
         if let activityVM = tab.activityMonitor {
             activityVM.stopStreaming()
@@ -325,11 +325,11 @@ final class ConnectionSession: ObservableObject, Identifiable {
 // MARK: - Multi-Connection Manager
 
 /// Manages multiple active database connections and provides server switching functionality
-@MainActor
-final class ActiveSessionGroup: ObservableObject {
-    @Published var activeSessions: [ConnectionSession] = []
-    @Published var activeSessionID: UUID?
-    @Published var isServerSwitcherVisible = false
+@Observable @MainActor
+final class ActiveSessionGroup {
+    var activeSessions: [ConnectionSession] = []
+    var activeSessionID: UUID?
+    var isServerSwitcherVisible = false
 
     // MARK: - Computed Properties
 

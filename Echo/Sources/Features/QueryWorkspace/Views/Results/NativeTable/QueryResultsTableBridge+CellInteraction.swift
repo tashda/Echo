@@ -15,7 +15,7 @@ extension QueryResultsTableView.Coordinator {
 
     func enqueueReloadWorkItem(_ workItem: DispatchWorkItem) {
         pendingReloadWorkItems.append(workItem)
-        DispatchQueue.main.async(execute: workItem)
+        Task { @MainActor in workItem.perform() }
     }
 
     func notifyForeignKeySelection(_ region: SelectedRegion?) {

@@ -8,8 +8,8 @@ struct SidebarMenu: View {
     @Environment(ConnectionStore.self) var connectionStore
     @Environment(NavigationStore.self) private var navigationStore
 
-    @EnvironmentObject var environmentState: EnvironmentState
-    @EnvironmentObject var appState: AppState
+    @Environment(EnvironmentState.self) var environmentState
+    @Environment(AppState.self) var appState
     let onAddConnection: () -> Void
 
     @State var selectedNavSection: NavSection = .folder

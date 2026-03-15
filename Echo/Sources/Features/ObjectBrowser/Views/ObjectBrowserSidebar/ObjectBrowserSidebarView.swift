@@ -11,10 +11,10 @@ struct ObjectBrowserSidebarView: View {
     @Environment(ConnectionStore.self) internal var connectionStore
     @Environment(NavigationStore.self) internal var navigationStore
 
-    @EnvironmentObject internal var environmentState: EnvironmentState
-    @EnvironmentObject private var appState: AppState
+    @Environment(EnvironmentState.self) internal var environmentState
+    @Environment(AppState.self) private var appState
 
-    @StateObject internal var viewModel = ObjectBrowserSidebarViewModel()
+    @State internal var viewModel = ObjectBrowserSidebarViewModel()
 
     internal var searchText: String {
         get { viewModel.searchText }
@@ -69,7 +69,9 @@ struct ObjectBrowserSidebarView: View {
             }
             .task {
                 syncSelectionWithSessions(proxy: proxy)
-                viewModel.setupSearchDebounce(proxy: proxy)
+            }
+            .onChange(of: viewModel.searchText) { _, _ in
+                viewModel.handleSearchTextChanged(proxy: proxy)
             }
             .onChange(of: sessions.map { $0.connection.id }) { _, _ in syncSelectionWithSessions(proxy: proxy) }
             .onChange(of: selectedConnectionID) { _, newValue in
@@ -83,7 +85,7 @@ struct ObjectBrowserSidebarView: View {
             .onChange(of: navigationStore.pendingExplorerFocus) { _, focus in if let focus { handleExplorerFocus(focus, proxy: proxy) } }
             .onDisappear { viewModel.stopSearchDebounce() }
         }
-        .environmentObject(viewModel)
+        .environment(viewModel)
         .accessibilityIdentifier("object-browser-sidebar")
         .background(ExplorerSidebarFocusResetter(isSearchFieldFocused: $viewModel.isSearchFieldFocused).allowsHitTesting(false))
 

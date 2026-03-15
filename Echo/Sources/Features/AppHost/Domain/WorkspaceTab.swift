@@ -1,9 +1,9 @@
 import Foundation
 import SwiftUI
-import Combine
+import Observation
 
-@MainActor
-final class WorkspaceTab: ObservableObject, Identifiable {
+@Observable @MainActor
+final class WorkspaceTab: Identifiable {
     struct BookmarkTabContext: Equatable {
         let bookmarkID: UUID
         let displayName: String
@@ -45,18 +45,17 @@ final class WorkspaceTab: ObservableObject, Identifiable {
     }
 
     let id = UUID()
-    let connection: SavedConnection
-    let session: DatabaseSession
-    let connectionSessionID: UUID
+    @ObservationIgnored let connection: SavedConnection
+    @ObservationIgnored let session: DatabaseSession
+    @ObservationIgnored let connectionSessionID: UUID
 
-    @Published var title: String
-    @Published private(set) var content: Content
-    @Published var isPinned: Bool
-    @Published var activeDatabaseName: String?
-    let bookmarkContext: BookmarkTabContext?
+    var title: String
+    private(set) var content: Content
+    var isPinned: Bool
+    var activeDatabaseName: String?
+    @ObservationIgnored let bookmarkContext: BookmarkTabContext?
 
-    private var contentCancellable: AnyCancellable?
-    let resultsGridState = QueryResultsGridState()
+    @ObservationIgnored let resultsGridState = QueryResultsGridState()
 
     init(
         connection: SavedConnection,
@@ -76,7 +75,7 @@ final class WorkspaceTab: ObservableObject, Identifiable {
         self.isPinned = isPinned
         self.activeDatabaseName = activeDatabaseName
         self.bookmarkContext = bookmarkContext
-        subscribeToContent()
+        setupRowCountRefreshHandler()
     }
 
     var kind: Kind {
@@ -134,8 +133,7 @@ final class WorkspaceTab: ObservableObject, Identifiable {
 
     func setContent(_ newContent: Content) {
         content = newContent
-        subscribeToContent()
-        objectWillChange.send()
+        setupRowCountRefreshHandler()
     }
 
     func estimatedMemoryUsageBytes() -> Int {
@@ -160,44 +158,11 @@ final class WorkspaceTab: ObservableObject, Identifiable {
         }
     }
 
-    private func subscribeToContent() {
-        contentCancellable = nil
-        switch content {
-        case .query(let state):
+    private func setupRowCountRefreshHandler() {
+        if case .query(let state) = content {
             state.rowCountRefreshHandler = { [weak self] in
                 self?.resultsGridState.scheduleRowCountRefresh()
             }
-            contentCancellable = state.objectWillChange
-                .receive(on: RunLoop.main)
-                .sink { [weak self] _ in self?.objectWillChange.send() }
-        case .structure(let editor):
-            contentCancellable = editor.objectWillChange
-                .receive(on: RunLoop.main)
-                .sink { [weak self] _ in self?.objectWillChange.send() }
-        case .extensionStructure(let vm):
-            contentCancellable = vm.objectWillChange
-                .receive(on: RunLoop.main)
-                .sink { [weak self] _ in self?.objectWillChange.send() }
-        case .extensionsManager(let vm):
-            contentCancellable = vm.objectWillChange
-                .receive(on: RunLoop.main)
-                .sink { [weak self] _ in self?.objectWillChange.send() }
-        case .diagram(let diagram):
-            contentCancellable = diagram.objectWillChange
-                .receive(on: RunLoop.main)
-                .sink { [weak self] _ in self?.objectWillChange.send() }
-        case .jobQueue(let vm):
-            contentCancellable = vm.objectWillChange
-                .receive(on: RunLoop.main)
-                .sink { [weak self] _ in self?.objectWillChange.send() }
-        case .psql(let vm):
-            contentCancellable = vm.objectWillChange
-                .receive(on: RunLoop.main)
-                .sink { [weak self] _ in self?.objectWillChange.send() }
-        case .activityMonitor(let vm):
-            contentCancellable = vm.objectWillChange
-                .receive(on: RunLoop.main)
-                .sink { [weak self] _ in self?.objectWillChange.send() }
         }
     }
 }

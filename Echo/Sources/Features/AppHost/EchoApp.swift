@@ -12,7 +12,7 @@ import AppKit
 
 @main
 struct EchoApp: App {
-    @StateObject private var coordinator = AppDirector.shared
+    @State private var coordinator = AppDirector.shared
 
     init() {
         FontRegistrar.registerBundledFonts()
@@ -39,12 +39,12 @@ struct EchoApp: App {
                 .environment(coordinator.tabStore)
                 .environment(coordinator.resultSpoolConfigCoordinator)
                 .environment(coordinator.diagramBuilder)
-                .environmentObject(coordinator.navigationStore.navigationState)
-                .environmentObject(coordinator.environmentState)
-                .environmentObject(coordinator.appState)
-                .environmentObject(coordinator.clipboardHistory)
-                .environmentObject(coordinator.appearanceStore)
-                .environmentObject(coordinator.notificationEngine)
+                .environment(coordinator.navigationStore.navigationState)
+                .environment(coordinator.environmentState)
+                .environment(coordinator.appState)
+                .environment(coordinator.clipboardHistory)
+                .environment(coordinator.appearanceStore)
+                .environment(coordinator.notificationEngine)
                 .task { await coordinator.initialize() }
         }
         .defaultLaunchBehavior(.presented)
@@ -86,8 +86,8 @@ struct EchoApp: App {
 #if os(macOS)
 @MainActor
 struct QueryCommands: Commands {
-    @ObservedObject var environmentState: EnvironmentState
-    @ObservedObject var appState: AppState
+    var environmentState: EnvironmentState
+    var appState: AppState
     let navigationStore: NavigationStore
     let tabStore: TabStore
     let projectStore: ProjectStore

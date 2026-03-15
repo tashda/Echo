@@ -6,7 +6,7 @@ import AppKit
 
 struct ClipboardHistoryView: View {
     @Environment(ProjectStore.self) private var projectStore
-    @EnvironmentObject private var clipboardHistory: ClipboardHistoryStore
+    @Environment(ClipboardHistoryStore.self) private var clipboardHistory
     #if os(macOS)
     @Environment(\.openWindow) private var openWindow
     #endif
@@ -36,7 +36,7 @@ struct ClipboardHistoryView: View {
                                 isRecentlyCopied: copiedEntryID == entry.id,
                                 onCopy: { handleCopy(entry) }
                             )
-                            .environmentObject(clipboardHistory)
+                            .environment(clipboardHistory)
                         }
                         .padding(.horizontal, SpacingTokens.sm)
                         .padding(.vertical, SpacingTokens.xxs)
@@ -50,7 +50,8 @@ struct ClipboardHistoryView: View {
             withAnimation(.easeInOut(duration: 0.2)) {
                 copiedEntryID = id
             }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+            Task {
+                try? await Task.sleep(for: .seconds(1.5))
                 if copiedEntryID == id {
                     withAnimation(.easeInOut(duration: 0.2)) {
                         copiedEntryID = nil
@@ -140,7 +141,8 @@ struct ClipboardHistoryView: View {
     private func openClipboardSettings() {
         #if os(macOS)
         openWindow(id: SettingsWindowScene.sceneID)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+        Task {
+            try? await Task.sleep(for: .seconds(0.1))
             NotificationCenter.default.post(
                 name: .openSettingsSection,
                 object: SettingsView.SettingsSection.applicationCache.rawValue

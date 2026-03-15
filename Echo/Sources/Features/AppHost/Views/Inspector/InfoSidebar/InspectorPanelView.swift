@@ -3,7 +3,7 @@ import SwiftUI
 struct InspectorPanelView: View {
     let content: ForeignKeyInspectorContent
     let depth: Int
-    @EnvironmentObject private var environmentState: EnvironmentState
+    @Environment(EnvironmentState.self) private var environmentState
 
     var body: some View {
         VStack(alignment: .leading, spacing: SpacingTokens.md1) {

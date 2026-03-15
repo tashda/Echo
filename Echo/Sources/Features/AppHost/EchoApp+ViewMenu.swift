@@ -8,7 +8,7 @@ import SwiftUI
 import AppKit
 
 struct ViewMenuCommands: Commands {
-    @ObservedObject var appState: AppState
+    var appState: AppState
     let navigationStore: NavigationStore
     let tabStore: TabStore
 

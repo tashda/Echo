@@ -6,9 +6,9 @@ struct AgentSidebarView: View {
     
     @Environment(ProjectStore.self) private var projectStore
     @Environment(ConnectionStore.self) private var connectionStore
-    @EnvironmentObject private var environmentState: EnvironmentState
+    @Environment(EnvironmentState.self) private var environmentState
     
-    @StateObject internal var viewModel = AgentSidebarViewModel()
+    @State internal var viewModel = AgentSidebarViewModel()
     @State internal var searchText: String = ""
     @State internal var showNewJobSheet = false
     @State internal var newJobName: String = ""

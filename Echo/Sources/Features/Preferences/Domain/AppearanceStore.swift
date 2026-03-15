@@ -1,24 +1,23 @@
 import SwiftUI
-import Combine
 import AppKit
 
 /// Simplified theme management for Echo, supporting only Light/Dark mode and accent color.
-@MainActor
-final class AppearanceStore: ObservableObject {
+@MainActor @Observable
+final class AppearanceStore {
     static let shared = AppearanceStore()
 
-    @Published private(set) var effectiveColorScheme: ColorScheme
-    @Published private(set) var accentColor: Color = .accentColor
+    private(set) var effectiveColorScheme: ColorScheme
+    private(set) var accentColor: Color = .accentColor
 
     /// Tracks the user's chosen appearance mode so the system-change observer
     /// only updates `effectiveColorScheme` when in `.system` mode.
     private(set) var currentMode: AppearanceMode = .system
 
     // User preference for accent color override (if any)
-    private var customAccentColor: Color?
+    @ObservationIgnored private var customAccentColor: Color?
 
-    private nonisolated(unsafe) var appearanceObserver: NSObjectProtocol?
-    private static let appearanceDidChangeNotification = Notification.Name("NSApplicationDidChangeEffectiveAppearanceNotification")
+    @ObservationIgnored private nonisolated(unsafe) var appearanceObserver: NSObjectProtocol?
+    @ObservationIgnored private static let appearanceDidChangeNotification = Notification.Name("NSApplicationDidChangeEffectiveAppearanceNotification")
 
     private init() {
         self.effectiveColorScheme = AppearanceStore.currentSystemColorScheme()
@@ -76,4 +75,3 @@ final class AppearanceStore: ObservableObject {
         }
     }
 }
-

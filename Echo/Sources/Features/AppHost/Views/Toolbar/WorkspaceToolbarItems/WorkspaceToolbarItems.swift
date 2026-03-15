@@ -7,7 +7,7 @@ struct WorkspaceToolbarItems: ToolbarContent {
     @Environment(ProjectStore.self) internal var projectStore
     @Environment(ConnectionStore.self) private var connectionStore
     @Environment(NavigationStore.self) internal var navigationStore
-    @EnvironmentObject private var environmentState: EnvironmentState
+    @Environment(EnvironmentState.self) private var environmentState
 
     var body: some ToolbarContent {
         ToolbarItem(id: "workspace.navigation.project", placement: .navigation) {

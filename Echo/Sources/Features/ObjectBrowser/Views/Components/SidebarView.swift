@@ -8,8 +8,8 @@ struct SidebarView: View {
     @Environment(ConnectionStore.self) private var connectionStore
     @Environment(NavigationStore.self) private var navigationStore
     
-    @EnvironmentObject var environmentState: EnvironmentState
-    @EnvironmentObject var appState: AppState
+    @Environment(EnvironmentState.self) var environmentState
+    @Environment(AppState.self) var appState
 
     var onAddConnection: () -> Void
 
