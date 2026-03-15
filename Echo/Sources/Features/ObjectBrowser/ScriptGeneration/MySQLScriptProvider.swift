@@ -44,7 +44,7 @@ struct MySQLScriptProvider: DatabaseScriptProvider {
 
     func renameStatement(for object: SchemaObjectInfo, qualifiedName: String, newName: String?) -> String? {
         let trimmedName = newName?.trimmingCharacters(in: .whitespacesAndNewlines)
-        let effectiveName = (trimmedName?.isEmpty ?? true) ? "<new_name>" : trimmedName!
+        let effectiveName = trimmedName.flatMap({ $0.isEmpty ? nil : $0 }) ?? "<new_name>"
         let quotedNewName = quoteIdentifier(effectiveName)
 
         switch object.type {

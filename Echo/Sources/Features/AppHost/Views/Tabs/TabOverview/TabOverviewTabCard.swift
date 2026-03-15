@@ -208,7 +208,7 @@ struct ActivityMonitorPreview: View {
     var body: some View {
         VStack(spacing: SpacingTokens.xxs) {
             Image(systemName: "chart.bar.doc.horizontal")
-                .font(.system(size: SpacingTokens.xl))
+                .font(TypographyTokens.hero)
                 .foregroundStyle(ColorTokens.Text.tertiary)
             Text("Activity Monitor")
                 .font(TypographyTokens.detail)

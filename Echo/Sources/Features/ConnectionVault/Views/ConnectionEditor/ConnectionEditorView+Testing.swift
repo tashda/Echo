@@ -124,7 +124,9 @@ extension ConnectionEditorView {
             result = try await withThrowingTaskGroup(of: ConnectionTestResult.self) { group in
                 group.addTask { await testTask.value }
                 group.addTask { try await timeoutTask.value }
-                let first = try await group.next()!
+                guard let first = try await group.next() else {
+                    throw CancellationError()
+                }
                 group.cancelAll()
                 return first
             }

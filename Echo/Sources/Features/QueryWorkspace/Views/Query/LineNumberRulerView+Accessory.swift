@@ -148,31 +148,17 @@ struct GlowFrameView: View {
 
     static func generateGradientStops() -> [Gradient.Stop] {
         let palette = [
-            color(hex: "BC82F3"),
-            color(hex: "F5B9EA"),
-            color(hex: "8D9FFF"),
-            color(hex: "FF6778"),
-            color(hex: "FFBA71"),
-            color(hex: "C686FF")
+            ColorTokens.Glow.violet,
+            ColorTokens.Glow.pink,
+            ColorTokens.Glow.periwinkle,
+            ColorTokens.Glow.coral,
+            ColorTokens.Glow.peach,
+            ColorTokens.Glow.lavender
         ]
 
         return palette.map { color in
             Gradient.Stop(color: color, location: Double.random(in: 0...1))
         }.sorted(by: { $0.location < $1.location })
-    }
-
-    static func color(hex: String) -> Color {
-        let scanner = Scanner(string: hex)
-        _ = scanner.scanString("#")
-
-        var hexNumber: UInt64 = 0
-        scanner.scanHexInt64(&hexNumber)
-
-        let r = Double((hexNumber & 0xff0000) >> 16) / 255.0
-        let g = Double((hexNumber & 0x00ff00) >> 8) / 255.0
-        let b = Double(hexNumber & 0x0000ff) / 255.0
-
-        return Color(red: r, green: g, blue: b)
     }
 }
 

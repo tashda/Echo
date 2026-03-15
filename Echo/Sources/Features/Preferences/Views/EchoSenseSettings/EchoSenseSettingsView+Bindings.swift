@@ -147,7 +147,7 @@ extension EchoSenseSettingsView {
             triggerText = triggers[0]
         default:
             let head = triggers.dropLast().joined(separator: ", ")
-            triggerText = head + " or " + triggers.last!
+            triggerText = head + " or " + (triggers.last ?? "")
         }
 
         let suffix = appState.sqlEditorDisplay.autoCompletionEnabled ? "" : " EchoSense stays off until you manually request it."

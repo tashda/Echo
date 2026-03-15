@@ -30,7 +30,7 @@ struct TabStripBackground: View {
     private var baseFill: AnyShapeStyle {
         switch style {
         case .standard(let scheme):
-            let color = scheme == .dark ? Color(white: 0.22) : Color(white: 0.90)
+            let color = scheme == .dark ? ColorTokens.TabStrip.Background.dark : ColorTokens.TabStrip.Background.light
             return AnyShapeStyle(color)
         case .themed(let palette):
             return AnyShapeStyle(palette.baseFill)
@@ -54,7 +54,7 @@ struct TabStripBackground: View {
 
 struct SafariTabBarBackground: View {
     var body: some View {
-        LinearGradient(colors: [Color.white.opacity(0.16), Color.black.opacity(0.14)], startPoint: .top, endPoint: .bottom)
+        LinearGradient(colors: [ColorTokens.TabStrip.SafariBar.gradientTop, ColorTokens.TabStrip.SafariBar.gradientBottom], startPoint: .top, endPoint: .bottom)
             .allowsHitTesting(false)
     }
 }
@@ -62,7 +62,7 @@ struct SafariTabBarBackground: View {
 struct SafariTabBarTopEdge: View {
     var body: some View {
         Rectangle()
-            .fill(Color.white.opacity(0.45))
+            .fill(ColorTokens.TabStrip.SafariBar.topEdge)
             .frame(height: tabHairlineWidth())
     }
 }
@@ -70,7 +70,7 @@ struct SafariTabBarTopEdge: View {
 struct TabStripBackground: View {
     var body: some View {
         RoundedRectangle(cornerRadius: 15, style: .continuous)
-            .fill(Color(white: 0.92))
+            .fill(ColorTokens.TabStrip.Background.light)
             .allowsHitTesting(false)
     }
 }

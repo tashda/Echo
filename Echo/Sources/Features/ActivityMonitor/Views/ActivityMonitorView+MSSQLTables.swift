@@ -29,8 +29,8 @@ struct MSSQLProcessesTable: View {
                         .foregroundStyle(ColorTokens.Text.tertiary)
                 }
             }
-            TableColumn("CPU", value: \.sessionCpuTimeMs!) { Text("\($0.sessionCpuTimeMs ?? 0)ms").font(TypographyTokens.detail) }.width(70)
-            TableColumn("Memory", value: \.memoryUsageKB!) { Text("\($0.memoryUsageKB ?? 0) KB").font(TypographyTokens.detail) }.width(80)
+            TableColumn("CPU") { Text("\($0.sessionCpuTimeMs ?? 0)ms").font(TypographyTokens.detail) }.width(70)
+            TableColumn("Memory") { Text("\($0.memoryUsageKB ?? 0) KB").font(TypographyTokens.detail) }.width(80)
         }
         .contextMenu(forSelectionType: SQLServerProcessInfo.ID.self) { selection in
             if let id = selection.first, let process = processes.first(where: { $0.id == id }) {

@@ -33,9 +33,11 @@ final class PSQLTabViewModel: Identifiable {
         self.sessionFactory = sessionFactory
         let requestedDatabase = database?.trimmingCharacters(in: .whitespacesAndNewlines)
         let fallbackDatabase = connection.database.trimmingCharacters(in: .whitespacesAndNewlines)
-        self.activeDatabase = requestedDatabase?.isEmpty == false
-            ? requestedDatabase!
-            : (fallbackDatabase.isEmpty ? "postgres" : fallbackDatabase)
+        if let db = requestedDatabase, !db.isEmpty {
+            self.activeDatabase = db
+        } else {
+            self.activeDatabase = fallbackDatabase.isEmpty ? "postgres" : fallbackDatabase
+        }
         
         let version = connection.serverVersion ?? "unknown"
         history = "Postgres Console (Echo), server \(version)\n"
@@ -128,8 +130,9 @@ final class PSQLTabViewModel: Identifiable {
     func showNextCommand() {
         guard let historyIndex else { return }
         if historyIndex < commandHistory.count - 1 {
-            self.historyIndex = historyIndex + 1
-            input = commandHistory[self.historyIndex!]
+            let newIndex = historyIndex + 1
+            self.historyIndex = newIndex
+            input = commandHistory[newIndex]
         } else {
             self.historyIndex = nil
             input = historyDraft

@@ -19,7 +19,7 @@ struct CommandEditorView: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack {
-                Text(context.stepName != nil ? "Edit Command \u{2014} \(context.stepName!)" : "Edit Command")
+                Text(context.stepName.map { "Edit Command \u{2014} \($0)" } ?? "Edit Command")
                     .font(TypographyTokens.prominent.weight(.semibold))
                 Spacer()
                 Button("Cancel", action: onCancel)
