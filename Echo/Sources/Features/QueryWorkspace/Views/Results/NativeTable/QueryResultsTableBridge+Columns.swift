@@ -35,6 +35,7 @@ extension QueryResultsTableView.Coordinator {
 
     func addDataColumns(to tableView: NSTableView) {
         let hidden = persistedState?.hiddenColumnIndices ?? []
+        let classification = parent.query.dataClassification
         for (index, column) in parent.query.displayedColumns.enumerated() {
             guard !hidden.contains(index) else { continue }
             let tableColumn = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("data-\(column.id)"))
@@ -43,9 +44,14 @@ extension QueryResultsTableView.Coordinator {
             tableColumn.width = tableColumn.minWidth
             tableColumn.isEditable = false
             tableColumn.resizingMask = [.userResizingMask]
-            if !(tableColumn.headerCell is ResultTableHeaderCell) { tableColumn.headerCell = ResultTableHeaderCell(textCell: column.name) }
+            let headerCell = ResultTableHeaderCell(textCell: column.name)
+            headerCell.columnSensitivity = classification?.classification(forColumnAt: index)
+            tableColumn.headerCell = headerCell
             tableColumn.headerCell.controlSize = .regular; tableColumn.headerCell.alignment = .left
             tableColumn.headerCell.font = NSFont.systemFont(ofSize: 12, weight: .semibold)
+            if let sensitivity = headerCell.columnSensitivity {
+                tableColumn.headerToolTip = sensitivity.summary + " (\(sensitivity.effectiveRank.displayName))"
+            }
             tableView.addTableColumn(tableColumn)
         }
     }
@@ -102,9 +108,18 @@ extension QueryResultsTableView.Coordinator {
     }
 
     func applyHeaderStyle(to tableView: NSTableView) {
-        for column in tableView.tableColumns {
+        let classification = parent.query.dataClassification
+        for (offset, column) in tableView.tableColumns.enumerated() {
             if !(column.headerCell is ResultTableHeaderCell) {
                 column.headerCell = ResultTableHeaderCell(textCell: column.title)
+            }
+            if let headerCell = column.headerCell as? ResultTableHeaderCell {
+                headerCell.columnSensitivity = classification?.classification(forColumnAt: offset)
+                if let sensitivity = headerCell.columnSensitivity {
+                    column.headerToolTip = sensitivity.summary + " (\(sensitivity.effectiveRank.displayName))"
+                } else {
+                    column.headerToolTip = nil
+                }
             }
             column.headerCell.controlSize = .regular
             column.headerCell.alignment = .left

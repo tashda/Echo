@@ -7,13 +7,15 @@ public struct QueryResultSet: Sendable {
     public var totalRowCount: Int?
     public var commandTag: String?
     public var additionalResults: [QueryResultSet]
+    public var dataClassification: DataClassification?
 
-    public nonisolated init(columns: [ColumnInfo], rows: [[String?]] = [], totalRowCount: Int? = nil, commandTag: String? = nil, additionalResults: [QueryResultSet] = []) {
+    public nonisolated init(columns: [ColumnInfo], rows: [[String?]] = [], totalRowCount: Int? = nil, commandTag: String? = nil, additionalResults: [QueryResultSet] = [], dataClassification: DataClassification? = nil) {
         self.columns = columns
         self.rows = rows
         self.totalRowCount = totalRowCount ?? rows.count
         self.commandTag = commandTag
         self.additionalResults = additionalResults
+        self.dataClassification = dataClassification
     }
 
     public nonisolated init(columns: [String], rows: [[String?]]) {
@@ -22,6 +24,7 @@ public struct QueryResultSet: Sendable {
         self.totalRowCount = rows.count
         self.commandTag = nil
         self.additionalResults = []
+        self.dataClassification = nil
     }
 
     public nonisolated var allResultSets: [QueryResultSet] {
