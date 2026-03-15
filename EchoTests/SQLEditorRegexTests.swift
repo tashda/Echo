@@ -1150,6 +1150,9 @@ SELECT
 
         engine.recordSelection(accepted, query: query)
 
+        // History store uses async barrier write — allow it to complete
+        Thread.sleep(forTimeInterval: 0.05)
+
         let subsequentResult = engine.suggestions(for: query, text: text, caretLocation: caretLocation)
         let suggestions = subsequentResult.sections.flatMap { $0.suggestions }
 
