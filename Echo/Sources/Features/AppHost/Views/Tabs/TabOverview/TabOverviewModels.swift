@@ -30,6 +30,7 @@ extension WorkspaceTab.Kind {
         case .extensionStructure: return "Extension Details"
         case .extensionsManager: return "Extensions"
         case .activityMonitor: return "Activity"
+        case .queryStore: return "Query Store"
         }
     }
 
@@ -43,6 +44,7 @@ extension WorkspaceTab.Kind {
         case .extensionStructure: return "puzzlepiece.fill"
         case .extensionsManager: return "puzzlepiece"
         case .activityMonitor: return "chart.bar.doc.horizontal"
+        case .queryStore: return "chart.bar.xaxis"
         }
     }
 }

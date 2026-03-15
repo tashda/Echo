@@ -24,12 +24,12 @@ extension TableStructureEditorView {
             }
 
             Picker("", selection: $selectedSection) {
-                ForEach(TableStructureSection.allCases) { section in
+                ForEach(TableStructureSection.cases(for: viewModel.databaseType)) { section in
                     Text(section.displayName).tag(section)
                 }
             }
             .pickerStyle(.segmented)
-            .frame(maxWidth: 300)
+            .frame(maxWidth: 400)
         }
         .padding(.horizontal, SpacingTokens.lg)
         .padding(.top, SpacingTokens.md)
@@ -66,6 +66,13 @@ extension TableStructureEditorView {
 
                 case .relations:
                     relationsContent
+
+                case .extendedProperties:
+                    ExtendedPropertiesSection(
+                        session: viewModel.session,
+                        schema: viewModel.schemaName,
+                        tableName: viewModel.tableName
+                    )
                 }
             }
 

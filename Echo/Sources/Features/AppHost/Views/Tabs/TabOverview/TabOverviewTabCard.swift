@@ -199,6 +199,22 @@ struct TabPreviewCard: View {
             }
         case .activityMonitor:
             ActivityMonitorPreview(viewModel: tab.activityMonitor)
+        case .queryStore:
+            QueryStorePreview(viewModel: tab.queryStoreVM)
+        }
+    }
+}
+
+struct QueryStorePreview: View {
+    let viewModel: QueryStoreViewModel?
+    var body: some View {
+        VStack(spacing: SpacingTokens.xxs) {
+            Image(systemName: "chart.bar.xaxis")
+                .font(TypographyTokens.hero)
+                .foregroundStyle(ColorTokens.Text.tertiary)
+            Text("Query Store")
+                .font(TypographyTokens.detail)
+                .foregroundStyle(ColorTokens.Text.secondary)
         }
     }
 }

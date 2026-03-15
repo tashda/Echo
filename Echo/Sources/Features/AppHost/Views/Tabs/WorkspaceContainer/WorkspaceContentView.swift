@@ -39,6 +39,9 @@ struct WorkspaceContentView: View {
                 } else if let activityMonitor = tab.activityMonitor {
                     ActivityMonitorView(viewModel: activityMonitor)
                         .background(ColorTokens.Background.primary)
+                } else if let queryStoreVM = tab.queryStoreVM {
+                    QueryStoreView(viewModel: queryStoreVM)
+                        .background(ColorTokens.Background.primary)
                 } else if let query = tab.query {
                     QueryEditorContainer(
                         tab: tab,

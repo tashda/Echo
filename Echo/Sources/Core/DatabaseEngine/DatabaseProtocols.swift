@@ -125,3 +125,12 @@ protocol ExecutionPlanProviding: DatabaseSession {
     func getEstimatedExecutionPlan(_ sql: String) async throws -> ExecutionPlanData
     func getActualExecutionPlan(_ sql: String) async throws -> (result: QueryResultSet, plan: ExecutionPlanData)
 }
+
+/// A database session that supports reading and modifying extended properties (SQL Server only).
+protocol ExtendedPropertiesProviding: DatabaseSession {
+    func listExtendedProperties(schema: String, objectType: String, objectName: String, childType: String?, childName: String?) async throws -> [ExtendedPropertyInfo]
+    func listExtendedPropertiesForAllColumns(schema: String, table: String) async throws -> [String: [ExtendedPropertyInfo]]
+    func addExtendedProperty(name: String, value: String, schema: String, objectType: String, objectName: String, childType: String?, childName: String?) async throws
+    func updateExtendedProperty(name: String, value: String, schema: String, objectType: String, objectName: String, childType: String?, childName: String?) async throws
+    func dropExtendedProperty(name: String, schema: String, objectType: String, objectName: String, childType: String?, childName: String?) async throws
+}

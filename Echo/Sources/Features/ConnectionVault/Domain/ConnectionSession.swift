@@ -1,6 +1,7 @@
 import Foundation
 import SwiftUI
 import Observation
+import SQLServerKit
 
 // MARK: - Connection Session Management
 
@@ -260,6 +261,27 @@ final class ConnectionSession: Identifiable {
             connectionSessionID: id,
             title: "Activity Monitor",
             content: .activityMonitor(viewModel)
+        )
+        queryTabs.append(tab)
+        activeQueryTabID = tab.id
+        lastActivity = Date()
+        return tab
+    }
+
+    @discardableResult
+    func addQueryStoreTab(databaseName: String) -> WorkspaceTab? {
+        guard let mssql = session as? MSSQLSession else { return nil }
+        let viewModel = QueryStoreViewModel(
+            queryStoreClient: mssql.queryStore,
+            databaseName: databaseName,
+            connectionSessionID: id
+        )
+        let tab = WorkspaceTab(
+            connection: connection,
+            session: session,
+            connectionSessionID: id,
+            title: "Query Store (\(databaseName))",
+            content: .queryStore(viewModel)
         )
         queryTabs.append(tab)
         activeQueryTabID = tab.id
