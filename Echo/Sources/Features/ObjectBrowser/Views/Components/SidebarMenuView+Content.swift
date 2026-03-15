@@ -12,6 +12,8 @@ extension SidebarMenu {
             SearchSidebarView()
         case .clipboard:
             ClipboardHistoryView()
+        case .snippets:
+            SnippetsSidebarView()
         case .history:
             HistorySidebarView(
                 icon: "clock.fill",

@@ -104,6 +104,7 @@ import os.log
     var selectedResultSetIndex: Int = 0
     var executionPlan: ExecutionPlanData?
     var isLoadingExecutionPlan: Bool = false
+    var dataClassification: DataClassification?
 
     init(
         sql: String = "SELECT current_timestamp;",
