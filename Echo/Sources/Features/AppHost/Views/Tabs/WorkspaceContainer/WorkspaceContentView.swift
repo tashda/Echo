@@ -9,6 +9,8 @@ struct WorkspaceContentView: View {
     let runQuery: (String) async -> Void
     let cancelQuery: () -> Void
     let requestEstimatedPlan: ((String) async -> Void)?
+    let debugExecute: ((String) async -> Void)?
+    let debugStop: (() -> Void)?
     let gridStateProvider: () -> QueryResultsGridState
     @Environment(AppearanceStore.self) private var appearanceStore
 
@@ -55,6 +57,8 @@ struct WorkspaceContentView: View {
                         runQuery: runQuery,
                         cancelQuery: cancelQuery,
                         requestEstimatedPlan: requestEstimatedPlan,
+                        debugExecute: debugExecute,
+                        debugStop: debugStop,
                         gridStateProvider: gridStateProvider
                     )
                 } else {

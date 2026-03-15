@@ -147,6 +147,26 @@ extension ObjectBrowserSidebarView {
                     )
                 }
             }
+            .sheet(isPresented: $viewModel.showReplicationSheet) {
+                if let dbName = viewModel.replicationDatabaseName,
+                   let connID = viewModel.replicationConnectionID,
+                   let session = environmentState.sessionGroup.sessionForConnection(connID) {
+                    ReplicationSheet(
+                        databaseName: dbName,
+                        session: session,
+                        onDismiss: { viewModel.showReplicationSheet = false }
+                    )
+                }
+            }
+            .sheet(isPresented: $viewModel.showCMSSheet) {
+                if let connID = viewModel.cmsConnectionID,
+                   let session = environmentState.sessionGroup.sessionForConnection(connID) {
+                    CMSSheet(
+                        session: session,
+                        onDismiss: { viewModel.showCMSSheet = false }
+                    )
+                }
+            }
     }
 
     func applyAlerts<V: View>(to content: V) -> some View {

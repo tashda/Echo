@@ -7,6 +7,8 @@ struct QueryEditorContainer: View {
     let runQuery: (String) async -> Void
     let cancelQuery: () -> Void
     let requestEstimatedPlan: ((String) async -> Void)?
+    let debugExecute: ((String) async -> Void)?
+    let debugStop: (() -> Void)?
     let gridStateProvider: () -> QueryResultsGridState
 
     @Environment(ProjectStore.self) var projectStore
@@ -85,6 +87,8 @@ struct QueryEditorContainer: View {
                         onCancel: cancelQuery,
                         onAddBookmark: handleBookmarkRequest,
                         onRequestEstimatedPlan: requestEstimatedPlan,
+                        onDebugExecute: debugExecute,
+                        onDebugStop: debugStop,
                         completionContext: editorCompletionContext
                     )
                     .frame(height: editorHeight)

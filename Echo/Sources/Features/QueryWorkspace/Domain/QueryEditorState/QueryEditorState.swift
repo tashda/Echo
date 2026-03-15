@@ -24,6 +24,7 @@ import os.log
     var livePerformanceReport: QueryPerformanceTracker.Report?
     var streamingModeOverride: ResultStreamingExecutionMode = .auto
     var statisticsEnabled: Bool = false
+    var sqlcmdModeEnabled: Bool = false
     @ObservationIgnored var rowCountRefreshHandler: (() -> Void)?
 
     var streamingMode: StreamingMode = .idle
@@ -106,6 +107,16 @@ import os.log
     var executionPlan: ExecutionPlanData?
     var isLoadingExecutionPlan: Bool = false
     var dataClassification: DataClassification?
+
+    // MARK: - Debug Session State
+
+    var debugMode: Bool = false
+    var debugStatements: [TSQLStatementSplitter.Statement] = []
+    var debugCurrentIndex: Int = 0
+    var debugPhase: DebugPhase = .idle
+    var debugVariables: [DebugVariable] = []
+    var debugBreakpoints: Set<DebugBreakpoint> = []
+    @ObservationIgnored var debugContinuation: CheckedContinuation<Void, Never>?
 
     init(
         sql: String = "SELECT current_timestamp;",
