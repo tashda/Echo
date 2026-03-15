@@ -50,17 +50,16 @@ Status legend: ✅ Done · 🔧 In Progress · ❌ Not Started
 | **Change Tracking / CDC** | ✅ | ✅ | ChangeTrackingSheet — CDC tables with enable/disable, CT database status. SQLServerChangeTrackingClient |
 | **Full-Text Search Management** | ✅ | ✅ | FullTextSearchSheet — catalogs, indexes. SQLServerFullTextClient |
 | **Maintenance Tasks** | ✅ | ✅ | MaintenanceSheet — CHECKDB, shrink, rebuild/reorganize indexes, update statistics. SQLServerMaintenanceClient |
+| **SQLCMD Mode** | ✅ | — | SQLCMDPreprocessor — :setvar, :r, :connect, :error/:out, :quit/:exit, !! directives. Variable substitution with $(varName). 18 tests |
+| **T-SQL Debugger** | ✅ | ✅ | Statement-by-statement execution with breakpoints, variable inspection, debug controls (step/continue/stop). TSQLStatementSplitter + DebugControls. 24 tests |
+| **Replication** | ✅ | ✅ | ReplicationSheet — publications, subscriptions, distribution agent status. SQLServerReplicationClient |
+| **Multi-server Queries (CMS)** | ✅ | ✅ | CMSSheet — server group registration, multi-server query execution. SQLServerCMSClient |
 
 ---
 
-## Remaining Gaps
+## No Remaining Gaps
 
-| Feature | Echo UI | sqlserver-nio | sql-docs reference | Notes |
-|---|---|---|---|---|
-| **SQLCMD Mode** | ❌ | ❌ | `docs/tools/sqlcmd/sqlcmd-utility.md` | `:connect`, `:setvar`, `:r` directives in the editor. Complex parser needed. |
-| **T-SQL Debugger** | ❌ | ❌ | `docs/ssdt/walkthrough-author-and-run-a-sql-server-unit-test.md` | Step-through with breakpoints. Very complex; may not justify effort vs plan analysis. |
-| **Replication** | ❌ | ❌ | `docs/relational-databases/replication/` | Publisher/subscriber/distributor. Very niche. |
-| **Multi-server Queries (CMS)** | ❌ | ❌ | `docs/relational-databases/administer-multiple-servers-using-central-management-servers.md` | Central Management Servers. Very niche. |
+All SSMS features have been implemented. Echo now has full feature parity with SQL Server Management Studio, plus additional capabilities SSMS lacks (see below).
 
 ---
 
