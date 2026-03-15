@@ -45,6 +45,9 @@ struct WorkspaceContentView: View {
                 } else if let xeVM = tab.extendedEventsVM {
                     ExtendedEventsView(viewModel: xeVM)
                         .background(ColorTokens.Background.primary)
+                } else if let agVM = tab.availabilityGroupsVM {
+                    AvailabilityGroupsView(viewModel: agVM)
+                        .background(ColorTokens.Background.primary)
                 } else if let query = tab.query {
                     QueryEditorContainer(
                         tab: tab,

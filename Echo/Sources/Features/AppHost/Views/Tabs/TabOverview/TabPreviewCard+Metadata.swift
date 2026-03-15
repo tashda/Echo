@@ -74,6 +74,8 @@ func tabOverviewStatus(for tab: WorkspaceTab, appearanceStore: AppearanceStore) 
         return ("chart.bar.xaxis", "Ready", ColorTokens.Text.secondary)
     case .extendedEvents:
         return ("waveform.path.ecg", "Ready", ColorTokens.Text.secondary)
+    case .availabilityGroups:
+        return ("server.rack", "Ready", ColorTokens.Text.secondary)
     }
 }
 
@@ -105,6 +107,8 @@ extension TabPreviewCard {
         case .queryStore:
             return []
         case .extendedEvents:
+            return []
+        case .availabilityGroups:
             return []
         }
     }
@@ -201,6 +205,8 @@ extension TabPreviewCard {
             return "Query Store"
         case .extendedEvents:
             return "Extended Events"
+        case .availabilityGroups:
+            return "Availability Groups"
         }
     }
 }

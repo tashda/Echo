@@ -99,6 +99,15 @@ extension ObjectBrowserSidebarView {
             Label("Activity Monitor", systemImage: "gauge.with.dots.needle.33percent")
         }
 
+        if session.connection.databaseType == .microsoftSQL {
+            Button {
+                viewModel.databaseMailConnectionID = session.connection.id
+                viewModel.showDatabaseMailSheet = true
+            } label: {
+                Label("Database Mail", systemImage: "envelope")
+            }
+        }
+
         Divider()
 
         Button {

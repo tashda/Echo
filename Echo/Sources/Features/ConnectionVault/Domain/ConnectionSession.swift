@@ -309,6 +309,26 @@ final class ConnectionSession: Identifiable {
         return tab
     }
 
+    @discardableResult
+    func addAvailabilityGroupsTab() -> WorkspaceTab? {
+        guard let mssql = session as? MSSQLSession else { return nil }
+        let viewModel = AvailabilityGroupsViewModel(
+            agClient: mssql.availabilityGroups,
+            connectionSessionID: id
+        )
+        let tab = WorkspaceTab(
+            connection: connection,
+            session: session,
+            connectionSessionID: id,
+            title: "Availability Groups",
+            content: .availabilityGroups(viewModel)
+        )
+        queryTabs.append(tab)
+        activeQueryTabID = tab.id
+        lastActivity = Date()
+        return tab
+    }
+
     func closeQueryTab(withID tabID: UUID) {
         guard let index = queryTabs.firstIndex(where: { $0.id == tabID }) else { return }
         let tab = queryTabs[index]

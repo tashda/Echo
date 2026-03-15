@@ -146,6 +146,13 @@ extension EnvironmentState {
         }
     }
 
+    func openAvailabilityGroupsTab(connectionID: UUID) {
+        guard let session = sessionGroup.sessionForConnection(connectionID) else { return }
+        if let tab = session.addAvailabilityGroupsTab() {
+            registerTab(tab)
+        }
+    }
+
     func openPSQLTab(for session: ConnectionSession? = nil, database: String? = nil) {
         guard projectStore.globalSettings.managedPostgresConsoleEnabled else { return }
         let targetSession = session ?? sessionGroup.activeSession ?? sessionGroup.activeSessions.first
