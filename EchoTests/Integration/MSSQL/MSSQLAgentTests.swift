@@ -1,4 +1,5 @@
 import XCTest
+import SQLServerKit
 @testable import Echo
 
 /// Tests SQL Server Agent operations through raw SQL queries.

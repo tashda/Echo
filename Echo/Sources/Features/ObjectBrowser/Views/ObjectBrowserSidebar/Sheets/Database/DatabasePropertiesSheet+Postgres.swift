@@ -103,23 +103,6 @@ extension DatabasePropertiesSheet {
     }
 
     @ViewBuilder
-    func postgresParametersPage() -> some View {
-        if pgParams.isEmpty {
-            Section {
-                Text("No database-level parameters configured.")
-                    .foregroundStyle(ColorTokens.Text.secondary)
-                    .font(TypographyTokens.standard)
-            }
-        } else {
-            Section("Database Parameters") {
-                ForEach(Array(pgParams.enumerated()), id: \.offset) { _, param in
-                    LabeledContent(param.name, value: param.value)
-                }
-            }
-        }
-    }
-
-    @ViewBuilder
     func postgresStatisticsPage(_ props: PostgresDatabaseProperties) -> some View {
         Section("Size") {
             LabeledContent("Database Size", value: ByteCountFormatter.string(fromByteCount: props.sizeBytes, countStyle: .file))
@@ -128,14 +111,6 @@ extension DatabasePropertiesSheet {
 
         Section("Connections") {
             LabeledContent("Active Connections", value: "\(props.activeConnections)")
-        }
-
-        if let acl = props.acl, !acl.isEmpty {
-            Section("Privileges") {
-                Text(acl)
-                    .font(TypographyTokens.monospaced)
-                    .textSelection(.enabled)
-            }
         }
     }
 
@@ -180,5 +155,16 @@ extension DatabasePropertiesSheet {
         pgRoles = roles.map(\.name).sorted()
 
         pgTablespaces = (try? await client.introspection.listTablespaces()) ?? ["pg_default"]
+
+        pgSettingDefinitions = (try? await client.introspection.fetchDatabaseConfigurableSettings()) ?? []
+
+        if let acl = props.acl {
+            pgACLEntries = PostgresACLEntry.parse(acl: acl)
+        }
+
+        pgDefaultPrivileges = (try? await client.introspection.fetchDefaultPrivileges()) ?? []
+
+        let schemas = (try? await client.introspection.listSchemas()) ?? []
+        pgSchemas = schemas.map(\.name).sorted()
     }
 }

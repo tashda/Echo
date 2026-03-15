@@ -1,4 +1,5 @@
 import XCTest
+import SQLServerKit
 @testable import Echo
 
 /// Base class for SQL Server integration tests using Docker.
@@ -30,6 +31,11 @@ class MSSQLDockerTestCase: XCTestCase {
     static let password = "Password123!"
 
     private(set) var session: DatabaseSession!
+
+    /// Access the underlying SQLServerClient for typed API calls.
+    var sqlserverClient: SQLServerClient {
+        (session as! SQLServerSessionAdapter).client
+    }
 
     // MARK: - Docker Setup (once per class)
 

@@ -173,5 +173,10 @@ extension DatabasePropertiesSheet {
         dateCorrelation = props.isDateCorrelationOn
 
         mssqlFiles = (try? await admin.fetchDatabaseFiles(name: databaseName)) ?? []
+
+        // Query Store options
+        if let qsOpts = try? await mssqlSession.queryStore.options(database: databaseName) {
+            populateQueryStoreState(qsOpts)
+        }
     }
 }

@@ -43,6 +43,12 @@ extension ObjectBrowserSidebarView {
                             .environment(viewModel)
                             .padding(.horizontal, SpacingTokens.xxs)
                     }
+
+                    // Query Store (MSSQL only)
+                    if session.connection.databaseType == .microsoftSQL && database.isOnline {
+                        queryStoreRow(database: database, session: session)
+                            .padding(.horizontal, SpacingTokens.xxs)
+                    }
                 }
             } else if alreadyLoaded {
                 // Schema was fetched but the database has no user objects — don't re-fetch
@@ -72,6 +78,22 @@ extension ObjectBrowserSidebarView {
                 await environmentState.loadSchemaForDatabase(database.name, connectionSession: session)
                 viewModel.setDatabaseLoading(connectionID: connID, databaseName: database.name, loading: false)
             }
+        }
+    }
+
+    // MARK: - Query Store Row
+
+    @ViewBuilder
+    func queryStoreRow(database: DatabaseInfo, session: ConnectionSession) -> some View {
+        let connID = session.connection.id
+
+        folderHeaderRow(
+            title: "Query Store",
+            icon: "chart.bar.xaxis",
+            count: nil,
+            isExpanded: false
+        ) {
+            environmentState.openQueryStoreTab(connectionID: connID, databaseName: database.name)
         }
     }
 }

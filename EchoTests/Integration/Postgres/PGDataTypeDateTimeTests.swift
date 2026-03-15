@@ -1,4 +1,5 @@
 import XCTest
+import PostgresKit
 @testable import Echo
 
 /// Tests PostgreSQL date and time data type round-trips through Echo's DatabaseSession layer.
@@ -244,59 +245,62 @@ final class PGDataTypeDateTimeTests: PostgresDockerTestCase {
     // MARK: - Table Round-Trip
 
     func testDateTimeRoundTripAllTypes() async throws {
-        let columns = """
-            id SERIAL PRIMARY KEY,
-            date_val DATE,
-            time_val TIME,
-            timetz_val TIMETZ,
-            ts_val TIMESTAMP,
-            tstz_val TIMESTAMPTZ,
-            interval_val INTERVAL
-        """
-        try await withTempTable(columns: columns) { tableName in
-            try await execute("""
-                INSERT INTO \(tableName)
-                (date_val, time_val, timetz_val, ts_val, tstz_val, interval_val)
-                VALUES (
-                    '2024-06-15',
-                    '10:30:00',
-                    '10:30:00+02:00',
-                    '2024-06-15 10:30:00',
-                    '2024-06-15 10:30:00+00',
-                    '1 year 2 months 3 days'
-                )
-            """)
+        let tableName = uniqueName()
+        try await postgresClient.admin.createTable(name: tableName, columns: [
+            .serial(name: "id", primaryKey: true),
+            .date(name: "date_val"),
+            .time(name: "time_val"),
+            .timeWithTimeZone(name: "timetz_val"),
+            .timestamp(name: "ts_val"),
+            .timestampWithTimeZone(name: "tstz_val"),
+            PostgresColumnDefinition(name: "interval_val", dataType: "INTERVAL")
+        ])
+        cleanupSQL("DROP TABLE IF EXISTS \(tableName)")
 
-            let result = try await query("SELECT * FROM \(tableName)")
-            IntegrationTestHelpers.assertRowCount(result, expected: 1)
-            XCTAssertEqual(result.columns.count, 7)
+        try await postgresClient.connection.insert(
+            into: tableName,
+            columns: ["date_val", "time_val", "timetz_val", "ts_val", "tstz_val", "interval_val"],
+            values: [[
+                PostgresInsertValue.sql("'2024-06-15'"),
+                PostgresInsertValue.sql("'10:30:00'"),
+                PostgresInsertValue.sql("'10:30:00+02:00'"),
+                PostgresInsertValue.sql("'2024-06-15 10:30:00'"),
+                PostgresInsertValue.sql("'2024-06-15 10:30:00+00'"),
+                PostgresInsertValue.sql("'1 year 2 months 3 days'")
+            ]]
+        )
 
-            // All values should be non-null
-            for (i, col) in result.columns.enumerated() {
-                XCTAssertNotNil(result.rows[0][i], "Column \(col.name) should have a value")
-            }
+        let result = try await query("SELECT * FROM \(tableName)")
+        IntegrationTestHelpers.assertRowCount(result, expected: 1)
+        XCTAssertEqual(result.columns.count, 7)
+
+        // All values should be non-null
+        for (i, col) in result.columns.enumerated() {
+            XCTAssertNotNil(result.rows[0][i], "Column \(col.name) should have a value")
         }
     }
 
     func testDateTimeRoundTripWithNulls() async throws {
-        let columns = """
-            id SERIAL PRIMARY KEY,
-            date_val DATE,
-            time_val TIME,
-            ts_val TIMESTAMP
-        """
-        try await withTempTable(columns: columns) { tableName in
-            try await execute("""
-                INSERT INTO \(tableName) (date_val, time_val, ts_val)
-                VALUES (NULL, NULL, NULL)
-            """)
+        let tableName = uniqueName()
+        try await postgresClient.admin.createTable(name: tableName, columns: [
+            .serial(name: "id", primaryKey: true),
+            .date(name: "date_val"),
+            .time(name: "time_val"),
+            .timestamp(name: "ts_val")
+        ])
+        cleanupSQL("DROP TABLE IF EXISTS \(tableName)")
 
-            let result = try await query("SELECT date_val, time_val, ts_val FROM \(tableName)")
-            IntegrationTestHelpers.assertRowCount(result, expected: 1)
-            XCTAssertNil(result.rows[0][0])
-            XCTAssertNil(result.rows[0][1])
-            XCTAssertNil(result.rows[0][2])
-        }
+        try await postgresClient.connection.insert(
+            into: tableName,
+            columns: ["date_val", "time_val", "ts_val"],
+            values: [[PostgresInsertValue.null, PostgresInsertValue.null, PostgresInsertValue.null]]
+        )
+
+        let result = try await query("SELECT date_val, time_val, ts_val FROM \(tableName)")
+        IntegrationTestHelpers.assertRowCount(result, expected: 1)
+        XCTAssertNil(result.rows[0][0])
+        XCTAssertNil(result.rows[0][1])
+        XCTAssertNil(result.rows[0][2])
     }
 
     // MARK: - Date/Time Extraction

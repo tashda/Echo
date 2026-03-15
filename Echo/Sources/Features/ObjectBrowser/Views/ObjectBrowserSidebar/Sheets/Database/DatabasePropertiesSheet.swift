@@ -50,6 +50,19 @@ struct DatabasePropertiesSheet: View {
     @State var numericRoundAbort = false
     @State var dateCorrelation = false
 
+    // MSSQL Query Store state
+    @State var qsDesiredState: String = "OFF"
+    @State var qsActualState: String = "OFF"
+    @State var qsMaxStorageMB: Int = 100
+    @State var qsCurrentStorageMB: Int = 0
+    @State var qsFlushIntervalSeconds: Int = 900
+    @State var qsIntervalLengthMinutes: Int = 60
+    @State var qsStaleThresholdDays: Int = 30
+    @State var qsMaxPlansPerQuery: Int = 200
+    @State var qsCaptureMode: String = "ALL"
+    @State var qsCleanupMode: String = "AUTO"
+    @State var qsWaitStatsMode: String = "ON"
+
     // MSSQL file editing state
     @State var fileSizeMBValues: [Int: Int] = [:]
     @State var fileMaxSizeTypes: [Int: FileMaxSizeType] = [:]
@@ -62,20 +75,38 @@ struct DatabasePropertiesSheet: View {
     @State var pgParams: [PostgresDatabaseParameter] = []
     @State var pgRoles: [String] = []
     @State var pgTablespaces: [String] = []
+    @State var pgSchemas: [String] = []
     @State var pgOwner: String = ""
     @State var pgConnectionLimit: Int = -1
     @State var pgIsTemplate = false
     @State var pgAllowConnections = true
     @State var pgComment: String = ""
 
+    // PostgreSQL parameters state
+    @State var pgSettingDefinitions: [PostgresSettingDefinition] = []
+    @State var pgNewParamName: String = ""
+    @State var pgNewParamValue: String = ""
+
+    // PostgreSQL security state
+    @State var pgACLEntries: [PostgresACLEntry] = []
+    @State var pgNewGrantee: String = ""
+    @State var pgNewPrivileges: Set<PostgresPrivilege> = []
+
+    // PostgreSQL default privileges state
+    @State var pgDefaultPrivileges: [PostgresDefaultPrivilege] = []
+    @State var pgNewDefPrivSchema: String = ""
+    @State var pgNewDefPrivObjectType: PostgresObjectType = .tables
+    @State var pgNewDefPrivGrantee: String = ""
+    @State var pgNewDefPrivPrivileges: Set<PostgresPrivilege> = []
+
     var isMSSQL: Bool { session.connection.databaseType == .microsoftSQL }
     var isPostgres: Bool { session.connection.databaseType == .postgresql }
 
     var pages: [PropertiesPage] {
         if isMSSQL {
-            return [.general, .options, .automatic, .ansi, .files]
+            return [.general, .options, .automatic, .ansi, .files, .queryStore]
         } else if isPostgres {
-            return [.general, .definition, .parameters, .statistics]
+            return [.general, .definition, .parameters, .security, .defaultPrivileges, .statistics, .sql]
         } else {
             return [.general]
         }
@@ -182,6 +213,10 @@ struct DatabasePropertiesSheet: View {
             if isMSSQL {
                 mssqlFilesPage()
             }
+        case .queryStore:
+            if isMSSQL {
+                mssqlQueryStorePage()
+            }
         case .definition:
             if isPostgres, let props = pgProps {
                 postgresDefinitionPage(props)
@@ -190,9 +225,21 @@ struct DatabasePropertiesSheet: View {
             if isPostgres {
                 postgresParametersPage()
             }
+        case .security:
+            if isPostgres {
+                postgresSecurityPage()
+            }
+        case .defaultPrivileges:
+            if isPostgres {
+                postgresDefaultPrivilegesPage()
+            }
         case .statistics:
             if isPostgres, let props = pgProps {
                 postgresStatisticsPage(props)
+            }
+        case .sql:
+            if isPostgres {
+                postgresSQLPage()
             }
         }
     }

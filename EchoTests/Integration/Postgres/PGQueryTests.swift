@@ -1,4 +1,5 @@
 import XCTest
+import PostgresKit
 @testable import Echo
 
 /// Tests PostgreSQL query execution through Echo's DatabaseSession layer.
@@ -30,11 +31,17 @@ final class PGQueryTests: PostgresDockerTestCase {
     }
 
     func testEmptyResultSet() async throws {
-        try await withTempTable(columns: "id SERIAL PRIMARY KEY, name TEXT, value INTEGER") { tableName in
-            let result = try await query("SELECT * FROM public.\(tableName)")
-            XCTAssertEqual(result.rows.count, 0)
-            XCTAssertFalse(result.columns.isEmpty)
-        }
+        let tableName = uniqueName()
+        try await postgresClient.admin.createTable(name: tableName, columns: [
+            .serial(name: "id", primaryKey: true),
+            .text(name: "name"),
+            .integer(name: "value")
+        ])
+        cleanupSQL("DROP TABLE IF EXISTS public.\(tableName)")
+
+        let result = try await query("SELECT * FROM public.\(tableName)")
+        XCTAssertEqual(result.rows.count, 0)
+        XCTAssertFalse(result.columns.isEmpty)
     }
 
     func testSelectBooleanValues() async throws {
@@ -61,86 +68,137 @@ final class PGQueryTests: PostgresDockerTestCase {
     // MARK: - Execute Update
 
     func testInsertReturnsAffectedCount() async throws {
-        try await withTempTable(columns: "id SERIAL PRIMARY KEY, name TEXT, value INTEGER") { tableName in
-            let count = try await execute(
-                "INSERT INTO public.\(tableName) (name, value) VALUES ('test', 42)"
-            )
-            XCTAssertEqual(count, 1)
-        }
+        let tableName = uniqueName()
+        try await postgresClient.admin.createTable(name: tableName, columns: [
+            .serial(name: "id", primaryKey: true),
+            .text(name: "name"),
+            .integer(name: "value")
+        ])
+        cleanupSQL("DROP TABLE IF EXISTS public.\(tableName)")
+
+        let count = try await postgresClient.connection.insert(
+            into: tableName,
+            columns: ["name", "value"],
+            values: [["test", 42]]
+        )
+        XCTAssertEqual(count, 1)
     }
 
     func testMultipleInserts() async throws {
-        try await withTempTable(columns: "id SERIAL PRIMARY KEY, name TEXT, value INTEGER") { tableName in
-            let count = try await execute("""
-                INSERT INTO public.\(tableName) (name, value)
-                VALUES ('a', 1), ('b', 2), ('c', 3)
-            """)
-            XCTAssertEqual(count, 3)
-        }
+        let tableName = uniqueName()
+        try await postgresClient.admin.createTable(name: tableName, columns: [
+            .serial(name: "id", primaryKey: true),
+            .text(name: "name"),
+            .integer(name: "value")
+        ])
+        cleanupSQL("DROP TABLE IF EXISTS public.\(tableName)")
+
+        let count = try await postgresClient.connection.insert(
+            into: tableName,
+            columns: ["name", "value"],
+            values: [["a", 1], ["b", 2], ["c", 3]]
+        )
+        XCTAssertEqual(count, 3)
     }
 
     func testUpdateReturnsAffectedCount() async throws {
-        try await withTempTable(columns: "id SERIAL PRIMARY KEY, name TEXT, value INTEGER") { tableName in
-            try await execute("""
-                INSERT INTO public.\(tableName) (name, value)
-                VALUES ('a', 1), ('b', 2), ('c', 3)
-            """)
-            let count = try await execute(
-                "UPDATE public.\(tableName) SET value = 99 WHERE value < 3"
-            )
-            XCTAssertEqual(count, 2)
-        }
+        let tableName = uniqueName()
+        try await postgresClient.admin.createTable(name: tableName, columns: [
+            .serial(name: "id", primaryKey: true),
+            .text(name: "name"),
+            .integer(name: "value")
+        ])
+        cleanupSQL("DROP TABLE IF EXISTS public.\(tableName)")
+
+        try await postgresClient.connection.insert(
+            into: tableName,
+            columns: ["name", "value"],
+            values: [["a", 1], ["b", 2], ["c", 3]]
+        )
+        let count = try await postgresClient.connection.update(
+            table: tableName,
+            set: ["value": 99],
+            whereClause: "value < 3"
+        )
+        XCTAssertEqual(count, 2)
     }
 
     func testDeleteReturnsAffectedCount() async throws {
-        try await withTempTable(columns: "id SERIAL PRIMARY KEY, name TEXT, value INTEGER") { tableName in
-            try await execute("""
-                INSERT INTO public.\(tableName) (name, value)
-                VALUES ('a', 1), ('b', 2)
-            """)
-            let count = try await execute("DELETE FROM public.\(tableName) WHERE name = 'a'")
-            XCTAssertEqual(count, 1)
-        }
+        let tableName = uniqueName()
+        try await postgresClient.admin.createTable(name: tableName, columns: [
+            .serial(name: "id", primaryKey: true),
+            .text(name: "name"),
+            .integer(name: "value")
+        ])
+        cleanupSQL("DROP TABLE IF EXISTS public.\(tableName)")
+
+        try await postgresClient.connection.insert(
+            into: tableName,
+            columns: ["name", "value"],
+            values: [["a", 1], ["b", 2]]
+        )
+        let count = try await postgresClient.connection.delete(
+            from: tableName,
+            whereClause: "name = 'a'"
+        )
+        XCTAssertEqual(count, 1)
     }
 
     // MARK: - Paged Queries
 
     func testQueryWithPaging() async throws {
-        try await withTempTable(columns: "id SERIAL PRIMARY KEY, name TEXT, value INTEGER") { tableName in
-            for i in 1...20 {
-                try await execute(
-                    "INSERT INTO public.\(tableName) (name, value) VALUES ('row\(i)', \(i))"
-                )
-            }
+        let tableName = uniqueName()
+        try await postgresClient.admin.createTable(name: tableName, columns: [
+            .serial(name: "id", primaryKey: true),
+            .text(name: "name"),
+            .integer(name: "value")
+        ])
+        cleanupSQL("DROP TABLE IF EXISTS public.\(tableName)")
 
-            let page1 = try await session.queryWithPaging(
-                "SELECT * FROM public.\(tableName) ORDER BY id",
-                limit: 5, offset: 0
-            )
-            IntegrationTestHelpers.assertRowCount(page1, expected: 5)
-
-            let page2 = try await session.queryWithPaging(
-                "SELECT * FROM public.\(tableName) ORDER BY id",
-                limit: 5, offset: 5
-            )
-            IntegrationTestHelpers.assertRowCount(page2, expected: 5)
-
-            // Ensure different data
-            XCTAssertNotEqual(page1.rows[0][0], page2.rows[0][0])
+        let rows: [[Any]] = (1...20).map { i in
+            ["row\(i)", i] as [Any]
         }
+        try await postgresClient.connection.insert(
+            into: tableName,
+            columns: ["name", "value"],
+            values: rows
+        )
+
+        let page1 = try await session.queryWithPaging(
+            "SELECT * FROM public.\(tableName) ORDER BY id",
+            limit: 5, offset: 0
+        )
+        IntegrationTestHelpers.assertRowCount(page1, expected: 5)
+
+        let page2 = try await session.queryWithPaging(
+            "SELECT * FROM public.\(tableName) ORDER BY id",
+            limit: 5, offset: 5
+        )
+        IntegrationTestHelpers.assertRowCount(page2, expected: 5)
+
+        // Ensure different data
+        XCTAssertNotEqual(page1.rows[0][0], page2.rows[0][0])
     }
 
     func testQueryWithPagingBeyondData() async throws {
-        try await withTempTable(columns: "id SERIAL PRIMARY KEY, name TEXT, value INTEGER") { tableName in
-            try await execute(
-                "INSERT INTO public.\(tableName) (name, value) VALUES ('only', 1)"
-            )
-            let result = try await session.queryWithPaging(
-                "SELECT * FROM public.\(tableName)",
-                limit: 10, offset: 100
-            )
-            XCTAssertEqual(result.rows.count, 0)
-        }
+        let tableName = uniqueName()
+        try await postgresClient.admin.createTable(name: tableName, columns: [
+            .serial(name: "id", primaryKey: true),
+            .text(name: "name"),
+            .integer(name: "value")
+        ])
+        cleanupSQL("DROP TABLE IF EXISTS public.\(tableName)")
+
+        try await postgresClient.connection.insert(
+            into: tableName,
+            columns: ["name", "value"],
+            values: [["only", 1]]
+        )
+        let result = try await session.queryWithPaging(
+            "SELECT * FROM public.\(tableName)",
+            limit: 10, offset: 100
+        )
+        XCTAssertEqual(result.rows.count, 0)
     }
 
     // MARK: - Large Result Sets
@@ -167,13 +225,13 @@ final class PGQueryTests: PostgresDockerTestCase {
     // MARK: - Unicode and Special Characters
 
     func testUnicodeInResults() async throws {
-        let result = try await query("SELECT '日本語テスト' AS unicode_text")
-        XCTAssertEqual(result.rows[0][0], "日本語テスト")
+        let result = try await query("SELECT '\u{65E5}\u{672C}\u{8A9E}\u{30C6}\u{30B9}\u{30C8}' AS unicode_text")
+        XCTAssertEqual(result.rows[0][0], "\u{65E5}\u{672C}\u{8A9E}\u{30C6}\u{30B9}\u{30C8}")
     }
 
     func testUnicodeEmojis() async throws {
-        let result = try await query("SELECT '🎉🚀💻' AS emoji_text")
-        XCTAssertEqual(result.rows[0][0], "🎉🚀💻")
+        let result = try await query("SELECT '\u{1F389}\u{1F680}\u{1F4BB}' AS emoji_text")
+        XCTAssertEqual(result.rows[0][0], "\u{1F389}\u{1F680}\u{1F4BB}")
     }
 
     func testSpecialCharactersInStrings() async throws {
@@ -191,22 +249,30 @@ final class PGQueryTests: PostgresDockerTestCase {
 
     func testCyrillicAndArabicText() async throws {
         let result = try await query("""
-            SELECT 'Привет мир' AS russian, 'مرحبا بالعالم' AS arabic
+            SELECT '\u{041F}\u{0440}\u{0438}\u{0432}\u{0435}\u{0442} \u{043C}\u{0438}\u{0440}' AS russian, '\u{0645}\u{0631}\u{062D}\u{0628}\u{0627} \u{0628}\u{0627}\u{0644}\u{0639}\u{0627}\u{0644}\u{0645}' AS arabic
         """)
-        XCTAssertEqual(result.rows[0][0], "Привет мир")
-        XCTAssertEqual(result.rows[0][1], "مرحبا بالعالم")
+        XCTAssertEqual(result.rows[0][0], "\u{041F}\u{0440}\u{0438}\u{0432}\u{0435}\u{0442} \u{043C}\u{0438}\u{0440}")
+        XCTAssertEqual(result.rows[0][1], "\u{0645}\u{0631}\u{062D}\u{0628}\u{0627} \u{0628}\u{0627}\u{0644}\u{0639}\u{0627}\u{0644}\u{0645}")
     }
 
     func testUnicodeStorageAndRetrieval() async throws {
-        try await withTempTable(columns: "id SERIAL PRIMARY KEY, name TEXT, value INTEGER") { tableName in
-            try await execute(
-                "INSERT INTO public.\(tableName) (name, value) VALUES ('こんにちは世界', 1)"
-            )
-            let result = try await query(
-                "SELECT name FROM public.\(tableName) WHERE value = 1"
-            )
-            XCTAssertEqual(result.rows[0][0], "こんにちは世界")
-        }
+        let tableName = uniqueName()
+        try await postgresClient.admin.createTable(name: tableName, columns: [
+            .serial(name: "id", primaryKey: true),
+            .text(name: "name"),
+            .integer(name: "value")
+        ])
+        cleanupSQL("DROP TABLE IF EXISTS public.\(tableName)")
+
+        try await postgresClient.connection.insert(
+            into: tableName,
+            columns: ["name", "value"],
+            values: [["\u{3053}\u{3093}\u{306B}\u{3061}\u{306F}\u{4E16}\u{754C}", 1]]
+        )
+        let result = try await query(
+            "SELECT name FROM public.\(tableName) WHERE value = 1"
+        )
+        XCTAssertEqual(result.rows[0][0], "\u{3053}\u{3093}\u{306B}\u{3061}\u{306F}\u{4E16}\u{754C}")
     }
 
     // MARK: - Date and Time

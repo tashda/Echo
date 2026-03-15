@@ -113,6 +113,18 @@ extension ObjectBrowserSidebarView {
             } label: {
                 Label("Central Management Servers\u{2026}", systemImage: "server.rack")
             }
+
+            Button {
+                environmentState.openExtendedEventsTab(connectionID: session.connection.id)
+            } label: {
+                Label("Extended Events", systemImage: "waveform.path.ecg")
+            }
+
+            Button {
+                environmentState.openAvailabilityGroupsTab(connectionID: session.connection.id)
+            } label: {
+                Label("Availability Groups", systemImage: "server.rack")
+            }
         }
 
         Divider()

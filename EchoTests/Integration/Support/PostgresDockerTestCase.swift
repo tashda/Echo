@@ -1,4 +1,5 @@
 import XCTest
+import PostgresKit
 @testable import Echo
 
 /// Base class for PostgreSQL integration tests using Docker.
@@ -27,6 +28,11 @@ class PostgresDockerTestCase: XCTestCase {
     static let database = "postgres"
 
     private(set) var session: DatabaseSession!
+
+    /// Access the underlying PostgresClient for typed API calls.
+    var postgresClient: PostgresKit.PostgresClient {
+        (session as! PostgresSession).client
+    }
 
     // MARK: - Docker Setup (once per class)
 

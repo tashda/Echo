@@ -1,4 +1,5 @@
 import XCTest
+import PostgresKit
 @testable import Echo
 
 /// Tests PostgreSQL connection lifecycle through Echo's DatabaseSession layer.

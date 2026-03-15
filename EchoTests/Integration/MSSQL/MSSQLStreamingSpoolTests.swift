@@ -261,14 +261,20 @@ final class MSSQLStreamingSpoolTests: MSSQLDockerTestCase {
     // MARK: - Empty and Small Results
 
     func testStreamingEmptyResultWithProgress() async throws {
-        try await withTempTable { tableName in
-            let progressCalled = LockIsolated(false)
-            let result = try await session.simpleQuery(
-                "SELECT * FROM [\(tableName)]",
-                progressHandler: { _ in progressCalled.setValue(true) }
-            )
-            XCTAssertEqual(result.rows.count, 0)
-        }
+        let tableName = uniqueTableName()
+        try await sqlserverClient.admin.createTable(name: tableName, columns: [
+            SQLServerColumnDefinition(name: "id", definition: .standard(.init(dataType: .int, isPrimaryKey: true))),
+            SQLServerColumnDefinition(name: "name", definition: .standard(.init(dataType: .nvarchar(length: .length(100))))),
+            SQLServerColumnDefinition(name: "value", definition: .standard(.init(dataType: .int)))
+        ])
+        cleanupSQL("DROP TABLE [\(tableName)]")
+
+        let progressCalled = LockIsolated(false)
+        let result = try await session.simpleQuery(
+            "SELECT * FROM [\(tableName)]",
+            progressHandler: { _ in progressCalled.setValue(true) }
+        )
+        XCTAssertEqual(result.rows.count, 0)
     }
 
     func testStreamingSingleRowWithProgress() async throws {

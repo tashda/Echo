@@ -1,4 +1,5 @@
 import XCTest
+import PostgresKit
 @testable import Echo
 
 /// Tests PostgreSQL function operations through Echo's DatabaseSession layer.
@@ -8,16 +9,17 @@ final class PGFunctionTests: PostgresDockerTestCase {
 
     func testCreatePlpgsqlFunction() async throws {
         let funcName = uniqueName(prefix: "fn")
-        try await execute("""
-            CREATE FUNCTION public.\(funcName)(x INT)
-            RETURNS INT
-            LANGUAGE plpgsql
-            AS $$
-            BEGIN
-                RETURN x * 3;
-            END;
-            $$
-        """)
+        try await postgresClient.admin.createFunction(
+            name: funcName,
+            parameters: [PostgresFunctionParameter(name: "x", dataType: "INT")],
+            returnType: "INT",
+            body: """
+                BEGIN
+                    RETURN x * 3;
+                END;
+                """,
+            language: .plpgsql
+        )
         cleanupSQL("DROP FUNCTION IF EXISTS public.\(funcName)(INT)")
 
         let result = try await query("SELECT public.\(funcName)(14) AS tripled")
@@ -28,12 +30,16 @@ final class PGFunctionTests: PostgresDockerTestCase {
 
     func testCreateSQLFunction() async throws {
         let funcName = uniqueName(prefix: "fn")
-        try await execute("""
-            CREATE FUNCTION public.\(funcName)(a INT, b INT)
-            RETURNS INT
-            LANGUAGE sql
-            AS $$ SELECT a + b $$
-        """)
+        try await postgresClient.admin.createFunction(
+            name: funcName,
+            parameters: [
+                PostgresFunctionParameter(name: "a", dataType: "INT"),
+                PostgresFunctionParameter(name: "b", dataType: "INT")
+            ],
+            returnType: "INT",
+            body: "SELECT a + b",
+            language: .sql
+        )
         cleanupSQL("DROP FUNCTION IF EXISTS public.\(funcName)(INT, INT)")
 
         let result = try await query("SELECT public.\(funcName)(17, 25) AS sum")
@@ -44,12 +50,16 @@ final class PGFunctionTests: PostgresDockerTestCase {
 
     func testFunctionWithStringParameters() async throws {
         let funcName = uniqueName(prefix: "fn")
-        try await execute("""
-            CREATE FUNCTION public.\(funcName)(first_name TEXT, last_name TEXT)
-            RETURNS TEXT
-            LANGUAGE sql
-            AS $$ SELECT first_name || ' ' || last_name $$
-        """)
+        try await postgresClient.admin.createFunction(
+            name: funcName,
+            parameters: [
+                PostgresFunctionParameter(name: "first_name", dataType: "TEXT"),
+                PostgresFunctionParameter(name: "last_name", dataType: "TEXT")
+            ],
+            returnType: "TEXT",
+            body: "SELECT first_name || ' ' || last_name",
+            language: .sql
+        )
         cleanupSQL("DROP FUNCTION IF EXISTS public.\(funcName)(TEXT, TEXT)")
 
         let result = try await query("SELECT public.\(funcName)('Jane', 'Doe') AS name")
@@ -61,14 +71,23 @@ final class PGFunctionTests: PostgresDockerTestCase {
     func testFunctionReturningTable() async throws {
         let tableName = uniqueName()
         let funcName = uniqueName(prefix: "fn")
-        try await execute("CREATE TABLE public.\(tableName) (id SERIAL, dept TEXT, name TEXT)")
-        try await execute("INSERT INTO public.\(tableName) (dept, name) VALUES ('ENG', 'Alice'), ('ENG', 'Bob'), ('HR', 'Carol')")
-        try await execute("""
-            CREATE FUNCTION public.\(funcName)(target_dept TEXT)
-            RETURNS TABLE(id INT, name TEXT)
-            LANGUAGE sql
-            AS $$ SELECT id, name FROM public.\(tableName) WHERE dept = target_dept $$
-        """)
+        try await postgresClient.admin.createTable(name: tableName, columns: [
+            .serial(name: "id"),
+            .text(name: "dept"),
+            .text(name: "name")
+        ])
+        try await postgresClient.connection.insert(
+            into: tableName,
+            columns: ["dept", "name"],
+            values: [["ENG", "Alice"], ["ENG", "Bob"], ["HR", "Carol"]]
+        )
+        try await postgresClient.admin.createFunction(
+            name: funcName,
+            parameters: [PostgresFunctionParameter(name: "target_dept", dataType: "TEXT")],
+            returnType: "TABLE(id INT, name TEXT)",
+            body: "SELECT id, name FROM \(tableName) WHERE dept = target_dept",
+            language: .sql
+        )
         cleanupSQL(
             "DROP FUNCTION IF EXISTS public.\(funcName)(TEXT)",
             "DROP TABLE IF EXISTS public.\(tableName)"
@@ -82,21 +101,24 @@ final class PGFunctionTests: PostgresDockerTestCase {
 
     func testAlterFunction() async throws {
         let funcName = uniqueName(prefix: "fn")
-        try await execute("""
-            CREATE FUNCTION public.\(funcName)(x INT)
-            RETURNS INT
-            LANGUAGE sql
-            AS $$ SELECT x $$
-        """)
+        try await postgresClient.admin.createFunction(
+            name: funcName,
+            parameters: [PostgresFunctionParameter(name: "x", dataType: "INT")],
+            returnType: "INT",
+            body: "SELECT x",
+            language: .sql
+        )
         cleanupSQL("DROP FUNCTION IF EXISTS public.\(funcName)(INT)")
 
         // Replace with different logic
-        try await execute("""
-            CREATE OR REPLACE FUNCTION public.\(funcName)(x INT)
-            RETURNS INT
-            LANGUAGE sql
-            AS $$ SELECT x + 100 $$
-        """)
+        try await postgresClient.admin.createFunction(
+            name: funcName,
+            parameters: [PostgresFunctionParameter(name: "x", dataType: "INT")],
+            returnType: "INT",
+            body: "SELECT x + 100",
+            language: .sql,
+            orReplace: true
+        )
 
         let result = try await query("SELECT public.\(funcName)(1) AS val")
         XCTAssertEqual(result.rows[0][0], "101")
@@ -106,14 +128,15 @@ final class PGFunctionTests: PostgresDockerTestCase {
 
     func testDropFunction() async throws {
         let funcName = uniqueName(prefix: "fn")
-        try await execute("""
-            CREATE FUNCTION public.\(funcName)(x INT)
-            RETURNS INT
-            LANGUAGE sql
-            AS $$ SELECT x $$
-        """)
+        try await postgresClient.admin.createFunction(
+            name: funcName,
+            parameters: [PostgresFunctionParameter(name: "x", dataType: "INT")],
+            returnType: "INT",
+            body: "SELECT x",
+            language: .sql
+        )
 
-        try await execute("DROP FUNCTION public.\(funcName)(INT)")
+        try await postgresClient.admin.dropFunction(name: funcName, parameters: ["INT"])
 
         do {
             _ = try await query("SELECT public.\(funcName)(1)")
@@ -127,12 +150,13 @@ final class PGFunctionTests: PostgresDockerTestCase {
 
     func testGetFunctionDefinition() async throws {
         let funcName = uniqueName(prefix: "fn")
-        try await execute("""
-            CREATE FUNCTION public.\(funcName)(input TEXT)
-            RETURNS TEXT
-            LANGUAGE sql
-            AS $$ SELECT UPPER(input) $$
-        """)
+        try await postgresClient.admin.createFunction(
+            name: funcName,
+            parameters: [PostgresFunctionParameter(name: "input", dataType: "TEXT")],
+            returnType: "TEXT",
+            body: "SELECT UPPER(input)",
+            language: .sql
+        )
         cleanupSQL("DROP FUNCTION IF EXISTS public.\(funcName)(TEXT)")
 
         let definition = try await session.getObjectDefinition(

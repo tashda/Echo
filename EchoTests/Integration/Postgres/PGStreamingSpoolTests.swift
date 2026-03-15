@@ -1,4 +1,5 @@
 import XCTest
+import PostgresKit
 @testable import Echo
 
 /// Tests PostgreSQL streaming spool activation and behavior for large result sets.
@@ -189,16 +190,22 @@ final class PGStreamingSpoolTests: PostgresDockerTestCase {
     }
 
     func testMaterializationWithEmptyResult() async throws {
-        try await withTempTable(columns: "id SERIAL PRIMARY KEY, name TEXT, value INTEGER") { tableName in
-            let result = try await session.simpleQuery(
-                "SELECT * FROM \(tableName)",
-                progressHandler: { _ in }
-            )
+        let tableName = uniqueName()
+        try await postgresClient.admin.createTable(name: tableName, columns: [
+            .serial(name: "id", primaryKey: true),
+            .text(name: "name"),
+            .integer(name: "value")
+        ])
+        cleanupSQL("DROP TABLE IF EXISTS \(tableName)")
 
-            XCTAssertEqual(result.rows.count, 0)
-            let total = result.totalRowCount ?? 0
-            XCTAssertEqual(total, 0)
-        }
+        let result = try await session.simpleQuery(
+            "SELECT * FROM \(tableName)",
+            progressHandler: { _ in }
+        )
+
+        XCTAssertEqual(result.rows.count, 0)
+        let total = result.totalRowCount ?? 0
+        XCTAssertEqual(total, 0)
     }
 
     // MARK: - Sequential Execution

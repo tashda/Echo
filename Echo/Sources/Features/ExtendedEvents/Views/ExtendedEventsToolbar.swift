@@ -16,10 +16,12 @@ struct ExtendedEventsToolbar: View {
     }
 
     private var sectionPicker: some View {
-        Picker("Section", selection: $viewModel.selectedSection) {
+        Picker(selection: $viewModel.selectedSection) {
             ForEach(ExtendedEventsViewModel.SelectedSection.allCases, id: \.self) { section in
                 Text(section.rawValue).tag(section)
             }
+        } label: {
+            EmptyView()
         }
         .pickerStyle(.segmented)
         .frame(maxWidth: 240)
