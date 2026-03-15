@@ -79,7 +79,7 @@ struct BookmarkRow: View {
         }.padding(SpacingTokens.md)
     }
 
-    private var currentTitleSeed: String { bookmark.title?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false ? bookmark.title! : bookmark.primaryLine }
+    private var currentTitleSeed: String { bookmark.title?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false ? (bookmark.title ?? bookmark.primaryLine) : bookmark.primaryLine }
     private func beginRenaming() { renameText = currentTitleSeed; isRenaming = true; activePopoverID = nil; Task { renameFieldFocused = true } }
     private func commitRename() { guard isRenaming else { return }; let t = renameText.trimmingCharacters(in: .whitespacesAndNewlines); let n = t.isEmpty ? nil : t; if n != bookmark.title { onRename(n) }; finishRenaming() }
     private func cancelRenaming() { guard isRenaming else { return }; finishRenaming() }

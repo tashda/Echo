@@ -42,7 +42,7 @@ extension DatabaseObjectRow {
         let qualified = qualifiedName(schema: object.schema, name: object.name)
         let trimmedName = newName?.trimmingCharacters(in: .whitespacesAndNewlines)
         let fallbackName = "<new_name>"
-        let effectiveName = (trimmedName?.isEmpty ?? true) ? fallbackName : trimmedName!
+        let effectiveName = trimmedName.flatMap({ $0.isEmpty ? nil : $0 }) ?? fallbackName
         let quotedNewName = quoteIdentifier(effectiveName)
 
         switch connection.databaseType {

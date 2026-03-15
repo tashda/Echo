@@ -7,7 +7,7 @@ final class ResultTableDataCellView: NSTableCellView {
     private var actionHandler: (() -> Void)?
     private var isIconVisible = false
     private var currentTextColor: NSColor = .labelColor
-    private var textTrailingConstraint: NSLayoutConstraint!
+    private var textTrailingConstraint: NSLayoutConstraint?
 
     override init(frame frameRect: NSRect) {
         contentTextField = NSTextField(frame: .zero)
@@ -45,11 +45,14 @@ final class ResultTableDataCellView: NSTableCellView {
             equalTo: trailingAnchor,
             constant: -ResultsGridMetrics.horizontalPadding
         )
-        NSLayoutConstraint.activate([
+        var constraints = [
             contentTextField.leadingAnchor.constraint(equalTo: leadingAnchor, constant: ResultsGridMetrics.horizontalPadding),
             contentTextField.centerYAnchor.constraint(equalTo: centerYAnchor),
-            textTrailingConstraint
-        ])
+        ]
+        if let textTrailingConstraint {
+            constraints.append(textTrailingConstraint)
+        }
+        NSLayoutConstraint.activate(constraints)
     }
 
     func apply(text: String,
@@ -97,10 +100,10 @@ final class ResultTableDataCellView: NSTableCellView {
         guard isIconVisible != shouldShow else { return }
         isIconVisible = shouldShow
         if shouldShow {
-            textTrailingConstraint.constant = -(ResultsGridMetrics.horizontalPadding + 18 + SpacingTokens.xxs2)
+            textTrailingConstraint?.constant = -(ResultsGridMetrics.horizontalPadding + 18 + SpacingTokens.xxs2)
         } else {
             actionButton?.isHidden = true
-            textTrailingConstraint.constant = -ResultsGridMetrics.horizontalPadding
+            textTrailingConstraint?.constant = -ResultsGridMetrics.horizontalPadding
         }
     }
 
@@ -132,7 +135,7 @@ final class ResultTableDataCellView: NSTableCellView {
         if isIconVisible {
             isIconVisible = false
             actionButton?.isHidden = true
-            textTrailingConstraint.constant = -ResultsGridMetrics.horizontalPadding
+            textTrailingConstraint?.constant = -ResultsGridMetrics.horizontalPadding
         }
     }
 

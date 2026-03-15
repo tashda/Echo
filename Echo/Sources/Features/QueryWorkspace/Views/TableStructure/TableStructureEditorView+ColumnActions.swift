@@ -51,8 +51,8 @@ extension TableStructureEditorView {
             parts.append(column.isNullable ? "Now allows NULL" : "Now disallows NULL")
         }
         if column.hasDefaultChange {
-            let previous = column.original?.defaultValue?.isEmpty == false ? column.original!.defaultValue! : "None"
-            let current = column.defaultValue?.isEmpty == false ? column.defaultValue! : "None"
+            let previous = (column.original?.defaultValue).flatMap({ $0.isEmpty ? nil : $0 }) ?? "None"
+            let current = column.defaultValue.flatMap({ $0.isEmpty ? nil : $0 }) ?? "None"
             parts.append("Default: \(previous) \u{2192} \(current)")
         }
         if column.hasExpressionChange {

@@ -65,7 +65,7 @@ struct JobDetailsView: View {
             } else if viewModel.selectedJobID != nil {
                 VStack {
                     ProgressView()
-                    Text(viewModel.errorMessage == nil ? "Loading details..." : viewModel.errorMessage!)
+                    Text(viewModel.errorMessage ?? "Loading details...")
                         .font(TypographyTokens.detail)
                         .foregroundStyle(ColorTokens.Text.secondary)
                 }

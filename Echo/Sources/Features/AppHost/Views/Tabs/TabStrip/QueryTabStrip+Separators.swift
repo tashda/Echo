@@ -12,16 +12,16 @@ extension QueryTabStrip {
 #if os(macOS)
         if colorScheme == .dark {
             return LinearGradient(colors: [
-                Color.white.opacity(0.28),
-                Color.white.opacity(0.16)
+                ColorTokens.TabStrip.Separator.Dark.top,
+                ColorTokens.TabStrip.Separator.Dark.bottom
             ], startPoint: .top, endPoint: .bottom)
         }
         return LinearGradient(colors: [
-            Color(white: 0.88),
-            Color(white: 0.75)
+            ColorTokens.TabStrip.Separator.Light.top,
+            ColorTokens.TabStrip.Separator.Light.bottom
         ], startPoint: .top, endPoint: .bottom)
 #else
-        return LinearGradient(colors: [Color(white: 0.8), Color(white: 0.7)], startPoint: .top, endPoint: .bottom)
+        return LinearGradient(colors: [ColorTokens.TabStrip.Separator.Light.top, ColorTokens.TabStrip.Separator.Light.bottom], startPoint: .top, endPoint: .bottom)
 #endif
     }
 

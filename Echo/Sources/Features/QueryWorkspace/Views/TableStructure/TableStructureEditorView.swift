@@ -82,10 +82,10 @@ struct TableStructureEditorView: View {
     }
 
     internal var primaryKeyBinding: Binding<TableStructureEditorViewModel.PrimaryKeyModel>? {
-        guard viewModel.primaryKey != nil else { return nil }
+        guard let pk = viewModel.primaryKey else { return nil }
         return Binding(
-            get: { viewModel.primaryKey! },
-            set: { viewModel.primaryKey = $0 }
+            get: { self.viewModel.primaryKey ?? pk },
+            set: { self.viewModel.primaryKey = $0 }
         )
     }
 

@@ -88,7 +88,6 @@ struct JsonInspectorPanelView: View {
     }
 
     // MARK: - Loading
-
     private var loadingContent: some View {
         VStack(spacing: SpacingTokens.sm) {
             ProgressView()
