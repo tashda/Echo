@@ -3,7 +3,7 @@ import SwiftUI
 extension QueryInputSection {
     var runButton: some View {
         Button(action: query.isExecuting ? onCancel : triggerExecution) {
-            HStack(spacing: 10) {
+            HStack(spacing: SpacingTokens.xs2) {
                 Image(systemName: currentRunIcon)
                     .font(TypographyTokens.standard.weight(.semibold))
                     .symbolRenderingMode(.hierarchical)
@@ -11,7 +11,7 @@ extension QueryInputSection {
 
                 runButtonLabel
             }
-            .padding(.horizontal, 18)
+            .padding(.horizontal, SpacingTokens.md2)
             .padding(.vertical, SpacingTokens.xs2)
             .background(
                 Capsule()
@@ -20,8 +20,8 @@ extension QueryInputSection {
                         Capsule()
                         .fill(
                                 query.isExecuting
-                                    ? Color.red.opacity(0.12)
-                                    : (isSelectionActive ? Color.accentColor.opacity(0.12) : Color.clear)
+                                    ? ColorTokens.Status.error.opacity(0.12)
+                                    : (isSelectionActive ? ColorTokens.accent.opacity(0.12) : Color.clear)
                             )
                     )
             )
@@ -66,7 +66,7 @@ extension QueryInputSection {
     }
 
     var floatingControls: some View {
-        HStack(spacing: 14) {
+        HStack(spacing: SpacingTokens.sm2) {
             formatButton
             runButton
         }
@@ -76,14 +76,14 @@ extension QueryInputSection {
         Group {
             if query.isExecuting {
                 Text("Cancel")
-                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+                    .font(TypographyTokens.standard.weight(.semibold))
             } else {
-                HStack(spacing: 0) {
+                HStack(spacing: SpacingTokens.none) {
                     Text("Run")
-                        .font(.system(size: 13, weight: .semibold, design: .rounded))
+                        .font(TypographyTokens.standard.weight(.semibold))
                     if isSelectionActive {
                         Text(" selection")
-                            .font(.system(size: 13, weight: .semibold, design: .rounded))
+                            .font(TypographyTokens.standard.weight(.semibold))
                             .transition(.opacity.combined(with: .scale))
                     }
                 }
@@ -104,12 +104,12 @@ extension QueryInputSection {
     }
 
     var runButtonBorderColor: Color {
-        if query.isExecuting { return Color.red.opacity(0.7) }
-        return isSelectionActive ? Color.accentColor.opacity(0.55) : Color.white.opacity(0.35)
+        if query.isExecuting { return ColorTokens.Status.error.opacity(0.7) }
+        return isSelectionActive ? ColorTokens.accent.opacity(0.55) : Color.white.opacity(0.35)
     }
 
     var runButtonForeground: Color {
-        query.isExecuting ? Color.red.opacity(0.95) : Color.accentColor
+        query.isExecuting ? ColorTokens.Status.error.opacity(0.95) : ColorTokens.accent
     }
 
     func formatQuery() {

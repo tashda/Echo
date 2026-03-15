@@ -26,20 +26,33 @@ extension QueryResultsTableView.Coordinator {
     }
 
     @objc func handleContentViewBoundsChange(_ notification: Notification) {
-        guard !isResizingColumn else { return }
+        guard !isResizingColumn, !isSplitResizing else { return }
+        // Quick check: if visible rows haven't changed, skip entirely
+        guard let tableView else { return }
+        let visibleRange = tableView.rows(in: tableView.visibleRect)
+        if visibleRange == lastPaginationVisibleRange { return }
         requestPaginationEvaluation()
     }
 
     func requestPaginationEvaluation() {
         guard !isSplitResizing, !pendingPaginationEvaluation else { return }
         pendingPaginationEvaluation = true
-        DispatchQueue.main.async { [weak self] in guard let self else { return }; self.pendingPaginationEvaluation = false; self.evaluatePaginationForVisibleRows() }
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            self.pendingPaginationEvaluation = false
+            self.evaluatePaginationForVisibleRows()
+        }
     }
 
     func evaluatePaginationForVisibleRows() {
         guard let tableView else { return }
         let visibleRange = tableView.rows(in: tableView.visibleRect)
         guard visibleRange.length > 0 else { return }
+
+        // Skip if the visible range hasn't changed since last evaluation
+        if visibleRange == lastPaginationVisibleRange { return }
+        lastPaginationVisibleRange = visibleRange
+
         let lower = max(visibleRange.location, 0); let upper = min(tableView.numberOfRows, lower + visibleRange.length)
         guard upper > lower else { return }
         parent.query.revealMoreRowsIfNeeded(forDisplayedRow: upper - 1)

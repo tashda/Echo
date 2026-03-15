@@ -10,12 +10,12 @@ struct RuleDefinitionRow: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: SpacingTokens.xs) {
             Text(definition.title)
-                .font(.subheadline.weight(.semibold))
+                .font(TypographyTokens.subheadline.weight(.semibold))
             Text(definition.summary)
-                .font(.footnote)
-                .foregroundStyle(.secondary)
+                .font(TypographyTokens.footnote)
+                .foregroundStyle(ColorTokens.Text.secondary)
             TextField("Add notes\u{2026}", text: $notes, axis: .vertical)
                 .textFieldStyle(.roundedBorder)
                 .lineLimit(3, reservesSpace: true)

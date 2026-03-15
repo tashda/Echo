@@ -13,11 +13,18 @@ extension AppCoordinator: TabStoreDelegate {
     }
 
     func tabStore(_ store: TabStore, shouldClose tab: WorkspaceTab) async -> Bool {
+        if let psql = tab.psql {
+            await psql.close()
+            return true
+        }
+
         guard let context = tab.bookmarkContext, let queryState = tab.query else {
             return true
         }
 
 #if os(macOS)
+        guard let window = NSApp.keyWindow else { return true }
+
         let alert = NSAlert()
         alert.messageText = "Save bookmark \"\(context.displayName)\"?"
         alert.informativeText = "Do you want to save the current query back to this bookmark before closing the tab?"
@@ -25,7 +32,7 @@ extension AppCoordinator: TabStoreDelegate {
         alert.addButton(withTitle: "Don't Save")
         alert.addButton(withTitle: "Cancel")
 
-        let response = alert.runModal()
+        let response = await alert.beginSheetModal(for: window)
 
         switch response {
         case .alertFirstButtonReturn:

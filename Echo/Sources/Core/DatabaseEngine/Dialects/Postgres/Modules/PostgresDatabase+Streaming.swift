@@ -7,86 +7,49 @@ extension PostgresSession {
     func streamQuery(
         sanitizedSQL: String,
         progressHandler: @escaping QueryProgressHandler,
-        modeOverride: ResultStreamingExecutionMode?
+        modeOverride: ResultStreamingExecutionMode?,
+        previewLimit: Int? = nil
     ) async throws -> QueryResultSet {
-        let defaults = UserDefaults.standard
-
-        let selectedMode: ResultStreamingExecutionMode = {
-            if let modeOverride { return modeOverride }
-            if let raw = defaults.string(forKey: ResultStreamingModeDefaultsKey),
-               let mode = ResultStreamingExecutionMode(rawValue: raw) {
-                return mode
-            }
-            let cursorPrefEnabled = defaults.bool(forKey: ResultStreamingUseCursorDefaultsKey)
-            return cursorPrefEnabled ? .auto : .simple
-        }()
-
-        let cursorThreshold: Int? = {
-            if defaults.object(forKey: ResultStreamingCursorLimitThresholdDefaultsKey) != nil {
-                return max(0, defaults.integer(forKey: ResultStreamingCursorLimitThresholdDefaultsKey))
-            }
-            return 25_000
-        }()
-
-        let limit = simpleQueryFastPathLimit(for: sanitizedSQL)
-        let threshold = cursorThreshold ?? 25_000
-        let preferSimple: Bool = {
-            switch selectedMode {
-            case .simple: return true
-            case .cursor: return false
-            case .auto: return (limit != nil) && ((limit ?? 0) <= threshold)
-            }
-        }()
-
-        if preferSimple {
-            return try await streamQueryUsingSimpleProtocol(
-                sanitizedSQL: sanitizedSQL,
-                progressHandler: progressHandler
-            )
-        } else {
-            return try await streamQueryUsingCursor(
-                sanitizedSQL: sanitizedSQL,
-                progressHandler: progressHandler
-            )
-        }
+        return try await streamQueryUsingSimpleProtocol(
+            sanitizedSQL: sanitizedSQL,
+            progressHandler: progressHandler,
+            previewLimit: previewLimit
+        )
     }
 
     func streamQueryUsingSimpleProtocol(
         sanitizedSQL: String,
-        progressHandler: @escaping QueryProgressHandler
+        progressHandler: @escaping QueryProgressHandler,
+        previewLimit: Int? = nil
     ) async throws -> QueryResultSet {
         let logger = self.logger
         let operationStart = CFAbsoluteTimeGetCurrent()
-#if DEBUG
-        let streamDebugID = String(UUID().uuidString.prefix(8))
-#else
-        let streamDebugID: String? = nil
-#endif
 
-        let streamingPreviewLimit = 512
-        let formatterContext = CellFormatterContext()
+        let initialPreviewBatch = 200
+        let formatter = PostgresCellFormatter()
         let formattingEnabled = (UserDefaults.standard.object(forKey: ResultFormattingEnabledDefaultsKey) as? Bool) ?? true
-        let formattingModeRaw = UserDefaults.standard.string(forKey: ResultFormattingModeDefaultsKey)
-        let formattingMode = ResultsFormattingMode(rawValue: formattingModeRaw ?? "") ?? .immediate
+        let maxFlushLatency: TimeInterval = 0.015
+        let batchEnqueueSize = 512
 
-        let previewFetchSize = streamingPreviewLimit
-        let storedFetchSize = UserDefaults.standard.integer(forKey: ResultStreamingFetchSizeDefaultsKey)
-        let resolvedFetchSize = storedFetchSize >= 128 ? storedFetchSize : 4_096
-        let configuredFetchSize = min(max(resolvedFetchSize, 128), 16_384)
-        let backgroundFetchBaseline = max(streamingPreviewLimit, configuredFetchSize)
+        // Use DispatchQueue.main for FIFO ordering guarantee — ensures all flush
+        // callbacks are processed before the worker drain continuation resumes.
+        let bridgedHandler: QueryProgressHandler = { update in
+            DispatchQueue.main.async {
+                progressHandler(update)
+            }
+        }
 
         return try await self.client.withConnection { connection in
-            let streamState = QueryStreamState(
-                streamingPreviewLimit: streamingPreviewLimit,
-                formatterContext: formatterContext,
-                formattingEnabled: formattingEnabled,
-                formattingMode: formattingMode,
-                logger: logger,
-                operationStart: operationStart,
-                streamDebugID: streamDebugID,
-                previewFetchSize: previewFetchSize,
-                backgroundFetchBaseline: backgroundFetchBaseline
-            )
+            var columns: [ColumnInfo] = []
+            var previewRows: [[String?]] = []
+            previewRows.reserveCapacity(initialPreviewBatch)
+            var totalRowCount = 0
+            var firstRowLogged = false
+            var worker: ResultStreamBatchWorker?
+            var pendingPayloads: [ResultStreamBatchWorker.Payload] = []
+            pendingPayloads.reserveCapacity(batchEnqueueSize)
+
+            var columnCount = 0
 
             do {
                 let rowSequence = try await connection.simpleQuery(sanitizedSQL)
@@ -96,135 +59,129 @@ extension PostgresSession {
                         throw CancellationError()
                     }
 
-                    let currentColumns = await streamState.columns
-                    if currentColumns.isEmpty {
-                        var newColumns: [ColumnInfo] = []
-                        newColumns.reserveCapacity(row.count)
-                        for cell in row {
-                            newColumns.append(ColumnInfo(
-                                name: cell.columnName,
-                                dataType: "\(cell.dataType)",
-                                isPrimaryKey: false,
-                                isNullable: true,
-                                maxLength: nil
+                    if columns.isEmpty {
+                        let wireColumns = PostgresRowExtractor.columns(from: row)
+                        columns.reserveCapacity(wireColumns.count)
+                        for col in wireColumns {
+                            columns.append(ColumnInfo(
+                                name: col.name,
+                                dataType: col.dataType,
+                                isPrimaryKey: col.isPrimaryKey,
+                                isNullable: col.isNullable,
+                                maxLength: col.maxLength
                             ))
                         }
-                        await streamState.setColumns(newColumns)
-                    }
+                        columnCount = columns.count
 
-                    let conversionStart = CFAbsoluteTimeGetCurrent()
-                    var payloadCells: [ResultCellPayload] = []
-                    let previewRowsNow = await streamState.previewRows
-                    let isPreviewPhase = previewRowsNow.count < streamingPreviewLimit
-                    let shouldFormatRow: Bool = formattingEnabled && isPreviewPhase
-                    let needsRawPayloadForDeferred: Bool = formattingEnabled && isPreviewPhase
-
-                    var formattedRow: [String?] = []
-                    if shouldFormatRow {
-                        formattedRow.reserveCapacity(row.count)
-                    }
-
-                    if shouldFormatRow || needsRawPayloadForDeferred {
-                        payloadCells.reserveCapacity(row.count)
-                    }
-
-                    for cell in row {
-                        if shouldFormatRow || needsRawPayloadForDeferred {
-                            payloadCells.append(ResultCellPayload(cell: cell))
-                        }
-                        guard shouldFormatRow else { continue }
-
-                        let displayValue: String?
-                        if formattingEnabled {
-                            switch formattingMode {
-                            case .immediate, .deferred:
-                                displayValue = formatterContext.stringValue(for: cell)
-                            }
-                        } else {
-                            displayValue = Self.cheapStringValue(for: cell) ?? formatterContext.stringValue(for: cell)
-                        }
-                        formattedRow.append(displayValue)
-                    }
-
-                    if shouldFormatRow {
-                        let decodeDuration = CFAbsoluteTimeGetCurrent() - conversionStart
-                        await streamState.incrementCounts(decodeDuration: decodeDuration)
-                    } else {
-                        await streamState.incrementTotalOnly()
-                    }
-
-                    if needsRawPayloadForDeferred {
-                        await streamState.appendRawPayloadRow(ResultRowPayload(cells: payloadCells))
-                    }
-
-                    if shouldFormatRow {
-                        await streamState.appendFormattedRow(formattedRow)
-                        await streamState.appendEncodedRow(ResultBinaryRowCodec.encode(row: formattedRow))
-                        await streamState.appendPreviewRow(formattedRow)
-                    } else {
-                        if needsRawPayloadForDeferred {
-                            let rawCells = payloadCells.map { $0.bytes }
-                            await streamState.appendEncodedRow(ResultBinaryRowCodec.encodeRaw(cells: rawCells))
-                        }
-                    }
-
-                    let firstRowLogged = await streamState.firstRowLogged
-                    if !firstRowLogged {
-                        await streamState.setFirstRowLogged()
-                        let firstRowLatency = CFAbsoluteTimeGetCurrent() - operationStart
-                        let message = String(
-                            format: "[PostgresStream] first-row latency=%.3fs",
-                            firstRowLatency
+                        worker = ResultStreamBatchWorker(
+                            label: "dk.tippr.echo.postgres.simpleStreamWorker",
+                            columns: columns,
+                            streamingPreviewLimit: initialPreviewBatch,
+                            maxFlushLatency: maxFlushLatency,
+                            operationStart: operationStart,
+                            progressHandler: bridgedHandler
                         )
-                        logger.debug(.init(stringLiteral: message))
-                        print(message)
                     }
 
-                    let totalRowCount = await streamState.totalRowCount
-                    if totalRowCount < streamingPreviewLimit {
-                        continue
+                    totalRowCount += 1
+
+                    if totalRowCount <= initialPreviewBatch {
+                        // Preview path: encode + format (first N rows for immediate display)
+                        let (encodedData, preview) = PostgresRowExtractor.encodeBinaryRow(
+                            from: row,
+                            formatPreview: true,
+                            formatter: formatter,
+                            formattingEnabled: formattingEnabled
+                        )
+
+                        if let previewRow = preview {
+                            previewRows.append(previewRow)
+                        }
+
+                        pendingPayloads.append(ResultStreamBatchWorker.Payload(
+                            previewValues: preview,
+                            storage: .encoded(ResultBinaryRow(data: encodedData)),
+                            totalRowCount: totalRowCount,
+                            decodeDuration: 0
+                        ))
+                    } else {
+                        // Fast path: capture raw ByteBuffer slices — worker encodes on GCD queue.
+                        var buffers: [NIOCore.ByteBuffer?] = []
+                        var lengths: [Int] = []
+                        var totalLength = 0
+                        buffers.reserveCapacity(columnCount)
+                        lengths.reserveCapacity(columnCount)
+                        for cell in row {
+                            if let bytes = cell.bytes {
+                                let byteCount = bytes.readableBytes
+                                buffers.append(bytes)
+                                lengths.append(byteCount)
+                                totalLength += 5 + byteCount
+                            } else {
+                                buffers.append(nil)
+                                lengths.append(-1)
+                                totalLength += 1
+                            }
+                        }
+
+                        pendingPayloads.append(ResultStreamBatchWorker.Payload(
+                            previewValues: nil,
+                            storage: .raw(ResultStreamBatchWorker.RawRow(
+                                buffers: buffers,
+                                lengths: lengths,
+                                totalLength: totalLength
+                            )),
+                            totalRowCount: totalRowCount,
+                            decodeDuration: 0
+                        ))
                     }
 
-                    let batchCount = await streamState.batchCount
-                    if totalRowCount == streamingPreviewLimit {
-                        await streamState.publishBatch(expectedRequestSize: batchCount, rampEligible: false, progressHandler: progressHandler)
-                        continue
+                    if pendingPayloads.count >= batchEnqueueSize {
+                        worker?.enqueueBatch(pendingPayloads)
+                        pendingPayloads.removeAll(keepingCapacity: true)
                     }
 
-                    await streamState.maybePublishProgress(throttle: 0.12, progressHandler: progressHandler)
+                    if !firstRowLogged {
+                        firstRowLogged = true
+                        let firstRowLatency = CFAbsoluteTimeGetCurrent() - operationStart
+                        logger.debug("[PostgresStream] first-row latency=\(String(format: "%.3f", firstRowLatency))s")
+                    }
                 }
             } catch {
                 throw normalizeError(error, contextSQL: sanitizedSQL)
             }
 
-            let remainingBatchCount = await streamState.batchCount
-            if remainingBatchCount > 0 {
-                await streamState.publishBatch(expectedRequestSize: remainingBatchCount, rampEligible: false, progressHandler: progressHandler)
+            if !pendingPayloads.isEmpty {
+                worker?.enqueueBatch(pendingPayloads)
             }
 
-            let finalTotalRowCount = await streamState.totalRowCount
-            let totalElapsed = CFAbsoluteTimeGetCurrent() - operationStart
-            let completionMessage = String(
-                format: "[PostgresStream] completed rows=%d elapsed=%.3fs",
-                finalTotalRowCount,
-                totalElapsed
-            )
-            logger.debug(.init(stringLiteral: completionMessage))
-            print(completionMessage)
+            // Await worker drain: waits for the GCD queue to flush, then waits
+            // for all DispatchQueue.main callbacks to execute (FIFO guarantee).
+            // This ensures every row is submitted to the spool before consumeFinalResult
+            // calls finalizeSpool, which would reject late-arriving batches.
+            if let worker {
+                await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+                    worker.finish(totalRowCount: totalRowCount) {
+                        DispatchQueue.main.async {
+                            continuation.resume()
+                        }
+                    }
+                }
+            }
 
-            let columnsAfterStreaming = await streamState.columns
-            let resolvedColumns = columnsAfterStreaming.isEmpty
+            let totalElapsed = CFAbsoluteTimeGetCurrent() - operationStart
+            logger.debug("[PostgresStream] completed rows=\(totalRowCount) elapsed=\(String(format: "%.3f", totalElapsed))s previewRows=\(previewRows.count)")
+
+            let resolvedColumns = columns.isEmpty
                 ? [ColumnInfo(name: "result", dataType: "text")]
-                : columnsAfterStreaming
-            let previewRows = await streamState.previewRows
-            let commandTag = await streamState.commandTag
+                : columns
 
             return QueryResultSet(
                 columns: resolvedColumns,
                 rows: previewRows,
-                totalRowCount: finalTotalRowCount,
-                commandTag: commandTag
+                totalRowCount: totalRowCount
             )
         }
     }
+
 }

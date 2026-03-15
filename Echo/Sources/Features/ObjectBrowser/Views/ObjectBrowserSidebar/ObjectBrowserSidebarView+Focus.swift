@@ -47,15 +47,16 @@ extension ObjectBrowserSidebarView {
 
     private func applyExplorerFocus(_ focus: ExplorerFocus, session: ConnectionSession, proxy: ScrollViewProxy) {
         let connID = focus.connectionID
-        var groups = viewModel.expandedObjectGroupsBySession[connID] ?? Set(SchemaObjectInfo.ObjectType.allCases)
+        let dbKey = "\(connID.uuidString)#\(focus.databaseName)"
+        var groups = viewModel.expandedObjectGroupsBySession[dbKey] ?? Set(SchemaObjectInfo.ObjectType.allCases)
         if !groups.contains(focus.objectType) {
             groups.insert(focus.objectType)
-            viewModel.expandedObjectGroupsBySession[connID] = groups
+            viewModel.expandedObjectGroupsBySession[dbKey] = groups
         }
 
-        let currentSchema = viewModel.selectedSchemaNameBySession[connID]
+        let currentSchema = viewModel.selectedSchemaNameBySession[dbKey]
         if currentSchema?.caseInsensitiveCompare(focus.schemaName) != .orderedSame {
-            viewModel.selectedSchemaNameBySession[connID] = focus.schemaName
+            viewModel.selectedSchemaNameBySession[dbKey] = focus.schemaName
         }
 
         guard let structure = session.databaseStructure,
@@ -66,13 +67,13 @@ extension ObjectBrowserSidebarView {
 
         if let object = schema.objects.first(where: { $0.type == focus.objectType && $0.name.localizedCaseInsensitiveCompare(focus.objectName) == .orderedSame }) {
             groups.insert(object.type)
-            viewModel.expandedObjectGroupsBySession[connID] = groups
+            viewModel.expandedObjectGroupsBySession[dbKey] = groups
 
-            var ids = viewModel.expandedObjectIDsBySession[connID] ?? []
+            var ids = viewModel.expandedObjectIDsBySession[dbKey] ?? []
             if !ids.contains(object.id) {
                 DispatchQueue.main.async {
                     ids.insert(object.id)
-                    self.viewModel.expandedObjectIDsBySession[connID] = ids
+                    self.viewModel.expandedObjectIDsBySession[dbKey] = ids
                 }
             }
 

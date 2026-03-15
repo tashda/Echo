@@ -26,6 +26,10 @@ extension WorkspaceTab.Kind {
         case .structure: return "Structure"
         case .diagram: return "Diagrams"
         case .jobQueue: return "Jobs"
+        case .psql: return "Terminal"
+        case .extensionStructure: return "Extension Details"
+        case .extensionsManager: return "Extensions"
+        case .activityMonitor: return "Activity"
         }
     }
 
@@ -35,6 +39,10 @@ extension WorkspaceTab.Kind {
         case .structure: return "wrench.and.screwdriver"
         case .diagram: return "chart.xyaxis.line"
         case .jobQueue: return "gearshape"
+        case .psql: return "terminal"
+        case .extensionStructure: return "puzzlepiece.fill"
+        case .extensionsManager: return "puzzlepiece"
+        case .activityMonitor: return "chart.bar.doc.horizontal"
         }
     }
 }

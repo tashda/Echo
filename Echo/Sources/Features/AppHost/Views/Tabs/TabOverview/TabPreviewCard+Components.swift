@@ -6,7 +6,7 @@ struct EmptyPreviewPlaceholder: View {
     var body: some View {
         Text(message)
             .font(TypographyTokens.caption2.weight(.medium))
-            .foregroundStyle(.secondary)
+            .foregroundStyle(ColorTokens.Text.secondary)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
             .padding(SpacingTokens.sm)
     }
@@ -25,12 +25,12 @@ struct QueryTabPreview: View {
             if trimmedSQL.isEmpty {
                 Text("Empty query")
                     .font(.system(size: 11, weight: .medium, design: .monospaced))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(ColorTokens.Text.secondary)
                     .italic()
             } else {
                 Text(trimmedSQL)
                     .font(.system(size: 11, design: .monospaced))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(ColorTokens.Text.secondary)
                     .lineLimit(6)
                     .multilineTextAlignment(.leading)
             }
@@ -45,7 +45,7 @@ struct DiagramTabPreview: View {
 
     private var status: (icon: String, text: String, color: Color) {
         if diagram.isLoading {
-            return ("hourglass", "Loading…", Color.accentColor)
+            return ("hourglass", "Loading…", ColorTokens.accent)
         }
         if let error = diagram.errorMessage, !error.isEmpty {
             return ("exclamationmark.triangle.fill", "Diagram error", .orange)
@@ -57,7 +57,7 @@ struct DiagramTabPreview: View {
         VStack(alignment: .leading, spacing: 10) {
             Text(diagram.title)
                 .font(TypographyTokens.caption2.weight(.semibold))
-                .foregroundStyle(.primary)
+                .foregroundStyle(ColorTokens.Text.primary)
 
             Label(status.text, systemImage: status.icon)
                 .font(TypographyTokens.detail.weight(.medium))
@@ -66,7 +66,7 @@ struct DiagramTabPreview: View {
             if let message = diagram.statusMessage, !message.isEmpty {
                 Text(message)
                     .font(TypographyTokens.detail)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(ColorTokens.Text.secondary)
                     .lineLimit(3)
             }
         }
@@ -80,10 +80,10 @@ struct StructureTabPreview: View {
 
     private var status: (icon: String, text: String, color: Color) {
         if editor.isApplying {
-            return ("hammer.fill", "Applying changes…", Color.accentColor)
+            return ("hammer.fill", "Applying changes…", ColorTokens.accent)
         }
         if editor.isLoading {
-            return ("arrow.triangle.2.circlepath", "Refreshing…", Color.accentColor)
+            return ("arrow.triangle.2.circlepath", "Refreshing…", ColorTokens.accent)
         }
         if let error = editor.lastError, !error.isEmpty {
             return ("exclamationmark.triangle.fill", "Last update failed", .orange)
@@ -98,7 +98,7 @@ struct StructureTabPreview: View {
         VStack(alignment: .leading, spacing: 10) {
             Text("\(editor.schemaName).\(editor.tableName)")
                 .font(TypographyTokens.caption2.weight(.semibold))
-                .foregroundStyle(.primary)
+                .foregroundStyle(ColorTokens.Text.primary)
 
             Label(status.text, systemImage: status.icon)
                 .font(TypographyTokens.detail.weight(.medium))
@@ -107,8 +107,74 @@ struct StructureTabPreview: View {
             if !editor.indexes.isEmpty {
                 Text("\(editor.indexes.count) index\(editor.indexes.count == 1 ? "" : "es") configured")
                     .font(TypographyTokens.detail)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(ColorTokens.Text.secondary)
             }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .padding(SpacingTokens.sm)
+    }
+}
+
+struct ExtensionStructureTabPreview: View {
+    @ObservedObject var viewModel: PostgresExtensionStructureViewModel
+
+    private var status: (icon: String, text: String, color: Color) {
+        if viewModel.isLoading {
+            return ("hourglass", "Loading…", ColorTokens.accent)
+        }
+        if let error = viewModel.errorMessage, !error.isEmpty {
+            return ("exclamationmark.triangle.fill", "Extension error", .orange)
+        }
+        return ("puzzlepiece", "\(viewModel.objects.count) object\(viewModel.objects.count == 1 ? "" : "s")", .secondary)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(viewModel.extensionName)
+                .font(TypographyTokens.caption2.weight(.semibold))
+                .foregroundStyle(ColorTokens.Text.primary)
+
+            Label(status.text, systemImage: status.icon)
+                .font(TypographyTokens.detail.weight(.medium))
+                .foregroundStyle(status.color)
+
+            if !viewModel.objects.isEmpty {
+                Text("Database: \(viewModel.databaseName)")
+                    .font(TypographyTokens.detail)
+                    .foregroundStyle(ColorTokens.Text.secondary)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .padding(SpacingTokens.sm)
+    }
+}
+
+struct ExtensionsManagerTabPreview: View {
+    @ObservedObject var viewModel: PostgresExtensionsManagerViewModel
+
+    private var status: (icon: String, text: String, color: Color) {
+        if viewModel.isLoading {
+            return ("hourglass", "Loading…", ColorTokens.accent)
+        }
+        if let error = viewModel.errorMessage, !error.isEmpty {
+            return ("exclamationmark.triangle.fill", "Manager error", .orange)
+        }
+        return ("puzzlepiece", "\(viewModel.installedExtensions.count) installed", .secondary)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Extensions Manager")
+                .font(TypographyTokens.caption2.weight(.semibold))
+                .foregroundStyle(ColorTokens.Text.primary)
+
+            Label(status.text, systemImage: status.icon)
+                .font(TypographyTokens.detail.weight(.medium))
+                .foregroundStyle(status.color)
+
+            Text("Database: \(viewModel.databaseName)")
+                .font(TypographyTokens.detail)
+                .foregroundStyle(ColorTokens.Text.secondary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .padding(SpacingTokens.sm)

@@ -8,6 +8,7 @@ final class MockDatabaseSession: DatabaseSession, DatabaseMetadataSession, @unch
     var simpleQueryCallCount = 0
     var listDatabasesCallCount = 0
     var listSchemasCallCount = 0
+    var listExtensionsCallCount = 0
     var listTablesAndViewsCallCount = 0
     var queryWithPagingCallCount = 0
     var getTableSchemaCallCount = 0
@@ -30,6 +31,7 @@ final class MockDatabaseSession: DatabaseSession, DatabaseMetadataSession, @unch
     }
     var listDatabasesHandler: () async throws -> [String] = { [] }
     var listSchemasHandler: () async throws -> [String] = { [] }
+    var listExtensionsHandler: () async throws -> [SchemaObjectInfo] = { [] }
     var listTablesAndViewsHandler: (String?) async throws -> [SchemaObjectInfo] = { _ in [] }
     var queryWithPagingHandler: (String, Int, Int) async throws -> QueryResultSet = { _, _, _ in
         QueryResultSet(columns: [], rows: [])
@@ -74,6 +76,11 @@ final class MockDatabaseSession: DatabaseSession, DatabaseMetadataSession, @unch
     func listSchemas() async throws -> [String] {
         listSchemasCallCount += 1
         return try await listSchemasHandler()
+    }
+
+    func listExtensions() async throws -> [SchemaObjectInfo] {
+        listExtensionsCallCount += 1
+        return try await listExtensionsHandler()
     }
 
     func listTablesAndViews(schema: String?) async throws -> [SchemaObjectInfo] {

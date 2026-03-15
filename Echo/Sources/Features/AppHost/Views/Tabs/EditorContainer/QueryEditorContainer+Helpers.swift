@@ -24,16 +24,40 @@ extension QueryEditorContainer {
     }
 
 #if os(macOS)
-    var foreignKeyDisplayMode: ForeignKeyDisplayMode {
-        projectStore.globalSettings.foreignKeyDisplayMode
+    var showForeignKeysInInspector: Bool {
+        projectStore.globalSettings.showForeignKeysInInspector
     }
 
-    var foreignKeyInspectorBehavior: ForeignKeyInspectorBehavior {
-        projectStore.globalSettings.foreignKeyInspectorBehavior
+    var showJsonInInspector: Bool {
+        projectStore.globalSettings.showJsonInInspector
     }
 
-    var includeRelatedForeignKeys: Bool {
-        projectStore.globalSettings.foreignKeyIncludeRelated
+    var autoOpenInspector: Bool {
+        projectStore.globalSettings.autoOpenInspectorOnSelection
+    }
+
+    /// Defers the auto-close check to the next run loop tick,
+    /// giving other handlers (FK, JSON) a chance to set new content first.
+    func deferredInspectorAutoClose() {
+        guard inspectorAutoOpened else { return }
+        Task { @MainActor in
+            // Don't close if another selection is active (content pending async load)
+            guard inspectorAutoOpened,
+                  environmentState.dataInspectorContent == nil,
+                  latestForeignKeySelection == nil,
+                  latestJsonSelection == nil,
+                  appState.showInfoSidebar else { return }
+            inspectorAutoOpened = false
+            appState.showInfoSidebar = false
+        }
+    }
+
+    func resolveExecutionSession() async -> DatabaseSession {
+        if tab.connection.databaseType == .postgresql,
+           let activeDB = tab.activeDatabaseName, !activeDB.isEmpty {
+            return (try? await tab.session.sessionForDatabase(activeDB)) ?? tab.session
+        }
+        return tab.session
     }
 #endif
 

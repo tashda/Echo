@@ -11,56 +11,48 @@ struct CompactTabPreviewCard: View {
     @State internal var isHoveringClose = false
     @EnvironmentObject internal var appearanceStore: AppearanceStore
     @Environment(\.colorScheme) internal var colorScheme
-
-    var body: some View {
-        let container = RoundedRectangle(cornerRadius: 18, style: .continuous)
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .top, spacing: 8) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(tabTitle)
-                        .font(TypographyTokens.standard.weight(.semibold))
+var body: some View {
+    let container = RoundedRectangle(cornerRadius: 18, style: .continuous)
+    VStack(alignment: .leading, spacing: SpacingTokens.xs2) {
+        HStack(alignment: .top, spacing: SpacingTokens.xs) {
+            VStack(alignment: .leading, spacing: SpacingTokens.xxs) {
+                Text(tabTitle)
+                    .font(TypographyTokens.standard.weight(.semibold))
+                    .lineLimit(1)
+                if let subtitle = tabSubtitle {
+                    Text(subtitle)
+                        .font(TypographyTokens.label.weight(.medium))
+                        .foregroundStyle(ColorTokens.Text.secondary)
                         .lineLimit(1)
-                    if let subtitle = tabSubtitle {
-                        Text(subtitle)
-                            .font(TypographyTokens.label.weight(.medium))
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                    }
                 }
-
-                Spacer(minLength: 0)
             }
 
-            if let snippet = snippet {
-                Text(snippet)
-                    .font(.system(size: 10, design: .monospaced))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(3)
-            }
+            Spacer(minLength: 0)
+        }
 
-            statusBadge
+        if let snippet = snippet {
+            Text(snippet)
+                .font(TypographyTokens.compact.monospaced())
+                .foregroundStyle(ColorTokens.Text.secondary)
+                .lineLimit(3)
+        }
 
-            if !metrics.isEmpty {
-                HStack(alignment: .center, spacing: 8) {
-                    ForEach(Array(metrics.enumerated()), id: \.offset) { _, metric in
-                        HStack(spacing: 4) {
-                            Image(systemName: metric.icon)
-                            Text(metric.text)
-                        }
-                        .font(TypographyTokens.compact.weight(.medium))
-                        .padding(.horizontal, SpacingTokens.xs)
-                        .padding(.vertical, SpacingTokens.xxs)
-                        .background(
-                            Capsule(style: .continuous)
-                                .fill(metric.color.opacity(colorScheme == .dark ? 0.25 : 0.12))
-                        )
-                        .foregroundStyle(metric.color)
+        statusBadge
+
+        if !metrics.isEmpty {
+            HStack(alignment: .center, spacing: SpacingTokens.xs) {
+                ForEach(Array(metrics.enumerated()), id: \.offset) { _, metric in
+                    HStack(spacing: SpacingTokens.xxs) {
+                        Image(systemName: metric.icon)
+                        Text(metric.text)
                     }
-                    Spacer(minLength: 0)
+                    .font(TypographyTokens.compact.weight(.medium))
+                    .foregroundStyle(ColorTokens.Text.tertiary)
                 }
             }
         }
-        .padding(SpacingTokens.sm2)
+    }
+    .padding(SpacingTokens.sm2)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
             container
@@ -87,11 +79,11 @@ struct CompactTabPreviewCard: View {
         if isActive {
             return appearanceStore.accentColor.opacity(colorScheme == .dark ? 0.5 : 0.35)
         }
-        return Color.primary.opacity(colorScheme == .dark ? 0.18 : 0.08)
+        return ColorTokens.Text.primary.opacity(colorScheme == .dark ? 0.18 : 0.08)
     }
 
     private var statusBadge: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: SpacingTokens.xxs2) {
             Image(systemName: status.icon)
             Text(status.text)
         }
@@ -112,7 +104,7 @@ struct CompactTabPreviewCard: View {
             Button(action: onClose) {
                 Image(systemName: isHoveringClose ? "xmark.circle.fill" : "xmark")
                     .font(TypographyTokens.caption2.weight(.semibold))
-                    .foregroundStyle(isHoveringClose ? Color.secondary : Color.secondary.opacity(0.8))
+                    .foregroundStyle(isHoveringClose ? ColorTokens.Text.secondary : ColorTokens.Text.secondary.opacity(0.8))
                     .padding(SpacingTokens.xxs)
             }
             .buttonStyle(.plain)
@@ -125,7 +117,7 @@ struct CompactTabPreviewCard: View {
             Button(action: onClose) {
                 Image(systemName: "xmark.circle.fill")
                     .font(TypographyTokens.prominent.weight(.semibold))
-                    .foregroundStyle(Color.secondary)
+                    .foregroundStyle(ColorTokens.Text.secondary)
                     .padding(SpacingTokens.xxs)
             }
             .buttonStyle(.plain)

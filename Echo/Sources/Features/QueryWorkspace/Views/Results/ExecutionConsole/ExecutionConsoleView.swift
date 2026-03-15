@@ -41,14 +41,14 @@ struct ExecutionConsoleView: View {
     // MARK: - Components
 
     private var headerView: some View {
-        HStack(spacing: 16) {
+        HStack(spacing: SpacingTokens.md) {
             Label("Messages", systemImage: "text.bubble")
                 .font(TypographyTokens.standard.weight(.semibold))
                 .foregroundStyle(ColorTokens.Text.primary)
 
             Spacer()
 
-            HStack(spacing: 12) {
+            HStack(spacing: SpacingTokens.sm) {
                 ForEach(Message.Severity.allCases, id: \.self) { severity in
                     let count = messages.filter { $0.severity == severity }.count
                     Label("\(severity.rawValue.capitalized) (\(count))", systemImage: severity.iconName)
@@ -116,9 +116,9 @@ struct ExecutionConsoleView: View {
     }
 
     private var emptyState: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: SpacingTokens.sm) {
             Image(systemName: "tray")
-                .font(.system(size: 40))
+                .font(TypographyTokens.hero)
                 .foregroundStyle(ColorTokens.Text.secondary)
             Text("No Messages")
                 .font(TypographyTokens.display.weight(.semibold))
@@ -126,7 +126,7 @@ struct ExecutionConsoleView: View {
                 .font(TypographyTokens.standard)
                 .foregroundStyle(ColorTokens.Text.secondary)
         }
-        .padding(.vertical, 60)
+        .padding(.vertical, SpacingTokens.xxxl)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(gridBackground)
     }
@@ -147,9 +147,9 @@ struct ExecutionConsoleView: View {
         let overlay: Color
         switch severity {
         case .error:
-            overlay = Color.red.opacity(0.08)
+            overlay = ColorTokens.Status.error.opacity(0.08)
         case .warning:
-            overlay = Color.orange.opacity(0.06)
+            overlay = ColorTokens.Status.warning.opacity(0.06)
         case .info:
             overlay = appearanceStore.accentColor.opacity(0.04)
         case .debug:

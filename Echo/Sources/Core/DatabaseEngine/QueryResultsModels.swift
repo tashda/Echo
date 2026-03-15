@@ -6,12 +6,14 @@ public struct QueryResultSet: Sendable {
     public var rows: [[String?]]
     public var totalRowCount: Int?
     public var commandTag: String?
+    public var additionalResults: [QueryResultSet]
 
-    public nonisolated init(columns: [ColumnInfo], rows: [[String?]] = [], totalRowCount: Int? = nil, commandTag: String? = nil) {
+    public nonisolated init(columns: [ColumnInfo], rows: [[String?]] = [], totalRowCount: Int? = nil, commandTag: String? = nil, additionalResults: [QueryResultSet] = []) {
         self.columns = columns
         self.rows = rows
         self.totalRowCount = totalRowCount ?? rows.count
         self.commandTag = commandTag
+        self.additionalResults = additionalResults
     }
 
     public nonisolated init(columns: [String], rows: [[String?]]) {
@@ -19,6 +21,16 @@ public struct QueryResultSet: Sendable {
         self.rows = rows
         self.totalRowCount = rows.count
         self.commandTag = nil
+        self.additionalResults = []
+    }
+
+    public nonisolated var allResultSets: [QueryResultSet] {
+        [self] + additionalResults
+    }
+
+    public nonisolated var combinedRowCount: Int {
+        let primary = totalRowCount ?? rows.count
+        return additionalResults.reduce(primary) { $0 + ($1.totalRowCount ?? $1.rows.count) }
     }
 }
 

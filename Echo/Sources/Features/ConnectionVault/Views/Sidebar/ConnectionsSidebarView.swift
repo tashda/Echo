@@ -61,7 +61,14 @@ struct ConnectionsSidebarView: View {
 
     private var searchBar: some View {
         SidebarSearchBar(placeholder: "Search connections", text: $searchText, showsClearButton: !trimmedSearch.isEmpty, onClear: { searchText = "" }) {
-            Menu { addMenuContent() } label: { Image(systemName: "plus.circle.fill").font(TypographyTokens.display.weight(.semibold)).foregroundStyle(Color.secondary.opacity(0.6)).padding(SpacingTokens.xxxs) }.menuStyle(.borderlessButton).menuIndicator(.hidden)
+            Menu { addMenuContent() } label: { 
+                Image(systemName: "plus.circle.fill")
+                    .font(TypographyTokens.display.weight(.semibold))
+                    .foregroundStyle(ColorTokens.Text.tertiary)
+                    .padding(SpacingTokens.xxxs) 
+            }
+            .menuStyle(.borderlessButton)
+            .menuIndicator(.hidden)
         }
     }
 

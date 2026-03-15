@@ -2,10 +2,6 @@ import SwiftUI
 import Combine
 import AppKit
 
-// Simple NavigationSplitView-based settings - no complex navigation bridge needed
-
-// Clean NavigationSplitView-based settings window
-
 /// Hosts the sidebar/detail split view and renders each settings section.
 struct SettingsView: View {
     @EnvironmentObject private var environmentState: EnvironmentState
@@ -14,7 +10,10 @@ struct SettingsView: View {
     @EnvironmentObject private var appearanceStore: AppearanceStore
 
     enum SettingsSection: String, CaseIterable, Identifiable {
+        case general
+        case notifications
         case appearance
+        case databases
         case sidebar
         case queryResults
         case echoSense
@@ -26,9 +25,12 @@ struct SettingsView: View {
 
         var title: String {
             switch self {
+            case .general: return "General"
+            case .notifications: return "Notifications"
             case .appearance: return "Appearance"
+            case .databases: return "Databases"
             case .sidebar: return "Sidebar"
-            case .queryResults: return "Query Results"
+            case .queryResults: return "Results"
             case .echoSense: return "EchoSense"
             case .diagrams: return "Diagrams"
             case .applicationCache: return "Application Cache"
@@ -38,7 +40,10 @@ struct SettingsView: View {
 
         var systemImage: String? {
             switch self {
+            case .general: return "gear"
+            case .notifications: return "bell.badge"
             case .appearance: return "paintbrush"
+            case .databases: return "externaldrive.connected.to.line.below"
             case .sidebar: return "sidebar.left"
             case .queryResults: return "tablecells"
             case .diagrams: return "rectangle.connected.to.line.below"
@@ -58,19 +63,36 @@ struct SettingsView: View {
         }
     }
 
-    @State private var selection: SettingsSection? = .appearance
+    /// Composite navigation state that captures the full destination,
+    /// including sub-tabs like the database settings tab.
+    struct Destination: Hashable {
+        var section: SettingsSection
+        var databaseTab: DatabasesSettingsView.DatabaseSettingsTab = .shared
+    }
 
-    /// Fixed sidebar width based on the longest section title.
-    /// We approximate character width to keep the list comfortably sized.
-    private var sidebarColumnWidth: CGFloat {
-        let longestTitle = SettingsSection.allCases
-            .map(\.title)
-            .max(by: { $0.count < $1.count }) ?? "Settings"
+    @State private var selection: SettingsSection? = .general
+    @State private var databaseTab: DatabasesSettingsView.DatabaseSettingsTab = .shared
+    @State private var navHistory = NavigationHistory<Destination>()
+    /// Suppresses history recording during programmatic back/forward navigation.
+    @State private var isRestoringNavigation = false
 
-        // Rough character width + space for icon and padding.
-        let approximateWidth = CGFloat(longestTitle.count) * 8.0 + 80.0
-        // Clamp to a sensible range so it doesn't look extreme on different systems.
-        return min(max(approximateWidth, 200), 260)
+    /// Snapshot the current navigation state into a `Destination`.
+    private var currentDestination: Destination {
+        Destination(
+            section: selection ?? .general,
+            databaseTab: databaseTab
+        )
+    }
+
+    /// Restore all state from a `Destination`, suppressing onChange recording.
+    private func restore(_ destination: Destination) {
+        isRestoringNavigation = true
+        selection = destination.section
+        databaseTab = destination.databaseTab
+        // Reset after SwiftUI processes the state changes.
+        DispatchQueue.main.async {
+            isRestoringNavigation = false
+        }
     }
 
     var body: some View {
@@ -98,7 +120,7 @@ struct SettingsView: View {
                 if let selection {
                     sectionView(for: selection)
                         .id(selection)
-                        .frame(minWidth: 560, minHeight: 420)
+                        .frame(minWidth: 620, minHeight: 420)
                 } else {
                     ContentUnavailableView {
                         Label("Select a Section", systemImage: "slider.horizontal.3")
@@ -109,15 +131,27 @@ struct SettingsView: View {
             }
             .navigationTitle(selection?.title ?? "Settings")
             .toolbarTitleDisplayMode(.automatic)
+            .compositeNavigationHistoryToolbar(
+                history: navHistory,
+                snapshot: { currentDestination },
+                restore: { restore($0) }
+            )
         }
         .preferredColorScheme(appearanceStore.effectiveColorScheme)
         .accentColor(appearanceStore.accentColor)
+        .onChange(of: selection) { oldValue, _ in
+            guard !isRestoringNavigation, let oldValue else { return }
+            navHistory.push(Destination(section: oldValue, databaseTab: databaseTab))
+        }
+        .onChange(of: databaseTab) { oldValue, _ in
+            guard !isRestoringNavigation, let section = selection else { return }
+            navHistory.push(Destination(section: section, databaseTab: oldValue))
+        }
         .onReceive(NotificationCenter.default.publisher(for: .openSettingsSection)) { notification in
             guard let raw = notification.object as? String,
                   let section = SettingsSection(rawValue: raw) else { return }
             selection = section
             if let highlight = notification.userInfo?["highlightSection"] as? String {
-                // Brief delay so the target view has time to mount
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
                     NotificationCenter.default.post(
                         name: .highlightSettingsGroup,
@@ -126,17 +160,26 @@ struct SettingsView: View {
                 }
             }
         }
-        .onAppear(perform: configureSettingsWindowIdentifier)
+        .onAppear(perform: configureSettingsWindow)
     }
 
     @ViewBuilder
     private func sectionView(for section: SettingsSection) -> some View {
         switch section {
+        case .general:
+            GeneralSettingsView()
+
+        case .notifications:
+            NotificationSettingsView()
+
         case .appearance:
             AppearanceSettingsView()
                 .environmentObject(environmentState)
                 .environmentObject(appState)
                 .environmentObject(appearanceStore)
+
+        case .databases:
+            DatabasesSettingsView(selectedTab: $databaseTab)
 
         case .sidebar:
             SidebarSettingsView()

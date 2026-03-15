@@ -26,25 +26,25 @@ struct TabPreviewCard: View {
             }
             .frame(height: 140)
 
-            VStack(alignment: .leading, spacing: 8) {
-                HStack(alignment: .center, spacing: 8) {
+            VStack(alignment: .leading, spacing: SpacingTokens.xs) {
+                HStack(alignment: .center, spacing: SpacingTokens.xs) {
                     statusIndicator
 
-                    VStack(alignment: .leading, spacing: 2) {
+                    VStack(alignment: .leading, spacing: SpacingTokens.xxxs) {
                         Text(tabTitle)
                             .font(TypographyTokens.prominent.weight(.semibold))
-                            .foregroundStyle(.primary)
+                            .foregroundStyle(ColorTokens.Text.primary)
                             .lineLimit(1)
 
                         if let subtitle = tabSubtitle {
                             Text(subtitle)
                                 .font(TypographyTokens.detail.weight(.medium))
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(ColorTokens.Text.secondary)
                                 .lineLimit(1)
                         }
                     }
 
-                    Spacer(minLength: 0)
+                    Spacer(minLength: SpacingTokens.none)
 
                     if isActive {
                         activeBadge
@@ -55,7 +55,7 @@ struct TabPreviewCard: View {
 
                 footerMetrics
             }
-            .padding(.horizontal, 18)
+            .padding(.horizontal, SpacingTokens.md1)
             .padding(.vertical, SpacingTokens.md)
         }
         .background(cardBackground)
@@ -83,7 +83,7 @@ struct TabPreviewCard: View {
                     .resizable()
                     .frame(width: 18, height: 18)
                     .symbolRenderingMode(.palette)
-                    .foregroundStyle(isHoveringClose ? Color.primary : Color.secondary, .ultraThinMaterial)
+                    .foregroundStyle(isHoveringClose ? ColorTokens.Text.primary : ColorTokens.Text.secondary, .ultraThinMaterial)
             }
             .buttonStyle(.plain)
             .onHover { hovering in
@@ -96,7 +96,7 @@ struct TabPreviewCard: View {
                 Image(systemName: "xmark.circle.fill")
                     .resizable()
                     .frame(width: 22, height: 22)
-                    .foregroundStyle(Color.secondary)
+                    .foregroundStyle(ColorTokens.Text.secondary)
             }
             .buttonStyle(.plain)
         }
@@ -142,21 +142,21 @@ struct TabPreviewCard: View {
                 }
                 .font(TypographyTokens.detail.weight(.medium))
                 .padding(.horizontal, SpacingTokens.xs2)
-                .padding(.vertical, 5)
+                .padding(.vertical, SpacingTokens.xxs2)
                 .background(
                     Capsule(style: .continuous)
                         .fill(metric.color.opacity(colorScheme == .dark ? 0.22 : 0.12))
                 )
                 .foregroundStyle(metric.color)
             }
-            Spacer(minLength: 0)
+            Spacer(minLength: SpacingTokens.none)
         }
     }
 
     private var statusIndicator: some View {
         Circle()
             .fill(tabStatus.color.opacity(0.9))
-            .frame(width: 10, height: 10)
+            .frame(width: SpacingTokens.xs2, height: SpacingTokens.xs2)
             .shadow(color: tabStatus.color.opacity(0.35), radius: 4, y: 1)
     }
 
@@ -183,6 +183,36 @@ struct TabPreviewCard: View {
             }
         case .jobQueue:
             EmptyPreviewPlaceholder(message: "Jobs")
+        case .psql:
+            EmptyPreviewPlaceholder(message: "Terminal")
+        case .extensionStructure:
+            if let vm = tab.extensionStructure {
+                ExtensionStructureTabPreview(viewModel: vm)
+            } else {
+                EmptyPreviewPlaceholder(message: "Extension unavailable")
+            }
+        case .extensionsManager:
+            if let vm = tab.extensionsManager {
+                ExtensionsManagerTabPreview(viewModel: vm)
+            } else {
+                EmptyPreviewPlaceholder(message: "Manager unavailable")
+            }
+        case .activityMonitor:
+            ActivityMonitorPreview(viewModel: tab.activityMonitor)
+        }
+    }
+}
+
+struct ActivityMonitorPreview: View {
+    let viewModel: ActivityMonitorViewModel?
+    var body: some View {
+        VStack(spacing: SpacingTokens.xxs) {
+            Image(systemName: "chart.bar.doc.horizontal")
+                .font(.system(size: SpacingTokens.xl))
+                .foregroundStyle(ColorTokens.Text.tertiary)
+            Text("Activity Monitor")
+                .font(TypographyTokens.detail)
+                .foregroundStyle(ColorTokens.Text.secondary)
         }
     }
 }

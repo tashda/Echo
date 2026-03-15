@@ -74,7 +74,7 @@ struct FolderEditorSheet: View {
 
     private var folderColorBinding: Binding<Color> {
         Binding(
-            get: { Color(hex: selectedColorHex) ?? .accentColor },
+            get: { Color(hex: selectedColorHex) ?? ColorTokens.accent },
             set: { color in selectedColorHex = color.toHex() ?? selectedColorHex }
         )
     }
@@ -147,7 +147,7 @@ struct FolderEditorSheet: View {
                 if hasDuplicateName {
                     Text("A folder with this name already exists here.")
                         .font(TypographyTokens.detail)
-                        .foregroundStyle(.red)
+                        .foregroundStyle(ColorTokens.Status.error)
                 }
                 TextField("Description", text: $folderDescription, prompt: Text("Optional"), axis: .vertical)
                     .lineLimit(1...3)
@@ -191,7 +191,7 @@ struct FolderEditorSheet: View {
     // MARK: - Icon Palette
 
     private var iconPaletteView: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: SpacingTokens.xxs2) {
             ForEach(availableIcons, id: \.self) { iconName in
                 iconSwatch(name: iconName, isSelected: selectedIcon == iconName)
                     .onTapGesture {
@@ -206,19 +206,19 @@ struct FolderEditorSheet: View {
 
     private func iconSwatch(name: String, isSelected: Bool) -> some View {
         Image(systemName: name)
-            .font(.system(size: 14))
+            .font(TypographyTokens.prominent)
             .frame(width: 26, height: 26)
-            .foregroundStyle(isSelected ? Color.white : .secondary)
-            .background(isSelected ? Color.accentColor : Color.clear, in: RoundedRectangle(cornerRadius: 6))
+            .foregroundStyle(isSelected ? Color.white : ColorTokens.Text.secondary)
+            .background(isSelected ? ColorTokens.accent : Color.clear, in: RoundedRectangle(cornerRadius: 6))
             .contentShape(Rectangle())
     }
 
     // MARK: - Color Palette
 
     private var colorPaletteView: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: SpacingTokens.xs) {
             ForEach(FolderIdentityPalette.defaults, id: \.self) { hex in
-                let swatch = Color(hex: hex) ?? .accentColor
+                let swatch = Color(hex: hex) ?? ColorTokens.accent
                 colorSwatch(color: swatch, isSelected: selectedColorHex == hex)
                     .onTapGesture {
                         withAnimation(.easeInOut(duration: 0.15)) { selectedColorHex = hex }
@@ -232,15 +232,15 @@ struct FolderEditorSheet: View {
     }
 
     private func colorSwatch(color: Color, isSelected: Bool) -> some View {
-        Circle().fill(color).frame(width: 20, height: 20)
+        Circle().fill(color).frame(width: SpacingTokens.md2, height: SpacingTokens.md2)
             .overlay {
                 if isSelected {
                     Image(systemName: "checkmark")
-                        .font(.system(size: 10, weight: .bold))
-                        .foregroundStyle(.white)
+                        .font(TypographyTokens.label.weight(.bold))
+                        .foregroundStyle(Color.white)
                 }
             }
-            .overlay(Circle().strokeBorder(.primary.opacity(0.15), lineWidth: 0.5))
+            .overlay(Circle().strokeBorder(ColorTokens.Text.primary.opacity(0.15), lineWidth: 0.5))
             .contentShape(Circle())
     }
 
@@ -267,18 +267,18 @@ struct FolderEditorSheet: View {
                 if editingFolderUsesManual && !manualPasswordDirty {
                     Text("Existing password will be kept unless changed.")
                         .font(TypographyTokens.detail)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(ColorTokens.Text.secondary)
                 }
             case .identity:
                 identitySelectionContent
             case .inherit:
                 if let identity = inheritedIdentity {
                     Text("Inherits identity \"\(identity.name)\" from parent folder.")
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(ColorTokens.Text.secondary)
                         .font(TypographyTokens.detail)
                 } else {
                     Text("Parent folder does not provide credentials.")
-                        .foregroundStyle(.red)
+                        .foregroundStyle(ColorTokens.Status.error)
                         .font(TypographyTokens.detail)
                 }
             case .none:
@@ -292,7 +292,7 @@ struct FolderEditorSheet: View {
             if availableIdentities.isEmpty {
                 VStack(alignment: .leading, spacing: SpacingTokens.xs) {
                     Text("No identities available.")
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(ColorTokens.Text.secondary)
                         .font(TypographyTokens.detail)
                     Button("Create Identity…") {
                         identityEditorState = .create(parent: nil, token: UUID())
@@ -321,7 +321,7 @@ struct FolderEditorSheet: View {
                     Task { try? await connectionStore.deleteFolder(folder); dismiss() }
                 }
                 .buttonStyle(.borderedProminent)
-                .tint(.red)
+                .tint(ColorTokens.Status.error)
             }
 
             Spacer()

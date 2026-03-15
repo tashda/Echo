@@ -6,7 +6,7 @@ struct JobHistoryView: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack {
-                Text("History").font(.headline)
+                Text("History").font(TypographyTokens.headline)
                 Spacer()
             }
             .padding(.horizontal, SpacingTokens.sm)
@@ -20,15 +20,15 @@ struct JobHistoryView: View {
                     Text(info.jobName)
                         .font(TypographyTokens.standard.weight(.medium))
                     Text("·")
-                        .foregroundStyle(.quaternary)
+                        .foregroundStyle(ColorTokens.Text.quaternary)
                     Text("Step \(info.stepID): \(info.stepName)")
                         .font(TypographyTokens.standard)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(ColorTokens.Text.secondary)
                     Text("·")
-                        .foregroundStyle(.quaternary)
+                        .foregroundStyle(ColorTokens.Text.quaternary)
                     Text("Started \(info.startTime, style: .relative) ago")
                         .font(TypographyTokens.detail)
-                        .foregroundStyle(.tertiary)
+                        .foregroundStyle(ColorTokens.Text.tertiary)
                     Spacer()
                 }
                 .padding(.horizontal, SpacingTokens.sm)
@@ -49,7 +49,7 @@ struct JobHistoryView: View {
                 }.width(52)
                 TableColumn("Step Name") { h in
                     Text(h.stepName)
-                        .foregroundStyle(h.stepId == 0 ? .secondary : .primary)
+                        .foregroundStyle(h.stepId == 0 ? ColorTokens.Text.secondary : ColorTokens.Text.primary)
                 }
                 TableColumn("Status") { h in Text(jobStatusLabel(h.status)).foregroundStyle(colorForStatus(h.status)) }
                 TableColumn("Run Date") { h in Text(formatAgentDate(h.runDate, h.runTime)) }
@@ -86,7 +86,7 @@ struct JobHistoryView: View {
     }
 
     private func colorForStatus(_ status: Int) -> Color {
-        switch status { case 1: return .green; case 0: return .red; case 4: return .yellow; default: return .secondary }
+        switch status { case 1: return ColorTokens.Status.success; case 0: return ColorTokens.Status.error; case 4: return ColorTokens.Status.warning; default: return ColorTokens.Text.secondary }
     }
 
     private func formatDuration(_ runDuration: Int) -> String {

@@ -22,6 +22,7 @@ enum TableStructureSection: String, CaseIterable, Identifiable {
     }
 }
 
+@MainActor
 final class TableStructureEditorViewModel: ObservableObject {
     @Published var columns: [ColumnModel] = []
     @Published var indexes: [IndexModel] = []
@@ -38,16 +39,41 @@ final class TableStructureEditorViewModel: ObservableObject {
 
     let schemaName: String
     let tableName: String
+    let databaseType: DatabaseType
 
-    internal let session: DatabaseSession
+    internal private(set) var session: DatabaseSession
     internal var originalPrimaryKeySnapshot: PrimaryKeyModel.Snapshot?
     internal var removedPrimaryKeyName: String?
 
-    init(schemaName: String, tableName: String, details: TableStructureDetails, session: DatabaseSession) {
+    /// Update the session to point at a different database connection.
+    /// Triggers a reload if the view model has no data yet.
+    func updateSession(_ newSession: DatabaseSession) {
+        session = newSession
+        if columns.isEmpty {
+            Task { await reload() }
+        }
+    }
+
+    var dialectGenerator: SQLDialectGenerator {
+        switch databaseType {
+        case .microsoftSQL:
+            return SQLServerDialectGenerator(schema: schemaName, database: "")
+        default:
+            return PostgreSQLDialectGenerator(schema: schemaName)
+        }
+    }
+
+    init(schemaName: String, tableName: String, details: TableStructureDetails, session: DatabaseSession, databaseType: DatabaseType = .postgresql) {
         self.schemaName = schemaName
         self.tableName = tableName
         self.session = session
+        self.databaseType = databaseType
         apply(details: details)
+        // When initialized with empty placeholder details, start in loading state
+        // so the view shows a spinner immediately instead of an empty state flash.
+        if details.columns.isEmpty {
+            isLoading = true
+        }
     }
 
     func focusSection(_ section: TableStructureSection) {
@@ -77,8 +103,9 @@ final class TableStructureEditorViewModel: ObservableObject {
         }
         isApplying = true
         defer { isApplying = false }
+        let dialect = dialectGenerator
         do {
-            let executionPlan = ["BEGIN;"] + statements + ["COMMIT;"]
+            let executionPlan = [dialect.beginTransaction()] + statements + [dialect.commitTransaction()]
             for statement in executionPlan {
                 _ = try await session.executeUpdate(statement)
             }
@@ -86,7 +113,7 @@ final class TableStructureEditorViewModel: ObservableObject {
             apply(details: refreshed)
             lastSuccessMessage = "Structure updated"
         } catch {
-            _ = try? await session.executeUpdate("ROLLBACK;")
+            _ = try? await session.executeUpdate(dialect.rollbackTransaction())
             lastError = error.localizedDescription
         }
     }
@@ -133,6 +160,21 @@ final class TableStructureEditorViewModel: ObservableObject {
     func removeIndex(_ index: IndexModel) {
         if let position = indexes.firstIndex(where: { $0.id == index.id }) {
             if indexes[position].isNew { indexes.remove(at: position) } else { indexes[position].isDeleted = true }
+        }
+    }
+
+    @MainActor
+    func rebuildIndex(_ index: IndexModel) async {
+        guard !index.isNew else { return }
+        lastError = nil
+        lastSuccessMessage = nil
+        isApplying = true
+        defer { isApplying = false }
+        do {
+            try await session.rebuildIndex(schema: schemaName, table: tableName, index: index.name)
+            lastSuccessMessage = "Index \"\(index.name)\" rebuilt successfully"
+        } catch {
+            lastError = "Failed to rebuild index: \(error.localizedDescription)"
         }
     }
 

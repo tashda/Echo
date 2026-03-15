@@ -61,16 +61,12 @@ struct InfoSidebarView: View {
                 switch content {
                 case .foreignKey(let foreignKeyContent):
                     InspectorPanelView(content: foreignKeyContent, depth: 0)
-                    if !projectStore.globalSettings.foreignKeyIncludeRelated {
-                        Text("Enable related foreign keys in Settings › Query Results to automatically expand referenced rows when available.")
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                            .padding(.horizontal, SpacingTokens.xxs)
-                    }
                 case .json(let jsonContent):
                     JsonInspectorPanelView(content: jsonContent)
                 case .jobHistory(let historyContent):
                     JobHistoryInspectorPanel(content: historyContent)
+                case .cellValue(let cellContent):
+                    CellValueInspectorPanel(content: cellContent)
                 }
             }
         } else {

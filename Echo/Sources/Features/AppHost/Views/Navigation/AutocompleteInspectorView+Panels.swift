@@ -6,16 +6,16 @@ extension AutocompleteInspectorRootView {
 
     var header: some View {
         HStack {
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: SpacingTokens.xxs) {
                 Text("Autocomplete Management")
-                    .font(.title2.weight(.semibold))
+                    .font(TypographyTokens.title2.weight(.semibold))
                 Text("Type queries to inspect suppression decisions and tweak rule documentation.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .font(TypographyTokens.subheadline)
+                    .foregroundStyle(ColorTokens.Text.secondary)
                 if let summary = activeConnectionSummary {
                     Text("Active connection: \(summary)")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
+                        .font(TypographyTokens.footnote)
+                        .foregroundStyle(ColorTokens.Text.secondary)
                 }
             }
             Spacer()
@@ -32,19 +32,19 @@ extension AutocompleteInspectorRootView {
     var tracePanel: some View {
         Group {
             if let trace = latestTraceValue {
-                VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: SpacingTokens.sm) {
                     Text("Latest Trace")
-                        .font(.headline)
+                        .font(TypographyTokens.headline)
                     if !trace.metadataItems.isEmpty {
-                        VStack(alignment: .leading, spacing: 6) {
+                        VStack(alignment: .leading, spacing: SpacingTokens.xxs2) {
                             ForEach(trace.metadataItems, id: \.0) { key, value in
                                 HStack {
                                     Text(key)
-                                        .font(.footnote.weight(.semibold))
-                                        .foregroundStyle(.secondary)
-                                    Spacer(minLength: 12)
+                                        .font(TypographyTokens.footnote.weight(.semibold))
+                                        .foregroundStyle(ColorTokens.Text.secondary)
+                                    Spacer(minLength: SpacingTokens.sm)
                                     Text(value)
-                                        .font(.footnote)
+                                        .font(TypographyTokens.footnote)
                                         .textSelection(.enabled)
                                 }
                             }
@@ -54,49 +54,49 @@ extension AutocompleteInspectorRootView {
                     }
                     if trace.stepItems.isEmpty {
                         Text("No rule steps recorded.")
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
+                            .font(TypographyTokens.footnote)
+                            .foregroundStyle(ColorTokens.Text.secondary)
                     } else {
-                        VStack(alignment: .leading, spacing: 10) {
+                        VStack(alignment: .leading, spacing: SpacingTokens.xs2) {
                             ForEach(trace.stepItems) { step in
-                                VStack(alignment: .leading, spacing: 4) {
+                                VStack(alignment: .leading, spacing: SpacingTokens.xxs) {
                                     Text(step.title)
-                                        .font(.subheadline.weight(.medium))
+                                        .font(TypographyTokens.subheadline.weight(.medium))
                                     ForEach(step.details, id: \.self) { detail in
                                         Text(detail)
-                                            .font(.footnote)
-                                            .foregroundStyle(.secondary)
+                                            .font(TypographyTokens.footnote)
+                                            .foregroundStyle(ColorTokens.Text.secondary)
                                     }
                                 }
                                 .padding(SpacingTokens.xs2)
-                                .background(Color.primary.opacity(0.05), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                                .background(ColorTokens.Text.primary.opacity(0.05), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
                             }
                         }
                     }
 
                     if let outcome = traceOutcomeDescription(trace.outcome) {
-                        VStack(alignment: .leading, spacing: 6) {
+                        VStack(alignment: .leading, spacing: SpacingTokens.xxs2) {
                             Text("Outcome")
-                                .font(.subheadline.weight(.medium))
+                                .font(TypographyTokens.subheadline.weight(.medium))
                             Text(outcome.title)
-                                .font(.callout.weight(.semibold))
+                                .font(TypographyTokens.callout.weight(.semibold))
                             ForEach(outcome.details, id: \.self) { line in
                                 Text(line)
-                                    .font(.footnote)
-                                    .foregroundStyle(.secondary)
+                                    .font(TypographyTokens.footnote)
+                                    .foregroundStyle(ColorTokens.Text.secondary)
                             }
                         }
                         .padding(SpacingTokens.sm)
-                        .background(Color.primary.opacity(0.05), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                        .background(ColorTokens.Text.primary.opacity(0.05), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
                     }
                 }
             } else {
-                VStack(alignment: .leading, spacing: 8) {
+                VStack(alignment: .leading, spacing: SpacingTokens.xs) {
                     Text("Trace")
-                        .font(.headline)
+                        .font(TypographyTokens.headline)
                     Text("Start typing in the editor to capture the rule evaluation flow. The trace lists each decision taken by the suppression heuristics.")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
+                        .font(TypographyTokens.footnote)
+                        .foregroundStyle(ColorTokens.Text.secondary)
                 }
             }
         }
@@ -114,12 +114,12 @@ extension AutocompleteInspectorRootView {
     }
 
     var definitionsPanel: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: SpacingTokens.sm) {
             Text("Rule Definitions")
-                .font(.headline)
+                .font(TypographyTokens.headline)
             Text("Add notes or reminders for each heuristic. Notes are stored locally and help keep future tweaks aligned.")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
+                .font(TypographyTokens.footnote)
+                .foregroundStyle(ColorTokens.Text.secondary)
 
             ForEach(SQLAutocompleteRuleDefinition.core) { definition in
                 RuleDefinitionRow(definition: definition)

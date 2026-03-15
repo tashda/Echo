@@ -28,6 +28,8 @@ private struct WorkspaceBody: View {
     @EnvironmentObject private var appState: AppState
     @EnvironmentObject private var appearanceStore: AppearanceStore
     @EnvironmentObject private var clipboardHistory: ClipboardHistoryStore
+    
+    @StateObject private var sparkleUpdater = SparkleUpdater.shared
 
     var body: some View {
         let tabBarStyle = appState.workspaceTabBarStyle
@@ -55,7 +57,15 @@ private struct WorkspaceBody: View {
                     }
                 }
                 .inspector(isPresented: $appState.showInfoSidebar) {
+                    let isJson = environmentState.dataInspectorContent?.isJson == true
                     inspectorContent
+                        .inspectorColumnWidth(
+                            min: WorkspaceLayoutMetrics.inspectorMinWidth,
+                            ideal: isJson
+                                ? WorkspaceLayoutMetrics.jsonInspectorWidth
+                                : WorkspaceLayoutMetrics.inspectorIdealWidth,
+                            max: WorkspaceLayoutMetrics.inspectorMaxWidth
+                        )
                 }
         }
         .navigationSplitViewStyle(.balanced)
@@ -64,9 +74,12 @@ private struct WorkspaceBody: View {
         .sheet(isPresented: Binding(get: { appState.activeSheet == .connectionEditor }, set: { if !$0 { appState.dismissSheet() } })) {
             connectionEditorSheet
         }
+        .sheet(isPresented: Binding(get: { appState.activeSheet == .quickConnect }, set: { if !$0 { appState.dismissSheet() } })) {
+            quickConnectSheet
+        }
         .onChange(of: navigationStore.showManageProjectsSheet) { _, show in
             if show {
-                ManageProjectsWindowController.shared.present()
+                ManageConnectionsWindowController.shared.present(initialSection: .projects)
                 navigationStore.showManageProjectsSheet = false
             }
         }
@@ -80,13 +93,30 @@ private struct WorkspaceBody: View {
         }
         .preferredColorScheme(appearanceStore.effectiveColorScheme)
         .accentColor(appearanceStore.accentColor)
+        .alert("Update Error", isPresented: $sparkleUpdater.showErrorAlert) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            if let error = sparkleUpdater.lastError {
+                Text(error.localizedDescription)
+            } else {
+                Text("An unknown error occurred while checking for updates.")
+            }
+        }
     }
 
     @ViewBuilder
     private var inspectorContent: some View {
+        let isJson = environmentState.dataInspectorContent?.isJson == true
+        let targetWidth = isJson
+            ? WorkspaceLayoutMetrics.jsonInspectorWidth
+            : navigationStore.inspectorWidth
+
         let widthBinding = Binding<CGFloat>(
             get: { navigationStore.inspectorWidth },
             set: { newValue in
+                // Only update user-preferred width when NOT showing JSON
+                // (so dragging during JSON mode doesn't overwrite the default)
+                guard environmentState.dataInspectorContent?.isJson != true else { return }
                 navigationStore.updateInspectorWidth(
                     newValue,
                     min: WorkspaceLayoutMetrics.inspectorMinWidth,
@@ -105,6 +135,7 @@ private struct WorkspaceBody: View {
             .background(
                 InspectorSplitViewConfigurator(
                     width: widthBinding,
+                    targetWidth: targetWidth,
                     minWidth: WorkspaceLayoutMetrics.inspectorMinWidth,
                     maxWidth: WorkspaceLayoutMetrics.inspectorMaxWidth
                 )
@@ -120,6 +151,26 @@ private struct WorkspaceBody: View {
                 Task {
                     await environmentState.upsertConnection(connection, password: password)
                     if action == .saveAndConnect { await environmentState.connect(to: connection) }
+                }
+            }
+        )
+        .environmentObject(environmentState)
+        .environmentObject(appState)
+    }
+
+    private var quickConnectSheet: some View {
+        ConnectionEditorView(
+            connection: nil,
+            isQuickConnect: true,
+            onSave: { connection, password, action in
+                appState.dismissSheet()
+                Task {
+                    if action == .saveAndConnect {
+                        await environmentState.upsertConnection(connection, password: password)
+                        await environmentState.connect(to: connection)
+                    } else if action == .connect {
+                        await environmentState.connect(to: connection)
+                    }
                 }
             }
         )

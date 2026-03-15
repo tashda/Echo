@@ -32,8 +32,8 @@ struct StickyTopBarContent: View {
 
     var body: some View {
         Button(action: onTap) {
-            VStack(alignment: .leading, spacing: isUpdating ? 12 : 0) {
-                HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: isUpdating ? SpacingTokens.sm : SpacingTokens.none) {
+                HStack(spacing: SpacingTokens.sm) {
                     if let logoData = session.connection.logo, let nsImage = NSImage(data: logoData) {
                         Image(nsImage: nsImage)
                             .resizable()
@@ -53,27 +53,27 @@ struct StickyTopBarContent: View {
                         }
                     }
 
-                    VStack(alignment: .leading, spacing: 2) {
-                        HStack(spacing: 6) {
+                    VStack(alignment: .leading, spacing: SpacingTokens.xxxs) {
+                        HStack(spacing: SpacingTokens.xxs2) {
                             Text(session.connection.connectionName)
                                 .font(TypographyTokens.caption2.weight(.semibold))
-                                .foregroundStyle(.primary)
+                                .foregroundStyle(ColorTokens.Text.primary)
                                 .lineLimit(1)
 
                             if let version = session.connection.serverVersion {
                                 Text("•")
                                     .font(TypographyTokens.label.weight(.medium))
-                                    .foregroundStyle(.tertiary)
+                                    .foregroundStyle(ColorTokens.Text.tertiary)
                                 Text(version)
                                     .font(TypographyTokens.label.weight(.medium))
-                                    .foregroundStyle(.tertiary)
+                                    .foregroundStyle(ColorTokens.Text.tertiary)
                                     .lineLimit(1)
                             }
                         }
 
                         Text("\(session.connection.username)@\(session.connection.host)")
                             .font(TypographyTokens.label.weight(.medium))
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(ColorTokens.Text.secondary)
                             .lineLimit(1)
                     }
 
@@ -85,11 +85,11 @@ struct StickyTopBarContent: View {
                         }) {
                             Image(systemName: "arrow.clockwise")
                                 .font(TypographyTokens.detail.weight(.medium))
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(ColorTokens.Text.secondary)
                                 .frame(width: 24, height: 24)
                                 .background(
                                     Circle()
-                                        .fill(Color.primary.opacity(0.06))
+                                        .fill(ColorTokens.Text.primary.opacity(0.06))
                                 )
                         }
                         .buttonStyle(.plain)
@@ -98,9 +98,9 @@ struct StickyTopBarContent: View {
 
                     Text(databaseName)
                         .font(TypographyTokens.label.weight(.medium))
-                        .foregroundStyle(.primary)
+                        .foregroundStyle(ColorTokens.Text.primary)
                         .padding(.horizontal, SpacingTokens.xs2)
-                        .padding(.vertical, 5)
+                        .padding(.vertical, SpacingTokens.xxs2)
                     .background(
                         Capsule()
                             .fill(ColorTokens.Background.secondary.opacity(0.6))
@@ -126,19 +126,19 @@ struct StickyTopBarContent: View {
                     }
             }
                 if isUpdating {
-                    VStack(alignment: .leading, spacing: 4) {
+                    VStack(alignment: .leading, spacing: SpacingTokens.xxs) {
                         ProgressView(value: min(max(progressValue ?? 0, 0), 1), total: 1)
                             .progressViewStyle(.linear)
                             .tint(session.connection.color)
                         Text(updateMessage)
                             .font(TypographyTokens.label.weight(.medium))
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(ColorTokens.Text.secondary)
                     }
                     .transition(.opacity.combined(with: .move(edge: .bottom)))
                 }
             }
             .padding(.horizontal, SpacingTokens.sm2)
-            .padding(.vertical, isUpdating ? 16 : 12)
+            .padding(.vertical, isUpdating ? SpacingTokens.md : SpacingTokens.sm)
             .background(
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
                     .fill(
@@ -167,7 +167,7 @@ struct StickyTopBarContent: View {
                     .strokeBorder(
                         projectStore.globalSettings.accentColorSource == .connection ?
                         session.connection.color.opacity(0.15) :
-                        Color.primary.opacity(0.08),
+                        ColorTokens.Text.primary.opacity(0.08),
                         lineWidth: 0.5
                     )
             )

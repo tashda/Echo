@@ -24,13 +24,13 @@ struct IdentitiesTableView: View {
             TableColumn("Username", value: \.username) { identity in
                 let trimmed = identity.username.trimmingCharacters(in: .whitespacesAndNewlines)
                 Text(trimmed.isEmpty ? "—" : trimmed)
-                    .foregroundStyle(trimmed.isEmpty ? .secondary : .primary)
+                    .foregroundStyle(trimmed.isEmpty ? ColorTokens.Text.secondary : ColorTokens.Text.primary)
             }
 
             TableColumn("Folder") { identity in
                 let folderName = identity.folderID.flatMap { folderLookup[$0]?.displayName } ?? "—"
                 Text(folderName)
-                    .foregroundStyle(folderName == "—" ? .secondary : .primary)
+                    .foregroundStyle(folderName == "—" ? ColorTokens.Text.secondary : ColorTokens.Text.primary)
             }
 
             TableColumn("Updated") { identity in

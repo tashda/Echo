@@ -11,7 +11,7 @@ extension ObjectBrowserSidebarView {
         let connID = session.connection.id
         let isExpanded = viewModel.securityFolderExpandedBySession[connID] ?? false
 
-        VStack(alignment: .leading, spacing: 0) {
+        VStack(alignment: .leading, spacing: SpacingTokens.xxxs) {
             folderHeaderRow(
                 title: "Security",
                 icon: "lock.shield",
@@ -27,10 +27,324 @@ extension ObjectBrowserSidebarView {
             }
 
             if isExpanded {
-                VStack(alignment: .leading, spacing: 0) {
+                VStack(alignment: .leading, spacing: SpacingTokens.xxxs) {
                     serverSecurityContent(session: session)
                 }
                 .padding(.leading, SidebarRowConstants.indentStep)
+            }
+        }
+    }
+
+    // MARK: - Flat List Row Security (for per-item context menus)
+
+    @ViewBuilder
+    func securityFolderListRows(session: ConnectionSession, baseIndent: CGFloat) -> some View {
+        let connID = session.connection.id
+        let isExpanded = viewModel.securityFolderExpandedBySession[connID] ?? false
+
+        sidebarListRow(leading: baseIndent) {
+            folderHeaderRow(
+                title: "Security",
+                icon: "lock.shield",
+                count: nil,
+                isExpanded: isExpanded
+            ) {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    viewModel.securityFolderExpandedBySession[connID] = !isExpanded
+                }
+                if !isExpanded {
+                    loadServerSecurityIfNeeded(session: session)
+                }
+            }
+            .contextMenu {
+                securityFolderContextMenu(session: session)
+            }
+        }
+
+        if isExpanded {
+            serverSecurityListRows(session: session, baseIndent: baseIndent + SidebarRowConstants.indentStep)
+        }
+    }
+
+    @ViewBuilder
+    private func serverSecurityListRows(session: ConnectionSession, baseIndent: CGFloat) -> some View {
+        let connID = session.connection.id
+        let isLoading = viewModel.securityServerLoadingBySession[connID] ?? false
+        let hasData = !(viewModel.securityLoginsBySession[connID] ?? []).isEmpty
+            || !(viewModel.securityServerRolesBySession[connID] ?? []).isEmpty
+
+        if isLoading && !hasData {
+            sidebarListRow(leading: baseIndent) {
+                securityLoadingRow("Loading security\u{2026}")
+            }
+        }
+
+        switch session.connection.databaseType {
+        case .microsoftSQL:
+            loginsListRows(session: session, baseIndent: baseIndent)
+            serverRolesListRows(session: session, baseIndent: baseIndent)
+            credentialsListRows(session: session, baseIndent: baseIndent)
+        case .postgresql:
+            pgLoginRolesListRows(session: session, baseIndent: baseIndent)
+            pgGroupRolesListRows(session: session, baseIndent: baseIndent)
+        default:
+            EmptyView()
+        }
+    }
+
+    // MARK: - MSSQL Logins (Flat)
+
+    @ViewBuilder
+    private func loginsListRows(session: ConnectionSession, baseIndent: CGFloat) -> some View {
+        let connID = session.connection.id
+        let allLogins = viewModel.securityLoginsBySession[connID] ?? []
+        let standardLogins = allLogins.filter { !Self.certificateLoginTypes.contains($0.loginType) }
+        let certLogins = allLogins.filter { Self.certificateLoginTypes.contains($0.loginType) }
+        let isExpanded = viewModel.securityLoginsExpandedBySession[connID] ?? false
+
+        sidebarListRow(leading: baseIndent) {
+            securitySectionHeader(
+                title: "Logins",
+                icon: "person.2",
+                count: standardLogins.count,
+                isExpanded: isExpanded
+            ) {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    viewModel.securityLoginsExpandedBySession[connID] = !isExpanded
+                }
+            }
+            .contextMenu {
+                Button {
+                    viewModel.securityLoginSheetSessionID = connID
+                    viewModel.securityLoginSheetEditName = nil
+                    viewModel.showSecurityLoginSheet = true
+                } label: {
+                    Label("New Login\u{2026}", systemImage: "plus")
+                }
+                Divider()
+                Button {
+                    loadServerSecurity(session: session)
+                } label: {
+                    Label("Refresh", systemImage: "arrow.clockwise")
+                }
+            }
+        }
+
+        if isExpanded {
+            ForEach(standardLogins) { login in
+                sidebarListRow(leading: baseIndent + SidebarRowConstants.indentStep) {
+                    loginRow(login: login, session: session)
+                }
+            }
+
+            if !certLogins.isEmpty {
+                certificateLoginsListRows(certLogins: certLogins, session: session, baseIndent: baseIndent + SidebarRowConstants.indentStep)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func certificateLoginsListRows(certLogins: [ObjectBrowserSidebarViewModel.SecurityLoginItem], session: ConnectionSession, baseIndent: CGFloat) -> some View {
+        let connID = session.connection.id
+        let isExpanded = viewModel.securityCertLoginsExpandedBySession[connID] ?? false
+
+        sidebarListRow(leading: baseIndent) {
+            securitySectionHeader(
+                title: "Certificate Logins",
+                icon: "doc.badge.lock",
+                count: certLogins.count,
+                isExpanded: isExpanded
+            ) {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    viewModel.securityCertLoginsExpandedBySession[connID] = !isExpanded
+                }
+            }
+        }
+
+        if isExpanded {
+            ForEach(certLogins) { login in
+                sidebarListRow(leading: baseIndent + SidebarRowConstants.indentStep) {
+                    loginRow(login: login, session: session)
+                }
+            }
+        }
+    }
+
+    // MARK: - MSSQL Server Roles (Flat)
+
+    @ViewBuilder
+    private func serverRolesListRows(session: ConnectionSession, baseIndent: CGFloat) -> some View {
+        let connID = session.connection.id
+        let roles = viewModel.securityServerRolesBySession[connID] ?? []
+        let isExpanded = viewModel.securityServerRolesExpandedBySession[connID] ?? false
+
+        sidebarListRow(leading: baseIndent) {
+            securitySectionHeader(
+                title: "Server Roles",
+                icon: "shield.fill",
+                count: roles.count,
+                isExpanded: isExpanded
+            ) {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    viewModel.securityServerRolesExpandedBySession[connID] = !isExpanded
+                }
+            }
+            .contextMenu {
+                Button {
+                    Task { await createMSSQLServerRole(session: session) }
+                } label: {
+                    Label("New Server Role\u{2026}", systemImage: "plus")
+                }
+                Divider()
+                Button {
+                    loadServerSecurity(session: session)
+                } label: {
+                    Label("Refresh", systemImage: "arrow.clockwise")
+                }
+            }
+        }
+
+        if isExpanded {
+            ForEach(roles) { role in
+                sidebarListRow(leading: baseIndent + SidebarRowConstants.indentStep) {
+                    serverRoleRow(role: role, session: session)
+                }
+            }
+        }
+    }
+
+    // MARK: - MSSQL Credentials (Flat)
+
+    @ViewBuilder
+    private func credentialsListRows(session: ConnectionSession, baseIndent: CGFloat) -> some View {
+        let connID = session.connection.id
+        let credentials = viewModel.securityCredentialsBySession[connID] ?? []
+        let isExpanded = viewModel.securityCredentialsExpandedBySession[connID] ?? false
+
+        sidebarListRow(leading: baseIndent) {
+            securitySectionHeader(
+                title: "Credentials",
+                icon: "key",
+                count: credentials.count,
+                isExpanded: isExpanded
+            ) {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    viewModel.securityCredentialsExpandedBySession[connID] = !isExpanded
+                }
+            }
+        }
+
+        if isExpanded {
+            if credentials.isEmpty {
+                sidebarListRow(leading: baseIndent + SidebarRowConstants.indentStep) {
+                    HStack(spacing: SpacingTokens.xs) {
+                        Spacer().frame(width: SidebarRowConstants.chevronWidth)
+                        Text("No credentials found")
+                            .font(TypographyTokens.detail)
+                            .foregroundStyle(ColorTokens.Text.tertiary)
+                    }
+                    .padding(.leading, SidebarRowConstants.rowHorizontalPadding)
+                .padding(.trailing, SidebarRowConstants.rowTrailingPadding)
+                    .padding(.vertical, SidebarRowConstants.rowVerticalPadding)
+                }
+            } else {
+                ForEach(credentials) { credential in
+                    sidebarListRow(leading: baseIndent + SidebarRowConstants.indentStep) {
+                        credentialRow(credential: credential, session: session)
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: - PostgreSQL Login Roles (Flat)
+
+    @ViewBuilder
+    private func pgLoginRolesListRows(session: ConnectionSession, baseIndent: CGFloat) -> some View {
+        let connID = session.connection.id
+        let allRoles = viewModel.securityLoginsBySession[connID] ?? []
+        let loginRoles = allRoles.filter { $0.loginType.contains("Login") || $0.loginType.contains("Superuser") }
+        let isExpanded = viewModel.securityPGLoginRolesExpandedBySession[connID] ?? false
+
+        sidebarListRow(leading: baseIndent) {
+            securitySectionHeader(
+                title: "Login Roles",
+                icon: "person.crop.circle",
+                count: loginRoles.count,
+                isExpanded: isExpanded
+            ) {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    viewModel.securityPGLoginRolesExpandedBySession[connID] = !isExpanded
+                }
+            }
+            .contextMenu {
+                Button {
+                    viewModel.securityPGRoleSheetSessionID = connID
+                    viewModel.securityPGRoleSheetEditName = nil
+                    viewModel.showSecurityPGRoleSheet = true
+                } label: {
+                    Label("New Login Role\u{2026}", systemImage: "plus")
+                }
+                Divider()
+                Button {
+                    loadServerSecurity(session: session)
+                } label: {
+                    Label("Refresh", systemImage: "arrow.clockwise")
+                }
+            }
+        }
+
+        if isExpanded {
+            ForEach(loginRoles) { role in
+                sidebarListRow(leading: baseIndent + SidebarRowConstants.indentStep) {
+                    pgRoleRow(role: role, session: session)
+                }
+            }
+        }
+    }
+
+    // MARK: - PostgreSQL Group Roles (Flat)
+
+    @ViewBuilder
+    private func pgGroupRolesListRows(session: ConnectionSession, baseIndent: CGFloat) -> some View {
+        let connID = session.connection.id
+        let allRoles = viewModel.securityLoginsBySession[connID] ?? []
+        let groupRoles = allRoles.filter { $0.loginType == "Group Role" }
+        let isExpanded = viewModel.securityPGGroupRolesExpandedBySession[connID] ?? false
+
+        sidebarListRow(leading: baseIndent) {
+            securitySectionHeader(
+                title: "Group Roles",
+                icon: "person.2.circle",
+                count: groupRoles.count,
+                isExpanded: isExpanded
+            ) {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    viewModel.securityPGGroupRolesExpandedBySession[connID] = !isExpanded
+                }
+            }
+            .contextMenu {
+                Button {
+                    viewModel.securityPGRoleSheetSessionID = connID
+                    viewModel.securityPGRoleSheetEditName = nil
+                    viewModel.showSecurityPGRoleSheet = true
+                } label: {
+                    Label("New Group Role\u{2026}", systemImage: "plus")
+                }
+                Divider()
+                Button {
+                    loadServerSecurity(session: session)
+                } label: {
+                    Label("Refresh", systemImage: "arrow.clockwise")
+                }
+            }
+        }
+
+        if isExpanded {
+            ForEach(groupRoles) { role in
+                sidebarListRow(leading: baseIndent + SidebarRowConstants.indentStep) {
+                    pgRoleRow(role: role, session: session)
+                }
             }
         }
     }
@@ -84,14 +398,18 @@ extension ObjectBrowserSidebarView {
                 }
             }
             .contextMenu {
-                Button("New Login\u{2026}") {
+                Button {
                     viewModel.securityLoginSheetSessionID = connID
                     viewModel.securityLoginSheetEditName = nil
                     viewModel.showSecurityLoginSheet = true
+                } label: {
+                    Label("New Login\u{2026}", systemImage: "plus")
                 }
                 Divider()
-                Button("Refresh") {
+                Button {
                     loadServerSecurity(session: session)
+                } label: {
+                    Label("Refresh", systemImage: "arrow.clockwise")
                 }
             }
 
@@ -141,12 +459,12 @@ extension ObjectBrowserSidebarView {
     }
 
     private func loginRow(login: ObjectBrowserSidebarViewModel.SecurityLoginItem, session: ConnectionSession) -> some View {
-        HStack(spacing: 8) {
+        HStack(spacing: SidebarRowConstants.iconTextSpacing) {
             Spacer().frame(width: SidebarRowConstants.chevronWidth)
 
             Image(systemName: login.isDisabled ? "person.crop.circle.badge.xmark" : "person.crop.circle")
-                .font(.system(size: 12))
-                .foregroundStyle(login.isDisabled ? Color(nsColor: .quaternaryLabelColor) : Color(nsColor: .tertiaryLabelColor))
+                .font(SidebarRowConstants.iconFont)
+                .foregroundStyle(login.isDisabled ? Color(nsColor: .quaternaryLabelColor) : ExplorerSidebarPalette.security)
                 .frame(width: SidebarRowConstants.iconFrame)
 
             Text(login.name)
@@ -154,59 +472,73 @@ extension ObjectBrowserSidebarView {
                 .foregroundStyle(login.isDisabled ? .secondary : .primary)
                 .lineLimit(1)
 
-            Spacer(minLength: 4)
+            Spacer(minLength: SpacingTokens.xxxs)
 
             Text(login.loginType)
-                .font(TypographyTokens.label)
-                .foregroundStyle(.tertiary)
+                .font(TypographyTokens.caption2)
+                .foregroundStyle(ColorTokens.Text.tertiary)
 
             if login.isDisabled {
                 Text("Disabled")
-                    .font(TypographyTokens.compact)
-                    .foregroundStyle(.quaternary)
-                    .padding(.horizontal, 5)
-                    .padding(.vertical, 1)
-                    .background(
-                        RoundedRectangle(cornerRadius: 3, style: .continuous)
-                            .fill(Color.primary.opacity(0.04))
-                    )
+                    .font(TypographyTokens.label)
+                    .foregroundStyle(ColorTokens.Text.quaternary)
             }
         }
-        .padding(.horizontal, SidebarRowConstants.rowHorizontalPadding)
+        .padding(.leading, SidebarRowConstants.rowHorizontalPadding)
+                .padding(.trailing, SidebarRowConstants.rowTrailingPadding)
         .padding(.vertical, SidebarRowConstants.rowVerticalPadding)
         .contentShape(Rectangle())
         .contextMenu {
-            Button("Script as CREATE") {
-                let sql: String
-                if login.loginType == "SQL" {
-                    sql = "CREATE LOGIN [\(login.name)] WITH PASSWORD = N'<password>';"
-                } else {
-                    sql = "CREATE LOGIN [\(login.name)] FROM WINDOWS;"
-                }
-                openScriptTab(sql: sql, session: session)
-            }
-            Button("Script as DROP") {
-                openScriptTab(sql: "DROP LOGIN [\(login.name)];", session: session)
-            }
-            Divider()
             if login.isDisabled {
-                Button("Enable Login") {
+                Button {
                     Task { await enableMSSQLLogin(name: login.name, enabled: true, session: session) }
+                } label: {
+                    Label("Enable Login", systemImage: "checkmark.circle")
                 }
             } else {
-                Button("Disable Login") {
+                Button {
                     Task { await enableMSSQLLogin(name: login.name, enabled: false, session: session) }
+                } label: {
+                    Label("Disable Login", systemImage: "nosign")
                 }
             }
             Divider()
-            Button("Drop Login", role: .destructive) {
-                Task { await dropMSSQLLogin(name: login.name, session: session) }
+            Button(role: .destructive) {
+                viewModel.dropSecurityPrincipalTarget = .init(
+                    sessionID: session.id,
+                    connectionID: session.connection.id,
+                    name: login.name,
+                    kind: .mssqlLogin,
+                    databaseName: nil
+                )
+                viewModel.showDropSecurityPrincipalAlert = true
+            } label: {
+                Label("Drop Login", systemImage: "trash")
             }
             Divider()
-            Button("Properties\u{2026}") {
+            Menu {
+                Button("CREATE") {
+                    let sql: String
+                    if login.loginType == "SQL" {
+                        sql = "CREATE LOGIN [\(login.name)] WITH PASSWORD = N'<password>';"
+                    } else {
+                        sql = "CREATE LOGIN [\(login.name)] FROM WINDOWS;"
+                    }
+                    openScriptTab(sql: sql, session: session)
+                }
+                Button("DROP") {
+                    openScriptTab(sql: "DROP LOGIN [\(login.name)];", session: session)
+                }
+            } label: {
+                Label("Script as", systemImage: "scroll")
+            }
+            Divider()
+            Button {
                 viewModel.securityLoginSheetSessionID = session.connection.id
                 viewModel.securityLoginSheetEditName = login.name
                 viewModel.showSecurityLoginSheet = true
+            } label: {
+                Label("Properties\u{2026}", systemImage: "info.circle")
             }
         }
     }
@@ -222,7 +554,7 @@ extension ObjectBrowserSidebarView {
         VStack(alignment: .leading, spacing: 0) {
             securitySectionHeader(
                 title: "Server Roles",
-                icon: "shield.lefthalf.filled",
+                icon: "shield.fill",
                 count: roles.count,
                 isExpanded: isExpanded
             ) {
@@ -231,12 +563,16 @@ extension ObjectBrowserSidebarView {
                 }
             }
             .contextMenu {
-                Button("New Server Role\u{2026}") {
+                Button {
                     Task { await createMSSQLServerRole(session: session) }
+                } label: {
+                    Label("New Server Role\u{2026}", systemImage: "plus")
                 }
                 Divider()
-                Button("Refresh") {
+                Button {
                     loadServerSecurity(session: session)
+                } label: {
+                    Label("Refresh", systemImage: "arrow.clockwise")
                 }
             }
 
@@ -252,51 +588,33 @@ extension ObjectBrowserSidebarView {
     }
 
     private func serverRoleRow(role: ObjectBrowserSidebarViewModel.SecurityServerRoleItem, session: ConnectionSession) -> some View {
-        HStack(spacing: 8) {
+        HStack(spacing: SidebarRowConstants.iconTextSpacing) {
             Spacer().frame(width: SidebarRowConstants.chevronWidth)
 
             Image(systemName: role.isFixed ? "shield.lefthalf.filled" : "shield")
-                .font(.system(size: 12))
-                .foregroundStyle(Color(nsColor: .tertiaryLabelColor))
+                .font(SidebarRowConstants.iconFont)
+                .foregroundStyle(ExplorerSidebarPalette.security)
                 .frame(width: SidebarRowConstants.iconFrame)
 
             Text(role.name)
                 .font(TypographyTokens.standard)
-                .foregroundStyle(.primary)
+                .foregroundStyle(ColorTokens.Text.primary)
                 .lineLimit(1)
 
-            Spacer(minLength: 4)
+            Spacer(minLength: SpacingTokens.xxxs)
 
             if role.isFixed {
                 Text("Fixed")
-                    .font(TypographyTokens.compact)
-                    .foregroundStyle(.quaternary)
-                    .padding(.horizontal, 5)
-                    .padding(.vertical, 1)
-                    .background(
-                        RoundedRectangle(cornerRadius: 3, style: .continuous)
-                            .fill(Color.primary.opacity(0.04))
-                    )
+                    .font(TypographyTokens.label)
+                    .foregroundStyle(ColorTokens.Text.quaternary)
             }
         }
-        .padding(.horizontal, SidebarRowConstants.rowHorizontalPadding)
+        .padding(.leading, SidebarRowConstants.rowHorizontalPadding)
+                .padding(.trailing, SidebarRowConstants.rowTrailingPadding)
         .padding(.vertical, SidebarRowConstants.rowVerticalPadding)
         .contentShape(Rectangle())
         .contextMenu {
-            if !role.isFixed {
-                Button("Script as CREATE") {
-                    openScriptTab(sql: "CREATE SERVER ROLE [\(role.name)];", session: session)
-                }
-                Button("Script as DROP") {
-                    openScriptTab(sql: "DROP SERVER ROLE [\(role.name)];", session: session)
-                }
-                Divider()
-                Button("Drop Server Role", role: .destructive) {
-                    Task { await dropMSSQLServerRole(name: role.name, session: session) }
-                }
-                Divider()
-            }
-            Button("List Members") {
+            Button {
                 openScriptTab(
                     sql: """
                     SELECT m.name AS member_name, m.type_desc
@@ -307,6 +625,34 @@ extension ObjectBrowserSidebarView {
                     """,
                     session: session
                 )
+            } label: {
+                Label("List Members", systemImage: "person.2")
+            }
+            if !role.isFixed {
+                Divider()
+                Button(role: .destructive) {
+                    viewModel.dropSecurityPrincipalTarget = .init(
+                        sessionID: session.id,
+                        connectionID: session.connection.id,
+                        name: role.name,
+                        kind: .mssqlServerRole,
+                        databaseName: nil
+                    )
+                    viewModel.showDropSecurityPrincipalAlert = true
+                } label: {
+                    Label("Drop Server Role", systemImage: "trash")
+                }
+                Divider()
+                Menu {
+                    Button("CREATE") {
+                        openScriptTab(sql: "CREATE SERVER ROLE [\(role.name)];", session: session)
+                    }
+                    Button("DROP") {
+                        openScriptTab(sql: "DROP SERVER ROLE [\(role.name)];", session: session)
+                    }
+                } label: {
+                    Label("Script as", systemImage: "scroll")
+                }
             }
         }
     }
@@ -334,13 +680,14 @@ extension ObjectBrowserSidebarView {
             if isExpanded {
                 VStack(alignment: .leading, spacing: 0) {
                     if credentials.isEmpty {
-                        HStack(spacing: 8) {
+                        HStack(spacing: SpacingTokens.xs) {
                             Spacer().frame(width: SidebarRowConstants.chevronWidth)
                             Text("No credentials found")
                                 .font(TypographyTokens.detail)
-                                .foregroundStyle(.tertiary)
+                                .foregroundStyle(ColorTokens.Text.tertiary)
                         }
-                        .padding(.horizontal, SidebarRowConstants.rowHorizontalPadding)
+                        .padding(.leading, SidebarRowConstants.rowHorizontalPadding)
+                .padding(.trailing, SidebarRowConstants.rowTrailingPadding)
                         .padding(.vertical, SidebarRowConstants.rowVerticalPadding)
                     } else {
                         ForEach(credentials) { credential in
@@ -354,38 +701,43 @@ extension ObjectBrowserSidebarView {
     }
 
     private func credentialRow(credential: ObjectBrowserSidebarViewModel.SecurityCredentialItem, session: ConnectionSession) -> some View {
-        HStack(spacing: 8) {
+        HStack(spacing: SidebarRowConstants.iconTextSpacing) {
             Spacer().frame(width: SidebarRowConstants.chevronWidth)
 
             Image(systemName: "key")
-                .font(.system(size: 12))
-                .foregroundStyle(Color(nsColor: .tertiaryLabelColor))
+                .font(SidebarRowConstants.iconFont)
+                .foregroundStyle(ExplorerSidebarPalette.security)
                 .frame(width: SidebarRowConstants.iconFrame)
 
             Text(credential.name)
                 .font(TypographyTokens.standard)
-                .foregroundStyle(.primary)
+                .foregroundStyle(ColorTokens.Text.primary)
                 .lineLimit(1)
 
-            Spacer(minLength: 4)
+            Spacer(minLength: SpacingTokens.xxxs)
 
             Text(credential.identity)
-                .font(TypographyTokens.label)
-                .foregroundStyle(.tertiary)
+                .font(TypographyTokens.caption2)
+                .foregroundStyle(ColorTokens.Text.tertiary)
                 .lineLimit(1)
         }
-        .padding(.horizontal, SidebarRowConstants.rowHorizontalPadding)
+        .padding(.leading, SidebarRowConstants.rowHorizontalPadding)
+                .padding(.trailing, SidebarRowConstants.rowTrailingPadding)
         .padding(.vertical, SidebarRowConstants.rowVerticalPadding)
         .contentShape(Rectangle())
         .contextMenu {
-            Button("Script as CREATE") {
-                openScriptTab(
-                    sql: "CREATE CREDENTIAL [\(credential.name)] WITH IDENTITY = N'\(credential.identity)', SECRET = N'<secret>';",
-                    session: session
-                )
-            }
-            Button("Script as DROP") {
-                openScriptTab(sql: "DROP CREDENTIAL [\(credential.name)];", session: session)
+            Menu {
+                Button("CREATE") {
+                    openScriptTab(
+                        sql: "CREATE CREDENTIAL [\(credential.name)] WITH IDENTITY = N'\(credential.identity)', SECRET = N'<secret>';",
+                        session: session
+                    )
+                }
+                Button("DROP") {
+                    openScriptTab(sql: "DROP CREDENTIAL [\(credential.name)];", session: session)
+                }
+            } label: {
+                Label("Script as", systemImage: "scroll")
             }
         }
     }
@@ -411,14 +763,18 @@ extension ObjectBrowserSidebarView {
                 }
             }
             .contextMenu {
-                Button("New Login Role\u{2026}") {
+                Button {
                     viewModel.securityPGRoleSheetSessionID = connID
                     viewModel.securityPGRoleSheetEditName = nil
                     viewModel.showSecurityPGRoleSheet = true
+                } label: {
+                    Label("New Login Role\u{2026}", systemImage: "plus")
                 }
                 Divider()
-                Button("Refresh") {
+                Button {
                     loadServerSecurity(session: session)
+                } label: {
+                    Label("Refresh", systemImage: "arrow.clockwise")
                 }
             }
 
@@ -455,14 +811,18 @@ extension ObjectBrowserSidebarView {
                 }
             }
             .contextMenu {
-                Button("New Group Role\u{2026}") {
+                Button {
                     viewModel.securityPGRoleSheetSessionID = connID
                     viewModel.securityPGRoleSheetEditName = nil
                     viewModel.showSecurityPGRoleSheet = true
+                } label: {
+                    Label("New Group Role\u{2026}", systemImage: "plus")
                 }
                 Divider()
-                Button("Refresh") {
+                Button {
                     loadServerSecurity(session: session)
+                } label: {
+                    Label("Refresh", systemImage: "arrow.clockwise")
                 }
             }
 
@@ -478,48 +838,66 @@ extension ObjectBrowserSidebarView {
     }
 
     private func pgRoleRow(role: ObjectBrowserSidebarViewModel.SecurityLoginItem, session: ConnectionSession) -> some View {
-        HStack(spacing: 8) {
+        HStack(spacing: SidebarRowConstants.iconTextSpacing) {
             Spacer().frame(width: SidebarRowConstants.chevronWidth)
 
             Image(systemName: role.loginType.contains("Login") || role.loginType.contains("Superuser") ? "person.crop.circle" : "person.2.circle")
-                .font(.system(size: 12))
-                .foregroundStyle(Color(nsColor: .tertiaryLabelColor))
+                .font(SidebarRowConstants.iconFont)
+                .foregroundStyle(ExplorerSidebarPalette.security)
                 .frame(width: SidebarRowConstants.iconFrame)
 
             Text(role.name)
                 .font(TypographyTokens.standard)
-                .foregroundStyle(.primary)
+                .foregroundStyle(ColorTokens.Text.primary)
                 .lineLimit(1)
 
-            Spacer(minLength: 4)
+            Spacer(minLength: SpacingTokens.xxxs)
 
             Text(role.loginType)
-                .font(TypographyTokens.label)
-                .foregroundStyle(.tertiary)
+                .font(TypographyTokens.caption2)
+                .foregroundStyle(ColorTokens.Text.tertiary)
         }
-        .padding(.horizontal, SidebarRowConstants.rowHorizontalPadding)
+        .padding(.leading, SidebarRowConstants.rowHorizontalPadding)
+                .padding(.trailing, SidebarRowConstants.rowTrailingPadding)
         .padding(.vertical, SidebarRowConstants.rowVerticalPadding)
         .contentShape(Rectangle())
         .contextMenu {
-            Button("Script as CREATE") {
-                let loginAttr = role.loginType.contains("Login") || role.loginType.contains("Superuser") ? " LOGIN" : ""
-                openScriptTab(sql: "CREATE ROLE \"\(role.name)\"\(loginAttr);", session: session)
-            }
-            Button("Script as DROP") {
-                openScriptTab(sql: "DROP ROLE \"\(role.name)\";", session: session)
-            }
-            Divider()
-            Button("Reassign Owned Objects\u{2026}") {
+            Button {
                 Task { await reassignPGRole(name: role.name, session: session) }
+            } label: {
+                Label("Reassign Owned Objects\u{2026}", systemImage: "arrow.triangle.swap")
             }
-            Button("Drop Role", role: .destructive) {
-                Task { await dropPGRole(name: role.name, session: session) }
+            Button(role: .destructive) {
+                viewModel.dropSecurityPrincipalTarget = .init(
+                    sessionID: session.id,
+                    connectionID: session.connection.id,
+                    name: role.name,
+                    kind: .pgRole,
+                    databaseName: nil
+                )
+                viewModel.showDropSecurityPrincipalAlert = true
+            } label: {
+                Label("Drop Role", systemImage: "trash")
             }
             Divider()
-            Button("Properties\u{2026}") {
+            Menu {
+                Button("CREATE") {
+                    let loginAttr = role.loginType.contains("Login") || role.loginType.contains("Superuser") ? " LOGIN" : ""
+                    openScriptTab(sql: "CREATE ROLE \"\(role.name)\"\(loginAttr);", session: session)
+                }
+                Button("DROP") {
+                    openScriptTab(sql: "DROP ROLE \"\(role.name)\";", session: session)
+                }
+            } label: {
+                Label("Script as", systemImage: "scroll")
+            }
+            Divider()
+            Button {
                 viewModel.securityPGRoleSheetSessionID = session.connection.id
                 viewModel.securityPGRoleSheetEditName = role.name
                 viewModel.showSecurityPGRoleSheet = true
+            } label: {
+                Label("Properties\u{2026}", systemImage: "info.circle")
             }
         }
     }
@@ -533,9 +911,9 @@ extension ObjectBrowserSidebarView {
         let isExpanded = viewModel.dbSecurityExpandedByDB[dbKey] ?? false
 
         VStack(alignment: .leading, spacing: 0) {
-            securitySectionHeader(
+            folderHeaderRow(
                 title: "Security",
-                icon: "lock.shield",
+                icon: "shield.fill",
                 count: nil,
                 isExpanded: isExpanded
             ) {
@@ -619,43 +997,34 @@ extension ObjectBrowserSidebarView {
     }
 
     private func dbUserRow(user: ObjectBrowserSidebarViewModel.SecurityUserItem, session: ConnectionSession, databaseName: String) -> some View {
-        HStack(spacing: 8) {
+        HStack(spacing: SidebarRowConstants.iconTextSpacing) {
             Spacer().frame(width: SidebarRowConstants.chevronWidth)
 
             Image(systemName: "person.fill")
-                .font(.system(size: 12))
-                .foregroundStyle(Color(nsColor: .tertiaryLabelColor))
+                .font(SidebarRowConstants.iconFont)
+                .foregroundStyle(ExplorerSidebarPalette.security)
                 .frame(width: SidebarRowConstants.iconFrame)
 
             Text(user.name)
                 .font(TypographyTokens.standard)
-                .foregroundStyle(.primary)
+                .foregroundStyle(ColorTokens.Text.primary)
                 .lineLimit(1)
 
-            Spacer(minLength: 4)
+            Spacer(minLength: SpacingTokens.xxxs)
 
             if let schema = user.defaultSchema, !schema.isEmpty {
                 Text(schema)
-                    .font(TypographyTokens.label)
-                    .foregroundStyle(.tertiary)
+                    .font(TypographyTokens.caption2)
+                    .foregroundStyle(ColorTokens.Text.tertiary)
                     .lineLimit(1)
             }
         }
-        .padding(.horizontal, SidebarRowConstants.rowHorizontalPadding)
+        .padding(.leading, SidebarRowConstants.rowHorizontalPadding)
+                .padding(.trailing, SidebarRowConstants.rowTrailingPadding)
         .padding(.vertical, SidebarRowConstants.rowVerticalPadding)
         .contentShape(Rectangle())
         .contextMenu {
-            Button("Script as CREATE") {
-                openScriptTab(
-                    sql: "CREATE USER [\(user.name)] FOR LOGIN [\(user.name)]\(user.defaultSchema.map { " WITH DEFAULT_SCHEMA = [\($0)]" } ?? "");",
-                    session: session
-                )
-            }
-            Button("Script as DROP") {
-                openScriptTab(sql: "DROP USER [\(user.name)];", session: session)
-            }
-            Divider()
-            Button("List Role Memberships") {
+            Button {
                 openScriptTab(
                     sql: """
                     SELECT dp.name AS role_name
@@ -666,8 +1035,10 @@ extension ObjectBrowserSidebarView {
                     """,
                     session: session
                 )
+            } label: {
+                Label("List Role Memberships", systemImage: "person.2")
             }
-            Button("Show Permissions") {
+            Button {
                 openScriptTab(
                     sql: """
                     SELECT perm.state_desc, perm.permission_name,
@@ -681,17 +1052,44 @@ extension ObjectBrowserSidebarView {
                     """,
                     session: session
                 )
+            } label: {
+                Label("Show Permissions", systemImage: "lock.shield")
             }
             Divider()
-            Button("Drop User", role: .destructive) {
-                Task { await dropMSSQLUser(name: user.name, database: databaseName, session: session) }
+            Button(role: .destructive) {
+                viewModel.dropSecurityPrincipalTarget = .init(
+                    sessionID: session.id,
+                    connectionID: session.connection.id,
+                    name: user.name,
+                    kind: .mssqlUser,
+                    databaseName: databaseName
+                )
+                viewModel.showDropSecurityPrincipalAlert = true
+            } label: {
+                Label("Drop User", systemImage: "trash")
             }
             Divider()
-            Button("Properties\u{2026}") {
+            Menu {
+                Button("CREATE") {
+                    openScriptTab(
+                        sql: "CREATE USER [\(user.name)] FOR LOGIN [\(user.name)]\(user.defaultSchema.map { " WITH DEFAULT_SCHEMA = [\($0)]" } ?? "");",
+                        session: session
+                    )
+                }
+                Button("DROP") {
+                    openScriptTab(sql: "DROP USER [\(user.name)];", session: session)
+                }
+            } label: {
+                Label("Script as", systemImage: "scroll")
+            }
+            Divider()
+            Button {
                 viewModel.securityUserSheetSessionID = session.connection.id
                 viewModel.securityUserSheetDatabaseName = databaseName
                 viewModel.securityUserSheetEditName = user.name
                 viewModel.showSecurityUserSheet = true
+            } label: {
+                Label("Properties\u{2026}", systemImage: "info.circle")
             }
         }
     }
@@ -706,7 +1104,7 @@ extension ObjectBrowserSidebarView {
         VStack(alignment: .leading, spacing: 0) {
             securitySectionHeader(
                 title: "Database Roles",
-                icon: "shield.lefthalf.filled",
+                icon: "shield.fill",
                 count: roles.count,
                 isExpanded: isExpanded
             ) {
@@ -727,47 +1125,33 @@ extension ObjectBrowserSidebarView {
     }
 
     private func dbRoleRow(role: ObjectBrowserSidebarViewModel.SecurityDatabaseRoleItem, session: ConnectionSession) -> some View {
-        HStack(spacing: 8) {
+        HStack(spacing: SidebarRowConstants.iconTextSpacing) {
             Spacer().frame(width: SidebarRowConstants.chevronWidth)
 
             Image(systemName: role.isFixed ? "shield.lefthalf.filled" : "shield")
-                .font(.system(size: 12))
-                .foregroundStyle(Color(nsColor: .tertiaryLabelColor))
+                .font(SidebarRowConstants.iconFont)
+                .foregroundStyle(ExplorerSidebarPalette.security)
                 .frame(width: SidebarRowConstants.iconFrame)
 
             Text(role.name)
                 .font(TypographyTokens.standard)
-                .foregroundStyle(.primary)
+                .foregroundStyle(ColorTokens.Text.primary)
                 .lineLimit(1)
 
-            Spacer(minLength: 4)
+            Spacer(minLength: SpacingTokens.xxxs)
 
             if role.isFixed {
                 Text("Fixed")
-                    .font(TypographyTokens.compact)
-                    .foregroundStyle(.quaternary)
-                    .padding(.horizontal, 5)
-                    .padding(.vertical, 1)
-                    .background(
-                        RoundedRectangle(cornerRadius: 3, style: .continuous)
-                            .fill(Color.primary.opacity(0.04))
-                    )
+                    .font(TypographyTokens.label)
+                    .foregroundStyle(ColorTokens.Text.quaternary)
             }
         }
-        .padding(.horizontal, SidebarRowConstants.rowHorizontalPadding)
+        .padding(.leading, SidebarRowConstants.rowHorizontalPadding)
+                .padding(.trailing, SidebarRowConstants.rowTrailingPadding)
         .padding(.vertical, SidebarRowConstants.rowVerticalPadding)
         .contentShape(Rectangle())
         .contextMenu {
-            if !role.isFixed {
-                Button("Script as CREATE") {
-                    openScriptTab(sql: "CREATE ROLE [\(role.name)];", session: session)
-                }
-                Button("Script as DROP") {
-                    openScriptTab(sql: "DROP ROLE [\(role.name)];", session: session)
-                }
-                Divider()
-            }
-            Button("List Members") {
+            Button {
                 openScriptTab(
                     sql: """
                     SELECT mp.name AS member_name, mp.type_desc
@@ -778,6 +1162,21 @@ extension ObjectBrowserSidebarView {
                     """,
                     session: session
                 )
+            } label: {
+                Label("List Members", systemImage: "person.2")
+            }
+            if !role.isFixed {
+                Divider()
+                Menu {
+                    Button("CREATE") {
+                        openScriptTab(sql: "CREATE ROLE [\(role.name)];", session: session)
+                    }
+                    Button("DROP") {
+                        openScriptTab(sql: "DROP ROLE [\(role.name)];", session: session)
+                    }
+                } label: {
+                    Label("Script as", systemImage: "scroll")
+                }
             }
         }
     }
@@ -813,40 +1212,45 @@ extension ObjectBrowserSidebarView {
     }
 
     private func dbAppRoleRow(appRole: ObjectBrowserSidebarViewModel.SecurityAppRoleItem, session: ConnectionSession) -> some View {
-        HStack(spacing: 8) {
+        HStack(spacing: SidebarRowConstants.iconTextSpacing) {
             Spacer().frame(width: SidebarRowConstants.chevronWidth)
 
             Image(systemName: "app.badge")
-                .font(.system(size: 12))
-                .foregroundStyle(Color(nsColor: .tertiaryLabelColor))
+                .font(SidebarRowConstants.iconFont)
+                .foregroundStyle(ExplorerSidebarPalette.security)
                 .frame(width: SidebarRowConstants.iconFrame)
 
             Text(appRole.name)
                 .font(TypographyTokens.standard)
-                .foregroundStyle(.primary)
+                .foregroundStyle(ColorTokens.Text.primary)
                 .lineLimit(1)
 
-            Spacer(minLength: 4)
+            Spacer(minLength: SpacingTokens.xxxs)
 
             if let schema = appRole.defaultSchema, !schema.isEmpty {
                 Text(schema)
-                    .font(TypographyTokens.label)
-                    .foregroundStyle(.tertiary)
+                    .font(TypographyTokens.caption2)
+                    .foregroundStyle(ColorTokens.Text.tertiary)
                     .lineLimit(1)
             }
         }
-        .padding(.horizontal, SidebarRowConstants.rowHorizontalPadding)
+        .padding(.leading, SidebarRowConstants.rowHorizontalPadding)
+                .padding(.trailing, SidebarRowConstants.rowTrailingPadding)
         .padding(.vertical, SidebarRowConstants.rowVerticalPadding)
         .contentShape(Rectangle())
         .contextMenu {
-            Button("Script as CREATE") {
-                openScriptTab(
-                    sql: "CREATE APPLICATION ROLE [\(appRole.name)] WITH PASSWORD = N'<password>'\(appRole.defaultSchema.map { ", DEFAULT_SCHEMA = [\($0)]" } ?? "");",
-                    session: session
-                )
-            }
-            Button("Script as DROP") {
-                openScriptTab(sql: "DROP APPLICATION ROLE [\(appRole.name)];", session: session)
+            Menu {
+                Button("CREATE") {
+                    openScriptTab(
+                        sql: "CREATE APPLICATION ROLE [\(appRole.name)] WITH PASSWORD = N'<password>'\(appRole.defaultSchema.map { ", DEFAULT_SCHEMA = [\($0)]" } ?? "");",
+                        session: session
+                    )
+                }
+                Button("DROP") {
+                    openScriptTab(sql: "DROP APPLICATION ROLE [\(appRole.name)];", session: session)
+                }
+            } label: {
+                Label("Script as", systemImage: "scroll")
             }
         }
     }
@@ -882,51 +1286,34 @@ extension ObjectBrowserSidebarView {
     }
 
     private func dbSchemaRow(schema: ObjectBrowserSidebarViewModel.SecuritySchemaItem, session: ConnectionSession) -> some View {
-        HStack(spacing: 8) {
+        HStack(spacing: SidebarRowConstants.iconTextSpacing) {
             Spacer().frame(width: SidebarRowConstants.chevronWidth)
 
             Image(systemName: "folder")
-                .font(.system(size: 12))
-                .foregroundStyle(Color(nsColor: .tertiaryLabelColor))
+                .font(SidebarRowConstants.iconFont)
+                .foregroundStyle(ExplorerSidebarPalette.security)
                 .frame(width: SidebarRowConstants.iconFrame)
 
             Text(schema.name)
                 .font(TypographyTokens.standard)
-                .foregroundStyle(.primary)
+                .foregroundStyle(ColorTokens.Text.primary)
                 .lineLimit(1)
 
-            Spacer(minLength: 4)
+            Spacer(minLength: SpacingTokens.xxxs)
 
             if let owner = schema.owner, !owner.isEmpty {
                 Text(owner)
-                    .font(TypographyTokens.label)
-                    .foregroundStyle(.tertiary)
+                    .font(TypographyTokens.caption2)
+                    .foregroundStyle(ColorTokens.Text.tertiary)
                     .lineLimit(1)
             }
         }
-        .padding(.horizontal, SidebarRowConstants.rowHorizontalPadding)
+        .padding(.leading, SidebarRowConstants.rowHorizontalPadding)
+                .padding(.trailing, SidebarRowConstants.rowTrailingPadding)
         .padding(.vertical, SidebarRowConstants.rowVerticalPadding)
         .contentShape(Rectangle())
         .contextMenu {
-            if session.connection.databaseType == .microsoftSQL {
-                Button("Script as CREATE") {
-                    let auth = schema.owner.map { " AUTHORIZATION [\($0)]" } ?? ""
-                    openScriptTab(sql: "CREATE SCHEMA [\(schema.name)]\(auth);", session: session)
-                }
-                Button("Script as DROP") {
-                    openScriptTab(sql: "DROP SCHEMA [\(schema.name)];", session: session)
-                }
-            } else if session.connection.databaseType == .postgresql {
-                Button("Script as CREATE") {
-                    let auth = schema.owner.map { " AUTHORIZATION \"\($0)\"" } ?? ""
-                    openScriptTab(sql: "CREATE SCHEMA \"\(schema.name)\"\(auth);", session: session)
-                }
-                Button("Script as DROP") {
-                    openScriptTab(sql: "DROP SCHEMA \"\(schema.name)\" CASCADE;", session: session)
-                }
-            }
-            Divider()
-            Button("Show Privileges") {
+            Button {
                 if session.connection.databaseType == .microsoftSQL {
                     openScriptTab(
                         sql: """
@@ -954,55 +1341,93 @@ extension ObjectBrowserSidebarView {
                         session: session
                     )
                 }
+            } label: {
+                Label("Show Privileges", systemImage: "lock.shield")
             }
+            Divider()
+            Menu {
+                if session.connection.databaseType == .microsoftSQL {
+                    Button("CREATE") {
+                        let auth = schema.owner.map { " AUTHORIZATION [\($0)]" } ?? ""
+                        openScriptTab(sql: "CREATE SCHEMA [\(schema.name)]\(auth);", session: session)
+                    }
+                    Button("DROP") {
+                        openScriptTab(sql: "DROP SCHEMA [\(schema.name)];", session: session)
+                    }
+                } else if session.connection.databaseType == .postgresql {
+                    Button("CREATE") {
+                        let auth = schema.owner.map { " AUTHORIZATION \"\($0)\"" } ?? ""
+                        openScriptTab(sql: "CREATE SCHEMA \"\(schema.name)\"\(auth);", session: session)
+                    }
+                    Button("DROP") {
+                        openScriptTab(sql: "DROP SCHEMA \"\(schema.name)\" CASCADE;", session: session)
+                    }
+                }
+            } label: {
+                Label("Script as", systemImage: "scroll")
+            }
+        }
+    }
+
+    // MARK: - Security Folder Context Menu
+
+    @ViewBuilder
+    private func securityFolderContextMenu(session: ConnectionSession) -> some View {
+        let connID = session.connection.id
+        switch session.connection.databaseType {
+        case .microsoftSQL:
+            Button {
+                viewModel.securityLoginSheetSessionID = connID
+                viewModel.securityLoginSheetEditName = nil
+                viewModel.showSecurityLoginSheet = true
+            } label: {
+                Label("New Login\u{2026}", systemImage: "plus")
+            }
+        case .postgresql:
+            Button {
+                viewModel.securityPGRoleSheetSessionID = connID
+                viewModel.securityPGRoleSheetEditName = nil
+                viewModel.showSecurityPGRoleSheet = true
+            } label: {
+                Label("New Login Role\u{2026}", systemImage: "plus")
+            }
+            Button {
+                viewModel.securityPGRoleSheetSessionID = connID
+                viewModel.securityPGRoleSheetEditName = nil
+                viewModel.showSecurityPGRoleSheet = true
+            } label: {
+                Label("New Group Role\u{2026}", systemImage: "plus")
+            }
+        default:
+            EmptyView()
+        }
+
+        Divider()
+
+        Button {
+            loadServerSecurity(session: session)
+        } label: {
+            Label("Refresh", systemImage: "arrow.clockwise")
         }
     }
 
     // MARK: - Shared UI Helpers
 
     func securitySectionHeader(title: String, icon: String, count: Int?, isExpanded: Bool, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            HStack(spacing: 8) {
-                Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
-                    .font(SidebarRowConstants.chevronFont)
-                    .foregroundStyle(.tertiary)
-                    .frame(width: SidebarRowConstants.chevronWidth)
-
-                Image(systemName: icon)
-                    .font(.system(size: 12))
-                    .foregroundStyle(.secondary)
-                    .frame(width: SidebarRowConstants.iconFrame)
-
-                Text(title)
-                    .font(TypographyTokens.standard)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-
-                if let count, count > 0 {
-                    Text("\(count)")
-                        .font(TypographyTokens.label)
-                        .foregroundStyle(.tertiary)
-                }
-
-                Spacer(minLength: 4)
-            }
-            .padding(.horizontal, SidebarRowConstants.rowHorizontalPadding)
-            .padding(.vertical, SidebarRowConstants.rowVerticalPadding)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
+        folderHeaderRow(title: title, icon: icon, count: count, isExpanded: isExpanded, action: action)
     }
 
     func securityLoadingRow(_ text: String) -> some View {
-        HStack(spacing: 8) {
+        HStack(spacing: SpacingTokens.xs) {
             Spacer().frame(width: SidebarRowConstants.chevronWidth)
             ProgressView()
                 .controlSize(.mini)
             Text(text)
                 .font(TypographyTokens.detail)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(ColorTokens.Text.secondary)
         }
-        .padding(.horizontal, SidebarRowConstants.rowHorizontalPadding)
+        .padding(.leading, SidebarRowConstants.rowHorizontalPadding)
+                .padding(.trailing, SidebarRowConstants.rowTrailingPadding)
         .padding(.vertical, SidebarRowConstants.rowVerticalPadding)
     }
 
@@ -1010,22 +1435,23 @@ extension ObjectBrowserSidebarView {
 
     func newItemButton(title: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            HStack(spacing: 8) {
+            HStack(spacing: SpacingTokens.xs) {
                 Spacer().frame(width: SidebarRowConstants.chevronWidth)
 
                 Image(systemName: "plus.circle")
-                    .font(.system(size: 12))
-                    .foregroundStyle(.tertiary)
+                    .font(TypographyTokens.standard)
+                    .foregroundStyle(ColorTokens.Text.tertiary)
                     .frame(width: SidebarRowConstants.iconFrame)
 
                 Text(title)
                     .font(TypographyTokens.standard)
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(ColorTokens.Text.tertiary)
                     .lineLimit(1)
 
-                Spacer(minLength: 4)
+                Spacer(minLength: SpacingTokens.xxxs)
             }
-            .padding(.horizontal, SidebarRowConstants.rowHorizontalPadding)
+            .padding(.leading, SidebarRowConstants.rowHorizontalPadding)
+                .padding(.trailing, SidebarRowConstants.rowTrailingPadding)
             .padding(.vertical, SidebarRowConstants.rowVerticalPadding)
             .contentShape(Rectangle())
         }
@@ -1053,15 +1479,15 @@ extension ObjectBrowserSidebarView {
     private func dropMSSQLLogin(name: String, session: ConnectionSession) async {
         guard let mssql = session.session as? MSSQLSession else { return }
         do {
-            let ssec = mssql.makeServerSecurityClient()
+            let ssec = mssql.serverSecurity
             try await ssec.dropLogin(name: name)
             loadServerSecurity(session: session)
             await MainActor.run {
-                environmentState.toastCoordinator.show(icon: "checkmark.circle", message: "Login '\(name)' dropped", style: .success)
+                environmentState.notificationEngine?.post(category: .securityDropped, message: "Login '\(name)' dropped")
             }
         } catch {
             await MainActor.run {
-                environmentState.toastCoordinator.show(icon: "exclamationmark.triangle", message: "Drop failed: \(error.localizedDescription)", style: .error)
+                environmentState.notificationEngine?.post(category: .generalError, message: "Drop failed: \(readableErrorMessage(error))")
             }
         }
     }
@@ -1070,7 +1496,7 @@ extension ObjectBrowserSidebarView {
         guard let mssql = session.session as? MSSQLSession else { return }
         do {
             _ = try? await session.session.simpleQuery("USE [\(database)]")
-            let sec = mssql.makeDatabaseSecurityClient()
+            let sec = mssql.security
             try await sec.dropUser(name: name)
             // Reload db security
             if let structure = session.databaseStructure,
@@ -1078,11 +1504,11 @@ extension ObjectBrowserSidebarView {
                 loadDatabaseSecurity(database: db, session: session)
             }
             await MainActor.run {
-                environmentState.toastCoordinator.show(icon: "checkmark.circle", message: "User '\(name)' dropped", style: .success)
+                environmentState.notificationEngine?.post(category: .securityDropped, message: "User '\(name)' dropped")
             }
         } catch {
             await MainActor.run {
-                environmentState.toastCoordinator.show(icon: "exclamationmark.triangle", message: "Drop failed: \(error.localizedDescription)", style: .error)
+                environmentState.notificationEngine?.post(category: .generalError, message: "Drop failed: \(readableErrorMessage(error))")
             }
         }
     }
@@ -1095,17 +1521,46 @@ extension ObjectBrowserSidebarView {
     private func dropMSSQLServerRole(name: String, session: ConnectionSession) async {
         guard let mssql = session.session as? MSSQLSession else { return }
         do {
-            let ssec = mssql.makeServerSecurityClient()
+            let ssec = mssql.serverSecurity
             try await ssec.dropServerRole(name: name)
             loadServerSecurity(session: session)
             await MainActor.run {
-                environmentState.toastCoordinator.show(icon: "checkmark.circle", message: "Server role '\(name)' dropped", style: .success)
+                environmentState.notificationEngine?.post(category: .securityDropped, message: "Server role '\(name)' dropped")
             }
         } catch {
             await MainActor.run {
-                environmentState.toastCoordinator.show(icon: "exclamationmark.triangle", message: "Drop failed: \(error.localizedDescription)", style: .error)
+                environmentState.notificationEngine?.post(category: .generalError, message: "Drop failed: \(readableErrorMessage(error))")
             }
         }
+    }
+
+    // MARK: - Drop Security Principal Dispatch
+
+    func executeDropSecurityPrincipal(_ target: ObjectBrowserSidebarViewModel.DropSecurityPrincipalTarget, session: ConnectionSession) async {
+        switch target.kind {
+        case .pgRole:
+            await dropPGRole(name: target.name, session: session)
+        case .mssqlLogin:
+            await dropMSSQLLogin(name: target.name, session: session)
+        case .mssqlUser:
+            if let db = target.databaseName {
+                await dropMSSQLUser(name: target.name, database: db, session: session)
+            }
+        case .mssqlServerRole:
+            await dropMSSQLServerRole(name: target.name, session: session)
+        }
+    }
+
+    // MARK: - Error Formatting
+
+    private func readableErrorMessage(_ error: Error) -> String {
+        // PostgresKit's PostgresError already provides good messages via LocalizedError.
+        if let pgError = error as? PostgresKit.PostgresError {
+            return pgError.message
+        }
+        // PSQLError now conforms to @retroactive LocalizedError in postgres-wire,
+        // so localizedDescription returns the actual server message.
+        return error.localizedDescription
     }
 
     // MARK: - PostgreSQL Actions
@@ -1113,14 +1568,14 @@ extension ObjectBrowserSidebarView {
     private func dropPGRole(name: String, session: ConnectionSession) async {
         guard let pg = session.session as? PostgresSession else { return }
         do {
-            try await pg.client.dropUser(name: name)
+            try await pg.client.security.dropUser(name: name)
             loadServerSecurity(session: session)
             await MainActor.run {
-                environmentState.toastCoordinator.show(icon: "checkmark.circle", message: "Role '\(name)' dropped", style: .success)
+                environmentState.notificationEngine?.post(category: .securityDropped, message: "Role '\(name)' dropped")
             }
         } catch {
             await MainActor.run {
-                environmentState.toastCoordinator.show(icon: "exclamationmark.triangle", message: "Drop failed: \(error.localizedDescription)", style: .error)
+                environmentState.notificationEngine?.post(category: .generalError, message: "Drop failed: \(readableErrorMessage(error))")
             }
         }
     }
@@ -1141,16 +1596,12 @@ extension ObjectBrowserSidebarView {
     private func enableMSSQLLogin(name: String, enabled: Bool, session: ConnectionSession) async {
         guard let mssql = session.session as? MSSQLSession else { return }
         do {
-            let ssec = mssql.makeServerSecurityClient()
+            let ssec = mssql.serverSecurity
             try await ssec.enableLogin(name: name, enabled: enabled)
             loadServerSecurity(session: session)
         } catch {
             await MainActor.run {
-                environmentState.toastCoordinator.show(
-                    icon: "exclamationmark.triangle",
-                    message: "Failed to \(enabled ? "enable" : "disable") login: \(error.localizedDescription)",
-                    style: .error
-                )
+                environmentState.notificationEngine?.post(category: .securityToggleFailed, message: "Failed to \(enabled ? "enable" : "disable") login: \(readableErrorMessage(error))")
             }
         }
     }
@@ -1204,7 +1655,7 @@ extension ObjectBrowserSidebarView {
 
         // Load logins (filter system logins by default)
         do {
-            let ssec = mssql.makeServerSecurityClient()
+            let ssec = mssql.serverSecurity
             let logins = try await ssec.listLogins(includeSystemLogins: false)
             let items = logins.map { login in
                 ObjectBrowserSidebarViewModel.SecurityLoginItem(
@@ -1221,7 +1672,7 @@ extension ObjectBrowserSidebarView {
 
         // Load server roles
         do {
-            let ssec = mssql.makeServerSecurityClient()
+            let ssec = mssql.serverSecurity
             let roles = try await ssec.listServerRoles()
             let items = roles.map { role in
                 ObjectBrowserSidebarViewModel.SecurityServerRoleItem(
@@ -1237,7 +1688,7 @@ extension ObjectBrowserSidebarView {
 
         // Load credentials
         do {
-            let ssec = mssql.makeServerSecurityClient()
+            let ssec = mssql.serverSecurity
             let creds = try await ssec.listCredentials()
             let items = creds.map { cred in
                 ObjectBrowserSidebarViewModel.SecurityCredentialItem(
@@ -1255,8 +1706,7 @@ extension ObjectBrowserSidebarView {
     private func loadPostgresServerSecurity(session: ConnectionSession, connID: UUID) async {
         guard let pg = session.session as? PostgresSession else { return }
         do {
-            let admin = PostgresAdmin(client: pg.client, logger: pg.logger)
-            let roles = try await admin.listRoles()
+            let roles = try await pg.client.security.listRoles()
 
             let items: [ObjectBrowserSidebarViewModel.SecurityLoginItem] = roles.map { role in
                 let typeDesc: String
@@ -1321,7 +1771,7 @@ extension ObjectBrowserSidebarView {
 
         // Switch to target database for the security client
         _ = try? await session.session.simpleQuery("USE [\(dbName)]")
-        let sec = mssql.makeDatabaseSecurityClient()
+        let sec = mssql.security
 
         // Users
         do {
@@ -1358,23 +1808,12 @@ extension ObjectBrowserSidebarView {
         }
 
         // Application Roles
-        do {
-            let appRoles = try await sec.listApplicationRoles().get()
-            let items = appRoles.map { ar in
-                ObjectBrowserSidebarViewModel.SecurityAppRoleItem(
-                    id: ar.name,
-                    name: ar.name,
-                    defaultSchema: ar.defaultSchema
-                )
-            }
-            await MainActor.run { viewModel.dbSecurityAppRolesByDB[dbKey] = items }
-        } catch {
-            await MainActor.run { viewModel.dbSecurityAppRolesByDB[dbKey] = [] }
-        }
+        // TODO: Use sec.listApplicationRoles() when made public in sqlserver-nio
+        await MainActor.run { viewModel.dbSecurityAppRolesByDB[dbKey] = [] }
 
         // Schemas
         do {
-            let schemas = try await sec.listSchemas().get()
+            let schemas = try await sec.listSchemas()
             let systemSchemas: Set<String> = [
                 "sys", "INFORMATION_SCHEMA", "guest",
                 "db_owner", "db_accessadmin", "db_securityadmin",
@@ -1399,8 +1838,7 @@ extension ObjectBrowserSidebarView {
     private func loadPostgresDatabaseSecurity(database: DatabaseInfo, session: ConnectionSession, dbKey: String) async {
         guard let pg = session.session as? PostgresSession else { return }
         do {
-            let admin = PostgresAdmin(client: pg.client, logger: pg.logger)
-            let schemas = try await admin.listSchemas()
+            let schemas = try await pg.client.introspection.listSchemas()
 
             let items = schemas.map { schema in
                 ObjectBrowserSidebarViewModel.SecuritySchemaItem(

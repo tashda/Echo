@@ -95,6 +95,17 @@ struct WorkspaceTabContainerView: View {
                     cancelQuery: { cancelQuery(tabId: currentTab.id) },
                     gridStateProvider: { currentTab.resultsGridState }
                 )
+            } else if let activeSession = environmentState.sessionCoordinator.activeSession {
+                ConnectionDashboardView(
+                    session: activeSession,
+                    onNewQuery: {
+                        environmentState.openQueryTab(for: activeSession)
+                    },
+                    onOpenJobQueue: activeSession.connection.databaseType == .microsoftSQL
+                        || activeSession.connection.databaseType == .postgresql
+                        ? { environmentState.openJobQueueTab(for: activeSession) }
+                        : nil
+                )
             } else {
                 RecentConnectionsPlaceholder(
                     connections: recentConnectionItems,
@@ -103,22 +114,11 @@ struct WorkspaceTabContainerView: View {
             }
         }
         .animation(.easeInOut(duration: 0.2), value: appState.showTabOverview)
-        .onAppear(perform: createInitialTabIfNeeded)
-        .onChange(of: connectionStore.selectedConnectionID) { _, _ in
-            createInitialTabIfNeeded()
-        }
         .onChange(of: tabStore.activeTabId) { _, _ in
             if appState.showTabOverview {
                 appState.showTabOverview = false
             }
         }
-    }
-
-    private func createInitialTabIfNeeded() {
-        guard tabStore.tabs.isEmpty,
-              let activeSession = environmentState.sessionCoordinator.activeSession else { return }
-
-        environmentState.openQueryTab(for: activeSession)
     }
 
     private func connectToRecentConnection(_ item: RecentConnectionItem) {

@@ -45,8 +45,13 @@ extension QueryEditorState {
     }
 
     func submitToSpool(update: QueryStreamUpdate, mode: StreamingMode) {
-        guard shouldPersistResults || streamingMode == .background else { return }
-        
+        // Always buffer binary data even during preview — these rows will be
+        // needed by the spool once it activates. Without this, rows between
+        // the end of preview formatting and the spool activation threshold
+        // are lost (never written to disk).
+        let hasBinaryData = !update.encodedRows.isEmpty || !update.rawRows.isEmpty
+        guard hasBinaryData || shouldPersistResults || streamingMode == .background else { return }
+
         if let ingestion = ingestionService {
             Task {
                 await ingestion.enqueue(update: update, isPreview: mode == .preview)
@@ -80,6 +85,10 @@ extension QueryEditorState {
         activateSpoolIfNeeded()
         Task {
             await ingestionService?.finalize(with: result)
+            // After all spool data is written and finalized, start progressive
+            // materialization directly. The stats monitor also triggers this,
+            // but with fast execution the timing can race — this ensures it runs.
+            beginProgressiveMaterialization()
         }
     }
 
@@ -93,6 +102,9 @@ extension QueryEditorState {
                     guard let self = self else { return }
                     self.lastSpoolStatsRowCount = stats.rowCount
                     self.refreshMaterializedProgress()
+                    if stats.isFinished {
+                        self.beginProgressiveMaterialization()
+                    }
                 }
                 if stats.isFinished { break }
             }

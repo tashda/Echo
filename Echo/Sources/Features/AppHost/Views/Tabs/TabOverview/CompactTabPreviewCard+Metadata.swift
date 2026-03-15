@@ -8,29 +8,37 @@ extension CompactTabPreviewCard {
             var items: [(String, String, Color)] = []
             let rows = query.rowProgress.displayCount
             if rows > 0 {
-                items.append(("tablecells", "\(EchoFormatters.compactNumber(rows))", Color.secondary))
+                items.append(("tablecells", "\(EchoFormatters.compactNumber(rows))", ColorTokens.Text.secondary))
             }
             if let event = query.messages.last(where: { $0.severity != .debug }) {
-                items.append(("clock.arrow.circlepath", relativeDescription(for: event.timestamp), Color.secondary))
+                items.append(("clock.arrow.circlepath", relativeDescription(for: event.timestamp), ColorTokens.Text.secondary))
             }
             return items
         case .diagram:
             guard let diagram = tab.diagram else { return [] }
-            return [("square.grid.2x2", "\(diagram.nodes.count)", Color.secondary)]
+            return [("square.grid.2x2", "\(diagram.nodes.count)", ColorTokens.Text.secondary)]
         case .structure:
             guard let editor = tab.structureEditor else { return [] }
-            return [("tablecells", "\(editor.columns.count)", Color.secondary)]
+            return [("tablecells", "\(editor.columns.count)", ColorTokens.Text.secondary)]
         case .jobQueue:
             return []
+        case .psql:
+            return []
+        case .extensionStructure:
+            return []
+        case .extensionsManager:
+            return []
+        case .activityMonitor:
+            return []
         }
-    }
+        }
 
-    var tabTitle: String {
+        var tabTitle: String {
         let title = tab.title.trimmingCharacters(in: .whitespacesAndNewlines)
         return title.isEmpty ? "Untitled" : title
-    }
+        }
 
-    var tabSubtitle: String? {
+        var tabSubtitle: String? {
         switch tab.kind {
         case .query:
             return nil
@@ -40,10 +48,18 @@ extension CompactTabPreviewCard {
             return "Structure"
         case .jobQueue:
             return "Jobs"
+        case .psql:
+            return "Postgres Console"
+        case .extensionStructure:
+            return "Extension"
+        case .extensionsManager:
+            return "Extension Manager"
+        case .activityMonitor:
+            return "Activity"
         }
-    }
+        }
 
-    var snippet: String? {
+        var snippet: String? {
         switch tab.kind {
         case .query:
             guard let query = tab.query else { return nil }
@@ -59,8 +75,16 @@ extension CompactTabPreviewCard {
             return nil
         case .jobQueue:
             return nil
+        case .psql:
+            return nil
+        case .extensionStructure:
+            return nil
+        case .extensionsManager:
+            return "Manage database extensions"
+        case .activityMonitor:
+            return "Live system performance monitoring"
         }
-    }
+        }
 
     var status: (icon: String, text: String, color: Color) {
         tabOverviewStatus(for: tab, appearanceStore: appearanceStore)

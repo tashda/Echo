@@ -45,19 +45,36 @@ extension QueryResultsTableView.Coordinator: NSMenuDelegate {
             copyColumnItem.target = self
             copyColumnItem.isEnabled = hasCopyableSelection()
             copyColumnItem.keyEquivalentModifierMask = [.command]
-            if #available(macOS 11.0, *) {
-                copyColumnItem.image = NSImage(systemSymbolName: "doc.on.doc", accessibilityDescription: nil)
-            }
+            copyColumnItem.image = NSImage(systemSymbolName: "doc.on.doc", accessibilityDescription: nil)
             menu.addItem(copyColumnItem)
 
             let copyColumnWithHeadersItem = NSMenuItem(title: "Copy Column with Headers", action: #selector(copyColumnWithHeaders), keyEquivalent: "c")
             copyColumnWithHeadersItem.target = self
             copyColumnWithHeadersItem.isEnabled = hasCopyableSelection()
             copyColumnWithHeadersItem.keyEquivalentModifierMask = [.command, .shift]
-            if #available(macOS 11.0, *) {
-                copyColumnWithHeadersItem.image = NSImage(systemSymbolName: "tablecells", accessibilityDescription: nil)
-            }
+            copyColumnWithHeadersItem.image = NSImage(systemSymbolName: "tablecells", accessibilityDescription: nil)
             menu.addItem(copyColumnWithHeadersItem)
+
+            menu.addItem(.separator())
+            menu.addItem(buildCopyAsSubmenuItem())
+
+            menu.addItem(.separator())
+
+            let hideItem = NSMenuItem(title: "Hide Column", action: #selector(hideSelectedColumn), keyEquivalent: "")
+            hideItem.target = self
+            hideItem.image = NSImage(systemSymbolName: "eye.slash", accessibilityDescription: nil)
+            menu.addItem(hideItem)
+
+            if hasHiddenColumns {
+                let showAllItem = NSMenuItem(
+                    title: "Show All Columns (\(hiddenColumnCount) hidden)",
+                    action: #selector(showAllHiddenColumns),
+                    keyEquivalent: ""
+                )
+                showAllItem.target = self
+                showAllItem.image = NSImage(systemSymbolName: "eye", accessibilityDescription: nil)
+                menu.addItem(showAllItem)
+            }
         } else if menu === cellMenu {
             updateCellMenu(menu, tableView: tableView)
         }
@@ -89,21 +106,20 @@ extension QueryResultsTableView.Coordinator: NSMenuDelegate {
 
         let copyItem = NSMenuItem(title: "Copy", action: #selector(copySelectionPlain), keyEquivalent: "c")
         copyItem.target = self
-        if #available(macOS 11.0, *) {
-            copyItem.image = NSImage(systemSymbolName: "doc.on.doc", accessibilityDescription: nil)
-        }
+        copyItem.image = NSImage(systemSymbolName: "doc.on.doc", accessibilityDescription: nil)
         copyItem.isEnabled = hasSelection
         copyItem.keyEquivalentModifierMask = [.command]
         menu.addItem(copyItem)
 
         let copyHeadersItem = NSMenuItem(title: "Copy with Headers", action: #selector(copySelectionWithHeaders), keyEquivalent: "c")
         copyHeadersItem.target = self
-        if #available(macOS 11.0, *) {
-            copyHeadersItem.image = NSImage(systemSymbolName: "tablecells", accessibilityDescription: nil)
-        }
+        copyHeadersItem.image = NSImage(systemSymbolName: "tablecells", accessibilityDescription: nil)
         copyHeadersItem.isEnabled = hasSelection
         copyHeadersItem.keyEquivalentModifierMask = [.command, .shift]
         menu.addItem(copyHeadersItem)
+
+        menu.addItem(.separator())
+        menu.addItem(buildCopyAsSubmenuItem())
     }
 
     func prepareHeaderContextMenu(at column: Int?) {
@@ -169,5 +185,45 @@ extension QueryResultsTableView.Coordinator: NSMenuDelegate {
         defer { contextMenuCell = nil }
         return contextMenuCell
     }
+
+    // MARK: - Copy As Submenu
+
+    private func buildCopyAsSubmenuItem() -> NSMenuItem {
+        let submenuItem = NSMenuItem(title: "Copy As", action: nil, keyEquivalent: "")
+        submenuItem.image = NSImage(systemSymbolName: "square.on.square", accessibilityDescription: nil)
+        let submenu = NSMenu(title: "Copy As")
+        let hasSelection = hasCopyableSelection()
+        for format in ResultExportFormat.allCases {
+            let action: Selector
+            switch format {
+            case .tsv: action = #selector(copyAsTSV)
+            case .csv: action = #selector(copyAsCSV)
+            case .json: action = #selector(copyAsJSON)
+            case .sqlInsert: action = #selector(copyAsSQLInsert)
+            case .markdown: action = #selector(copyAsMarkdown)
+            }
+            let item = NSMenuItem(title: format.menuTitle, action: action, keyEquivalent: "")
+            item.target = self
+            item.isEnabled = hasSelection
+            submenu.addItem(item)
+        }
+        submenuItem.submenu = submenu
+        return submenuItem
+    }
+
+    @objc func hideSelectedColumn() {
+        guard let dataIndex = menuColumnIndex else { return }
+        hideColumn(at: dataIndex)
+    }
+
+    @objc func showAllHiddenColumns() {
+        showAllColumns()
+    }
+
+    @objc func copyAsTSV() { copySelectionAs(format: .tsv) }
+    @objc func copyAsCSV() { copySelectionAs(format: .csv) }
+    @objc func copyAsJSON() { copySelectionAs(format: .json) }
+    @objc func copyAsSQLInsert() { copySelectionAs(format: .sqlInsert) }
+    @objc func copyAsMarkdown() { copySelectionAs(format: .markdown) }
 }
 #endif

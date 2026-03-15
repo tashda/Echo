@@ -52,7 +52,7 @@ extension DatabasePropertiesSheet {
                         .frame(width: 60)
                         .onSubmit { applyMSSQLOption(.targetRecoveryTime(targetRecoveryTime)) }
                     Text("seconds")
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(ColorTokens.Text.secondary)
                 }
             }
 
@@ -178,7 +178,7 @@ extension DatabasePropertiesSheet {
         if mssqlFiles.isEmpty {
             Section {
                 Text("No file information available.")
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(ColorTokens.Text.secondary)
             }
         } else {
             ForEach(Array(mssqlFiles.enumerated()), id: \.offset) { index, file in
@@ -197,7 +197,7 @@ extension DatabasePropertiesSheet {
                                     applyMSSQLFileOption(file: file, option: .sizeMB(newSize))
                                 }
                             Text("MB")
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(ColorTokens.Text.secondary)
                         }
                     }
 
@@ -217,7 +217,7 @@ extension DatabasePropertiesSheet {
                                         applyMSSQLFileOption(file: file, option: .maxSizeMB(newMax))
                                     }
                                 Text("MB")
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(ColorTokens.Text.secondary)
                             }
                         }
                     }
@@ -238,7 +238,7 @@ extension DatabasePropertiesSheet {
                                         applyFileGrowthChange(index: index, file: file)
                                     }
                                 Text(currentFileGrowthType(index: index, file: file) == .percent ? "%" : "MB")
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(ColorTokens.Text.secondary)
                             }
                         }
                     }
@@ -253,7 +253,7 @@ extension DatabasePropertiesSheet {
 
     func applyMSSQLOption(_ option: SQLServerDatabaseOption) {
         guard let mssqlSession = session.session as? MSSQLSession else { return }
-        let admin = mssqlSession.makeAdministrationClient()
+        let admin = mssqlSession.admin
         isSaving = true
         statusMessage = nil
 
@@ -267,7 +267,7 @@ extension DatabasePropertiesSheet {
             } catch {
                 isSaving = false
                 statusMessage = error.localizedDescription
-                environmentState.toastCoordinator.show(icon: "exclamationmark.triangle", message: error.localizedDescription, style: .error)
+                environmentState.notificationEngine?.post(category: .databasePropertiesError, message: error.localizedDescription)
             }
         }
     }
@@ -276,7 +276,7 @@ extension DatabasePropertiesSheet {
 
     func applyMSSQLFileOption(file: SQLServerDatabaseFile, option: SQLServerDatabaseFileOption) {
         guard let mssqlSession = session.session as? MSSQLSession else { return }
-        let admin = mssqlSession.makeAdministrationClient()
+        let admin = mssqlSession.admin
         isSaving = true
         statusMessage = nil
 
@@ -292,13 +292,13 @@ extension DatabasePropertiesSheet {
                 if !info.isEmpty { statusMessage = info }
                 // Reload files to reflect the change
                 if let updatedAdmin = session.session as? MSSQLSession {
-                    let freshAdmin = updatedAdmin.makeAdministrationClient()
+                    let freshAdmin = updatedAdmin.admin
                     mssqlFiles = (try? await freshAdmin.fetchDatabaseFiles(name: databaseName)) ?? mssqlFiles
                 }
             } catch {
                 isSaving = false
                 statusMessage = error.localizedDescription
-                environmentState.toastCoordinator.show(icon: "exclamationmark.triangle", message: error.localizedDescription, style: .error)
+                environmentState.notificationEngine?.post(category: .databasePropertiesError, message: error.localizedDescription)
             }
         }
     }
@@ -307,7 +307,7 @@ extension DatabasePropertiesSheet {
 
     func loadMSSQLProperties() async throws {
         guard let mssqlSession = session.session as? MSSQLSession else { return }
-        let admin = mssqlSession.makeAdministrationClient()
+        let admin = mssqlSession.admin
         let props = try await admin.fetchDatabaseProperties(name: databaseName)
         mssqlProps = props
 

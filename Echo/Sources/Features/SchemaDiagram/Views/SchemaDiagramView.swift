@@ -98,7 +98,7 @@ struct SchemaDiagramView: View {
     }
 
     private var toolbarOverlay: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: SpacingTokens.sm) {
             loadSourceBadge
             if isRefreshing || viewModel.isLoading {
                 ProgressView()
@@ -143,15 +143,15 @@ struct SchemaDiagramView: View {
             return (
                 "Live · " + relativeTimeString(since: date),
                 "bolt.fill",
-                Color.green.opacity(0.9),
-                Color.green.opacity(0.15)
+                ColorTokens.Status.success.opacity(0.9),
+                ColorTokens.Status.success.opacity(0.15)
             )
         case .cache(let date):
             return (
                 "Cached · " + relativeTimeString(since: date),
-                "clock.arrow.circlepath",
-                Color.blue.opacity(0.9),
-                Color.blue.opacity(0.15)
+                "clock.fill",
+                ColorTokens.Text.secondary,
+                ColorTokens.Text.primary.opacity(0.08)
             )
         }
     }

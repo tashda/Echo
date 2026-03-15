@@ -14,11 +14,11 @@ extension SearchResultRow {
         } label: {
             Image(systemName: "info.circle")
                 .font(TypographyTokens.caption2.weight(.semibold))
-                .foregroundStyle(isInfoPresented ? Color.accentColor : Color.secondary)
+                .foregroundStyle(isInfoPresented ? ColorTokens.accent : ColorTokens.Text.secondary)
                 .padding(SpacingTokens.xxs2)
                 .background(
                     Circle()
-                        .fill(Color.primary.opacity(isInfoPresented ? 0.12 : 0.04))
+                        .fill(ColorTokens.Text.primary.opacity(isInfoPresented ? 0.12 : 0.04))
                 )
         }
         .buttonStyle(.plain)
@@ -28,19 +28,19 @@ extension SearchResultRow {
                 .padding(SpacingTokens.md2)
         }
     }
-
+    
     func infoPopover(fetch: @escaping () async throws -> String) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: SpacingTokens.sm) {
             Text(result.title)
-                .font(.headline)
-
+                .font(TypographyTokens.headline)
+            
             switch infoState {
             case .idle, .loading:
-                HStack(spacing: 10) {
+                HStack(spacing: SpacingTokens.xs2) {
                     ProgressView()
                     Text("Loading definition...")
                         .font(TypographyTokens.caption2)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(ColorTokens.Text.secondary)
                 }
                 .task {
                     await loadDefinition(fetch: fetch)
@@ -48,7 +48,7 @@ extension SearchResultRow {
             case .failed(let message):
                 Text(message)
                     .font(TypographyTokens.caption2)
-                    .foregroundStyle(.red)
+                    .foregroundStyle(ColorTokens.Status.error)
                     .fixedSize(horizontal: false, vertical: true)
             case .loaded(let definition):
                 ScrollView {
@@ -61,7 +61,7 @@ extension SearchResultRow {
             }
         }
     }
-
+    
     func loadDefinition(fetch: @escaping () async throws -> String) async {
         guard case .loading = infoState else { return }
         do {
@@ -71,17 +71,17 @@ extension SearchResultRow {
             infoState = .failed(error.localizedDescription)
         }
     }
-
+    
     func snippetText(for snippet: String) -> Text {
         guard shouldHighlightSnippet, !query.isEmpty else {
             return Text(snippet)
         }
-
+        
         var attributed = AttributedString()
         var currentIndex = snippet.startIndex
         let endIndex = snippet.endIndex
         var searchRange = currentIndex..<endIndex
-
+        
         while let matchRange = snippet.range(of: query, options: [.caseInsensitive], range: searchRange) {
             if matchRange.lowerBound > currentIndex {
                 let prefix = String(snippet[currentIndex..<matchRange.lowerBound])
@@ -89,30 +89,30 @@ extension SearchResultRow {
                     attributed.append(AttributedString(prefix))
                 }
             }
-
+            
             let matchText = String(snippet[matchRange])
             var matchAttributed = AttributedString(matchText)
-            matchAttributed.font = .system(size: 11).weight(.semibold)
+            matchAttributed.font = TypographyTokens.detail.weight(.semibold)
             attributed.append(matchAttributed)
-
+            
             currentIndex = matchRange.upperBound
             searchRange = currentIndex..<endIndex
         }
-
+        
         if currentIndex < endIndex {
             let suffix = String(snippet[currentIndex..<endIndex])
             if !suffix.isEmpty {
                 attributed.append(AttributedString(suffix))
             }
         }
-
+        
         if attributed.characters.isEmpty {
             return Text(snippet)
         }
-
+        
         return Text(attributed)
     }
-
+    
     func truncatedSnippet(_ snippet: String) -> String {
         guard shouldHighlightSnippet else { return snippet }
         let limit = 140

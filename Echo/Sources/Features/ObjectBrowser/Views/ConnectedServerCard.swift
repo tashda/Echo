@@ -30,11 +30,11 @@ struct ConnectedServerCard: View {
     }
 
     private var gridColumns: [GridItem] {
-        Array(repeating: GridItem(.flexible(), spacing: 8, alignment: .top), count: 2)
+        Array(repeating: GridItem(.flexible(), spacing: SpacingTokens.xs, alignment: .top), count: 2)
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
+        VStack(alignment: .leading, spacing: SpacingTokens.none) {
             header
 
             if isExpanded, !availableDatabases.isEmpty {
@@ -43,7 +43,7 @@ struct ConnectedServerCard: View {
                     .padding(.top, SpacingTokens.xxs2)
 
                 ScrollView {
-                    LazyVGrid(columns: gridColumns, alignment: .leading, spacing: 8) {
+                    LazyVGrid(columns: gridColumns, alignment: .leading, spacing: SpacingTokens.xs) {
                         ForEach(availableDatabases) { database in
                             CompactDatabaseCard(
                                 database: database,
@@ -75,29 +75,29 @@ struct ConnectedServerCard: View {
     }
 
     private var header: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            HStack(spacing: 12) {
+        VStack(alignment: .leading, spacing: SpacingTokens.none) {
+            HStack(spacing: SpacingTokens.sm) {
                 icon
 
-                VStack(alignment: .leading, spacing: 3) {
+                VStack(alignment: .leading, spacing: SpacingTokens.xxxs) {
                     Text(session.connection.connectionName)
                         .font(TypographyTokens.standard.weight(.semibold))
-                        .foregroundStyle(.primary)
+                        .foregroundStyle(ColorTokens.Text.primary)
                         .lineLimit(1)
                     Text("\(session.connection.username)@\(session.connection.host)")
                         .font(TypographyTokens.detail.weight(.medium))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(ColorTokens.Text.secondary)
                         .lineLimit(1)
                 }
 
-                Spacer(minLength: 8)
+                Spacer(minLength: SpacingTokens.xs)
 
                 if showCurrentDatabase, let database = session.selectedDatabaseName {
                     Text(database)
                         .font(TypographyTokens.detail.weight(.medium))
-                        .foregroundStyle(.primary)
+                        .foregroundStyle(ColorTokens.Text.primary)
                         .padding(.horizontal, SpacingTokens.xs)
-                        .padding(.vertical, 3)
+                        .padding(.vertical, SpacingTokens.xxxs)
                         .background(session.connection.color.opacity(0.18), in: Capsule())
                         .overlay(
                             Capsule()
@@ -108,11 +108,11 @@ struct ConnectedServerCard: View {
 
                 Image(systemName: "chevron.down")
                     .font(TypographyTokens.caption2.weight(.semibold))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(ColorTokens.Text.secondary)
                     .rotationEffect(.degrees(isExpanded ? 180 : 0))
                     .frame(width: 20, height: 20)
             }
-            .padding(.horizontal, 18)
+            .padding(.horizontal, SpacingTokens.md1)
             .padding(.vertical, SpacingTokens.sm2)
             .contentShape(Rectangle())
             .onTapGesture {
@@ -145,12 +145,12 @@ struct ConnectedServerCard: View {
     private var cardBackground: some View {
         RoundedRectangle(cornerRadius: 14, style: .continuous)
             .fill(
-                isSelected ? session.connection.color.opacity(0.18) : Color.primary.opacity(isHovered ? 0.07 : 0.04)
+                isSelected ? session.connection.color.opacity(0.18) : ColorTokens.Text.primary.opacity(isHovered ? 0.07 : 0.04)
             )
     }
 
     private var cardBorder: some View {
         RoundedRectangle(cornerRadius: 14, style: .continuous)
-            .stroke(isSelected ? session.connection.color.opacity(0.35) : Color.primary.opacity(0.05), lineWidth: 0.9)
+            .stroke(isSelected ? session.connection.color.opacity(0.35) : ColorTokens.Text.primary.opacity(0.05), lineWidth: 0.9)
     }
 }

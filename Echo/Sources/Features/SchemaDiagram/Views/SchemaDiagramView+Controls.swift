@@ -7,7 +7,7 @@ extension SchemaDiagramView {
             Spacer()
             HStack {
                 Spacer()
-                HStack(spacing: 12) {
+                HStack(spacing: SpacingTokens.sm) {
                     Button {
                         updateZoom(to: max(minZoom, zoom - 0.1))
                     } label: {

@@ -18,15 +18,15 @@ struct ClipboardHistoryRow: View {
     @EnvironmentObject internal var clipboardHistory: ClipboardHistoryStore
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            HStack(alignment: .top, spacing: 12) {
+        VStack(alignment: .leading, spacing: SpacingTokens.none) {
+            HStack(alignment: .top, spacing: SpacingTokens.sm) {
                 icon
 
-                VStack(alignment: .leading, spacing: 8) {
+                VStack(alignment: .leading, spacing: SpacingTokens.xs) {
                     headerRow
                     Text(entry.previewText)
                         .font(TypographyTokens.standard.weight(.medium).monospaced())
-                        .foregroundStyle(.primary)
+                        .foregroundStyle(ColorTokens.Text.primary)
                         .lineLimit(3)
                         .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -39,29 +39,29 @@ struct ClipboardHistoryRow: View {
             .padding(.horizontal, SpacingTokens.sm2)
         }
         .background(backgroundShape)
-        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: SpacingTokens.sm, style: .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .stroke(isRecentlyCopied ? Color.accentColor.opacity(0.6) : .clear, lineWidth: 1.2)
+            RoundedRectangle(cornerRadius: SpacingTokens.sm, style: .continuous)
+                .stroke(isRecentlyCopied ? ColorTokens.accent.opacity(0.6) : .clear, lineWidth: 1.2)
                 .animation(.easeInOut(duration: 0.2), value: isRecentlyCopied)
         )
         .overlay(alignment: .topLeading) {
             if isRecentlyCopied {
                 Label("Copied", systemImage: "checkmark.circle.fill")
-                    .font(.caption2)
+                    .font(TypographyTokens.caption2)
                     .padding(.horizontal, SpacingTokens.xs2)
                     .padding(.vertical, SpacingTokens.xxs2)
                     .background(.regularMaterial, in: Capsule())
                     .overlay(
                         Capsule()
-                            .stroke(Color.accentColor.opacity(0.45), lineWidth: 0.8)
+                            .stroke(ColorTokens.accent.opacity(0.45), lineWidth: 0.8)
                     )
                     .shadow(color: Color.black.opacity(0.16), radius: 6, y: 3)
-                    .padding([.top, .leading], 12)
+                    .padding([.top, .leading], SpacingTokens.sm)
                     .transition(.opacity.combined(with: .scale))
             }
         }
-        .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .contentShape(RoundedRectangle(cornerRadius: SpacingTokens.sm, style: .continuous))
         .onTapGesture(perform: onCopy)
 #if os(macOS)
         .onHover { hovering in
@@ -77,27 +77,27 @@ struct ClipboardHistoryRow: View {
     }
 
     private var headerRow: some View {
-        HStack(alignment: .center, spacing: 8) {
+        HStack(alignment: .center, spacing: SpacingTokens.xs) {
             Text(entry.source.caption)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .font(TypographyTokens.subheadline)
+                .foregroundStyle(ColorTokens.Text.secondary)
 
             Spacer()
 
             Text(entry.timestampDisplay)
-                .font(.caption2)
-                .foregroundStyle(.tertiary)
+                .font(TypographyTokens.caption2)
+                .foregroundStyle(ColorTokens.Text.tertiary)
 
             infoButton
         }
     }
 
     var metadataSection: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: SpacingTokens.xxs2) {
             Divider()
                 .opacity(0.15)
 
-            HStack(spacing: 8) {
+            HStack(spacing: SpacingTokens.xs) {
                 if let server = sanitizedMetadataValue(entry.metadata.serverName) {
                     metadataBadge(icon: "server.rack", text: server, tint: connectionTint)
                 }
@@ -114,11 +114,11 @@ struct ClipboardHistoryRow: View {
 
     private func metadataBadge(icon: String, text: String, tint: Color? = nil) -> some View {
         Label(text, systemImage: icon)
-            .font(.caption)
-            .foregroundStyle(tint ?? Color.secondary)
+            .font(TypographyTokens.caption)
+            .foregroundStyle(tint ?? ColorTokens.Text.secondary)
             .padding(.vertical, SpacingTokens.xxs)
             .padding(.horizontal, SpacingTokens.xs)
-            .background((tint?.opacity(0.18) ?? Color.primary.opacity(0.04)), in: Capsule())
+            .background((tint?.opacity(0.18) ?? ColorTokens.Text.primary.opacity(0.04)), in: Capsule())
     }
 
     private func sanitizedMetadataValue(_ value: String?) -> String? {
@@ -132,12 +132,12 @@ struct ClipboardHistoryRow: View {
         if let hex = sanitizedMetadataValue(entry.metadata.connectionColorHex), let color = Color(hex: hex) {
             return color
         }
-        return Color.accentColor
+        return ColorTokens.accent
     }
 
     private var backgroundShape: some View {
         RoundedRectangle(cornerRadius: 12, style: .continuous)
-            .fill(isHovering ? Color.primary.opacity(0.06) : Color.primary.opacity(0.02))
+            .fill(isHovering ? ColorTokens.Text.primary.opacity(0.06) : ColorTokens.Text.primary.opacity(0.02))
     }
 
     private var infoButton: some View {
@@ -146,7 +146,7 @@ struct ClipboardHistoryRow: View {
         } label: {
             Image(systemName: "info.circle")
                 .font(TypographyTokens.standard.weight(.semibold))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(ColorTokens.Text.secondary)
                 .padding(SpacingTokens.xxs)
         }
         .buttonStyle(.plain)

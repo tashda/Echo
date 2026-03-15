@@ -8,10 +8,9 @@ struct QueryResultsSection: View {
     let gridState: QueryResultsGridState
     let isResizingResults: Bool
 #if os(macOS)
-    let foreignKeyDisplayMode: ForeignKeyDisplayMode
-    let foreignKeyInspectorBehavior: ForeignKeyInspectorBehavior
     let onForeignKeyEvent: (QueryResultsTableView.ForeignKeyEvent) -> Void
     let onJsonEvent: (QueryResultsTableView.JsonCellEvent) -> Void
+    let onCellInspect: ((CellValueInspectorContent) -> Void)?
 #endif
     @State internal var selectedTab: ResultTab = .results
     @State internal var sortCriteria: SortCriteria?
@@ -45,8 +44,6 @@ struct QueryResultsSection: View {
     var body: some View {
         VStack(spacing: 0) {
             if query.hasExecutedAtLeastOnce || query.isExecuting || query.errorMessage != nil {
-                toolbar
-                Divider().opacity(0.35)
                 content
             }
             statusBar
@@ -90,7 +87,7 @@ struct QueryResultsSection: View {
 
 #if !os(macOS)
     private var statusBar: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: SpacingTokens.xs) {
             Text(connectionChipText)
             Spacer()
             Text("\(query.rowProgress.displayCount) rows")

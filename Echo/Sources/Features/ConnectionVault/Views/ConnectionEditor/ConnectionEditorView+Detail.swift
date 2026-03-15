@@ -6,7 +6,7 @@ import UniformTypeIdentifiers
 
 extension ConnectionEditorView {
     var detailView: some View {
-        VStack(spacing: 0) {
+        VStack(spacing: SpacingTokens.none) {
             ScrollViewReader { proxy in
                 Form {
                     generalSection
@@ -51,8 +51,7 @@ extension ConnectionEditorView {
                         Image(type.iconName)
                             .resizable()
                             .aspectRatio(contentMode: .fit)
-                            .frame(width: 16, height: 16)
-                    }
+                            .frame(width: SpacingTokens.md, height: SpacingTokens.md)                    }
                     .tag(type)
                 }
             }
@@ -60,7 +59,7 @@ extension ConnectionEditorView {
             TextField("Name", text: $connectionName, prompt: Text("My Connection"))
 
             LabeledContent("Color") {
-                HStack(spacing: 8) {
+                HStack(spacing: SpacingTokens.xs) {
                     ForEach(Self.colorPalette, id: \.self) { hex in
                         let swatch = Color(hex: hex) ?? .accentColor
                         colorSwatch(color: swatch, isSelected: colorHex.uppercased() == hex.uppercased())
@@ -75,20 +74,24 @@ extension ConnectionEditorView {
                 .frame(maxWidth: .infinity, alignment: .trailing)
             }
         } header: {
-            Text(originalConnection == nil ? "New Connection" : "Edit Connection")
+            if isQuickConnect {
+                Text("Quick Connect")
+            } else {
+                Text(originalConnection == nil ? "New Connection" : "Edit Connection")
+            }
         }
     }
 
     private func colorSwatch(color: Color, isSelected: Bool) -> some View {
-        Circle().fill(color).frame(width: 20, height: 20)
+        Circle().fill(color).frame(width: SpacingTokens.md2, height: SpacingTokens.md2)
             .overlay {
                 if isSelected {
                     Image(systemName: "checkmark")
-                        .font(.system(size: 10, weight: .bold))
+                        .font(TypographyTokens.compact.weight(.bold))
                         .foregroundStyle(.white)
                 }
             }
-            .overlay(Circle().strokeBorder(.primary.opacity(0.15), lineWidth: 0.5))
+            .overlay(Circle().strokeBorder(ColorTokens.Text.primary.opacity(0.15), lineWidth: 0.5))
             .contentShape(Circle())
     }
 
@@ -102,7 +105,7 @@ extension ConnectionEditorView {
     private var serverSection: some View {
         Section {
             LabeledContent(selectedDatabaseType == .sqlite ? "Database File" : "Host") {
-                HStack(spacing: 8) {
+                HStack(spacing: SpacingTokens.xs) {
                     TextField(
                         "",
                         text: $host,
@@ -153,7 +156,7 @@ extension ConnectionEditorView {
         Section {
             LabeledContent("Test") {
                 Button(action: handleTestButton) {
-                    HStack(spacing: 6) {
+                    HStack(spacing: SpacingTokens.xxs2) {
                         if isTestingConnection {
                             ProgressView().controlSize(.small)
                             Text("Cancel")
@@ -174,37 +177,37 @@ extension ConnectionEditorView {
     }
 
     private var testTranscript: some View {
-        VStack(alignment: .leading, spacing: 2) {
+        VStack(alignment: .leading, spacing: SpacingTokens.xxxs) {
             ForEach(testLogEntries) { entry in
-                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                HStack(alignment: .firstTextBaseline, spacing: SpacingTokens.xxs2) {
                     Text(entry.timestamp, format: .dateTime.hour().minute().second())
-                        .foregroundStyle(.tertiary)
+                        .foregroundStyle(ColorTokens.Text.tertiary)
                     Text(entry.message)
                         .foregroundStyle(logEntryColor(entry.kind))
                         .textSelection(.enabled)
                 }
-                .font(.system(size: 11, design: .monospaced))
+                .font(TypographyTokens.detail.monospaced())
             }
 
             if isTestingConnection {
-                HStack(spacing: 6) {
+                HStack(spacing: SpacingTokens.xxs2) {
                     ProgressView().controlSize(.mini)
                     Text("Waiting for response...")
-                        .font(.system(size: 11, design: .monospaced))
-                        .foregroundStyle(.secondary)
+                        .font(TypographyTokens.detail.monospaced())
+                        .foregroundStyle(ColorTokens.Text.secondary)
                 }
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(SpacingTokens.xs)
-        .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 4))
+        .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: SpacingTokens.xxs))
     }
 
     private func logEntryColor(_ kind: TestLogEntry.Kind) -> Color {
         switch kind {
-        case .info: .secondary
-        case .success: .green
-        case .error: .red
+        case .info: ColorTokens.Text.secondary
+        case .success: ColorTokens.Status.success
+        case .error: ColorTokens.Status.error
         }
     }
 
@@ -217,16 +220,29 @@ extension ConnectionEditorView {
             }
             .keyboardShortcut(.cancelAction)
 
-            Button("Save") {
-                handleSave(action: .save)
-            }
-            .disabled(!isFormValid)
+            if isQuickConnect {
+                Button("Save & Connect") {
+                    handleSave(action: .saveAndConnect)
+                }
+                .disabled(!isFormValid)
 
-            Button("Save & Connect") {
-                handleSave(action: .saveAndConnect)
+                Button("Connect") {
+                    handleSave(action: .connect)
+                }
+                .keyboardShortcut(.defaultAction)
+                .disabled(!isFormValid)
+            } else {
+                Button("Save") {
+                    handleSave(action: .save)
+                }
+                .disabled(!isFormValid)
+
+                Button("Save & Connect") {
+                    handleSave(action: .saveAndConnect)
+                }
+                .keyboardShortcut(.defaultAction)
+                .disabled(!isFormValid)
             }
-            .keyboardShortcut(.defaultAction)
-            .disabled(!isFormValid)
         }
         .padding(SpacingTokens.md2)
     }

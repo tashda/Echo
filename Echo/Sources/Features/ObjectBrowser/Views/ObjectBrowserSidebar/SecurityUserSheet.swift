@@ -70,6 +70,7 @@ struct SecurityUserSheet: View {
         }
         .listStyle(.sidebar)
         .scrollContentBackground(.hidden)
+        .background(ColorTokens.Background.secondary.opacity(0.3))
     }
 
     // MARK: - Detail Pane
@@ -107,10 +108,10 @@ struct SecurityUserSheet: View {
         HStack {
             if let error = errorMessage {
                 Image(systemName: "exclamationmark.triangle.fill")
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(ColorTokens.Status.warning)
                 Text(error)
                     .font(TypographyTokens.detail)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(ColorTokens.Text.secondary)
                     .lineLimit(2)
             }
 
@@ -183,7 +184,7 @@ struct SecurityUserSheet: View {
                     ProgressView().controlSize(.small)
                     Text("Loading database roles\u{2026}")
                         .font(TypographyTokens.detail)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(ColorTokens.Text.secondary)
                 }
             }
         } else {
@@ -195,7 +196,7 @@ struct SecurityUserSheet: View {
                             if role.isFixed {
                                 Text("(fixed)")
                                     .font(TypographyTokens.label)
-                                    .foregroundStyle(.tertiary)
+                                    .foregroundStyle(ColorTokens.Text.tertiary)
                             }
                         }
                     }
@@ -215,7 +216,7 @@ struct SecurityUserSheet: View {
 
         // Load available logins
         do {
-            let ssec = mssql.makeServerSecurityClient()
+            let ssec = mssql.serverSecurity
             let logins = try await ssec.listLogins()
             await MainActor.run {
                 availableLogins = logins.filter { !$0.isDisabled }.map(\.name).sorted()
@@ -225,7 +226,7 @@ struct SecurityUserSheet: View {
         // Load database roles
         loadingRoles = true
         do {
-            let sec = mssql.makeDatabaseSecurityClient()
+            let sec = mssql.security
             // Switch to target database
             _ = try? await session.session.simpleQuery("USE [\(databaseName)]")
 
@@ -260,7 +261,7 @@ struct SecurityUserSheet: View {
         // If editing, load existing user properties
         if let existingName = existingUserName {
             do {
-                let sec = mssql.makeDatabaseSecurityClient()
+                let sec = mssql.security
                 let users = try await sec.listUsers()
                 if let user = users.first(where: { $0.name.caseInsensitiveCompare(existingName) == .orderedSame }) {
                     await MainActor.run {
@@ -292,7 +293,7 @@ struct SecurityUserSheet: View {
         errorMessage = nil
 
         do {
-            let sec = mssql.makeDatabaseSecurityClient()
+            let sec = mssql.security
             // Switch to target database
             _ = try? await session.session.simpleQuery("USE [\(databaseName)]")
 

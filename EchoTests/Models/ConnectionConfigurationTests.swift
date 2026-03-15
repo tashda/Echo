@@ -171,4 +171,93 @@ final class ConnectionConfigurationTests: XCTestCase {
         XCTAssertEqual(config.useTLS, saved.useTLS)
         XCTAssertEqual(config.id, saved.id)
     }
+
+    // MARK: - trustServerCertificate
+
+    func testAsSavedConnectionPreservesTrustServerCertificateTrue() {
+        let config = ConnectionConfiguration(
+            connectionName: "MSSQL",
+            host: "sql.example.com",
+            port: 1433,
+            database: "mydb",
+            username: "sa",
+            useTLS: true,
+            trustServerCertificate: true
+        )
+
+        let saved = config.asSavedConnection
+        XCTAssertTrue(saved.trustServerCertificate, "asSavedConnection should preserve trustServerCertificate: true")
+    }
+
+    func testFromSavedConnectionPreservesTrustServerCertificateTrue() {
+        let saved = TestFixtures.savedConnection(
+            connectionName: "MSSQL",
+            host: "sql.example.com",
+            port: 1433,
+            database: "mydb",
+            username: "sa",
+            useTLS: true,
+            trustServerCertificate: true,
+            databaseType: .microsoftSQL
+        )
+
+        let config = ConnectionConfiguration.from(saved)
+        XCTAssertTrue(config.trustServerCertificate, "from(savedConnection) should preserve trustServerCertificate: true")
+    }
+
+    func testTrustServerCertificateDefaultsToFalse() {
+        let config = ConnectionConfiguration(
+            connectionName: "Default",
+            host: "localhost",
+            port: 5432,
+            database: "mydb",
+            username: "user"
+        )
+
+        XCTAssertFalse(config.trustServerCertificate, "Default trustServerCertificate should be false")
+    }
+
+    // MARK: - readOnlyIntent
+
+    func testReadOnlyIntentDefaultsToFalse() {
+        let config = ConnectionConfiguration(
+            connectionName: "Default",
+            host: "localhost",
+            port: 1433,
+            database: "mydb",
+            username: "sa"
+        )
+        XCTAssertFalse(config.readOnlyIntent)
+    }
+
+    func testAsSavedConnectionPreservesReadOnlyIntentTrue() {
+        let config = ConnectionConfiguration(
+            connectionName: "MSSQL AG",
+            host: "sql.example.com",
+            port: 1433,
+            database: "mydb",
+            username: "sa",
+            readOnlyIntent: true
+        )
+
+        let saved = config.asSavedConnection
+        XCTAssertTrue(saved.readOnlyIntent)
+    }
+
+    func testFromSavedConnectionPreservesReadOnlyIntent() {
+        let saved = TestFixtures.savedConnection(
+            connectionName: "MSSQL AG",
+            host: "sql.example.com",
+            port: 1433,
+            database: "mydb",
+            username: "sa",
+            databaseType: .microsoftSQL
+        )
+
+        var mutableSaved = saved
+        mutableSaved.readOnlyIntent = true
+
+        let config = ConnectionConfiguration.from(mutableSaved)
+        XCTAssertTrue(config.readOnlyIntent)
+    }
 }

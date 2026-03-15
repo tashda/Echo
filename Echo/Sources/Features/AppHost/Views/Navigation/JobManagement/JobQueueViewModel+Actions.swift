@@ -6,15 +6,15 @@ extension JobQueueViewModel {
 
     // MARK: - Agent Client
 
-    func withAgentClient<T>(_ body: (SQLServerAgentClient) async throws -> T) async throws -> T {
+    func withAgentClient<T>(_ body: (SQLServerAgentOperations) async throws -> T) async throws -> T {
         guard let mssql = session as? MSSQLSession else {
             throw AgentActionError.notMSSQL
         }
-        let agent = mssql.makeAgentClient()
+        let agent = mssql.agent
         return try await body(agent)
     }
 
-    private func performAction(_ action: @escaping (SQLServerAgentClient) async throws -> Void) async {
+    private func performAction(_ action: @escaping (SQLServerAgentOperations) async throws -> Void) async {
         do {
             try await withAgentClient { agent in
                 try await action(agent)
@@ -125,11 +125,11 @@ extension JobQueueViewModel {
             // If there were existing steps, set the previous last step to "Go to next step"
             // so multi-step jobs execute all steps in sequence
             if previousStepCount > 0, let lastStep = self.steps.last {
-                _ = try await agent.configureStep(
+                try await agent.configureStep(
                     jobName: jobName,
                     stepName: lastStep.name,
                     onSuccessAction: 3  // Go to next step
-                ).get()
+                )
             }
         }
         await loadDetails()

@@ -22,10 +22,10 @@ extension BulkColumnEditorSheet {
     }
 
     var generatedExpressionField: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: SpacingTokens.xxs2) {
             Text("Generated Expression")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                .font(TypographyTokens.caption2)
+                .foregroundStyle(ColorTokens.Text.secondary)
 
             TextEditor(text: $generatedExpression)
                 .font(TypographyTokens.standard)
@@ -33,11 +33,11 @@ extension BulkColumnEditorSheet {
                 .padding(.vertical, SpacingTokens.xxs2)
                 .padding(.horizontal, SpacingTokens.xs)
                 .background(
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    RoundedRectangle(cornerRadius: SpacingTokens.xs, style: .continuous)
                         .fill(fieldBackgroundColor)
                 )
                 .overlay(
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    RoundedRectangle(cornerRadius: SpacingTokens.xs, style: .continuous)
                         .stroke(fieldStrokeColor, lineWidth: 1)
                 )
         }
@@ -45,29 +45,29 @@ extension BulkColumnEditorSheet {
     }
 
     var sectionHeader: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: SpacingTokens.xxs2) {
             Text(columnSummaryTitle)
                 .font(TypographyTokens.caption2.weight(.semibold))
             if columnNames.isEmpty {
                 Text("No columns selected")
                     .font(TypographyTokens.detail)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(ColorTokens.Text.secondary)
             } else {
                 ForEach(Array(columnNames.prefix(10).enumerated()), id: \.offset) { _, name in
                     Text("-- \(name)")
                         .font(TypographyTokens.detail)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(ColorTokens.Text.secondary)
                 }
                 if columnNames.count > 10 {
                     Text("...and \(columnNames.count - 10) more")
                         .font(TypographyTokens.detail)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(ColorTokens.Text.secondary)
                 }
             }
 
             Text(sectionTitle)
                 .font(TypographyTokens.detail.weight(.medium))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(ColorTokens.Text.secondary)
                 .padding(.top, SpacingTokens.xxs2)
         }
     }
@@ -83,7 +83,7 @@ extension BulkColumnEditorSheet {
     }
 
     var toolbar: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: SpacingTokens.sm) {
             Button("Cancel") { onCancel() }
                 .keyboardShortcut(.cancelAction)
 
@@ -99,13 +99,7 @@ extension BulkColumnEditorSheet {
         }
         .padding(.horizontal, SpacingTokens.md2)
         .padding(.vertical, SpacingTokens.sm2)
-        .background(toolbarBackgroundColor)
-        .overlay(
-            Rectangle()
-                .fill(toolbarBorderColor)
-                .frame(height: 1),
-            alignment: .top
-        )
+        .background(.bar)
     }
 
     func applyChanges() {

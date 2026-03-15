@@ -15,90 +15,164 @@ extension ManageConnectionsView {
             }
         )) {
             ForEach(ManageSection.allCases) { section in
-                sidebarSection(
-                    section,
-                    nodes: section == .connections ? connectionFolderNodes : identityFolderNodes,
-                    totalCount: totalCount(for: section)
-                )
+                Section(isExpanded: sectionBinding(for: section)) {
+                    sidebarSectionContent(section)
+                } header: {
+                    Text(section.title)
+                        .font(TypographyTokens.caption.weight(.bold))
+                        .foregroundStyle(ColorTokens.Text.secondary)
+                        .contextMenu {
+                            sectionContextMenu(for: section)
+                        }
+                }
             }
         }
         .listStyle(.sidebar)
     }
 
     @ViewBuilder
-    func sidebarSection(
-        _ section: ManageSection,
-        nodes: [FolderNode],
-        totalCount: Int
+    private func sidebarSectionContent(
+        _ section: ManageSection
     ) -> some View {
-         DisclosureGroup(isExpanded: sectionBinding(for: section)) {
-            OutlineGroup(nodes, children: \.childNodes) { node in
-                sidebarFolderLink(node: node, section: section)
-            }
-        } label: {
-            NavigationLink(value: SidebarSelection.section(section)) {
-                Label(section.title, systemImage: section.icon)
-            }
-            .tag(SidebarSelection.section(section))
-            .contextMenu {
-                switch section {
-                case .connections:
-                    Button {
-                        handlePrimaryAdd(for: .connections)
-                    } label: {
-                        Label("New Connection", systemImage: "externaldrive.badge.plus")
-                    }
-                    Button {
-                        presentCreateFolder(for: .connections)
-                    } label: {
-                        Label("New Folder", systemImage: "folder.badge.plus")
-                    }
-                case .identities:
-                    Button {
-                        handlePrimaryAdd(for: .identities)
-                    } label: {
-                        Label("New Identity", systemImage: "person.crop.circle.badge.plus")
-                    }
-                    Button {
-                        presentCreateFolder(for: .identities)
-                    } label: {
-                        Label("New Folder", systemImage: "folder.badge.plus")
-                    }
+        Group {
+            if section == .projects {
+                ForEach(projectStore.projects) { project in
+                    sidebarProjectLink(project: project)
                 }
+            } else {
+                Label {
+                    Text("All \(section.title)")
+                } icon: {
+                    Image(systemName: section.icon)
+                }
+                .tag(SidebarSelection.section(section))
+                .contextMenu {
+                    sectionContextMenu(for: section)
+                }
+
+                let nodes = section == .connections ? connectionFolderNodes : identityFolderNodes
+                OutlineGroup(nodes, children: \.childNodes) { node in
+                    sidebarFolderLink(node: node, section: section)
+                }
+            }
+        }
+        .transition(.asymmetric(insertion: .opacity.combined(with: .move(edge: .top)), removal: .opacity))
+    }
+
+    @ViewBuilder
+    func sidebarProjectLink(project: Project) -> some View {
+        let isSelected = projectStore.selectedProject?.id == project.id
+
+        HStack {
+            Label {
+                Text(project.name)
+            } icon: {
+                Image(systemName: project.iconName ?? "folder.fill")
+            }
+
+            Spacer()
+
+            if isSelected {
+                Image(systemName: "checkmark")
+                    .font(TypographyTokens.compact.weight(.bold))
+                    .foregroundStyle(ColorTokens.Text.secondary)
+            }
+        }
+        .tag(SidebarSelection.project(project.id))
+        .contextMenu {
+            Button {
+                projectStore.selectProject(project)
+                navigationStore.selectProject(project)
+            } label: {
+                Label("Select Project", systemImage: isSelected ? "checkmark" : "circle")
+            }
+
+            Divider()
+
+            if !project.isDefault {
+                Button("Delete", role: .destructive) {
+                    projectToDelete = project
+                    showDeleteConfirmation = true
+                }
+            }
+
+            Button {
+                exportProjectID = project.id
+                showExportSheet = true
+            } label: {
+                Text("Export…")
             }
         }
     }
 
     @ViewBuilder
     func sidebarFolderLink(node: FolderNode, section: ManageSection) -> some View {
-        NavigationLink(value: SidebarSelection.folder(node.folder.id, section)) {
-            Label(node.folder.displayName, systemImage: node.folder.icon)
-        }
-        .tag(SidebarSelection.folder(node.folder.id, section))
-        .contextMenu {
-            Button {
-                createNewFolder(for: section, parent: node.folder)
-            } label: {
-                Text("New Subfolder")
-            }
+        Label(node.folder.displayName, systemImage: node.folder.icon)
+            .tag(SidebarSelection.folder(node.folder.id, section))
+            .contextMenu {
+                Button {
+                    createNewFolder(for: section, parent: node.folder)
+                } label: {
+                    Text("New Subfolder")
+                }
 
-            Button {
-                editFolder(node.folder)
-            } label: {
-                Text("Edit")
-            }
+                Button {
+                    editFolder(node.folder)
+                } label: {
+                    Text("Edit")
+                }
 
+                Divider()
+
+                Button("Delete", role: .destructive) {
+                    handleDeletion(.folder(node.folder))
+                }
+            }
+            .dropDestination(for: String.self) { items, _ in
+                if section == .connections {
+                    return handleConnectionDrop(items: items, folder: node.folder)
+                } else {
+                    return handleIdentityDrop(items: items, folder: node.folder)
+                }
+            }
+    }
+
+    @ViewBuilder
+    private func sectionContextMenu(for section: ManageSection) -> some View {
+        switch section {
+        case .connections:
+            Button {
+                handlePrimaryAdd(for: .connections)
+            } label: {
+                Label("New Connection", systemImage: "externaldrive.badge.plus")
+            }
+            Button {
+                presentCreateFolder(for: .connections)
+            } label: {
+                Label("New Folder", systemImage: "folder.badge.plus")
+            }
+        case .identities:
+            Button {
+                handlePrimaryAdd(for: .identities)
+            } label: {
+                Label("New Identity", systemImage: "person.crop.circle.badge.plus")
+            }
+            Button {
+                presentCreateFolder(for: .identities)
+            } label: {
+                Label("New Folder", systemImage: "folder.badge.plus")
+            }
+        case .projects:
+            Button {
+                isPresentingNewProjectSheet = true
+            } label: {
+                Label("New Project", systemImage: "plus")
+            }
             Divider()
-
-            Button("Delete", role: .destructive) {
-                handleDeletion(.folder(node.folder))
-            }
-        }
-        .dropDestination(for: String.self) { items, location in
-            if section == .connections {
-                return handleConnectionDrop(items: items, folder: node.folder)
-            } else {
-                return handleIdentityDrop(items: items, folder: node.folder)
+            Button {
+                showImportSheet = true
+            } label: {
+                Label("Import Project from file…", systemImage: "square.and.arrow.down")
             }
         }
     }
@@ -107,6 +181,7 @@ extension ManageConnectionsView {
         switch section {
         case .connections: return projectConnections.count
         case .identities: return projectIdentities.count
+        case .projects: return projectStore.projects.count
         }
     }
 
@@ -114,10 +189,12 @@ extension ManageConnectionsView {
         Binding(
             get: { expandedSections.contains(section) },
             set: { isExpanded in
-                if isExpanded {
-                    expandedSections.insert(section)
-                } else {
-                    expandedSections.remove(section)
+                withAnimation(.snappy(duration: 0.2, extraBounce: 0)) {
+                    if isExpanded {
+                        expandedSections.insert(section)
+                    } else {
+                        expandedSections.remove(section)
+                    }
                 }
             }
         )

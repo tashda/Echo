@@ -65,11 +65,11 @@ struct AgentSidebarView: View {
 
     var body: some View {
         ScrollView {
-            LazyVStack(alignment: .leading, spacing: 10, pinnedViews: .sectionHeaders) {
+            LazyVStack(alignment: .leading, spacing: SpacingTokens.xs2, pinnedViews: .sectionHeaders) {
                 Section {
-                    VStack(alignment: .leading, spacing: 8) {
+                    VStack(alignment: .leading, spacing: SpacingTokens.xs) {
                         HStack {
-                            HStack(spacing: 8) {
+                            HStack(spacing: SpacingTokens.xs) {
                                 TextField("Search jobs", text: $searchText).textFieldStyle(.roundedBorder).frame(maxWidth: 220)
                                 Menu { Button("New Job…") { showNewJobSheet = true } } label: { Image(systemName: "plus.circle.fill").font(TypographyTokens.prominent.weight(.medium)) }.menuStyle(.borderlessButton)
                             }
@@ -83,7 +83,7 @@ struct AgentSidebarView: View {
                 }
             }.padding(.top, SpacingTokens.sm).padding(.bottom, SpacingTokens.xl)
         }
-        .overlay(alignment: .top) { if let error = viewModel.errorMessage { Text(error).font(.footnote).foregroundStyle(.secondary).padding(.top, SpacingTokens.xs) } }
+        .overlay(alignment: .top) { if let error = viewModel.errorMessage { Text(error).font(TypographyTokens.footnote).foregroundStyle(ColorTokens.Text.secondary).padding(.top, SpacingTokens.xs) } }
         .onAppear { Task { await viewModel.reload(for: selectedSession) } }
         .onChange(of: selectedConnectionID) { _, _ in Task { await viewModel.reload(for: selectedSession) } }
         .sheet(isPresented: $showNewJobSheet) { newJobSheetContent }
@@ -95,7 +95,7 @@ struct AgentSidebarView: View {
         guard !name.isEmpty else { newJobError = "Job name is required"; return }
         
         do {
-            let agent = mssql.makeAgentClient()
+            let agent = mssql.agent
             let builder = SQLServerAgentJobBuilder(agent: agent, jobName: name, description: newJobDescription.isEmpty ? nil : newJobDescription, enabled: newJobEnabled, ownerLoginName: newJobOwner.isEmpty ? nil : newJobOwner, categoryName: newJobCategory.isEmpty ? nil : newJobCategory, autoAttachServer: true)
             
             // Add steps and schedules (omitted for brevity, same logic as before but in builder)
@@ -123,7 +123,7 @@ private struct AgentSectionHeader: View {
     let title: String
     var body: some View {
         HStack {
-            Text(title.uppercased()).font(TypographyTokens.detail.weight(.semibold)).foregroundStyle(.secondary)
+            Text(title.uppercased()).font(TypographyTokens.detail.weight(.semibold)).foregroundStyle(ColorTokens.Text.secondary)
             Spacer()
         }
         .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, SpacingTokens.md).padding(.vertical, SpacingTokens.xs).background(ColorTokens.Background.secondary)

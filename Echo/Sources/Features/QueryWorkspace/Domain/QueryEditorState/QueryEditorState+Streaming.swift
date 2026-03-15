@@ -7,10 +7,22 @@ extension QueryEditorState {
     func applyStreamUpdate(_ update: QueryStreamUpdate) {
         guard !update.columns.isEmpty else { return }
         if streamingMode == .idle { streamingMode = .preview }
-        let modeForSpool = streamingMode
         if streamingColumns.isEmpty { streamingColumns = update.columns }
 
         let appendedRowCount = update.rowRange?.count ?? (!update.rawRows.isEmpty ? update.rawRows.count : (!update.appendedRows.isEmpty ? update.appendedRows.count : (!update.encodedRows.isEmpty ? update.encodedRows.count : 0)))
+
+        // Fast path: binary-only or count-only streaming update (no preview rows to integrate).
+        // Handles the bulk of rows after the initial preview batch is complete.
+        // Binary-only: worker sends encodedRows without appendedRows (normal path)
+        // Count-only: worker already wrote to disk, sends just counters (direct spool path)
+        let isBinaryOnly = update.appendedRows.isEmpty && !update.encodedRows.isEmpty && update.rawRows.isEmpty
+        let isCountOnly = update.appendedRows.isEmpty && update.encodedRows.isEmpty && update.rawRows.isEmpty && appendedRowCount > 0
+        if isBinaryOnly || isCountOnly {
+            applyBinaryStreamUpdate(update, appendedRowCount: appendedRowCount, skipSpoolSubmit: isCountOnly)
+            return
+        }
+
+        let modeForSpool = streamingMode
 
         if appendedRowCount > 0 {
             let previous = streamedRowCount
@@ -41,7 +53,7 @@ extension QueryEditorState {
 
         let effectiveShouldPersist = shouldPersistResults || streamingMode == .background
         let bufferLimit = effectiveShouldPersist ? frontBufferLimit : max(frontBufferLimit, estimatedTotal)
-        
+
         if effectiveShouldPersist, appendedRowCount > 0, max(bufferLimit - streamingRows.count, 0) <= 0 {
             let spoolPayload = QueryStreamUpdate(
                 columns: update.columns,
@@ -134,21 +146,71 @@ extension QueryEditorState {
         activateSpoolIfNeeded()
     }
 
+    /// Fast path for binary-only or count-only streaming updates (no preview rows).
+    /// Handles the bulk of rows after the initial preview batch is complete.
+    /// Only updates counters and submits to spool — no row integration or formatting.
+    /// When `skipSpoolSubmit` is true, the worker already wrote data to disk directly.
+    private func applyBinaryStreamUpdate(_ update: QueryStreamUpdate, appendedRowCount: Int, skipSpoolSubmit: Bool = false) {
+        let estimatedTotal = max(update.totalRowCount, streamedRowCount &+ appendedRowCount)
+
+        streamedRowCount = min(streamedRowCount &+ appendedRowCount, estimatedTotal)
+        didReceiveStreamingUpdate = true
+
+        performanceTracker.recordStreamUpdate(appendedRowCount: appendedRowCount, totalRowCount: estimatedTotal)
+        if estimatedTotal >= initialVisibleRowBatch { performanceTracker.recordInitialBatchReady(totalRowCount: estimatedTotal) }
+        if let metrics = update.metrics { performanceTracker.recordBackendMetrics(metrics) }
+
+        if streamingMode == .preview, streamedRowCount >= spoolActivationThreshold {
+            streamingMode = .background
+            if !isResultsOnly { visibleRowLimit = nil }
+            shouldPersistResults = true
+        }
+
+        if !skipSpoolSubmit {
+            let spoolPayload = QueryStreamUpdate(
+                columns: update.columns,
+                appendedRows: [],
+                encodedRows: update.encodedRows,
+                totalRowCount: update.totalRowCount,
+                metrics: update.metrics,
+                rowRange: update.rowRange
+            )
+            submitToSpool(update: spoolPayload, mode: streamingMode)
+        }
+
+        rowProgress = RowProgress(
+            totalReceived: max(streamedRowCount, rowProgress.totalReceived),
+            totalReported: max(estimatedTotal, rowProgress.totalReported),
+            materialized: rowProgress.materialized
+        )
+        markResultDataChanged()
+        if isExecuting { refreshLivePerformanceReport() }
+        activateSpoolIfNeeded()
+    }
+
     func consumeFinalResult(_ result: QueryResultSet) {
         let total = result.totalRowCount ?? result.rows.count
         performanceTracker.markResultSetReceived(totalRowCount: total)
         streamingMode = .completed; streamingColumns = result.columns
-        shouldPersistResults = shouldPersistResults || total >= spoolActivationThreshold
+        shouldPersistResults = shouldPersistResults || total > frontBufferLimit
         let truncated = Array(result.rows.prefix(shouldPersistResults ? frontBufferLimit : max(frontBufferLimit, total)))
         rowCache.ingest(rows: truncated, startingAt: 0)
-        streamedRowCount = max(streamedRowCount, total)
+        // Clamp streamedRowCount to the authoritative total from the database
+        streamedRowCount = total
         if streamingRows.count < truncated.count { streamingRows = truncated } else { for i in 0..<truncated.count { streamingRows[i] = truncated[i] } }
-        results = QueryResultSet(columns: result.columns, rows: truncated, totalRowCount: total, commandTag: result.commandTag)
-        rowProgress = RowProgress(materialized: max(rowProgress.materialized, truncated.count), reported: max(rowProgress.reported, total), received: streamedRowCount)
+        results = QueryResultSet(columns: result.columns, rows: truncated, totalRowCount: total, commandTag: result.commandTag, additionalResults: result.additionalResults)
+        additionalResults = result.additionalResults
+        selectedResultSetIndex = 0
+        // Use the authoritative total — don't preserve inflated streaming estimates
+        rowProgress = RowProgress(materialized: max(rowProgress.materialized, truncated.count), reported: total, received: total)
         materializedHighWaterMark = max(materializedHighWaterMark, rowProgress.materialized)
         visibleRowLimit = isResultsOnly ? min(initialVisibleRowBatch, total) : nil
         refreshMaterializedProgress(); markResultDataChanged(); refreshLivePerformanceReport()
-        if shouldPersistResults { activateSpoolIfNeeded(); finalizeSpool(with: result) } else {
+        if shouldPersistResults {
+            activateSpoolIfNeeded(); finalizeSpool(with: result)
+            // Progressive materialization is triggered by the spool stats
+            // monitor when isFinished arrives — all chunks are written by then.
+        } else {
             shouldPersistResults = false; deferredSpoolUpdates.removeAll(); ingestionService = nil; spoolHandle = nil; resultSpoolID = nil; spoolStatsTask?.cancel(); spoolStatsTask = nil
         }
     }

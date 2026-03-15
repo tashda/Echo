@@ -17,16 +17,16 @@ struct CompactDatabaseCard: View {
 
     var body: some View {
         Button(action: onSelect) {
-            VStack(alignment: .leading, spacing: 6) {
-                HStack(spacing: 6) {
+            VStack(alignment: .leading, spacing: SpacingTokens.xxs2) {
+                HStack(spacing: SpacingTokens.xxs2) {
                     Circle()
                         .fill(serverColor)
-                        .frame(width: 4, height: 4)
+                        .frame(width: SpacingTokens.xxs, height: SpacingTokens.xxs)
                     Text(database.name)
                         .font(TypographyTokens.detail.weight(.medium))
-                        .foregroundStyle(isSelected ? serverColor : .primary)
+                        .foregroundStyle(isSelected ? serverColor : ColorTokens.Text.primary)
                         .lineLimit(1)
-                    Spacer(minLength: 4)
+                    Spacer(minLength: SpacingTokens.xxs)
                     if isSelected {
                         Image(systemName: "checkmark")
                             .font(TypographyTokens.compact.weight(.semibold))
@@ -34,13 +34,13 @@ struct CompactDatabaseCard: View {
                     }
                 }
 
-                HStack(spacing: 4) {
+                HStack(spacing: SpacingTokens.xxs) {
                     Image(systemName: "list.bullet")
-                        .font(.system(size: 8, weight: .medium))
-                        .foregroundStyle(.tertiary)
+                        .font(TypographyTokens.compact.weight(.medium))
+                        .foregroundStyle(ColorTokens.Text.tertiary)
                     Text(schemaCountText)
                         .font(TypographyTokens.compact.weight(.medium))
-                        .foregroundStyle(.tertiary)
+                        .foregroundStyle(ColorTokens.Text.tertiary)
                 }
             }
             .padding(.horizontal, SpacingTokens.xs2)
@@ -57,7 +57,7 @@ struct CompactDatabaseCard: View {
             .overlay(
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
                     .strokeBorder(
-                        isSelected ? serverColor.opacity(0.3) : (isHovered ? Color.primary.opacity(0.05) : .clear),
+                        isSelected ? serverColor.opacity(0.3) : (isHovered ? ColorTokens.Text.primary.opacity(0.05) : .clear),
                         lineWidth: isSelected ? 1 : 0.5
                     )
             )
@@ -76,7 +76,7 @@ struct ExplorerLoadingOverlay: View {
     let message: String
 
     var body: some View {
-        VStack(spacing: 10) {
+        VStack(spacing: SpacingTokens.xs2) {
             if let progress {
                 ProgressView(value: progress)
                     .progressViewStyle(.linear)
@@ -88,7 +88,7 @@ struct ExplorerLoadingOverlay: View {
 
             Text(message)
                 .font(TypographyTokens.detail.weight(.medium))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(ColorTokens.Text.secondary)
                 .multilineTextAlignment(.center)
         }
         .padding(.horizontal, SpacingTokens.md2)

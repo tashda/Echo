@@ -77,7 +77,7 @@ struct DropZoneView: View {
             .frame(height: 8)
             .overlay(
                 Rectangle()
-                    .fill(Color.accentColor)
+                    .fill(ColorTokens.accent)
                     .frame(height: 2)
                     .opacity(isTargeted ? 1 : 0)
                     .animation(.easeInOut(duration: 0.15), value: isTargeted)

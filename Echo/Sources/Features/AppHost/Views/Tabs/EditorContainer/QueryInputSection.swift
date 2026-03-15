@@ -47,10 +47,10 @@ struct QueryInputSection: View {
 
     @State var isFormatting = false
 
-    private let leadingPadding: CGFloat = 8
-    private let trailingPadding: CGFloat = 18
+    private let leadingPadding: CGFloat = SpacingTokens.xs
+    private let trailingPadding: CGFloat = SpacingTokens.md1
     private let topPadding: CGFloat = 0
-    private let bottomPadding: CGFloat = 20
+    private let bottomPadding: CGFloat = SpacingTokens.md2
 
     var body: some View {
         let resolvedTheme = editorTheme

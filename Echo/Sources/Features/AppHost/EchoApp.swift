@@ -44,6 +44,7 @@ struct EchoApp: App {
                 .environmentObject(coordinator.appState)
                 .environmentObject(coordinator.clipboardHistory)
                 .environmentObject(coordinator.appearanceStore)
+                .environmentObject(coordinator.notificationEngine)
                 .task { await coordinator.initialize() }
         }
         .defaultLaunchBehavior(.presented)
@@ -67,6 +68,11 @@ struct EchoApp: App {
                 projectStore: coordinator.projectStore,
                 connectionStore: coordinator.connectionStore,
                 navigationStore: coordinator.navigationStore
+            )
+            ViewMenuCommands(
+                appState: coordinator.appState,
+                navigationStore: coordinator.navigationStore,
+                tabStore: coordinator.tabStore
             )
 #endif
         }
@@ -99,7 +105,7 @@ struct QueryCommands: Commands {
     }
 
     var body: some Commands {
-        CommandGroup(after: .newItem) {
+        CommandGroup(replacing: .newItem) {
             Button("New Query Tab") {
                 environmentState.openQueryTab()
             }
@@ -138,11 +144,6 @@ struct QueryCommands: Commands {
                 Text("Reopen Closed Tab")
             }
             .keyboardShortcut(key(for: "Reopen Closed Tab", default: "t"), modifiers: mods(for: "Reopen Closed Tab", default: [.command, .shift]))
-
-            Button(appState.showTabOverview ? "Hide Tab Overview" : "Show Tab Overview") {
-                appState.showTabOverview.toggle()
-            }
-            .keyboardShortcut(key(for: "Show Tab Overview", default: "o"), modifiers: mods(for: "Show Tab Overview", default: [.command]))
 
             Button("Close Query Tab") {
                 if navigationStore.isWorkspaceWindowKey {
@@ -211,14 +212,62 @@ struct AppSettingsCommands: Commands {
 }
 
 struct SparkleCommands: Commands {
-    @StateObject private var updater = SparkleUpdater.shared
+    @ObservedObject private var updater = SparkleUpdater.shared
 
     var body: some Commands {
         CommandGroup(after: .appInfo) {
-            Button("Check for Updates…") {
+            Button {
                 updater.checkForUpdates()
+            } label: {
+                Label("Check for Updates…", systemImage: "arrow.clockwise.circle")
             }
             .disabled(!updater.canCheckForUpdates)
+        }
+    }
+}
+
+struct ViewMenuCommands: Commands {
+    @ObservedObject var appState: AppState
+    let navigationStore: NavigationStore
+    let tabStore: TabStore
+
+    var body: some Commands {
+        CommandGroup(after: .sidebar) {
+            Button {
+                if let keyWindow = NSApplication.shared.keyWindow,
+                   keyWindow.identifier == AppWindowIdentifier.manageConnections {
+                    NotificationCenter.default.post(name: .toggleManageConnectionsSidebar, object: nil)
+                } else {
+                    NSApp?.sendAction(#selector(NSSplitViewController.toggleSidebar(_:)), to: nil, from: nil)
+                }
+            } label: {
+                Label("Toggle Sidebar", systemImage: "sidebar.left")
+            }
+            .keyboardShortcut("s", modifiers: [.command, .control])
+
+            Button {
+                appState.showInfoSidebar.toggle()
+            } label: {
+                Label(
+                    appState.showInfoSidebar ? "Hide Inspector" : "Show Inspector",
+                    systemImage: "sidebar.trailing"
+                )
+            }
+            .keyboardShortcut("i", modifiers: [.command, .option])
+            .disabled(!navigationStore.isWorkspaceWindowKey)
+
+            Divider()
+
+            Button {
+                appState.showTabOverview.toggle()
+            } label: {
+                Label(
+                    appState.showTabOverview ? "Hide Tab Overview" : "Show Tab Overview",
+                    systemImage: "square.grid.2x2"
+                )
+            }
+            .keyboardShortcut("o", modifiers: [.command, .shift])
+            .disabled(!navigationStore.isWorkspaceWindowKey || !tabStore.hasTabs)
         }
     }
 }
@@ -253,7 +302,7 @@ struct ConnectMenuCommands: Commands {
                 connectionMenuItems(parentID: nil, projectID: projectID)
             } else if !hasActiveSessions {
                 Text("No Connections Available")
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(ColorTokens.Text.secondary)
             }
 
             if hasActiveSessions || hasConnections {
@@ -268,6 +317,15 @@ struct ConnectMenuCommands: Commands {
 #endif
             }
             .keyboardShortcut("m", modifiers: [.command, .shift])
+            
+            Divider()
+            
+            Button {
+                SparkleUpdater.shared.checkForUpdates()
+            } label: {
+                Label("Check for Updates…", systemImage: "arrow.clockwise.circle")
+            }
+            .disabled(!SparkleUpdater.shared.canCheckForUpdates)
         }
     }
 
@@ -306,7 +364,7 @@ struct ConnectMenuCommands: Commands {
             let databases = availableDatabases(for: session)
             if databases.isEmpty {
                 Text("No Databases Available")
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(ColorTokens.Text.secondary)
             } else {
                 ForEach(databases, id: \.name) { database in
                     let isSelected = databaseNamesEqual(database.name, session.selectedDatabaseName)
@@ -340,7 +398,7 @@ struct ConnectMenuCommands: Commands {
     @ViewBuilder
     private func databaseMenuLabel(name: String, isSelected: Bool) -> some View {
         let contentWidth: CGFloat = 260
-        HStack(spacing: 8) {
+        HStack(spacing: SpacingTokens.xs) {
             if isSelected {
                 Image(systemName: "checkmark")
                     .frame(width: 12)

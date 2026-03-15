@@ -112,15 +112,15 @@ struct StreamingReportSummary: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: SpacingTokens.sm) {
             Text("Results")
-                .font(.headline)
+                .font(TypographyTokens.headline)
 
             LazyVGrid(columns: [
-                GridItem(.flexible(minimum: 120), spacing: 18, alignment: .leading),
-                GridItem(.flexible(minimum: 120), spacing: 18, alignment: .leading),
-                GridItem(.flexible(minimum: 120), spacing: 18, alignment: .leading)
-            ], alignment: .leading, spacing: 12) {
+                GridItem(.flexible(minimum: 120), spacing: SpacingTokens.md, alignment: .leading),
+                GridItem(.flexible(minimum: 120), spacing: SpacingTokens.md, alignment: .leading),
+                GridItem(.flexible(minimum: 120), spacing: SpacingTokens.md, alignment: .leading)
+            ], alignment: .leading, spacing: SpacingTokens.sm) {
                 metric("Total rows", value: "\(report.totalRows)")
                 metric("Batches", value: "\(report.batchCount)")
                 metric("Largest batch", value: "\(report.largestBatchSize)")
@@ -131,17 +131,17 @@ struct StreamingReportSummary: View {
 
             if !timings.isEmpty {
                 Divider()
-                VStack(alignment: .leading, spacing: 6) {
+                VStack(alignment: .leading, spacing: SpacingTokens.xxs2) {
                     Text("Timings")
-                        .font(.subheadline.bold())
+                        .font(TypographyTokens.subheadline.weight(.bold))
                     ForEach(timings, id: \.label) { item in
                         HStack {
                             Text(item.label)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+                                .font(TypographyTokens.caption)
+                                .foregroundStyle(ColorTokens.Text.secondary)
                                 .frame(width: 120, alignment: .leading)
                             Text(item.value)
-                                .font(.caption.monospacedDigit())
+                                .font(TypographyTokens.caption.monospacedDigit())
                         }
                     }
                 }
@@ -149,10 +149,10 @@ struct StreamingReportSummary: View {
 
             if let sample = report.backendSamples.last {
                 Divider()
-                VStack(alignment: .leading, spacing: 6) {
+                VStack(alignment: .leading, spacing: SpacingTokens.xxs2) {
                     Text("Latest Backend Sample")
-                        .font(.subheadline.bold())
-                    HStack(spacing: 18) {
+                        .font(TypographyTokens.subheadline.weight(.bold))
+                    HStack(spacing: SpacingTokens.md) {
                         metric("Rows in batch", value: "\(sample.batchRowCount)")
                         metric("Total rows", value: "\(sample.cumulativeRowCount)")
                         metric("Loop", value: EchoFormatters.duration(sample.loopElapsed))
@@ -165,12 +165,12 @@ struct StreamingReportSummary: View {
     }
 
     private func metric(_ label: String, value: String) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: SpacingTokens.xxs) {
             Text(label)
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                .font(TypographyTokens.caption)
+                .foregroundStyle(ColorTokens.Text.secondary)
             Text(value)
-                .font(.body.monospacedDigit())
+                .font(TypographyTokens.body.monospacedDigit())
         }
     }
 

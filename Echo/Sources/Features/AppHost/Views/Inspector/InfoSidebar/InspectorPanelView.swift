@@ -6,18 +6,18 @@ struct InspectorPanelView: View {
     @EnvironmentObject private var environmentState: EnvironmentState
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            HStack(alignment: .top, spacing: 12) {
-                VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: SpacingTokens.md1) {
+            HStack(alignment: .top, spacing: SpacingTokens.sm) {
+                VStack(alignment: .leading, spacing: SpacingTokens.xxs) {
                     Text(content.title)
-                        .font(.system(.title3, design: .default).weight(.semibold))
+                        .font(TypographyTokens.title3.weight(.semibold))
                     if let subtitle = content.subtitle, !subtitle.isEmpty {
                         Text(subtitle)
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
+                            .font(TypographyTokens.subheadline)
+                            .foregroundStyle(ColorTokens.Text.secondary)
                     }
                 }
-                Spacer(minLength: 8)
+                Spacer(minLength: SpacingTokens.xs)
                 if let query = resolvedLookupQuery {
                     let targetTitle = content.title.isEmpty ? "record" : content.title
                     Button {
@@ -25,11 +25,11 @@ struct InspectorPanelView: View {
                     } label: {
                         Image(systemName: "arrow.up.right.square")
                             .font(TypographyTokens.standard.weight(.semibold))
-                            .foregroundStyle(Color.accentColor)
+                            .foregroundStyle(ColorTokens.accent)
                             .frame(width: 28, height: 28)
                             .background(
-                                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                    .fill(Color.accentColor.opacity(0.12))
+                                RoundedRectangle(cornerRadius: SpacingTokens.xs, style: .continuous)
+                                    .fill(ColorTokens.accent.opacity(0.12))
                             )
                     }
                     .buttonStyle(.plain)
@@ -37,17 +37,30 @@ struct InspectorPanelView: View {
                 }
             }
 
-            VStack(alignment: .leading, spacing: 14) {
-                ForEach(content.fields) { field in
-                    InspectorFieldRow(field: field)
+            if let errorMessage = content.errorMessage {
+                Label {
+                    Text(errorMessage)
+                        .font(TypographyTokens.detail)
+                } icon: {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundStyle(ColorTokens.Status.warning)
+                }
+                .foregroundStyle(ColorTokens.Text.secondary)
+            }
+
+            if !content.fields.isEmpty {
+                VStack(alignment: .leading, spacing: SpacingTokens.sm2) {
+                    ForEach(content.fields) { field in
+                        InspectorFieldRow(field: field)
+                    }
                 }
             }
 
             if !content.related.isEmpty {
-                VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: SpacingTokens.sm) {
                     Text("Related Records")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.secondary)
+                        .font(TypographyTokens.caption.weight(.semibold))
+                        .foregroundStyle(ColorTokens.Text.secondary)
                 }
                 ForEach(Array(content.related.enumerated()), id: \.offset) { _, related in
                     RelatedInspectorSection(content: related, depth: depth + 1)

@@ -49,7 +49,7 @@ extension TabOverviewView {
 #if os(macOS)
         Color(nsColor: NSColor.controlAccentColor)
 #else
-        Color.accentColor
+        ColorTokens.accent
 #endif
     }
 

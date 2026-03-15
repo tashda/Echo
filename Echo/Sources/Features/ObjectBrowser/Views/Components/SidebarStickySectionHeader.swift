@@ -12,18 +12,18 @@ struct SidebarStickySectionHeader: View {
     var body: some View {
         let cornerRadius: CGFloat = isPinned && isExpanded ? 10 : 4
 
-        HStack(spacing: 6) {
+        HStack(spacing: SpacingTokens.xxs2) {
             Text(title.uppercased())
                 .font(TypographyTokens.detail.weight(.semibold))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(ColorTokens.Text.secondary)
 
             if let count {
                 Text("\(count)")
                     .font(TypographyTokens.label.weight(.semibold))
-                    .foregroundStyle(.secondary.opacity(0.8))
+                    .foregroundStyle(ColorTokens.Text.secondary.opacity(0.8))
                     .padding(.horizontal, SpacingTokens.xxs2)
                     .padding(.vertical, SpacingTokens.xxxs)
-                    .background(Color.primary.opacity(0.06), in: Capsule())
+                    .background(ColorTokens.Text.primary.opacity(0.06), in: Capsule())
             }
 
             Spacer()
@@ -44,7 +44,7 @@ struct SidebarStickySectionHeader: View {
         .overlay {
             if isPinned && isExpanded {
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .strokeBorder(Color.primary.opacity(0.08), lineWidth: 0.5)
+                    .strokeBorder(ColorTokens.Text.primary.opacity(0.08), lineWidth: 0.5)
             }
         }
         .shadow(color: (isPinned && isExpanded) ? .black.opacity(0.15) : .clear, radius: 20, x: 0, y: 8)

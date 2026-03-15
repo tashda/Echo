@@ -33,7 +33,7 @@ struct ConnectionsTableView: View {
 
             TableColumn("Port") { connection in
                 Text(connection.port > 0 ? String(connection.port) : "—")
-                    .foregroundStyle(connection.port > 0 ? .primary : .secondary)
+                    .foregroundStyle(connection.port > 0 ? ColorTokens.Text.primary : ColorTokens.Text.secondary)
             }
             .width(ideal: 50, max: 70)
 
@@ -44,10 +44,10 @@ struct ConnectionsTableView: View {
                     } icon: {
                         Image(systemName: decoration.icon)
                     }
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(ColorTokens.Text.secondary)
                 } else {
                     Text("—")
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(ColorTokens.Text.secondary)
                 }
             }
 
@@ -57,7 +57,7 @@ struct ConnectionsTableView: View {
                     Text(folder.displayName)
                 } else {
                     Text("—")
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(ColorTokens.Text.secondary)
                 }
             }
         } rows: {

@@ -26,7 +26,7 @@ struct DatabaseBreadcrumbMenu: View {
             VStack(alignment: .leading, spacing: 8) {
                 Text("Databases")
                     .font(TypographyTokens.standard.weight(.semibold))
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(ColorTokens.Text.primary)
 
                 MenuSearchField(text: $searchText, placeholder: "Search databases...")
             }
@@ -42,13 +42,13 @@ struct DatabaseBreadcrumbMenu: View {
                     if availableDatabases.isEmpty {
                         Text("Loading databases...")
                             .font(TypographyTokens.caption2)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(ColorTokens.Text.secondary)
                             .padding(.horizontal, SpacingTokens.md)
                             .padding(.vertical, SpacingTokens.xs)
                     } else if filteredDatabases.isEmpty {
                         Text("No matches found")
                             .font(TypographyTokens.caption2)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(ColorTokens.Text.secondary)
                             .padding(.horizontal, SpacingTokens.md)
                             .padding(.vertical, SpacingTokens.xs)
                     } else {
@@ -97,20 +97,20 @@ struct DatabaseBreadcrumbMenu: View {
         }) {
             HStack {
                 Image(systemName: "cylinder")
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(ColorTokens.Text.secondary)
                 Text(database.name)
                     .font(TypographyTokens.standard)
                 Spacer()
                 if isSelected(database) {
                     Image(systemName: "checkmark")
-                        .foregroundStyle(Color.accentColor)
+                        .foregroundStyle(ColorTokens.accent)
                 }
             }
             .padding(.horizontal, SpacingTokens.sm)
             .padding(.vertical, SpacingTokens.xxs2)
             .background(
                 RoundedRectangle(cornerRadius: 6, style: .continuous)
-                    .fill(isSelected(database) ? Color.accentColor.opacity(0.1) : Color.clear)
+                    .fill(isSelected(database) ? ColorTokens.accent.opacity(0.1) : Color.clear)
             )
         }
         .buttonStyle(.plain)

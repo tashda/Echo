@@ -10,6 +10,7 @@ struct QueryEditorContainer: View {
 
     @Environment(ProjectStore.self) var projectStore
     @Environment(ConnectionStore.self) var connectionStore
+    @Environment(NavigationStore.self) var navigationStore
     @EnvironmentObject var appearanceStore: AppearanceStore
     @EnvironmentObject var environmentState: EnvironmentState
     @EnvironmentObject var appState: AppState
@@ -22,7 +23,8 @@ struct QueryEditorContainer: View {
     @State var latestForeignKeySelection: QueryResultsTableView.ForeignKeySelection?
     @State var latestJsonSelection: QueryResultsTableView.JsonSelection?
     @State var foreignKeyFetchTask: Task<Void, Never>?
-    @State var autoOpenedInspector = false
+    /// True when the inspector was auto-opened (by any handler), not manually by the user.
+    @State var inspectorAutoOpened = false
 #endif
 
     var body: some View {
@@ -51,10 +53,9 @@ struct QueryEditorContainer: View {
                     activeDatabaseName: connectionDatabaseName,
                     gridState: gridStateProvider(),
                     isResizingResults: isResizingResults,
-                    foreignKeyDisplayMode: foreignKeyDisplayMode,
-                    foreignKeyInspectorBehavior: foreignKeyInspectorBehavior,
                     onForeignKeyEvent: handleForeignKeyEvent,
-                    onJsonEvent: handleJsonEvent
+                    onJsonEvent: handleJsonEvent,
+                    onCellInspect: handleCellInspect
                 )
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .background(backgroundColor)
@@ -95,7 +96,7 @@ struct QueryEditorContainer: View {
                             availableHeight: splitHeight,
                             onLiveUpdate: { proposed in
                                 let now = CACurrentMediaTime()
-                                guard now - lastResizeTimestamp >= 0.04 else { return }
+                                guard now - lastResizeTimestamp >= 0.016 else { return }
                                 lastResizeTimestamp = now
                                 liveSplitRatioOverride = proposed
                             },
@@ -116,10 +117,9 @@ struct QueryEditorContainer: View {
                         activeDatabaseName: connectionDatabaseName,
                         gridState: gridStateProvider(),
                         isResizingResults: isResizingResults,
-                        foreignKeyDisplayMode: foreignKeyDisplayMode,
-                        foreignKeyInspectorBehavior: foreignKeyInspectorBehavior,
                         onForeignKeyEvent: handleForeignKeyEvent,
-                        onJsonEvent: handleJsonEvent
+                        onJsonEvent: handleJsonEvent,
+                        onCellInspect: handleCellInspect
                     )
                         .frame(maxHeight: .infinity)
                         .clipped()
@@ -138,6 +138,7 @@ struct QueryEditorContainer: View {
                 #endif
                 }
             }
+            .transaction { $0.disablesAnimations = true }
         }
         .background(ColorTokens.Background.primary)
         .onAppear {
@@ -174,6 +175,10 @@ struct QueryEditorContainer: View {
         guard !query.isExecuting else { return }
         query.shouldAutoExecuteOnAppear = false
         await runQuery(query.sql)
+    }
+
+    func handleCellInspect(_ content: CellValueInspectorContent) {
+        environmentState.dataInspectorContent = .cellValue(content)
     }
 
 }

@@ -69,7 +69,7 @@ struct ConnectionsPopoverView: View {
                 }
 
                 Button {
-                    ManageConnectionsWindowController.shared.present()
+                    AppCoordinator.shared.appState.showSheet(.quickConnect)
                     dismiss()
                 } label: {
                     Label("Quick Connect\u{2026}", systemImage: "bolt")
@@ -93,8 +93,8 @@ struct ConnectionsPopoverView: View {
             HStack(spacing: SpacingTokens.xs) {
                 if isSelected {
                     Image(systemName: "checkmark")
-                        .font(.system(size: 10, weight: .bold))
-                        .foregroundStyle(.primary)
+                        .font(TypographyTokens.label.weight(.bold))
+                        .foregroundStyle(ColorTokens.Text.primary)
                         .frame(width: 14)
                 } else {
                     Color.clear.frame(width: 14)
@@ -123,8 +123,8 @@ struct ConnectionsPopoverView: View {
                 .aspectRatio(contentMode: .fit)
         } else {
             Image(systemName: "server.rack")
-                .font(.system(size: 12))
-                .foregroundStyle(.secondary)
+                .font(TypographyTokens.caption2)
+                .foregroundStyle(ColorTokens.Text.secondary)
         }
     }
 

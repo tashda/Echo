@@ -6,7 +6,7 @@ struct DatabaseObjectColumnRow: View {
     let onCopyName: () -> Void
     let onRename: () -> Void
     let onDrop: () -> Void
-    
+
     var body: some View {
         HStack(alignment: .center, spacing: ExplorerColumnMetrics.spacing) {
             let (iconName, iconColor, iconSize): (String, Color, CGFloat) = {
@@ -14,9 +14,9 @@ struct DatabaseObjectColumnRow: View {
                     return ("key.fill", Color.orange, 10)
                 }
                 if column.foreignKey != nil {
-                    return ("arrow.turn.down.right", Color.blue, 10)
+                    return ("arrow.turn.down.right", ColorTokens.Status.info, 10)
                 }
-                return ("circle.fill", Color(nsColor: .quaternaryLabelColor), 5)
+                return ("circle.fill", ColorTokens.Text.quaternary, 5)
             }()
 
             Image(systemName: iconName)
@@ -24,16 +24,16 @@ struct DatabaseObjectColumnRow: View {
                 .foregroundStyle(iconColor)
                 .frame(width: ExplorerColumnMetrics.iconSize, height: ExplorerColumnMetrics.iconSize, alignment: .center)
 
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: SpacingTokens.xxxs) {
                 Text(column.name)
                     .font(TypographyTokens.detail)
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(ColorTokens.Text.primary)
                     .lineLimit(1)
 
                 if let comment = column.comment?.trimmingCharacters(in: .whitespacesAndNewlines), !comment.isEmpty {
                     Text(comment)
                         .font(TypographyTokens.label)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(ColorTokens.Text.secondary)
                         .lineLimit(2)
                         .fixedSize(horizontal: false, vertical: true)
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -47,14 +47,14 @@ struct DatabaseObjectColumnRow: View {
 
             Text(EchoFormatters.abbreviatedSQLType(column.dataType))
                 .font(TypographyTokens.label)
-                .foregroundStyle(.tertiary)
+                .foregroundStyle(ColorTokens.Text.tertiary)
         }
         .padding(.leading, ExplorerColumnMetrics.highlightExtension)
         .padding(.vertical, SpacingTokens.xxxs)
         .padding(.trailing, SpacingTokens.sm)
         .background(
             RoundedRectangle(cornerRadius: SidebarRowConstants.hoverCornerRadius, style: .continuous)
-                .fill(Color.primary.opacity(0.04))
+                .fill(ColorTokens.Text.primary.opacity(0.04))
                 .opacity(isHovered ? 1 : 0)
         )
         .padding(.leading, max(ExplorerColumnMetrics.contentLeading - ExplorerColumnMetrics.highlightExtension, 0))
@@ -71,5 +71,5 @@ struct DatabaseObjectColumnRow: View {
             }
         }
     }
-    
+
 }

@@ -112,7 +112,7 @@ extension DatabaseObjectRow {
             )
         )
 
-        if supportsDataPreview {
+        if object.type == .table || object.type == .view || object.type == .materializedView {
             items.append(
                 ContextMenuActionItem(
                     id: "openData",
@@ -138,11 +138,26 @@ extension DatabaseObjectRow {
             ContextMenuActionItem(
                 id: "viewStructure",
                 title: "View Structure",
-                systemImage: "square.stack.3d.up",
+                systemImage: object.type == .extension ? "puzzlepiece.fill" : "square.stack.3d.up",
                 role: nil,
                 action: { openStructureTab() }
             )
         )
+
+        if object.type == .extension {
+            items.append(
+                ContextMenuActionItem(
+                    id: "newExtension",
+                    title: "New Extension\u{2026}",
+                    systemImage: "puzzlepiece.plus",
+                    role: nil,
+                    action: { 
+                        let dbName = databaseName ?? connection.database
+                        environmentState.openExtensionsManagerTab(connectionID: connection.id, databaseName: dbName)
+                    }
+                )
+            )
+        }
 
         if supportsDiagram {
             items.append(
@@ -159,9 +174,9 @@ extension DatabaseObjectRow {
         return items
     }
 
-    private var supportsDataPreview: Bool {
+    internal var supportsStructure: Bool {
         switch object.type {
-        case .table, .view, .materializedView: return true
+        case .table, .view, .materializedView, .extension: return true
         case .function, .trigger, .procedure: return false
         }
     }

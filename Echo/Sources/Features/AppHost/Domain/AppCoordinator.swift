@@ -34,6 +34,7 @@ final class AppCoordinator: ObservableObject {
     let appState: AppState
     let clipboardHistory: ClipboardHistoryStore
     let appearanceStore: AppearanceStore
+    let notificationEngine: NotificationEngine
     let resultSpoolManager: ResultSpoolCoordinator
     let diagramCacheStore: DiagramCacheStore
     let diagramKeyStore: DiagramEncryptionKeyStore
@@ -100,6 +101,15 @@ final class AppCoordinator: ObservableObject {
             diagramKeyStore: keyStore
         )
         
+        let projectStoreRef = self.projectStore
+        self.notificationEngine = NotificationEngine(
+            toastCoordinator: environmentState.toastCoordinator,
+            preferencesProvider: { [projectStoreRef] in
+                projectStoreRef.globalSettings.notificationPreferences
+            }
+        )
+        environmentState.notificationEngine = notificationEngine
+
         schemaDiscoveryCoordinator.onPersistConnections = { @MainActor [weak self] in
             await self?.environmentState.persistConnections()
         }

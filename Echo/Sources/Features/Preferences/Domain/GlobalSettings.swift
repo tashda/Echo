@@ -16,6 +16,18 @@ enum AccentColorSource: String, Codable, Hashable, CaseIterable {
     }
 }
 
+enum NativePsqlRuntimePreference: String, Codable, Hashable, CaseIterable {
+    case bundled
+    case system
+
+    var displayName: String {
+        switch self {
+        case .bundled: return "Bundled Binary"
+        case .system: return "System Binary"
+        }
+    }
+}
+
 enum SidebarAutoExpandSection: String, Codable, Hashable, CaseIterable, Identifiable {
     case databases
     case tables
@@ -81,6 +93,17 @@ enum SidebarAutoExpandSection: String, Codable, Hashable, CaseIterable, Identifi
     }
 }
 
+struct ResultGridColorOverrides: Codable, Hashable {
+    var nullHex: String?
+    var numericHex: String?
+    var booleanHex: String?
+    var temporalHex: String?
+    var binaryHex: String?
+    var identifierHex: String?
+    var jsonHex: String?
+    var textHex: String?
+}
+
 struct GlobalSettings: Codable, Hashable {
     var appearanceMode: AppearanceMode
     var defaultEditorFontSize: Double
@@ -114,20 +137,15 @@ struct GlobalSettings: Codable, Hashable {
     var workspaceTabBarStyle: WorkspaceTabBarStyle = .floating
     var tabOverviewStyle: TabOverviewStyle = .comfortable
     var resultsAlternateRowShading: Bool = false
+    var resultsShowRowNumbers: Bool = true
+    var resultGridColorOverrides: ResultGridColorOverrides = .init()
     var resultsEnableTypeFormatting: Bool = true
     var resultsFormattingMode: ResultsFormattingMode = .immediate
-    var foreignKeyDisplayMode: ForeignKeyDisplayMode = .showInspector
-    var foreignKeyInspectorBehavior: ForeignKeyInspectorBehavior = .respectInspectorVisibility
-    var foreignKeyIncludeRelated: Bool = false
+    var showForeignKeysInInspector: Bool = true
+    var showJsonInInspector: Bool = true
     var resultsInitialRowLimit: Int = 500
     var resultsPreviewBatchSize: Int = 500
-    var resultsBackgroundStreamingThreshold: Int = 512
-    var resultsStreamingFetchSize: Int = 4_096
     var resultsStreamingMode: ResultStreamingExecutionMode = .auto
-    var resultsStreamingFetchRampMultiplier: Int = 24
-    var resultsStreamingFetchRampMax: Int = 524_288
-    var resultsUseCursorStreaming: Bool = true
-    var resultsCursorStreamingLimitThreshold: Int = 25_000
     var mssqlStreamingMode: ResultStreamingExecutionMode = .auto
     var mysqlStreamingMode: ResultStreamingExecutionMode = .auto
     var sqliteStreamingMode: ResultStreamingExecutionMode = .auto
@@ -154,6 +172,14 @@ struct GlobalSettings: Codable, Hashable {
     var sidebarAutoExpandPostgresql: Set<SidebarAutoExpandSection>?
     var sidebarAutoExpandSQLServer: Set<SidebarAutoExpandSection>?
     var sidebarAutoExpandMySQL: Set<SidebarAutoExpandSection>?
+    var managedPostgresConsoleEnabled: Bool = true
+    var nativePsqlEnabled: Bool = false
+    var nativePsqlRuntimePreference: NativePsqlRuntimePreference = .bundled
+    var nativePsqlAllowSystemBinaryFallback: Bool = false
+    var nativePsqlAllowShellEscape: Bool = true
+    var nativePsqlAllowFileCommands: Bool = true
+    var sidebarColoredIcons: Bool = true
+    var notificationPreferences: NotificationPreferences = NotificationPreferences()
 
     /// Returns the effective auto-expand sections for a given database type.
     func sidebarExpandSections(for databaseType: DatabaseType) -> Set<SidebarAutoExpandSection> {
@@ -208,12 +234,10 @@ struct GlobalSettings: Codable, Hashable {
         case editorAllowCommandPeriodTrigger, editorAllowControlSpaceTrigger
         case useServerColorAsAccent, accentColorSource, customAccentColorHex, defaultWindowWidth, defaultWindowHeight
         case workspaceTabBarStyle, tabOverviewStyle
-        case resultsAlternateRowShading, resultsEnableTypeFormatting, resultsFormattingMode
-        case foreignKeyDisplayMode, foreignKeyInspectorBehavior, foreignKeyIncludeRelated
+        case resultsAlternateRowShading, resultsShowRowNumbers, resultGridColorOverrides, resultsEnableTypeFormatting, resultsFormattingMode
+        case showForeignKeysInInspector, showJsonInInspector
         case resultsInitialRowLimit, resultsPreviewBatchSize
-        case resultsBackgroundStreamingThreshold, resultsStreamingFetchSize, resultsStreamingMode
-        case resultsStreamingFetchRampMultiplier, resultsStreamingFetchRampMax
-        case resultsUseCursorStreaming, resultsCursorStreamingLimitThreshold
+        case resultsStreamingMode
         case mssqlStreamingMode, mysqlStreamingMode, sqliteStreamingMode
         case resultSpoolMaxBytes, resultSpoolRetentionHours, resultSpoolCustomLocation
         case autoOpenInspectorOnSelection, inspectorWidth, keepTabsInMemory
@@ -223,6 +247,14 @@ struct GlobalSettings: Codable, Hashable {
         case showSavedConnectionsInExplorer
         case sidebarAutoExpandSections, sidebarCustomizePerDatabaseType
         case sidebarAutoExpandPostgresql, sidebarAutoExpandSQLServer, sidebarAutoExpandMySQL
+        case managedPostgresConsoleEnabled
+        case nativePsqlEnabled
+        case nativePsqlRuntimePreference
+        case nativePsqlAllowSystemBinaryFallback
+        case nativePsqlAllowShellEscape
+        case nativePsqlAllowFileCommands
+        case sidebarColoredIcons
+        case notificationPreferences
     }
 
     init(from decoder: Decoder) throws {
@@ -270,20 +302,15 @@ struct GlobalSettings: Codable, Hashable {
         workspaceTabBarStyle = try container.decodeIfPresent(WorkspaceTabBarStyle.self, forKey: .workspaceTabBarStyle) ?? .floating
         tabOverviewStyle = try container.decodeIfPresent(TabOverviewStyle.self, forKey: .tabOverviewStyle) ?? .comfortable
         resultsAlternateRowShading = try container.decodeIfPresent(Bool.self, forKey: .resultsAlternateRowShading) ?? false
+        resultsShowRowNumbers = try container.decodeIfPresent(Bool.self, forKey: .resultsShowRowNumbers) ?? true
+        resultGridColorOverrides = try container.decodeIfPresent(ResultGridColorOverrides.self, forKey: .resultGridColorOverrides) ?? .init()
         resultsEnableTypeFormatting = try container.decodeIfPresent(Bool.self, forKey: .resultsEnableTypeFormatting) ?? true
         resultsFormattingMode = (try? container.decodeIfPresent(ResultsFormattingMode.self, forKey: .resultsFormattingMode)) ?? .immediate
-        foreignKeyDisplayMode = try container.decodeIfPresent(ForeignKeyDisplayMode.self, forKey: .foreignKeyDisplayMode) ?? .showInspector
-        foreignKeyInspectorBehavior = try container.decodeIfPresent(ForeignKeyInspectorBehavior.self, forKey: .foreignKeyInspectorBehavior) ?? .respectInspectorVisibility
-        foreignKeyIncludeRelated = try container.decodeIfPresent(Bool.self, forKey: .foreignKeyIncludeRelated) ?? false
+        showForeignKeysInInspector = try container.decodeIfPresent(Bool.self, forKey: .showForeignKeysInInspector) ?? true
+        showJsonInInspector = try container.decodeIfPresent(Bool.self, forKey: .showJsonInInspector) ?? true
         resultsInitialRowLimit = max(100, try container.decodeIfPresent(Int.self, forKey: .resultsInitialRowLimit) ?? 500)
         resultsPreviewBatchSize = max(100, try container.decodeIfPresent(Int.self, forKey: .resultsPreviewBatchSize) ?? 500)
-        resultsBackgroundStreamingThreshold = max(100, try container.decodeIfPresent(Int.self, forKey: .resultsBackgroundStreamingThreshold) ?? 512)
-        resultsStreamingFetchSize = max(128, try container.decodeIfPresent(Int.self, forKey: .resultsStreamingFetchSize) ?? 4_096)
         resultsStreamingMode = (try? container.decodeIfPresent(ResultStreamingExecutionMode.self, forKey: .resultsStreamingMode)) ?? .auto
-        resultsStreamingFetchRampMultiplier = max(1, min((try? container.decodeIfPresent(Int.self, forKey: .resultsStreamingFetchRampMultiplier)) ?? 24, 64))
-        resultsStreamingFetchRampMax = max(256, min((try? container.decodeIfPresent(Int.self, forKey: .resultsStreamingFetchRampMax)) ?? 524_288, 1_048_576))
-        resultsUseCursorStreaming = try container.decodeIfPresent(Bool.self, forKey: .resultsUseCursorStreaming) ?? true
-        resultsCursorStreamingLimitThreshold = max(0, try container.decodeIfPresent(Int.self, forKey: .resultsCursorStreamingLimitThreshold) ?? 1000)
         resultSpoolMaxBytes = try container.decodeIfPresent(Int.self, forKey: .resultSpoolMaxBytes) ?? 5 * 1_024 * 1_024 * 1_024
         resultSpoolRetentionHours = try container.decodeIfPresent(Int.self, forKey: .resultSpoolRetentionHours) ?? 72
         resultSpoolCustomLocation = try container.decodeIfPresent(String.self, forKey: .resultSpoolCustomLocation)
@@ -308,6 +335,14 @@ struct GlobalSettings: Codable, Hashable {
         sidebarAutoExpandPostgresql = try container.decodeIfPresent(Set<SidebarAutoExpandSection>.self, forKey: .sidebarAutoExpandPostgresql)
         sidebarAutoExpandSQLServer = try container.decodeIfPresent(Set<SidebarAutoExpandSection>.self, forKey: .sidebarAutoExpandSQLServer)
         sidebarAutoExpandMySQL = try container.decodeIfPresent(Set<SidebarAutoExpandSection>.self, forKey: .sidebarAutoExpandMySQL)
+        managedPostgresConsoleEnabled = try container.decodeIfPresent(Bool.self, forKey: .managedPostgresConsoleEnabled) ?? true
+        nativePsqlEnabled = try container.decodeIfPresent(Bool.self, forKey: .nativePsqlEnabled) ?? false
+        nativePsqlRuntimePreference = try container.decodeIfPresent(NativePsqlRuntimePreference.self, forKey: .nativePsqlRuntimePreference) ?? .bundled
+        nativePsqlAllowSystemBinaryFallback = try container.decodeIfPresent(Bool.self, forKey: .nativePsqlAllowSystemBinaryFallback) ?? false
+        nativePsqlAllowShellEscape = try container.decodeIfPresent(Bool.self, forKey: .nativePsqlAllowShellEscape) ?? true
+        nativePsqlAllowFileCommands = try container.decodeIfPresent(Bool.self, forKey: .nativePsqlAllowFileCommands) ?? true
+        sidebarColoredIcons = try container.decodeIfPresent(Bool.self, forKey: .sidebarColoredIcons) ?? true
+        notificationPreferences = try container.decodeIfPresent(NotificationPreferences.self, forKey: .notificationPreferences) ?? NotificationPreferences()
     }
 
     func encode(to encoder: Encoder) throws {
@@ -344,19 +379,15 @@ struct GlobalSettings: Codable, Hashable {
         try container.encode(workspaceTabBarStyle, forKey: .workspaceTabBarStyle)
         try container.encode(tabOverviewStyle, forKey: .tabOverviewStyle)
         try container.encode(resultsAlternateRowShading, forKey: .resultsAlternateRowShading)
+        try container.encode(resultsShowRowNumbers, forKey: .resultsShowRowNumbers)
+        try container.encode(resultGridColorOverrides, forKey: .resultGridColorOverrides)
         try container.encode(resultsEnableTypeFormatting, forKey: .resultsEnableTypeFormatting)
         try container.encode(resultsFormattingMode, forKey: .resultsFormattingMode)
-        try container.encode(foreignKeyDisplayMode, forKey: .foreignKeyDisplayMode)
-        try container.encode(foreignKeyInspectorBehavior, forKey: .foreignKeyInspectorBehavior)
-        try container.encode(foreignKeyIncludeRelated, forKey: .foreignKeyIncludeRelated)
+        try container.encode(showForeignKeysInInspector, forKey: .showForeignKeysInInspector)
+        try container.encode(showJsonInInspector, forKey: .showJsonInInspector)
         try container.encode(resultsInitialRowLimit, forKey: .resultsInitialRowLimit)
         try container.encode(resultsPreviewBatchSize, forKey: .resultsPreviewBatchSize)
-        try container.encode(resultsBackgroundStreamingThreshold, forKey: .resultsBackgroundStreamingThreshold)
-        try container.encode(resultsStreamingFetchSize, forKey: .resultsStreamingFetchSize)
         try container.encode(resultsStreamingMode, forKey: .resultsStreamingMode)
-        try container.encode(resultsStreamingFetchRampMultiplier, forKey: .resultsStreamingFetchRampMultiplier)
-        try container.encode(resultsStreamingFetchRampMax, forKey: .resultsStreamingFetchRampMax)
-        try container.encode(resultsUseCursorStreaming, forKey: .resultsUseCursorStreaming)
         try container.encode(resultSpoolMaxBytes, forKey: .resultSpoolMaxBytes)
         try container.encode(resultSpoolRetentionHours, forKey: .resultSpoolRetentionHours)
         try container.encodeIfPresent(resultSpoolCustomLocation, forKey: .resultSpoolCustomLocation)
@@ -384,6 +415,14 @@ struct GlobalSettings: Codable, Hashable {
         try container.encodeIfPresent(sidebarAutoExpandPostgresql, forKey: .sidebarAutoExpandPostgresql)
         try container.encodeIfPresent(sidebarAutoExpandSQLServer, forKey: .sidebarAutoExpandSQLServer)
         try container.encodeIfPresent(sidebarAutoExpandMySQL, forKey: .sidebarAutoExpandMySQL)
+        try container.encode(managedPostgresConsoleEnabled, forKey: .managedPostgresConsoleEnabled)
+        try container.encode(nativePsqlEnabled, forKey: .nativePsqlEnabled)
+        try container.encode(nativePsqlRuntimePreference, forKey: .nativePsqlRuntimePreference)
+        try container.encode(nativePsqlAllowSystemBinaryFallback, forKey: .nativePsqlAllowSystemBinaryFallback)
+        try container.encode(nativePsqlAllowShellEscape, forKey: .nativePsqlAllowShellEscape)
+        try container.encode(nativePsqlAllowFileCommands, forKey: .nativePsqlAllowFileCommands)
+        try container.encode(sidebarColoredIcons, forKey: .sidebarColoredIcons)
+        try container.encode(notificationPreferences, forKey: .notificationPreferences)
     }
 
     func ligaturesEnabled(for fontName: String) -> Bool {

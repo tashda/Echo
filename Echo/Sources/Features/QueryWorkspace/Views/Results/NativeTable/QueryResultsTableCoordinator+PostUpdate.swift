@@ -56,13 +56,21 @@ extension QueryResultsTableView.Coordinator {
         }
 
         if paletteChanged {
-            deactivateActiveSelectableField(in: tableView)
-            cachedFontStyles.removeAll(keepingCapacity: true)
-            cachedResultGridStyles.removeAll(keepingCapacity: true)
-            cachedTextColors.removeAll(keepingCapacity: true)
-            applyHeaderStyle(to: tableView)
-            refreshVisibleRowBackgrounds(tableView)
-            refreshVisibleCellsAppearance(tableView)
+            // Debounce palette refresh to avoid overwhelming updates during continuous
+            // ColorPicker changes — coalesce into a single refresh after 200ms
+            pendingPaletteRefresh?.cancel()
+            pendingPaletteRefresh = Task { @MainActor [weak self, weak tableView] in
+                try? await Task.sleep(for: .milliseconds(200))
+                guard let self, let tableView, !Task.isCancelled else { return }
+                self.pendingPaletteRefresh = nil
+                self.deactivateActiveSelectableField(in: tableView)
+                self.cachedFontStyles.removeAll(keepingCapacity: true)
+                self.cachedResultGridStyles.removeAll(keepingCapacity: true)
+                self.cachedTextColors.removeAll(keepingCapacity: true)
+                self.applyHeaderStyle(to: tableView)
+                self.refreshVisibleRowBackgrounds(tableView)
+                self.refreshVisibleCellsAppearance(tableView)
+            }
         }
 
         if performedFullReload || rowCountIncreased {

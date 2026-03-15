@@ -10,11 +10,3 @@ enum AppearanceMode: String, Codable, CaseIterable, Sendable {
         }
     }
 }
-
-enum ForeignKeyDisplayMode: String, Codable, CaseIterable, Hashable, Sendable {
-    case showInspector, showIcon, disabled
-}
-
-enum ForeignKeyInspectorBehavior: String, Codable, CaseIterable, Hashable, Sendable {
-    case respectInspectorVisibility, autoOpenAndClose
-}

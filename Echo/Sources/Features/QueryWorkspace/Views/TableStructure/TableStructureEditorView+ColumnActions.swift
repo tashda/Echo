@@ -18,9 +18,6 @@ extension TableStructureEditorView {
     internal func pruneSelectedColumns() {
         let valid = Set(visibleColumns.map(\.id))
         selectedColumnIDs = selectedColumnIDs.intersection(valid)
-        if let anchor = selectionAnchor, !valid.contains(anchor) {
-            selectionAnchor = selectedColumnIDs.first
-        }
     }
 
     internal func rebuildColumnIndexLookup() {
@@ -41,16 +38,6 @@ extension TableStructureEditorView {
         activeColumnEditor = ColumnEditorPresentation(columnID: column.id, isNew: column.isNew)
     }
 
-    internal func columnStatusMetadata(for column: TableStructureEditorViewModel.ColumnModel) -> (title: String, systemImage: String, tint: Color) {
-        if column.isNew {
-            return ("New", "sparkles", Color.accentColor)
-        }
-        if column.isDirty {
-            return ("Modified", "paintbrush", Color.accentColor)
-        }
-        return ("Synced", "checkmark.circle", Color.secondary)
-    }
-
     internal func columnChangeDescription(for column: TableStructureEditorViewModel.ColumnModel) -> String? {
         var parts: [String] = []
 
@@ -66,12 +53,12 @@ extension TableStructureEditorView {
         if column.hasDefaultChange {
             let previous = column.original?.defaultValue?.isEmpty == false ? column.original!.defaultValue! : "None"
             let current = column.defaultValue?.isEmpty == false ? column.defaultValue! : "None"
-            parts.append("Default: \(previous) → \(current)")
+            parts.append("Default: \(previous) \u{2192} \(current)")
         }
         if column.hasExpressionChange {
             parts.append("Generated expression updated")
         }
 
-        return parts.isEmpty ? nil : parts.joined(separator: " • ")
+        return parts.isEmpty ? nil : parts.joined(separator: " \u{2022} ")
     }
 }

@@ -68,6 +68,26 @@ struct ExplorerSnapshotCache {
             }
         }
 
+        // Process extensions (database-level but filtered by schema selection if applicable)
+        for ext in input.database.extensions {
+            guard supportedSet.contains(.extension) else { continue }
+            
+            // If a schema is selected, only show extensions in that schema
+            if let selected = input.selectedSchemaName, !selected.isEmpty {
+                guard ext.schema == selected else { continue }
+            }
+
+            if let query = normalizedQuery, !query.isEmpty {
+                guard objectMatchesQuery(ext, normalizedQuery: query) else { continue }
+            }
+
+            grouped[.extension, default: []].append(ext)
+            filteredCount += 1
+            if pinnedIDs.contains(ext.id) {
+                pinnedList.append(ext)
+            }
+        }
+
         for type in grouped.keys {
             grouped[type]?.sort { lhs, rhs in
                 lhs.fullName.localizedCaseInsensitiveCompare(rhs.fullName) == .orderedAscending

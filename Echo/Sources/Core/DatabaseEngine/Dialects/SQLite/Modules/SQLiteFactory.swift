@@ -11,6 +11,13 @@ struct SQLiteFactory: DatabaseFactory {
         port: Int,
         database: String?,
         tls: Bool,
+        trustServerCertificate: Bool = false,
+        tlsMode: TLSMode = .prefer,
+        sslRootCertPath: String? = nil,
+        sslCertPath: String? = nil,
+        sslKeyPath: String? = nil,
+        mssqlEncryptionMode: MSSQLEncryptionMode = .optional,
+        readOnlyIntent: Bool = false,
         authentication: DatabaseAuthenticationConfiguration,
         connectTimeoutSeconds: Int = 10
     ) async throws -> DatabaseSession {

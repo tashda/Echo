@@ -6,22 +6,22 @@ struct HistorySidebarView: View {
     let description: String
     
     var body: some View {
-        VStack(spacing: 24) {
+        VStack(spacing: SpacingTokens.lg) {
             // Clean icon design
             Image(systemName: icon)
                 .font(.system(size: 40))
-                .foregroundStyle(.tertiary)
+                .foregroundStyle(ColorTokens.Text.tertiary)
             
-            VStack(spacing: 12) {
+            VStack(spacing: SpacingTokens.sm) {
                 Text(title)
-                    .font(.title2)
+                    .font(TypographyTokens.hero)
                     .fontWeight(.semibold)
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(ColorTokens.Text.primary)
                 
                 
                 Text(description)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .font(TypographyTokens.subheadline)
+                    .foregroundStyle(ColorTokens.Text.secondary)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, SpacingTokens.xl)
             }

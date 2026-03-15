@@ -50,12 +50,12 @@ struct DatabaseSidebarView: View {
     }
     
     private var header: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: SpacingTokens.xxs) {
             Text(title)
-                .font(.headline)
+                .font(TypographyTokens.headline)
             Text(description)
-                .font(.footnote)
-                .foregroundStyle(.secondary)
+                .font(TypographyTokens.footnote)
+                .foregroundStyle(ColorTokens.Text.secondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }

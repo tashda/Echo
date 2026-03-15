@@ -39,17 +39,30 @@ struct ConnectionFolderView: View {
     }
 
     private var folderRow: some View {
-        let indent = CGFloat(group.depth) * 16
-        return HStack(spacing: 6) {
+        let indent = CGFloat(group.depth) * SpacingTokens.md
+        return HStack(spacing: SpacingTokens.xxs2) {
             Spacer().frame(width: indent)
-            HStack(spacing: 8) {
-                Image(systemName: "chevron.right").rotationEffect(.degrees(isExpanded ? 90 : 0)).font(TypographyTokens.label.weight(.semibold)).foregroundStyle(.secondary)
-                Image(systemName: "folder.fill").font(.system(size: 15)).foregroundStyle(group.folder.color)
-                Text(group.folder.name).font(TypographyTokens.caption2).foregroundStyle(.primary).lineLimit(1)
+            HStack(spacing: SpacingTokens.xs) {
+                Image(systemName: "chevron.right")
+                    .rotationEffect(.degrees(isExpanded ? 90 : 0))
+                    .font(TypographyTokens.label.weight(.semibold))
+                    .foregroundStyle(ColorTokens.Text.secondary)
+                Image(systemName: "folder.fill")
+                    .font(TypographyTokens.prominent)
+                    .foregroundStyle(group.folder.color)
+                Text(group.folder.name)
+                    .font(TypographyTokens.caption2)
+                    .foregroundStyle(ColorTokens.Text.primary)
+                    .lineLimit(1)
                 Spacer(minLength: 4)
-                Text("\(group.totalConnectionCount)").font(TypographyTokens.label.weight(.semibold)).foregroundStyle(.secondary.opacity(0.8))
+                Text("\(group.totalConnectionCount)")
+                    .font(TypographyTokens.label.weight(.semibold))
+                    .foregroundStyle(ColorTokens.Text.secondary.opacity(0.8))
             }
-            .padding(.horizontal, SpacingTokens.xs).padding(.vertical, 5).background(folderHighlight).contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .padding(.horizontal, SpacingTokens.xs)
+            .padding(.vertical, 5)
+            .background(folderHighlight)
+            .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
             .onTapGesture { toggleExpansion() }
             .onHover { h in withAnimation(.easeInOut(duration: 0.12)) { isHovering = h } }
             .contextMenu {
@@ -64,8 +77,8 @@ struct ConnectionFolderView: View {
 
     private var folderHighlight: some View {
         let base = RoundedRectangle(cornerRadius: 8, style: .continuous)
-        if isSelected { return AnyView(base.fill(Color.accentColor.opacity(0.2)).overlay(base.stroke(Color.accentColor.opacity(0.4), lineWidth: 0.9))) }
-        if isHovering { return AnyView(base.fill(Color.accentColor.opacity(0.12)).overlay(base.stroke(Color.accentColor.opacity(0.35), lineWidth: 0.8))) }
+        if isSelected { return AnyView(base.fill(ColorTokens.accent.opacity(0.2)).overlay(base.stroke(ColorTokens.accent.opacity(0.4), lineWidth: 0.9))) }
+        if isHovering { return AnyView(base.fill(ColorTokens.accent.opacity(0.12)).overlay(base.stroke(ColorTokens.accent.opacity(0.35), lineWidth: 0.8))) }
         return AnyView(Color.clear)
     }
 
@@ -91,15 +104,15 @@ struct ConnectionListRow: View {
     @Environment(\.colorScheme) private var colorScheme
     @State private var isHovering = false
 
-    private var accentColor: Color { projectStore.globalSettings.accentColorSource == .connection ? connection.color : Color.accentColor }
+    private var accentColor: Color { projectStore.globalSettings.accentColorSource == .connection ? connection.color : ColorTokens.accent }
     private var displayName: String { let t = connection.connectionName.trimmingCharacters(in: .whitespacesAndNewlines); return t.isEmpty ? connection.host : t }
 
     var body: some View {
         HStack(spacing: 0) {
             Spacer().frame(width: indent + 12)
-            HStack(spacing: 8) {
+            HStack(spacing: SpacingTokens.xs) {
                 connectionIcon.frame(width: 14, height: 14)
-                Text(displayName).font(TypographyTokens.caption2).foregroundStyle(.primary).lineLimit(1)
+                Text(displayName).font(TypographyTokens.caption2).foregroundStyle(ColorTokens.Text.primary).lineLimit(1)
                 Spacer(minLength: 4)
                 if isHovering { Button(action: onConnect) { connectIcon.frame(width: 12, height: 12) }.buttonStyle(.plain).foregroundStyle(connectGlyphColor) }
             }
@@ -141,7 +154,7 @@ struct ConnectionListRow: View {
 
 struct EmptyFolderPlaceholder: View {
     let indent: CGFloat
-    var body: some View { Text("No connections in this folder").font(TypographyTokens.detail).foregroundStyle(.secondary).padding(.horizontal, SpacingTokens.sm).padding(.vertical, SpacingTokens.xxs2).padding(.leading, indent) }
+    var body: some View { Text("No connections in this folder").font(TypographyTokens.detail).foregroundStyle(ColorTokens.Text.secondary).padding(.horizontal, SpacingTokens.sm).padding(.vertical, SpacingTokens.xxs2).padding(.leading, indent) }
 }
 
 struct ConnectionsEmptyState: View {

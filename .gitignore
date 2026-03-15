@@ -26,6 +26,18 @@ GEMINI.md
 CLAUDE.md
 agent.md
 
+# AI agent analysis outputs (Gemini code review, scripts)
+analysis_report*.txt
+CODE_ARCHITECTURE_VIOLATIONS.md
+CODE_STYLE_VIOLATIONS.md
+DESIGN_TOKENS_VIOLATIONS.md
+analyze_echo.py
+check_syntax.py
+format_reports.py
+
+# Feature tracking and working docs (local only)
+SSMS_FEATURE_GAP.md
+
 # OS-specific
 .DS_Store
 
@@ -38,6 +50,15 @@ Archive/
 Docs/
 tmp_trace_export/
 Scripts/
+bin/
+build-release/
+build_output*.txt
+screenshot*.png
+
+# Network captures and archives
+*.cap
+*.pcap
+*.tar.xz
 
 # Swift Package Manager
 .build/

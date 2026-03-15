@@ -19,12 +19,6 @@ extension QueryResultsTableView.Coordinator {
     }
 
     func notifyForeignKeySelection(_ region: SelectedRegion?) {
-        guard parent.foreignKeyDisplayMode != .disabled else {
-            lastForeignKeySelection = nil
-            parent.onForeignKeyEvent(.selectionChanged(nil))
-            return
-        }
-
         guard let region,
               region.start.row == region.end.row,
               region.start.column == region.end.column,
@@ -109,13 +103,19 @@ extension QueryResultsTableView.Coordinator {
         )
     }
 
-    func copySelection(includeHeaders: Bool) {
-        guard let tableView else { return }
+    struct SelectionData {
+        let headers: [String]
+        let rows: [[String?]]
+        let columnIndices: [Int]
+    }
+
+    func gatherSelectionData() -> SelectionData? {
+        guard let tableView else { return nil }
         let columns = parent.query.displayedColumns
-        guard !columns.isEmpty else { return }
+        guard !columns.isEmpty else { return nil }
 
         let totalRows = parent.query.totalAvailableRowCount
-        guard totalRows > 0 else { return }
+        guard totalRows > 0 else { return nil }
 
         let columnIndices: [Int]
         let visibleRows: [Int]
@@ -124,18 +124,18 @@ extension QueryResultsTableView.Coordinator {
             let maxColumnIndex = columns.count - 1
             let lowerColumn = max(selectionRegion.normalizedColumnRange.lowerBound, 0)
             let upperColumn = min(selectionRegion.normalizedColumnRange.upperBound, maxColumnIndex)
-            guard upperColumn >= lowerColumn else { return }
+            guard upperColumn >= lowerColumn else { return nil }
             columnIndices = Array(lowerColumn...upperColumn)
 
             let maxVisibleRow = tableView.numberOfRows - 1
-            guard maxVisibleRow >= 0 else { return }
+            guard maxVisibleRow >= 0 else { return nil }
             let lowerRow = max(selectionRegion.normalizedRowRange.lowerBound, 0)
             let upperRow = min(selectionRegion.normalizedRowRange.upperBound, maxVisibleRow)
-            guard upperRow >= lowerRow else { return }
+            guard upperRow >= lowerRow else { return nil }
             visibleRows = Array(lowerRow...upperRow)
         } else {
             let selectedIndexes = tableView.selectedRowIndexes
-            guard !selectedIndexes.isEmpty else { return }
+            guard !selectedIndexes.isEmpty else { return nil }
             visibleRows = selectedIndexes.sorted()
             columnIndices = Array(0..<columns.count)
         }
@@ -147,23 +147,37 @@ extension QueryResultsTableView.Coordinator {
             return source
         }
 
-        guard !sourceRows.isEmpty, !columnIndices.isEmpty else { return }
+        guard !sourceRows.isEmpty, !columnIndices.isEmpty else { return nil }
 
-        var lines: [String] = []
-        if includeHeaders {
-            let header = columnIndices.map { columns[$0].name }
-            lines.append(header.joined(separator: "\t"))
+        let headers = columnIndices.map { columns[$0].name }
+        let rows: [[String?]] = sourceRows.map { row in
+            columnIndices.map { parent.query.valueForDisplay(row: row, column: $0) }
         }
 
-        for row in sourceRows {
-            let values = columnIndices.map { parent.query.valueForDisplay(row: row, column: $0) ?? "" }
-            lines.append(values.joined(separator: "\t"))
-        }
+        return SelectionData(headers: headers, rows: rows, columnIndices: columnIndices)
+    }
 
-        let export = lines.joined(separator: "\n")
+    func copySelection(includeHeaders: Bool) {
+        guard let data = gatherSelectionData() else { return }
+        let export = ResultTableExportFormatter.formatTSV(
+            headers: data.headers,
+            rows: data.rows,
+            includeHeaders: includeHeaders
+        )
         PlatformClipboard.copy(export)
         clipboardHistory.record(
             .resultGrid(includeHeaders: includeHeaders),
+            content: export,
+            metadata: parent.query.clipboardMetadata
+        )
+    }
+
+    func copySelectionAs(format: ResultExportFormat) {
+        guard let data = gatherSelectionData() else { return }
+        let export = ResultTableExportFormatter.format(format, headers: data.headers, rows: data.rows)
+        PlatformClipboard.copy(export)
+        clipboardHistory.record(
+            .resultGrid(includeHeaders: true),
             content: export,
             metadata: parent.query.clipboardMetadata
         )
@@ -186,9 +200,45 @@ extension QueryResultsTableView.Coordinator {
     }
 
     func fallbackResultGridStyle(for kind: ResultGridValueKind) -> SQLEditorTokenPalette.ResultGridStyle {
+        if let overrideHex = colorOverrideHex(for: kind),
+           let overrideColor = Color(hex: overrideHex) {
+            return SQLEditorTokenPalette.ResultGridStyle(
+                color: ColorRepresentable(color: overrideColor)
+            )
+        }
         let tone: SQLEditorPalette.Tone = AppearanceStore.shared.effectiveColorScheme == .dark ? .dark : .light
         let defaults = SQLEditorTokenPalette.ResultGridColors.defaults(for: tone)
         return defaults.style(for: kind)
+    }
+
+    func fireCellInspect(for cell: QueryResultsTableView.SelectedCell) {
+        guard cell.column >= 0, cell.column < parent.query.displayedColumns.count else { return }
+        let columnInfo = parent.query.displayedColumns[cell.column]
+        let sourceRow = resolvedRowIndex(for: cell.row)
+        guard sourceRow >= 0 else { return }
+        let rawValue = parent.query.valueForDisplay(row: sourceRow, column: cell.column) ?? "NULL"
+        let kind = ResultGridValueClassifier.kind(for: columnInfo, value: rawValue == "NULL" ? nil : rawValue)
+        let content = CellValueInspectorContent(
+            columnName: columnInfo.name,
+            dataType: columnInfo.dataType,
+            rawValue: rawValue,
+            valueKind: kind
+        )
+        parent.onCellInspect?(content)
+    }
+
+    private func colorOverrideHex(for kind: ResultGridValueKind) -> String? {
+        let overrides = parent.colorOverrides
+        switch kind {
+        case .null: return overrides.nullHex
+        case .numeric: return overrides.numericHex
+        case .boolean: return overrides.booleanHex
+        case .temporal: return overrides.temporalHex
+        case .binary: return overrides.binaryHex
+        case .identifier: return overrides.identifierHex
+        case .json: return overrides.jsonHex
+        case .text: return overrides.textHex
+        }
     }
 }
 #endif

@@ -33,7 +33,7 @@ extension SecurityPGRoleSheet {
                         .multilineTextAlignment(.trailing)
                     Text(connectionLimit == -1 ? "(unlimited)" : "")
                         .font(TypographyTokens.detail)
-                        .foregroundStyle(.tertiary)
+                        .foregroundStyle(ColorTokens.Text.tertiary)
                 }
             }
         }
@@ -83,7 +83,7 @@ extension SecurityPGRoleSheet {
         Section {
             Text("Superuser grants all privileges and bypasses all permission checks. Bypass RLS allows the role to bypass all row-level security policies.")
                 .font(TypographyTokens.detail)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(ColorTokens.Text.secondary)
         }
     }
 
@@ -97,7 +97,7 @@ extension SecurityPGRoleSheet {
                     ProgressView().controlSize(.small)
                     Text("Loading roles\u{2026}")
                         .font(TypographyTokens.detail)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(ColorTokens.Text.secondary)
                 }
             }
         } else {
@@ -157,14 +157,14 @@ extension SecurityPGRoleSheet {
                     ProgressView().controlSize(.small)
                     Text("Loading parameter definitions\u{2026}")
                         .font(TypographyTokens.detail)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(ColorTokens.Text.secondary)
                 }
             }
         } else {
             Section("Role Parameters") {
                 if roleParameters.isEmpty && !isEditing {
                     Text("No role-level parameters configured.")
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(ColorTokens.Text.secondary)
                         .font(TypographyTokens.detail)
                 }
 
@@ -182,7 +182,7 @@ extension SecurityPGRoleSheet {
             Section {
                 Text("\(settingDefinitions.count) configurable parameters available from this server.")
                     .font(TypographyTokens.detail)
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(ColorTokens.Text.tertiary)
             }
         }
     }
@@ -191,13 +191,13 @@ extension SecurityPGRoleSheet {
     private func parameterRow(index: Int, param: PostgresDatabaseParameter) -> some View {
         let def = settingDefinition(for: param.name)
         HStack {
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: SpacingTokens.xxxs) {
                 Text(param.name)
                     .font(TypographyTokens.standard)
                 if let def, !def.shortDesc.isEmpty {
                     Text(def.shortDesc)
                         .font(TypographyTokens.detail)
-                        .foregroundStyle(.tertiary)
+                        .foregroundStyle(ColorTokens.Text.tertiary)
                         .lineLimit(1)
                 }
             }
@@ -210,11 +210,11 @@ extension SecurityPGRoleSheet {
             } else {
                 Text(param.value)
                     .font(TypographyTokens.standard)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(ColorTokens.Text.secondary)
                 if let def, !def.unit.isEmpty {
                     Text(def.unit)
                         .font(TypographyTokens.detail)
-                        .foregroundStyle(.tertiary)
+                        .foregroundStyle(ColorTokens.Text.tertiary)
                 }
             }
 
@@ -223,7 +223,7 @@ extension SecurityPGRoleSheet {
                     roleParameters.remove(at: index)
                 } label: {
                     Image(systemName: "minus.circle.fill")
-                        .foregroundStyle(.red)
+                        .foregroundStyle(ColorTokens.Status.error)
                 }
                 .buttonStyle(.plain)
             }
@@ -259,14 +259,14 @@ extension SecurityPGRoleSheet {
                 get: { roleParameters[safe: index]?.value ?? "" },
                 set: { roleParameters[safe: index] != nil ? roleParameters[index] = PostgresDatabaseParameter(name: def.name, value: $0) : () }
             )
-            HStack(spacing: 4) {
+            HStack(spacing: SpacingTokens.xxs) {
                 TextField("", text: text)
                     .frame(width: 100)
                     .multilineTextAlignment(.trailing)
                 if !def.unit.isEmpty {
                     Text(def.unit)
                         .font(TypographyTokens.detail)
-                        .foregroundStyle(.tertiary)
+                        .foregroundStyle(ColorTokens.Text.tertiary)
                 }
             }
 
@@ -323,7 +323,7 @@ extension SecurityPGRoleSheet {
                     if !def.unit.isEmpty {
                         Text(def.unit)
                             .font(TypographyTokens.detail)
-                            .foregroundStyle(.tertiary)
+                            .foregroundStyle(ColorTokens.Text.tertiary)
                     }
 
                 default:
@@ -340,7 +340,7 @@ extension SecurityPGRoleSheet {
             if !def.shortDesc.isEmpty {
                 Text(def.shortDesc)
                     .font(TypographyTokens.detail)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(ColorTokens.Text.secondary)
             }
         }
     }
@@ -352,7 +352,7 @@ extension SecurityPGRoleSheet {
         Section("Security Labels") {
             if securityLabels.isEmpty && !isEditing {
                 Text("No security labels assigned to this role.")
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(ColorTokens.Text.secondary)
                     .font(TypographyTokens.detail)
             }
 
@@ -363,14 +363,14 @@ extension SecurityPGRoleSheet {
                         .frame(minWidth: 120, alignment: .leading)
                     Text(label.label)
                         .font(TypographyTokens.standard)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(ColorTokens.Text.secondary)
                     Spacer()
                     if isEditing {
                         Button(role: .destructive) {
                             securityLabels.remove(at: index)
                         } label: {
                             Image(systemName: "minus.circle.fill")
-                                .foregroundStyle(.red)
+                                .foregroundStyle(ColorTokens.Status.error)
                         }
                         .buttonStyle(.plain)
                     }

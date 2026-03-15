@@ -11,13 +11,14 @@ struct QueryResultsTableView: NSViewRepresentable {
     var onSort: (Int, HeaderSortAction) -> Void
     var onClearColumnHighlight: () -> Void
     var backgroundColor: NSColor
-    var foreignKeyDisplayMode: ForeignKeyDisplayMode
-    var foreignKeyInspectorBehavior: ForeignKeyInspectorBehavior
     var onForeignKeyEvent: (ForeignKeyEvent) -> Void
     var onJsonEvent: (JsonCellEvent) -> Void
+    var onCellInspect: ((CellValueInspectorContent) -> Void)?
     var persistedState: QueryResultsGridState?
     var isResizing: Bool = false
     var alternateRowShading: Bool = false
+    var showRowNumbers: Bool = true
+    var colorOverrides: ResultGridColorOverrides = .init()
 
     @EnvironmentObject private var environmentState: EnvironmentState
     @EnvironmentObject private var clipboardHistory: ClipboardHistoryStore
@@ -32,9 +33,7 @@ struct QueryResultsTableView: NSViewRepresentable {
         scrollView.hasHorizontalScroller = true
         scrollView.autohidesScrollers = true
         scrollView.drawsBackground = false
-        if #available(macOS 13.0, *) {
-            scrollView.automaticallyAdjustsContentInsets = false
-        }
+        scrollView.automaticallyAdjustsContentInsets = false
 
         let tableView = ResultTableView()
         tableView.usesAlternatingRowBackgroundColors = alternateRowShading
@@ -47,27 +46,32 @@ struct QueryResultsTableView: NSViewRepresentable {
         tableView.allowsColumnSelection = false
         tableView.autoresizingMask = [.width]
         tableView.backgroundColor = backgroundColor
-        
+
         if let headerView = tableView.headerView {
             headerView.frame.size.height = max(headerView.frame.size.height, 28)
             headerView.isHidden = false
         }
-        
+
         context.coordinator.configure(tableView: tableView, scrollView: scrollView)
         tableView.selectionDelegate = context.coordinator
         scrollView.documentView = tableView
-        
-        let container = ResultTableContainerView(scrollView: scrollView, leadingWidth: 0.0)
+
+        let container = ResultTableContainerView(scrollView: scrollView, showRowNumbers: showRowNumbers)
         container.updateBackgroundColor(backgroundColor)
+        let rowCount = rowOrder.isEmpty ? query.displayedRowCount : rowOrder.count
+        container.updateRowNumbers(count: rowCount)
+        let coordinator = context.coordinator
+        container.setRowNumberCallbacks(
+            onSelect: { [weak coordinator] row in coordinator?.selectFullRow(row) },
+            onExtendSelect: { [weak coordinator] row in coordinator?.extendRowSelection(to: row) }
+        )
         return container
     }
 
     func updateNSView(_ container: ResultTableContainerView, context: Context) {
         guard let tableView = container.tableView else { return }
-        // Update the resize flag on coordinator directly — skip expensive work during resize
         context.coordinator.isSplitResizing = isResizing
         if isResizing {
-            // During split-pane resize, only update the parent reference — skip all table work
             context.coordinator.parent = self
             return
         }
@@ -75,9 +79,15 @@ struct QueryResultsTableView: NSViewRepresentable {
         tableView.backgroundColor = backgroundColor
         if tableView.usesAlternatingRowBackgroundColors != alternateRowShading {
             tableView.usesAlternatingRowBackgroundColors = alternateRowShading
+            let visibleRows = tableView.rows(in: tableView.visibleRect)
+            for row in visibleRows.location..<(visibleRows.location + visibleRows.length) {
+                tableView.rowView(atRow: row, makeIfNecessary: false)?.needsDisplay = true
+            }
             tableView.needsDisplay = true
         }
-        container.updateLeadingWidth(0.0)
+        container.updateShowRowNumbers(showRowNumbers)
+        let rowCount = rowOrder.isEmpty ? query.displayedRowCount : rowOrder.count
+        container.updateRowNumbers(count: rowCount)
         container.updateBackgroundColor(backgroundColor)
         context.coordinator.update(parent: self, tableView: tableView)
     }

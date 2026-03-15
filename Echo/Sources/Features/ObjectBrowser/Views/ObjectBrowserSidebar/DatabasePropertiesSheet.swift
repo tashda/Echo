@@ -99,7 +99,7 @@ struct DatabasePropertiesSheet: View {
                 if let status = statusMessage {
                     Text(status)
                         .font(TypographyTokens.detail)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(ColorTokens.Text.secondary)
                         .lineLimit(1)
                 }
                 Spacer()
@@ -107,6 +107,8 @@ struct DatabasePropertiesSheet: View {
                     ProgressView()
                         .controlSize(.small)
                 }
+                Button("Cancel") { onDismiss() }
+                    .keyboardShortcut(.cancelAction)
                 Button("Done") { onDismiss() }
                     .keyboardShortcut(.defaultAction)
             }
@@ -142,7 +144,7 @@ struct DatabasePropertiesSheet: View {
             VStack {
                 Spacer()
                 Label(error, systemImage: "exclamationmark.triangle")
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(ColorTokens.Text.secondary)
                 Spacer()
             }
             .padding()
@@ -209,7 +211,15 @@ struct DatabasePropertiesSheet: View {
             }
             isLoading = false
         } catch {
-            errorMessage = error.localizedDescription
+            let raw = error.localizedDescription
+            // Surface user-friendly message for common Postgres errors
+            if raw.contains("column") && raw.contains("does not exist") {
+                errorMessage = "Some properties are unavailable on this server version."
+            } else if raw.contains("permission denied") {
+                errorMessage = "Insufficient permissions to read database properties."
+            } else {
+                errorMessage = raw
+            }
             isLoading = false
         }
     }

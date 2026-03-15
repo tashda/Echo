@@ -10,10 +10,11 @@ extension FolderKind {
 }
 
 extension ManageSection {
-    var folderKind: FolderKind {
+    var folderKind: FolderKind? {
         switch self {
         case .connections: return .connections
         case .identities: return .identities
+        case .projects: return nil
         }
     }
 }
@@ -117,7 +118,8 @@ extension ManageConnectionsView {
     }
 
     func createNewFolder(for section: ManageSection, parent: SavedFolder? = nil) {
-        folderEditorState = .create(kind: section.folderKind, parent: parent, token: UUID())
+        guard let kind = section.folderKind else { return }
+        folderEditorState = .create(kind: kind, parent: parent, token: UUID())
     }
 
     func presentCreateFolder(for section: ManageSection) {

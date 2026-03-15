@@ -95,7 +95,7 @@ struct IdentityEditorSheet: View {
                 if hasDuplicateName {
                     Text("An identity with this name already exists here.")
                         .font(TypographyTokens.detail)
-                        .foregroundStyle(.red)
+                        .foregroundStyle(ColorTokens.Status.error)
                 }
             } header: {
                 Text(isEditing ? "Edit Identity" : "New Identity")
@@ -110,7 +110,7 @@ struct IdentityEditorSheet: View {
                 if isEditing && editingIdentityHasPassword && !passwordDirty {
                     Text("Existing password will be kept unless changed.")
                         .font(TypographyTokens.detail)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(ColorTokens.Text.secondary)
                 }
             }
 
@@ -140,7 +140,7 @@ struct IdentityEditorSheet: View {
                     }
                 }
                 .buttonStyle(.borderedProminent)
-                .tint(.red)
+                .tint(ColorTokens.Status.error)
             }
 
             Spacer()

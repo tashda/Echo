@@ -2,19 +2,15 @@ import SwiftUI
 
 extension ObjectBrowserSidebarView {
     var emptyStateView: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: SpacingTokens.xs) {
             Image(systemName: "server.rack")
-                .font(.system(size: 44, weight: .semibold))
-                .foregroundStyle(.secondary)
-            Text("No Database Connected")
-                .font(TypographyTokens.displayLarge.weight(.semibold))
-            Text("Connect to a server to explore its schemas, tables, and functions.")
+                .font(TypographyTokens.hero.weight(.medium))
+                .foregroundStyle(ColorTokens.Text.tertiary)
+            Text("No Connection")
                 .font(TypographyTokens.standard)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-                .frame(maxWidth: 240)
+                .foregroundStyle(ColorTokens.Text.secondary)
         }
-        .padding(.vertical, SpacingTokens.xxl)
+        .padding(.vertical, SpacingTokens.xl2)
         .frame(maxWidth: .infinity, alignment: .center)
     }
 

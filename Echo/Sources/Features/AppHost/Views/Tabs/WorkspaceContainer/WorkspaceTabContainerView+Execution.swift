@@ -7,27 +7,27 @@ extension WorkspaceTabContainerView {
 
         let trimmedSQL = sql.trimmingCharacters(in: .whitespacesAndNewlines)
         var effectiveSQL = trimmedSQL.isEmpty ? sql : trimmedSQL
-        while effectiveSQL.last == ";" {
-            effectiveSQL.removeLast()
-        }
-        effectiveSQL = effectiveSQL.trimmingCharacters(in: .whitespacesAndNewlines)
-        if effectiveSQL.isEmpty {
-            effectiveSQL = trimmedSQL.isEmpty ? sql : trimmedSQL
-        }
 
         // For MSSQL, prepend USE [database] to set the correct database context
         if tab.connection.databaseType == .microsoftSQL,
-           let session = environmentState.sessionCoordinator.activeSessions.first(where: { $0.id == tab.connectionSessionID }),
-           let selectedDB = session.selectedDatabaseName, !selectedDB.isEmpty {
+           let selectedDB = tab.activeDatabaseName, !selectedDB.isEmpty {
             effectiveSQL = "USE [\(selectedDB)];\n\(effectiveSQL)"
         }
+
+        // Resolve the execution session — for PostgreSQL, route through the database-specific session
+        let executionSession: DatabaseSession
+        if tab.connection.databaseType == .postgresql,
+           let activeDB = tab.activeDatabaseName, !activeDB.isEmpty {
+            executionSession = (try? await tab.session.sessionForDatabase(activeDB)) ?? tab.session
+        } else {
+            executionSession = tab.session
+        }
+
         let inferredObject = inferPrimaryObjectName(from: effectiveSQL)
         await MainActor.run {
             queryState.updateClipboardObjectName(inferredObject)
         }
-        let foreignKeyMode = await MainActor.run { projectStore.globalSettings.foreignKeyDisplayMode }
-        let shouldResolveForeignKeys = foreignKeyMode != .disabled
-        let foreignKeySource = shouldResolveForeignKeys ? resolveSchemaAndTable(for: inferredObject, connection: tab.connection) : nil
+        let foreignKeySource = resolveSchemaAndTable(for: inferredObject, connection: tab.connection)
 
         let task = Task { [weak queryState] in
             guard let state = await MainActor.run(body: { queryState }) else { return }
@@ -43,7 +43,7 @@ extension WorkspaceTabContainerView {
                 }
                 let perQueryMode = await MainActor.run { state.streamingModeOverride }
                 let executionMode: ResultStreamingExecutionMode? = perQueryMode == .auto ? nil : perQueryMode
-                let result = try await tab.session.simpleQuery(effectiveSQL, executionMode: executionMode) { [weak state] update in
+                let result = try await executionSession.simpleQuery(effectiveSQL, executionMode: executionMode) { [weak state] update in
                     guard let state else { return }
 
                     Task { @MainActor in
@@ -58,7 +58,23 @@ extension WorkspaceTabContainerView {
                 await MainActor.run {
                     state.consumeFinalResult(result)
                     state.finishExecution()
+                }
 
+                // Eagerly fetch FK metadata after results arrive so first click works
+                if foreignKeySource != nil {
+                    if let ctx = await MainActor.run(body: { state.beginForeignKeyMappingFetch() }) {
+                        let mapping = await loadForeignKeyMapping(session: executionSession, schema: ctx.schema, table: ctx.table)
+                        await MainActor.run {
+                            if Task.isCancelled {
+                                state.failForeignKeyMappingFetch()
+                            } else {
+                                state.completeForeignKeyMappingFetch(with: mapping)
+                            }
+                        }
+                    }
+                }
+
+                await MainActor.run {
                     var metadata: [String: String] = [
                         "rows": "\(result.rows.count)"
                     ]
@@ -76,6 +92,9 @@ extension WorkspaceTabContainerView {
                         metadata: metadata
                     )
                     appState.addToQueryHistory(effectiveSQL, resultCount: result.rows.count, duration: state.lastExecutionTime ?? 0)
+
+                    // Detect USE [database] in the original SQL and update tab context
+                    detectAndApplyDatabaseSwitch(originalSQL: trimmedSQL, tab: tab)
                 }
             } catch is CancellationError {
                 await MainActor.run {
@@ -184,6 +203,80 @@ extension WorkspaceTabContainerView {
             return database.isEmpty ? nil : database
         case .sqlite:
             return "main"
+        }
+    }
+
+    // MARK: - USE Database Detection
+
+    /// Detects `USE [database]` statements in the executed SQL and updates the tab's active database context.
+    /// Applies to MSSQL and MySQL which support switching databases on the same connection.
+    func detectAndApplyDatabaseSwitch(originalSQL: String, tab: WorkspaceTab) {
+        let dbType = tab.connection.databaseType
+        guard dbType == .microsoftSQL || dbType == .mysql else { return }
+
+        guard let targetDatabase = parseUseDatabaseStatement(originalSQL, databaseType: dbType) else { return }
+
+        let previous = tab.activeDatabaseName
+        guard targetDatabase != previous else { return }
+
+        tab.activeDatabaseName = targetDatabase
+
+        // Update the query state's clipboard metadata
+        if let queryState = tab.query {
+            queryState.updateClipboardContext(
+                serverName: queryState.clipboardMetadata.serverName,
+                databaseName: targetDatabase,
+                connectionColorHex: queryState.clipboardMetadata.connectionColorHex
+            )
+        }
+
+        // Update the parent connection session's selected database
+        if let session = environmentState.sessionCoordinator.activeSessions.first(where: { $0.id == tab.connectionSessionID }) {
+            session.selectedDatabaseName = targetDatabase
+        }
+
+        environmentState.notificationEngine?.post(category: .databaseSwitched, message: "Switched to \(targetDatabase)")
+    }
+
+    /// Parses a `USE database` statement from SQL. Returns the database name or nil.
+    private func parseUseDatabaseStatement(_ sql: String, databaseType: DatabaseType) -> String? {
+        let trimmed = sql.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        // Match USE [database], USE `database`, USE "database", or USE database
+        // Handle MSSQL bracket syntax and MySQL backtick syntax
+        let pattern: String
+        switch databaseType {
+        case .microsoftSQL:
+            // USE [AdventureWorks] or USE AdventureWorks
+            pattern = #"(?i)^\s*USE\s+(?:\[([^\]]+)\]|"([^"]+)"|(\S+?))\s*;?\s*$"#
+        case .mysql:
+            // USE `database` or USE database
+            pattern = #"(?i)^\s*USE\s+(?:`([^`]+)`|"([^"]+)"|(\S+?))\s*;?\s*$"#
+        default:
+            return nil
+        }
+
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: []) else { return nil }
+        let range = NSRange(location: 0, length: (trimmed as NSString).length)
+        guard let match = regex.firstMatch(in: trimmed, options: [], range: range) else { return nil }
+
+        // Check capture groups — first non-nil wins
+        for groupIndex in 1..<match.numberOfRanges {
+            let groupRange = match.range(at: groupIndex)
+            if groupRange.location != NSNotFound, let swiftRange = Range(groupRange, in: trimmed) {
+                let name = String(trimmed[swiftRange]).trimmingCharacters(in: .whitespacesAndNewlines)
+                if !name.isEmpty { return name }
+            }
+        }
+        return nil
+    }
+
+    private func loadForeignKeyMapping(session: DatabaseSession, schema: String, table: String) async -> ForeignKeyMapping {
+        do {
+            let details = try await session.getTableStructureDetails(schema: schema, table: table)
+            return buildForeignKeyMapping(from: details)
+        } catch {
+            return [:]
         }
     }
 }

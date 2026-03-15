@@ -1,28 +1,6 @@
 import SwiftUI
 
 extension QueryResultsSection {
-    var toolbar: some View {
-        HStack(spacing: 16) {
-            Picker("", selection: $selectedTab) {
-                Text("Results").tag(ResultTab.results)
-                Text("Messages").tag(ResultTab.messages)
-#if os(macOS)
-                if jsonInspectorContext != nil {
-                    Text("JSON").tag(ResultTab.jsonInspector)
-                }
-#endif
-            }
-            .pickerStyle(.segmented)
-            .frame(maxWidth: 220)
-            .labelsHidden()
-
-            Spacer()
-        }
-        .padding(.horizontal, SpacingTokens.md2)
-        .padding(.vertical, SpacingTokens.xs2)
-        .background(ColorTokens.Background.primary)
-    }
-
     @ViewBuilder
     var content: some View {
         Group {
@@ -49,40 +27,13 @@ extension QueryResultsSection {
 
     var resultsView: some View {
         Group {
-            if hasRows {
+            if hasRows || !query.additionalResults.isEmpty {
 #if os(macOS)
-                QueryResultsTableView(
-                    query: query,
-                    highlightedColumnIndex: highlightedColumnIndex,
-                    activeSort: activeSort,
-                    rowOrder: rowOrder,
-                    onColumnTap: toggleHighlightedColumn,
-                    onSort: { index, action in
-                        let column = tableColumns[index]
-                        switch action {
-                        case .ascending: applySort(column: column, ascending: true)
-                        case .descending: applySort(column: column, ascending: false)
-                        case .clear:
-                            sortCriteria = nil
-                            highlightedColumnIndex = nil
-                            rebuildRowOrder()
-                        }
-                    },
-                    onClearColumnHighlight: { highlightedColumnIndex = nil },
-                    backgroundColor: NSColor(ColorTokens.Background.primary),
-                    foreignKeyDisplayMode: foreignKeyDisplayMode,
-                    foreignKeyInspectorBehavior: foreignKeyInspectorBehavior,
-                    onForeignKeyEvent: onForeignKeyEvent,
-                    onJsonEvent: { event in
-                        if case .activate(let selection) = event {
-                            openJsonInspector(with: selection)
-                        }
-                        onJsonEvent(event)
-                    },
-                    persistedState: gridState,
-                    isResizing: isResizingResults,
-                    alternateRowShading: projectStore.globalSettings.resultsAlternateRowShading
-                )
+                if query.additionalResults.isEmpty {
+                    primaryResultsTable
+                } else {
+                    multiResultSetView
+                }
 #else
                 QueryResultsGridView(
                     query: query,
@@ -100,48 +51,145 @@ extension QueryResultsSection {
         }
     }
 
+#if os(macOS)
+    private var primaryResultsTable: some View {
+        QueryResultsTableView(
+            query: query,
+            highlightedColumnIndex: highlightedColumnIndex,
+            activeSort: activeSort,
+            rowOrder: rowOrder,
+            onColumnTap: toggleHighlightedColumn,
+            onSort: { index, action in
+                let column = tableColumns[index]
+                switch action {
+                case .ascending: applySort(column: column, ascending: true)
+                case .descending: applySort(column: column, ascending: false)
+                case .clear:
+                    sortCriteria = nil
+                    highlightedColumnIndex = nil
+                    rebuildRowOrder()
+                }
+            },
+            onClearColumnHighlight: { highlightedColumnIndex = nil },
+            backgroundColor: NSColor(ColorTokens.Background.primary),
+            onForeignKeyEvent: onForeignKeyEvent,
+            onJsonEvent: { event in
+                onJsonEvent(event)
+            },
+            onCellInspect: onCellInspect,
+            persistedState: gridState,
+            isResizing: isResizingResults,
+            alternateRowShading: projectStore.globalSettings.resultsAlternateRowShading,
+            showRowNumbers: projectStore.globalSettings.resultsShowRowNumbers,
+            colorOverrides: projectStore.globalSettings.resultGridColorOverrides
+        )
+    }
+
+    private var multiResultSetView: some View {
+        let allSets = query.allResultSetsForDisplay
+        return VStack(spacing: 0) {
+            resultSetTabBar(count: allSets.count)
+
+            if query.selectedResultSetIndex == 0 && hasRows {
+                primaryResultsTable
+            } else if query.selectedResultSetIndex > 0,
+                      query.selectedResultSetIndex - 1 < query.additionalResults.count {
+                AdditionalResultSetTableView(
+                    resultSet: query.additionalResults[query.selectedResultSetIndex - 1],
+                    backgroundColor: NSColor(ColorTokens.Background.primary),
+                    alternateRowShading: projectStore.globalSettings.resultsAlternateRowShading,
+                    showRowNumbers: projectStore.globalSettings.resultsShowRowNumbers
+                )
+            } else {
+                noRowsReturnedView
+            }
+        }
+    }
+
+    private func resultSetTabBar(count: Int) -> some View {
+        HStack(spacing: SpacingTokens.xxs) {
+            ForEach(0..<count, id: \.self) { index in
+                let rowCount = resultSetRowCount(at: index)
+                Button {
+                    query.selectedResultSetIndex = index
+                } label: {
+                    HStack(spacing: SpacingTokens.xxs) {
+                        Text("Result \(index + 1)")
+                            .font(TypographyTokens.detail)
+                        Text("(\(rowCount))")
+                            .font(TypographyTokens.compact)
+                            .foregroundStyle(ColorTokens.Text.tertiary)
+                    }
+                    .padding(.horizontal, SpacingTokens.xs)
+                    .padding(.vertical, SpacingTokens.xxs)
+                    .background(
+                        query.selectedResultSetIndex == index
+                            ? ColorTokens.Text.primary.opacity(0.08)
+                            : Color.clear,
+                        in: RoundedRectangle(cornerRadius: 5)
+                    )
+                }
+                .buttonStyle(.plain)
+            }
+            Spacer()
+        }
+        .padding(.horizontal, SpacingTokens.xs)
+        .padding(.vertical, SpacingTokens.xxs2)
+        .background(ColorTokens.Background.secondary)
+    }
+
+    private func resultSetRowCount(at index: Int) -> Int {
+        if index == 0 {
+            return query.rowProgress.displayCount
+        }
+        let additionalIndex = index - 1
+        guard additionalIndex < query.additionalResults.count else { return 0 }
+        return query.additionalResults[additionalIndex].totalRowCount ?? query.additionalResults[additionalIndex].rows.count
+    }
+#endif
+
     var messagesView: some View {
         ExecutionConsoleView(results: query.results ?? QueryResultSet(columns: [], rows: []))
     }
 
     var placeholder: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: SpacingTokens.sm) {
             Image(systemName: "tablecells")
-                .font(.system(size: 40))
-                .foregroundStyle(.secondary)
+                .font(TypographyTokens.hero)
+                .foregroundStyle(ColorTokens.Text.secondary)
             Text("No Results Yet")
-                .font(.headline)
+                .font(TypographyTokens.headline)
             Text("Run a query to see data appear here.")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .font(TypographyTokens.subheadline)
+                .foregroundStyle(ColorTokens.Text.secondary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     var executingView: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: SpacingTokens.md) {
             ProgressView()
                 .controlSize(.large)
             Text("Executing query...")
-                .font(.headline)
+                .font(TypographyTokens.headline)
             Text("Please wait while we fetch your data.")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .font(TypographyTokens.subheadline)
+                .foregroundStyle(ColorTokens.Text.secondary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     func errorView(_ message: String) -> some View {
-        VStack(spacing: 16) {
+        VStack(spacing: SpacingTokens.md) {
             Image(systemName: "exclamationmark.triangle.fill")
-                .font(.system(size: 42))
-                .foregroundStyle(.orange)
+                .font(TypographyTokens.hero)
+                .foregroundStyle(ColorTokens.Status.warning)
             Text("Query Failed")
-                .font(.headline)
+                .font(TypographyTokens.headline)
             Text(message)
-                .font(.body)
+                .font(TypographyTokens.body)
                 .multilineTextAlignment(.center)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(ColorTokens.Text.secondary)
                 .textSelection(.enabled)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -149,15 +197,15 @@ extension QueryResultsSection {
     }
 
     var noRowsReturnedView: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: SpacingTokens.sm) {
             Image(systemName: "tablecells.badge.ellipsis")
-                .font(.system(size: 36))
-                .foregroundStyle(.secondary)
+                .font(TypographyTokens.hero)
+                .foregroundStyle(ColorTokens.Text.secondary)
             Text("No Rows Returned")
-                .font(.headline)
+                .font(TypographyTokens.headline)
             Text("The query executed successfully but returned no data.")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .font(TypographyTokens.subheadline)
+                .foregroundStyle(ColorTokens.Text.secondary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }

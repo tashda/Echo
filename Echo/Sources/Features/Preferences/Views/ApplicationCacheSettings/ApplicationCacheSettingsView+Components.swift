@@ -24,21 +24,21 @@ extension ApplicationCacheSettingsView {
                 } else {
                     Text(EchoFormatters.bytes(usage))
                         .font(TypographyTokens.caption2)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(ColorTokens.Text.secondary)
                         .monospacedDigit()
                 }
 
                 if let onRefresh = onRefresh {
                     Button(action: { Task { await onRefresh() } }) {
                         Image(systemName: "arrow.clockwise")
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(ColorTokens.Text.secondary)
                     }
                     .buttonStyle(.plain)
                 }
 
                 Button(action: onClear) {
                     Image(systemName: "trash")
-                        .foregroundStyle(.red)
+                        .foregroundStyle(ColorTokens.Status.error)
                 }
                 .buttonStyle(.plain)
             }
@@ -72,19 +72,19 @@ struct StorageLocationButton: View {
     var body: some View {
         Button(action: { NSWorkspace.shared.activateFileViewerSelecting([storageLocation]) }) {
             HStack {
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: SpacingTokens.xxxs) {
                     Text("Storage Location")
 
                     Text(displayPath(storageLocation.path))
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
+                        .font(TypographyTokens.footnote)
+                        .foregroundStyle(ColorTokens.Text.secondary)
                         .textSelection(.enabled)
                 }
 
                 Spacer()
 
                 Image(systemName: "arrow.up.right.square")
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(ColorTokens.Text.secondary)
             }
             .contentShape(Rectangle())
         }
@@ -112,13 +112,13 @@ struct ToggleWithInfo: View {
                     .imageScale(.medium)
             }
             .buttonStyle(.plain)
-            .foregroundStyle(.secondary)
+            .foregroundStyle(ColorTokens.Text.secondary)
             .popover(isPresented: $showInfoPopover,
                      attachmentAnchor: .rect(.bounds),
                      arrowEdge: .trailing) {
                 Text(description)
                     .font(TypographyTokens.standard)
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(ColorTokens.Text.primary)
                     .multilineTextAlignment(.leading)
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(SpacingTokens.md)

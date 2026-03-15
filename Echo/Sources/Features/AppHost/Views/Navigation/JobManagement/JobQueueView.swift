@@ -23,11 +23,11 @@ struct JobQueueView: View {
                 secondMinFraction: 0.25,
                 fraction: $horizontalFraction
             ) {
-                JobListView(viewModel: viewModel, toastCoordinator: environmentState.toastCoordinator)
+                JobListView(viewModel: viewModel, notificationEngine: environmentState.notificationEngine)
             } second: {
                 JobDetailsView(
                     viewModel: viewModel,
-                    toastCoordinator: environmentState.toastCoordinator
+                    notificationEngine: environmentState.notificationEngine
                 )
             }
         } second: {

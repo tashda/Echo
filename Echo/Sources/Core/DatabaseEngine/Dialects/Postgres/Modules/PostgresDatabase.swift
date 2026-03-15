@@ -13,6 +13,13 @@ struct PostgresNIOFactory: DatabaseFactory {
         port: Int,
         database: String?,
         tls: Bool,
+        trustServerCertificate: Bool = false,
+        tlsMode: TLSMode = .prefer,
+        sslRootCertPath: String? = nil,
+        sslCertPath: String? = nil,
+        sslKeyPath: String? = nil,
+        mssqlEncryptionMode: MSSQLEncryptionMode = .optional,
+        readOnlyIntent: Bool = false,
         authentication: DatabaseAuthenticationConfiguration,
         connectTimeoutSeconds: Int = 10
     ) async throws -> DatabaseSession {
@@ -23,36 +30,77 @@ struct PostgresNIOFactory: DatabaseFactory {
         let databaseLabel = effectiveDatabase ?? "postgres"
         logger.info("Connecting to PostgreSQL at \(host):\(port)/\(databaseLabel)")
 
+        let wireSslMode: PostgresSSLMode = switch tlsMode {
+        case .disable: .disable
+        case .allow: .allow
+        case .prefer: .prefer
+        case .require: .require
+        case .verifyCA: .verifyCA
+        case .verifyFull: .verifyFull
+        }
+
         let configuration = PostgresConfiguration(
             host: host,
             port: port,
             database: effectiveDatabase ?? "postgres",
             username: authentication.username,
             password: authentication.password,
-            useTLS: tls,
+            sslMode: wireSslMode,
+            sslRootCertPath: sslRootCertPath,
+            sslCertPath: sslCertPath,
+            sslKeyPath: sslKeyPath,
             applicationName: "Echo",
             connectTimeout: connectTimeoutSeconds
         )
 
-        let client = try await PostgresDatabaseClient.connect(configuration: configuration, logger: logger)
+        let serverConnection = try await PostgresServerConnection.connect(
+            configuration: configuration,
+            logger: logger
+        )
 
-        return PostgresSession(client: client, logger: logger)
+        return PostgresSession(
+            client: serverConnection.primaryClient,
+            serverConnection: serverConnection,
+            logger: logger
+        )
     }
 }
 
 extension PostgresSession: @unchecked Sendable {}
 
 final class PostgresSession: DatabaseSession {
-    let client: PostgresDatabaseClient
+    let client: PostgresKit.PostgresClient
+    let serverConnection: PostgresServerConnection?
     let logger: Logger
 
-    init(client: PostgresDatabaseClient, logger: Logger) {
+    init(client: PostgresKit.PostgresClient, serverConnection: PostgresServerConnection? = nil, logger: Logger) {
         self.client = client
+        self.serverConnection = serverConnection
         self.logger = logger
     }
 
     func close() async {
-        client.close()
+        if let serverConnection {
+            await serverConnection.closeAll()
+        } else {
+            client.close()
+        }
+    }
+
+    func isSuperuser() async throws -> Bool {
+        let meta = PostgresMetadata()
+        return try await meta.isSuperuser(using: client)
+    }
+
+    func sessionForDatabase(_ database: String) async throws -> DatabaseSession {
+        guard let serverConnection else { return self }
+        let dbClient = try await serverConnection.client(for: database)
+        if dbClient === client { return self }
+        return PostgresSession(client: dbClient, serverConnection: serverConnection, logger: logger)
+    }
+
+    func makeActivityMonitor() throws -> any DatabaseActivityMonitoring {
+        PostgresActivityMonitorWrapper(client.agent)
     }
 
     func simpleQuery(_ sql: String) async throws -> QueryResultSet {
@@ -85,27 +133,29 @@ final class PostgresSession: DatabaseSession {
             var rows: [[String?]] = []
             rows.reserveCapacity(512)
 
-            let formatterContext = CellFormatterContext()
+            let formatter = PostgresCellFormatter()
 
             for try await row in result {
                 if columns.isEmpty {
-                    for cell in row {
+                    let wireColumns = PostgresRowExtractor.columns(from: row)
+                    columns.reserveCapacity(wireColumns.count)
+                    for col in wireColumns {
                         columns.append(ColumnInfo(
-                            name: cell.columnName,
-                            dataType: "\(cell.dataType)",
-                            isPrimaryKey: false,
-                            isNullable: true,
-                            maxLength: nil
+                            name: col.name,
+                            dataType: col.dataType,
+                            isPrimaryKey: col.isPrimaryKey,
+                            isNullable: col.isNullable,
+                            maxLength: col.maxLength
                         ))
                     }
                 }
 
-                var rowValues: [String?] = []
-                rowValues.reserveCapacity(row.count)
-                for cell in row {
-                    rowValues.append(formatterContext.stringValue(for: cell))
-                }
-                rows.append(rowValues)
+                let (_, preview) = PostgresRowExtractor.extractRow(
+                    from: row,
+                    formatPreview: true,
+                    formatter: formatter
+                )
+                rows.append(preview ?? [])
             }
 
             let resolvedColumns = columns.isEmpty
@@ -133,6 +183,18 @@ final class PostgresSession: DatabaseSession {
         return count
     }
 
+    func renameTable(schema: String?, oldName: String, newName: String) async throws {
+        try await client.admin.renameTable(oldName: oldName, newName: newName, schema: schema)
+    }
+
+    func dropTable(schema: String?, name: String, ifExists: Bool) async throws {
+        _ = try await client.admin.dropTable(name: name, ifExists: ifExists, cascade: false, schema: schema)
+    }
+
+    func truncateTable(schema: String?, name: String) async throws {
+        _ = try await client.connection.truncate(table: name, cascade: false, restartIdentity: false, schema: schema)
+    }
+
     func listDatabases() async throws -> [String] {
         let meta = PostgresMetadata()
         return try await meta.listDatabases(using: client)
@@ -141,6 +203,24 @@ final class PostgresSession: DatabaseSession {
     func listSchemas() async throws -> [String] {
         let meta = PostgresMetadata()
         return try await meta.listSchemas(using: client)
+    }
+
+    func listExtensions() async throws -> [SchemaObjectInfo] {
+        let meta = PostgresMetadata()
+        let extensions = try await meta.listExtensions(using: client)
+        return extensions.map { ext in
+            SchemaObjectInfo(
+                name: ext.name,
+                schema: ext.schema,
+                type: .extension,
+                comment: "Version: \(ext.version)"
+            )
+        }
+    }
+
+    func listExtensionObjects(extensionName: String) async throws -> [ExtensionObjectInfo] {
+        // TODO: Add listExtensionObjects to postgres-wire PostgresMetadata
+        return []
     }
 
     func listTablesAndViews(schema: String?) async throws -> [SchemaObjectInfo] {
@@ -157,42 +237,38 @@ final class PostgresSession: DatabaseSession {
 
     func getTableStructureDetails(schema: String, table: String) async throws -> TableStructureDetails {
         let meta = PostgresMetadata()
-        async let cols: [TableStructureDetails.Column] = {
-            let list = try? await meta.listColumns(using: client, schema: schema, table: table)
-            return (list ?? []).map { TableStructureDetails.Column(name: $0.name, dataType: $0.dataType, isNullable: $0.isNullable, defaultValue: $0.defaultValue, generatedExpression: nil) }
-        }()
-        async let pk: TableStructureDetails.PrimaryKey? = {
-            if let p = try? await meta.primaryKey(using: client, schema: schema, table: table) {
-                return TableStructureDetails.PrimaryKey(name: p.name, columns: p.columns)
+
+        let columnList = try await meta.listColumns(using: client, schema: schema, table: table)
+        let columns = columnList.map { TableStructureDetails.Column(name: $0.name, dataType: $0.dataType, isNullable: $0.isNullable, defaultValue: $0.defaultValue, generatedExpression: nil) }
+
+        let primaryKey: TableStructureDetails.PrimaryKey?
+        if let p = try? await meta.primaryKey(using: client, schema: schema, table: table) {
+            primaryKey = TableStructureDetails.PrimaryKey(name: p.name, columns: p.columns)
+        } else {
+            primaryKey = nil
+        }
+
+        let indexList = try await meta.listIndexes(using: client, schema: schema, table: table)
+        let indexes = indexList.map { i in
+            let cols = i.columns.enumerated().map { (pos, c) in
+                TableStructureDetails.Index.Column(name: c.name, position: pos + 1, sortOrder: c.isDescending ? .descending : .ascending)
             }
-            return nil
-        }()
-        async let idx: [TableStructureDetails.Index] = {
-            let list = try? await meta.listIndexes(using: client, schema: schema, table: table)
-            return (list ?? []).map { i in
-                let columns = i.columns.enumerated().map { (pos, c) in
-                    TableStructureDetails.Index.Column(name: c.name, position: pos + 1, sortOrder: c.isDescending ? .descending : .ascending)
-                }
-                return TableStructureDetails.Index(name: i.name, columns: columns, isUnique: i.isUnique, filterCondition: i.predicate)
-            }
-        }()
-        async let fks: [TableStructureDetails.ForeignKey] = {
-            let list = try? await meta.foreignKeys(using: client, schema: schema, table: table)
-            return (list ?? []).map { fk in
-                TableStructureDetails.ForeignKey(name: fk.name, columns: fk.columns, referencedSchema: fk.referencedSchema, referencedTable: fk.referencedTable, referencedColumns: fk.referencedColumns, onUpdate: fk.onUpdate, onDelete: fk.onDelete)
-            }
-        }()
-        async let uniques: [TableStructureDetails.UniqueConstraint] = {
-            let list = try? await meta.uniqueConstraints(using: client, schema: schema, table: table)
-            return (list ?? []).map { TableStructureDetails.UniqueConstraint(name: $0.name, columns: $0.columns) }
-        }()
-        async let deps: [TableStructureDetails.Dependency] = {
-            let list = try? await meta.dependencies(using: client, schema: schema, table: table)
-            return (list ?? []).map { d in
-                TableStructureDetails.Dependency(name: d.name, baseColumns: d.referencingColumns, referencedTable: d.sourceTable, referencedColumns: d.referencedColumns, onUpdate: d.onUpdate, onDelete: d.onDelete)
-            }
-        }()
-        let (columns, primaryKey, indexes, foreignKeys, uniqueConstraints, dependencies) = await (cols, pk, idx, fks, uniques, deps)
+            return TableStructureDetails.Index(name: i.name, columns: cols, isUnique: i.isUnique, filterCondition: i.predicate)
+        }
+
+        let fkList = try await meta.foreignKeys(using: client, schema: schema, table: table)
+        let foreignKeys = fkList.map { fk in
+            TableStructureDetails.ForeignKey(name: fk.name, columns: fk.columns, referencedSchema: fk.referencedSchema, referencedTable: fk.referencedTable, referencedColumns: fk.referencedColumns, onUpdate: fk.onUpdate, onDelete: fk.onDelete)
+        }
+
+        let uniqueList = try await meta.uniqueConstraints(using: client, schema: schema, table: table)
+        let uniqueConstraints = uniqueList.map { TableStructureDetails.UniqueConstraint(name: $0.name, columns: $0.columns) }
+
+        let depList = try await meta.dependencies(using: client, schema: schema, table: table)
+        let dependencies = depList.map { d in
+            TableStructureDetails.Dependency(name: d.name, baseColumns: d.referencingColumns, referencedTable: d.sourceTable, referencedColumns: d.referencedColumns, onUpdate: d.onUpdate, onDelete: d.onDelete)
+        }
+
         return TableStructureDetails(columns: columns, primaryKey: primaryKey, indexes: indexes, uniqueConstraints: uniqueConstraints, foreignKeys: foreignKeys, dependencies: dependencies)
     }
 
@@ -246,6 +322,9 @@ final class PostgresSession: DatabaseSession {
                 return definition
             }
             return "-- Trigger definition unavailable"
+
+        case .extension:
+            return "-- Extension definition unavailable"
         }
     }
 }
@@ -304,5 +383,25 @@ extension PostgresSession: DatabaseMetadataSession {
         }
 
         return SchemaInfo(name: schemaName, objects: objects)
+    }
+
+    func rebuildIndex(schema: String, table: String, index: String) async throws {
+        let quotedIndex = "\"\(index.replacingOccurrences(of: "\"", with: "\"\""))\""
+        _ = try await client.simpleQuery("REINDEX INDEX \(quotedIndex)")
+    }
+
+    func listAvailableExtensions() async throws -> [AvailableExtensionInfo] {
+        // TODO: Add listAvailableExtensions to postgres-wire PostgresMetadata
+        return []
+    }
+
+    func installExtension(name: String, schema: String?, version: String?, cascade: Bool) async throws {
+        // Simple CREATE EXTENSION for now. 
+        // Note: version selection not yet in Driver's createExtension, will need update.
+        _ = try await client.admin.createExtension(name, ifNotExists: true, schema: schema, version: version, cascade: cascade)
+    }
+
+    func updateExtension(name: String, to version: String?) async throws {
+        _ = try await client.admin.updateExtension(name, to: version)
     }
 }

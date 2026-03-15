@@ -12,10 +12,10 @@ struct DiagramBlockingStatusCard: View {
             Color.black.opacity(0.18)
                 .ignoresSafeArea()
                 .allowsHitTesting(false)
-            VStack(spacing: 16) {
+            VStack(spacing: SpacingTokens.md) {
                 if let icon {
                     Image(systemName: icon)
-                        .font(.system(size: 40, weight: .bold))
+                        .font(TypographyTokens.hero.weight(.bold))
                         .foregroundStyle(tint)
                 } else {
                     ProgressView()
@@ -23,12 +23,12 @@ struct DiagramBlockingStatusCard: View {
                         .frame(width: 240)
                         .tint(tint)
                 }
-                VStack(spacing: 6) {
+                VStack(spacing: SpacingTokens.xxs2) {
                     Text(title)
-                        .font(.headline)
+                        .font(TypographyTokens.headline)
                         .foregroundStyle(palette.headerTitle)
                     Text(message)
-                        .font(.subheadline)
+                        .font(TypographyTokens.subheadline)
                         .foregroundStyle(palette.headerSubtitle)
                         .multilineTextAlignment(.center)
                 }

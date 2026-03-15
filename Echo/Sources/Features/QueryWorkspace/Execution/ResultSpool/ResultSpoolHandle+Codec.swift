@@ -4,7 +4,8 @@ extension ResultSpoolHandle {
     func decodeRowData(_ data: Data) -> [String?] {
         if metadata.rowEncoding == "binary_v1" {
             let binaryRow = ResultBinaryRow(data: data)
-            var values = ResultBinaryRowCodec.decode(binaryRow, columnCount: metadata.columns.count)
+            // Use type-aware decode with column metadata for proper binary formatting
+            var values = ResultBinaryRowCodec.decode(binaryRow, columns: metadata.columns)
             normalizeValues(&values)
             return values
         } else {

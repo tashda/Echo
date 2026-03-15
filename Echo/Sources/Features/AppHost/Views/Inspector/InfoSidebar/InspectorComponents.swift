@@ -5,27 +5,27 @@ struct InspectorFieldRow: View {
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: SpacingTokens.xxs2) {
             Text(field.label.uppercased())
-                .font(.caption2)
-                .foregroundStyle(.secondary)
+                .font(TypographyTokens.caption2)
+                .foregroundStyle(ColorTokens.Text.secondary)
 
             Text(field.value.isEmpty ? "—" : field.value)
-                .font(.callout.weight(.medium))
+                .font(TypographyTokens.callout.weight(.medium))
                 .foregroundStyle(ColorTokens.Text.primary)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .layoutPriority(1)
                 .padding(.vertical, SpacingTokens.xs)
                 .padding(.horizontal, SpacingTokens.xs2)
                 .background(
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .fill(Color.secondary.opacity(colorScheme == .dark ? 0.18 : 0.12))
+                    RoundedRectangle(cornerRadius: SpacingTokens.xs2, style: .continuous)
+                        .fill(ColorTokens.Text.secondary.opacity(colorScheme == .dark ? 0.18 : 0.12))
                         .overlay(
-                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            RoundedRectangle(cornerRadius: SpacingTokens.xs2, style: .continuous)
                                 .stroke(Color.white.opacity(colorScheme == .dark ? 0.08 : 0.18), lineWidth: 0.6)
                         )
                 )
-                .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .contentShape(RoundedRectangle(cornerRadius: SpacingTokens.xs2, style: .continuous))
                 .contextMenu {
                     Button {
                         copyToGeneralPasteboard(field.value)
@@ -47,13 +47,13 @@ struct RelatedInspectorSection: View {
             InspectorPanelView(content: content, depth: depth + 1)
                 .padding(.top, SpacingTokens.xs2)
         } label: {
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: SpacingTokens.xxxs) {
                 Text(content.title)
-                    .font(.subheadline.weight(.semibold))
+                    .font(TypographyTokens.subheadline.weight(.semibold))
                 if let subtitle = content.subtitle, !subtitle.isEmpty {
                     Text(subtitle)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .font(TypographyTokens.caption)
+                        .foregroundStyle(ColorTokens.Text.secondary)
                 }
             }
         }
@@ -65,17 +65,17 @@ struct InspectorEmptyState: View {
     let message: String
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: SpacingTokens.xs) {
             Text(title)
-                .font(.headline)
+                .font(TypographyTokens.headline)
             Text(message)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .font(TypographyTokens.subheadline)
+                .foregroundStyle(ColorTokens.Text.secondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(SpacingTokens.lg)
         .background(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
+            RoundedRectangle(cornerRadius: SpacingTokens.md1, style: .continuous)
                 .fill(.ultraThinMaterial)
         )
     }

@@ -28,42 +28,49 @@ struct ForeignKeyEditorSheet: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            Form {
-                generalSection
-                columnsSection
-                referenceSection
-                actionsSection
+            ScrollView {
+                Form {
+                    generalSection
+                    columnsSection
+                    referenceSection
+                    actionsSection
+                }
+                .formStyle(.grouped)
+                .scrollContentBackground(.hidden)
             }
-            .formStyle(.grouped)
-            .scrollContentBackground(.hidden)
 
             Divider()
 
             toolbar
         }
-        .frame(minWidth: 520, idealWidth: 560, minHeight: 460)
+        .frame(minWidth: 520, idealWidth: 560, minHeight: 500)
         .navigationTitle(draft.isEditingExisting ? "Edit Foreign Key" : "New Foreign Key")
     }
 
     private var generalSection: some View {
         Section {
-            TextField("Constraint Name", text: $draft.name)
+            LabeledContent("Name") {
+                TextField("Constraint name", text: $draft.name)
+            }
 
-            HStack {
-                TextField("Schema", text: $draft.referencedSchema)
-                TextField("Table", text: $draft.referencedTable)
+            LabeledContent("Schema") {
+                TextField("public", text: $draft.referencedSchema)
+            }
+
+            LabeledContent("Table") {
+                TextField("Referenced table", text: $draft.referencedTable)
             }
         } header: {
             Text("General")
         } footer: {
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: SpacingTokens.xxxs) {
                 if draft.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                     Text("Name is required.")
-                        .foregroundStyle(.red)
+                        .foregroundStyle(ColorTokens.Status.error)
                 }
                 if draft.referencedTable.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                     Text("Referenced table is required.")
-                        .foregroundStyle(.red)
+                        .foregroundStyle(ColorTokens.Status.error)
                 }
             }
         }
@@ -95,9 +102,7 @@ struct ForeignKeyEditorSheet: View {
         } footer: {
             if draft.columns.isEmpty {
                 Text("At least one local column is required.")
-                    .foregroundStyle(.red)
-            } else if computedAddableColumns.isEmpty {
-                Text("All columns are already included.")
+                    .foregroundStyle(ColorTokens.Status.error)
             } else {
                 Text("Order matches the referenced columns below.")
             }
@@ -106,13 +111,13 @@ struct ForeignKeyEditorSheet: View {
 
     private func columnRow(for column: Binding<Draft.Column>, index: Int) -> some View {
         let columnID = column.wrappedValue.id
-        return HStack(spacing: 12) {
-            VStack(spacing: 2) {
+        return HStack(spacing: SpacingTokens.sm) {
+            VStack(spacing: SpacingTokens.xxxs) {
                 Button {
                     moveDraftColumn(at: index, by: -1)
                 } label: {
                     Image(systemName: "chevron.up")
-                        .font(TypographyTokens.label.weight(.bold))
+                        .font(TypographyTokens.label)
                 }
                 .buttonStyle(.borderless)
                 .disabled(index == 0)
@@ -121,12 +126,12 @@ struct ForeignKeyEditorSheet: View {
                     moveDraftColumn(at: index, by: 1)
                 } label: {
                     Image(systemName: "chevron.down")
-                        .font(TypographyTokens.label.weight(.bold))
+                        .font(TypographyTokens.label)
                 }
                 .buttonStyle(.borderless)
                 .disabled(index == draft.columns.count - 1)
             }
-            .frame(width: 24)
+            .frame(width: SpacingTokens.md2)
 
             Picker("", selection: column.name) {
                 ForEach(draftColumnOptions(for: columnID), id: \.self) { option in
@@ -147,14 +152,53 @@ struct ForeignKeyEditorSheet: View {
         }
     }
 
+    private var referenceSection: some View {
+        Section {
+            LabeledContent("Referenced Columns") {
+                TextField("col1, col2", text: $draft.referencedColumnsInput)
+            }
+        } header: {
+            Text("References")
+        } footer: {
+            VStack(alignment: .leading, spacing: SpacingTokens.xxxs) {
+                Text("Comma-separated column names, matching the order above.")
+                if draft.referencedColumnsMismatch {
+                    Text("Column count does not match local columns (\(draft.columns.count)).")
+                        .foregroundStyle(ColorTokens.Status.warning)
+                }
+            }
+        }
+    }
+
+    private var actionsSection: some View {
+        Section {
+            Picker("ON UPDATE", selection: $draft.onUpdate) {
+                ForEach(ForeignKeyAction.allCases) { action in
+                    Text(action.displayName).tag(action.rawValue)
+                }
+            }
+
+            Picker("ON DELETE", selection: $draft.onDelete) {
+                ForEach(ForeignKeyAction.allCases) { action in
+                    Text(action.displayName).tag(action.rawValue)
+                }
+            }
+        } header: {
+            Text("Actions")
+        } footer: {
+            Text("Determines behavior when the referenced row is updated or deleted.")
+        }
+    }
+
     private var toolbar: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: SpacingTokens.sm) {
             if draft.isEditingExisting {
                 Button("Delete Foreign Key", role: .destructive) {
                     dismiss()
                     onDelete()
                 }
                 .buttonStyle(.bordered)
+                .tint(ColorTokens.Status.error)
             }
 
             Spacer()
@@ -177,6 +221,26 @@ struct ForeignKeyEditorSheet: View {
         }
         .padding(.horizontal, SpacingTokens.md2)
         .padding(.vertical, SpacingTokens.sm2)
-        .background(Color(nsColor: .windowBackgroundColor))
+        .background(.bar)
+    }
+}
+
+enum ForeignKeyAction: String, CaseIterable, Identifiable {
+    case noAction = "NO ACTION"
+    case cascade = "CASCADE"
+    case setNull = "SET NULL"
+    case setDefault = "SET DEFAULT"
+    case restrict = "RESTRICT"
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .noAction: return "No Action"
+        case .cascade: return "Cascade"
+        case .setNull: return "Set Null"
+        case .setDefault: return "Set Default"
+        case .restrict: return "Restrict"
+        }
     }
 }

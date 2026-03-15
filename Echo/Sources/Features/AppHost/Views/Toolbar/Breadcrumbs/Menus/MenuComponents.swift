@@ -28,23 +28,23 @@ struct MenuItemView: View {
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 10) {
+            HStack(spacing: SpacingTokens.xs2) {
                 if let icon = icon {
                     Image(systemName: icon)
                         .font(TypographyTokens.standard.weight(.medium))
-                        .foregroundStyle(iconColor ?? .primary)
+                        .foregroundStyle(iconColor ?? ColorTokens.Text.primary)
                         .frame(width: 16)
                 }
 
                 Text(title)
                     .font(TypographyTokens.standard.weight(.regular))
-                    .foregroundStyle(isDestructive ? .red : .primary)
+                    .foregroundStyle(isDestructive ? ColorTokens.Status.error : ColorTokens.Text.primary)
 
                 Spacer()
             }
             .padding(.horizontal, SpacingTokens.sm)
             .padding(.vertical, SpacingTokens.xxs2)
-            .background(isHovered ? Color.accentColor.opacity(0.1) : Color.clear)
+            .background(isHovered ? ColorTokens.accent.opacity(0.1) : Color.clear)
         }
         .buttonStyle(.plain)
         .onHover { hovering in
@@ -70,7 +70,7 @@ struct MenuSectionView<Content: View>: View {
                 HStack {
                     Text(title.uppercased())
                         .font(TypographyTokens.label.weight(.semibold))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(ColorTokens.Text.secondary)
                     Spacer()
                 }
                 .padding(.horizontal, SpacingTokens.sm)
@@ -102,10 +102,10 @@ struct MenuSearchField: View {
     @FocusState private var isFocused: Bool
 
     var body: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: SpacingTokens.xxs2) {
             Image(systemName: "magnifyingglass")
                 .font(TypographyTokens.detail.weight(.medium))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(ColorTokens.Text.secondary)
 
             TextField(placeholder, text: $text)
                 .textFieldStyle(.plain)
@@ -116,7 +116,7 @@ struct MenuSearchField: View {
                 Button(action: { text = "" }) {
                     Image(systemName: "xmark.circle.fill")
                         .font(TypographyTokens.detail)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(ColorTokens.Text.secondary)
                 }
                 .buttonStyle(.plain)
                 .transition(.scale.combined(with: .opacity))
@@ -124,10 +124,10 @@ struct MenuSearchField: View {
         }
         .padding(.horizontal, SpacingTokens.xs)
         .padding(.vertical, SpacingTokens.xxs)
-        .background(Color(NSColor.controlBackgroundColor))
+        .background(ColorTokens.Background.secondary)
         .overlay(
             RoundedRectangle(cornerRadius: 4, style: .continuous)
-                .stroke(isFocused ? Color.accentColor : Color.accentColor.opacity(0.3), lineWidth: isFocused ? 1 : 0.5)
+                .stroke(isFocused ? ColorTokens.accent : ColorTokens.accent.opacity(0.3), lineWidth: isFocused ? 1 : 0.5)
         )
         .animation(.easeInOut(duration: 0.15), value: isFocused)
     }

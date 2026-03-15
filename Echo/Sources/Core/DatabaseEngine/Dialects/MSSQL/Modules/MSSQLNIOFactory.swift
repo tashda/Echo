@@ -1,7 +1,16 @@
 import Foundation
-import NIO
 import SQLServerKit
 import Logging
+
+extension MSSQLEncryptionMode {
+    var asSQLServerEncryptionMode: SQLServerEncryptionMode {
+        switch self {
+        case .optional: .optional
+        case .mandatory: .mandatory
+        case .strict: .strict
+        }
+    }
+}
 
 struct MSSQLNIOFactory: DatabaseFactory {
     private let logger = Logger(label: "dk.tippr.echo.mssql")
@@ -11,6 +20,13 @@ struct MSSQLNIOFactory: DatabaseFactory {
         port: Int,
         database: String?,
         tls: Bool,
+        trustServerCertificate: Bool = false,
+        tlsMode: TLSMode = .prefer,
+        sslRootCertPath: String? = nil,
+        sslCertPath: String? = nil,
+        sslKeyPath: String? = nil,
+        mssqlEncryptionMode: MSSQLEncryptionMode = .optional,
+        readOnlyIntent: Bool = false,
         authentication: DatabaseAuthenticationConfiguration,
         connectTimeoutSeconds: Int = 10
     ) async throws -> DatabaseSession {
@@ -18,61 +34,58 @@ struct MSSQLNIOFactory: DatabaseFactory {
         // Always login to master to avoid failures when the target database is offline.
         // The selected database is tracked separately in the session.
         let loginDatabase = "master"
-        let metadataTimeout: TimeInterval = 30
-        let metadataConfiguration = SQLServerMetadataClient.Configuration(
-            includeSystemSchemas: false,
-            enableColumnCache: true,
-            includeRoutineDefinitions: false,
-            includeTriggerDefinitions: true,
-            commandTimeout: metadataTimeout,
-            extractParameterDefaults: false,
-            preferStoredProcedureColumns: false
-        )
+
         // Convert Echo authentication to SQLServerKit authentication
-        let sqlServerAuth: TDSAuthentication
+        let sqlServerAuth: SQLServerAuthentication
 
         switch authentication.method {
         case .sqlPassword:
             guard let password = authentication.password else {
                 throw DatabaseError.authenticationFailed("Password is required for SQL authentication")
             }
-            sqlServerAuth = TDSAuthentication.sqlPassword(
+            sqlServerAuth = SQLServerAuthentication.sqlPassword(
                 username: authentication.username,
                 password: password
             )
-        default:
-            throw DatabaseError.authenticationFailed("Only SQL password authentication is supported for SQL Server")
+        case .windowsIntegrated:
+            sqlServerAuth = SQLServerAuthentication.windowsIntegrated(
+                username: authentication.username,
+                password: authentication.password ?? "",
+                domain: authentication.domain
+            )
+        case .accessToken:
+            guard let token = authentication.password, !token.isEmpty else {
+                throw DatabaseError.authenticationFailed("Access token is required for Entra ID authentication")
+            }
+            sqlServerAuth = SQLServerAuthentication.accessToken(token: token)
         }
-
-        let connectionConfig = SQLServerConnection.Configuration(
-            hostname: host,
-            port: port,
-            login: .init(database: loginDatabase, authentication: sqlServerAuth),
-            tlsConfiguration: tls ? .makeClientConfiguration() : nil,
-            metadataConfiguration: metadataConfiguration,
-            connectTimeoutSeconds: connectTimeoutSeconds
-        )
-        let configuration = SQLServerClient.Configuration(
-            connection: connectionConfig,
-            poolConfiguration: .init()
-        )
 
         logger.info("Connecting to SQL Server at \(host):\(port)/\(loginDatabase)")
 
-        // SQLServerClient.connect returns an EventLoopFuture, so we need to await it properly
-        let client = try await withCheckedThrowingContinuation { continuation in
-            SQLServerClient.connect(
-                configuration: configuration,
-                eventLoopGroupProvider: .shared(EchoEventLoopGroup.shared)
-            ).whenComplete { result in
-                switch result {
-                case .success(let client):
-                    continuation.resume(returning: client)
-                case .failure(let error):
-                    continuation.resume(throwing: error)
-                }
-            }
-        }
+        var config = SQLServerClient.Configuration(
+            hostname: host,
+            port: port,
+            database: loginDatabase,
+            authentication: sqlServerAuth,
+            tlsEnabled: tls,
+            trustServerCertificate: trustServerCertificate,
+            caCertificatePath: sslRootCertPath,
+            encryptionMode: mssqlEncryptionMode.asSQLServerEncryptionMode,
+            metadataConfiguration: .init(
+                includeSystemSchemas: false,
+                enableColumnCache: true,
+                includeRoutineDefinitions: false,
+                includeTriggerDefinitions: true,
+                commandTimeout: 30,
+                extractParameterDefaults: false,
+                preferStoredProcedureColumns: false
+            )
+        )
+        config.connection.readOnlyIntent = readOnlyIntent
+
+        let client = try await SQLServerClient.connect(
+            configuration: config
+        )
 
         // Wrap the SQLServerClient in an adapter that conforms to DatabaseSession
         return SQLServerSessionAdapter(

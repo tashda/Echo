@@ -30,48 +30,48 @@ struct SearchResultRow: View {
     }
 
     private var rowContent: some View {
-        HStack(alignment: .top, spacing: 12) {
+        HStack(alignment: .top, spacing: SpacingTokens.sm) {
             Image(systemName: result.category.systemImage)
                 .font(TypographyTokens.caption2.weight(.semibold))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(ColorTokens.Text.secondary)
                 .frame(width: 18)
                 .padding(.top, SpacingTokens.xxxs)
 
-            VStack(alignment: .leading, spacing: 8) {
-                HStack(alignment: .firstTextBaseline, spacing: 12) {
-                    VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: SpacingTokens.xs) {
+                HStack(alignment: .firstTextBaseline, spacing: SpacingTokens.sm) {
+                    VStack(alignment: .leading, spacing: SpacingTokens.xxs) {
                         Text(result.title)
                             .font(TypographyTokens.standard.weight(.semibold))
-                            .foregroundStyle(.primary)
+                            .foregroundStyle(ColorTokens.Text.primary)
                             .lineLimit(1)
 
                         if let subtitle = result.subtitle, !subtitle.isEmpty {
                             if shouldShowBadge {
                                 Text(subtitle)
                                     .font(TypographyTokens.label.weight(.medium))
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(ColorTokens.Text.secondary)
                                     .padding(.horizontal, SpacingTokens.xs)
-                                    .padding(.vertical, 3)
-                                    .background(Color.primary.opacity(0.08), in: Capsule())
+                                    .padding(.vertical, SpacingTokens.xxxs)
+                                    .background(ColorTokens.Text.primary.opacity(0.08), in: Capsule())
                             } else {
                                 Text(subtitle)
                                     .font(TypographyTokens.detail)
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(ColorTokens.Text.secondary)
                                     .lineLimit(1)
                             }
                         }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
 
-                    HStack(spacing: 8) {
+                    HStack(spacing: SpacingTokens.xs) {
                         if let metadata = result.metadata,
                            !metadata.isEmpty {
-                            let tint: Color = (result.category == .columns) ? .accentColor : .secondary
+                            let tint: Color = (result.category == .columns) ? ColorTokens.accent : ColorTokens.Text.secondary
                             Text(metadata)
                                 .font(TypographyTokens.label.weight(.semibold))
                                 .foregroundStyle(tint)
                                 .padding(.horizontal, SpacingTokens.xs)
-                                .padding(.vertical, 3)
+                                .padding(.vertical, SpacingTokens.xxxs)
                                 .background(tint.opacity(0.08), in: Capsule())
                         }
 
@@ -84,8 +84,8 @@ struct SearchResultRow: View {
                 if let snippet = result.snippet, !snippet.isEmpty {
                     snippetText(for: truncatedSnippet(snippet))
                         .font(TypographyTokens.detail.weight(.medium).monospaced())
-                        .foregroundStyle(.secondary)
-                        .lineSpacing(2)
+                        .foregroundStyle(ColorTokens.Text.secondary)
+                        .lineSpacing(SpacingTokens.xxxs)
                 }
             }
         }
@@ -103,12 +103,12 @@ struct SearchResultRow: View {
 
     private var cardBackground: some View {
         RoundedRectangle(cornerRadius: 14, style: .continuous)
-            .fill(Color.primary.opacity(isHovered ? 0.08 : 0.04))
+            .fill(ColorTokens.Text.primary.opacity(isHovered ? 0.08 : 0.04))
     }
 
     private var cardBorder: some View {
         RoundedRectangle(cornerRadius: 14, style: .continuous)
-            .stroke(isHovered ? Color.accentColor.opacity(0.35) : Color.primary.opacity(0.05), lineWidth: 1)
+            .stroke(isHovered ? ColorTokens.accent.opacity(0.35) : ColorTokens.Text.primary.opacity(0.05), lineWidth: 1)
     }
 
     internal var shouldHighlightSnippet: Bool {

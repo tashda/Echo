@@ -3,7 +3,7 @@ import SQLServerKit
 
 extension SQLServerSessionAdapter: DatabaseMetadataSession {
     func listTablesAndViews(schema: String?) async throws -> [SchemaObjectInfo] {
-        let tables = try await client.listTables(
+        let tables = try await client.metadata.listTables(
             database: database,
             schema: schema,
             includeComments: false
@@ -23,24 +23,24 @@ extension SQLServerSessionAdapter: DatabaseMetadataSession {
     }
 
     func listDatabases() async throws -> [String] {
-        let databases = try await client.listDatabases()
+        let databases = try await client.metadata.listDatabases()
         return databases.map(\.name)
     }
 
     /// List databases with state information for the sidebar.
     func listDatabasesWithState() async throws -> [(name: String, stateDescription: String?)] {
-        let databases = try await client.listDatabases()
+        let databases = try await client.metadata.listDatabases()
         return databases.map { (name: $0.name, stateDescription: $0.stateDescription) }
     }
 
     func listSchemas() async throws -> [String] {
-        let schemas = try await client.listSchemas(in: database)
+        let schemas = try await client.metadata.listSchemas(in: database)
         return schemas.map(\.name)
     }
 
     func loadDatabaseInfo(databaseName: String) async throws -> DatabaseInfo {
         let structure = try await metadataTimed("loadDatabaseStructure") {
-            try await client.loadDatabaseStructure(database: databaseName, includeComments: false)
+            try await client.metadata.loadDatabaseStructure(database: databaseName, includeComments: false)
         }
 
         let schemaInfos = structure.schemas.map { schema -> SchemaInfo in
@@ -68,7 +68,7 @@ extension SQLServerSessionAdapter: DatabaseMetadataSession {
 
         // Fetch database state from sys.databases
         var stateDesc: String?
-        if let meta = try? await client.databaseState(name: databaseName) {
+        if let meta = try? await client.metadata.databaseState(name: databaseName) {
             stateDesc = meta.stateDescription
         }
 
@@ -77,13 +77,13 @@ extension SQLServerSessionAdapter: DatabaseMetadataSession {
 
     func getTableSchema(_ tableName: String, schemaName: String?) async throws -> [ColumnInfo] {
         let schema = schemaName ?? "dbo"
-        let columns = try await client.listColumns(
+        let columns = try await client.metadata.listColumns(
             database: database,
             schema: schema,
             table: tableName,
             includeComments: false
         )
-        let primaryKeys = try await client.listPrimaryKeysFromCatalog(
+        let primaryKeys = try await client.metadata.listPrimaryKeysFromCatalog(
             database: database,
             schema: schema,
             table: tableName
@@ -102,83 +102,61 @@ extension SQLServerSessionAdapter: DatabaseMetadataSession {
     }
 
     func getObjectDefinition(objectName: String, schemaName: String, objectType: SchemaObjectInfo.ObjectType) async throws -> String {
-        let objectTypeName: String
+        let kind: SQLServerMetadataObjectIdentifier.Kind
         switch objectType {
         case .table:
-            objectTypeName = "U"
+            kind = .table
         case .view:
-            objectTypeName = "V"
+            kind = .view
         case .procedure:
-            objectTypeName = "P"
+            kind = .procedure
         case .function:
-            objectTypeName = "FN"
+            kind = .function
         default:
             throw DatabaseError.queryError("Unsupported object type")
         }
 
-        let query = """
-        SELECT OBJECT_DEFINITION(OBJECT_ID('[\(schemaName)].[\(objectName)]', '\(objectTypeName)')) as definition
-        """
-
-        let rows: [TDSRow] = try await client.query(query)
-
-        // Extract the definition from the result
-        for row in rows {
-            if let definition = row.column("definition")?.string {
-                return definition
-            }
+        guard let result = try await client.metadata.objectDefinition(
+            database: database,
+            schema: schemaName,
+            name: objectName,
+            kind: kind
+        ), let definition = result.definition else {
+            throw DatabaseError.queryError("Object definition not found")
         }
 
-        throw DatabaseError.queryError("Object definition not found")
+        return definition
     }
 
     func getTableStructureDetails(schema: String, table: String) async throws -> TableStructureDetails {
-        async let columnMetadataResult: [ColumnMetadata] = {
-            (try? await client.listColumns(
-                database: database,
-                schema: schema,
-                table: table
-            )) ?? []
-        }()
+        let columnMetadata = try await client.metadata.listColumns(
+            database: database,
+            schema: schema,
+            table: table
+        )
 
-        async let primaryKeyMetadataResult: [KeyConstraintMetadata] = {
-            (try? await client.listPrimaryKeys(
-                database: database,
-                schema: schema,
-                table: table
-            )) ?? []
-        }()
+        let primaryKeyMetadata = try await client.metadata.listPrimaryKeys(
+            database: database,
+            schema: schema,
+            table: table
+        )
 
-        async let uniqueConstraintMetadataResult: [KeyConstraintMetadata] = {
-            (try? await client.listUniqueConstraints(
-                database: database,
-                schema: schema,
-                table: table
-            )) ?? []
-        }()
+        let uniqueConstraintMetadata = try await client.metadata.listUniqueConstraints(
+            database: database,
+            schema: schema,
+            table: table
+        )
 
-        async let foreignKeyMetadataResult: [ForeignKeyMetadata] = {
-            (try? await client.listForeignKeys(
-                database: database,
-                schema: schema,
-                table: table
-            )) ?? []
-        }()
+        let foreignKeyMetadata = try await client.metadata.listForeignKeys(
+            database: database,
+            schema: schema,
+            table: table
+        )
 
-        async let indexMetadataResult: [IndexMetadata] = {
-            (try? await client.listIndexes(
-                database: database,
-                schema: schema,
-                table: table
-            )) ?? []
-        }()
-
-        let (columnMetadata, primaryKeyMetadata, uniqueConstraintMetadata, foreignKeyMetadata, indexMetadata) = await (
-            columnMetadataResult,
-            primaryKeyMetadataResult,
-            uniqueConstraintMetadataResult,
-            foreignKeyMetadataResult,
-            indexMetadataResult
+        let indexMetadata = try await client.metadata.listIndexes(
+            database: database,
+            schema: schema,
+            table: table
         )
 
         let columns = columnMetadata.map { column in
@@ -249,7 +227,7 @@ extension SQLServerSessionAdapter: DatabaseMetadataSession {
         _ schemaName: String,
         progress: (@Sendable (SchemaObjectInfo.ObjectType, Int, Int) async -> Void)?
     ) async throws -> SchemaInfo {
-        let schema = try await client.loadSchemaStructure(
+        let schema = try await client.metadata.loadSchemaStructure(
             database: database,
             schema: schemaName,
             includeComments: false
@@ -328,5 +306,13 @@ extension SQLServerSessionAdapter: DatabaseMetadataSession {
             triggerTable: trigger.table,
             comment: trigger.comment
         )
+    }
+
+    func listAvailableExtensions() async throws -> [AvailableExtensionInfo] {
+        []
+    }
+
+    func installExtension(name: String, schema: String?, version: String?, cascade: Bool) async throws {
+        throw DatabaseError.queryError("Extensions are not supported for SQL Server")
     }
 }

@@ -54,6 +54,8 @@ extension QueryEditorState {
         rowProgress = RowProgress()
         streamingMode = .preview
         results = nil
+        additionalResults.removeAll()
+        selectedResultSetIndex = 0
         markResultDataChanged()
 
         appendMessage(message: "Query execution started", severity: .info, timestamp: executionStartTime ?? Date(), duration: nil)

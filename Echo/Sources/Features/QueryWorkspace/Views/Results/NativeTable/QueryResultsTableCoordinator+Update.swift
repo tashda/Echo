@@ -29,7 +29,6 @@ extension QueryResultsTableView.Coordinator {
         let currentRowOrder = parent.rowOrder
         let currentRowCount = currentRowOrder.isEmpty ? parent.query.displayedRowCount : currentRowOrder.count
         let wasResizing = lastParentIsResizing
-        cachedDisplayedRows.removeAll(keepingCapacity: true)
         defer {
             let endedResize = wasResizing && !isSplitResizing
             lastParentIsResizing = isSplitResizing
@@ -56,10 +55,10 @@ extension QueryResultsTableView.Coordinator {
             cachedViewportSize = currentViewportSize
         }
         let hasPendingRowReloads = pendingRowReloadIndexes?.isEmpty == false
-        let foreignKeyModeChanged = lastForeignKeyDisplayMode != parent.foreignKeyDisplayMode
-            || lastForeignKeyInspectorBehavior != parent.foreignKeyInspectorBehavior
         let resizing = isSplitResizing || isResizingColumn
         let viewportContribution = !resizing && viewportChanged
+        // Palette changes are handled by a debounced task in applyPostUpdateActions,
+        // so they don't need to trigger the main update/reload path.
         let requiresUpdate = columnsChanged
             || sortChanged
             || rowOrderChanged
@@ -67,13 +66,24 @@ extension QueryResultsTableView.Coordinator {
             || rowCountDecreased
             || tokenChanged
             || hasPendingRowReloads
-            || paletteChanged
             || viewportContribution
-            || foreignKeyModeChanged
         if columnsChanged || tokenChanged || rowCountDecreased {
             requestedForeignKeyColumns.removeAll()
+            cachedDisplayedRows.clear()
+        } else if rowOrderChanged || rowCountIncreased {
+            cachedDisplayedRows.clear()
         }
         if !requiresUpdate {
+            // Handle palette-only changes via the debounced refresh path
+            if paletteChanged {
+                applyPostUpdateActions(
+                    columnsChanged: false, sortChanged: false, rowOrderChanged: false,
+                    rowCountIncreased: false, rowCountDecreased: false,
+                    viewportContribution: false, paletteChanged: true,
+                    performedFullReload: false, currentRowCount: currentRowCount,
+                    dirtyToken: dirtyToken, tableView: tableView
+                )
+            }
             cachedSort = parent.activeSort
             cachedRowOrder = currentRowOrder
             lastRowCount = currentRowCount
@@ -133,21 +143,6 @@ extension QueryResultsTableView.Coordinator {
         cachedRowOrder = currentRowOrder
         lastRowCount = currentRowCount
         lastResultTokenSnapshot = dirtyToken
-
-        if lastForeignKeyDisplayMode != parent.foreignKeyDisplayMode || lastForeignKeyInspectorBehavior != parent.foreignKeyInspectorBehavior {
-            lastForeignKeyDisplayMode = parent.foreignKeyDisplayMode
-            lastForeignKeyInspectorBehavior = parent.foreignKeyInspectorBehavior
-            if reloadWorkItem == nil {
-                performedFullReload = true
-                reloadWorkItem = DispatchWorkItem { [weak tableView] in
-                    guard let tableView else { return }
-                    tableView.reloadData()
-                }
-            } else {
-                performedFullReload = true
-            }
-            notifyForeignKeySelection(selectionRegion)
-        }
 
         applyPostUpdateActions(
             columnsChanged: columnsChanged,

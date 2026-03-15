@@ -46,6 +46,7 @@ extension QueryResultsTableView.Coordinator {
                 return
             } else {
                 focusCellEditor(at: cell, tableView: tableView)
+                fireCellInspect(for: cell)
                 endSelectionDrag()
                 return
             }

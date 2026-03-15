@@ -47,7 +47,7 @@ extension QueryTabButton {
     var closeButtonArea: some View {
         Button(action: onClose) {
             Image(systemName: "xmark")
-                .font(TypographyTokens.compact.weight(.semibold))
+                .font(TypographyTokens.compact.weight(.bold))
                 .foregroundStyle(closeButtonForeground)
                 .frame(width: closeButtonSize, height: closeButtonSize)
                 .background(
@@ -84,7 +84,7 @@ extension QueryTabButton {
             .frame(width: width, height: closeButtonSize)
     }
 
-    var closeButtonSize: CGFloat { 16 }
+    var closeButtonSize: CGFloat { SpacingTokens.sm2 }
 
 #if !os(macOS)
     var tabFillGradient: LinearGradient {

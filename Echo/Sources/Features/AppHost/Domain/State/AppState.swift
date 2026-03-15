@@ -124,6 +124,7 @@ import Combine
 
 enum ActiveSheet: String, Identifiable {
     case connectionEditor
+    case quickConnect
     case preferences
     case about
     case exportData

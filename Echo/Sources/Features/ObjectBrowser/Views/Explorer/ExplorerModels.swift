@@ -5,8 +5,8 @@ enum ExplorerSidebarConstants {
     static let scrollCoordinateSpace = "ExplorerSidebarScrollSpace"
     static let objectsTopAnchor = "ExplorerSidebarObjectsTop"
     static let connectedServersAnchor = "ExplorerSidebarConnectedServers"
-    static let scrollBottomPadding: CGFloat = 32
-    static let bottomControlHeight: CGFloat = 20
+    static let scrollBottomPadding: CGFloat = SpacingTokens.xl
+    static let bottomControlHeight: CGFloat = 20 // UI specific height
 }
 
 struct ExplorerCreationMenuItem: Hashable {

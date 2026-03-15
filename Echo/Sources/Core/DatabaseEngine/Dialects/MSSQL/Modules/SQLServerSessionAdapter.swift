@@ -24,7 +24,7 @@ final class SQLServerSessionAdapter: DatabaseSession, MSSQLSession {
 
     func close() async {
         do {
-            try await client.shutdownGracefully().get()
+            try await client.close()
         } catch {
             // Ignore shutdown errors; the app is shutting down the session.
         }
@@ -68,19 +68,22 @@ final class SQLServerSessionAdapter: DatabaseSession, MSSQLSession {
         try await client.serverVersion()
     }
 
-    func makeAgentClient() -> SQLServerAgentClient {
-        SQLServerAgentClient(client: client)
+    var metadata: SQLServerMetadataNamespace { client.metadata }
+    var agent: SQLServerAgentOperations { client.agent }
+    var admin: SQLServerAdministrationClient { client.admin }
+    var security: SQLServerSecurityClient { client.security }
+    var serverSecurity: SQLServerServerSecurityClient { client.serverSecurity }
+
+    func rebuildIndex(schema: String, table: String, index: String) async throws {
+        try await client.indexes.rebuildIndex(name: index, table: table, schema: schema)
     }
 
-    func makeDatabaseSecurityClient() -> SQLServerDatabaseSecurityClient {
-        SQLServerDatabaseSecurityClient(client: client)
+    func sessionForDatabase(_ database: String) async throws -> DatabaseSession {
+        _ = try await client.execute("USE [\(database.replacingOccurrences(of: "]", with: "]]"))]")
+        return self
     }
 
-    func makeServerSecurityClient() -> SQLServerServerSecurityClient {
-        SQLServerServerSecurityClient(client: client)
-    }
-
-    func makeAdministrationClient() -> SQLServerAdministrationClient {
-        SQLServerAdministrationClient(client: client)
+    func makeActivityMonitor() throws -> any DatabaseActivityMonitoring {
+        SQLServerActivityMonitorWrapper(client.activity)
     }
 }

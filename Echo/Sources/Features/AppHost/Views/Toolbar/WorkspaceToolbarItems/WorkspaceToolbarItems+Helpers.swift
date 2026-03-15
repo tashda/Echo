@@ -13,11 +13,11 @@ extension WorkspaceToolbarItems {
 
     @ViewBuilder
     internal func toolbarButtonLabel(icon: ToolbarIcon, title: String) -> some View {
-        HStack(spacing: 8) {
+        HStack(spacing: SpacingTokens.xs) {
             toolbarIconView(icon)
             Text(title)
                 .font(TypographyTokens.standard.weight(.regular))
-                .foregroundStyle(.primary)
+                .foregroundStyle(ColorTokens.Text.primary)
         }
         .padding(.horizontal, SpacingTokens.xxs2)
         .padding(.vertical, SpacingTokens.xxs)
@@ -26,7 +26,7 @@ extension WorkspaceToolbarItems {
 
     @ViewBuilder
     internal func menuRow(icon: ToolbarIcon, title: String, isSelected: Bool = false) -> some View {
-        HStack(spacing: 8) {
+        HStack(spacing: SpacingTokens.xs) {
             toolbarIconView(icon)
             Text(title)
                 .font(TypographyTokens.standard.weight(.regular))

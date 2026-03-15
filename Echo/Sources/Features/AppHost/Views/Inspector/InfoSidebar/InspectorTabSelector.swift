@@ -9,10 +9,10 @@ struct InspectorTabSelector: View {
         let segmentCornerRadius: CGFloat = controlCornerRadius - 4
 
         RoundedRectangle(cornerRadius: controlCornerRadius, style: .continuous)
-            .fill(Color.primary.opacity(0.04))
+            .fill(ColorTokens.Text.primary.opacity(0.04))
             .overlay(
                 RoundedRectangle(cornerRadius: controlCornerRadius, style: .continuous)
-                    .stroke(Color.primary.opacity(0.08), lineWidth: 0.5)
+                    .stroke(ColorTokens.Text.primary.opacity(0.08), lineWidth: 0.5)
             )
             .overlay(
                 HStack(spacing: 0) {
@@ -32,13 +32,13 @@ struct InspectorTabSelector: View {
 
                                 Image(systemName: selectedTab == tab ? tab.activeIcon : tab.icon)
                                     .font(TypographyTokens.prominent.weight(selectedTab == tab ? .medium : .regular))
-                                    .foregroundStyle(selectedTab == tab ? Color.white : Color.secondary)
+                                    .foregroundStyle(selectedTab == tab ? Color.white : ColorTokens.Text.secondary)
                             }
                         }
                         .buttonStyle(.plain)
                         .background(
                             RoundedRectangle(cornerRadius: highlightCornerRadius, style: .continuous)
-                                .fill(Color.accentColor)
+                                .fill(ColorTokens.accent)
                                 .opacity(selectedTab == tab ? 1 : 0)
                                 .animation(.easeInOut(duration: 0.15), value: selectedTab)
                         )
@@ -50,7 +50,7 @@ struct InspectorTabSelector: View {
                                 selectedTab != InspectorTab.allCases[index + 1]
 
                             Rectangle()
-                                .fill(Color.primary.opacity(0.12))
+                                .fill(ColorTokens.Text.primary.opacity(0.12))
                                 .frame(width: 0.5)
                                 .opacity(shouldShowDivider ? 1 : 0)
                                 .animation(.easeInOut(duration: 0.15), value: shouldShowDivider)

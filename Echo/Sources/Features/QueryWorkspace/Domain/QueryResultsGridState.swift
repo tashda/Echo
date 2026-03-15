@@ -14,6 +14,8 @@ final class QueryResultsGridState {
     var cachedSort: SortCriteria?
     var lastRowCount: Int = 0
     var lastResultToken: UInt64 = 0
+    var hiddenColumnIndices: Set<Int> = []
+    var columnOrder: [Int]?
     private var isRowCountRefreshScheduled = false
 
     func scheduleRowCountRefresh() {

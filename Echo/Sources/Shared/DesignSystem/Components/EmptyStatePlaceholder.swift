@@ -10,7 +10,7 @@ struct EmptyStatePlaceholder: View {
     var body: some View {
         VStack(spacing: SpacingTokens.sm) {
             Image(systemName: icon)
-                .font(.system(size: 28, weight: .light))
+                .font(TypographyTokens.hero.weight(.light))
                 .foregroundStyle(ColorTokens.Text.tertiary)
 
             VStack(spacing: SpacingTokens.xxs) {

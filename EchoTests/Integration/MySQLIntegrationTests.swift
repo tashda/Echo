@@ -43,7 +43,7 @@ final class MySQLIntegrationTests: XCTestCase {
     func testSimpleQuerySelect1() async throws {
         let config = try loadConfig()
         let session = try await connect(config: config)
-        defer { Task { await session.close() } }
+        defer { Task { @MainActor in await session.close() } }
 
         let result = try await session.simpleQuery("SELECT 1 AS value")
         XCTAssertEqual(result.columns.count, 1)
@@ -55,7 +55,7 @@ final class MySQLIntegrationTests: XCTestCase {
     func testListDatabases() async throws {
         let config = try loadConfig()
         let session = try await connect(config: config)
-        defer { Task { await session.close() } }
+        defer { Task { @MainActor in await session.close() } }
 
         let databases = try await session.listDatabases()
         XCTAssertFalse(databases.isEmpty)
@@ -64,7 +64,7 @@ final class MySQLIntegrationTests: XCTestCase {
     func testListTablesAndViews() async throws {
         let config = try loadConfig()
         let session = try await connect(config: config)
-        defer { Task { await session.close() } }
+        defer { Task { @MainActor in await session.close() } }
 
         let objects = try await session.listTablesAndViews(schema: nil)
         XCTAssertNotNil(objects)
@@ -75,7 +75,7 @@ final class MySQLIntegrationTests: XCTestCase {
     func testQueryWithPaging() async throws {
         let config = try loadConfig()
         let session = try await connect(config: config)
-        defer { Task { await session.close() } }
+        defer { Task { @MainActor in await session.close() } }
 
         let result = try await session.queryWithPaging(
             "SELECT 1 AS n UNION ALL SELECT 2 UNION ALL SELECT 3",
