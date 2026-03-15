@@ -23,6 +23,7 @@ import os.log
     var lastPerformanceReport: QueryPerformanceTracker.Report?
     var livePerformanceReport: QueryPerformanceTracker.Report?
     var streamingModeOverride: ResultStreamingExecutionMode = .auto
+    var statisticsEnabled: Bool = false
     @ObservationIgnored var rowCountRefreshHandler: (() -> Void)?
 
     var streamingMode: StreamingMode = .idle

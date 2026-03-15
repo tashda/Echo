@@ -171,6 +171,18 @@ extension DatabaseObjectRow {
             )
         }
 
+        if supportsBulkImport {
+            items.append(
+                ContextMenuActionItem(
+                    id: "importData",
+                    title: "Import Data\u{2026}",
+                    systemImage: "square.and.arrow.down",
+                    role: nil,
+                    action: { showBulkImportSheet = true }
+                )
+            )
+        }
+
         return items
     }
 
@@ -183,5 +195,9 @@ extension DatabaseObjectRow {
 
     internal var supportsDiagram: Bool {
         object.type == .table
+    }
+
+    internal var supportsBulkImport: Bool {
+        object.type == .table && connection.databaseType == .microsoftSQL
     }
 }

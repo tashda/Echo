@@ -14,6 +14,12 @@ extension WorkspaceTabContainerView {
             effectiveSQL = "USE [\(selectedDB)];\n\(effectiveSQL)"
         }
 
+        // For MSSQL, prepend SET STATISTICS when enabled
+        if tab.connection.databaseType == .microsoftSQL,
+           queryState.statisticsEnabled {
+            effectiveSQL = "SET STATISTICS IO ON;\nSET STATISTICS TIME ON;\n\(effectiveSQL)"
+        }
+
         // Resolve the execution session -- for PostgreSQL, route through the database-specific session
         let executionSession: DatabaseSession
         if tab.connection.databaseType == .postgresql,
@@ -75,6 +81,16 @@ extension WorkspaceTabContainerView {
                 }
 
                 await MainActor.run {
+                    // Surface server info messages (statistics, warnings, etc.)
+                    for serverMsg in result.serverMessages {
+                        let severity: QueryExecutionMessage.Severity = serverMsg.kind == .error ? .error : .info
+                        state.appendMessage(
+                            message: serverMsg.message,
+                            severity: severity,
+                            metadata: serverMsg.number != 0 ? ["msgNumber": "\(serverMsg.number)"] : [:]
+                        )
+                    }
+
                     var metadata: [String: String] = [
                         "rows": "\(result.rows.count)"
                     ]

@@ -151,7 +151,7 @@ extension QueryResultsSection {
 #endif
 
     var messagesView: some View {
-        ExecutionConsoleView(results: query.results ?? QueryResultSet(columns: [], rows: []))
+        ExecutionConsoleView(executionMessages: query.messages)
     }
 
     var placeholder: some View {

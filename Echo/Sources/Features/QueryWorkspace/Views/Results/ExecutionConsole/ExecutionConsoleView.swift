@@ -1,15 +1,10 @@
 import SwiftUI
-#if canImport(AppKit)
 import AppKit
-#elseif canImport(UIKit)
-import UIKit
-#endif
 
 struct ExecutionConsoleView: View {
-    let results: QueryResultSet
+    let executionMessages: [QueryExecutionMessage]
 
     @Environment(AppearanceStore.self) internal var appearanceStore
-    @State internal var messages: [Message] = []
     @State internal var expandedRows: Set<UUID> = []
     internal let columnWidths: [CGFloat] = [64, 320, 110, 90, 110, 160, 80]
 
@@ -19,6 +14,39 @@ struct ExecutionConsoleView: View {
 
     internal var gridBackground: Color {
         ColorTokens.Background.primary
+    }
+
+    internal var messages: [Message] {
+        executionMessages.enumerated().map { index, msg in
+            let severity: Message.Severity = switch msg.severity {
+            case .info, .success: .info
+            case .warning: .warning
+            case .error: .error
+            case .debug: .debug
+            }
+
+            var details: [Message.Detail] = [
+                .init(key: "message", value: msg.message, highlight: .emphasis),
+                .init(key: "time", value: msg.formattedTimestamp, highlight: .normal),
+                .init(key: "severity", value: msg.severity.displayName, highlight: .normal)
+            ]
+
+            for (key, value) in msg.metadata.sorted(by: { $0.key < $1.key }) {
+                details.append(.init(key: key, value: value, highlight: .normal))
+            }
+
+            return Message(
+                sequence: msg.index,
+                title: msg.message,
+                timestamp: msg.timestamp,
+                delta: msg.delta,
+                duration: msg.duration,
+                procedure: msg.procedure,
+                line: msg.line.map { "\($0)" },
+                severity: severity,
+                details: details
+            )
+        }
     }
 
     var body: some View {
@@ -33,9 +61,6 @@ struct ExecutionConsoleView: View {
             }
         }
         .background(gridBackground)
-        .onAppear {
-            buildMessages()
-        }
     }
 
     // MARK: - Components
@@ -59,18 +84,24 @@ struct ExecutionConsoleView: View {
 
             Spacer()
 
-            Button {
-                messages.removeAll()
-                expandedRows.removeAll()
-            } label: {
-                Label("Clear", systemImage: "trash")
-                    .font(TypographyTokens.detail.weight(.medium))
-            }
-            .buttonStyle(.borderless)
+            copyButton
         }
         .padding(.horizontal, SpacingTokens.md)
         .padding(.vertical, SpacingTokens.xs2)
         .background(headerBackground)
+    }
+
+    private var copyButton: some View {
+        Button {
+            let text = messages.map { $0.title }.joined(separator: "\n")
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(text, forType: .string)
+        } label: {
+            Label("Copy All", systemImage: "doc.on.doc")
+                .font(TypographyTokens.detail.weight(.medium))
+        }
+        .buttonStyle(.borderless)
+        .disabled(messages.isEmpty)
     }
 
     private var tableView: some View {
