@@ -22,6 +22,7 @@ struct DatabaseObjectRow: View, Equatable {
     @State internal var showRenameAlert = false
     @State internal var renameText = ""
     @State internal var pendingDropIncludeIfExists = false
+    @State internal var showBulkImportSheet = false
 
     private var canExpand: Bool {
         showColumns && !object.columns.isEmpty
@@ -75,6 +76,19 @@ struct DatabaseObjectRow: View, Equatable {
             Button("Rename") { performRename() }
         } message: {
             Text("Enter a new name for the \(objectTypeDisplayName().lowercased()) \(object.fullName).")
+        }
+        .sheet(isPresented: $showBulkImportSheet) {
+            if let session = environmentState.sessionGroup.sessionForConnection(connection.id) {
+                BulkImportSheet(
+                    viewModel: BulkImportViewModel(
+                        session: session.session,
+                        connectionSession: session,
+                        schema: object.schema.isEmpty ? "dbo" : object.schema,
+                        tableName: object.name
+                    ),
+                    onDismiss: { showBulkImportSheet = false }
+                )
+            }
         }
     }
 

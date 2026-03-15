@@ -5,14 +5,25 @@ import Logging
 extension SQLServerSessionAdapter {
     func simpleQuery(_ sql: String) async throws -> QueryResultSet {
         let result = try await client.withConnection { connection in
-            let rows = try await connection.query(sql)
+            let execResult = try await connection.execute(sql)
             let classification = connection.decodeLastSensitivityClassification()
-            return (rows: rows, classification: classification)
+            return (execResult: execResult, classification: classification)
         }
-        var queryResult = convertSQLServerRowsToEcho(result.rows)
+        var queryResult = convertSQLServerRowsToEcho(result.execResult.rows)
         if let raw = result.classification {
             queryResult.dataClassification = extractClassification(from: raw, columnCount: queryResult.columns.count)
         }
+        queryResult.serverMessages = result.execResult.messages
+            .filter { $0.kind == .info }
+            .map { msg in
+                ServerMessage(
+                    kind: .info,
+                    number: msg.number,
+                    message: msg.message,
+                    state: msg.state,
+                    severity: msg.severity
+                )
+            }
         return queryResult
     }
 
@@ -100,6 +111,7 @@ extension SQLServerSessionAdapter {
         var currentAdditionalRows: [[String?]] = []
 
         var errorMessage: SQLServerStreamMessage?
+        var infoMessages: [SQLServerStreamMessage] = []
 
         for try await event in stream {
             if Task.isCancelled {
@@ -185,6 +197,8 @@ extension SQLServerSessionAdapter {
             case .message(let msg):
                 if msg.kind == .error {
                     errorMessage = msg
+                } else {
+                    infoMessages.append(msg)
                 }
 
             case .done:
@@ -229,12 +243,23 @@ extension SQLServerSessionAdapter {
             ? [ColumnInfo(name: "result", dataType: "text")]
             : primaryColumns
 
+        let serverMessages = infoMessages.map { msg in
+            ServerMessage(
+                kind: .info,
+                number: msg.number,
+                message: msg.message,
+                state: msg.state,
+                severity: msg.severity
+            )
+        }
+
         return QueryResultSet(
             columns: resolvedColumns,
             rows: primaryPreviewRows,
             totalRowCount: primaryRowCount,
             additionalResults: additionalResults,
-            dataClassification: classification
+            dataClassification: classification,
+            serverMessages: serverMessages
         )
     }
 

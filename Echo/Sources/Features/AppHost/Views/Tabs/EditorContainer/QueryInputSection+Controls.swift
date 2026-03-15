@@ -1,4 +1,5 @@
 import SwiftUI
+import EchoSense
 
 extension QueryInputSection {
     var runButton: some View {
@@ -86,8 +87,40 @@ extension QueryInputSection {
         Task { await handler(sqlToRun) }
     }
 
+    var statisticsToggle: some View {
+        let isActive = query.statisticsEnabled
+        return Button {
+            query.statisticsEnabled.toggle()
+        } label: {
+            Image(systemName: "gauge.with.dots.needle.33percent")
+                .font(TypographyTokens.caption2.weight(.semibold))
+                .padding(SpacingTokens.xs)
+                .background(
+                    isActive
+                        ? AnyShapeStyle(ColorTokens.accent.opacity(0.18))
+                        : AnyShapeStyle(.ultraThinMaterial),
+                    in: Circle()
+                )
+                .overlay(
+                    Circle()
+                        .stroke(isActive ? ColorTokens.accent.opacity(0.5) : Color.clear, lineWidth: 1)
+                )
+        }
+        .buttonStyle(.plain)
+        .help(isActive ? "Disable Statistics IO/TIME" : "Enable Statistics IO/TIME")
+        .accessibilityIdentifier("statistics-toggle-button")
+        .shadow(color: Color.black.opacity(0.08), radius: 6, y: 3)
+    }
+
+    private var isMSSQLConnection: Bool {
+        completionContext?.databaseType == .microsoftSQL
+    }
+
     var floatingControls: some View {
         HStack(spacing: SpacingTokens.sm2) {
+            if isMSSQLConnection {
+                statisticsToggle
+            }
             estimatedPlanButton
             formatButton
             runButton

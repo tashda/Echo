@@ -1,6 +1,33 @@
 import Foundation
 import NIOCore
 
+public struct ServerMessage: Sendable {
+    public enum Kind: Sendable {
+        case info
+        case error
+    }
+
+    public let kind: Kind
+    public let number: Int32
+    public let message: String
+    public let state: UInt8
+    public let severity: UInt8
+    public let serverName: String?
+    public let procedureName: String?
+    public let lineNumber: Int32?
+
+    public nonisolated init(kind: Kind, number: Int32, message: String, state: UInt8, severity: UInt8, serverName: String? = nil, procedureName: String? = nil, lineNumber: Int32? = nil) {
+        self.kind = kind
+        self.number = number
+        self.message = message
+        self.state = state
+        self.severity = severity
+        self.serverName = serverName
+        self.procedureName = procedureName
+        self.lineNumber = lineNumber
+    }
+}
+
 public struct QueryResultSet: Sendable {
     public var columns: [ColumnInfo]
     public var rows: [[String?]]
@@ -8,14 +35,16 @@ public struct QueryResultSet: Sendable {
     public var commandTag: String?
     public var additionalResults: [QueryResultSet]
     public var dataClassification: DataClassification?
+    public var serverMessages: [ServerMessage]
 
-    public nonisolated init(columns: [ColumnInfo], rows: [[String?]] = [], totalRowCount: Int? = nil, commandTag: String? = nil, additionalResults: [QueryResultSet] = [], dataClassification: DataClassification? = nil) {
+    public nonisolated init(columns: [ColumnInfo], rows: [[String?]] = [], totalRowCount: Int? = nil, commandTag: String? = nil, additionalResults: [QueryResultSet] = [], dataClassification: DataClassification? = nil, serverMessages: [ServerMessage] = []) {
         self.columns = columns
         self.rows = rows
         self.totalRowCount = totalRowCount ?? rows.count
         self.commandTag = commandTag
         self.additionalResults = additionalResults
         self.dataClassification = dataClassification
+        self.serverMessages = serverMessages
     }
 
     public nonisolated init(columns: [String], rows: [[String?]]) {
@@ -25,6 +54,7 @@ public struct QueryResultSet: Sendable {
         self.commandTag = nil
         self.additionalResults = []
         self.dataClassification = nil
+        self.serverMessages = []
     }
 
     public nonisolated var allResultSets: [QueryResultSet] {
