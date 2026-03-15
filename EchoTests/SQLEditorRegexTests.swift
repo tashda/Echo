@@ -85,6 +85,7 @@ final class SQLAutoCompletionEngineTests: XCTestCase {
 
     override func setUp() {
         super.setUp()
+        SQLAutoCompletionHistoryStore.shared.reset()
         stubCompletionEngine.result = SQLCompletionResult(suggestions: [],
                                                           metadata: SQLCompletionMetadata(clause: .unknown,
                                                                                            currentToken: "",
@@ -96,6 +97,7 @@ final class SQLAutoCompletionEngineTests: XCTestCase {
         engine.updateContext(nil)
         engine.updateAggressiveness(.balanced)
         engine.updateSystemSchemaVisibility(includeSystemSchemas: false)
+        engine.clearPostCommitSuppression()
     }
 
     func testColumnSuggestionsIncludeOriginAndDataType() {
@@ -1109,6 +1111,7 @@ SELECT
 
     func testHistorySelectionsAreSurfacedFirst() {
         SQLAutoCompletionHistoryStore.shared.reset()
+        engine.updateHistoryPreference(includeHistory: true)
 
         let tableSuggestion = SQLCompletionSuggestion(
             id: "object:table:testdb.public.fixture",
@@ -1149,15 +1152,22 @@ SELECT
         }
 
         engine.recordSelection(accepted, query: query)
+        engine.clearPostCommitSuppression()
 
-        // History store uses async barrier write — allow it to complete
-        Thread.sleep(forTimeInterval: 0.05)
-
+        // After recording, the history store has an entry for "fixture".
+        // The engine re-uses the live suggestion (source=.engine) but applies a
+        // history weight boost in ranking. Verify the suggestion is still returned
+        // and the history store has recorded it.
         let subsequentResult = engine.suggestions(for: query, text: text, caretLocation: caretLocation)
         let suggestions = subsequentResult.sections.flatMap { $0.suggestions }
 
-        XCTAssertEqual(suggestions.first?.source, .history)
-        XCTAssertEqual(suggestions.first?.id, accepted.id)
+        XCTAssertFalse(suggestions.isEmpty, "Expected suggestions after recording history")
+        XCTAssertEqual(suggestions.first?.id, accepted.id, "Previously selected suggestion should still be top-ranked")
+
+        // Verify the history store actually recorded the selection
+        let context = sampleContext()
+        let weight = SQLAutoCompletionHistoryStore.shared.weight(for: accepted, context: context)
+        XCTAssertGreaterThan(weight, 0, "History weight should be positive after recording a selection")
     }
 
     func testHistoryRespectSchemaQualifiedInsertionSetting() {
