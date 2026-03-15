@@ -5,11 +5,11 @@ import AppKit
 #endif
 
 struct WorkspaceContentView: View {
-    @ObservedObject var tab: WorkspaceTab
+    @Bindable var tab: WorkspaceTab
     let runQuery: (String) async -> Void
     let cancelQuery: () -> Void
     let gridStateProvider: () -> QueryResultsGridState
-    @EnvironmentObject private var appearanceStore: AppearanceStore
+    @Environment(AppearanceStore.self) private var appearanceStore
 
     var body: some View {
         ZStack {

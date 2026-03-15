@@ -5,8 +5,8 @@ struct InfoSidebarView: View {
     @Environment(ConnectionStore.self) private var connectionStore
     @Environment(NavigationStore.self) private var navigationStore
     
-    @EnvironmentObject private var environmentState: EnvironmentState
-    @EnvironmentObject private var appearanceStore: AppearanceStore
+    @Environment(EnvironmentState.self) private var environmentState
+    @Environment(AppearanceStore.self) private var appearanceStore
 
     @State private var selectedTab: InspectorTab = .dataInspector
 

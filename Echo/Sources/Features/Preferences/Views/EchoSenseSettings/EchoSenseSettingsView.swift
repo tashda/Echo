@@ -4,8 +4,8 @@ import AppKit
 struct EchoSenseSettingsView: View {
     @Environment(ProjectStore.self) internal var projectStore
     @Environment(NavigationStore.self) private var navigationStore
-    @EnvironmentObject internal var appState: AppState
-    @EnvironmentObject private var appearanceStore: AppearanceStore
+    @Environment(AppState.self) internal var appState
+    @Environment(AppearanceStore.self) private var appearanceStore
 
     var body: some View {
         Form {

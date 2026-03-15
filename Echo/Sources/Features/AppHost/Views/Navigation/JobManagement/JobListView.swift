@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct JobListView: View {
-    @ObservedObject var viewModel: JobQueueViewModel
+    var viewModel: JobQueueViewModel
     let notificationEngine: NotificationEngine?
     @State private var tableSelection: Set<String> = []
 

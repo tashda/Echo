@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct ConnectionDashboardView: View {
-    @ObservedObject var session: ConnectionSession
+    @Bindable var session: ConnectionSession
     let onNewQuery: () -> Void
     let onOpenJobQueue: (() -> Void)?
 
@@ -27,7 +27,7 @@ struct ConnectionDashboardView: View {
 // MARK: - Header
 
 struct ConnectionDashboardHeader: View {
-    @ObservedObject var session: ConnectionSession
+    @Bindable var session: ConnectionSession
 
     var body: some View {
         VStack(spacing: SpacingTokens.xs) {

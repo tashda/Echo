@@ -1,24 +1,23 @@
 import SwiftUI
-import Combine
 
-@MainActor
-final class PostgresExtensionsViewModel: ObservableObject {
+@MainActor @Observable
+final class PostgresExtensionsViewModel {
     let databaseName: String
     let session: ConnectionSession
-    
-    @Published var isLoading = true
-    @Published var errorMessage: String?
-    
-    @Published var installedExtensions: [SchemaObjectInfo] = []
-    @Published var availableOnServer: [AvailableExtensionInfo] = []
-    @Published var marketplaceExtensions: [CommunityExtension] = []
-    
-    @Published var selectedTab: Tab = .installed
-    @Published var searchText: String = ""
-    @Published var isSuperuser: Bool = false
-    @Published var hasTLE: Bool = false
-    
-    @Published var isPerformingAction: Bool = false
+
+    var isLoading = true
+    var errorMessage: String?
+
+    var installedExtensions: [SchemaObjectInfo] = []
+    var availableOnServer: [AvailableExtensionInfo] = []
+    var marketplaceExtensions: [CommunityExtension] = []
+
+    var selectedTab: Tab = .installed
+    var searchText: String = ""
+    var isSuperuser: Bool = false
+    var hasTLE: Bool = false
+
+    var isPerformingAction: Bool = false
     
     enum Tab: String, CaseIterable {
         case installed = "Installed"

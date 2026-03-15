@@ -1,6 +1,6 @@
 import Foundation
 import SwiftUI
-import Combine
+import Observation
 
 struct SchemaDiagramEdge: Identifiable, Hashable {
     let fromNodeID: String
@@ -41,13 +41,14 @@ enum DiagramLoadSource: Equatable {
     case cache(Date)
 }
 
-final class SchemaDiagramNodeModel: ObservableObject, Identifiable {
+@Observable
+final class SchemaDiagramNodeModel: Identifiable {
     let id: String
-    let schema: String
-    let name: String
-    let displayName: String
-    let columns: [SchemaDiagramColumn]
-    @Published var position: CGPoint
+    @ObservationIgnored let schema: String
+    @ObservationIgnored let name: String
+    @ObservationIgnored let displayName: String
+    @ObservationIgnored let columns: [SchemaDiagramColumn]
+    var position: CGPoint
 
     init(
         schema: String,
@@ -72,20 +73,20 @@ struct SchemaDiagramContext: Hashable {
     let cacheKey: DiagramCacheKey?
 }
 
-@MainActor
-final class SchemaDiagramViewModel: ObservableObject {
-    @Published var nodes: [SchemaDiagramNodeModel]
-    @Published var edges: [SchemaDiagramEdge]
-    @Published var isLoading: Bool
-    @Published var statusMessage: String?
-    @Published var errorMessage: String?
-    @Published var loadSource: DiagramLoadSource = .live(Date())
-    let title: String
-    let baseNodeID: String
-    var layoutIdentifier: String
-    var context: SchemaDiagramContext?
-    var cachedStructure: DiagramStructureSnapshot?
-    var cachedChecksum: String?
+@Observable @MainActor
+final class SchemaDiagramViewModel {
+    var nodes: [SchemaDiagramNodeModel]
+    var edges: [SchemaDiagramEdge]
+    var isLoading: Bool
+    var statusMessage: String?
+    var errorMessage: String?
+    var loadSource: DiagramLoadSource = .live(Date())
+    @ObservationIgnored let title: String
+    @ObservationIgnored let baseNodeID: String
+    @ObservationIgnored var layoutIdentifier: String
+    @ObservationIgnored var context: SchemaDiagramContext?
+    @ObservationIgnored var cachedStructure: DiagramStructureSnapshot?
+    @ObservationIgnored var cachedChecksum: String?
 
     init(
         nodes: [SchemaDiagramNodeModel],

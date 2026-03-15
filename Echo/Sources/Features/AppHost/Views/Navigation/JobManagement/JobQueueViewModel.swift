@@ -1,9 +1,8 @@
 import SwiftUI
-import Combine
 import SQLServerKit
 
-@MainActor
-final class JobQueueViewModel: ObservableObject {
+@MainActor @Observable
+final class JobQueueViewModel {
     struct JobRow: Identifiable, Hashable { let id: String; let name: String; let enabled: Bool; let category: String?; let owner: String?; let lastOutcome: String?; let nextRun: String? }
     struct StepRow: Identifiable, Hashable { let id: Int; let name: String; let subsystem: String; let database: String?; let command: String? }
     struct ScheduleRow: Identifiable, Hashable { let id: String; let name: String; let enabled: Bool; let freqType: Int; let freqInterval: Int; let next: String? }
@@ -11,30 +10,30 @@ final class JobQueueViewModel: ObservableObject {
     struct OperatorInfo: Identifiable, Hashable { let id: String; let name: String; let emailAddress: String?; let enabled: Bool }
     struct HistoryRow: Identifiable, Hashable { let id: Int; let jobName: String; let stepId: Int; let stepName: String; let status: Int; let message: String; let runDate: Int; let runTime: Int; let runDuration: Int }
 
-    internal let session: DatabaseSession
-    private let connection: SavedConnection
+    @ObservationIgnored internal let session: DatabaseSession
+    @ObservationIgnored private let connection: SavedConnection
 
-    @Published var jobs: [JobRow] = []
-    @Published var selectedJobID: String? { didSet { Task { await loadDetailsAndHistory() } } }
-    @Published var properties: PropertySheet?
-    @Published var steps: [StepRow] = []
-    @Published var schedules: [ScheduleRow] = []
-    @Published var history: [HistoryRow] = []
-    @Published var databaseNames: [String] = []
-    @Published var operators: [OperatorInfo] = []
-    @Published var categories: [String] = []
-    @Published var selectedHistoryRowID: Int?
-    @Published var isLoadingJobs = false
-    @Published var isLoadingDetails = false
-    @Published var isJobRunning = false
-    @Published var runningJobNames: Set<String> = []
-    @Published var errorMessage: String?
-    @Published var activeStepInfo: ActiveStepInfo?
-    internal var activityPollTask: Task<Void, Never>?
+    var jobs: [JobRow] = []
+    var selectedJobID: String? { didSet { Task { await loadDetailsAndHistory() } } }
+    var properties: PropertySheet?
+    var steps: [StepRow] = []
+    var schedules: [ScheduleRow] = []
+    var history: [HistoryRow] = []
+    var databaseNames: [String] = []
+    var operators: [OperatorInfo] = []
+    var categories: [String] = []
+    var selectedHistoryRowID: Int?
+    var isLoadingJobs = false
+    var isLoadingDetails = false
+    var isJobRunning = false
+    var runningJobNames: Set<String> = []
+    var errorMessage: String?
+    var activeStepInfo: ActiveStepInfo?
+    @ObservationIgnored internal var activityPollTask: Task<Void, Never>?
     /// Tracks when a job was manually started to avoid clearing running state during SQL Agent's registration delay
-    internal var jobStartedAt: Date?
+    @ObservationIgnored internal var jobStartedAt: Date?
     /// Whether the poll has ever seen the job running (confirmed by SQL Agent)
-    internal var jobSeenRunning = false
+    @ObservationIgnored internal var jobSeenRunning = false
 
     struct ActiveStepInfo: Equatable {
         let jobName: String

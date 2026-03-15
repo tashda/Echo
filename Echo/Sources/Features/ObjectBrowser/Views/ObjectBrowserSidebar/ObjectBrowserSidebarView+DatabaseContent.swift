@@ -33,14 +33,14 @@ extension ObjectBrowserSidebarView {
                             environmentState.openExtensionsManagerTab(connectionID: connID, databaseName: database.name)
                         }
                     )
-                    .environmentObject(environmentState)
-                    .environmentObject(viewModel)
+                    .environment(environmentState)
+                    .environment(viewModel)
                     .padding(.horizontal, SpacingTokens.xxs)
 
                     // Database-level Security
                     if session.connection.databaseType == .microsoftSQL || session.connection.databaseType == .postgresql {
                         databaseSecuritySection(database: database, session: session)
-                            .environmentObject(viewModel)
+                            .environment(viewModel)
                             .padding(.horizontal, SpacingTokens.xxs)
                     }
                 }

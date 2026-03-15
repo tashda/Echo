@@ -4,7 +4,7 @@ import AppKit
 #endif
 
 struct QueryTabButton: View {
-    @ObservedObject var tab: WorkspaceTab
+    @Bindable var tab: WorkspaceTab
     let isActive: Bool
     let onSelect: () -> Void
     let onClose: () -> Void

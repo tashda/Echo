@@ -73,13 +73,15 @@ struct InspectorSplitViewConfigurator: NSViewRepresentable {
             // but later attempts (after layout settles) will stick.
             let delays: [Double] = [0.0, 0.05, 0.1, 0.15, 0.25, 0.4, 0.6]
             for delay in delays {
-                DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
+                Task { [weak self] in
+                    if delay > 0 { try? await Task.sleep(for: .seconds(delay)) }
                     self?.performSetPosition(target: clampedTarget, generation: generation)
                 }
             }
 
             // Clear cooldown after all attempts complete
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+            Task { [weak self] in
+                try? await Task.sleep(for: .seconds(1.0))
                 guard let self, self.resizeGeneration == generation else { return }
                 self.resizeCooldownUntil = .now
             }
@@ -112,7 +114,7 @@ struct InspectorSplitViewConfigurator: NSViewRepresentable {
         func scheduleSyncBack() {
             guard !syncScheduled else { return }
             syncScheduled = true
-            DispatchQueue.main.async { [weak self] in
+            Task { [weak self] in
                 self?.syncScheduled = false
                 self?.performSyncBack()
             }
@@ -197,7 +199,7 @@ struct SidebarSplitViewObserver: NSViewRepresentable {
         func scheduleSyncBack() {
             guard !syncScheduled else { return }
             syncScheduled = true
-            DispatchQueue.main.async { [weak self] in
+            Task { [weak self] in
                 self?.syncScheduled = false
                 self?.performSyncBack()
             }

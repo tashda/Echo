@@ -46,13 +46,13 @@ extension ManageConnectionsView {
     @ViewBuilder
     func folderEditorSheet(_ state: FolderEditorState) -> some View {
         FolderEditorSheet(state: state)
-            .environmentObject(environmentState)
+            .environment(environmentState)
     }
 
     @ViewBuilder
     func identityEditorSheet(_ state: IdentityEditorState) -> some View {
         IdentityEditorSheet(state: state)
-            .environmentObject(environmentState)
+            .environment(environmentState)
     }
 
     @ViewBuilder
@@ -63,8 +63,8 @@ extension ManageConnectionsView {
         .environment(projectStore)
         .environment(connectionStore)
         .environment(navigationStore)
-        .environmentObject(environmentState)
-        .environmentObject(appState)
+        .environment(environmentState)
+        .environment(appState)
     }
 
     @ViewBuilder

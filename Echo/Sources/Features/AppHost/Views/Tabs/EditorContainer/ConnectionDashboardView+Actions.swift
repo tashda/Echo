@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct ConnectionDashboardQuickActions: View {
-    @ObservedObject var session: ConnectionSession
+    @Bindable var session: ConnectionSession
     let onNewQuery: () -> Void
     let onOpenJobQueue: (() -> Void)?
 
@@ -58,7 +58,7 @@ private struct DashboardQuickActionRow: View {
         Button(action: action) {
             HStack(spacing: SpacingTokens.sm) {
                 Image(systemName: icon)
-                    .font(.system(size: 14, weight: .medium))
+                    .font(TypographyTokens.prominent.weight(.medium))
                     .foregroundStyle(ColorTokens.accent)
                     .frame(width: 28, alignment: .center)
 

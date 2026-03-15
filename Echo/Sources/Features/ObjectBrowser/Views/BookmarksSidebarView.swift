@@ -4,7 +4,7 @@ struct BookmarksSidebarView: View {
     @Environment(ProjectStore.self) private var projectStore
     @Environment(ConnectionStore.self) private var connectionStore
     @Environment(NavigationStore.self) private var navigationStore
-    @EnvironmentObject private var environmentState: EnvironmentState
+    @Environment(EnvironmentState.self) private var environmentState
     @AppStorage("BookmarksSidebarGroupByDatabase") private var groupByDatabase = true
 
     @State private var selectedConnectionID: UUID?
@@ -81,7 +81,7 @@ struct BookmarksSidebarView: View {
     private func initializeSelection() { if let cID = selectedConnectionID, connectionExists(cID) { return }; if let appS = connectionStore.selectedConnectionID, connectionExists(appS) { selectedConnectionID = appS; return }; selectedConnectionID = availableConnections.first?.id }
     private func connectionExists(_ id: UUID) -> Bool { availableConnections.contains { $0.id == id } }
     private func connectionDisplayName(_ connection: SavedConnection?) -> String { guard let c = connection else { return "Select Server" }; let n = c.connectionName.trimmingCharacters(in: .whitespacesAndNewlines); if !n.isEmpty { return n }; let h = c.host.trimmingCharacters(in: .whitespacesAndNewlines); return h.isEmpty ? "Server" : h }
-    private func open(bookmark: Bookmark) { recentlyOpenedBookmarkID = bookmark.id; if connectionStore.connections.contains(where: { $0.id == bookmark.connectionID }) { environmentState.openQueryTab(presetQuery: bookmark.query) }; DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { if recentlyOpenedBookmarkID == bookmark.id { withAnimation { recentlyOpenedBookmarkID = nil } } } }
+    private func open(bookmark: Bookmark) { recentlyOpenedBookmarkID = bookmark.id; if connectionStore.connections.contains(where: { $0.id == bookmark.connectionID }) { environmentState.openQueryTab(presetQuery: bookmark.query) }; Task { try? await Task.sleep(for: .seconds(1.5)); if recentlyOpenedBookmarkID == bookmark.id { withAnimation { recentlyOpenedBookmarkID = nil } } } }
     private func copy(bookmark: Bookmark) { environmentState.copyBookmark(bookmark) }
     private func delete(bookmark: Bookmark) { Task { await environmentState.removeBookmark(bookmark) } }
     private func rename(bookmark: Bookmark, title: String?) { Task { await environmentState.renameBookmark(bookmark, to: title) } }

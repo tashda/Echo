@@ -11,11 +11,9 @@ protocol TabStoreDelegate: AnyObject {
 
 /// A modular store that manages workspace tabs.
 ///
-/// `TabDirector` is an `ObservableObject` whose `@Published` changes are
-/// invisible to views that observe `TabStore` via `@Observable` / `@Environment`.
-/// To bridge the two observation systems, every piece of state that views depend
-/// on is stored here as a plain stored property and kept in sync through the
-/// `TabDirectorDelegate` callbacks.
+/// `TabDirector` is `@Observable` and manages the underlying tab array. `TabStore`
+/// mirrors `TabDirector`'s state via `TabDirectorDelegate` callbacks so that views
+/// observing `TabStore` through `@Environment` see changes immediately.
 @Observable @MainActor
 final class TabStore {
     // MARK: - State

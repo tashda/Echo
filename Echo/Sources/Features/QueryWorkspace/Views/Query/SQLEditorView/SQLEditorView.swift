@@ -21,7 +21,7 @@ struct SQLEditorView: View {
     var clipboardMetadata: ClipboardHistoryStore.Entry.Metadata
     var onAddBookmark: (String) -> Void
 
-    @EnvironmentObject private var clipboardHistory: ClipboardHistoryStore
+    @Environment(ClipboardHistoryStore.self) private var clipboardHistory
 
     init(
         text: Binding<String>,

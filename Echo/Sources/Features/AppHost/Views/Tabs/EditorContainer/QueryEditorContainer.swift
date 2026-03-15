@@ -2,8 +2,8 @@ import SwiftUI
 import EchoSense
 
 struct QueryEditorContainer: View {
-    @ObservedObject var tab: WorkspaceTab
-    @ObservedObject var query: QueryEditorState
+    @Bindable var tab: WorkspaceTab
+    @Bindable var query: QueryEditorState
     let runQuery: (String) async -> Void
     let cancelQuery: () -> Void
     let gridStateProvider: () -> QueryResultsGridState
@@ -11,9 +11,9 @@ struct QueryEditorContainer: View {
     @Environment(ProjectStore.self) var projectStore
     @Environment(ConnectionStore.self) var connectionStore
     @Environment(NavigationStore.self) var navigationStore
-    @EnvironmentObject var appearanceStore: AppearanceStore
-    @EnvironmentObject var environmentState: EnvironmentState
-    @EnvironmentObject var appState: AppState
+    @Environment(AppearanceStore.self) var appearanceStore
+    @Environment(EnvironmentState.self) var environmentState
+    @Environment(AppState.self) var appState
 
     let minRatio: CGFloat = 0.25
     let maxRatio: CGFloat = 0.8

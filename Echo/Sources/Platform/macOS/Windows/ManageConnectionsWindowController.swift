@@ -1,6 +1,5 @@
 import AppKit
 import SwiftUI
-import Combine
 
 @MainActor
 final class ManageConnectionsWindowController: NSWindowController, NSWindowDelegate {
@@ -9,7 +8,6 @@ final class ManageConnectionsWindowController: NSWindowController, NSWindowDeleg
 
     private var hostingController: PocketSeparatorHidingHostingController<ManageConnectionsWindowRootView>?
     private var isWindowLoadedOnce = false
-    private var themeCancellables = Set<AnyCancellable>()
 
     private override init(window: NSWindow?) {
         super.init(window: window)
@@ -85,15 +83,19 @@ final class ManageConnectionsWindowController: NSWindowController, NSWindowDeleg
     }
 
     private func bindThemeUpdates(for window: NSWindow) {
-        themeCancellables.removeAll()
+        observeThemeChanges(for: window)
+    }
 
-        AppearanceStore.shared.$effectiveColorScheme
-            .receive(on: RunLoop.main)
-            .sink { [weak self, weak window] _ in
-                guard let window else { return }
-                self?.applyTheme(to: window)
+    private func observeThemeChanges(for window: NSWindow) {
+        _ = withObservationTracking {
+            AppearanceStore.shared.effectiveColorScheme
+        } onChange: { [weak self, weak window] in
+            Task { @MainActor in
+                guard let self, let window else { return }
+                self.applyTheme(to: window)
+                self.observeThemeChanges(for: window) // Re-track
             }
-            .store(in: &themeCancellables)
+        }
     }
 
     private func applyTheme(to window: NSWindow) {
@@ -139,9 +141,9 @@ private struct ManageConnectionsWindowRootView: View {
             .environment(coordinator.connectionStore)
             .environment(coordinator.navigationStore)
             .environment(coordinator.tabStore)
-            .environmentObject(coordinator.environmentState)
-            .environmentObject(coordinator.appState)
-            .environmentObject(coordinator.appearanceStore)
-            .environmentObject(coordinator.clipboardHistory)
+            .environment(coordinator.environmentState)
+            .environment(coordinator.appState)
+            .environment(coordinator.appearanceStore)
+            .environment(coordinator.clipboardHistory)
     }
 }

@@ -6,7 +6,7 @@ struct SavedConnectionExplorerRow: View {
     let onConnect: () -> Void
 
     @Environment(ProjectStore.self) private var projectStore
-    @EnvironmentObject private var environmentState: EnvironmentState
+    @Environment(EnvironmentState.self) private var environmentState
 
     private var displayName: String {
         let trimmed = connection.connectionName.trimmingCharacters(in: .whitespacesAndNewlines)

@@ -18,7 +18,7 @@ struct BulkColumnEditorSheet: View {
     let onCancel: () -> Void
 
     @Environment(\.dismiss) private var dismiss
-    @EnvironmentObject internal var appearanceStore: AppearanceStore
+    @Environment(AppearanceStore.self) internal var appearanceStore
     @State internal var dataType: String = ""
     @State internal var defaultValue: String = ""
     @State internal var generatedExpression: String = ""

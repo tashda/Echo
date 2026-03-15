@@ -19,10 +19,10 @@ struct QueryTabStrip: View {
     @Environment(NavigationStore.self) private var navigationStore
     @Environment(TabStore.self) var tabStore
 
-    @EnvironmentObject var environmentState: EnvironmentState
-    @EnvironmentObject private var appState: AppState
+    @Environment(EnvironmentState.self) var environmentState
+    @Environment(AppState.self) private var appState
     @Environment(\.colorScheme) var colorScheme
-    @EnvironmentObject private var appearanceStore: AppearanceStore
+    @Environment(AppearanceStore.self) private var appearanceStore
 
     @State var hoveredTabID: UUID?
     @State var dragState = TabDragState()

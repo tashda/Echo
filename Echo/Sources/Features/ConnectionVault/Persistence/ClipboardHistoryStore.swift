@@ -1,31 +1,30 @@
 import SwiftUI
-import Combine
 import CryptoKit
 
-@MainActor
-final class ClipboardHistoryStore: ObservableObject {
+@Observable
+final class ClipboardHistoryStore {
     typealias UsageBreakdown = ClipboardHistoryUsageBreakdown
     typealias Entry = ClipboardHistoryEntry
 
-    private static let archiveVersion = 1
-    private static let storageLimitDefaultsKey = "clipboardHistoryStorageLimit"
-    private static let enabledDefaultsKey = "clipboardHistoryEnabled"
-    private static let defaultStorageLimit = 1 * 1_024 * 1_024 * 1_024 // 1 GB
-    private static let minimumStorageLimit = 256 * 1_024 * 1_024
-    private static let maximumStorageLimit = 10 * 1_024 * 1_024 * 1_024
+    @ObservationIgnored private static let archiveVersion = 1
+    @ObservationIgnored private static let storageLimitDefaultsKey = "clipboardHistoryStorageLimit"
+    @ObservationIgnored private static let enabledDefaultsKey = "clipboardHistoryEnabled"
+    @ObservationIgnored private static let defaultStorageLimit = 1 * 1_024 * 1_024 * 1_024 // 1 GB
+    @ObservationIgnored private static let minimumStorageLimit = 256 * 1_024 * 1_024
+    @ObservationIgnored private static let maximumStorageLimit = 10 * 1_024 * 1_024 * 1_024
 
-    private let crypto = ClipboardHistoryCrypto()
-    private let historyURL: URL
-    private let legacyHistoryURL: URL
-    private let encryptionKey: SymmetricKey
-    private let saveQueue = DispatchQueue(label: "com.fuzee.clipboardHistory.save", qos: .utility)
-    private var pendingSaveWorkItem: DispatchWorkItem?
+    @ObservationIgnored private let crypto = ClipboardHistoryCrypto()
+    @ObservationIgnored private let historyURL: URL
+    @ObservationIgnored private let legacyHistoryURL: URL
+    @ObservationIgnored private let encryptionKey: SymmetricKey
+    @ObservationIgnored private let saveQueue = DispatchQueue(label: "com.fuzee.clipboardHistory.save", qos: .utility)
+    @ObservationIgnored private var pendingSaveWorkItem: DispatchWorkItem?
 
-    @Published private(set) var entries: [Entry] = []
-    @Published var lastCopiedEntryID: UUID?
-    @Published private(set) var usage: UsageBreakdown = UsageBreakdown()
-    @Published private(set) var storageLimit: Int
-    @Published var isEnabled: Bool
+    private(set) var entries: [Entry] = []
+    var lastCopiedEntryID: UUID?
+    private(set) var usage: UsageBreakdown = UsageBreakdown()
+    private(set) var storageLimit: Int
+    var isEnabled: Bool
 
     init() {
         let urls = ClipboardHistoryStore.makeHistoryURLs()
@@ -41,7 +40,7 @@ final class ClipboardHistoryStore: ObservableObject {
         else { clearHistoryFromMemory(); removePersistedHistory() }
     }
 
-    deinit { MainActor.assumeIsolated { pendingSaveWorkItem?.cancel() } }
+    deinit { pendingSaveWorkItem?.cancel() }
 
     func setEnabled(_ enabled: Bool) {
         guard enabled != isEnabled else { return }

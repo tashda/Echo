@@ -1,5 +1,4 @@
 import SwiftUI
-import Combine
 import EchoSense
 
 struct SearchSidebarView: View {
@@ -7,9 +6,9 @@ struct SearchSidebarView: View {
     @Environment(ConnectionStore.self) var connectionStore
     @Environment(NavigationStore.self) var navigationStore
     @Environment(TabStore.self) var tabStore
-    
-    @EnvironmentObject var environmentState: EnvironmentState
-    @StateObject var viewModel = SearchSidebarViewModel()
+
+    @Environment(EnvironmentState.self) var environmentState
+    @State var viewModel = SearchSidebarViewModel()
     @FocusState var isSearchFieldFocused: Bool
     @State var didRestoreCache = false
     @State var activeCacheKey: SearchSidebarContextKey?
@@ -38,11 +37,11 @@ struct SearchSidebarView: View {
         .onChange(of: connectionStore.selectedConnectionID) { _, _ in syncContext() }
         .onChange(of: activeSession?.id) { _, _ in syncContext() }
         .onChange(of: activeSession?.selectedDatabaseName) { _, _ in syncContext() }
-        .onReceive(viewModel.$query.removeDuplicates()) { _ in cacheState() }
-        .onReceive(viewModel.$selectedCategories.removeDuplicates()) { _ in cacheState() }
-        .onReceive(viewModel.$results) { _ in cacheState() }
-        .onReceive(viewModel.$errorMessage.removeDuplicates()) { _ in cacheState() }
-        .onReceive(viewModel.$isSearching.removeDuplicates()) { _ in cacheState() }
+        .onChange(of: viewModel.query) { _, _ in cacheState() }
+        .onChange(of: viewModel.selectedCategories) { _, _ in cacheState() }
+        .onChange(of: viewModel.results) { _, _ in cacheState() }
+        .onChange(of: viewModel.errorMessage) { _, _ in cacheState() }
+        .onChange(of: viewModel.isSearching) { _, _ in cacheState() }
         .onChange(of: tabStore.tabs.map(\.id)) { _, _ in
             viewModel.notifyQueryTabsChanged()
         }

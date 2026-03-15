@@ -1,19 +1,18 @@
 import SwiftUI
-import Combine
 import SQLServerKit
 
-@MainActor
-final class SecuritySidebarViewModel: ObservableObject {
+@MainActor @Observable
+final class SecuritySidebarViewModel {
     struct DbUser: Identifiable, Hashable { let id: String; let name: String; let type: String; let defaultSchema: String? }
     struct DbRole: Identifiable, Hashable { let id: String; let name: String; let isFixed: Bool }
     struct ServerLogin: Identifiable, Hashable { let id: String; let name: String; let type: String; let disabled: Bool }
     struct ServerRole: Identifiable, Hashable { let id: String; let name: String; let isFixed: Bool }
 
-    @Published private(set) var dbUsers: [DbUser] = []
-    @Published private(set) var dbRoles: [DbRole] = []
-    @Published private(set) var serverLogins: [ServerLogin] = []
-    @Published private(set) var serverRoles: [ServerRole] = []
-    @Published private(set) var errorMessage: String?
+    private(set) var dbUsers: [DbUser] = []
+    private(set) var dbRoles: [DbRole] = []
+    private(set) var serverLogins: [ServerLogin] = []
+    private(set) var serverRoles: [ServerRole] = []
+    private(set) var errorMessage: String?
 
     func reload(for session: ConnectionSession?) async {
         guard let session, session.connection.databaseType == .microsoftSQL else {

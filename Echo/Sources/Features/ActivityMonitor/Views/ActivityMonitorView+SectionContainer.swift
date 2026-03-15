@@ -43,7 +43,7 @@ struct SectionContainer<Content: View>: View {
 }
 
 struct OverviewGraphsView: View {
-    @ObservedObject var viewModel: ActivityMonitorViewModel
+    var viewModel: ActivityMonitorViewModel
 
     var body: some View {
         Grid(horizontalSpacing: SpacingTokens.lg, verticalSpacing: SpacingTokens.lg) {

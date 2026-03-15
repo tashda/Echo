@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct ConnectionDashboardDetails: View {
-    @ObservedObject var session: ConnectionSession
+    @Bindable var session: ConnectionSession
 
     private var connection: SavedConnection { session.connection }
 

@@ -3,8 +3,8 @@ import Foundation
 
 struct DiagramSettingsView: View {
     @Environment(ProjectStore.self) private var projectStore
-    @EnvironmentObject private var environmentState: EnvironmentState
-    @EnvironmentObject private var appearanceStore: AppearanceStore
+    @Environment(EnvironmentState.self) private var environmentState
+    @Environment(AppearanceStore.self) private var appearanceStore
 
     var body: some View {
         Form {

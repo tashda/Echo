@@ -2,7 +2,7 @@ import SwiftUI
 import AppKit
 
 struct PSQLTabView: View {
-    @ObservedObject var viewModel: PSQLTabViewModel
+    var viewModel: PSQLTabViewModel
 
     var body: some View {
         PSQLTerminalView(viewModel: viewModel)
@@ -11,7 +11,7 @@ struct PSQLTabView: View {
 }
 
 struct PSQLTerminalView: NSViewRepresentable {
-    @ObservedObject var viewModel: PSQLTabViewModel
+    var viewModel: PSQLTabViewModel
 
     func makeCoordinator() -> Coordinator {
         Coordinator(viewModel: viewModel)
@@ -55,7 +55,7 @@ struct PSQLTerminalView: NSViewRepresentable {
 
         scrollView.documentView = textView
 
-        DispatchQueue.main.async {
+        Task { @MainActor in
             textView.window?.makeFirstResponder(textView)
             textView.moveCaretToEnd()
         }

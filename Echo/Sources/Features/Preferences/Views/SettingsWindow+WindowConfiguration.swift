@@ -2,7 +2,7 @@ import SwiftUI
 import AppKit
 
 func configureSettingsWindow() {
-    DispatchQueue.main.async {
+    Task { @MainActor in
         guard let window = NSApp?.keyWindow else { return }
         if window.identifier != AppWindowIdentifier.settings {
             window.identifier = AppWindowIdentifier.settings

@@ -1,9 +1,8 @@
 import Foundation
-import Combine
 import SwiftUI
 
-@MainActor
-final class PSQLTabViewModel: ObservableObject, Identifiable {
+@MainActor @Observable
+final class PSQLTabViewModel: Identifiable {
     static let maxRenderedRows = 500
     static let maxTranscriptCharacters = 256_000
     static let transcriptTrimTarget = 192_000
@@ -11,17 +10,17 @@ final class PSQLTabViewModel: ObservableObject, Identifiable {
     let id = UUID()
     let connection: SavedConnection
     internal var session: DatabaseSession
-    internal let sessionFactory: @Sendable (String) async throws -> DatabaseSession
-    var onActiveDatabaseChanged: ((String) -> Void)?
-    @Published var activeDatabase: String
+    @ObservationIgnored internal let sessionFactory: @Sendable (String) async throws -> DatabaseSession
+    @ObservationIgnored var onActiveDatabaseChanged: ((String) -> Void)?
+    var activeDatabase: String
 
-    @Published var history: String = ""
-    @Published var input: String = ""
-    @Published var isExecuting: Bool = false
-    internal var expandedDisplayEnabled = false
-    private var commandHistory: [String] = []
-    private var historyIndex: Int?
-    private var historyDraft: String = ""
+    var history: String = ""
+    var input: String = ""
+    var isExecuting: Bool = false
+    @ObservationIgnored internal var expandedDisplayEnabled = false
+    @ObservationIgnored private var commandHistory: [String] = []
+    @ObservationIgnored private var historyIndex: Int?
+    @ObservationIgnored private var historyDraft: String = ""
 
     init(
         connection: SavedConnection,

@@ -1,13 +1,12 @@
 import SwiftUI
-import Combine
 import AppKit
 
 /// Hosts the sidebar/detail split view and renders each settings section.
 struct SettingsView: View {
-    @EnvironmentObject private var environmentState: EnvironmentState
-    @EnvironmentObject private var appState: AppState
-    @EnvironmentObject private var clipboardHistory: ClipboardHistoryStore
-    @EnvironmentObject private var appearanceStore: AppearanceStore
+    @Environment(EnvironmentState.self) private var environmentState
+    @Environment(AppState.self) private var appState
+    @Environment(ClipboardHistoryStore.self) private var clipboardHistory
+    @Environment(AppearanceStore.self) private var appearanceStore
 
     enum SettingsSection: String, CaseIterable, Identifiable {
         case general
@@ -90,7 +89,7 @@ struct SettingsView: View {
         selection = destination.section
         databaseTab = destination.databaseTab
         // Reset after SwiftUI processes the state changes.
-        DispatchQueue.main.async {
+        Task {
             isRestoringNavigation = false
         }
     }
@@ -152,7 +151,8 @@ struct SettingsView: View {
                   let section = SettingsSection(rawValue: raw) else { return }
             selection = section
             if let highlight = notification.userInfo?["highlightSection"] as? String {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                Task {
+                    try? await Task.sleep(for: .seconds(0.15))
                     NotificationCenter.default.post(
                         name: .highlightSettingsGroup,
                         object: highlight
@@ -174,9 +174,9 @@ struct SettingsView: View {
 
         case .appearance:
             AppearanceSettingsView()
-                .environmentObject(environmentState)
-                .environmentObject(appState)
-                .environmentObject(appearanceStore)
+                .environment(environmentState)
+                .environment(appState)
+                .environment(appearanceStore)
 
         case .databases:
             DatabasesSettingsView(selectedTab: $databaseTab)
@@ -186,26 +186,26 @@ struct SettingsView: View {
 
         case .queryResults:
             QueryResultsSettingsView()
-                .environmentObject(environmentState)
-                .environmentObject(appState)
-                .environmentObject(appearanceStore)
+                .environment(environmentState)
+                .environment(appState)
+                .environment(appearanceStore)
 
         case .echoSense:
             EchoSenseSettingsView()
-                .environmentObject(environmentState)
-                .environmentObject(appState)
-                .environmentObject(appearanceStore)
+                .environment(environmentState)
+                .environment(appState)
+                .environment(appearanceStore)
 
         case .diagrams:
             DiagramSettingsView()
-                .environmentObject(environmentState)
-                .environmentObject(appearanceStore)
+                .environment(environmentState)
+                .environment(appearanceStore)
 
         case .applicationCache:
             ApplicationCacheSettingsView()
-                .environmentObject(environmentState)
-                .environmentObject(appState)
-                .environmentObject(clipboardHistory)
+                .environment(environmentState)
+                .environment(appState)
+                .environment(clipboardHistory)
 
         case .keyboardShortcuts:
             KeyboardShortcutsSettingsView()

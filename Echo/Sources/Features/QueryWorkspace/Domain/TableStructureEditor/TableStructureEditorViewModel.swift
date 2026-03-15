@@ -1,6 +1,5 @@
 import Foundation
 import SwiftUI
-import Combine
 
 enum TableStructureSection: String, CaseIterable, Identifiable {
     case columns, indexes, relations
@@ -22,20 +21,20 @@ enum TableStructureSection: String, CaseIterable, Identifiable {
     }
 }
 
-@MainActor
-final class TableStructureEditorViewModel: ObservableObject {
-    @Published var columns: [ColumnModel] = []
-    @Published var indexes: [IndexModel] = []
-    @Published var uniqueConstraints: [UniqueConstraintModel] = []
-    @Published var foreignKeys: [ForeignKeyModel] = []
-    @Published var dependencies: [DependencyModel] = []
-    @Published var primaryKey: PrimaryKeyModel?
-    @Published var requestedSection: TableStructureSection?
+@MainActor @Observable
+final class TableStructureEditorViewModel {
+    var columns: [ColumnModel] = []
+    var indexes: [IndexModel] = []
+    var uniqueConstraints: [UniqueConstraintModel] = []
+    var foreignKeys: [ForeignKeyModel] = []
+    var dependencies: [DependencyModel] = []
+    var primaryKey: PrimaryKeyModel?
+    var requestedSection: TableStructureSection?
 
-    @Published var isLoading: Bool = false
-    @Published var isApplying: Bool = false
-    @Published var lastError: String?
-    @Published var lastSuccessMessage: String?
+    var isLoading: Bool = false
+    var isApplying: Bool = false
+    var lastError: String?
+    var lastSuccessMessage: String?
 
     let schemaName: String
     let tableName: String

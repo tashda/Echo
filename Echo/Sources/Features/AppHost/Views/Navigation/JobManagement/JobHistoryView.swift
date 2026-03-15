@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct JobHistoryView: View {
-    @ObservedObject var viewModel: JobQueueViewModel
+    var viewModel: JobQueueViewModel
 
     var body: some View {
         VStack(spacing: 0) {

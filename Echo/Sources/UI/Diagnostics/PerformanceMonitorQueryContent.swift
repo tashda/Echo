@@ -1,9 +1,9 @@
 import SwiftUI
 
 struct PerformanceMonitorQueryContent: View {
-    @ObservedObject var tab: WorkspaceTab
-    @ObservedObject var query: QueryEditorState
-    @EnvironmentObject private var appearanceStore: AppearanceStore
+    @Bindable var tab: WorkspaceTab
+    @Bindable var query: QueryEditorState
+    @Environment(AppearanceStore.self) private var appearanceStore
 
     private let columns: [GridItem] = [
         GridItem(.flexible(minimum: 120), spacing: SpacingTokens.md, alignment: .leading),

@@ -33,7 +33,7 @@ struct StatusBadge: View {
 }
 
 struct ProcessesTableView: View {
-    @ObservedObject var viewModel: ActivityMonitorViewModel
+    var viewModel: ActivityMonitorViewModel
     @Binding var sortOrder: [KeyPathComparator<SQLServerProcessInfo>]
     @Binding var pgSortOrder: [KeyPathComparator<PostgresProcessInfo>]
     let onPopout: (String) -> Void
@@ -57,7 +57,7 @@ struct ProcessesTableView: View {
 }
 
 struct ResourceWaitsTableView: View {
-    @ObservedObject var viewModel: ActivityMonitorViewModel
+    var viewModel: ActivityMonitorViewModel
     @Binding var sortOrder: [KeyPathComparator<SQLServerWaitStatDelta>]
     @Binding var pgSortOrder: [KeyPathComparator<PostgresWaitStatDelta>]
 
@@ -76,7 +76,7 @@ struct ResourceWaitsTableView: View {
 }
 
 struct DataFileIOTableView: View {
-    @ObservedObject var viewModel: ActivityMonitorViewModel
+    var viewModel: ActivityMonitorViewModel
     @Binding var sortOrder: [KeyPathComparator<SQLServerFileIOStatDelta>]
     @Binding var pgSortOrder: [KeyPathComparator<PostgresDatabaseStatDelta>]
 
@@ -95,7 +95,7 @@ struct DataFileIOTableView: View {
 }
 
 struct ExpensiveQueriesTableView: View {
-    @ObservedObject var viewModel: ActivityMonitorViewModel
+    var viewModel: ActivityMonitorViewModel
     @Binding var sortOrder: [KeyPathComparator<SQLServerExpensiveQuery>]
     @Binding var pgSortOrder: [KeyPathComparator<PostgresExpensiveQuery>]
     let onOpenExtensionManager: () -> Void

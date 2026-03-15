@@ -8,7 +8,7 @@ import SwiftUI
 import AppKit
 
 struct ConnectMenuCommands: Commands {
-    @ObservedObject var environmentState: EnvironmentState
+    @Bindable var environmentState: EnvironmentState
     let projectStore: ProjectStore
     let connectionStore: ConnectionStore
     let navigationStore: NavigationStore

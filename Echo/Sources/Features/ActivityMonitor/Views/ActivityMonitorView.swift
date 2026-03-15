@@ -4,8 +4,8 @@ import SQLServerKit
 import PostgresWire
 
 struct ActivityMonitorView: View {
-    @ObservedObject var viewModel: ActivityMonitorViewModel
-    @EnvironmentObject private var environmentState: EnvironmentState
+    @Bindable var viewModel: ActivityMonitorViewModel
+    @Environment(EnvironmentState.self) private var environmentState
 
     // Sorting states
     @State private var processesSortOrder = [KeyPathComparator(\SQLServerProcessInfo.sessionId)]

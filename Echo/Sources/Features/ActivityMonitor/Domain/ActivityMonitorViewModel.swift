@@ -1,29 +1,28 @@
 import Foundation
 import SwiftUI
-import Combine
 import SQLServerKit
 import PostgresWire
 
-@MainActor
-final class ActivityMonitorViewModel: ObservableObject {
+@MainActor @Observable
+final class ActivityMonitorViewModel {
     struct GraphPoint: Identifiable {
         let id = UUID()
         let timestamp: Date
         let value: Double
     }
 
-    private let monitor: any DatabaseActivityMonitoring
-    private var streamTask: Task<Void, Never>?
+    @ObservationIgnored private let monitor: any DatabaseActivityMonitoring
+    @ObservationIgnored private var streamTask: Task<Void, Never>?
     let connectionSessionID: UUID
-    
-    @Published var latestSnapshot: DatabaseActivitySnapshot?
-    @Published var isRunning: Bool = true
-    @Published var refreshInterval: TimeInterval = 5.0
-    
-    @Published var cpuHistory: [GraphPoint] = []
-    @Published var waitingTasksHistory: [GraphPoint] = []
-    @Published var ioHistory: [GraphPoint] = []
-    @Published var throughputHistory: [GraphPoint] = []
+
+    var latestSnapshot: DatabaseActivitySnapshot?
+    var isRunning: Bool = true
+    var refreshInterval: TimeInterval = 5.0
+
+    var cpuHistory: [GraphPoint] = []
+    var waitingTasksHistory: [GraphPoint] = []
+    var ioHistory: [GraphPoint] = []
+    var throughputHistory: [GraphPoint] = []
     
     // For opening query windows in the correct context
     var latestSnapshotSessionID: UUID? {

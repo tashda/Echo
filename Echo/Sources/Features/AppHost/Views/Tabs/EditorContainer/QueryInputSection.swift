@@ -8,15 +8,15 @@ import UIKit
 #endif
 
 struct QueryInputSection: View {
-    @ObservedObject var query: QueryEditorState
+    @Bindable var query: QueryEditorState
     let onExecute: (String) async -> Void
     let onCancel: () -> Void
     let onAddBookmark: (String) -> Void
     let completionContext: SQLEditorCompletionContext?
 
-    @EnvironmentObject var appState: AppState
-    @EnvironmentObject private var environmentState: EnvironmentState
-    @EnvironmentObject private var appearanceStore: AppearanceStore
+    @Environment(AppState.self) var appState
+    @Environment(EnvironmentState.self) private var environmentState
+    @Environment(AppearanceStore.self) private var appearanceStore
 
     private var targetTone: SQLEditorPalette.Tone {
         appearanceStore.effectiveColorScheme == .dark ? .dark : .light
@@ -88,7 +88,7 @@ struct QueryInputSection: View {
     func handleSelectionChange(_ selection: SQLEditorSelection) {
         let trimmed = selection.selectedText.trimmingCharacters(in: .whitespacesAndNewlines)
         let hasSelection = !trimmed.isEmpty
-        DispatchQueue.main.async {
+        Task {
             currentSelection = selection
             guard hasSelection != isSelectionActive else { return }
             withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {

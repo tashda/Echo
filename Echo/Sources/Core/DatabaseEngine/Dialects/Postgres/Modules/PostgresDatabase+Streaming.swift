@@ -31,10 +31,10 @@ extension PostgresSession {
         let maxFlushLatency: TimeInterval = 0.015
         let batchEnqueueSize = 512
 
-        // Use DispatchQueue.main for FIFO ordering guarantee — ensures all flush
+        // Use Task @MainActor for ordering guarantee — ensures all flush
         // callbacks are processed before the worker drain continuation resumes.
         let bridgedHandler: QueryProgressHandler = { update in
-            DispatchQueue.main.async {
+            Task { @MainActor in
                 progressHandler(update)
             }
         }
@@ -156,13 +156,13 @@ extension PostgresSession {
             }
 
             // Await worker drain: waits for the GCD queue to flush, then waits
-            // for all DispatchQueue.main callbacks to execute (FIFO guarantee).
-            // This ensures every row is submitted to the spool before consumeFinalResult
-            // calls finalizeSpool, which would reject late-arriving batches.
+            // for all MainActor callbacks to execute. This ensures every row is
+            // submitted to the spool before consumeFinalResult calls finalizeSpool,
+            // which would reject late-arriving batches.
             if let worker {
                 await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
                     worker.finish(totalRowCount: totalRowCount) {
-                        DispatchQueue.main.async {
+                        Task { @MainActor in
                             continuation.resume()
                         }
                     }

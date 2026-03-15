@@ -7,9 +7,9 @@ struct ApplicationCacheSettingsView: View {
     @Environment(ConnectionStore.self) var connectionStore
     @Environment(TabStore.self) var tabStore
 
-    @EnvironmentObject var environmentState: EnvironmentState
-    @EnvironmentObject var appState: AppState
-    @EnvironmentObject var clipboardHistory: ClipboardHistoryStore
+    @Environment(EnvironmentState.self) var environmentState
+    @Environment(AppState.self) var appState
+    @Environment(ClipboardHistoryStore.self) var clipboardHistory
 
     @State var confirmDisableHistory = false
     @State var resultCacheUsage: UInt64 = 0

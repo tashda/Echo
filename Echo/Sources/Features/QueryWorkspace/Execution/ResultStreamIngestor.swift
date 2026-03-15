@@ -76,7 +76,7 @@ actor ResultStreamIngestor {
             if isPreview, !update.appendedRows.isEmpty {
                 let startIndex = resolvedRange?.lowerBound ?? totalRowCount
                 let rowsForCache = update.appendedRows
-                DispatchQueue.global(qos: .utility).async { [rowCache] in
+                Task.detached(priority: .utility) { [rowCache] in
                     rowCache.ingest(rows: rowsForCache, startingAt: startIndex)
                 }
             }

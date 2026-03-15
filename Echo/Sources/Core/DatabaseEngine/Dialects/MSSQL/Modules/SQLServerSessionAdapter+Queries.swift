@@ -66,7 +66,7 @@ extension SQLServerSessionAdapter {
         let batchEnqueueSize = 512
 
         let bridgedHandler: QueryProgressHandler = { update in
-            DispatchQueue.main.async {
+            Task { @MainActor in
                 progressHandler(update)
             }
         }
@@ -204,7 +204,7 @@ extension SQLServerSessionAdapter {
         if let worker {
             await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
                 worker.finish(totalRowCount: primaryRowCount) {
-                    DispatchQueue.main.async {
+                    Task { @MainActor in
                         continuation.resume()
                     }
                 }

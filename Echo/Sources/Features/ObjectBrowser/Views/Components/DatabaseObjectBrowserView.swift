@@ -16,7 +16,7 @@ struct DatabaseObjectBrowserView: View {
     @Environment(ProjectStore.self) var projectStore
     @Environment(ConnectionStore.self) private var connectionStore
     @Environment(NavigationStore.self) private var navigationStore
-    @EnvironmentObject private var environmentState: EnvironmentState
+    @Environment(EnvironmentState.self) private var environmentState
 
     @State private var snapshotCache = ExplorerSnapshotCache()
 
@@ -82,7 +82,7 @@ struct DatabaseObjectBrowserView: View {
         expandedObjectGroups.insert(.table)
         expandedObjectIDs.insert(target.id)
 
-        DispatchQueue.main.async {
+        Task {
             withAnimation(.easeInOut(duration: 0.28)) {
                 scrollTo(target.id, UnitPoint(x: 0.5, y: 0.2))
             }

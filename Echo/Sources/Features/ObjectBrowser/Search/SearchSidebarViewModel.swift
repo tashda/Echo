@@ -1,30 +1,29 @@
 import Foundation
-import Combine
 
-@MainActor
-final class SearchSidebarViewModel: ObservableObject {
-    @Published var query: String = "" {
+@MainActor @Observable
+final class SearchSidebarViewModel {
+    var query: String = "" {
         didSet { performScheduleSearch() }
     }
 
-    @Published var selectedCategories: Set<SearchSidebarCategory> = Set(SearchSidebarCategory.allCases.filter { $0.defaultSelected }) {
+    var selectedCategories: Set<SearchSidebarCategory> = Set(SearchSidebarCategory.allCases.filter { $0.defaultSelected }) {
         didSet { performScheduleSearch() }
     }
 
-    @Published var results: [SearchSidebarResult] = []
-    @Published var isSearching: Bool = false
-    @Published var errorMessage: String?
+    var results: [SearchSidebarResult] = []
+    var isSearching: Bool = false
+    var errorMessage: String?
 
     internal var databaseSession: DatabaseSession?
     internal var databaseType: DatabaseType?
     var activeDatabaseName: String?
-    internal var searchTask: Task<Void, Never>?
-    private let minimumQueryLength = 2
-    private var isRestoring = false
-    private var lastContextSession: ObjectIdentifier?
-    private var lastContextDatabaseName: String?
-    private var lastContextDatabaseType: DatabaseType?
-    internal var queryTabProvider: () -> [SearchSidebarQueryTabSnapshot] = { [] }
+    @ObservationIgnored internal var searchTask: Task<Void, Never>?
+    @ObservationIgnored private let minimumQueryLength = 2
+    @ObservationIgnored private var isRestoring = false
+    @ObservationIgnored private var lastContextSession: ObjectIdentifier?
+    @ObservationIgnored private var lastContextDatabaseName: String?
+    @ObservationIgnored private var lastContextDatabaseType: DatabaseType?
+    @ObservationIgnored internal var queryTabProvider: () -> [SearchSidebarQueryTabSnapshot] = { [] }
 
     var minimumSearchLength: Int { minimumQueryLength }
 

@@ -4,7 +4,7 @@ import AppKit
 /// Thin SwiftUI wrapper that allows callers to continue referencing the grid-style
 /// results view while the macOS implementation delegates to the AppKit-backed table.
 struct QueryResultsGridView: View {
-    @ObservedObject var query: QueryEditorState
+    @Bindable var query: QueryEditorState
     var highlightedColumnIndex: Int?
     var activeSort: SortCriteria?
     var rowOrder: [Int]

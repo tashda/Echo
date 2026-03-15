@@ -4,9 +4,9 @@ import EchoSense
 
 struct AutocompleteInspectorRootView: View {
     @Environment(ProjectStore.self) private var projectStore
-    @EnvironmentObject private var environmentState: EnvironmentState
-    @EnvironmentObject private var appState: AppState
-    @EnvironmentObject private var appearanceStore: AppearanceStore
+    @Environment(EnvironmentState.self) private var environmentState
+    @Environment(AppState.self) private var appState
+    @Environment(AppearanceStore.self) private var appearanceStore
     @State private var sqlText: String = "SELECT * FROM "
     @State private var latestTrace: SQLAutocompleteTrace?
     @State private var isTraceFrozen = false
@@ -35,7 +35,7 @@ struct AutocompleteInspectorRootView: View {
     private var traceConfiguration: SQLAutocompleteRuleTraceConfiguration? {
         guard !isTraceFrozen else { return nil }
         return SQLAutocompleteRuleTraceConfiguration { trace in
-            DispatchQueue.main.async {
+            Task { @MainActor in
                 latestTrace = trace
             }
         }

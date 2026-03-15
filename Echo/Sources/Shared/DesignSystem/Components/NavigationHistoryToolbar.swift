@@ -34,14 +34,14 @@ struct NavigationHistoryToolbar<Value: Hashable>: ViewModifier {
                                   let target = history.goBack(from: current) else { return }
                             isRestoring = true
                             selection = target
-                            DispatchQueue.main.async { isRestoring = false }
+                            Task { isRestoring = false }
                         },
                         onForward: {
                             guard let current = selection,
                                   let target = history.goForward(from: current) else { return }
                             isRestoring = true
                             selection = target
-                            DispatchQueue.main.async { isRestoring = false }
+                            Task { isRestoring = false }
                         }
                     )
                 }

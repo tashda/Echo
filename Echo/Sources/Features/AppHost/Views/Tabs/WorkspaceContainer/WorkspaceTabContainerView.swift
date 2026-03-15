@@ -23,9 +23,9 @@ struct WorkspaceTabContainerView: View {
     @Environment(NavigationStore.self) private var navigationStore
     @Environment(TabStore.self) var tabStore
 
-    @EnvironmentObject var environmentState: EnvironmentState
-    @EnvironmentObject var appState: AppState
-    @EnvironmentObject private var appearanceStore: AppearanceStore
+    @Environment(EnvironmentState.self) var environmentState
+    @Environment(AppState.self) var appState
+    @Environment(AppearanceStore.self) private var appearanceStore
     @Environment(\.hostedWorkspaceTabID) private var hostedWorkspaceTabID
 
     var showsTabStrip: Bool = true

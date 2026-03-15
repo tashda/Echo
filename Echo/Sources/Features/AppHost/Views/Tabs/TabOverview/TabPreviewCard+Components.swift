@@ -13,7 +13,7 @@ struct EmptyPreviewPlaceholder: View {
 }
 
 struct QueryTabPreview: View {
-    @ObservedObject var query: QueryEditorState
+    @Bindable var query: QueryEditorState
 
     private var trimmedSQL: String {
         let trimmed = query.sql.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -24,12 +24,12 @@ struct QueryTabPreview: View {
         VStack(alignment: .leading, spacing: 10) {
             if trimmedSQL.isEmpty {
                 Text("Empty query")
-                    .font(.system(size: 11, weight: .medium, design: .monospaced))
+                    .font(TypographyTokens.detail.weight(.medium).monospaced())
                     .foregroundStyle(ColorTokens.Text.secondary)
                     .italic()
             } else {
                 Text(trimmedSQL)
-                    .font(.system(size: 11, design: .monospaced))
+                    .font(TypographyTokens.detail.monospaced())
                     .foregroundStyle(ColorTokens.Text.secondary)
                     .lineLimit(6)
                     .multilineTextAlignment(.leading)
@@ -41,7 +41,7 @@ struct QueryTabPreview: View {
 }
 
 struct DiagramTabPreview: View {
-    @ObservedObject var diagram: SchemaDiagramViewModel
+    @Bindable var diagram: SchemaDiagramViewModel
 
     private var status: (icon: String, text: String, color: Color) {
         if diagram.isLoading {
@@ -76,7 +76,7 @@ struct DiagramTabPreview: View {
 }
 
 struct StructureTabPreview: View {
-    @ObservedObject var editor: TableStructureEditorViewModel
+    var editor: TableStructureEditorViewModel
 
     private var status: (icon: String, text: String, color: Color) {
         if editor.isApplying {
@@ -116,7 +116,7 @@ struct StructureTabPreview: View {
 }
 
 struct ExtensionStructureTabPreview: View {
-    @ObservedObject var viewModel: PostgresExtensionStructureViewModel
+    var viewModel: PostgresExtensionStructureViewModel
 
     private var status: (icon: String, text: String, color: Color) {
         if viewModel.isLoading {
@@ -150,7 +150,7 @@ struct ExtensionStructureTabPreview: View {
 }
 
 struct ExtensionsTabPreview: View {
-    @ObservedObject var viewModel: PostgresExtensionsViewModel
+    var viewModel: PostgresExtensionsViewModel
 
     private var status: (icon: String, text: String, color: Color) {
         if viewModel.isLoading {

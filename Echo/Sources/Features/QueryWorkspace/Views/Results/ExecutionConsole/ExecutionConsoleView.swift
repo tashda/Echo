@@ -8,7 +8,7 @@ import UIKit
 struct ExecutionConsoleView: View {
     let results: QueryResultSet
 
-    @EnvironmentObject internal var appearanceStore: AppearanceStore
+    @Environment(AppearanceStore.self) internal var appearanceStore
     @State internal var messages: [Message] = []
     @State internal var expandedRows: Set<UUID> = []
     internal let columnWidths: [CGFloat] = [64, 320, 110, 90, 110, 160, 80]

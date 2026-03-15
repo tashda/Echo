@@ -3,8 +3,8 @@ import EchoSense
 
 struct RefreshToolbarButton: View {
     @Environment(NavigationStore.self) private var navigationStore
-    @EnvironmentObject private var environmentState: EnvironmentState
-    @EnvironmentObject private var appearanceStore: AppearanceStore
+    @Environment(EnvironmentState.self) private var environmentState
+    @Environment(AppearanceStore.self) private var appearanceStore
 
     @State private var refreshTask: Task<Void, Never>?
 

@@ -42,7 +42,7 @@ struct RefreshAnimatedOverlay: View {
 
     var body: some View {
         Image(systemName: currentSymbol)
-            .font(.system(size: 13, weight: .semibold))
+            .font(TypographyTokens.standard.weight(.semibold))
             .foregroundStyle(iconColor)
             .rotationEffect(.degrees(shouldSpin ? rotation : 0))
             .scaleEffect(phase == .completed ? completionScale : 1.0)

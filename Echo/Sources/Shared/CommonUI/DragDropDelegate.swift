@@ -1,5 +1,4 @@
 import SwiftUI
-import Combine
 
 // MARK: - Drop Position Types
 
@@ -18,15 +17,15 @@ struct DropIndicator: Identifiable, Equatable {
 
 // MARK: - Drag Drop Delegate
 
-@MainActor
-class DragDropDelegate: ObservableObject {
-    static let shared = DragDropDelegate()
+@Observable
+class DragDropDelegate {
+    nonisolated(unsafe) static let shared = DragDropDelegate()
 
-    @Published var currentDropIndicator: DropIndicator?
-    @Published var expandedFoldersOnDrag: Set<UUID> = []
+    var currentDropIndicator: DropIndicator?
+    var expandedFoldersOnDrag: Set<UUID> = []
 
-    private var hoverTimer: Timer?
-    private let hoverDelay: TimeInterval = 0.8
+    @ObservationIgnored private var hoverTimer: Timer?
+    @ObservationIgnored private let hoverDelay: TimeInterval = 0.8
 
     private init() {}
 

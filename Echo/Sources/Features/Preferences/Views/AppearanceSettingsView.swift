@@ -4,7 +4,7 @@ import AppKit
 
 struct AppearanceSettingsView: View {
     @Environment(ProjectStore.self) private var projectStore
-    @EnvironmentObject private var appearanceStore: AppearanceStore
+    @Environment(AppearanceStore.self) private var appearanceStore
 
     var body: some View {
         Form {

@@ -10,8 +10,8 @@ struct StreamingTestHarnessWindow: Scene {
                 .environment(AppDirector.shared.projectStore)
                 .environment(AppDirector.shared.connectionStore)
                 .environment(AppDirector.shared.navigationStore)
-                .environmentObject(AppDirector.shared.environmentState)
-                .environmentObject(AppDirector.shared.appearanceStore)
+                .environment(AppDirector.shared.environmentState)
+                .environment(AppDirector.shared.appearanceStore)
         }
         .defaultSize(width: 840, height: 620)
         .restorationBehavior(.disabled)
@@ -24,9 +24,9 @@ struct StreamingTestHarnessView: View {
     @Environment(ConnectionStore.self) internal var connectionStore
     @Environment(NavigationStore.self) internal var navigationStore
     
-    @EnvironmentObject internal var environmentState: EnvironmentState
-    @EnvironmentObject internal var appearanceStore: AppearanceStore
-    @ObservedObject private var coordinator = AppDirector.shared
+    @Environment(EnvironmentState.self) internal var environmentState
+    @Environment(AppearanceStore.self) internal var appearanceStore
+    @Bindable private var coordinator = AppDirector.shared
 
     @State internal var selectedSessionID: UUID?
     @State internal var sqlInput: String = "SELECT current_timestamp;"

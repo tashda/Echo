@@ -1,6 +1,6 @@
 import Foundation
 import SwiftUI
-import Combine
+import Observation
 
 protocol TabDirectorDelegate: AnyObject {
     func tabDirector(_ manager: TabDirector, didAdd tab: WorkspaceTab)
@@ -14,12 +14,12 @@ extension TabDirectorDelegate {
     func tabDirector(_ manager: TabDirector, shouldClose tab: WorkspaceTab) -> Bool { true }
 }
 
-@MainActor
-final class TabDirector: ObservableObject {
-    weak var delegate: TabDirectorDelegate?
+@Observable @MainActor
+final class TabDirector {
+    @ObservationIgnored weak var delegate: TabDirectorDelegate?
 
-    @Published var tabs: [WorkspaceTab] = []
-    @Published var activeTabId: UUID? {
+    var tabs: [WorkspaceTab] = []
+    var activeTabId: UUID? {
         didSet {
             guard activeTabId != oldValue else { return }
             delegate?.tabDirector(self, didSetActiveTabID: activeTabId)
@@ -31,8 +31,8 @@ final class TabDirector: ObservableObject {
         let index: Int
     }
 
-    private var closedTabHistory: [ClosedTabSnapshot] = []
-    private let closedTabHistoryLimit = 100
+    @ObservationIgnored private var closedTabHistory: [ClosedTabSnapshot] = []
+    @ObservationIgnored private let closedTabHistoryLimit = 100
 
     var canReopenClosedTab: Bool { !closedTabHistory.isEmpty }
 

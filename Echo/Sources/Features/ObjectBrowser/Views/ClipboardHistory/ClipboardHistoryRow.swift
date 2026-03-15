@@ -15,7 +15,7 @@ struct ClipboardHistoryRow: View {
 #else
     private let isHovering = false
 #endif
-    @EnvironmentObject internal var clipboardHistory: ClipboardHistoryStore
+    @Environment(ClipboardHistoryStore.self) internal var clipboardHistory
 
     var body: some View {
         VStack(alignment: .leading, spacing: SpacingTokens.none) {

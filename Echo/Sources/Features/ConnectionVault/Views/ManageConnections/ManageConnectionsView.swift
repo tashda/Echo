@@ -6,10 +6,10 @@ struct ManageConnectionsView: View {
     @Environment(ConnectionStore.self) internal var connectionStore
     @Environment(NavigationStore.self) internal var navigationStore
     
-    @EnvironmentObject internal var environmentState: EnvironmentState
-    @EnvironmentObject internal var appState: AppState
-    @EnvironmentObject internal var clipboardHistory: ClipboardHistoryStore
-    @ObservedObject internal var appearanceStore = AppearanceStore.shared
+    @Environment(EnvironmentState.self) internal var environmentState
+    @Environment(AppState.self) internal var appState
+    @Environment(ClipboardHistoryStore.self) internal var clipboardHistory
+    @Environment(AppearanceStore.self) internal var appearanceStore
     @Environment(\.dismiss) internal var dismiss
     internal let onClose: (() -> Void)?
 
@@ -98,7 +98,7 @@ struct ManageConnectionsView: View {
                 NewProjectSheet()
                     .environment(projectStore)
                     .environment(navigationStore)
-                    .environmentObject(environmentState)
+                    .environment(environmentState)
             }
             .sheet(isPresented: $showIconPicker) {
                 if case .project(let id) = sidebarSelection,

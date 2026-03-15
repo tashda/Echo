@@ -2,7 +2,7 @@ import SwiftUI
 
 struct DatabaseBreadcrumbMenu: View {
     @Environment(ConnectionStore.self) private var connectionStore
-    @EnvironmentObject private var environmentState: EnvironmentState
+    @Environment(EnvironmentState.self) private var environmentState
     
     @State private var searchText = ""
     @State private var availableDatabases: [DatabaseInfo] = []
