@@ -34,6 +34,8 @@ extension CompactTabPreviewCard {
             return []
         case .extendedEvents:
             return []
+        case .availabilityGroups:
+            return []
         }
         }
 
@@ -64,6 +66,8 @@ extension CompactTabPreviewCard {
             return "Query Store"
         case .extendedEvents:
             return "Extended Events"
+        case .availabilityGroups:
+            return "Availability Groups"
         }
         }
 
@@ -95,6 +99,8 @@ extension CompactTabPreviewCard {
             return "Query Store analysis and plan management"
         case .extendedEvents:
             return "Extended Events session monitoring"
+        case .availabilityGroups:
+            return "Always On Availability Groups dashboard"
         }
         }
 

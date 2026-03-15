@@ -203,6 +203,8 @@ struct TabPreviewCard: View {
             QueryStorePreview(viewModel: tab.queryStoreVM)
         case .extendedEvents:
             ExtendedEventsPreview()
+        case .availabilityGroups:
+            AvailabilityGroupsPreview()
         }
     }
 }
@@ -242,6 +244,19 @@ struct ActivityMonitorPreview: View {
                 .font(TypographyTokens.hero)
                 .foregroundStyle(ColorTokens.Text.tertiary)
             Text("Activity Monitor")
+                .font(TypographyTokens.detail)
+                .foregroundStyle(ColorTokens.Text.secondary)
+        }
+    }
+}
+
+struct AvailabilityGroupsPreview: View {
+    var body: some View {
+        VStack(spacing: SpacingTokens.xxs) {
+            Image(systemName: "server.rack")
+                .font(TypographyTokens.hero)
+                .foregroundStyle(ColorTokens.Text.tertiary)
+            Text("Availability Groups")
                 .font(TypographyTokens.detail)
                 .foregroundStyle(ColorTokens.Text.secondary)
         }

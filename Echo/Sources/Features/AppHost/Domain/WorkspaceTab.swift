@@ -33,6 +33,7 @@ final class WorkspaceTab: Identifiable {
         case activityMonitor
         case queryStore
         case extendedEvents
+        case availabilityGroups
     }
 
     enum Content {
@@ -46,6 +47,7 @@ final class WorkspaceTab: Identifiable {
         case activityMonitor(ActivityMonitorViewModel)
         case queryStore(QueryStoreViewModel)
         case extendedEvents(ExtendedEventsViewModel)
+        case availabilityGroups(AvailabilityGroupsViewModel)
     }
 
     let id = UUID()
@@ -94,6 +96,7 @@ final class WorkspaceTab: Identifiable {
         case .activityMonitor: return .activityMonitor
         case .queryStore: return .queryStore
         case .extendedEvents: return .extendedEvents
+        case .availabilityGroups: return .availabilityGroups
         }
     }
 
@@ -147,6 +150,11 @@ final class WorkspaceTab: Identifiable {
         return nil
     }
 
+    var availabilityGroupsVM: AvailabilityGroupsViewModel? {
+        if case .availabilityGroups(let vm) = content { return vm }
+        return nil
+    }
+
     func setContent(_ newContent: Content) {
         content = newContent
         setupRowCountRefreshHandler()
@@ -174,6 +182,8 @@ final class WorkspaceTab: Identifiable {
         case .queryStore(let vm):
             return baseOverhead + vm.estimatedMemoryUsageBytes()
         case .extendedEvents(let vm):
+            return baseOverhead + vm.estimatedMemoryUsageBytes()
+        case .availabilityGroups(let vm):
             return baseOverhead + vm.estimatedMemoryUsageBytes()
         }
     }

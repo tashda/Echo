@@ -105,6 +105,48 @@ extension ObjectBrowserSidebarView {
                     }
                 }
             }
+            .sheet(isPresented: $viewModel.showDatabaseMailSheet) {
+                if let connID = viewModel.databaseMailConnectionID,
+                   let session = environmentState.sessionGroup.sessionForConnection(connID) {
+                    DatabaseMailSheet(
+                        session: session,
+                        onDismiss: { viewModel.showDatabaseMailSheet = false }
+                    )
+                }
+            }
+            .sheet(isPresented: $viewModel.showChangeTrackingSheet) {
+                if let dbName = viewModel.changeTrackingDatabaseName,
+                   let connID = viewModel.changeTrackingConnectionID,
+                   let session = environmentState.sessionGroup.sessionForConnection(connID) {
+                    ChangeTrackingSheet(
+                        databaseName: dbName,
+                        session: session,
+                        onDismiss: { viewModel.showChangeTrackingSheet = false }
+                    )
+                }
+            }
+            .sheet(isPresented: $viewModel.showFullTextSheet) {
+                if let dbName = viewModel.fullTextDatabaseName,
+                   let connID = viewModel.fullTextConnectionID,
+                   let session = environmentState.sessionGroup.sessionForConnection(connID) {
+                    FullTextSearchSheet(
+                        databaseName: dbName,
+                        session: session,
+                        onDismiss: { viewModel.showFullTextSheet = false }
+                    )
+                }
+            }
+            .sheet(isPresented: $viewModel.showMaintenanceSheet) {
+                if let dbName = viewModel.maintenanceDatabaseName,
+                   let connID = viewModel.maintenanceConnectionID,
+                   let session = environmentState.sessionGroup.sessionForConnection(connID) {
+                    MaintenanceSheet(
+                        databaseName: dbName,
+                        session: session,
+                        onDismiss: { viewModel.showMaintenanceSheet = false }
+                    )
+                }
+            }
     }
 
     func applyAlerts<V: View>(to content: V) -> some View {

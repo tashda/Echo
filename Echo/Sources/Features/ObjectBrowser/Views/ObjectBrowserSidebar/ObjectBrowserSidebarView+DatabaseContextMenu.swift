@@ -87,6 +87,39 @@ extension ObjectBrowserSidebarView {
                 Label("Extended Events", systemImage: "waveform.path.ecg")
             }
 
+            Button {
+                environmentState.openAvailabilityGroupsTab(connectionID: connID)
+            } label: {
+                Label("Availability Groups", systemImage: "server.rack")
+            }
+
+            Button {
+                viewModel.changeTrackingDatabaseName = database.name
+                viewModel.changeTrackingConnectionID = connID
+                viewModel.showChangeTrackingSheet = true
+            } label: {
+                Label("Change Tracking / CDC", systemImage: "arrow.triangle.2.circlepath")
+            }
+            .disabled(!database.isOnline)
+
+            Button {
+                viewModel.fullTextDatabaseName = database.name
+                viewModel.fullTextConnectionID = connID
+                viewModel.showFullTextSheet = true
+            } label: {
+                Label("Full-Text Search", systemImage: "text.magnifyingglass")
+            }
+            .disabled(!database.isOnline)
+
+            Button {
+                viewModel.maintenanceDatabaseName = database.name
+                viewModel.maintenanceConnectionID = connID
+                viewModel.showMaintenanceSheet = true
+            } label: {
+                Label("Maintenance\u{2026}", systemImage: "wrench.and.screwdriver")
+            }
+            .disabled(!database.isOnline)
+
             Menu {
                 if database.isOnline {
                     Button("Back Up\u{2026}") {

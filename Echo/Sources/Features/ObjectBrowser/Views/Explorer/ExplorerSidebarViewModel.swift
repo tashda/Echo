@@ -106,6 +106,25 @@ final class ObjectBrowserSidebarViewModel {
     var restoreDatabaseName: String?
     var restoreConnectionID: UUID?
 
+    // Database Mail sheet
+    var showDatabaseMailSheet = false
+    var databaseMailConnectionID: UUID?
+
+    // Change Tracking / CDC sheet
+    var showChangeTrackingSheet = false
+    var changeTrackingDatabaseName: String?
+    var changeTrackingConnectionID: UUID?
+
+    // Full-Text Search sheet
+    var showFullTextSheet = false
+    var fullTextDatabaseName: String?
+    var fullTextConnectionID: UUID?
+
+    // Maintenance sheet
+    var showMaintenanceSheet = false
+    var maintenanceDatabaseName: String?
+    var maintenanceConnectionID: UUID?
+
     // Drop database confirmation
     var showDropDatabaseAlert = false
     var dropDatabaseTarget: DropDatabaseTarget?

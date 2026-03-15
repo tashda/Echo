@@ -32,6 +32,7 @@ extension WorkspaceTab.Kind {
         case .activityMonitor: return "Activity"
         case .queryStore: return "Query Store"
         case .extendedEvents: return "Extended Events"
+        case .availabilityGroups: return "Availability Groups"
         }
     }
 
@@ -47,6 +48,7 @@ extension WorkspaceTab.Kind {
         case .activityMonitor: return "chart.bar.doc.horizontal"
         case .queryStore: return "chart.bar.xaxis"
         case .extendedEvents: return "bolt.horizontal"
+        case .availabilityGroups: return "server.rack"
         }
     }
 }
