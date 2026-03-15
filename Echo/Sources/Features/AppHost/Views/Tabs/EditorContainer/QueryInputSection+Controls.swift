@@ -116,9 +116,76 @@ extension QueryInputSection {
         completionContext?.databaseType == .microsoftSQL
     }
 
+    var sqlcmdModeToggle: some View {
+        let isActive = query.sqlcmdModeEnabled
+        return Button {
+            query.sqlcmdModeEnabled.toggle()
+        } label: {
+            Image(systemName: "terminal")
+                .font(TypographyTokens.caption2.weight(.semibold))
+                .padding(SpacingTokens.xs)
+                .background(
+                    isActive
+                        ? AnyShapeStyle(ColorTokens.accent.opacity(0.18))
+                        : AnyShapeStyle(.ultraThinMaterial),
+                    in: Circle()
+                )
+                .overlay(
+                    Circle()
+                        .stroke(isActive ? ColorTokens.accent.opacity(0.5) : Color.clear, lineWidth: 1)
+                )
+        }
+        .buttonStyle(.plain)
+        .help(isActive ? "Disable SQLCMD Mode" : "Enable SQLCMD Mode")
+        .accessibilityIdentifier("sqlcmd-mode-toggle-button")
+        .shadow(color: Color.black.opacity(0.08), radius: 6, y: 3)
+    }
+
+    var debugToggle: some View {
+        let isActive = query.debugMode
+        return Button {
+            if isActive {
+                onDebugStop?()
+            } else {
+                triggerDebugExecution()
+            }
+        } label: {
+            Image(systemName: "ladybug")
+                .font(TypographyTokens.caption2.weight(.semibold))
+                .padding(SpacingTokens.xs)
+                .background(
+                    isActive
+                        ? AnyShapeStyle(ColorTokens.accent.opacity(0.18))
+                        : AnyShapeStyle(.ultraThinMaterial),
+                    in: Circle()
+                )
+                .overlay(
+                    Circle()
+                        .stroke(isActive ? ColorTokens.accent.opacity(0.5) : Color.clear, lineWidth: 1)
+                )
+        }
+        .buttonStyle(.plain)
+        .disabled(isRunDisabled || (query.isExecuting && !query.debugMode))
+        .help(isActive ? "Stop Debugging" : "Debug Query (Step-by-Step)")
+        .accessibilityIdentifier("debug-toggle-button")
+        .shadow(color: Color.black.opacity(0.08), radius: 6, y: 3)
+    }
+
+    func triggerDebugExecution() {
+        guard !isRunDisabled else { return }
+        let sqlToRun: String = hasExecutableSelection ? currentSelection.selectedText : query.sql
+        Task {
+            if let handler = onDebugExecute {
+                await handler(sqlToRun)
+            }
+        }
+    }
+
     var floatingControls: some View {
         HStack(spacing: SpacingTokens.sm2) {
             if isMSSQLConnection {
+                debugToggle
+                sqlcmdModeToggle
                 statisticsToggle
             }
             estimatedPlanButton

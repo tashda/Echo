@@ -61,7 +61,7 @@
       "location" : "https://github.com/tashda/sqlserver-nio",
       "state" : {
         "branch" : "dev",
-        "revision" : "d33b528"
+        "revision" : "3fd54cf2c8b48cf88bb120c9ebf957e97069b407"
       }
     },
     {

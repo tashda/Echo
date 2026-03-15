@@ -120,6 +120,15 @@ extension ObjectBrowserSidebarView {
             }
             .disabled(!database.isOnline)
 
+            Button {
+                viewModel.replicationDatabaseName = database.name
+                viewModel.replicationConnectionID = connID
+                viewModel.showReplicationSheet = true
+            } label: {
+                Label("Replication\u{2026}", systemImage: "arrow.triangle.swap")
+            }
+            .disabled(!database.isOnline)
+
             Menu {
                 if database.isOnline {
                     Button("Back Up\u{2026}") {

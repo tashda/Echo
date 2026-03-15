@@ -65,6 +65,20 @@ struct WorkspaceTabContainerView: View {
         }
     }
 
+    private func debugExecuteHandler(for tab: WorkspaceTab) -> ((String) async -> Void)? {
+        guard tab.connection.databaseType == .microsoftSQL else { return nil }
+        return { sql in
+            await self.runDebugSession(tabId: tab.id, sql: sql)
+        }
+    }
+
+    private func debugStopHandler(for tab: WorkspaceTab) -> (() -> Void)? {
+        guard tab.connection.databaseType == .microsoftSQL else { return nil }
+        return {
+            self.debugStop(tabId: tab.id)
+        }
+    }
+
     private var currentWorkspaceTab: WorkspaceTab? {
         if let hostedWorkspaceTabID,
            let hostedTab = tabStore.tabs.first(where: { $0.id == hostedWorkspaceTabID }) {
@@ -101,6 +115,8 @@ struct WorkspaceTabContainerView: View {
                     runQuery: { sql in await runQuery(tabId: currentTab.id, sql: sql) },
                     cancelQuery: { cancelQuery(tabId: currentTab.id) },
                     requestEstimatedPlan: estimatedPlanHandler(for: currentTab),
+                    debugExecute: debugExecuteHandler(for: currentTab),
+                    debugStop: debugStopHandler(for: currentTab),
                     gridStateProvider: { currentTab.resultsGridState }
                 )
             } else if let activeSession = environmentState.sessionGroup.activeSession {

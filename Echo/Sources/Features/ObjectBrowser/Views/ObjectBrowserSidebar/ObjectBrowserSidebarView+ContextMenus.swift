@@ -106,6 +106,13 @@ extension ObjectBrowserSidebarView {
             } label: {
                 Label("Database Mail", systemImage: "envelope")
             }
+
+            Button {
+                viewModel.cmsConnectionID = session.connection.id
+                viewModel.showCMSSheet = true
+            } label: {
+                Label("Central Management Servers\u{2026}", systemImage: "server.rack")
+            }
         }
 
         Divider()

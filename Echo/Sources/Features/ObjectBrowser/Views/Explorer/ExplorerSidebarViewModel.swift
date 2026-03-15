@@ -125,6 +125,15 @@ final class ObjectBrowserSidebarViewModel {
     var maintenanceDatabaseName: String?
     var maintenanceConnectionID: UUID?
 
+    // Replication sheet
+    var showReplicationSheet = false
+    var replicationDatabaseName: String?
+    var replicationConnectionID: UUID?
+
+    // CMS sheet
+    var showCMSSheet = false
+    var cmsConnectionID: UUID?
+
     // Drop database confirmation
     var showDropDatabaseAlert = false
     var dropDatabaseTarget: DropDatabaseTarget?

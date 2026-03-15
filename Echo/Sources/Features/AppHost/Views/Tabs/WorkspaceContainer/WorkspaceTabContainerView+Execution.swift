@@ -6,7 +6,33 @@ extension WorkspaceTabContainerView {
               let queryState = tab.query else { return }
 
         let trimmedSQL = sql.trimmingCharacters(in: .whitespacesAndNewlines)
-        var effectiveSQL = trimmedSQL.isEmpty ? sql : trimmedSQL
+        let baseSQL = trimmedSQL.isEmpty ? sql : trimmedSQL
+
+        // SQLCMD mode: preprocess directives, then rejoin batches for execution
+        var effectiveSQL: String
+        if tab.connection.databaseType == .microsoftSQL, queryState.sqlcmdModeEnabled {
+            let processed = SQLCMDPreprocessor.process(baseSQL)
+            await MainActor.run {
+                for warning in processed.warnings {
+                    queryState.appendMessage(message: warning, severity: .warning)
+                }
+            }
+            guard !processed.batches.isEmpty else {
+                await MainActor.run {
+                    queryState.appendMessage(
+                        message: "SQLCMD preprocessing produced no executable batches",
+                        severity: .info
+                    )
+                }
+                return
+            }
+            // Each batch must be executed separately since GO is a client-side separator.
+            // Join with semicolons and newlines to form a single multi-statement batch.
+            // For batches repeated via GO N, duplicates already exist in the array.
+            effectiveSQL = processed.batches.joined(separator: ";\n")
+        } else {
+            effectiveSQL = baseSQL
+        }
 
         // For MSSQL, prepend USE [database] to set the correct database context
         if tab.connection.databaseType == .microsoftSQL,
