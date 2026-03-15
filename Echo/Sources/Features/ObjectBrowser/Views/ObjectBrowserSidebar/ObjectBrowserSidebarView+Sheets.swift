@@ -1,4 +1,5 @@
 import SwiftUI
+import SQLServerKit
 
 extension ObjectBrowserSidebarView {
 
@@ -70,6 +71,40 @@ extension ObjectBrowserSidebarView {
                     }
                 }
             }
+            .sheet(isPresented: $viewModel.showBackupSheet) {
+                if let dbName = viewModel.backupDatabaseName,
+                   let connID = viewModel.backupConnectionID,
+                   let session = environmentState.sessionGroup.sessionForConnection(connID),
+                   let adapter = session.session as? SQLServerSessionAdapter {
+                    BackupSheet(
+                        viewModel: BackupViewModel(client: adapter.client, databaseName: dbName),
+                        onDismiss: { viewModel.showBackupSheet = false }
+                    )
+                }
+            }
+            .sheet(isPresented: $viewModel.showRestoreSheet) {
+                if let dbName = viewModel.restoreDatabaseName,
+                   let connID = viewModel.restoreConnectionID,
+                   let session = environmentState.sessionGroup.sessionForConnection(connID),
+                   let adapter = session.session as? SQLServerSessionAdapter {
+                    RestoreSheet(
+                        viewModel: RestoreViewModel(client: adapter.client, databaseName: dbName),
+                        onDismiss: { viewModel.showRestoreSheet = false }
+                    )
+                }
+            }
+            .sheet(isPresented: $viewModel.showNewLinkedServerSheet) {
+                if let connID = viewModel.newLinkedServerSessionID,
+                   let session = environmentState.sessionGroup.sessionForConnection(connID) {
+                    NewLinkedServerSheet(
+                        session: session,
+                        environmentState: environmentState
+                    ) {
+                        viewModel.showNewLinkedServerSheet = false
+                        loadLinkedServers(session: session)
+                    }
+                }
+            }
     }
 
     func applyAlerts<V: View>(to content: V) -> some View {
@@ -110,6 +145,24 @@ extension ObjectBrowserSidebarView {
                         Text("This will permanently delete the database \"\(target.databaseName)\". This action cannot be undone.")
                     }
                 }
+            }
+            .alert(
+                "Delete linked server \"\(viewModel.dropLinkedServerTarget?.serverName ?? "")\"?",
+                isPresented: $viewModel.showDropLinkedServerAlert
+            ) {
+                Button("Cancel", role: .cancel) {
+                    viewModel.dropLinkedServerTarget = nil
+                }
+                Button("Delete", role: .destructive) {
+                    guard let target = viewModel.dropLinkedServerTarget else { return }
+                    viewModel.dropLinkedServerTarget = nil
+                    guard let session = environmentState.sessionGroup.sessionForConnection(target.connectionID) else { return }
+                    Task {
+                        await executeDropLinkedServer(target, session: session)
+                    }
+                }
+            } message: {
+                Text("This will permanently remove the linked server and all its login mappings. This action cannot be undone.")
             }
             .alert(
                 "Drop \(viewModel.dropSecurityPrincipalTarget?.kind.rawValue ?? "") \"\(viewModel.dropSecurityPrincipalTarget?.name ?? "")\"?",

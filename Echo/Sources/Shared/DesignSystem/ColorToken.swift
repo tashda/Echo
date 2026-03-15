@@ -145,5 +145,6 @@ public enum ColorTokens {
         public static let jobs = Color.blue
         public static let security = Color.gray
         public static let extensions = Color.orange
+        public static let linkedServers = Color.purple
     }
 }

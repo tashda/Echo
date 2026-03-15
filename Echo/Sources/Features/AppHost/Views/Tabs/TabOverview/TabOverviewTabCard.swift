@@ -201,6 +201,8 @@ struct TabPreviewCard: View {
             ActivityMonitorPreview(viewModel: tab.activityMonitor)
         case .queryStore:
             QueryStorePreview(viewModel: tab.queryStoreVM)
+        case .extendedEvents:
+            ExtendedEventsPreview()
         }
     }
 }
@@ -213,6 +215,19 @@ struct QueryStorePreview: View {
                 .font(TypographyTokens.hero)
                 .foregroundStyle(ColorTokens.Text.tertiary)
             Text("Query Store")
+                .font(TypographyTokens.detail)
+                .foregroundStyle(ColorTokens.Text.secondary)
+        }
+    }
+}
+
+struct ExtendedEventsPreview: View {
+    var body: some View {
+        VStack(spacing: SpacingTokens.xxs) {
+            Image(systemName: "waveform.path.ecg")
+                .font(TypographyTokens.hero)
+                .foregroundStyle(ColorTokens.Text.tertiary)
+            Text("Extended Events")
                 .font(TypographyTokens.detail)
                 .foregroundStyle(ColorTokens.Text.secondary)
         }

@@ -81,8 +81,28 @@ extension ObjectBrowserSidebarView {
             }
             .disabled(!database.isOnline)
 
+            Button {
+                environmentState.openExtendedEventsTab(connectionID: connID)
+            } label: {
+                Label("Extended Events", systemImage: "waveform.path.ecg")
+            }
+
             Menu {
                 if database.isOnline {
+                    Button("Back Up\u{2026}") {
+                        viewModel.backupDatabaseName = database.name
+                        viewModel.backupConnectionID = connID
+                        viewModel.showBackupSheet = true
+                    }
+
+                    Button("Restore\u{2026}") {
+                        viewModel.restoreDatabaseName = database.name
+                        viewModel.restoreConnectionID = connID
+                        viewModel.showRestoreSheet = true
+                    }
+
+                    Divider()
+
                     Button("Shrink Database") {
                         Task { await runMSSQLTask(session: session, database: database.name, task: .shrink) }
                     }
@@ -95,6 +115,12 @@ extension ObjectBrowserSidebarView {
                 } else {
                     Button("Bring Online") {
                         Task { await runMSSQLTask(session: session, database: database.name, task: .bringOnline) }
+                    }
+
+                    Button("Restore\u{2026}") {
+                        viewModel.restoreDatabaseName = database.name
+                        viewModel.restoreConnectionID = connID
+                        viewModel.showRestoreSheet = true
                     }
                 }
             } label: {
