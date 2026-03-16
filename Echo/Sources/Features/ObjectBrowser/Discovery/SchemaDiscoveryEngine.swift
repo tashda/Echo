@@ -79,41 +79,37 @@ final class MetadataDiscoveryEngine: MetadataDiscoveryEngineProtocol, @unchecked
                 databaseFilter: nil as String?,
                 cachedStructure: connectionSession.connection.cachedStructure,
                 progressHandler: { progress in
-                    Task { @MainActor in
-                        connectionSession.structureLoadingState = .loading(progress: progress.fraction)
-                        if let message = progress.message {
-                            connectionSession.structureLoadingMessage = message
-                        }
+                    connectionSession.structureLoadingState = .loading(progress: progress.fraction)
+                    if let message = progress.message {
+                        connectionSession.structureLoadingMessage = message
                     }
                 },
                 databaseHandler: { database, _, _ in
-                    Task { @MainActor in
-                        var databases = connectionSession.databaseStructure?.databases
-                            ?? connectionSession.connection.cachedStructure?.databases
-                            ?? []
-                        if let index = databases.firstIndex(where: { $0.name == database.name }) {
-                            let previous = databases[index]
-                            let merged = Self.mergeDatabaseInfo(partial: database, existing: previous)
-                            if previous == merged {
-                                self.ensureSelectedDatabaseIfNeeded(for: connectionSession, availableDatabases: databases)
-                                return
-                            }
-                            databases[index] = merged
-                        } else {
-                            let fallbackExisting = connectionSession.databaseStructure?.databases.first(where: { $0.name == database.name })
-                            let merged = Self.mergeDatabaseInfo(partial: database, existing: fallbackExisting)
-                            databases.append(merged)
-                            databases.sort { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+                    var databases = connectionSession.databaseStructure?.databases
+                        ?? connectionSession.connection.cachedStructure?.databases
+                        ?? []
+                    if let index = databases.firstIndex(where: { $0.name == database.name }) {
+                        let previous = databases[index]
+                        let merged = Self.mergeDatabaseInfo(partial: database, existing: previous)
+                        if previous == merged {
+                            self.ensureSelectedDatabaseIfNeeded(for: connectionSession, availableDatabases: databases)
+                            return
                         }
-
-                        let resolvedServerVersion = interimServerVersion
-                            ?? connectionSession.databaseStructure?.serverVersion
-                            ?? connectionSession.connection.cachedStructure?.serverVersion
-
-                        let updatedStructure = DatabaseStructure(serverVersion: resolvedServerVersion, databases: databases)
-                        self.applyStructureUpdateIfNeeded(updatedStructure, to: connectionSession, cacheResult: true)
-                        self.ensureSelectedDatabaseIfNeeded(for: connectionSession, availableDatabases: databases)
+                        databases[index] = merged
+                    } else {
+                        let fallbackExisting = connectionSession.databaseStructure?.databases.first(where: { $0.name == database.name })
+                        let merged = Self.mergeDatabaseInfo(partial: database, existing: fallbackExisting)
+                        databases.append(merged)
+                        databases.sort { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
                     }
+
+                    let resolvedServerVersion = interimServerVersion
+                        ?? connectionSession.databaseStructure?.serverVersion
+                        ?? connectionSession.connection.cachedStructure?.serverVersion
+
+                    let updatedStructure = DatabaseStructure(serverVersion: resolvedServerVersion, databases: databases)
+                    self.applyStructureUpdateIfNeeded(updatedStructure, to: connectionSession, cacheResult: true)
+                    self.ensureSelectedDatabaseIfNeeded(for: connectionSession, availableDatabases: databases)
                 }
             )
 

@@ -98,7 +98,7 @@ extension ManageConnectionsView {
                 SecureField("Password", text: $importPassword, prompt: Text("Decryption password"))
 
                 LabeledContent("File") {
-                    Button("Choose File…") {
+                    Button("Choose File") {
                         selectImportFile()
                     }
                 }

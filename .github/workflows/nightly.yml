@@ -1,0 +1,176 @@
+name: Nightly Tests
+
+on:
+  schedule:
+    - cron: '0 2 * * *'  # 2 AM UTC daily
+  workflow_dispatch:
+
+jobs:
+  integration-tests:
+    runs-on: [self-hosted, echo-test-server]
+    strategy:
+      matrix:
+        include:
+          - db: mssql-2022
+            ECHO_MSSQL_VERSION: "2022-latest"
+            ECHO_MSSQL_COMPAT: ""
+          - db: mssql-2019
+            ECHO_MSSQL_VERSION: "2019-latest"
+            ECHO_MSSQL_COMPAT: ""
+          - db: mssql-2017
+            ECHO_MSSQL_VERSION: "2017-latest"
+            ECHO_MSSQL_COMPAT: ""
+          - db: mssql-2008r2
+            ECHO_MSSQL_VERSION: "2017-latest"
+            ECHO_MSSQL_COMPAT: "100"
+          - db: mssql-2012
+            ECHO_MSSQL_VERSION: "2017-latest"
+            ECHO_MSSQL_COMPAT: "110"
+          - db: mssql-2014
+            ECHO_MSSQL_VERSION: "2017-latest"
+            ECHO_MSSQL_COMPAT: "120"
+          - db: mssql-2016
+            ECHO_MSSQL_VERSION: "2017-latest"
+            ECHO_MSSQL_COMPAT: "130"
+          - db: mssql-2025
+            ECHO_MSSQL_VERSION: "2025-latest"
+            ECHO_MSSQL_COMPAT: ""
+          - db: postgres-14
+            ECHO_PG_VERSION: "14"
+          - db: postgres-15
+            ECHO_PG_VERSION: "15"
+          - db: postgres-16
+            ECHO_PG_VERSION: "16"
+          - db: postgres-17
+            ECHO_PG_VERSION: "17"
+          - db: postgres-18
+            ECHO_PG_VERSION: "18"
+          - db: postgres-latest
+            ECHO_PG_VERSION: "latest"
+      fail-fast: false
+    env:
+      USE_DOCKER: "1"
+      ECHO_MSSQL_PORT: "14332"
+      ECHO_PG_PORT: "54322"
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        ref: dev
+
+    - name: Prepare environment
+      run: |
+        security unlock-keychain -p "${{ secrets.KEYCHAIN_PASSWORD }}" ~/Library/Keychains/login.keychain-db
+        security delete-generic-password -s "dk.tippr.echo" ~/Library/Keychains/login.keychain-db 2>/dev/null || true
+        defaults write com.apple.LaunchServices LSQuarantine -bool NO 2>/dev/null || true
+
+    - name: Verify Docker
+      run: |
+        export DOCKER_HOST="${DOCKER_HOST:-unix://$HOME/.colima/default/docker.sock}"
+        docker info > /dev/null 2>&1 || (echo "Docker not running" && exit 1)
+        echo "Docker is ready"
+
+    - name: Run Integration Tests (MSSQL)
+      if: startsWith(matrix.db, 'mssql')
+      env:
+        ECHO_MSSQL_VERSION: ${{ matrix.ECHO_MSSQL_VERSION }}
+        ECHO_MSSQL_COMPAT: ${{ matrix.ECHO_MSSQL_COMPAT }}
+      run: |
+        xcodebuild test -project Echo.xcodeproj \
+          -scheme Echo \
+          -destination 'platform=macOS' \
+          -resultBundlePath "TestResults-${{ matrix.db }}" \
+          -only-testing:EchoTests/MSSQLConnectionTests \
+          -only-testing:EchoTests/MSSQLQueryTests \
+          -only-testing:EchoTests/MSSQLSchemaDiscoveryTests \
+          -only-testing:EchoTests/MSSQLMetadataTests \
+          -only-testing:EchoTests/MSSQLTableOperationsTests \
+          -only-testing:EchoTests/MSSQLColumnTests \
+          -only-testing:EchoTests/MSSQLConstraintTests \
+          -only-testing:EchoTests/MSSQLIndexTests \
+          -only-testing:EchoTests/MSSQLViewTests \
+          -only-testing:EchoTests/MSSQLProcedureTests \
+          -only-testing:EchoTests/MSSQLFunctionTests \
+          -only-testing:EchoTests/MSSQLTriggerTests \
+          -only-testing:EchoTests/MSSQLTransactionTests \
+          -only-testing:EchoTests/MSSQLSecurityTests \
+          -only-testing:EchoTests/MSSQLAgentTests \
+          -only-testing:EchoTests/MSSQLActivityMonitorTests \
+          -only-testing:EchoTests/MSSQLDatabaseAdminTests \
+          -only-testing:EchoTests/MSSQLDataTypeNumericTests \
+          -only-testing:EchoTests/MSSQLDataTypeStringTests \
+          -only-testing:EchoTests/MSSQLDataTypeDateTimeTests \
+          -only-testing:EchoTests/MSSQLDataTypeBinaryTests \
+          -only-testing:EchoTests/MSSQLStreamingTests \
+          -only-testing:EchoTests/MSSQLStreamingSpoolTests \
+          -disable-concurrent-testing
+
+    - name: Run Integration Tests (Postgres)
+      if: startsWith(matrix.db, 'postgres')
+      env:
+        ECHO_PG_VERSION: ${{ matrix.ECHO_PG_VERSION }}
+      run: |
+        xcodebuild test -project Echo.xcodeproj \
+          -scheme Echo \
+          -destination 'platform=macOS' \
+          -resultBundlePath "TestResults-${{ matrix.db }}" \
+          -only-testing:EchoTests/PGConnectionTests \
+          -only-testing:EchoTests/PGQueryTests \
+          -only-testing:EchoTests/PGSchemaDiscoveryTests \
+          -only-testing:EchoTests/PGMetadataTests \
+          -only-testing:EchoTests/PGTableOperationsTests \
+          -only-testing:EchoTests/PGColumnTests \
+          -only-testing:EchoTests/PGConstraintTests \
+          -only-testing:EchoTests/PGIndexTests \
+          -only-testing:EchoTests/PGViewTests \
+          -only-testing:EchoTests/PGFunctionTests \
+          -only-testing:EchoTests/PGTriggerTests \
+          -only-testing:EchoTests/PGTransactionTests \
+          -only-testing:EchoTests/PGSecurityTests \
+          -only-testing:EchoTests/PGExtensionTests \
+          -only-testing:EchoTests/PGActivityMonitorTests \
+          -only-testing:EchoTests/PGSequenceTests \
+          -only-testing:EchoTests/PGDataTypeNumericTests \
+          -only-testing:EchoTests/PGDataTypeStringTests \
+          -only-testing:EchoTests/PGDataTypeDateTimeTests \
+          -only-testing:EchoTests/PGDataTypeSpecialTests \
+          -only-testing:EchoTests/PGStreamingTests \
+          -only-testing:EchoTests/PGStreamingSpoolTests \
+          -disable-concurrent-testing
+
+    - name: Upload Test Results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-results-${{ matrix.db }}
+        path: TestResults-${{ matrix.db }}.xcresult
+
+  ui-tests:
+    runs-on: [self-hosted, echo-test-server]
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        ref: dev
+
+    - name: Prepare environment
+      run: |
+        security unlock-keychain -p "${{ secrets.KEYCHAIN_PASSWORD }}" ~/Library/Keychains/login.keychain-db
+        security delete-generic-password -s "dk.tippr.echo" ~/Library/Keychains/login.keychain-db 2>/dev/null || true
+        defaults write com.apple.LaunchServices LSQuarantine -bool NO 2>/dev/null || true
+        pkill -x Echo 2>/dev/null || true
+        defaults write dk.tippr.echo NSQuitAlwaysKeepsWindows -bool NO 2>/dev/null || true
+        rm -rf ~/Library/Saved\ Application\ State/dk.tippr.echo.savedState 2>/dev/null || true
+
+    - name: Run UI Tests
+      run: |
+        xcodebuild test -project Echo.xcodeproj \
+          -scheme EchoUITests \
+          -destination 'platform=macOS' \
+          -resultBundlePath TestResults-ui \
+          -disable-concurrent-testing
+
+    - name: Upload Test Results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-results-ui
+        path: TestResults-ui.xcresult

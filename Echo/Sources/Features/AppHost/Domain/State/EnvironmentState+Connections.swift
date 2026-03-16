@@ -7,6 +7,14 @@ extension EnvironmentState {
         await connectToNewSession(to: connection)
     }
 
+    func disconnectAllSessions() {
+        let sessionIDs = sessionGroup.activeSessions.map(\.id)
+        for id in sessionIDs {
+            sessionGroup.removeSession(withID: id)
+        }
+        connectionStates.removeAll()
+    }
+
     func disconnectSession(withID id: UUID) async {
         let displayName: String
         if let session = sessionGroup.activeSessions.first(where: { $0.id == id }) {
@@ -114,6 +122,12 @@ extension EnvironmentState {
         registerTab(tab)
     }
 
+    func openMaintenanceTab(connectionID: UUID, databaseName: String? = nil) {
+        guard let session = sessionGroup.sessionForConnection(connectionID) else { return }
+        let tab = session.addMaintenanceTab(databaseName: databaseName)
+        registerTab(tab)
+    }
+
     func openActivityMonitorTab(connectionID: UUID) {
         guard let session = sessionGroup.sessionForConnection(connectionID) else { return }
         do {
@@ -134,6 +148,12 @@ extension EnvironmentState {
 
     func openQueryStoreTab(connectionID: UUID, databaseName: String) {
         guard let session = sessionGroup.sessionForConnection(connectionID) else { return }
+        // Check for existing tab first — activate it without creating a new one
+        if let existing = session.queryTabs.first(where: { $0.queryStoreVM?.databaseName == databaseName }) {
+            session.activeQueryTabID = existing.id
+            tabStore.selectTab(existing)
+            return
+        }
         if let tab = session.addQueryStoreTab(databaseName: databaseName) {
             registerTab(tab)
         }

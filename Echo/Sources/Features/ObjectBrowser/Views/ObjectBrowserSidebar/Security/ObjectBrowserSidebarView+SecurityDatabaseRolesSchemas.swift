@@ -13,8 +13,9 @@ extension ObjectBrowserSidebarView {
 
         VStack(alignment: .leading, spacing: 0) {
             securitySectionHeader(
+                depth: 3,
                 title: "Database Roles",
-                icon: "shield.fill",
+                icon: "shield",
                 count: roles.count,
                 isExpanded: isExpanded
             ) {
@@ -24,42 +25,26 @@ extension ObjectBrowserSidebarView {
             }
 
             if isExpanded {
-                VStack(alignment: .leading, spacing: 0) {
-                    ForEach(roles) { role in
-                        dbRoleRow(role: role, session: session)
-                    }
+                ForEach(roles) { role in
+                    dbRoleRow(role: role, session: session)
                 }
-                .padding(.leading, SidebarRowConstants.indentStep)
             }
         }
     }
 
     func dbRoleRow(role: ObjectBrowserSidebarViewModel.SecurityDatabaseRoleItem, session: ConnectionSession) -> some View {
-        HStack(spacing: SidebarRowConstants.iconTextSpacing) {
-            Spacer().frame(width: SidebarRowConstants.chevronWidth)
-
-            Image(systemName: role.isFixed ? "shield.lefthalf.filled" : "shield")
-                .font(SidebarRowConstants.iconFont)
-                .foregroundStyle(ExplorerSidebarPalette.security)
-                .frame(width: SidebarRowConstants.iconFrame)
-
-            Text(role.name)
-                .font(TypographyTokens.standard)
-                .foregroundStyle(ColorTokens.Text.primary)
-                .lineLimit(1)
-
-            Spacer(minLength: SpacingTokens.xxxs)
-
+        SidebarRow(
+            depth: 4,
+            icon: .system("shield"),
+            label: role.name,
+            iconColor: projectStore.globalSettings.sidebarColoredIcons ? ExplorerSidebarPalette.security : ExplorerSidebarPalette.monochrome
+        ) {
             if role.isFixed {
                 Text("Fixed")
-                    .font(TypographyTokens.label)
+                    .font(SidebarRowConstants.trailingFont)
                     .foregroundStyle(ColorTokens.Text.quaternary)
             }
         }
-        .padding(.leading, SidebarRowConstants.rowHorizontalPadding)
-                .padding(.trailing, SidebarRowConstants.rowTrailingPadding)
-        .padding(.vertical, SidebarRowConstants.rowVerticalPadding)
-        .contentShape(Rectangle())
         .contextMenu {
             Button {
                 openScriptTab(
@@ -100,6 +85,7 @@ extension ObjectBrowserSidebarView {
 
         VStack(alignment: .leading, spacing: 0) {
             securitySectionHeader(
+                depth: 3,
                 title: "Application Roles",
                 icon: "app.badge",
                 count: appRoles.count,
@@ -111,43 +97,27 @@ extension ObjectBrowserSidebarView {
             }
 
             if isExpanded {
-                VStack(alignment: .leading, spacing: 0) {
-                    ForEach(appRoles) { appRole in
-                        dbAppRoleRow(appRole: appRole, session: session)
-                    }
+                ForEach(appRoles) { appRole in
+                    dbAppRoleRow(appRole: appRole, session: session)
                 }
-                .padding(.leading, SidebarRowConstants.indentStep)
             }
         }
     }
 
     func dbAppRoleRow(appRole: ObjectBrowserSidebarViewModel.SecurityAppRoleItem, session: ConnectionSession) -> some View {
-        HStack(spacing: SidebarRowConstants.iconTextSpacing) {
-            Spacer().frame(width: SidebarRowConstants.chevronWidth)
-
-            Image(systemName: "app.badge")
-                .font(SidebarRowConstants.iconFont)
-                .foregroundStyle(ExplorerSidebarPalette.security)
-                .frame(width: SidebarRowConstants.iconFrame)
-
-            Text(appRole.name)
-                .font(TypographyTokens.standard)
-                .foregroundStyle(ColorTokens.Text.primary)
-                .lineLimit(1)
-
-            Spacer(minLength: SpacingTokens.xxxs)
-
+        SidebarRow(
+            depth: 4,
+            icon: .system("app.badge"),
+            label: appRole.name,
+            iconColor: projectStore.globalSettings.sidebarColoredIcons ? ExplorerSidebarPalette.security : ExplorerSidebarPalette.monochrome
+        ) {
             if let schema = appRole.defaultSchema, !schema.isEmpty {
                 Text(schema)
-                    .font(TypographyTokens.caption2)
+                    .font(SidebarRowConstants.trailingFont)
                     .foregroundStyle(ColorTokens.Text.tertiary)
                     .lineLimit(1)
             }
         }
-        .padding(.leading, SidebarRowConstants.rowHorizontalPadding)
-                .padding(.trailing, SidebarRowConstants.rowTrailingPadding)
-        .padding(.vertical, SidebarRowConstants.rowVerticalPadding)
-        .contentShape(Rectangle())
         .contextMenu {
             Menu {
                 Button("CREATE") {

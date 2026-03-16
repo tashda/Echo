@@ -62,43 +62,6 @@ extension SQLAutoCompletionController {
         popover.contentSize = NSSize(width: width, height: height)
     }
 
-    func inlineKeywordCandidates(from suggestions: [SQLAutoCompletionSuggestion],
-                                  query: SQLAutoCompletionQuery) -> [SQLAutoCompletionSuggestion]? {
-        guard !suggestions.isEmpty else { return nil }
-        guard query.pathComponents.isEmpty else { return nil }
-
-        switch query.clause {
-        case .from, .joinTarget:
-            if !query.tablesInScope.isEmpty {
-                return nil
-            }
-        default:
-            break
-        }
-
-        var loweredPrefix = query.prefix.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        if loweredPrefix.isEmpty {
-            loweredPrefix = query.token.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        }
-
-        let keywordSuggestions = suggestions.filter { suggestion in
-            guard suggestion.kind == .keyword else { return false }
-            let keyword = suggestion.insertText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-
-            if !loweredPrefix.isEmpty {
-                return keyword.hasPrefix(loweredPrefix)
-            }
-
-            if let preceding = query.precedingCharacter {
-                return preceding.isWhitespace
-            }
-
-            return true
-        }
-
-        return keywordSuggestions.isEmpty ? nil : keywordSuggestions
-    }
-
     static func statusMessage(isMetadataLimited: Bool) -> String? {
         isMetadataLimited ? "Limited metadata — showing keywords and history" : nil
     }

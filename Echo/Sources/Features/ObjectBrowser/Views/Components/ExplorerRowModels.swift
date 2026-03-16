@@ -21,40 +21,61 @@ extension EnvironmentValues {
 }
 
 enum ExplorerColumnMetrics {
-    static let contentLeading: CGFloat = SpacingTokens.lg
+    /// Hierarchy depth for column rows (nested under objects at depth 3).
+    static let depth: Int = 4
     static let highlightExtension: CGFloat = SpacingTokens.xs2
     static let iconSize: CGFloat = SpacingTokens.md
     static let spacing: CGFloat = SpacingTokens.xs
 }
 
-/// Shared constants for sidebar row consistency (macOS 26 Tahoe sidebar aesthetic).
+/// Shared constants for sidebar row consistency (macOS Finder sidebar aesthetic).
+///
+/// Measured from macOS 26 Finder sidebar (Medium size):
+/// - 13pt text, 20pt icon frame, ~28pt row height
+/// - 18pt indentation per tree level
+/// - Fixed 12pt disclosure column (always present for alignment)
+/// - Selection pill inset 8pt from sidebar edges, 8pt corner radius
+/// - All icons monochrome secondary gray, same visual weight
 enum SidebarRowConstants {
-    /// Chevron font — uniform across all disclosure triangles.
-    static let chevronFont = TypographyTokens.compact.weight(.medium)
-    /// Chevron frame width.
-    static let chevronWidth: CGFloat = SpacingTokens.xs2
-    /// Icon font for sidebar row icons.
-    static let iconFont = TypographyTokens.prominent
-    /// Icon frame size (all sidebar icons).
+    /// Chevron font — matches Finder disclosure triangles.
+    static let chevronFont = Font.system(size: 9, weight: .bold)
+    /// Fixed-width disclosure column — always present for icon alignment.
+    static let chevronWidth: CGFloat = SpacingTokens.sm
+    /// Icon font — 16pt regular weight, renders ~18pt visual icons in a 20pt frame.
+    static let iconFont = Font.system(size: 16, weight: .regular)
+    /// Icon frame size — 20pt square, matches Finder medium sidebar.
     static let iconFrame: CGFloat = SpacingTokens.md2
     /// Spacing between icon and text label.
-    static let iconTextSpacing: CGFloat = SpacingTokens.xs
-    /// Per-level indentation step.
-    static let indentStep: CGFloat = SpacingTokens.xs
-    /// Horizontal padding inside rows (leading).
-    static let rowHorizontalPadding: CGFloat = SpacingTokens.xxxs
-    /// Trailing padding inside rows (accounts for scrollbar overlap).
-    static let rowTrailingPadding: CGFloat = SpacingTokens.xs
-    /// Vertical padding for structural rows.
-    static let rowVerticalPadding: CGFloat = SpacingTokens.xxs2
-    /// Hover highlight corner radius.
+    static let iconTextSpacing: CGFloat = SpacingTokens.xxs2
+    /// Primary label font — 13pt system, regular weight.
+    static let labelFont = TypographyTokens.standard
+    /// Font for trailing metadata (counts, types, badges) — matches Finder "Detail".
+    static let trailingFont = TypographyTokens.detail
+    /// Section header font (Finder-style: 11pt, bold).
+    static let sectionHeaderFont = TypographyTokens.detail.weight(.bold)
+    /// Per-level indentation step — 18pt per tree level.
+    static let indentStep: CGFloat = SpacingTokens.md1
+    /// Leading padding inside row content.
+    static let rowLeadingPadding: CGFloat = SpacingTokens.xxs
+    /// Trailing padding inside rows.
+    static let rowTrailingPadding: CGFloat = SpacingTokens.sm
+    /// Vertical padding for rows — 3pt top/bottom for ~28pt total height.
+    static let rowVerticalPadding: CGFloat = 3
+    /// Outer horizontal padding — selection pill inset from sidebar edges.
+    static let rowOuterHorizontalPadding: CGFloat = SpacingTokens.xs
+    /// Hover/selection highlight corner radius.
     static let hoverCornerRadius: CGFloat = SpacingTokens.xs
-    /// Spacing between major sidebar sections for visual grouping.
-    static let sectionGroupSpacing: CGFloat = SpacingTokens.xs
+    /// Spacing between major sidebar sections.
+    static let sectionGroupSpacing: CGFloat = SpacingTokens.xxs
+
+    // MARK: - Legacy aliases (use during migration, remove after)
+
+    /// Legacy alias — use `rowLeadingPadding` in new code.
+    static let rowHorizontalPadding: CGFloat = rowLeadingPadding
 }
 
 enum ExplorerSidebarPalette {
-    static let monochrome = ColorTokens.Text.secondary
+    static let monochrome = ColorTokens.Text.primary
 
     static let database = ColorTokens.Explorer.database
     static let tables = ColorTokens.Explorer.tables

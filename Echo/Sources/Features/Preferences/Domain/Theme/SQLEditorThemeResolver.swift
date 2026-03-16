@@ -61,15 +61,6 @@ enum SQLEditorThemeResolver {
             indentWrappedLines: max(0, globalSettings.editorIndentWrappedLines),
             autoCompletionEnabled: globalSettings.editorEnableAutocomplete,
             qualifyTableCompletions: globalSettings.editorQualifyTableCompletions,
-            suggestKeywordsInCompletion: globalSettings.editorSuggestKeywords,
-            inlineKeywordSuggestionsEnabled: globalSettings.editorEnableInlineSuggestions,
-            suggestFunctionsInCompletion: globalSettings.editorSuggestFunctions,
-            suggestSnippetsInCompletion: globalSettings.editorSuggestSnippets,
-            suggestHistoryInCompletion: globalSettings.editorSuggestHistory,
-            suggestJoinsInCompletion: globalSettings.editorSuggestJoins,
-            completionAggressiveness: globalSettings.editorCompletionAggressiveness,
-            allowCommandPeriodTrigger: globalSettings.editorAllowCommandPeriodTrigger,
-            allowControlSpaceTrigger: globalSettings.editorAllowControlSpaceTrigger,
             showSystemSchemasInCompletion: globalSettings.editorShowSystemSchemas
         )
     }

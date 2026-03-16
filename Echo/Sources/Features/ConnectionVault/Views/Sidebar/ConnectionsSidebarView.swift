@@ -119,10 +119,10 @@ struct ConnectionsSidebarView: View {
 
     @ViewBuilder
     internal func addMenuContent() -> some View {
-        Button("New Connection…", systemImage: "externaldrive.badge.plus") { onCreateConnection(selectedConnectionFolder); selectedIdentityID = nil }
-        Button("New Connection Folder…", systemImage: "folder.badge.plus") { openFolderCreator(parent: selectedConnectionFolder); selectedIdentityID = nil }
+        Button("New Connection", systemImage: "externaldrive.badge.plus") { onCreateConnection(selectedConnectionFolder); selectedIdentityID = nil }
+        Button("New Connection Folder", systemImage: "folder.badge.plus") { openFolderCreator(parent: selectedConnectionFolder); selectedIdentityID = nil }
         Divider()
-        Button("Manage Connections…", systemImage: "gearshape") { openManageConnections(); selectedIdentityID = nil }
+        Button("Manage Connections", systemImage: "gearshape") { openManageConnections(); selectedIdentityID = nil }
     }
 
     internal func performDeletion(for target: DeletionTarget) {

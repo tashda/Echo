@@ -11,7 +11,7 @@ import AppKit
 struct WorkspaceView: View {
     var body: some View {
         WorkspaceBody()
-            .toolbar {
+            .toolbar(id: "workspace") {
                 WorkspaceToolbarItems()
             }
     }
@@ -101,6 +101,22 @@ private struct WorkspaceBody: View {
             } else {
                 Text("An unknown error occurred while checking for updates.")
             }
+        }
+        .alert(
+            "Switch to \(environmentState.pendingProjectSwitch?.name ?? "project")?",
+            isPresented: Binding(
+                get: { environmentState.pendingProjectSwitch != nil },
+                set: { if !$0 { environmentState.cancelProjectSwitch() } }
+            )
+        ) {
+            Button("Cancel", role: .cancel) {
+                environmentState.cancelProjectSwitch()
+            }
+            Button("Switch Project") {
+                environmentState.confirmProjectSwitch()
+            }
+        } message: {
+            Text("All active connections will be closed.")
         }
     }
 

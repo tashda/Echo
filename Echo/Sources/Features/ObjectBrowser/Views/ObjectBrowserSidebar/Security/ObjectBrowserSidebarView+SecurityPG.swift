@@ -15,6 +15,7 @@ extension ObjectBrowserSidebarView {
 
         VStack(alignment: .leading, spacing: 0) {
             securitySectionHeader(
+                depth: 1,
                 title: "Login Roles",
                 icon: "person.crop.circle",
                 count: loginRoles.count,
@@ -30,7 +31,7 @@ extension ObjectBrowserSidebarView {
                     viewModel.securityPGRoleSheetEditName = nil
                     viewModel.showSecurityPGRoleSheet = true
                 } label: {
-                    Label("New Login Role\u{2026}", systemImage: "plus")
+                    Label("New Login Role", systemImage: "plus")
                 }
                 Divider()
                 Button {
@@ -41,13 +42,9 @@ extension ObjectBrowserSidebarView {
             }
 
             if isExpanded {
-                VStack(alignment: .leading, spacing: 0) {
-                    ForEach(loginRoles) { role in
-                        pgRoleRow(role: role, session: session)
-                    }
-
+                ForEach(loginRoles) { role in
+                    pgRoleRow(role: role, session: session)
                 }
-                .padding(.leading, SidebarRowConstants.indentStep)
             }
         }
     }
@@ -63,6 +60,7 @@ extension ObjectBrowserSidebarView {
 
         VStack(alignment: .leading, spacing: 0) {
             securitySectionHeader(
+                depth: 1,
                 title: "Group Roles",
                 icon: "person.2.circle",
                 count: groupRoles.count,
@@ -78,7 +76,7 @@ extension ObjectBrowserSidebarView {
                     viewModel.securityPGRoleSheetEditName = nil
                     viewModel.showSecurityPGRoleSheet = true
                 } label: {
-                    Label("New Group Role\u{2026}", systemImage: "plus")
+                    Label("New Group Role", systemImage: "plus")
                 }
                 Divider()
                 Button {
@@ -89,45 +87,33 @@ extension ObjectBrowserSidebarView {
             }
 
             if isExpanded {
-                VStack(alignment: .leading, spacing: 0) {
-                    ForEach(groupRoles) { role in
-                        pgRoleRow(role: role, session: session)
-                    }
+                ForEach(groupRoles) { role in
+                    pgRoleRow(role: role, session: session)
                 }
-                .padding(.leading, SidebarRowConstants.indentStep)
             }
         }
     }
 
     func pgRoleRow(role: ObjectBrowserSidebarViewModel.SecurityLoginItem, session: ConnectionSession) -> some View {
-        HStack(spacing: SidebarRowConstants.iconTextSpacing) {
-            Spacer().frame(width: SidebarRowConstants.chevronWidth)
+        let iconName = role.loginType.contains("Login") || role.loginType.contains("Superuser") ? "person.crop.circle" : "person.2.circle"
 
-            Image(systemName: role.loginType.contains("Login") || role.loginType.contains("Superuser") ? "person.crop.circle" : "person.2.circle")
-                .font(SidebarRowConstants.iconFont)
-                .foregroundStyle(ExplorerSidebarPalette.security)
-                .frame(width: SidebarRowConstants.iconFrame)
+        let iconColor = projectStore.globalSettings.sidebarColoredIcons ? ExplorerSidebarPalette.security : ExplorerSidebarPalette.monochrome
 
-            Text(role.name)
-                .font(TypographyTokens.standard)
-                .foregroundStyle(ColorTokens.Text.primary)
-                .lineLimit(1)
-
-            Spacer(minLength: SpacingTokens.xxxs)
-
+        return SidebarRow(
+            depth: 2,
+            icon: .system(iconName),
+            label: role.name,
+            iconColor: iconColor
+        ) {
             Text(role.loginType)
-                .font(TypographyTokens.caption2)
+                .font(SidebarRowConstants.trailingFont)
                 .foregroundStyle(ColorTokens.Text.tertiary)
         }
-        .padding(.leading, SidebarRowConstants.rowHorizontalPadding)
-                .padding(.trailing, SidebarRowConstants.rowTrailingPadding)
-        .padding(.vertical, SidebarRowConstants.rowVerticalPadding)
-        .contentShape(Rectangle())
         .contextMenu {
             Button {
                 Task { await reassignPGRole(name: role.name, session: session) }
             } label: {
-                Label("Reassign Owned Objects\u{2026}", systemImage: "arrow.triangle.swap")
+                Label("Reassign Owned Objects", systemImage: "arrow.triangle.swap")
             }
             Button(role: .destructive) {
                 viewModel.dropSecurityPrincipalTarget = .init(
@@ -159,7 +145,7 @@ extension ObjectBrowserSidebarView {
                 viewModel.securityPGRoleSheetEditName = role.name
                 viewModel.showSecurityPGRoleSheet = true
             } label: {
-                Label("Properties\u{2026}", systemImage: "info.circle")
+                Label("Properties", systemImage: "info.circle")
             }
         }
     }

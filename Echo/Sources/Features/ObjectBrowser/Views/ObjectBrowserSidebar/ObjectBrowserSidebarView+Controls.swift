@@ -4,7 +4,7 @@ extension ObjectBrowserSidebarView {
 
     /// Always-visible footer with search field; schema picker shown only when a database is selected.
     var globalFooterView: some View {
-        let controlBackground = ColorTokens.Text.primary.opacity(0.018)
+        let controlBackground = ColorTokens.Text.primary.opacity(0.04)
         let borderColor = Color.clear
 
         return VStack(spacing: 0) {

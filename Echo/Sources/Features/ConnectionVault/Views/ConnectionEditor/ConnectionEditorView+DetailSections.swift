@@ -112,7 +112,7 @@ extension ConnectionEditorView {
                     Text("No identities available.")
                         .foregroundStyle(ColorTokens.Text.secondary)
                         .font(TypographyTokens.detail)
-                    Button("Create Identity...") {
+                    Button("Create Identity") {
                         identityEditorState = .create(parent: nil, token: UUID())
                     }
                 }
@@ -124,7 +124,7 @@ extension ConnectionEditorView {
                 }
                 .pickerStyle(.menu)
 
-                Button("Create Identity...") {
+                Button("Create Identity") {
                     identityEditorState = .create(parent: nil, token: UUID())
                 }
             }

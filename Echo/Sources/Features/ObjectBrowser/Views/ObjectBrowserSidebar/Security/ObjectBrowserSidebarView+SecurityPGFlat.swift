@@ -16,6 +16,7 @@ extension ObjectBrowserSidebarView {
 
         sidebarListRow(leading: baseIndent) {
             securitySectionHeader(
+                depth: 0,
                 title: "Login Roles",
                 icon: "person.crop.circle",
                 count: loginRoles.count,
@@ -31,7 +32,7 @@ extension ObjectBrowserSidebarView {
                     viewModel.securityPGRoleSheetEditName = nil
                     viewModel.showSecurityPGRoleSheet = true
                 } label: {
-                    Label("New Login Role\u{2026}", systemImage: "plus")
+                    Label("New Login Role", systemImage: "plus")
                 }
                 Divider()
                 Button {
@@ -62,6 +63,7 @@ extension ObjectBrowserSidebarView {
 
         sidebarListRow(leading: baseIndent) {
             securitySectionHeader(
+                depth: 0,
                 title: "Group Roles",
                 icon: "person.2.circle",
                 count: groupRoles.count,
@@ -77,7 +79,7 @@ extension ObjectBrowserSidebarView {
                     viewModel.securityPGRoleSheetEditName = nil
                     viewModel.showSecurityPGRoleSheet = true
                 } label: {
-                    Label("New Group Role\u{2026}", systemImage: "plus")
+                    Label("New Group Role", systemImage: "plus")
                 }
                 Divider()
                 Button {

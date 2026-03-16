@@ -5,7 +5,6 @@ import EchoSense
 extension SQLTextView {
     func expandSelectStarShorthandIfNeeded() -> Bool {
         guard displayOptions.autoCompletionEnabled else { return false }
-        guard inlineInsertedRange == nil else { return false }
         guard let textStorage else { return false }
         let selection = selectedRange()
         guard selection.length == 0 else { return false }
@@ -26,7 +25,6 @@ extension SQLTextView {
         let caretLocation = tokenRange.location + replacementLength
         setSelectedRange(NSRange(location: caretLocation, length: 0))
         hideCompletions()
-        hideInlineKeywordSuggestion()
         didChangeText()
         return true
     }

@@ -10,68 +10,70 @@ extension ObjectBrowserSidebarView {
         let connID = session.connection.id
         let isExpanded = viewModel.databasesFolderExpandedBySession[connID] ?? true
         let isSearching = sidebarSearchQuery != nil
-
-        VStack(alignment: .leading, spacing: SpacingTokens.xxxs) {
-            folderHeaderRow(
-                title: "Databases",
-                icon: "cylinder",
-                count: structure.databases.count,
-                isExpanded: isExpanded || isSearching
-            ) {
+        let colored = projectStore.globalSettings.sidebarColoredIcons
+        let expandedBinding = Binding<Bool>(
+            get: { isExpanded || isSearching },
+            set: { _ in
                 withAnimation(.snappy(duration: 0.2, extraBounce: 0)) {
                     viewModel.databasesFolderExpandedBySession[connID] = !isExpanded
                 }
             }
+        )
+
+        VStack(alignment: .leading, spacing: 0) {
+            Button {
+                expandedBinding.wrappedValue.toggle()
+            } label: {
+                SidebarRow(
+                    depth: 0,
+                    icon: .system("cylinder"),
+                    label: "Databases",
+                    isExpanded: expandedBinding,
+                    iconColor: ExplorerSidebarPalette.folderIconColor(title: "Databases", colored: colored)
+                ) {
+                    Text("\(structure.databases.count)")
+                        .font(SidebarRowConstants.trailingFont)
+                        .foregroundStyle(ColorTokens.Text.tertiary)
+                }
+            }
+            .contextMenu {
+                databasesFolderContextMenu(session: session)
+            }
 
             if isExpanded || isSearching {
-                VStack(alignment: .leading, spacing: SpacingTokens.xxxs) {
-                    ForEach(structure.databases, id: \.name) { database in
-                        if databaseMatchesSearch(database, session: session) {
-                            databaseSection(database: database, session: session, proxy: proxy)
-                        }
+                ForEach(structure.databases, id: \.name) { database in
+                    if databaseMatchesSearch(database, session: session) {
+                        databaseSection(database: database, session: session, proxy: proxy)
                     }
                 }
-                .padding(.leading, SidebarRowConstants.indentStep)
                 .transition(.opacity)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    // MARK: - Folder Header Row
+    // MARK: - Folder Header Row (legacy — used by Security, Agent Jobs, Linked Servers)
 
     func folderHeaderRow(title: String, icon: String, count: Int?, isExpanded: Bool, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            ExplorerSidebarRowChrome(isSelected: false, accentColor: ColorTokens.accent, style: .plain) {
-                HStack(spacing: SidebarRowConstants.iconTextSpacing) {
-                    Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
-                        .font(SidebarRowConstants.chevronFont)
+        let colored = projectStore.globalSettings.sidebarColoredIcons
+        let expandedBinding = Binding<Bool>(
+            get: { isExpanded },
+            set: { _ in action() }
+        )
+
+        return Button(action: action) {
+            SidebarRow(
+                depth: 0,
+                icon: .system(icon),
+                label: title,
+                isExpanded: expandedBinding,
+                iconColor: ExplorerSidebarPalette.folderIconColor(title: title, colored: colored)
+            ) {
+                if let count {
+                    Text("\(count)")
+                        .font(SidebarRowConstants.trailingFont)
                         .foregroundStyle(ColorTokens.Text.tertiary)
-                        .frame(width: SidebarRowConstants.chevronWidth)
-
-                    Image(systemName: icon)
-                        .font(SidebarRowConstants.iconFont)
-                        .foregroundStyle(ExplorerSidebarPalette.folderIconColor(title: title, colored: projectStore.globalSettings.sidebarColoredIcons))
-                        .frame(width: SidebarRowConstants.iconFrame)
-
-                    Text(title)
-                        .font(TypographyTokens.standard)
-                        .foregroundStyle(ColorTokens.Text.primary)
-                        .lineLimit(1)
-
-                    Spacer(minLength: SpacingTokens.xxxs)
-
-                    if let count {
-                        Text("\(count)")
-                            .font(TypographyTokens.detail)
-                            .foregroundStyle(ColorTokens.Text.tertiary)
-                    }
                 }
-                .padding(.leading, SidebarRowConstants.rowHorizontalPadding)
-                .padding(.trailing, SidebarRowConstants.rowTrailingPadding)
-                .padding(.vertical, SidebarRowConstants.rowVerticalPadding)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .contentShape(Rectangle())
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -85,77 +87,66 @@ extension ObjectBrowserSidebarView {
         let connID = session.connection.id
         let isExpanded = viewModel.isDatabaseExpanded(connectionID: connID, databaseName: database.name)
         let isSelected = database.name == session.selectedDatabaseName
+        let accentColor = projectStore.globalSettings.accentColorSource == .connection ? session.connection.color : ColorTokens.accent
 
-        VStack(alignment: .leading, spacing: SpacingTokens.xxxs) {
+        VStack(alignment: .leading, spacing: 0) {
             databaseHeaderRow(
                 database: database,
                 session: session,
                 isExpanded: isExpanded,
-                isSelected: isSelected
+                isSelected: isSelected,
+                accentColor: accentColor
             )
 
             if isExpanded {
                 let hasSchemas = !database.schemas.isEmpty && database.schemas.contains(where: { !$0.objects.isEmpty })
                 databaseContent(database: database, session: session, hasSchemas: hasSchemas, proxy: proxy)
-                    .padding(.leading, SidebarRowConstants.indentStep)
                     .transition(.opacity)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    func databaseHeaderRow(database: DatabaseInfo, session: ConnectionSession, isExpanded: Bool, isSelected: Bool) -> some View {
+    func databaseHeaderRow(database: DatabaseInfo, session: ConnectionSession, isExpanded: Bool, isSelected: Bool, accentColor: Color) -> some View {
         let connID = session.connection.id
         let isLoading = viewModel.isDatabaseLoading(connectionID: connID, databaseName: database.name)
-        let accentColor = projectStore.globalSettings.accentColorSource == .connection ? session.connection.color : ColorTokens.accent
+        let expandedBinding = Binding<Bool>(
+            get: { isExpanded },
+            set: { _ in
+                withAnimation(.snappy(duration: 0.2, extraBounce: 0)) {
+                    viewModel.toggleDatabaseExpanded(connectionID: connID, databaseName: database.name)
+                }
+                if viewModel.isDatabaseExpanded(connectionID: connID, databaseName: database.name) {
+                    session.selectedDatabaseName = database.name
+                }
+            }
+        )
 
         return Button {
-            withAnimation(.snappy(duration: 0.2, extraBounce: 0)) {
-                viewModel.toggleDatabaseExpanded(connectionID: connID, databaseName: database.name)
-            }
-            // Update the session's selected database when expanding
-            if viewModel.isDatabaseExpanded(connectionID: connID, databaseName: database.name) {
-                session.selectedDatabaseName = database.name
-            }
+            expandedBinding.wrappedValue.toggle()
         } label: {
-            ExplorerSidebarRowChrome(isSelected: isSelected, accentColor: accentColor, style: .plain) {
-                HStack(spacing: SidebarRowConstants.iconTextSpacing) {
-                    Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
-                        .font(SidebarRowConstants.chevronFont)
-                        .foregroundStyle(ColorTokens.Text.tertiary)
-                        .frame(width: SidebarRowConstants.chevronWidth)
-
-                    Image(systemName: isSelected ? "internaldrive.fill" : "internaldrive")
-                        .font(SidebarRowConstants.iconFont)
-                        .foregroundStyle(database.isOnline ? (isSelected ? accentColor : ExplorerSidebarPalette.database) : ColorTokens.Text.quaternary)
-                        .frame(width: SidebarRowConstants.iconFrame)
-
-                    Text(database.name)
-                        .font(TypographyTokens.standard)
-                        .foregroundStyle(database.isOnline ? ColorTokens.Text.primary : ColorTokens.Text.secondary)
+            SidebarRow(
+                depth: 1,
+                icon: .system("internaldrive"),
+                label: database.name,
+                isExpanded: expandedBinding,
+                isSelected: isSelected,
+                iconColor: database.isOnline ? (isSelected ? accentColor : ExplorerSidebarPalette.folderIconColor(title: "Databases", colored: projectStore.globalSettings.sidebarColoredIcons)) : ColorTokens.Text.quaternary,
+                labelColor: database.isOnline ? ColorTokens.Text.primary : ColorTokens.Text.secondary,
+                accentColor: accentColor
+            ) {
+                if !database.isOnline, let state = database.stateDescription {
+                    Text(state.uppercased())
+                        .font(TypographyTokens.compact)
+                        .foregroundStyle(ColorTokens.Text.quaternary)
                         .lineLimit(1)
-
-                    Spacer(minLength: SpacingTokens.xxxs)
-
-                    if !database.isOnline, let state = database.stateDescription {
-                        Text(state.uppercased())
-                            .font(TypographyTokens.compact)
-                            .foregroundStyle(ColorTokens.Text.quaternary)
-                            .lineLimit(1)
-                    }
-
-                    if isLoading {
-                        ProgressView()
-                            .controlSize(.mini)
-                    }
                 }
-                .opacity(database.isOnline ? 1 : 0.5)
-                .padding(.leading, SidebarRowConstants.rowHorizontalPadding)
-                .padding(.trailing, SidebarRowConstants.rowTrailingPadding)
-                .padding(.vertical, SidebarRowConstants.rowVerticalPadding)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .contentShape(Rectangle())
+                if isLoading {
+                    ProgressView()
+                        .controlSize(.mini)
+                }
             }
+            .opacity(database.isOnline ? 1 : 0.5)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .buttonStyle(.plain)
@@ -163,5 +154,4 @@ extension ObjectBrowserSidebarView {
             databaseContextMenu(database: database, session: session)
         }
     }
-
 }

@@ -251,15 +251,50 @@ final class ConnectionSession: Identifiable {
     }
 
     @discardableResult
-    func addActivityMonitorTab() throws -> WorkspaceTab {
-        let monitor = try session.makeActivityMonitor()
-        let viewModel = ActivityMonitorViewModel(monitor: monitor, connectionSessionID: self.id)
+    func addMaintenanceTab(databaseName: String? = nil) -> WorkspaceTab {
+        let effectiveDatabase = databaseName ?? selectedDatabaseName ?? connection.database
+        let viewModel = MaintenanceViewModel(
+            session: session,
+            connectionID: connection.id,
+            connectionSessionID: id,
+            databaseType: connection.databaseType,
+            initialDatabase: effectiveDatabase.isEmpty ? nil : effectiveDatabase
+        )
+
+        let title = if let db = databaseName ?? selectedDatabaseName, !db.isEmpty {
+            "Maintenance (\(db))"
+        } else {
+            "Maintenance"
+        }
 
         let tab = WorkspaceTab(
             connection: connection,
             session: session,
             connectionSessionID: id,
-            title: "Activity Monitor",
+            title: title,
+            content: .maintenance(viewModel)
+        )
+        queryTabs.append(tab)
+        activeQueryTabID = tab.id
+        lastActivity = Date()
+        return tab
+    }
+
+    @discardableResult
+    func addActivityMonitorTab() throws -> WorkspaceTab {
+        let monitor = try session.makeActivityMonitor()
+        let viewModel = ActivityMonitorViewModel(
+            monitor: monitor,
+            connectionSessionID: self.id,
+            connectionID: connection.id,
+            databaseType: connection.databaseType
+        )
+
+        let tab = WorkspaceTab(
+            connection: connection,
+            session: session,
+            connectionSessionID: id,
+            title: "Activity Monitor (\(connection.connectionName))",
             content: .activityMonitor(viewModel)
         )
         queryTabs.append(tab)

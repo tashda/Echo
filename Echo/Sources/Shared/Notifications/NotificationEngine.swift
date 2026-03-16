@@ -19,7 +19,17 @@ final class NotificationEngine: NSObject, UNUserNotificationCenterDelegate {
         UNUserNotificationCenter.current().delegate = self
     }
 
+    /// Post a typed notification event. Messages are centralized in ``NotificationEvent``.
+    func post(_ event: NotificationEvent) {
+        let category = event.category
+        let icon = event.icon ?? category.defaultIcon
+        let style = event.style ?? category.defaultStyle
+        let duration = event.duration ?? 3.0
+        post(category: category, icon: icon, message: event.message, style: style, duration: duration)
+    }
+
     /// Post a notification using the category's default icon and style.
+    /// - Note: Prefer ``post(_:)`` with a ``NotificationEvent`` for new code.
     func post(category: NotificationCategory, message: String, duration: TimeInterval = 3.0) {
         post(category: category, icon: category.defaultIcon, message: message, style: category.defaultStyle, duration: duration)
     }

@@ -148,7 +148,12 @@ struct QueryCommands: Commands {
             Button("Close Query Tab") {
                 if navigationStore.isWorkspaceWindowKey {
                     if let active = tabStore.activeTab {
+                        let returnToDashboard = active.kind != .query
                         tabStore.closeTab(id: active.id)
+                        if returnToDashboard {
+                            // Deselect so the dashboard shows instead of jumping to another tab
+                            tabStore.activeTabId = nil
+                        }
                     }
                 } else if let keyWindow = NSApplication.shared.keyWindow {
                     keyWindow.performClose(nil)
@@ -164,7 +169,7 @@ struct AutocompleteInspectorCommands: Commands {
 
     var body: some Commands {
         CommandGroup(after: .help) {
-            Button("Autocomplete Management…") {
+            Button("Autocomplete Management") {
                 openWindow(id: AutocompleteInspectorWindow.sceneID)
             }
             .keyboardShortcut("m", modifiers: [.command, .option])
@@ -177,7 +182,7 @@ struct PerformanceMonitorCommands: Commands {
 
     var body: some Commands {
         CommandGroup(after: .help) {
-            Button("Performance Monitor…") {
+            Button("Performance Monitor") {
                 openWindow(id: PerformanceMonitorWindow.sceneID)
             }
             .keyboardShortcut("p", modifiers: [.command, .option])
@@ -190,7 +195,7 @@ struct StreamingTestHarnessCommands: Commands {
 
     var body: some Commands {
         CommandGroup(after: .help) {
-            Button("Streaming Test Harness…") {
+            Button("Streaming Test Harness") {
                 openWindow(id: StreamingTestHarnessWindow.sceneID)
             }
             .keyboardShortcut("t", modifiers: [.command, .option, .shift])
@@ -203,7 +208,7 @@ struct AppSettingsCommands: Commands {
 
     var body: some Commands {
         CommandGroup(replacing: .appSettings) {
-            Button("Settings…") {
+            Button("Settings") {
                 openWindow(id: SettingsWindowScene.sceneID)
             }
             .keyboardShortcut(",", modifiers: [.command])
@@ -219,7 +224,7 @@ struct SparkleCommands: Commands {
             Button {
                 updater.checkForUpdates()
             } label: {
-                Label("Check for Updates…", systemImage: "arrow.clockwise.circle")
+                Label("Check for Updates", systemImage: "arrow.clockwise.circle")
             }
             .disabled(!updater.canCheckForUpdates)
         }

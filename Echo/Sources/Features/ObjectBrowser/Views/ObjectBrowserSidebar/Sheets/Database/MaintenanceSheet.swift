@@ -99,7 +99,7 @@ struct MaintenanceSheet: View {
             let objects = try await session.session.listTablesAndViews(schema: nil)
             schemas = objects
                 .filter { $0.type == .table }
-                .map { SchemaTablePair(schema: $0.schema ?? "dbo", table: $0.name) }
+                .map { SchemaTablePair(schema: $0.schema, table: $0.name) }
                 .sorted { $0.id < $1.id }
             if let first = schemas.first {
                 selectedSchema = first.schema

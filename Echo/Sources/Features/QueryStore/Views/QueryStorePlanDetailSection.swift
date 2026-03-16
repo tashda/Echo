@@ -5,163 +5,235 @@ struct QueryStorePlanDetailSection: View {
     @Bindable var viewModel: QueryStoreViewModel
 
     var body: some View {
-        SectionContainer(
-            title: "Execution Plans for Query \(viewModel.selectedQueryId ?? 0)",
-            icon: "list.bullet.rectangle",
-            info: "All execution plans recorded for this query. Force a plan to lock the optimizer to a known-good plan."
-        ) {
-            switch viewModel.plansLoadingState {
-            case .loading:
-                plansLoadingView
-            case .error(let message):
-                plansErrorView(message)
-            default:
-                if viewModel.queryPlans.isEmpty {
-                    plansEmptyView
-                } else {
-                    plansContent
+        VStack(spacing: 0) {
+            sectionHeader
+            Divider()
+            planContent
+        }
+        .background(ColorTokens.Background.primary)
+    }
+
+    private var sectionHeader: some View {
+        HStack(spacing: SpacingTokens.xs) {
+            Image(systemName: "list.bullet.rectangle")
+                .font(TypographyTokens.detail)
+                .foregroundStyle(ColorTokens.Text.tertiary)
+            Text("Execution Plans")
+                .font(TypographyTokens.detail.weight(.medium))
+                .foregroundStyle(ColorTokens.Text.secondary)
+            if let queryId = viewModel.selectedQueryId {
+                Text("\u{2014} Query \(queryId)")
+                    .font(TypographyTokens.detail)
+                    .foregroundStyle(ColorTokens.Text.tertiary)
+            }
+            Spacer()
+        }
+        .padding(.horizontal, SpacingTokens.md)
+        .padding(.vertical, SpacingTokens.xs)
+    }
+
+    @ViewBuilder
+    private var planContent: some View {
+        switch viewModel.plansLoadingState {
+        case .loading:
+            HStack(spacing: SpacingTokens.sm) {
+                ProgressView().controlSize(.small)
+                Text("Loading plans\u{2026}")
+                    .font(TypographyTokens.detail)
+                    .foregroundStyle(ColorTokens.Text.secondary)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        case .error(let message):
+            EmptyStatePlaceholder(
+                icon: "exclamationmark.triangle",
+                title: "Failed to load plans",
+                subtitle: message
+            )
+        default:
+            if viewModel.queryPlans.isEmpty {
+                EmptyStatePlaceholder(
+                    icon: "doc.text.magnifyingglass",
+                    title: "No plans found",
+                    subtitle: "No execution plans recorded for this query."
+                )
+            } else {
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: SpacingTokens.xxs) {
+                        ForEach(viewModel.queryPlans) { plan in
+                            PlanDisclosureRow(plan: plan, viewModel: viewModel)
+                        }
+                    }
+                    .padding(SpacingTokens.sm)
                 }
             }
         }
     }
-
-    private var plansLoadingView: some View {
-        HStack(spacing: SpacingTokens.sm) {
-            ProgressView()
-                .controlSize(.small)
-            Text("Loading plans...")
-                .font(TypographyTokens.detail)
-                .foregroundStyle(ColorTokens.Text.secondary)
-        }
-        .frame(maxWidth: .infinity, minHeight: 100)
-    }
-
-    private func plansErrorView(_ message: String) -> some View {
-        Text(message)
-            .font(TypographyTokens.detail)
-            .foregroundStyle(ColorTokens.Status.error)
-            .frame(maxWidth: .infinity, minHeight: 80)
-    }
-
-    private var plansEmptyView: some View {
-        Text("No plans found for this query")
-            .font(TypographyTokens.detail)
-            .foregroundStyle(ColorTokens.Text.secondary)
-            .frame(maxWidth: .infinity, minHeight: 80)
-    }
-
-    private var plansContent: some View {
-        VStack(alignment: .leading, spacing: SpacingTokens.sm) {
-            ForEach(viewModel.queryPlans) { plan in
-                PlanCard(plan: plan, viewModel: viewModel)
-            }
-        }
-        .padding(SpacingTokens.sm)
-    }
 }
 
-// MARK: - Plan Card
+// MARK: - Plan Disclosure Row
 
-private struct PlanCard: View {
+private struct PlanDisclosureRow: View {
     let plan: SQLServerQueryStorePlan
     @Bindable var viewModel: QueryStoreViewModel
+    @State private var isExpanded = false
 
     var body: some View {
-        HStack(spacing: SpacingTokens.md) {
-            planIdentifier
-            Divider().frame(height: 32)
-            metricsRow
-            Spacer()
-            forceButton
+        VStack(alignment: .leading, spacing: 0) {
+            planHeader
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        isExpanded.toggle()
+                    }
+                }
+
+            if isExpanded, let xml = plan.planXml, !xml.isEmpty {
+                Divider()
+                    .padding(.leading, SpacingTokens.lg)
+                planXMLView(xml)
+            }
         }
-        .padding(SpacingTokens.sm)
         .background(plan.isForcedPlan
-            ? ColorTokens.accent.opacity(0.06)
-            : ColorTokens.Text.primary.opacity(0.02))
-        .cornerRadius(6)
+            ? ColorTokens.accent.opacity(0.04)
+            : ColorTokens.Background.secondary.opacity(0.3))
+        .clipShape(RoundedRectangle(cornerRadius: 6))
         .overlay(
             RoundedRectangle(cornerRadius: 6)
                 .stroke(
                     plan.isForcedPlan
-                        ? ColorTokens.accent.opacity(0.3)
-                        : ColorTokens.Text.primary.opacity(0.06),
-                    lineWidth: 1
+                        ? ColorTokens.accent.opacity(0.15)
+                        : ColorTokens.Text.primary.opacity(0.04),
+                    lineWidth: 0.5
                 )
         )
     }
 
-    private var planIdentifier: some View {
-        VStack(alignment: .leading, spacing: SpacingTokens.xxxs) {
-            HStack(spacing: SpacingTokens.xs) {
-                Text("Plan \(plan.planId)")
-                    .font(TypographyTokens.standard.weight(.semibold))
-                    .foregroundStyle(ColorTokens.Text.primary)
-                if plan.isForcedPlan {
-                    Text("FORCED")
-                        .font(TypographyTokens.compact.weight(.bold))
-                        .foregroundStyle(ColorTokens.accent)
-                        .padding(.horizontal, SpacingTokens.xxxs)
-                        .padding(.vertical, 1)
-                        .background(ColorTokens.accent.opacity(0.12))
-                        .cornerRadius(3)
-                }
-            }
-            if let lastExec = plan.lastExecutionTime {
-                Text("Last: \(lastExec, style: .relative) ago")
+    private var planHeader: some View {
+        HStack(spacing: SpacingTokens.sm) {
+            // Disclosure chevron
+            Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
+                .font(.system(size: 9, weight: .semibold))
+                .foregroundStyle(ColorTokens.Text.tertiary)
+                .frame(width: 12)
+
+            // Plan identity
+            Text("Plan \(plan.planId)")
+                .font(TypographyTokens.standard.weight(.medium))
+                .foregroundStyle(ColorTokens.Text.primary)
+
+            if plan.isForcedPlan {
+                Text("Forced")
                     .font(TypographyTokens.compact)
-                    .foregroundStyle(ColorTokens.Text.tertiary)
+                    .foregroundStyle(ColorTokens.accent)
+                    .padding(.horizontal, SpacingTokens.xxs)
+                    .padding(.vertical, 1)
+                    .background(ColorTokens.accent.opacity(0.1))
+                    .clipShape(Capsule())
             }
+
+            Divider().frame(height: 20)
+
+            // Metrics
+            metricLabel("Duration", formatDuration(plan.avgDurationUs))
+            metricLabel("CPU", formatDuration(plan.avgCPUUs))
+            metricLabel("I/O", formatCount(Int(plan.avgIOReads)))
+            metricLabel("Runs", formatCount(plan.executionCount))
+
+            if let lastExec = plan.lastExecutionTime {
+                metricLabel("Last", lastExec, style: .relative)
+            }
+
+            Spacer()
+
+            // Force/unforce
+            forceControl
         }
-        .frame(minWidth: 120, alignment: .leading)
+        .padding(.horizontal, SpacingTokens.sm)
+        .padding(.vertical, SpacingTokens.xs)
     }
 
-    private var metricsRow: some View {
-        HStack(spacing: SpacingTokens.lg) {
-            metricItem(label: "Avg Duration", value: formatDuration(plan.avgDurationUs))
-            metricItem(label: "Avg CPU", value: formatDuration(plan.avgCPUUs))
-            metricItem(label: "Avg I/O", value: formatCount(Int(plan.avgIOReads)))
-            metricItem(label: "Executions", value: formatCount(plan.executionCount))
-        }
-    }
-
-    private func metricItem(label: String, value: String) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
+    private func metricLabel(_ label: String, _ value: String) -> some View {
+        HStack(spacing: SpacingTokens.xxxs) {
             Text(label)
                 .font(TypographyTokens.compact)
-                .foregroundStyle(ColorTokens.Text.tertiary)
+                .foregroundStyle(ColorTokens.Text.quaternary)
             Text(value)
-                .font(TypographyTokens.monospaced)
+                .font(TypographyTokens.detail.monospacedDigit())
                 .foregroundStyle(ColorTokens.Text.secondary)
         }
     }
 
-    private var forceButton: some View {
-        Group {
-            if viewModel.forcingPlanId == plan.planId {
-                ProgressView()
-                    .controlSize(.small)
-            } else if plan.isForcedPlan {
-                Button("Unforce") {
-                    Task {
-                        await viewModel.unforcePlan(
-                            queryId: plan.queryId, planId: plan.planId
-                        )
-                    }
+    private func metricLabel(_ label: String, _ date: Date, style: Text.DateStyle) -> some View {
+        HStack(spacing: SpacingTokens.xxxs) {
+            Text(label)
+                .font(TypographyTokens.compact)
+                .foregroundStyle(ColorTokens.Text.quaternary)
+            Text(date, style: style)
+                .font(TypographyTokens.compact)
+                .foregroundStyle(ColorTokens.Text.tertiary)
+        }
+    }
+
+    @ViewBuilder
+    private var forceControl: some View {
+        if viewModel.forcingPlanId == plan.planId {
+            ProgressView().controlSize(.small)
+        } else if plan.isForcedPlan {
+            Button("Unforce", role: .destructive) {
+                Task { await viewModel.unforcePlan(queryId: plan.queryId, planId: plan.planId) }
+            }
+            .controlSize(.small)
+        } else {
+            Button("Force Plan") {
+                Task { await viewModel.forcePlan(queryId: plan.queryId, planId: plan.planId) }
+            }
+            .controlSize(.small)
+        }
+    }
+
+    private func planXMLView(_ xml: String) -> some View {
+        ScrollView(.vertical) {
+            Text(formatXML(xml))
+                .font(.system(size: 11, design: .monospaced))
+                .foregroundStyle(ColorTokens.Text.secondary)
+                .textSelection(.enabled)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(SpacingTokens.sm)
+        }
+        .frame(maxWidth: .infinity, alignment: .topLeading)
+        .background(ColorTokens.Background.tertiary.opacity(0.4))
+    }
+
+    private func formatXML(_ xml: String) -> String {
+        var result = ""
+        var indent = 0
+        var i = xml.startIndex
+
+        while i < xml.endIndex {
+            if xml[i] == "<" {
+                let tagEnd = xml[i...].firstIndex(of: ">") ?? xml.endIndex
+                let tag = String(xml[i...tagEnd])
+
+                if tag.hasPrefix("</") {
+                    indent = max(0, indent - 1)
+                    result += String(repeating: "  ", count: indent) + tag + "\n"
+                } else if tag.hasSuffix("/>") {
+                    result += String(repeating: "  ", count: indent) + tag + "\n"
+                } else {
+                    result += String(repeating: "  ", count: indent) + tag + "\n"
+                    indent += 1
                 }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
+                i = xml.index(after: tagEnd)
             } else {
-                Button("Force Plan") {
-                    Task {
-                        await viewModel.forcePlan(
-                            queryId: plan.queryId, planId: plan.planId
-                        )
-                    }
+                let nextTag = xml[i...].firstIndex(of: "<") ?? xml.endIndex
+                let text = xml[i..<nextTag].trimmingCharacters(in: .whitespacesAndNewlines)
+                if !text.isEmpty {
+                    result += String(repeating: "  ", count: indent) + text + "\n"
                 }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
+                i = nextTag
             }
         }
+        return result.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     private func formatDuration(_ microseconds: Double) -> String {
@@ -170,7 +242,7 @@ private struct PlanCard: View {
         } else if microseconds >= 1_000 {
             return String(format: "%.1fms", microseconds / 1_000)
         } else {
-            return String(format: "%.0fus", microseconds)
+            return String(format: "%.0f\u{00B5}s", microseconds)
         }
     }
 

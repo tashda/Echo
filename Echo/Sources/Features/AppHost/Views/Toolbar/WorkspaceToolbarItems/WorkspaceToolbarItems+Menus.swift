@@ -6,33 +6,30 @@ extension WorkspaceToolbarItems {
     // MARK: - Project Menu
 
     internal var projectMenu: some View {
-        Menu {
+        let selectedProject = projectStore.selectedProject ?? Project.defaultProject
+        return Menu {
             if projectStore.projects.isEmpty {
                 Text("No Projects Available").foregroundStyle(ColorTokens.Text.secondary)
             } else {
                 ForEach(projectStore.projects) { project in
-                    Button {
-                        projectStore.selectProject(project)
-                        navigationStore.selectProject(project)
-                    } label: {
-                        menuRow(
-                            icon: projectIcon,
-                            title: project.name,
-                            isSelected: project.id == projectStore.selectedProject?.id
-                        )
+                    let isSelected = project.id == selectedProject.id
+                    Toggle(isOn: Binding(get: { isSelected }, set: { _ in
+                        environmentState.requestProjectSwitch(to: project)
+                    })) {
+                        Label(project.name, systemImage: project.iconName ?? "folder.fill")
                     }
                 }
             }
 
             Divider()
 
-            Button("Manage Projects…") {
+            Button("Manage Projects") {
                 ManageConnectionsWindowController.shared.present(initialSection: .projects)
             }
         } label: {
             toolbarButtonLabel(
-                icon: projectIcon,
-                title: projectStore.selectedProject?.name ?? "Project"
+                icon: selectedProject.toolbarIcon,
+                title: selectedProject.name
             )
         }
     }

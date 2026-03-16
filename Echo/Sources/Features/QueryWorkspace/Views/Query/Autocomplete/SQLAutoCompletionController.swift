@@ -28,7 +28,7 @@ final class SQLAutoCompletionController {
     init(textView: SQLTextView) {
         self.textView = textView
         self.popover = NSPopover()
-        popover.behavior = .semitransient
+        popover.behavior = .transient
         popover.animates = false
         popover.appearance = textView.effectiveAppearance
     }
@@ -49,37 +49,12 @@ final class SQLAutoCompletionController {
             return
         }
 
-        let suppressPopover = textView.consumePopoverSuppressionFlag()
-        let keywordSuggestions = inlineKeywordCandidates(from: suggestions, query: query)
-        if textView.displayOptions.inlineKeywordSuggestionsEnabled,
-           let inlineSuggestions = keywordSuggestions {
-            if popover.isShown {
-                popover.performClose(nil)
-            }
-            flatSuggestions.removeAll(keepingCapacity: false)
-            selectedIndex = 0
-            lastQuery = query
-            textView.showInlineKeywordSuggestions(inlineSuggestions, query: query)
-            return
-        } else {
-            textView.hideInlineKeywordSuggestion()
-        }
-
-        if suppressPopover {
-            hide()
-            return
-        }
-
         let appearance = textView.window?.effectiveAppearance ?? textView.effectiveAppearance
         popover.appearance = appearance
         hostingController?.view.appearance = appearance
 
         let previousID = selectedSuggestion?.id
-        var filtered = suggestions
-        if !textView.displayOptions.suggestKeywordsInCompletion {
-            filtered.removeAll { $0.kind == .keyword }
-        }
-        flatSuggestions = filtered
+        flatSuggestions = suggestions
         guard !flatSuggestions.isEmpty else {
             hide()
             return
@@ -110,7 +85,6 @@ final class SQLAutoCompletionController {
     }
 
     func hide() {
-        textView?.hideInlineKeywordSuggestion()
         flatSuggestions.removeAll(keepingCapacity: false)
         lastQuery = nil
         selectedIndex = 0

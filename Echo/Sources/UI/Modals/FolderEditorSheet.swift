@@ -294,18 +294,18 @@ struct FolderEditorSheet: View {
                     Text("No identities available.")
                         .foregroundStyle(ColorTokens.Text.secondary)
                         .font(TypographyTokens.detail)
-                    Button("Create Identity…") {
+                    Button("Create Identity") {
                         identityEditorState = .create(parent: nil, token: UUID())
                     }
                 }
             } else {
                 Picker("Identity", selection: $selectedIdentityID) {
-                    Text("Select…").tag(UUID?.none)
+                    Text("Select").tag(UUID?.none)
                     ForEach(availableIdentities, id: \.id) {
                         Text($0.name).tag(UUID?.some($0.id))
                     }
                 }
-                Button("Create Identity…") {
+                Button("Create Identity") {
                     identityEditorState = .create(parent: nil, token: UUID())
                 }
             }

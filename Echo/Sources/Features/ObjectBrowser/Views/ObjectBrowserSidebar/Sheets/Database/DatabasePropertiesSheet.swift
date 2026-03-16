@@ -84,20 +84,16 @@ struct DatabasePropertiesSheet: View {
 
     // PostgreSQL parameters state
     @State var pgSettingDefinitions: [PostgresSettingDefinition] = []
-    @State var pgNewParamName: String = ""
-    @State var pgNewParamValue: String = ""
+    @State var pgOriginalParams: [PostgresDatabaseParameter] = []
 
     // PostgreSQL security state
     @State var pgACLEntries: [PostgresACLEntry] = []
-    @State var pgNewGrantee: String = ""
-    @State var pgNewPrivileges: Set<PostgresPrivilege> = []
+    @State var pgACLExpanded: Set<String> = []
 
     // PostgreSQL default privileges state
     @State var pgDefaultPrivileges: [PostgresDefaultPrivilege] = []
-    @State var pgNewDefPrivSchema: String = ""
-    @State var pgNewDefPrivObjectType: PostgresObjectType = .tables
-    @State var pgNewDefPrivGrantee: String = ""
-    @State var pgNewDefPrivPrivileges: Set<PostgresPrivilege> = []
+    @State var pgOriginalDefaultPrivileges: [PostgresDefaultPrivilege] = []
+    @State var pgDefPrivExpanded: Set<String> = []
 
     var isMSSQL: Bool { session.connection.databaseType == .microsoftSQL }
     var isPostgres: Bool { session.connection.databaseType == .postgresql }
@@ -106,7 +102,7 @@ struct DatabasePropertiesSheet: View {
         if isMSSQL {
             return [.general, .options, .automatic, .ansi, .files, .queryStore]
         } else if isPostgres {
-            return [.general, .definition, .parameters, .security, .defaultPrivileges, .statistics, .sql]
+            return [.general, .definition, .parameters, .security, .defaultPrivileges, .sql]
         } else {
             return [.general]
         }
@@ -140,7 +136,13 @@ struct DatabasePropertiesSheet: View {
                 }
                 Button("Cancel") { onDismiss() }
                     .keyboardShortcut(.cancelAction)
-                Button("Done") { onDismiss() }
+                Button("Done") {
+                    if isPostgres {
+                        pgSaveParameterChanges()
+                        pgSaveDefaultPrivilegeChanges()
+                    }
+                    onDismiss()
+                }
                     .keyboardShortcut(.defaultAction)
             }
             .padding(SpacingTokens.md)
@@ -234,9 +236,7 @@ struct DatabasePropertiesSheet: View {
                 postgresDefaultPrivilegesPage()
             }
         case .statistics:
-            if isPostgres, let props = pgProps {
-                postgresStatisticsPage(props)
-            }
+            EmptyView()
         case .sql:
             if isPostgres {
                 postgresSQLPage()

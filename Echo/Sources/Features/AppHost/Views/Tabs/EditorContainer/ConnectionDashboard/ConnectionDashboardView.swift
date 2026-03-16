@@ -2,23 +2,22 @@ import SwiftUI
 
 struct ConnectionDashboardView: View {
     @Bindable var session: ConnectionSession
-    let onNewQuery: () -> Void
-    let onOpenJobQueue: (() -> Void)?
+    @Environment(EnvironmentState.self) private var environmentState
+    @Environment(AppState.self) private var appState
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: SpacingTokens.lg) {
+        ScrollView(.vertical, showsIndicators: false) {
+            VStack(spacing: SpacingTokens.xl) {
                 ConnectionDashboardHeader(session: session)
-                ConnectionDashboardQuickActions(
-                    session: session,
-                    onNewQuery: onNewQuery,
-                    onOpenJobQueue: onOpenJobQueue
-                )
+                ConnectionDashboardTools(session: session)
+                ConnectionDashboardDatabases(session: session)
+                ConnectionDashboardRecentQueries(session: session)
                 ConnectionDashboardDetails(session: session)
             }
-            .frame(maxWidth: 520)
+            .frame(maxWidth: 480)
             .padding(.horizontal, SpacingTokens.xl)
             .padding(.vertical, SpacingTokens.xl2)
+            .frame(maxWidth: .infinity)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
@@ -43,7 +42,6 @@ struct ConnectionDashboardHeader: View {
             }
         }
         .frame(maxWidth: .infinity)
-        .padding(.bottom, SpacingTokens.xs)
     }
 
     private var serverSubtitle: String {
@@ -67,5 +65,18 @@ struct ConnectionDashboardHeader: View {
                 .frame(width: 24, height: 24)
                 .foregroundStyle(session.connection.color)
         }
+    }
+}
+
+// MARK: - Section Header
+
+struct DashboardSectionLabel: View {
+    let title: String
+
+    var body: some View {
+        Text(title)
+            .font(TypographyTokens.detail.weight(.medium))
+            .foregroundStyle(ColorTokens.Text.tertiary)
+            .textCase(.uppercase)
     }
 }

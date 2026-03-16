@@ -123,6 +123,35 @@ extension DatabaseObjectRow {
         }
     }
 
+    internal func insertStatement() -> String {
+        let qualified = qualifiedName(schema: object.schema, name: object.name)
+        let columns = object.columns.isEmpty ? [] : object.columns
+        if columns.isEmpty {
+            return "INSERT INTO \(qualified) (/* columns */)\nVALUES (/* values */);"
+        }
+        let columnNames = columns.map { quoteIdentifier($0.name) }
+        let columnList = columnNames.joined(separator: ", ")
+        let valuePlaceholders = columns.map { "<\($0.name)>" }
+        let valueList = valuePlaceholders.joined(separator: ", ")
+        return "INSERT INTO \(qualified) (\(columnList))\nVALUES (\(valueList));"
+    }
+
+    internal func updateStatement() -> String {
+        let qualified = qualifiedName(schema: object.schema, name: object.name)
+        let columns = object.columns.isEmpty ? [] : object.columns
+        if columns.isEmpty {
+            return "UPDATE \(qualified)\nSET /* column = value */\nWHERE /* condition */;"
+        }
+        let setClauses = columns.map { "\(quoteIdentifier($0.name)) = <\($0.name)>" }
+        let setList = setClauses.joined(separator: ",\n    ")
+        return "UPDATE \(qualified)\nSET \(setList)\nWHERE /* condition */;"
+    }
+
+    internal func deleteStatement() -> String {
+        let qualified = qualifiedName(schema: object.schema, name: object.name)
+        return "DELETE FROM \(qualified)\nWHERE /* condition */;"
+    }
+
     internal func dropStatement(includeIfExists: Bool) -> String {
         let keyword = objectTypeKeyword()
         let qualified = qualifiedName(schema: object.schema, name: object.name)

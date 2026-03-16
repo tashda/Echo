@@ -106,7 +106,7 @@ extension ManageConnectionsView {
                     importSettingsSourceProject = nil
                     showImportSettingsPopup = true
                 } label: {
-                    Label("Import from Project…", systemImage: "arrow.triangle.2.circlepath.circle")
+                    Label("Import from Project", systemImage: "arrow.triangle.2.circlepath.circle")
                 }
 
                 Divider()

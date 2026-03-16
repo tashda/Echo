@@ -1,14 +1,15 @@
-name: Build and Release
+name: Build, Test & Release
 
 on:
-  push:
-    branches: [ main, dev ]
   pull_request:
+    branches: [ main ]
+  push:
     branches: [ main ]
   workflow_dispatch:
 
 jobs:
-  test:
+  # ── Tier 1: Unit Tests (GitHub-hosted) ──────────────────────────────────
+  unit-tests:
     runs-on: macos-26
     steps:
     - uses: actions/checkout@v4
@@ -29,7 +30,7 @@ jobs:
         xcodebuild test -project Echo.xcodeproj \
           -scheme Echo \
           -destination 'platform=macOS' \
-          -resultBundlePath TestResults \
+          -resultBundlePath TestResults-unit \
           -skip-testing:EchoTests/MSSQLIntegrationTests \
           -skip-testing:EchoTests/PostgresIntegrationTests \
           -skip-testing:EchoTests/MySQLIntegrationTests \
@@ -91,9 +92,44 @@ jobs:
           CODE_SIGNING_REQUIRED=NO \
           CODE_SIGNING_ALLOWED=NO
 
+  # ── Tier 2: SQLite Tests (self-hosted) ──────────────────────────────────
+  sqlite-tests:
+    runs-on: [self-hosted, echo-test-server]
+    needs: unit-tests
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Prepare environment
+      run: |
+        security unlock-keychain -p "${{ secrets.KEYCHAIN_PASSWORD }}" ~/Library/Keychains/login.keychain-db
+        security delete-generic-password -s "dk.tippr.echo" ~/Library/Keychains/login.keychain-db 2>/dev/null || true
+
+    - name: Run SQLite & Cross-Dialect Tests
+      run: |
+        xcodebuild test -project Echo.xcodeproj \
+          -scheme Echo \
+          -destination 'platform=macOS' \
+          -resultBundlePath TestResults-sqlite \
+          -only-testing:EchoTests/SQLiteConnectionTests \
+          -only-testing:EchoTests/SQLiteQueryTests \
+          -only-testing:EchoTests/SQLiteSchemaTests \
+          -only-testing:EchoTests/SQLiteTableOperationsTests \
+          -only-testing:EchoTests/SQLiteDataTypeTests \
+          -only-testing:EchoTests/SessionProtocolComplianceTests \
+          -only-testing:EchoTests/FactoryConnectionTests \
+          -disable-concurrent-testing
+
+    - name: Upload Test Results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-results-sqlite
+        path: TestResults-sqlite.xcresult
+
+  # ── Tier 3: Full Integration Matrix (self-hosted + Docker) ─────────────
   integration-tests:
     runs-on: [self-hosted, echo-test-server]
-    needs: test
+    needs: unit-tests
     strategy:
       matrix:
         include:
@@ -228,9 +264,10 @@ jobs:
         name: test-results-${{ matrix.db }}
         path: TestResults-${{ matrix.db }}.xcresult
 
-  sqlite-and-ui-tests:
+  # ── Tier 4: UI Tests (self-hosted) ──────────────────────────────────────
+  ui-tests:
     runs-on: [self-hosted, echo-test-server]
-    needs: test
+    needs: unit-tests
     steps:
     - uses: actions/checkout@v4
 
@@ -239,27 +276,8 @@ jobs:
         security unlock-keychain -p "${{ secrets.KEYCHAIN_PASSWORD }}" ~/Library/Keychains/login.keychain-db
         security delete-generic-password -s "dk.tippr.echo" ~/Library/Keychains/login.keychain-db 2>/dev/null || true
         defaults write com.apple.LaunchServices LSQuarantine -bool NO 2>/dev/null || true
-
-    - name: Run SQLite & Cross-Dialect Integration Tests
-      run: |
-        xcodebuild test -project Echo.xcodeproj \
-          -scheme Echo \
-          -destination 'platform=macOS' \
-          -resultBundlePath TestResults-sqlite \
-          -only-testing:EchoTests/SQLiteConnectionTests \
-          -only-testing:EchoTests/SQLiteQueryTests \
-          -only-testing:EchoTests/SQLiteSchemaTests \
-          -only-testing:EchoTests/SQLiteTableOperationsTests \
-          -only-testing:EchoTests/SQLiteDataTypeTests \
-          -only-testing:EchoTests/SessionProtocolComplianceTests \
-          -only-testing:EchoTests/FactoryConnectionTests \
-          -disable-concurrent-testing
-
-    - name: Prepare for UI Tests
-      run: |
         pkill -x Echo 2>/dev/null || true
-        defaults delete dk.tippr.echo NSQuitAlwaysKeepsWindows 2>/dev/null || true
-        defaults write dk.tippr.echo NSQuitAlwaysKeepsWindows -bool NO
+        defaults write dk.tippr.echo NSQuitAlwaysKeepsWindows -bool NO 2>/dev/null || true
         rm -rf ~/Library/Saved\ Application\ State/dk.tippr.echo.savedState 2>/dev/null || true
 
     - name: Run UI Tests
@@ -274,13 +292,14 @@ jobs:
       if: always()
       uses: actions/upload-artifact@v4
       with:
-        name: test-results-sqlite-ui
-        path: |
-          TestResults-sqlite.xcresult
-          TestResults-ui.xcresult
+        name: test-results-ui
+        path: TestResults-ui.xcresult
 
+  # ── Build & Release (main only) ────────────────────────────────────────
   build:
     runs-on: macos-26
+    needs: [unit-tests, sqlite-tests, integration-tests, ui-tests]
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     permissions:
       contents: write
 
@@ -307,7 +326,6 @@ jobs:
           AD_HOC_CODE_SIGNING_ALLOWED=NO
 
     - name: Package App
-      if: (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev') && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
       run: |
         mkdir -p release
         cp -R build/Build/Products/Release/Echo.app release/
@@ -316,8 +334,6 @@ jobs:
         chmod -R u+w release/Echo.app
         xattr -rc release/Echo.app
 
-        # Apple Silicon REQUIRES at least an ad-hoc signature to run.
-        # We apply an ad-hoc signature so macOS doesn't say "can't be opened".
         echo "Applying ad-hoc signature..."
         codesign --force --deep -s - release/Echo.app
 
@@ -329,7 +345,6 @@ jobs:
         rm -rf Echo.app
 
     - name: Get Version
-      if: (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev') && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
       id: get_version
       run: |
         APP_PATH="build/Build/Products/Release/Echo.app"
@@ -340,21 +355,17 @@ jobs:
         echo "tag=v$VERSION-$BUILD" >> $GITHUB_OUTPUT
 
     - name: Setup Sparkle CLI
-      if: (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev') && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
       run: |
         curl -L https://github.com/sparkle-project/Sparkle/releases/download/2.6.4/Sparkle-2.6.4.tar.xz -o sparkle.tar.xz
         tar -xf sparkle.tar.xz
         cp bin/generate_appcast .
 
     - name: Generate Appcast
-      if: (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev') && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
       env:
         SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
       run: |
         rm -rf ~/Library/Caches/Sparkle_generate_appcast
 
-        # Use --disable-nested-code-check to ignore the fact that we used an ad-hoc signature
-        # instead of a proper Developer ID signature.
         if [ -z "$SPARKLE_PRIVATE_KEY" ]; then
           ./generate_appcast --disable-nested-code-check release/
         else
@@ -364,7 +375,6 @@ jobs:
         mv release/Echo.zip .
 
     - name: Create Release
-      if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
       uses: softprops/action-gh-release@v2
       with:
         tag_name: ${{ steps.get_version.outputs.tag }}

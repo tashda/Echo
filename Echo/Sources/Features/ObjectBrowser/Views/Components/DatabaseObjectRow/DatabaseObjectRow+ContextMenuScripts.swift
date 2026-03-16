@@ -26,6 +26,9 @@ extension DatabaseObjectRow {
                 actions.append(.selectLimited(1000))
             }
         }
+        if shouldIncludeSelectScript {
+            actions.append(contentsOf: [.insert, .update, .delete])
+        }
         if object.type == .function || object.type == .procedure {
             actions.append(.execute)
         }
@@ -67,6 +70,7 @@ extension DatabaseObjectRow {
             actions.append(.execute)
         } else if shouldIncludeSelectScript {
             actions.append(contentsOf: [.select, .selectLimited(1000)])
+            actions.append(contentsOf: [.insert, .update, .delete])
         }
         return actions
     }
@@ -113,6 +117,12 @@ extension DatabaseObjectRow {
             return "SELECT \(limit)"
         case .execute:
             return connection.databaseType == .microsoftSQL ? "SELECT / EXEC" : "EXECUTE"
+        case .insert:
+            return "INSERT"
+        case .update:
+            return "UPDATE"
+        case .delete:
+            return "DELETE"
         }
     }
 
@@ -134,6 +144,12 @@ extension DatabaseObjectRow {
             return "text.magnifyingglass"
         case .execute:
             return "play.circle"
+        case .insert:
+            return "plus.square"
+        case .update:
+            return "pencil.line"
+        case .delete:
+            return "minus.square"
         }
     }
 

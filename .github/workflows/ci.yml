@@ -1,0 +1,123 @@
+name: CI
+
+on:
+  push:
+    branches: [ dev ]
+  workflow_dispatch:
+
+jobs:
+  unit-tests:
+    runs-on: macos-26
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Select Xcode
+      uses: maxim-lobanov/setup-xcode@v1
+      with:
+        xcode-version: '26'
+
+    - name: Clear SPM cache
+      run: rm -rf ~/Library/Caches/org.swift.swiftpm/repositories
+
+    - name: Resolve packages
+      run: xcodebuild -resolvePackageDependencies -project Echo.xcodeproj
+
+    - name: Run Unit Tests
+      run: |
+        xcodebuild test -project Echo.xcodeproj \
+          -scheme Echo \
+          -destination 'platform=macOS' \
+          -resultBundlePath TestResults-unit \
+          -skip-testing:EchoTests/MSSQLIntegrationTests \
+          -skip-testing:EchoTests/PostgresIntegrationTests \
+          -skip-testing:EchoTests/MySQLIntegrationTests \
+          -skip-testing:EchoTests/SQLiteIntegrationTests \
+          -skip-testing:EchoTests/EchoSenseIntegrationTests \
+          -skip-testing:EchoTests/MSSQLConnectionTests \
+          -skip-testing:EchoTests/MSSQLQueryTests \
+          -skip-testing:EchoTests/MSSQLSchemaDiscoveryTests \
+          -skip-testing:EchoTests/MSSQLMetadataTests \
+          -skip-testing:EchoTests/MSSQLTableOperationsTests \
+          -skip-testing:EchoTests/MSSQLColumnTests \
+          -skip-testing:EchoTests/MSSQLConstraintTests \
+          -skip-testing:EchoTests/MSSQLIndexTests \
+          -skip-testing:EchoTests/MSSQLViewTests \
+          -skip-testing:EchoTests/MSSQLProcedureTests \
+          -skip-testing:EchoTests/MSSQLFunctionTests \
+          -skip-testing:EchoTests/MSSQLTriggerTests \
+          -skip-testing:EchoTests/MSSQLTransactionTests \
+          -skip-testing:EchoTests/MSSQLSecurityTests \
+          -skip-testing:EchoTests/MSSQLAgentTests \
+          -skip-testing:EchoTests/MSSQLActivityMonitorTests \
+          -skip-testing:EchoTests/MSSQLDatabaseAdminTests \
+          -skip-testing:EchoTests/MSSQLDataTypeNumericTests \
+          -skip-testing:EchoTests/MSSQLDataTypeStringTests \
+          -skip-testing:EchoTests/MSSQLDataTypeDateTimeTests \
+          -skip-testing:EchoTests/MSSQLDataTypeBinaryTests \
+          -skip-testing:EchoTests/MSSQLStreamingTests \
+          -skip-testing:EchoTests/MSSQLStreamingSpoolTests \
+          -skip-testing:EchoTests/PGConnectionTests \
+          -skip-testing:EchoTests/PGQueryTests \
+          -skip-testing:EchoTests/PGSchemaDiscoveryTests \
+          -skip-testing:EchoTests/PGMetadataTests \
+          -skip-testing:EchoTests/PGTableOperationsTests \
+          -skip-testing:EchoTests/PGColumnTests \
+          -skip-testing:EchoTests/PGConstraintTests \
+          -skip-testing:EchoTests/PGIndexTests \
+          -skip-testing:EchoTests/PGViewTests \
+          -skip-testing:EchoTests/PGFunctionTests \
+          -skip-testing:EchoTests/PGTriggerTests \
+          -skip-testing:EchoTests/PGTransactionTests \
+          -skip-testing:EchoTests/PGSecurityTests \
+          -skip-testing:EchoTests/PGExtensionTests \
+          -skip-testing:EchoTests/PGActivityMonitorTests \
+          -skip-testing:EchoTests/PGSequenceTests \
+          -skip-testing:EchoTests/PGDataTypeNumericTests \
+          -skip-testing:EchoTests/PGDataTypeStringTests \
+          -skip-testing:EchoTests/PGDataTypeDateTimeTests \
+          -skip-testing:EchoTests/PGDataTypeSpecialTests \
+          -skip-testing:EchoTests/PGStreamingTests \
+          -skip-testing:EchoTests/PGStreamingSpoolTests \
+          -skip-testing:EchoTests/SQLiteConnectionTests \
+          -skip-testing:EchoTests/SQLiteQueryTests \
+          -skip-testing:EchoTests/SQLiteSchemaTests \
+          -skip-testing:EchoTests/SQLiteTableOperationsTests \
+          -skip-testing:EchoTests/SQLiteDataTypeTests \
+          -skip-testing:EchoTests/SessionProtocolComplianceTests \
+          -skip-testing:EchoTests/FactoryConnectionTests \
+          CODE_SIGN_IDENTITY="" \
+          CODE_SIGNING_REQUIRED=NO \
+          CODE_SIGNING_ALLOWED=NO
+
+  sqlite-tests:
+    runs-on: [self-hosted, echo-test-server]
+    needs: unit-tests
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Prepare environment
+      run: |
+        security unlock-keychain -p "${{ secrets.KEYCHAIN_PASSWORD }}" ~/Library/Keychains/login.keychain-db
+        security delete-generic-password -s "dk.tippr.echo" ~/Library/Keychains/login.keychain-db 2>/dev/null || true
+
+    - name: Run SQLite & Cross-Dialect Tests
+      run: |
+        xcodebuild test -project Echo.xcodeproj \
+          -scheme Echo \
+          -destination 'platform=macOS' \
+          -resultBundlePath TestResults-sqlite \
+          -only-testing:EchoTests/SQLiteConnectionTests \
+          -only-testing:EchoTests/SQLiteQueryTests \
+          -only-testing:EchoTests/SQLiteSchemaTests \
+          -only-testing:EchoTests/SQLiteTableOperationsTests \
+          -only-testing:EchoTests/SQLiteDataTypeTests \
+          -only-testing:EchoTests/SessionProtocolComplianceTests \
+          -only-testing:EchoTests/FactoryConnectionTests \
+          -disable-concurrent-testing
+
+    - name: Upload Test Results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-results-sqlite
+        path: TestResults-sqlite.xcresult

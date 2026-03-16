@@ -58,7 +58,7 @@ struct IdentitiesTableView: View {
                         }
                     }
                     Divider()
-                    Button("Create New Folder...") {
+                    Button("Create New Folder") {
                         createFolderAndMoveIdentity(identity)
                     }
                 }

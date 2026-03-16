@@ -19,6 +19,7 @@ extension ObjectBrowserSidebarView {
 
         VStack(alignment: .leading, spacing: 0) {
             securitySectionHeader(
+                depth: 1,
                 title: "Logins",
                 icon: "person.2",
                 count: standardLogins.count,
@@ -34,7 +35,7 @@ extension ObjectBrowserSidebarView {
                     viewModel.securityLoginSheetEditName = nil
                     viewModel.showSecurityLoginSheet = true
                 } label: {
-                    Label("New Login\u{2026}", systemImage: "plus")
+                    Label("New Login", systemImage: "plus")
                 }
                 Divider()
                 Button {
@@ -45,18 +46,14 @@ extension ObjectBrowserSidebarView {
             }
 
             if isExpanded {
-                VStack(alignment: .leading, spacing: 0) {
-                    ForEach(standardLogins) { login in
-                        loginRow(login: login, session: session)
-                    }
-
-                    // Certificates subfolder
-                    if !certLogins.isEmpty {
-                        certificateLoginsSubfolder(certLogins: certLogins, session: session)
-                    }
-
+                ForEach(standardLogins) { login in
+                    loginRow(login: login, session: session)
                 }
-                .padding(.leading, SidebarRowConstants.indentStep)
+
+                // Certificates subfolder
+                if !certLogins.isEmpty {
+                    certificateLoginsSubfolder(certLogins: certLogins, session: session)
+                }
             }
         }
     }
@@ -68,6 +65,7 @@ extension ObjectBrowserSidebarView {
 
         VStack(alignment: .leading, spacing: 0) {
             securitySectionHeader(
+                depth: 2,
                 title: "Certificate Logins",
                 icon: "doc.badge.lock",
                 count: certLogins.count,
@@ -79,46 +77,31 @@ extension ObjectBrowserSidebarView {
             }
 
             if isExpanded {
-                VStack(alignment: .leading, spacing: 0) {
-                    ForEach(certLogins) { login in
-                        loginRow(login: login, session: session)
-                    }
+                ForEach(certLogins) { login in
+                    loginRow(login: login, session: session, depth: 3)
                 }
-                .padding(.leading, SidebarRowConstants.indentStep)
             }
         }
     }
 
-    func loginRow(login: ObjectBrowserSidebarViewModel.SecurityLoginItem, session: ConnectionSession) -> some View {
-        HStack(spacing: SidebarRowConstants.iconTextSpacing) {
-            Spacer().frame(width: SidebarRowConstants.chevronWidth)
-
-            Image(systemName: login.isDisabled ? "person.crop.circle.badge.xmark" : "person.crop.circle")
-                .font(SidebarRowConstants.iconFont)
-                .foregroundStyle(login.isDisabled ? ColorTokens.Text.quaternary : ExplorerSidebarPalette.security)
-                .frame(width: SidebarRowConstants.iconFrame)
-
-            Text(login.name)
-                .font(TypographyTokens.standard)
-                .foregroundStyle(login.isDisabled ? .secondary : .primary)
-                .lineLimit(1)
-
-            Spacer(minLength: SpacingTokens.xxxs)
-
+    func loginRow(login: ObjectBrowserSidebarViewModel.SecurityLoginItem, session: ConnectionSession, depth: Int = 2) -> some View {
+        SidebarRow(
+            depth: depth,
+            icon: .system(login.isDisabled ? "person.crop.circle.badge.xmark" : "person.crop.circle"),
+            label: login.name,
+            iconColor: login.isDisabled ? ColorTokens.Text.quaternary : (projectStore.globalSettings.sidebarColoredIcons ? ExplorerSidebarPalette.security : ExplorerSidebarPalette.monochrome),
+            labelColor: login.isDisabled ? ColorTokens.Text.secondary : ColorTokens.Text.primary
+        ) {
             Text(login.loginType)
-                .font(TypographyTokens.caption2)
+                .font(SidebarRowConstants.trailingFont)
                 .foregroundStyle(ColorTokens.Text.tertiary)
 
             if login.isDisabled {
                 Text("Disabled")
-                    .font(TypographyTokens.label)
+                    .font(SidebarRowConstants.trailingFont)
                     .foregroundStyle(ColorTokens.Text.quaternary)
             }
         }
-        .padding(.leading, SidebarRowConstants.rowHorizontalPadding)
-                .padding(.trailing, SidebarRowConstants.rowTrailingPadding)
-        .padding(.vertical, SidebarRowConstants.rowVerticalPadding)
-        .contentShape(Rectangle())
         .contextMenu {
             loginRowContextMenu(login: login, session: session)
         }
@@ -175,7 +158,7 @@ extension ObjectBrowserSidebarView {
             viewModel.securityLoginSheetEditName = login.name
             viewModel.showSecurityLoginSheet = true
         } label: {
-            Label("Properties\u{2026}", systemImage: "info.circle")
+            Label("Properties", systemImage: "info.circle")
         }
     }
 }

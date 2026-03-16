@@ -47,8 +47,10 @@ extension SQLTextView {
         }
         lineNumberRuler?.setNeedsDisplay(lineNumberRuler?.bounds ?? .zero)
         sqlDelegate?.sqlTextView(self, didChangeSelection: selection)
-        handleInlineSelectionChange()
-        if !isApplyingCompletion && !suppressNextCompletionRefresh {
+        // Only refresh completions if popup is already visible — never open
+        // popup from selection changes alone. Opening is handled exclusively
+        // by trigger logic (period, space-after-keyword, manual invoke).
+        if !isApplyingCompletion && !suppressNextCompletionRefresh && isCompletionVisible {
             refreshCompletions(immediate: true)
         }
     }

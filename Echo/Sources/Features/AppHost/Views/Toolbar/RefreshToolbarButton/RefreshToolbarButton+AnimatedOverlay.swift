@@ -4,72 +4,45 @@ import EchoSense
 struct RefreshAnimatedOverlay: View {
     let phase: RefreshButtonContent.Phase
     let showCancel: Bool
-    let spinning: Bool
-    let circleSize: CGFloat
-    let glowPadding: CGFloat
 
-    @Environment(\.colorScheme) private var colorScheme
-
-    @State private var rotation: Double = 0
-    @State private var completionScale: CGFloat = 0.6
-
-    private var shouldSpin: Bool {
-        phase == .refreshing && !showCancel && spinning
-    }
-
-    private var currentSymbol: String {
-        if showCancel { return "xmark" }
-        switch phase {
-        case .idle: return "arrow.clockwise"
-        case .refreshing: return "arrow.clockwise"
-        case .completed: return "checkmark"
-        }
-    }
-
-    private var iconColor: Color {
-        if showCancel {
-            return ColorTokens.Text.primary.opacity(0.65)
-        }
-        switch phase {
-        case .idle:
-            return ColorTokens.Text.secondary
-        case .refreshing:
-            return ColorTokens.accent
-        case .completed:
-            return ColorTokens.Status.success
-        }
-    }
+    @State private var checkmarkScale: CGFloat = 0.0
+    @State private var checkmarkOpacity: Double = 0.0
 
     var body: some View {
-        Image(systemName: currentSymbol)
-            .font(TypographyTokens.standard.weight(.semibold))
-            .foregroundStyle(iconColor)
-            .rotationEffect(.degrees(shouldSpin ? rotation : 0))
-            .scaleEffect(phase == .completed ? completionScale : 1.0)
-            .contentTransition(.symbolEffect(.replace))
-            .onChange(of: shouldSpin) { _, newValue in
-                if newValue {
-                    startSpinning()
-                }
-            }
-            .onChange(of: phase) { _, newPhase in
-                if newPhase == .completed {
-                    withAnimation(.spring(response: 0.35, dampingFraction: 0.6)) {
-                        completionScale = 1.0
-                    }
-                } else {
-                    completionScale = 0.6
-                }
-            }
-            .onAppear {
-                if shouldSpin { startSpinning() }
-            }
-    }
+        ZStack {
+            // Spinner — visible only during refresh (no cancel hover)
+            ProgressView()
+                .controlSize(.small)
+                .opacity(phase == .refreshing && !showCancel ? 1 : 0)
+                .animation(.easeInOut(duration: 0.15), value: phase)
+                .animation(.easeInOut(duration: 0.15), value: showCancel)
 
-    private func startSpinning() {
-        rotation = 0
-        withAnimation(.linear(duration: 0.8).repeatForever(autoreverses: false)) {
-            rotation = 360
+            // Cancel icon — visible on hover during refresh
+            Image(systemName: "xmark")
+                .font(TypographyTokens.standard.weight(.semibold))
+                .foregroundStyle(ColorTokens.Text.primary.opacity(0.65))
+                .opacity(showCancel ? 1 : 0)
+                .animation(.easeInOut(duration: 0.15), value: showCancel)
+
+            // Checkmark — appears with scale bounce on completion
+            Image(systemName: "checkmark")
+                .font(TypographyTokens.standard.weight(.semibold))
+                .foregroundStyle(ColorTokens.Status.success)
+                .scaleEffect(checkmarkScale)
+                .opacity(checkmarkOpacity)
+        }
+        .onChange(of: phase) { oldPhase, newPhase in
+            if newPhase == .completed {
+                // Animate checkmark in with a bounce
+                withAnimation(.spring(response: 0.4, dampingFraction: 0.5)) {
+                    checkmarkScale = 1.0
+                    checkmarkOpacity = 1.0
+                }
+            } else {
+                // Reset checkmark instantly when leaving completed state
+                checkmarkScale = 0.0
+                checkmarkOpacity = 0.0
+            }
         }
     }
 }

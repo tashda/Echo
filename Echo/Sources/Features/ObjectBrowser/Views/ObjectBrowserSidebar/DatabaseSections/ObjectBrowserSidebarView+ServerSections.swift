@@ -8,15 +8,13 @@ extension ObjectBrowserSidebarView {
     func serverSection(session: ConnectionSession, proxy: ScrollViewProxy) -> some View {
         let connID = session.connection.id
         let isExpanded = viewModel.expandedServerIDs.contains(connID)
-        let isSelected = connID == selectedConnectionID
-
         let isSearching = sidebarSearchQuery != nil
-        VStack(alignment: .leading, spacing: SpacingTokens.xxxs) {
-            serverHeaderRow(session: session, isExpanded: isExpanded || isSearching, isSelected: isSelected)
+
+        VStack(alignment: .leading, spacing: 0) {
+            serverSectionHeader(session: session, isExpanded: isExpanded || isSearching)
 
             if isExpanded || isSearching {
                 serverContent(session: session, proxy: proxy)
-                    .padding(.leading, SidebarRowConstants.indentStep)
                     .transition(.opacity)
             }
         }
@@ -24,62 +22,38 @@ extension ObjectBrowserSidebarView {
         .task { viewModel.initializeSessionState(for: session, autoExpandSections: projectStore.globalSettings.sidebarExpandSections(for: session.connection.databaseType)) }
     }
 
-    func serverHeaderRow(session: ConnectionSession, isExpanded: Bool, isSelected: Bool) -> some View {
-        let accentColor = projectStore.globalSettings.accentColorSource == .connection ? session.connection.color : ColorTokens.accent
+    /// Finder-style section header for a connected server.
+    func serverSectionHeader(session: ConnectionSession, isExpanded: Bool) -> some View {
+        let expandedBinding = Binding<Bool>(
+            get: { isExpanded },
+            set: { _ in
+                withAnimation(.snappy(duration: 0.2, extraBounce: 0)) {
+                    if isExpanded {
+                        viewModel.expandedServerIDs.remove(session.connection.id)
+                    } else {
+                        viewModel.expandedServerIDs.insert(session.connection.id)
+                    }
+                }
+                selectedConnectionID = session.connection.id
+                environmentState.sessionGroup.setActiveSession(session.id)
+            }
+        )
 
         return Button {
-            withAnimation(.snappy(duration: 0.2, extraBounce: 0)) {
-                if isExpanded {
-                    viewModel.expandedServerIDs.remove(session.connection.id)
-                } else {
-                    viewModel.expandedServerIDs.insert(session.connection.id)
-                }
-            }
-            selectedConnectionID = session.connection.id
-            environmentState.sessionGroup.setActiveSession(session.id)
+            expandedBinding.wrappedValue.toggle()
         } label: {
-            ExplorerSidebarRowChrome(isSelected: false, accentColor: accentColor, style: .plain) {
-                HStack(spacing: SidebarRowConstants.iconTextSpacing) {
-                    Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
-                        .font(SidebarRowConstants.chevronFont)
+            SidebarSectionHeader(
+                title: serverDisplayName(session),
+                isExpanded: expandedBinding
+            ) {
+                if let version = serverVersionLabel(session) {
+                    Text(version)
+                        .font(SidebarRowConstants.trailingFont)
                         .foregroundStyle(ColorTokens.Text.tertiary)
-                        .frame(width: SidebarRowConstants.chevronWidth)
-
-                    Image(session.connection.databaseType.iconName)
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .frame(width: SidebarRowConstants.iconFrame, height: SidebarRowConstants.iconFrame)
-
-                    Text(serverDisplayName(session))
-                        .font(isSelected ? TypographyTokens.standard.weight(.semibold) : TypographyTokens.standard)
-                        .foregroundStyle(session.isConnected ? ColorTokens.Text.primary : ColorTokens.Text.tertiary)
-                        .lineLimit(1)
-
-                    if let version = serverVersionLabel(session) {
-                        Text(version)
-                            .font(TypographyTokens.compact)
-                            .foregroundStyle(ColorTokens.Text.tertiary)
-                            .padding(.horizontal, SpacingTokens.xxs)
-                            .padding(.vertical, SpacingTokens.xxs2)
-                            .background(
-                                RoundedRectangle(cornerRadius: 5, style: .continuous)
-                                    .fill(ColorTokens.Text.primary.opacity(0.06))
-                            )
-                            .lineLimit(1)
-                    }
-
-                    Spacer(minLength: SpacingTokens.xxxs)
                 }
-                .padding(.leading, SidebarRowConstants.rowHorizontalPadding)
-                .padding(.trailing, SidebarRowConstants.rowTrailingPadding)
-                .padding(.vertical, SidebarRowConstants.rowVerticalPadding)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .contentShape(Rectangle())
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
         .buttonStyle(.plain)
-        .frame(maxWidth: .infinity, alignment: .leading)
         .contextMenu {
             serverContextMenu(session: session)
         }
@@ -92,16 +66,16 @@ extension ObjectBrowserSidebarView {
         switch session.structureLoadingState {
         case .ready, .loading:
             if let structure = session.databaseStructure, !structure.databases.isEmpty {
-                VStack(alignment: .leading, spacing: SpacingTokens.xs) {
+                VStack(alignment: .leading, spacing: 0) {
                     databasesFolderSection(session: session, structure: structure, proxy: proxy)
 
-                    // Security folder — MSSQL and PostgreSQL
                     if session.connection.databaseType == .microsoftSQL || session.connection.databaseType == .postgresql {
                         securityFolderSection(session: session)
                     }
 
                     if session.connection.databaseType == .microsoftSQL {
                         agentJobsSection(session: session)
+                        managementFolderSection(session: session)
                         linkedServersSection(session: session)
                     }
                 }

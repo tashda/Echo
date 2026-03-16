@@ -98,6 +98,10 @@ final class ObjectBrowserSidebarViewModel {
     var propertiesDatabaseName: String?
     var propertiesConnectionID: UUID?
 
+    // New database sheet
+    var showNewDatabaseSheet = false
+    var newDatabaseConnectionID: UUID?
+
     // Backup/Restore sheets
     var showBackupSheet = false
     var backupDatabaseName: String?

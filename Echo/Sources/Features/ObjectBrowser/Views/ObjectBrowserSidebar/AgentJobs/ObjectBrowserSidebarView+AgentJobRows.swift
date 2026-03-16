@@ -7,62 +7,39 @@ extension ObjectBrowserSidebarView {
 
     @ViewBuilder
     func agentJobsContent(session: ConnectionSession, jobs: [ObjectBrowserSidebarViewModel.AgentJobItem], isLoading: Bool) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
-            agentJobsOverviewButton(session: session)
+        agentJobsOverviewButton(session: session)
 
-            if isLoading {
-                agentJobsLoadingIndicator()
-            } else if !jobs.isEmpty {
-                ForEach(jobs) { job in
-                    agentJobRow(job: job, session: session)
-                }
+        if isLoading {
+            agentJobsLoadingIndicator()
+        } else if !jobs.isEmpty {
+            ForEach(jobs) { job in
+                agentJobRow(job: job, session: session)
             }
-
-            // New Job button -- at bottom of list
-            newJobButton(session: session)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+
+        // New Job button -- at bottom of list
+        newJobButton(session: session)
     }
 
     func agentJobsOverviewButton(session: ConnectionSession) -> some View {
         Button {
             environmentState.openJobQueueTab(for: session)
         } label: {
-            HStack(spacing: SpacingTokens.xs) {
-                Spacer().frame(width: SidebarRowConstants.chevronWidth)
-
-                Image(systemName: "list.bullet.rectangle")
-                    .font(TypographyTokens.detail)
-                    .foregroundStyle(ExplorerSidebarPalette.jobs)
-                    .frame(width: SidebarRowConstants.iconFrame)
-
-                Text("Agent Jobs Overview")
-                    .font(TypographyTokens.standard)
-                    .foregroundStyle(ColorTokens.Text.primary)
-                    .lineLimit(1)
-
-                Spacer(minLength: 4)
-            }
-            .padding(.horizontal, SidebarRowConstants.rowHorizontalPadding)
-            .padding(.vertical, SidebarRowConstants.rowVerticalPadding)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .contentShape(Rectangle())
+            SidebarRow(
+                depth: 1,
+                icon: .system("list.bullet.rectangle"),
+                label: "Agent Jobs Overview",
+                iconColor: projectStore.globalSettings.sidebarColoredIcons ? ExplorerSidebarPalette.jobs : ExplorerSidebarPalette.monochrome
+            )
         }
         .buttonStyle(.plain)
     }
 
     func agentJobsLoadingIndicator() -> some View {
-        HStack(spacing: SpacingTokens.xs) {
-            Spacer().frame(width: SidebarRowConstants.chevronWidth)
+        SidebarRow(depth: 1, icon: .none, label: "Loading jobs\u{2026}", labelColor: ColorTokens.Text.secondary, labelFont: TypographyTokens.detail) {
             ProgressView()
                 .controlSize(.mini)
-            Text("Loading jobs\u{2026}")
-                .font(TypographyTokens.detail)
-                .foregroundStyle(ColorTokens.Text.secondary)
         }
-        .padding(.horizontal, SidebarRowConstants.rowHorizontalPadding)
-        .padding(.vertical, SidebarRowConstants.rowVerticalPadding)
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     func newJobButton(session: ConnectionSession) -> some View {
@@ -70,61 +47,39 @@ extension ObjectBrowserSidebarView {
             viewModel.newJobSessionID = session.connection.id
             viewModel.showNewJobSheet = true
         } label: {
-            HStack(spacing: SpacingTokens.xs) {
-                Spacer().frame(width: SidebarRowConstants.chevronWidth)
-
-                Image(systemName: "plus.circle")
-                    .font(TypographyTokens.detail)
-                    .foregroundStyle(ColorTokens.Text.tertiary)
-                    .frame(width: SidebarRowConstants.iconFrame)
-
-                Text("New Job\u{2026}")
-                    .font(TypographyTokens.standard)
-                    .foregroundStyle(ColorTokens.Text.tertiary)
-                    .lineLimit(1)
-
-                Spacer(minLength: 4)
-            }
-            .padding(.horizontal, SidebarRowConstants.rowHorizontalPadding)
-            .padding(.vertical, SidebarRowConstants.rowVerticalPadding)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .contentShape(Rectangle())
+            SidebarRow(
+                depth: 1,
+                icon: .system("plus.circle"),
+                label: "New Job\u{2026}",
+                iconColor: ColorTokens.Text.tertiary,
+                labelColor: ColorTokens.Text.tertiary
+            )
         }
         .buttonStyle(.plain)
     }
 
     func agentJobRow(job: ObjectBrowserSidebarViewModel.AgentJobItem, session: ConnectionSession) -> some View {
-        Button {
+        let statusColor = job.enabled
+            ? agentJobStatusColor(job.lastOutcome, enabled: true)
+            : ColorTokens.Text.quaternary
+
+        return Button {
             environmentState.openJobQueueTab(for: session, selectJobID: job.name)
         } label: {
-            HStack(spacing: SpacingTokens.xs) {
-                Spacer().frame(width: SidebarRowConstants.chevronWidth)
-
-                Image(systemName: "clock")
-                    .font(TypographyTokens.detail)
-                    .foregroundStyle(job.enabled ? agentJobStatusColor(job.lastOutcome, enabled: true) : ColorTokens.Text.quaternary)
-                    .frame(width: SidebarRowConstants.iconFrame)
-
-                Text(job.name)
-                    .font(TypographyTokens.standard)
-                    .foregroundStyle(job.enabled ? .primary : .secondary)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-
-                Spacer(minLength: 4)
-
+            SidebarRow(
+                depth: 1,
+                icon: .system("clock"),
+                label: job.name,
+                iconColor: statusColor,
+                labelColor: job.enabled ? ColorTokens.Text.primary : ColorTokens.Text.secondary
+            ) {
                 if !job.enabled {
                     Text("Disabled")
-                        .font(TypographyTokens.label)
+                        .font(SidebarRowConstants.trailingFont)
                         .foregroundStyle(ColorTokens.Text.quaternary)
                 }
             }
-            .padding(.horizontal, SidebarRowConstants.rowHorizontalPadding)
-            .padding(.vertical, SidebarRowConstants.rowVerticalPadding)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .contentShape(Rectangle())
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
         .buttonStyle(.plain)
         .contextMenu {
             Button {

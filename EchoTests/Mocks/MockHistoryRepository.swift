@@ -18,6 +18,11 @@ final class MockHistoryRepository: HistoryRepositoryProtocol, @unchecked Sendabl
         return records.sorted { $0.lastUsedAt > $1.lastUsedAt }
     }
 
+    func loadRecentConnections(forProjectID projectID: UUID) -> [RecentConnectionRecord] {
+        loadCallCount += 1
+        return records.filter { $0.projectID == projectID }.sorted { $0.lastUsedAt > $1.lastUsedAt }
+    }
+
     func saveRecentConnections(_ records: [RecentConnectionRecord]) {
         saveCallCount += 1
         let sorted = records.sorted { $0.lastUsedAt > $1.lastUsedAt }

@@ -20,6 +20,9 @@ public protocol DatabaseSession: Sendable {
     func truncateTable(schema: String?, name: String) async throws
     func getTableStructureDetails(schema: String, table: String) async throws -> TableStructureDetails
     func rebuildIndex(schema: String, table: String, index: String) async throws
+    func vacuumTable(schema: String, table: String, full: Bool, analyze: Bool) async throws
+    func analyzeTable(schema: String, table: String) async throws
+    func reindexTable(schema: String, table: String) async throws
     func sessionForDatabase(_ database: String) async throws -> DatabaseSession
     func makeActivityMonitor() throws -> any DatabaseActivityMonitoring
 }
@@ -119,6 +122,17 @@ public extension DatabaseSession {
         throw DatabaseError.queryError("Activity monitor is not supported for this database type")
     }
 
+    func vacuumTable(schema: String, table: String, full: Bool, analyze: Bool) async throws {
+        throw DatabaseError.queryError("VACUUM is not supported for this database type")
+    }
+
+    func analyzeTable(schema: String, table: String) async throws {
+        throw DatabaseError.queryError("ANALYZE is not supported for this database type")
+    }
+
+    func reindexTable(schema: String, table: String) async throws {
+        throw DatabaseError.queryError("REINDEX is not supported for this database type")
+    }
 }
 
 protocol ExecutionPlanProviding: DatabaseSession {

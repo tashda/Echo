@@ -96,14 +96,10 @@ struct DatabaseMailSheet: View {
             return
         }
         do {
-            async let p = mssql.databaseMail.listProfiles()
-            async let a = mssql.databaseMail.listAccounts()
-            async let s = mssql.databaseMail.status()
-            async let q = mssql.databaseMail.mailQueue(limit: 50)
-            profiles = try await p
-            accounts = try await a
-            status = try await s
-            queueItems = try await q
+            profiles = try await mssql.databaseMail.listProfiles()
+            accounts = try await mssql.databaseMail.listAccounts()
+            status = try await mssql.databaseMail.status()
+            queueItems = try await mssql.databaseMail.mailQueue(limit: 50)
             isLoading = false
         } catch {
             errorMessage = error.localizedDescription

@@ -2,21 +2,20 @@ import SwiftUI
 
 struct ConnectionDashboardDetails: View {
     @Bindable var session: ConnectionSession
+    @Environment(ConnectionStore.self) private var connectionStore
 
     private var connection: SavedConnection { session.connection }
 
     var body: some View {
         VStack(alignment: .leading, spacing: SpacingTokens.xs) {
-            Text("Connection")
-                .font(TypographyTokens.detail.weight(.medium))
-                .foregroundStyle(ColorTokens.Text.tertiary)
-                .textCase(.uppercase)
-                .padding(.leading, SpacingTokens.xxs)
+            DashboardSectionLabel(title: "Connection")
 
             VStack(spacing: 0) {
                 detailRow("Server", value: connection.host)
                 detailDivider
                 detailRow("Port", value: "\(connection.port)")
+                detailDivider
+                detailRow("User", value: resolvedUsername)
                 if !connection.database.isEmpty {
                     detailDivider
                     detailRow("Database", value: connection.database)
@@ -26,22 +25,30 @@ struct ConnectionDashboardDetails: View {
                     detailRow("Version", value: version)
                 }
                 detailDivider
-                detailRow("Type", value: connection.databaseType.displayName)
-                detailDivider
                 detailRow("Encryption", value: connection.databaseType == .postgresql
                     ? connection.tlsMode.rawValue
                     : (connection.useTLS ? "TLS" : "None"))
-                if !connection.username.isEmpty {
-                    detailDivider
-                    detailRow("User", value: connection.username)
-                }
             }
             .background(
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(ColorTokens.Text.primary.opacity(0.02))
+                    .fill(ColorTokens.Surface.rest)
             )
             .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
         }
+    }
+
+    private var resolvedUsername: String {
+        // Direct username on the connection
+        if !connection.username.isEmpty {
+            return connection.username
+        }
+        // Resolve from identity if the connection uses one
+        if connection.usesIdentity,
+           let identityID = connection.identityID,
+           let identity = connectionStore.identities.first(where: { $0.id == identityID }) {
+            return identity.username
+        }
+        return "–"
     }
 
     private var serverVersion: String? {

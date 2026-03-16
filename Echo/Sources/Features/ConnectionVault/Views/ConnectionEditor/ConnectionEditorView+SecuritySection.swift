@@ -75,7 +75,7 @@ extension ConnectionEditorView {
     private func certFilePathPicker(label: String, path: Binding<String>) -> some View {
         HStack {
             TextField(label, text: path)
-            Button("Browse...") {
+            Button("Browse") {
                 let panel = NSOpenPanel()
                 panel.allowedContentTypes = [.init(filenameExtension: "pem")!, .init(filenameExtension: "crt")!, .init(filenameExtension: "key")!, .item]
                 panel.allowsMultipleSelection = false
@@ -93,7 +93,7 @@ extension ConnectionEditorView {
                 get: { sslRootCertPath ?? "" },
                 set: { sslRootCertPath = $0.isEmpty ? nil : $0 }
             ))
-            Button("Browse...") {
+            Button("Browse") {
                 let panel = NSOpenPanel()
                 panel.allowedContentTypes = [.init(filenameExtension: "pem")!, .init(filenameExtension: "crt")!, .item]
                 panel.allowsMultipleSelection = false

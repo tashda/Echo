@@ -5,6 +5,7 @@ struct RefreshToolbarButton: View {
     @Environment(NavigationStore.self) private var navigationStore
     @Environment(EnvironmentState.self) private var environmentState
     @Environment(AppearanceStore.self) private var appearanceStore
+    @Environment(TabStore.self) private var tabStore
 
     @State private var refreshTask: Task<Void, Never>?
 
@@ -29,6 +30,37 @@ struct RefreshToolbarButton: View {
     }
 
     private func startRefresh(for session: ConnectionSession) {
+        // Dispatch based on active tab type
+        if let activeTab = tabStore.activeTab {
+            switch activeTab.kind {
+            case .maintenance:
+                if let vm = activeTab.maintenance {
+                    session.structureLoadingState = .loading(progress: nil)
+                    refreshTask = Task {
+                        await vm.refresh()
+                        session.structureLoadingState = .ready
+                        refreshTask = nil
+                    }
+                    return
+                }
+            case .activityMonitor:
+                if let vm = activeTab.activityMonitor {
+                    session.structureLoadingState = .loading(progress: nil)
+                    vm.refresh()
+                    // refresh() fires internally — signal completion after a brief delay
+                    refreshTask = Task {
+                        try? await Task.sleep(nanoseconds: 500_000_000)
+                        session.structureLoadingState = .ready
+                        refreshTask = nil
+                    }
+                    return
+                }
+            default:
+                break
+            }
+        }
+
+        // Default: refresh database structure
         refreshTask?.cancel()
         session.structureLoadingState = .loading(progress: 0)
         refreshTask = Task {

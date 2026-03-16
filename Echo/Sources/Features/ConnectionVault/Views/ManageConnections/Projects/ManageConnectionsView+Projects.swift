@@ -54,8 +54,7 @@ extension ManageConnectionsView {
                         Spacer()
 
                         Button {
-                            projectStore.selectProject(project)
-                            navigationStore.selectProject(project)
+                            environmentState.requestProjectSwitch(to: project)
                         } label: {
                             Text(projectStore.selectedProject?.id == project.id ? "Selected" : "Select")
                                 .font(TypographyTokens.standard.weight(.bold))

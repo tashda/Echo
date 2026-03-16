@@ -107,23 +107,7 @@ extension SQLTextView {
     }
 
     internal func isSuggestionKindEnabled(_ kind: SQLAutoCompletionKind) -> Bool {
-        switch kind {
-        case .keyword:
-            if displayOptions.suggestKeywordsInCompletion {
-                return true
-            }
-            return displayOptions.inlineKeywordSuggestionsEnabled
-        case .function:
-            return displayOptions.suggestFunctionsInCompletion
-        case .snippet:
-            return displayOptions.suggestSnippetsInCompletion
-        case .join:
-            return displayOptions.suggestJoinsInCompletion
-        case .parameter:
-            return false
-        default:
-            return true
-        }
+        kind != .parameter
     }
 
 }

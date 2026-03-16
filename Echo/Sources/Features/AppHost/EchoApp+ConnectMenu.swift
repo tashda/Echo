@@ -44,7 +44,7 @@ struct ConnectMenuCommands: Commands {
                 Divider()
             }
 
-            Button("Manage Connections…") {
+            Button("Manage Connections") {
                 ManageConnectionsWindowController.shared.present()
             }
             .keyboardShortcut("m", modifiers: [.command, .shift])
@@ -54,7 +54,7 @@ struct ConnectMenuCommands: Commands {
             Button {
                 SparkleUpdater.shared.checkForUpdates()
             } label: {
-                Label("Check for Updates…", systemImage: "arrow.clockwise.circle")
+                Label("Check for Updates", systemImage: "arrow.clockwise.circle")
             }
             .disabled(!SparkleUpdater.shared.canCheckForUpdates)
         }

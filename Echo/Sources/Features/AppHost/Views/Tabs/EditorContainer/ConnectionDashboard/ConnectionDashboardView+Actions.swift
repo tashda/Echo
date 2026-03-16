@@ -1,94 +1,166 @@
 import SwiftUI
 
-struct ConnectionDashboardQuickActions: View {
+struct ConnectionDashboardTools: View {
     @Bindable var session: ConnectionSession
-    let onNewQuery: () -> Void
-    let onOpenJobQueue: (() -> Void)?
+    @Environment(EnvironmentState.self) private var environmentState
+
+    private var databases: [DatabaseInfo] {
+        session.databaseStructure?.databases ?? []
+    }
+
+    private var defaultDatabase: String {
+        session.selectedDatabaseName ?? session.connection.database
+    }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: SpacingTokens.xs) {
-            Text("Quick Actions")
-                .font(TypographyTokens.detail.weight(.medium))
-                .foregroundStyle(ColorTokens.Text.tertiary)
-                .textCase(.uppercase)
-                .padding(.leading, SpacingTokens.xxs)
-
-            VStack(spacing: SpacingTokens.xxs) {
-                DashboardQuickActionRow(
-                    icon: "plus.square",
-                    title: "New Query",
-                    subtitle: "Open a blank SQL editor",
-                    action: onNewQuery
-                )
-
-                if session.connection.databaseType == .microsoftSQL,
-                   let onOpenJobQueue {
-                    DashboardQuickActionRow(
-                        icon: "clock.badge.checkmark",
-                        title: "SQL Agent Jobs",
-                        subtitle: "View scheduled jobs and execution history",
-                        action: onOpenJobQueue
-                    )
-                }
-
-                if session.connection.databaseType == .postgresql {
-                    if let onOpenJobQueue {
-                        DashboardQuickActionRow(
-                            icon: "clock.badge.checkmark",
-                            title: "Job Queue",
-                            subtitle: "Monitor background jobs",
-                            action: onOpenJobQueue
-                        )
-                    }
-                }
+        HStack(spacing: SpacingTokens.xs) {
+            if session.connection.databaseType == .postgresql {
+                postgresTools
+            } else if session.connection.databaseType == .microsoftSQL {
+                mssqlTools
             }
+        }
+    }
+
+    // MARK: - PostgreSQL
+
+    @ViewBuilder
+    private var postgresTools: some View {
+        DashboardToolCard(icon: "gauge.with.dots.needle.33percent", label: "Activity Monitor") {
+            environmentState.openActivityMonitorTab(connectionID: session.connection.id)
+        }
+
+        DashboardToolCard(icon: "wrench.and.screwdriver", label: "Maintenance", menuItems: databases.map(\.name)) { db in
+            environmentState.openMaintenanceTab(connectionID: session.connection.id, databaseName: db)
+        } directAction: {
+            environmentState.openMaintenanceTab(connectionID: session.connection.id, databaseName: defaultDatabase)
+        }
+
+        DashboardToolCard(icon: "terminal", label: "Console", menuItems: databases.map(\.name)) { db in
+            environmentState.openPSQLTab(for: session, database: db)
+        } directAction: {
+            environmentState.openPSQLTab(for: session)
+        }
+    }
+
+    // MARK: - MSSQL
+
+    @ViewBuilder
+    private var mssqlTools: some View {
+        DashboardToolCard(icon: "gauge.with.dots.needle.33percent", label: "Activity Monitor") {
+            environmentState.openActivityMonitorTab(connectionID: session.connection.id)
+        }
+
+        DashboardToolCard(icon: "clock.badge.checkmark", label: "Agent Jobs") {
+            environmentState.openJobQueueTab(for: session)
+        }
+
+        DashboardToolCard(icon: "chart.bar.xaxis", label: "Query Store", menuItems: databases.map(\.name)) { db in
+            environmentState.openQueryStoreTab(connectionID: session.connection.id, databaseName: db)
+        } directAction: {
+            environmentState.openQueryStoreTab(connectionID: session.connection.id, databaseName: defaultDatabase)
+        }
+
+        DashboardToolCard(icon: "waveform.path.ecg", label: "Events") {
+            environmentState.openExtendedEventsTab(connectionID: session.connection.id)
         }
     }
 }
 
-private struct DashboardQuickActionRow: View {
+// MARK: - Tool Card
+
+/// A dashboard tool card rendered as a plain Button.
+/// When `menuItems` has more than one entry, clicking shows an NSMenu.
+/// Otherwise clicks trigger `directAction` immediately.
+private struct DashboardToolCard: View {
     let icon: String
-    let title: String
-    let subtitle: String
-    let action: () -> Void
+    let label: String
+    var menuItems: [String] = []
+    var menuAction: ((String) -> Void)?
+    let directAction: () -> Void
 
     @State private var isHovered = false
 
+    init(icon: String, label: String, directAction: @escaping () -> Void) {
+        self.icon = icon
+        self.label = label
+        self.directAction = directAction
+    }
+
+    init(icon: String, label: String, menuItems: [String], menuAction: @escaping (String) -> Void, directAction: @escaping () -> Void) {
+        self.icon = icon
+        self.label = label
+        self.menuItems = menuItems
+        self.menuAction = menuAction
+        self.directAction = directAction
+    }
+
+    private var needsMenu: Bool {
+        menuItems.count > 1 && menuAction != nil
+    }
+
     var body: some View {
-        Button(action: action) {
-            HStack(spacing: SpacingTokens.sm) {
-                Image(systemName: icon)
-                    .font(TypographyTokens.prominent.weight(.medium))
-                    .foregroundStyle(ColorTokens.accent)
-                    .frame(width: 28, alignment: .center)
-
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(title)
-                        .font(TypographyTokens.standard.weight(.medium))
-                        .foregroundStyle(ColorTokens.Text.primary)
-
-                    Text(subtitle)
-                        .font(TypographyTokens.detail)
-                        .foregroundStyle(ColorTokens.Text.tertiary)
-                }
-
-                Spacer()
-
-                Image(systemName: "chevron.right")
-                    .font(TypographyTokens.label.weight(.bold))
-                    .foregroundStyle(ColorTokens.Text.quaternary)
+        Button {
+            if needsMenu {
+                showMenu()
+            } else {
+                directAction()
             }
-            .padding(.horizontal, SpacingTokens.sm)
-            .padding(.vertical, SpacingTokens.xs)
+        } label: {
+            VStack(spacing: SpacingTokens.xxs) {
+                Image(systemName: icon)
+                    .font(TypographyTokens.prominent)
+                    .foregroundStyle(ColorTokens.Text.secondary)
+                    .frame(height: 20)
+                Text(label)
+                    .font(TypographyTokens.detail)
+                    .foregroundStyle(ColorTokens.Text.secondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, SpacingTokens.sm)
             .contentShape(Rectangle())
             .background(
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(isHovered
-                        ? ColorTokens.Text.primary.opacity(0.05)
-                        : ColorTokens.Text.primary.opacity(0.02))
+                    .fill(isHovered ? ColorTokens.Surface.hover : ColorTokens.Surface.rest)
             )
         }
         .buttonStyle(.plain)
         .onHover { isHovered = $0 }
+    }
+
+    private func showMenu() {
+        guard let menuAction else { return }
+        let coordinator = ToolCardMenuCoordinator(action: menuAction)
+        let menu = NSMenu()
+        for item in menuItems {
+            let menuItem = NSMenuItem(title: item, action: #selector(ToolCardMenuCoordinator.itemSelected(_:)), keyEquivalent: "")
+            menuItem.target = coordinator
+            menu.addItem(menuItem)
+        }
+        // Prevent coordinator from being deallocated while menu is open
+        objc_setAssociatedObject(menu, "coordinator", coordinator, .OBJC_ASSOCIATION_RETAIN)
+
+        guard let event = NSApp.currentEvent,
+              let window = event.window,
+              let contentView = window.contentView else { return }
+
+        let location = contentView.convert(event.locationInWindow, from: nil)
+        _ = menu.popUp(positioning: nil, at: location, in: contentView)
+    }
+}
+
+// MARK: - Menu Coordinator
+
+private final class ToolCardMenuCoordinator: NSObject {
+    let action: (String) -> Void
+
+    init(action: @escaping (String) -> Void) {
+        self.action = action
+    }
+
+    @objc func itemSelected(_ sender: NSMenuItem) {
+        action(sender.title)
     }
 }

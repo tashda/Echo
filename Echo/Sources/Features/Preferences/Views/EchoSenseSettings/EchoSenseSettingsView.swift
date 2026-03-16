@@ -9,45 +9,6 @@ struct EchoSenseSettingsView: View {
 
     var body: some View {
         Form {
-            Section("Suggestions") {
-                EchoSenseToggleRow(
-                    title: "Keywords",
-                    isOn: suggestKeywordsBinding,
-                    topic: .keywords
-                )
-
-                EchoSenseToggleRow(
-                    title: "Inline keyword preview",
-                    isOn: inlineKeywordPreviewBinding,
-                    topic: .inlineKeywords
-                )
-                .disabled(!appState.sqlEditorDisplay.autoCompletionEnabled)
-
-                EchoSenseToggleRow(
-                    title: "Functions",
-                    isOn: suggestFunctionsBinding,
-                    topic: .functions
-                )
-
-                EchoSenseToggleRow(
-                    title: "Snippets",
-                    isOn: suggestSnippetsBinding,
-                    topic: .snippets
-                )
-
-                EchoSenseToggleRow(
-                    title: "Join helpers",
-                    isOn: suggestJoinsBinding,
-                    topic: .joins
-                )
-
-                EchoSenseToggleRow(
-                    title: "History boosting",
-                    isOn: suggestHistoryBinding,
-                    topic: .history
-                )
-            }
-
             Section("Insertion") {
                 EchoSenseToggleRow(
                     title: "Qualify table completions",
@@ -62,11 +23,7 @@ struct EchoSenseSettingsView: View {
                 )
             }
 
-            Section("Behaviour") {
-                EchoSenseAggressivenessRow(
-                    selection: aggressivenessBinding
-                )
-
+            Section("Shortcuts") {
                 LabeledContent {
                     Button {
                         NotificationCenter.default.post(

@@ -78,7 +78,7 @@ struct StreamingPresetPickerControl: View {
                 Text(label(for: preset))
                     .tag(Selection.preset(preset))
             }
-            Text(selection == .custom ? displayValueLabel : "Custom...")
+            Text(selection == .custom ? displayValueLabel : "Custom")
                 .tag(Selection.custom)
         }
         .labelsHidden()

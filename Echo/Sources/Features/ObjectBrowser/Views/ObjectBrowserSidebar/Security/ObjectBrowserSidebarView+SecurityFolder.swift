@@ -14,7 +14,7 @@ extension ObjectBrowserSidebarView {
         VStack(alignment: .leading, spacing: SpacingTokens.xxxs) {
             folderHeaderRow(
                 title: "Security",
-                icon: "lock.shield",
+                icon: "shield",
                 count: nil,
                 isExpanded: isExpanded
             ) {
@@ -30,7 +30,6 @@ extension ObjectBrowserSidebarView {
                 VStack(alignment: .leading, spacing: SpacingTokens.xxxs) {
                     serverSecurityContent(session: session)
                 }
-                .padding(.leading, SidebarRowConstants.indentStep)
             }
         }
     }
@@ -45,7 +44,7 @@ extension ObjectBrowserSidebarView {
         sidebarListRow(leading: baseIndent) {
             folderHeaderRow(
                 title: "Security",
-                icon: "lock.shield",
+                icon: "shield",
                 count: nil,
                 isExpanded: isExpanded
             ) {
@@ -75,7 +74,7 @@ extension ObjectBrowserSidebarView {
 
         if isLoading && !hasData {
             sidebarListRow(leading: baseIndent) {
-                securityLoadingRow("Loading security\u{2026}")
+                securityLoadingRow(depth: 1, "Loading security\u{2026}")
             }
         }
 
@@ -100,7 +99,7 @@ extension ObjectBrowserSidebarView {
             || !(viewModel.securityServerRolesBySession[connID] ?? []).isEmpty
 
         if isLoading && !hasData {
-            securityLoadingRow("Loading security\u{2026}")
+            securityLoadingRow(depth: 1, "Loading security\u{2026}")
         }
 
         switch session.connection.databaseType {

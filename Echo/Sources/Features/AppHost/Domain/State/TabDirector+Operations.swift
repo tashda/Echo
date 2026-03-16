@@ -53,6 +53,13 @@ extension TabDirector {
 
     // MARK: - Closing Helpers
 
+    func closeAllTabs() {
+        let tabIDs = tabs.map(\.id)
+        for id in tabIDs {
+            removeTab(withID: id)
+        }
+    }
+
     @discardableResult
     func reopenLastClosedTab(activate shouldActivate: Bool = true) -> WorkspaceTab? {
         guard let snapshot = popClosedTabSnapshot() else { return nil }

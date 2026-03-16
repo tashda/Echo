@@ -57,6 +57,20 @@ final class QueryStoreViewModel {
         }
     }
 
+    func refreshOptions() async {
+        do {
+            let previousState = storeOptions?.actualState
+            let opts = try await queryStoreClient.options(database: databaseName)
+            storeOptions = opts
+            // If the state changed (e.g. turned on/off), do a full reload
+            if previousState != opts.actualState {
+                await loadAll()
+            }
+        } catch {
+            // Silently fail — options will show stale data
+        }
+    }
+
     func refreshTopQueries() async {
         do {
             topQueries = try await queryStoreClient.topQueries(

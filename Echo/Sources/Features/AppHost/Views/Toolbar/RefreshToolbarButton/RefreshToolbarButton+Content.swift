@@ -8,7 +8,6 @@ struct RefreshButtonContent: View {
     let onCancel: () -> Void
 
     @State private var phase: Phase = .idle
-    @State private var spinning = false
     @State private var isHovering = false
     @State private var completionTask: Task<Void, Never>?
     @State private var completionMessage: String = "Completed"
@@ -38,19 +37,15 @@ struct RefreshButtonContent: View {
         Button {
             handleTap()
         } label: {
-            Label("Refresh", systemImage: phase == .idle ? "arrow.clockwise" : "circle")
+            Label("Refresh", systemImage: "arrow.clockwise")
                 .labelStyle(.iconOnly)
-                .foregroundStyle(phase == .idle ? ColorTokens.Text.secondary : .clear)
+                .opacity(phase == .idle ? 1 : 0)
+                .animation(.easeInOut(duration: 0.15), value: phase)
                 .overlay {
-                    if phase != .idle {
-                        RefreshAnimatedOverlay(
-                            phase: phase,
-                            showCancel: showCancel,
-                            spinning: spinning,
-                            circleSize: 0,
-                            glowPadding: 0
-                        )
-                    }
+                    RefreshAnimatedOverlay(
+                        phase: phase,
+                        showCancel: showCancel
+                    )
                 }
         }
         .buttonStyle(.automatic)
@@ -100,7 +95,6 @@ struct RefreshButtonContent: View {
         withAnimation(.easeInOut(duration: 0.2)) {
             phase = newPhase
         }
-        spinning = (newPhase == .refreshing)
         handleHoverStateChange(for: newPhase)
         if newPhase != .refreshing {
             hoverIntent = false

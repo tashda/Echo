@@ -115,7 +115,7 @@ extension ConnectionEditorView {
 
 #if os(macOS)
                     if selectedDatabaseType == .sqlite {
-                        Button("Browse...") {
+                        Button("Browse") {
                             browseForSQLiteFile()
                         }
                         .buttonStyle(.borderless)

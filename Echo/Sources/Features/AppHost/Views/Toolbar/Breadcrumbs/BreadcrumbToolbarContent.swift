@@ -14,9 +14,10 @@ import AppKit
 struct ProjectMenuButton: NSViewRepresentable {
     let projectStore: ProjectStore
     let navigationStore: NavigationStore
+    let environmentState: EnvironmentState
 
     func makeCoordinator() -> ProjectMenuDelegate {
-        ProjectMenuDelegate(projectStore: projectStore, navigationStore: navigationStore)
+        ProjectMenuDelegate(projectStore: projectStore, navigationStore: navigationStore, environmentState: environmentState)
     }
 
     func makeNSView(context: Context) -> ProjectButtonContentView {
@@ -32,6 +33,7 @@ struct ProjectMenuButton: NSViewRepresentable {
     func updateNSView(_ view: ProjectButtonContentView, context: Context) {
         context.coordinator.projectStore = projectStore
         context.coordinator.navigationStore = navigationStore
+        context.coordinator.environmentState = environmentState
         view.update(
             projectName: projectStore.selectedProject?.name ?? "Project",
             subtitle: "Local"
@@ -140,10 +142,12 @@ final class ProjectButtonContentView: NSView {
 final class ProjectMenuDelegate: NSObject {
     var projectStore: ProjectStore
     var navigationStore: NavigationStore
+    var environmentState: EnvironmentState
 
-    init(projectStore: ProjectStore, navigationStore: NavigationStore) {
+    init(projectStore: ProjectStore, navigationStore: NavigationStore, environmentState: EnvironmentState) {
         self.projectStore = projectStore
         self.navigationStore = navigationStore
+        self.environmentState = environmentState
         super.init()
     }
 
@@ -190,8 +194,7 @@ final class ProjectMenuDelegate: NSObject {
 
     @objc private func selectProject(_ sender: NSMenuItem) {
         guard let project = sender.representedObject as? Project else { return }
-        projectStore.selectProject(project)
-        navigationStore.selectProject(project)
+        environmentState.requestProjectSwitch(to: project)
     }
 
     @objc private func manageProjects(_ sender: NSMenuItem) {

@@ -17,6 +17,7 @@ extension ObjectBrowserSidebarView {
 
         sidebarListRow(leading: baseIndent) {
             securitySectionHeader(
+                depth: 0,
                 title: "Logins",
                 icon: "person.2",
                 count: standardLogins.count,
@@ -32,7 +33,7 @@ extension ObjectBrowserSidebarView {
                     viewModel.securityLoginSheetEditName = nil
                     viewModel.showSecurityLoginSheet = true
                 } label: {
-                    Label("New Login\u{2026}", systemImage: "plus")
+                    Label("New Login", systemImage: "plus")
                 }
                 Divider()
                 Button {
@@ -63,6 +64,7 @@ extension ObjectBrowserSidebarView {
 
         sidebarListRow(leading: baseIndent) {
             securitySectionHeader(
+                depth: 0,
                 title: "Certificate Logins",
                 icon: "doc.badge.lock",
                 count: certLogins.count,
@@ -93,8 +95,9 @@ extension ObjectBrowserSidebarView {
 
         sidebarListRow(leading: baseIndent) {
             securitySectionHeader(
+                depth: 0,
                 title: "Server Roles",
-                icon: "shield.fill",
+                icon: "shield",
                 count: roles.count,
                 isExpanded: isExpanded
             ) {
@@ -106,7 +109,7 @@ extension ObjectBrowserSidebarView {
                 Button {
                     Task { await createMSSQLServerRole(session: session) }
                 } label: {
-                    Label("New Server Role\u{2026}", systemImage: "plus")
+                    Label("New Server Role", systemImage: "plus")
                 }
                 Divider()
                 Button {
@@ -136,6 +139,7 @@ extension ObjectBrowserSidebarView {
 
         sidebarListRow(leading: baseIndent) {
             securitySectionHeader(
+                depth: 0,
                 title: "Credentials",
                 icon: "key",
                 count: credentials.count,

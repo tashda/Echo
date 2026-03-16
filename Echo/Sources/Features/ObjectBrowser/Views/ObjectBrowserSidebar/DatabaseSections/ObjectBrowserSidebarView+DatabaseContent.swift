@@ -35,38 +35,36 @@ extension ObjectBrowserSidebarView {
                     )
                     .environment(environmentState)
                     .environment(viewModel)
-                    .padding(.horizontal, SpacingTokens.xxs)
 
                     // Database-level Security
                     if session.connection.databaseType == .microsoftSQL || session.connection.databaseType == .postgresql {
                         databaseSecuritySection(database: database, session: session)
                             .environment(viewModel)
-                            .padding(.horizontal, SpacingTokens.xxs)
                     }
 
                     // Query Store (MSSQL only)
                     if session.connection.databaseType == .microsoftSQL && database.isOnline {
                         queryStoreRow(database: database, session: session)
-                            .padding(.horizontal, SpacingTokens.xxs)
                     }
                 }
             } else if alreadyLoaded {
                 // Schema was fetched but the database has no user objects — don't re-fetch
-                Text("No objects")
-                    .font(TypographyTokens.detail)
-                    .foregroundStyle(ColorTokens.Text.tertiary)
-                    .padding(.horizontal, SpacingTokens.sm)
-                    .padding(.vertical, SpacingTokens.xxs)
+                SidebarRow(
+                    depth: 2,
+                    icon: .none,
+                    label: "No objects",
+                    labelColor: ColorTokens.Text.tertiary,
+                    labelFont: TypographyTokens.detail
+                )
             } else {
-                HStack(spacing: SpacingTokens.xxs2) {
-                    ProgressView()
-                        .controlSize(.small)
-                    Text("Loading\u{2026}")
-                        .font(TypographyTokens.detail)
-                        .foregroundStyle(ColorTokens.Text.secondary)
-                }
-                .padding(.horizontal, SpacingTokens.sm)
-                .padding(.vertical, SpacingTokens.xxs)
+                // Show minimal loading text — the database header row already has a spinner
+                SidebarRow(
+                    depth: 2,
+                    icon: .none,
+                    label: "Loading\u{2026}",
+                    labelColor: ColorTokens.Text.tertiary,
+                    labelFont: TypographyTokens.detail
+                )
             }
         }
         .onAppear {
@@ -87,13 +85,16 @@ extension ObjectBrowserSidebarView {
     func queryStoreRow(database: DatabaseInfo, session: ConnectionSession) -> some View {
         let connID = session.connection.id
 
-        folderHeaderRow(
-            title: "Query Store",
-            icon: "chart.bar.xaxis",
-            count: nil,
-            isExpanded: false
-        ) {
+        Button {
             environmentState.openQueryStoreTab(connectionID: connID, databaseName: database.name)
+        } label: {
+            SidebarRow(
+                depth: 2,
+                icon: .system("chart.bar.xaxis"),
+                label: "Query Store",
+                iconColor: ColorTokens.Text.secondary
+            )
         }
+        .buttonStyle(.plain)
     }
 }

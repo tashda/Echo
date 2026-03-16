@@ -83,6 +83,9 @@ extension DatabaseObjectRow {
         case select
         case selectLimited(Int)
         case execute
+        case insert
+        case update
+        case delete
 
         var identifier: String {
             switch self {
@@ -95,6 +98,9 @@ extension DatabaseObjectRow {
             case .select: return "select"
             case .selectLimited(let limit): return "selectLimited_\(limit)"
             case .execute: return "execute"
+            case .insert: return "insert"
+            case .update: return "update"
+            case .delete: return "delete"
             }
         }
     }
@@ -148,13 +154,51 @@ extension DatabaseObjectRow {
             items.append(
                 ContextMenuActionItem(
                     id: "newExtension",
-                    title: "New Extension\u{2026}",
+                    title: "New Extension",
                     systemImage: "puzzlepiece.plus",
                     role: nil,
                     action: { 
                         let dbName = databaseName ?? connection.database
                         environmentState.openExtensionsManagerTab(connectionID: connection.id, databaseName: dbName)
                     }
+                )
+            )
+        }
+
+        if object.type == .procedure || object.type == .function {
+            items.append(
+                ContextMenuActionItem(
+                    id: "modify",
+                    title: "Modify",
+                    systemImage: "pencil.and.outline",
+                    role: nil,
+                    action: { openModifyScript() }
+                )
+            )
+        }
+
+        // View Dependencies (MSSQL only — uses sys.sql_expression_dependencies)
+        if connection.databaseType == .microsoftSQL {
+            items.append(
+                ContextMenuActionItem(
+                    id: "viewDependencies",
+                    title: "View Dependencies",
+                    systemImage: "arrow.triangle.branch",
+                    role: nil,
+                    action: { openDependenciesQuery() }
+                )
+            )
+        }
+
+        // Table Properties (MSSQL only)
+        if object.type == .table && connection.databaseType == .microsoftSQL {
+            items.append(
+                ContextMenuActionItem(
+                    id: "tableProperties",
+                    title: "Properties",
+                    systemImage: "info.circle",
+                    role: nil,
+                    action: { openTablePropertiesQuery() }
                 )
             )
         }
@@ -175,7 +219,7 @@ extension DatabaseObjectRow {
             items.append(
                 ContextMenuActionItem(
                     id: "importData",
-                    title: "Import Data\u{2026}",
+                    title: "Import Data",
                     systemImage: "square.and.arrow.down",
                     role: nil,
                     action: { showBulkImportSheet = true }

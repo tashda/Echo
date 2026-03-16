@@ -10,6 +10,13 @@ public enum ColorTokens {
         public static let secondary = Color(nsColor: .controlBackgroundColor)
         public static let tertiary = Color(nsColor: .textBackgroundColor)
         public static let elevated = Color(nsColor: .underPageBackgroundColor)
+        public static let sidebar = Color(nsColor: .controlBackgroundColor)
+    }
+
+    // Materials — use as ShapeStyle with .background()
+    public enum Material {
+        /// Translucent bar material matching sidebar/toolbar chrome.
+        public static let bar: some ShapeStyle = .bar
     }
     
     // Text
@@ -21,6 +28,18 @@ public enum ColorTokens {
         public static let placeholder = Color(nsColor: .placeholderTextColor)
     }
     
+    // Surface fills — lightweight tinted backgrounds for cards, rows, and containers
+    public enum Surface {
+        /// Default card/container rest fill
+        public static let rest = Color.primary.opacity(0.03)
+        /// Hovered card/container fill
+        public static let hover = Color.primary.opacity(0.06)
+        /// Selected/active accent tint
+        public static let selected = Color.accentColor.opacity(0.06)
+        /// Selected border stroke
+        public static let selectedBorder = Color.accentColor.opacity(0.3)
+    }
+
     // Dividers / Borders
     public enum Separator {
         public static let primary = Color(nsColor: .separatorColor)
