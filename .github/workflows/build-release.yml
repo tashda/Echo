@@ -141,8 +141,10 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    - name: Unlock keychain
-      run: security unlock-keychain -p "${{ secrets.KEYCHAIN_PASSWORD }}" ~/Library/Keychains/login.keychain-db
+    - name: Prepare environment
+      run: |
+        security unlock-keychain -p "${{ secrets.KEYCHAIN_PASSWORD }}" ~/Library/Keychains/login.keychain-db
+        defaults write com.apple.LaunchServices LSQuarantine -bool NO 2>/dev/null || true
 
     - name: Verify Docker
       run: |
@@ -231,8 +233,10 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    - name: Unlock keychain
-      run: security unlock-keychain -p "${{ secrets.KEYCHAIN_PASSWORD }}" ~/Library/Keychains/login.keychain-db
+    - name: Prepare environment
+      run: |
+        security unlock-keychain -p "${{ secrets.KEYCHAIN_PASSWORD }}" ~/Library/Keychains/login.keychain-db
+        defaults write com.apple.LaunchServices LSQuarantine -bool NO 2>/dev/null || true
 
     - name: Run SQLite & Cross-Dialect Integration Tests
       run: |
