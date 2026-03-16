@@ -7,6 +7,7 @@ final class QueryEditorUITests: XCTestCase {
 
     func testQueryEditorAcceptsDoubleQuotedIdentifiers() {
         let app = XCUIApplication()
+        app.launchArguments += ["-ApplePersistenceIgnoreState", "YES"]
         app.launchEnvironment["UITEST_BOOT_MODE"] = "QueryEditor"
         app.launch()
         app.activate()
