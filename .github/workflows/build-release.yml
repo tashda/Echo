@@ -141,11 +141,11 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
+    - name: Select Xcode
+      run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer || true
+
     - name: Clear SPM cache
       run: rm -rf ~/Library/Caches/org.swift.swiftpm/repositories
-
-    - name: Resolve packages
-      run: xcodebuild -resolvePackageDependencies -project Echo.xcodeproj
 
     - name: Verify Docker
       run: |
@@ -237,11 +237,11 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
+    - name: Select Xcode
+      run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer || true
+
     - name: Clear SPM cache
       run: rm -rf ~/Library/Caches/org.swift.swiftpm/repositories
-
-    - name: Resolve packages
-      run: xcodebuild -resolvePackageDependencies -project Echo.xcodeproj
 
     - name: Run SQLite & Cross-Dialect Integration Tests
       run: |
