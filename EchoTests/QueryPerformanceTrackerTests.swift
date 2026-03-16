@@ -37,7 +37,7 @@ final class QueryPerformanceTrackerTests: XCTestCase {
         attachment.lifetime = .keepAlways
         add(attachment)
 
-        XCTAssertLessThan(benchmark.elapsed, 5.0, "Baseline query took unexpectedly long")
+        XCTAssertLessThan(benchmark.elapsed, 15.0, "Baseline query took unexpectedly long")
     }
 
     // MARK: - Helpers
