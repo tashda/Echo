@@ -9,6 +9,7 @@ final class AppearanceUITests: XCTestCase {
 
     func testDarkModeAppearance() {
         let app = XCUIApplication()
+        app.launchArguments += ["-ApplePersistenceIgnoreState", "YES"]
         app.launchEnvironment["ECHO_FORCE_APPEARANCE"] = "dark"
         app.launch()
         app.activate()
@@ -31,6 +32,7 @@ final class AppearanceUITests: XCTestCase {
 
     func testLightModeAppearance() {
         let app = XCUIApplication()
+        app.launchArguments += ["-ApplePersistenceIgnoreState", "YES"]
         app.launchEnvironment["ECHO_FORCE_APPEARANCE"] = "light"
         app.launch()
         app.activate()
@@ -52,6 +54,7 @@ final class AppearanceUITests: XCTestCase {
     func testDarkAndLightModesProduceDifferentScreenshots() {
         // Dark mode
         let darkApp = XCUIApplication()
+        darkApp.launchArguments += ["-ApplePersistenceIgnoreState", "YES"]
         darkApp.launchEnvironment["ECHO_FORCE_APPEARANCE"] = "dark"
         darkApp.launch()
         darkApp.activate()
@@ -61,6 +64,7 @@ final class AppearanceUITests: XCTestCase {
 
         // Light mode
         let lightApp = XCUIApplication()
+        lightApp.launchArguments += ["-ApplePersistenceIgnoreState", "YES"]
         lightApp.launchEnvironment["ECHO_FORCE_APPEARANCE"] = "light"
         lightApp.launch()
         lightApp.activate()

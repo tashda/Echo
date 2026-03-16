@@ -9,6 +9,7 @@ final class SidebarUITests: XCTestCase {
 
     private func launchApp() -> XCUIApplication {
         let app = XCUIApplication()
+        app.launchArguments += ["-ApplePersistenceIgnoreState", "YES"]
         app.launch()
         app.activate()
         let window = app.windows.firstMatch

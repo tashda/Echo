@@ -255,8 +255,12 @@ jobs:
           -only-testing:EchoTests/FactoryConnectionTests \
           -disable-concurrent-testing
 
-    - name: Kill leftover Echo processes
-      run: pkill -x Echo 2>/dev/null || true
+    - name: Prepare for UI Tests
+      run: |
+        pkill -x Echo 2>/dev/null || true
+        defaults delete dk.tippr.echo NSQuitAlwaysKeepsWindows 2>/dev/null || true
+        defaults write dk.tippr.echo NSQuitAlwaysKeepsWindows -bool NO
+        rm -rf ~/Library/Saved\ Application\ State/dk.tippr.echo.savedState 2>/dev/null || true
 
     - name: Run UI Tests
       run: |

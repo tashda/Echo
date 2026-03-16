@@ -9,6 +9,7 @@ final class ConnectionFlowUITests: XCTestCase {
 
     func testSidebarExistsOnLaunch() {
         let app = XCUIApplication()
+        app.launchArguments += ["-ApplePersistenceIgnoreState", "YES"]
         app.launch()
         app.activate()
 
@@ -21,6 +22,7 @@ final class ConnectionFlowUITests: XCTestCase {
 
     func testAddConnectionShowsSheet() {
         let app = XCUIApplication()
+        app.launchArguments += ["-ApplePersistenceIgnoreState", "YES"]
         app.launch()
         app.activate()
 

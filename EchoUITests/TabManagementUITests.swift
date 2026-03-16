@@ -9,6 +9,7 @@ final class TabManagementUITests: XCTestCase {
 
     func testCommandTCreatesNewTab() {
         let app = XCUIApplication()
+        app.launchArguments += ["-ApplePersistenceIgnoreState", "YES"]
         app.launch()
         app.activate()
 
@@ -33,6 +34,7 @@ final class TabManagementUITests: XCTestCase {
 
     func testCommandWClosesTab() {
         let app = XCUIApplication()
+        app.launchArguments += ["-ApplePersistenceIgnoreState", "YES"]
         app.launch()
         app.activate()
 
@@ -57,6 +59,7 @@ final class TabManagementUITests: XCTestCase {
 
     func testCommandOTogglesTabOverview() {
         let app = XCUIApplication()
+        app.launchArguments += ["-ApplePersistenceIgnoreState", "YES"]
         app.launch()
         app.activate()
 

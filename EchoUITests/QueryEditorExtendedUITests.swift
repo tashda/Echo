@@ -10,6 +10,7 @@ final class QueryEditorExtendedUITests: XCTestCase {
 
     private func launchWithEditor() -> (XCUIApplication, XCUIElement) {
         let app = XCUIApplication()
+        app.launchArguments += ["-ApplePersistenceIgnoreState", "YES"]
         app.launch()
         app.activate()
 
