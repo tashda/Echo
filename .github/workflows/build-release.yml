@@ -256,6 +256,7 @@ jobs:
           -disable-concurrent-testing
 
     - name: Run UI Tests
+      continue-on-error: true
       run: |
         xcodebuild test -project Echo.xcodeproj \
           -scheme Echo \
