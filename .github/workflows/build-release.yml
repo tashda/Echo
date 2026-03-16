@@ -180,6 +180,7 @@ jobs:
           -only-testing:EchoTests/MSSQLDataTypeBinaryTests \
           -only-testing:EchoTests/MSSQLStreamingTests \
           -only-testing:EchoTests/MSSQLStreamingSpoolTests \
+          -disable-concurrent-testing \
           CODE_SIGN_IDENTITY="" \
           CODE_SIGNING_REQUIRED=NO \
           CODE_SIGNING_ALLOWED=NO
@@ -215,6 +216,7 @@ jobs:
           -only-testing:EchoTests/PGDataTypeSpecialTests \
           -only-testing:EchoTests/PGStreamingTests \
           -only-testing:EchoTests/PGStreamingSpoolTests \
+          -disable-concurrent-testing \
           CODE_SIGN_IDENTITY="" \
           CODE_SIGNING_REQUIRED=NO \
           CODE_SIGNING_ALLOWED=NO
@@ -245,6 +247,7 @@ jobs:
           -only-testing:EchoTests/SQLiteDataTypeTests \
           -only-testing:EchoTests/SessionProtocolComplianceTests \
           -only-testing:EchoTests/FactoryConnectionTests \
+          -disable-concurrent-testing \
           CODE_SIGN_IDENTITY="" \
           CODE_SIGNING_REQUIRED=NO \
           CODE_SIGNING_ALLOWED=NO
