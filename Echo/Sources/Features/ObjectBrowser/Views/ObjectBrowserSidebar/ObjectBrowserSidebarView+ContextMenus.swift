@@ -54,28 +54,10 @@ extension ObjectBrowserSidebarView {
     @ViewBuilder
     func databasesFolderContextMenu(session: ConnectionSession) -> some View {
         Button {
-            let sql: String
-            switch session.connection.databaseType {
-            case .postgresql:
-                sql = """
-                CREATE DATABASE new_database
-                    OWNER = current_user
-                    ENCODING = 'UTF8'
-                    LC_COLLATE = 'en_US.UTF-8'
-                    LC_CTYPE = 'en_US.UTF-8'
-                    TEMPLATE = template0;
-                """
-            case .microsoftSQL:
-                sql = """
-                CREATE DATABASE [NewDatabase]
-                GO
-                """
-            default:
-                sql = "CREATE DATABASE new_database;"
-            }
-            environmentState.openQueryTab(for: session, presetQuery: sql)
+            viewModel.newDatabaseConnectionID = session.connection.id
+            viewModel.showNewDatabaseSheet = true
         } label: {
-            Label("New Database\u{2026}", systemImage: "plus")
+            Label("New Database", systemImage: "plus")
         }
 
         Divider()
@@ -99,6 +81,12 @@ extension ObjectBrowserSidebarView {
             Label("Activity Monitor", systemImage: "gauge.with.dots.needle.33percent")
         }
 
+        Button {
+            environmentState.openMaintenanceTab(connectionID: session.connection.id)
+        } label: {
+            Label("Maintenance", systemImage: "wrench.and.screwdriver")
+        }
+
         if session.connection.databaseType == .microsoftSQL {
             Button {
                 viewModel.databaseMailConnectionID = session.connection.id
@@ -111,7 +99,7 @@ extension ObjectBrowserSidebarView {
                 viewModel.cmsConnectionID = session.connection.id
                 viewModel.showCMSSheet = true
             } label: {
-                Label("Central Management Servers\u{2026}", systemImage: "server.rack")
+                Label("Central Management Servers", systemImage: "server.rack")
             }
 
             Button {

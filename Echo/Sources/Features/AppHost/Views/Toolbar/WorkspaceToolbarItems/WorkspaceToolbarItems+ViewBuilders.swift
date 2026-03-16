@@ -5,10 +5,6 @@ import EchoSense
 
 extension WorkspaceToolbarItems {
 
-    // MARK: - Icon Helpers
-
-    internal var projectIcon: ToolbarIcon { .system("folder.badge.person.crop") }
-
     // MARK: - View Builders
 
     @ViewBuilder

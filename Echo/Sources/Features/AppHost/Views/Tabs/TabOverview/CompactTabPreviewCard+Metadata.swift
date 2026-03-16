@@ -30,6 +30,8 @@ extension CompactTabPreviewCard {
             return []
         case .activityMonitor:
             return []
+        case .maintenance:
+            return []
         case .queryStore:
             return []
         case .extendedEvents:
@@ -62,6 +64,8 @@ extension CompactTabPreviewCard {
             return "Extension Manager"
         case .activityMonitor:
             return "Activity"
+        case .maintenance:
+            return "Maintenance"
         case .queryStore:
             return "Query Store"
         case .extendedEvents:
@@ -95,6 +99,8 @@ extension CompactTabPreviewCard {
             return "Manage database extensions"
         case .activityMonitor:
             return "Live system performance monitoring"
+        case .maintenance:
+            return "Database health and maintenance operations"
         case .queryStore:
             return "Query Store analysis and plan management"
         case .extendedEvents:

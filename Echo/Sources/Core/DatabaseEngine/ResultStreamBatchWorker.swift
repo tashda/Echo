@@ -305,14 +305,14 @@ final class ResultStreamBatchWorker: @unchecked Sendable {
                 offset &+= 1
 
                 var littleEndianLength = UInt32(length).littleEndian
-                _ = withUnsafeBytes(of: &littleEndianLength) { pointer in
+                withUnsafeBytes(of: &littleEndianLength) { pointer in
                     guard let pointerBase = pointer.baseAddress else { return }
                     memcpy(baseAddress.advanced(by: offset), pointerBase, 4)
                 }
                 offset &+= 4
 
                 if length > 0, let buffer = buffers[index] {
-                    _ = buffer.withUnsafeReadableBytes { rawBuffer in
+                    buffer.withUnsafeReadableBytes { rawBuffer in
                         guard let rawBase = rawBuffer.baseAddress else { return }
                         memcpy(baseAddress.advanced(by: offset), rawBase, length)
                     }

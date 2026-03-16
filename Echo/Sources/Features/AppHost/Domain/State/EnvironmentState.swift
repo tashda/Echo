@@ -27,6 +27,7 @@ final class EnvironmentState {
     var dataInspectorContent: DataInspectorContent?
     private(set) var expandedConnectionFolderIDs: Set<UUID> = []
     var lastError: DatabaseError?
+    var pendingProjectSwitch: Project?
     @ObservationIgnored let toastPresenter = StatusToastPresenter()
     @ObservationIgnored var notificationEngine: NotificationEngine?
 
@@ -47,7 +48,7 @@ final class EnvironmentState {
     @ObservationIgnored let diagramKeyStore: DiagramEncryptionKeyStore
 
     @ObservationIgnored private var diagramRefreshTask: Task<Void, Never>?
-    @ObservationIgnored private var observedSessionIDs: Set<UUID> = []
+    @ObservationIgnored internal var observedSessionIDs: Set<UUID> = []
     @ObservationIgnored private static let expandedConnectionFoldersKey = "expandedConnectionFoldersByProject"
 
     // MARK: - Initialization
@@ -208,11 +209,22 @@ final class EnvironmentState {
     // MARK: - Recent Connections
 
     internal func loadRecentConnections() {
-        recentConnections = historyRepository.loadRecentConnections()
+        if let projectID = projectStore.selectedProject?.id {
+            recentConnections = historyRepository.loadRecentConnections(forProjectID: projectID)
+        } else {
+            recentConnections = historyRepository.loadRecentConnections()
+        }
     }
 
     private func saveRecentConnections() {
-        historyRepository.saveRecentConnections(recentConnections)
+        // Merge current project's records back into the full store
+        let currentProjectID = projectStore.selectedProject?.id
+        var allRecords = historyRepository.loadRecentConnections()
+        // Remove existing records for the current project
+        allRecords.removeAll { $0.projectID == currentProjectID }
+        // Add back the current in-memory records (which are project-filtered)
+        allRecords.append(contentsOf: recentConnections)
+        historyRepository.saveRecentConnections(allRecords)
     }
 
     internal func recordRecentConnection(for connection: SavedConnection, databaseName: String?) {
@@ -221,11 +233,13 @@ final class EnvironmentState {
             connectionName: connection.connectionName,
             host: connection.host,
             databaseName: databaseName,
+            username: connection.username,
             databaseType: connection.databaseType,
             colorHex: connection.colorHex,
-            lastUsedAt: Date()
+            lastUsedAt: Date(),
+            projectID: connection.projectID ?? projectStore.selectedProject?.id
         )
-        recentConnections.removeAll { $0.id == record.id }
+        recentConnections.removeAll { $0.identifier == record.identifier }
         recentConnections.insert(record, at: 0)
         saveRecentConnections()
     }
@@ -241,6 +255,12 @@ final class EnvironmentState {
         saveRecentConnections()
     }
 
+    // MARK: - Computed Properties
+
+    var hasActiveConnections: Bool {
+        !sessionGroup.activeSessions.isEmpty
+    }
+
     // MARK: - Private Helpers
 
     private func ensureDefaultProjectExists() async {
@@ -253,7 +273,7 @@ final class EnvironmentState {
         // Migration logic
     }
 
-    private func loadExpandedConnectionFolders(for projectID: UUID?) {
+    internal func loadExpandedConnectionFolders(for projectID: UUID?) {
         let storage = UserDefaults.standard.dictionary(forKey: Self.expandedConnectionFoldersKey) as? [String: [String]] ?? [:]
         let key = projectID?.uuidString ?? "global"
         let ids = storage[key]?.compactMap(UUID.init) ?? []

@@ -14,29 +14,39 @@ final class ActivityMonitorViewModel {
     @ObservationIgnored private let monitor: any DatabaseActivityMonitoring
     @ObservationIgnored private var streamTask: Task<Void, Never>?
     let connectionSessionID: UUID
+    let connectionID: UUID
+    let databaseType: DatabaseType
 
     var latestSnapshot: DatabaseActivitySnapshot?
     var isRunning: Bool = true
     var refreshInterval: TimeInterval = 5.0
 
+    // MSSQL sparkline history
     var cpuHistory: [GraphPoint] = []
     var waitingTasksHistory: [GraphPoint] = []
     var ioHistory: [GraphPoint] = []
     var throughputHistory: [GraphPoint] = []
-    
-    // For opening query windows in the correct context
-    var latestSnapshotSessionID: UUID? {
-        latestSnapshot != nil ? connectionSessionID : nil
-    }
 
-    private let maxHistoryItems = 60 
+    // Postgres sparkline history
+    var connectionCountHistory: [GraphPoint] = []
+    var cacheHitHistory: [GraphPoint] = []
+    var deadTuplesHistory: [GraphPoint] = []
 
-    init(monitor: any DatabaseActivityMonitoring, connectionSessionID: UUID) {
+    private let maxHistoryItems = 60
+
+    init(
+        monitor: any DatabaseActivityMonitoring,
+        connectionSessionID: UUID,
+        connectionID: UUID,
+        databaseType: DatabaseType
+    ) {
         self.monitor = monitor
         self.connectionSessionID = connectionSessionID
+        self.connectionID = connectionID
+        self.databaseType = databaseType
         startStreaming()
     }
-    
+
     func startStreaming() {
         isRunning = true
         streamTask?.cancel()
@@ -52,13 +62,13 @@ final class ActivityMonitorViewModel {
             }
         }
     }
-    
+
     func stopStreaming() {
         isRunning = false
         streamTask?.cancel()
         streamTask = nil
     }
-    
+
     func refresh() {
         Task {
             if let snap = try? await monitor.snapshot() {
@@ -70,13 +80,12 @@ final class ActivityMonitorViewModel {
 
     func killSession(id: Int) async throws {
         try await monitor.killSession(id: id)
-        // Instant refresh to show the process is gone
         refresh()
     }
-    
+
     private func updateHistory(with snapshot: DatabaseActivitySnapshot) {
         let now = snapshot.capturedAt
-        
+
         switch snapshot {
         case .mssql(let snap):
             if let ov = snap.overview {
@@ -87,23 +96,26 @@ final class ActivityMonitorViewModel {
             }
         case .postgres(let snap):
             if let ov = snap.overview {
-                appendHistory(&cpuHistory, value: ov.processorTimePercent, timestamp: now)
-                appendHistory(&waitingTasksHistory, value: Double(ov.waitingTasksCount), timestamp: now)
-                appendHistory(&ioHistory, value: ov.databaseIOMBPerSec, timestamp: now)
+                appendHistory(&connectionCountHistory, value: Double(ov.connectionsCount), timestamp: now)
+                appendHistory(&cacheHitHistory, value: ov.cacheHitPercent, timestamp: now)
                 appendHistory(&throughputHistory, value: ov.transactionsPerSec, timestamp: now)
+                appendHistory(&deadTuplesHistory, value: Double(ov.totalDeadTuples), timestamp: now)
+                appendHistory(&ioHistory, value: ov.databaseIOMBPerSec, timestamp: now)
             }
         }
     }
-    
+
     private func appendHistory(_ history: inout [GraphPoint], value: Double, timestamp: Date) {
         history.append(GraphPoint(timestamp: timestamp, value: value))
         if history.count > maxHistoryItems {
             history.removeFirst()
         }
     }
-    
+
     func estimatedMemoryUsageBytes() -> Int {
-        let historySize = (cpuHistory.count + waitingTasksHistory.count + ioHistory.count + throughputHistory.count) * 32
-        return 1024 * 512 + historySize 
+        let historySize = (cpuHistory.count + waitingTasksHistory.count + ioHistory.count +
+                           throughputHistory.count + connectionCountHistory.count +
+                           cacheHitHistory.count + deadTuplesHistory.count) * 32
+        return 1024 * 512 + historySize
     }
 }

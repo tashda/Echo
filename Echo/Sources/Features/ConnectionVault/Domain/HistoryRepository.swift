@@ -5,18 +5,22 @@ struct RecentConnectionRecord: Codable, Identifiable, Equatable, Sendable {
     let connectionName: String
     let host: String
     let databaseName: String?
+    let username: String?
     let databaseType: DatabaseType
     let colorHex: String?
     let lastUsedAt: Date
-    
+    var projectID: UUID?
+
     var identifier: String {
         let databaseComponent = databaseName?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() ?? ""
-        return "\(id.uuidString)|\(databaseComponent)"
+        let userComponent = username?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() ?? ""
+        return "\(id.uuidString)|\(databaseComponent)|\(userComponent)"
     }
 }
 
 protocol HistoryRepositoryProtocol: Sendable {
     func loadRecentConnections() -> [RecentConnectionRecord]
+    func loadRecentConnections(forProjectID projectID: UUID) -> [RecentConnectionRecord]
     func saveRecentConnections(_ records: [RecentConnectionRecord])
 }
 
@@ -31,6 +35,10 @@ final class HistoryRepository: HistoryRepositoryProtocol, @unchecked Sendable {
             return []
         }
         return records
+    }
+
+    func loadRecentConnections(forProjectID projectID: UUID) -> [RecentConnectionRecord] {
+        loadRecentConnections().filter { $0.projectID == projectID }
     }
     
     func saveRecentConnections(_ records: [RecentConnectionRecord]) {

@@ -57,6 +57,9 @@ extension AppDirector: TabStoreDelegate {
     }
 
     func tabStore(_ store: TabStore, didRemoveTabID tabID: UUID) {
+        // Clean up the tab from the session's query tabs list
+        environmentState.tabStore(store, didRemoveTabID: tabID)
+
         if let activeTab = store.activeTab {
             environmentState.sessionGroup.setActiveSession(activeTab.connectionSessionID)
         } else {

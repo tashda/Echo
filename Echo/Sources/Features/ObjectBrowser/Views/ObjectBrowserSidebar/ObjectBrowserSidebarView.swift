@@ -59,12 +59,12 @@ struct ObjectBrowserSidebarView: View {
             .contentMargins(.zero, for: .scrollContent)
             .contentShape(Rectangle())
             .coordinateSpace(name: ExplorerSidebarConstants.scrollCoordinateSpace)
+            .clipped()
             .safeAreaInset(edge: .bottom, spacing: 0) {
                 if !sessions.isEmpty {
                     globalFooterView
                         .padding(.top, SpacingTokens.xxs2)
                         .padding(.bottom, SpacingTokens.xxs2)
-                        .background(ColorTokens.Background.primary)
                 }
             }
             .task {

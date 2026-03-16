@@ -29,7 +29,6 @@ extension ObjectBrowserSidebarView {
 
             if isExpanded {
                 linkedServersContent(session: session, servers: servers, isLoading: isLoading)
-                    .padding(.leading, SidebarRowConstants.indentStep)
             }
         }
     }
@@ -42,18 +41,15 @@ extension ObjectBrowserSidebarView {
         servers: [ObjectBrowserSidebarViewModel.LinkedServerItem],
         isLoading: Bool
     ) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
-            if isLoading {
-                linkedServersLoadingIndicator()
-            } else if !servers.isEmpty {
-                ForEach(servers) { server in
-                    linkedServerRow(server: server, session: session)
-                }
+        if isLoading {
+            linkedServersLoadingIndicator()
+        } else if !servers.isEmpty {
+            ForEach(servers) { server in
+                linkedServerRow(server: server, session: session)
             }
-
-            newLinkedServerButton(session: session)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+
+        newLinkedServerButton(session: session)
     }
 
     // MARK: - Row
@@ -65,35 +61,21 @@ extension ObjectBrowserSidebarView {
         Button {
             // No navigation action for linked servers — they are informational
         } label: {
-            HStack(spacing: SpacingTokens.xs) {
-                Spacer().frame(width: SidebarRowConstants.chevronWidth)
-
-                Image(systemName: "link")
-                    .font(TypographyTokens.detail)
-                    .foregroundStyle(ExplorerSidebarPalette.linkedServers)
-                    .frame(width: SidebarRowConstants.iconFrame)
-
-                Text(server.name)
-                    .font(TypographyTokens.standard)
-                    .foregroundStyle(server.isDataAccessEnabled ? ColorTokens.Text.primary : ColorTokens.Text.secondary)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-
-                Spacer(minLength: 4)
-
+            SidebarRow(
+                depth: 1,
+                icon: .system("link"),
+                label: server.name,
+                iconColor: projectStore.globalSettings.sidebarColoredIcons ? ExplorerSidebarPalette.linkedServers : ExplorerSidebarPalette.monochrome,
+                labelColor: server.isDataAccessEnabled ? ColorTokens.Text.primary : ColorTokens.Text.secondary
+            ) {
                 if !server.dataSource.isEmpty {
                     Text(server.dataSource)
-                        .font(TypographyTokens.compact)
+                        .font(SidebarRowConstants.trailingFont)
                         .foregroundStyle(ColorTokens.Text.tertiary)
                         .lineLimit(1)
                 }
             }
-            .padding(.horizontal, SidebarRowConstants.rowHorizontalPadding)
-            .padding(.vertical, SidebarRowConstants.rowVerticalPadding)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .contentShape(Rectangle())
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
         .buttonStyle(.plain)
         .contextMenu {
             linkedServerContextMenu(server: server, session: session)
@@ -133,25 +115,13 @@ extension ObjectBrowserSidebarView {
             viewModel.newLinkedServerSessionID = session.connection.id
             viewModel.showNewLinkedServerSheet = true
         } label: {
-            HStack(spacing: SpacingTokens.xs) {
-                Spacer().frame(width: SidebarRowConstants.chevronWidth)
-
-                Image(systemName: "plus.circle")
-                    .font(TypographyTokens.detail)
-                    .foregroundStyle(ColorTokens.Text.tertiary)
-                    .frame(width: SidebarRowConstants.iconFrame)
-
-                Text("New Linked Server\u{2026}")
-                    .font(TypographyTokens.standard)
-                    .foregroundStyle(ColorTokens.Text.tertiary)
-                    .lineLimit(1)
-
-                Spacer(minLength: 4)
-            }
-            .padding(.horizontal, SidebarRowConstants.rowHorizontalPadding)
-            .padding(.vertical, SidebarRowConstants.rowVerticalPadding)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .contentShape(Rectangle())
+            SidebarRow(
+                depth: 1,
+                icon: .system("plus.circle"),
+                label: "New Linked Server\u{2026}",
+                iconColor: ColorTokens.Text.tertiary,
+                labelColor: ColorTokens.Text.tertiary
+            )
         }
         .buttonStyle(.plain)
     }
@@ -159,17 +129,10 @@ extension ObjectBrowserSidebarView {
     // MARK: - Loading Indicator
 
     func linkedServersLoadingIndicator() -> some View {
-        HStack(spacing: SpacingTokens.xs) {
-            Spacer().frame(width: SidebarRowConstants.chevronWidth)
+        SidebarRow(depth: 1, icon: .none, label: "Loading linked servers\u{2026}", labelColor: ColorTokens.Text.secondary, labelFont: TypographyTokens.detail) {
             ProgressView()
                 .controlSize(.mini)
-            Text("Loading linked servers\u{2026}")
-                .font(TypographyTokens.detail)
-                .foregroundStyle(ColorTokens.Text.secondary)
         }
-        .padding(.horizontal, SidebarRowConstants.rowHorizontalPadding)
-        .padding(.vertical, SidebarRowConstants.rowVerticalPadding)
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
 }

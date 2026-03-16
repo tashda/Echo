@@ -110,10 +110,8 @@ struct ChangeTrackingSheet: View {
             return
         }
         do {
-            async let c = mssql.changeTracking.listCDCTables()
-            async let s = mssql.changeTracking.changeTrackingStatus()
-            cdcTables = try await c
-            ctStatus = try await s
+            cdcTables = try await mssql.changeTracking.listCDCTables()
+            ctStatus = try await mssql.changeTracking.changeTrackingStatus()
             isLoading = false
         } catch {
             errorMessage = error.localizedDescription

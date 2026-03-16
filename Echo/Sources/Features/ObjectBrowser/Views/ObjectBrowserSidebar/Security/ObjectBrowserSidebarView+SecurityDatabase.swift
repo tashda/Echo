@@ -11,14 +11,9 @@ extension ObjectBrowserSidebarView {
         let connID = session.connection.id
         let dbKey = viewModel.pinnedStorageKey(connectionID: connID, databaseName: database.name)
         let isExpanded = viewModel.dbSecurityExpandedByDB[dbKey] ?? false
-
-        VStack(alignment: .leading, spacing: 0) {
-            folderHeaderRow(
-                title: "Security",
-                icon: "shield.fill",
-                count: nil,
-                isExpanded: isExpanded
-            ) {
+        let expandedBinding = Binding<Bool>(
+            get: { isExpanded },
+            set: { _ in
                 withAnimation(.easeInOut(duration: 0.2)) {
                     viewModel.dbSecurityExpandedByDB[dbKey] = !isExpanded
                 }
@@ -26,12 +21,24 @@ extension ObjectBrowserSidebarView {
                     loadDatabaseSecurityIfNeeded(database: database, session: session)
                 }
             }
+        )
+
+        VStack(alignment: .leading, spacing: 0) {
+            Button {
+                expandedBinding.wrappedValue.toggle()
+            } label: {
+                SidebarRow(
+                    depth: 2,
+                    icon: .system("shield"),
+                    label: "Security",
+                    isExpanded: expandedBinding,
+                    iconColor: projectStore.globalSettings.sidebarColoredIcons ? ExplorerSidebarPalette.security : ExplorerSidebarPalette.monochrome
+                )
+            }
+            .buttonStyle(.plain)
 
             if isExpanded {
-                VStack(alignment: .leading, spacing: 0) {
-                    databaseSecurityContent(database: database, session: session, dbKey: dbKey)
-                }
-                .padding(.leading, SidebarRowConstants.indentStep)
+                databaseSecurityContent(database: database, session: session, dbKey: dbKey)
             }
         }
     }
@@ -43,7 +50,7 @@ extension ObjectBrowserSidebarView {
             || !(viewModel.dbSecuritySchemasByDB[dbKey] ?? []).isEmpty
 
         if isLoading && !hasData {
-            securityLoadingRow("Loading security\u{2026}")
+            securityLoadingRow(depth: 3, "Loading security")
         }
 
         switch session.connection.databaseType {
@@ -70,8 +77,9 @@ extension ObjectBrowserSidebarView {
 
         VStack(alignment: .leading, spacing: 0) {
             securitySectionHeader(
+                depth: 3,
                 title: "Users",
-                icon: "person.fill",
+                icon: "person",
                 count: users.count,
                 isExpanded: isExpanded
             ) {
@@ -81,50 +89,34 @@ extension ObjectBrowserSidebarView {
             }
 
             if isExpanded {
-                VStack(alignment: .leading, spacing: 0) {
-                    ForEach(users) { user in
-                        dbUserRow(user: user, session: session, databaseName: dbName)
-                    }
-
-                    newItemButton(title: "New User\u{2026}") {
-                        viewModel.securityUserSheetSessionID = connID
-                        viewModel.securityUserSheetDatabaseName = dbName
-                        viewModel.securityUserSheetEditName = nil
-                        viewModel.showSecurityUserSheet = true
-                    }
+                ForEach(users) { user in
+                    dbUserRow(user: user, session: session, databaseName: dbName)
                 }
-                .padding(.leading, SidebarRowConstants.indentStep)
+
+                newItemButton(depth: 4, title: "New User") {
+                    viewModel.securityUserSheetSessionID = connID
+                    viewModel.securityUserSheetDatabaseName = dbName
+                    viewModel.securityUserSheetEditName = nil
+                    viewModel.showSecurityUserSheet = true
+                }
             }
         }
     }
 
     func dbUserRow(user: ObjectBrowserSidebarViewModel.SecurityUserItem, session: ConnectionSession, databaseName: String) -> some View {
-        HStack(spacing: SidebarRowConstants.iconTextSpacing) {
-            Spacer().frame(width: SidebarRowConstants.chevronWidth)
-
-            Image(systemName: "person.fill")
-                .font(SidebarRowConstants.iconFont)
-                .foregroundStyle(ExplorerSidebarPalette.security)
-                .frame(width: SidebarRowConstants.iconFrame)
-
-            Text(user.name)
-                .font(TypographyTokens.standard)
-                .foregroundStyle(ColorTokens.Text.primary)
-                .lineLimit(1)
-
-            Spacer(minLength: SpacingTokens.xxxs)
-
+        SidebarRow(
+            depth: 4,
+            icon: .system("person"),
+            label: user.name,
+            iconColor: projectStore.globalSettings.sidebarColoredIcons ? ExplorerSidebarPalette.security : ExplorerSidebarPalette.monochrome
+        ) {
             if let schema = user.defaultSchema, !schema.isEmpty {
                 Text(schema)
-                    .font(TypographyTokens.caption2)
+                    .font(SidebarRowConstants.trailingFont)
                     .foregroundStyle(ColorTokens.Text.tertiary)
                     .lineLimit(1)
             }
         }
-        .padding(.leading, SidebarRowConstants.rowHorizontalPadding)
-                .padding(.trailing, SidebarRowConstants.rowTrailingPadding)
-        .padding(.vertical, SidebarRowConstants.rowVerticalPadding)
-        .contentShape(Rectangle())
         .contextMenu {
             Button {
                 openScriptTab(
@@ -191,7 +183,7 @@ extension ObjectBrowserSidebarView {
                 viewModel.securityUserSheetEditName = user.name
                 viewModel.showSecurityUserSheet = true
             } label: {
-                Label("Properties\u{2026}", systemImage: "info.circle")
+                Label("Properties", systemImage: "info.circle")
             }
         }
     }

@@ -29,7 +29,6 @@ extension ObjectBrowserSidebarView {
 
             if isExpanded {
                 agentJobsContent(session: session, jobs: jobs, isLoading: isLoading)
-                    .padding(.leading, SidebarRowConstants.indentStep)
             }
         }
     }

@@ -16,7 +16,7 @@ struct DatabaseObjectBrowserView: View {
     @Environment(ProjectStore.self) var projectStore
     @Environment(ConnectionStore.self) private var connectionStore
     @Environment(NavigationStore.self) private var navigationStore
-    @Environment(EnvironmentState.self) private var environmentState
+    @Environment(EnvironmentState.self) var environmentState
 
     @State private var snapshotCache = ExplorerSnapshotCache()
 

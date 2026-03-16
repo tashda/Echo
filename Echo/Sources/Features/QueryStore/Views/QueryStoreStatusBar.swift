@@ -5,67 +5,73 @@ struct QueryStoreStatusBar: View {
     let options: SQLServerQueryStoreOptions
 
     var body: some View {
-        HStack(spacing: SpacingTokens.lg) {
-            statusIndicator
+        HStack(spacing: SpacingTokens.md) {
+            statusBadge
             storageMeter
-            Spacer()
-            configDetails
+            configItems
         }
-        .padding(SpacingTokens.sm)
-        .background(ColorTokens.Background.secondary.opacity(0.3))
-        .cornerRadius(8)
-        .overlay(
-            RoundedRectangle(cornerRadius: 8)
-                .stroke(ColorTokens.Text.primary.opacity(0.05), lineWidth: 1)
-        )
     }
 
-    private var statusIndicator: some View {
-        HStack(spacing: SpacingTokens.xs) {
+    private var statusBadge: some View {
+        HStack(spacing: SpacingTokens.xxs) {
             Circle()
-                .fill(options.isActive ? ColorTokens.Status.success : ColorTokens.Status.error)
-                .frame(width: 8, height: 8)
-            Text(options.actualState)
-                .font(TypographyTokens.standard.weight(.semibold))
+                .fill(statusColor)
+                .frame(width: 7, height: 7)
+            Text(statusLabel)
+                .font(TypographyTokens.detail.weight(.medium))
                 .foregroundStyle(ColorTokens.Text.primary)
         }
     }
 
     private var storageMeter: some View {
         HStack(spacing: SpacingTokens.xs) {
-            Text("Storage:")
+            Text("Storage")
                 .font(TypographyTokens.detail)
-                .foregroundStyle(ColorTokens.Text.secondary)
-
-            let usageRatio = options.maxStorageSizeMB > 0
-                ? Double(options.currentStorageSizeMB) / Double(options.maxStorageSizeMB)
-                : 0
+                .foregroundStyle(ColorTokens.Text.tertiary)
 
             ProgressView(value: usageRatio)
                 .frame(width: 80)
                 .tint(usageRatio > 0.9 ? ColorTokens.Status.error : ColorTokens.accent)
 
             Text("\(options.currentStorageSizeMB)/\(options.maxStorageSizeMB) MB")
-                .font(TypographyTokens.detail)
+                .font(TypographyTokens.detail.monospacedDigit())
                 .foregroundStyle(ColorTokens.Text.secondary)
         }
     }
 
-    private var configDetails: some View {
+    private var configItems: some View {
         HStack(spacing: SpacingTokens.md) {
-            configItem(label: "Flush", value: "\(options.flushIntervalSeconds)s")
-            configItem(label: "Stale", value: "\(options.staleQueryThresholdDays)d")
+            labeledValue("Capture", options.queryCaptureMode)
+            labeledValue("Flush", "\(options.flushIntervalSeconds)s")
+            labeledValue("Stale", "\(options.staleQueryThresholdDays)d")
         }
     }
 
-    private func configItem(label: String, value: String) -> some View {
+    private func labeledValue(_ label: String, _ value: String) -> some View {
         HStack(spacing: SpacingTokens.xxxs) {
             Text(label)
                 .font(TypographyTokens.compact)
-                .foregroundStyle(ColorTokens.Text.tertiary)
+                .foregroundStyle(ColorTokens.Text.quaternary)
             Text(value)
                 .font(TypographyTokens.compact.weight(.medium))
-                .foregroundStyle(ColorTokens.Text.secondary)
+                .foregroundStyle(ColorTokens.Text.tertiary)
         }
+    }
+
+    private var statusColor: Color {
+        if options.isActive { return ColorTokens.Status.success }
+        if options.isReadOnly { return ColorTokens.Status.warning }
+        return ColorTokens.Status.error
+    }
+
+    private var statusLabel: String {
+        if options.isActive { return "Active" }
+        if options.isReadOnly { return "Read Only" }
+        return "Off"
+    }
+
+    private var usageRatio: Double {
+        guard options.maxStorageSizeMB > 0 else { return 0 }
+        return Double(options.currentStorageSizeMB) / Double(options.maxStorageSizeMB)
     }
 }

@@ -29,7 +29,7 @@ struct GeneralSettingsView: View {
                 Button {
                     updater.checkForUpdates()
                 } label: {
-                    Text("Check for Updates…")
+                    Text("Check for Updates")
                 }
                 .disabled(!updater.canCheckForUpdates)
             }

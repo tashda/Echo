@@ -170,7 +170,7 @@ final class MenuBarUITests: XCTestCase {
         editMenu.click()
 
         // Find is typically in a submenu under Edit
-        let findItem = menuBar.menuItems["Find…"]
+        let findItem = menuBar.menuItems["Find"]
         let findMenu = menuBar.menuItems["Find"]
 
         if findItem.exists || findMenu.exists {
@@ -298,7 +298,7 @@ final class MenuBarUITests: XCTestCase {
         let connectMenu = menuBar.menuBarItems["Connect"]
         connectMenu.click()
 
-        let manageItem = menuBar.menuItems["Manage Connections…"]
+        let manageItem = menuBar.menuItems["Manage Connections"]
         if manageItem.waitForExistence(timeout: 3) {
             XCTAssertTrue(manageItem.isEnabled, "Manage Connections should be enabled")
         }
@@ -319,7 +319,7 @@ final class MenuBarUITests: XCTestCase {
         let connectMenu = menuBar.menuBarItems["Connect"]
         connectMenu.click()
 
-        let manageItem = menuBar.menuItems["Manage Connections…"]
+        let manageItem = menuBar.menuItems["Manage Connections"]
         if manageItem.waitForExistence(timeout: 3) && manageItem.isEnabled {
             manageItem.click()
             Thread.sleep(forTimeInterval: 1.0)
@@ -395,7 +395,7 @@ final class MenuBarUITests: XCTestCase {
         let echoMenu = menuBar.menuBarItems["Echo"]
         echoMenu.click()
 
-        let settingsItem = menuBar.menuItems["Settings…"]
+        let settingsItem = menuBar.menuItems["Settings"]
         if settingsItem.waitForExistence(timeout: 3) {
             XCTAssertTrue(settingsItem.isEnabled, "Settings should be enabled")
         }
@@ -416,7 +416,7 @@ final class MenuBarUITests: XCTestCase {
         let echoMenu = menuBar.menuBarItems["Echo"]
         echoMenu.click()
 
-        let updateItem = menuBar.menuItems["Check for Updates…"]
+        let updateItem = menuBar.menuItems["Check for Updates"]
         if updateItem.waitForExistence(timeout: 3) {
             // Item exists (may or may not be enabled)
             XCTAssertTrue(updateItem.exists)
@@ -455,7 +455,7 @@ final class MenuBarUITests: XCTestCase {
         if helpMenu.exists {
             helpMenu.click()
 
-            let autocompleteItem = menuBar.menuItems["Autocomplete Management…"]
+            let autocompleteItem = menuBar.menuItems["Autocomplete Management"]
             if autocompleteItem.waitForExistence(timeout: 3) {
                 XCTAssertTrue(autocompleteItem.exists)
             }
@@ -473,7 +473,7 @@ final class MenuBarUITests: XCTestCase {
         if helpMenu.exists {
             helpMenu.click()
 
-            let perfItem = menuBar.menuItems["Performance Monitor…"]
+            let perfItem = menuBar.menuItems["Performance Monitor"]
             if perfItem.waitForExistence(timeout: 3) {
                 XCTAssertTrue(perfItem.exists)
             }

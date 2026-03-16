@@ -31,6 +31,7 @@ final class WorkspaceTab: Identifiable {
         case extensionStructure
         case extensionsManager
         case activityMonitor
+        case maintenance
         case queryStore
         case extendedEvents
         case availabilityGroups
@@ -45,6 +46,7 @@ final class WorkspaceTab: Identifiable {
         case extensionStructure(PostgresExtensionStructureViewModel)
         case extensionsManager(PostgresExtensionsViewModel)
         case activityMonitor(ActivityMonitorViewModel)
+        case maintenance(MaintenanceViewModel)
         case queryStore(QueryStoreViewModel)
         case extendedEvents(ExtendedEventsViewModel)
         case availabilityGroups(AvailabilityGroupsViewModel)
@@ -94,6 +96,7 @@ final class WorkspaceTab: Identifiable {
         case .extensionStructure: return .extensionStructure
         case .extensionsManager: return .extensionsManager
         case .activityMonitor: return .activityMonitor
+        case .maintenance: return .maintenance
         case .queryStore: return .queryStore
         case .extendedEvents: return .extendedEvents
         case .availabilityGroups: return .availabilityGroups
@@ -140,6 +143,11 @@ final class WorkspaceTab: Identifiable {
         return nil
     }
 
+    var maintenance: MaintenanceViewModel? {
+        if case .maintenance(let vm) = content { return vm }
+        return nil
+    }
+
     var queryStoreVM: QueryStoreViewModel? {
         if case .queryStore(let vm) = content { return vm }
         return nil
@@ -179,6 +187,8 @@ final class WorkspaceTab: Identifiable {
             return baseOverhead + vm.estimatedMemoryUsageBytes()
         case .activityMonitor:
             return baseOverhead + 1024 * 1024
+        case .maintenance(let vm):
+            return baseOverhead + vm.estimatedMemoryUsageBytes()
         case .queryStore(let vm):
             return baseOverhead + vm.estimatedMemoryUsageBytes()
         case .extendedEvents(let vm):

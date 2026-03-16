@@ -61,10 +61,12 @@ import SwiftUI
 
     // MARK: - Query Management
 
-    func addToQueryHistory(_ query: String, resultCount: Int? = nil, duration: TimeInterval? = nil) {
+    func addToQueryHistory(_ query: String, connectionID: UUID? = nil, databaseName: String? = nil, resultCount: Int? = nil, duration: TimeInterval? = nil) {
         let item = QueryHistoryItem(
             query: query,
             timestamp: Date(),
+            connectionID: connectionID,
+            databaseName: databaseName,
             resultCount: resultCount,
             duration: duration
         )
@@ -136,13 +138,17 @@ struct QueryHistoryItem: Codable, Identifiable {
     let id: UUID
     let query: String
     let timestamp: Date
+    let connectionID: UUID?
+    let databaseName: String?
     let resultCount: Int?
     let duration: TimeInterval?
 
-    init(id: UUID = UUID(), query: String, timestamp: Date, resultCount: Int? = nil, duration: TimeInterval? = nil) {
+    init(id: UUID = UUID(), query: String, timestamp: Date, connectionID: UUID? = nil, databaseName: String? = nil, resultCount: Int? = nil, duration: TimeInterval? = nil) {
         self.id = id
         self.query = query
         self.timestamp = timestamp
+        self.connectionID = connectionID
+        self.databaseName = databaseName
         self.resultCount = resultCount
         self.duration = duration
     }

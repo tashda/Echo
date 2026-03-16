@@ -133,7 +133,13 @@ extension WorkspaceTabContainerView {
                         severity: .info,
                         metadata: metadata
                     )
-                    appState.addToQueryHistory(effectiveSQL, resultCount: result.rows.count, duration: state.lastExecutionTime ?? 0)
+                    appState.addToQueryHistory(
+                        effectiveSQL,
+                        connectionID: tab.connection.id,
+                        databaseName: tab.activeDatabaseName ?? tab.connection.database,
+                        resultCount: result.rows.count,
+                        duration: state.lastExecutionTime ?? 0
+                    )
 
                     // Detect USE [database] in the original SQL and update tab context
                     detectAndApplyDatabaseSwitch(originalSQL: trimmedSQL, tab: tab)

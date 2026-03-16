@@ -12,6 +12,7 @@ extension ObjectBrowserSidebarView {
 
         VStack(alignment: .leading, spacing: 0) {
             securitySectionHeader(
+                depth: 3,
                 title: "Schemas",
                 icon: "folder",
                 count: schemas.count,
@@ -23,43 +24,27 @@ extension ObjectBrowserSidebarView {
             }
 
             if isExpanded {
-                VStack(alignment: .leading, spacing: 0) {
-                    ForEach(schemas) { schema in
-                        dbSchemaRow(schema: schema, session: session)
-                    }
+                ForEach(schemas) { schema in
+                    dbSchemaRow(schema: schema, session: session)
                 }
-                .padding(.leading, SidebarRowConstants.indentStep)
             }
         }
     }
 
     func dbSchemaRow(schema: ObjectBrowserSidebarViewModel.SecuritySchemaItem, session: ConnectionSession) -> some View {
-        HStack(spacing: SidebarRowConstants.iconTextSpacing) {
-            Spacer().frame(width: SidebarRowConstants.chevronWidth)
-
-            Image(systemName: "folder")
-                .font(SidebarRowConstants.iconFont)
-                .foregroundStyle(ExplorerSidebarPalette.security)
-                .frame(width: SidebarRowConstants.iconFrame)
-
-            Text(schema.name)
-                .font(TypographyTokens.standard)
-                .foregroundStyle(ColorTokens.Text.primary)
-                .lineLimit(1)
-
-            Spacer(minLength: SpacingTokens.xxxs)
-
+        SidebarRow(
+            depth: 4,
+            icon: .system("folder"),
+            label: schema.name,
+            iconColor: projectStore.globalSettings.sidebarColoredIcons ? ExplorerSidebarPalette.security : ExplorerSidebarPalette.monochrome
+        ) {
             if let owner = schema.owner, !owner.isEmpty {
                 Text(owner)
-                    .font(TypographyTokens.caption2)
+                    .font(SidebarRowConstants.trailingFont)
                     .foregroundStyle(ColorTokens.Text.tertiary)
                     .lineLimit(1)
             }
         }
-        .padding(.leading, SidebarRowConstants.rowHorizontalPadding)
-                .padding(.trailing, SidebarRowConstants.rowTrailingPadding)
-        .padding(.vertical, SidebarRowConstants.rowVerticalPadding)
-        .contentShape(Rectangle())
         .contextMenu {
             Button {
                 if session.connection.databaseType == .microsoftSQL {

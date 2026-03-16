@@ -57,13 +57,13 @@ struct DatabaseObjectColumnRow: View {
                 .fill(ColorTokens.Text.primary.opacity(0.04))
                 .opacity(isHovered ? 1 : 0)
         )
-        .padding(.leading, max(ExplorerColumnMetrics.contentLeading - ExplorerColumnMetrics.highlightExtension, 0))
+        .padding(.leading, CGFloat(ExplorerColumnMetrics.depth) * SidebarRowConstants.indentStep + SidebarRowConstants.rowLeadingPadding)
         .contentShape(Rectangle())
         .contextMenu {
             Button("Copy Name") {
                 onCopyName()
             }
-            Button("Rename Column…") {
+            Button("Rename Column") {
                 onRename()
             }
             Button("Drop Column", role: .destructive) {

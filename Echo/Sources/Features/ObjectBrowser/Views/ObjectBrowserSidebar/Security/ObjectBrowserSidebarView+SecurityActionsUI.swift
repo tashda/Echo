@@ -17,7 +17,7 @@ extension ObjectBrowserSidebarView {
                 viewModel.securityLoginSheetEditName = nil
                 viewModel.showSecurityLoginSheet = true
             } label: {
-                Label("New Login\u{2026}", systemImage: "plus")
+                Label("New Login", systemImage: "plus")
             }
         case .postgresql:
             Button {
@@ -25,14 +25,14 @@ extension ObjectBrowserSidebarView {
                 viewModel.securityPGRoleSheetEditName = nil
                 viewModel.showSecurityPGRoleSheet = true
             } label: {
-                Label("New Login Role\u{2026}", systemImage: "plus")
+                Label("New Login Role", systemImage: "plus")
             }
             Button {
                 viewModel.securityPGRoleSheetSessionID = connID
                 viewModel.securityPGRoleSheetEditName = nil
                 viewModel.showSecurityPGRoleSheet = true
             } label: {
-                Label("New Group Role\u{2026}", systemImage: "plus")
+                Label("New Group Role", systemImage: "plus")
             }
         default:
             EmptyView()
@@ -49,47 +49,53 @@ extension ObjectBrowserSidebarView {
 
     // MARK: - Shared UI Helpers
 
-    func securitySectionHeader(title: String, icon: String, count: Int?, isExpanded: Bool, action: @escaping () -> Void) -> some View {
-        folderHeaderRow(title: title, icon: icon, count: count, isExpanded: isExpanded, action: action)
+    func securitySectionHeader(depth: Int, title: String, icon: String, count: Int?, isExpanded: Bool, action: @escaping () -> Void) -> some View {
+        let expandedBinding = Binding<Bool>(
+            get: { isExpanded },
+            set: { _ in action() }
+        )
+
+        let iconColor = projectStore.globalSettings.sidebarColoredIcons ? ExplorerSidebarPalette.security : ExplorerSidebarPalette.monochrome
+
+        return Button(action: action) {
+            SidebarRow(
+                depth: depth,
+                icon: .system(icon),
+                label: title,
+                isExpanded: expandedBinding,
+                iconColor: iconColor
+            ) {
+                if let count {
+                    Text("\(count)")
+                        .font(SidebarRowConstants.trailingFont)
+                        .foregroundStyle(ColorTokens.Text.tertiary)
+                }
+            }
+        }
+        .buttonStyle(.plain)
     }
 
-    func securityLoadingRow(_ text: String) -> some View {
-        HStack(spacing: SpacingTokens.xs) {
-            Spacer().frame(width: SidebarRowConstants.chevronWidth)
-            ProgressView()
-                .controlSize(.mini)
-            Text(text)
-                .font(TypographyTokens.detail)
-                .foregroundStyle(ColorTokens.Text.secondary)
-        }
-        .padding(.leading, SidebarRowConstants.rowHorizontalPadding)
-                .padding(.trailing, SidebarRowConstants.rowTrailingPadding)
-        .padding(.vertical, SidebarRowConstants.rowVerticalPadding)
+    func securityLoadingRow(depth: Int, _ text: String) -> some View {
+        SidebarRow(
+            depth: depth,
+            icon: .none,
+            label: text,
+            labelColor: ColorTokens.Text.secondary,
+            labelFont: TypographyTokens.detail
+        )
     }
 
     // MARK: - New Item Button
 
-    func newItemButton(title: String, action: @escaping () -> Void) -> some View {
+    func newItemButton(depth: Int, title: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            HStack(spacing: SpacingTokens.xs) {
-                Spacer().frame(width: SidebarRowConstants.chevronWidth)
-
-                Image(systemName: "plus.circle")
-                    .font(TypographyTokens.standard)
-                    .foregroundStyle(ColorTokens.Text.tertiary)
-                    .frame(width: SidebarRowConstants.iconFrame)
-
-                Text(title)
-                    .font(TypographyTokens.standard)
-                    .foregroundStyle(ColorTokens.Text.tertiary)
-                    .lineLimit(1)
-
-                Spacer(minLength: SpacingTokens.xxxs)
-            }
-            .padding(.leading, SidebarRowConstants.rowHorizontalPadding)
-                .padding(.trailing, SidebarRowConstants.rowTrailingPadding)
-            .padding(.vertical, SidebarRowConstants.rowVerticalPadding)
-            .contentShape(Rectangle())
+            SidebarRow(
+                depth: depth,
+                icon: .system("plus.circle"),
+                label: title,
+                iconColor: ColorTokens.Text.tertiary,
+                labelColor: ColorTokens.Text.tertiary
+            )
         }
         .buttonStyle(.plain)
     }

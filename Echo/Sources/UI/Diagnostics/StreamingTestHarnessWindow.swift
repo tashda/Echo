@@ -110,4 +110,15 @@ private final class StreamingTestHarnessDatabaseSession: DatabaseSession, @unche
     func getObjectDefinition(objectName: String, schemaName: String, objectType: SchemaObjectInfo.ObjectType) async throws -> String { "-- preview" }
     func executeUpdate(_ sql: String) async throws -> Int { 0 }
     func getTableStructureDetails(schema: String, table: String) async throws -> TableStructureDetails { TableStructureDetails() }
+    func renameTable(schema: String?, oldName: String, newName: String) async throws {}
+    func dropTable(schema: String?, name: String, ifExists: Bool) async throws {}
+    func truncateTable(schema: String?, name: String) async throws {}
+    func rebuildIndex(schema: String, table: String, index: String) async throws {}
+    func vacuumTable(schema: String, table: String, full: Bool, analyze: Bool) async throws {}
+    func analyzeTable(schema: String, table: String) async throws {}
+    func reindexTable(schema: String, table: String) async throws {}
+    func sessionForDatabase(_ database: String) async throws -> DatabaseSession { self }
+    func makeActivityMonitor() throws -> any DatabaseActivityMonitoring { fatalError("Not supported in test harness") }
+    func listExtensionObjects(extensionName: String) async throws -> [ExtensionObjectInfo] { [] }
+    func isSuperuser() async throws -> Bool { false }
 }

@@ -19,152 +19,292 @@ extension DatabasePropertiesSheet {
 
         ForEach(objectTypes, id: \.rawValue) { objType in
             let entries = pgDefaultPrivileges.filter { $0.objectType == objType }
-            Section(objType.rawValue.capitalized) {
-                if entries.isEmpty {
-                    Text("No default privileges for \(objType.rawValue.lowercased()).")
-                        .foregroundStyle(ColorTokens.Text.secondary)
-                        .font(TypographyTokens.detail)
-                } else {
-                    ForEach(Array(entries.enumerated()), id: \.offset) { _, entry in
-                        pgDefaultPrivilegeRow(entry: entry)
-                    }
+
+            Section {
+                pgDefPrivPicker(for: objType)
+
+                ForEach(Array(entries.enumerated()), id: \.offset) { _, entry in
+                    pgDefPrivRow(entry: entry, objType: objType)
                 }
-            }
-        }
-
-        Section("Add Default Privilege") {
-            pgDefaultPrivilegeAddControls
-        }
-    }
-
-    @ViewBuilder
-    func pgDefaultPrivilegeRow(entry: PostgresDefaultPrivilege) -> some View {
-        HStack {
-            VStack(alignment: .leading, spacing: SpacingTokens.xxxs) {
-                Text(entry.grantee.isEmpty ? "PUBLIC" : entry.grantee)
-                    .font(TypographyTokens.standard)
-                HStack(spacing: SpacingTokens.xs) {
-                    if !entry.schema.isEmpty {
-                        Text("Schema: \(entry.schema)")
+            } header: {
+                HStack {
+                    Text(objType.rawValue.capitalized)
+                    Spacer()
+                    let count = entries.count
+                    if count > 0 {
+                        Text("\(count) configured")
                             .font(TypographyTokens.detail)
                             .foregroundStyle(ColorTokens.Text.tertiary)
                     }
-                    Text("Owner: \(entry.owner)")
-                        .font(TypographyTokens.detail)
-                        .foregroundStyle(ColorTokens.Text.tertiary)
                 }
             }
-            .frame(minWidth: 140, alignment: .leading)
-
-            Spacer()
-
-            HStack(spacing: SpacingTokens.xxs) {
-                ForEach(entry.privileges, id: \.privilege.rawValue) { aclPriv in
-                    Text(aclPriv.privilege.rawValue)
-                        .font(TypographyTokens.detail)
-                        .padding(.horizontal, SpacingTokens.xxs)
-                        .padding(.vertical, 2)
-                        .background(ColorTokens.Background.secondary.opacity(0.5), in: RoundedRectangle(cornerRadius: 4))
-                }
-            }
-
-            Button(role: .destructive) {
-                pgRevokeDefaultPrivilege(entry: entry)
-            } label: {
-                Image(systemName: "minus.circle.fill")
-                    .foregroundStyle(ColorTokens.Status.error)
-            }
-            .buttonStyle(.plain)
         }
     }
 
+    // MARK: - Add Picker
+
     @ViewBuilder
-    var pgDefaultPrivilegeAddControls: some View {
-        Picker("Schema", selection: $pgNewDefPrivSchema) {
-            Text("All schemas").tag("")
-            ForEach(pgSchemas, id: \.self) { schema in
-                Text(schema).tag(schema)
-            }
-        }
+    func pgDefPrivPicker(for objType: PostgresObjectType) -> some View {
+        let existingGrantees = Set(
+            pgDefaultPrivileges
+                .filter { $0.objectType == objType }
+                .map { $0.grantee }
+        )
 
-        Picker("Object Type", selection: $pgNewDefPrivObjectType) {
-            ForEach([PostgresObjectType.tables, .sequences, .functions, .types], id: \.rawValue) { objType in
-                Text(objType.rawValue.capitalized).tag(objType)
+        Picker("Add Role", selection: Binding(
+            get: { "" },
+            set: { role in
+                guard !role.isEmpty else { return }
+                pgAddDefPrivWithAllPrivs(role: role, objType: objType)
             }
-        }
-
-        Picker("Role", selection: $pgNewDefPrivGrantee) {
+        )) {
             Text("Select role\u{2026}").tag("")
-            Text("PUBLIC").tag("PUBLIC")
-            ForEach(pgRoles, id: \.self) { role in
+            if !existingGrantees.contains("") {
+                Text("PUBLIC").tag("PUBLIC")
+            }
+            ForEach(pgRoles.filter { !existingGrantees.contains($0) }, id: \.self) { role in
                 Text(role).tag(role)
             }
         }
+    }
 
-        if !pgNewDefPrivGrantee.isEmpty {
-            let applicablePrivs = Self.privilegesForObjectType[pgNewDefPrivObjectType] ?? []
-            VStack(alignment: .leading, spacing: SpacingTokens.xs) {
-                Text("Privileges")
+    // MARK: - Disclosure key
+
+    private func defPrivKey(entry: PostgresDefaultPrivilege) -> String {
+        "\(entry.objectType.rawValue):\(entry.grantee):\(entry.schema)"
+    }
+
+    // MARK: - Row (disclosure style)
+
+    @ViewBuilder
+    func pgDefPrivRow(entry: PostgresDefaultPrivilege, objType: PostgresObjectType) -> some View {
+        let applicablePrivs = Self.privilegesForObjectType[objType] ?? []
+        let key = defPrivKey(entry: entry)
+
+        DisclosureGroup(
+            isExpanded: Binding(
+                get: { pgDefPrivExpanded.contains(key) },
+                set: { if $0 { pgDefPrivExpanded.insert(key) } else { pgDefPrivExpanded.remove(key) } }
+            )
+        ) {
+            pgDefPrivGrid(entry: entry, applicablePrivs: applicablePrivs)
+        } label: {
+            HStack(spacing: SpacingTokens.xs) {
+                Text(entry.grantee.isEmpty ? "PUBLIC" : entry.grantee)
+                    .font(TypographyTokens.standard)
+
+                Text("by \(entry.owner)")
+                    .font(TypographyTokens.detail)
+                    .foregroundStyle(ColorTokens.Text.tertiary)
+
+                Spacer()
+
+                let activeCount = entry.privileges.count
+                let totalCount = applicablePrivs.count
+                Text("\(activeCount)/\(totalCount)")
+                    .font(TypographyTokens.detail)
+                    .foregroundStyle(ColorTokens.Text.tertiary)
+
+                Button(role: .destructive) {
+                    pgRemoveDefaultPrivilege(entry: entry)
+                } label: {
+                    Image(systemName: "trash")
+                        .font(TypographyTokens.detail)
+                        .foregroundStyle(ColorTokens.Status.error)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
+    // MARK: - Privilege Grid
+
+    @ViewBuilder
+    func pgDefPrivGrid(entry: PostgresDefaultPrivilege, applicablePrivs: [PostgresPrivilege]) -> some View {
+        VStack(spacing: 0) {
+            // Header
+            HStack {
+                Text("Privilege")
                     .font(TypographyTokens.detail)
                     .foregroundStyle(ColorTokens.Text.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                Text("Grant Option")
+                    .font(TypographyTokens.detail)
+                    .foregroundStyle(ColorTokens.Text.secondary)
+                    .frame(width: 90, alignment: .leading)
+            }
+            .padding(.bottom, SpacingTokens.xxs)
 
-                HStack(spacing: SpacingTokens.md) {
-                    ForEach(applicablePrivs, id: \.rawValue) { priv in
-                        Toggle(priv.rawValue, isOn: Binding(
-                            get: { pgNewDefPrivPrivileges.contains(priv) },
-                            set: { if $0 { pgNewDefPrivPrivileges.insert(priv) } else { pgNewDefPrivPrivileges.remove(priv) } }
-                        ))
-                        .toggleStyle(.checkbox)
-                    }
+            ForEach(applicablePrivs, id: \.rawValue) { priv in
+                let aclPriv = entry.privileges.first { $0.privilege == priv }
+                let isGranted = aclPriv != nil
+                let hasGrantOption = aclPriv?.withGrantOption ?? false
+
+                HStack {
+                    Toggle(priv.rawValue, isOn: Binding(
+                        get: { isGranted },
+                        set: { pgToggleDefPriv(entry: entry, privilege: priv, enabled: $0) }
+                    ))
+                    .toggleStyle(.checkbox)
+                    .font(TypographyTokens.standard)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                    Toggle("", isOn: Binding(
+                        get: { hasGrantOption },
+                        set: { pgToggleDefPrivGrantOption(entry: entry, privilege: priv, enabled: $0) }
+                    ))
+                    .toggleStyle(.checkbox)
+                    .labelsHidden()
+                    .disabled(!isGranted)
+                    .frame(width: 90, alignment: .leading)
                 }
+                .padding(.vertical, 1)
             }
-
-            Button("Add") {
-                pgAddDefaultPrivilege()
-            }
-            .disabled(pgNewDefPrivPrivileges.isEmpty)
         }
+        .padding(.vertical, SpacingTokens.xxs)
     }
 
     // MARK: - Actions
 
-    func pgAddDefaultPrivilege() {
-        let schema = pgNewDefPrivSchema.isEmpty ? "public" : pgNewDefPrivSchema
-        let grantee = pgNewDefPrivGrantee
-        let objType = pgNewDefPrivObjectType
-        let privs = Array(pgNewDefPrivPrivileges)
-        guard !grantee.isEmpty, !privs.isEmpty else { return }
-
+    func pgAddDefPrivWithAllPrivs(role: String, objType: PostgresObjectType) {
+        let allPrivs = Self.privilegesForObjectType[objType] ?? []
+        let grantee = role == "PUBLIC" ? "" : role
         pgDefaultPrivileges.append(PostgresDefaultPrivilege(
-            schema: schema, owner: pgOwner, objectType: objType,
-            grantee: grantee == "PUBLIC" ? "" : grantee,
-            privileges: privs.map { PostgresACLPrivilege(privilege: $0) }
+            schema: "public", owner: pgOwner, objectType: objType,
+            grantee: grantee,
+            privileges: allPrivs.map { PostgresACLPrivilege(privilege: $0) }
         ))
+        // Auto-expand the newly added entry
+        let key = "\(objType.rawValue):\(grantee):public"
+        pgDefPrivExpanded.insert(key)
+    }
 
-        pgNewDefPrivGrantee = ""
-        pgNewDefPrivPrivileges = []
-
-        applyPgAlter { client in
-            try await client.security.alterDefaultPrivileges(
-                schema: schema, grant: privs, onObjectType: objType, to: grantee
+    func pgToggleDefPriv(entry: PostgresDefaultPrivilege, privilege: PostgresPrivilege, enabled: Bool) {
+        guard let idx = pgDefPrivIndex(for: entry) else { return }
+        var currentPrivs = pgDefaultPrivileges[idx].privileges
+        if enabled {
+            if !currentPrivs.contains(where: { $0.privilege == privilege }) {
+                currentPrivs.append(PostgresACLPrivilege(privilege: privilege))
+            }
+        } else {
+            currentPrivs.removeAll { $0.privilege == privilege }
+        }
+        if currentPrivs.isEmpty {
+            pgDefaultPrivileges.remove(at: idx)
+        } else {
+            pgDefaultPrivileges[idx] = PostgresDefaultPrivilege(
+                schema: entry.schema, owner: entry.owner, objectType: entry.objectType,
+                grantee: entry.grantee, privileges: currentPrivs
             )
         }
     }
 
-    func pgRevokeDefaultPrivilege(entry: PostgresDefaultPrivilege) {
-        let schema = entry.schema.isEmpty ? "public" : entry.schema
-        let grantee = entry.grantee.isEmpty ? "PUBLIC" : entry.grantee
-        let privs = entry.privileges.map(\.privilege)
+    func pgToggleDefPrivGrantOption(entry: PostgresDefaultPrivilege, privilege: PostgresPrivilege, enabled: Bool) {
+        guard let idx = pgDefPrivIndex(for: entry) else { return }
+        var currentPrivs = pgDefaultPrivileges[idx].privileges
+        if let privIdx = currentPrivs.firstIndex(where: { $0.privilege == privilege }) {
+            currentPrivs[privIdx] = PostgresACLPrivilege(privilege: privilege, withGrantOption: enabled)
+            pgDefaultPrivileges[idx] = PostgresDefaultPrivilege(
+                schema: entry.schema, owner: entry.owner, objectType: entry.objectType,
+                grantee: entry.grantee, privileges: currentPrivs
+            )
+        }
+    }
 
+    func pgRemoveDefaultPrivilege(entry: PostgresDefaultPrivilege) {
         pgDefaultPrivileges.removeAll {
             $0.schema == entry.schema && $0.grantee == entry.grantee
                 && $0.objectType == entry.objectType
         }
+    }
 
-        applyPgAlter { client in
-            try await client.security.revokeDefaultPrivileges(
-                schema: schema, revoke: privs, onObjectType: entry.objectType, from: grantee
-            )
+    private func pgDefPrivIndex(for entry: PostgresDefaultPrivilege) -> Int? {
+        pgDefaultPrivileges.firstIndex {
+            $0.schema == entry.schema && $0.grantee == entry.grantee && $0.objectType == entry.objectType
         }
+    }
+
+    // MARK: - Save (called on Done)
+
+    func pgSaveDefaultPrivilegeChanges() {
+        typealias Key = String // "schema:objType:grantee"
+        func makeKey(_ e: PostgresDefaultPrivilege) -> Key {
+            "\(e.schema):\(e.objectType.rawValue):\(e.grantee)"
+        }
+
+        let originalByKey = Dictionary(pgOriginalDefaultPrivileges.map { (makeKey($0), $0) }, uniquingKeysWith: { _, b in b })
+        let currentByKey = Dictionary(pgDefaultPrivileges.map { (makeKey($0), $0) }, uniquingKeysWith: { _, b in b })
+
+        let originalKeys = Set(originalByKey.keys)
+        let currentKeys = Set(currentByKey.keys)
+
+        // Removed entries — revoke all their privileges
+        let removedKeys = originalKeys.subtracting(currentKeys)
+        // Added entries — grant all their privileges
+        let addedKeys = currentKeys.subtracting(originalKeys)
+        // Potentially changed entries
+        let commonKeys = originalKeys.intersection(currentKeys)
+
+        var changeCount = 0
+        var grantOps: [(schema: String, privs: [PostgresPrivilege], objType: PostgresObjectType, to: String, withGrant: Bool)] = []
+        var revokeOps: [(schema: String, privs: [PostgresPrivilege], objType: PostgresObjectType, from: String)] = []
+
+        for key in removedKeys {
+            if let orig = originalByKey[key] {
+                let schema = orig.schema.isEmpty ? "public" : orig.schema
+                let grantee = orig.grantee.isEmpty ? "PUBLIC" : orig.grantee
+                revokeOps.append((schema, orig.privileges.map(\.privilege), orig.objectType, grantee))
+                changeCount += 1
+            }
+        }
+
+        for key in addedKeys {
+            if let cur = currentByKey[key] {
+                let schema = cur.schema.isEmpty ? "public" : cur.schema
+                let grantee = cur.grantee.isEmpty ? "PUBLIC" : cur.grantee
+                grantOps.append((schema, cur.privileges.map(\.privilege), cur.objectType, grantee, false))
+                changeCount += 1
+            }
+        }
+
+        for key in commonKeys {
+            guard let orig = originalByKey[key], let cur = currentByKey[key] else { continue }
+            let origPrivs = Set(orig.privileges.map(\.privilege))
+            let curPrivs = Set(cur.privileges.map(\.privilege))
+            let schema = cur.schema.isEmpty ? "public" : cur.schema
+            let grantee = cur.grantee.isEmpty ? "PUBLIC" : cur.grantee
+
+            let added = curPrivs.subtracting(origPrivs)
+            let removed = origPrivs.subtracting(curPrivs)
+
+            if !added.isEmpty {
+                grantOps.append((schema, Array(added), cur.objectType, grantee, false))
+                changeCount += 1
+            }
+            if !removed.isEmpty {
+                revokeOps.append((schema, Array(removed), cur.objectType, grantee))
+                changeCount += 1
+            }
+        }
+
+        guard changeCount > 0 else { return }
+
+        let revokeList = revokeOps
+        let grantList = grantOps
+
+        applyPgAlter(message: "Default privileges updated (\(changeCount) change\(changeCount == 1 ? "" : "s")).") { client in
+            for op in revokeList {
+                try await client.security.revokeDefaultPrivileges(
+                    schema: op.schema, revoke: op.privs, onObjectType: op.objType, from: op.from
+                )
+            }
+            for op in grantList {
+                try await client.security.alterDefaultPrivileges(
+                    schema: op.schema, grant: op.privs, onObjectType: op.objType, to: op.to
+                )
+            }
+        }
+
+        pgOriginalDefaultPrivileges = pgDefaultPrivileges
     }
 }

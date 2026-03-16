@@ -65,14 +65,14 @@ struct ConnectionsPopoverView: View {
                     ManageConnectionsWindowController.shared.present()
                     dismiss()
                 } label: {
-                    Label("Manage Connections\u{2026}", systemImage: "gearshape")
+                    Label("Manage Connections", systemImage: "gearshape")
                 }
 
                 Button {
                     AppDirector.shared.appState.showSheet(.quickConnect)
                     dismiss()
                 } label: {
-                    Label("Quick Connect\u{2026}", systemImage: "bolt")
+                    Label("Quick Connect", systemImage: "bolt")
                 }
             }
         }

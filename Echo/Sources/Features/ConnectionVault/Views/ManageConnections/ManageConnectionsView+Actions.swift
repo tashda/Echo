@@ -17,6 +17,15 @@ extension ManageConnectionsView {
             connectionStore.selectedIdentityID = nil
         }
 
+        // If we are already selecting a project and we switch to the projects section,
+        // we keep the project selection instead of resetting to the section header.
+        if section == .projects, case .project = sidebarSelection {
+            if selectedSection != .projects {
+                selectedSection = .projects
+            }
+            return
+        }
+
         let target: SidebarSelection = .section(section)
         if sidebarSelection != target {
             sidebarSelection = target
@@ -101,13 +110,16 @@ extension ManageConnectionsView {
         connectionSelection.removeAll()
         identitySelection.removeAll()
 
-        // Preserve current selection if it's a project
+        // Preserve current selection if it's a project and it still exists.
         if case .project(let projectID) = sidebarSelection {
             if !projectStore.projects.contains(where: { $0.id == projectID }) {
                 selectedSection = .connections
                 sidebarSelection = .section(.connections)
             }
+            // else: KEEP IT. This fixes the highlight disappearing when switching projects.
         } else {
+            // If it was something else (folder or section), we reset to connections
+            // since the new project won't have the same folders.
             selectedSection = .connections
             sidebarSelection = .section(.connections)
         }

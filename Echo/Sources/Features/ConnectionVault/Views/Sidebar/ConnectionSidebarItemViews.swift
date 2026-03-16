@@ -69,7 +69,7 @@ struct ConnectionFolderView: View {
                 Button("New Connection", systemImage: "externaldrive.badge.plus") { onCreateConnection(group.folder) }
                 Button("New Folder", systemImage: "folder.badge.plus") { onCreateFolder(group.folder) }
                 Divider()
-                Button("Rename Folder", systemImage: "square.and.pencil") { onEditFolder(group.folder) }
+                Button("Rename Folder", systemImage: "pencil") { onEditFolder(group.folder) }
                 Button("Delete Folder", systemImage: "trash", role: .destructive) { onDelete(.folder(group.folder)) }
             }
         }.padding(.horizontal, SpacingTokens.xxs)
@@ -122,7 +122,7 @@ struct ConnectionListRow: View {
             .contextMenu {
                 Button(action: onConnect) { Label { Text("Connect") } icon: { connectIcon.frame(width: 12, height: 12).foregroundStyle(connectGlyphColor) } }
                 Divider()
-                Button(action: onEdit) { Label("Edit", systemImage: "square.and.pencil") }
+                Button(action: onEdit) { Label("Edit", systemImage: "pencil") }
                 Button(action: onDuplicate) { Label("Duplicate", systemImage: "plus.square.on.square") }
                 Button(role: .destructive, action: onDelete) { Label("Delete", systemImage: "trash") }
             }

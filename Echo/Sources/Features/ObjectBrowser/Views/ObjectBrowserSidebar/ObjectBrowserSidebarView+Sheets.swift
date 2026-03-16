@@ -14,6 +14,16 @@ extension ObjectBrowserSidebarView {
                     }
                 }
             }
+            .sheet(isPresented: $viewModel.showNewDatabaseSheet) {
+                if let connID = viewModel.newDatabaseConnectionID,
+                   let session = environmentState.sessionGroup.sessionForConnection(connID) {
+                    NewDatabaseSheet(
+                        session: session,
+                        environmentState: environmentState,
+                        onDismiss: { viewModel.showNewDatabaseSheet = false }
+                    )
+                }
+            }
             .sheet(isPresented: $viewModel.showDatabaseProperties) {
                 if let dbName = viewModel.propertiesDatabaseName,
                    let connID = viewModel.propertiesConnectionID,

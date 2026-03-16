@@ -17,45 +17,62 @@ extension DatabasePropertiesSheet {
                 }
             }
         } else {
-            Section("Database Parameters") {
-                if pgParams.isEmpty {
-                    Text("No database-level parameters configured.")
-                        .foregroundStyle(ColorTokens.Text.secondary)
-                        .font(TypographyTokens.detail)
-                }
+            Section {
+                pgParameterPicker
 
                 ForEach(Array(pgParams.enumerated()), id: \.offset) { index, param in
                     pgParameterRow(index: index, param: param)
                 }
-            }
-
-            Section("Add Parameter") {
-                pgParameterAddControls
-            }
-
-            Section {
-                Text("\(pgSettingDefinitions.count) configurable parameters available from this server.")
-                    .font(TypographyTokens.detail)
-                    .foregroundStyle(ColorTokens.Text.tertiary)
+            } header: {
+                HStack {
+                    Text("Database Parameters")
+                    Spacer()
+                    Text("\(pgParams.count) configured")
+                        .font(TypographyTokens.detail)
+                        .foregroundStyle(ColorTokens.Text.tertiary)
+                }
             }
         }
     }
 
+    // MARK: - Parameter Picker
+
+    @ViewBuilder
+    var pgParameterPicker: some View {
+        let groupedParams = Dictionary(grouping: pgAvailableParameters, by: \.category)
+        let sortedCategories = groupedParams.keys.sorted()
+
+        Picker("Add Parameter", selection: Binding(
+            get: { "" },
+            set: { name in
+                guard !name.isEmpty else { return }
+                pgAddParameterWithDefault(name: name)
+            }
+        )) {
+            Text("Select parameter\u{2026}").tag("")
+            ForEach(sortedCategories, id: \.self) { category in
+                Section(category) {
+                    ForEach(groupedParams[category] ?? [], id: \.name) { def in
+                        Text(def.name).tag(def.name)
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: - Parameter Row
+
     @ViewBuilder
     func pgParameterRow(index: Int, param: PostgresDatabaseParameter) -> some View {
         let def = pgSettingDefinition(for: param.name)
-        HStack {
-            VStack(alignment: .leading, spacing: SpacingTokens.xxxs) {
-                Text(param.name)
-                    .font(TypographyTokens.standard)
-                if let def, !def.shortDesc.isEmpty {
-                    Text(def.shortDesc)
-                        .font(TypographyTokens.detail)
-                        .foregroundStyle(ColorTokens.Text.tertiary)
-                        .lineLimit(1)
-                }
+        HStack(spacing: SpacingTokens.xs) {
+            Text(param.name)
+                .font(TypographyTokens.standard)
+                .lineLimit(1)
+
+            if let def, !def.shortDesc.isEmpty {
+                pgInfoPopover(text: def.shortDesc)
             }
-            .frame(minWidth: 200, alignment: .leading)
 
             Spacer()
 
@@ -67,14 +84,20 @@ extension DatabasePropertiesSheet {
                     .foregroundStyle(ColorTokens.Text.secondary)
             }
 
-            Button(role: .destructive) {
-                let paramName = param.name
-                pgParams.remove(at: index)
-                applyPgAlter { client in
-                    try await client.admin.alterDatabaseReset(name: databaseName, parameter: paramName)
+            Picker("", selection: pgParamRoleBinding(index: index, param: param)) {
+                Text("All roles").tag("")
+                ForEach(pgRoles, id: \.self) { role in
+                    Text(role).tag(role)
                 }
+            }
+            .labelsHidden()
+            .frame(width: 110)
+
+            Button(role: .destructive) {
+                pgParams.remove(at: index)
             } label: {
-                Image(systemName: "minus.circle.fill")
+                Image(systemName: "trash")
+                    .font(TypographyTokens.detail)
                     .foregroundStyle(ColorTokens.Status.error)
             }
             .buttonStyle(.plain)
@@ -82,56 +105,46 @@ extension DatabasePropertiesSheet {
     }
 
     @ViewBuilder
+    func pgInfoPopover(text: String) -> some View {
+        InfoPopoverButton(text: text)
+    }
+
+    // MARK: - Value Editors
+
+    @ViewBuilder
     func pgParameterValueEditor(index: Int, def: PostgresSettingDefinition) -> some View {
         switch def.vartype {
         case "bool":
-            let isOn = Binding<Bool>(
+            Toggle("", isOn: Binding<Bool>(
                 get: { pgParams[safe: index]?.value == "on" },
                 set: { newVal in
                     guard pgParams[safe: index] != nil else { return }
-                    let value = newVal ? "on" : "off"
-                    pgParams[index] = PostgresDatabaseParameter(name: def.name, value: value)
-                    applyPgAlter { client in
-                        try await client.admin.alterDatabaseSet(name: databaseName, parameter: def.name, value: value)
-                    }
+                    pgParams[index] = PostgresDatabaseParameter(name: def.name, value: newVal ? "on" : "off")
                 }
-            )
-            Toggle("", isOn: isOn)
-                .labelsHidden()
+            ))
+            .labelsHidden()
+            .toggleStyle(.switch)
 
         case "enum":
-            let selection = Binding<String>(
+            Picker("", selection: Binding<String>(
                 get: { pgParams[safe: index]?.value ?? "" },
                 set: { newVal in
                     guard pgParams[safe: index] != nil else { return }
                     pgParams[index] = PostgresDatabaseParameter(name: def.name, value: newVal)
-                    applyPgAlter { client in
-                        try await client.admin.alterDatabaseSet(name: databaseName, parameter: def.name, value: newVal)
-                    }
                 }
-            )
-            Picker("", selection: selection) {
+            )) {
                 ForEach(def.enumVals, id: \.self) { val in
                     Text(val).tag(val)
                 }
             }
             .labelsHidden()
-            .frame(minWidth: 120)
+            .frame(width: 130)
 
         case "integer", "real":
-            let text = Binding<String>(
-                get: { pgParams[safe: index]?.value ?? "" },
-                set: { pgParams[safe: index] != nil ? pgParams[index] = PostgresDatabaseParameter(name: def.name, value: $0) : () }
-            )
             HStack(spacing: SpacingTokens.xxs) {
-                TextField("", text: text)
-                    .frame(width: 100)
-                    .multilineTextAlignment(.trailing)
-                    .onSubmit {
-                        applyPgAlter { client in
-                            try await client.admin.alterDatabaseSet(name: databaseName, parameter: def.name, value: text.wrappedValue)
-                        }
-                    }
+                TextField("", text: pgParamTextBinding(index: index, def: def))
+                    .frame(width: 80)
+                    .textFieldStyle(.roundedBorder)
                 if !def.unit.isEmpty {
                     Text(def.unit)
                         .font(TypographyTokens.detail)
@@ -140,91 +153,13 @@ extension DatabasePropertiesSheet {
             }
 
         default:
-            let text = Binding<String>(
-                get: { pgParams[safe: index]?.value ?? "" },
-                set: { pgParams[safe: index] != nil ? pgParams[index] = PostgresDatabaseParameter(name: def.name, value: $0) : () }
-            )
-            TextField("", text: text)
-                .frame(minWidth: 120)
-                .onSubmit {
-                    applyPgAlter { client in
-                        try await client.admin.alterDatabaseSet(name: databaseName, parameter: def.name, value: text.wrappedValue)
-                    }
-                }
+            TextField("", text: pgParamTextBinding(index: index, def: def))
+                .frame(width: 140)
+                .textFieldStyle(.roundedBorder)
         }
     }
 
-    @ViewBuilder
-    var pgParameterAddControls: some View {
-        let groupedParams = Dictionary(grouping: pgAvailableParameters, by: \.category)
-        let sortedCategories = groupedParams.keys.sorted()
-
-        Picker("Parameter", selection: $pgNewParamName) {
-            Text("Select parameter\u{2026}").tag("")
-            ForEach(sortedCategories, id: \.self) { category in
-                Section(category) {
-                    ForEach(groupedParams[category] ?? [], id: \.name) { def in
-                        Text(def.name).tag(def.name)
-                    }
-                }
-            }
-        }
-        .frame(minWidth: 200)
-
-        if !pgNewParamName.isEmpty, let def = pgSettingDefinition(for: pgNewParamName) {
-            HStack(spacing: SpacingTokens.xs) {
-                pgNewParameterValueControl(def: def)
-
-                Button("Add") {
-                    pgAddParameter()
-                }
-                .disabled(pgNewParamValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-            }
-
-            if !def.shortDesc.isEmpty {
-                Text(def.shortDesc)
-                    .font(TypographyTokens.detail)
-                    .foregroundStyle(ColorTokens.Text.secondary)
-            }
-        }
-    }
-
-    @ViewBuilder
-    func pgNewParameterValueControl(def: PostgresSettingDefinition) -> some View {
-        switch def.vartype {
-        case "bool":
-            Picker("Value", selection: $pgNewParamValue) {
-                Text("on").tag("on")
-                Text("off").tag("off")
-            }
-            .frame(width: 100)
-            .onAppear { if pgNewParamValue.isEmpty { pgNewParamValue = def.bootVal == "on" ? "on" : "off" } }
-
-        case "enum":
-            Picker("Value", selection: $pgNewParamValue) {
-                Text("Select\u{2026}").tag("")
-                ForEach(def.enumVals, id: \.self) { val in
-                    Text(val).tag(val)
-                }
-            }
-            .frame(minWidth: 120)
-
-        case "integer", "real":
-            TextField("Value", text: $pgNewParamValue)
-                .frame(width: 100)
-            if !def.unit.isEmpty {
-                Text(def.unit)
-                    .font(TypographyTokens.detail)
-                    .foregroundStyle(ColorTokens.Text.tertiary)
-            }
-
-        default:
-            TextField("Value", text: $pgNewParamValue)
-                .frame(minWidth: 120)
-        }
-    }
-
-    // MARK: - Parameter Helpers
+    // MARK: - Helpers
 
     var pgAvailableParameters: [PostgresSettingDefinition] {
         let existing = Set(pgParams.map(\.name))
@@ -235,15 +170,104 @@ extension DatabasePropertiesSheet {
         pgSettingDefinitions.first(where: { $0.name == name })
     }
 
-    func pgAddParameter() {
-        let value = pgNewParamValue.trimmingCharacters(in: .whitespacesAndNewlines)
-        let name = pgNewParamName
-        guard !name.isEmpty, !value.isEmpty else { return }
-        pgParams.append(PostgresDatabaseParameter(name: name, value: value))
-        pgNewParamName = ""
-        pgNewParamValue = ""
-        applyPgAlter { client in
-            try await client.admin.alterDatabaseSet(name: databaseName, parameter: name, value: value)
+    func pgAddParameterWithDefault(name: String) {
+        guard let def = pgSettingDefinition(for: name) else { return }
+        let defaultValue: String
+        switch def.vartype {
+        case "bool": defaultValue = def.bootVal.isEmpty ? "off" : def.bootVal
+        case "enum": defaultValue = def.enumVals.first ?? def.bootVal
+        default: defaultValue = def.bootVal
+        }
+        pgParams.append(PostgresDatabaseParameter(name: name, value: defaultValue))
+    }
+
+    func pgParamTextBinding(index: Int, def: PostgresSettingDefinition) -> Binding<String> {
+        Binding(
+            get: { pgParams[safe: index]?.value ?? "" },
+            set: { pgParams[safe: index] != nil ? pgParams[index] = PostgresDatabaseParameter(name: def.name, value: $0) : () }
+        )
+    }
+
+    func pgParamRoleBinding(index: Int, param: PostgresDatabaseParameter) -> Binding<String> {
+        Binding(get: { "" }, set: { _ in })
+    }
+
+    // MARK: - Save (called on Done)
+
+    func pgSaveParameterChanges() {
+        let originalNames = Set(pgOriginalParams.map(\.name))
+        let currentNames = Set(pgParams.map(\.name))
+        let originalMap = Dictionary(pgOriginalParams.map { ($0.name, $0.value) }, uniquingKeysWith: { _, b in b })
+
+        // Parameters to remove (were in original, no longer present)
+        let removed = originalNames.subtracting(currentNames)
+        // Parameters to add or update
+        var upserted: [(name: String, value: String)] = []
+        for param in pgParams {
+            if let oldValue = originalMap[param.name] {
+                if oldValue != param.value { upserted.append((param.name, param.value)) }
+            } else {
+                upserted.append((param.name, param.value))
+            }
+        }
+
+        guard !removed.isEmpty || !upserted.isEmpty else { return }
+
+        let removedList = Array(removed)
+        let upsertedList = upserted
+        let changeCount = removedList.count + upsertedList.count
+
+        guard let pgSession = session.session as? PostgresSession else { return }
+        let client = pgSession.client
+        isSaving = true
+
+        Task {
+            do {
+                for name in removedList {
+                    try await client.admin.alterDatabaseReset(name: databaseName, parameter: name)
+                }
+                for param in upsertedList {
+                    try await client.admin.alterDatabaseSet(name: databaseName, parameter: param.name, value: param.value)
+                }
+                isSaving = false
+                environmentState.notificationEngine?.post(
+                    category: .databasePropertiesSaved,
+                    message: "\(changeCount) parameter\(changeCount == 1 ? "" : "s") updated on \(databaseName)."
+                )
+                Task { await environmentState.refreshDatabaseStructure(for: session.id) }
+            } catch {
+                isSaving = false
+                environmentState.notificationEngine?.post(
+                    category: .databasePropertiesError,
+                    message: error.localizedDescription
+                )
+            }
+        }
+
+        pgOriginalParams = pgParams
+    }
+}
+
+// MARK: - Info Popover Button
+
+private struct InfoPopoverButton: View {
+    let text: String
+    @State private var isShowing = false
+
+    var body: some View {
+        Button {
+            isShowing.toggle()
+        } label: {
+            Image(systemName: "info.circle")
+                .font(TypographyTokens.detail)
+                .foregroundStyle(ColorTokens.Text.tertiary)
+        }
+        .buttonStyle(.plain)
+        .popover(isPresented: $isShowing, arrowEdge: .bottom) {
+            Text(text)
+                .font(TypographyTokens.standard)
+                .padding(SpacingTokens.sm)
+                .frame(maxWidth: 280)
         }
     }
 }

@@ -73,6 +73,16 @@ extension SQLTextView {
 
         var filtered = suggestions
 
+        // In object-naming contexts (FROM, JOIN target), suppress keywords,
+        // functions, and columns — the user wants tables and schemas only.
+        switch query.clause {
+        case .from, .joinTarget, .insertColumns, .deleteWhere:
+            let objectKinds: Set<SQLAutoCompletionKind> = [.table, .view, .materializedView, .schema, .join, .snippet]
+            filtered.removeAll { !objectKinds.contains($0.kind) }
+        default:
+            break
+        }
+
         // Avoid suggesting a redundant FROM keyword once the current SELECT
         // statement already contains a FROM clause before the caret.
         if hasExistingFromKeywordInCurrentSelectSegment() {

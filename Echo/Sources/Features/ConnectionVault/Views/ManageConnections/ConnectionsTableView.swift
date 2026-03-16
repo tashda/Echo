@@ -82,7 +82,7 @@ struct ConnectionsTableView: View {
                         }
                     }
                     Divider()
-                    Button("Create New Folder...") {
+                    Button("Create New Folder") {
                         createFolderAndMoveConnection(connection)
                     }
                 }

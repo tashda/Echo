@@ -186,10 +186,8 @@ struct CMSSheet: View {
             return
         }
         do {
-            async let g = mssql.cms.listGroups()
-            async let s = mssql.cms.listServers()
-            groups = try await g
-            servers = try await s
+            groups = try await mssql.cms.listGroups()
+            servers = try await mssql.cms.listServers()
             isLoading = false
         } catch {
             errorMessage = error.localizedDescription

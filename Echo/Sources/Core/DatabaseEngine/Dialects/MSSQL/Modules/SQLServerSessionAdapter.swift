@@ -97,6 +97,18 @@ final class SQLServerSessionAdapter: DatabaseSession, MSSQLSession {
         try await client.indexes.rebuildIndex(name: index, table: table, schema: schema)
     }
 
+    func vacuumTable(schema: String, table: String, full: Bool, analyze: Bool) async throws {
+        throw DatabaseError.queryError("VACUUM is not supported for SQL Server")
+    }
+
+    func analyzeTable(schema: String, table: String) async throws {
+        throw DatabaseError.queryError("ANALYZE is not supported for SQL Server")
+    }
+
+    func reindexTable(schema: String, table: String) async throws {
+        throw DatabaseError.queryError("Use rebuildIndex for SQL Server")
+    }
+
     func sessionForDatabase(_ database: String) async throws -> DatabaseSession {
         _ = try await client.execute("USE [\(database.replacingOccurrences(of: "]", with: "]]"))]")
         return self

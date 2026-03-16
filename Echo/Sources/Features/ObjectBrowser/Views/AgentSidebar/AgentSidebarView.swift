@@ -71,7 +71,7 @@ struct AgentSidebarView: View {
                         HStack {
                             HStack(spacing: SpacingTokens.xs) {
                                 TextField("Search jobs", text: $searchText).textFieldStyle(.roundedBorder).frame(maxWidth: 220)
-                                Menu { Button("New Job…") { showNewJobSheet = true } } label: { Image(systemName: "plus.circle.fill").font(TypographyTokens.prominent.weight(.medium)) }.menuStyle(.borderlessButton)
+                                Menu { Button("New Job") { showNewJobSheet = true } } label: { Image(systemName: "plus.circle.fill").font(TypographyTokens.prominent.weight(.medium)) }.menuStyle(.borderlessButton)
                             }
                             Spacer()
                             Button { if let session = selectedSession { environmentState.openJobQueueTab(for: session) } } label: { Label("Open Job Management", systemImage: "wrench.and.screwdriver") }.buttonStyle(.borderedProminent).controlSize(.small)

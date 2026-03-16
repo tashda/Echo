@@ -17,7 +17,7 @@ final class ManageConnectionsWindowController: NSWindowController, NSWindowDeleg
         fatalError("init(coder:) has not been implemented")
     }
 
-    func present(initialSection: ManageSection? = nil) {
+    func present(initialSection: ManageSection? = nil, selectedProjectID: UUID? = nil) {
         if window == nil {
             configureWindow()
         }
@@ -27,7 +27,7 @@ final class ManageConnectionsWindowController: NSWindowController, NSWindowDeleg
 
         hostingController?.rootView = ManageConnectionsWindowRootView(onClose: { [weak self] in
             self?.closeWindow()
-        }, initialSection: initialSection)
+        }, initialSection: initialSection, selectedProjectID: selectedProjectID)
 
         applyTheme(to: window)
 
@@ -133,10 +133,12 @@ final class PocketSeparatorHidingHostingController<Content: View>: NSHostingCont
 private struct ManageConnectionsWindowRootView: View {
     let onClose: () -> Void
     var initialSection: ManageSection? = nil
+    var selectedProjectID: UUID? = nil
 
     var body: some View {
         let coordinator = AppDirector.shared
-        ManageConnectionsView(onClose: onClose, initialSection: initialSection)
+        ManageConnectionsView(onClose: onClose, initialSection: initialSection, initialProjectID: selectedProjectID)
+            .id("\(initialSection?.rawValue ?? "")-\(selectedProjectID?.uuidString ?? "")")
             .environment(coordinator.projectStore)
             .environment(coordinator.connectionStore)
             .environment(coordinator.navigationStore)

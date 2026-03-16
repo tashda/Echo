@@ -81,7 +81,7 @@ struct BulkColumnEditorSheet: View {
             ForEach(dataTypeOptions(for: databaseType), id: \.self) { option in
                 Text(option).tag(Optional(option))
             }
-            Text("Custom...").tag(Optional<String>.none)
+            Text("Custom").tag(Optional<String>.none)
         }
         .labelsHidden()
         .pickerStyle(.menu)

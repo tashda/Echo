@@ -132,6 +132,60 @@ extension DatabaseObjectRow {
         openScriptTab(with: sql)
     }
 
+    internal func openInsertScript() {
+        let sql = insertStatement()
+        openScriptTab(with: sql)
+    }
+
+    internal func openUpdateScript() {
+        let sql = updateStatement()
+        openScriptTab(with: sql)
+    }
+
+    internal func openDeleteScript() {
+        let sql = deleteStatement()
+        openScriptTab(with: sql)
+    }
+
+    internal func openModifyScript() {
+        let qualified = qualifiedName(schema: object.schema, name: object.name)
+        let sql: String
+        switch connection.databaseType {
+        case .microsoftSQL:
+            let keyword = object.type == .procedure ? "PROCEDURE" : "FUNCTION"
+            sql = "ALTER \(keyword) \(qualified)\nAS\n-- Modify \(keyword.lowercased()) here\nGO"
+        case .postgresql:
+            if object.type == .procedure {
+                sql = """
+                CREATE OR REPLACE PROCEDURE \(qualified)(/* parameters */)
+                LANGUAGE plpgsql
+                AS $$
+                BEGIN
+                    -- Modify procedure here
+                END;
+                $$;
+                """
+            } else {
+                sql = """
+                CREATE OR REPLACE FUNCTION \(qualified)(/* parameters */)
+                RETURNS void
+                LANGUAGE plpgsql
+                AS $$
+                BEGIN
+                    -- Modify function here
+                END;
+                $$;
+                """
+            }
+        case .mysql:
+            let keyword = object.type == .procedure ? "PROCEDURE" : "FUNCTION"
+            sql = "ALTER \(keyword) \(qualified)\n    -- Update characteristics here;\n"
+        case .sqlite:
+            sql = "-- Modifying programmable objects is not supported in SQLite."
+        }
+        openScriptTab(with: sql)
+    }
+
     internal func openScriptTab(with sql: String) {
         guard let session = environmentState.sessionGroup.sessionForConnection(connection.id) else { return }
         Task { @MainActor in

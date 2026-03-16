@@ -17,7 +17,7 @@ extension DatabasePropertiesSheet {
                 }
             }
             .onChange(of: pgOwner) { _, newOwner in
-                applyPgAlter { client in
+                applyPgAlter(message: "Owner changed to \(newOwner).") { client in
                     try await client.admin.alterDatabaseOwner(name: databaseName, newOwner: newOwner)
                 }
             }
@@ -26,11 +26,16 @@ extension DatabasePropertiesSheet {
                 TextField("", text: $pgComment, axis: .vertical)
                     .lineLimit(1...3)
                     .onSubmit {
-                        applyPgAlter { client in
+                        applyPgAlter(message: "Description updated.") { client in
                             try await client.admin.addDatabaseComment(name: databaseName, comment: pgComment.isEmpty ? nil : pgComment)
                         }
                     }
             }
+        }
+
+        Section("Statistics") {
+            LabeledContent("Database Size", value: ByteCountFormatter.string(fromByteCount: props.sizeBytes, countStyle: .file))
+            LabeledContent("Active Connections", value: "\(props.activeConnections)")
         }
 
         if let version = session.databaseStructure?.serverVersion {
@@ -56,7 +61,7 @@ extension DatabasePropertiesSheet {
                 Picker("Tablespace", selection: Binding(
                     get: { props.tablespace },
                     set: { newValue in
-                        applyPgAlter { client in
+                        applyPgAlter(message: "Tablespace changed to \(newValue).") { client in
                             try await client.admin.alterDatabaseTablespace(name: databaseName, tablespace: newValue)
                         }
                     }
@@ -76,7 +81,7 @@ extension DatabasePropertiesSheet {
                     TextField("", value: $pgConnectionLimit, format: .number)
                         .frame(width: 60)
                         .onSubmit {
-                            applyPgAlter { client in
+                            applyPgAlter(message: "Connection limit updated.") { client in
                                 try await client.admin.alterDatabaseConnectionLimit(name: databaseName, limit: pgConnectionLimit)
                             }
                         }
@@ -88,35 +93,26 @@ extension DatabasePropertiesSheet {
 
             Toggle("Is Template", isOn: $pgIsTemplate)
                 .onChange(of: pgIsTemplate) { _, v in
-                    applyPgAlter { client in
+                    applyPgAlter(message: "Is Template set to \(v).") { client in
                         try await client.admin.alterDatabaseIsTemplate(name: databaseName, isTemplate: v)
                     }
                 }
 
             Toggle("Allow Connections", isOn: $pgAllowConnections)
                 .onChange(of: pgAllowConnections) { _, v in
-                    applyPgAlter { client in
+                    applyPgAlter(message: "Allow Connections set to \(v).") { client in
                         try await client.admin.alterDatabaseAllowConnections(name: databaseName, allow: v)
                     }
                 }
         }
     }
 
-    @ViewBuilder
-    func postgresStatisticsPage(_ props: PostgresDatabaseProperties) -> some View {
-        Section("Size") {
-            LabeledContent("Database Size", value: ByteCountFormatter.string(fromByteCount: props.sizeBytes, countStyle: .file))
-            LabeledContent("Size (bytes)", value: "\(props.sizeBytes)")
-        }
-
-        Section("Connections") {
-            LabeledContent("Active Connections", value: "\(props.activeConnections)")
-        }
-    }
-
     // MARK: - PostgreSQL Apply Alter
 
-    func applyPgAlter(_ action: @Sendable @escaping (PostgresKit.PostgresClient) async throws -> Void) {
+    func applyPgAlter(
+        message: String = "Database properties updated.",
+        _ action: @Sendable @escaping (PostgresKit.PostgresClient) async throws -> Void
+    ) {
         guard let pgSession = session.session as? PostgresSession else { return }
         let client = pgSession.client
         isSaving = true
@@ -126,6 +122,7 @@ extension DatabasePropertiesSheet {
             do {
                 try await action(client)
                 isSaving = false
+                environmentState.notificationEngine?.post(category: .databasePropertiesSaved, message: message)
                 Task { await environmentState.refreshDatabaseStructure(for: session.id) }
             } catch {
                 isSaving = false
@@ -150,6 +147,7 @@ extension DatabasePropertiesSheet {
         pgComment = props.description ?? ""
 
         pgParams = (try? await client.introspection.fetchDatabaseParameters(databaseOid: props.oid)) ?? []
+        pgOriginalParams = pgParams
 
         let roles = (try? await client.security.listRoles()) ?? []
         pgRoles = roles.map(\.name).sorted()
@@ -163,6 +161,7 @@ extension DatabasePropertiesSheet {
         }
 
         pgDefaultPrivileges = (try? await client.introspection.fetchDefaultPrivileges()) ?? []
+        pgOriginalDefaultPrivileges = pgDefaultPrivileges
 
         let schemas = (try? await client.introspection.listSchemas()) ?? []
         pgSchemas = schemas.map(\.name).sorted()

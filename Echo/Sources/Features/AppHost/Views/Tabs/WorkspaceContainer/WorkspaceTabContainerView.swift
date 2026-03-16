@@ -120,16 +120,7 @@ struct WorkspaceTabContainerView: View {
                     gridStateProvider: { currentTab.resultsGridState }
                 )
             } else if let activeSession = environmentState.sessionGroup.activeSession {
-                ConnectionDashboardView(
-                    session: activeSession,
-                    onNewQuery: {
-                        environmentState.openQueryTab(for: activeSession)
-                    },
-                    onOpenJobQueue: activeSession.connection.databaseType == .microsoftSQL
-                        || activeSession.connection.databaseType == .postgresql
-                        ? { environmentState.openJobQueueTab(for: activeSession) }
-                        : nil
-                )
+                ConnectionDashboardView(session: activeSession)
             } else {
                 RecentConnectionsPlaceholder(
                     connections: recentConnectionItems,

@@ -90,14 +90,18 @@ struct QueryTabButton: View {
 
     private var tabContextMenuContent: some View {
         Group {
-            Button(tab.isPinned ? "Unpin Tab" : "Pin Tab", action: onPinToggle)
+            Button(action: onPinToggle) {
+                Label(tab.isPinned ? "Unpin Tab" : "Pin Tab", systemImage: tab.isPinned ? "pin.slash" : "pin")
+            }
 
-            Button("Duplicate Tab", action: onDuplicate)
-                .disabled(!canDuplicate)
+            Button(action: onDuplicate) {
+                Label("Duplicate Tab", systemImage: "plus.square.on.square")
+            }
+            .disabled(!canDuplicate)
 
             if !availableDatabases.isEmpty, let onSwitchDatabase {
                 Divider()
-                Menu("Switch Database") {
+                Menu {
                     ForEach(availableDatabases, id: \.self) { dbName in
                         Button {
                             onSwitchDatabase(dbName)
@@ -109,25 +113,46 @@ struct QueryTabButton: View {
                             }
                         }
                     }
+                } label: {
+                    Label("Switch Database", systemImage: "cylinder")
+                }
+            }
+
+            if let qsVM = tab.queryStoreVM {
+                Divider()
+                Button {
+                    Task { await qsVM.loadAll() }
+                } label: {
+                    Label("Refresh", systemImage: "arrow.clockwise")
                 }
             }
 
             Divider()
 
-            Button("Close Tab", action: onClose)
+            Button(action: onClose) {
+                Label("Close Tab", systemImage: "xmark")
+            }
 
-            Button("Close Other Tabs", action: onCloseOthers)
-                .disabled(closeOthersDisabled)
+            Button(action: onCloseOthers) {
+                Label("Close Other Tabs", systemImage: "xmark.square")
+            }
+            .disabled(closeOthersDisabled)
 
-            Button("Close Tabs to the Left", action: onCloseLeft)
-                .disabled(closeTabsLeftDisabled)
+            Button(action: onCloseLeft) {
+                Label("Close Tabs to the Left", systemImage: "arrow.left.to.line")
+            }
+            .disabled(closeTabsLeftDisabled)
 
-            Button("Close Tabs to the Right", action: onCloseRight)
-                .disabled(closeTabsRightDisabled)
+            Button(action: onCloseRight) {
+                Label("Close Tabs to the Right", systemImage: "arrow.right.to.line")
+            }
+            .disabled(closeTabsRightDisabled)
 
             if let onAddBookmark {
                 Divider()
-                Button("Add to Bookmarks", action: onAddBookmark)
+                Button(action: onAddBookmark) {
+                    Label("Add to Bookmarks", systemImage: "bookmark")
+                }
             }
         }
     }

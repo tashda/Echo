@@ -23,7 +23,7 @@ extension ObjectBrowserSidebarView {
 
         // New Query in this database
         Button {
-            environmentState.openQueryTab(for: session)
+            environmentState.openQueryTab(for: session, database: database.name)
         } label: {
             Label("New Query", systemImage: "doc.badge.plus")
         }
@@ -47,29 +47,10 @@ extension ObjectBrowserSidebarView {
 
         Divider()
 
-        // PostgreSQL-specific operations
-        if session.connection.databaseType == .postgresql {
-            Menu {
-                Button("VACUUM") {
-                    Task { await runPostgresMaintenance(session: session, database: database.name, operation: .vacuum) }
-                }
-                Button("VACUUM (Full)") {
-                    Task { await runPostgresMaintenance(session: session, database: database.name, operation: .vacuumFull) }
-                }
-                Button("VACUUM (Analyze)") {
-                    Task { await runPostgresMaintenance(session: session, database: database.name, operation: .vacuumAnalyze) }
-                }
-                Button("ANALYZE") {
-                    Task { await runPostgresMaintenance(session: session, database: database.name, operation: .analyze) }
-                }
-                Button("REINDEX") {
-                    Task { await runPostgresMaintenance(session: session, database: database.name, operation: .reindex) }
-                }
-            } label: {
-                Label("Maintenance", systemImage: "wrench.and.screwdriver")
-            }
-
-            Divider()
+        Button {
+            environmentState.openMaintenanceTab(connectionID: connID, databaseName: database.name)
+        } label: {
+            Label("Maintenance", systemImage: "wrench.and.screwdriver")
         }
 
         // MSSQL-specific operations
@@ -104,7 +85,7 @@ extension ObjectBrowserSidebarView {
                 viewModel.maintenanceConnectionID = connID
                 viewModel.showMaintenanceSheet = true
             } label: {
-                Label("Maintenance\u{2026}", systemImage: "wrench.and.screwdriver")
+                Label("Maintenance Plan", systemImage: "wrench.and.screwdriver")
             }
             .disabled(!database.isOnline)
 
@@ -113,19 +94,19 @@ extension ObjectBrowserSidebarView {
                 viewModel.replicationConnectionID = connID
                 viewModel.showReplicationSheet = true
             } label: {
-                Label("Replication\u{2026}", systemImage: "arrow.triangle.swap")
+                Label("Replication", systemImage: "arrow.triangle.swap")
             }
             .disabled(!database.isOnline)
 
             Menu {
                 if database.isOnline {
-                    Button("Back Up\u{2026}") {
+                    Button("Back Up") {
                         viewModel.backupDatabaseName = database.name
                         viewModel.backupConnectionID = connID
                         viewModel.showBackupSheet = true
                     }
 
-                    Button("Restore\u{2026}") {
+                    Button("Restore") {
                         viewModel.restoreDatabaseName = database.name
                         viewModel.restoreConnectionID = connID
                         viewModel.showRestoreSheet = true
@@ -147,7 +128,7 @@ extension ObjectBrowserSidebarView {
                         Task { await runMSSQLTask(session: session, database: database.name, task: .bringOnline) }
                     }
 
-                    Button("Restore\u{2026}") {
+                    Button("Restore") {
                         viewModel.restoreDatabaseName = database.name
                         viewModel.restoreConnectionID = connID
                         viewModel.showRestoreSheet = true
@@ -162,23 +143,27 @@ extension ObjectBrowserSidebarView {
 
         // Drop / Delete
         if session.connection.databaseType == .postgresql {
-            Button(role: .destructive) {
-                viewModel.dropDatabaseTarget = .init(sessionID: session.id, connectionID: connID, databaseName: database.name, databaseType: .postgresql, variant: .standard)
-                viewModel.showDropDatabaseAlert = true
+            Menu {
+                Button(role: .destructive) {
+                    viewModel.dropDatabaseTarget = .init(sessionID: session.id, connectionID: connID, databaseName: database.name, databaseType: .postgresql, variant: .standard)
+                    viewModel.showDropDatabaseAlert = true
+                } label: {
+                    Label("Drop", systemImage: "trash")
+                }
+                Button(role: .destructive) {
+                    viewModel.dropDatabaseTarget = .init(sessionID: session.id, connectionID: connID, databaseName: database.name, databaseType: .postgresql, variant: .cascade)
+                    viewModel.showDropDatabaseAlert = true
+                } label: {
+                    Label("Drop (Cascade)", systemImage: "trash")
+                }
+                Button(role: .destructive) {
+                    viewModel.dropDatabaseTarget = .init(sessionID: session.id, connectionID: connID, databaseName: database.name, databaseType: .postgresql, variant: .force)
+                    viewModel.showDropDatabaseAlert = true
+                } label: {
+                    Label("Drop (Force)", systemImage: "trash")
+                }
             } label: {
                 Label("Drop Database", systemImage: "trash")
-            }
-            Button(role: .destructive) {
-                viewModel.dropDatabaseTarget = .init(sessionID: session.id, connectionID: connID, databaseName: database.name, databaseType: .postgresql, variant: .cascade)
-                viewModel.showDropDatabaseAlert = true
-            } label: {
-                Label("Drop Database (Cascade)", systemImage: "trash")
-            }
-            Button(role: .destructive) {
-                viewModel.dropDatabaseTarget = .init(sessionID: session.id, connectionID: connID, databaseName: database.name, databaseType: .postgresql, variant: .force)
-                viewModel.showDropDatabaseAlert = true
-            } label: {
-                Label("Drop Database (Force)", systemImage: "trash")
             }
         } else {
             Button(role: .destructive) {
@@ -196,7 +181,7 @@ extension ObjectBrowserSidebarView {
             viewModel.propertiesConnectionID = connID
             viewModel.showDatabaseProperties = true
         } label: {
-            Label("Properties\u{2026}", systemImage: "info.circle")
+            Label("Properties", systemImage: "info.circle")
         }
     }
 }

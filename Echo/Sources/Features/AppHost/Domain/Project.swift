@@ -64,6 +64,20 @@ extension Project {
         colorHex = color.toHex() ?? ""
     }
 
+    var toolbarIcon: ToolbarIcon {
+        guard let iconName, !iconName.isEmpty else {
+            return .system("folder.fill")
+        }
+
+        #if canImport(AppKit)
+        if NSImage(named: iconName) != nil {
+            return .asset(iconName, isTemplate: true)
+        }
+        #endif
+
+        return .system(iconName)
+    }
+
     var iconRenderInfo: (image: Image, isSystemSymbol: Bool) {
         guard let iconName, !iconName.isEmpty else {
             return (Image(systemName: "folder.badge.gearshape"), true)

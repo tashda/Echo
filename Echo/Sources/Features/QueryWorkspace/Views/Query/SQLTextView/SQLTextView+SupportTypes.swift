@@ -15,24 +15,6 @@ enum CompletionTriggerKind {
     case evaluateSpace
 }
 
-final class InlineSuggestionLabel: NSTextField {
-    override init(frame frameRect: NSRect) {
-        super.init(frame: frameRect)
-        isBordered = false
-        isEditable = false
-        isSelectable = false
-        drawsBackground = false
-        lineBreakMode = .byClipping
-        alignment = .left
-        stringValue = ""
-        usesSingleLineMode = true
-    }
-
-    required init?(coder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
-    }
-}
-
 extension NSString {
     func lineNumber(at index: Int) -> Int {
         guard length > 0 else { return 1 }

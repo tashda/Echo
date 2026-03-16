@@ -1,0 +1,240 @@
+import SwiftUI
+
+// MARK: - SQL Popout Context
+
+struct SQLPopoutContext: Identifiable {
+    let id = UUID()
+    let sql: String
+    let title: String
+}
+
+// MARK: - SQL Inspector Popover
+
+struct SQLInspectorPopover: View {
+    let context: SQLPopoutContext
+    let onOpenInWindow: (String) -> Void
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Text(context.title)
+                    .font(TypographyTokens.prominent.weight(.semibold))
+                Spacer()
+
+                HStack(spacing: SpacingTokens.sm) {
+                    Button("Copy SQL") {
+                        PlatformClipboard.copy(context.sql)
+                    }
+
+                    Button("Open in Query Window") {
+                        onOpenInWindow(context.sql)
+                        dismiss()
+                    }
+                    .buttonStyle(.borderedProminent)
+
+                    Button("Close") {
+                        dismiss()
+                    }
+                }
+            }
+            .padding(.horizontal, SpacingTokens.lg)
+            .padding(.vertical, SpacingTokens.md)
+
+            Divider()
+
+            ScrollView {
+                Text(context.sql)
+                    .font(TypographyTokens.monospaced)
+                    .padding(SpacingTokens.lg)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .textSelection(.enabled)
+            }
+            .background(ColorTokens.Background.secondary.opacity(0.5))
+        }
+        .frame(minWidth: 600, minHeight: 400)
+    }
+}
+
+// MARK: - SQL Query Cell
+
+struct SQLQueryCell: View {
+    let sql: String
+    let onPopout: (String) -> Void
+
+    var body: some View {
+        HStack(spacing: SpacingTokens.xxs) {
+            let flat = sql.trimmingCharacters(in: .whitespacesAndNewlines)
+                .replacingOccurrences(of: "\n", with: " ")
+                .replacingOccurrences(of: "\r", with: " ")
+                .replacingOccurrences(of: "  ", with: " ")
+            Text(flat)
+                .font(TypographyTokens.detail)
+                .lineLimit(1)
+                .truncationMode(.tail)
+                .help(sql)
+
+            Spacer()
+
+            Button(action: { onPopout(sql) }) {
+                Image(systemName: "arrow.up.left.and.arrow.down.right")
+                    .font(TypographyTokens.compact)
+                    .foregroundStyle(ColorTokens.Text.tertiary)
+            }
+            .buttonStyle(.plain)
+            .help("Expand SQL")
+        }
+        .contextMenu {
+            Button("Expand SQL") { onPopout(sql) }
+            Button("Copy SQL") { PlatformClipboard.copy(sql) }
+        }
+    }
+}
+
+// MARK: - Status Badge
+
+struct StatusBadge: View {
+    let text: String
+    let isSystem: Bool
+
+    init(text: String, isSystem: Bool = false) {
+        self.text = text.isEmpty ? (isSystem ? "System" : "Unknown") : text
+        self.isSystem = isSystem
+    }
+
+    var body: some View {
+        Text(text)
+            .font(TypographyTokens.compact.weight(.bold))
+            .padding(.horizontal, SpacingTokens.xxs2)
+            .padding(.vertical, SpacingTokens.xxxs)
+            .background(backgroundColor.opacity(0.15))
+            .foregroundStyle(backgroundColor)
+            .cornerRadius(4)
+    }
+
+    private var backgroundColor: Color {
+        if isSystem { return ColorTokens.Status.info }
+        switch text.lowercased() {
+        case "active", "running", "runnable": return ColorTokens.Status.success
+        case "sleeping", "idle": return ColorTokens.Text.secondary
+        case "suspended", "blocked": return ColorTokens.Status.error
+        default: return ColorTokens.Text.secondary
+        }
+    }
+}
+
+// MARK: - Section Info Button
+
+struct SectionInfoButton: View {
+    let info: String
+    @State private var isPresented = false
+
+    var body: some View {
+        Button {
+            isPresented.toggle()
+        } label: {
+            Image(systemName: "info.circle")
+                .font(TypographyTokens.compact)
+                .foregroundStyle(ColorTokens.Text.tertiary)
+        }
+        .buttonStyle(.plain)
+        .popover(isPresented: $isPresented) {
+            Text(info)
+                .font(TypographyTokens.detail)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(SpacingTokens.sm)
+                .frame(width: 250)
+        }
+    }
+}
+
+// MARK: - Empty Table Placeholder
+
+struct EmptyTablePlaceholder: View {
+    var body: some View {
+        EmptyStatePlaceholder(
+            icon: "tablecells",
+            title: "No Activity Data",
+            subtitle: "Waiting for data\u{2026}"
+        )
+    }
+}
+
+// MARK: - pg_stat_statements Guide
+
+struct PGStatStatementsGuide: View {
+    let onOpenManager: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: SpacingTokens.md) {
+            HStack {
+                Image(systemName: "puzzlepiece.extension.fill")
+                    .foregroundStyle(ColorTokens.Status.info)
+                Text("Enable Expensive Query Tracking")
+                    .font(TypographyTokens.headline)
+            }
+
+            Text("PostgreSQL requires the `pg_stat_statements` extension to track detailed query performance metrics.")
+                .font(TypographyTokens.detail)
+
+            VStack(alignment: .leading, spacing: SpacingTokens.xxs2) {
+                Label("Add to `shared_preload_libraries` in `postgresql.conf`", systemImage: "1.circle")
+                Label("Restart the PostgreSQL server", systemImage: "2.circle")
+                Label("Run `CREATE EXTENSION pg_stat_statements;`", systemImage: "3.circle")
+            }
+            .font(TypographyTokens.detail)
+            .foregroundStyle(ColorTokens.Text.secondary)
+
+            Button("Open Extension Manager") {
+                onOpenManager()
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.small)
+            .padding(.top, SpacingTokens.xxs)
+        }
+        .padding(SpacingTokens.lg)
+        .frame(width: 380)
+    }
+}
+
+// MARK: - Section Container
+
+struct SectionContainer<Content: View>: View {
+    let title: String
+    let icon: String
+    let info: String?
+    let content: () -> Content
+
+    init(title: String, icon: String, info: String? = nil, @ViewBuilder content: @escaping () -> Content) {
+        self.title = title
+        self.icon = icon
+        self.info = info
+        self.content = content
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: SpacingTokens.sm) {
+            HStack(spacing: SpacingTokens.xs) {
+                Image(systemName: icon)
+                    .font(TypographyTokens.standard.weight(.semibold))
+                    .foregroundStyle(ColorTokens.accent)
+                Text(title.uppercased())
+                    .font(TypographyTokens.detail.weight(.bold))
+                    .foregroundStyle(ColorTokens.Text.secondary)
+                    .kerning(0.5)
+
+                if let info = info {
+                    SectionInfoButton(info: info)
+                }
+            }
+            .padding(.leading, SpacingTokens.xxxs)
+            content()
+                .background(ColorTokens.Background.secondary.opacity(0.3))
+                .cornerRadius(8)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(ColorTokens.Text.primary.opacity(0.05), lineWidth: 1)
+                )
+        }
+    }
+}

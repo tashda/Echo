@@ -61,7 +61,7 @@ final class PreferencesUITests: XCTestCase {
         let echoMenu = menuBar.menuBarItems["Echo"]
         echoMenu.click()
 
-        let settingsItem = menuBar.menuItems["Settings…"]
+        let settingsItem = menuBar.menuItems["Settings"]
         if settingsItem.waitForExistence(timeout: 3) && settingsItem.isEnabled {
             settingsItem.click()
             Thread.sleep(forTimeInterval: 1.0)

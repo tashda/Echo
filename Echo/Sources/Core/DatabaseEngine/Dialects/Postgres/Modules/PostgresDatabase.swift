@@ -386,8 +386,19 @@ extension PostgresSession: DatabaseMetadataSession {
     }
 
     func rebuildIndex(schema: String, table: String, index: String) async throws {
-        let quotedIndex = "\"\(index.replacingOccurrences(of: "\"", with: "\"\""))\""
-        _ = try await client.simpleQuery("REINDEX INDEX \(quotedIndex)")
+        try await client.admin.reindex(table: table)
+    }
+
+    func vacuumTable(schema: String, table: String, full: Bool, analyze: Bool) async throws {
+        try await client.admin.vacuum(schema: schema, table: table, analyze: analyze, full: full)
+    }
+
+    func analyzeTable(schema: String, table: String) async throws {
+        try await client.admin.analyze(schema: schema, table: table)
+    }
+
+    func reindexTable(schema: String, table: String) async throws {
+        try await client.admin.reindex(schema: schema, table: table)
     }
 
     func listAvailableExtensions() async throws -> [AvailableExtensionInfo] {

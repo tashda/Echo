@@ -15,8 +15,9 @@ extension ObjectBrowserSidebarView {
 
         VStack(alignment: .leading, spacing: 0) {
             securitySectionHeader(
+                depth: 1,
                 title: "Server Roles",
-                icon: "shield.fill",
+                icon: "shield",
                 count: roles.count,
                 isExpanded: isExpanded
             ) {
@@ -28,7 +29,7 @@ extension ObjectBrowserSidebarView {
                 Button {
                     Task { await createMSSQLServerRole(session: session) }
                 } label: {
-                    Label("New Server Role\u{2026}", systemImage: "plus")
+                    Label("New Server Role", systemImage: "plus")
                 }
                 Divider()
                 Button {
@@ -39,42 +40,26 @@ extension ObjectBrowserSidebarView {
             }
 
             if isExpanded {
-                VStack(alignment: .leading, spacing: 0) {
-                    ForEach(roles) { role in
-                        serverRoleRow(role: role, session: session)
-                    }
+                ForEach(roles) { role in
+                    serverRoleRow(role: role, session: session)
                 }
-                .padding(.leading, SidebarRowConstants.indentStep)
             }
         }
     }
 
     func serverRoleRow(role: ObjectBrowserSidebarViewModel.SecurityServerRoleItem, session: ConnectionSession) -> some View {
-        HStack(spacing: SidebarRowConstants.iconTextSpacing) {
-            Spacer().frame(width: SidebarRowConstants.chevronWidth)
-
-            Image(systemName: role.isFixed ? "shield.lefthalf.filled" : "shield")
-                .font(SidebarRowConstants.iconFont)
-                .foregroundStyle(ExplorerSidebarPalette.security)
-                .frame(width: SidebarRowConstants.iconFrame)
-
-            Text(role.name)
-                .font(TypographyTokens.standard)
-                .foregroundStyle(ColorTokens.Text.primary)
-                .lineLimit(1)
-
-            Spacer(minLength: SpacingTokens.xxxs)
-
+        SidebarRow(
+            depth: 2,
+            icon: .system("shield"),
+            label: role.name,
+            iconColor: projectStore.globalSettings.sidebarColoredIcons ? ExplorerSidebarPalette.security : ExplorerSidebarPalette.monochrome
+        ) {
             if role.isFixed {
                 Text("Fixed")
-                    .font(TypographyTokens.label)
+                    .font(SidebarRowConstants.trailingFont)
                     .foregroundStyle(ColorTokens.Text.quaternary)
             }
         }
-        .padding(.leading, SidebarRowConstants.rowHorizontalPadding)
-                .padding(.trailing, SidebarRowConstants.rowTrailingPadding)
-        .padding(.vertical, SidebarRowConstants.rowVerticalPadding)
-        .contentShape(Rectangle())
         .contextMenu {
             serverRoleRowContextMenu(role: role, session: session)
         }
@@ -134,6 +119,7 @@ extension ObjectBrowserSidebarView {
 
         VStack(alignment: .leading, spacing: 0) {
             securitySectionHeader(
+                depth: 1,
                 title: "Credentials",
                 icon: "key",
                 count: credentials.count,
@@ -145,53 +131,35 @@ extension ObjectBrowserSidebarView {
             }
 
             if isExpanded {
-                VStack(alignment: .leading, spacing: 0) {
-                    if credentials.isEmpty {
-                        HStack(spacing: SpacingTokens.xs) {
-                            Spacer().frame(width: SidebarRowConstants.chevronWidth)
-                            Text("No credentials found")
-                                .font(TypographyTokens.detail)
-                                .foregroundStyle(ColorTokens.Text.tertiary)
-                        }
-                        .padding(.leading, SidebarRowConstants.rowHorizontalPadding)
-                .padding(.trailing, SidebarRowConstants.rowTrailingPadding)
-                        .padding(.vertical, SidebarRowConstants.rowVerticalPadding)
-                    } else {
-                        ForEach(credentials) { credential in
-                            credentialRow(credential: credential, session: session)
-                        }
+                if credentials.isEmpty {
+                    SidebarRow(
+                        depth: 2,
+                        icon: .none,
+                        label: "No credentials found",
+                        labelColor: ColorTokens.Text.tertiary,
+                        labelFont: TypographyTokens.detail
+                    )
+                } else {
+                    ForEach(credentials) { credential in
+                        credentialRow(credential: credential, session: session)
                     }
                 }
-                .padding(.leading, SidebarRowConstants.indentStep)
             }
         }
     }
 
     func credentialRow(credential: ObjectBrowserSidebarViewModel.SecurityCredentialItem, session: ConnectionSession) -> some View {
-        HStack(spacing: SidebarRowConstants.iconTextSpacing) {
-            Spacer().frame(width: SidebarRowConstants.chevronWidth)
-
-            Image(systemName: "key")
-                .font(SidebarRowConstants.iconFont)
-                .foregroundStyle(ExplorerSidebarPalette.security)
-                .frame(width: SidebarRowConstants.iconFrame)
-
-            Text(credential.name)
-                .font(TypographyTokens.standard)
-                .foregroundStyle(ColorTokens.Text.primary)
-                .lineLimit(1)
-
-            Spacer(minLength: SpacingTokens.xxxs)
-
+        SidebarRow(
+            depth: 2,
+            icon: .system("key"),
+            label: credential.name,
+            iconColor: projectStore.globalSettings.sidebarColoredIcons ? ExplorerSidebarPalette.security : ExplorerSidebarPalette.monochrome
+        ) {
             Text(credential.identity)
-                .font(TypographyTokens.caption2)
+                .font(SidebarRowConstants.trailingFont)
                 .foregroundStyle(ColorTokens.Text.tertiary)
                 .lineLimit(1)
         }
-        .padding(.leading, SidebarRowConstants.rowHorizontalPadding)
-                .padding(.trailing, SidebarRowConstants.rowTrailingPadding)
-        .padding(.vertical, SidebarRowConstants.rowVerticalPadding)
-        .contentShape(Rectangle())
         .contextMenu {
             Menu {
                 Button("CREATE") {

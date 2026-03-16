@@ -167,11 +167,8 @@ struct FullTextSearchSheet: View {
         }
 
         do {
-            async let c = mssql.fullText.listCatalogs()
-            async let i = mssql.fullText.listIndexes()
-
-            catalogs = try await c
-            indexes = try await i
+            catalogs = try await mssql.fullText.listCatalogs()
+            indexes = try await mssql.fullText.listIndexes()
             isLoading = false
         } catch {
             errorMessage = error.localizedDescription

@@ -38,11 +38,5 @@ extension SQLTextView {
         }
         return completionController
     }
-
-    func consumePopoverSuppressionFlag() -> Bool {
-        let value = suppressNextCompletionPopover
-        suppressNextCompletionPopover = false
-        return value
-    }
 }
 #endif

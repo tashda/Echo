@@ -88,8 +88,16 @@ final class TabStore {
         tabDirector.closeTabsRight(of: id)
     }
 
+    func closeAllTabs() {
+        tabDirector.closeAllTabs()
+    }
+
     func index(of id: UUID) -> Int? {
         tabs.firstIndex(where: { $0.id == id })
+    }
+
+    func clearActiveTab() {
+        activeTabId = nil
     }
 
     func activateNextTab() {

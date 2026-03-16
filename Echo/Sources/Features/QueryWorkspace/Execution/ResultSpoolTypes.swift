@@ -96,13 +96,13 @@ struct ResultBinaryRowCodec {
                     offset &+= 1
 
                     var length = UInt32(raw.count).littleEndian
-                _ = withUnsafeBytes(of: &length) { pointer in
+                withUnsafeBytes(of: &length) { pointer in
                     guard let pointerBase = pointer.baseAddress else { return }
                     memcpy(baseAddress.advanced(by: offset), pointerBase, 4)
                 }
                     offset &+= 4
 
-                    _ = raw.withUnsafeBytes { rawPointer in
+                    raw.withUnsafeBytes { rawPointer in
                         guard let rawBase = rawPointer.baseAddress else { return }
                         memcpy(baseAddress.advanced(by: offset), rawBase, raw.count)
                     }
