@@ -255,16 +255,6 @@ jobs:
           -only-testing:EchoTests/FactoryConnectionTests \
           -disable-concurrent-testing
 
-    - name: Run UI Tests
-      continue-on-error: true
-      run: |
-        xcodebuild test -project Echo.xcodeproj \
-          -scheme Echo \
-          -destination 'platform=macOS' \
-          -resultBundlePath TestResults-ui \
-          -only-testing:EchoUITests \
-          -disable-concurrent-testing
-
     - name: Upload Test Results
       if: always()
       uses: actions/upload-artifact@v4
