@@ -141,6 +141,9 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
+    - name: Unlock keychain
+      run: security unlock-keychain -p "${{ secrets.KEYCHAIN_PASSWORD }}" ~/Library/Keychains/login.keychain-db
+
     - name: Verify Docker
       run: |
         export DOCKER_HOST="${DOCKER_HOST:-unix://$HOME/.colima/default/docker.sock}"
@@ -180,10 +183,7 @@ jobs:
           -only-testing:EchoTests/MSSQLDataTypeBinaryTests \
           -only-testing:EchoTests/MSSQLStreamingTests \
           -only-testing:EchoTests/MSSQLStreamingSpoolTests \
-          -disable-concurrent-testing \
-          CODE_SIGN_IDENTITY="" \
-          CODE_SIGNING_REQUIRED=NO \
-          CODE_SIGNING_ALLOWED=NO
+          -disable-concurrent-testing
 
     - name: Run Integration Tests (Postgres)
       if: startsWith(matrix.db, 'postgres')
@@ -216,10 +216,7 @@ jobs:
           -only-testing:EchoTests/PGDataTypeSpecialTests \
           -only-testing:EchoTests/PGStreamingTests \
           -only-testing:EchoTests/PGStreamingSpoolTests \
-          -disable-concurrent-testing \
-          CODE_SIGN_IDENTITY="" \
-          CODE_SIGNING_REQUIRED=NO \
-          CODE_SIGNING_ALLOWED=NO
+          -disable-concurrent-testing
 
     - name: Upload Test Results
       if: always()
@@ -234,6 +231,9 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
+    - name: Unlock keychain
+      run: security unlock-keychain -p "${{ secrets.KEYCHAIN_PASSWORD }}" ~/Library/Keychains/login.keychain-db
+
     - name: Run SQLite & Cross-Dialect Integration Tests
       run: |
         xcodebuild test -project Echo.xcodeproj \
@@ -247,10 +247,7 @@ jobs:
           -only-testing:EchoTests/SQLiteDataTypeTests \
           -only-testing:EchoTests/SessionProtocolComplianceTests \
           -only-testing:EchoTests/FactoryConnectionTests \
-          -disable-concurrent-testing \
-          CODE_SIGN_IDENTITY="" \
-          CODE_SIGNING_REQUIRED=NO \
-          CODE_SIGNING_ALLOWED=NO
+          -disable-concurrent-testing
 
     - name: Run UI Tests
       run: |
@@ -259,9 +256,7 @@ jobs:
           -destination 'platform=macOS' \
           -resultBundlePath TestResults-ui \
           -only-testing:EchoUITests \
-          CODE_SIGN_IDENTITY="" \
-          CODE_SIGNING_REQUIRED=NO \
-          CODE_SIGNING_ALLOWED=NO
+          -disable-concurrent-testing
 
     - name: Upload Test Results
       if: always()
