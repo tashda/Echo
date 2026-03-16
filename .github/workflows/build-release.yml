@@ -141,14 +141,9 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    - name: Select Xcode
-      run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer || true
-
-    - name: Clear SPM cache
-      run: rm -rf ~/Library/Caches/org.swift.swiftpm/repositories
-
     - name: Verify Docker
       run: |
+        export DOCKER_HOST="${DOCKER_HOST:-unix://$HOME/.colima/default/docker.sock}"
         docker info > /dev/null 2>&1 || (echo "Docker not running" && exit 1)
         echo "Docker is ready"
 
@@ -236,12 +231,6 @@ jobs:
     needs: test
     steps:
     - uses: actions/checkout@v4
-
-    - name: Select Xcode
-      run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer || true
-
-    - name: Clear SPM cache
-      run: rm -rf ~/Library/Caches/org.swift.swiftpm/repositories
 
     - name: Run SQLite & Cross-Dialect Integration Tests
       run: |
