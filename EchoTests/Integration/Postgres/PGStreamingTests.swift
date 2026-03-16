@@ -21,7 +21,7 @@ final class PGStreamingTests: PostgresDockerTestCase {
     }
 
     func testProgressHandlerReceivesColumns() async throws {
-        let streamColumns = LockIsolated<[ColumnInfo]>([])
+        let streamColumns = LockIsolated<[Echo.ColumnInfo]>([])
 
         let result = try await session.simpleQuery(
             "SELECT 1::INTEGER AS int_col, 'text'::TEXT AS string_col, 3.14::DOUBLE PRECISION AS float_col",

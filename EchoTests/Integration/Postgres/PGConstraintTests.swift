@@ -146,7 +146,7 @@ final class PGConstraintTests: PostgresDockerTestCase {
         let tableName = uniqueName()
         try await postgresClient.admin.createTable(name: tableName, columns: [
             .serial(name: "id", primaryKey: true),
-            .varchar(name: "code", length: 10, unique: true),
+            PostgresColumnDefinition(name: "code", dataType: "VARCHAR(10)", unique: true),
             .text(name: "name")
         ])
         cleanupSQL("DROP TABLE IF EXISTS public.\(tableName)")
