@@ -11,6 +11,7 @@ final class AppearanceUITests: XCTestCase {
         let app = XCUIApplication()
         app.launchEnvironment["ECHO_FORCE_APPEARANCE"] = "dark"
         app.launch()
+        app.activate()
 
         let sidebar = app.groups["workspace-sidebar"].firstMatch
         // Wait for the app to settle
@@ -32,6 +33,7 @@ final class AppearanceUITests: XCTestCase {
         let app = XCUIApplication()
         app.launchEnvironment["ECHO_FORCE_APPEARANCE"] = "light"
         app.launch()
+        app.activate()
 
         let sidebar = app.groups["workspace-sidebar"].firstMatch
         _ = sidebar.waitForExistence(timeout: 10)
@@ -52,6 +54,7 @@ final class AppearanceUITests: XCTestCase {
         let darkApp = XCUIApplication()
         darkApp.launchEnvironment["ECHO_FORCE_APPEARANCE"] = "dark"
         darkApp.launch()
+        darkApp.activate()
         _ = darkApp.windows.firstMatch.waitForExistence(timeout: 10)
         let darkScreenshot = darkApp.screenshot()
         darkApp.terminate()
@@ -60,6 +63,7 @@ final class AppearanceUITests: XCTestCase {
         let lightApp = XCUIApplication()
         lightApp.launchEnvironment["ECHO_FORCE_APPEARANCE"] = "light"
         lightApp.launch()
+        lightApp.activate()
         _ = lightApp.windows.firstMatch.waitForExistence(timeout: 10)
         let lightScreenshot = lightApp.screenshot()
 

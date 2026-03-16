@@ -9,6 +9,7 @@ final class QueryEditorUITests: XCTestCase {
         let app = XCUIApplication()
         app.launchEnvironment["UITEST_BOOT_MODE"] = "QueryEditor"
         app.launch()
+        app.activate()
 
         let editor = app.textViews["QueryEditorTextView"]
         XCTAssertTrue(editor.waitForExistence(timeout: 5), "Query editor text view should exist")

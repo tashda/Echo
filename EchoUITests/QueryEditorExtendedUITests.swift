@@ -11,6 +11,7 @@ final class QueryEditorExtendedUITests: XCTestCase {
     private func launchWithEditor() -> (XCUIApplication, XCUIElement) {
         let app = XCUIApplication()
         app.launch()
+        app.activate()
 
         let window = app.windows.firstMatch
         XCTAssertTrue(window.waitForExistence(timeout: 10))
