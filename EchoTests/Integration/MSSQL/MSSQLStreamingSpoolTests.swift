@@ -54,7 +54,7 @@ final class MSSQLStreamingSpoolTests: MSSQLDockerTestCase {
     }
 
     func testProgressUpdatesContainColumns() async throws {
-        let columnsFromProgress = LockIsolated<[ColumnInfo]>([])
+        let columnsFromProgress = LockIsolated<[Echo.ColumnInfo]>([])
 
         _ = try await session.simpleQuery(
             """
