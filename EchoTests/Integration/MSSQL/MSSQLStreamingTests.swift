@@ -62,7 +62,7 @@ final class MSSQLStreamingTests: MSSQLDockerTestCase {
     // MARK: - Column Metadata in Streaming
 
     func testStreamingPreservesColumnMetadata() async throws {
-        let streamColumns = LockIsolated<[ColumnInfo]>([])
+        let streamColumns = LockIsolated<[Echo.ColumnInfo]>([])
 
         _ = try await session.simpleQuery(
             "SELECT 1 AS int_col, 'text' AS string_col, 3.14 AS float_col",

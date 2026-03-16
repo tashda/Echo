@@ -1,4 +1,5 @@
 import XCTest
+import SQLServerKit
 @testable import Echo
 
 /// Tests spool behavior for large result sets through Echo's streaming pipeline.
