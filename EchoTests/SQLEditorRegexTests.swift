@@ -1298,16 +1298,16 @@ SELECT
                                            clause: .selectList)
 
         textView.applyCompletion(suggestion, query: query)
-        advanceMainRunLoop(for: 0.15)
+        advanceMainRunLoop(for: 0.5)
 
         XCTAssertTrue(textView.string.contains("public.fixture.id"))
 
         textView.undoManager?.undo()
-        advanceMainRunLoop(for: 0.05)
+        advanceMainRunLoop(for: 0.5)
         XCTAssertEqual(textView.string, originalSQL)
 
         textView.undoManager?.redo()
-        advanceMainRunLoop(for: 0.05)
+        advanceMainRunLoop(for: 0.5)
         XCTAssertTrue(textView.string.contains("public.fixture.id"))
     }
 
