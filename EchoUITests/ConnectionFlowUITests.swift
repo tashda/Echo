@@ -10,6 +10,7 @@ final class ConnectionFlowUITests: XCTestCase {
     func testSidebarExistsOnLaunch() {
         let app = XCUIApplication()
         app.launch()
+        app.activate()
 
         // The sidebar should be visible on launch
         let window = app.windows.firstMatch
@@ -21,6 +22,7 @@ final class ConnectionFlowUITests: XCTestCase {
     func testAddConnectionShowsSheet() {
         let app = XCUIApplication()
         app.launch()
+        app.activate()
 
         // Wait for app to settle
         let window = app.windows.firstMatch

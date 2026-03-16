@@ -255,6 +255,9 @@ jobs:
           -only-testing:EchoTests/FactoryConnectionTests \
           -disable-concurrent-testing
 
+    - name: Kill leftover Echo processes
+      run: pkill -x Echo 2>/dev/null || true
+
     - name: Run UI Tests
       run: |
         xcodebuild test -project Echo.xcodeproj \

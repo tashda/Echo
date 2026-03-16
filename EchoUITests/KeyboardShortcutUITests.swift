@@ -10,6 +10,7 @@ final class KeyboardShortcutUITests: XCTestCase {
     func testCommandTCreatesNewTab() {
         let app = XCUIApplication()
         app.launch()
+        app.activate()
 
         let window = app.windows.firstMatch
         XCTAssertTrue(window.waitForExistence(timeout: 10))
@@ -25,6 +26,7 @@ final class KeyboardShortcutUITests: XCTestCase {
     func testCommandWClosesTab() {
         let app = XCUIApplication()
         app.launch()
+        app.activate()
 
         let window = app.windows.firstMatch
         XCTAssertTrue(window.waitForExistence(timeout: 10))
@@ -42,6 +44,7 @@ final class KeyboardShortcutUITests: XCTestCase {
     func testCommandShiftTReopensClosedTab() {
         let app = XCUIApplication()
         app.launch()
+        app.activate()
 
         let window = app.windows.firstMatch
         XCTAssertTrue(window.waitForExistence(timeout: 10))
@@ -69,6 +72,7 @@ final class KeyboardShortcutUITests: XCTestCase {
     func testControlTabSwitchesToNextTab() {
         let app = XCUIApplication()
         app.launch()
+        app.activate()
 
         let window = app.windows.firstMatch
         XCTAssertTrue(window.waitForExistence(timeout: 10))
@@ -95,6 +99,7 @@ final class KeyboardShortcutUITests: XCTestCase {
     func testControlShiftTabSwitchesToPreviousTab() {
         let app = XCUIApplication()
         app.launch()
+        app.activate()
 
         let window = app.windows.firstMatch
         XCTAssertTrue(window.waitForExistence(timeout: 10))
@@ -117,6 +122,7 @@ final class KeyboardShortcutUITests: XCTestCase {
     func testCommandShiftOTogglesTabOverview() {
         let app = XCUIApplication()
         app.launch()
+        app.activate()
 
         let window = app.windows.firstMatch
         XCTAssertTrue(window.waitForExistence(timeout: 10))
@@ -151,6 +157,7 @@ final class KeyboardShortcutUITests: XCTestCase {
     func testCommandControlSTogglesSidebar() {
         let app = XCUIApplication()
         app.launch()
+        app.activate()
 
         let window = app.windows.firstMatch
         XCTAssertTrue(window.waitForExistence(timeout: 10))
@@ -189,6 +196,7 @@ final class KeyboardShortcutUITests: XCTestCase {
     func testCommandOptionITogglesInspector() {
         let app = XCUIApplication()
         app.launch()
+        app.activate()
 
         let window = app.windows.firstMatch
         XCTAssertTrue(window.waitForExistence(timeout: 10))
@@ -223,6 +231,7 @@ final class KeyboardShortcutUITests: XCTestCase {
     func testCommandCommaOpensSettings() {
         let app = XCUIApplication()
         app.launch()
+        app.activate()
 
         let window = app.windows.firstMatch
         XCTAssertTrue(window.waitForExistence(timeout: 10))
@@ -253,6 +262,7 @@ final class KeyboardShortcutUITests: XCTestCase {
     func testCommandShiftMOpensManageConnections() {
         let app = XCUIApplication()
         app.launch()
+        app.activate()
 
         let window = app.windows.firstMatch
         XCTAssertTrue(window.waitForExistence(timeout: 10))
@@ -275,6 +285,7 @@ final class KeyboardShortcutUITests: XCTestCase {
     func testEscapeDismissesTabOverview() {
         let app = XCUIApplication()
         app.launch()
+        app.activate()
 
         let window = app.windows.firstMatch
         XCTAssertTrue(window.waitForExistence(timeout: 10))
@@ -305,6 +316,7 @@ final class KeyboardShortcutUITests: XCTestCase {
     func testCreateMultipleTabsAndCycleWithControlTab() {
         let app = XCUIApplication()
         app.launch()
+        app.activate()
 
         let window = app.windows.firstMatch
         XCTAssertTrue(window.waitForExistence(timeout: 10))
@@ -335,6 +347,7 @@ final class KeyboardShortcutUITests: XCTestCase {
     func testCommandReturnDoesNotCrashWithoutConnection() {
         let app = XCUIApplication()
         app.launch()
+        app.activate()
 
         let window = app.windows.firstMatch
         XCTAssertTrue(window.waitForExistence(timeout: 10))
@@ -355,6 +368,7 @@ final class KeyboardShortcutUITests: XCTestCase {
     func testRapidTabCreateAndClose() {
         let app = XCUIApplication()
         app.launch()
+        app.activate()
 
         let window = app.windows.firstMatch
         XCTAssertTrue(window.waitForExistence(timeout: 10))
@@ -376,6 +390,7 @@ final class KeyboardShortcutUITests: XCTestCase {
     func testSidebarToggleWhileTabOverviewIsOpen() {
         let app = XCUIApplication()
         app.launch()
+        app.activate()
 
         let window = app.windows.firstMatch
         XCTAssertTrue(window.waitForExistence(timeout: 10))

@@ -10,6 +10,7 @@ final class WindowManagementUITests: XCTestCase {
     private func launchApp() -> XCUIApplication {
         let app = XCUIApplication()
         app.launch()
+        app.activate()
         let window = app.windows.firstMatch
         XCTAssertTrue(window.waitForExistence(timeout: 10))
         return app

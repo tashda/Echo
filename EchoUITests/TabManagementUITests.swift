@@ -10,6 +10,7 @@ final class TabManagementUITests: XCTestCase {
     func testCommandTCreatesNewTab() {
         let app = XCUIApplication()
         app.launch()
+        app.activate()
 
         let window = app.windows.firstMatch
         XCTAssertTrue(window.waitForExistence(timeout: 10))
@@ -33,6 +34,7 @@ final class TabManagementUITests: XCTestCase {
     func testCommandWClosesTab() {
         let app = XCUIApplication()
         app.launch()
+        app.activate()
 
         let window = app.windows.firstMatch
         XCTAssertTrue(window.waitForExistence(timeout: 10))
@@ -56,6 +58,7 @@ final class TabManagementUITests: XCTestCase {
     func testCommandOTogglesTabOverview() {
         let app = XCUIApplication()
         app.launch()
+        app.activate()
 
         let window = app.windows.firstMatch
         XCTAssertTrue(window.waitForExistence(timeout: 10))
