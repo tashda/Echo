@@ -19,11 +19,24 @@ public protocol DatabaseSession: Sendable {
     func dropTable(schema: String?, name: String, ifExists: Bool) async throws
     func truncateTable(schema: String?, name: String) async throws
     func getTableStructureDetails(schema: String, table: String) async throws -> TableStructureDetails
-    func rebuildIndex(schema: String, table: String, index: String) async throws
+    func dropIndex(schema: String, name: String) async throws
+    func rebuildIndex(schema: String, table: String, index: String) async throws -> DatabaseMaintenanceResult
+    func rebuildIndexes(schema: String, table: String) async throws -> DatabaseMaintenanceResult
     func vacuumTable(schema: String, table: String, full: Bool, analyze: Bool) async throws
     func analyzeTable(schema: String, table: String) async throws
     func reindexTable(schema: String, table: String) async throws
+    func updateTableStatistics(schema: String, table: String) async throws -> DatabaseMaintenanceResult
+    func updateIndexStatistics(schema: String, table: String, index: String) async throws -> DatabaseMaintenanceResult
+
+    // MSSQL Maintenance
+    func listFragmentedIndexes() async throws -> [SQLServerIndexFragmentation]
+    func getDatabaseHealth() async throws -> SQLServerDatabaseHealth
+    func getBackupHistory(limit: Int) async throws -> [SQLServerBackupHistoryEntry]
+    func checkDatabaseIntegrity() async throws -> DatabaseMaintenanceResult
+    func shrinkDatabase() async throws -> DatabaseMaintenanceResult
+
     func sessionForDatabase(_ database: String) async throws -> DatabaseSession
+    func currentDatabaseName() async throws -> String?
     func makeActivityMonitor() throws -> any DatabaseActivityMonitoring
 }
 
@@ -54,6 +67,7 @@ public protocol DatabaseMetadataSession: DatabaseSession {
     func listAvailableExtensions() async throws -> [AvailableExtensionInfo]
     func installExtension(name: String, schema: String?, version: String?, cascade: Bool) async throws
     func updateExtension(name: String, to version: String?) async throws
+    func dropExtension(name: String, cascade: Bool) async throws
 }
 
 public extension DatabaseMetadataSession {
@@ -66,6 +80,10 @@ public extension DatabaseMetadataSession {
     }
 
     func updateExtension(name: String, to version: String?) async throws {
+        throw DatabaseError.queryError("Extensions are not supported for this database type")
+    }
+
+    func dropExtension(name: String, cascade: Bool) async throws {
         throw DatabaseError.queryError("Extensions are not supported for this database type")
     }
 }
@@ -87,8 +105,24 @@ public extension DatabaseSession {
         try await simpleQuery(sql, progressHandler: progressHandler)
     }
 
-    func rebuildIndex(schema: String, table: String, index: String) async throws {
+    func rebuildIndex(schema: String, table: String, index: String) async throws -> DatabaseMaintenanceResult {
         throw DatabaseError.queryError("Index rebuild is not supported for this database type")
+    }
+
+    func rebuildIndexes(schema: String, table: String) async throws -> DatabaseMaintenanceResult {
+        throw DatabaseError.queryError("Index rebuild is not supported for this database type")
+    }
+
+    func updateTableStatistics(schema: String, table: String) async throws -> DatabaseMaintenanceResult {
+        throw DatabaseError.queryError("Update statistics is not supported for this database type")
+    }
+
+    func updateIndexStatistics(schema: String, table: String, index: String) async throws -> DatabaseMaintenanceResult {
+        throw DatabaseError.queryError("Update statistics is not supported for this database type")
+    }
+
+    func dropIndex(schema: String, name: String) async throws {
+        throw DatabaseError.queryError("Drop index is not supported for this database type")
     }
 
     func renameTable(schema: String?, oldName: String, newName: String) async throws {
@@ -111,11 +145,35 @@ public extension DatabaseSession {
         []
     }
 
+    func listFragmentedIndexes() async throws -> [SQLServerIndexFragmentation] {
+        []
+    }
+
+    func getDatabaseHealth() async throws -> SQLServerDatabaseHealth {
+        throw DatabaseError.queryError("Database health stats are not supported for this database type")
+    }
+
+    func getBackupHistory(limit: Int) async throws -> [SQLServerBackupHistoryEntry] {
+        []
+    }
+
+    func checkDatabaseIntegrity() async throws -> DatabaseMaintenanceResult {
+        throw DatabaseError.queryError("Integrity checks are not supported for this database type")
+    }
+
+    func shrinkDatabase() async throws -> DatabaseMaintenanceResult {
+        throw DatabaseError.queryError("Shrink database is not supported for this database type")
+    }
+
     /// Returns a session connected to the specified database.
     /// The default returns `self` — works for engines that support `USE database` (e.g. SQL Server).
     /// PostgreSQL overrides this to vend a connection via `PostgresServerConnection`.
     func sessionForDatabase(_ database: String) async throws -> DatabaseSession {
         self
+    }
+
+    func currentDatabaseName() async throws -> String? {
+        nil
     }
 
     func makeActivityMonitor() throws -> any DatabaseActivityMonitoring {
