@@ -257,7 +257,7 @@ struct GlobalSettingsExtendedTests {
         settings.nativePsqlAllowSystemBinaryFallback = true
         settings.nativePsqlAllowShellEscape = false
         settings.nativePsqlAllowFileCommands = false
-        settings.sidebarColoredIcons = false
+        settings.sidebarIconColorMode = .monochrome
         settings.managedPostgresConsoleEnabled = false
 
         let data = try JSONEncoder().encode(settings)
@@ -303,7 +303,7 @@ struct GlobalSettingsExtendedTests {
         #expect(decoded.nativePsqlAllowSystemBinaryFallback == true)
         #expect(decoded.nativePsqlAllowShellEscape == false)
         #expect(decoded.nativePsqlAllowFileCommands == false)
-        #expect(decoded.sidebarColoredIcons == false)
+        #expect(decoded.sidebarIconColorMode == .monochrome)
         #expect(decoded.managedPostgresConsoleEnabled == false)
     }
 
