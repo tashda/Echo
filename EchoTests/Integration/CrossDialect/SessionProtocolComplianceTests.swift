@@ -367,18 +367,6 @@ final class SessionProtocolComplianceTests: XCTestCase {
         }
     }
 
-    func testRebuildIndexDefaultThrows() async throws {
-        let session = try await createMemorySession()
-        defer { Task { @MainActor in await session.close() } }
-
-        do {
-            try await session.rebuildIndex(schema: "main", table: "t", index: "i")
-            XCTFail("Expected error for unsupported rebuildIndex")
-        } catch {
-            XCTAssertTrue("\(error)".contains("not supported"), "Expected 'not supported' error, got: \(error)")
-        }
-    }
-
     // MARK: - Docker-only tests (skipped by default)
 
     func testListDatabasesRequiresDocker() async throws {

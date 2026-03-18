@@ -7,7 +7,7 @@
       "location" : "https://github.com/tashda/EchoSense",
       "state" : {
         "branch" : "dev",
-        "revision" : "cb1aaa33bd653d867025d44d0bcb6de3222c32f1"
+        "revision" : "01a0b7013610fb2e0d918e82abd341373ed6d03d"
       }
     },
     {
@@ -61,7 +61,7 @@
       "location" : "https://github.com/tashda/sqlserver-nio",
       "state" : {
         "branch" : "dev",
-        "revision" : "663bf3e656e38fb80fedb4a4c6707b49b87a4d91"
+        "revision" : "41601aef6c33b2dd9f78ea93b5ef185018ec3d83"
       }
     },
     {
