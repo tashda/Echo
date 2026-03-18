@@ -24,7 +24,12 @@ DerivedData/
 .codex_cache/
 GEMINI.md
 CLAUDE.md
+AGENT.md
+AGENTS.md
 agent.md
+agents.md
+gemini.md
+claude.md
 
 # AI agent analysis outputs (Gemini code review, scripts)
 analysis_report*.txt
