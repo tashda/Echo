@@ -66,6 +66,10 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
     var isAdjustingSnippetSelection = false
     var isRuleTracingEnabled: Bool = false
     var onRuleTrace: ((SQLAutocompleteTrace) -> Void)?
+    /// Called when completions are requested with a cross-database path prefix (e.g. "employees.")
+    /// and that database's schemas are not yet in the completion context.
+    /// The caller should trigger an on-demand schema load for the named database.
+    var onSchemaLoadNeeded: ((String) -> Void)?
 
     private final class FallbackResponder: NSResponder {
         private let manager = UndoManager()
