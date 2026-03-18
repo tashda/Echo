@@ -1,0 +1,300 @@
+name: "Echo App: Validation & Delivery Pipeline"
+
+on:
+  push:
+    branches: [ dev, main ]
+  pull_request:
+    branches: [ dev, main ]
+  workflow_dispatch:
+
+concurrency:
+  group: pipeline-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ── Tier 1: Compilation & Core Unit Tests ────────────────────────────────
+  unit-tests:
+    name: "Step 1: Compilation & Unit Tests"
+    runs-on: macos-26
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Select Xcode
+      uses: maxim-lobanov/setup-xcode@v1
+      with:
+        xcode-version: '26'
+
+    - name: Clear SPM cache
+      run: rm -rf ~/Library/Caches/org.swift.swiftpm/repositories
+
+    - name: Resolve packages
+      run: xcodebuild -resolvePackageDependencies -project Echo.xcodeproj
+
+    - name: Run Unit Tests
+      run: |
+        xcodebuild test -project Echo.xcodeproj \
+          -scheme Echo \
+          -destination 'platform=macOS' \
+          -resultBundlePath TestResults-unit \
+          -skip-testing:EchoTests/MSSQLIntegrationTests \
+          -skip-testing:EchoTests/PostgresIntegrationTests \
+          -skip-testing:EchoTests/MySQLIntegrationTests \
+          -skip-testing:EchoTests/SQLiteIntegrationTests \
+          -skip-testing:EchoTests/EchoSenseIntegrationTests \
+          -skip-testing:EchoTests/MSSQLConnectionTests \
+          -skip-testing:EchoTests/MSSQLQueryTests \
+          -skip-testing:EchoTests/MSSQLSchemaDiscoveryTests \
+          -skip-testing:EchoTests/MSSQLMetadataTests \
+          -skip-testing:EchoTests/MSSQLTableOperationsTests \
+          -skip-testing:EchoTests/MSSQLColumnTests \
+          -skip-testing:EchoTests/MSSQLConstraintTests \
+          -skip-testing:EchoTests/MSSQLIndexTests \
+          -skip-testing:EchoTests/MSSQLViewTests \
+          -skip-testing:EchoTests/MSSQLProcedureTests \
+          -skip-testing:EchoTests/MSSQLFunctionTests \
+          -skip-testing:EchoTests/MSSQLTriggerTests \
+          -skip-testing:EchoTests/MSSQLTransactionTests \
+          -skip-testing:EchoTests/MSSQLSecurityTests \
+          -skip-testing:EchoTests/MSSQLAgentTests \
+          -skip-testing:EchoTests/MSSQLActivityMonitorTests \
+          -skip-testing:EchoTests/MSSQLDatabaseAdminTests \
+          -skip-testing:EchoTests/MSSQLDataTypeNumericTests \
+          -skip-testing:EchoTests/MSSQLDataTypeStringTests \
+          -skip-testing:EchoTests/MSSQLDataTypeDateTimeTests \
+          -skip-testing:EchoTests/MSSQLDataTypeBinaryTests \
+          -skip-testing:EchoTests/MSSQLStreamingTests \
+          -skip-testing:EchoTests/MSSQLStreamingSpoolTests \
+          -skip-testing:EchoTests/PGConnectionTests \
+          -skip-testing:EchoTests/PGQueryTests \
+          -skip-testing:EchoTests/PGSchemaDiscoveryTests \
+          -skip-testing:EchoTests/PGMetadataTests \
+          -skip-testing:EchoTests/PGTableOperationsTests \
+          -skip-testing:EchoTests/PGColumnTests \
+          -skip-testing:EchoTests/PGConstraintTests \
+          -skip-testing:EchoTests/PGIndexTests \
+          -skip-testing:EchoTests/PGViewTests \
+          -skip-testing:EchoTests/PGFunctionTests \
+          -skip-testing:EchoTests/PGTriggerTests \
+          -skip-testing:EchoTests/PGTransactionTests \
+          -skip-testing:EchoTests/PGSecurityTests \
+          -skip-testing:EchoTests/PGExtensionTests \
+          -skip-testing:EchoTests/PGActivityMonitorTests \
+          -skip-testing:EchoTests/PGSequenceTests \
+          -skip-testing:EchoTests/PGDataTypeNumericTests \
+          -skip-testing:EchoTests/PGDataTypeStringTests \
+          -skip-testing:EchoTests/PGDataTypeDateTimeTests \
+          -skip-testing:EchoTests/PGDataTypeSpecialTests \
+          -skip-testing:EchoTests/PGStreamingTests \
+          -skip-testing:EchoTests/PGStreamingSpoolTests \
+          -skip-testing:EchoTests/SQLiteConnectionTests \
+          -skip-testing:EchoTests/SQLiteQueryTests \
+          -skip-testing:EchoTests/SQLiteSchemaTests \
+          -skip-testing:EchoTests/SQLiteTableOperationsTests \
+          -skip-testing:EchoTests/SQLiteDataTypeTests \
+          -skip-testing:EchoTests/SessionProtocolComplianceTests \
+          -skip-testing:EchoTests/FactoryConnectionTests \
+          -skip-testing:EchoTests/MSSQLMaintenanceTests \
+          CODE_SIGN_IDENTITY="" \
+          CODE_SIGNING_REQUIRED=NO \
+          CODE_SIGNING_ALLOWED=NO
+
+    - name: Upload Unit Results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-results-unit
+        path: TestResults-unit.xcresult
+
+  # ── Tier 2: SQLite & Cross-Dialect Tests (self-hosted) ───────────────────
+  sqlite-tests:
+    name: "Step 2: Rapid Functional Validation (SQLite)"
+    needs: unit-tests
+    runs-on: [self-hosted, echo-test-server]
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Prepare environment
+      run: |
+        security unlock-keychain -p "${{ secrets.KEYCHAIN_PASSWORD }}" ~/Library/Keychains/login.keychain-db
+        security delete-generic-password -s "dk.tippr.echo" ~/Library/Keychains/login.keychain-db 2>/dev/null || true
+
+    - name: Run SQLite & Cross-Dialect Tests
+      run: |
+        xcodebuild test -project Echo.xcodeproj \
+          -scheme Echo \
+          -destination 'platform=macOS' \
+          -resultBundlePath TestResults-sqlite \
+          -only-testing:EchoTests/SQLiteConnectionTests \
+          -only-testing:EchoTests/SQLiteQueryTests \
+          -only-testing:EchoTests/SQLiteSchemaTests \
+          -only-testing:EchoTests/SQLiteTableOperationsTests \
+          -only-testing:EchoTests/SQLiteDataTypeTests \
+          -only-testing:EchoTests/SessionProtocolComplianceTests \
+          -only-testing:EchoTests/FactoryConnectionTests \
+          -disable-concurrent-testing
+
+    - name: Upload SQLite Results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-results-sqlite
+        path: TestResults-sqlite.xcresult
+
+  # ── Tier 3: Compatibility Matrix (Docker + UI) ──────────────────────────
+  matrix-tests:
+    name: "Step 3: Compatibility - ${{ matrix.name }}"
+    needs: unit-tests
+    # Only run on PRs to main or pushes to main
+    if: (github.event_name == 'pull_request' && github.base_ref == 'main') || (github.ref == 'refs/heads/main')
+    runs-on: [self-hosted, echo-test-server]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: "Legacy SQL Stack (2008 R2 - 2014)"
+            type: "mssql-legacy"
+          - name: "Enterprise SQL Stack (2016 - 2019)"
+            type: "mssql-enterprise"
+          - name: "Modern SQL Stack (2022 - 2025)"
+            type: "mssql-modern"
+          - name: "Postgres Stack (14 - 18)"
+            type: "postgres"
+          - name: "UI Automation (macOS Native)"
+            type: "ui-tests"
+    env:
+      USE_DOCKER: "1"
+      ECHO_MSSQL_PORT: "14332"
+      ECHO_PG_PORT: "54322"
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Prepare environment
+      run: |
+        security unlock-keychain -p "${{ secrets.KEYCHAIN_PASSWORD }}" ~/Library/Keychains/login.keychain-db
+        security delete-generic-password -s "dk.tippr.echo" ~/Library/Keychains/login.keychain-db 2>/dev/null || true
+        defaults write com.apple.LaunchServices LSQuarantine -bool NO 2>/dev/null || true
+
+    - name: Verify Docker
+      if: matrix.type != 'ui-tests'
+      run: |
+        export DOCKER_HOST="${DOCKER_HOST:-unix://$HOME/.colima/default/docker.sock}"
+        docker info > /dev/null 2>&1 || (echo "Docker not running" && exit 1)
+        echo "Docker is ready"
+
+    - name: Run MSSQL Legacy Tests
+      if: matrix.type == 'mssql-legacy'
+      run: |
+        # Run across multiple versions in one job to save matrix slots but keep logs distinct
+        for ver in "2008R2" "2012" "2014"; do
+          echo "Testing SQL Server $ver..."
+          ECHO_MSSQL_VERSION="2017-latest"
+          case $ver in
+            "2008R2") ECHO_MSSQL_COMPAT="100" ;;
+            "2012")   ECHO_MSSQL_COMPAT="110" ;;
+            "2014")   ECHO_MSSQL_COMPAT="120" ;;
+          esac
+          
+          export ECHO_MSSQL_VERSION ECHO_MSSQL_COMPAT
+          xcodebuild test -project Echo.xcodeproj -scheme Echo -destination 'platform=macOS' \
+            -only-testing:EchoTests/MSSQLConnectionTests \
+            -only-testing:EchoTests/MSSQLTableOperationsTests \
+            -disable-concurrent-testing
+        done
+
+    - name: Run Postgres Matrix
+      if: matrix.type == 'postgres'
+      run: |
+        for ver in "14" "15" "16" "17" "18" "latest"; do
+          echo "Testing Postgres $ver..."
+          export ECHO_PG_VERSION=$ver
+          xcodebuild test -project Echo.xcodeproj -scheme Echo -destination 'platform=macOS' \
+            -only-testing:EchoTests/PGConnectionTests \
+            -only-testing:EchoTests/PGQueryTests \
+            -disable-concurrent-testing
+        done
+
+    - name: Run Modern SQL Stack (Full Suite)
+      if: matrix.type == 'mssql-modern'
+      run: |
+        export ECHO_MSSQL_VERSION="2022-latest"
+        xcodebuild test -project Echo.xcodeproj -scheme Echo -destination 'platform=macOS' \
+          -only-testing:EchoTests/MSSQLConnectionTests \
+          -only-testing:EchoTests/MSSQLQueryTests \
+          -only-testing:EchoTests/MSSQLMaintenanceTests \
+          -disable-concurrent-testing
+
+    - name: Run UI Tests
+      if: matrix.type == 'ui-tests'
+      run: |
+        pkill -x Echo || true
+        xcodebuild test -project Echo.xcodeproj -scheme EchoUITests -destination 'platform=macOS' \
+          -disable-concurrent-testing
+
+    - name: Upload Matrix Results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-results-${{ matrix.type }}
+        path: "*.xcresult"
+
+  # ── Tier 4: Production Build & Sparkle Release ───────────────────────────
+  release:
+    name: "Step 4: Production Build & Release"
+    runs-on: macos-26
+    needs: [unit-tests, sqlite-tests, matrix-tests]
+    # Only release on push to main (not PRs)
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    permissions:
+      contents: write
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Select Xcode
+      uses: maxim-lobanov/setup-xcode@v1
+      with:
+        xcode-version: '26'
+
+    - name: Build App (Release)
+      run: |
+        xcodebuild -project Echo.xcodeproj -scheme Echo -configuration Release -derivedDataPath build \
+          CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO
+
+    - name: Package & Sign (Ad-Hoc)
+      run: |
+        mkdir -p release
+        cp -R build/Build/Products/Release/Echo.app release/
+        codesign --force --deep -s - release/Echo.app
+        cd release
+        ditto -c -k --sequesterRsrc --keepParent Echo.app Echo.zip
+
+    - name: Get Version
+      id: get_version
+      run: |
+        VERSION=$(defaults read "$(pwd)/build/Build/Products/Release/Echo.app/Contents/Info.plist" CFBundleShortVersionString)
+        BUILD=$(defaults read "$(pwd)/build/Build/Products/Release/Echo.app/Contents/Info.plist" CFBundleVersion)
+        echo "tag=v$VERSION-$BUILD" >> $GITHUB_OUTPUT
+
+    - name: Setup Sparkle & Generate Appcast
+      env:
+        SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+      run: |
+        curl -L https://github.com/sparkle-project/Sparkle/releases/download/2.6.4/Sparkle-2.6.4.tar.xz -o sparkle.tar.xz
+        tar -xf sparkle.tar.xz
+        if [ -n "$SPARKLE_PRIVATE_KEY" ]; then
+          echo "$SPARKLE_PRIVATE_KEY" | ./bin/generate_appcast --ed-key-file - release/
+        else
+          ./bin/generate_appcast release/
+        fi
+        mv release/appcast.xml .
+        mv release/Echo.zip .
+
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: ${{ steps.get_version.outputs.tag }}
+        files: |
+          Echo.zip
+          appcast.xml
+        generate_release_notes: true
