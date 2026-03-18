@@ -52,38 +52,47 @@ struct BulkImportSheet: View {
 
     private var fileSection: some View {
         Section("Source File") {
-            HStack {
-                Text(viewModel.fileURL?.path ?? "No file selected")
-                    .font(TypographyTokens.standard)
-                    .foregroundStyle(viewModel.fileURL == nil ? ColorTokens.Text.placeholder : ColorTokens.Text.primary)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-                Spacer()
-                Button("Browse\u{2026}") {
-                    viewModel.selectFile()
+            PropertyRow(title: "File") {
+                HStack(spacing: SpacingTokens.xs) {
+                    Text(viewModel.fileURL?.path ?? "No file selected")
+                        .font(TypographyTokens.formValue)
+                        .foregroundStyle(viewModel.fileURL == nil ? ColorTokens.Text.placeholder : ColorTokens.Text.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                    
+                    Button("Browse\u{2026}") {
+                        viewModel.selectFile()
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
                 }
             }
 
-            Picker("Delimiter", selection: Binding(
-                get: { viewModel.delimiter },
-                set: { viewModel.reparseWithDelimiter($0) }
-            )) {
-                ForEach(CSVDelimiter.allCases) { delim in
-                    Text(delim.displayName).tag(delim)
+            PropertyRow(title: "Delimiter") {
+                Picker("", selection: Binding(
+                    get: { viewModel.delimiter },
+                    set: { viewModel.reparseWithDelimiter($0) }
+                )) {
+                    ForEach(CSVDelimiter.allCases) { delim in
+                        Text(delim.displayName).tag(delim)
+                    }
                 }
+                .labelsHidden()
+                .pickerStyle(.menu)
             }
-            .pickerStyle(.menu)
 
             if let error = viewModel.parseError {
                 Label(error, systemImage: "exclamationmark.triangle")
-                    .font(TypographyTokens.detail)
+                    .font(TypographyTokens.formDescription)
                     .foregroundStyle(ColorTokens.Status.error)
+                    .listRowSeparator(.hidden)
             }
 
             if viewModel.totalRowCount > 0 {
                 Text("\(viewModel.totalRowCount) rows detected")
-                    .font(TypographyTokens.detail)
+                    .font(TypographyTokens.formDescription)
                     .foregroundStyle(ColorTokens.Text.secondary)
+                    .listRowSeparator(.hidden)
             }
         }
     }
@@ -92,18 +101,29 @@ struct BulkImportSheet: View {
 
     private var configurationSection: some View {
         Section("Target") {
-            TextField("Schema", text: $viewModel.schema)
-            TextField("Table", text: $viewModel.tableName)
-
-            HStack {
-                Text("Batch Size")
-                Spacer()
-                TextField("", value: $viewModel.batchSize, format: .number)
-                    .frame(width: 100)
+            PropertyRow(title: "Schema") {
+                TextField("", text: $viewModel.schema)
+                    .textFieldStyle(.plain)
+                    .multilineTextAlignment(.trailing)
+            }
+            
+            PropertyRow(title: "Table") {
+                TextField("", text: $viewModel.tableName)
+                    .textFieldStyle(.plain)
                     .multilineTextAlignment(.trailing)
             }
 
-            Toggle("Identity Insert", isOn: $viewModel.identityInsert)
+            PropertyRow(title: "Batch Size") {
+                TextField("", value: $viewModel.batchSize, format: .number)
+                    .textFieldStyle(.plain)
+                    .multilineTextAlignment(.trailing)
+            }
+
+            PropertyRow(title: "Identity Insert") {
+                Toggle("", isOn: $viewModel.identityInsert)
+                    .labelsHidden()
+                    .toggleStyle(.switch)
+            }
         }
     }
 
@@ -113,18 +133,21 @@ struct BulkImportSheet: View {
         HStack {
             if let status = statusText {
                 Text(status)
-                    .font(TypographyTokens.detail)
+                    .font(TypographyTokens.formDescription)
                     .foregroundStyle(ColorTokens.Text.secondary)
                     .lineLimit(1)
             }
             Spacer()
             if viewModel.isImporting {
                 Button("Cancel") { viewModel.cancelImport() }
+                    .buttonStyle(.bordered)
             }
             Button("Close") { onDismiss() }
+                .buttonStyle(.bordered)
                 .keyboardShortcut(.cancelAction)
                 .disabled(viewModel.isImporting)
             Button("Import") { viewModel.startImport() }
+                .buttonStyle(.borderedProminent)
                 .keyboardShortcut(.defaultAction)
                 .disabled(!viewModel.canImport)
         }

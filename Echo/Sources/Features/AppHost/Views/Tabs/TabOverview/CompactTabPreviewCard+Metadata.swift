@@ -30,7 +30,7 @@ extension CompactTabPreviewCard {
             return []
         case .activityMonitor:
             return []
-        case .maintenance:
+        case .maintenance, .mssqlMaintenance:
             return []
         case .queryStore:
             return []
@@ -64,7 +64,7 @@ extension CompactTabPreviewCard {
             return "Extension Manager"
         case .activityMonitor:
             return "Activity"
-        case .maintenance:
+        case .maintenance, .mssqlMaintenance:
             return "Maintenance"
         case .queryStore:
             return "Query Store"
@@ -99,7 +99,7 @@ extension CompactTabPreviewCard {
             return "Manage database extensions"
         case .activityMonitor:
             return "Live system performance monitoring"
-        case .maintenance:
+        case .maintenance, .mssqlMaintenance:
             return "Database health and maintenance operations"
         case .queryStore:
             return "Query Store analysis and plan management"

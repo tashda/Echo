@@ -199,15 +199,7 @@ extension JobQueueViewModel {
                 operatorName: operatorName.isEmpty ? nil : operatorName,
                 notifyLevel: level
             )
-        }
-        // Set event log level separately via direct SQL
-        if let jobID = selectedJobID {
-            do {
-                let sql = "EXEC msdb.dbo.sp_update_job @job_id = N'\(escape(jobID))', @notify_level_eventlog = \(eventLogLevel);"
-                _ = try await session.simpleQuery(sql)
-            } catch {
-                errorMessage = error.localizedDescription
-            }
+            try await agent.updateJob(named: jobName, notifyLevelEventlog: eventLogLevel)
         }
     }
 
@@ -225,56 +217,17 @@ extension JobQueueViewModel {
         // If nothing changed, skip
         if mapping.allSatisfy({ $0.oldID == $0.newID }) { return }
 
-        guard let jobID = selectedJobID else { return }
+        guard let jobName = selectedJobName() else { return }
 
         // Optimistically update local state
         steps = reordered.enumerated().map { (index, step) in
             StepRow(id: index + 1, name: step.name, subsystem: step.subsystem, database: step.database, command: step.command)
         }
 
-        do {
-            // Build CASE expressions for remapping step references
-            let caseParts = mapping.map { "WHEN \($0.oldID) THEN \($0.newID)" }.joined(separator: " ")
-            let successCase = "CASE on_success_step_id \(caseParts) ELSE on_success_step_id END"
-            let failCase = "CASE on_fail_step_id \(caseParts) ELSE on_fail_step_id END"
-
-            // Individual step_id updates (using temp offset to avoid PK conflicts)
-            let individualUpdates = mapping.map {
-                "UPDATE msdb.dbo.sysjobsteps SET step_id = \($0.newID) WHERE job_id = CONVERT(uniqueidentifier, N'\(escape(jobID))') AND step_id = \($0.oldID + 10000);"
-            }.joined(separator: "\n")
-
-            // Build start_step_id remap for the job itself
-            let startStepCase = "CASE start_step_id \(caseParts) ELSE start_step_id END"
-
-            let sql = """
-            BEGIN TRANSACTION;
-
-            UPDATE msdb.dbo.sysjobsteps
-            SET on_success_step_id = \(successCase),
-                on_fail_step_id = \(failCase)
-            WHERE job_id = CONVERT(uniqueidentifier, N'\(escape(jobID))');
-
-            UPDATE msdb.dbo.sysjobsteps
-            SET step_id = step_id + 10000
-            WHERE job_id = CONVERT(uniqueidentifier, N'\(escape(jobID))');
-
-            \(individualUpdates)
-
-            UPDATE msdb.dbo.sysjobs
-            SET start_step_id = \(startStepCase)
-            WHERE job_id = CONVERT(uniqueidentifier, N'\(escape(jobID))');
-
-            COMMIT;
-            """
-
-            _ = try await session.simpleQuery(sql)
-            // Reload from server so start_step_id and other references reflect the new order
-            await loadDetails()
-        } catch {
-            errorMessage = error.localizedDescription
-            // Reload from server on error
-            await loadDetails()
+        await performAction { agent in
+            try await agent.reorderJobSteps(jobName: jobName, stepMapping: mapping)
         }
+        await loadDetails()
     }
 
     func detachSchedule(scheduleName: String) async {

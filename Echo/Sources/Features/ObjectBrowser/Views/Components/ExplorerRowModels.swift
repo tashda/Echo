@@ -28,70 +28,100 @@ enum ExplorerColumnMetrics {
     static let spacing: CGFloat = SpacingTokens.xs
 }
 
-/// Shared constants for sidebar row consistency (macOS Finder sidebar aesthetic).
+/// Shared constants for sidebar row consistency (macOS 26 Tahoe Finder sidebar aesthetic).
 ///
-/// Measured from macOS 26 Finder sidebar (Medium size):
+/// Measured from macOS 26 Tahoe Finder sidebar (Medium size):
 /// - 13pt text, 20pt icon frame, ~28pt row height
 /// - 18pt indentation per tree level
-/// - Fixed 12pt disclosure column (always present for alignment)
-/// - Selection pill inset 8pt from sidebar edges, 8pt corner radius
-/// - All icons monochrome secondary gray, same visual weight
+/// - Fixed 16pt disclosure column (always present for alignment)
+/// - Selection pill inset 8pt from sidebar edges, 10pt corner radius
+/// - All icons monochrome secondary gray, Medium visual weight
 enum SidebarRowConstants {
     /// Chevron font — matches Finder disclosure triangles.
-    static let chevronFont = Font.system(size: 9, weight: .bold)
+    static let chevronFont = Font.system(size: 9, weight: .semibold)
     /// Fixed-width disclosure column — always present for icon alignment.
-    static let chevronWidth: CGFloat = SpacingTokens.sm
-    /// Icon font — 16pt regular weight, renders ~18pt visual icons in a 20pt frame.
-    static let iconFont = Font.system(size: 16, weight: .regular)
-    /// Icon frame size — 20pt square, matches Finder medium sidebar.
-    static let iconFrame: CGFloat = SpacingTokens.md2
-    /// Spacing between icon and text label.
-    static let iconTextSpacing: CGFloat = SpacingTokens.xxs2
-    /// Primary label font — 13pt system, regular weight.
-    static let labelFont = TypographyTokens.standard
+    static let chevronWidth: CGFloat = SpacingTokens.md // 16pt
+    /// Icon font — Medium weight, renders within 18×16pt frame.
+    static let iconFont = Font.system(size: 14, weight: .medium)
+    /// Icon frame width — 18pt (Figma: W 18).
+    static let iconFrameWidth: CGFloat = SpacingTokens.md1 // 18pt
+    /// Icon frame height — 16pt (Figma: H 16).
+    static let iconFrameHeight: CGFloat = SpacingTokens.md // 16pt
+    /// Legacy square frame — use iconFrameWidth/iconFrameHeight instead.
+    static let iconFrame: CGFloat = SpacingTokens.md1 // 18pt (width)
+    /// Spacing between icon and text label — 6pt (Figma: gap 6).
+    static let iconTextSpacing: CGFloat = SpacingTokens.xxs2 // 6pt
+    /// Primary label font — 11pt Medium (Figma: SF Pro Medium 11).
+    static let labelFont = TypographyTokens.sidebarLabel
     /// Font for trailing metadata (counts, types, badges) — matches Finder "Detail".
     static let trailingFont = TypographyTokens.detail
     /// Section header font (Finder-style: 11pt, bold).
     static let sectionHeaderFont = TypographyTokens.detail.weight(.bold)
     /// Per-level indentation step — 18pt per tree level.
-    static let indentStep: CGFloat = SpacingTokens.md1
-    /// Leading padding inside row content.
-    static let rowLeadingPadding: CGFloat = SpacingTokens.xxs
-    /// Trailing padding inside rows.
-    static let rowTrailingPadding: CGFloat = SpacingTokens.sm
-    /// Vertical padding for rows — 3pt top/bottom for ~28pt total height.
-    static let rowVerticalPadding: CGFloat = 3
+    static let indentStep: CGFloat = 18
+    /// Leading padding inside row content highlight area — 10pt (Figma: leading 10).
+    static let rowLeadingPadding: CGFloat = SpacingTokens.xs2 // 10pt
+    /// Trailing padding inside rows — 8pt (Figma: trailing 8).
+    static let rowTrailingPadding: CGFloat = SpacingTokens.xs // 8pt
+    /// Vertical padding for rows — 4pt top/bottom (Figma: top 4, bottom 4).
+    static let rowVerticalPadding: CGFloat = SpacingTokens.xxs
     /// Outer horizontal padding — selection pill inset from sidebar edges.
     static let rowOuterHorizontalPadding: CGFloat = SpacingTokens.xs
-    /// Hover/selection highlight corner radius.
-    static let hoverCornerRadius: CGFloat = SpacingTokens.xs
+    /// Hover/selection highlight corner radius — 8pt (Figma: corner radius 8).
+    static let hoverCornerRadius: CGFloat = SpacingTokens.xs // 8pt
     /// Spacing between major sidebar sections.
     static let sectionGroupSpacing: CGFloat = SpacingTokens.xxs
 
     // MARK: - Legacy aliases (use during migration, remove after)
 
     /// Legacy alias — use `rowLeadingPadding` in new code.
-    static let rowHorizontalPadding: CGFloat = rowLeadingPadding
+    static let rowHorizontalPadding: CGFloat = 0
 }
 
 enum ExplorerSidebarPalette {
-    static let monochrome = ColorTokens.Text.primary
+    static let monochrome = ColorTokens.Text.secondary
 
-    static let database = ColorTokens.Explorer.database
+    static let databaseFolder = ColorTokens.Explorer.databaseFolder
+    static let databaseInstance = ColorTokens.Explorer.databaseInstance
     static let tables = ColorTokens.Explorer.tables
     static let views = ColorTokens.Explorer.views
+    static let materializedViews = ColorTokens.Explorer.materializedViews
     static let functions = ColorTokens.Explorer.functions
+    static let procedures = ColorTokens.Explorer.procedures
+    static let triggers = ColorTokens.Explorer.triggers
     static let jobs = ColorTokens.Explorer.jobs
     static let security = ColorTokens.Explorer.security
+    static let queryStore = ColorTokens.Explorer.queryStore
+    static let users = ColorTokens.Explorer.users
+    static let roles = ColorTokens.Explorer.roles
+    static let logins = ColorTokens.Explorer.logins
+    static let serverRoles = ColorTokens.Explorer.serverRoles
+    static let credentials = ColorTokens.Explorer.credentials
     static let extensions = ColorTokens.Explorer.extensions
     static let linkedServers = ColorTokens.Explorer.linkedServers
+    
+    // Management Colors
+    static let management = ColorTokens.Explorer.management
+    static let extendedEvents = ColorTokens.Explorer.extendedEvents
+    static let databaseMail = ColorTokens.Explorer.databaseMail
+    static let activityMonitor = ColorTokens.Explorer.activityMonitor
 
     static func folderIconColor(title: String, colored: Bool = true) -> Color {
         guard colored else { return monochrome }
         switch title {
-        case "Databases": return database
-        case "Agent Jobs": return jobs
+        case "Databases": return databaseFolder
+        case "Agent Jobs", "Agent Jobs Overview": return jobs
         case "Security": return security
+        case "Users": return users
+        case "Database Roles", "Application Roles", "Schemas", "Group Roles": return roles
+        case "Logins", "Login Roles": return logins
+        case "Server Roles": return serverRoles
+        case "Credentials": return credentials
+        case "Management": return management
+        case "Extended Events": return extendedEvents
+        case "Database Mail": return databaseMail
+        case "Activity Monitor": return activityMonitor
+        case "Query Store": return queryStore
         case "Extensions": return extensions
         case "Linked Servers": return linkedServers
         default: return monochrome
@@ -102,9 +132,11 @@ enum ExplorerSidebarPalette {
         guard colored else { return monochrome }
         switch type {
         case .table: return tables
-        case .view, .materializedView: return views
-        case .function, .procedure: return functions
-        case .trigger: return functions
+        case .view: return views
+        case .materializedView: return materializedViews
+        case .function: return functions
+        case .procedure: return procedures
+        case .trigger: return triggers
         case .extension: return extensions
         }
     }

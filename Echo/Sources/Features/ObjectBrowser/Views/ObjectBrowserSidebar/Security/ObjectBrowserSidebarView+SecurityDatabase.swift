@@ -28,11 +28,11 @@ extension ObjectBrowserSidebarView {
                 expandedBinding.wrappedValue.toggle()
             } label: {
                 SidebarRow(
-                    depth: 2,
+                    depth: SecuritySidebarDepth.serverNestedSection,
                     icon: .system("shield"),
                     label: "Security",
                     isExpanded: expandedBinding,
-                    iconColor: projectStore.globalSettings.sidebarColoredIcons ? ExplorerSidebarPalette.security : ExplorerSidebarPalette.monochrome
+                    iconColor: ExplorerSidebarPalette.folderIconColor(title: "Security", colored: projectStore.globalSettings.sidebarIconColorMode == .colorful)
                 )
             }
             .buttonStyle(.plain)
@@ -50,7 +50,7 @@ extension ObjectBrowserSidebarView {
             || !(viewModel.dbSecuritySchemasByDB[dbKey] ?? []).isEmpty
 
         if isLoading && !hasData {
-            securityLoadingRow(depth: 3, "Loading security")
+            securityLoadingRow(depth: SecuritySidebarDepth.databaseSection, "Loading security")
         }
 
         switch session.connection.databaseType {
@@ -77,7 +77,7 @@ extension ObjectBrowserSidebarView {
 
         VStack(alignment: .leading, spacing: 0) {
             securitySectionHeader(
-                depth: 3,
+                depth: SecuritySidebarDepth.databaseSection,
                 title: "Users",
                 icon: "person",
                 count: users.count,
@@ -93,7 +93,7 @@ extension ObjectBrowserSidebarView {
                     dbUserRow(user: user, session: session, databaseName: dbName)
                 }
 
-                newItemButton(depth: 4, title: "New User") {
+                newItemButton(depth: SecuritySidebarDepth.databaseLeaf, title: "New User") {
                     viewModel.securityUserSheetSessionID = connID
                     viewModel.securityUserSheetDatabaseName = dbName
                     viewModel.securityUserSheetEditName = nil
@@ -104,11 +104,12 @@ extension ObjectBrowserSidebarView {
     }
 
     func dbUserRow(user: ObjectBrowserSidebarViewModel.SecurityUserItem, session: ConnectionSession, databaseName: String) -> some View {
-        SidebarRow(
-            depth: 4,
+        let isColorful = projectStore.globalSettings.sidebarIconColorMode == .colorful
+        return SidebarRow(
+            depth: SecuritySidebarDepth.databaseLeaf,
             icon: .system("person"),
             label: user.name,
-            iconColor: projectStore.globalSettings.sidebarColoredIcons ? ExplorerSidebarPalette.security : ExplorerSidebarPalette.monochrome
+            iconColor: ExplorerSidebarPalette.folderIconColor(title: "Users", colored: isColorful)
         ) {
             if let schema = user.defaultSchema, !schema.isEmpty {
                 Text(schema)

@@ -6,8 +6,6 @@ struct ExtendedEventsView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            ExtendedEventsToolbar(viewModel: viewModel)
-
             if viewModel.loadingState == .loading && viewModel.sessions.isEmpty {
                 loadingPlaceholder
             } else if case .error(let message) = viewModel.loadingState,

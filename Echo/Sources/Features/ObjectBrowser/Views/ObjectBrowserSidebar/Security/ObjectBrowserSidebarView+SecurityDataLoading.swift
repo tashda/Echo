@@ -156,7 +156,7 @@ extension ObjectBrowserSidebarView {
         let dbName = database.name
 
         // Switch to target database for the security client
-        _ = try? await session.session.simpleQuery("USE [\(dbName)]")
+        _ = try? await session.session.sessionForDatabase(dbName)
         let sec = mssql.security
 
         // Users

@@ -8,91 +8,96 @@ struct AppearanceSettingsView: View {
 
     var body: some View {
         Form {
-            appearanceModeSection
-            accentColorSection
-            sidebarSection
-            editorFontSection
+            Section {
+                LabeledContent {
+                    AppearanceModePicker(selection: appearanceModeBinding)
+                } label: {
+                    Text("Appearance")
+                }
+
+                LabeledContent {
+                    SidebarIconPicker(selection: sidebarIconColorModeBinding)
+                } label: {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Sidebar Icons")
+                        Text("Choose your preferred look for sidebar icons.")
+                            .font(TypographyTokens.formDescription)
+                            .foregroundStyle(ColorTokens.Text.secondary)
+                    }
+                }
+            }
+
+            Section("Theme") {
+                PropertyRow(title: "Accent Color") {
+                    Picker("", selection: accentColorSourceBinding) {
+                        ForEach(AccentColorSource.allCases, id: \.self) { source in
+                            Text(source.displayName).tag(source)
+                        }
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.menu)
+                }
+
+                if projectStore.globalSettings.accentColorSource == .custom {
+                    PropertyRow(title: "Color") {
+                        AccentColorPalette(selection: customAccentColorHexBinding)
+                    }
+                }
+            }
+
+            Section("Editor Font") {
+                MonospacedFontPicker(
+                    selectedFamily: Binding(
+                        get: { projectStore.globalSettings.defaultEditorFontFamily },
+                        set: { newValue in
+                            var settings = projectStore.globalSettings
+                            settings.defaultEditorFontFamily = newValue
+                            Task { try? await projectStore.updateGlobalSettings(settings) }
+                        }
+                    ),
+                    fontSize: projectStore.globalSettings.defaultEditorFontSize
+                )
+
+                PropertyRow(title: "Font Size") {
+                    Picker("", selection: Binding(
+                        get: { projectStore.globalSettings.defaultEditorFontSize },
+                        set: { newValue in
+                            var settings = projectStore.globalSettings
+                            settings.defaultEditorFontSize = newValue
+                            Task { try? await projectStore.updateGlobalSettings(settings) }
+                        }
+                    )) {
+                        ForEach(Self.fontSizeOptions, id: \.self) { size in
+                            Text(Self.fontSizeLabel(size)).tag(size)
+                        }
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.menu)
+                }
+
+                Toggle("Enable Ligatures", isOn: Binding(
+                    get: { projectStore.globalSettings.fontLigatureOverrides[projectStore.globalSettings.defaultEditorFontFamily] ?? true },
+                    set: { newValue in
+                        var settings = projectStore.globalSettings
+                        settings.fontLigatureOverrides[projectStore.globalSettings.defaultEditorFontFamily] = newValue
+                        Task { try? await projectStore.updateGlobalSettings(settings) }
+                    }
+                ))
+
+                EditorFontPreview(
+                    fontName: projectStore.globalSettings.defaultEditorFontFamily,
+                    fontSize: projectStore.globalSettings.defaultEditorFontSize,
+                    ligatures: projectStore.globalSettings.fontLigatureOverrides[projectStore.globalSettings.defaultEditorFontFamily] ?? true
+                )
+                .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 8, trailing: 0))
+                .listRowBackground(Color.clear)
+            }
         }
         .formStyle(.grouped)
         .scrollContentBackground(.hidden)
     }
 
-    // MARK: - Sections
-
-    private var appearanceModeSection: some View {
-        Section("Appearance Mode") {
-            AppearanceModePicker(selection: appearanceModeBinding)
-        }
-    }
-
-    private var accentColorSection: some View {
-        Section("Accent Color") {
-            AccentColorSourceRow(selection: accentColorSourceBinding)
-
-
-            if projectStore.globalSettings.accentColorSource == .custom {
-                LabeledContent("Accent Color") {
-                    AccentColorPalette(selection: customAccentColorHexBinding)
-                }
-            }
-        }
-    }
-
-    private var sidebarSection: some View {
-        Section("Sidebar") {
-            Toggle("Colored sidebar icons", isOn: Binding(
-                get: { projectStore.globalSettings.sidebarColoredIcons },
-                set: { newValue in
-                    var settings = projectStore.globalSettings
-                    settings.sidebarColoredIcons = newValue
-                    Task { try? await projectStore.updateGlobalSettings(settings) }
-                }
-            ))
-        }
-    }
-
-    private var editorFontSection: some View {
-        Section("Editor Font") {
-            MonospacedFontPicker(
-                selectedFamily: Binding(
-                    get: { projectStore.globalSettings.defaultEditorFontFamily },
-                    set: { newValue in
-                        var settings = projectStore.globalSettings
-                        settings.defaultEditorFontFamily = newValue
-                        Task { try? await projectStore.updateGlobalSettings(settings) }
-                    }
-                ),
-                fontSize: projectStore.globalSettings.defaultEditorFontSize
-            )
-
-            LabeledContent("Font Size") {
-                Picker("", selection: Binding(
-                    get: { projectStore.globalSettings.defaultEditorFontSize },
-                    set: { newValue in
-                        var settings = projectStore.globalSettings
-                        settings.defaultEditorFontSize = newValue
-                        Task { try? await projectStore.updateGlobalSettings(settings) }
-                    }
-                )) {
-                    ForEach(Self.fontSizeOptions, id: \.self) { size in
-                        Text(Self.fontSizeLabel(size)).tag(size)
-                    }
-                }
-                .labelsHidden()
-                .pickerStyle(.menu)
-                .frame(minWidth: 100, idealWidth: 120, maxWidth: 160, alignment: .trailing)
-            }
-
-            Toggle("Enable Ligatures", isOn: Binding(
-                get: { projectStore.globalSettings.fontLigatureOverrides[projectStore.globalSettings.defaultEditorFontFamily] ?? true },
-                set: { newValue in
-                    var settings = projectStore.globalSettings
-                    settings.fontLigatureOverrides[projectStore.globalSettings.defaultEditorFontFamily] = newValue
-                    Task { try? await projectStore.updateGlobalSettings(settings) }
-                }
-            ))
-        }
-    }
+    // MARK: - Constants
 
     // MARK: - Constants
 
@@ -115,6 +120,32 @@ struct AppearanceSettingsView: View {
                 Task {
                     try? await projectStore.updateGlobalSettings(settings)
                     appearanceStore.applyAppearanceMode(newValue)
+                }
+            }
+        )
+    }
+
+    private var sidebarIconSizeBinding: Binding<SidebarIconSize> {
+        Binding(
+            get: { projectStore.globalSettings.sidebarIconSize },
+            set: { newValue in
+                var settings = projectStore.globalSettings
+                settings.sidebarIconSize = newValue
+                Task {
+                    try? await projectStore.updateGlobalSettings(settings)
+                }
+            }
+        )
+    }
+
+    private var sidebarIconColorModeBinding: Binding<SidebarIconColorMode> {
+        Binding(
+            get: { projectStore.globalSettings.sidebarIconColorMode },
+            set: { newValue in
+                var settings = projectStore.globalSettings
+                settings.sidebarIconColorMode = newValue
+                Task {
+                    try? await projectStore.updateGlobalSettings(settings)
                 }
             }
         )

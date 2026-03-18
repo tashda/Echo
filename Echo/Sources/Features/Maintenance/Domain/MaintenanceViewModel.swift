@@ -125,9 +125,7 @@ final class MaintenanceViewModel {
     func dropIndex(_ index: PostgresIndexStat) async throws {
         guard let db = selectedDatabase else { return }
         let dbSession = try await session.sessionForDatabase(db)
-        let quotedSchema = index.schemaName.replacingOccurrences(of: "\"", with: "\"\"")
-        let quotedIndex = index.indexName.replacingOccurrences(of: "\"", with: "\"\"")
-        _ = try await dbSession.simpleQuery("DROP INDEX \"\(quotedSchema)\".\"\(quotedIndex)\"")
+        try await dbSession.dropIndex(schema: index.schemaName, name: index.indexName)
         await fetchIndexStats(for: db)
     }
 

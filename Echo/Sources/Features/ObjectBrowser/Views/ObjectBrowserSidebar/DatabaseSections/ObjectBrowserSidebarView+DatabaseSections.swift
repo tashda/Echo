@@ -10,7 +10,7 @@ extension ObjectBrowserSidebarView {
         let connID = session.connection.id
         let isExpanded = viewModel.databasesFolderExpandedBySession[connID] ?? true
         let isSearching = sidebarSearchQuery != nil
-        let colored = projectStore.globalSettings.sidebarColoredIcons
+        let colored = projectStore.globalSettings.sidebarIconColorMode == .colorful
         let expandedBinding = Binding<Bool>(
             get: { isExpanded || isSearching },
             set: { _ in
@@ -52,10 +52,10 @@ extension ObjectBrowserSidebarView {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    // MARK: - Folder Header Row (legacy — used by Security, Agent Jobs, Linked Servers)
+    // MARK: - Folder Header Row (used by Security, Agent Jobs, Linked Servers)
 
-    func folderHeaderRow(title: String, icon: String, count: Int?, isExpanded: Bool, action: @escaping () -> Void) -> some View {
-        let colored = projectStore.globalSettings.sidebarColoredIcons
+    func folderHeaderRow(title: String, icon: String, count: Int?, isExpanded: Bool, action: @escaping () -> Void, depth: Int = 0) -> some View {
+        let colored = projectStore.globalSettings.sidebarIconColorMode == .colorful
         let expandedBinding = Binding<Bool>(
             get: { isExpanded },
             set: { _ in action() }
@@ -63,7 +63,7 @@ extension ObjectBrowserSidebarView {
 
         return Button(action: action) {
             SidebarRow(
-                depth: 0,
+                depth: depth,
                 icon: .system(icon),
                 label: title,
                 isExpanded: expandedBinding,
@@ -131,7 +131,7 @@ extension ObjectBrowserSidebarView {
                 label: database.name,
                 isExpanded: expandedBinding,
                 isSelected: isSelected,
-                iconColor: database.isOnline ? (isSelected ? accentColor : ExplorerSidebarPalette.folderIconColor(title: "Databases", colored: projectStore.globalSettings.sidebarColoredIcons)) : ColorTokens.Text.quaternary,
+                iconColor: database.isOnline ? (isSelected ? accentColor : (projectStore.globalSettings.sidebarIconColorMode == .colorful ? ExplorerSidebarPalette.databaseInstance : ExplorerSidebarPalette.monochrome)) : ColorTokens.Text.quaternary,
                 labelColor: database.isOnline ? ColorTokens.Text.primary : ColorTokens.Text.secondary,
                 accentColor: accentColor
             ) {

@@ -80,10 +80,13 @@ final class TabDirector {
 
         let removedTabIsActive = (activeTabId == id)
         let fallbackTabId: UUID? = {
-            if index < tabs.endIndex - 1 {
+            if tabs.count <= 1 { return nil }
+            if index < tabs.count - 1 {
                 return tabs[index + 1].id
+            } else if index > 0 {
+                return tabs[index - 1].id
             }
-            return index > 0 ? tabs[index - 1].id : nil
+            return nil
         }()
 
         tabs.remove(at: index)

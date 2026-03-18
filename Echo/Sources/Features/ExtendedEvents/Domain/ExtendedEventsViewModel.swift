@@ -86,7 +86,8 @@ final class ExtendedEventsViewModel {
         guard let name = selectedSessionName else { return }
         eventDataLoadingState = .loading
         do {
-            eventData = try await xeClient.readRingBufferData(sessionName: name, maxEvents: 200)
+            let data = try await xeClient.readRingBufferData(sessionName: name, maxEvents: 200)
+            eventData = data.sorted(by: { ($0.timestamp ?? Date.distantPast) > ($1.timestamp ?? Date.distantPast) })
             eventDataLoadingState = .loaded
         } catch {
             eventDataLoadingState = .error(error.localizedDescription)

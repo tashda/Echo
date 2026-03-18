@@ -17,15 +17,17 @@ extension ObjectBrowserSidebarView {
                 title: "Agent Jobs",
                 icon: "clock",
                 count: jobs.isEmpty ? nil : jobs.count,
-                isExpanded: isExpanded
-            ) {
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    viewModel.agentJobsExpandedBySession[connID] = !isExpanded
-                }
-                if !isExpanded && jobs.isEmpty && !isLoading {
-                    loadAgentJobs(session: session)
-                }
-            }
+                isExpanded: isExpanded,
+                action: {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        viewModel.agentJobsExpandedBySession[connID] = !isExpanded
+                    }
+                    if !isExpanded && jobs.isEmpty && !isLoading {
+                        loadAgentJobs(session: session)
+                    }
+                },
+                depth: 0
+            )
 
             if isExpanded {
                 agentJobsContent(session: session, jobs: jobs, isLoading: isLoading)
@@ -79,15 +81,16 @@ extension ObjectBrowserSidebarView {
             title: "Agent Jobs",
             icon: "clock",
             count: jobs.isEmpty ? nil : jobs.count,
-            isExpanded: isExpanded
-        ) {
-            withAnimation(.easeInOut(duration: 0.2)) {
-                viewModel.agentJobsExpandedBySession[connID] = !isExpanded
+            isExpanded: isExpanded,
+            action: {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    viewModel.agentJobsExpandedBySession[connID] = !isExpanded
+                }
+                if !isExpanded && jobs.isEmpty && !isLoading {
+                    loadAgentJobs(session: session)
+                }
             }
-            if !isExpanded && jobs.isEmpty && !isLoading {
-                loadAgentJobs(session: session)
-            }
-        }
+        )
     }
 
     // MARK: - Data Loading

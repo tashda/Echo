@@ -24,7 +24,7 @@ struct EchoSenseSettingsView: View {
             }
 
             Section("Shortcuts") {
-                LabeledContent {
+                PropertyRow(title: "Trigger shortcuts") {
                     Button {
                         NotificationCenter.default.post(
                             name: .openSettingsSection,
@@ -39,8 +39,6 @@ struct EchoSenseSettingsView: View {
                         }
                     }
                     .buttonStyle(.bordered)
-                } label: {
-                    Text("Trigger shortcuts")
                 }
             }
 

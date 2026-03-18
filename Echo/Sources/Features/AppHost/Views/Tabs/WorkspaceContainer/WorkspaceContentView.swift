@@ -42,7 +42,10 @@ struct WorkspaceContentView: View {
                     ActivityMonitorView(viewModel: activityMonitor)
                         .background(ColorTokens.Background.primary)
                 } else if let maintenance = tab.maintenance {
-                    MaintenanceView(viewModel: maintenance)
+                    MaintenanceView(tab: tab)
+                        .background(ColorTokens.Background.primary)
+                } else if let mssqlMaintenance = tab.mssqlMaintenance {
+                    MaintenanceView(tab: tab)
                         .background(ColorTokens.Background.primary)
                 } else if let queryStoreVM = tab.queryStoreVM {
                     QueryStoreView(viewModel: queryStoreVM)

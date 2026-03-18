@@ -28,44 +28,26 @@ struct IndexEditorSheet: View {
         VStack(spacing: 0) {
             Form {
                 Section {
-                    LabeledContent("Name") {
+                    PropertyRow(title: "Name") {
                         TextField("", text: $draft.name)
+                            .textFieldStyle(.plain)
+                            .multilineTextAlignment(.trailing)
                     }
 
-                    Toggle("Unique", isOn: $draft.isUnique)
+                    PropertyRow(title: "Unique") {
+                        Toggle("", isOn: $draft.isUnique)
+                            .labelsHidden()
+                            .toggleStyle(.switch)
+                    }
 
-                    VStack(alignment: .leading, spacing: SpacingTokens.xxs) {
-                        HStack {
-                            Text("Filter")
-                            Button {
-                                showFilterInfo.toggle()
-                            } label: {
-                                Image(systemName: "info.circle")
-                                    .foregroundStyle(ColorTokens.Text.tertiary)
-                            }
-                            .buttonStyle(.borderless)
-                            .popover(isPresented: $showFilterInfo, arrowEdge: .trailing) {
-                                Text("Optional SQL WHERE condition for a partial index. Only rows matching this expression are included in the index.\n\nExample: status = 'active'")
-                                    .font(TypographyTokens.detail)
-                                    .multilineTextAlignment(.leading)
-                                    .frame(width: 240, alignment: .leading)
-                                    .padding(SpacingTokens.sm)
-                            }
-                        }
-
-                        TextEditor(text: $draft.filterCondition)
-                            .font(TypographyTokens.standard)
-                            .frame(minHeight: 56, maxHeight: 56)
-                            .padding(.vertical, SpacingTokens.xxs2)
-                            .padding(.horizontal, SpacingTokens.xs)
-                            .background(
-                                RoundedRectangle(cornerRadius: SpacingTokens.xxs2)
-                                    .fill(Color(nsColor: .textBackgroundColor))
-                            )
-                            .overlay(
-                                RoundedRectangle(cornerRadius: SpacingTokens.xxs2)
-                                    .stroke(Color(nsColor: .separatorColor))
-                            )
+                    PropertyRow(
+                        title: "Filter",
+                        info: "Optional SQL WHERE condition for a partial index. Only rows matching this expression are included in the index.\n\nExample: status = 'active'"
+                    ) {
+                        TextField("", text: $draft.filterCondition, prompt: Text("e.g. status = 'active'"), axis: .vertical)
+                            .textFieldStyle(.plain)
+                            .lineLimit(2...4)
+                            .multilineTextAlignment(.trailing)
                     }
                 }
 

@@ -22,7 +22,7 @@ struct SidebarRow<Trailing: View>: View {
     var subtitle: String? = nil
     var isExpanded: Binding<Bool>? = nil
     var isSelected: Bool = false
-    var iconColor: Color = ColorTokens.Text.primary
+    var iconColor: Color = ColorTokens.Sidebar.symbol
     var labelColor: Color = ColorTokens.Text.primary
     var labelFont: Font = SidebarRowConstants.labelFont
     var accentColor: Color = ColorTokens.accent
@@ -43,13 +43,13 @@ struct SidebarRow<Trailing: View>: View {
     private var highlightFill: some View {
         if isSelected {
             RoundedRectangle(cornerRadius: SidebarRowConstants.hoverCornerRadius, style: .continuous)
-                .fill(ColorTokens.Text.primary.opacity(0.08))
+                .fill(ColorTokens.Sidebar.selectedFill)
         } else if isContextMenuVisible {
             RoundedRectangle(cornerRadius: SidebarRowConstants.hoverCornerRadius, style: .continuous)
-                .fill(ColorTokens.Text.primary.opacity(0.06))
+                .fill(ColorTokens.Sidebar.contextFill)
         } else if isHovered {
             RoundedRectangle(cornerRadius: SidebarRowConstants.hoverCornerRadius, style: .continuous)
-                .fill(ColorTokens.Text.primary.opacity(0.04))
+                .fill(ColorTokens.Sidebar.hoverFill)
         } else {
             Color.clear
         }
@@ -65,15 +65,15 @@ struct SidebarRow<Trailing: View>: View {
 
             // Content — inside the highlight area
             HStack(alignment: .center, spacing: SidebarRowConstants.iconTextSpacing) {
-                // Fixed-width disclosure column
-                Group {
+                // Fixed-width disclosure column — always present for icon alignment
+                ZStack(alignment: .center) {
                     if showChevron {
                         Image(systemName: expanded ? "chevron.down" : "chevron.right")
                             .font(SidebarRowConstants.chevronFont)
                             .foregroundStyle(ColorTokens.Text.tertiary)
                     }
                 }
-                .frame(width: SidebarRowConstants.chevronWidth, alignment: .center)
+                .frame(width: SidebarRowConstants.chevronWidth)
 
                 iconView
 
@@ -99,13 +99,12 @@ struct SidebarRow<Trailing: View>: View {
 
                 trailing()
             }
-            .padding(.leading, SpacingTokens.xxs)
+            .padding(.leading, SidebarRowConstants.rowLeadingPadding)
             .padding(.trailing, SidebarRowConstants.rowTrailingPadding)
             .padding(.vertical, SidebarRowConstants.rowVerticalPadding)
             .background(highlightFill)
             .contentShape(RoundedRectangle(cornerRadius: SidebarRowConstants.hoverCornerRadius, style: .continuous))
         }
-        .padding(.leading, SidebarRowConstants.rowLeadingPadding)
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, SidebarRowConstants.rowOuterHorizontalPadding)
         .onHover { hovering in
@@ -131,14 +130,14 @@ struct SidebarRow<Trailing: View>: View {
                 .font(SidebarRowConstants.iconFont)
                 .symbolRenderingMode(.monochrome)
                 .foregroundStyle(resolvedIconColor)
-                .frame(width: SidebarRowConstants.iconFrame, height: SidebarRowConstants.iconFrame)
+                .frame(width: SidebarRowConstants.iconFrameWidth, height: SidebarRowConstants.iconFrameHeight)
         case .asset(let name):
             Image(name)
                 .resizable()
                 .renderingMode(.template)
                 .aspectRatio(contentMode: .fit)
                 .foregroundStyle(resolvedIconColor)
-                .frame(width: SidebarRowConstants.iconFrame, height: SidebarRowConstants.iconFrame)
+                .frame(width: SidebarRowConstants.iconFrameWidth, height: SidebarRowConstants.iconFrameHeight)
         case .none:
             EmptyView()
         }
@@ -155,7 +154,7 @@ extension SidebarRow where Trailing == EmptyView {
         subtitle: String? = nil,
         isExpanded: Binding<Bool>? = nil,
         isSelected: Bool = false,
-        iconColor: Color = ColorTokens.Text.primary,
+        iconColor: Color = ColorTokens.Sidebar.symbol,
         labelColor: Color = ColorTokens.Text.primary,
         labelFont: Font = SidebarRowConstants.labelFont,
         accentColor: Color = ColorTokens.accent

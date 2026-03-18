@@ -7,32 +7,31 @@ extension ObjectBrowserSidebarView {
     @ViewBuilder
     func managementFolderSection(session: ConnectionSession) -> some View {
         let connID = session.connection.id
-        let expandedBinding = Binding<Bool>(
-            get: { viewModel.managementFolderExpandedBySession[connID] ?? false },
-            set: { viewModel.managementFolderExpandedBySession[connID] = $0 }
-        )
-        let colored = projectStore.globalSettings.sidebarColoredIcons
+        let isExpanded = viewModel.managementFolderExpandedBySession[connID] ?? false
+        let colored = projectStore.globalSettings.sidebarIconColorMode == .colorful
 
         VStack(alignment: .leading, spacing: 0) {
-            Button {
-                withAnimation(.easeInOut(duration: 0.2)) { expandedBinding.wrappedValue.toggle() }
-            } label: {
-                SidebarRow(
-                    depth: 0,
-                    icon: .system("wrench.and.screwdriver"),
-                    label: "Management",
-                    isExpanded: expandedBinding,
-                    iconColor: ExplorerSidebarPalette.folderIconColor(title: "Management", colored: colored)
-                )
-            }
+            folderHeaderRow(
+                title: "Management",
+                icon: "wrench.and.screwdriver",
+                count: nil,
+                isExpanded: isExpanded,
+                action: {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        viewModel.managementFolderExpandedBySession[connID] = !isExpanded
+                    }
+                },
+                depth: 0
+            )
 
-            if expandedBinding.wrappedValue {
+            if isExpanded {
                 Button {
                     environmentState.openExtendedEventsTab(connectionID: connID)
                 } label: {
                     SidebarRow(depth: 1, icon: .system("waveform.path.ecg"), label: "Extended Events",
                                iconColor: ExplorerSidebarPalette.folderIconColor(title: "Extended Events", colored: colored))
                 }
+                .buttonStyle(.plain)
 
                 Button {
                     viewModel.databaseMailConnectionID = connID
@@ -41,6 +40,7 @@ extension ObjectBrowserSidebarView {
                     SidebarRow(depth: 1, icon: .system("envelope"), label: "Database Mail",
                                iconColor: ExplorerSidebarPalette.folderIconColor(title: "Database Mail", colored: colored))
                 }
+                .buttonStyle(.plain)
 
                 Button {
                     environmentState.openActivityMonitorTab(connectionID: connID)
@@ -48,6 +48,7 @@ extension ObjectBrowserSidebarView {
                     SidebarRow(depth: 1, icon: .system("gauge.with.dots.needle.33percent"), label: "Activity Monitor",
                                iconColor: ExplorerSidebarPalette.folderIconColor(title: "Activity Monitor", colored: colored))
                 }
+                .buttonStyle(.plain)
             }
         }
     }

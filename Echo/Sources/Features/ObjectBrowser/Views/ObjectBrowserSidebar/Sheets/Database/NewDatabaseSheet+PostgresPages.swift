@@ -8,33 +8,44 @@ extension NewDatabaseSheet {
     @ViewBuilder
     func postgresGeneralPage() -> some View {
         Section("Database") {
-            LabeledContent("Name") {
+            PropertyRow(title: "Name") {
                 TextField("new_database", text: $databaseName)
-                    .frame(width: 200)
+                    .textFieldStyle(.plain)
+                    .multilineTextAlignment(.trailing)
             }
 
-            Picker("Owner", selection: $owner) {
-                Text("(default)").tag("")
-                ForEach(pgRoles, id: \.self) { role in
-                    Text(role).tag(role)
+            PropertyRow(title: "Owner") {
+                Picker("", selection: $owner) {
+                    Text("(default)").tag("")
+                    ForEach(pgRoles, id: \.self) { role in
+                        Text(role).tag(role)
+                    }
                 }
+                .labelsHidden()
+                .pickerStyle(.menu)
             }
 
-            LabeledContent("Comment") {
+            PropertyRow(title: "Comment") {
                 TextField("", text: $pgComment, axis: .vertical)
+                    .textFieldStyle(.plain)
                     .lineLimit(1...3)
+                    .multilineTextAlignment(.trailing)
             }
         }
 
         Section("Template") {
-            Picker("Template", selection: Binding(
-                get: { pgTemplate ?? "" },
-                set: { pgTemplate = $0.isEmpty ? nil : $0 }
-            )) {
-                Text("(default)").tag("")
-                ForEach(pgTemplates, id: \.self) { t in
-                    Text(t).tag(t)
+            PropertyRow(title: "Template") {
+                Picker("", selection: Binding(
+                    get: { pgTemplate ?? "" },
+                    set: { pgTemplate = $0.isEmpty ? nil : $0 }
+                )) {
+                    Text("(default)").tag("")
+                    ForEach(pgTemplates, id: \.self) { t in
+                        Text(t).tag(t)
+                    }
                 }
+                .labelsHidden()
+                .pickerStyle(.menu)
             }
         }
     }
@@ -42,67 +53,92 @@ extension NewDatabaseSheet {
     @ViewBuilder
     func postgresDefinitionPage() -> some View {
         Section("Character Set") {
-            Picker("Encoding", selection: $pgEncoding) {
-                ForEach(pgEncodings, id: \.self) { enc in
-                    Text(enc).tag(enc)
+            PropertyRow(title: "Encoding") {
+                Picker("", selection: $pgEncoding) {
+                    ForEach(pgEncodings, id: \.self) { enc in
+                        Text(enc).tag(enc)
+                    }
                 }
+                .labelsHidden()
+                .pickerStyle(.menu)
             }
 
-            Picker("Locale Provider", selection: $pgLocaleProvider) {
-                Text("libc").tag("libc")
-                Text("icu").tag("icu")
+            PropertyRow(title: "Locale Provider") {
+                Picker("", selection: $pgLocaleProvider) {
+                    Text("libc").tag("libc")
+                    Text("icu").tag("icu")
+                }
+                .labelsHidden()
+                .pickerStyle(.menu)
             }
 
             if pgLocaleProvider == "libc" {
-                LabeledContent("Collation") {
+                PropertyRow(title: "Collation") {
                     TextField("e.g. en_US.UTF-8", text: $pgCollation)
-                        .frame(width: 200)
+                        .textFieldStyle(.plain)
+                        .multilineTextAlignment(.trailing)
                 }
 
-                LabeledContent("Character Type") {
+                PropertyRow(title: "Character Type") {
                     TextField("e.g. en_US.UTF-8", text: $pgCtype)
-                        .frame(width: 200)
+                        .textFieldStyle(.plain)
+                        .multilineTextAlignment(.trailing)
                 }
             } else {
-                LabeledContent("ICU Locale") {
+                PropertyRow(title: "ICU Locale") {
                     TextField("e.g. en-US", text: $pgIcuLocale)
-                        .frame(width: 200)
+                        .textFieldStyle(.plain)
+                        .multilineTextAlignment(.trailing)
                 }
 
-                LabeledContent("ICU Rules") {
+                PropertyRow(title: "ICU Rules") {
                     TextField("", text: $pgIcuRules)
-                        .frame(width: 200)
+                        .textFieldStyle(.plain)
+                        .multilineTextAlignment(.trailing)
                 }
             }
         }
 
         Section("Tablespace") {
-            Picker("Tablespace", selection: $pgTablespace) {
-                ForEach(pgTablespaces, id: \.self) { ts in
-                    Text(ts).tag(ts)
+            PropertyRow(title: "Tablespace") {
+                Picker("", selection: $pgTablespace) {
+                    ForEach(pgTablespaces, id: \.self) { ts in
+                        Text(ts).tag(ts)
+                    }
                 }
+                .labelsHidden()
+                .pickerStyle(.menu)
             }
         }
 
         Section("Connection") {
-            LabeledContent("Connection Limit") {
-                HStack(spacing: SpacingTokens.xs) {
-                    TextField("", value: $pgConnectionLimit, format: .number)
-                        .frame(width: 60)
-                    Text("-1 = unlimited")
-                        .font(TypographyTokens.detail)
-                        .foregroundStyle(ColorTokens.Text.tertiary)
-                }
+            PropertyRow(title: "Connection Limit", subtitle: "-1 = unlimited") {
+                TextField("", value: $pgConnectionLimit, format: .number)
+                    .textFieldStyle(.plain)
+                    .multilineTextAlignment(.trailing)
             }
 
-            Toggle("Is Template", isOn: $pgIsTemplate)
-            Toggle("Allow Connections", isOn: $pgAllowConnections)
+            PropertyRow(title: "Is Template") {
+                Toggle("", isOn: $pgIsTemplate)
+                    .labelsHidden()
+                    .toggleStyle(.switch)
+            }
+            
+            PropertyRow(title: "Allow Connections") {
+                Toggle("", isOn: $pgAllowConnections)
+                    .labelsHidden()
+                    .toggleStyle(.switch)
+            }
         }
 
         Section("Strategy") {
-            Picker("Creation Strategy", selection: $pgStrategy) {
-                Text("WAL Log").tag("wal_log")
-                Text("File Copy").tag("file_copy")
+            PropertyRow(title: "Creation Strategy") {
+                Picker("", selection: $pgStrategy) {
+                    Text("WAL Log").tag("wal_log")
+                    Text("File Copy").tag("file_copy")
+                }
+                .labelsHidden()
+                .pickerStyle(.menu)
             }
         }
     }

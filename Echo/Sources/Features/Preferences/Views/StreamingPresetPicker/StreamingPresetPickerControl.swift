@@ -45,7 +45,9 @@ struct StreamingPresetPickerControl: View {
     }
 
     var body: some View {
-        content
+        PropertyRow(title: title, info: description) {
+            picker
+        }
         .onChange(of: selection, initial: false) { _, newSelection in
             handleSelectionChange(newSelection)
         }
@@ -56,19 +58,6 @@ struct StreamingPresetPickerControl: View {
             if !isPresented {
                 resetCustomDraft()
             }
-        }
-    }
-
-    @ViewBuilder
-    private var content: some View {
-        LabeledContent {
-            HStack(spacing: SpacingTokens.xxs2) {
-                picker
-                infoButton
-            }
-            .frame(maxWidth: .infinity, alignment: .trailing)
-        } label: {
-            Text(title)
         }
     }
 
@@ -84,7 +73,6 @@ struct StreamingPresetPickerControl: View {
         .labelsHidden()
         .pickerStyle(.menu)
         .controlSize(.regular)
-        .frame(minWidth: 120, idealWidth: 160, maxWidth: 200, alignment: .trailing)
         .popover(isPresented: $showCustomPopover,
                  attachmentAnchor: .rect(.bounds),
                  arrowEdge: .trailing) {
@@ -96,21 +84,6 @@ struct StreamingPresetPickerControl: View {
                 onCancel: { showCustomPopover = false }
             )
             .frame(width: 240)
-        }
-    }
-
-    var infoButton: some View {
-        Button(action: { showInfoPopover.toggle() }) {
-            Image(systemName: "info.circle")
-                .imageScale(.medium)
-                .font(TypographyTokens.standard.weight(.regular))
-        }
-        .buttonStyle(.plain)
-        .foregroundStyle(ColorTokens.Text.secondary)
-        .popover(isPresented: $showInfoPopover,
-                 attachmentAnchor: .rect(.bounds),
-                 arrowEdge: .trailing) {
-            InfoPopover(description: description, defaultLabel: defaultLabel)
         }
     }
 

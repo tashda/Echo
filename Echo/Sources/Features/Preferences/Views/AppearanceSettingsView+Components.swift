@@ -1,13 +1,13 @@
 import SwiftUI
 import AppKit
 
-// MARK: - Appearance Mode Picker with Previews
+// MARK: - Appearance & Sidebar Icon Pickers (Tahoe Grouped Style)
 
 struct AppearanceModePicker: View {
     @Binding var selection: AppearanceMode
 
     var body: some View {
-        HStack(spacing: SpacingTokens.sm) {
+        HStack(spacing: SpacingTokens.md) {
             ForEach(AppearanceMode.allCases, id: \.self) { mode in
                 AppearanceModeCard(mode: mode, isSelected: selection == mode)
                     .onTapGesture {
@@ -15,7 +15,6 @@ struct AppearanceModePicker: View {
                     }
             }
         }
-        .padding(.vertical, SpacingTokens.xxs)
     }
 }
 
@@ -23,123 +22,141 @@ private struct AppearanceModeCard: View {
     let mode: AppearanceMode
     let isSelected: Bool
 
-    private var previewScheme: ColorScheme? {
-        switch mode {
-        case .light: return .light
-        case .dark: return .dark
-        case .system: return nil
-        }
-    }
-
     var body: some View {
-        VStack(spacing: SpacingTokens.xs) {
-            previewThumbnail
-                .frame(width: 120, height: 72)
-                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        VStack(spacing: 4) {
+            AppearancePreviewThumbnail(mode: mode)
+                .frame(width: 54, height: 34)
+                .clipShape(RoundedRectangle(cornerRadius: ShapeTokens.CornerRadius.extraSmall, style: .continuous))
                 .overlay(
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .strokeBorder(isSelected ? ColorTokens.accent : .clear, lineWidth: 2.5)
+                    RoundedRectangle(cornerRadius: ShapeTokens.CornerRadius.extraSmall, style: .continuous)
+                        .strokeBorder(isSelected ? ColorTokens.accent : Color.primary.opacity(0.1), lineWidth: isSelected ? 2 : 0.5)
                 )
-                .shadow(color: .black.opacity(0.08), radius: 2, y: 1)
+                .shadow(isSelected ? ShadowTokens.cardSelected : ShadowTokens.cardRest)
 
             Text(mode.displayName)
-                .font(TypographyTokens.caption2.weight(isSelected ? .semibold : .regular))
+                .font(TypographyTokens.detail.weight(isSelected ? .semibold : .regular))
                 .foregroundStyle(isSelected ? ColorTokens.Text.primary : ColorTokens.Text.secondary)
-        }
-        .frame(maxWidth: .infinity)
-        .contentShape(Rectangle())
-    }
-
-    private var previewThumbnail: some View {
-        ZStack {
-            switch mode {
-            case .light:
-                miniWindowPreview(bg: Color(white: 0.96), sidebar: Color(white: 0.91), content: Color.white)
-            case .dark:
-                miniWindowPreview(bg: Color(white: 0.15), sidebar: Color(white: 0.12), content: Color(white: 0.18))
-            case .system:
-                HStack(spacing: 0) {
-                    miniWindowPreview(bg: Color(white: 0.96), sidebar: Color(white: 0.91), content: Color.white)
-                        .clipShape(Rectangle())
-                    miniWindowPreview(bg: Color(white: 0.15), sidebar: Color(white: 0.12), content: Color(white: 0.18))
-                        .clipShape(Rectangle())
-                }
-            }
-        }
-    }
-
-    private func miniWindowPreview(bg: Color, sidebar: Color, content: Color) -> some View {
-        ZStack(alignment: .topLeading) {
-            bg
-            HStack(spacing: 0) {
-                sidebar.frame(width: 30)
-                VStack(spacing: 0) {
-                    bg.frame(height: 10)
-                    content
-                }
-            }
-            // Traffic lights
-            HStack(spacing: SpacingTokens.xxxs) {
-                Circle().fill(ColorTokens.Status.error.opacity(0.8)).frame(width: 5, height: 5)
-                Circle().fill(ColorTokens.Status.warning.opacity(0.8)).frame(width: 5, height: 5)
-                Circle().fill(ColorTokens.Status.success.opacity(0.8)).frame(width: 5, height: 5)
-            }
-            .padding(.top, SpacingTokens.xxs)
-            .padding(.leading, SpacingTokens.xxs)
         }
     }
 }
 
-// MARK: - Accent Color Source Row
-
-struct AccentColorSourceRow: View {
-    @Binding var selection: AccentColorSource
-    @State private var isPopoverPresented = false
-
-    private static let sourceDescriptions: [(source: AccentColorSource, summary: String)] = [
-        (.system, "Uses your macOS accent color"),
-        (.connection, "Tints with the active connection color"),
-        (.custom, "Pick a specific accent color"),
-    ]
-
+private struct AppearancePreviewThumbnail: View {
+    let mode: AppearanceMode
+    
     var body: some View {
-        LabeledContent {
-            HStack(spacing: SpacingTokens.xxs2) {
-                Picker("", selection: $selection) {
-                    ForEach(AccentColorSource.allCases, id: \.self) { source in
-                        Text(source.displayName).tag(source)
-                    }
-                }
-                .labelsHidden()
-                .pickerStyle(.segmented)
-
-                Button(action: { isPopoverPresented.toggle() }) {
-                    Image(systemName: "info.circle")
-                        .imageScale(.medium)
-                }
-                .buttonStyle(.plain)
-                .foregroundStyle(ColorTokens.Text.secondary)
-                .popover(isPresented: $isPopoverPresented,
-                         attachmentAnchor: .rect(.bounds),
-                         arrowEdge: .trailing) {
-                    VStack(alignment: .leading, spacing: SpacingTokens.sm) {
-                        ForEach(Self.sourceDescriptions, id: \.source) { item in
-                            HStack(alignment: .top, spacing: SpacingTokens.xs) {
-                                Text(item.source.displayName)
-                                    .font(TypographyTokens.standard.weight(.semibold))
-                                    .frame(width: 80, alignment: .leading)
-                                Text(item.summary)
-                                    .font(TypographyTokens.standard)
-                                    .foregroundStyle(ColorTokens.Text.secondary)
-                            }
-                        }
-                    }
-                    .padding(SpacingTokens.md)
-                    .frame(width: 340)
+        ZStack {
+            switch mode {
+            case .light:
+                AppearancePreviewBase(isDark: false)
+            case .dark:
+                AppearancePreviewBase(isDark: true)
+            case .system:
+                HStack(spacing: 0) {
+                    AppearancePreviewBase(isDark: false)
+                    AppearancePreviewBase(isDark: true)
                 }
             }
-        } label: {
-            Text("Accent color source")
+        }
+    }
+}
+
+private struct AppearancePreviewBase: View {
+    let isDark: Bool
+    
+    var body: some View {
+        ZStack(alignment: .topLeading) {
+            (isDark ? Color(white: 0.15) : Color(white: 0.96))
+            
+            VStack(alignment: .leading, spacing: 1) {
+                // Header
+                (isDark ? Color(white: 0.25) : Color(white: 0.85))
+                    .frame(height: 6)
+                    .overlay(alignment: .leading) {
+                        HStack(spacing: 1.5) {
+                            Circle().fill(Color.red.opacity(0.5)).frame(width: 2, height: 2)
+                            Circle().fill(Color.yellow.opacity(0.5)).frame(width: 2, height: 2)
+                            Circle().fill(Color.green.opacity(0.5)).frame(width: 2, height: 2)
+                        }
+                        .padding(.leading, 3)
+                    }
+                
+                HStack(spacing: 1.5) {
+                    // Sidebar
+                    (isDark ? Color(white: 0.18) : Color(white: 0.92))
+                        .frame(width: 12)
+                    
+                    // Content
+                    VStack(alignment: .leading, spacing: 2) {
+                        RoundedRectangle(cornerRadius: 0.5).fill(ColorTokens.accent.opacity(0.4)).frame(width: 20, height: 3)
+                        RoundedRectangle(cornerRadius: 0.5).fill(Color.primary.opacity(0.08)).frame(width: 28, height: 1.5)
+                        RoundedRectangle(cornerRadius: 0.5).fill(Color.primary.opacity(0.08)).frame(width: 25, height: 1.5)
+                    }
+                    .padding(3)
+                }
+            }
+        }
+    }
+}
+
+struct SidebarIconPicker: View {
+    @Binding var selection: SidebarIconColorMode
+
+    var body: some View {
+        HStack(spacing: SpacingTokens.md) {
+            ForEach(SidebarIconColorMode.allCases, id: \.self) { mode in
+                SidebarIconCard(mode: mode, isSelected: selection == mode)
+                    .onTapGesture {
+                        withAnimation(.easeInOut(duration: 0.2)) { selection = mode }
+                    }
+            }
+        }
+    }
+}
+
+private struct SidebarIconCard: View {
+    let mode: SidebarIconColorMode
+    let isSelected: Bool
+
+    var body: some View {
+        VStack(spacing: 4) {
+            previewThumbnail
+                .frame(width: 54, height: 34)
+                .clipShape(RoundedRectangle(cornerRadius: ShapeTokens.CornerRadius.extraSmall, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: ShapeTokens.CornerRadius.extraSmall, style: .continuous)
+                        .strokeBorder(isSelected ? ColorTokens.accent : Color.primary.opacity(0.1), lineWidth: isSelected ? 2 : 0.5)
+                )
+                .shadow(isSelected ? ShadowTokens.cardSelected : ShadowTokens.cardRest)
+
+            Text(mode.displayName)
+                .font(TypographyTokens.detail.weight(isSelected ? .semibold : .regular))
+                .foregroundStyle(isSelected ? ColorTokens.Text.primary : ColorTokens.Text.secondary)
+        }
+    }
+
+    private var previewThumbnail: some View {
+        ZStack(alignment: .leading) {
+            ColorTokens.Background.secondary
+            
+            VStack(alignment: .leading, spacing: 3) {
+                previewRow(icon: "cylinder.fill", color: mode == .colorful ? .blue : .primary.opacity(0.6))
+                previewRow(icon: "tablecells.fill", color: mode == .colorful ? .orange : .primary.opacity(0.6))
+                previewRow(icon: "eye.fill", color: mode == .colorful ? .purple : .primary.opacity(0.6))
+            }
+            .padding(.leading, 8)
+        }
+    }
+    
+    private func previewRow(icon: String, color: Color) -> some View {
+        HStack(spacing: 4) {
+            Image(systemName: icon)
+                .font(.system(size: 6))
+                .foregroundStyle(color)
+                .frame(width: 6)
+            
+            RoundedRectangle(cornerRadius: 0.5)
+                .fill(Color.primary.opacity(0.12))
+                .frame(width: 25, height: 2)
         }
     }
 }
@@ -150,11 +167,14 @@ struct AccentColorPalette: View {
     @Binding var selection: String
 
     private static let presets: [(name: String, hex: String)] = [
-        ("Blue", "5A9CDE"),
-        ("Green", "6EAE72"),
-        ("Orange", "E8943A"),
-        ("Purple", "9B72CF"),
-        ("Pink", "D4687A"),
+        ("Blue", "007AFF"),
+        ("Purple", "AF52DE"),
+        ("Pink", "FF2D55"),
+        ("Red", "FF3B30"),
+        ("Orange", "FF9500"),
+        ("Yellow", "FFCC00"),
+        ("Green", "34C759"),
+        ("Gray", "8E8E93"),
     ]
 
     private var colorBinding: Binding<Color> {
@@ -174,15 +194,15 @@ struct AccentColorPalette: View {
                 let isSelected = selection.uppercased() == preset.hex.uppercased()
                 Circle()
                     .fill(Color(hex: preset.hex) ?? ColorTokens.accent)
-                    .frame(width: 22, height: 22)
+                    .frame(width: 24, height: 24)
                     .overlay {
                         if isSelected {
-                            Image(systemName: "checkmark")
-                                .font(TypographyTokens.compact.weight(.bold))
-                                .foregroundStyle(.white)
+                            Circle()
+                                .strokeBorder(ColorTokens.accent, lineWidth: 2)
+                                .padding(-3)
                         }
                     }
-                    .overlay(Circle().strokeBorder(ColorTokens.Text.primary.opacity(0.15), lineWidth: 0.5))
+                    .overlay(Circle().strokeBorder(Color.primary.opacity(0.05), lineWidth: 0.5))
                     .contentShape(Circle())
                     .onTapGesture {
                         withAnimation(.easeInOut(duration: 0.15)) { selection = preset.hex }
@@ -192,5 +212,54 @@ struct AccentColorPalette: View {
             ColorPicker("", selection: colorBinding, supportsOpacity: false)
                 .labelsHidden()
         }
+    }
+}
+
+// MARK: - Editor Font Preview
+
+struct EditorFontPreview: View {
+    let fontName: String
+    let fontSize: Double
+    let ligatures: Bool
+
+    var body: some View {
+        ZStack(alignment: .topLeading) {
+            RoundedRectangle(cornerRadius: ShapeTokens.CornerRadius.medium, style: .continuous)
+                .fill(Color(white: 0.12)) // Professional dark editor background
+                .overlay(
+                    RoundedRectangle(cornerRadius: ShapeTokens.CornerRadius.medium, style: .continuous)
+                        .strokeBorder(Color.white.opacity(0.05), lineWidth: 1)
+                )
+            
+            VStack(alignment: .leading, spacing: 4) {
+                Group {
+                    (Text("SELECT")
+                        .foregroundStyle(Color(red: 0.8, green: 0.5, blue: 0.9)) +
+                    Text(" * ")
+                        .foregroundStyle(Color(white: 0.9)) +
+                    Text("FROM")
+                        .foregroundStyle(Color(red: 0.8, green: 0.5, blue: 0.9)) +
+                    Text(" users"))
+                    
+                    (Text("WHERE")
+                        .foregroundStyle(Color(red: 0.8, green: 0.5, blue: 0.9)) +
+                    Text(" created_at > ")
+                        .foregroundStyle(Color(white: 0.9)) +
+                    Text("'2026-03-17'")
+                        .foregroundStyle(Color(red: 0.6, green: 0.8, blue: 0.5)))
+                    
+                    (Text("ORDER BY")
+                        .foregroundStyle(Color(red: 0.8, green: 0.5, blue: 0.9)) +
+                    Text(" id ")
+                        .foregroundStyle(Color(white: 0.9)) +
+                    Text("DESC")
+                        .foregroundStyle(Color(red: 0.8, green: 0.5, blue: 0.9)))
+                }
+                .font(Font.custom(fontName, size: fontSize))
+                .tracking(0.2)
+            }
+            .padding(16)
+        }
+        .frame(height: 120)
     }
 }

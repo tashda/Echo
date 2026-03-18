@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct InspectorFieldRow: View {
-    let field: ForeignKeyInspectorContent.Field
+    public let field: DatabaseObjectInspectorContent.Field
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
@@ -38,7 +38,7 @@ struct InspectorFieldRow: View {
 }
 
 struct RelatedInspectorSection: View {
-    let content: ForeignKeyInspectorContent
+    let content: DatabaseObjectInspectorContent
     let depth: Int
     @State private var isExpanded = true
 

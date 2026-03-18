@@ -91,7 +91,7 @@ struct QueryStoreView: View {
         let topQuery = viewModel.topQueries.first(where: { $0.queryId == queryId })
         let regressedQuery = viewModel.regressedQueries.first(where: { $0.queryId == queryId })
 
-        var fields: [ForeignKeyInspectorContent.Field] = []
+        var fields: [DatabaseObjectInspectorContent.Field] = []
 
         if let top = topQuery {
             fields.append(.init(label: "Query", value: top.queryText))
@@ -103,7 +103,7 @@ struct QueryStoreView: View {
             fields.append(.init(label: "Avg Duration", value: formatDuration(top.avgDurationUs)))
             fields.append(.init(label: "Avg CPU", value: formatDuration(top.avgCPUUs)))
 
-            environmentState.dataInspectorContent = .foreignKey(ForeignKeyInspectorContent(
+            environmentState.dataInspectorContent = .databaseObject(DatabaseObjectInspectorContent(
                 title: "Query \(top.queryId)",
                 subtitle: "\(top.totalExecutions) executions \u{2022} \(formatDuration(top.totalDurationUs)) total",
                 fields: fields
@@ -116,7 +116,7 @@ struct QueryStoreView: View {
             fields.append(.init(label: "Worst Avg Duration", value: formatDuration(reg.maxAvgDurationUs)))
             fields.append(.init(label: "Regression", value: String(format: "%.1fx", reg.regressionRatio)))
 
-            environmentState.dataInspectorContent = .foreignKey(ForeignKeyInspectorContent(
+            environmentState.dataInspectorContent = .databaseObject(DatabaseObjectInspectorContent(
                 title: "Query \(reg.queryId)",
                 subtitle: String(format: "%.1fx regression \u{2022} %d plans", reg.regressionRatio, reg.planCount),
                 fields: fields

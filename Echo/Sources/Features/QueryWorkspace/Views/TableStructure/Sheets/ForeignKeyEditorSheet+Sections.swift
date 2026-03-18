@@ -6,16 +6,20 @@ extension ForeignKeyEditorSheet {
 
     var referenceSection: some View {
         Section {
-            LabeledContent("Referenced Columns") {
+            PropertyRow(title: "Referenced Columns") {
                 TextField("col1, col2", text: $draft.referencedColumnsInput)
+                    .textFieldStyle(.plain)
+                    .multilineTextAlignment(.trailing)
             }
         } header: {
             Text("References")
         } footer: {
             VStack(alignment: .leading, spacing: SpacingTokens.xxxs) {
                 Text("Comma-separated column names, matching the order above.")
+                    .font(TypographyTokens.formDescription)
                 if draft.referencedColumnsMismatch {
                     Text("Column count does not match local columns (\(draft.columns.count)).")
+                        .font(TypographyTokens.formDescription)
                         .foregroundStyle(ColorTokens.Status.warning)
                 }
             }
@@ -24,21 +28,30 @@ extension ForeignKeyEditorSheet {
 
     var actionsSection: some View {
         Section {
-            Picker("ON UPDATE", selection: $draft.onUpdate) {
-                ForEach(ForeignKeyAction.allCases) { action in
-                    Text(action.displayName).tag(action.rawValue)
+            PropertyRow(title: "ON UPDATE") {
+                Picker("", selection: $draft.onUpdate) {
+                    ForEach(ForeignKeyAction.allCases) { action in
+                        Text(action.displayName).tag(action.rawValue)
+                    }
                 }
+                .labelsHidden()
+                .pickerStyle(.menu)
             }
 
-            Picker("ON DELETE", selection: $draft.onDelete) {
-                ForEach(ForeignKeyAction.allCases) { action in
-                    Text(action.displayName).tag(action.rawValue)
+            PropertyRow(title: "ON DELETE") {
+                Picker("", selection: $draft.onDelete) {
+                    ForEach(ForeignKeyAction.allCases) { action in
+                        Text(action.displayName).tag(action.rawValue)
+                    }
                 }
+                .labelsHidden()
+                .pickerStyle(.menu)
             }
         } header: {
             Text("Actions")
         } footer: {
             Text("Determines behavior when the referenced row is updated or deleted.")
+                .font(TypographyTokens.formDescription)
         }
     }
 
@@ -61,6 +74,7 @@ extension ForeignKeyEditorSheet {
                     onCancelNew()
                 }
             }
+            .buttonStyle(.bordered)
             .keyboardShortcut(.cancelAction)
 
             Button("Save") {
@@ -71,9 +85,7 @@ extension ForeignKeyEditorSheet {
             .disabled(!draft.canSave)
             .keyboardShortcut(.defaultAction)
         }
-        .padding(.horizontal, SpacingTokens.md2)
-        .padding(.vertical, SpacingTokens.sm2)
-        .background(.bar)
+        .padding(SpacingTokens.md)
     }
 }
 

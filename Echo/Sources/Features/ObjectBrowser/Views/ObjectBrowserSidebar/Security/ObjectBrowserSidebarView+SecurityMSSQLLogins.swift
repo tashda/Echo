@@ -19,7 +19,7 @@ extension ObjectBrowserSidebarView {
 
         VStack(alignment: .leading, spacing: 0) {
             securitySectionHeader(
-                depth: 1,
+                depth: SecuritySidebarDepth.serverSection,
                 title: "Logins",
                 icon: "person.2",
                 count: standardLogins.count,
@@ -65,7 +65,7 @@ extension ObjectBrowserSidebarView {
 
         VStack(alignment: .leading, spacing: 0) {
             securitySectionHeader(
-                depth: 2,
+                depth: SecuritySidebarDepth.serverNestedSection,
                 title: "Certificate Logins",
                 icon: "doc.badge.lock",
                 count: certLogins.count,
@@ -78,20 +78,26 @@ extension ObjectBrowserSidebarView {
 
             if isExpanded {
                 ForEach(certLogins) { login in
-                    loginRow(login: login, session: session, depth: 3)
+                    loginRow(login: login, session: session, depth: 4)
                 }
             }
         }
     }
 
-    func loginRow(login: ObjectBrowserSidebarViewModel.SecurityLoginItem, session: ConnectionSession, depth: Int = 2) -> some View {
-        SidebarRow(
+    func loginRow(
+        login: ObjectBrowserSidebarViewModel.SecurityLoginItem,
+        session: ConnectionSession,
+        depth: Int = SecuritySidebarDepth.serverLeaf
+    ) -> some View {
+        let colored = projectStore.globalSettings.sidebarIconColorMode == .colorful
+        return SidebarRow(
             depth: depth,
             icon: .system(login.isDisabled ? "person.crop.circle.badge.xmark" : "person.crop.circle"),
             label: login.name,
-            iconColor: login.isDisabled ? ColorTokens.Text.quaternary : (projectStore.globalSettings.sidebarColoredIcons ? ExplorerSidebarPalette.security : ExplorerSidebarPalette.monochrome),
+            iconColor: login.isDisabled ? ColorTokens.Text.quaternary : ExplorerSidebarPalette.folderIconColor(title: "Logins", colored: colored),
             labelColor: login.isDisabled ? ColorTokens.Text.secondary : ColorTokens.Text.primary
-        ) {
+        )
+ {
             Text(login.loginType)
                 .font(SidebarRowConstants.trailingFont)
                 .foregroundStyle(ColorTokens.Text.tertiary)

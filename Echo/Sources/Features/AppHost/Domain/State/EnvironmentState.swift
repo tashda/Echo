@@ -25,7 +25,20 @@ final class EnvironmentState {
     var recentConnections: [RecentConnectionRecord] = []
     var searchSidebarCaches: [SearchSidebarContextKey: SearchSidebarCache] = [:]
     var dataInspectorContent: DataInspectorContent?
+    @ObservationIgnored private var lastPushedInspectorTitle: String?
     private(set) var expandedConnectionFolderIDs: Set<UUID> = []
+
+    func toggleDataInspector(content: DataInspectorContent, title: String, appState: AppState) {
+        if appState.showInfoSidebar && lastPushedInspectorTitle == title {
+            appState.showInfoSidebar = false
+            dataInspectorContent = nil
+            lastPushedInspectorTitle = nil
+        } else {
+            dataInspectorContent = content
+            lastPushedInspectorTitle = title
+            appState.showInfoSidebar = true
+        }
+    }
     var lastError: DatabaseError?
     var pendingProjectSwitch: Project?
     @ObservationIgnored let toastPresenter = StatusToastPresenter()

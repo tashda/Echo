@@ -27,7 +27,7 @@ extension SecurityUserSheet {
         do {
             let sec = mssql.security
             // Switch to target database
-            _ = try? await session.session.simpleQuery("USE [\(databaseName)]")
+            _ = try? await session.session.sessionForDatabase(databaseName)
 
             let roles = try await sec.listRoles()
             var entries = roles.map { role in
@@ -94,7 +94,7 @@ extension SecurityUserSheet {
         do {
             let sec = mssql.security
             // Switch to target database
-            _ = try? await session.session.simpleQuery("USE [\(databaseName)]")
+            _ = try? await session.session.sessionForDatabase(databaseName)
 
             if isEditing {
                 try await sec.alterUser(

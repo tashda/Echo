@@ -38,33 +38,54 @@ struct BackupSheet: View {
     private var contentArea: some View {
         Form {
             Section("Database") {
-                TextField("Database Name", text: $viewModel.databaseName)
-                    .textFieldStyle(.roundedBorder)
+                PropertyRow(title: "Name") {
+                    TextField("", text: $viewModel.databaseName)
+                        .textFieldStyle(.plain)
+                        .multilineTextAlignment(.trailing)
+                }
             }
 
             Section("Backup Type") {
-                Picker("Type", selection: $viewModel.backupType) {
-                    ForEach(SQLServerBackupType.allCases, id: \.self) { type in
-                        Text(type.rawValue).tag(type)
+                PropertyRow(title: "Type") {
+                    Picker("", selection: $viewModel.backupType) {
+                        ForEach(SQLServerBackupType.allCases, id: \.self) { type in
+                            Text(type.rawValue).tag(type)
+                        }
                     }
+                    .labelsHidden()
+                    .pickerStyle(.segmented)
                 }
-                .pickerStyle(.segmented)
             }
 
             Section("Destination") {
-                TextField("File path on server", text: $viewModel.diskPath)
-                    .textFieldStyle(.roundedBorder)
-
-                Text("Path must be accessible to the SQL Server service account.")
-                    .font(TypographyTokens.detail)
-                    .foregroundStyle(ColorTokens.Text.secondary)
+                PropertyRow(
+                    title: "Path on server",
+                    info: "Path must be accessible to the SQL Server service account."
+                ) {
+                    TextField("", text: $viewModel.diskPath)
+                        .textFieldStyle(.plain)
+                        .multilineTextAlignment(.trailing)
+                }
             }
 
             Section("Options") {
-                TextField("Backup Name", text: $viewModel.backupName)
-                    .textFieldStyle(.roundedBorder)
-                Toggle("Compression", isOn: $viewModel.compression)
-                Toggle("Copy-Only Backup", isOn: $viewModel.copyOnly)
+                PropertyRow(title: "Backup Name") {
+                    TextField("", text: $viewModel.backupName)
+                        .textFieldStyle(.plain)
+                        .multilineTextAlignment(.trailing)
+                }
+                
+                PropertyRow(title: "Compression") {
+                    Toggle("", isOn: $viewModel.compression)
+                        .labelsHidden()
+                        .toggleStyle(.switch)
+                }
+                
+                PropertyRow(title: "Copy-Only") {
+                    Toggle("", isOn: $viewModel.copyOnly)
+                        .labelsHidden()
+                        .toggleStyle(.switch)
+                }
             }
 
             resultSection
@@ -81,11 +102,11 @@ struct BackupSheet: View {
                 if messages.isEmpty {
                     Label("Backup completed successfully.", systemImage: "checkmark.circle")
                         .foregroundStyle(ColorTokens.Status.success)
-                        .font(TypographyTokens.detail)
+                        .font(TypographyTokens.formDescription)
                 } else {
                     ForEach(messages, id: \.self) { msg in
                         Text(msg)
-                            .font(TypographyTokens.detail)
+                            .font(TypographyTokens.formDescription)
                             .foregroundStyle(ColorTokens.Text.secondary)
                     }
                 }
@@ -94,7 +115,7 @@ struct BackupSheet: View {
             Section("Result") {
                 Label(message, systemImage: "exclamationmark.triangle")
                     .foregroundStyle(ColorTokens.Status.error)
-                    .font(TypographyTokens.detail)
+                    .font(TypographyTokens.formDescription)
             }
         default:
             EmptyView()
@@ -109,17 +130,20 @@ struct BackupSheet: View {
                 ProgressView()
                     .controlSize(.small)
                 Text("Backing up\u{2026}")
-                    .font(TypographyTokens.detail)
+                    .font(TypographyTokens.formDescription)
                     .foregroundStyle(ColorTokens.Text.secondary)
             }
             Spacer()
             if viewModel.isRunning {
                 Button("Cancel") { viewModel.cancel() }
+                    .buttonStyle(.bordered)
             }
             Button("Close") { onDismiss() }
+                .buttonStyle(.bordered)
                 .keyboardShortcut(.cancelAction)
                 .disabled(viewModel.isRunning)
             Button("Back Up") { Task { await viewModel.execute() } }
+                .buttonStyle(.borderedProminent)
                 .keyboardShortcut(.defaultAction)
                 .disabled(!viewModel.canExecute)
         }

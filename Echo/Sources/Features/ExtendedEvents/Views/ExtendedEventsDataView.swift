@@ -3,12 +3,13 @@ import SQLServerKit
 
 struct ExtendedEventsDataView: View {
     @Bindable var viewModel: ExtendedEventsViewModel
+    @Environment(EnvironmentState.self) private var environmentState
+    @Environment(AppState.self) private var appState
+    
+    @State private var selection: Set<SQLServerXEEventData.ID> = []
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            sessionSelector
-            Divider()
-
             if viewModel.selectedSessionName == nil {
                 noSessionPlaceholder
             } else if viewModel.eventDataLoadingState == .loading && viewModel.eventData.isEmpty {
@@ -21,123 +22,90 @@ struct ExtendedEventsDataView: View {
                 eventTable
             }
         }
-    }
-
-    // MARK: - Session Selector
-
-    private var sessionSelector: some View {
-        HStack(spacing: SpacingTokens.sm) {
-            Text("Session:")
-                .font(TypographyTokens.detail)
-                .foregroundStyle(ColorTokens.Text.secondary)
-
-            Picker("Session", selection: sessionBinding) {
-                Text("Select a session").tag(Optional<String>.none)
-                ForEach(runningSessions, id: \.name) { session in
-                    Text(session.name).tag(Optional(session.name))
-                }
-            }
-            .labelsHidden()
-            .frame(maxWidth: 250)
-
-            Button {
-                Task { await viewModel.loadEventData() }
-            } label: {
-                Label("Load Events", systemImage: "arrow.clockwise")
-                    .font(TypographyTokens.detail)
-            }
-            .buttonStyle(.borderless)
-            .disabled(viewModel.selectedSessionName == nil)
-
-            Spacer()
-
-            if !viewModel.eventData.isEmpty {
-                Text("\(viewModel.eventData.count) events")
-                    .font(TypographyTokens.detail)
-                    .foregroundStyle(ColorTokens.Text.tertiary)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(ColorTokens.Background.primary)
+        .task(id: viewModel.selectedSessionName) {
+            if viewModel.selectedSessionName != nil {
+                await viewModel.loadEventData()
             }
         }
-        .padding(.horizontal, SpacingTokens.md)
-        .padding(.vertical, SpacingTokens.xs)
-        .background(ColorTokens.Background.secondary.opacity(0.3))
-    }
-
-    private var sessionBinding: Binding<String?> {
-        Binding(
-            get: { viewModel.selectedSessionName },
-            set: { newValue in
-                if let name = newValue {
-                    Task {
-                        await viewModel.selectSession(name)
-                        await viewModel.loadEventData()
-                    }
-                } else {
-                    viewModel.selectedSessionName = nil
-                    viewModel.eventData = []
-                }
-            }
-        )
-    }
-
-    private var runningSessions: [SQLServerXESession] {
-        viewModel.sessions.filter(\.isRunning)
     }
 
     // MARK: - Event Table
 
     private var eventTable: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            eventTableHeader
-            Divider()
-
-            ScrollView {
-                LazyVStack(spacing: 0) {
-                    ForEach(viewModel.eventData) { event in
-                        eventRow(event)
-                        Divider()
-                    }
+        Table(viewModel.eventData, selection: $selection) {
+            TableColumn("Timestamp") { event in
+                Text(formattedTimestamp(event.timestamp))
+                    .font(TypographyTokens.monospaced)
+                    .foregroundStyle(ColorTokens.Text.secondary)
+            }
+            .width(180)
+            
+            TableColumn("Event") { event in
+                Text(event.eventName)
+                    .font(TypographyTokens.standard)
+                    .foregroundStyle(ColorTokens.Text.primary)
+            }
+            .width(200)
+            
+            TableColumn("Details") { event in
+                Text(summaryFields(event.fields))
+                    .font(TypographyTokens.detail)
+                    .foregroundStyle(ColorTokens.Text.secondary)
+                    .lineLimit(1)
+            }
+        }
+        .contextMenu(forSelectionType: SQLServerXEEventData.ID.self) { ids in
+            Button {
+                Task { await viewModel.loadEventData() }
+            } label: {
+                Label("Refresh", systemImage: "arrow.clockwise")
+            }
+            
+            if let id = ids.first, let event = viewModel.eventData.first(where: { $0.id == id }) {
+                Button {
+                    appState.showInfoSidebar.toggle()
+                } label: {
+                    Label("View Details", systemImage: "info.circle")
                 }
+            }
+            
+            Divider()
+            
+            Button(role: .destructive) {
+                viewModel.eventData = []
+            } label: {
+                Label("Clear List", systemImage: "xmark.circle")
+            }
+        } primaryAction: { _ in
+            if let id = selection.first, let event = viewModel.eventData.first(where: { $0.id == id }) {
+                pushEventInspector(event, toggle: true)
+            }
+        }
+        .onChange(of: selection) { _, newSelection in
+            if let id = newSelection.first, let event = viewModel.eventData.first(where: { $0.id == id }) {
+                pushEventInspector(event, toggle: false)
             }
         }
     }
 
-    private var eventTableHeader: some View {
-        HStack(spacing: 0) {
-            Text("Timestamp")
-                .frame(width: 180, alignment: .leading)
-            Text("Event")
-                .frame(width: 200, alignment: .leading)
-            Text("Details")
-                .frame(minWidth: 200, alignment: .leading)
+    private func pushEventInspector(_ event: SQLServerXEEventData, toggle: Bool) {
+        let fields: [DatabaseObjectInspectorContent.Field] = event.fields.sorted(by: { $0.key < $1.key }).map { 
+            .init(label: $0.key, value: $0.value)
         }
-        .font(TypographyTokens.compact.weight(.semibold))
-        .foregroundStyle(ColorTokens.Text.secondary)
-        .padding(.horizontal, SpacingTokens.md)
-        .padding(.vertical, SpacingTokens.xxxs)
-        .background(ColorTokens.Background.secondary.opacity(0.3))
-    }
-
-    private func eventRow(_ event: SQLServerXEEventData) -> some View {
-        HStack(spacing: 0) {
-            Text(formattedTimestamp(event.timestamp))
-                .font(TypographyTokens.monospaced)
-                .foregroundStyle(ColorTokens.Text.secondary)
-                .frame(width: 180, alignment: .leading)
-
-            Text(event.eventName)
-                .font(TypographyTokens.standard)
-                .foregroundStyle(ColorTokens.Text.primary)
-                .frame(width: 200, alignment: .leading)
-                .lineLimit(1)
-
-            Text(summaryFields(event.fields))
-                .font(TypographyTokens.detail)
-                .foregroundStyle(ColorTokens.Text.secondary)
-                .frame(minWidth: 200, alignment: .leading)
-                .lineLimit(2)
+        
+        let content = DatabaseObjectInspectorContent(
+            title: event.eventName,
+            subtitle: formattedTimestamp(event.timestamp),
+            fields: fields
+        )
+        
+        if toggle {
+            environmentState.toggleDataInspector(content: .databaseObject(content), title: "XE:\(event.id)", appState: appState)
+        } else {
+            environmentState.dataInspectorContent = .databaseObject(content)
         }
-        .padding(.horizontal, SpacingTokens.md)
-        .padding(.vertical, SpacingTokens.xxxs)
     }
 
     // MARK: - Formatting

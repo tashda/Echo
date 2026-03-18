@@ -17,15 +17,17 @@ extension ObjectBrowserSidebarView {
                 title: "Linked Servers",
                 icon: "link",
                 count: servers.isEmpty ? nil : servers.count,
-                isExpanded: isExpanded
-            ) {
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    viewModel.linkedServersExpandedBySession[connID] = !isExpanded
-                }
-                if !isExpanded && servers.isEmpty && !isLoading {
-                    loadLinkedServers(session: session)
-                }
-            }
+                isExpanded: isExpanded,
+                action: {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        viewModel.linkedServersExpandedBySession[connID] = !isExpanded
+                    }
+                    if !isExpanded && servers.isEmpty && !isLoading {
+                        loadLinkedServers(session: session)
+                    }
+                },
+                depth: 0
+            )
 
             if isExpanded {
                 linkedServersContent(session: session, servers: servers, isLoading: isLoading)
@@ -65,7 +67,7 @@ extension ObjectBrowserSidebarView {
                 depth: 1,
                 icon: .system("link"),
                 label: server.name,
-                iconColor: projectStore.globalSettings.sidebarColoredIcons ? ExplorerSidebarPalette.linkedServers : ExplorerSidebarPalette.monochrome,
+                iconColor: (projectStore.globalSettings.sidebarIconColorMode == .colorful) ? ExplorerSidebarPalette.linkedServers : ExplorerSidebarPalette.monochrome,
                 labelColor: server.isDataAccessEnabled ? ColorTokens.Text.primary : ColorTokens.Text.secondary
             ) {
                 if !server.dataSource.isEmpty {

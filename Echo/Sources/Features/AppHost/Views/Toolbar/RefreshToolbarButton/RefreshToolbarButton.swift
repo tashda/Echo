@@ -43,6 +43,16 @@ struct RefreshToolbarButton: View {
                     }
                     return
                 }
+            case .mssqlMaintenance:
+                if let vm = activeTab.mssqlMaintenance {
+                    session.structureLoadingState = .loading(progress: nil)
+                    refreshTask = Task {
+                        await vm.refresh()
+                        session.structureLoadingState = .ready
+                        refreshTask = nil
+                    }
+                    return
+                }
             case .activityMonitor:
                 if let vm = activeTab.activityMonitor {
                     session.structureLoadingState = .loading(progress: nil)

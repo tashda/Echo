@@ -84,6 +84,7 @@ extension ObjectBrowserSidebarView {
     @ViewBuilder
     func queryStoreRow(database: DatabaseInfo, session: ConnectionSession) -> some View {
         let connID = session.connection.id
+        let colored = projectStore.globalSettings.sidebarIconColorMode == .colorful
 
         Button {
             environmentState.openQueryStoreTab(connectionID: connID, databaseName: database.name)
@@ -92,7 +93,7 @@ extension ObjectBrowserSidebarView {
                 depth: 2,
                 icon: .system("chart.bar.xaxis"),
                 label: "Query Store",
-                iconColor: ColorTokens.Text.secondary
+                iconColor: ExplorerSidebarPalette.folderIconColor(title: "Query Store", colored: colored)
             )
         }
         .buttonStyle(.plain)

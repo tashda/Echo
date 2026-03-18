@@ -86,7 +86,7 @@ struct NewDatabaseSheet: View {
             HStack {
                 if let error = errorMessage {
                     Text(error)
-                        .font(TypographyTokens.detail)
+                        .font(TypographyTokens.formDescription)
                         .foregroundStyle(ColorTokens.Status.error)
                         .lineLimit(1)
                 }
@@ -96,8 +96,10 @@ struct NewDatabaseSheet: View {
                         .controlSize(.small)
                 }
                 Button("Cancel") { onDismiss() }
+                    .buttonStyle(.bordered)
                     .keyboardShortcut(.cancelAction)
                 Button("Create") { createDatabase() }
+                    .buttonStyle(.borderedProminent)
                     .keyboardShortcut(.defaultAction)
                     .disabled(!canCreate)
             }

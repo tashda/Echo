@@ -49,16 +49,22 @@ struct ForeignKeyEditorSheet: View {
 
     private var generalSection: some View {
         Section {
-            LabeledContent("Name") {
+            PropertyRow(title: "Name") {
                 TextField("Constraint name", text: $draft.name)
+                    .textFieldStyle(.plain)
+                    .multilineTextAlignment(.trailing)
             }
 
-            LabeledContent("Schema") {
+            PropertyRow(title: "Schema") {
                 TextField("public", text: $draft.referencedSchema)
+                    .textFieldStyle(.plain)
+                    .multilineTextAlignment(.trailing)
             }
 
-            LabeledContent("Table") {
+            PropertyRow(title: "Table") {
                 TextField("Referenced table", text: $draft.referencedTable)
+                    .textFieldStyle(.plain)
+                    .multilineTextAlignment(.trailing)
             }
         } header: {
             Text("General")
@@ -66,10 +72,12 @@ struct ForeignKeyEditorSheet: View {
             VStack(alignment: .leading, spacing: SpacingTokens.xxxs) {
                 if draft.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                     Text("Name is required.")
+                        .font(TypographyTokens.formDescription)
                         .foregroundStyle(ColorTokens.Status.error)
                 }
                 if draft.referencedTable.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                     Text("Referenced table is required.")
+                        .font(TypographyTokens.formDescription)
                         .foregroundStyle(ColorTokens.Status.error)
                 }
             }

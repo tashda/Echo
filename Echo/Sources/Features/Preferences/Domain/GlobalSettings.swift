@@ -178,7 +178,8 @@ struct GlobalSettings: Codable, Hashable {
     var nativePsqlAllowSystemBinaryFallback: Bool = false
     var nativePsqlAllowShellEscape: Bool = true
     var nativePsqlAllowFileCommands: Bool = true
-    var sidebarColoredIcons: Bool = true
+    var sidebarIconColorMode: SidebarIconColorMode = .colorful
+    var sidebarIconSize: SidebarIconSize = .medium
     var notificationPreferences: NotificationPreferences = NotificationPreferences()
 
     /// Returns the effective auto-expand sections for a given database type.
@@ -253,6 +254,8 @@ struct GlobalSettings: Codable, Hashable {
         case nativePsqlAllowSystemBinaryFallback
         case nativePsqlAllowShellEscape
         case nativePsqlAllowFileCommands
+        case sidebarIconColorMode
+        case sidebarIconSize
         case sidebarColoredIcons
         case notificationPreferences
     }
@@ -341,7 +344,16 @@ struct GlobalSettings: Codable, Hashable {
         nativePsqlAllowSystemBinaryFallback = try container.decodeIfPresent(Bool.self, forKey: .nativePsqlAllowSystemBinaryFallback) ?? false
         nativePsqlAllowShellEscape = try container.decodeIfPresent(Bool.self, forKey: .nativePsqlAllowShellEscape) ?? true
         nativePsqlAllowFileCommands = try container.decodeIfPresent(Bool.self, forKey: .nativePsqlAllowFileCommands) ?? true
-        sidebarColoredIcons = try container.decodeIfPresent(Bool.self, forKey: .sidebarColoredIcons) ?? true
+        
+        if let mode = try container.decodeIfPresent(SidebarIconColorMode.self, forKey: .sidebarIconColorMode) {
+            sidebarIconColorMode = mode
+        } else {
+            let legacyBool = try container.decodeIfPresent(Bool.self, forKey: .sidebarColoredIcons) ?? true
+            sidebarIconColorMode = legacyBool ? .colorful : .monochrome
+        }
+        
+        sidebarIconSize = try container.decodeIfPresent(SidebarIconSize.self, forKey: .sidebarIconSize) ?? .medium
+        
         notificationPreferences = try container.decodeIfPresent(NotificationPreferences.self, forKey: .notificationPreferences) ?? NotificationPreferences()
     }
 
@@ -421,7 +433,8 @@ struct GlobalSettings: Codable, Hashable {
         try container.encode(nativePsqlAllowSystemBinaryFallback, forKey: .nativePsqlAllowSystemBinaryFallback)
         try container.encode(nativePsqlAllowShellEscape, forKey: .nativePsqlAllowShellEscape)
         try container.encode(nativePsqlAllowFileCommands, forKey: .nativePsqlAllowFileCommands)
-        try container.encode(sidebarColoredIcons, forKey: .sidebarColoredIcons)
+        try container.encode(sidebarIconColorMode, forKey: .sidebarIconColorMode)
+        try container.encode(sidebarIconSize, forKey: .sidebarIconSize)
         try container.encode(notificationPreferences, forKey: .notificationPreferences)
     }
 

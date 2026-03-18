@@ -33,7 +33,7 @@ struct ObjectBrowserSidebarView: View {
             ScrollView {
                 LazyVStack(spacing: 0) {
                     Color.clear
-                        .frame(height: SpacingTokens.xxs2)
+                        .frame(height: SpacingTokens.sm)
                         .id(ExplorerSidebarConstants.objectsTopAnchor)
 
                     if sessions.isEmpty {
@@ -44,6 +44,7 @@ struct ObjectBrowserSidebarView: View {
                         ForEach(sessions, id: \.connection.id) { session in
                             if sidebarSearchQuery == nil || serverMatchesSearch(session) {
                                 serverSection(session: session, proxy: proxy)
+                                    .padding(.bottom, SpacingTokens.sm) // Restored list-like spacing
                             }
                         }
 
@@ -52,12 +53,11 @@ struct ObjectBrowserSidebarView: View {
                     }
                 }
             }
+            .contentMargins(.horizontal, SidebarRowConstants.rowOuterHorizontalPadding, for: .scrollContent)
+            .scrollIndicators(.automatic)
             .buttonStyle(.plain)
             .focusable(false)
             .scrollContentBackground(.hidden)
-            .scrollIndicators(.hidden)
-            .contentMargins(.zero, for: .scrollContent)
-            .contentShape(Rectangle())
             .coordinateSpace(name: ExplorerSidebarConstants.scrollCoordinateSpace)
             .clipped()
             .safeAreaInset(edge: .bottom, spacing: 0) {

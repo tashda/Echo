@@ -122,4 +122,39 @@ final class MockDatabaseSession: DatabaseSession, DatabaseMetadataSession, @unch
         loadSchemaInfoCallCount += 1
         return try await loadSchemaInfoHandler(schemaName, progress)
     }
+
+    // MARK: - Maintenance Methods
+    func rebuildIndex(schema: String, table: String, index: String) async throws -> DatabaseMaintenanceResult {
+        DatabaseMaintenanceResult(operation: "Rebuild", messages: [], succeeded: true)
+    }
+    func rebuildIndexes(schema: String, table: String) async throws -> DatabaseMaintenanceResult {
+        DatabaseMaintenanceResult(operation: "Rebuild", messages: [], succeeded: true)
+    }
+    func dropIndex(schema: String, name: String) async throws {}
+    func vacuumTable(schema: String, table: String, full: Bool, analyze: Bool) async throws {}
+    func analyzeTable(schema: String, table: String) async throws {}
+    func reindexTable(schema: String, table: String) async throws {}
+    func listFragmentedIndexes() async throws -> [SQLServerIndexFragmentation] { [] }
+    func getDatabaseHealth() async throws -> SQLServerDatabaseHealth {
+        SQLServerDatabaseHealth(name: "", owner: "", createDate: Date(), sizeMB: 0, recoveryModel: "", status: "", compatibilityLevel: 0, collationName: nil)
+    }
+    func getBackupHistory(limit: Int) async throws -> [SQLServerBackupHistoryEntry] { [] }
+
+    func checkDatabaseIntegrity() async throws -> DatabaseMaintenanceResult {
+        DatabaseMaintenanceResult(operation: "Check", messages: [], succeeded: true)
+    }
+    func shrinkDatabase() async throws -> DatabaseMaintenanceResult {
+        DatabaseMaintenanceResult(operation: "Shrink", messages: [], succeeded: true)
+    }
+    func updateTableStatistics(schema: String, table: String) async throws -> DatabaseMaintenanceResult {
+        DatabaseMaintenanceResult(operation: "Statistics", messages: [], succeeded: true)
+    }
+    func updateIndexStatistics(schema: String, table: String, index: String) async throws -> DatabaseMaintenanceResult {
+        DatabaseMaintenanceResult(operation: "Statistics", messages: [], succeeded: true)
+    }
+    func sessionForDatabase(_ database: String) async throws -> DatabaseSession { self }
+    func currentDatabaseName() async throws -> String? { nil }
+    func makeActivityMonitor() throws -> any DatabaseActivityMonitoring { fatalError() }
+    func listExtensionObjects(extensionName: String) async throws -> [ExtensionObjectInfo] { [] }
+    func isSuperuser() async throws -> Bool { false }
 }

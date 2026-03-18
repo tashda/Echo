@@ -5,6 +5,15 @@ import SQLServerKit
 // MARK: - Security Context Menu & UI Helpers
 
 extension ObjectBrowserSidebarView {
+    enum SecuritySidebarDepth {
+        static let serverSection = 1
+        static let serverNestedSection = 2
+        static let serverLeaf = 2
+
+        static let databaseSection = 3
+        static let databaseLeaf = 4
+    }
+
     // MARK: - Security Folder Context Menu
 
     @ViewBuilder
@@ -55,7 +64,8 @@ extension ObjectBrowserSidebarView {
             set: { _ in action() }
         )
 
-        let iconColor = projectStore.globalSettings.sidebarColoredIcons ? ExplorerSidebarPalette.security : ExplorerSidebarPalette.monochrome
+        let colored = projectStore.globalSettings.sidebarIconColorMode == .colorful
+        let iconColor = ExplorerSidebarPalette.folderIconColor(title: title, colored: colored)
 
         return Button(action: action) {
             SidebarRow(

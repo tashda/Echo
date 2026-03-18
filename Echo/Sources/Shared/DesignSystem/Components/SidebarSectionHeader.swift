@@ -16,22 +16,22 @@ public struct SidebarSectionHeader<Trailing: View>: View {
     }
 
     public var body: some View {
-        HStack(spacing: SpacingTokens.xxs) {
+        HStack(spacing: SidebarRowConstants.iconTextSpacing) {
             Text(title)
                 .font(SidebarRowConstants.sectionHeaderFont)
                 .foregroundStyle(ColorTokens.Text.secondary)
 
-            Spacer(minLength: SpacingTokens.xxxs)
+            Spacer(minLength: SpacingTokens.xxs)
 
             trailing()
 
             if let isExpanded {
                 Image(systemName: isExpanded.wrappedValue ? "chevron.down" : "chevron.right")
-                    .font(.system(size: 8, weight: .bold))
+                    .font(.system(size: 9, weight: .semibold))
                     .foregroundStyle(ColorTokens.Text.quaternary)
             }
         }
-        .padding(.leading, SidebarRowConstants.rowLeadingPadding + SidebarRowConstants.chevronWidth + SidebarRowConstants.iconTextSpacing)
+        .padding(.leading, SidebarRowConstants.chevronWidth + SidebarRowConstants.iconTextSpacing + SidebarRowConstants.rowLeadingPadding)
         .padding(.trailing, SidebarRowConstants.rowTrailingPadding)
         .padding(.top, SpacingTokens.sm)
         .padding(.bottom, SpacingTokens.xxxs)

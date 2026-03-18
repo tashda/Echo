@@ -15,7 +15,7 @@ extension ObjectBrowserSidebarView {
 
         VStack(alignment: .leading, spacing: 0) {
             securitySectionHeader(
-                depth: 1,
+                depth: SecuritySidebarDepth.serverSection,
                 title: "Login Roles",
                 icon: "person.crop.circle",
                 count: loginRoles.count,
@@ -60,7 +60,7 @@ extension ObjectBrowserSidebarView {
 
         VStack(alignment: .leading, spacing: 0) {
             securitySectionHeader(
-                depth: 1,
+                depth: SecuritySidebarDepth.serverSection,
                 title: "Group Roles",
                 icon: "person.2.circle",
                 count: groupRoles.count,
@@ -97,14 +97,16 @@ extension ObjectBrowserSidebarView {
     func pgRoleRow(role: ObjectBrowserSidebarViewModel.SecurityLoginItem, session: ConnectionSession) -> some View {
         let iconName = role.loginType.contains("Login") || role.loginType.contains("Superuser") ? "person.crop.circle" : "person.2.circle"
 
-        let iconColor = projectStore.globalSettings.sidebarColoredIcons ? ExplorerSidebarPalette.security : ExplorerSidebarPalette.monochrome
+        let isColorful = projectStore.globalSettings.sidebarIconColorMode == .colorful
+        let iconColor = ExplorerSidebarPalette.folderIconColor(title: "Users", colored: isColorful)
 
         return SidebarRow(
-            depth: 2,
+            depth: SecuritySidebarDepth.serverLeaf,
             icon: .system(iconName),
             label: role.name,
             iconColor: iconColor
-        ) {
+        )
+ {
             Text(role.loginType)
                 .font(SidebarRowConstants.trailingFont)
                 .foregroundStyle(ColorTokens.Text.tertiary)

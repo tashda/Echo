@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct InspectorPanelView: View {
-    let content: ForeignKeyInspectorContent
+    let content: DatabaseObjectInspectorContent
     let depth: Int
     @Environment(EnvironmentState.self) private var environmentState
 

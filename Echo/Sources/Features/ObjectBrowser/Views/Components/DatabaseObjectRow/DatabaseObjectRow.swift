@@ -45,7 +45,7 @@ struct DatabaseObjectRow: View, Equatable {
     }
 
     private var iconColor: Color {
-        ExplorerSidebarPalette.objectGroupIconColor(for: object.type, colored: projectStore.globalSettings.sidebarColoredIcons)
+        ExplorerSidebarPalette.objectGroupIconColor(for: object.type, colored: projectStore.globalSettings.sidebarIconColorMode == .colorful)
     }
 
     var body: some View {

@@ -18,7 +18,7 @@ struct ShortcutRowView: View {
     private var isCustomized: Bool { customBinding != nil }
 
     var body: some View {
-        LabeledContent {
+        PropertyRow(title: item.title) {
             HStack(spacing: SpacingTokens.xs) {
                 if isRecording {
                     ShortcutRecorderField(
@@ -42,8 +42,6 @@ struct ShortcutRowView: View {
                         }
                 }
             }
-        } label: {
-            Text(item.title)
         }
         .contentShape(Rectangle())
         .onTapGesture {

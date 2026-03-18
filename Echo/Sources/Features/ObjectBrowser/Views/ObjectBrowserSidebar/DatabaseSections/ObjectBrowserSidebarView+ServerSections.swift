@@ -22,7 +22,7 @@ extension ObjectBrowserSidebarView {
         .task { viewModel.initializeSessionState(for: session, autoExpandSections: projectStore.globalSettings.sidebarExpandSections(for: session.connection.databaseType)) }
     }
 
-    /// Finder-style section header for a connected server.
+    /// A visually rich connection header for a connected server (macOS System Settings style).
     func serverSectionHeader(session: ConnectionSession, isExpanded: Bool) -> some View {
         let expandedBinding = Binding<Bool>(
             get: { isExpanded },
@@ -39,21 +39,27 @@ extension ObjectBrowserSidebarView {
             }
         )
 
-        return Button {
-            expandedBinding.wrappedValue.toggle()
-        } label: {
-            SidebarSectionHeader(
-                title: serverDisplayName(session),
-                isExpanded: expandedBinding
-            ) {
-                if let version = serverVersionLabel(session) {
-                    Text(version)
-                        .font(SidebarRowConstants.trailingFont)
-                        .foregroundStyle(ColorTokens.Text.tertiary)
-                }
+        let subtitle: String = {
+            let typeName = session.connection.databaseType.displayName
+            if let version = serverVersionLabel(session) {
+                return "\(typeName) (\(version))"
             }
-        }
-        .buttonStyle(.plain)
+            return typeName
+        }()
+
+        return SidebarConnectionHeader(
+            connectionName: serverDisplayName(session),
+            subtitle: subtitle,
+            databaseType: session.connection.databaseType,
+            connectionColor: resolvedAccentColor(for: session.connection),
+            isExpanded: expandedBinding,
+            isColorful: projectStore.globalSettings.sidebarIconColorMode == .colorful,
+            isSecure: session.connection.useTLS,
+            connectionState: session.connectionState,
+            onAction: {
+                expandedBinding.wrappedValue.toggle()
+            }
+        )
         .contextMenu {
             serverContextMenu(session: session)
         }

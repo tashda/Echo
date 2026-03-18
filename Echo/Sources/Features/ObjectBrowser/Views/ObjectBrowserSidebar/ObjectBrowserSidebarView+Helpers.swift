@@ -132,4 +132,15 @@ extension ObjectBrowserSidebarView {
             selectedConnectionID = connection.id
         }
     }
+
+    func resolvedAccentColor(for connection: SavedConnection) -> Color {
+        switch projectStore.globalSettings.accentColorSource {
+        case .system:
+            return Color.accentColor
+        case .connection:
+            return connection.color
+        case .custom:
+            return ColorTokens.accent
+        }
+    }
 }

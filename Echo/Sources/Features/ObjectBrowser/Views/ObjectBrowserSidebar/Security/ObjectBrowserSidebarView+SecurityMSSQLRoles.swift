@@ -15,7 +15,7 @@ extension ObjectBrowserSidebarView {
 
         VStack(alignment: .leading, spacing: 0) {
             securitySectionHeader(
-                depth: 1,
+                depth: SecuritySidebarDepth.serverSection,
                 title: "Server Roles",
                 icon: "shield",
                 count: roles.count,
@@ -48,11 +48,12 @@ extension ObjectBrowserSidebarView {
     }
 
     func serverRoleRow(role: ObjectBrowserSidebarViewModel.SecurityServerRoleItem, session: ConnectionSession) -> some View {
-        SidebarRow(
-            depth: 2,
+        let colored = projectStore.globalSettings.sidebarIconColorMode == .colorful
+        return SidebarRow(
+            depth: SecuritySidebarDepth.serverLeaf,
             icon: .system("shield"),
             label: role.name,
-            iconColor: projectStore.globalSettings.sidebarColoredIcons ? ExplorerSidebarPalette.security : ExplorerSidebarPalette.monochrome
+            iconColor: ExplorerSidebarPalette.folderIconColor(title: "Server Roles", colored: colored)
         ) {
             if role.isFixed {
                 Text("Fixed")
@@ -119,7 +120,7 @@ extension ObjectBrowserSidebarView {
 
         VStack(alignment: .leading, spacing: 0) {
             securitySectionHeader(
-                depth: 1,
+                depth: SecuritySidebarDepth.serverSection,
                 title: "Credentials",
                 icon: "key",
                 count: credentials.count,
@@ -133,7 +134,7 @@ extension ObjectBrowserSidebarView {
             if isExpanded {
                 if credentials.isEmpty {
                     SidebarRow(
-                        depth: 2,
+                        depth: SecuritySidebarDepth.serverLeaf,
                         icon: .none,
                         label: "No credentials found",
                         labelColor: ColorTokens.Text.tertiary,
@@ -149,11 +150,12 @@ extension ObjectBrowserSidebarView {
     }
 
     func credentialRow(credential: ObjectBrowserSidebarViewModel.SecurityCredentialItem, session: ConnectionSession) -> some View {
-        SidebarRow(
-            depth: 2,
+        let colored = projectStore.globalSettings.sidebarIconColorMode == .colorful
+        return SidebarRow(
+            depth: SecuritySidebarDepth.serverLeaf,
             icon: .system("key"),
             label: credential.name,
-            iconColor: projectStore.globalSettings.sidebarColoredIcons ? ExplorerSidebarPalette.security : ExplorerSidebarPalette.monochrome
+            iconColor: ExplorerSidebarPalette.folderIconColor(title: "Credentials", colored: colored)
         ) {
             Text(credential.identity)
                 .font(SidebarRowConstants.trailingFont)
