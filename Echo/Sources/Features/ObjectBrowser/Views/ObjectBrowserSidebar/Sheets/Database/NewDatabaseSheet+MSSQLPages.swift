@@ -8,14 +8,16 @@ extension NewDatabaseSheet {
     @ViewBuilder
     func mssqlGeneralPage() -> some View {
         Section("Database") {
-            LabeledContent("Name") {
+            PropertyRow(title: "Name") {
                 TextField("NewDatabase", text: $databaseName)
-                    .frame(width: 200)
+                    .textFieldStyle(.plain)
+                    .multilineTextAlignment(.trailing)
             }
 
-            LabeledContent("Owner") {
+            PropertyRow(title: "Owner") {
                 TextField("(server default)", text: $owner)
-                    .frame(width: 200)
+                    .textFieldStyle(.plain)
+                    .multilineTextAlignment(.trailing)
             }
         }
     }
@@ -23,72 +25,54 @@ extension NewDatabaseSheet {
     @ViewBuilder
     func mssqlFilesPage() -> some View {
         Section("Data File") {
-            LabeledContent("Logical Name") {
+            PropertyRow(title: "Logical Name") {
                 TextField("", text: $mssqlDataFileName)
-                    .frame(width: 200)
+                    .textFieldStyle(.plain)
+                    .multilineTextAlignment(.trailing)
             }
 
-            LabeledContent("Initial Size") {
-                HStack(spacing: SpacingTokens.xs) {
-                    TextField("", value: $mssqlDataFileSize, format: .number)
-                        .frame(width: 60)
-                    Text("MB")
-                        .foregroundStyle(ColorTokens.Text.secondary)
-                }
+            PropertyRow(title: "Initial Size", subtitle: "MB") {
+                TextField("", value: $mssqlDataFileSize, format: .number)
+                    .textFieldStyle(.plain)
+                    .multilineTextAlignment(.trailing)
             }
 
-            LabeledContent("Max Size") {
-                HStack(spacing: SpacingTokens.xs) {
-                    TextField("", value: $mssqlDataFileMaxSize, format: .number)
-                        .frame(width: 60)
-                    Text("MB (0 = unlimited)")
-                        .font(TypographyTokens.detail)
-                        .foregroundStyle(ColorTokens.Text.tertiary)
-                }
+            PropertyRow(title: "Max Size", subtitle: "MB (0 = unlimited)") {
+                TextField("", value: $mssqlDataFileMaxSize, format: .number)
+                    .textFieldStyle(.plain)
+                    .multilineTextAlignment(.trailing)
             }
 
-            LabeledContent("File Growth") {
-                HStack(spacing: SpacingTokens.xs) {
-                    TextField("", value: $mssqlDataFileGrowth, format: .number)
-                        .frame(width: 60)
-                    Text("MB")
-                        .foregroundStyle(ColorTokens.Text.secondary)
-                }
+            PropertyRow(title: "File Growth", subtitle: "MB") {
+                TextField("", value: $mssqlDataFileGrowth, format: .number)
+                    .textFieldStyle(.plain)
+                    .multilineTextAlignment(.trailing)
             }
         }
 
         Section("Log File") {
-            LabeledContent("Logical Name") {
+            PropertyRow(title: "Logical Name") {
                 TextField("", text: $mssqlLogFileName)
-                    .frame(width: 200)
+                    .textFieldStyle(.plain)
+                    .multilineTextAlignment(.trailing)
             }
 
-            LabeledContent("Initial Size") {
-                HStack(spacing: SpacingTokens.xs) {
-                    TextField("", value: $mssqlLogFileSize, format: .number)
-                        .frame(width: 60)
-                    Text("MB")
-                        .foregroundStyle(ColorTokens.Text.secondary)
-                }
+            PropertyRow(title: "Initial Size", subtitle: "MB") {
+                TextField("", value: $mssqlLogFileSize, format: .number)
+                    .textFieldStyle(.plain)
+                    .multilineTextAlignment(.trailing)
             }
 
-            LabeledContent("Max Size") {
-                HStack(spacing: SpacingTokens.xs) {
-                    TextField("", value: $mssqlLogFileMaxSize, format: .number)
-                        .frame(width: 60)
-                    Text("MB (0 = unlimited)")
-                        .font(TypographyTokens.detail)
-                        .foregroundStyle(ColorTokens.Text.tertiary)
-                }
+            PropertyRow(title: "Max Size", subtitle: "MB (0 = unlimited)") {
+                TextField("", value: $mssqlLogFileMaxSize, format: .number)
+                    .textFieldStyle(.plain)
+                    .multilineTextAlignment(.trailing)
             }
 
-            LabeledContent("File Growth") {
-                HStack(spacing: SpacingTokens.xs) {
-                    TextField("", value: $mssqlLogFileGrowth, format: .number)
-                        .frame(width: 60)
-                    Text("MB")
-                        .foregroundStyle(ColorTokens.Text.secondary)
-                }
+            PropertyRow(title: "File Growth", subtitle: "MB") {
+                TextField("", value: $mssqlLogFileGrowth, format: .number)
+                    .textFieldStyle(.plain)
+                    .multilineTextAlignment(.trailing)
             }
         }
     }
@@ -97,24 +81,33 @@ extension NewDatabaseSheet {
     func mssqlOptionsPage() -> some View {
         Section("Collation") {
             if mssqlCollations.isEmpty {
-                LabeledContent("Collation") {
+                PropertyRow(title: "Collation") {
                     TextField("(server default)", text: $mssqlCollation)
-                        .frame(width: 200)
+                        .textFieldStyle(.plain)
+                        .multilineTextAlignment(.trailing)
                 }
             } else {
-                Picker("Collation", selection: $mssqlCollation) {
-                    Text("(server default)").tag("")
-                    ForEach(mssqlCollations, id: \.self) { c in
-                        Text(c).tag(c)
+                PropertyRow(title: "Collation") {
+                    Picker("", selection: $mssqlCollation) {
+                        Text("(server default)").tag("")
+                        ForEach(mssqlCollations, id: \.self) { c in
+                            Text(c).tag(c)
+                        }
                     }
+                    .labelsHidden()
+                    .pickerStyle(.menu)
                 }
             }
         }
 
         Section("Containment") {
-            Picker("Containment Type", selection: $mssqlContainment) {
-                Text("None").tag("NONE")
-                Text("Partial").tag("PARTIAL")
+            PropertyRow(title: "Containment Type") {
+                Picker("", selection: $mssqlContainment) {
+                    Text("None").tag("NONE")
+                    Text("Partial").tag("PARTIAL")
+                }
+                .labelsHidden()
+                .pickerStyle(.menu)
             }
         }
     }

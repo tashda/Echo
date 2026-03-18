@@ -22,14 +22,15 @@ extension ObjectBrowserSidebarView {
     }
 
     func agentJobsOverviewButton(session: ConnectionSession) -> some View {
-        Button {
+        let colored = projectStore.globalSettings.sidebarIconColorMode == .colorful
+        return Button {
             environmentState.openJobQueueTab(for: session)
         } label: {
             SidebarRow(
                 depth: 1,
                 icon: .system("list.bullet.rectangle"),
                 label: "Agent Jobs Overview",
-                iconColor: projectStore.globalSettings.sidebarColoredIcons ? ExplorerSidebarPalette.jobs : ExplorerSidebarPalette.monochrome
+                iconColor: ExplorerSidebarPalette.folderIconColor(title: "Agent Jobs", colored: colored)
             )
         }
         .buttonStyle(.plain)
@@ -59,8 +60,9 @@ extension ObjectBrowserSidebarView {
     }
 
     func agentJobRow(job: ObjectBrowserSidebarViewModel.AgentJobItem, session: ConnectionSession) -> some View {
+        let colored = projectStore.globalSettings.sidebarIconColorMode == .colorful
         let statusColor = job.enabled
-            ? agentJobStatusColor(job.lastOutcome, enabled: true)
+            ? agentJobStatusColor(job.lastOutcome, enabled: true, colored: colored)
             : ColorTokens.Text.quaternary
 
         return Button {
@@ -90,15 +92,15 @@ extension ObjectBrowserSidebarView {
         }
     }
 
-    func agentJobStatusColor(_ outcome: String?, enabled: Bool) -> Color {
+    func agentJobStatusColor(_ outcome: String?, enabled: Bool, colored: Bool = true) -> Color {
         guard enabled else { return ColorTokens.Text.primary.opacity(0.2) }
         switch outcome?.lowercased() {
-        case "succeeded": return .green
+        case "succeeded": return colored ? ExplorerSidebarPalette.jobs : .green
         case "failed": return .red
         case "in progress": return .orange
         case "retry": return .yellow
         case "canceled": return ColorTokens.Text.primary.opacity(0.3)
-        default: return ColorTokens.Text.primary.opacity(0.2)
+        default: return colored ? ExplorerSidebarPalette.jobs : ColorTokens.Text.primary.opacity(0.2)
         }
     }
 }

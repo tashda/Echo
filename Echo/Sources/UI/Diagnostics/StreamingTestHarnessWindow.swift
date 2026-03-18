@@ -113,7 +113,12 @@ private final class StreamingTestHarnessDatabaseSession: DatabaseSession, @unche
     func renameTable(schema: String?, oldName: String, newName: String) async throws {}
     func dropTable(schema: String?, name: String, ifExists: Bool) async throws {}
     func truncateTable(schema: String?, name: String) async throws {}
-    func rebuildIndex(schema: String, table: String, index: String) async throws {}
+    func rebuildIndex(schema: String, table: String, index: String) async throws -> DatabaseMaintenanceResult {
+        DatabaseMaintenanceResult(operation: "Rebuild", messages: [], succeeded: true)
+    }
+    func rebuildIndexes(schema: String, table: String) async throws -> DatabaseMaintenanceResult {
+        DatabaseMaintenanceResult(operation: "Rebuild", messages: [], succeeded: true)
+    }
     func vacuumTable(schema: String, table: String, full: Bool, analyze: Bool) async throws {}
     func analyzeTable(schema: String, table: String) async throws {}
     func reindexTable(schema: String, table: String) async throws {}

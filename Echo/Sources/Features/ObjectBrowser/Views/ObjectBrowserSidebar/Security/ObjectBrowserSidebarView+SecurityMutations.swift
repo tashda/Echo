@@ -26,7 +26,7 @@ extension ObjectBrowserSidebarView {
     func dropMSSQLUser(name: String, database: String, session: ConnectionSession) async {
         guard let mssql = session.session as? MSSQLSession else { return }
         do {
-            _ = try? await session.session.simpleQuery("USE [\(database)]")
+            _ = try? await session.session.sessionForDatabase(database)
             let sec = mssql.security
             try await sec.dropUser(name: name)
             // Reload db security

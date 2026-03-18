@@ -125,8 +125,8 @@ struct DatabasePropertiesSheet: View {
             HStack {
                 if let status = statusMessage {
                     Text(status)
-                        .font(TypographyTokens.detail)
-                        .foregroundStyle(ColorTokens.Text.secondary)
+                        .font(TypographyTokens.formDescription)
+                        .foregroundStyle(ColorTokens.Status.error)
                         .lineLimit(1)
                 }
                 Spacer()
@@ -135,6 +135,7 @@ struct DatabasePropertiesSheet: View {
                         .controlSize(.small)
                 }
                 Button("Cancel") { onDismiss() }
+                    .buttonStyle(.bordered)
                     .keyboardShortcut(.cancelAction)
                 Button("Done") {
                     if isPostgres {
@@ -143,7 +144,8 @@ struct DatabasePropertiesSheet: View {
                     }
                     onDismiss()
                 }
-                    .keyboardShortcut(.defaultAction)
+                .buttonStyle(.borderedProminent)
+                .keyboardShortcut(.defaultAction)
             }
             .padding(SpacingTokens.md)
         }

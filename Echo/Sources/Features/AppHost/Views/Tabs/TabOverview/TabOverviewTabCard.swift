@@ -199,7 +199,7 @@ struct TabPreviewCard: View {
             }
         case .activityMonitor:
             ActivityMonitorPreview(viewModel: tab.activityMonitor)
-        case .maintenance:
+        case .maintenance, .mssqlMaintenance:
             MaintenancePreview()
         case .queryStore:
             QueryStorePreview(viewModel: tab.queryStoreVM)

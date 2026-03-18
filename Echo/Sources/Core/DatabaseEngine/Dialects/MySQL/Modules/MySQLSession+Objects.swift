@@ -141,6 +141,55 @@ extension MySQLSession {
             throw DatabaseError.queryError(error.localizedDescription)
         }
     }
+
+    func rebuildIndex(schema: String, table: String, index: String) async throws -> DatabaseMaintenanceResult {
+        return DatabaseMaintenanceResult(operation: "Rebuild", messages: ["Not implemented"], succeeded: false)
+    }
+
+    func rebuildIndexes(schema: String, table: String) async throws -> DatabaseMaintenanceResult {
+        return DatabaseMaintenanceResult(operation: "Rebuild", messages: ["Not implemented"], succeeded: false)
+    }
+
+    func dropIndex(schema: String, name: String) async throws {
+        _ = try await executeUpdate("DROP INDEX `\(name.replacingOccurrences(of: "`", with: "``"))` ON `\(schema.replacingOccurrences(of: "`", with: "``"))`.`\(name.replacingOccurrences(of: "`", with: "``"))`")
+    }
+
+    func vacuumTable(schema: String, table: String, full: Bool, analyze: Bool) async throws {
+        _ = try await simpleQuery("OPTIMIZE TABLE `\(schema)`.`\(table)`")
+    }
+
+    func analyzeTable(schema: String, table: String) async throws {
+        _ = try await simpleQuery("ANALYZE TABLE `\(schema)`.`\(table)`")
+    }
+
+    func reindexTable(schema: String, table: String) async throws {
+        _ = try await simpleQuery("OPTIMIZE TABLE `\(schema)`.`\(table)`")
+    }
+
+    func listFragmentedIndexes() async throws -> [SQLServerIndexFragmentation] {
+        []
+    }
+
+    func getDatabaseHealth() async throws -> SQLServerDatabaseHealth {
+        SQLServerDatabaseHealth(name: "", owner: "", createDate: Date(), sizeMB: 0, recoveryModel: "", status: "", compatibilityLevel: 0, collationName: nil)
+    }
+
+    func getBackupHistory(limit: Int) async throws -> [SQLServerBackupHistoryEntry] {
+        []
+    }
+
+    func checkDatabaseIntegrity() async throws -> DatabaseMaintenanceResult {
+        DatabaseMaintenanceResult(operation: "Check Integrity", messages: ["Not implemented"], succeeded: false)
+    }
+
+    func shrinkDatabase() async throws -> DatabaseMaintenanceResult {
+        DatabaseMaintenanceResult(operation: "Shrink", messages: ["Not implemented"], succeeded: false)
+    }
+
+    func updateTableStatistics(schema: String, table: String) async throws -> DatabaseMaintenanceResult {
+        _ = try await simpleQuery("ANALYZE TABLE `\(schema)`.`\(table)`")
+        return DatabaseMaintenanceResult(operation: "Analyze", messages: ["Table analyzed."], succeeded: true)
+    }
 }
 
 extension MySQLSession: DatabaseMetadataSession {

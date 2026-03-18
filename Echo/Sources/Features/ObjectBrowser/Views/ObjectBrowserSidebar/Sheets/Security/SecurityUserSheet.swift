@@ -110,7 +110,7 @@ struct SecurityUserSheet: View {
                 Image(systemName: "exclamationmark.triangle.fill")
                     .foregroundStyle(ColorTokens.Status.warning)
                 Text(error)
-                    .font(TypographyTokens.detail)
+                    .font(TypographyTokens.formDescription)
                     .foregroundStyle(ColorTokens.Text.secondary)
                     .lineLimit(2)
             }
@@ -120,11 +120,13 @@ struct SecurityUserSheet: View {
             Button("Cancel", role: .cancel) {
                 onComplete()
             }
+            .buttonStyle(.bordered)
             .keyboardShortcut(.cancelAction)
 
             Button(isEditing ? "Save" : "Create User") {
                 Task { await submit() }
             }
+            .buttonStyle(.borderedProminent)
             .keyboardShortcut(.defaultAction)
             .disabled(!isFormValid)
         }
@@ -137,15 +139,26 @@ struct SecurityUserSheet: View {
     private var generalPage: some View {
         Section(isEditing ? "User Properties" : "New Database User") {
             if isEditing {
-                LabeledContent("User Name", value: userName)
+                PropertyRow(title: "User Name") {
+                    Text(userName)
+                        .foregroundStyle(ColorTokens.Text.secondary)
+                }
             } else {
-                TextField("User Name", text: $userName)
+                PropertyRow(title: "User Name") {
+                    TextField("", text: $userName)
+                        .textFieldStyle(.plain)
+                        .multilineTextAlignment(.trailing)
+                }
             }
 
             if !isEditing {
-                Picker("User Type", selection: $userType) {
-                    Text("Mapped to Login").tag(UserTypeChoice.mappedToLogin)
-                    Text("Without Login").tag(UserTypeChoice.withoutLogin)
+                PropertyRow(title: "User Type") {
+                    Picker("", selection: $userType) {
+                        Text("Mapped to Login").tag(UserTypeChoice.mappedToLogin)
+                        Text("Without Login").tag(UserTypeChoice.withoutLogin)
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.menu)
                 }
             }
         }
@@ -153,24 +166,39 @@ struct SecurityUserSheet: View {
         if userType == .mappedToLogin {
             Section("Login Mapping") {
                 if availableLogins.isEmpty {
-                    TextField("Login Name", text: $loginName)
+                    PropertyRow(title: "Login Name") {
+                        TextField("", text: $loginName)
+                            .textFieldStyle(.plain)
+                            .multilineTextAlignment(.trailing)
+                    }
                 } else {
-                    Picker("Login Name", selection: $loginName) {
-                        Text("Select a login\u{2026}").tag("")
-                        ForEach(availableLogins, id: \.self) { login in
-                            Text(login).tag(login)
+                    PropertyRow(title: "Login Name") {
+                        Picker("", selection: $loginName) {
+                            Text("Select a login\u{2026}").tag("")
+                            ForEach(availableLogins, id: \.self) { login in
+                                Text(login).tag(login)
+                            }
                         }
+                        .labelsHidden()
+                        .pickerStyle(.menu)
                     }
                 }
             }
         }
 
         Section("Schema") {
-            TextField("Default Schema", text: $defaultSchema, prompt: Text("dbo"))
+            PropertyRow(title: "Default Schema") {
+                TextField("", text: $defaultSchema, prompt: Text("dbo"))
+                    .textFieldStyle(.plain)
+                    .multilineTextAlignment(.trailing)
+            }
         }
 
         Section {
-            LabeledContent("Database", value: databaseName)
+            PropertyRow(title: "Database") {
+                Text(databaseName)
+                    .foregroundStyle(ColorTokens.Text.secondary)
+            }
         }
     }
 
@@ -183,21 +211,23 @@ struct SecurityUserSheet: View {
                 HStack {
                     ProgressView().controlSize(.small)
                     Text("Loading database roles\u{2026}")
-                        .font(TypographyTokens.detail)
+                        .font(TypographyTokens.formDescription)
                         .foregroundStyle(ColorTokens.Text.secondary)
                 }
             }
         } else {
             Section("Database Role Membership") {
                 ForEach($availableRoles) { $role in
-                    Toggle(isOn: $role.isMember) {
-                        HStack {
-                            Text(role.name)
+                    PropertyRow(title: role.name) {
+                        HStack(spacing: SpacingTokens.xs) {
                             if role.isFixed {
                                 Text("(fixed)")
-                                    .font(TypographyTokens.label)
+                                    .font(TypographyTokens.formDescription)
                                     .foregroundStyle(ColorTokens.Text.tertiary)
                             }
+                            Toggle("", isOn: $role.isMember)
+                                .labelsHidden()
+                                .toggleStyle(.switch)
                         }
                     }
                     .disabled(role.name == "public")

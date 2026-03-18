@@ -3,146 +3,107 @@ import SQLServerKit
 
 struct ExtendedEventsSessionList: View {
     @Bindable var viewModel: ExtendedEventsViewModel
+    @Environment(AppState.self) private var appState
+    @Environment(EnvironmentState.self) private var environmentState
+    
+    @State private var splitFraction: CGFloat = 0.4
 
     var body: some View {
-        HSplitView {
+        NativeSplitView(
+            isVertical: false, // Top/Bottom split like Agent Jobs
+            firstMinFraction: 0.2,
+            secondMinFraction: 0.3,
+            fraction: $splitFraction
+        ) {
             sessionTable
-                .frame(minWidth: 300)
-
-            detailPanel
-                .frame(minWidth: 250)
+        } second: {
+            detailPane
         }
+        .background(ColorTokens.Background.primary)
     }
 
     // MARK: - Session Table
 
     private var sessionTable: some View {
         VStack(alignment: .leading, spacing: 0) {
-            tableHeader
+            HStack {
+                Text("Sessions")
+                    .font(TypographyTokens.prominent.weight(.semibold))
+                Spacer()
+                Button {
+                    viewModel.showCreateSheet = true
+                } label: {
+                    ToolbarAddButton()
+                }
+                .buttonStyle(.plain)
+                .help("New Extended Events Session")
+            }
+            .padding(.horizontal, SpacingTokens.md)
+            .padding(.vertical, SpacingTokens.sm)
+
             Divider()
 
-            if viewModel.sessions.isEmpty {
-                emptyState
-            } else {
-                ScrollView {
-                    LazyVStack(spacing: 0) {
-                        ForEach(viewModel.sessions) { session in
-                            sessionRow(session)
-                            Divider()
-                        }
+            Table(viewModel.sessions, selection: Binding(
+                get: { Set([viewModel.selectedSessionName].compactMap { $0 }) },
+                set: { names in 
+                    if let first = names.first {
+                        Task { await viewModel.selectSession(first) }
+                    }
+                }
+            )) {
+                TableColumn("Name", value: \.name)
+                TableColumn("Status") { session in
+                    Text(session.isRunning ? "Running" : "Stopped")
+                        .font(TypographyTokens.statusLabel)
+                        .foregroundStyle(session.isRunning ? ColorTokens.Status.success : ColorTokens.Text.secondary)
+                }
+                TableColumn("Startup") { session in
+                    Image(systemName: session.startupState ? "checkmark" : "minus")
+                        .font(TypographyTokens.compact)
+                        .foregroundStyle(session.startupState ? ColorTokens.Text.secondary : ColorTokens.Text.quaternary)
+                }
+                .width(60)
+            }
+            .contextMenu(forSelectionType: String.self) { names in
+                if let name = names.first, let session = viewModel.sessions.first(where: { $0.name == name }) {
+                    Button {
+                        Task { await viewModel.toggleSession(session) }
+                    } label: {
+                        Label(session.isRunning ? "Stop Session" : "Start Session", 
+                              systemImage: session.isRunning ? "stop.fill" : "play.fill")
+                    }
+                    
+                    Divider()
+                    
+                    Button(role: .destructive) {
+                        Task { await viewModel.dropSession(name) }
+                    } label: {
+                        Label("Delete Session", systemImage: "trash")
                     }
                 }
             }
         }
     }
 
-    private var tableHeader: some View {
-        HStack(spacing: 0) {
-            Text("Session")
-                .frame(minWidth: 150, alignment: .leading)
-            Text("Status")
-                .frame(width: 80, alignment: .center)
-            Text("Startup")
-                .frame(width: 70, alignment: .center)
-            Text("Actions")
-                .frame(width: 100, alignment: .trailing)
-        }
-        .font(TypographyTokens.compact.weight(.semibold))
-        .foregroundStyle(ColorTokens.Text.secondary)
-        .padding(.horizontal, SpacingTokens.md)
-        .padding(.vertical, SpacingTokens.xs)
-        .background(ColorTokens.Background.secondary.opacity(0.3))
-    }
+    // MARK: - Detail Pane
 
-    private func sessionRow(_ session: SQLServerXESession) -> some View {
-        let isSelected = viewModel.selectedSessionName == session.name
-        let isToggling = viewModel.togglingSessionName == session.name
-
-        return HStack(spacing: 0) {
-            Text(session.name)
-                .font(TypographyTokens.standard)
-                .foregroundStyle(ColorTokens.Text.primary)
-                .frame(minWidth: 150, alignment: .leading)
-                .lineLimit(1)
-
-            HStack(spacing: SpacingTokens.xxxs) {
-                Circle()
-                    .fill(session.isRunning ? ColorTokens.Status.success : ColorTokens.Text.quaternary)
-                    .frame(width: 7, height: 7)
-                Text(session.isRunning ? "Running" : "Stopped")
-                    .font(TypographyTokens.detail)
-                    .foregroundStyle(ColorTokens.Text.secondary)
-            }
-            .frame(width: 80, alignment: .center)
-
-            Image(systemName: session.startupState ? "checkmark" : "minus")
-                .font(TypographyTokens.compact)
-                .foregroundStyle(session.startupState ? ColorTokens.Text.secondary : ColorTokens.Text.quaternary)
-                .frame(width: 70, alignment: .center)
-
-            HStack(spacing: SpacingTokens.xs) {
-                Button {
-                    Task { await viewModel.toggleSession(session) }
-                } label: {
-                    Image(systemName: session.isRunning ? "stop.fill" : "play.fill")
-                        .font(TypographyTokens.compact)
-                }
-                .buttonStyle(.borderless)
-                .disabled(isToggling)
-                .help(session.isRunning ? "Stop session" : "Start session")
-
-                Button(role: .destructive) {
-                    Task { await viewModel.dropSession(session.name) }
-                } label: {
-                    Image(systemName: "trash")
-                        .font(TypographyTokens.compact)
-                }
-                .buttonStyle(.borderless)
-                .help("Drop session")
-            }
-            .frame(width: 100, alignment: .trailing)
-        }
-        .padding(.horizontal, SpacingTokens.md)
-        .padding(.vertical, SpacingTokens.xs)
-        .background(isSelected ? ColorTokens.accent.opacity(0.1) : Color.clear)
-        .contentShape(Rectangle())
-        .onTapGesture {
-            Task { await viewModel.selectSession(session.name) }
-        }
-    }
-
-    private var emptyState: some View {
-        VStack(spacing: SpacingTokens.sm) {
-            Image(systemName: "waveform.path.ecg")
-                .font(.title2)
-                .foregroundStyle(ColorTokens.Text.tertiary)
-            Text("No Extended Events sessions")
-                .font(TypographyTokens.standard)
-                .foregroundStyle(ColorTokens.Text.secondary)
-            Text("Create a session to start capturing events.")
-                .font(TypographyTokens.detail)
-                .foregroundStyle(ColorTokens.Text.tertiary)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-
-    // MARK: - Detail Panel
-
-    private var detailPanel: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            if let sessionName = viewModel.selectedSessionName {
+    @ViewBuilder
+    private var detailPane: some View {
+        if let sessionName = viewModel.selectedSessionName {
+            VStack(alignment: .leading, spacing: 0) {
                 detailHeader(sessionName)
                 Divider()
-
-                if viewModel.detailLoadingState == .loading {
-                    ProgressView()
+                
+                HSplitView {
+                    sessionProperties(sessionName)
+                        .frame(minWidth: 250, maxWidth: 450)
+                    
+                    liveEventStream
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else if let detail = viewModel.sessionDetail {
-                    detailContent(detail)
                 }
-            } else {
-                noSelectionPlaceholder
             }
+        } else {
+            noSelectionPlaceholder
         }
     }
 
@@ -152,87 +113,92 @@ struct ExtendedEventsSessionList: View {
                 .font(TypographyTokens.standard.weight(.semibold))
                 .foregroundStyle(ColorTokens.Text.primary)
             Spacer()
+            if viewModel.detailLoadingState == .loading {
+                ProgressView().controlSize(.mini)
+            }
         }
         .padding(.horizontal, SpacingTokens.md)
         .padding(.vertical, SpacingTokens.sm)
         .background(ColorTokens.Background.secondary.opacity(0.3))
     }
 
-    private func detailContent(_ detail: SQLServerXESessionDetail) -> some View {
+    private func sessionProperties(_ name: String) -> some View {
         ScrollView {
             VStack(alignment: .leading, spacing: SpacingTokens.lg) {
-                detailEventsSection(detail.events)
-                detailTargetsSection(detail.targets)
+                if let detail = viewModel.sessionDetail {
+                    propertyTable(title: "Configured Events", items: detail.events.map { $0.eventName })
+                    propertyTable(title: "Targets", items: detail.targets.map { $0.targetName })
+                } else if viewModel.detailLoadingState != .loading {
+                    Text("Session details not available.")
+                        .font(TypographyTokens.detail)
+                        .foregroundStyle(ColorTokens.Text.tertiary)
+                }
             }
             .padding(SpacingTokens.md)
         }
+        .background(ColorTokens.Background.secondary.opacity(0.1))
     }
 
-    private func detailEventsSection(_ events: [SQLServerXESessionEvent]) -> some View {
+    private func propertyTable(title: String, items: [String]) -> some View {
         VStack(alignment: .leading, spacing: SpacingTokens.xs) {
-            Text("Events (\(events.count))")
-                .font(TypographyTokens.standard.weight(.semibold))
-                .foregroundStyle(ColorTokens.Text.primary)
-
-            if events.isEmpty {
-                Text("Session is not running — start it to view events.")
-                    .font(TypographyTokens.detail)
-                    .foregroundStyle(ColorTokens.Text.tertiary)
-            } else {
-                ForEach(events) { event in
-                    HStack(spacing: SpacingTokens.xs) {
-                        Image(systemName: "bolt")
-                            .font(TypographyTokens.compact)
-                            .foregroundStyle(ColorTokens.accent)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(event.eventName)
-                                .font(TypographyTokens.standard)
-                                .foregroundStyle(ColorTokens.Text.primary)
-                            Text(event.packageName)
-                                .font(TypographyTokens.compact)
-                                .foregroundStyle(ColorTokens.Text.tertiary)
+            Text(title)
+                .font(TypographyTokens.standard.weight(.bold))
+            
+            VStack(alignment: .leading, spacing: 0) {
+                if items.isEmpty {
+                    Text("No items configured")
+                        .font(TypographyTokens.detail)
+                        .foregroundStyle(ColorTokens.Text.tertiary)
+                        .padding(SpacingTokens.sm)
+                } else {
+                    ForEach(items, id: \.self) { item in
+                        HStack {
+                            Text(item)
+                                .font(TypographyTokens.statusLabel)
+                            Spacer()
+                        }
+                        .padding(.horizontal, SpacingTokens.sm)
+                        .padding(.vertical, 6)
+                        
+                        if item != items.last {
+                            Divider().padding(.leading, SpacingTokens.sm)
                         }
                     }
-                    .padding(.vertical, SpacingTokens.xxxs)
                 }
             }
+            .background(ColorTokens.Background.secondary.opacity(0.3))
+            .cornerRadius(8)
+            .overlay(RoundedRectangle(cornerRadius: 8).stroke(ColorTokens.Background.tertiary.opacity(0.5), lineWidth: 0.5))
         }
     }
 
-    private func detailTargetsSection(_ targets: [SQLServerXESessionTarget]) -> some View {
-        VStack(alignment: .leading, spacing: SpacingTokens.xs) {
-            Text("Targets (\(targets.count))")
-                .font(TypographyTokens.standard.weight(.semibold))
-                .foregroundStyle(ColorTokens.Text.primary)
-
-            if targets.isEmpty {
-                Text("Session is not running — start it to view targets.")
-                    .font(TypographyTokens.detail)
-                    .foregroundStyle(ColorTokens.Text.tertiary)
-            } else {
-                ForEach(targets) { target in
-                    HStack(spacing: SpacingTokens.xs) {
-                        Image(systemName: "target")
-                            .font(TypographyTokens.compact)
-                            .foregroundStyle(ColorTokens.Text.secondary)
-                        Text(target.targetName)
-                            .font(TypographyTokens.standard)
-                            .foregroundStyle(ColorTokens.Text.primary)
-                    }
-                    .padding(.vertical, SpacingTokens.xxxs)
+    private var liveEventStream: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack {
+                Text("Live Data")
+                    .font(TypographyTokens.standard.weight(.semibold))
+                Spacer()
+                if viewModel.eventDataLoadingState == .loading {
+                    ProgressView().controlSize(.mini)
                 }
             }
+            .padding(.horizontal, SpacingTokens.md)
+            .padding(.vertical, SpacingTokens.sm)
+            
+            Divider()
+            
+            ExtendedEventsDataView(viewModel: viewModel)
         }
     }
 
     private var noSelectionPlaceholder: some View {
         VStack(spacing: SpacingTokens.sm) {
-            Image(systemName: "sidebar.right")
-                .font(.title2)
+            Image(systemName: "waveform.path.ecg")
+                .font(.largeTitle)
                 .foregroundStyle(ColorTokens.Text.tertiary)
-            Text("Select a session to view details")
-                .font(TypographyTokens.detail)
-                .foregroundStyle(ColorTokens.Text.tertiary)
+            Text("Select an Extended Events session to view properties and live data.")
+                .font(TypographyTokens.standard)
+                .foregroundStyle(ColorTokens.Text.secondary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }

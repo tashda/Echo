@@ -16,20 +16,20 @@ extension ObjectBrowserSidebarView {
                 title: "Security",
                 icon: "shield",
                 count: nil,
-                isExpanded: isExpanded
-            ) {
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    viewModel.securityFolderExpandedBySession[connID] = !isExpanded
-                }
-                if !isExpanded {
-                    loadServerSecurityIfNeeded(session: session)
-                }
-            }
+                isExpanded: isExpanded,
+                action: {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        viewModel.securityFolderExpandedBySession[connID] = !isExpanded
+                    }
+                    if !isExpanded {
+                        loadServerSecurityIfNeeded(session: session)
+                    }
+                },
+                depth: 0
+            )
 
             if isExpanded {
-                VStack(alignment: .leading, spacing: SpacingTokens.xxxs) {
-                    serverSecurityContent(session: session)
-                }
+                serverSecurityContent(session: session)
             }
         }
     }
@@ -46,15 +46,16 @@ extension ObjectBrowserSidebarView {
                 title: "Security",
                 icon: "shield",
                 count: nil,
-                isExpanded: isExpanded
-            ) {
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    viewModel.securityFolderExpandedBySession[connID] = !isExpanded
+                isExpanded: isExpanded,
+                action: {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        viewModel.securityFolderExpandedBySession[connID] = !isExpanded
+                    }
+                    if !isExpanded {
+                        loadServerSecurityIfNeeded(session: session)
+                    }
                 }
-                if !isExpanded {
-                    loadServerSecurityIfNeeded(session: session)
-                }
-            }
+            )
             .contextMenu {
                 securityFolderContextMenu(session: session)
             }

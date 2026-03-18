@@ -28,6 +28,18 @@ public enum ColorTokens {
         public static let placeholder = Color(nsColor: .placeholderTextColor)
     }
     
+    // Sidebar — Finder sidebar palette (macOS 26 Tahoe Figma reference)
+    public enum Sidebar {
+        /// Symbol fill — #000000 85% (Figma: light-mode sidebar icons)
+        public static let symbol = Color.black.opacity(0.85)
+        /// Selected row highlight — #000000 11% (Figma: sidebar selection pill)
+        public static let selectedFill = Color.black.opacity(0.11)
+        /// Context-menu / right-click highlight
+        public static let contextFill = Color.black.opacity(0.07)
+        /// Hover highlight
+        public static let hoverFill = Color.black.opacity(0.05)
+    }
+
     // Surface fills — lightweight tinted backgrounds for cards, rows, and containers
     public enum Surface {
         /// Default card/container rest fill
@@ -157,13 +169,31 @@ public enum ColorTokens {
 
     // Explorer / Object Browser
     public enum Explorer {
-        public static let database = Color.green
-        public static let tables = Color.teal
-        public static let views = Color.indigo
+        public static let databaseFolder = Color.green
+        public static let databaseInstance = Color.blue
+        public static let tables = Color.cyan
+        public static let views = Color.teal
+        public static let materializedViews = Color.indigo
         public static let functions = Color.orange
+        public static let procedures = Color.red
+        public static let triggers = Color(red: 0.95, green: 0.75, blue: 0.0) // Gold
+        public static let extensions = Color.mint
+
         public static let jobs = Color.blue
-        public static let security = Color.gray
-        public static let extensions = Color.orange
+        public static let security = Color.purple
+        public static let queryStore = Color.indigo
+        public static let users = Color.pink
+        public static let roles = Color.pink
+        public static let logins = Color.pink
+        public static let serverRoles = Color.pink
+        public static let credentials = Color.pink
         public static let linkedServers = Color.purple
+
+        public static let management = Color.brown
+        public static let extendedEvents = Color.teal
+        public static let databaseMail = Color.blue
+        public static let activityMonitor = Color.orange
     }
 }
+
+

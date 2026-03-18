@@ -133,7 +133,7 @@ struct SecurityLoginSheet: View {
                 Image(systemName: "exclamationmark.triangle.fill")
                     .foregroundStyle(ColorTokens.Status.warning)
                 Text(error)
-                    .font(TypographyTokens.detail)
+                    .font(TypographyTokens.formDescription)
                     .foregroundStyle(ColorTokens.Text.secondary)
                     .lineLimit(2)
             }
@@ -143,11 +143,13 @@ struct SecurityLoginSheet: View {
             Button("Cancel", role: .cancel) {
                 onComplete()
             }
+            .buttonStyle(.bordered)
             .keyboardShortcut(.cancelAction)
 
             Button(isEditing ? "Save" : "Create Login") {
                 Task { await submit() }
             }
+            .buttonStyle(.borderedProminent)
             .keyboardShortcut(.defaultAction)
             .disabled(!isFormValid)
         }

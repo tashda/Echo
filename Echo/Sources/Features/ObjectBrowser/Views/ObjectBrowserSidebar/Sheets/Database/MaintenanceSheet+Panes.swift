@@ -6,39 +6,56 @@ extension MaintenanceSheet {
     var actionsPane: some View {
         Form {
             Section("Database Operations") {
-                Button("Check Integrity (CHECKDB)") {
-                    Task { await runDatabaseOp(.checkDB) }
+                PropertyRow(title: "Check Integrity") {
+                    Button("Run CHECKDB") {
+                        Task { await runDatabaseOp(.checkDB) }
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(isRunning)
                 }
-                .disabled(isRunning)
 
-                Button("Shrink Database") {
-                    Task { await runDatabaseOp(.shrink) }
+                PropertyRow(title: "Shrink Database") {
+                    Button("Run Shrink") {
+                        Task { await runDatabaseOp(.shrink) }
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(isRunning)
                 }
-                .disabled(isRunning)
             }
 
             Section("Table Operations") {
                 if isLoadingTables {
-                    ProgressView()
-                        .controlSize(.small)
+                    HStack {
+                        Spacer()
+                        ProgressView().controlSize(.small)
+                    }
                 } else {
                     tablePicker
                 }
 
-                Button("Rebuild Indexes") {
-                    Task { await runTableOp(.rebuildIndexes) }
-                }
-                .disabled(isRunning || selectedTable.isEmpty)
+                PropertyRow(title: "Index Maintenance") {
+                    HStack(spacing: SpacingTokens.xs) {
+                        Button("Rebuild") {
+                            Task { await runTableOp(.rebuildIndexes) }
+                        }
+                        .buttonStyle(.bordered)
+                        .disabled(isRunning || selectedTable.isEmpty)
 
-                Button("Reorganize Indexes") {
-                    Task { await runTableOp(.reorganizeIndexes) }
+                        Button("Reorganize") {
+                            Task { await runTableOp(.reorganizeIndexes) }
+                        }
+                        .buttonStyle(.bordered)
+                        .disabled(isRunning || selectedTable.isEmpty)
+                    }
                 }
-                .disabled(isRunning || selectedTable.isEmpty)
 
-                Button("Update Statistics") {
-                    Task { await runTableOp(.updateStats) }
+                PropertyRow(title: "Statistics") {
+                    Button("Update Statistics") {
+                        Task { await runTableOp(.updateStats) }
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(isRunning || selectedTable.isEmpty)
                 }
-                .disabled(isRunning || selectedTable.isEmpty)
             }
         }
         .formStyle(.grouped)
@@ -48,29 +65,37 @@ extension MaintenanceSheet {
     @ViewBuilder
     var tablePicker: some View {
         let uniqueSchemas = Array(Set(schemas.map(\.schema))).sorted()
-        Picker("Schema", selection: $selectedSchema) {
-            ForEach(uniqueSchemas, id: \.self) { schema in
-                Text(schema).tag(schema)
+        PropertyRow(title: "Schema") {
+            Picker("", selection: $selectedSchema) {
+                ForEach(uniqueSchemas, id: \.self) { schema in
+                    Text(schema).tag(schema)
+                }
             }
-        }
-        .onChange(of: selectedSchema) {
-            let tablesInSchema = schemas.filter { $0.schema == selectedSchema }
-            selectedTable = tablesInSchema.first?.table ?? ""
+            .labelsHidden()
+            .pickerStyle(.menu)
+            .onChange(of: selectedSchema) {
+                let tablesInSchema = schemas.filter { $0.schema == selectedSchema }
+                selectedTable = tablesInSchema.first?.table ?? ""
+            }
         }
 
         let tablesInSchema = schemas.filter { $0.schema == selectedSchema }
-        Picker("Table", selection: $selectedTable) {
-            ForEach(tablesInSchema) { pair in
-                Text(pair.table).tag(pair.table)
+        PropertyRow(title: "Table") {
+            Picker("", selection: $selectedTable) {
+                ForEach(tablesInSchema) { pair in
+                    Text(pair.table).tag(pair.table)
+                }
             }
+            .labelsHidden()
+            .pickerStyle(.menu)
         }
     }
 
     var resultsPane: some View {
         VStack(alignment: .leading, spacing: 0) {
             Text("Results")
-                .font(TypographyTokens.standard.weight(.semibold))
-                .padding(SpacingTokens.sm)
+                .font(TypographyTokens.formSectionTitle)
+                .padding(SpacingTokens.md)
 
             Divider()
 
@@ -78,7 +103,7 @@ extension MaintenanceSheet {
                 VStack {
                     Spacer()
                     Text("Run a maintenance operation to see results here.")
-                        .font(TypographyTokens.detail)
+                        .font(TypographyTokens.formDescription)
                         .foregroundStyle(ColorTokens.Text.tertiary)
                     Spacer()
                 }
@@ -90,15 +115,15 @@ extension MaintenanceSheet {
                             .foregroundStyle(entry.succeeded ? ColorTokens.Status.success : ColorTokens.Status.error)
                         VStack(alignment: .leading, spacing: 2) {
                             Text(entry.operation)
-                                .font(TypographyTokens.standard.weight(.medium))
+                                .font(TypographyTokens.formValue.weight(.medium))
                             Text(entry.message)
-                                .font(TypographyTokens.detail)
+                                .font(TypographyTokens.formDescription)
                                 .foregroundStyle(ColorTokens.Text.secondary)
                                 .lineLimit(3)
                         }
                         Spacer()
                         Text(entry.timestamp, style: .time)
-                            .font(TypographyTokens.detail)
+                            .font(TypographyTokens.formDescription)
                             .foregroundStyle(ColorTokens.Text.tertiary)
                     }
                     .padding(.vertical, SpacingTokens.xxs)
@@ -114,14 +139,16 @@ extension MaintenanceSheet {
     func runDatabaseOp(_ op: DatabaseOp) async {
         guard let mssql = session.session as? MSSQLSession else { return }
         isRunning = true
-        let result: SQLServerMaintenanceResult
+        let result: DatabaseMaintenanceResult
         do {
+            let mssqlResult: SQLServerMaintenanceResult
             switch op {
             case .checkDB:
-                result = try await mssql.maintenance.checkDatabase(database: databaseName)
+                mssqlResult = try await mssql.maintenance.checkDatabase(database: databaseName)
             case .shrink:
-                result = try await mssql.maintenance.shrinkDatabase(database: databaseName)
+                mssqlResult = try await mssql.maintenance.shrinkDatabase(database: databaseName)
             }
+            result = DatabaseMaintenanceResult(operation: mssqlResult.operation, messages: mssqlResult.messages, succeeded: mssqlResult.succeeded)
         } catch {
             appendResult(
                 operation: op == .checkDB ? "Check Database" : "Shrink Database",
@@ -139,16 +166,18 @@ extension MaintenanceSheet {
         guard let mssql = session.session as? MSSQLSession else { return }
         guard !selectedTable.isEmpty else { return }
         isRunning = true
-        let result: SQLServerMaintenanceResult
+        let result: DatabaseMaintenanceResult
         do {
+            let mssqlResult: SQLServerMaintenanceResult
             switch op {
             case .rebuildIndexes:
-                result = try await mssql.maintenance.rebuildIndexes(schema: selectedSchema, table: selectedTable)
+                mssqlResult = try await mssql.maintenance.rebuildIndexes(schema: selectedSchema, table: selectedTable)
             case .reorganizeIndexes:
-                result = try await mssql.maintenance.reorganizeIndexes(schema: selectedSchema, table: selectedTable)
+                mssqlResult = try await mssql.maintenance.reorganizeIndexes(schema: selectedSchema, table: selectedTable)
             case .updateStats:
-                result = try await mssql.maintenance.updateStatistics(schema: selectedSchema, table: selectedTable)
+                mssqlResult = try await mssql.maintenance.updateStatistics(schema: selectedSchema, table: selectedTable)
             }
+            result = DatabaseMaintenanceResult(operation: mssqlResult.operation, messages: mssqlResult.messages, succeeded: mssqlResult.succeeded)
         } catch {
             let opName: String
             switch op {

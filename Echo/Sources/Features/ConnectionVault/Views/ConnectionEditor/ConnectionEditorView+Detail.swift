@@ -43,22 +43,31 @@ extension ConnectionEditorView {
 
     private var generalSection: some View {
         Section {
-            Picker("Database Type", selection: $selectedDatabaseType) {
-                ForEach(DatabaseType.allCases, id: \.self) { type in
-                    Label {
-                        Text(type.displayName)
-                    } icon: {
-                        Image(type.iconName)
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .frame(width: SpacingTokens.md, height: SpacingTokens.md)                    }
-                    .tag(type)
+            PropertyRow(title: "Database Type") {
+                Picker("", selection: $selectedDatabaseType) {
+                    ForEach(DatabaseType.allCases, id: \.self) { type in
+                        Label {
+                            Text(type.displayName)
+                        } icon: {
+                            Image(type.iconName)
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .frame(width: SpacingTokens.md, height: SpacingTokens.md)
+                        }
+                        .tag(type)
+                    }
                 }
+                .labelsHidden()
+                .pickerStyle(.menu)
             }
 
-            TextField("Name", text: $connectionName, prompt: Text("My Connection"))
+            PropertyRow(title: "Name") {
+                TextField("", text: $connectionName, prompt: Text("My Connection"))
+                    .textFieldStyle(.plain)
+                    .multilineTextAlignment(.trailing)
+            }
 
-            LabeledContent("Color") {
+            PropertyRow(title: "Color") {
                 HStack(spacing: SpacingTokens.xs) {
                     ForEach(Self.colorPalette, id: \.self) { hex in
                         let swatch = Color(hex: hex) ?? .accentColor
@@ -71,7 +80,6 @@ extension ConnectionEditorView {
                     ColorPicker("", selection: colorBinding, supportsOpacity: false)
                         .labelsHidden()
                 }
-                .frame(maxWidth: .infinity, alignment: .trailing)
             }
         } header: {
             if isQuickConnect {
@@ -83,15 +91,15 @@ extension ConnectionEditorView {
     }
 
     private func colorSwatch(color: Color, isSelected: Bool) -> some View {
-        Circle().fill(color).frame(width: SpacingTokens.md2, height: SpacingTokens.md2)
+        Circle().fill(color).frame(width: 20, height: 20)
             .overlay {
                 if isSelected {
-                    Image(systemName: "checkmark")
-                        .font(TypographyTokens.compact.weight(.bold))
-                        .foregroundStyle(.white)
+                    Circle()
+                        .strokeBorder(ColorTokens.accent, lineWidth: 2)
+                        .padding(-3)
                 }
             }
-            .overlay(Circle().strokeBorder(ColorTokens.Text.primary.opacity(0.15), lineWidth: 0.5))
+            .overlay(Circle().strokeBorder(Color.primary.opacity(0.05), lineWidth: 0.5))
             .contentShape(Circle())
     }
 
@@ -104,13 +112,14 @@ extension ConnectionEditorView {
 
     private var serverSection: some View {
         Section {
-            LabeledContent(selectedDatabaseType == .sqlite ? "Database File" : "Host") {
+            PropertyRow(title: selectedDatabaseType == .sqlite ? "Database File" : "Host") {
                 HStack(spacing: SpacingTokens.xs) {
                     TextField(
                         "",
                         text: $host,
                         prompt: Text(selectedDatabaseType == .sqlite ? "/path/to/database.sqlite" : "localhost")
                     )
+                    .textFieldStyle(.plain)
                     .multilineTextAlignment(.trailing)
 
 #if os(macOS)
@@ -118,18 +127,19 @@ extension ConnectionEditorView {
                         Button("Browse") {
                             browseForSQLiteFile()
                         }
-                        .buttonStyle(.borderless)
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
                     }
 #endif
                 }
             }
 
             if selectedDatabaseType != .sqlite {
-                LabeledContent("Port") {
+                PropertyRow(title: "Port") {
                     TextField("", value: $port, format: .number.grouping(.never), prompt: Text(verbatim: "\(selectedDatabaseType.defaultPort)"))
+                        .textFieldStyle(.plain)
                         .multilineTextAlignment(.trailing)
                 }
-
             }
         } header: {
             Text(selectedDatabaseType == .sqlite ? "Database" : "Server")
@@ -138,11 +148,15 @@ extension ConnectionEditorView {
 
     private var organizationSection: some View {
         Section("Organization") {
-            Picker("Folder", selection: $folderID) {
-                Text("None").tag(nil as UUID?)
-                ForEach(sortedFolders, id: \.id) { folder in
-                    Text(folderDisplayName(folder)).tag(folder.id as UUID?)
+            PropertyRow(title: "Folder") {
+                Picker("", selection: $folderID) {
+                    Text("None").tag(nil as UUID?)
+                    ForEach(sortedFolders, id: \.id) { folder in
+                        Text(folderDisplayName(folder)).tag(folder.id as UUID?)
+                    }
                 }
+                .labelsHidden()
+                .pickerStyle(.menu)
             }
             .onChange(of: folderID) { _, newFolderID in
                 if newFolderID == nil && credentialSource == .inherit {

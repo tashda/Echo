@@ -17,9 +17,9 @@ struct DiagramSettingsView: View {
 
     private var prefetchSection: some View {
         Section("Prefetching") {
-            SettingsRowWithInfo(
+            PropertyRow(
                 title: "Diagram prefetch",
-                description: "Echo can warm diagram data in the background for faster opens. Prefetching is optional so large databases do not fetch unused metadata."
+                info: "Echo can warm diagram data in the background for faster opens. Prefetching is optional so large databases do not fetch unused metadata."
             ) {
                 Picker("", selection: prefetchBinding) {
                     ForEach(DiagramPrefetchMode.allCases, id: \.self) { mode in
@@ -28,12 +28,11 @@ struct DiagramSettingsView: View {
                 }
                 .labelsHidden()
                 .pickerStyle(.segmented)
-                .frame(maxWidth: 360)
             }
 
-            SettingsRowWithInfo(
+            PropertyRow(
                 title: "Background refresh",
-                description: "Controls how often Echo re-fetches diagram data in the background to keep it up to date."
+                info: "Controls how often Echo re-fetches diagram data in the background to keep it up to date."
             ) {
                 Picker("", selection: refreshCadenceBinding) {
                     ForEach(DiagramRefreshCadence.allCases, id: \.self) { cadence in
@@ -42,25 +41,24 @@ struct DiagramSettingsView: View {
                 }
                 .labelsHidden()
                 .pickerStyle(.menu)
-                .frame(minWidth: 120, idealWidth: 160, maxWidth: 200, alignment: .trailing)
             }
         }
     }
 
     private var refreshSection: some View {
         Section("Rendering") {
-            SettingsRowWithInfo(
+            PropertyRow(
                 title: "Verify diagram data before refresh",
-                description: "When enabled, Echo checks that cached diagram data is still valid before using it. Disable for faster opens if data rarely changes."
+                info: "When enabled, Echo checks that cached diagram data is still valid before using it. Disable for faster opens if data rarely changes."
             ) {
                 Toggle("", isOn: verifyBinding)
                     .labelsHidden()
                     .toggleStyle(.switch)
             }
 
-            SettingsRowWithInfo(
+            PropertyRow(
                 title: "Render relationships in large diagrams",
-                description: "Disable relationship rendering if diagrams with thousands of edges feel heavy; you can still re-enable it on demand."
+                info: "Disable relationship rendering if diagrams with thousands of edges feel heavy; you can still re-enable it on demand."
             ) {
                 Toggle("", isOn: renderRelationshipsBinding)
                     .labelsHidden()

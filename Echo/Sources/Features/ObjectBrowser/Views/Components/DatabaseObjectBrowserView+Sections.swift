@@ -48,7 +48,7 @@ extension DatabaseObjectBrowserView {
     @ViewBuilder
     func typeSection(_ type: SchemaObjectInfo.ObjectType, _ objects: [SchemaObjectInfo]) -> some View {
         let isExpanded = expandedObjectGroups.contains(type)
-        let colored = projectStore.globalSettings.sidebarColoredIcons
+        let colored = projectStore.globalSettings.sidebarIconColorMode == .colorful
         let expandedBinding = Binding<Bool>(
             get: { isExpanded },
             set: { _ in

@@ -102,14 +102,14 @@ struct PostgresMaintenanceView: View {
 
     // MARK: - Inspector Integration
 
-    private func pushTableInspector(ids: Set<PostgresTableStat.ID>) {
+    private func pushTableInspector(ids: Set<PostgresTableStat.ID>, toggle: Bool = false) {
         guard let id = ids.first,
               let table = viewModel.tableStats.first(where: { $0.id == id }) else {
-            environmentState.dataInspectorContent = nil
+            if !toggle { environmentState.dataInspectorContent = nil }
             return
         }
         let deadRatio = table.nLiveTup > 0 ? String(format: "%.1f%%", Double(table.nDeadTup) / Double(table.nLiveTup) * 100) : "N/A"
-        let fields: [ForeignKeyInspectorContent.Field] = [
+        let fields: [DatabaseObjectInspectorContent.Field] = [
             .init(label: "Schema", value: table.schemaName),
             .init(label: "Table", value: table.tableName),
             .init(label: "Live Tuples", value: formatCount(table.nLiveTup)),
@@ -122,21 +122,28 @@ struct PostgresMaintenanceView: View {
             .init(label: "Last Vacuum", value: formatDate(manual: table.lastVacuum, auto: table.lastAutoVacuum)),
             .init(label: "Last Analyze", value: formatDate(manual: table.lastAnalyze, auto: table.lastAutoAnalyze))
         ]
-        environmentState.dataInspectorContent = .foreignKey(ForeignKeyInspectorContent(
+        
+        let content = DatabaseObjectInspectorContent(
             title: table.tableName,
             subtitle: "Table \u{2022} \(table.schemaName)",
             fields: fields
-        ))
+        )
+        
+        if toggle {
+            environmentState.toggleDataInspector(content: .databaseObject(content), title: table.tableName, appState: appState)
+        } else {
+            environmentState.dataInspectorContent = .databaseObject(content)
+        }
     }
 
-    private func pushIndexInspector(ids: Set<PostgresIndexStat.ID>) {
+    private func pushIndexInspector(ids: Set<PostgresIndexStat.ID>, toggle: Bool = false) {
         guard let id = ids.first,
               let index = viewModel.indexStats.first(where: { $0.id == id }) else {
-            environmentState.dataInspectorContent = nil
+            if !toggle { environmentState.dataInspectorContent = nil }
             return
         }
         let kindLabel = index.isPrimary ? "Primary Key" : index.isUnique ? "Unique" : "Index"
-        let fields: [ForeignKeyInspectorContent.Field] = [
+        let fields: [DatabaseObjectInspectorContent.Field] = [
             .init(label: "Index", value: index.indexName),
             .init(label: "Table", value: "\(index.schemaName).\(index.tableName)"),
             .init(label: "Kind", value: kindLabel),
@@ -150,11 +157,18 @@ struct PostgresMaintenanceView: View {
             .init(label: "Tuples Fetched", value: formatCount(index.idxTupFetch)),
             .init(label: "Definition", value: index.definition)
         ]
-        environmentState.dataInspectorContent = .foreignKey(ForeignKeyInspectorContent(
+        
+        let content = DatabaseObjectInspectorContent(
             title: index.indexName,
             subtitle: "\(kindLabel) \u{2022} \(index.indexType)",
             fields: fields
-        ))
+        )
+        
+        if toggle {
+            environmentState.toggleDataInspector(content: .databaseObject(content), title: index.indexName, appState: appState)
+        } else {
+            environmentState.dataInspectorContent = .databaseObject(content)
+        }
     }
 
     // MARK: - Helpers

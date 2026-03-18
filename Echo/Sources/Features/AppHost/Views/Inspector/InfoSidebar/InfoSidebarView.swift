@@ -59,6 +59,8 @@ struct InfoSidebarView: View {
         if let content = environmentState.dataInspectorContent {
             VStack(alignment: .leading, spacing: 16) {
                 switch content {
+                case .databaseObject(let objectContent):
+                    InspectorPanelView(content: objectContent, depth: 0)
                 case .foreignKey(let foreignKeyContent):
                     InspectorPanelView(content: foreignKeyContent, depth: 0)
                 case .json(let jsonContent):
@@ -72,7 +74,7 @@ struct InfoSidebarView: View {
         } else {
             InspectorEmptyState(
                 title: "No Selection",
-                message: "Select a cell to inspect its related data."
+                message: "Select an object to inspect its details."
             )
         }
     }
@@ -81,13 +83,13 @@ struct InfoSidebarView: View {
     private var connectionInspectorContent: some View {
         VStack(alignment: .leading, spacing: 16) {
             if let connection = connectionStore.selectedConnection {
-                let connectionFields: [ForeignKeyInspectorContent.Field] = [
+                let connectionFields: [DatabaseObjectInspectorContent.Field] = [
                     .init(label: "Name", value: connection.connectionName),
                     .init(label: "Host", value: connection.host),
                     .init(label: "User", value: connection.username),
                     .init(label: "Database", value: connection.database.isEmpty ? "Not selected" : connection.database)
                 ]
-                let connectionContent = ForeignKeyInspectorContent(
+                let connectionContent = DatabaseObjectInspectorContent(
                     title: "Connection",
                     subtitle: connection.databaseType.displayName,
                     fields: connectionFields
@@ -101,14 +103,14 @@ struct InfoSidebarView: View {
             }
 
             if let session = environmentState.sessionGroup.activeSession {
-                let sessionFields: [ForeignKeyInspectorContent.Field] = [
+                let sessionFields: [DatabaseObjectInspectorContent.Field] = [
                     .init(label: "Active Database", value: session.selectedDatabaseName ?? "None"),
                     .init(
                         label: "Last Activity",
                         value: session.lastActivity.formatted(date: .abbreviated, time: .shortened)
                     )
                 ]
-                let sessionContent = ForeignKeyInspectorContent(
+                let sessionContent = DatabaseObjectInspectorContent(
                     title: "Session",
                     subtitle: session.connection.connectionName,
                     fields: sessionFields

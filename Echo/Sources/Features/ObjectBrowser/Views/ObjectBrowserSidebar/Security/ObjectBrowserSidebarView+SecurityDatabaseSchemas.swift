@@ -12,7 +12,7 @@ extension ObjectBrowserSidebarView {
 
         VStack(alignment: .leading, spacing: 0) {
             securitySectionHeader(
-                depth: 3,
+                depth: SecuritySidebarDepth.databaseSection,
                 title: "Schemas",
                 icon: "folder",
                 count: schemas.count,
@@ -32,11 +32,12 @@ extension ObjectBrowserSidebarView {
     }
 
     func dbSchemaRow(schema: ObjectBrowserSidebarViewModel.SecuritySchemaItem, session: ConnectionSession) -> some View {
-        SidebarRow(
-            depth: 4,
+        let colored = projectStore.globalSettings.sidebarIconColorMode == .colorful
+        return SidebarRow(
+            depth: SecuritySidebarDepth.databaseLeaf,
             icon: .system("folder"),
             label: schema.name,
-            iconColor: projectStore.globalSettings.sidebarColoredIcons ? ExplorerSidebarPalette.security : ExplorerSidebarPalette.monochrome
+            iconColor: ExplorerSidebarPalette.folderIconColor(title: "Schemas", colored: colored)
         ) {
             if let owner = schema.owner, !owner.isEmpty {
                 Text(owner)

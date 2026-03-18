@@ -124,8 +124,15 @@ extension EnvironmentState {
 
     func openMaintenanceTab(connectionID: UUID, databaseName: String? = nil) {
         guard let session = sessionGroup.sessionForConnection(connectionID) else { return }
-        let tab = session.addMaintenanceTab(databaseName: databaseName)
-        registerTab(tab)
+        if session.connection.databaseType == .microsoftSQL {
+            let tab = session.addMSSQLMaintenanceTab(databaseName: databaseName)
+            registerTab(tab)
+            tabStore.selectTab(tab)
+        } else {
+            let tab = session.addMaintenanceTab(databaseName: databaseName)
+            registerTab(tab)
+            tabStore.selectTab(tab)
+        }
     }
 
     func openActivityMonitorTab(connectionID: UUID) {

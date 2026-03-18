@@ -8,13 +8,24 @@ extension DatabasePropertiesSheet {
     @ViewBuilder
     func postgresGeneralPage(_ props: PostgresDatabaseProperties) -> some View {
         Section("Information") {
-            LabeledContent("Name", value: props.name)
-            LabeledContent("OID", value: props.oid)
+            PropertyRow(title: "Name") {
+                Text(props.name)
+                    .foregroundStyle(ColorTokens.Text.secondary)
+            }
+            
+            PropertyRow(title: "OID") {
+                Text(props.oid)
+                    .foregroundStyle(ColorTokens.Text.secondary)
+            }
 
-            Picker("Owner", selection: $pgOwner) {
-                ForEach(pgRoles, id: \.self) { role in
-                    Text(role).tag(role)
+            PropertyRow(title: "Owner") {
+                Picker("", selection: $pgOwner) {
+                    ForEach(pgRoles, id: \.self) { role in
+                        Text(role).tag(role)
+                    }
                 }
+                .labelsHidden()
+                .pickerStyle(.menu)
             }
             .onChange(of: pgOwner) { _, newOwner in
                 applyPgAlter(message: "Owner changed to \(newOwner).") { client in
@@ -22,9 +33,11 @@ extension DatabasePropertiesSheet {
                 }
             }
 
-            LabeledContent("Description") {
+            PropertyRow(title: "Description") {
                 TextField("", text: $pgComment, axis: .vertical)
+                    .textFieldStyle(.plain)
                     .lineLimit(1...3)
+                    .multilineTextAlignment(.trailing)
                     .onSubmit {
                         applyPgAlter(message: "Description updated.") { client in
                             try await client.admin.addDatabaseComment(name: databaseName, comment: pgComment.isEmpty ? nil : pgComment)
@@ -34,13 +47,23 @@ extension DatabasePropertiesSheet {
         }
 
         Section("Statistics") {
-            LabeledContent("Database Size", value: ByteCountFormatter.string(fromByteCount: props.sizeBytes, countStyle: .file))
-            LabeledContent("Active Connections", value: "\(props.activeConnections)")
+            PropertyRow(title: "Database Size") {
+                Text(ByteCountFormatter.string(fromByteCount: props.sizeBytes, countStyle: .file))
+                    .foregroundStyle(ColorTokens.Text.secondary)
+            }
+            
+            PropertyRow(title: "Active Connections") {
+                Text("\(props.activeConnections)")
+                    .foregroundStyle(ColorTokens.Text.secondary)
+            }
         }
 
         if let version = session.databaseStructure?.serverVersion {
             Section("Server") {
-                LabeledContent("Version", value: version)
+                PropertyRow(title: "Version") {
+                    Text(version)
+                        .foregroundStyle(ColorTokens.Text.secondary)
+                }
             }
         }
     }
@@ -48,62 +71,91 @@ extension DatabasePropertiesSheet {
     @ViewBuilder
     func postgresDefinitionPage(_ props: PostgresDatabaseProperties) -> some View {
         Section("Character Set") {
-            LabeledContent("Encoding", value: props.encoding)
-            LabeledContent("Collation", value: props.collation)
-            LabeledContent("Character Type", value: props.ctype)
+            PropertyRow(title: "Encoding") {
+                Text(props.encoding)
+                    .foregroundStyle(ColorTokens.Text.secondary)
+            }
+            
+            PropertyRow(title: "Collation") {
+                Text(props.collation)
+                    .foregroundStyle(ColorTokens.Text.secondary)
+            }
+            
+            PropertyRow(title: "Character Type") {
+                Text(props.ctype)
+                    .foregroundStyle(ColorTokens.Text.secondary)
+            }
+            
             if let icu = props.icuLocale {
-                LabeledContent("ICU Locale", value: icu)
+                PropertyRow(title: "ICU Locale") {
+                    Text(icu)
+                        .foregroundStyle(ColorTokens.Text.secondary)
+                }
             }
         }
 
         Section("Tablespace") {
             if pgTablespaces.count > 1 {
-                Picker("Tablespace", selection: Binding(
-                    get: { props.tablespace },
-                    set: { newValue in
-                        applyPgAlter(message: "Tablespace changed to \(newValue).") { client in
-                            try await client.admin.alterDatabaseTablespace(name: databaseName, tablespace: newValue)
+                PropertyRow(title: "Tablespace") {
+                    Picker("", selection: Binding(
+                        get: { props.tablespace },
+                        set: { newValue in
+                            applyPgAlter(message: "Tablespace changed to \(newValue).") { client in
+                                try await client.admin.alterDatabaseTablespace(name: databaseName, tablespace: newValue)
+                            }
+                        }
+                    )) {
+                        ForEach(pgTablespaces, id: \.self) { ts in
+                            Text(ts).tag(ts)
                         }
                     }
-                )) {
-                    ForEach(pgTablespaces, id: \.self) { ts in
-                        Text(ts).tag(ts)
-                    }
+                    .labelsHidden()
+                    .pickerStyle(.menu)
                 }
             } else {
-                LabeledContent("Tablespace", value: props.tablespace)
+                PropertyRow(title: "Tablespace") {
+                    Text(props.tablespace)
+                        .foregroundStyle(ColorTokens.Text.secondary)
+                }
             }
         }
 
         Section("Connection") {
-            LabeledContent("Connection Limit") {
-                HStack(spacing: SpacingTokens.xs) {
-                    TextField("", value: $pgConnectionLimit, format: .number)
-                        .frame(width: 60)
-                        .onSubmit {
-                            applyPgAlter(message: "Connection limit updated.") { client in
-                                try await client.admin.alterDatabaseConnectionLimit(name: databaseName, limit: pgConnectionLimit)
-                            }
+            PropertyRow(
+                title: "Connection Limit",
+                subtitle: "-1 = unlimited"
+            ) {
+                TextField("", value: $pgConnectionLimit, format: .number)
+                    .textFieldStyle(.plain)
+                    .multilineTextAlignment(.trailing)
+                    .onSubmit {
+                        applyPgAlter(message: "Connection limit updated.") { client in
+                            try await client.admin.alterDatabaseConnectionLimit(name: databaseName, limit: pgConnectionLimit)
                         }
-                    Text("-1 = unlimited")
-                        .font(TypographyTokens.detail)
-                        .foregroundStyle(ColorTokens.Text.tertiary)
-                }
+                    }
             }
 
-            Toggle("Is Template", isOn: $pgIsTemplate)
-                .onChange(of: pgIsTemplate) { _, v in
-                    applyPgAlter(message: "Is Template set to \(v).") { client in
-                        try await client.admin.alterDatabaseIsTemplate(name: databaseName, isTemplate: v)
+            PropertyRow(title: "Is Template") {
+                Toggle("", isOn: $pgIsTemplate)
+                    .labelsHidden()
+                    .toggleStyle(.switch)
+                    .onChange(of: pgIsTemplate) { _, v in
+                        applyPgAlter(message: "Is Template set to \(v).") { client in
+                            try await client.admin.alterDatabaseIsTemplate(name: databaseName, isTemplate: v)
+                        }
                     }
-                }
+            }
 
-            Toggle("Allow Connections", isOn: $pgAllowConnections)
-                .onChange(of: pgAllowConnections) { _, v in
-                    applyPgAlter(message: "Allow Connections set to \(v).") { client in
-                        try await client.admin.alterDatabaseAllowConnections(name: databaseName, allow: v)
+            PropertyRow(title: "Allow Connections") {
+                Toggle("", isOn: $pgAllowConnections)
+                    .labelsHidden()
+                    .toggleStyle(.switch)
+                    .onChange(of: pgAllowConnections) { _, v in
+                        applyPgAlter(message: "Allow Connections set to \(v).") { client in
+                            try await client.admin.alterDatabaseAllowConnections(name: databaseName, allow: v)
+                        }
                     }
-                }
+            }
         }
     }
 

@@ -59,16 +59,16 @@ struct ApplicationCacheSettingsView: View {
 
     private var cacheManagementSection: some View {
         Section("Cache Management") {
-            SettingsRowWithInfo(
+            PropertyRow(
                 title: "Keep tabs in memory",
-                description: "Keeps each tab's editor and results view alive when switching. This speeds up tab changes at the cost of additional memory usage."
+                info: "Keeps each tab's editor and results view alive when switching. This speeds up tab changes at the cost of additional memory usage."
             ) {
                 Toggle("", isOn: keepTabsBinding)
                     .labelsHidden()
                     .toggleStyle(.switch)
             }
 
-            LabeledContent("Query result retention") {
+            PropertyRow(title: "Query result retention") {
                 Picker("", selection: resultCacheRetentionBinding) {
                     ForEach(Self.retentionOptions, id: \.hours) { option in
                         Text(option.label).tag(option.hours)
@@ -76,12 +76,11 @@ struct ApplicationCacheSettingsView: View {
                 }
                 .labelsHidden()
                 .pickerStyle(.menu)
-                .frame(minWidth: 120, idealWidth: 160, maxWidth: 200, alignment: .trailing)
             }
 
-            SettingsRowWithInfo(
+            PropertyRow(
                 title: "Enable clipboard history",
-                description: "Echo stores recently copied queries and results locally for quick reuse. Data stays on this Mac."
+                info: "Echo stores recently copied queries and results locally for quick reuse. Data stays on this Mac."
             ) {
                 Toggle("", isOn: clipboardEnabledBinding)
                     .labelsHidden()

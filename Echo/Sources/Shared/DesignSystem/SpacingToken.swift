@@ -3,10 +3,16 @@ import SwiftUI
 public enum SpacingTokens {
     /// 0pt
     public static let none: CGFloat = 0
+    /// 1pt
+    public static let micro: CGFloat = 1
     /// 2pt
     public static let xxxs: CGFloat = 2
+    /// 3pt
+    public static let nano: CGFloat = 3
     /// 4pt
     public static let xxs: CGFloat = 4
+    /// 5pt
+    public static let xxs1: CGFloat = 5
     /// 6pt
     public static let xxs2: CGFloat = 6
     /// 8pt
@@ -17,6 +23,8 @@ public enum SpacingTokens {
     public static let sm: CGFloat = 12
     /// 14pt
     public static let sm2: CGFloat = 14
+    /// 15pt
+    public static let xs_plus: CGFloat = 15
     /// 16pt
     public static let md: CGFloat = 16
     /// 18pt

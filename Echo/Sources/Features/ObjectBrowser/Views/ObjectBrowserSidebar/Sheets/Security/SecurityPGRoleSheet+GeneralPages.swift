@@ -11,59 +11,89 @@ extension SecurityPGRoleSheet {
     var generalPage: some View {
         Section(isEditing ? "Role Properties" : "New Login/Group Role") {
             if isEditing {
-                LabeledContent("Role Name", value: roleName)
+                PropertyRow(title: "Role Name") {
+                    Text(roleName)
+                        .foregroundStyle(ColorTokens.Text.secondary)
+                }
             } else {
-                TextField("Role Name", text: $roleName)
+                PropertyRow(title: "Role Name") {
+                    TextField("", text: $roleName)
+                        .textFieldStyle(.plain)
+                        .multilineTextAlignment(.trailing)
+                }
             }
         }
 
         Section("Authentication") {
-            SecureField("Password", text: $password, prompt: Text(isEditing ? "Leave empty to keep current" : "Optional"))
+            PropertyRow(title: "Password") {
+                SecureField("", text: $password, prompt: Text(isEditing ? "Leave empty to keep current" : "Optional"))
+                    .textFieldStyle(.plain)
+                    .multilineTextAlignment(.trailing)
+            }
+            
             if !isEditing {
-                SecureField("Confirm Password", text: $confirmPassword)
+                PropertyRow(title: "Confirm Password") {
+                    SecureField("", text: $confirmPassword)
+                        .textFieldStyle(.plain)
+                        .multilineTextAlignment(.trailing)
+                }
             }
         }
 
         Section("Connection") {
-            Toggle("Can login", isOn: $canLogin)
-            LabeledContent("Connection limit") {
-                HStack(spacing: SpacingTokens.xs) {
-                    TextField("", value: $connectionLimit, format: .number)
-                        .frame(width: 80)
-                        .multilineTextAlignment(.trailing)
-                    Text(connectionLimit == -1 ? "(unlimited)" : "")
-                        .font(TypographyTokens.detail)
-                        .foregroundStyle(ColorTokens.Text.tertiary)
-                }
+            PropertyRow(title: "Can login") {
+                Toggle("", isOn: $canLogin)
+                    .labelsHidden()
+                    .toggleStyle(.switch)
+            }
+            
+            PropertyRow(
+                title: "Connection limit",
+                subtitle: connectionLimit == -1 ? "(unlimited)" : nil
+            ) {
+                TextField("", value: $connectionLimit, format: .number)
+                    .textFieldStyle(.plain)
+                    .multilineTextAlignment(.trailing)
             }
         }
 
         Section("Account Expires") {
-            Toggle("Set expiration date", isOn: $hasExpiry)
-                .onChange(of: hasExpiry) { _, enabled in
-                    if enabled {
-                        validUntil = Self.pgTimestampFormatter.string(from: validUntilDate)
-                    } else {
-                        validUntil = ""
+            PropertyRow(title: "Set expiration date") {
+                Toggle("", isOn: $hasExpiry)
+                    .labelsHidden()
+                    .toggleStyle(.switch)
+                    .onChange(of: hasExpiry) { _, enabled in
+                        if enabled {
+                            validUntil = Self.pgTimestampFormatter.string(from: validUntilDate)
+                        } else {
+                            validUntil = ""
+                        }
                     }
-                }
+            }
 
             if hasExpiry {
-                DatePicker(
-                    "Expires on",
-                    selection: $validUntilDate,
-                    displayedComponents: [.date, .hourAndMinute]
-                )
-                .datePickerStyle(.stepperField)
-                .onChange(of: validUntilDate) { _, newDate in
-                    validUntil = Self.pgTimestampFormatter.string(from: newDate)
+                PropertyRow(title: "Expires on") {
+                    DatePicker(
+                        "",
+                        selection: $validUntilDate,
+                        displayedComponents: [.date, .hourAndMinute]
+                    )
+                    .labelsHidden()
+                    .datePickerStyle(.stepperField)
+                    .onChange(of: validUntilDate) { _, newDate in
+                        validUntil = Self.pgTimestampFormatter.string(from: newDate)
+                    }
                 }
             }
         }
 
         Section("Comment") {
-            TextField("Comment", text: $roleComment, prompt: Text("Optional description"), axis: .vertical)
-                .lineLimit(3...6)
+            PropertyRow(title: "Comment") {
+                TextField("", text: $roleComment, prompt: Text("Optional description"), axis: .vertical)
+                    .textFieldStyle(.plain)
+                    .lineLimit(3...6)
+                    .multilineTextAlignment(.trailing)
+            }
         }
     }
 
@@ -72,17 +102,46 @@ extension SecurityPGRoleSheet {
     @ViewBuilder
     var privilegesPage: some View {
         Section("Role Privileges") {
-            Toggle("Superuser", isOn: $isSuperuser)
-            Toggle("Create databases", isOn: $canCreateDB)
-            Toggle("Create roles", isOn: $canCreateRole)
-            Toggle("Inherit privileges", isOn: $inherit)
-            Toggle("Replication", isOn: $isReplication)
-            Toggle("Bypass row-level security", isOn: $bypassRLS)
+            PropertyRow(title: "Superuser") {
+                Toggle("", isOn: $isSuperuser)
+                    .labelsHidden()
+                    .toggleStyle(.switch)
+            }
+            
+            PropertyRow(title: "Create databases") {
+                Toggle("", isOn: $canCreateDB)
+                    .labelsHidden()
+                    .toggleStyle(.switch)
+            }
+            
+            PropertyRow(title: "Create roles") {
+                Toggle("", isOn: $canCreateRole)
+                    .labelsHidden()
+                    .toggleStyle(.switch)
+            }
+            
+            PropertyRow(title: "Inherit privileges") {
+                Toggle("", isOn: $inherit)
+                    .labelsHidden()
+                    .toggleStyle(.switch)
+            }
+            
+            PropertyRow(title: "Replication") {
+                Toggle("", isOn: $isReplication)
+                    .labelsHidden()
+                    .toggleStyle(.switch)
+            }
+            
+            PropertyRow(title: "Bypass RLS") {
+                Toggle("", isOn: $bypassRLS)
+                    .labelsHidden()
+                    .toggleStyle(.switch)
+            }
         }
 
         Section {
             Text("Superuser grants all privileges and bypasses all permission checks. Bypass RLS allows the role to bypass all row-level security policies.")
-                .font(TypographyTokens.detail)
+                .font(TypographyTokens.formDescription)
                 .foregroundStyle(ColorTokens.Text.secondary)
         }
     }

@@ -178,7 +178,7 @@ struct PostgresActivityMonitorView: View {
             environmentState.dataInspectorContent = nil
             return
         }
-        var fields: [ForeignKeyInspectorContent.Field] = [
+        var fields: [DatabaseObjectInspectorContent.Field] = [
             .init(label: "PID", value: "\(proc.pid)"),
             .init(label: "User", value: proc.userName ?? "\u{2014}"),
             .init(label: "Database", value: proc.databaseName ?? "\u{2014}"),
@@ -193,7 +193,7 @@ struct PostgresActivityMonitorView: View {
         if let sql = proc.query, !sql.isEmpty {
             fields.append(.init(label: "Query", value: sql))
         }
-        environmentState.dataInspectorContent = .foreignKey(ForeignKeyInspectorContent(
+        environmentState.dataInspectorContent = .databaseObject(DatabaseObjectInspectorContent(
             title: "Process \(proc.pid)",
             subtitle: proc.state ?? "unknown",
             fields: fields
@@ -214,7 +214,7 @@ struct PostgresActivityMonitorView: View {
             environmentState.dataInspectorContent = nil
             return
         }
-        var fields: [ForeignKeyInspectorContent.Field] = [
+        var fields: [DatabaseObjectInspectorContent.Field] = [
             .init(label: "PID", value: "\(lock.pid)"),
             .init(label: "Database", value: lock.databaseName ?? "\u{2014}"),
             .init(label: "Lock Type", value: lock.locktype),
@@ -231,7 +231,7 @@ struct PostgresActivityMonitorView: View {
         if let sql = lock.query, !sql.isEmpty {
             fields.append(.init(label: "Query", value: sql))
         }
-        environmentState.dataInspectorContent = .foreignKey(ForeignKeyInspectorContent(
+        environmentState.dataInspectorContent = .databaseObject(DatabaseObjectInspectorContent(
             title: "Lock \u{2022} PID \(lock.pid)",
             subtitle: "\(lock.mode) on \(lock.relation ?? lock.locktype)",
             fields: fields
@@ -246,7 +246,7 @@ struct PostgresActivityMonitorView: View {
             return
         }
         let cacheHit = stat.cacheHitRatio.map { String(format: "%.1f%%", $0) } ?? "N/A"
-        let fields: [ForeignKeyInspectorContent.Field] = [
+        let fields: [DatabaseObjectInspectorContent.Field] = [
             .init(label: "Database", value: stat.datname),
             .init(label: "Cache Hit Ratio", value: cacheHit),
             .init(label: "Commits", value: "\(stat.xact_commit_delta)"),
@@ -259,7 +259,7 @@ struct PostgresActivityMonitorView: View {
             .init(label: "Temp Files", value: "\(stat.temp_files_delta)"),
             .init(label: "Deadlocks", value: "\(stat.deadlocks_delta)")
         ]
-        environmentState.dataInspectorContent = .foreignKey(ForeignKeyInspectorContent(
+        environmentState.dataInspectorContent = .databaseObject(DatabaseObjectInspectorContent(
             title: stat.datname,
             subtitle: "Database Statistics (delta)",
             fields: fields
@@ -273,7 +273,7 @@ struct PostgresActivityMonitorView: View {
             environmentState.dataInspectorContent = nil
             return
         }
-        var fields: [ForeignKeyInspectorContent.Field] = [
+        var fields: [DatabaseObjectInspectorContent.Field] = [
             .init(label: "PID", value: "\(op.pid)"),
             .init(label: "Operation", value: op.operation),
             .init(label: "Phase", value: op.phase),
@@ -283,7 +283,7 @@ struct PostgresActivityMonitorView: View {
         if let pct = op.progressPercent {
             fields.append(.init(label: "Progress", value: String(format: "%.0f%%", pct)))
         }
-        environmentState.dataInspectorContent = .foreignKey(ForeignKeyInspectorContent(
+        environmentState.dataInspectorContent = .databaseObject(DatabaseObjectInspectorContent(
             title: "\(op.operation) \u{2022} PID \(op.pid)",
             subtitle: op.phase,
             fields: fields
@@ -297,7 +297,7 @@ struct PostgresActivityMonitorView: View {
             environmentState.dataInspectorContent = nil
             return
         }
-        let fields: [ForeignKeyInspectorContent.Field] = [
+        let fields: [DatabaseObjectInspectorContent.Field] = [
             .init(label: "Query", value: query.query),
             .init(label: "Calls", value: "\(query.calls)"),
             .init(label: "Total Time", value: String(format: "%.1f ms", query.total_exec_time)),
@@ -306,7 +306,7 @@ struct PostgresActivityMonitorView: View {
             .init(label: "Max Time", value: String(format: "%.2f ms", query.max_exec_time)),
             .init(label: "Total Rows", value: "\(query.rows)")
         ]
-        environmentState.dataInspectorContent = .foreignKey(ForeignKeyInspectorContent(
+        environmentState.dataInspectorContent = .databaseObject(DatabaseObjectInspectorContent(
             title: "Query \(query.queryid ?? 0)",
             subtitle: String(format: "%.1f ms total \u{2022} %d calls", query.total_exec_time, query.calls),
             fields: fields

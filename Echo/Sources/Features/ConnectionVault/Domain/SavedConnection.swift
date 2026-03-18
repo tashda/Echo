@@ -25,6 +25,13 @@ enum DatabaseType: String, Sendable, Codable, CaseIterable {
         }
     }
 
+    nonisolated var symbolName: String {
+        switch self {
+        case .postgresql, .mysql, .microsoftSQL: return "server.rack"
+        case .sqlite: return "doc.database.fill"
+        }
+    }
+
     nonisolated var defaultPort: Int {
         switch self {
         case .postgresql: return 5432

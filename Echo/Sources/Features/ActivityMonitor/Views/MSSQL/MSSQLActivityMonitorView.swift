@@ -145,7 +145,7 @@ struct MSSQLActivityMonitorView: View {
             environmentState.dataInspectorContent = nil
             return
         }
-        var fields: [ForeignKeyInspectorContent.Field] = [
+        var fields: [DatabaseObjectInspectorContent.Field] = [
             .init(label: "Session ID", value: "\(proc.sessionId)"),
             .init(label: "Login", value: proc.loginName ?? "\u{2014}"),
             .init(label: "Host", value: proc.hostName ?? "\u{2014}"),
@@ -191,7 +191,7 @@ struct MSSQLActivityMonitorView: View {
         } else {
             subtitle = proc.sessionStatus ?? "unknown"
         }
-        environmentState.dataInspectorContent = .foreignKey(ForeignKeyInspectorContent(
+        environmentState.dataInspectorContent = .databaseObject(DatabaseObjectInspectorContent(
             title: "Session \(proc.sessionId)",
             subtitle: subtitle,
             fields: fields
@@ -207,7 +207,7 @@ struct MSSQLActivityMonitorView: View {
         }
         let avgWait = wait.waitingTasksCountDelta > 0 ? wait.waitTimeMsDelta / wait.waitingTasksCountDelta : 0
         let signalPct = wait.waitTimeMsDelta > 0 ? Double(wait.signalWaitTimeMsDelta) / Double(wait.waitTimeMsDelta) * 100 : 0
-        let fields: [ForeignKeyInspectorContent.Field] = [
+        let fields: [DatabaseObjectInspectorContent.Field] = [
             .init(label: "Wait Type", value: wait.waitType),
             .init(label: "Total Wait Time", value: "\(wait.waitTimeMsDelta) ms"),
             .init(label: "Signal Wait Time", value: "\(wait.signalWaitTimeMsDelta) ms"),
@@ -216,7 +216,7 @@ struct MSSQLActivityMonitorView: View {
             .init(label: "Waiting Tasks", value: "\(wait.waitingTasksCountDelta)"),
             .init(label: "Avg Wait/Task", value: "\(avgWait) ms")
         ]
-        environmentState.dataInspectorContent = .foreignKey(ForeignKeyInspectorContent(
+        environmentState.dataInspectorContent = .databaseObject(DatabaseObjectInspectorContent(
             title: wait.waitType,
             subtitle: signalPct > 50 ? "CPU contention likely" : "Resource wait",
             fields: fields
@@ -232,7 +232,7 @@ struct MSSQLActivityMonitorView: View {
         }
         let avgReadSize = io.numReadsDelta > 0 ? io.bytesReadDelta / Int64(io.numReadsDelta) : 0
         let avgWriteSize = io.numWritesDelta > 0 ? io.bytesWrittenDelta / Int64(io.numWritesDelta) : 0
-        let fields: [ForeignKeyInspectorContent.Field] = [
+        let fields: [DatabaseObjectInspectorContent.Field] = [
             .init(label: "Database", value: io.databaseName ?? "DB \(io.databaseId)"),
             .init(label: "File", value: io.fileName ?? "File \(io.fileId)"),
             .init(label: "Bytes Read", value: ByteCountFormatter.string(fromByteCount: io.bytesReadDelta, countStyle: .binary)),
@@ -244,7 +244,7 @@ struct MSSQLActivityMonitorView: View {
             .init(label: "Read Stall", value: "\(io.ioStallReadMsDelta) ms"),
             .init(label: "Write Stall", value: "\(io.ioStallWriteMsDelta) ms")
         ]
-        environmentState.dataInspectorContent = .foreignKey(ForeignKeyInspectorContent(
+        environmentState.dataInspectorContent = .databaseObject(DatabaseObjectInspectorContent(
             title: io.databaseName ?? "Database \(io.databaseId)",
             subtitle: io.fileName ?? "File \(io.fileId)",
             fields: fields
@@ -260,7 +260,7 @@ struct MSSQLActivityMonitorView: View {
         }
         let avgWorker = query.executionCount > 0 ? query.totalWorkerTime / Int64(query.executionCount) : 0
         let avgElapsed = query.executionCount > 0 ? query.totalElapsedTime / Int64(query.executionCount) : 0
-        var fields: [ForeignKeyInspectorContent.Field] = []
+        var fields: [DatabaseObjectInspectorContent.Field] = []
         if let sql = query.sqlText, !sql.isEmpty {
             fields.append(.init(label: "SQL", value: sql))
         }
@@ -281,7 +281,7 @@ struct MSSQLActivityMonitorView: View {
         if let hash = query.queryHashHex, !hash.isEmpty {
             fields.append(.init(label: "Query Hash", value: hash))
         }
-        environmentState.dataInspectorContent = .foreignKey(ForeignKeyInspectorContent(
+        environmentState.dataInspectorContent = .databaseObject(DatabaseObjectInspectorContent(
             title: "Query",
             subtitle: "\(query.executionCount) executions \u{2022} \(formatMicroseconds(query.totalWorkerTime)) total",
             fields: fields

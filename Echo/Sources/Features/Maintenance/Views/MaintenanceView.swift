@@ -1,20 +1,21 @@
 import SwiftUI
 
 struct MaintenanceView: View {
-    @Bindable var viewModel: MaintenanceViewModel
+    @Bindable var tab: WorkspaceTab
 
     var body: some View {
-        switch viewModel.databaseType {
-        case .postgresql:
-            PostgresMaintenanceView(viewModel: viewModel)
-        case .microsoftSQL:
-            MSSQLMaintenanceView()
-        default:
-            EmptyStatePlaceholder(
-                icon: "wrench.and.screwdriver",
-                title: "Maintenance",
-                subtitle: "Maintenance is not available for this database type"
-            )
+        Group {
+            if let vm = tab.maintenance {
+                PostgresMaintenanceView(viewModel: vm)
+            } else if let vm = tab.mssqlMaintenance {
+                MSSQLMaintenanceView(viewModel: vm)
+            } else {
+                EmptyStatePlaceholder(
+                    icon: "wrench.and.screwdriver",
+                    title: "Maintenance",
+                    subtitle: "Maintenance is not available for this database type"
+                )
+            }
         }
     }
 }

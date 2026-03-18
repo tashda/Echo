@@ -97,8 +97,9 @@ final class PostgresExtensionsViewModel {
         isPerformingAction = true
         do {
             let dbSession = try await session.session.sessionForDatabase(databaseName)
-            // PostgresWire driver update was pushed earlier
-            _ = try await dbSession.simpleQuery("DROP EXTENSION IF EXISTS \"\(name)\"\(cascade ? " CASCADE" : "");")
+            guard let metaSession = dbSession as? DatabaseMetadataSession else { return }
+            
+            try await metaSession.dropExtension(name: name, cascade: cascade)
             await reload()
         } catch {
             await MainActor.run {

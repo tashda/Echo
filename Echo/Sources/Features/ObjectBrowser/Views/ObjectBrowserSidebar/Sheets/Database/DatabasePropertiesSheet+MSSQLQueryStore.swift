@@ -8,13 +8,24 @@ extension DatabasePropertiesSheet {
     @ViewBuilder
     func mssqlQueryStorePage() -> some View {
         Section("Status") {
-            LabeledContent("Actual State", value: qsActualState)
-            LabeledContent("Storage", value: "\(qsCurrentStorageMB)/\(qsMaxStorageMB) MB")
+            PropertyRow(title: "Actual State") {
+                Text(qsActualState)
+                    .foregroundStyle(ColorTokens.Text.secondary)
+            }
+            
+            PropertyRow(title: "Storage") {
+                Text("\(qsCurrentStorageMB)/\(qsMaxStorageMB) MB")
+                    .foregroundStyle(ColorTokens.Text.secondary)
+            }
 
-            Picker("Operation Mode", selection: $qsDesiredState) {
-                Text("Off").tag("OFF")
-                Text("Read Only").tag("READ_ONLY")
-                Text("Read Write").tag("READ_WRITE")
+            PropertyRow(title: "Operation Mode") {
+                Picker("", selection: $qsDesiredState) {
+                    Text("Off").tag("OFF")
+                    Text("Read Only").tag("READ_ONLY")
+                    Text("Read Write").tag("READ_WRITE")
+                }
+                .labelsHidden()
+                .pickerStyle(.menu)
             }
             .onChange(of: qsDesiredState) { _, newValue in
                 guard let state = QueryStoreDesiredState(rawValue: newValue) else { return }
@@ -23,20 +34,28 @@ extension DatabasePropertiesSheet {
         }
 
         Section("Data Collection") {
-            Picker("Capture Mode", selection: $qsCaptureMode) {
-                ForEach(QueryStoreCaptureMode.allCases, id: \.self) { mode in
-                    Text(mode.rawValue).tag(mode.rawValue)
+            PropertyRow(title: "Capture Mode") {
+                Picker("", selection: $qsCaptureMode) {
+                    ForEach(QueryStoreCaptureMode.allCases, id: \.self) { mode in
+                        Text(mode.rawValue).tag(mode.rawValue)
+                    }
                 }
+                .labelsHidden()
+                .pickerStyle(.menu)
             }
             .onChange(of: qsCaptureMode) { _, newValue in
                 guard let mode = QueryStoreCaptureMode(rawValue: newValue) else { return }
                 applyQueryStoreOption(.queryCaptureMode(mode))
             }
 
-            Picker("Wait Stats Capture", selection: $qsWaitStatsMode) {
-                ForEach(QueryStoreWaitStatsMode.allCases, id: \.self) { mode in
-                    Text(mode.rawValue).tag(mode.rawValue)
+            PropertyRow(title: "Wait Stats Capture") {
+                Picker("", selection: $qsWaitStatsMode) {
+                    ForEach(QueryStoreWaitStatsMode.allCases, id: \.self) { mode in
+                        Text(mode.rawValue).tag(mode.rawValue)
+                    }
                 }
+                .labelsHidden()
+                .pickerStyle(.menu)
             }
             .onChange(of: qsWaitStatsMode) { _, newValue in
                 guard let mode = QueryStoreWaitStatsMode(rawValue: newValue) else { return }
@@ -45,20 +64,21 @@ extension DatabasePropertiesSheet {
         }
 
         Section("Storage") {
-            LabeledContent("Max Storage Size") {
-                HStack(spacing: SpacingTokens.xs) {
-                    TextField("", value: $qsMaxStorageMB, format: .number)
-                        .frame(width: 80)
-                        .onSubmit { applyQueryStoreOption(.maxStorageSizeMB(qsMaxStorageMB)) }
-                    Text("MB")
-                        .foregroundStyle(ColorTokens.Text.secondary)
-                }
+            PropertyRow(title: "Max Storage Size", subtitle: "MB") {
+                TextField("", value: $qsMaxStorageMB, format: .number)
+                    .textFieldStyle(.plain)
+                    .multilineTextAlignment(.trailing)
+                    .onSubmit { applyQueryStoreOption(.maxStorageSizeMB(qsMaxStorageMB)) }
             }
 
-            Picker("Size-Based Cleanup", selection: $qsCleanupMode) {
-                ForEach(QueryStoreCleanupMode.allCases, id: \.self) { mode in
-                    Text(mode.rawValue).tag(mode.rawValue)
+            PropertyRow(title: "Size-Based Cleanup") {
+                Picker("", selection: $qsCleanupMode) {
+                    ForEach(QueryStoreCleanupMode.allCases, id: \.self) { mode in
+                        Text(mode.rawValue).tag(mode.rawValue)
+                    }
                 }
+                .labelsHidden()
+                .pickerStyle(.menu)
             }
             .onChange(of: qsCleanupMode) { _, newValue in
                 guard let mode = QueryStoreCleanupMode(rawValue: newValue) else { return }
@@ -67,39 +87,31 @@ extension DatabasePropertiesSheet {
         }
 
         Section("Intervals") {
-            LabeledContent("Flush Interval") {
-                HStack(spacing: SpacingTokens.xs) {
-                    TextField("", value: $qsFlushIntervalSeconds, format: .number)
-                        .frame(width: 80)
-                        .onSubmit { applyQueryStoreOption(.flushIntervalSeconds(qsFlushIntervalSeconds)) }
-                    Text("seconds")
-                        .foregroundStyle(ColorTokens.Text.secondary)
-                }
+            PropertyRow(title: "Flush Interval", subtitle: "seconds") {
+                TextField("", value: $qsFlushIntervalSeconds, format: .number)
+                    .textFieldStyle(.plain)
+                    .multilineTextAlignment(.trailing)
+                    .onSubmit { applyQueryStoreOption(.flushIntervalSeconds(qsFlushIntervalSeconds)) }
             }
 
-            LabeledContent("Statistics Interval") {
-                HStack(spacing: SpacingTokens.xs) {
-                    TextField("", value: $qsIntervalLengthMinutes, format: .number)
-                        .frame(width: 80)
-                        .onSubmit { applyQueryStoreOption(.intervalLengthMinutes(qsIntervalLengthMinutes)) }
-                    Text("minutes")
-                        .foregroundStyle(ColorTokens.Text.secondary)
-                }
+            PropertyRow(title: "Statistics Interval", subtitle: "minutes") {
+                TextField("", value: $qsIntervalLengthMinutes, format: .number)
+                    .textFieldStyle(.plain)
+                    .multilineTextAlignment(.trailing)
+                    .onSubmit { applyQueryStoreOption(.intervalLengthMinutes(qsIntervalLengthMinutes)) }
             }
 
-            LabeledContent("Stale Query Threshold") {
-                HStack(spacing: SpacingTokens.xs) {
-                    TextField("", value: $qsStaleThresholdDays, format: .number)
-                        .frame(width: 80)
-                        .onSubmit { applyQueryStoreOption(.staleQueryThresholdDays(qsStaleThresholdDays)) }
-                    Text("days")
-                        .foregroundStyle(ColorTokens.Text.secondary)
-                }
+            PropertyRow(title: "Stale Query Threshold", subtitle: "days") {
+                TextField("", value: $qsStaleThresholdDays, format: .number)
+                    .textFieldStyle(.plain)
+                    .multilineTextAlignment(.trailing)
+                    .onSubmit { applyQueryStoreOption(.staleQueryThresholdDays(qsStaleThresholdDays)) }
             }
 
-            LabeledContent("Max Plans Per Query") {
+            PropertyRow(title: "Max Plans Per Query", subtitle: "plans") {
                 TextField("", value: $qsMaxPlansPerQuery, format: .number)
-                    .frame(width: 80)
+                    .textFieldStyle(.plain)
+                    .multilineTextAlignment(.trailing)
                     .onSubmit { applyQueryStoreOption(.maxPlansPerQuery(qsMaxPlansPerQuery)) }
             }
         }

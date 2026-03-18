@@ -13,7 +13,7 @@ extension ObjectBrowserSidebarView {
 
         VStack(alignment: .leading, spacing: 0) {
             securitySectionHeader(
-                depth: 3,
+                depth: SecuritySidebarDepth.databaseSection,
                 title: "Database Roles",
                 icon: "shield",
                 count: roles.count,
@@ -33,11 +33,12 @@ extension ObjectBrowserSidebarView {
     }
 
     func dbRoleRow(role: ObjectBrowserSidebarViewModel.SecurityDatabaseRoleItem, session: ConnectionSession) -> some View {
-        SidebarRow(
-            depth: 4,
+        let colored = projectStore.globalSettings.sidebarIconColorMode == .colorful
+        return SidebarRow(
+            depth: SecuritySidebarDepth.databaseLeaf,
             icon: .system("shield"),
             label: role.name,
-            iconColor: projectStore.globalSettings.sidebarColoredIcons ? ExplorerSidebarPalette.security : ExplorerSidebarPalette.monochrome
+            iconColor: ExplorerSidebarPalette.folderIconColor(title: "Database Roles", colored: colored)
         ) {
             if role.isFixed {
                 Text("Fixed")
@@ -85,7 +86,7 @@ extension ObjectBrowserSidebarView {
 
         VStack(alignment: .leading, spacing: 0) {
             securitySectionHeader(
-                depth: 3,
+                depth: SecuritySidebarDepth.databaseSection,
                 title: "Application Roles",
                 icon: "app.badge",
                 count: appRoles.count,
@@ -105,11 +106,12 @@ extension ObjectBrowserSidebarView {
     }
 
     func dbAppRoleRow(appRole: ObjectBrowserSidebarViewModel.SecurityAppRoleItem, session: ConnectionSession) -> some View {
-        SidebarRow(
-            depth: 4,
+        let colored = projectStore.globalSettings.sidebarIconColorMode == .colorful
+        return SidebarRow(
+            depth: SecuritySidebarDepth.databaseLeaf,
             icon: .system("app.badge"),
             label: appRole.name,
-            iconColor: projectStore.globalSettings.sidebarColoredIcons ? ExplorerSidebarPalette.security : ExplorerSidebarPalette.monochrome
+            iconColor: ExplorerSidebarPalette.folderIconColor(title: "Application Roles", colored: colored)
         ) {
             if let schema = appRole.defaultSchema, !schema.isEmpty {
                 Text(schema)

@@ -9,12 +9,7 @@ extension ApplicationCacheSettingsView {
         onRefresh: (() async -> Void)?,
         onClear: @escaping () -> Void
     ) -> some View {
-        HStack {
-            Text(title)
-                .font(TypographyTokens.standard.weight(.medium))
-
-            Spacer()
-
+        PropertyRow(title: title) {
             HStack(spacing: SpacingTokens.sm) {
                 if isRefreshing {
                     ProgressView()
@@ -23,7 +18,7 @@ extension ApplicationCacheSettingsView {
                         .frame(width: 16, height: 16)
                 } else {
                     Text(EchoFormatters.bytes(usage))
-                        .font(TypographyTokens.caption2)
+                        .font(TypographyTokens.formValue)
                         .foregroundStyle(ColorTokens.Text.secondary)
                         .monospacedDigit()
                 }
@@ -43,7 +38,6 @@ extension ApplicationCacheSettingsView {
                 .buttonStyle(.plain)
             }
         }
-        .padding(.vertical, SpacingTokens.xxs2)
     }
 }
 

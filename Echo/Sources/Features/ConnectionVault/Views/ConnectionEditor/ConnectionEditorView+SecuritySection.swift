@@ -10,12 +10,15 @@ extension ConnectionEditorView {
     var securitySection: some View {
         Section("Security") {
             if selectedDatabaseType == .postgresql {
-                Picker("SSL Mode", selection: $tlsMode) {
-                    ForEach(TLSMode.allCases, id: \.self) { mode in
-                        Text(mode.description).tag(mode)
+                PropertyRow(title: "SSL Mode", info: "PostgreSQL SSL mode. Controls whether and how TLS is used.") {
+                    Picker("", selection: $tlsMode) {
+                        ForEach(TLSMode.allCases, id: \.self) { mode in
+                            Text(mode.description).tag(mode)
+                        }
                     }
+                    .labelsHidden()
+                    .pickerStyle(.menu)
                 }
-                .help("PostgreSQL SSL mode. Controls whether and how TLS is used.")
                 .onChange(of: tlsMode) { _, newValue in
                     useTLS = newValue.requiresTLS
                 }
@@ -28,21 +31,34 @@ extension ConnectionEditorView {
                     clientCertificateSection
                 }
             } else {
-                Toggle("Use SSL/TLS", isOn: $useTLS)
+                PropertyRow(title: "Use SSL/TLS") {
+                    Toggle("", isOn: $useTLS)
+                        .labelsHidden()
+                        .toggleStyle(.switch)
+                }
 
                 if useTLS && selectedDatabaseType == .microsoftSQL {
-                    Toggle("Trust Server Certificate", isOn: $trustServerCertificate)
-                        .help("Skip server certificate validation. Use for self-signed certificates in development environments.")
-
-                    Picker("Encryption Mode", selection: $mssqlEncryptionMode) {
-                        ForEach(MSSQLEncryptionMode.allCases, id: \.self) { mode in
-                            Text(mode.description).tag(mode)
-                        }
+                    PropertyRow(title: "Trust Server Certificate", info: "Skip server certificate validation. Use for self-signed certificates in development environments.") {
+                        Toggle("", isOn: $trustServerCertificate)
+                            .labelsHidden()
+                            .toggleStyle(.switch)
                     }
-                    .help("Controls how encryption is negotiated with SQL Server.")
 
-                    Toggle("Read-Only Intent", isOn: $readOnlyIntent)
-                        .help("Signal read-only application intent for AlwaysOn Availability Group secondary replica routing.")
+                    PropertyRow(title: "Encryption Mode", info: "Controls how encryption is negotiated with SQL Server.") {
+                        Picker("", selection: $mssqlEncryptionMode) {
+                            ForEach(MSSQLEncryptionMode.allCases, id: \.self) { mode in
+                                Text(mode.description).tag(mode)
+                            }
+                        }
+                        .labelsHidden()
+                        .pickerStyle(.menu)
+                    }
+
+                    PropertyRow(title: "Read-Only Intent", info: "Signal read-only application intent for AlwaysOn Availability Group secondary replica routing.") {
+                        Toggle("", isOn: $readOnlyIntent)
+                            .labelsHidden()
+                            .toggleStyle(.switch)
+                    }
 
                     if !trustServerCertificate {
                         caCertificatePathPicker

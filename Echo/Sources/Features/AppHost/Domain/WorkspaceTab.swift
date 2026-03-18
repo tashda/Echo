@@ -32,6 +32,7 @@ final class WorkspaceTab: Identifiable {
         case extensionsManager
         case activityMonitor
         case maintenance
+        case mssqlMaintenance
         case queryStore
         case extendedEvents
         case availabilityGroups
@@ -47,6 +48,7 @@ final class WorkspaceTab: Identifiable {
         case extensionsManager(PostgresExtensionsViewModel)
         case activityMonitor(ActivityMonitorViewModel)
         case maintenance(MaintenanceViewModel)
+        case mssqlMaintenance(MSSQLMaintenanceViewModel)
         case queryStore(QueryStoreViewModel)
         case extendedEvents(ExtendedEventsViewModel)
         case availabilityGroups(AvailabilityGroupsViewModel)
@@ -97,6 +99,7 @@ final class WorkspaceTab: Identifiable {
         case .extensionsManager: return .extensionsManager
         case .activityMonitor: return .activityMonitor
         case .maintenance: return .maintenance
+        case .mssqlMaintenance: return .mssqlMaintenance
         case .queryStore: return .queryStore
         case .extendedEvents: return .extendedEvents
         case .availabilityGroups: return .availabilityGroups
@@ -148,6 +151,11 @@ final class WorkspaceTab: Identifiable {
         return nil
     }
 
+    var mssqlMaintenance: MSSQLMaintenanceViewModel? {
+        if case .mssqlMaintenance(let vm) = content { return vm }
+        return nil
+    }
+
     var queryStoreVM: QueryStoreViewModel? {
         if case .queryStore(let vm) = content { return vm }
         return nil
@@ -189,6 +197,8 @@ final class WorkspaceTab: Identifiable {
             return baseOverhead + 1024 * 1024
         case .maintenance(let vm):
             return baseOverhead + vm.estimatedMemoryUsageBytes()
+        case .mssqlMaintenance(let vm):
+            return baseOverhead + 256 * 1024 // Default estimation
         case .queryStore(let vm):
             return baseOverhead + vm.estimatedMemoryUsageBytes()
         case .extendedEvents(let vm):

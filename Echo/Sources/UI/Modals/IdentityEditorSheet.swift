@@ -91,35 +91,56 @@ struct IdentityEditorSheet: View {
     private var formContent: some View {
         Form {
             Section {
-                TextField("Name", text: $name, prompt: Text("Production"))
+                PropertyRow(title: "Name") {
+                    TextField("", text: $name, prompt: Text("Production"))
+                        .textFieldStyle(.plain)
+                        .multilineTextAlignment(.trailing)
+                }
+                
                 if hasDuplicateName {
                     Text("An identity with this name already exists here.")
-                        .font(TypographyTokens.detail)
+                        .font(TypographyTokens.formDescription)
                         .foregroundStyle(ColorTokens.Status.error)
+                        .listRowSeparator(.hidden)
                 }
             } header: {
                 Text(isEditing ? "Edit Identity" : "New Identity")
             }
 
             Section("Credentials") {
-                TextField("Username", text: $username, prompt: Text("db_admin"))
-                SecureField("Password", text: Binding(
-                    get: { password },
-                    set: { password = $0; passwordDirty = true }
-                ), prompt: Text("••••••••"))
+                PropertyRow(title: "Username") {
+                    TextField("", text: $username, prompt: Text("db_admin"))
+                        .textFieldStyle(.plain)
+                        .multilineTextAlignment(.trailing)
+                }
+                
+                PropertyRow(title: "Password") {
+                    SecureField("", text: Binding(
+                        get: { password },
+                        set: { password = $0; passwordDirty = true }
+                    ), prompt: Text("••••••••"))
+                    .textFieldStyle(.plain)
+                    .multilineTextAlignment(.trailing)
+                }
+                
                 if isEditing && editingIdentityHasPassword && !passwordDirty {
                     Text("Existing password will be kept unless changed.")
-                        .font(TypographyTokens.detail)
+                        .font(TypographyTokens.formDescription)
                         .foregroundStyle(ColorTokens.Text.secondary)
+                        .listRowSeparator(.hidden)
                 }
             }
 
             Section("Location") {
-                Picker("Folder", selection: $selectedFolderID) {
-                    Text("None").tag(UUID?.none)
-                    ForEach(hierarchicalFolders, id: \.folder.id) { item in
-                        Text(item.path).tag(UUID?.some(item.folder.id))
+                PropertyRow(title: "Folder") {
+                    Picker("", selection: $selectedFolderID) {
+                        Text("None").tag(UUID?.none)
+                        ForEach(hierarchicalFolders, id: \.folder.id) { item in
+                            Text(item.path).tag(UUID?.some(item.folder.id))
+                        }
                     }
+                    .labelsHidden()
+                    .pickerStyle(.menu)
                 }
             }
         }
@@ -139,22 +160,24 @@ struct IdentityEditorSheet: View {
                         dismiss()
                     }
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.bordered)
                 .tint(ColorTokens.Status.error)
             }
 
             Spacer()
 
             Button("Cancel", role: .cancel) { dismiss() }
+                .buttonStyle(.bordered)
                 .keyboardShortcut(.cancelAction)
 
             Button(isEditing ? "Save" : "Create") {
                 Task { await saveIdentity() }
             }
+            .buttonStyle(.borderedProminent)
             .keyboardShortcut(.defaultAction)
             .disabled(!isValid)
         }
-        .padding(SpacingTokens.md2)
+        .padding(SpacingTokens.md)
     }
 
     // MARK: - Logic

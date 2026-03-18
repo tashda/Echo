@@ -251,8 +251,58 @@ final class ConnectionSession: Identifiable {
     }
 
     @discardableResult
+    func addMSSQLMaintenanceTab(databaseName: String? = nil) -> WorkspaceTab {
+        let effectiveDatabase = databaseName ?? selectedDatabaseName ?? connection.database
+        
+        // Reuse existing maintenance tab for THIS specific database if present
+        if let existing = queryTabs.first(where: { tab in
+            guard let vm = tab.mssqlMaintenance else { return false }
+            return vm.selectedDatabase == effectiveDatabase
+        }) {
+            activeQueryTabID = existing.id
+            return existing
+        }
+        
+        let viewModel = MSSQLMaintenanceViewModel(
+            session: session,
+            connectionID: connection.id,
+            connectionSessionID: id,
+            initialDatabase: effectiveDatabase.isEmpty ? nil : effectiveDatabase,
+            notificationEngine: AppDirector.shared.notificationEngine
+        )
+
+        let title = if let db = databaseName ?? selectedDatabaseName, !db.isEmpty {
+            "Maintenance (\(db))"
+        } else {
+            "Maintenance"
+        }
+
+        let tab = WorkspaceTab(
+            connection: connection,
+            session: session,
+            connectionSessionID: id,
+            title: title,
+            content: .mssqlMaintenance(viewModel)
+        )
+        queryTabs.append(tab)
+        activeQueryTabID = tab.id
+        lastActivity = Date()
+        return tab
+    }
+
+    @discardableResult
     func addMaintenanceTab(databaseName: String? = nil) -> WorkspaceTab {
         let effectiveDatabase = databaseName ?? selectedDatabaseName ?? connection.database
+
+        // Reuse existing maintenance tab for THIS specific database if present
+        if let existing = queryTabs.first(where: { tab in
+            guard let vm = tab.maintenance else { return false }
+            return vm.selectedDatabase == effectiveDatabase
+        }) {
+            activeQueryTabID = existing.id
+            return existing
+        }
+
         let viewModel = MaintenanceViewModel(
             session: session,
             connectionID: connection.id,
@@ -282,6 +332,12 @@ final class ConnectionSession: Identifiable {
 
     @discardableResult
     func addActivityMonitorTab() throws -> WorkspaceTab {
+        // Reuse existing activity monitor tab if present
+        if let existing = queryTabs.first(where: { $0.activityMonitor != nil }) {
+            activeQueryTabID = existing.id
+            return existing
+        }
+
         let monitor = try session.makeActivityMonitor()
         let viewModel = ActivityMonitorViewModel(
             monitor: monitor,
@@ -306,6 +362,16 @@ final class ConnectionSession: Identifiable {
     @discardableResult
     func addQueryStoreTab(databaseName: String) -> WorkspaceTab? {
         guard let mssql = session as? MSSQLSession else { return nil }
+
+        // Reuse existing query store tab for THIS specific database if present
+        if let existing = queryTabs.first(where: { tab in
+            guard let vm = tab.queryStoreVM else { return false }
+            return vm.databaseName == databaseName
+        }) {
+            activeQueryTabID = existing.id
+            return existing
+        }
+
         let viewModel = QueryStoreViewModel(
             queryStoreClient: mssql.queryStore,
             databaseName: databaseName,
@@ -327,6 +393,13 @@ final class ConnectionSession: Identifiable {
     @discardableResult
     func addExtendedEventsTab() -> WorkspaceTab? {
         guard let mssql = session as? MSSQLSession else { return nil }
+
+        // Reuse existing extended events tab if present
+        if let existing = queryTabs.first(where: { $0.extendedEventsVM != nil }) {
+            activeQueryTabID = existing.id
+            return existing
+        }
+
         let viewModel = ExtendedEventsViewModel(
             xeClient: mssql.extendedEvents,
             connectionSessionID: id
@@ -347,6 +420,13 @@ final class ConnectionSession: Identifiable {
     @discardableResult
     func addAvailabilityGroupsTab() -> WorkspaceTab? {
         guard let mssql = session as? MSSQLSession else { return nil }
+
+        // Reuse existing availability groups tab if present
+        if let existing = queryTabs.first(where: { $0.availabilityGroupsVM != nil }) {
+            activeQueryTabID = existing.id
+            return existing
+        }
+
         let viewModel = AvailabilityGroupsViewModel(
             agClient: mssql.availabilityGroups,
             connectionSessionID: id

@@ -9,9 +9,10 @@ extension NewAgentJobSheet {
         guard jobOwner.isEmpty else { return }
         Task {
             do {
-                let rs = try await session.session.simpleQuery("SELECT SUSER_SNAME() AS name;")
-                let val = rs.rows.first?[0] ?? ""
-                await MainActor.run { jobOwner = val }
+                if let mssql = session.session as? MSSQLSession {
+                    let name = try await mssql.serverSecurity.currentLoginName()
+                    await MainActor.run { jobOwner = name }
+                }
             } catch { }
         }
     }

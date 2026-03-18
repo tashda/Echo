@@ -7,18 +7,18 @@ struct QueryResultsSettingsView: View {
     var body: some View {
         Form {
             Section("Appearance") {
-                SettingsRowWithInfo(
+                PropertyRow(
                     title: "Show row numbers",
-                    description: "Displays a numbered index column on the leading edge of the results table."
+                    info: "Displays a numbered index column on the leading edge of the results table."
                 ) {
                     Toggle("", isOn: showRowNumbersBinding)
                         .labelsHidden()
                         .toggleStyle(.switch)
                 }
 
-                SettingsRowWithInfo(
+                PropertyRow(
                     title: "Alternate row shading",
-                    description: "Applies alternating background colors to result table rows for easier reading."
+                    info: "Applies alternating background colors to result table rows for easier reading."
                 ) {
                     Toggle("", isOn: alternateRowShadingBinding)
                         .labelsHidden()
@@ -27,27 +27,27 @@ struct QueryResultsSettingsView: View {
             }
 
             Section("Cell Inspector") {
-                SettingsRowWithInfo(
+                PropertyRow(
                     title: "Foreign keys in inspector",
-                    description: "Show referenced row details when selecting a foreign key cell."
+                    info: "Show referenced row details when selecting a foreign key cell."
                 ) {
                     Toggle("", isOn: showForeignKeysInInspectorBinding)
                         .labelsHidden()
                         .toggleStyle(.switch)
                 }
 
-                SettingsRowWithInfo(
+                PropertyRow(
                     title: "JSON values in inspector",
-                    description: "Show formatted JSON when selecting a JSON or JSONB cell."
+                    info: "Show formatted JSON when selecting a JSON or JSONB cell."
                 ) {
                     Toggle("", isOn: showJsonInInspectorBinding)
                         .labelsHidden()
                         .toggleStyle(.switch)
                 }
 
-                SettingsRowWithInfo(
+                PropertyRow(
                     title: "Auto-open inspector",
-                    description: "Automatically open and close the inspector panel based on cell selection."
+                    info: "Automatically open and close the inspector panel based on cell selection."
                 ) {
                     Toggle("", isOn: autoOpenInspectorBinding)
                         .labelsHidden()

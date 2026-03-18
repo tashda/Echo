@@ -27,8 +27,10 @@ struct PrimaryKeyEditorSheet: View {
         VStack(spacing: 0) {
             Form {
                 Section {
-                    LabeledContent("Constraint Name") {
+                    PropertyRow(title: "Constraint Name") {
                         TextField("", text: $draft.name)
+                            .textFieldStyle(.plain)
+                            .multilineTextAlignment(.trailing)
                     }
                 }
 
@@ -107,6 +109,7 @@ struct PrimaryKeyEditorSheet: View {
                 dismiss()
                 cancelIfNew()
             }
+            .buttonStyle(.bordered)
             .keyboardShortcut(.cancelAction)
 
             Button("Save") {
@@ -117,9 +120,7 @@ struct PrimaryKeyEditorSheet: View {
             .disabled(!draft.canSave)
             .keyboardShortcut(.defaultAction)
         }
-        .padding(.horizontal, SpacingTokens.md2)
-        .padding(.vertical, SpacingTokens.sm2)
-        .background(.bar)
+        .padding(SpacingTokens.md)
     }
 
     struct Draft {

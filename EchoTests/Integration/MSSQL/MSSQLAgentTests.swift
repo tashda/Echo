@@ -93,6 +93,19 @@ final class MSSQLAgentTests: MSSQLDockerTestCase {
         }
     }
 
+    // MARK: - Agent Error Logs
+
+    func testListErrorLogs() async throws {
+        do {
+            let mssqlSession = try XCTUnwrap(session as? MSSQLSession)
+            let logs = try await mssqlSession.agent.listErrorLogs()
+            XCTAssertTrue(logs.count >= 1, "There should be at least one error log")
+            XCTAssertNotNil(logs.first?.date, "Error log should have a date")
+        } catch {
+            throw XCTSkip("SQL Agent not available or lacking permissions: \(error.localizedDescription)")
+        }
+    }
+
     // MARK: - Job Create / Delete
 
     func testCreateAndDeleteJob() async throws {

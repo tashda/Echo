@@ -1,42 +1,5 @@
 import Foundation
 
-struct ForeignKeyInspectorContent: Sendable, Equatable {
-    struct Field: Sendable, Equatable, Identifiable {
-        let id: UUID
-        let label: String
-        let value: String
-
-        init(label: String, value: String) {
-            self.id = UUID()
-            self.label = label
-            self.value = value
-        }
-    }
-
-    let title: String
-    let subtitle: String?
-    let fields: [Field]
-    let related: [ForeignKeyInspectorContent]
-    let lookupQuerySQL: String?
-    let errorMessage: String?
-
-    init(
-        title: String,
-        subtitle: String? = nil,
-        fields: [Field],
-        related: [ForeignKeyInspectorContent] = [],
-        lookupQuerySQL: String? = nil,
-        errorMessage: String? = nil
-    ) {
-        self.title = title
-        self.subtitle = subtitle
-        self.fields = fields
-        self.related = related
-        self.lookupQuerySQL = lookupQuerySQL
-        self.errorMessage = errorMessage
-    }
-}
-
 struct JsonInspectorContent: Sendable, Equatable {
     let title: String
     let subtitle: String?
@@ -61,7 +24,8 @@ struct CellValueInspectorContent: Sendable, Equatable {
 }
 
 enum DataInspectorContent: Sendable, Equatable {
-    case foreignKey(ForeignKeyInspectorContent)
+    case databaseObject(DatabaseObjectInspectorContent)
+    case foreignKey(DatabaseObjectInspectorContent)
     case json(JsonInspectorContent)
     case jobHistory(JobHistoryInspectorContent)
     case cellValue(CellValueInspectorContent)

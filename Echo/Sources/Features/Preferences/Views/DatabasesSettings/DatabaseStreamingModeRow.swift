@@ -13,7 +13,7 @@ struct DatabaseStreamingModeRow: View {
     ]
 
     var body: some View {
-        LabeledContent {
+        PropertyRow(title: "Streaming Mode") {
             HStack(spacing: SpacingTokens.xxs2) {
                 Picker("", selection: $selection) {
                     ForEach(ResultStreamingExecutionMode.allCases, id: \.self) { mode in
@@ -47,11 +47,9 @@ struct DatabaseStreamingModeRow: View {
                         }
                     }
                     .padding(SpacingTokens.md)
-                    .frame(width: 320)
+                    .frame(width: LayoutTokens.Form.infoPopoverWidth)
                 }
             }
-        } label: {
-            Text("Streaming Mode")
         }
     }
 }

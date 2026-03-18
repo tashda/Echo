@@ -179,7 +179,7 @@ final class TableStructureEditorViewModel {
         isApplying = true
         defer { isApplying = false }
         do {
-            try await session.rebuildIndex(schema: schemaName, table: tableName, index: index.name)
+            _ = try await session.rebuildIndex(schema: schemaName, table: tableName, index: index.name)
             lastSuccessMessage = "Index \"\(index.name)\" rebuilt successfully"
         } catch {
             lastError = "Failed to rebuild index: \(error.localizedDescription)"

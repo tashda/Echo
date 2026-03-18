@@ -11,41 +11,83 @@ extension SecurityLoginSheet {
     var generalPage: some View {
         Section(isEditing ? "Login Properties" : "New Login") {
             if isEditing {
-                LabeledContent("Login Name", value: loginName)
+                PropertyRow(title: "Login Name") {
+                    Text(loginName)
+                        .foregroundStyle(ColorTokens.Text.secondary)
+                }
             } else {
-                TextField("Login Name", text: $loginName)
+                PropertyRow(title: "Login Name") {
+                    TextField("", text: $loginName)
+                        .textFieldStyle(.plain)
+                        .multilineTextAlignment(.trailing)
+                }
             }
 
-            Picker("Authentication", selection: $authType) {
-                Text("SQL Server Authentication").tag(AuthType.sql)
-                Text("Windows Authentication").tag(AuthType.windows)
+            PropertyRow(title: "Authentication") {
+                Picker("", selection: $authType) {
+                    Text("SQL Server").tag(AuthType.sql)
+                    Text("Windows").tag(AuthType.windows)
+                }
+                .labelsHidden()
+                .pickerStyle(.menu)
             }
         }
 
         if authType == .sql {
             Section("Credentials") {
-                SecureField("Password", text: $password, prompt: Text(isEditing ? "Leave empty to keep current" : ""))
-                if !isEditing {
-                    SecureField("Confirm Password", text: $confirmPassword)
+                PropertyRow(title: "Password") {
+                    SecureField("", text: $password, prompt: Text(isEditing ? "Leave empty to keep current" : ""))
+                        .textFieldStyle(.plain)
+                        .multilineTextAlignment(.trailing)
                 }
-                Toggle("Enforce password policy", isOn: $enforcePasswordPolicy)
-                Toggle("Enforce password expiration", isOn: $enforcePasswordExpiration)
-                    .disabled(!enforcePasswordPolicy)
+                
+                if !isEditing {
+                    PropertyRow(title: "Confirm Password") {
+                        SecureField("", text: $confirmPassword)
+                            .textFieldStyle(.plain)
+                            .multilineTextAlignment(.trailing)
+                    }
+                }
+                
+                PropertyRow(title: "Enforce policy") {
+                    Toggle("", isOn: $enforcePasswordPolicy)
+                        .labelsHidden()
+                        .toggleStyle(.switch)
+                }
+                
+                PropertyRow(title: "Enforce expiration") {
+                    Toggle("", isOn: $enforcePasswordExpiration)
+                        .labelsHidden()
+                        .toggleStyle(.switch)
+                        .disabled(!enforcePasswordPolicy)
+                }
             }
         }
 
         Section("Defaults") {
-            Picker("Default Database", selection: $defaultDatabase) {
-                ForEach(availableDatabases, id: \.self) { db in
-                    Text(db).tag(db)
+            PropertyRow(title: "Default Database") {
+                Picker("", selection: $defaultDatabase) {
+                    ForEach(availableDatabases, id: \.self) { db in
+                        Text(db).tag(db)
+                    }
                 }
+                .labelsHidden()
+                .pickerStyle(.menu)
             }
-            TextField("Default Language", text: $defaultLanguage, prompt: Text("Server default"))
-                .help("Leave empty to use the server default language.")
+            
+            PropertyRow(title: "Default Language") {
+                TextField("", text: $defaultLanguage, prompt: Text("Server default"))
+                    .textFieldStyle(.plain)
+                    .multilineTextAlignment(.trailing)
+            }
         }
 
         Section("Status") {
-            Toggle("Login enabled", isOn: $loginEnabled)
+            PropertyRow(title: "Login enabled") {
+                Toggle("", isOn: $loginEnabled)
+                    .labelsHidden()
+                    .toggleStyle(.switch)
+            }
         }
     }
 
@@ -58,21 +100,23 @@ extension SecurityLoginSheet {
                 HStack {
                     ProgressView().controlSize(.small)
                     Text("Loading server roles\u{2026}")
-                        .font(TypographyTokens.detail)
+                        .font(TypographyTokens.formDescription)
                         .foregroundStyle(ColorTokens.Text.secondary)
                 }
             }
         } else {
             Section("Server Role Membership") {
                 ForEach($availableServerRoles) { $role in
-                    Toggle(isOn: $role.isMember) {
-                        HStack {
-                            Text(role.name)
+                    PropertyRow(title: role.name) {
+                        HStack(spacing: SpacingTokens.xs) {
                             if role.isFixed {
                                 Text("(fixed)")
-                                    .font(TypographyTokens.label)
+                                    .font(TypographyTokens.formDescription)
                                     .foregroundStyle(ColorTokens.Text.tertiary)
                             }
+                            Toggle("", isOn: $role.isMember)
+                                .labelsHidden()
+                                .toggleStyle(.switch)
                         }
                     }
                     .disabled(role.name == "public")
@@ -141,26 +185,30 @@ extension SecurityLoginSheet {
                         HStack {
                             ProgressView().controlSize(.small)
                             Text("Loading roles\u{2026}")
-                                .font(TypographyTokens.detail)
+                                .font(TypographyTokens.formDescription)
                                 .foregroundStyle(ColorTokens.Text.secondary)
                         }
                     } else if databaseRoleMemberships.isEmpty {
                         Text("No fixed database roles available.")
-                            .font(TypographyTokens.detail)
+                            .font(TypographyTokens.formDescription)
                             .foregroundStyle(ColorTokens.Text.secondary)
                     } else {
                         ForEach($databaseRoleMemberships) { $role in
-                            Toggle(role.roleName, isOn: $role.isMember)
-                                .onChange(of: role.isMember) { _, newValue in
-                                    Task { await toggleDatabaseRole(database: selectedDB, role: role.roleName, isMember: newValue) }
-                                }
+                            PropertyRow(title: role.roleName) {
+                                Toggle("", isOn: $role.isMember)
+                                    .labelsHidden()
+                                    .toggleStyle(.switch)
+                                    .onChange(of: role.isMember) { _, newValue in
+                                        Task { await toggleDatabaseRole(database: selectedDB, role: role.roleName, isMember: newValue) }
+                                    }
+                            }
                         }
                     }
                 }
             } else if selectedMappingDatabase != nil {
                 Section("Database role membership") {
                     Text("Map the login to this database first to manage role membership.")
-                        .font(TypographyTokens.detail)
+                        .font(TypographyTokens.formDescription)
                         .foregroundStyle(ColorTokens.Text.secondary)
                 }
             }

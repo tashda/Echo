@@ -45,14 +45,19 @@ struct RestoreSheet: View {
 
     private var sourceSection: some View {
         Section("Source") {
-            TextField("Backup file path on server", text: $viewModel.diskPath)
-                .textFieldStyle(.roundedBorder)
+            PropertyRow(title: "Path on server") {
+                TextField("", text: $viewModel.diskPath)
+                    .textFieldStyle(.plain)
+                    .multilineTextAlignment(.trailing)
+            }
 
             HStack {
                 Spacer()
                 Button("List Backup Sets") {
                     Task { await viewModel.listBackupSets() }
                 }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
                 .disabled(!viewModel.canListSets)
             }
 
@@ -60,14 +65,14 @@ struct RestoreSheet: View {
                 HStack {
                     ProgressView().controlSize(.small)
                     Text("Reading backup file\u{2026}")
-                        .font(TypographyTokens.detail)
+                        .font(TypographyTokens.formDescription)
                         .foregroundStyle(ColorTokens.Text.secondary)
                 }
             }
 
             if let error = viewModel.loadError {
                 Label(error, systemImage: "exclamationmark.triangle")
-                    .font(TypographyTokens.detail)
+                    .font(TypographyTokens.formDescription)
                     .foregroundStyle(ColorTokens.Status.error)
             }
         }
@@ -138,23 +143,25 @@ struct RestoreSheet: View {
 
     private var targetSection: some View {
         Section("Target") {
-            TextField("Database Name", text: $viewModel.databaseName)
-                .textFieldStyle(.roundedBorder)
-
-            HStack {
-                Text("File Number")
-                Spacer()
-                TextField("", value: $viewModel.fileNumber, format: .number)
-                    .frame(width: 60)
+            PropertyRow(title: "Database Name") {
+                TextField("", text: $viewModel.databaseName)
+                    .textFieldStyle(.plain)
                     .multilineTextAlignment(.trailing)
             }
 
-            Toggle("Recover database (WITH RECOVERY)", isOn: $viewModel.withRecovery)
+            PropertyRow(title: "File Number") {
+                TextField("", value: $viewModel.fileNumber, format: .number)
+                    .textFieldStyle(.plain)
+                    .multilineTextAlignment(.trailing)
+            }
 
-            if !viewModel.withRecovery {
-                Text("NORECOVERY leaves the database in a restoring state, allowing additional backups to be applied.")
-                    .font(TypographyTokens.detail)
-                    .foregroundStyle(ColorTokens.Text.secondary)
+            PropertyRow(
+                title: "With Recovery",
+                subtitle: viewModel.withRecovery ? nil : "NORECOVERY leaves the database in a restoring state."
+            ) {
+                Toggle("", isOn: $viewModel.withRecovery)
+                    .labelsHidden()
+                    .toggleStyle(.switch)
             }
         }
     }
@@ -167,11 +174,11 @@ struct RestoreSheet: View {
                 if messages.isEmpty {
                     Label("Restore completed successfully.", systemImage: "checkmark.circle")
                         .foregroundStyle(ColorTokens.Status.success)
-                        .font(TypographyTokens.detail)
+                        .font(TypographyTokens.formDescription)
                 } else {
                     ForEach(messages, id: \.self) { msg in
                         Text(msg)
-                            .font(TypographyTokens.detail)
+                            .font(TypographyTokens.formDescription)
                             .foregroundStyle(ColorTokens.Text.secondary)
                     }
                 }
@@ -180,7 +187,7 @@ struct RestoreSheet: View {
             Section("Result") {
                 Label(message, systemImage: "exclamationmark.triangle")
                     .foregroundStyle(ColorTokens.Status.error)
-                    .font(TypographyTokens.detail)
+                    .font(TypographyTokens.formDescription)
             }
         default:
             EmptyView()
@@ -195,17 +202,20 @@ struct RestoreSheet: View {
                 ProgressView()
                     .controlSize(.small)
                 Text("Restoring\u{2026}")
-                    .font(TypographyTokens.detail)
+                    .font(TypographyTokens.formDescription)
                     .foregroundStyle(ColorTokens.Text.secondary)
             }
             Spacer()
             if viewModel.isRunning {
                 Button("Cancel") { viewModel.cancel() }
+                    .buttonStyle(.bordered)
             }
             Button("Close") { onDismiss() }
+                .buttonStyle(.bordered)
                 .keyboardShortcut(.cancelAction)
                 .disabled(viewModel.isRunning)
             Button("Restore") { Task { await viewModel.execute() } }
+                .buttonStyle(.borderedProminent)
                 .keyboardShortcut(.defaultAction)
                 .disabled(!viewModel.canExecute)
         }

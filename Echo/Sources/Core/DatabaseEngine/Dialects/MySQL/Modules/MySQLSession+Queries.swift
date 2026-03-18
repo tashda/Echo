@@ -172,7 +172,7 @@ extension MySQLSession {
         return []
     }
 
-    internal func currentDatabaseName() async throws -> String? {
+    public func currentDatabaseName() async throws -> String? {
         let rows = try await connection.simpleQuery("SELECT DATABASE()").get()
         guard let row = rows.first, let value = makeString(row, index: 0) else { return nil }
         return value.isEmpty ? nil : value

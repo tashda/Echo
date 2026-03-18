@@ -140,9 +140,7 @@ final class PSQLTabViewModel: Identifiable {
     }
 
     func resolveActiveDatabase() async {
-        guard let result = try? await session.simpleQuery("SELECT current_database() AS current_database"),
-              let firstRow = result.rows.first,
-              let rawValue = firstRow.first ?? nil else {
+        guard let rawValue = try? await session.currentDatabaseName() else {
             return
         }
 

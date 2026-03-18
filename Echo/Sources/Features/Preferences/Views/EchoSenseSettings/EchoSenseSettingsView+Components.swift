@@ -32,27 +32,12 @@ struct EchoSenseToggleRow: View {
     let title: String
     @Binding var isOn: Bool
     let topic: EchoSenseInfoTopic
-    @State private var isPopoverPresented = false
 
     var body: some View {
-        LabeledContent {
-            HStack(spacing: SpacingTokens.xxs2) {
-                Toggle("", isOn: $isOn)
-                    .labelsHidden()
-                    .toggleStyle(.switch)
-
-                Button(action: { isPopoverPresented.toggle() }) {
-                    Image(systemName: "info.circle")
-                        .imageScale(.medium)
-                }
-                .buttonStyle(.plain)
-                .foregroundStyle(ColorTokens.Text.secondary)
-                .popover(isPresented: $isPopoverPresented, attachmentAnchor: .rect(.bounds), arrowEdge: .trailing) {
-                    EchoSenseInfoPopover(topic: topic)
-                }
-            }
-        } label: {
-            Text(title)
+        PropertyRow(title: title, info: topic.message) {
+            Toggle("", isOn: $isOn)
+                .labelsHidden()
+                .toggleStyle(.switch)
         }
     }
 }
@@ -67,6 +52,6 @@ struct EchoSenseInfoPopover: View {
             .multilineTextAlignment(.leading)
             .fixedSize(horizontal: false, vertical: true)
             .padding(SpacingTokens.md)
-            .frame(width: 300)
+            .frame(width: LayoutTokens.Form.infoPopoverWidth)
     }
 }

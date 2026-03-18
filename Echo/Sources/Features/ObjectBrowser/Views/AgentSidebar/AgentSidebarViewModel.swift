@@ -149,23 +149,15 @@ final class AgentSidebarViewModel {
 
     private func loadErrorLogs(session: ConnectionSession) async {
         do {
-            let result = try await session.session.simpleQuery("EXEC xp_enumerrorlogs 2;")
-            let archiveIdx = result.columns.firstIndex { $0.name.localizedCaseInsensitiveContains("archive") } ?? 0
-            let dateIdx = result.columns.firstIndex { $0.name.localizedCaseInsensitiveContains("date") } ?? min(1, max(0, result.columns.count - 1))
-            let sizeIdx = result.columns.firstIndex { $0.name.localizedCaseInsensitiveContains("size") }
-            let items: [AgentErrorLog] = result.rows.compactMap { row in
-                let archiveStr: String = row.indices.contains(archiveIdx) ? (row[archiveIdx] ?? "0") : "0"
-                let digitsOnly = archiveStr.unicodeScalars.filter { CharacterSet.decimalDigits.contains($0) }
-                let archive = Int(String(String.UnicodeScalarView(digitsOnly))) ?? 0
-                let date: String = row.indices.contains(dateIdx) ? (row[dateIdx] ?? "") : ""
-                let size: String? = sizeIdx.flatMap { idx in
-                    row.indices.contains(idx) ? (row[idx] ?? nil) : nil
+            if let mssql = session.session as? MSSQLSession {
+                let logs = try await mssql.agent.listErrorLogs()
+                let items: [AgentErrorLog] = logs.map { log in
+                    AgentErrorLog(id: "\(log.archiveNumber)", archiveNumber: log.archiveNumber, date: log.date, size: log.size)
                 }
-                return AgentErrorLog(id: "\(archive)", archiveNumber: archive, date: date, size: size)
+                await MainActor.run { self.errorLogs = items }
             }
-            await MainActor.run { self.errorLogs = items }
         } catch {
-            await MainActor.run { self.errorLogs = [] }
+            await MainActor.run { self.errorMessage = error.localizedDescription }
         }
     }
 
