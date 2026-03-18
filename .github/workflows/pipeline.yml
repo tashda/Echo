@@ -133,7 +133,10 @@ jobs:
           -only-testing:EchoTests/SQLiteDataTypeTests \
           -only-testing:EchoTests/SessionProtocolComplianceTests \
           -only-testing:EchoTests/FactoryConnectionTests \
-          -disable-concurrent-testing
+          -disable-concurrent-testing \
+          CODE_SIGN_IDENTITY="" \
+          CODE_SIGNING_REQUIRED=NO \
+          CODE_SIGNING_ALLOWED=NO
 
     - name: Upload SQLite Results
       if: always()
@@ -202,7 +205,10 @@ jobs:
           xcodebuild test -project Echo.xcodeproj -scheme Echo -destination 'platform=macOS' \
             -only-testing:EchoTests/MSSQLConnectionTests \
             -only-testing:EchoTests/MSSQLTableOperationsTests \
-            -disable-concurrent-testing
+            -disable-concurrent-testing \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO
         done
 
     - name: Run Postgres Matrix
@@ -214,7 +220,10 @@ jobs:
           xcodebuild test -project Echo.xcodeproj -scheme Echo -destination 'platform=macOS' \
             -only-testing:EchoTests/PGConnectionTests \
             -only-testing:EchoTests/PGQueryTests \
-            -disable-concurrent-testing
+            -disable-concurrent-testing \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO
         done
 
     - name: Run Modern SQL Stack (Full Suite)
@@ -225,14 +234,20 @@ jobs:
           -only-testing:EchoTests/MSSQLConnectionTests \
           -only-testing:EchoTests/MSSQLQueryTests \
           -only-testing:EchoTests/MSSQLMaintenanceTests \
-          -disable-concurrent-testing
+          -disable-concurrent-testing \
+          CODE_SIGN_IDENTITY="" \
+          CODE_SIGNING_REQUIRED=NO \
+          CODE_SIGNING_ALLOWED=NO
 
     - name: Run UI Tests
       if: matrix.type == 'ui-tests'
       run: |
         pkill -x Echo || true
         xcodebuild test -project Echo.xcodeproj -scheme EchoUITests -destination 'platform=macOS' \
-          -disable-concurrent-testing
+          -disable-concurrent-testing \
+          CODE_SIGN_IDENTITY="" \
+          CODE_SIGNING_REQUIRED=NO \
+          CODE_SIGNING_ALLOWED=NO
 
     - name: Upload Matrix Results
       if: always()
