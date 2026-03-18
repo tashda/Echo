@@ -30,54 +30,29 @@ struct QueryEditorContainer: View {
     @State var inspectorAutoOpened = false
 #endif
 
+    private var panelState: BottomPanelState { tab.panelState }
+
     var body: some View {
         GeometryReader { geometry in
             let totalHeight = geometry.size.height
             let backgroundColor = ColorTokens.Background.primary
             let shouldShowResultsOnly = query.isResultsOnly
-            let ratioBinding = Binding<CGFloat>(
-                get: { min(max(query.splitRatio, minRatio), maxRatio) },
-                set: { newValue in
-                    query.splitRatio = min(max(newValue, minRatio), maxRatio)
-                }
-            )
-            let handleHeight: CGFloat = query.hasExecutedAtLeastOnce ? 9 : 0
-            let splitHeight = totalHeight - handleHeight
-            let baseRatio = ratioBinding.wrappedValue
+            let panelOpen = panelState.isOpen
+            let handleHeight: CGFloat = panelOpen ? 9 : 0
+            let statusBarHeight: CGFloat = 24
+            let splitHeight = totalHeight - handleHeight - statusBarHeight
+            let baseRatio = min(max(panelState.splitRatio, minRatio), maxRatio)
             let effectiveRatio = min(max(liveSplitRatioOverride ?? baseRatio, minRatio), maxRatio)
             let isResizingResults = liveSplitRatioOverride != nil
 
             VStack(spacing: 0) {
                 if shouldShowResultsOnly {
-#if os(macOS)
-                QueryResultsSection(
-                    query: query,
-                    connection: connectionForDisplay,
-                    activeDatabaseName: connectionDatabaseName,
-                    gridState: gridStateProvider(),
-                    isResizingResults: isResizingResults,
-                    onForeignKeyEvent: handleForeignKeyEvent,
-                    onJsonEvent: handleJsonEvent,
-                    onCellInspect: handleCellInspect
-                )
+                    resultsSection(isResizingResults: isResizingResults)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .background(backgroundColor)
                         .transition(.opacity)
-                #else
-                    QueryResultsSection(
-                        query: query,
-                        connection: connectionForDisplay,
-                        activeDatabaseName: connectionDatabaseName,
-                        gridState: gridStateProvider(),
-                        isResizingResults: isResizingResults
-                    )
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .background(backgroundColor)
-                        .transition(.opacity)
-                #endif
                 } else {
-                    let statusBarHeight: CGFloat = 24
-                    let editorHeight: CGFloat = query.hasExecutedAtLeastOnce
+                    let editorHeight: CGFloat = panelOpen
                         ? splitHeight * effectiveRatio
                         : totalHeight - statusBarHeight
 
@@ -89,12 +64,15 @@ struct QueryEditorContainer: View {
                         onRequestEstimatedPlan: requestEstimatedPlan,
                         onDebugExecute: debugExecute,
                         onDebugStop: debugStop,
-                        completionContext: editorCompletionContext
+                        completionContext: editorCompletionContext,
+                        onSchemaLoadNeeded: { dbName in
+                            ensureSchemaLoaded(forDatabase: dbName)
+                        }
                     )
                     .frame(height: editorHeight)
                     .background(backgroundColor)
 
-                    if query.hasExecutedAtLeastOnce {
+                    if panelOpen {
                         ResizeHandle(
                             ratio: effectiveRatio,
                             minRatio: minRatio,
@@ -109,40 +87,18 @@ struct QueryEditorContainer: View {
                             onCommit: { proposed in
                                 let clamped = min(max(proposed, minRatio), maxRatio)
                                 liveSplitRatioOverride = nil
-                                if abs(ratioBinding.wrappedValue - clamped) > 0.0001 {
-                                    ratioBinding.wrappedValue = clamped
-                                }
+                                panelState.splitRatio = clamped
                             }
                         )
-                    }
 
-                #if os(macOS)
-                    QueryResultsSection(
-                        query: query,
-                        connection: connectionForDisplay,
-                        activeDatabaseName: connectionDatabaseName,
-                        gridState: gridStateProvider(),
-                        isResizingResults: isResizingResults,
-                        onForeignKeyEvent: handleForeignKeyEvent,
-                        onJsonEvent: handleJsonEvent,
-                        onCellInspect: handleCellInspect
-                    )
-                        .frame(maxHeight: .infinity)
-                        .clipped()
-                        .background(backgroundColor)
-                #else
-                    QueryResultsSection(
-                        query: query,
-                        connection: connectionForDisplay,
-                        activeDatabaseName: connectionDatabaseName,
-                        gridState: gridStateProvider(),
-                        isResizingResults: isResizingResults
-                    )
-                        .frame(maxHeight: .infinity)
-                        .clipped()
-                        .background(backgroundColor)
-                #endif
+                        resultsSection(isResizingResults: isResizingResults)
+                            .frame(maxHeight: .infinity)
+                            .clipped()
+                            .background(backgroundColor)
+                    }
                 }
+
+                queryStatusBar
             }
             .transaction { $0.disablesAnimations = true }
         }
@@ -160,12 +116,16 @@ struct QueryEditorContainer: View {
             liveSplitRatioOverride = nil
         }
         .onChange(of: query.hasExecutedAtLeastOnce) { _, executed in
+            if executed && !panelState.isOpen && projectStore.globalSettings.autoOpenBottomPanel {
+                panelState.isOpen = true
+            }
             if !executed {
                 liveSplitRatioOverride = nil
             }
         }
         .task {
             await triggerAutoExecutionIfNeeded()
+            ensureCurrentDatabaseStructureLoaded()
         }
         .onChange(of: query.shouldAutoExecuteOnAppear) { _, newValue in
             guard newValue else { return }
@@ -187,4 +147,43 @@ struct QueryEditorContainer: View {
         environmentState.dataInspectorContent = .cellValue(content)
     }
 
+    @ViewBuilder
+    private func resultsSection(isResizingResults: Bool) -> some View {
+#if os(macOS)
+        QueryResultsSection(
+            query: query,
+            connection: connectionForDisplay,
+            activeDatabaseName: connectionDatabaseName,
+            gridState: gridStateProvider(),
+            isResizingResults: isResizingResults,
+            panelState: panelState,
+            onForeignKeyEvent: handleForeignKeyEvent,
+            onJsonEvent: handleJsonEvent,
+            onCellInspect: handleCellInspect
+        )
+#else
+        QueryResultsSection(
+            query: query,
+            connection: connectionForDisplay,
+            activeDatabaseName: connectionDatabaseName,
+            gridState: gridStateProvider(),
+            isResizingResults: isResizingResults,
+            panelState: panelState
+        )
+#endif
+    }
+
+    private var queryStatusBar: some View {
+        QueryPanelStatusBar(
+            query: query,
+            panelState: panelState,
+            connectionText: connectionChipText
+        )
+    }
+
+    private var connectionChipText: String {
+        let server = connectionServerName ?? "Server"
+        guard let db = connectionDatabaseName else { return server }
+        return "\(server) • \(db)"
+    }
 }

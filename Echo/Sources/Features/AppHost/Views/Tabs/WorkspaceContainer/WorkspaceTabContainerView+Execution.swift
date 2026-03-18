@@ -14,14 +14,15 @@ extension WorkspaceTabContainerView {
             let processed = SQLCMDPreprocessor.process(baseSQL)
             await MainActor.run {
                 for warning in processed.warnings {
-                    queryState.appendMessage(message: warning, severity: .warning)
+                    queryState.appendMessage(message: warning, severity: .warning, category: "SQLCMD")
                 }
             }
             guard !processed.batches.isEmpty else {
                 await MainActor.run {
                     queryState.appendMessage(
                         message: "SQLCMD preprocessing produced no executable batches",
-                        severity: .info
+                        severity: .info,
+                        category: "SQLCMD"
                     )
                 }
                 return
@@ -143,6 +144,15 @@ extension WorkspaceTabContainerView {
 
                     // Detect USE [database] in the original SQL and update tab context
                     detectAndApplyDatabaseSwitch(originalSQL: trimmedSQL, tab: tab)
+
+                    // After DDL (CREATE/ALTER/DROP/RENAME), refresh the session's schema structure
+                    // so autocomplete reflects the changes immediately.
+                    if isDDL(trimmedSQL), let session = environmentState.sessionGroup.activeSessions
+                        .first(where: { $0.id == tab.connectionSessionID }) {
+                        Task {
+                            await environmentState.refreshDatabaseStructure(for: session.id)
+                        }
+                    }
                 }
             } catch is CancellationError {
                 await MainActor.run {
@@ -200,7 +210,8 @@ extension WorkspaceTabContainerView {
                 queryState.isLoadingExecutionPlan = false
                 queryState.appendMessage(
                     message: "Estimated execution plan generated",
-                    severity: .info
+                    severity: .info,
+                    category: "Execution Plan"
                 )
             }
         } catch {
@@ -208,10 +219,18 @@ extension WorkspaceTabContainerView {
                 queryState.isLoadingExecutionPlan = false
                 queryState.appendMessage(
                     message: "Failed to generate execution plan: \(error.localizedDescription)",
-                    severity: .error
+                    severity: .error,
+                    category: "Execution Plan"
                 )
             }
         }
+    }
+
+    /// Returns true if the SQL begins with a DDL statement that modifies schema objects.
+    private func isDDL(_ sql: String) -> Bool {
+        let upper = sql.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        let ddlKeywords = ["CREATE ", "ALTER ", "DROP ", "RENAME ", "TRUNCATE ", "COMMENT "]
+        return ddlKeywords.contains(where: { upper.hasPrefix($0) })
     }
 
     private func loadForeignKeyMapping(session: DatabaseSession, schema: String, table: String) async -> ForeignKeyMapping {

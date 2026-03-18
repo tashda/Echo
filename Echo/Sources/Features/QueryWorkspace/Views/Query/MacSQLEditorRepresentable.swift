@@ -16,6 +16,7 @@ struct MacSQLEditorRepresentable: NSViewRepresentable {
     var onAddBookmark: (String) -> Void
     var completionContext: SQLEditorCompletionContext?
     var ruleTraceConfig: SQLAutocompleteRuleTraceConfiguration?
+    var onSchemaLoadNeeded: ((String) -> Void)?
 
     func makeCoordinator() -> Coordinator { Coordinator(parent: self) }
 
@@ -41,6 +42,7 @@ struct MacSQLEditorRepresentable: NSViewRepresentable {
             textView.isRuleTracingEnabled = false
             textView.onRuleTrace = nil
         }
+        textView.onSchemaLoadNeeded = onSchemaLoadNeeded
         context.coordinator.textView = textView
 
         Task { @MainActor [weak textView, weak scrollView] in
@@ -67,6 +69,7 @@ struct MacSQLEditorRepresentable: NSViewRepresentable {
             textView.isRuleTracingEnabled = false
             textView.onRuleTrace = nil
         }
+        textView.onSchemaLoadNeeded = onSchemaLoadNeeded
 
         if textView.string != text {
             context.coordinator.isUpdatingFromBinding = true

@@ -16,6 +16,7 @@ struct QueryInputSection: View {
     let onDebugExecute: ((String) async -> Void)?
     let onDebugStop: (() -> Void)?
     let completionContext: SQLEditorCompletionContext?
+    let onSchemaLoadNeeded: ((String) -> Void)?
 
     @Environment(AppState.self) var appState
     @Environment(EnvironmentState.self) private var environmentState
@@ -65,6 +66,7 @@ struct QueryInputSection: View {
                 display: appState.sqlEditorDisplay,
                 backgroundColor: editorBackground,
                 completionContext: completionContext,
+                onSchemaLoadNeeded: onSchemaLoadNeeded,
                 onTextChange: { newText in
                     if query.sql != newText {
                         query.sql = newText

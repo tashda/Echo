@@ -86,7 +86,10 @@ extension QueryEditorContainer {
         let session = connectionSession
         let baseConnection = session?.connection ?? tab.connection
         let databaseType = EchoSenseDatabaseType(baseConnection.databaseType)
-        let selectedDatabase = normalized(session?.selectedDatabaseName)
+        // Prefer the tab's explicit database (set when opening via right-click on a db),
+        // then the session-level selected database, then the connection default.
+        let selectedDatabase = normalized(tab.activeDatabaseName)
+            ?? normalized(session?.selectedDatabaseName)
             ?? normalized(baseConnection.database)
         let structure = session?.databaseStructure
             ?? session?.connection.cachedStructure
@@ -135,6 +138,36 @@ extension QueryEditorContainer {
             return "public"
         case .mysql, .sqlite:
             return nil
+        }
+    }
+
+    // MARK: - Schema Loading
+
+    /// Triggers a targeted schema load for the tab's active database if its schemas
+    /// are not yet present in the session structure. Called when the tab first appears.
+    func ensureCurrentDatabaseStructureLoaded() {
+        guard let activeDB = tab.activeDatabaseName?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !activeDB.isEmpty,
+              let session = connectionSession else { return }
+        ensureSchemaLoaded(forDatabase: activeDB, in: session)
+    }
+
+    /// Triggers a targeted schema load for the named database if its schemas are not
+    /// yet in the session structure. Called when the user types a cross-DB prefix (e.g. "employees.").
+    func ensureSchemaLoaded(forDatabase databaseName: String) {
+        guard let session = connectionSession else { return }
+        ensureSchemaLoaded(forDatabase: databaseName, in: session)
+    }
+
+    private func ensureSchemaLoaded(forDatabase databaseName: String, in session: ConnectionSession) {
+        // Skip if a structure load is currently in flight.
+        if case .loading = session.structureLoadingState { return }
+        let hasSchemas = session.databaseStructure?.databases
+            .first(where: { $0.name.caseInsensitiveCompare(databaseName) == .orderedSame })?
+            .schemas.isEmpty == false
+        guard !hasSchemas else { return }
+        Task {
+            await environmentState.loadSchemaForDatabase(databaseName, connectionSession: session)
         }
     }
 

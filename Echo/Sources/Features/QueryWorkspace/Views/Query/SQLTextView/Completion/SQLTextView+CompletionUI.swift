@@ -120,6 +120,9 @@ extension SQLTextView {
             let caretLocation = selectionRange.location
             let fullText = self.string
 
+            // Trigger lazy schema load when user types into another database (e.g. "employees.")
+            self.notifySchemaLoadIfNeeded(for: query)
+
             let engineResult = self.completionEngine.suggestions(for: query,
                                                                  text: fullText,
                                                                  caretLocation: caretLocation)
